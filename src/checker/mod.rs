@@ -524,10 +524,31 @@ pub fn check<'a>(
             let bind_w = std::sync::Arc::clone(bind_ref);
             s.spawn(move || {
                 let mut c = new_checker(files, options, bind_w, lib_file);
+                // Deterministic seed (Stage 1, docs/determinism-design.md): every
+                // worker checks the lib file first, so lib globals are interned in
+                // the same order — and thus get the same TypeIds — in every worker,
+                // regardless of which program files this worker is later assigned.
+                // Without it, a worker that checks `main` but not `lib` interns lib
+                // types on demand in a different order; union members are stored
+                // sorted by TypeId, so error-elaboration anchors shift and the
+                // output stops being worker-count-independent. This matches the
+                // jobs==1 order (lib is file 0 there). Duplicate lib diagnostics
+                // across workers are folded by sort_and_dedupe. (The redundant
+                // per-worker lib work is removed in Stage 3 by sharing a frozen
+                // resolved base.)
+                if let Some(lib_scope) = c.bind.module_scope.get(&lib_file).copied() {
+                    c.current_file = lib_file;
+                    let lib_ast = &files[lib_file].2;
+                    c.analyze_definite_assignment(&lib_ast.stmts, lib_scope);
+                    c.check_statements(&lib_ast.stmts, lib_scope);
+                }
                 loop {
                     let i = next_ref.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     if i >= n {
                         break;
+                    }
+                    if i == lib_file {
+                        continue; // already checked as the deterministic seed
                     }
                     let (_n, _t, ast) = &files[i];
                     c.current_file = i;
