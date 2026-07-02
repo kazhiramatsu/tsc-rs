@@ -491,16 +491,31 @@ impl<'a> FlowBuilder<'a, '_> {
                         scope: self.scope,
                         ante: ar,
                     })
-                } else if matches!(op, BinOp::AmpAmp) {
+                } else if matches!(
+                    op,
+                    BinOp::AmpAmp | BinOp::BarBar | BinOp::QuestionQuestion
+                ) {
+                    // the expression's out-flow joins the skip edge (RHS not
+                    // evaluated) with the RHS out-flow, so downstream reads
+                    // see narrowings/assignments from both paths (tsc
+                    // bindBinaryExpressionFlow). `??` evaluates its RHS on
+                    // NULLISH left — not expressible as a truthiness Cond, so
+                    // both its edges stay un-narrowed (fact parity: the fact
+                    // path doesn't narrow `??` operands either; tsc narrows
+                    // to the nullish part — Stage-1 TODO).
                     let al = self.build_expr(left, flow);
-                    let r_in = self.cond(left, true, al);
-                    self.build_expr(right, r_in);
-                    al
-                } else if matches!(op, BinOp::BarBar | BinOp::QuestionQuestion) {
-                    let al = self.build_expr(left, flow);
-                    let r_in = self.cond(left, false, al);
-                    self.build_expr(right, r_in);
-                    al
+                    let r_in = match op {
+                        BinOp::AmpAmp => self.cond(left, true, al),
+                        BinOp::BarBar => self.cond(left, false, al),
+                        _ => al,
+                    };
+                    let r_out = self.build_expr(right, r_in);
+                    let skip = match op {
+                        BinOp::AmpAmp => self.cond(left, false, al),
+                        BinOp::BarBar => self.cond(left, true, al),
+                        _ => al,
+                    };
+                    self.branch(vec![skip, r_out])
                 } else {
                     let al = self.build_expr(left, flow);
                     self.build_expr(right, al)
@@ -514,10 +529,10 @@ impl<'a> FlowBuilder<'a, '_> {
             } => {
                 let ac = self.build_expr(cond, flow);
                 let t_in = self.cond(cond, true, ac);
-                self.build_expr(when_true, t_in);
+                let t_out = self.build_expr(when_true, t_in);
                 let f_in = self.cond(cond, false, ac);
-                self.build_expr(when_false, f_in);
-                ac
+                let f_out = self.build_expr(when_false, f_in);
+                self.branch(vec![t_out, f_out])
             }
             Expr::Call { callee, args, .. } => {
                 // IIFE (tsc bindCallExpressionFlow): a non-async, non-

@@ -2396,7 +2396,11 @@ impl<'a> Checker<'a> {
         }
         let first_t = {
             let saved = self.caches.sym_type.remove(&sym);
+            // out-of-context re-check: the first declarator's initializer is
+            // re-derived under THIS declarator's fact state
+            self.fresolve.suppress += 1;
             let t = self.declared_var_type(first);
+            self.fresolve.suppress -= 1;
             if let Some(s) = saved {
                 self.caches.sym_type.insert(sym, s);
             }

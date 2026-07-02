@@ -102,6 +102,11 @@ pub struct FlowResolve {
     pub memo: HashMap<(RefKey, crate::binder::FlowNodeId), Option<TypeId>>,
     /// (ref, flow) pairs on the active resolution stack.
     pub in_progress: HashSet<(RefKey, crate::binder::FlowNodeId)>,
+    /// >0 while the checker re-checks a node OUTSIDE its lexical context
+    /// (e.g. TS2403 re-deriving the first `var` declarator's type from a
+    /// later one) — the verify seams skip, since fact state and flow node
+    /// would describe different program points.
+    pub suppress: u32,
 }
 
 /// Resolution memoization caches: symbol→type, member-shape, signature return &

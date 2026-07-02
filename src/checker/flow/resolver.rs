@@ -167,12 +167,22 @@ impl<'a> Checker<'a> {
             }
             Step::Dead => FlowRes::Dead,
             Step::Branch(antes) => {
+                let declared = self.declared_type_of_ref(key);
                 let mut tys: Vec<TypeId> = Vec::new();
                 let mut any_cycle = false;
                 let mut any_dead = false;
                 for a in antes {
                     match self.flow_type_at(key, a, depth + 1) {
                         FlowRes::Ty(t) => {
+                            // tsc getTypeAtFlowBranchLabel/LoopLabel: an
+                            // antecedent that already equals the declared
+                            // type subsumes every other path (all flow types
+                            // are its subtypes), so stop here — this is also
+                            // what keeps `A | C`-style unions collapsed to
+                            // `A` after an `if (isC(a)) {...}` join
+                            if Some(t) == declared {
+                                return FlowRes::Ty(t);
+                            }
                             if !tys.contains(&t) {
                                 tys.push(t);
                             }
@@ -197,17 +207,23 @@ impl<'a> Checker<'a> {
                     FlowRes::Ty(t) => t,
                     other => return other,
                 };
-                // tsc never narrows `any` on a negative edge (filterType /
-                // getTypeWithFacts leave non-union `any` alone), but the
-                // fact-stack helpers collapse it to `never`
-                // (`falsy_part(any)`, `narrow_to_pred(any, _, false)`).
-                // The lexical fact stack rarely materializes negative facts,
-                // while the resolver walks the false edge at EVERY join — a
-                // single `if (anyVal)` would poison every downstream read —
-                // so guard the edge here. (Effective-sense negatives inside
-                // the condition, e.g. `if (!x)`, still mirror the fact path;
+                // tsc never narrows `any` — or an unconstrained type param,
+                // which it cannot decompose — on a negative edge (filterType
+                // / getTypeWithFacts leave them whole), but the fact-stack
+                // helpers collapse both to `never` (`falsy_part(any)`,
+                // `falsy_part(T)`). The lexical fact stack rarely
+                // materializes negative facts, while the resolver walks the
+                // false edge at EVERY join — a single `if (anyVal)` or
+                // `t && u` would poison every downstream read — so guard the
+                // edge here. (Effective-sense negatives inside the
+                // condition, e.g. `if (!x)`, still mirror the fact path;
                 // aligning the helpers themselves is a Stage-1 task.)
-                if !sense && matches!(self.types.kind(t_in), TypeKind::Any) {
+                if !sense
+                    && matches!(
+                        self.types.kind(t_in),
+                        TypeKind::Any | TypeKind::TypeParam(_)
+                    )
+                {
                     return FlowRes::Ty(t_in);
                 }
                 // Reuse the existing condition narrower: seed a scratch fact
@@ -632,6 +648,14 @@ impl<'a> Checker<'a> {
         // resolver → type_of_symbol → lazy initializer check can re-enter a
         // read seam; verifying that inner read would clobber the outer walk
         if !self.fresolve.in_progress.is_empty() {
+            return;
+        }
+        // lazy symbol-type resolution and explicit out-of-context re-checks
+        // (TS2403 re-deriving a merged `var`'s first declarator under a later
+        // declarator's facts) re-check nodes OUT of their lexical context —
+        // the fact and the flow node would describe different program
+        // points, so don't compare
+        if !self.res.resolving.is_empty() || self.fresolve.suppress > 0 {
             return;
         }
         let Some(&fnode) = self.bind.flow_node.get(&nk) else {
