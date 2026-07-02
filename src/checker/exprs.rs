@@ -127,7 +127,10 @@ impl<'a> Checker<'a> {
             }
         }
         let t = self.check_expr_uncached(e, ctx);
-        if key != 0 {
+        // exploratory scaffold runs roll their diagnostics back — caching
+        // their result would make the real pass short-circuit here and never
+        // re-emit those diagnostics
+        if key != 0 && self.fresolve.quiet == 0 {
             self.caches.expr_type_cache.insert(key, t);
         }
         t
@@ -811,11 +814,16 @@ impl<'a> Checker<'a> {
                 );
             }
         }
-        // narrowing
+        // narrowing: the flow-graph resolver answers first (Stage 1); reads
+        // it cannot place (type positions, out-of-context re-checks) fall
+        // back to the lexical fact stack
         let key = RefKey(sym, Vec::new());
         let fact = self.fact_for(&key);
         if self.flow_verify {
             self.flow_verify_read(node_key(id), &key, fact, id.span);
+        }
+        if let Some(t) = self.flow_type_of_read(node_key(id), &key) {
+            return t;
         }
         if let Some(t) = fact {
             return t;

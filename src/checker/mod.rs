@@ -107,6 +107,12 @@ pub struct FlowResolve {
     /// later one) — the verify seams skip, since fact state and flow node
     /// would describe different program points.
     pub suppress: u32,
+    /// >0 while a resolver scaffold re-runs checker code exploratorily
+    /// (its diagnostics are rolled back afterwards). Exploratory runs must
+    /// not populate `expr_type_cache` or consume the once-per-node/symbol
+    /// report guards: either would silently eat the diagnostic when the
+    /// real check reaches the same node later.
+    pub quiet: u32,
 }
 
 /// Resolution memoization caches: symbol→type, member-shape, signature return &
@@ -4459,16 +4465,25 @@ impl<'a> Checker<'a> {
     /// time `(code, node_key)` is seen this program, false afterwards. Central
     /// "emit this once per node" gate (see `ReportGuards::reported_once_node`).
     pub(crate) fn report_once_node(&mut self, code: u32, node_key: usize) -> bool {
+        if self.fresolve.quiet > 0 {
+            return false;
+        }
         self.reported.reported_once_node.insert((code, node_key))
     }
 
     /// Insert-and-test guard for a symbol-scoped diagnostic: true the first time
     /// `(code, sym)` is seen, false afterwards (see `reported_once_sym`).
     pub(crate) fn report_once_sym(&mut self, code: u32, sym: SymbolId) -> bool {
+        if self.fresolve.quiet > 0 {
+            return false;
+        }
         self.reported.reported_once_sym.insert((code, sym))
     }
 
     pub fn report_used_before_assigned(&mut self, span: Span, name: String) {
+        if self.fresolve.quiet > 0 {
+            return;
+        }
         if self
             .reported
             .reported_2454

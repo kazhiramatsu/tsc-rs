@@ -499,21 +499,29 @@ impl<'a> FlowBuilder<'a, '_> {
                     // evaluated) with the RHS out-flow, so downstream reads
                     // see narrowings/assignments from both paths (tsc
                     // bindBinaryExpressionFlow). `??` evaluates its RHS on
-                    // NULLISH left — not expressible as a truthiness Cond, so
-                    // both its edges stay un-narrowed (fact parity: the fact
-                    // path doesn't narrow `??` operands either; tsc narrows
-                    // to the nullish part — Stage-1 TODO).
+                    // NULLISH left — a dedicated Nullish edge, since a
+                    // truthiness Cond would drop "" / 0 from the skip edge.
                     let al = self.build_expr(left, flow);
                     let r_in = match op {
                         BinOp::AmpAmp => self.cond(left, true, al),
                         BinOp::BarBar => self.cond(left, false, al),
-                        _ => al,
+                        _ => self.new_node(FlowNode::Nullish {
+                            expr: left,
+                            sense: false,
+                            scope: self.scope,
+                            ante: al,
+                        }),
                     };
                     let r_out = self.build_expr(right, r_in);
                     let skip = match op {
                         BinOp::AmpAmp => self.cond(left, false, al),
                         BinOp::BarBar => self.cond(left, true, al),
-                        _ => al,
+                        _ => self.new_node(FlowNode::Nullish {
+                            expr: left,
+                            sense: true,
+                            scope: self.scope,
+                            ante: al,
+                        }),
                     };
                     self.branch(vec![skip, r_out])
                 } else {

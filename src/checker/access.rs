@@ -335,13 +335,22 @@ impl<'a> Checker<'a> {
             Some(t) => t,
             None => return self.types.error,
         };
-        // narrowing facts on the path
+        // narrowing facts on the path: the flow-graph resolver answers first
+        // (Stage 1). A resolver answer equal to its own declared baseline
+        // means "no narrowing" — keep the checker-computed member type
+        // (`prop_access_type` handles this-substitution and namespace
+        // members the resolver's declared walk does not).
         if let Some(k) = self.ref_key_of(e) {
             let fact = self.fact_for(&k);
             if self.flow_verify {
                 self.flow_verify_read(crate::checker::exprs::node_key_expr(e), &k, fact, e.span());
             }
-            if let Some(t) = fact {
+            let resolved = self.flow_type_of_read(crate::checker::exprs::node_key_expr(e), &k);
+            if let Some(t) = resolved {
+                if Some(t) != self.declared_type_of_ref(&k) {
+                    result = t;
+                }
+            } else if let Some(t) = fact {
                 result = t;
             }
         }

@@ -62,6 +62,7 @@ enum Step<'a> {
     Init(&'a VarDeclarator, ScopeId, FlowNodeId),
     Switch(&'a Expr, &'a [SwitchCase], u32, ScopeId, FlowNodeId),
     Call(&'a Expr, ScopeId, FlowNodeId),
+    Nullish(&'a Expr, bool, ScopeId, FlowNodeId),
 }
 
 impl<'a> Checker<'a> {
@@ -148,6 +149,12 @@ impl<'a> Checker<'a> {
                 ante,
             } => Step::Switch(disc, cases, *clause, *scope, *ante),
             FlowNode::Call { call, scope, ante } => Step::Call(call, *scope, *ante),
+            FlowNode::Nullish {
+                expr,
+                sense,
+                scope,
+                ante,
+            } => Step::Nullish(expr, *sense, *scope, *ante),
         };
         match step {
             Step::Start(outer) => {
@@ -199,7 +206,13 @@ impl<'a> Checker<'a> {
                     // `while (true) {}` with no breaks): nothing to say
                     0 => FlowRes::Unknown,
                     1 => FlowRes::Ty(tys[0]),
-                    _ => FlowRes::Ty(self.types.union(tys)),
+                    _ => {
+                        let u = self.types.union(tys);
+                        // tsc getUnionOrEvolvingArrayType recombines the
+                        // decomposed unknown (`{} | null | undefined`) back
+                        // to `unknown` at joins
+                        FlowRes::Ty(self.recombine_unknown(u, declared))
+                    }
                 }
             }
             Step::Cond(cond, sense, scope, ante) => {
@@ -219,6 +232,7 @@ impl<'a> Checker<'a> {
                 let saved_da = self.flow.record_da_facts;
                 self.current_scope = scope;
                 self.flow.record_da_facts = false;
+                self.fresolve.quiet += 1;
                 let dlen = self.diags.len();
                 let out = self.narrowed(|c| {
                     c.set_fact(key.clone(), t_in);
@@ -226,14 +240,23 @@ impl<'a> Checker<'a> {
                     c.fact_for(key).unwrap_or(t_in)
                 });
                 self.diags.truncate(dlen);
+                self.fresolve.quiet -= 1;
                 self.flow.record_da_facts = saved_da;
                 self.current_scope = saved_scope;
-                if verbose() && out == self.types.never && t_in != self.types.never {
+                if verbose() {
+                    let name = self.symbol(key.0).name.clone();
                     eprintln!(
-                        "FLOW_VERIFY debug: Cond sense={} at {} narrowed {} -> never",
+                        "FLOW_VERIFY debug: Cond sense={} at {} key={}{} {} -> {}",
                         sense,
                         cond.span().start,
-                        self.display_type(t_in)
+                        name,
+                        if key.1.is_empty() {
+                            String::new()
+                        } else {
+                            format!(".{}", key.1.join("."))
+                        },
+                        self.display_type(t_in),
+                        self.display_type(out)
                     );
                 }
                 FlowRes::Ty(out)
@@ -251,6 +274,7 @@ impl<'a> Checker<'a> {
                 let saved_da = self.flow.record_da_facts;
                 self.current_scope = scope;
                 self.flow.record_da_facts = false;
+                self.fresolve.quiet += 1;
                 let dlen = self.diags.len();
                 let out = self.narrowed(|c| {
                     c.set_fact(key.clone(), t_in);
@@ -267,6 +291,7 @@ impl<'a> Checker<'a> {
                     c.fact_for(key).unwrap_or(t_in)
                 });
                 self.diags.truncate(dlen);
+                self.fresolve.quiet -= 1;
                 self.flow.record_da_facts = saved_da;
                 self.current_scope = saved_scope;
                 if verbose() && out == self.types.never && t_in != self.types.never {
@@ -276,6 +301,33 @@ impl<'a> Checker<'a> {
                         self.display_type(t_in)
                     );
                 }
+                FlowRes::Ty(out)
+            }
+            Step::Nullish(expr, sense, scope, ante) => {
+                // `a ?? b` (tsc narrowTypeByOptionality): the non-nullish
+                // skip edge keeps the NEUndefinedOrNull facts (with the
+                // strict NonNullable<> adjustment), the nullish RHS edge the
+                // EQUndefinedOrNull ones. Only a leaf reference match narrows.
+                let t_in = match self.flow_type_at(key, ante, depth + 1) {
+                    FlowRes::Ty(t) => t,
+                    other => return other,
+                };
+                if self.ref_key_in_scope(expr, scope) != Some(key.clone()) {
+                    return FlowRes::Ty(t_in);
+                }
+                let out = if sense {
+                    self.facts_filter(
+                        t_in,
+                        crate::checker::operators::facts::NE_UNDEFINED_OR_NULL,
+                        true,
+                    )
+                } else {
+                    self.facts_filter(
+                        t_in,
+                        crate::checker::operators::facts::EQ_UNDEFINED_OR_NULL,
+                        false,
+                    )
+                };
                 FlowRes::Ty(out)
             }
             Step::Call(call, scope, ante) => {
@@ -297,6 +349,7 @@ impl<'a> Checker<'a> {
                 let saved_da = self.flow.record_da_facts;
                 self.current_scope = scope;
                 self.flow.record_da_facts = false;
+                self.fresolve.quiet += 1;
                 let dlen = self.diags.len();
                 let out = self.narrowed(|c| {
                     c.set_fact(key.clone(), t_in);
@@ -304,11 +357,22 @@ impl<'a> Checker<'a> {
                     c.fact_for(key).unwrap_or(t_in)
                 });
                 self.diags.truncate(dlen);
+                self.fresolve.quiet -= 1;
                 self.flow.record_da_facts = saved_da;
                 self.current_scope = saved_scope;
                 FlowRes::Ty(out)
             }
             Step::Assign(target, expr, scope, ante) => {
+                // only variables (var/let/const/params/catch) are flow-
+                // narrowed by assignments; a bogus assignment to an enum
+                // object / namespace / class (`E = null`) is an error and
+                // must not make downstream reads of `E` see `null`
+                if self.symbol(key.0).flags
+                    & (flags::FUNCTION_SCOPED_VARIABLE | flags::BLOCK_SCOPED_VARIABLE)
+                    == 0
+                {
+                    return self.flow_type_at(key, ante, depth + 1);
+                }
                 match self.ref_key_in_scope(target, scope) {
                     Some(tk) if tk == *key => self.assigned_type(key, expr, scope, ante, depth),
                     // fact parity: an assignment through the same root
@@ -626,6 +690,48 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// tsc recombineUnknownType at flow joins: a union that reassembles the
+    /// decomposed strict `unknown` (`{} | null | undefined`, the empty
+    /// object anonymous and memberless) collapses back to the declared
+    /// `unknown`. Guarded on the declared type so an annotated
+    /// `{} | null | undefined` keeps its shape.
+    fn recombine_unknown(&mut self, u: TypeId, declared: Option<TypeId>) -> TypeId {
+        if declared.is_none_or(|d| !matches!(self.types.kind(d), TypeKind::Unknown)) {
+            return u;
+        }
+        let members = self.types.union_members(u);
+        if members.len() == 3
+            && members
+                .iter()
+                .any(|&m| matches!(self.types.kind(m), TypeKind::Null))
+            && members
+                .iter()
+                .any(|&m| matches!(self.types.kind(m), TypeKind::Undefined))
+            && members.iter().any(|&m| self.is_empty_object_type(m))
+        {
+            return self.types.unknown;
+        }
+        u
+    }
+
+    /// Stage-1 read seam: the resolver's answer for reference `key` at AST
+    /// node `nk`, now used IN PLACE of the lexical fact when it can be
+    /// computed. `None` sends the caller down the legacy fact path: type
+    /// positions have no flow node, dead-code walks return no answer, and
+    /// out-of-lexical-context reads (lazy symbol resolution, TS2403's
+    /// re-derivation, resolver re-entrancy) must not consult a flow node
+    /// that describes a different program point.
+    pub(crate) fn flow_type_of_read(&mut self, nk: usize, key: &RefKey) -> Option<TypeId> {
+        if !self.fresolve.in_progress.is_empty() {
+            return None;
+        }
+        if !self.res.resolving.is_empty() || self.fresolve.suppress > 0 {
+            return None;
+        }
+        let fnode = *self.bind.flow_node.get(&nk)?;
+        self.get_flow_type_of_reference(key, fnode)
+    }
+
     /// Dark-launch verification at a fact-stack read seam: compute the
     /// resolver's answer for the same reference and tally agreement against
     /// the fact-based result. Never changes checker output (diagnostics are
@@ -654,6 +760,7 @@ impl<'a> Checker<'a> {
             FLOW_VERIFY_NO_NODE.fetch_add(1, Ordering::Relaxed);
             return;
         };
+        self.fresolve.quiet += 1;
         let dlen = self.diags.len();
         let resolved = self.get_flow_type_of_reference(key, fnode);
         let baseline = match fact {
@@ -661,6 +768,7 @@ impl<'a> Checker<'a> {
             None => self.declared_type_of_ref(key),
         };
         self.diags.truncate(dlen);
+        self.fresolve.quiet -= 1;
         let Some(baseline) = baseline else { return };
         match resolved {
             Some(t) if t == baseline => {

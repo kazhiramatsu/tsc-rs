@@ -928,7 +928,17 @@ impl<'a> Checker<'a> {
                     self.check_expr(target, None)
                 }
             }
-            _ => self.check_expr(target, None),
+            _ => {
+                // write position: tsc checks assignments against the DECLARED
+                // type of the target, so the flow resolver must not narrow
+                // reads issued here; suppressed reads fall back to the fact
+                // path, which check_reference_for_assignment has already
+                // invalidated — the pre-flip behavior exactly.
+                self.fresolve.suppress += 1;
+                let t = self.check_expr(target, None);
+                self.fresolve.suppress -= 1;
+                t
+            }
         }
     }
 

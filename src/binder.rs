@@ -92,6 +92,17 @@ pub enum FlowNode<'a> {
         scope: ScopeId,
         ante: FlowNodeId,
     },
+    /// `expr` was tested for nullishness on this edge (`a ?? b`): sense=true
+    /// is the non-nullish skip edge, sense=false the nullish edge into the
+    /// RHS (tsc narrowTypeByOptionality: NEUndefinedOrNull / EQUndefinedOrNull
+    /// facts). Truthiness `Cond` cannot express this — `""` survives the
+    /// non-nullish edge.
+    Nullish {
+        expr: &'a crate::ast::Expr,
+        sense: bool,
+        scope: ScopeId,
+        ante: FlowNodeId,
+    },
 }
 
 pub mod flags {
