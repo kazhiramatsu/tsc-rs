@@ -207,25 +207,9 @@ impl<'a> Checker<'a> {
                     FlowRes::Ty(t) => t,
                     other => return other,
                 };
-                // tsc never narrows `any` — or an unconstrained type param,
-                // which it cannot decompose — on a negative edge (filterType
-                // / getTypeWithFacts leave them whole), but the fact-stack
-                // helpers collapse both to `never` (`falsy_part(any)`,
-                // `falsy_part(T)`). The lexical fact stack rarely
-                // materializes negative facts, while the resolver walks the
-                // false edge at EVERY join — a single `if (anyVal)` or
-                // `t && u` would poison every downstream read — so guard the
-                // edge here. (Effective-sense negatives inside the
-                // condition, e.g. `if (!x)`, still mirror the fact path;
-                // aligning the helpers themselves is a Stage-1 task.)
-                if !sense
-                    && matches!(
-                        self.types.kind(t_in),
-                        TypeKind::Any | TypeKind::TypeParam(_)
-                    )
-                {
-                    return FlowRes::Ty(t_in);
-                }
+                // (The former `any`/type-param guard on negative edges is
+                // gone: the fact helpers now implement tsc getTypeWithFacts,
+                // which keeps both whole on falsy edges by itself.)
                 // Reuse the existing condition narrower: seed a scratch fact
                 // frame with the antecedent type, run it, read the result
                 // back, pop. Names in `cond` resolve in ITS scope; definite-
@@ -259,15 +243,6 @@ impl<'a> Checker<'a> {
                     FlowRes::Ty(t) => t,
                     other => return other,
                 };
-                // negative-only paths (default clause / implicit no-match):
-                // same `any` guard as the negative Cond edge above
-                let negative_only = cases
-                    .get(clause as usize)
-                    .and_then(|cl| cl.test.as_ref())
-                    .is_none();
-                if negative_only && matches!(self.types.kind(t_in), TypeKind::Any) {
-                    return FlowRes::Ty(t_in);
-                }
                 // Same scaffold as `Cond`, reusing the fact-stack's switch
                 // narrowers: a matched clause narrows `disc === label`; a
                 // default clause (or the implicit no-match path) narrows by

@@ -788,7 +788,14 @@ impl<'a> Checker<'a> {
                     self.types.kind(idx_r),
                     TypeKind::NumLit(_) | TypeKind::Number
                 ) || (matches!(self.types.kind(idx_r), TypeKind::EnumMember(_))
-                    && self.enum_member_kinds_of(idx_r).0);
+                    && self.enum_member_kinds_of(idx_r).0)
+                    // compound indexes (`Directive | (T & number)` after a
+                    // typeof guard) apply to the `[n: number]` reverse map
+                    // whenever they are number-assignable
+                    || {
+                        let num = self.types.number;
+                        self.is_assignable_to(idx_r, num)
+                    };
                 if numeric && idx_numeric {
                     return self.types.intern_kind(TypeKind::String);
                 }

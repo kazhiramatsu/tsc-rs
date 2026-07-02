@@ -625,8 +625,20 @@ impl<'a> Checker<'a> {
                     this.narrow_by_condition_for_flow(left, true);
                     this.check_expr(right, ctx)
                 });
-                let falsy_left = self.falsy_part(lt);
+                let lreg = self.types.regular(lt);
                 let r = self.types.regular(rt);
+                // tsc: the definitely-falsy slice of the left (of the RIGHT's
+                // widened type in non-strict mode) unioned with the right.
+                // tsc's `hasTypeFacts(left, Truthy)` short-circuit is
+                // deliberately omitted: it only distinguishes definitely-falsy
+                // lefts, where tsc's self-referential initializers resolve to
+                // `any` by circularity (witness.ts) — machinery tsrs lacks.
+                let src = if self.options.strict_null_checks() {
+                    lreg
+                } else {
+                    self.types.widen_literal(r)
+                };
+                let falsy_left = self.definitely_falsy_part(src);
                 self.types.union(vec![falsy_left, r])
             }
             BarBar => {
@@ -639,9 +651,22 @@ impl<'a> Checker<'a> {
                     this.narrow_by_condition_for_flow(left, false);
                     this.check_expr(right, ctx)
                 });
-                let truthy_left = self.truthy_part(lt);
+                let lreg = self.types.regular(lt);
                 let r = self.types.regular(rt);
-                self.types.union(vec![truthy_left, r])
+                // tsc: a left that can never be falsy short-circuits to
+                // itself; otherwise remove the definitely-falsy constituents
+                // and (strict) the nullable ones, union with the right.
+                if self.type_facts(lreg) & facts::FALSY == 0 {
+                    lt
+                } else {
+                    let kept = self.facts_filter(lreg, facts::TRUTHY, false);
+                    let nn = if self.options.strict_null_checks() {
+                        self.facts_filter(kept, facts::NE_UNDEFINED_OR_NULL, true)
+                    } else {
+                        kept
+                    };
+                    self.types.union(vec![nn, r])
+                }
             }
             QuestionQuestion => {
                 let lt = self.check_expr(left, None);
@@ -664,9 +689,18 @@ impl<'a> Checker<'a> {
                     self.error_at(left.span(), &gen::This_expression_is_always_nullish, &[]);
                 }
                 let rt = self.check_expr(right, ctx);
-                let non_null = self.non_nullable(lt);
                 let r = self.types.regular(rt);
-                self.types.union(vec![non_null, r])
+                // tsc: a left that can never be nullish short-circuits to
+                // itself; otherwise NonNullable(left) | right, where the
+                // NonNullable adjustment only applies under strictNullChecks
+                if self.type_facts(lreg) & facts::EQ_UNDEFINED_OR_NULL == 0 {
+                    lt
+                } else if self.options.strict_null_checks() {
+                    let nn = self.facts_filter(lreg, facts::NE_UNDEFINED_OR_NULL, true);
+                    self.types.union(vec![nn, r])
+                } else {
+                    self.types.union(vec![lreg, r])
+                }
             }
             EqEq | NotEq | EqEqEq | NotEqEq => {
                 let lt = self.check_expr(left, None);
@@ -998,6 +1032,13 @@ impl<'a> Checker<'a> {
         if self.types.is_any_or_error(lw) || self.types.is_any_or_error(rw) {
             return;
         }
+        // tsc's comparable relation always admits null/undefined operands
+        // (`s != null` is legal null-guarding even when s can't be nullish)
+        if matches!(self.types.kind(lw), TypeKind::Null | TypeKind::Undefined)
+            || matches!(self.types.kind(rw), TypeKind::Null | TypeKind::Undefined)
+        {
+            return;
+        }
         if self.is_assignable_to(lw, rw) || self.is_assignable_to(rw, lw) {
             return;
         }
@@ -1182,50 +1223,269 @@ impl<'a> Checker<'a> {
         }
     }
 
-    pub fn falsy_part(&mut self, t: TypeId) -> TypeId {
-        self.types.filter_union(t, |tt, m| match tt.kind(m) {
-            TypeKind::Undefined | TypeKind::Null | TypeKind::Void => true,
-            TypeKind::BoolLit(false) => true,
-            TypeKind::StrLit(s) => s.is_empty(),
-            TypeKind::NumLit(bits) => f64::from_bits(*bits) == 0.0,
-            _ => false,
-        })
+    /// tsc getTypeFactsWorker (oracle typescript.js:74338) projected onto the
+    /// bits in [`facts`]: which truthiness/nullish-equality facts a type can
+    /// satisfy. Type parameters take their base constraint's facts (ALL when
+    /// unconstrained) — tsc never collapses them; unions OR their members'
+    /// facts; intersections AND theirs (skipping object operands when a
+    /// primitive operand is present). Non-strict mode adds the
+    /// implicit-nullability facts (EQ_* and FALSY) to every concrete kind,
+    /// which is why non-strict falsy narrowing filters nothing.
+    pub(crate) fn type_facts(&mut self, t: TypeId) -> u32 {
+        self.type_facts_depth(t, 0)
     }
 
-    pub fn truthy_part(&mut self, t: TypeId) -> TypeId {
+    fn type_facts_depth(&mut self, t: TypeId, depth: u32) -> u32 {
+        use facts::*;
+        if depth > 10 {
+            return ALL;
+        }
+        let strict = self.options.strict_null_checks();
+        // concrete non-nullish kinds: `x === undefined/null` can only hold
+        // through the implicit null/undefined of non-strict mode
+        let concrete = |truthy: bool, falsy: bool| -> u32 {
+            let mut m = NE_UNDEFINED | NE_NULL | NE_UNDEFINED_OR_NULL;
+            if !strict {
+                m |= EQ_UNDEFINED | EQ_NULL | EQ_UNDEFINED_OR_NULL;
+            }
+            if truthy {
+                m |= TRUTHY;
+            }
+            if falsy || !strict {
+                m |= FALSY;
+            }
+            m
+        };
         match self.types.kind(t).clone() {
-            TypeKind::TypeParam(_) => self.non_nullable(t),
-            TypeKind::Union(members) => {
-                let mut kept = Vec::new();
-                for member in members {
-                    match self.types.kind(member).clone() {
-                        TypeKind::Undefined | TypeKind::Null | TypeKind::Void => {}
-                        TypeKind::BoolLit(false) => {}
-                        TypeKind::BoolLit(true) => kept.push(member),
-                        TypeKind::StrLit(s) if s.is_empty() => {}
-                        TypeKind::StrLit(_) => kept.push(member),
-                        TypeKind::NumLit(bits) if f64::from_bits(bits) == 0.0 => {}
-                        TypeKind::NumLit(_) => kept.push(member),
-                        TypeKind::TypeParam(_) => kept.push(self.non_nullable(member)),
-                        _ => kept.push(member),
+            TypeKind::Any | TypeKind::Unknown | TypeKind::Error => ALL,
+            TypeKind::TypeParam(sym) => match self.constraint_of_type_param(sym) {
+                Some(c) => self.type_facts_depth(c, depth + 1),
+                None => ALL,
+            },
+            TypeKind::IndexedAccess(..)
+            | TypeKind::DeferredCond(..)
+            | TypeKind::DeferredMapped(..) => ALL,
+            // keyof T's base constraint is `string | number | symbol`
+            TypeKind::Keyof(_) => concrete(true, true),
+            TypeKind::String | TypeKind::Number | TypeKind::Bigint => concrete(true, true),
+            TypeKind::StrLit(s) => {
+                let empty = s.is_empty();
+                concrete(!empty, empty)
+            }
+            // tsc gives template-literal types NonEmptyString facts
+            TypeKind::TemplateLit(_) => concrete(true, false),
+            TypeKind::NumLit(bits) => {
+                let zero = f64::from_bits(bits) == 0.0;
+                concrete(!zero, zero)
+            }
+            TypeKind::BigIntLit(v) => {
+                let zero = is_zero_bigint(&v);
+                concrete(!zero, zero)
+            }
+            TypeKind::BoolLit(b) => concrete(b, !b),
+            TypeKind::EsSymbol => concrete(true, false),
+            TypeKind::Undefined | TypeKind::Void => {
+                EQ_UNDEFINED | EQ_UNDEFINED_OR_NULL | NE_NULL | FALSY
+            }
+            TypeKind::Null => EQ_NULL | EQ_UNDEFINED_OR_NULL | NE_UNDEFINED | FALSY,
+            TypeKind::Never => 0,
+            TypeKind::NonPrimitive => concrete(true, false),
+            // tsc folds enums into NumberFacts; member values are not consulted
+            TypeKind::EnumType(_) | TypeKind::EnumMember(_) => concrete(true, true),
+            TypeKind::Union(ms) => ms
+                .into_iter()
+                .fold(0, |acc, m| acc | self.type_facts_depth(m, depth + 1)),
+            TypeKind::Intersection(ms) => {
+                let has_prim = ms.iter().any(|&m| {
+                    matches!(
+                        self.types.kind(m),
+                        TypeKind::String
+                            | TypeKind::StrLit(_)
+                            | TypeKind::TemplateLit(_)
+                            | TypeKind::Number
+                            | TypeKind::NumLit(_)
+                            | TypeKind::Bigint
+                            | TypeKind::BigIntLit(_)
+                            | TypeKind::BoolLit(_)
+                            | TypeKind::EsSymbol
+                            | TypeKind::Void
+                            | TypeKind::Undefined
+                            | TypeKind::Null
+                            | TypeKind::EnumType(_)
+                            | TypeKind::EnumMember(_)
+                    )
+                });
+                let mut acc = ALL;
+                for m in ms {
+                    if has_prim
+                        && matches!(
+                            self.types.kind(m),
+                            TypeKind::Anon(_)
+                                | TypeKind::DeferredObj(_)
+                                | TypeKind::Iface(_)
+                                | TypeKind::Ref(..)
+                                | TypeKind::Tuple(_)
+                                | TypeKind::ReadonlyArray(_)
+                                | TypeKind::ReadonlyTuple(_)
+                                | TypeKind::ClassStatics(_)
+                                | TypeKind::MappedClassStatics(..)
+                                | TypeKind::MappedIface(..)
+                        )
+                    {
+                        continue;
                     }
+                    acc &= self.type_facts_depth(m, depth + 1);
                 }
-                if kept.is_empty() {
-                    self.types.never
+                acc
+            }
+            // object family: only the memberless anonymous `{}` keeps every
+            // fact under strict (tsc EmptyObjectStrictFacts) — it admits any
+            // non-nullish value, falsy ones included
+            TypeKind::Anon(_) | TypeKind::DeferredObj(_) => {
+                let empty = self
+                    .shape_of_type(t)
+                    .is_some_and(|s| {
+                        let sh = self.types.shape(s);
+                        sh.props.is_empty()
+                            && sh.call_sigs.is_empty()
+                            && sh.ctor_sigs.is_empty()
+                            && sh.index_infos.is_empty()
+                    });
+                if empty {
+                    if strict {
+                        ALL & !(EQ_UNDEFINED | EQ_NULL | EQ_UNDEFINED_OR_NULL)
+                    } else {
+                        ALL
+                    }
                 } else {
-                    self.types.union(kept)
+                    concrete(true, false)
                 }
             }
-            TypeKind::Undefined | TypeKind::Null | TypeKind::Void => self.types.never,
-            TypeKind::BoolLit(false) => self.types.never,
-            TypeKind::BoolLit(true) => t,
-            TypeKind::StrLit(s) if s.is_empty() => self.types.never,
-            TypeKind::StrLit(_) => t,
-            TypeKind::NumLit(bits) if f64::from_bits(bits) == 0.0 => self.types.never,
-            TypeKind::NumLit(_) => t,
-            _ => t,
+            // Iface/Ref/tuples/arrays/statics/namespace & enum objects
+            _ => concrete(true, false),
         }
     }
+
+    /// tsc getTypeWithFacts + the getAdjustedTypeWithFacts extras, shared by
+    /// the truthiness and nullish-equality narrowers: keep the constituents
+    /// whose facts include `include`. Strict `unknown` decomposes into
+    /// `{} | null | undefined` first (tsc unknownUnionType) and recombines
+    /// when the filter keeps all of it; `adjust_nn` applies the strict
+    /// NonNullable<> wrap to survivors that kept an EQUndefinedOrNull fact
+    /// (unconstrained / nullable-constrained type params — tsc maps these
+    /// through getGlobalNonNullableTypeInstantiation for Truthy and
+    /// NEUndefinedOrNull).
+    pub(crate) fn facts_filter(&mut self, t: TypeId, include: u32, adjust_nn: bool) -> TypeId {
+        let strict = self.options.strict_null_checks();
+        let mut decomposed = false;
+        let members = if strict && matches!(self.types.kind(t), TypeKind::Unknown) {
+            decomposed = true;
+            let empty = self.empty_object_type();
+            vec![empty, self.types.null, self.types.undefined]
+        } else {
+            self.types.union_members(t)
+        };
+        let total = members.len();
+        let mut kept = Vec::new();
+        let mut wrapped = false;
+        for m in members {
+            let f = self.type_facts(m);
+            if f & include == 0 {
+                continue;
+            }
+            if adjust_nn && strict && f & facts::EQ_UNDEFINED_OR_NULL != 0 {
+                // `any` absorbs the intersection and stays `any`; type params
+                // become NonNullable<T>
+                let nn = self.symbolic_non_nullable(m);
+                wrapped = wrapped || nn != m;
+                kept.push(nn);
+            } else {
+                kept.push(m);
+            }
+        }
+        if decomposed && kept.len() == total && !wrapped {
+            return t; // recombineUnknownType
+        }
+        self.types.union(kept)
+    }
+
+    /// tsc getTypeWithFacts(t, TypeFacts.Falsy): keep the constituents whose
+    /// facts include Falsy. `any` / `unknown` / type params pass whole, and
+    /// in non-strict mode every kind passes through its implicit
+    /// nullability — this never manufactures `never` out of them, unlike the
+    /// pre-CFG shape of this helper.
+    pub fn falsy_part(&mut self, t: TypeId) -> TypeId {
+        self.facts_filter(t, facts::FALSY, false)
+    }
+
+    /// tsc getAdjustedTypeWithFacts(t, TypeFacts.Truthy): filter to the
+    /// truthiness-capable constituents (`boolean` splits to `true`, strict
+    /// `unknown` becomes `{}`), then under strictNullChecks wrap survivors
+    /// that could still be undefined/null in NonNullable<>.
+    pub fn truthy_part(&mut self, t: TypeId) -> TypeId {
+        self.facts_filter(t, facts::TRUTHY, true)
+    }
+
+    /// tsc extractDefinitelyFalsyTypes (oracle 72477): the definitely-falsy
+    /// slice of each constituent — whole primitives contribute their falsy
+    /// literal ("" / 0 / 0n), `any`/`unknown`/nullish kinds pass whole,
+    /// everything else drops. This is the `&&` result-type helper; the
+    /// narrowing filter is `falsy_part`.
+    pub(crate) fn definitely_falsy_part(&mut self, t: TypeId) -> TypeId {
+        let members = self.types.union_members(t);
+        let mut kept = Vec::new();
+        for m in members {
+            let part = match self.types.kind(m).clone() {
+                TypeKind::String => Some(self.types.string_lit("")),
+                TypeKind::Number => Some(self.types.number_lit(0.0)),
+                TypeKind::Bigint => Some(self.types.intern_kind(TypeKind::BigIntLit("0n".into()))),
+                TypeKind::Any
+                | TypeKind::Unknown
+                | TypeKind::Error
+                | TypeKind::Undefined
+                | TypeKind::Null
+                | TypeKind::Void => Some(m),
+                TypeKind::BoolLit(false) => Some(m),
+                TypeKind::StrLit(s) if s.is_empty() => Some(m),
+                TypeKind::NumLit(bits) if f64::from_bits(bits) == 0.0 => Some(m),
+                TypeKind::BigIntLit(v) if is_zero_bigint(&v) => Some(m),
+                _ => None,
+            };
+            if let Some(p) = part {
+                kept.push(p);
+            }
+        }
+        self.types.union(kept)
+    }
+}
+
+/// tsc TypeFacts bits consumed by the narrowing helpers (values mirror
+/// oracle typescript.js TypeFacts; only the bits the checker consults are
+/// modeled).
+pub(crate) mod facts {
+    pub const EQ_UNDEFINED: u32 = 1 << 16;
+    pub const EQ_NULL: u32 = 1 << 17;
+    pub const EQ_UNDEFINED_OR_NULL: u32 = 1 << 18;
+    pub const NE_UNDEFINED: u32 = 1 << 19;
+    pub const NE_NULL: u32 = 1 << 20;
+    pub const NE_UNDEFINED_OR_NULL: u32 = 1 << 21;
+    pub const TRUTHY: u32 = 1 << 22;
+    pub const FALSY: u32 = 1 << 23;
+    pub const ALL: u32 = EQ_UNDEFINED
+        | EQ_NULL
+        | EQ_UNDEFINED_OR_NULL
+        | NE_UNDEFINED
+        | NE_NULL
+        | NE_UNDEFINED_OR_NULL
+        | TRUTHY
+        | FALSY;
+}
+
+/// bigint literal text (`-0n`, `0x0n`-normalized digits) denoting zero
+fn is_zero_bigint(v: &str) -> bool {
+    let s = v.strip_suffix('n').unwrap_or(v);
+    let s = s.strip_prefix('-').unwrap_or(s);
+    !s.is_empty() && s.chars().all(|c| c == '0')
 }
 
 fn unary_operator_text(op: UnaryOp) -> &'static str {

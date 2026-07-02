@@ -183,11 +183,11 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.cont.pop();
                 self.brk.pop();
                 self.add_ante(loop_label, body_out);
-                // The exit edge deliberately does NOT apply `Cond(cond, false)`:
-                // the fact stack has no post-loop negative narrowing, and its
-                // `falsy_part(any)` = never would poison every downstream read
-                // (tsc's getTypeWithFacts leaves `any` alone). Revisit in
-                // Stage 1 alongside aligning truthiness narrowing of `any`.
+                // The exit edge deliberately does NOT apply `Cond(cond, false)`
+                // yet: the fact stack has no post-loop negative narrowing, so
+                // the edge would only add verify noise against the fact
+                // baseline. Flip it in Stage 1 — the helpers now implement tsc
+                // getTypeWithFacts, so the edge is safe to add there.
                 self.add_ante(post, loop_label);
                 post
             }

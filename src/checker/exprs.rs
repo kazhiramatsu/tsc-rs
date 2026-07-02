@@ -1500,9 +1500,29 @@ impl<'a> Checker<'a> {
                 }
                 ObjectProp::Spread { expr, .. } => {
                     let t = self.check_expr(expr, None);
-                    let treg = self.types.regular(t);
+                    let mut treg = self.types.regular(t);
                     if self.types.is_any_or_error(treg) {
                         continue;
+                    }
+                    // `...(cond && { x })` spreads `false | { x }` now that
+                    // `&&` keeps the definitely-falsy left: those constituents
+                    // contribute nothing at runtime, so drop them before
+                    // distributing — also what keeps the repeated-null-check
+                    // perf fixture linear instead of forking shapes per
+                    // spread. (tsc instead merges to all-optional props via
+                    // tryMergeUnionOfObjectTypeAndEmptyObject; divergence
+                    // kept for corpus stability.)
+                    if let TypeKind::Union(members) = self.types.kind(treg).clone() {
+                        let kept: Vec<TypeId> = members
+                            .into_iter()
+                            .filter(|&m| {
+                                !matches!(
+                                    self.types.kind(m).clone(),
+                                    TypeKind::BoolLit(false) | TypeKind::StrLit(_) | TypeKind::NumLit(_) | TypeKind::BigIntLit(_)
+                                ) || self.type_facts(m) & crate::checker::operators::facts::TRUTHY != 0
+                            })
+                            .collect();
+                        treg = self.types.union(kept);
                     }
                     // union spread distributes: { ...(A | B) } => { ...A } | { ...B }
                     if let TypeKind::Union(members) = self.types.kind(treg).clone() {

@@ -4,6 +4,7 @@
 
 use crate::ast::*;
 use crate::binder::flags;
+use crate::checker::operators::facts;
 use crate::checker::{Checker, RefKey};
 use crate::types::{TypeId, TypeKind};
 use std::collections::{HashMap, HashSet};
@@ -199,6 +200,11 @@ impl<'a> Checker<'a> {
                 self.types.union(kept)
             }
         } else {
+            // tsc getNarrowedTypeWorker(assumeTrue=false): `any` survives the
+            // filter — isTypeSubsetOf never relates it to the true-branch type
+            if matches!(self.types.kind(cur), TypeKind::Any | TypeKind::Error) {
+                return cur;
+            }
             let members = self.types.union_members(cur);
             let kept: Vec<TypeId> = members
                 .into_iter()
@@ -220,25 +226,10 @@ impl<'a> Checker<'a> {
                 if let Some(key) = self.ref_key_of_pub(arg) {
                     if let Some(cur) = self.current_type_of_key(arg, &key) {
                         let narrowed = match pred.ty {
+                            // tsc narrows a bare `asserts x` by truthiness
+                            // (getAdjustedTypeWithFacts Truthy)
                             Some(pty) => self.narrow_to_pred(cur, pty, true),
-                            None => {
-                                let ff = self.types.false_t;
-                                let members = self.types.union_members(cur);
-                                let kept: Vec<TypeId> = members
-                                    .into_iter()
-                                    .filter(|&m| {
-                                        !matches!(
-                                            self.types.kind(m),
-                                            TypeKind::Null | TypeKind::Undefined | TypeKind::Void
-                                        ) && m != ff
-                                    })
-                                    .collect();
-                                if kept.is_empty() {
-                                    cur
-                                } else {
-                                    self.types.union(kept)
-                                }
-                            }
+                            None => self.truthy_part(cur),
                         };
                         self.set_fact(key, narrowed);
                     }
@@ -545,6 +536,14 @@ impl<'a> Checker<'a> {
                 let is_fn = !sh.call_sigs.is_empty() || !sh.ctor_sigs.is_empty();
                 (is_fn && l == "function") || (!is_fn && l == "object")
             }
+            // numeric enums answer typeof "number", string enums "string"
+            // (tsc folds Enum into NumberFacts / member literals)
+            (TypeKind::EnumType(_) | TypeKind::EnumMember(_), "number") => {
+                self.enum_member_kinds_of(m).0
+            }
+            (TypeKind::EnumType(_) | TypeKind::EnumMember(_), "string") => {
+                self.enum_member_kinds_of(m).1
+            }
             (
                 TypeKind::Iface(_)
                 | TypeKind::Ref(..)
@@ -558,6 +557,12 @@ impl<'a> Checker<'a> {
     }
 
     fn typeof_filter(&mut self, t: TypeId, lit: &str) -> TypeId {
+        // tsc narrowTypeByTypeName keeps `any` whole for "object"/"function"
+        if matches!(self.types.kind(t), TypeKind::Any)
+            && matches!(lit, "object" | "function")
+        {
+            return t;
+        }
         // unknown / any: produce the primitive directly
         if matches!(self.types.kind(t), TypeKind::Unknown | TypeKind::Any) {
             return match lit {
@@ -579,12 +584,75 @@ impl<'a> Checker<'a> {
                 _ => t,
             };
         }
+        let implied = self.typeof_implied_type(lit);
         let members = self.types.union_members(t);
-        let kept: Vec<TypeId> = members
-            .into_iter()
-            .filter(|&m| self.typeof_matches(m, lit))
-            .collect();
+        let mut kept: Vec<TypeId> = Vec::new();
+        for m in members {
+            if self.typeof_matches(m, lit) {
+                kept.push(m);
+                continue;
+            }
+            // tsc narrowTypeByTypeFacts: a constituent the implied type is
+            // assignable to (`{}`, `Object`) substitutes the implied type;
+            // an instantiable whose constraint admits the typeof result
+            // intersects with it (`T & string`, and `T & null` for
+            // "object"); anything else drops
+            let Some(implied) = implied else { continue };
+            if self.is_assignable_to(implied, m) {
+                if !kept.contains(&implied) {
+                    kept.push(implied);
+                }
+                continue;
+            }
+            if self.typeof_may_intersect(m, lit) {
+                let it = self.intersect_all(vec![m, implied]);
+                kept.push(it);
+                if lit == "object" {
+                    let nl = self.types.null;
+                    let itn = self.intersect_all(vec![m, nl]);
+                    kept.push(itn);
+                }
+            }
+        }
         self.types.union(kept)
+    }
+
+    /// the type a truthy `typeof x === lit` implies for a constituent that
+    /// overlaps it only abstractly (tsc narrowTypeByTypeName's impliedType)
+    fn typeof_implied_type(&mut self, lit: &str) -> Option<TypeId> {
+        Some(match lit {
+            "string" => self.types.string,
+            "number" => self.types.number,
+            "bigint" => self.types.bigint,
+            "boolean" => self.types.boolean,
+            "symbol" => self.types.es_symbol,
+            "undefined" => self.types.undefined,
+            "object" => self.types.non_primitive,
+            "function" => {
+                let s = self.global_type_symbol("Function")?;
+                self.types.intern_kind(TypeKind::Iface(s))
+            }
+            _ => return None,
+        })
+    }
+
+    /// whether a non-matching constituent may still intersect the typeof
+    /// implied type: an instantiable whose (transitive) constraint admits it
+    fn typeof_may_intersect(&mut self, m: TypeId, lit: &str) -> bool {
+        match self.types.kind(m).clone() {
+            TypeKind::TypeParam(sym) => match self.constraint_of_type_param(sym) {
+                None => true,
+                Some(c) => {
+                    let f = self.typeof_filter(c, lit);
+                    !matches!(self.types.kind(f), TypeKind::Never)
+                }
+            },
+            // mapped types are Object types in tsc (never Instantiable), so
+            // they match-or-drop like any other object — no intersection
+            TypeKind::IndexedAccess(..) | TypeKind::DeferredCond(..) => true,
+            TypeKind::Keyof(_) => matches!(lit, "string" | "number" | "symbol"),
+            _ => false,
+        }
     }
 
     fn typeof_filter_negative(&mut self, t: TypeId, lit: &str) -> TypeId {
@@ -652,29 +720,37 @@ impl<'a> Checker<'a> {
         let Some(cur) = self.current_type_of_key(target, &key) else {
             return;
         };
+        // tsc narrowTypeByEquality: `any` is never narrowed by equality (in
+        // either sense), and nullish comparisons narrow only under
+        // strictNullChecks
+        if matches!(self.types.kind(cur), TypeKind::Any | TypeKind::Error) {
+            return;
+        }
+        if !self.options.strict_null_checks()
+            && matches!(value, NarrowValue::Null | NarrowValue::Undefined)
+        {
+            return;
+        }
         let narrowed = match (&value, sense, loose) {
-            (NarrowValue::Null, true, false) => self
-                .types
-                .filter_union(cur, |tt, m| matches!(tt.kind(m), TypeKind::Null)),
-            (NarrowValue::Null, false, false) => self
-                .types
-                .filter_union(cur, |tt, m| !matches!(tt.kind(m), TypeKind::Null)),
+            // nullish comparisons are fact filters (oracle 75696): type
+            // params / unknown keep the facts of their constraint, so they
+            // survive instead of collapsing to never
+            (NarrowValue::Null, true, false) => self.facts_filter(cur, facts::EQ_NULL, false),
+            (NarrowValue::Null, false, false) => self.facts_filter(cur, facts::NE_NULL, false),
             (NarrowValue::Null, true, true) | (NarrowValue::Undefined, true, true) => {
-                self.types.filter_union(cur, |tt, m| {
-                    matches!(tt.kind(m), TypeKind::Null | TypeKind::Undefined)
-                })
+                self.facts_filter(cur, facts::EQ_UNDEFINED_OR_NULL, false)
             }
             (NarrowValue::Null, false, true) | (NarrowValue::Undefined, false, true) => {
-                self.types.filter_union(cur, |tt, m| {
-                    !matches!(tt.kind(m), TypeKind::Null | TypeKind::Undefined)
-                })
+                // getAdjustedTypeWithFacts(NEUndefinedOrNull): survivors that
+                // could still be nullish (type params) get NonNullable<>
+                self.facts_filter(cur, facts::NE_UNDEFINED_OR_NULL, true)
             }
-            (NarrowValue::Undefined, true, false) => self
-                .types
-                .filter_union(cur, |tt, m| matches!(tt.kind(m), TypeKind::Undefined)),
-            (NarrowValue::Undefined, false, false) => self
-                .types
-                .filter_union(cur, |tt, m| !matches!(tt.kind(m), TypeKind::Undefined)),
+            (NarrowValue::Undefined, true, false) => {
+                self.facts_filter(cur, facts::EQ_UNDEFINED, false)
+            }
+            (NarrowValue::Undefined, false, false) => {
+                self.facts_filter(cur, facts::NE_UNDEFINED, false)
+            }
             (NarrowValue::Str(s), true, _) => {
                 let lit = self.types.string_lit(s);
                 let members = self.types.union_members(cur);

@@ -1867,7 +1867,7 @@ function cloneClass<T extends Constructor<{}>>(OriginalClass: T): T {
     }
 
     #[test]
-    fn logical_or_and_nullish_keep_symbolic_nonnullable_type_parameter() {
+    fn logical_or_and_nullish_on_type_params_stay_unwrapped_when_nonstrict() {
         let opts = CompilerOptions {
             strict: Some(false),
             target: Some("es2015".to_string()),
@@ -1894,12 +1894,13 @@ function f<T, U>(t: T, u: U) {
             &opts,
         );
 
+        // tsc's getNonNullableType is the identity without strictNullChecks,
+        // so non-strict `t || u` / `t ?? u` stay `T | U` — no NonNullable<T>
+        // wrap. (The remaining TS2322s pin tsrs's stricter non-strict
+        // type-param → {} assignability; oracle tsc accepts all three lines.)
+        assert!(!out.contains("NonNullable"), "{out}");
         assert!(
-            out.contains("Type 'U | NonNullable<T>' is not assignable to type '{}'."),
-            "{out}"
-        );
-        assert!(
-            !out.contains("Type 'T | U' is not assignable to type '{}'."),
+            out.contains("Type 'T | U' is not assignable to type '{}'."),
             "{out}"
         );
         assert!(!out.contains("main.ts(5,9): error TS2322"), "{out}");
