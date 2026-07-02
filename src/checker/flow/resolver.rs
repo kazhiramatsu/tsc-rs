@@ -374,7 +374,12 @@ impl<'a> Checker<'a> {
                 }
                 // fact parity (stmts.rs declarator narrowing): a union-typed
                 // `let/const x: A | B = init` narrows to the members the
-                // initializer's value fits.
+                // initializer's value fits. ANNOTATED declarators only — an
+                // inferred union (`const f = c ? g1 : g2`) stays whole (tsc
+                // getAssignmentReducedType applies to declared unions).
+                if decl.ty.is_none() {
+                    return FlowRes::Ty(declared);
+                }
                 if let (Binding::Ident(_), Some(init)) = (&decl.name, &decl.init) {
                     if matches!(self.types.kind(declared), TypeKind::Union(_)) {
                         let it = match self.flow_expr_type(init, scope, ante, depth) {
