@@ -4310,6 +4310,26 @@ impl<'a> Checker<'a> {
         r
     }
 
+    /// Push the class-body frames — the class symbol on `class_stack` and its
+    /// class-body `this_container_stack` entry — for the duration of `f`,
+    /// popping both on every exit. Analogous to `with_fn_ctx`; `class_stack` is
+    /// used only here. Pops mirror the original order (class_stack then
+    /// this_container); the two are independent vectors, so the order is
+    /// immaterial to behavior.
+    pub(crate) fn with_class_body<R>(
+        &mut self,
+        class_sym: SymbolId,
+        tc: ThisContainer,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        self.stacks.class_stack.push(class_sym);
+        self.stacks.this_container_stack.push(tc);
+        let r = f(self);
+        self.stacks.class_stack.pop();
+        self.stacks.this_container_stack.pop();
+        r
+    }
+
     pub fn error_at(&mut self, span: Span, msg: &'static DiagnosticMessage, args: &[String]) {
         self.error_at_with_related(span, msg, args, Vec::new());
     }

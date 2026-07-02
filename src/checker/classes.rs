@@ -578,20 +578,32 @@ impl<'a> Checker<'a> {
             .unwrap_or(self.current_scope);
         let prev_scope = self.current_scope;
         self.current_scope = scope;
-        // `this` inside the class body/members refers to this class (paired with
-        // the class_stack.pop() at the end of this function).
-        self.stacks.class_stack.push(sym);
-        // The class-body `ThisContainer` covers decorators, the heritage clause,
-        // and non-static field initializers. Static members and method bodies
-        // push their own container on top.
-        self.stacks
-            .this_container_stack
-            .push(crate::checker::ThisContainer {
-                class_owner: Some(sym),
-                is_static: false,
-                kind: crate::checker::ContainerKind::ClassBody,
-                explicit_this: None,
-            });
+        // `this` inside the class body/members refers to this class. The
+        // class-body `ThisContainer` covers decorators, the heritage clause, and
+        // non-static field initializers; static members and method bodies push
+        // their own container on top. Both frames go through the with_class_body
+        // guard so they can't leak on an early return added to the (large)
+        // class-checking body. class_stack is used only here.
+        let class_tc = crate::checker::ThisContainer {
+            class_owner: Some(sym),
+            is_static: false,
+            kind: crate::checker::ContainerKind::ClassBody,
+            explicit_this: None,
+        };
+        self.with_class_body(sym, class_tc, |this| this.check_class_inner(c, sym, key, scope));
+        self.current_scope = prev_scope;
+    }
+
+    /// The body of `check_class`, run inside the class_stack/this_container guard
+    /// (`with_class_body`). Split out so those pops can't be leaked by an early
+    /// return added here.
+    fn check_class_inner(
+        &mut self,
+        c: &'a ClassDecl,
+        sym: SymbolId,
+        key: usize,
+        scope: crate::binder::ScopeId,
+    ) {
         if let Some(n) = &c.name {
             const RESERVED: &[&str] = &[
                 "any",
@@ -1198,9 +1210,6 @@ impl<'a> Checker<'a> {
                 }
             }
         }
-        self.stacks.class_stack.pop();
-        self.stacks.this_container_stack.pop();
-        self.current_scope = prev_scope;
     }
 
     fn type_has_failed_base_resolution(&mut self, t: TypeId) -> bool {
