@@ -1,0 +1,167 @@
+import json
+C=[]
+def add(n,s): C.append({"name":n,"src":s})
+
+# ── utility types ──
+add("b3_partial", "type P = Partial<{ a: number; b: string }>; const x: P = {};")
+add("b3_partial_bad", "type P = Partial<{ a: number }>; const x: P = { a: 's' };")
+add("b3_required", "type R = Required<{ a?: number }>; const x: R = {};")
+add("b3_readonly_util", "type R = Readonly<{ a: number }>; const x: R = { a: 1 }; x.a = 2;")
+add("b3_pick_ok", "type T = Pick<{ a: number; b: string }, 'a'>; const x: T = { a: 1 };")
+add("b3_pick_excess", "type T = Pick<{ a: number; b: string }, 'a'>; const x: T = { a: 1, b: 's' };")
+add("b3_omit_ok", "type T = Omit<{ a: number; b: string }, 'b'>; const x: T = { a: 1 };")
+add("b3_omit_missing", "type T = Omit<{ a: number; b: string }, 'b'>; const x: T = {};")
+add("b3_record_ok", "type T = Record<'a' | 'b', number>; const x: T = { a: 1, b: 2 };")
+add("b3_record_missing", "type T = Record<'a' | 'b', number>; const x: T = { a: 1 };")
+add("b3_exclude", "type T = Exclude<'a' | 'b' | 'c', 'a'>; const x: T = 'b'; const y: T = 'a';")
+add("b3_extract", "type T = Extract<'a' | 'b', 'a' | 'z'>; const x: T = 'a'; const y: T = 'b';")
+add("b3_nonnull", "type T = NonNullable<string | null | undefined>; const x: T = 's'; const y: T = null;")
+add("b3_returntype", "function f(): number { return 1; } type R = ReturnType<typeof f>; const x: R = 's';")
+add("b3_parameters", "function f(a: number, b: string) {} type P = Parameters<typeof f>; const x: P = [1, 's']; const y: P = [1];")
+add("b3_instancetype", "class C { x = 1; } type I = InstanceType<typeof C>; const v: I = new C(); const n: number = v.x;")
+add("b3_awaited", "type A = Awaited<Promise<number>>; const x: A = 1; const y: A = 's';")
+add("b3_awaited_nested", "type A = Awaited<Promise<Promise<string>>>; const x: A = 's'; const y: A = 1;")
+
+# ── intrinsic string types + template inference ──
+add("b3_uppercase", "type U = Uppercase<'abc'>; const x: U = 'ABC'; const y: U = 'abc';")
+add("b3_lowercase", "type L = Lowercase<'ABC'>; const x: L = 'abc';")
+add("b3_capitalize", "type C2 = Capitalize<'hello'>; const x: C2 = 'Hello'; const y: C2 = 'hello';")
+add("b3_uncapitalize", "type U = Uncapitalize<'Hello'>; const x: U = 'hello';")
+add("b3_tmpl_infer", "type E<T> = T extends `on${infer K}` ? K : never; type R = E<'onClick'>; const x: R = 'Click';")
+add("b3_tmpl_infer_bad", "type E<T> = T extends `on${infer K}` ? K : never; type R = E<'onClick'>; const x: R = 'click';")
+add("b3_tmpl_union_cross", "type T = `${'a' | 'b'}-${'x' | 'y'}`; const x: T = 'a-x'; const y: T = 'a-z';")
+add("b3_tmpl_number", "type T = `id-${number}`; const x: T = 'id-5'; const y: T = 'id-abc';")
+add("b3_tmpl_nested_infer", "type F<S> = S extends `${infer H}.${infer T}` ? H : S; const x: F<'a.b.c'> = 'a';")
+
+# ── mapped types (remapping / modifiers) ──
+add("b3_map_remap", "type T = { [K in 'a' | 'b' as `get_${K}`]: number }; const x: T = { get_a: 1, get_b: 2 };")
+add("b3_map_remap_filter", "type T = { [K in keyof { a: number; b: string } as K extends 'a' ? K : never]: number }; const x: T = { a: 1 };")
+add("b3_map_remove_readonly", "type T = { -readonly [K in keyof { readonly a: number }]: number }; const x: T = { a: 1 }; x.a = 2;")
+add("b3_map_add_optional", "type T = { [K in keyof { a: number }]?: number }; const x: T = {};")
+add("b3_map_remove_optional", "type T = { [K in keyof { a?: number }]-?: number }; const x: T = {};")
+add("b3_map_over_union", "type M<T> = { [K in keyof T]: T[K] }; type R = M<{ a: number }>; const x: R = { a: 1 };")
+add("b3_map_value_transform", "type Nullable<T> = { [K in keyof T]: T[K] | null }; const x: Nullable<{ a: number }> = { a: null };")
+
+# ── conditional types ──
+add("b3_cond_distribute", "type Box<T> = T extends any ? T[] : never; type R = Box<number | string>; const x: R = [1]; const y: R = ['a'];")
+add("b3_cond_no_distribute", "type Wrap<T> = [T] extends [any] ? T[] : never; type R = Wrap<number | string>; const x: R = [1, 'a'];")
+add("b3_cond_infer_constraint", "type E<T> = T extends Array<infer U extends number> ? U : never; type R = E<number[]>; const x: R = 1; const y: R = 's';")
+add("b3_cond_nested", "type T<X> = X extends string ? 'str' : X extends number ? 'num' : 'other'; const a: T<number> = 'num'; const b: T<number> = 'str';")
+add("b3_cond_func_infer", "type Ret<F> = F extends (...a: any[]) => infer R ? R : never; const x: Ret<() => string> = 's';")
+add("b3_cond_tuple_infer", "type Head<T> = T extends [infer H, ...any[]] ? H : never; const x: Head<[number, string]> = 1; const y: Head<[number, string]> = 's';")
+add("b3_cond_never_distribute", "type NonNull<T> = T extends null | undefined ? never : T; type R = NonNull<string | null>; const x: R = 's'; const y: R = null;")
+add("b3_cond_recursive_arr", "type Flat<T> = T extends Array<infer U> ? Flat<U> : T; const x: Flat<number[][]> = 1; const y: Flat<number[][]> = [1];")
+
+# ── variance / structural edges ──
+add("b3_var_method_bivariant", "interface A { f(x: number): void } interface B { f(x: number | string): void } const a: A = { f(_x: number | string) {} };")
+add("b3_var_fn_param_contra", "type F = (x: number | string) => void; const f: F = (_x: number) => {};")
+add("b3_var_fn_param_ok", "type F = (x: number) => void; const f: F = (_x: number | string) => {};")
+add("b3_var_return_covariant", "type F = () => number | string; const f: F = (): number => 1;")
+add("b3_var_optional_to_req", "type F = (x?: number) => void; const f: (x: number) => void = ((_x: number) => {}); const g: F = f;")
+add("b3_var_readonly_assign", "const a: number[] = [1]; const b: readonly number[] = a;")
+add("b3_var_readonly_assign_bad", "const a: readonly number[] = [1]; const b: number[] = a;")
+add("b3_var_tuple_to_arr", "const t: [number, number] = [1, 2]; const a: number[] = t;")
+add("b3_var_callback_param", "declare function each<T>(a: T[], f: (x: T) => void): void; each([1, 2], (x: number) => {}); each([1], (x: string) => {});")
+
+# ── discriminated unions / exhaustiveness ──
+add("b3_disc_basic", "type S = { k: 'a'; x: number } | { k: 'b'; y: string }; declare const s: S; const v: number = s.k === 'a' ? s.x : 0;")
+add("b3_disc_wrong_prop", "type S = { k: 'a'; x: number } | { k: 'b'; y: string }; declare const s: S; if (s.k === 'a') { const v: string = s.y; }")
+add("b3_disc_exhaustive", "type S = { k: 'a' } | { k: 'b' }; function f(s: S): number { switch (s.k) { case 'a': return 1; case 'b': return 2; } }")
+add("b3_disc_nonexhaustive", "type S = { k: 'a' } | { k: 'b' } | { k: 'c' }; function f(s: S): number { switch (s.k) { case 'a': return 1; case 'b': return 2; } }")
+add("b3_disc_narrow_access", "type S = { k: 'a'; x: number } | { k: 'b' }; declare const s: S; const v: number = s.x;")
+add("b3_disc_multiple", "type S = { t: 'x'; n: number } | { t: 'y'; n: string }; declare const s: S; if (s.t === 'x') { const v: number = s.n; }")
+
+# ── narrowing (deep) ──
+add("b3_nar_alias", "declare const x: string | number; const isStr = typeof x === 'string'; if (isStr) { const v: string = x; }")
+add("b3_nar_nonnull_op", "declare const x: string | null; const v: string = x!;")
+add("b3_nar_optional_chain", "declare const x: { a?: { b: number } }; const v = x.a?.b; const n: number = v;")
+add("b3_nar_const_literal", "const x = 'a'; const y: 'a' = x;")
+add("b3_nar_let_widen", "let x = 'a'; const y: 'a' = x;")
+add("b3_nar_truthy_obj", "declare const x: { a: number } | null; if (x) { const v: number = x.a; }")
+add("b3_nar_typeof_narrow_call", "declare const x: (() => number) | number; if (typeof x === 'function') { const v: number = x(); }")
+add("b3_nar_in_method", "type A = { run(): number }; type B = { stop(): string }; declare const x: A | B; if ('run' in x) { const v: number = x.run(); }")
+add("b3_nar_assign_narrow", "let x: number | string; x = 5; const v: number = x;")
+add("b3_nar_instanceof_class", "class Foo { x = 1; } declare const o: Foo | string; if (o instanceof Foo) { const v: number = o.x; }")
+add("b3_nar_never_after", "declare const x: string; if (typeof x === 'number') { const v: never = x; }")
+
+# ── generics (deep) ──
+add("b3_gen_fbound", "interface Comparable<T> { compareTo(o: T): number; } function max<T extends Comparable<T>>(a: T, b: T): T { return a.compareTo(b) > 0 ? a : b; } declare const x: Comparable<any>; max(x, x);")
+add("b3_gen_constraint_ref", "function pluck<T, K extends keyof T>(o: T, k: K): T[K] { return o[k]; } const r: number = pluck({ a: 1 }, 'a');")
+add("b3_gen_default_ref", "type Container<T, U = T[]> = { value: T; list: U }; const x: Container<number> = { value: 1, list: [1, 2] };")
+add("b3_gen_conditional_ret", "function wrap<T>(x: T): T extends string ? string[] : T[] { return [x] as any; } const r = wrap('a');")
+add("b3_gen_infer_nested", "declare function unwrap<T>(x: { value: T }): T; const r: number = unwrap({ value: 1 });")
+add("b3_gen_partial_apply", "declare function id<T>(x: T): T; const n: number = id(5); const s: string = id('a');")
+add("b3_gen_array_map", "declare function map<T, U>(a: T[], f: (x: T) => U): U[]; const r: string[] = map([1, 2], (x) => x.toString());")
+add("b3_gen_keyof_index", "function get<T, K extends keyof T>(o: T, ks: K[]): T[K][] { return ks.map(k => o[k]); } const r: number[] = get({ a: 1, b: 2 }, ['a', 'b']);")
+add("b3_gen_this_constraint", "class Builder<T> { private items: T[] = []; add(x: T): this { this.items.push(x); return this; } } const b = new Builder<number>().add(1).add(2);")
+add("b3_gen_nested_generic", "type Pair<A, B> = { first: A; second: B }; const p: Pair<number, Pair<string, boolean>> = { first: 1, second: { first: 'a', second: true } };")
+
+# ── classes (deep) ──
+add("b3_cls_abstract_inst", "abstract class A { abstract f(): number; } const a = new A();")
+add("b3_cls_abstract_impl_bad", "abstract class A { abstract f(): number; } class B extends A { f(): string { return 's'; } }")
+add("b3_cls_override_ok", "class A { f(): number { return 1; } } class B extends A { override f(): number { return 2; } }")
+add("b3_cls_private_access", "class C { #x = 1; get(): number { return this.#x; } } const c = new C(); const v = c.get();")
+add("b3_cls_static_method", "class C { static create(): C { return new C(); } } const c: C = C.create();")
+add("b3_cls_generic_method", "class Box<T> { constructor(public value: T) {} map<U>(f: (x: T) => U): Box<U> { return new Box(f(this.value)); } } const b = new Box(1).map(x => x.toString()); const v: string = b.value;")
+add("b3_cls_accessor_mismatch", "class C { get x(): number { return 1; } set x(v: string) {} }")
+add("b3_cls_protected_outside", "class C { protected x = 1; } const c = new C(); const v = c.x;")
+add("b3_cls_implements_generic", "interface Container<T> { get(): T; } class Box implements Container<number> { get(): number { return 1; } }")
+add("b3_cls_implements_bad", "interface Container<T> { get(): T; } class Box implements Container<number> { get(): string { return 's'; } }")
+add("b3_cls_ctor_param_prop", "class P { constructor(public x: number, private y: string) {} } const p = new P(1, 'a'); const v: number = p.x;")
+add("b3_cls_super_call", "class A { constructor(public x: number) {} } class B extends A { constructor() { super(1); } }")
+add("b3_cls_super_missing", "class A { constructor(public x: number) {} } class B extends A { constructor() {} }")
+
+# ── tuples (deep) ──
+add("b3_tup_variadic", "type T = [number, ...string[]]; const x: T = [1, 'a', 'b']; const y: T = ['a'];")
+add("b3_tup_labeled", "type T = [first: number, second: string]; const x: T = [1, 's'];")
+add("b3_tup_optional", "type T = [number, string?]; const x: T = [1]; const y: T = [1, 's'];")
+add("b3_tup_rest_middle", "type T = [number, ...boolean[], string]; const x: T = [1, true, false, 's'];")
+add("b3_tup_spread_type", "type A = [number, string]; type B = [...A, boolean]; const x: B = [1, 's', true];")
+add("b3_tup_concat_infer", "declare function concat<T extends any[], U extends any[]>(a: [...T], b: [...U]): [...T, ...U]; const r = concat([1], ['a']); const v: [number, string] = r;")
+add("b3_tup_readonly_idx", "const t: readonly [number, string] = [1, 's']; const v: number = t[0]; t[0] = 2;")
+add("b3_tup_destructure_rest", "const [a, ...rest]: [number, string, boolean] = [1, 's', true]; const r: [string, boolean] = rest;")
+
+# ── operators / expressions ──
+add("b3_satisfies_ok", "const x = { a: 1, b: 2 } satisfies Record<string, number>;")
+add("b3_satisfies_bad", "const x = { a: 1, b: 's' } satisfies Record<string, number>;")
+add("b3_satisfies_narrow", "const x = { a: 1 } satisfies { a: number }; const v: number = x.a;")
+add("b3_nullish_assign", "let x: number | null = null; x ??= 5; const v: number = x;")
+add("b3_logical_and_assign", "let x: number = 1; x &&= 2;")
+add("b3_optional_call", "declare const o: { f?: () => number }; const v = o.f?.(); const n: number | undefined = v;")
+add("b3_optional_index", "declare const o: { [k: string]: number } | null; const v = o?.['key']; const n: number | undefined = v;")
+add("b3_destructure_default", "function f({ a = 1 }: { a?: number }): number { return a; }")
+add("b3_destructure_rename", "const { a: x }: { a: number } = { a: 1 }; const v: number = x;")
+add("b3_spread_call", "declare function f(a: number, b: number, c: number): void; const args: [number, number, number] = [1, 2, 3]; f(...args);")
+add("b3_spread_array_type", "const a: number[] = [1, 2]; const b = [...a, 3]; const c: number[] = b;")
+add("b3_comma_op", "const x: number = (1, 2);")
+
+# ── async / generators ──
+add("b3_async_return", "async function f(): Promise<number> { return 1; }")
+add("b3_async_return_bad", "async function f(): Promise<number> { return 's'; }")
+add("b3_await_promise", "async function f(): Promise<number> { const x = await Promise.resolve(1); return x; }")
+add("b3_await_nonpromise", "async function f(): Promise<number> { const x = await 5; return x; }")
+add("b3_generator_yield", "function* g(): Generator<number> { yield 1; yield 2; }")
+add("b3_generator_yield_bad", "function* g(): Generator<number> { yield 's'; }")
+add("b3_async_arrow", "const f: () => Promise<string> = async () => 'a';")
+
+# ── never / unknown / any ──
+add("b3_unknown_no_access", "declare const x: unknown; const v = x.foo;")
+add("b3_unknown_narrow", "declare const x: unknown; if (typeof x === 'string') { const v: string = x; }")
+add("b3_never_assignable", "declare const x: never; const a: number = x; const b: string = x;")
+add("b3_any_propagate", "declare const x: any; const v: number = x.a.b.c;")
+add("b3_unknown_eq", "declare const x: unknown; const v: boolean = x === 1;")
+add("b3_never_return", "function fail(): never { throw new Error(); } const x: number = fail();")
+
+# ── definite assignment / control flow (deep) ──
+add("b3_da_try_assign", "function f(): number { let x: number; try { x = 1; } catch { x = 2; } return x; }")
+add("b3_da_throw_guard", "declare const c: boolean; function f(): number { let x: number; if (!c) throw new Error(); x = 1; return x; }")
+add("b3_da_definite_assert", "let x!: number; const v: number = x;")
+add("b3_da_for_of", "function f(arr: number[]): number { let sum = 0; for (const n of arr) { sum += n; } return sum; }")
+add("b3_da_switch_default", "type K = 'a' | 'b'; function f(k: K): number { let x: number; switch (k) { case 'a': x = 1; break; default: x = 2; } return x; }")
+add("b3_cf_unreachable_after_throw", "function f(): number { throw new Error(); return 1; }")
+add("b3_cf_return_in_both", "declare const c: boolean; function f(): number { if (c) { return 1; } else { return 2; } }")
+add("b3_cf_missing_return", "function f(c: boolean): number { if (c) { return 1; } }")
+
+import sys
+open('/tmp/cases3.json','w').write(json.dumps(C))
+print(f"wrote {len(C)} cases to /tmp/cases3.json")

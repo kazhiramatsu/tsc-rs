@@ -1,0 +1,24 @@
+[package]
+name = "tsrs"
+version = "0.1.0"
+edition = "2021"
+description = "A TypeScript type checker in Rust reproducing tsc diagnostics byte-for-byte"
+build = "build.rs"
+
+[lib]
+name = "tsrs"
+path = "src/lib.rs"
+
+[dependencies]
+# WTF-8 string storage: lets us hold the full space of JS string values,
+# including lone surrogates, which a Rust `String` (valid UTF-8 only) cannot.
+# This is the reference implementation by the WTF-8 spec author and is the same
+# encoding the Rust standard library uses internally for OS strings on Windows.
+wtf8 = "0.1"
+
+[[bin]]
+name = "tsrs"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3

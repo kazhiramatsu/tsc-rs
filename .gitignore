@@ -1,0 +1,11 @@
+/target/
+/tmp/
+/oracle/
+/ts-tests/
+/node_modules/
+**/__pycache__/
+*.py[cod]
+*.log
+.DS_Store
+# Claude Code local (per-machine) settings — not shared
+/.claude/settings.local.json
