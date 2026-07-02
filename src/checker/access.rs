@@ -337,7 +337,11 @@ impl<'a> Checker<'a> {
         };
         // narrowing facts on the path
         if let Some(k) = self.ref_key_of(e) {
-            if let Some(t) = self.fact_for(&k) {
+            let fact = self.fact_for(&k);
+            if self.flow_verify {
+                self.flow_verify_read(crate::checker::exprs::node_key_expr(e), &k, fact, e.span());
+            }
+            if let Some(t) = fact {
                 result = t;
             }
         }

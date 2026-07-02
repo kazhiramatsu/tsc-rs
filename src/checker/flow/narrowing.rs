@@ -67,7 +67,14 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// current (possibly narrowed) type of a narrowable reference
+    /// current (possibly narrowed) type of a narrowable reference.
+    ///
+    /// NOT a `flow_verify_read` seam: narrowers re-read their operand under
+    /// transient mid-application state (per-clause switch negation, else-chain
+    /// re-application), which the flow graph deliberately encodes as edges
+    /// from the operand's own node instead — comparing the two is
+    /// apples-to-oranges, and at flip time these internal reads run inside
+    /// the resolver's seeded scaffold anyway.
     fn current_type_of_key(&mut self, e: &Expr, key: &RefKey) -> Option<TypeId> {
         if let Some(t) = self.fact_for(key) {
             return Some(t);
