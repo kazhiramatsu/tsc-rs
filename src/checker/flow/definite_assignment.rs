@@ -66,8 +66,19 @@ impl<'a> Checker<'a> {
                         && d.ty.is_some()
                         && !d.exclam
                     {
-                        // track only when `undefined` is not a legal value of the
-                        // declared type (else reading before assignment is harmless).
+                        // Track only when `undefined` is not a legal value of the
+                        // declared type. `is_assignable_to` here also implicitly
+                        // gates strictNullChecks (under non-strict, undefined is
+                        // assignable to everything, so nothing is tracked) and
+                        // treats `void` as undefined-including, so `let x: T | void`
+                        // is NOT tracked here — the per-use
+                        // `check_use_before_declaration` catches that case
+                        // structurally instead (matching tsc). The two TS2454
+                        // emitters deliberately use different exclusion logic and
+                        // must NOT be naively merged (doing so regresses
+                        // `let x: T | void`); a single flow-sensitive +
+                        // cross-container predicate needs the Tier-2 control-flow
+                        // graph, not a shared helper.
                         let dt =
                             self.resolve_type_cached(d.ty.as_ref().unwrap(), self.current_scope);
                         let undef = self.types.undefined;

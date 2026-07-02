@@ -4745,6 +4745,15 @@ impl<'a> Checker<'a> {
                 return;
             }
             let t = self.type_of_symbol(sym);
+            // Structural "does the declared type already admit undefined?" test.
+            // Deliberately different from the forward pass's `da_var`, which uses
+            // `is_assignable_to(undefined, dt)`: that treats `void` as
+            // undefined-including, so `let x: T | void` is missed there — but tsc
+            // still requires definite assignment for it, and this structural check
+            // fires (correctly). The `strict_null_checks()` guard above is this
+            // path's explicit SNC gate (da_var gates SNC implicitly, via
+            // is_assignable_to). Do not merge the two into one predicate without
+            // the Tier-2 control-flow graph — doing so regresses `let x: T | void`.
             let allows_undef = match self.types.kind(t) {
                 crate::types::TypeKind::Any
                 | crate::types::TypeKind::Unknown
