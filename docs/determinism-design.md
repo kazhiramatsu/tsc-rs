@@ -121,3 +121,55 @@ Stages 1+2 deliver full correctness+determinism; Stage 3 is a perf refinement.
   oracle, not against the pre-change snapshot.
 - The golden baseline is intentionally stale (a standing snapshot); use the
   classifier vs tsc, not raw diff vs golden, to judge correctness.
+
+## Progress log & findings (2026-07)
+
+### Stage 1 — deterministic lib seed — DONE (committed)
+Each parallel worker checks the lib file first, so lib globals intern in one
+order (same TypeIds) in every worker. Full conformance corpus, `TSRS_JOBS=1`
+vs `16`: **byte-level nondeterministic files 22 → 2**. Removed real
+production false positives — `recursiveTypeReferences1` TS2322 anchor now
+`(72,8)` at all worker counts (was `(72,11)` at `J≥2`, a FP), and the spurious
+TS2304/TS2552 the parallel path emitted on `exportAssignImportedIdentifier` /
+`exportAssignmentCircularModules` (oracle-confirmed absent in tsc) are gone.
+`jobs==1` output unchanged; classifier 0 NEW_FP / 0 NEW_FN; 73 tests pass.
+
+### Stage B/Phase R "resolve all declared types" — ATTEMPTED, REVERTED
+A seed that eagerly resolves **every** module-scope declared symbol's type in
+fixed order (Phase R) was implemented and reverted. It **broke 5 tests**
+(`computed_object_literal_setters_report_implicit_any`,
+`named_function_expression_truthiness`, `non_strict_addition_keeps_2365`,
+`direct_nullish_values_report_18050`, `accessor_parameter_count`) and shifted
+many diagnostics (6133/2339/7022/…), and it *worsened* determinism (traded the
+2 residual files for 4 different ones).
+
+**Root finding — the Phase R premise is unsound for value symbols.** A value
+symbol's type (`const x = expr`, functions, etc.) is resolved *in context*
+during statement checking (initializer inference, usage tracking, flow). A
+context-free "resolve everything first" pass produces different results
+(implicit-any, truthiness, `+`/2365, nullish/18050) and corrupts expression
+diagnostics. Only **type-space** symbols (interface/alias/enum) have a
+context-free declared type suitable for a pre-pass; namespaces and value
+symbols do not.
+
+**Consequence.** Deterministic TypeId ordering requires a fixed-order type
+resolution, but value-symbol resolution is inherently in-context — so parallel
+intra-fixture checking and deterministic TypeId order are fundamentally at
+odds. The shared-frozen-base architecture (which needs a deterministic
+resolve-all Phase R) cannot be made sound without also resolving value symbols
+in-context, which defeats the pre-pass.
+
+### Recommended resolution (pending decision)
+For this workload the throughput comes from **batch/fixture-level** parallelism
+(`--check-batch --jobs`, deterministic); intra-fixture parallelism (`TSRS_JOBS`)
+adds negligible benefit (full corpus checks in ~5 s). So the pragmatic,
+evidence-based fix is:
+
+> **Default `TSRS_JOBS=1` (serial intra-fixture) → full determinism.** Keep
+> batch-level parallelism. Leave parallel intra-fixture as an opt-in that is
+> documented as not-yet-deterministic. ~2-line change, low risk.
+
+Note this changes the standing golden (parallel → serial) once, so it needs a
+baseline refresh. Alternatives: keep Stage 1 (91%, parallel default) and treat
+the residual as known limitations; or a type-space-only seed (fixes type-space
+determinism, leaves namespace/value residual such as `TwoInternalModules`).
