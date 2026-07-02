@@ -4288,6 +4288,28 @@ impl<'a> Checker<'a> {
         r
     }
 
+    /// Push the function-body frames — the active `FnCtx` on `fn_stack` and its
+    /// paired `this_container_stack` entry — for the duration of `f`, popping
+    /// both on every exit. These are always pushed and popped together at a
+    /// function-body entry and `fn_stack` is used nowhere else, so guarding them
+    /// here makes the bracketed discipline (whose violation caused the Phase-1
+    /// regression) impossible to break with a stray early return. Pops mirror the
+    /// original order (fn_stack then this_container); the two are independent
+    /// vectors, so the order is immaterial to behavior.
+    pub(crate) fn with_fn_ctx<R>(
+        &mut self,
+        fn_ctx: FnCtx,
+        tc: ThisContainer,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        self.stacks.fn_stack.push(fn_ctx);
+        self.stacks.this_container_stack.push(tc);
+        let r = f(self);
+        self.stacks.fn_stack.pop();
+        self.stacks.this_container_stack.pop();
+        r
+    }
+
     pub fn error_at(&mut self, span: Span, msg: &'static DiagnosticMessage, args: &[String]) {
         self.error_at_with_related(span, msg, args, Vec::new());
     }

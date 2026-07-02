@@ -766,7 +766,7 @@ impl<'a> Checker<'a> {
             None
         };
         let this_param_ty = explicit_this.or(staged_this);
-        self.stacks.fn_stack.push(super::FnCtx {
+        let fn_ctx = super::FnCtx {
             return_type: ret_ctx,
             is_async: has_modifier(&f.modifiers, ModifierKind::Async)
                 && !matches!(f.kind, FuncKind::Getter | FuncKind::Setter),
@@ -774,8 +774,8 @@ impl<'a> Checker<'a> {
             kind: f.kind,
             fn_key: key,
             this_ty: this_param_ty,
-        });
-        // Push the corresponding `ThisContainer`. For a class method/accessor/
+        };
+        // Build the corresponding `ThisContainer`. For a class method/accessor/
         // constructor we attach the owning class and its static-ness so that
         // `Expr::This` and `TypeNode::This` resolve correctly even when this
         // body is reached lazily (via `infer_return_from_body` from
@@ -798,12 +798,32 @@ impl<'a> Checker<'a> {
             None
         };
         let is_static = owner_class.is_some() && self.is_static_member(f);
-        self.stacks.this_container_stack.push(super::ThisContainer {
+        let tc = super::ThisContainer {
             class_owner: owner_class,
             is_static,
             kind: container_kind,
             explicit_this: this_param_ty,
+        };
+        // Push fn_stack + this_container for the body through a scoped guard, so
+        // both frames are popped on every exit path (including any early return
+        // added to the body) — the bracketed discipline whose violation caused
+        // the Phase-1 regression.
+        self.with_fn_ctx(fn_ctx, tc, |this| {
+            this.check_function_body_inner(f, scope, ret_ctx, declared_ret, is_async)
         });
+    }
+
+    /// The body of `check_function_body`, run inside the `fn_stack` /
+    /// `this_container_stack` guard (`with_fn_ctx`). Split out so those pops
+    /// cannot be leaked by an early return added here.
+    fn check_function_body_inner(
+        &mut self,
+        f: &'a FunctionLike,
+        scope: crate::binder::ScopeId,
+        ret_ctx: Option<TypeId>,
+        declared_ret: Option<TypeId>,
+        is_async: bool,
+    ) {
         let prev_scope = self.current_scope;
         self.current_scope = scope;
         match &f.body {
@@ -855,16 +875,5 @@ impl<'a> Checker<'a> {
                 self.error_at(span, &gen::Not_all_code_paths_return_a_value, &[]);
             }
         }
-        // Pair the pushes at lines 491 (fn_stack) and 523 (this_container_stack).
-        // Each `check_function_body` entry pushes matching frames on both
-        // stacks; pop them here on exit so both stacks track the *current*
-        // function nest accurately. (Both early returns above line 491 sit
-        // *before* the pushes, so these single pops are correct for every
-        // path through this function.) Pre-existing code that read
-        // `fn_stack.last()` / `is_empty()` and `this_container_stack.iter()`
-        // assumed bracketed push/pop discipline — that's the contract this
-        // restores.
-        self.stacks.fn_stack.pop();
-        self.stacks.this_container_stack.pop();
     }
 }
