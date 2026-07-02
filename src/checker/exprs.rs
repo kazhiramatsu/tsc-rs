@@ -813,7 +813,11 @@ impl<'a> Checker<'a> {
         }
         // narrowing
         let key = RefKey(sym, Vec::new());
-        if let Some(t) = self.fact_for(&key) {
+        let fact = self.fact_for(&key);
+        if self.flow_verify {
+            self.flow_verify_read(node_key(id), &key, fact, id.span);
+        }
+        if let Some(t) = fact {
             return t;
         }
         self.type_of_symbol(sym)

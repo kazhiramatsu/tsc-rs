@@ -93,6 +93,17 @@ pub struct FlowState {
     pub exhaustive_switches: std::collections::HashSet<usize>,
 }
 
+/// Tier-2 flow-graph resolver state (Stage 0 dark launch): per-top-level-query
+/// memoization and in-progress guard (cycle detection across loop back-edges)
+/// for `get_flow_type_of_reference`. See `src/checker/flow/resolver.rs`.
+#[derive(Default)]
+pub struct FlowResolve {
+    /// (ref, flow) → resolved type (`None` = unresolvable); cleared per query.
+    pub memo: HashMap<(RefKey, crate::binder::FlowNodeId), Option<TypeId>>,
+    /// (ref, flow) pairs on the active resolution stack.
+    pub in_progress: HashSet<(RefKey, crate::binder::FlowNodeId)>,
+}
+
 /// Resolution memoization caches: symbol→type, member-shape, signature return &
 /// `this` types, alias targets, and per-node / per-expression type caches.
 #[derive(Default)]
@@ -407,6 +418,12 @@ pub struct Checker<'a> {
     /// control-flow state (see `FlowState`)
     pub flow: FlowState,
 
+    /// flow-graph resolver state (see `FlowResolve`)
+    pub fresolve: FlowResolve,
+    /// `TSRS_FLOW_VERIFY` dark launch: at the fact-stack read seams, also run
+    /// the flow-graph resolver and tally agreement (output unchanged).
+    pub flow_verify: bool,
+
     /// checked declarations (idempotence for lazy double-checks)
     pub checked_decls: HashSet<usize>,
 
@@ -635,6 +652,8 @@ fn new_checker<'a>(
             da_facts: vec![HashSet::new()],
             ..Default::default()
         },
+        fresolve: FlowResolve::default(),
+        flow_verify: std::env::var("TSRS_FLOW_VERIFY").is_ok_and(|v| !v.is_empty() && v != "0"),
         checked_decls: HashSet::new(),
         lib_file,
         tp: TypeParamCtx::default(),

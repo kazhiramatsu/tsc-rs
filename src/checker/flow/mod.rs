@@ -4,6 +4,7 @@
 pub mod definite_assignment;
 pub mod narrowing;
 pub mod reachability;
+pub mod resolver;
 
 use crate::binder::SymbolId;
 use crate::checker::{Checker, RefKey};

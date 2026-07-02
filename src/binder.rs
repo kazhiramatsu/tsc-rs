@@ -31,9 +31,12 @@ pub enum FlowNode<'a> {
     Branch(Vec<FlowNodeId>),
     /// `cond` was evaluated with truthiness `sense` on this edge; the resolver
     /// applies `narrow_by_condition(cond, sense)` when the reference matches.
+    /// `scope` is the scope in effect at the condition, so names in `cond`
+    /// resolve correctly even when the resolver runs from a different scope.
     Cond {
         cond: &'a crate::ast::Expr,
         sense: bool,
+        scope: ScopeId,
         ante: FlowNodeId,
     },
     /// A reference was assigned here: `x = rhs` (incl. compound / logical
@@ -45,6 +48,7 @@ pub enum FlowNode<'a> {
     Assign {
         target: &'a crate::ast::Expr,
         expr: &'a crate::ast::Expr,
+        scope: ScopeId,
         ante: FlowNodeId,
     },
     /// A declarator bound its name(s) here: `let x = init`, or the
@@ -53,6 +57,7 @@ pub enum FlowNode<'a> {
     /// against the binding; on a match the flow type is the initial type.
     Init {
         decl: &'a crate::ast::VarDeclarator,
+        scope: ScopeId,
         ante: FlowNodeId,
     },
     /// Switch discriminant narrowing: clause index `case` of the switch on
@@ -67,6 +72,7 @@ pub enum FlowNode<'a> {
     /// gets a node; the resolver treats non-asserting calls as pass-through.
     Call {
         call: &'a crate::ast::Expr,
+        scope: ScopeId,
         ante: FlowNodeId,
     },
 }
