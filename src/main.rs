@@ -105,6 +105,13 @@ fn main() {
                         break;
                     }
                     let path = paths_ref[i];
+                    // dark-launch triage: emit a file marker so verbose
+                    // FLOW_VERIFY mismatch lines can be attributed (run with
+                    // --jobs 1 for deterministic interleaving)
+                    if std::env::var("TSRS_FLOW_VERIFY").is_ok_and(|v| v == "v" || v == "verbose")
+                    {
+                        eprintln!("FLOW_VERIFY file {}", path);
+                    }
                     let line = match std::fs::read_to_string(path) {
                         Err(_) => "READERR".to_string(),
                         Ok(text) => {

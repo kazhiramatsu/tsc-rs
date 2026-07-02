@@ -70,10 +70,14 @@ impl<'a> FlowBuilder<'a, '_> {
         self.new_node(FlowNode::Branch(antes))
     }
 
-    /// A fresh `Start` — a function-body entry, or the "unreachable" flow after a
-    /// return/throw/break/continue.
+    /// A fresh `Start` — a function-body entry.
     fn start(&mut self) -> FlowNodeId {
         self.new_node(FlowNode::Start)
+    }
+
+    /// The dead flow after a return/throw/break/continue (joins skip it).
+    fn unreachable(&mut self) -> FlowNodeId {
+        self.new_node(FlowNode::Unreachable)
     }
 
     /// Append an antecedent to an existing `Branch`/loop label.
@@ -157,8 +161,12 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.cont.pop();
                 self.brk.pop();
                 self.add_ante(loop_label, body_out);
-                let exit = self.cond(cond, false, loop_label);
-                self.add_ante(post, exit);
+                // The exit edge deliberately does NOT apply `Cond(cond, false)`:
+                // the fact stack has no post-loop negative narrowing, and its
+                // `falsy_part(any)` = never would poison every downstream read
+                // (tsc's getTypeWithFacts leaves `any` alone). Revisit in
+                // Stage 1 alongside aligning truthiness narrowing of `any`.
+                self.add_ante(post, loop_label);
                 post
             }
             Stmt::DoWhile { body, cond, .. } => {
@@ -209,11 +217,8 @@ impl<'a> FlowBuilder<'a, '_> {
                     None => body_out,
                 };
                 self.add_ante(loop_label, ai);
-                let exit = match cond {
-                    Some(c) => self.cond(c, false, loop_label),
-                    None => loop_label,
-                };
-                self.add_ante(post, exit);
+                // no `Cond(cond, false)` on the exit edge — see the While arm
+                self.add_ante(post, loop_label);
                 self.scope = saved;
                 post
             }
@@ -260,44 +265,79 @@ impl<'a> FlowBuilder<'a, '_> {
                 if let Some(e) = expr {
                     self.build_expr(e, flow);
                 }
-                self.start()
+                self.unreachable()
             }
             Stmt::Throw { expr, .. } => {
                 self.build_expr(expr, flow);
-                self.start()
+                self.unreachable()
             }
             Stmt::Break { label: None, .. } => {
                 if let Some(&t) = self.brk.last() {
                     self.add_ante(t, flow);
                 }
-                self.start()
+                self.unreachable()
             }
             Stmt::Continue { label: None, .. } => {
                 if let Some(&t) = self.cont.last() {
                     self.add_ante(t, flow);
                 }
-                self.start()
+                self.unreachable()
             }
             Stmt::Labeled { stmt, .. } => self.build_stmt(stmt, flow),
             Stmt::With { obj, body, .. } => {
                 let a = self.build_expr(obj, flow);
                 self.build_stmt(body, a)
             }
-            // Switch / Try (and labeled break/continue targets): threaded
-            // linearly for now (Stage-0 TODO). Still walk sub-expressions so
-            // references inside get a flow node (their declared type — safe).
             Stmt::Switch { expr, cases, .. } => {
                 let saved = self.enter(node_key(stmt));
                 let a = self.build_expr(expr, flow);
-                for c in cases {
+                let post = self.branch(vec![]);
+                self.brk.push(post);
+                let mut fallthrough: Option<FlowNodeId> = None;
+                let mut has_default = false;
+                for (i, c) in cases.iter().enumerate() {
                     if let Some(t) = &c.test {
                         self.build_expr(t, a);
+                    } else {
+                        has_default = true;
                     }
-                    self.build_stmts(&c.stmts, a);
+                    let clause_node = self.new_node(FlowNode::Switch {
+                        disc: expr,
+                        cases,
+                        clause: i as u32,
+                        scope: self.scope,
+                        ante: a,
+                    });
+                    // a clause is entered either by matching or by falling
+                    // through from the previous clause's body
+                    let clause_in = match fallthrough {
+                        Some(f) => self.branch(vec![clause_node, f]),
+                        None => clause_node,
+                    };
+                    fallthrough = Some(self.build_stmts(&c.stmts, clause_in));
                 }
+                if let Some(f) = fallthrough {
+                    self.add_ante(post, f);
+                }
+                if !has_default {
+                    // no clause matched: flow falls past the switch narrowed
+                    // by the negation of every label
+                    let none = self.new_node(FlowNode::Switch {
+                        disc: expr,
+                        cases,
+                        clause: cases.len() as u32,
+                        scope: self.scope,
+                        ante: a,
+                    });
+                    self.add_ante(post, none);
+                }
+                self.brk.pop();
                 self.scope = saved;
-                a
+                post
             }
+            // Try (and labeled break/continue targets): threaded linearly for
+            // now (Stage-0 TODO). Still walk sub-statements so references
+            // inside get a flow node (their declared type — safe).
             Stmt::Try {
                 block,
                 catch,

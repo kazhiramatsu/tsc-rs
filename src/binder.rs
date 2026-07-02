@@ -23,9 +23,14 @@ pub struct FlowNodeId(pub u32);
 /// the graph is built but not yet consumed by any diagnostic, so program output
 /// is unchanged.
 pub enum FlowNode<'a> {
-    /// Function/program entry, or an unreachable point: resolve to the declared
-    /// type (no flow refinement).
+    /// Function/program entry: resolve to the declared type (no flow
+    /// refinement).
     Start,
+    /// The flow after a `return`/`throw`/`break`/`continue`: no control path
+    /// reaches here, so joins skip it entirely (it must NOT contribute the
+    /// declared type to a `Branch` union — e.g. the fall-through edge out of
+    /// a terminated switch clause).
+    Unreachable,
     /// A control-flow join — resolve as the union over every antecedent. Also
     /// used as a loop label (back-edge antecedents are appended during build).
     Branch(Vec<FlowNodeId>),
@@ -60,11 +65,15 @@ pub enum FlowNode<'a> {
         scope: ScopeId,
         ante: FlowNodeId,
     },
-    /// Switch discriminant narrowing: clause index `case` of the switch on
-    /// `disc` (`default` clauses narrow by negation of all labels).
+    /// Switch discriminant narrowing: control entered clause `clause` of the
+    /// switch on `disc`. A `default` clause (or `clause == cases.len()`, the
+    /// implicit no-clause-matched path past the switch) narrows by the
+    /// negation of every case label.
     Switch {
         disc: &'a crate::ast::Expr,
-        case: u32,
+        cases: &'a [crate::ast::SwitchCase],
+        clause: u32,
+        scope: ScopeId,
         ante: FlowNodeId,
     },
     /// A call whose signature may assert (`asserts x is T` / `asserts x`).

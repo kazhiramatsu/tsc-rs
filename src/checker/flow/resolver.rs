@@ -42,6 +42,9 @@ fn verbose() -> bool {
 enum FlowRes {
     Ty(TypeId),
     Cycle,
+    /// no control path reaches this point (post-return/throw/break/continue);
+    /// joins skip it just like `Cycle`
+    Dead,
     Unknown,
 }
 
@@ -49,10 +52,12 @@ enum FlowRes {
 /// so extracting them releases the borrow of `bind.flow_nodes`).
 enum Step<'a> {
     Start,
+    Dead,
     Branch(Vec<FlowNodeId>),
     Cond(&'a Expr, bool, ScopeId, FlowNodeId),
     Assign(&'a Expr, &'a Expr, ScopeId, FlowNodeId),
     Init(&'a VarDeclarator, ScopeId, FlowNodeId),
+    Switch(&'a Expr, &'a [SwitchCase], u32, ScopeId, FlowNodeId),
     Pass(FlowNodeId),
 }
 
@@ -107,8 +112,9 @@ impl<'a> Checker<'a> {
             FlowRes::Unknown => {
                 self.fresolve.memo.insert(mk, None);
             }
-            // context-dependent; not memoizable
-            FlowRes::Cycle => {}
+            // Cycle is context-dependent (not memoizable); Dead is terminal
+            // and cheap to recompute
+            FlowRes::Cycle | FlowRes::Dead => {}
         }
         r
     }
@@ -116,6 +122,7 @@ impl<'a> Checker<'a> {
     fn flow_step(&mut self, key: &RefKey, flow: FlowNodeId, depth: u32) -> FlowRes {
         let step = match &self.bind.flow_nodes[flow.0 as usize] {
             FlowNode::Start => Step::Start,
+            FlowNode::Unreachable => Step::Dead,
             FlowNode::Branch(antes) => Step::Branch(antes.clone()),
             FlowNode::Cond {
                 cond,
@@ -130,18 +137,27 @@ impl<'a> Checker<'a> {
                 ante,
             } => Step::Assign(target, expr, *scope, *ante),
             FlowNode::Init { decl, scope, ante } => Step::Init(decl, *scope, *ante),
-            // Switch clauses aren't built yet; asserting calls not modeled yet.
-            FlowNode::Switch { ante, .. } | FlowNode::Call { ante, .. } => Step::Pass(*ante),
+            FlowNode::Switch {
+                disc,
+                cases,
+                clause,
+                scope,
+                ante,
+            } => Step::Switch(disc, cases, *clause, *scope, *ante),
+            // asserting calls not modeled yet
+            FlowNode::Call { ante, .. } => Step::Pass(*ante),
         };
         match step {
             Step::Start => match self.declared_type_of_ref(key) {
                 Some(t) => FlowRes::Ty(t),
                 None => FlowRes::Unknown,
             },
+            Step::Dead => FlowRes::Dead,
             Step::Pass(ante) => self.flow_type_at(key, ante, depth + 1),
             Step::Branch(antes) => {
                 let mut tys: Vec<TypeId> = Vec::new();
                 let mut any_cycle = false;
+                let mut any_dead = false;
                 for a in antes {
                     match self.flow_type_at(key, a, depth + 1) {
                         FlowRes::Ty(t) => {
@@ -150,13 +166,15 @@ impl<'a> Checker<'a> {
                             }
                         }
                         FlowRes::Cycle => any_cycle = true,
+                        FlowRes::Dead => any_dead = true,
                         FlowRes::Unknown => return FlowRes::Unknown,
                     }
                 }
                 match tys.len() {
                     0 if any_cycle => FlowRes::Cycle,
+                    0 if any_dead => FlowRes::Dead,
                     // a join no edge reaches (e.g. the post-label of
-                    // `while (true) {}`): nothing to say
+                    // `while (true) {}` with no breaks): nothing to say
                     0 => FlowRes::Unknown,
                     1 => FlowRes::Ty(tys[0]),
                     _ => FlowRes::Ty(self.types.union(tys)),
@@ -185,6 +203,54 @@ impl<'a> Checker<'a> {
                 self.diags.truncate(dlen);
                 self.flow.record_da_facts = saved_da;
                 self.current_scope = saved_scope;
+                if verbose() && out == self.types.never && t_in != self.types.never {
+                    eprintln!(
+                        "FLOW_VERIFY debug: Cond sense={} at {} narrowed {} -> never",
+                        sense,
+                        cond.span().start,
+                        self.display_type(t_in)
+                    );
+                }
+                FlowRes::Ty(out)
+            }
+            Step::Switch(disc, cases, clause, scope, ante) => {
+                let t_in = match self.flow_type_at(key, ante, depth + 1) {
+                    FlowRes::Ty(t) => t,
+                    other => return other,
+                };
+                // Same scaffold as `Cond`, reusing the fact-stack's switch
+                // narrowers: a matched clause narrows `disc === label`; a
+                // default clause (or the implicit no-match path) narrows by
+                // the negation of every label.
+                let saved_scope = self.current_scope;
+                let saved_da = self.flow.record_da_facts;
+                self.current_scope = scope;
+                self.flow.record_da_facts = false;
+                let dlen = self.diags.len();
+                let out = self.narrowed(|c| {
+                    c.set_fact(key.clone(), t_in);
+                    match cases.get(clause as usize).and_then(|cl| cl.test.as_ref()) {
+                        Some(test) => c.narrow_switch_case(disc, test),
+                        None => {
+                            for cl in cases {
+                                if let Some(test) = &cl.test {
+                                    c.narrow_switch_case_negative(disc, test);
+                                }
+                            }
+                        }
+                    }
+                    c.fact_for(key).unwrap_or(t_in)
+                });
+                self.diags.truncate(dlen);
+                self.flow.record_da_facts = saved_da;
+                self.current_scope = saved_scope;
+                if verbose() && out == self.types.never && t_in != self.types.never {
+                    eprintln!(
+                        "FLOW_VERIFY debug: Switch clause={} narrowed {} -> never",
+                        clause,
+                        self.display_type(t_in)
+                    );
+                }
                 FlowRes::Ty(out)
             }
             Step::Assign(target, expr, scope, ante) => {
