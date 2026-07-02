@@ -159,7 +159,16 @@ odds. The shared-frozen-base architecture (which needs a deterministic
 resolve-all Phase R) cannot be made sound without also resolving value symbols
 in-context, which defeats the pre-pass.
 
-### Recommended resolution (pending decision)
+### Resolution — IMPLEMENTED (default `TSRS_JOBS=1`)
+**Status: done.** `check()` now defaults `TSRS_JOBS` to 1, so the default is
+serial intra-fixture and fully deterministic. The default full-corpus output is
+byte-identical to the serial (`TSRS_JOBS=1`) path and to the Stage-1 result; 73
+tests pass; the standing golden was refreshed (parallel → serial). Parallel
+intra-fixture (`TSRS_JOBS>1`) remains an opt-in that is not yet deterministic
+(and its per-worker lib seed from Stage 1 still reduces, but does not eliminate,
+its nondeterminism).
+
+Rationale (as decided):
 For this workload the throughput comes from **batch/fixture-level** parallelism
 (`--check-batch --jobs`, deterministic); intra-fixture parallelism (`TSRS_JOBS`)
 adds negligible benefit (full corpus checks in ~5 s). So the pragmatic,

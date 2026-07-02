@@ -478,12 +478,19 @@ pub fn check<'a>(
     let bind = std::sync::Arc::new(bind);
     let n = files.len();
 
-    // worker count: env override (used to compare sequential vs parallel in
-    // tests) else available parallelism, capped at the file count.
+    // Worker count. Intra-fixture parallelism is OPT-IN (TSRS_JOBS>1) and
+    // defaults to 1 (serial) so a program's diagnostics are DETERMINISTIC:
+    // a single worker owns one type table and interns cross-file types in one
+    // order, whereas parallel workers with independent tables intern them in a
+    // worker-layout-dependent order — union members are stored sorted by
+    // TypeId, so that shifts error-elaboration anchors and some resolution-side-
+    // effect diagnostics (see docs/determinism-design.md). Throughput comes from
+    // fixture-level batch parallelism (`--check-batch --jobs`), which buffers
+    // per-file output in input order and is deterministic. Setting TSRS_JOBS>1
+    // opts into intra-fixture parallelism, which is not yet deterministic.
     let jobs = std::env::var("TSRS_JOBS")
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
-        .or_else(|| std::thread::available_parallelism().ok().map(|j| j.get()))
         .unwrap_or(1)
         .max(1)
         .min(n.max(1));
