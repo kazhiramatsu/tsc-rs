@@ -81,14 +81,7 @@ impl<'a> FlowBuilder<'a> {
         for d in &v.decls {
             if let Some(init) = &d.init {
                 let after = self.build_expr(init, flow);
-                flow = if let Binding::Ident(_) = &d.name {
-                    self.new_node(FlowNode::Assign {
-                        node: node_key(d),
-                        ante: after,
-                    })
-                } else {
-                    after
-                };
+                flow = self.new_node(FlowNode::Init { decl: d, ante: after });
             }
         }
         flow
@@ -188,15 +181,27 @@ impl<'a> FlowBuilder<'a> {
                 left, expr, body, ..
             } => {
                 let ae = self.build_expr(expr, flow);
-                let f2 = match &**left {
-                    ForInit::Var(v) => self.build_var(v, ae),
-                    ForInit::Expr(e) => self.build_expr(e, ae),
+                let loop_label = self.branch(vec![ae]);
+                // The loop variable is (re)bound each iteration, INSIDE the
+                // loop: loop_label → Init/Assign → body.
+                let body_in = match &**left {
+                    ForInit::Var(v) => {
+                        let mut f = loop_label;
+                        for d in &v.decls {
+                            f = self.new_node(FlowNode::Init { decl: d, ante: f });
+                        }
+                        f
+                    }
+                    // `for (x of e)` assigning to an existing reference:
+                    // threaded linearly for now (Stage-0 TODO: an Assign node
+                    // needs an assigned-type source, which here is the
+                    // enclosing statement, not an expression).
+                    ForInit::Expr(e) => self.build_expr(e, loop_label),
                 };
-                let loop_label = self.branch(vec![f2]);
                 let post = self.branch(vec![loop_label]);
                 self.brk.push(post);
                 self.cont.push(loop_label);
-                let body_out = self.build_stmt(body, loop_label);
+                let body_out = self.build_stmt(body, body_in);
                 self.cont.pop();
                 self.brk.pop();
                 self.add_ante(loop_label, body_out);
@@ -300,7 +305,8 @@ impl<'a> FlowBuilder<'a> {
             Expr::Update { operand, .. } => {
                 let a = self.build_expr(operand, flow);
                 self.new_node(FlowNode::Assign {
-                    node: node_key(expr),
+                    target: operand,
+                    expr,
                     ante: a,
                 })
             }
@@ -311,7 +317,8 @@ impl<'a> FlowBuilder<'a> {
                     let ar = self.build_expr(right, flow);
                     self.build_expr(left, ar);
                     self.new_node(FlowNode::Assign {
-                        node: node_key(expr),
+                        target: left,
+                        expr,
                         ante: ar,
                     })
                 } else if matches!(op, BinOp::AmpAmp) {
@@ -347,10 +354,7 @@ impl<'a> FlowBuilder<'a> {
                 for a in args {
                     f = self.build_expr(a, f);
                 }
-                self.new_node(FlowNode::Call {
-                    node: node_key(expr),
-                    ante: f,
-                })
+                self.new_node(FlowNode::Call { call: expr, ante: f })
             }
             Expr::New {
                 callee,

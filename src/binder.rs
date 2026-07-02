@@ -36,11 +36,25 @@ pub enum FlowNode<'a> {
         sense: bool,
         ante: FlowNodeId,
     },
-    /// A reference was assigned here (`x = rhs`, `x++`, or a declarator with an
-    /// initializer). `node` is the `node_key` of the assigning expression /
-    /// declarator; the resolver recomputes the post-assignment type from it and
-    /// clears prior narrowings of the target.
-    Assign { node: usize, ante: FlowNodeId },
+    /// A reference was assigned here: `x = rhs` (incl. compound / logical
+    /// assignment operators) or `x++`/`x--`. `target` is the left-hand side /
+    /// operand — the resolver matches its RefKey against the queried
+    /// reference; on a match it recomputes the post-assignment type from
+    /// `expr` (the whole assigning expression) and clears prior narrowings of
+    /// the target.
+    Assign {
+        target: &'a crate::ast::Expr,
+        expr: &'a crate::ast::Expr,
+        ante: FlowNodeId,
+    },
+    /// A declarator bound its name(s) here: `let x = init`, or the
+    /// per-iteration binding of a `for (const x in/of e)` head (where `init`
+    /// is `None`). The resolver matches the queried reference's symbol
+    /// against the binding; on a match the flow type is the initial type.
+    Init {
+        decl: &'a crate::ast::VarDeclarator,
+        ante: FlowNodeId,
+    },
     /// Switch discriminant narrowing: clause index `case` of the switch on
     /// `disc` (`default` clauses narrow by negation of all labels).
     Switch {
@@ -49,7 +63,12 @@ pub enum FlowNode<'a> {
         ante: FlowNodeId,
     },
     /// A call whose signature may assert (`asserts x is T` / `asserts x`).
-    Call { node: usize, ante: FlowNodeId },
+    /// Whether it actually asserts is only known at check time, so every call
+    /// gets a node; the resolver treats non-asserting calls as pass-through.
+    Call {
+        call: &'a crate::ast::Expr,
+        ante: FlowNodeId,
+    },
 }
 
 pub mod flags {
