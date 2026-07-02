@@ -1639,21 +1639,19 @@ impl<'a> Checker<'a> {
         };
         // An explicit `this:` parameter annotation on this function-like.
         let explicit_this = self.explicit_this_param_type(f, scope);
-        self.stacks
-            .this_container_stack
-            .push(crate::checker::ThisContainer {
-                class_owner: owner_class,
-                is_static,
-                kind: container_kind,
-                explicit_this,
-            });
-        let result = match &f.body {
+        let tc = crate::checker::ThisContainer {
+            class_owner: owner_class,
+            is_static,
+            kind: container_kind,
+            explicit_this,
+        };
+        let result = self.with_this_container(tc, |this| match &f.body {
             Some(FuncBody::Expr(e)) => {
-                let t = self.check_expr(e, None);
-                let was_fresh = self.types.is_fresh(t);
-                let r = self.types.regular(t);
+                let t = this.check_expr(e, None);
+                let was_fresh = this.types.is_fresh(t);
+                let r = this.types.regular(t);
                 if was_fresh {
-                    self.types.widen_literal(r)
+                    this.types.widen_literal(r)
                 } else {
                     r
                 }
@@ -1662,26 +1660,25 @@ impl<'a> Checker<'a> {
                 let mut returns: Vec<&'a Expr> = Vec::new();
                 collect_return_exprs(&b.stmts, &mut returns);
                 if returns.is_empty() {
-                    self.types.void
+                    this.types.void
                 } else {
                     let mut parts = Vec::new();
                     for e in returns {
-                        let t = self.check_expr(e, None);
-                        let was_fresh = self.types.is_fresh(t);
-                        let r = self.types.regular(t);
+                        let t = this.check_expr(e, None);
+                        let was_fresh = this.types.is_fresh(t);
+                        let r = this.types.regular(t);
                         let r = if was_fresh {
-                            self.types.widen_literal(r)
+                            this.types.widen_literal(r)
                         } else {
                             r
                         };
                         parts.push(r);
                     }
-                    self.types.union(parts)
+                    this.types.union(parts)
                 }
             }
-            None => self.types.any,
-        };
-        self.stacks.this_container_stack.pop();
+            None => this.types.any,
+        });
         self.current_scope = prev;
         result
     }
