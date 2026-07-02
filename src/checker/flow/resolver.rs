@@ -479,9 +479,21 @@ impl<'a> Checker<'a> {
                     FlowRes::Ty(declared)
                 }
             }
-            // compound arithmetic assigns and `x++`/`x--`: the fact stack
-            // only invalidates
-            _ => FlowRes::Ty(declared),
+            // `x++` / `x--` / compound assigns: tsc passes the ANTECEDENT
+            // flow type through, widened to its literal base
+            // (getTypeAtFlowAssignment's AssignmentKind::Compound arm) —
+            // `any++` stays `any`, and an `i++` loop back edge resolves as
+            // Cycle so the loop join keeps the entry edge's type instead of
+            // collapsing to the declared `any`. (The fact stack only
+            // invalidates here — reads seeing the declared type right after
+            // a compound is its early-invalidation behavior.)
+            _ => match self.flow_type_at(key, ante, depth + 1) {
+                FlowRes::Ty(t) => {
+                    let r = self.types.regular(t);
+                    FlowRes::Ty(self.types.widen_literal(r))
+                }
+                other => other,
+            },
         }
     }
 
