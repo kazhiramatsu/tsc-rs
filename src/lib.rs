@@ -6,6 +6,7 @@ pub mod ast;
 pub mod binder;
 pub mod checker;
 pub mod diagnostics;
+pub mod flow_graph;
 pub mod harness;
 pub mod js_num;
 pub mod jsstr;

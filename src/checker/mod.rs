@@ -471,6 +471,10 @@ pub fn check<'a>(
     // emitted at a canonical position, so neither ordering nor identical
     // cross-worker duplicates affect the result. Determinism therefore does not
     // depend on how files are distributed across workers.
+    // Tier-2 Stage 0: build the control-flow graph into `bind` while it is still
+    // owned/mutable (before the Arc freeze below). Syntax-only; not yet consumed
+    // by diagnostics, so output is unchanged. See src/flow_graph.rs.
+    crate::flow_graph::build(&mut bind, files);
     let binder_diags = std::mem::take(&mut bind.diags);
     let lib_file = (0..files.len())
         .find(|&i| files[i].0 == crate::LIB_NAME || files[i].0.ends_with("/lib.tsrs.d.ts"))

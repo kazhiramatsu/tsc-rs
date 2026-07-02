@@ -12,6 +12,46 @@ pub struct SymbolId(pub u32);
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ScopeId(pub u32);
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct FlowNodeId(pub u32);
+
+/// A node in the control-flow graph built at bind time (Tier-2 flow engine,
+/// Stage 0 — see the plan). Antecedents point *backward*, toward the function /
+/// program start; `get_flow_type_of_reference` walks them to resolve a
+/// reference's flow-narrowed type. Populated by `crate::flow_graph::build` after
+/// `bind()` and before the `BindResult` is frozen in an `Arc`. During Stage 0
+/// the graph is built but not yet consumed by any diagnostic, so program output
+/// is unchanged.
+pub enum FlowNode<'a> {
+    /// Function/program entry, or an unreachable point: resolve to the declared
+    /// type (no flow refinement).
+    Start,
+    /// A control-flow join — resolve as the union over every antecedent. Also
+    /// used as a loop label (back-edge antecedents are appended during build).
+    Branch(Vec<FlowNodeId>),
+    /// `cond` was evaluated with truthiness `sense` on this edge; the resolver
+    /// applies `narrow_by_condition(cond, sense)` when the reference matches.
+    Cond {
+        cond: &'a crate::ast::Expr,
+        sense: bool,
+        ante: FlowNodeId,
+    },
+    /// A reference was assigned here (`x = rhs`, `x++`, or a declarator with an
+    /// initializer). `node` is the `node_key` of the assigning expression /
+    /// declarator; the resolver recomputes the post-assignment type from it and
+    /// clears prior narrowings of the target.
+    Assign { node: usize, ante: FlowNodeId },
+    /// Switch discriminant narrowing: clause index `case` of the switch on
+    /// `disc` (`default` clauses narrow by negation of all labels).
+    Switch {
+        disc: &'a crate::ast::Expr,
+        case: u32,
+        ante: FlowNodeId,
+    },
+    /// A call whose signature may assert (`asserts x is T` / `asserts x`).
+    Call { node: usize, ante: FlowNodeId },
+}
+
 pub mod flags {
     pub const FUNCTION_SCOPED_VARIABLE: u32 = 1 << 0; // var, param
     pub const BLOCK_SCOPED_VARIABLE: u32 = 1 << 1; // let, const, catch var
@@ -197,6 +237,13 @@ pub struct BindResult<'a> {
     /// explicit `declare` inside a non-ambient namespace, these are not
     /// surfaced as unused locals by tsc.
     pub ambient_context_symbols: HashSet<SymbolId>,
+    /// Tier-2 control-flow graph (Stage 0): the flow-node arena, populated by
+    /// `crate::flow_graph::build` after `bind()` (before the `Arc` freeze).
+    /// Empty until then.
+    pub flow_nodes: Vec<FlowNode<'a>>,
+    /// reference / statement `node_key` -> the flow node in effect at that
+    /// point (its antecedent). Built alongside `flow_nodes`.
+    pub flow_node: HashMap<usize, FlowNodeId>,
     pub diags: Vec<Diagnostic>,
 }
 
@@ -307,6 +354,8 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         pattern_groups: b.pattern_groups,
         var_stmt_groups: b.var_stmt_groups,
         ambient_context_symbols: b.ambient_context_symbols,
+        flow_nodes: Vec::new(),
+        flow_node: HashMap::new(),
         diags: b.diags,
     }
 }
