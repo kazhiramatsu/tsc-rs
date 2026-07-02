@@ -115,7 +115,7 @@ impl<'a> Checker<'a> {
             "bigint",
         ];
         if RESERVED.contains(&tp.name.name.as_str())
-            && self.reported.reported_2368.insert(node_key(tp))
+            && self.report_once_node(2368, node_key(tp))
         {
             self.error_at(
                 tp.name.span,
@@ -1526,7 +1526,7 @@ impl<'a> Checker<'a> {
             let cycle: Vec<usize> = self.flow.return_stack[pos..].to_vec();
             if cycle.len() > 1 && self.options.no_implicit_any() {
                 for k in cycle {
-                    if self.reported.reported_7023.insert(k) {
+                    if self.report_once_node(7023, k) {
                         if let Some(f) = self.bind.fn_decls.get(&k).copied() {
                             if let Some(name) = f.name_ident() {
                                 self.error_at(

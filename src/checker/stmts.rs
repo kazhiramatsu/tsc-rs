@@ -143,7 +143,7 @@ impl<'a> Checker<'a> {
                 }
                 // 2428: merged declarations need identical type parameters
                 if let Some(&sym) = self.bind.decl_symbol.get(&node_key(&**i)) {
-                    if self.reported.reported_2428.insert(sym) {
+                    if self.report_once_sym(2428, sym) {
                         let decls: Vec<&'a InterfaceDecl> = self
                             .symbol(sym)
                             .decls
@@ -347,7 +347,7 @@ impl<'a> Checker<'a> {
                 self.cflags.namespace_depth -= 1;
                 // 2395: merged declarations must agree on export-ness
                 if let Some(&sym) = self.bind.decl_symbol.get(&node_key(&**n)) {
-                    if self.reported.reported_2395.insert(sym) {
+                    if self.report_once_sym(2395, sym) {
                         let mut sites: Vec<(Span, bool)> = Vec::new();
                         for d in self.symbol(sym).decls.clone() {
                             match d {
@@ -964,7 +964,7 @@ impl<'a> Checker<'a> {
             if self.bind.decl_symbol.contains_key(&key) {
                 continue; // canonical declaration
             }
-            if !self.reported.reported_2717.insert(key) {
+            if !self.report_once_node(2717, key) {
                 continue;
             }
             let Some(name) = p.name.text() else { continue };
@@ -1982,7 +1982,7 @@ impl<'a> Checker<'a> {
         if let Some(&sym) = self.bind.decl_symbol.get(&node_key(e)) {
             self.check_enum_merge_initializers(e, sym);
             // 2567: const/non-const enum declarations cannot merge
-            if self.reported.reported_2567.insert(sym) {
+            if self.report_once_sym(2567, sym) {
                 let decls: Vec<(&'a EnumDecl, Span)> = self
                     .symbol(sym)
                     .decls

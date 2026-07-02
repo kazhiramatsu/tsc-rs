@@ -54,23 +54,23 @@ pub struct FnCtx {
     pub this_ty: Option<TypeId>,
 }
 
-/// Single-report dedup guards: per-diagnostic sets/flags that ensure a given
-/// error (2717/2368/2428/2395/2567/7032/7033/7039/7023/2454, the
-/// IterableIterator 2318, and file-less missing-global 2318s) is reported at
-/// most once.
+/// Single-report dedup guards: ensure a given diagnostic is emitted at most once
+/// even when its node/symbol is reached from several code paths. (The final
+/// `sort_and_dedupe` only collapses byte-identical diagnostics; these guards
+/// also avoid rebuilding the diagnostic and pin a single emission.) The two
+/// generic sets replace what used to be one named `HashSet` per code — keyed by
+/// `(code, …)` so distinct codes never collide. Use the `report_once_*` helpers.
 #[derive(Default)]
 pub struct ReportGuards {
-    pub reported_2717: HashSet<usize>,
-    pub reported_iterable_iterator: bool,
+    /// "emit once per (diagnostic code, AST node key)" — covers 2717, 2368,
+    /// 7023, the 7032/7033 accessor implicit-any, and 7039.
+    pub reported_once_node: HashSet<(u32, usize)>,
+    /// "emit once per (diagnostic code, symbol)" — covers 2395, 2428, 2567.
+    pub reported_once_sym: HashSet<(u32, SymbolId)>,
+    /// file-less "cannot find global type" (2318), deduped by type name.
     pub reported_missing_globals: HashSet<String>,
-    pub reported_2368: HashSet<usize>,
-    pub reported_2428: HashSet<SymbolId>,
-    pub reported_2395: HashSet<SymbolId>,
-    pub reported_2567: HashSet<SymbolId>,
-    pub reported_7032_accessors: HashSet<usize>,
-    pub reported_7033_accessors: HashSet<usize>,
-    pub reported_7039: HashSet<usize>,
-    pub reported_7023: std::collections::HashSet<usize>,
+    /// TS2454 "used before assigned", keyed by (file, read-span start): dedups
+    /// the forward DA pass against the per-use check at the same read position.
     pub reported_2454: HashSet<(usize, usize)>,
 }
 
@@ -4425,6 +4425,19 @@ impl<'a> Checker<'a> {
     ) {
         let related = self.declared_here_related(sym).into_iter().collect();
         self.error_at_with_related(span, msg, args, related);
+    }
+
+    /// Insert-and-test guard for a node-scoped diagnostic: returns true the first
+    /// time `(code, node_key)` is seen this program, false afterwards. Central
+    /// "emit this once per node" gate (see `ReportGuards::reported_once_node`).
+    pub(crate) fn report_once_node(&mut self, code: u32, node_key: usize) -> bool {
+        self.reported.reported_once_node.insert((code, node_key))
+    }
+
+    /// Insert-and-test guard for a symbol-scoped diagnostic: true the first time
+    /// `(code, sym)` is seen, false afterwards (see `reported_once_sym`).
+    pub(crate) fn report_once_sym(&mut self, code: u32, sym: SymbolId) -> bool {
+        self.reported.reported_once_sym.insert((code, sym))
     }
 
     pub fn report_used_before_assigned(&mut self, span: Span, name: String) {

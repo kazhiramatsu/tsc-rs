@@ -162,7 +162,7 @@ impl<'a> Checker<'a> {
                 if !getter_has_type {
                     if let Some(name) = &g.name {
                         let display_name = self.display_prop_name_for_error(name);
-                        if self.reported.reported_7033_accessors.insert(node_key(g)) {
+                        if self.report_once_node(7033, node_key(g)) {
                             if self.options.no_implicit_any() {
                                 self.error_at(
                                     name.span(),
@@ -186,7 +186,7 @@ impl<'a> Checker<'a> {
                     if !setter_has_type {
                         if let Some(name) = &s.name {
                             let display_name = self.display_prop_name_for_error(name);
-                            if self.reported.reported_7032_accessors.insert(node_key(s)) {
+                            if self.report_once_node(7032, node_key(s)) {
                                 if self.options.no_implicit_any() {
                                     self.error_at(
                                         name.span(),

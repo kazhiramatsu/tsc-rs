@@ -169,7 +169,7 @@ impl<'a> Checker<'a> {
         };
         if m.value.is_none()
             && self.options.no_implicit_any()
-            && self.reported.reported_7039.insert(node_key(m))
+            && self.report_once_node(7039, node_key(m))
         {
             self.error_at(
                 Span::new(m.span.start as usize, m.span.start as usize + 1),
