@@ -24,8 +24,16 @@ pub struct FlowNodeId(pub u32);
 /// is unchanged.
 pub enum FlowNode<'a> {
     /// Function/program entry: resolve to the declared type (no flow
-    /// refinement).
-    Start,
+    /// refinement). For function-expression / arrow / object-literal-or-
+    /// class-expression-method containers, `outer` carries the enclosing
+    /// container's flow at the function's position plus the function's span
+    /// (tsc `FlowStart.node` + `container.flowNode`): the resolver resumes a
+    /// bare `const` reference's walk at `outer` when the reference's symbol
+    /// is declared outside the span (the checker's flow-container extension
+    /// for constants in `checkIdentifier`).
+    Start {
+        outer: Option<(FlowNodeId, crate::ast::Span)>,
+    },
     /// The flow after a `return`/`throw`/`break`/`continue`: no control path
     /// reaches here, so joins skip it entirely (it must NOT contribute the
     /// declared type to a `Branch` union — e.g. the fall-through edge out of

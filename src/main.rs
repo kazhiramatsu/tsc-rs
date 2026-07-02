@@ -184,8 +184,9 @@ fn main() {
             use std::sync::atomic::Ordering;
             use tsrs::checker::flow::resolver as fv;
             eprintln!(
-                "TSRS_FLOW_VERIFY: match={} mismatch={} unresolved={} no_flow_node={}",
+                "TSRS_FLOW_VERIFY: match={} display_match={} mismatch={} unresolved={} no_flow_node={}",
                 fv::FLOW_VERIFY_MATCH.load(Ordering::Relaxed),
+                fv::FLOW_VERIFY_DISPLAY_MATCH.load(Ordering::Relaxed),
                 fv::FLOW_VERIFY_MISMATCH.load(Ordering::Relaxed),
                 fv::FLOW_VERIFY_UNRESOLVED.load(Ordering::Relaxed),
                 fv::FLOW_VERIFY_NO_NODE.load(Ordering::Relaxed),

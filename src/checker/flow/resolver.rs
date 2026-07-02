@@ -24,6 +24,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// Dark-launch tallies (process-wide; printed by `main` when
 /// `TSRS_FLOW_VERIFY` is set).
 pub static FLOW_VERIFY_MATCH: AtomicUsize = AtomicUsize::new(0);
+/// TypeIds differ but the displayed types are identical (interning
+/// duplicates, e.g. `NonNullable<T>` built at two sites) — agreement.
+pub static FLOW_VERIFY_DISPLAY_MATCH: AtomicUsize = AtomicUsize::new(0);
 pub static FLOW_VERIFY_MISMATCH: AtomicUsize = AtomicUsize::new(0);
 pub static FLOW_VERIFY_UNRESOLVED: AtomicUsize = AtomicUsize::new(0);
 pub static FLOW_VERIFY_NO_NODE: AtomicUsize = AtomicUsize::new(0);
@@ -51,14 +54,14 @@ enum FlowRes {
 /// A borrow-free copy of one flow node's payload (the `&'a` fields are `Copy`,
 /// so extracting them releases the borrow of `bind.flow_nodes`).
 enum Step<'a> {
-    Start,
+    Start(Option<(FlowNodeId, Span)>),
     Dead,
     Branch(Vec<FlowNodeId>),
     Cond(&'a Expr, bool, ScopeId, FlowNodeId),
     Assign(&'a Expr, &'a Expr, ScopeId, FlowNodeId),
     Init(&'a VarDeclarator, ScopeId, FlowNodeId),
     Switch(&'a Expr, &'a [SwitchCase], u32, ScopeId, FlowNodeId),
-    Pass(FlowNodeId),
+    Call(&'a Expr, ScopeId, FlowNodeId),
 }
 
 impl<'a> Checker<'a> {
@@ -121,7 +124,7 @@ impl<'a> Checker<'a> {
 
     fn flow_step(&mut self, key: &RefKey, flow: FlowNodeId, depth: u32) -> FlowRes {
         let step = match &self.bind.flow_nodes[flow.0 as usize] {
-            FlowNode::Start => Step::Start,
+            FlowNode::Start { outer } => Step::Start(*outer),
             FlowNode::Unreachable => Step::Dead,
             FlowNode::Branch(antes) => Step::Branch(antes.clone()),
             FlowNode::Cond {
@@ -144,16 +147,25 @@ impl<'a> Checker<'a> {
                 scope,
                 ante,
             } => Step::Switch(disc, cases, *clause, *scope, *ante),
-            // asserting calls not modeled yet
-            FlowNode::Call { ante, .. } => Step::Pass(*ante),
+            FlowNode::Call { call, scope, ante } => Step::Call(call, *scope, *ante),
         };
         match step {
-            Step::Start => match self.declared_type_of_ref(key) {
-                Some(t) => FlowRes::Ty(t),
-                None => FlowRes::Unknown,
-            },
+            Step::Start(outer) => {
+                // tsc extends a bare const reference's flow analysis past
+                // function-expression/arrow/method containers it is captured
+                // by (checkIdentifier's flowContainer loop): resume the walk
+                // in the enclosing flow instead of stopping at the entry.
+                if let Some((oflow, fspan)) = outer {
+                    if self.const_ref_escapes(key, fspan) {
+                        return self.flow_type_at(key, oflow, depth + 1);
+                    }
+                }
+                match self.declared_type_of_ref(key) {
+                    Some(t) => FlowRes::Ty(t),
+                    None => FlowRes::Unknown,
+                }
+            }
             Step::Dead => FlowRes::Dead,
-            Step::Pass(ante) => self.flow_type_at(key, ante, depth + 1),
             Step::Branch(antes) => {
                 let mut tys: Vec<TypeId> = Vec::new();
                 let mut any_cycle = false;
@@ -185,6 +197,19 @@ impl<'a> Checker<'a> {
                     FlowRes::Ty(t) => t,
                     other => return other,
                 };
+                // tsc never narrows `any` on a negative edge (filterType /
+                // getTypeWithFacts leave non-union `any` alone), but the
+                // fact-stack helpers collapse it to `never`
+                // (`falsy_part(any)`, `narrow_to_pred(any, _, false)`).
+                // The lexical fact stack rarely materializes negative facts,
+                // while the resolver walks the false edge at EVERY join — a
+                // single `if (anyVal)` would poison every downstream read —
+                // so guard the edge here. (Effective-sense negatives inside
+                // the condition, e.g. `if (!x)`, still mirror the fact path;
+                // aligning the helpers themselves is a Stage-1 task.)
+                if !sense && matches!(self.types.kind(t_in), TypeKind::Any) {
+                    return FlowRes::Ty(t_in);
+                }
                 // Reuse the existing condition narrower: seed a scratch fact
                 // frame with the antecedent type, run it, read the result
                 // back, pop. Names in `cond` resolve in ITS scope; definite-
@@ -218,6 +243,15 @@ impl<'a> Checker<'a> {
                     FlowRes::Ty(t) => t,
                     other => return other,
                 };
+                // negative-only paths (default clause / implicit no-match):
+                // same `any` guard as the negative Cond edge above
+                let negative_only = cases
+                    .get(clause as usize)
+                    .and_then(|cl| cl.test.as_ref())
+                    .is_none();
+                if negative_only && matches!(self.types.kind(t_in), TypeKind::Any) {
+                    return FlowRes::Ty(t_in);
+                }
                 // Same scaffold as `Cond`, reusing the fact-stack's switch
                 // narrowers: a matched clause narrows `disc === label`; a
                 // default clause (or the implicit no-match path) narrows by
@@ -253,6 +287,36 @@ impl<'a> Checker<'a> {
                 }
                 FlowRes::Ty(out)
             }
+            Step::Call(call, scope, ante) => {
+                // Mirror the fact path, which applies `apply_assertion_narrowing`
+                // after checking EVERY call (`check_expr`'s Call arm): seed the
+                // antecedent type, re-run it, read the fact back. Calls whose
+                // callee cannot carry a predicate pass through untouched.
+                let Expr::Call { callee, args, .. } = call else {
+                    return self.flow_type_at(key, ante, depth + 1);
+                };
+                if !callee_may_assert(callee) {
+                    return self.flow_type_at(key, ante, depth + 1);
+                }
+                let t_in = match self.flow_type_at(key, ante, depth + 1) {
+                    FlowRes::Ty(t) => t,
+                    other => return other,
+                };
+                let saved_scope = self.current_scope;
+                let saved_da = self.flow.record_da_facts;
+                self.current_scope = scope;
+                self.flow.record_da_facts = false;
+                let dlen = self.diags.len();
+                let out = self.narrowed(|c| {
+                    c.set_fact(key.clone(), t_in);
+                    c.apply_assertion_narrowing(callee, args);
+                    c.fact_for(key).unwrap_or(t_in)
+                });
+                self.diags.truncate(dlen);
+                self.flow.record_da_facts = saved_da;
+                self.current_scope = saved_scope;
+                FlowRes::Ty(out)
+            }
             Step::Assign(target, expr, scope, ante) => {
                 match self.ref_key_in_scope(target, scope) {
                     Some(tk) if tk == *key => self.assigned_type(key, expr, scope, ante, depth),
@@ -264,10 +328,13 @@ impl<'a> Checker<'a> {
                     },
                     Some(_) => self.flow_type_at(key, ante, depth + 1),
                     None => match target {
-                        // destructuring assignment: conservatively treat as
-                        // clobbering `key` (Stage-0 TODO: match the pattern's
-                        // actual roots like the fact stack does)
-                        Expr::Array { .. } | Expr::Object { .. } => {
+                        // destructuring assignment: clobber only when one of
+                        // the pattern's targets is rooted at `key`'s symbol
+                        // (`check_reference_for_assignment` invalidates per
+                        // element root)
+                        Expr::Array { .. } | Expr::Object { .. }
+                            if self.pattern_clobbers(target, scope, key.0) =>
+                        {
                             match self.declared_type_of_ref(key) {
                                 Some(t) => FlowRes::Ty(t),
                                 None => FlowRes::Unknown,
@@ -347,6 +414,12 @@ impl<'a> Checker<'a> {
                     FlowRes::Ty(t) => t,
                     other => return other,
                 };
+                // an error-typed RHS (e.g. a failed overload inside a loop)
+                // must not become the narrowed type — the fact path never
+                // narrows to error because its live re-check differs
+                if self.types.is_error(rt) {
+                    return FlowRes::Ty(declared);
+                }
                 let narrowed = self.types.regular(rt);
                 let widened = self.types.widen_literal(narrowed);
                 if !self.is_global_object_type(declared)
@@ -367,6 +440,9 @@ impl<'a> Checker<'a> {
                     FlowRes::Ty(t) => t,
                     other => return other,
                 };
+                if self.types.is_error(rt) {
+                    return FlowRes::Ty(declared);
+                }
                 let cur = self.types.regular(declared);
                 let kept = match op {
                     BinOp::QuestionQuestionAssign => self.non_nullable(cur),
@@ -435,6 +511,86 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// tsc keeps narrowing for a bare `const` reference captured by a nested
+    /// function expression (checkIdentifier extends `flowContainer` outward
+    /// while the symbol is a const declared outside it): true when the walk
+    /// should continue in the enclosing flow instead of stopping at `Start`.
+    fn const_ref_escapes(&self, key: &RefKey, fspan: Span) -> bool {
+        if !key.1.is_empty() {
+            return false;
+        }
+        let sym = self.symbol(key.0);
+        if sym.flags & flags::CONST_VARIABLE == 0 {
+            return false;
+        }
+        // declared in another file ⇒ certainly outside this function; same
+        // file ⇒ outside when no declaration lies within the span
+        sym.file != self.current_file
+            || !sym.decls.iter().any(|d| match d {
+                crate::binder::Decl::Var(v, _) => {
+                    fspan.start <= v.span.start && v.span.end <= fspan.end
+                }
+                crate::binder::Decl::Param(p) => {
+                    fspan.start <= p.span.start && p.span.end <= fspan.end
+                }
+                _ => false,
+            })
+    }
+
+    /// Does a destructuring-assignment pattern (`[a, b] = …` / `({x} = …)`)
+    /// assign through `root`? Mirrors `check_reference_for_assignment`,
+    /// which invalidates facts per element-target root.
+    fn pattern_clobbers(&self, e: &Expr, scope: ScopeId, root: SymbolId) -> bool {
+        match e {
+            Expr::Array { elements, .. } => elements.iter().any(|el| {
+                let mut tgt = el;
+                if let Expr::Binary {
+                    op: BinOp::Assign,
+                    left,
+                    ..
+                } = tgt
+                {
+                    tgt = left;
+                }
+                if let Expr::Spread { expr, .. } = tgt {
+                    tgt = expr;
+                }
+                self.pattern_target_clobbers(tgt, scope, root)
+            }),
+            Expr::Object { props, .. } => props.iter().any(|p| match p {
+                ObjectProp::Shorthand { name, .. } => {
+                    self.lookup_value(scope, &name.name) == Some(root)
+                }
+                ObjectProp::Property { value, .. } => {
+                    let mut tgt = value;
+                    if let Expr::Binary {
+                        op: BinOp::Assign,
+                        left,
+                        ..
+                    } = tgt
+                    {
+                        tgt = left;
+                    }
+                    self.pattern_target_clobbers(tgt, scope, root)
+                }
+                ObjectProp::Spread { expr, .. } => {
+                    self.pattern_target_clobbers(expr, scope, root)
+                }
+                ObjectProp::Method(_) => false,
+            }),
+            _ => false,
+        }
+    }
+
+    fn pattern_target_clobbers(&self, tgt: &Expr, scope: ScopeId, root: SymbolId) -> bool {
+        match tgt {
+            Expr::Array { .. } | Expr::Object { .. } => self.pattern_clobbers(tgt, scope, root),
+            _ => self
+                .ref_key_in_scope(tgt, scope)
+                .is_some_and(|k| k.0 == root),
+        }
+    }
+
     /// Does this declarator bind `sym`? Top-level ident declarators are keyed
     /// in `decl_symbol` by the declarator node, pattern idents by the ident
     /// node.
@@ -495,6 +651,16 @@ impl<'a> Checker<'a> {
                 FLOW_VERIFY_MATCH.fetch_add(1, Ordering::Relaxed);
             }
             Some(t) => {
+                // normalize before comparing: `T & {}` (NonNullable) interns a
+                // fresh empty-object shape per construction site, so the same
+                // type built twice gets two TypeIds — display equality treats
+                // those as agreement (tallied separately)
+                let f = self.display_type(baseline);
+                let r = self.display_type(t);
+                if f == r {
+                    FLOW_VERIFY_DISPLAY_MATCH.fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
                 FLOW_VERIFY_MISMATCH.fetch_add(1, Ordering::Relaxed);
                 if verbose() {
                     let file = self.files[self.current_file].0.clone();
@@ -504,8 +670,6 @@ impl<'a> Checker<'a> {
                     } else {
                         format!(".{}", key.1.join("."))
                     };
-                    let f = self.display_type(baseline);
-                    let r = self.display_type(t);
                     eprintln!(
                         "FLOW_VERIFY mismatch {}:{} {}{}: fact={} resolver={}",
                         file, span.start, name, path, f, r
@@ -517,4 +681,14 @@ impl<'a> Checker<'a> {
             }
         }
     }
+}
+
+/// Cheap syntactic filter for `Step::Call`: `call_predicate` resolves a
+/// predicate only for bare ident / member callees (no paren-stripping), so
+/// anything else is pass-through without the narrowing scaffold.
+fn callee_may_assert(callee: &Expr) -> bool {
+    matches!(
+        callee,
+        Expr::Ident(_) | Expr::PropAccess { .. } | Expr::ElemAccess { .. }
+    )
 }

@@ -26,6 +26,12 @@ impl<'a> Checker<'a> {
     }
 
     pub(crate) fn empty_object_type(&mut self) -> TypeId {
+        // NOTE (Tier-2 Stage 0): allocating a fresh shape per call means two
+        // `T & {}` (`NonNullable<T>`) built at different times get different
+        // TypeIds. Canonicalizing the id at boot flips TypeId-ordered union
+        // display (e.g. `U | NonNullable<T>` → `NonNullable<T> | U`), so the
+        // flow-verify harness normalizes by display instead; revisit when a
+        // behavior-change window is open.
         let id = self.types.alloc_shape(Shape {
             props: Vec::new(),
             call_sigs: Vec::new(),
