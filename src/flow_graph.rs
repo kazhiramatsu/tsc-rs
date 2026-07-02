@@ -183,12 +183,11 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.cont.pop();
                 self.brk.pop();
                 self.add_ante(loop_label, body_out);
-                // The exit edge deliberately does NOT apply `Cond(cond, false)`
-                // yet: the fact stack has no post-loop negative narrowing, so
-                // the edge would only add verify noise against the fact
-                // baseline. Flip it in Stage 1 — the helpers now implement tsc
-                // getTypeWithFacts, so the edge is safe to add there.
-                self.add_ante(post, loop_label);
+                // the exit edge applies `Cond(cond, false)` (tsc's
+                // condition-false antecedent on the post-loop label); safe
+                // now that the helpers implement tsc getTypeWithFacts
+                let exit = self.cond(cond, false, ac);
+                self.add_ante(post, exit);
                 post
             }
             Stmt::DoWhile { body, cond, .. } => {
@@ -200,8 +199,12 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.cont.pop();
                 self.brk.pop();
                 let ac = self.build_expr(cond, body_out);
-                self.add_ante(loop_label, ac);
-                self.add_ante(post, ac);
+                // back edge re-enters under cond-true, exit leaves under
+                // cond-false (tsc's do-while antecedents)
+                let back = self.cond(cond, true, ac);
+                self.add_ante(loop_label, back);
+                let exit = self.cond(cond, false, ac);
+                self.add_ante(post, exit);
                 post
             }
             Stmt::For {
@@ -239,8 +242,13 @@ impl<'a> FlowBuilder<'a, '_> {
                     None => body_out,
                 };
                 self.add_ante(loop_label, ai);
-                // no `Cond(cond, false)` on the exit edge — see the While arm
-                self.add_ante(post, loop_label);
+                // the exit edge applies `Cond(cond, false)` (tsc's
+                // condition-false antecedent on the post-loop label)
+                let exit = match cond {
+                    Some(c) => self.cond(c, false, ac),
+                    None => loop_label,
+                };
+                self.add_ante(post, exit);
                 self.scope = saved;
                 post
             }
