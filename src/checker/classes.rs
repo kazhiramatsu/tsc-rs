@@ -992,46 +992,32 @@ impl<'a> Checker<'a> {
                     let use_ctor_field_context = !is_static && ctor_field_blocked_names.is_some();
                     let field_name = p.name.text().unwrap_or_default();
                     let declared = p.ty.as_ref().map(|ty| {
-                        if use_ctor_field_context {
-                            self.cflags.ctor_field_stack.push(CtorFieldContext {
-                                field_name: field_name.clone(),
-                                blocked_names: ctor_field_blocked_names.clone().unwrap_or_default(),
-                                kind: CtorFieldContextKind::TypeAnnotation,
-                            });
-                            let t = self.resolve_type_cached(ty, scope);
-                            self.cflags.ctor_field_stack.pop();
-                            t
-                        } else {
-                            self.resolve_type_cached(ty, scope)
-                        }
+                        let ctx = use_ctor_field_context.then(|| CtorFieldContext {
+                            field_name: field_name.clone(),
+                            blocked_names: ctor_field_blocked_names.clone().unwrap_or_default(),
+                            kind: CtorFieldContextKind::TypeAnnotation,
+                        });
+                        self.with_ctor_field(ctx, |this| this.resolve_type_cached(ty, scope))
                     });
                     if let Some(init) = &p.init {
-                        if is_static {
-                            self.stacks
-                                .this_container_stack
-                                .push(crate::checker::ThisContainer {
-                                    class_owner: Some(sym),
-                                    is_static: true,
-                                    kind: crate::checker::ContainerKind::ClassBody,
-                                    explicit_this: None,
-                                });
-                        }
-                        self.prop_init_pos = Some(p.span.start as usize);
-                        if use_ctor_field_context {
-                            self.cflags.ctor_field_stack.push(CtorFieldContext {
+                        let this_ctx = is_static.then(|| crate::checker::ThisContainer {
+                            class_owner: Some(sym),
+                            is_static: true,
+                            kind: crate::checker::ContainerKind::ClassBody,
+                            explicit_this: None,
+                        });
+                        let it = self.with_opt_this_container(this_ctx, |this| {
+                            this.prop_init_pos = Some(p.span.start as usize);
+                            let field_ctx = use_ctor_field_context.then(|| CtorFieldContext {
                                 field_name: field_name.clone(),
                                 blocked_names: ctor_field_blocked_names.clone().unwrap_or_default(),
                                 kind: CtorFieldContextKind::Initializer,
                             });
-                        }
-                        let it = self.check_expr(init, declared);
-                        if use_ctor_field_context {
-                            self.cflags.ctor_field_stack.pop();
-                        }
-                        self.prop_init_pos = None;
-                        if is_static {
-                            self.stacks.this_container_stack.pop();
-                        }
+                            let it =
+                                this.with_ctor_field(field_ctx, |this| this.check_expr(init, declared));
+                            this.prop_init_pos = None;
+                            it
+                        });
                         if let Some(dt) = declared {
                             if !self.types.is_error(dt) {
                                 self.check_assignable(it, dt, p.name.span(), None, Some(init));

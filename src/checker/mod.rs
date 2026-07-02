@@ -4255,6 +4255,39 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// Push a constructor-field context for the duration of `f` (elided when
+    /// `ctx` is `None`). Classic class-field initializers/type annotations use
+    /// this to reject constructor-scope references.
+    pub(crate) fn with_ctor_field<R>(
+        &mut self,
+        ctx: Option<CtorFieldContext>,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        match ctx {
+            Some(c) => {
+                self.cflags.ctor_field_stack.push(c);
+                let r = f(self);
+                self.cflags.ctor_field_stack.pop();
+                r
+            }
+            None => f(self),
+        }
+    }
+
+    /// Push a namespace-body context for the duration of `f` — used by `this`
+    /// resolution to distinguish a namespace-body `this` from a nested
+    /// class/function `this`.
+    pub(crate) fn with_namespace<R>(
+        &mut self,
+        ctx: NamespaceContext,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        self.cflags.namespace_stack.push(ctx);
+        let r = f(self);
+        self.cflags.namespace_stack.pop();
+        r
+    }
+
     pub fn error_at(&mut self, span: Span, msg: &'static DiagnosticMessage, args: &[String]) {
         self.error_at_with_related(span, msg, args, Vec::new());
     }

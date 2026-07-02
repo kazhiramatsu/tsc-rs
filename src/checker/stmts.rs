@@ -335,15 +335,12 @@ impl<'a> Checker<'a> {
                 if pushed_ambient {
                     self.cflags.ambient_context_depth += 1;
                 }
-                self.cflags
-                    .namespace_stack
-                    .push(crate::checker::NamespaceContext {
-                        fn_depth: self.stacks.fn_stack.len(),
-                        class_depth: self.stacks.class_stack.len(),
-                        this_container_depth: self.stacks.this_container_stack.len(),
-                    });
-                self.check_statements(&n.body, scope);
-                self.cflags.namespace_stack.pop();
+                let ns_ctx = crate::checker::NamespaceContext {
+                    fn_depth: self.stacks.fn_stack.len(),
+                    class_depth: self.stacks.class_stack.len(),
+                    this_container_depth: self.stacks.this_container_stack.len(),
+                };
+                self.with_namespace(ns_ctx, |this| this.check_statements(&n.body, scope));
                 if pushed_ambient {
                     self.cflags.ambient_context_depth -= 1;
                 }
