@@ -3103,4 +3103,218 @@ if ((typeof x === "boolean" && !x) || typeof x === "string") {
 
         assert!(!out.contains("main.ts"), "{out}");
     }
+
+    #[test]
+    fn cfg_unreachable_code_never_calls_ranges_and_declaration_kinds() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            allow_unreachable_code: Some(false),
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+declare function fail(msg?: string): never;
+declare function g(): void;
+function a(): void {
+    while (true) { break; }
+    g();
+}
+function b() {
+    fail();
+    g();
+    g();
+}
+function c() {
+    fail();
+    class C {}
+}
+function d() {
+    return;
+    class D {}
+}
+function e() {
+    try { throw 1; } catch {}
+    g();
+}
+function f2() {
+    const x = fail();
+    g();
+}
+function h() {
+    return;
+    g();
+    ;
+    g();
+}
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+
+        // never-call: one diagnostic for the contiguous run, at its start
+        assert!(out.contains("main.ts(10,5): error TS7027"), "{out}");
+        assert!(!out.contains("main.ts(11,5)"), "{out}");
+        // class after never-call: structural walk only — not reported
+        assert!(!out.contains("main.ts(15,5)"), "{out}");
+        // class after return: the structural bit applies — reported
+        assert!(out.contains("main.ts(19,5): error TS7027"), "{out}");
+        // loop with break exits; try/throw recovers through catch;
+        // a declaration-position call does not terminate flow
+        assert!(!out.contains("main.ts(6,5)"), "{out}");
+        assert!(!out.contains("main.ts(23,5)"), "{out}");
+        assert!(!out.contains("main.ts(27,5)"), "{out}");
+        // an empty statement is exempt and splits the run in two
+        assert!(out.contains("main.ts(31,5): error TS7027"), "{out}");
+        assert!(out.contains("main.ts(33,5): error TS7027"), "{out}");
+    }
+
+    #[test]
+    fn cfg_return_path_ordered_tree_2355_2366_2534() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+declare function fail(): never;
+function a(): number { }
+function b(): number { if (!!true) return 1; }
+function c(): number { fail(); }
+function d(): never { fail(); }
+function e(): never { }
+function f(): number | undefined { }
+function g(): number | void { }
+function h(): number { if (!!true) { while (true) {} return 1; } }
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+
+        // no return at all vs reachable end with a return
+        assert!(out.contains("main.ts(3,15): error TS2355"), "{out}");
+        assert!(out.contains("main.ts(4,15): error TS2366"), "{out}");
+        // a tail never-call demotes the implicit return: both exempt
+        assert!(!out.contains("main.ts(5,15)"), "{out}");
+        assert!(!out.contains("main.ts(6,15)"), "{out}");
+        assert!(out.contains("main.ts(7,15): error TS2534"), "{out}");
+        // top-level undefined exempts, but a `| undefined` union does not;
+        // a void member anywhere exempts
+        assert!(out.contains("main.ts(8,15): error TS2355"), "{out}");
+        assert!(!out.contains("main.ts(9,15)"), "{out}");
+        // HasExplicitReturn is syntactic: a structurally unreachable
+        // `return` still selects 2366 over 2355
+        assert!(out.contains("main.ts(10,15): error TS2366"), "{out}");
+    }
+
+    #[test]
+    fn cfg_async_return_paths_use_awaited_annotation() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            target: Some("es2017".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: r#"
+interface Promise<T> {
+    then<R1 = T, R2 = never>(
+        onfulfilled?: ((value: T) => R1) | undefined | null,
+        onrejected?: ((reason: any) => R2) | undefined | null): Promise<R1 | R2>;
+}
+"#
+                    .to_string(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+async function i(): Promise<number> { }
+declare class Thenable { then(): void; }
+async function j(): Thenable { }
+async function k(): Promise<void> { }
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+
+        assert!(out.contains("main.ts(2,21): error TS2355"), "{out}");
+        // a thenable whose promised type cannot be extracted is errorType:
+        // exempt from the return-path tree (tsc still reports 1055/1064)
+        assert!(!out.contains("main.ts(4,21): error TS2355"), "{out}");
+        assert!(!out.contains("main.ts(5,21)"), "{out}");
+    }
+
+    #[test]
+    fn cfg_no_implicit_returns_and_switch_fallthrough() {
+        let opts = CompilerOptions {
+            strict: Some(false),
+            no_implicit_returns: true,
+            no_fallthrough_cases_in_switch: true,
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+declare function fail(): never;
+function a(): number { if (!!true) return 1; }
+function b() { if (!!true) return 1; }
+function c() { if (!!true) return; }
+function s1(x: number) {
+    switch (x) { case 1: x++; case 2: break; }
+}
+function s2(x: number) {
+    switch (x) { case 1: case 2: break; }
+}
+function s3(x: number) {
+    switch (x) { case 1: fail(); case 2: break; }
+}
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+
+        // noImplicitReturns fires for annotated functions too (span: the
+        // annotation), and for unannotated ones at the name — but only
+        // when some return carries a value
+        assert!(out.contains("main.ts(3,15): error TS7030"), "{out}");
+        assert!(out.contains("main.ts(4,10): error TS7030"), "{out}");
+        assert!(!out.contains("main.ts(5,"), "{out}");
+        // fallthrough: non-empty non-last clause with a reachable end;
+        // empty clauses merge silently; a never-call end suppresses
+        assert!(out.contains("main.ts(7,18): error TS7029"), "{out}");
+        assert!(!out.contains("main.ts(10,18)"), "{out}");
+        assert!(!out.contains("main.ts(13,18)"), "{out}");
+    }
 }
