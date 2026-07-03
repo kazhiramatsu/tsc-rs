@@ -2509,11 +2509,13 @@ impl<'a> Checker<'a> {
         }
         let first_t = {
             let saved = self.caches.sym_type.remove(&sym);
-            // out-of-context re-check: the first declarator's initializer is
-            // re-derived under THIS declarator's fact state
-            self.fresolve.suppress += 1;
+            // re-derive the FIRST declarator's type: its initializer's reads
+            // key the ORIGINAL nodes, so the flow walk reproduces the
+            // first-pass narrowing no matter where this re-check runs (the
+            // old `fresolve.suppress` wrap was a dark-launch artifact — it
+            // sent these reads to the lexical fact fallback, which described
+            // THIS declarator's position instead)
             let t = self.declared_var_type(first);
-            self.fresolve.suppress -= 1;
             if let Some(s) = saved {
                 self.caches.sym_type.insert(sym, s);
             }

@@ -968,15 +968,33 @@ impl<'a> Checker<'a> {
                 }
             }
             _ => {
-                // write position: tsc checks assignments against the DECLARED
-                // type of the target, so the flow resolver must not narrow
-                // reads issued here; suppressed reads fall back to the fact
-                // path, which check_reference_for_assignment has already
-                // invalidated — the pre-flip behavior exactly.
-                self.fresolve.suppress += 1;
-                let t = self.check_expr(target, None);
-                self.fresolve.suppress -= 1;
-                t
+                // write position: tsc checks the assignment against the
+                // DECLARED type of the target REFERENCE (AssignmentKind.
+                // Definite). Destructuring patterns and parenthesized ident
+                // targets blanket-mark every leaf inside (`for ({x, y} of
+                // …)`, `(async) of …`); prop/elem targets mark only their
+                // own node, so RECEIVER reads still narrow (`control[key] =
+                // value` under an `if (control !== undefined)` guard).
+                let mut stripped: &Expr = target;
+                while let Expr::Paren { inner, .. } = stripped {
+                    stripped = inner;
+                }
+                match stripped {
+                    Expr::Object { .. } | Expr::Array { .. } | Expr::Ident(_) => {
+                        self.cflags.pattern_target += 1;
+                        let t = self.check_expr(target, None);
+                        self.cflags.pattern_target -= 1;
+                        t
+                    }
+                    _ => {
+                        let saved = self.cflags.assign_target;
+                        self.cflags.assign_target =
+                            crate::checker::exprs::node_key_expr(stripped);
+                        let t = self.check_expr(target, None);
+                        self.cflags.assign_target = saved;
+                        t
+                    }
+                }
             }
         }
     }

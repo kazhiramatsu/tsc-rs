@@ -19,7 +19,7 @@ use crate::binder::{flags, FlowNode, FlowNodeId, ScopeId, SymbolId};
 use crate::checker::exprs::node_key_expr;
 use crate::checker::{Checker, RefKey};
 use crate::types::{TypeId, TypeKind};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 
 /// Dark-launch tallies (process-wide; printed by `main` when
 /// `TSRS_FLOW_VERIFY` is set).
@@ -805,7 +805,7 @@ impl<'a> Checker<'a> {
                 }
                 if let (Binding::Ident(_), Some(init)) = (&decl.name, &decl.init) {
                     if matches!(self.types.kind(declared), TypeKind::Union(_)) {
-                        let it = match self.flow_expr_type(init, scope, ante, depth) {
+                        let it = match self.flow_expr_type(init, scope, ante, depth, Some(declared)) {
                             FlowRes::Ty(t) => t,
                             _ => return FlowRes::Ty(declared),
                         };
@@ -854,7 +854,7 @@ impl<'a> Checker<'a> {
                 right,
                 ..
             } => {
-                let rt = match self.flow_expr_type(right, scope, ante, depth) {
+                let rt = match self.flow_expr_type(right, scope, ante, depth, Some(declared)) {
                     FlowRes::Ty(t) => t,
                     other => return other,
                 };
@@ -880,7 +880,7 @@ impl<'a> Checker<'a> {
                 right,
                 ..
             } => {
-                let rt = match self.flow_expr_type(right, scope, ante, depth) {
+                let rt = match self.flow_expr_type(right, scope, ante, depth, Some(declared)) {
                     FlowRes::Ty(t) => t,
                     other => return other,
                 };
@@ -922,16 +922,20 @@ impl<'a> Checker<'a> {
 
     /// Type of an already-checked expression, for the resolver: the
     /// expression-type cache for everything the checker caches, the flow walk
-    /// itself for bare identifiers (which the cache deliberately excludes).
+    /// itself for bare identifiers (which the cache deliberately excludes),
+    /// and an exploratory contextual check for expressions the real pass has
+    /// not reached yet. `ctx` is the contextual type the real pass would use
+    /// (the assignment target's declared type).
     fn flow_expr_type(
         &mut self,
         e: &'a Expr,
         scope: ScopeId,
         flow: FlowNodeId,
         depth: u32,
+        ctx: Option<TypeId>,
     ) -> FlowRes {
         match e {
-            Expr::Paren { inner, .. } => self.flow_expr_type(inner, scope, flow, depth),
+            Expr::Paren { inner, .. } => self.flow_expr_type(inner, scope, flow, depth, ctx),
             // `undefined` never resolves to a symbol (check_ident special-
             // cases it); an Unknown here would abort whole walks over
             // `x = undefined` back edges
@@ -943,7 +947,26 @@ impl<'a> Checker<'a> {
             Expr::This { .. } => FlowRes::Unknown,
             _ => match self.caches.expr_type_cache.get(&node_key_expr(e)).copied() {
                 Some(t) => FlowRes::Ty(t),
-                None => FlowRes::Unknown,
+                // not yet checked — a loop back-edge assignment whose
+                // statement FOLLOWS the read lexically (`let y = f(x);
+                // x = y + 1;` inside a while). tsc checks the RHS on
+                // demand (getTypeAtFlowAssignment → checkExpression);
+                // mirror it exploratorily: quiet rolls diagnostics back
+                // and keeps caches/report-once guards unconsumed. Inner
+                // reads of the walk's own key hit the in_progress guard
+                // and fall back to declared, so self-referential RHS
+                // (`x = x + 1`) terminates.
+                None => {
+                    let saved_scope = self.current_scope;
+                    self.current_scope = scope;
+                    self.fresolve.quiet += 1;
+                    let dlen = self.diags.len();
+                    let t = self.check_expr(e, ctx);
+                    self.diags.truncate(dlen);
+                    self.fresolve.quiet -= 1;
+                    self.current_scope = saved_scope;
+                    FlowRes::Ty(t)
+                }
             },
         }
     }
@@ -1125,16 +1148,11 @@ impl<'a> Checker<'a> {
         if !self.options.no_implicit_any() {
             return None;
         }
-        // re-entrancy + write-position guards. NO `res.resolving` guard,
-        // unlike flow_type_of_read: initializer inference (`const y = x`)
+        // re-entrancy guard only: initializer inference (`const y = x`)
         // resolves `y` lazily and reads `x` under resolving — the flow graph
         // is bind-time and position-correct, so the walk is valid there
-        // (tsc flow-analyzes exactly these reads; the resolving guard exists
-        // for the LEXICAL fact fallback, which such reads must not consult).
+        // (tsc flow-analyzes exactly these reads).
         if !self.fresolve.in_progress.is_empty() {
-            return None;
-        }
-        if self.fresolve.suppress > 0 {
             return None;
         }
         let sflags = self.symbol(sym).flags;
@@ -1384,29 +1402,23 @@ impl<'a> Checker<'a> {
         if !self.fresolve.in_progress.is_empty() {
             return None;
         }
-        if !self.res.resolving.is_empty() || self.fresolve.suppress > 0 {
+        if !self.res.resolving.is_empty() {
             return None;
         }
         let fnode = *self.bind.flow_node.get(&nk)?;
         self.get_flow_type_of_reference_seeded(key, fnode, initial, decl_span, never_initialized)
     }
 
-    /// Stage-1 read seam: the resolver's answer for reference `key` at AST
-    /// node `nk`, now used IN PLACE of the lexical fact when it can be
-    /// computed. `None` sends the caller down the legacy fact path: type
-    /// positions have no flow node, dead-code walks return no answer, and
-    /// out-of-lexical-context re-checks (TS2403's re-derivation, write
-    /// positions) must not consult a flow node that describes a different
-    /// program point. Reads under LAZY SYMBOL RESOLUTION (`res.resolving`)
+    /// The read seam: the resolver's answer for reference `key` at AST node
+    /// `nk`; `None` means the read keeps the declared / checker-computed
+    /// type (type positions have no flow node, re-entrant reads bail on
+    /// in_progress). Reads under LAZY SYMBOL RESOLUTION (`res.resolving`)
     /// DO walk: initializer inference (`const y = x` resolving `y`) reads
     /// `x` at its own position, and the bind-time graph is position-correct
-    /// no matter when resolution happens — the old guard existed for the
-    /// lexical fact fallback, whose state describes the wrong statement.
+    /// no matter when resolution happens. Assignment-TARGET prop reads are
+    /// skipped by the seam itself (`cflags.assign_target`).
     pub(crate) fn flow_type_of_read(&mut self, nk: usize, key: &RefKey) -> Option<TypeId> {
         if !self.fresolve.in_progress.is_empty() {
-            return None;
-        }
-        if self.fresolve.suppress > 0 {
             return None;
         }
         // tsc runs flow analysis only for variable-like references
@@ -1423,79 +1435,6 @@ impl<'a> Checker<'a> {
         self.get_flow_type_of_reference(key, fnode)
     }
 
-    /// Dark-launch verification at a fact-stack read seam: compute the
-    /// resolver's answer for the same reference and tally agreement against
-    /// the fact-based result. Never changes checker output (diagnostics are
-    /// rolled back; the caller still returns the fact-based type).
-    pub(crate) fn flow_verify_read(
-        &mut self,
-        nk: usize,
-        key: &RefKey,
-        fact: Option<TypeId>,
-        span: Span,
-    ) {
-        // resolver → type_of_symbol → lazy initializer check can re-enter a
-        // read seam; verifying that inner read would clobber the outer walk
-        if !self.fresolve.in_progress.is_empty() {
-            return;
-        }
-        // lazy symbol-type resolution and explicit out-of-context re-checks
-        // (TS2403 re-deriving a merged `var`'s first declarator under a later
-        // declarator's facts) re-check nodes OUT of their lexical context —
-        // the fact and the flow node would describe different program
-        // points, so don't compare
-        if !self.res.resolving.is_empty() || self.fresolve.suppress > 0 {
-            return;
-        }
-        let Some(&fnode) = self.bind.flow_node.get(&nk) else {
-            FLOW_VERIFY_NO_NODE.fetch_add(1, Ordering::Relaxed);
-            return;
-        };
-        self.fresolve.quiet += 1;
-        let dlen = self.diags.len();
-        let resolved = self.get_flow_type_of_reference(key, fnode);
-        let baseline = match fact {
-            Some(t) => Some(t),
-            None => self.declared_type_of_ref(key),
-        };
-        self.diags.truncate(dlen);
-        self.fresolve.quiet -= 1;
-        let Some(baseline) = baseline else { return };
-        match resolved {
-            Some(t) if t == baseline => {
-                FLOW_VERIFY_MATCH.fetch_add(1, Ordering::Relaxed);
-            }
-            Some(t) => {
-                // normalize before comparing: `T & {}` (NonNullable) interns a
-                // fresh empty-object shape per construction site, so the same
-                // type built twice gets two TypeIds — display equality treats
-                // those as agreement (tallied separately)
-                let f = self.display_type(baseline);
-                let r = self.display_type(t);
-                if f == r {
-                    FLOW_VERIFY_DISPLAY_MATCH.fetch_add(1, Ordering::Relaxed);
-                    return;
-                }
-                FLOW_VERIFY_MISMATCH.fetch_add(1, Ordering::Relaxed);
-                if verbose() {
-                    let file = self.files[self.current_file].0.clone();
-                    let name = self.symbol(key.0).name.clone();
-                    let path = if key.1.is_empty() {
-                        String::new()
-                    } else {
-                        format!(".{}", key.1.join("."))
-                    };
-                    eprintln!(
-                        "FLOW_VERIFY mismatch {}:{} {}{}: fact={} resolver={}",
-                        file, span.start, name, path, f, r
-                    );
-                }
-            }
-            None => {
-                FLOW_VERIFY_UNRESOLVED.fetch_add(1, Ordering::Relaxed);
-            }
-        }
-    }
 }
 
 /// tsc isFalseExpression: literally-false conditions — the `false` keyword,

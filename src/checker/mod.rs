@@ -105,11 +105,6 @@ pub struct FlowResolve {
     pub memo: HashMap<(RefKey, crate::binder::FlowNodeId), Option<TypeId>>,
     /// (ref, flow) pairs on the active resolution stack.
     pub in_progress: HashSet<(RefKey, crate::binder::FlowNodeId)>,
-    /// >0 while the checker re-checks a node OUTSIDE its lexical context
-    /// (e.g. TS2403 re-deriving the first `var` declarator's type from a
-    /// later one) — the verify seams skip, since fact state and flow node
-    /// would describe different program points.
-    pub suppress: u32,
     /// >0 while a resolver scaffold re-runs checker code exploratorily
     /// (its diagnostics are rolled back afterwards). Exploratory runs must
     /// not populate `expr_type_cache` or consume the once-per-node/symbol
@@ -327,6 +322,17 @@ pub struct CheckFlags {
     /// NonNullExpression-parent disjunct). Keyed by node, so no reset is
     /// needed; parens (`(x)!`) intentionally do not set it.
     pub nonnull_ident: usize,
+    /// node key of the prop-access currently being checked AS AN ASSIGNMENT
+    /// TARGET: the read seam must not flow-narrow the target reference
+    /// itself (tsc AssignmentKind.Definite reads the declared type), while
+    /// its RECEIVER sub-reads narrow normally (`control[key] = value` inside
+    /// an `if (control !== undefined)` guard sees the narrowed receiver).
+    pub assign_target: usize,
+    /// >0 while checking a destructuring assignment TARGET pattern (or a
+    /// parenthesized identifier target): every identifier inside is a write
+    /// position — the read seam, definite-assignment and auto hooks all
+    /// yield the declared type (tsc AssignmentKind.Definite for each leaf).
+    pub pattern_target: u32,
     /// Nesting depth while checking a class static block. Some names such as
     /// `await` are parse-time invalid in arrow parameter lists there; when the
     /// parser recovers them as an arrow, semantic implicit-any suggestions must
@@ -466,10 +472,6 @@ pub struct Checker<'a> {
 
     /// flow-graph resolver state (see `FlowResolve`)
     pub fresolve: FlowResolve,
-    /// `TSRS_FLOW_VERIFY` dark launch: at the fact-stack read seams, also run
-    /// the flow-graph resolver and tally agreement (output unchanged).
-    pub flow_verify: bool,
-
     /// checked declarations (idempotence for lazy double-checks)
     pub checked_decls: HashSet<usize>,
 
@@ -691,7 +693,6 @@ fn new_checker<'a>(
             ..Default::default()
         },
         fresolve: FlowResolve::default(),
-        flow_verify: std::env::var("TSRS_FLOW_VERIFY").is_ok_and(|v| !v.is_empty() && v != "0"),
         checked_decls: HashSet::new(),
         lib_file,
         tp: TypeParamCtx::default(),

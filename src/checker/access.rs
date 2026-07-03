@@ -184,6 +184,14 @@ impl<'a> Checker<'a> {
         if !self.options.strict_null_checks() || !self.options.strict_property_initialization() {
             return;
         }
+        // an assignment TARGET is not a read (tsc AssignmentKind.Definite):
+        // `this.x = 1` must not 2565 itself, nor pattern leaves
+        // (`({x: this.x} = …)`)
+        if self.cflags.assign_target == crate::checker::exprs::node_key_expr(e)
+            || self.cflags.pattern_target > 0
+        {
+            return;
+        }
         let Some(f) = self.stacks.fn_stack.last() else {
             return;
         };
@@ -414,23 +422,21 @@ impl<'a> Checker<'a> {
             Some(t) => t,
             None => return self.types.error,
         };
-        // narrowing facts on the path: the flow-graph resolver answers first
-        // (Stage 1). A resolver answer equal to its own declared baseline
-        // means "no narrowing" — keep the checker-computed member type
-        // (`prop_access_type` handles this-substitution and namespace
+        // narrowing on the path: the flow-graph resolver is the single
+        // engine (Stage 4). A resolver answer equal to its own declared
+        // baseline means "no narrowing" — keep the checker-computed member
+        // type (`prop_access_type` handles this-substitution and namespace
         // members the resolver's declared walk does not).
-        if let Some(k) = self.ref_key_of(e) {
-            let fact = self.fact_for(&k);
-            if self.flow_verify {
-                self.flow_verify_read(crate::checker::exprs::node_key_expr(e), &k, fact, e.span());
-            }
-            let resolved = self.flow_type_of_read(crate::checker::exprs::node_key_expr(e), &k);
-            if let Some(t) = resolved {
-                if Some(t) != self.declared_type_of_ref(&k) {
-                    result = t;
+        if self.cflags.assign_target != crate::checker::exprs::node_key_expr(e)
+            && self.cflags.pattern_target == 0
+        {
+            if let Some(k) = self.ref_key_of(e) {
+                let resolved = self.flow_type_of_read(crate::checker::exprs::node_key_expr(e), &k);
+                if let Some(t) = resolved {
+                    if Some(t) != self.declared_type_of_ref(&k) {
+                        result = t;
+                    }
                 }
-            } else if let Some(t) = fact {
-                result = t;
             }
         }
         if optional_out {

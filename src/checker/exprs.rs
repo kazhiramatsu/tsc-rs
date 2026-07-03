@@ -811,13 +811,15 @@ impl<'a> Checker<'a> {
                 );
             }
         }
-        // narrowing: the flow-graph resolver answers first (Stage 1); reads
-        // it cannot place (type positions, out-of-context re-checks) fall
-        // back to the lexical fact stack
+        // narrowing: the flow-graph resolver is the single engine (Stage 4);
+        // reads it cannot place (type positions, out-of-context re-checks,
+        // re-entrancy) read the declared type, as tsc does
         let key = RefKey(sym, Vec::new());
-        let fact = self.fact_for(&key);
-        if self.flow_verify {
-            self.flow_verify_read(node_key(id), &key, fact, id.span);
+        // a destructuring-pattern / parenthesized assignment-target leaf is
+        // a write position: declared type, no DA/auto checks (tsc
+        // AssignmentKind.Definite)
+        if self.cflags.pattern_target > 0 {
+            return self.type_of_symbol(sym);
         }
         // definite-assignment candidates run the walk seeded with
         // `declared | undefined` instead (Stage 2, tsc initialType) — the
@@ -832,9 +834,6 @@ impl<'a> Checker<'a> {
             return t;
         }
         if let Some(t) = self.flow_type_of_read(node_key(id), &key) {
-            return t;
-        }
-        if let Some(t) = fact {
             return t;
         }
         self.type_of_symbol(sym)

@@ -1217,6 +1217,18 @@ impl<'a> Checker<'a> {
         let ctor_sigs = self.types.shape(sid).ctor_sigs.clone();
         if let Some(&sig) = ctor_sigs.first() {
             let ret = self.sig_return(sig);
+            // tsc getInstanceType erases the construct signature's type
+            // parameters to `any`: `new <T>(x: T): B<T>` narrows instanceof
+            // candidates against B<any>, so B<number> stays in the union
+            // instead of collapsing to the raw generic B<T>
+            let tps = self.types.sig(sig).type_params.clone();
+            let ret = if tps.is_empty() {
+                ret
+            } else {
+                let entries: Vec<_> = tps.iter().map(|&p| (p, self.types.any)).collect();
+                let mapper = self.mapper_from_entries(&entries);
+                self.instantiate_type(ret, &mapper)
+            };
             if !matches!(self.types.kind(ret), TypeKind::Any) {
                 return Some(ret);
             }
