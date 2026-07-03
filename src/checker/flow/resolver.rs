@@ -70,11 +70,10 @@ impl<'a> Checker<'a> {
     /// symbol's type walked along the property path. This is
     /// `current_type_of_key` minus the `fact_for` lookups.
     pub(crate) fn declared_type_of_ref(&mut self, key: &RefKey) -> Option<TypeId> {
-        let mut t = if Some(key.0) == self.fresolve.this_sym {
-            // the synthetic `this` root of a seeded 2564/2565 query: the
-            // declaring class's instance type (the symbol itself is a type
-            // parameter with no value declaration)
-            let owner = self.this_param_owner(key.0)?;
+        let mut t = if let Some(owner) = self.this_param_owner(key.0) {
+            // a `this`-rooted key (seeded 2564/2565 queries, typeof-this
+            // type queries): the declaring class's instance type (the
+            // symbol itself is a type parameter with no value declaration)
             self.types.intern_kind(TypeKind::Iface(owner))
         } else {
             self.type_of_symbol(key.0)
@@ -1396,6 +1395,27 @@ impl<'a> Checker<'a> {
         let t = self.get_flow_type_of_reference_seeded(&key, end, initial, prop_span, true);
         self.fresolve.this_sym = None;
         t.map(|t| !self.contains_undefined_member(t))
+    }
+
+    /// `typeof this` in a TYPE position: run the walk for the class's
+    /// `this` parameter at the query's flow node (mapped by the builder for
+    /// local declarator annotations). `None` = unmapped position or no
+    /// narrowing in effect — the caller keeps the bare polymorphic this.
+    pub(crate) fn flow_type_of_this_query(
+        &mut self,
+        nk: usize,
+        this_param: SymbolId,
+    ) -> Option<TypeId> {
+        if !self.fresolve.in_progress.is_empty() {
+            return None;
+        }
+        let fnode = *self.bind.flow_node.get(&nk)?;
+        let key = RefKey(this_param, Vec::new());
+        let r = self.get_flow_type_of_reference(&key, fnode)?;
+        if Some(r) == self.declared_type_of_ref(&key) {
+            return None;
+        }
+        Some(r)
     }
 
     /// The seeded-walk entry with the read-seam guard triple.

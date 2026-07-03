@@ -324,7 +324,6 @@ impl<'a> Checker<'a> {
                         );
                         return false;
                     }
-                    self.invalidate_fact_root(sym);
                     self.symuse.assigned_symbols.insert(sym);
                 }
                 true
@@ -338,17 +337,11 @@ impl<'a> Checker<'a> {
                             &gen::Cannot_assign_to_0_because_it_is_a_read_only_property,
                             &[name.name.clone()],
                         );
-                        if let Some(k) = self.ref_key_of(target) {
-                            self.invalidate_fact_root(k.0);
-                        }
                         // A read-only target is reported as TS2540 only; tsc does
                         // not additionally check the assigned value's type, so the
                         // caller must not run the assignability check.
                         return false;
                     }
-                }
-                if let Some(k) = self.ref_key_of(target) {
-                    self.invalidate_fact_root(k.0);
                 }
                 true
             }
@@ -440,7 +433,6 @@ impl<'a> Checker<'a> {
                     match p {
                         ObjectProp::Shorthand { name, .. } => {
                             if let Some(sym) = self.lookup_value(self.current_scope, &name.name) {
-                                self.invalidate_fact_root(sym);
                                 self.symuse.assigned_symbols.insert(sym);
                             }
                         }
@@ -531,20 +523,6 @@ impl<'a> Checker<'a> {
                 if !self.types.is_any_or_error(lt) && !self.types.is_error(rt) {
                     self.check_assignable(rt, lt, left.span(), None, Some(right));
                 }
-                // assignment narrowing: x = expr narrows x to expr's type
-                if let Some(k) = self.ref_key_of(left) {
-                    let narrowed = self.types.regular(rt);
-                    let widened = self.types.widen_literal(narrowed);
-                    let declared = lt;
-                    let target = if !self.is_global_object_type(declared)
-                        && self.is_assignable_to(widened, declared)
-                    {
-                        widened
-                    } else {
-                        declared
-                    };
-                    self.set_fact(k, target);
-                }
                 rt
             }
             AddAssign | SubAssign | MulAssign | DivAssign | ModAssign | ExpAssign | ShlAssign
@@ -581,26 +559,6 @@ impl<'a> Checker<'a> {
                 self.check_reference_for_assignment(left, false);
                 let lt = self.check_target_type(left);
                 let rt = self.check_expr(right, Some(lt));
-                // narrow the target: `x ??= r` keeps x's non-nullish part, `x ||= r`
-                // keeps its truthy part, `x &&= r` keeps its falsy part — unioned
-                // with the assigned value.
-                if let Some(k) = self.ref_key_of(left) {
-                    let cur = self.types.regular(lt);
-                    let kept = match op {
-                        QuestionQuestionAssign => self.non_nullable(cur),
-                        BarBarAssign => self.truthy_part(cur),
-                        AmpAmpAssign => self.falsy_part(cur),
-                        _ => cur,
-                    };
-                    let r = self.types.widen_literal(self.types.regular(rt));
-                    let narrowed = self.types.union(vec![kept, r]);
-                    let target = if self.is_assignable_to(narrowed, lt) {
-                        narrowed
-                    } else {
-                        lt
-                    };
-                    self.set_fact(k, target);
-                }
                 rt
             }
             Comma => {

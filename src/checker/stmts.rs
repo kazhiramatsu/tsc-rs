@@ -2359,41 +2359,8 @@ impl<'a> Checker<'a> {
                             self.check_assignable(it, dt, d.name.span(), None, Some(init));
                         }
                     }
-                    // declaration narrowing: `let/const x: U = init` reduces a
-                    // *union* declared type to the members the initializer can
-                    // inhabit (tsc getAssignmentReducedType), for subsequent
-                    // reads. Skip null/undefined initializers so `T | null` is
-                    // preserved for "possibly null" diagnostics, and skip
-                    // non-union declared types (e.g. `unknown`).
-                    if let Binding::Ident(_) = &d.name {
-                        if matches!(self.types.kind(dt), TypeKind::Union(_)) {
-                            if let Some(sym) = self.bind.decl_symbol.get(&key).copied() {
-                                let r = self.types.regular(it);
-                                let val = if matches!(v.kind, VarKind::Const) {
-                                    r
-                                } else {
-                                    self.types.widen_literal(r)
-                                };
-                                let nullish = matches!(
-                                    self.types.kind(val),
-                                    TypeKind::Null | TypeKind::Undefined
-                                );
-                                if !nullish && !self.types.is_error(val) {
-                                    let members = self.types.union_members(dt);
-                                    let kept: Vec<TypeId> = members
-                                        .into_iter()
-                                        .filter(|&m| self.is_assignable_to(val, m))
-                                        .collect();
-                                    if !kept.is_empty() {
-                                        let narrowed = self.types.union(kept);
-                                        if narrowed != dt {
-                                            self.set_fact(RefKey(sym, Vec::new()), narrowed);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // declaration narrowing (`let x: U = init` reducing the
+                    // union declared type) lives in the resolver's Init arm
                     let source = declared.unwrap_or_else(|| {
                         let r = self.types.regular(it);
                         self.types.widen_literal(r)

@@ -215,7 +215,25 @@ impl<'a> Checker<'a> {
                 }
             }
             Expr::Ident(id) => self.check_ident(id),
-            Expr::This { span } => self.check_this_expr(*span),
+            Expr::This { span } => {
+                let t = self.check_this_expr(*span);
+                // tsc flow-narrows `this` like any reference: under
+                // `if (this instanceof D)` both the VALUE `this` and a
+                // `typeof this` annotation read the narrowed type. The
+                // builder maps This exprs; the polymorphic this stays
+                // when nothing narrows (write positions read declared).
+                if self.cflags.pattern_target == 0 {
+                    if let TypeKind::TypeParam(p) = self.types.kind(t) {
+                        let p = *p;
+                        if self.this_param_owner(p).is_some() {
+                            if let Some(n) = self.flow_type_of_this_query(node_key_expr(e), p) {
+                                return n;
+                            }
+                        }
+                    }
+                }
+                t
+            }
             Expr::Super { span } => {
                 if self.cflags.in_ctor_param_init {
                     self.error_at(

@@ -288,6 +288,16 @@ impl<'a> FlowBuilder<'a, '_> {
 
     fn build_var(&mut self, v: &'a VarStmt, mut flow: FlowNodeId) -> FlowNodeId {
         for d in &v.decls {
+            // a `typeof this` / `typeof x` TYPE QUERY at the annotation root
+            // is flow-narrowed by tsc (`const d1: typeof this = this` under
+            // `this instanceof D`); map it so the type-position read can run
+            // the walk. Root-only for now — nested query positions stay on
+            // the declared type (documented gap).
+            if let Some(ty) = &d.ty {
+                if matches!(ty, TypeNode::TypeQuery { .. }) {
+                    self.map.insert(node_key(ty), flow);
+                }
+            }
             if let Some(init) = &d.init {
                 let after = self.build_expr(init, flow);
                 flow = self.effect(FlowNode::Init {

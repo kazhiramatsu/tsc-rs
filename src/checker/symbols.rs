@@ -1253,8 +1253,14 @@ impl<'a> Checker<'a> {
                     let mut t = if in_static {
                         self.class_value_type(cls)
                     } else if self.type_params_of_symbol(cls).is_empty() {
+                        // tsc flow-narrows type queries: `const d1: typeof
+                        // this` under `this instanceof D` is the narrowed
+                        // this. The builder maps root-level TypeQuery
+                        // annotations; unmapped positions (and typeof-x
+                        // queries generally) keep the declared type —
+                        // documented gap pending full type-position mapping.
                         let p = self.this_param_of(cls);
-                        self.fact_for(&RefKey(p, Vec::new()))
+                        self.flow_type_of_this_query(node_key(node), p)
                             .unwrap_or_else(|| self.types.intern_kind(TypeKind::TypeParam(p)))
                     } else {
                         let args: Vec<TypeId> = self
