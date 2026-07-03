@@ -141,6 +141,83 @@ impl<'a> Checker<'a> {
         t
     }
 
+    /// TS2565 (tsc getFlowTypeOfAccessExpression's assumeUninitialized
+    /// path): a `this.<name>` read whose control-flow container is the
+    /// DECLARING class's constructor, where the property is an
+    /// initializer-less, non-static, non-`!`, non-abstract, non-optional
+    /// declaration — run the seeded walk from the read; a surviving
+    /// `undefined` is a use before assignment. Emission-only: the read
+    /// keeps the checker-computed member type (tsc returns propType after
+    /// the error).
+    fn da_check_this_prop_read(&mut self, e: &'a Expr, name: &Ident) {
+        if !self.options.strict_null_checks() || !self.options.strict_property_initialization() {
+            return;
+        }
+        let Some(f) = self.stacks.fn_stack.last() else {
+            return;
+        };
+        if f.kind != FuncKind::Constructor {
+            return;
+        }
+        let Some(&cls) = self.stacks.class_stack.last() else {
+            return;
+        };
+        let Some(msym) = self.bind.symbols[cls.0 as usize]
+            .members
+            .get(&name.name)
+        else {
+            return;
+        };
+        if self.symbol(msym).flags & (flags::ABSTRACT | flags::AMBIENT) != 0 {
+            return;
+        }
+        let prop_ok = self.symbol(msym).decls.iter().all(|d| {
+            matches!(d,
+                crate::binder::Decl::PropertyDecl(p) if p.init.is_none()
+                    && !p.exclam
+                    && !p.question
+                    && !has_modifier(&p.modifiers, ModifierKind::Static)
+                    && !has_modifier(&p.modifiers, ModifierKind::Abstract)
+                    && !has_modifier(&p.modifiers, ModifierKind::Declare))
+        });
+        if !prop_ok {
+            return;
+        }
+        let this_sym = self.this_param_of(cls);
+        let key = crate::checker::RefKey(this_sym, vec![name.name.clone()]);
+        self.fresolve.this_sym = Some(this_sym);
+        let prop_ty = self.declared_type_of_ref(&key);
+        self.fresolve.this_sym = None;
+        let Some(prop_ty) = prop_ty else { return };
+        if matches!(
+            self.types.kind(prop_ty),
+            TypeKind::Any | TypeKind::Unknown | TypeKind::Error
+        ) || self.contains_undefined_member(prop_ty)
+        {
+            return;
+        }
+        let undef = self.types.undefined;
+        let initial = self.types.union(vec![prop_ty, undef]);
+        self.fresolve.this_sym = Some(this_sym);
+        let t = self.flow_type_of_da_read(
+            crate::checker::exprs::node_key_expr(e),
+            &key,
+            initial,
+            name.span,
+            true,
+        );
+        self.fresolve.this_sym = None;
+        if let Some(t) = t {
+            if self.contains_undefined_member(t) {
+                self.error_at(
+                    name.span,
+                    &gen::Property_0_is_used_before_being_assigned,
+                    &[name.name.clone()],
+                );
+            }
+        }
+    }
+
     pub fn non_nullable(&mut self, t: TypeId) -> TypeId {
         match self.types.kind(t).clone() {
             TypeKind::Null | TypeKind::Undefined => self.types.never,
@@ -225,42 +302,13 @@ impl<'a> Checker<'a> {
         }
         // tsc checkPropertyAccessibilityAtLocation, isSuper arm: ES5 fields
         // #private members are only accessible inside their class (18013)
-        // 2565: reading an unassigned property inside the constructor. The
-        // owning class symbol is whatever class the constructor flow belongs
-        // to — independent of how the `this` expression's type is represented
-        // (instance `Iface(cls)`, `ClassStatics(cls)`, or a polymorphic
-        // this-parameter), so we look it up from `ctor_flow` directly.
-        if let (Some((csym, assigned)), Expr::This { .. }) = (&self.flow.ctor_flow, &**obj) {
-            let cls = *csym;
-            if !assigned.contains(&name.name) {
-                let uninit = self.bind.symbols[cls.0 as usize]
-                    .members
-                    .get(&name.name)
-                    .map(|m|
-                        self.symbol(m).decls.iter().all(|d| matches!(d,
-                            crate::binder::Decl::PropertyDecl(p) if p.init.is_none() && !p.exclam && p.ty.is_some() && !p.question))
-                    )
-                    .unwrap_or(false);
-                let abstract_prop = self.bind.symbols[cls.0 as usize]
-                    .members
-                    .get(&name.name)
-                    .map(|m| self.symbol(m).flags & flags::ABSTRACT != 0)
-                    .unwrap_or(false);
-                if abstract_prop {
-                    let cn = self.symbol(cls).name.clone();
-                    self.error_at(
-                        name.span,
-                        &gen::Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor,
-                        &[name.name.clone(), cn],
-                    );
-                } else if uninit && self.options.strict_property_initialization() {
-                    self.error_at(
-                        name.span,
-                        &gen::Property_0_is_used_before_being_assigned,
-                        &[name.name.clone()],
-                    );
-                }
-            }
+        // 2565 (tsc getFlowTypeOfAccessExpression): a `this.prop` read
+        // inside the DECLARING class's own constructor, where prop is an
+        // initializer-less, non-static, non-`!`, non-abstract property —
+        // seed `propType | undefined` at the read's flow node; a surviving
+        // undefined is a use before assignment.
+        if matches!(&**obj, Expr::This { .. }) {
+            self.da_check_this_prop_read(e, name);
         }
         // 2729: this.X in a property initializer where X is declared later.
         // Resolves the owning class from `class_stack` and chooses

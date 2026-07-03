@@ -2709,21 +2709,3 @@ pub(crate) fn collect_this_spans(stmts: &[Stmt], out: &mut Vec<Span>) {
     }
 }
 
-pub(crate) fn stmts_assign_this_prop(stmts: &[Stmt], name: &str) -> bool {
-    stmts.iter().any(|s| match s {
-        Stmt::Expr { expr, .. } => {
-            if let Expr::Binary {
-                op: BinOp::Assign,
-                left,
-                ..
-            } = expr
-            {
-                if let Expr::PropAccess { obj, name: pn, .. } = &**left {
-                    return matches!(&**obj, Expr::This { .. }) && pn.name == name;
-                }
-            }
-            false
-        }
-        _ => false,
-    })
-}

@@ -485,13 +485,6 @@ impl<'a> Checker<'a> {
         use BinOp::*;
         match op {
             Assign => {
-                if let Expr::PropAccess { obj, name, .. } = &**left {
-                    if matches!(&**obj, Expr::This { .. }) {
-                        if let Some((_, assigned)) = &mut self.flow.ctor_flow {
-                            assigned.insert(name.name.clone());
-                        }
-                    }
-                }
                 if expr_contains_optional_chain(left) {
                     let lt0 = self.check_expr(left, None);
                     let _ = lt0;

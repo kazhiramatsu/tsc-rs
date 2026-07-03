@@ -86,7 +86,6 @@ pub struct FlowState {
     pub label_stack: Vec<String>,
     pub evolving_nulls: HashMap<SymbolId, (usize, Span)>,
     pub evolving_fired: HashSet<SymbolId>,
-    pub ctor_flow: Option<(SymbolId, HashSet<String>)>,
     pub return_stack: Vec<usize>,
     pub exhaustive_switches: std::collections::HashSet<usize>,
 }

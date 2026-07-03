@@ -1140,7 +1140,6 @@ impl<'a> Checker<'a> {
                         }
                     }
                     self.check_function_body(f, None, true);
-                    self.flow.ctor_flow = None;
                 }
                 ClassMember::Index(_) => {}
             }

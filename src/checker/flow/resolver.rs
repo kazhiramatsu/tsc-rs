@@ -992,7 +992,7 @@ impl<'a> Checker<'a> {
     }
 
     /// The seeded-walk entry with the read-seam guard triple.
-    fn flow_type_of_da_read(
+    pub(crate) fn flow_type_of_da_read(
         &mut self,
         nk: usize,
         key: &RefKey,
