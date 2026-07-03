@@ -105,6 +105,12 @@ pub struct FlowResolve {
     pub memo: HashMap<(RefKey, crate::binder::FlowNodeId), Option<TypeId>>,
     /// (ref, flow) pairs on the active resolution stack.
     pub in_progress: HashSet<(RefKey, crate::binder::FlowNodeId)>,
+    /// fact-frame index at each active scaffold's entry: while a scaffold
+    /// runs (`quiet > 0`), `fact_for` sees only frames pushed SINCE the
+    /// innermost scaffold began — its own seeded scratch, never the read
+    /// site's lexical residue (`x === y` narrowing reads `y`'s declared
+    /// type, not whatever fact happens to be live at the query point).
+    pub scaffold_base: Vec<usize>,
     /// >0 while a resolver scaffold re-runs checker code exploratorily
     /// (its diagnostics are rolled back afterwards). Exploratory runs must
     /// not populate `expr_type_cache` or consume the once-per-node/symbol

@@ -15,7 +15,15 @@ impl<'a> Checker<'a> {
     // ── narrowing facts (populated in stmts/exprs; full engine in P8) ──────
 
     pub fn fact_for(&self, key: &RefKey) -> Option<TypeId> {
-        for frame in self.flow.facts.iter().rev() {
+        // hermetic scaffolds: inside a resolver scaffold only the frames the
+        // scaffold itself pushed are visible — the read site's lexical
+        // residue would describe a different program point
+        let base = if self.fresolve.quiet > 0 {
+            self.fresolve.scaffold_base.last().copied().unwrap_or(0)
+        } else {
+            0
+        };
+        for frame in self.flow.facts[base..].iter().rev() {
             if let Some(&t) = frame.get(key) {
                 return Some(t);
             }

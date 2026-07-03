@@ -568,6 +568,7 @@ impl<'a> Checker<'a> {
                 // resolution emits along the way are rolled back.
                 let saved_scope = self.current_scope;
                 self.current_scope = scope;
+                self.fresolve.scaffold_base.push(self.flow.facts.len());
                 self.fresolve.quiet += 1;
                 let dlen = self.diags.len();
                 let out = self.narrowed(|c| {
@@ -577,6 +578,7 @@ impl<'a> Checker<'a> {
                 });
                 self.diags.truncate(dlen);
                 self.fresolve.quiet -= 1;
+                self.fresolve.scaffold_base.pop();
                 self.current_scope = saved_scope;
                 if verbose() {
                     let name = self.symbol(key.0).name.clone();
@@ -621,6 +623,7 @@ impl<'a> Checker<'a> {
                 // the negation of every label.
                 let saved_scope = self.current_scope;
                 self.current_scope = scope;
+                self.fresolve.scaffold_base.push(self.flow.facts.len());
                 self.fresolve.quiet += 1;
                 let dlen = self.diags.len();
                 let out = self.narrowed(|c| {
@@ -639,6 +642,7 @@ impl<'a> Checker<'a> {
                 });
                 self.diags.truncate(dlen);
                 self.fresolve.quiet -= 1;
+                self.fresolve.scaffold_base.pop();
                 self.current_scope = saved_scope;
                 if verbose() && out == self.types.never && t_in != self.types.never {
                     eprintln!(
@@ -699,6 +703,7 @@ impl<'a> Checker<'a> {
                 };
                 let saved_scope = self.current_scope;
                 self.current_scope = scope;
+                self.fresolve.scaffold_base.push(self.flow.facts.len());
                 self.fresolve.quiet += 1;
                 let dlen = self.diags.len();
                 let out = self.narrowed(|c| {
@@ -708,6 +713,7 @@ impl<'a> Checker<'a> {
                 });
                 self.diags.truncate(dlen);
                 self.fresolve.quiet -= 1;
+                self.fresolve.scaffold_base.pop();
                 self.current_scope = saved_scope;
                 FlowRes::Ty(out)
             }
@@ -959,11 +965,13 @@ impl<'a> Checker<'a> {
                 None => {
                     let saved_scope = self.current_scope;
                     self.current_scope = scope;
-                    self.fresolve.quiet += 1;
+                    self.fresolve.scaffold_base.push(self.flow.facts.len());
+                self.fresolve.quiet += 1;
                     let dlen = self.diags.len();
                     let t = self.check_expr(e, ctx);
                     self.diags.truncate(dlen);
                     self.fresolve.quiet -= 1;
+                self.fresolve.scaffold_base.pop();
                     self.current_scope = saved_scope;
                     FlowRes::Ty(t)
                 }
