@@ -113,6 +113,12 @@ pub struct FlowResolve {
     /// report guards: either would silently eat the diagnostic when the
     /// real check reaches the same node later.
     pub quiet: u32,
+    /// Definite-assignment seed for the current query (tsc's `initialType`):
+    /// when the walk for THIS reference reaches its container `Start`
+    /// without meeting an assignment, it reads the seeded type (typically
+    /// `declared | undefined`) instead of the declared type. Keyed so
+    /// sub-walks of other references (`x = y`'s RHS) are unaffected.
+    pub initial: Option<(RefKey, TypeId)>,
 }
 
 /// Resolution memoization caches: symbol→type, member-shape, signature return &

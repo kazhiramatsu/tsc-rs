@@ -85,6 +85,7 @@ impl<'a> Checker<'a> {
         flow: FlowNodeId,
     ) -> Option<TypeId> {
         self.fresolve.memo.clear();
+        self.fresolve.initial = None;
         let r = self.flow_type_at(key, flow, 0);
         self.fresolve.in_progress.clear();
         match r {
@@ -93,8 +94,45 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// Resolve `key`'s flow type at `flow` with a definite-assignment seed
+    /// (tsc getFlowTypeOfReference's `initialType` parameter): paths that
+    /// reach the container `Start` without an assignment contribute
+    /// `initial` instead of the declared type. The memo is per-query, so the
+    /// seeded result never leaks into unseeded queries or vice versa.
+    pub(crate) fn get_flow_type_of_reference_seeded(
+        &mut self,
+        key: &RefKey,
+        flow: FlowNodeId,
+        initial: TypeId,
+    ) -> Option<TypeId> {
+        self.fresolve.memo.clear();
+        self.fresolve.initial = Some((key.clone(), initial));
+        let r = self.flow_type_at(key, flow, 0);
+        self.fresolve.initial = None;
+        self.fresolve.in_progress.clear();
+        match r {
+            FlowRes::Ty(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Does the (possibly union) type have an `undefined` constituent?
+    /// Structural scan — `void` deliberately does NOT count (tsc
+    /// containsUndefinedType checks the Undefined flag; `let x: T | void`
+    /// stays a definite-assignment candidate).
+    pub(crate) fn contains_undefined_member(&self, t: TypeId) -> bool {
+        self.types
+            .union_members(t)
+            .iter()
+            .any(|&m| matches!(self.types.kind(m), TypeKind::Undefined))
+    }
+
     fn flow_type_at(&mut self, key: &RefKey, flow: FlowNodeId, depth: u32) -> FlowRes {
-        if depth > 200 {
+        // stack guard only — memoization already bounds total work; frames
+        // here are small (the narrowing scaffolds run after the recursive
+        // call returns). 2000 matches tsc's flow-analysis budget, so long
+        // straight-line bodies resolve instead of silently going Unknown.
+        if depth > 2000 {
             return FlowRes::Unknown;
         }
         let mk = (key.clone(), flow);
@@ -167,6 +205,15 @@ impl<'a> Checker<'a> {
                         return self.flow_type_at(key, oflow, depth + 1);
                     }
                 }
+                // seeded (definite-assignment) query: the queried reference
+                // reads its initial type at the container entry — tsc
+                // getTypeAtFlowNode's Start arm consuming initialType. Other
+                // references resolved during the same walk are unaffected.
+                if let Some((ik, it)) = &self.fresolve.initial {
+                    if ik == key {
+                        return FlowRes::Ty(*it);
+                    }
+                }
                 match self.declared_type_of_ref(key) {
                     Some(t) => FlowRes::Ty(t),
                     None => FlowRes::Unknown,
@@ -175,6 +222,15 @@ impl<'a> Checker<'a> {
             Step::Dead => FlowRes::Dead,
             Step::Branch(antes) => {
                 let declared = self.declared_type_of_ref(key);
+                // tsc takes the declared-type subsumption shortcut only when
+                // declaredType === initialType: a seeded (definite-
+                // assignment) walk must keep the unassigned edges alive, or
+                // `if (c) x = 1; x;` would resolve to the assigned edge's
+                // declared type and swallow the seed.
+                let subsume = match &self.fresolve.initial {
+                    Some((ik, it)) if ik == key => Some(*it) == declared,
+                    _ => true,
+                };
                 let mut tys: Vec<TypeId> = Vec::new();
                 let mut any_cycle = false;
                 let mut any_dead = false;
@@ -187,7 +243,7 @@ impl<'a> Checker<'a> {
                             // are its subtypes), so stop here — this is also
                             // what keeps `A | C`-style unions collapsed to
                             // `A` after an `if (isC(a)) {...}` join
-                            if Some(t) == declared {
+                            if subsume && Some(t) == declared {
                                 return FlowRes::Ty(t);
                             }
                             if !tys.contains(&t) {
