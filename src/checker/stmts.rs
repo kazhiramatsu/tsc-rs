@@ -1,7 +1,7 @@
 //! Statement checking: declarations, control flow with flow-lite narrowing,
 //! return paths, imports.
 
-use super::{operators::TruthinessContext, Checker, EnumValue, RefKey};
+use super::{operators::TruthinessContext, Checker, EnumValue};
 use crate::ast::*;
 use crate::binder::{Decl, ScopeId, SymbolId};
 use crate::diagnostics::gen;
@@ -535,38 +535,19 @@ impl<'a> Checker<'a> {
                 }
                 let ct = self.check_expr(cond, None);
                 self.check_testable(cond, ct, TruthinessContext::Condition);
-                let then_terminates = super::flow::reachability::stmt_definitely_terminates(then);
-                // check the THEN branch under the true-narrowing of the guard.
-                self.narrowed(|this| {
-                    this.narrow_by_condition(cond, true);
-                    this.check_statement(then);
-                });
+                // narrowing is the resolver's job (Cond edges in the flow
+                // graph); the checker just walks the branches
+                self.check_statement(then);
                 if let Some(els) = els {
-                    self.narrowed(|this| {
-                        this.narrow_by_condition(cond, false);
-                        this.check_statement(els);
-                    });
-                    let else_terminates =
-                        super::flow::reachability::stmt_definitely_terminates(els);
-                    if then_terminates && !else_terminates {
-                        self.narrow_by_condition(cond, false);
-                    } else if else_terminates && !then_terminates {
-                        self.narrow_by_condition(cond, true);
-                    }
-                } else if then_terminates {
-                    // early-return guard: the negation holds afterwards
-                    self.narrow_by_condition(cond, false);
+                    self.check_statement(els);
                 }
             }
             Stmt::While { cond, body, .. } => {
                 let ct = self.check_expr(cond, None);
                 self.check_testable(cond, ct, TruthinessContext::LoopCondition);
-                self.narrowed(|this| {
-                    this.narrow_by_condition(cond, true);
-                    this.flow.loop_depth += 1;
-                    this.check_statement(body);
-                    this.flow.loop_depth -= 1;
-                });
+                self.flow.loop_depth += 1;
+                self.check_statement(body);
+                self.flow.loop_depth -= 1;
             }
             Stmt::DoWhile { body, cond, .. } => {
                 self.flow.loop_depth += 1;
@@ -602,14 +583,9 @@ impl<'a> Checker<'a> {
                     let ct = self.check_expr(c, None);
                     self.check_testable(c, ct, TruthinessContext::LoopCondition);
                 }
-                self.narrowed(|this| {
-                    if let Some(c) = cond {
-                        this.narrow_by_condition(c, true);
-                    }
-                    this.flow.loop_depth += 1;
-                    this.check_statement(body);
-                    this.flow.loop_depth -= 1;
-                });
+                self.flow.loop_depth += 1;
+                self.check_statement(body);
+                self.flow.loop_depth -= 1;
                 if let Some(i) = incr {
                     self.check_expr(i, None);
                 }

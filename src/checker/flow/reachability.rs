@@ -240,36 +240,3 @@ fn stmt_contains_return_with_expr(s: &Stmt) -> bool {
     }
 }
 
-/// definite termination: every code path ends in return/throw
-pub fn body_definitely_terminates(stmts: &[Stmt]) -> bool {
-    stmts.iter().any(stmt_definitely_terminates)
-}
-
-pub fn stmt_definitely_terminates(s: &Stmt) -> bool {
-    match s {
-        Stmt::Return { .. } | Stmt::Throw { .. } => true,
-        Stmt::Block(b) => body_definitely_terminates(&b.stmts),
-        Stmt::If {
-            then,
-            els: Some(els),
-            ..
-        } => stmt_definitely_terminates(then) && stmt_definitely_terminates(els),
-        Stmt::Switch { cases, .. } => {
-            !cases.is_empty()
-                && cases.iter().any(|c| c.test.is_none())
-                && cases.iter().all(|c| body_definitely_terminates(&c.stmts))
-        }
-        Stmt::Try { block, finally, .. } => {
-            body_definitely_terminates(&block.stmts)
-                || finally
-                    .as_ref()
-                    .map_or(false, |f| body_definitely_terminates(&f.stmts))
-        }
-        Stmt::While { cond, .. } => matches!(cond, Expr::BoolLit { value: true, .. }),
-        Stmt::DoWhile { body, cond, .. } => {
-            // the body always executes at least once
-            stmt_definitely_terminates(body) || matches!(cond, Expr::BoolLit { value: true, .. })
-        }
-        _ => false,
-    }
-}

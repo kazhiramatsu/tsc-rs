@@ -1,6 +1,6 @@
 //! Lazy symbol typing + type-node resolution + member shapes.
 
-use super::{Checker, CtorFieldContextKind, RefKey, Slot};
+use super::{Checker, CtorFieldContextKind, Slot};
 use crate::ast::*;
 use crate::binder::{flags, Decl, ScopeId, SymbolId};
 use crate::diagnostics::gen;
