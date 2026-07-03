@@ -1,5 +1,8 @@
-//! Fixture-directive parsing (`// @name: value`), mirrored by tools/directives.mjs.
-//! Shared conformance data: tests/directive_cases.json.
+//! Fixture-directive parsing (`// @name: value`), mirrored by
+//! `scripts/parallel_classify.py::parse_fixture` (the oracle side of the
+//! conformance differ). Any change here must land in both parsers together —
+//! the corpus comparison is only fair while the two sides read a fixture
+//! identically.
 
 use crate::options::CompilerOptions;
 
@@ -15,6 +18,11 @@ pub struct Fixture {
 }
 
 pub fn parse_fixture(source: &str) -> Result<Fixture, String> {
+    // A leading BOM otherwise glues onto the first `//` and hides that
+    // directive; the line then counts as content, which flips `in_header` and
+    // silently drops every header option. SourceText::new strips the BOM from
+    // checked text anyway, so this only affects directive recognition.
+    let source = source.strip_prefix('\u{FEFF}').unwrap_or(source);
     let mut options: Vec<(String, String)> = Vec::new();
     let mut extra_root_files: Vec<String> = Vec::new();
     let mut cli_args: Option<Vec<String>> = None;
@@ -267,6 +275,23 @@ mod tests {
         assert_eq!(
             fixture.options,
             vec![("target".to_string(), "ES5".to_string())]
+        );
+        assert_eq!(
+            fixture.files,
+            vec![("main.ts".to_string(), "let x = 1;\n".to_string())]
+        );
+    }
+
+    #[test]
+    fn parse_fixture_reads_directives_behind_a_leading_bom() {
+        let fixture =
+            parse_fixture("\u{FEFF}// @strict: false\n// @target: es2015\nlet x = 1;\n").unwrap();
+        assert_eq!(
+            fixture.options,
+            vec![
+                ("strict".to_string(), "false".to_string()),
+                ("target".to_string(), "es2015".to_string()),
+            ]
         );
         assert_eq!(
             fixture.files,

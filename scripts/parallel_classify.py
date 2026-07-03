@@ -165,6 +165,10 @@ def parse_directive_line(line):
     return name, after[1:].strip()
 
 def parse_fixture(source):
+    # A leading BOM otherwise hides the first directive line and flips the
+    # header state, dropping every option. Mirrors src/harness/mod.rs — both
+    # parsers must agree or the corpus comparison stops being apples-to-apples.
+    source = source.removeprefix("\ufeff")
     options = []
     extra_root_files = []
     cli_args = None
