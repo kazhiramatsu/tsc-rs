@@ -93,10 +93,6 @@ impl<'a> Checker<'a> {
         Some(t)
     }
 
-    pub fn apply_truthiness_narrowing(&mut self, e: &'a Expr, sense: bool) {
-        self.narrow_by_condition(e, sense);
-    }
-
     fn collect_narrowing_facts(
         &mut self,
         f: impl FnOnce(&mut Self),

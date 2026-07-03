@@ -6,7 +6,7 @@ pub mod reachability;
 pub mod resolver;
 
 use crate::ast::*;
-use crate::binder::{ScopeId, SymbolId};
+use crate::binder::ScopeId;
 use crate::checker::{Checker, RefKey};
 use crate::types::TypeId;
 use std::collections::HashMap;
@@ -37,12 +37,6 @@ impl<'a> Checker<'a> {
         debug_assert!(!self.flow.facts.is_empty(), "facts base frame drained");
         if let Some(frame) = self.flow.facts.last_mut() {
             frame.insert(key, t);
-        }
-    }
-
-    pub fn invalidate_fact_root(&mut self, root: SymbolId) {
-        for frame in self.flow.facts.iter_mut() {
-            frame.retain(|k, _| k.0 != root);
         }
     }
 

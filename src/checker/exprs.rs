@@ -282,10 +282,10 @@ impl<'a> Checker<'a> {
             Expr::Array { elements, .. } => self.check_array_literal(elements, ctx),
             Expr::Object { props, span } => self.check_object_literal(props, *span, ctx),
             Expr::Arrow(f) | Expr::FunctionExpr(f) => self.check_function_expression(f, ctx),
-            Expr::Call { callee, args, .. } => {
-                let r = self.check_call_like(e, ctx);
-                self.apply_assertion_narrowing(callee, args);
-                r
+            Expr::Call { .. } => {
+                // assertion effects (`asserts x is T`) are the resolver's
+                // Call arm
+                self.check_call_like(e, ctx)
             }
             Expr::New { .. } => self.check_new(e, ctx),
             Expr::PropAccess { .. } => self.check_prop_access(e),
@@ -301,16 +301,9 @@ impl<'a> Checker<'a> {
             } => {
                 let ct = self.check_expr(cond, None);
                 self.check_testable(cond, ct, TruthinessContext::Condition);
-                // narrow the guard into each branch (typeof / truthiness /
-                // equality), like tsc's conditional-expression flow analysis.
-                let t1 = self.narrowed(|this| {
-                    this.narrow_by_condition(cond, true);
-                    this.check_expr(when_true, ctx)
-                });
-                let t2 = self.narrowed(|this| {
-                    this.narrow_by_condition(cond, false);
-                    this.check_expr(when_false, ctx)
-                });
+                // branch narrowing is the resolver's Cond edges
+                let t1 = self.check_expr(when_true, ctx);
+                let t2 = self.check_expr(when_false, ctx);
                 let (r1, r2) = (self.types.regular(t1), self.types.regular(t2));
                 self.types.union(vec![r1, r2])
             }
