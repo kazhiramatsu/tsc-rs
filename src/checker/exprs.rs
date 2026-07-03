@@ -770,7 +770,10 @@ impl<'a> Checker<'a> {
                 }
             }
             if in_function {
-                if crossed_arrow {
+                // tsc only rejects arrow-captured `arguments` below ES2015
+                // (checkIdentifier: languageVersion < ScriptTarget.ES2015);
+                // ES2015+ arrows close over the outer binding without error.
+                if crossed_arrow && self.options.script_target_rank() < 2 {
                     self.error_at(
                         id.span,
                         &gen::The_arguments_object_cannot_be_referenced_in_an_arrow_function_in_ES5_Consider_using_a_standard_function_expression,
