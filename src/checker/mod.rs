@@ -762,6 +762,12 @@ impl<'a> Checker<'a> {
             if self.bind.ambient_context_symbols.contains(&sym) {
                 continue;
             }
+            // a named function expression's name is scoped to the expression;
+            // tsc never reports it as an unused local (self-references don't
+            // count as uses, so without this the name would always fire)
+            if self.bind.expr_name_symbols.contains(&sym) {
+                continue;
+            }
             if self.is_exported_namespace_member(sym) || self.has_exported_module_declaration(s) {
                 continue;
             }
@@ -3954,6 +3960,31 @@ impl<'a> Checker<'a> {
                 JsxChild::Text => {}
             }
         }
+    }
+
+    /// A reference lexically inside one of the referenced symbol's own
+    /// declarations is not a use for the unused check when the declaration is
+    /// a function / class / interface / enum / type alias / namespace (tsc
+    /// resolveNameHelper: the outermost self-reference location below the
+    /// resolving scope is exactly the containing declaration for these
+    /// kinds). `function f() { f(); }` leaves f unused.
+    pub(crate) fn is_self_reference(&self, sym: SymbolId, ref_span: crate::ast::Span) -> bool {
+        let s = self.symbol(sym);
+        if s.file != self.current_file {
+            return false;
+        }
+        s.decls.iter().any(|d| {
+            let span = match d {
+                crate::binder::Decl::Func(f) => f.span,
+                crate::binder::Decl::Class(c) => c.span,
+                crate::binder::Decl::Interface(i) => i.span,
+                crate::binder::Decl::Enum(e) => e.span,
+                crate::binder::Decl::Alias(a) => a.span,
+                crate::binder::Decl::Namespace(n) => n.span,
+                _ => return false,
+            };
+            span.start <= ref_span.start && ref_span.end <= span.end
+        })
     }
 
     /// A symbol tsc would never surface in an unused group: lib/.d.ts

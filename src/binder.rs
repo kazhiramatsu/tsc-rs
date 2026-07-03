@@ -330,6 +330,10 @@ pub struct BindResult<'a> {
     /// explicit `declare` inside a non-ambient namespace, these are not
     /// surfaced as unused locals by tsc.
     pub ambient_context_symbols: HashSet<SymbolId>,
+    /// Names of named function expressions (`function g() {}` in expression
+    /// position): scoped to the expression itself; tsc never surfaces them
+    /// as unused locals.
+    pub expr_name_symbols: HashSet<SymbolId>,
     /// Tier-2 control-flow graph (Stage 0): the flow-node arena, populated by
     /// `crate::flow_graph::build` after `bind()` (before the `Arc` freeze).
     /// Empty until then.
@@ -358,6 +362,7 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         pattern_groups: Vec::new(),
         var_stmt_groups: Vec::new(),
         ambient_context_symbols: HashSet::new(),
+        expr_name_symbols: HashSet::new(),
         decl_container: HashMap::new(),
         decl_scope: HashMap::new(),
         decl_file: HashMap::new(),
@@ -454,6 +459,7 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         pattern_groups: b.pattern_groups,
         var_stmt_groups: b.var_stmt_groups,
         ambient_context_symbols: b.ambient_context_symbols,
+        expr_name_symbols: b.expr_name_symbols,
         flow_nodes: Vec::new(),
         flow_node: HashMap::new(),
         fn_end_flow: HashMap::new(),
@@ -478,6 +484,7 @@ struct Binder<'a> {
     pattern_groups: Vec<(usize, Span, Vec<SymbolId>)>,
     var_stmt_groups: Vec<(usize, Span, Vec<SymbolId>)>,
     ambient_context_symbols: HashSet<SymbolId>,
+    expr_name_symbols: HashSet<SymbolId>,
     decl_container: HashMap<usize, usize>,
     decl_scope: HashMap<usize, ScopeId>,
     decl_file: HashMap<usize, usize>,
@@ -1598,13 +1605,14 @@ impl<'a> Binder<'a> {
                 if let (Expr::FunctionExpr(_), Some(name)) = (e, f.name_ident()) {
                     // named function expressions bind their own name inside
                     let s = self.new_scope(Some(scope), ScopeKind::Block);
-                    self.declare(
+                    let name_sym = self.declare(
                         s,
                         &name.name,
                         flags::FUNCTION,
                         Decl::Func(f),
                         node_key(&**f),
                     );
+                    self.expr_name_symbols.insert(name_sym);
                     self.bind_function_like(f, s);
                 } else {
                     self.bind_function_like(f, scope);

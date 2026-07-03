@@ -791,10 +791,13 @@ impl<'a> Checker<'a> {
             return self.types.error;
         };
         // a write-only leaf of a destructuring/parenthesized assignment target
-        // is not a use (tsc resolveName isUse = !isWriteOnlyAccess); reads that
-        // resume inside the pattern (computed keys, defaults, member-access
-        // receivers) run with the counter cleared and do mark
-        if self.cflags.pattern_target == 0 {
+        // is not a use (tsc resolveName isUse = !isWriteOnlyAccess), and
+        // neither is a self-reference — a function/class/enum/namespace
+        // referring to itself from inside its own declaration (tsc
+        // lastSelfReferenceLocation); reads that resume inside a pattern
+        // (computed keys, defaults, member-access receivers) run with the
+        // counter cleared and do mark
+        if self.cflags.pattern_target == 0 && !self.is_self_reference(sym, id.span) {
             self.symuse.used_symbols.insert(sym);
         }
         if self.symbol(sym).flags & flags::ALIAS != 0 {
@@ -815,7 +818,7 @@ impl<'a> Checker<'a> {
             sym
         };
         // type-only symbols used as values: interface/type alias
-        if self.cflags.pattern_target == 0 {
+        if self.cflags.pattern_target == 0 && !self.is_self_reference(sym, id.span) {
             self.symuse.used_symbols.insert(sym);
         }
         // const enums may only appear as property/index access receivers
