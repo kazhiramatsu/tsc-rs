@@ -982,13 +982,20 @@ impl<'a> Checker<'a> {
                 }
                 // 7029 Fallthrough case in switch.
                 if self.options.no_fallthrough_cases_in_switch {
+                    // tsc: the binder records a fallthroughFlowNode only for
+                    // non-last clauses with statements; empty clauses merge
+                    // into the next label without a warning. Reachability of
+                    // the clause body's end is the lazy walk (a trailing
+                    // never-call suppresses the warning).
                     for (i, c) in cases.iter().enumerate() {
                         if i + 1 < cases.len()
                             && !c.stmts.is_empty()
-                            && !c.stmts.iter().any(|s| {
-                                super::flow::reachability::stmt_definitely_terminates(s)
-                                    || matches!(s, Stmt::Break { .. } | Stmt::Continue { .. })
-                            })
+                            && self
+                                .bind
+                                .clause_fallthrough
+                                .get(&node_key(c))
+                                .copied()
+                                .map_or(false, |fl| self.is_reachable_flow(fl))
                         {
                             self.error_at(c.span, &gen::Fallthrough_case_in_switch, &[]);
                         }
