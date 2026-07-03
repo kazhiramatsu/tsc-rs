@@ -872,57 +872,45 @@ impl<'a> Checker<'a> {
                 let mut saw_default = false;
                 self.flow.switch_depth += 1;
                 for c in cases {
+                    // clause narrowing (matched case / negated default) is the
+                    // resolver's Switch arm; the checker only validates labels
                     if let Some(test) = &c.test {
-                        let tt = self.check_expr(test, None);
-                        let _ = tt;
-                    }
-                    self.narrowed(|this| {
-                        if let Some(test) = &c.test {
-                            if this.ref_key_of_pub(expr).is_some() {
-                                this.narrow_switch_case(expr, test);
-                            }
-                            let ct = this.caches.expr_type_cache
-                                .get(&(test as *const Expr as usize))
-                                .copied()
-                                .unwrap_or(this.types.any);
-                            let cr = this.types.regular(ct);
-                            let sr = this.types.regular(t);
-                            if !this.types.is_any_or_error(cr)
-                                && !this.types.is_any_or_error(sr)
-                                && !this.is_assignable_to(cr, sr)
-                                && !this.is_assignable_to(sr, cr)
-                            {
-                                let cd = this.display_type_for_error(cr, sr);
-                                let sd = this.display_type(sr);
-                                this.error_at(
-                                    test.span(),
-                                    &gen::Type_0_is_not_comparable_to_type_1,
-                                    &[cd, sd],
-                                );
-                            }
-                        } else {
-                            if saw_default {
-                                this.error_at(
-                                    Span::new(c.span.start as usize, c.span.start as usize + 7),
-                                    &gen::A_default_clause_cannot_appear_more_than_once_in_a_switch_statement,
-                                    &[],
-                                );
-                            }
-                            saw_default = true;
-                            // the default clause sees the discriminant narrowed by
-                            // the negation of every case label, so an exhaustive
-                            // switch leaves it `never` (assertNever type-checks).
-                            if this.ref_key_of_pub(expr).is_some() {
-                                for c2 in cases {
-                                    if let Some(t2) = &c2.test {
-                                        this.narrow_switch_case_negative(expr, t2);
-                                    }
-                                }
-                            }
+                        self.check_expr(test, None);
+                        // uncached label exprs (bare idents like `case
+                        // undefined:`) fall back to `any` = comparability
+                        // skipped, as before
+                        let ct = self
+                            .caches
+                            .expr_type_cache
+                            .get(&(test as *const Expr as usize))
+                            .copied()
+                            .unwrap_or(self.types.any);
+                        let cr = self.types.regular(ct);
+                        let sr = self.types.regular(t);
+                        if !self.types.is_any_or_error(cr)
+                            && !self.types.is_any_or_error(sr)
+                            && !self.is_assignable_to(cr, sr)
+                            && !self.is_assignable_to(sr, cr)
+                        {
+                            let cd = self.display_type_for_error(cr, sr);
+                            let sd = self.display_type(sr);
+                            self.error_at(
+                                test.span(),
+                                &gen::Type_0_is_not_comparable_to_type_1,
+                                &[cd, sd],
+                            );
                         }
-                        // type-check the case body under the narrowed discriminant
-                        this.check_statements(&c.stmts, scope);
-                    });
+                    } else {
+                        if saw_default {
+                            self.error_at(
+                                Span::new(c.span.start as usize, c.span.start as usize + 7),
+                                &gen::A_default_clause_cannot_appear_more_than_once_in_a_switch_statement,
+                                &[],
+                            );
+                        }
+                        saw_default = true;
+                    }
+                    self.check_statements(&c.stmts, scope);
                 }
                 self.flow.switch_depth -= 1;
                 // record exhaustiveness (no default, but case labels cover every
