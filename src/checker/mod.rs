@@ -935,9 +935,13 @@ impl<'a> Checker<'a> {
         })
     }
 
-    fn collect_syntactic_class_type_uses(&self) -> HashSet<SymbolId> {
+    fn collect_syntactic_class_type_uses(&mut self) -> HashSet<SymbolId> {
         let mut out = HashSet::new();
-        for (file, (_, _, ast)) in self.files.iter().enumerate() {
+        let prev = self.current_file;
+        for file in 0..self.files.len() {
+            // is_self_reference in mark_if_class compares against current_file
+            self.current_file = file;
+            let ast = &self.files[file].2;
             let scope = self
                 .bind
                 .module_scope
@@ -946,6 +950,7 @@ impl<'a> Checker<'a> {
                 .unwrap_or(self.bind.global_scope);
             self.collect_class_type_uses_in_stmts(&ast.stmts, scope, &mut out);
         }
+        self.current_file = prev;
         out
     }
 
@@ -1469,7 +1474,7 @@ impl<'a> Checker<'a> {
             } => {
                 if name.parts.len() == 1 {
                     if let Some(sym) = self.lookup_value(scope, &name.parts[0].name) {
-                        self.mark_if_class(sym, out);
+                        self.mark_if_class(sym, name.parts[0].span, out);
                     }
                 }
                 if let Some(type_args) = type_args {
@@ -1560,7 +1565,7 @@ impl<'a> Checker<'a> {
     ) {
         if r.name.parts.len() == 1 {
             if let Some(sym) = self.lookup_type(scope, &r.name.parts[0].name) {
-                self.mark_if_class(sym, out);
+                self.mark_if_class(sym, r.name.parts[0].span, out);
             }
         } else if let Some(ns) = self
             .lookup_type(scope, &r.name.parts[0].name)
@@ -1571,7 +1576,7 @@ impl<'a> Checker<'a> {
                     .statics
                     .get(&r.name.parts[1].name)
                 {
-                    self.mark_if_class(member, out);
+                    self.mark_if_class(member, r.name.parts[1].span, out);
                 }
             }
         }
@@ -1582,8 +1587,17 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn mark_if_class(&self, sym: SymbolId, out: &mut HashSet<SymbolId>) {
-        if self.bind.symbols[sym.0 as usize].flags & flags::CLASS != 0 {
+    fn mark_if_class(
+        &self,
+        sym: SymbolId,
+        ref_span: crate::ast::Span,
+        out: &mut HashSet<SymbolId>,
+    ) {
+        // a reference from within the class's own declaration is not a use
+        // (tsc resolveNameHelper lastSelfReferenceLocation)
+        if self.bind.symbols[sym.0 as usize].flags & flags::CLASS != 0
+            && !self.is_self_reference(sym, ref_span)
+        {
             out.insert(sym);
         }
     }

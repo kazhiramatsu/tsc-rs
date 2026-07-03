@@ -1297,11 +1297,19 @@ impl<'a> Checker<'a> {
                     }
                     return t;
                 }
-                let Some(sym) = self.lookup_value(scope, &first.name) else {
+                let Some(sym0) = self.lookup_value(scope, &first.name) else {
                     self.error_at(first.span, &gen::Cannot_find_name_0, &[first.name.clone()]);
                     return self.types.error;
                 };
-                let sym = self.resolve_alias_chain(sym);
+                let sym = self.resolve_alias_chain(sym0);
+                // `typeof x` is a use of x (guarded against self-references,
+                // like every resolveName-mediated marking)
+                if !self.is_self_reference(sym0, first.span) {
+                    self.symuse.used_symbols.insert(sym0);
+                }
+                if !self.is_self_reference(sym, first.span) {
+                    self.symuse.used_symbols.insert(sym);
+                }
                 let mut t = self.type_of_symbol(sym);
                 for part in &name.parts[1..] {
                     let Some(p) = self.prop_of_type(t, &part.name) else {
@@ -1809,7 +1817,9 @@ impl<'a> Checker<'a> {
                 );
                 return self.types.error;
             };
-            self.symuse.used_symbols.insert(ns);
+            if !self.is_self_reference(ns, first.span) {
+                self.symuse.used_symbols.insert(ns);
+            }
             let second = &r.name.parts[1];
             // enum member used as a type: `E.A` is the literal type of that
             // member. Enum members live in `members`, not `statics`.
@@ -1901,8 +1911,14 @@ impl<'a> Checker<'a> {
             return self.types.error;
         };
         let sym = self.resolve_alias_chain(sym0);
-        self.symuse.used_symbols.insert(sym0);
-        self.symuse.used_symbols.insert(sym);
+        // a type reference from within the symbol's own declaration is not a
+        // use (tsc resolveNameHelper lastSelfReferenceLocation)
+        if !self.is_self_reference(sym0, first.span) {
+            self.symuse.used_symbols.insert(sym0);
+        }
+        if !self.is_self_reference(sym, first.span) {
+            self.symuse.used_symbols.insert(sym);
+        }
         let sflags = self.symbol(sym).flags;
 
         if sflags & flags::TYPE_PARAM != 0 {
