@@ -40,18 +40,19 @@ impl<'a> Checker<'a> {
         // remembered so check_statement's per-statement hook (which also
         // serves non-list positions like `while (false) foo();`) does not
         // re-report them.
-        if !self.flow.within_unreachable_code
-            && self.options.allow_unreachable_code != Some(true)
-        {
-            let mut i = 0;
-            while i < stmts.len() {
-                let stmt = &stmts[i];
-                if self.flow.reported_unreachable.contains(&node_key(stmt))
-                    || !self.stmt_is_unreachable(stmt)
-                {
-                    i += 1;
-                    continue;
-                }
+        // The run-start query happens as each statement is reached — after all
+        // preceding siblings were checked — because reachability can depend on
+        // check-time state (exhaustive_switches) recorded by an earlier
+        // statement; a premature walk would memoize a stale "reachable".
+        // The forward extension only inspects statements inside the dead
+        // region, whose verdicts cannot be flipped by later registrations.
+        let do_ranges = !self.flow.within_unreachable_code
+            && self.options.allow_unreachable_code != Some(true);
+        for (i, stmt) in stmts.iter().enumerate() {
+            if do_ranges
+                && !self.flow.reported_unreachable.contains(&node_key(stmt))
+                && self.stmt_is_unreachable(stmt)
+            {
                 let mut last = i;
                 self.flow.reported_unreachable.insert(node_key(stmt));
                 for (j, next) in stmts.iter().enumerate().skip(i + 1) {
@@ -66,10 +67,7 @@ impl<'a> Checker<'a> {
                 let as_error = self.options.allow_unreachable_code == Some(false);
                 let span = Span::new(stmt.span().start as usize, stmts[last].span().end as usize);
                 self.unused_diag(span, &gen::Unreachable_code_detected, &[], as_error);
-                i = last + 1;
             }
-        }
-        for stmt in stmts {
             self.check_statement(stmt);
         }
         self.current_scope = prev;

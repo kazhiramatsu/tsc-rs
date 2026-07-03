@@ -851,28 +851,14 @@ impl<'a> Checker<'a> {
             None => {}
         }
         self.current_scope = prev_scope;
-        if is_async {
-            // async return-path diagnostics differ; out of v1 scope
-        } else if let (Some(declared), Some(FuncBody::Block(b))) = (declared_ret, &f.body) {
-            self.check_return_paths(f, declared, b);
+        if let Some(FuncBody::Block(b)) = &f.body {
             if f.kind == FuncKind::Getter && !contains_return_with_expr(&b.stmts) {
                 if let Some(name) = &f.name {
                     self.error_at(name.span(), &gen::A_get_accessor_must_return_a_value, &[]);
                 }
             }
-        } else if let (None, Some(FuncBody::Block(b))) = (declared_ret, &f.body) {
-            if f.kind == FuncKind::Getter && !contains_return_with_expr(&b.stmts) {
-                if let Some(name) = &f.name {
-                    self.error_at(name.span(), &gen::A_get_accessor_must_return_a_value, &[]);
-                }
-            }
-            // noImplicitReturns: some paths return a value, but not all
-            if self.options.no_implicit_returns
-                && contains_return_with_expr(&b.stmts)
-                && !self.body_terminates(&b.stmts)
-            {
-                let span = f.name.as_ref().map(|n| n.span()).unwrap_or(f.span);
-                self.error_at(span, &gen::Not_all_code_paths_return_a_value, &[]);
+            if !is_async {
+                self.check_return_paths(f, declared_ret, b);
             }
         }
     }

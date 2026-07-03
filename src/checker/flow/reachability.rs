@@ -8,98 +8,105 @@ use crate::diagnostics::gen;
 use crate::types::{TypeId, TypeKind};
 
 impl<'a> Checker<'a> {
-    /// type-aware termination check: like `stmt_definitely_terminates`, but a
-    /// `switch` with no `default` still terminates when its case labels cover
-    /// every member of the (finite) discriminant type.
-    pub(crate) fn body_terminates(&mut self, stmts: &'a [Stmt]) -> bool {
-        stmts.iter().any(|s| self.stmt_terminates(s))
-    }
-
-    fn stmt_terminates(&mut self, s: &'a Stmt) -> bool {
-        match s {
-            Stmt::Return { .. } | Stmt::Throw { .. } => true,
-            Stmt::Block(b) => self.body_terminates(&b.stmts),
-            Stmt::If {
-                then,
-                els: Some(els),
-                ..
-            } => self.stmt_terminates(then) && self.stmt_terminates(els),
-            Stmt::Switch { cases, .. } => {
-                !cases.is_empty()
-                    && (cases.iter().any(|c| c.test.is_none())
-                        || self
-                            .flow
-                            .exhaustive_switches
-                            .contains(&crate::ast::node_key(s)))
-                    && cases.iter().all(|c| self.body_terminates(&c.stmts))
-            }
-            Stmt::Try { block, finally, .. } => {
-                self.body_terminates(&block.stmts)
-                    || finally
-                        .as_ref()
-                        .map_or(false, |fb| self.body_terminates(&fb.stmts))
-            }
-            Stmt::While { cond, .. } => matches!(cond, Expr::BoolLit { value: true, .. }),
-            Stmt::DoWhile { body, cond, .. } => {
-                self.stmt_terminates(body) || matches!(cond, Expr::BoolLit { value: true, .. })
+    /// `maybeTypeOfKind(type, Void)`: a `void` anywhere in a union or
+    /// intersection exempts the function from return-path analysis.
+    fn maybe_void_type(&self, t: TypeId) -> bool {
+        match self.types.kind(t) {
+            TypeKind::Void => true,
+            TypeKind::Union(ms) | TypeKind::Intersection(ms) => {
+                ms.iter().any(|&m| self.maybe_void_type(m))
             }
             _ => false,
         }
     }
 
+    /// tsc checkAllCodePathsInNonVoidFunctionReturnOrThrow: the ordered
+    /// decision tree over the CFG. `declared` is the (async-unwrapped) return
+    /// annotation type; `None` runs the noImplicitReturns-only path.
     pub(crate) fn check_return_paths(
         &mut self,
         f: &'a FunctionLike,
-        declared: TypeId,
+        declared: Option<TypeId>,
         b: &'a Block,
     ) {
+        // tsc has no checkAllCodePaths call site for constructors or setters.
+        if matches!(f.kind, FuncKind::Constructor | FuncKind::Setter) {
+            return;
+        }
         // Generators satisfy their declared `Generator`/`Iterator` type through
-        // `yield`, not `return`, so the "must return a value" analysis does not
-        // apply. (Async functions are handled separately by the caller.)
+        // `yield`; the iteration-return unwrap is not implemented.
         if f.is_generator {
             return;
         }
-        if matches!(
-            self.types.kind(declared),
-            TypeKind::Void | TypeKind::Any | TypeKind::Undefined | TypeKind::Error
-        ) {
-            return;
-        }
-        if let TypeKind::Union(ms) = self.types.kind(declared) {
-            if ms
-                .iter()
-                .any(|&m| matches!(self.types.kind(m), TypeKind::Undefined | TypeKind::Void))
+        // A `void` member anywhere exempts; `any`/`undefined` only at top
+        // level (`number | undefined` is NOT exempt and reports 2355/7030).
+        if let Some(ty) = declared {
+            if self.maybe_void_type(ty)
+                || matches!(
+                    self.types.kind(ty),
+                    TypeKind::Any | TypeKind::Undefined | TypeKind::Error
+                )
             {
                 return;
             }
         }
-        let has_return_with_expr = contains_return_with_expr(&b.stmts);
-        let span = f.return_type.as_ref().map(|rt| rt.span()).unwrap_or(f.span);
-        if matches!(self.types.kind(declared), TypeKind::Never) {
-            if !self.body_terminates(&b.stmts) {
+        // tsc functionHasImplicitReturn: the body's fall-through end must be
+        // reachable — lazily, so a tail never-call exempts the function.
+        let fk = crate::ast::node_key(f);
+        let Some(&end) = self.bind.fn_fallthrough_flow.get(&fk) else {
+            return;
+        };
+        if !self.is_reachable_flow(end) {
+            return;
+        }
+        // tsc HasExplicitReturn: any syntactic `return` bound in the container
+        // (value-less counts; its own reachability does not).
+        let has_explicit_return = self.bind.fn_returns.get(&fk).map_or(false, |v| !v.is_empty());
+        let span = f
+            .return_type
+            .as_ref()
+            .map(|rt| rt.span())
+            .or_else(|| f.name.as_ref().map(|n| n.span()))
+            .unwrap_or(f.span);
+        match declared {
+            Some(ty) if matches!(self.types.kind(ty), TypeKind::Never) => {
                 self.error_at(
                     span,
                     &gen::A_function_returning_never_cannot_have_a_reachable_end_point,
                     &[],
                 );
             }
-            return;
-        }
-        if !has_return_with_expr {
-            // no returns at all
-            if !self.body_terminates(&b.stmts) {
+            Some(_) if !has_explicit_return => {
                 self.error_at(
                     span,
                     &gen::A_function_whose_declared_type_is_neither_undefined_void_nor_any_must_return_a_value,
                     &[],
                 );
             }
-        } else if !self.body_terminates(&b.stmts) {
-            self.error_at(
-                span,
-                &gen::Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined,
-                &[],
-            );
+            Some(ty)
+                if self.options.strict_null_checks() && {
+                    let undef = self.types.undefined;
+                    !self.is_assignable_to(undef, ty)
+                } =>
+            {
+                self.error_at(
+                    span,
+                    &gen::Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined,
+                    &[],
+                );
+            }
+            _ if self.options.no_implicit_returns => {
+                if declared.is_none() {
+                    // Unannotated: no returns at all is fine; tsc also exempts
+                    // when the inferred return type is undefined/void/any —
+                    // value-less-returns-only approximates that here.
+                    if !has_explicit_return || !contains_return_with_expr(&b.stmts) {
+                        return;
+                    }
+                }
+                self.error_at(span, &gen::Not_all_code_paths_return_a_value, &[]);
+            }
+            _ => {}
         }
     }
 }
