@@ -414,11 +414,58 @@ impl<'a> Checker<'a> {
         // usage tracking: mark the accessed member symbol used so check_unused
         // (private members, namespace/enum exports) does not flag it. Works for
         // any type whose property carries a symbol (Iface / NamespaceObj / Enum).
-        if let Some(msym) = self
+        // For private/#-named members tsc applies markPropertyAsReferenced
+        // rules: a write-only access does not mark (unless the member is a
+        // setter — the write invokes it), and neither does a method reading
+        // itself via `this.m` inside its own body (isSelfTypeAccess).
+        // #names are lexically scoped: when the receiver-type lookup
+        // SUCCEEDS, the symbol tsc marks is the one the enclosing class
+        // bodies resolve (`new Child().#foo` inside Parent marks PARENT's
+        // #foo, not Child's shadowing slot). A FAILED lookup (`Child.#bar`
+        // through a subclass -> 2339) marks nothing at all.
+        let receiver_sym = self
             .prop_info_of_type(obj_t, &name.name)
-            .and_then(|pi| pi.symbol)
-        {
-            self.symuse.used_symbols.insert(msym);
+            .and_then(|pi| pi.symbol);
+        let mark = if name.name.starts_with('#') {
+            receiver_sym.map(|p| self.lookup_private_member(&name.name).unwrap_or(p))
+        } else {
+            receiver_sym
+        };
+        if let Some(msym) = mark {
+            let is_private = name.name.starts_with('#')
+                || self.symbol(msym).decls.first().is_some_and(|d| {
+                    let mods = match d {
+                        crate::binder::Decl::PropertyDecl(p) => &p.modifiers,
+                        crate::binder::Decl::Method(f) => &f.modifiers,
+                        crate::binder::Decl::Param(p) => &p.modifiers,
+                        _ => return false,
+                    };
+                    mods.iter()
+                        .any(|m| m.kind == crate::ast::ModifierKind::Private)
+                });
+            let skip = is_private && {
+                let plain_write = (self.cflags.assign_target
+                    == crate::checker::exprs::node_key_expr(e)
+                    && !self.cflags.assign_target_rw)
+                    || self.cflags.pattern_target > 0;
+                // auto-accessor fields count as setters too: writing one
+                // invokes the generated setter (tsc gives them SetAccessor
+                // flags, so the write-only exception never applies)
+                let is_setter = self.symbol(msym).flags & crate::binder::flags::SET_ACCESSOR
+                    != 0
+                    || self.symbol(msym).decls.first().is_some_and(|d| {
+                        matches!(d, crate::binder::Decl::PropertyDecl(p)
+                            if p.accessor_span.is_some())
+                    });
+                let self_access = matches!(&**obj, Expr::This { .. })
+                    && self.stacks.fn_stack.last().is_some_and(|f| {
+                        self.bind.decl_symbol.get(&f.fn_key) == Some(&msym)
+                    });
+                (plain_write && !is_setter) || self_access
+            };
+            if !skip {
+                self.symuse.used_symbols.insert(msym);
+            }
         }
         let mut result = match result {
             Some(t) => t,

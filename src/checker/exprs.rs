@@ -712,12 +712,26 @@ impl<'a> Checker<'a> {
 
     fn check_ident(&mut self, id: &'a Ident) -> TypeId {
         if id.name.starts_with('#') {
-            self.error_at(
-                id.span,
-                &gen::Private_identifiers_are_not_allowed_outside_class_bodies,
-                &[],
-            );
-            return self.types.error;
+            // a bare #name expression — the ergonomic brand check `#field in
+            // v` (tsc checkPrivateIdentifierExpression): resolve against the
+            // enclosing classes and mark the member used; outside a class
+            // body it is 18016; unresolved outside an `in` left operand is
+            // 2304. The expression types as `any` either way.
+            if self.stacks.class_stack.is_empty() {
+                self.error_at(
+                    id.span,
+                    &gen::Private_identifiers_are_not_allowed_outside_class_bodies,
+                    &[],
+                );
+                return self.types.error;
+            }
+            let resolved = self.lookup_private_member(&id.name);
+            if let Some(m) = resolved {
+                self.symuse.used_symbols.insert(m);
+            } else if self.cflags.private_in_lhs != crate::ast::node_key(id) {
+                self.error_at(id.span, &gen::Cannot_find_name_0, &[id.name.clone()]);
+            }
+            return self.types.any;
         }
         if id.name == "undefined" {
             return self.types.undefined;

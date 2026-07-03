@@ -20,6 +20,18 @@ enum InstanceMemberKind {
 }
 
 impl<'a> Checker<'a> {
+    /// Check an expression only to record symbol usage: its diagnostics are
+    /// rolled back and caches / one-shot guards stay untouched
+    /// (fresolve.quiet), so a context mismatch cannot leak spurious errors.
+    fn check_expr_for_usage_only(&mut self, e: &'a Expr) {
+        let before = self.diags.len();
+        self.fresolve.quiet += 1;
+        let _ = self.check_expr(e, None);
+        self.fresolve.quiet -= 1;
+        self.diags.truncate(before);
+    }
+
+
     pub fn check_class_pub(&mut self, c: &'a ClassDecl) {
         self.check_class(c);
     }
@@ -578,8 +590,15 @@ impl<'a> Checker<'a> {
             .unwrap_or(self.current_scope);
         let prev_scope = self.current_scope;
         self.current_scope = scope;
+        // class-level decorators evaluate in the ENCLOSING context — `this`
+        // and #names there belong to the outer container, not to the class
+        // being declared (`@dec(() => this.#foo) class D {}` inside a method
+        // of C reads C's #foo)
+        for d in &c.decorators {
+            self.check_decorator(d, "ClassDecoratorContext", DecoratorKind::Class);
+        }
         // `this` inside the class body/members refers to this class. The
-        // class-body `ThisContainer` covers decorators, the heritage clause, and
+        // class-body `ThisContainer` covers the heritage clause and
         // non-static field initializers; static members and method bodies push
         // their own container on top. Both frames go through the with_class_body
         // guard so they can't leak on an early return added to the (large)
@@ -622,9 +641,6 @@ impl<'a> Checker<'a> {
                 self.error_at(n.span, &gen::Class_name_cannot_be_0, &[n.name.clone()]);
             }
         }
-        for d in &c.decorators {
-            self.check_decorator(d, "ClassDecoratorContext", DecoratorKind::Class);
-        }
         self.check_ctor_overloads(c);
         self.check_accessor_visibility(c);
         self.check_accessor_implicit_any(c);
@@ -641,6 +657,12 @@ impl<'a> Checker<'a> {
                             "ClassFieldDecoratorContext",
                             DecoratorKind::Property,
                         );
+                    }
+                    // a computed member name is an ordinary expression whose
+                    // reads count as uses (`[(f = ..., "_")]`); its own
+                    // diagnostics are not modeled in this pass yet
+                    if let PropName::Computed { expr, .. } = &p.name {
+                        self.check_expr_for_usage_only(expr);
                     }
                 }
                 ClassMember::Method(f) => {
@@ -723,6 +745,19 @@ impl<'a> Checker<'a> {
                     };
                     for d in &f.decorators {
                         self.check_decorator(d, ctxty, DecoratorKind::Method);
+                    }
+                    // parameter decorators are ordinary expressions too;
+                    // their reads count as uses (`@dec((x: C) => x.#p)`) —
+                    // the full parameter-decorator checking is not modeled
+                    // yet, so only usage is recorded
+                    for p in &f.params {
+                        for d in &p.decorators {
+                            self.check_expr_for_usage_only(&d.expr);
+                        }
+                    }
+                    // computed method names likewise
+                    if let Some(PropName::Computed { expr, .. }) = &f.name {
+                        self.check_expr_for_usage_only(expr);
                     }
                 }
                 _ => {}

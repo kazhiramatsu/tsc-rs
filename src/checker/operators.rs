@@ -400,6 +400,12 @@ impl<'a> Checker<'a> {
                 true
             }
             Expr::Paren { inner, .. } => self.check_reference_for_assignment(inner, _for_update),
+            // tsc checkReferenceExpression skips assertions like parens
+            // (skipOuterExpressions Assertions | Parentheses): `(x as T) = v`
+            // and `x! = v` validate the inner reference
+            Expr::Assertion { expr, .. } | Expr::NonNull { expr, .. } => {
+                self.check_reference_for_assignment(expr, _for_update)
+            }
             // destructuring-assignment targets: `[a, b] = …`, `({x} = …)`. Each
             // element/property is itself an assignment target, so recurse. This
             // also marks the targets assigned (so they are not reported as
@@ -554,7 +560,10 @@ impl<'a> Checker<'a> {
             | ShrAssign | UShrAssign | AmpAssign | BarAssign | CaretAssign => {
                 let ok = self.check_reference_for_assignment(left, false);
                 self.mark_readwrite_target_used(left);
+                let saved_rw = self.cflags.assign_target_rw;
+                self.cflags.assign_target_rw = true;
                 let lt = self.check_target_type(left);
+                self.cflags.assign_target_rw = saved_rw;
                 // a compound assignment READS the target first: definite
                 // assignment applies (tsc AssignmentKind.Compound); the
                 // target bypasses the read seam, so check here
@@ -584,7 +593,10 @@ impl<'a> Checker<'a> {
             AmpAmpAssign | BarBarAssign | QuestionQuestionAssign => {
                 self.check_reference_for_assignment(left, false);
                 self.mark_readwrite_target_used(left);
+                let saved_rw = self.cflags.assign_target_rw;
+                self.cflags.assign_target_rw = true;
                 let lt = self.check_target_type(left);
+                self.cflags.assign_target_rw = saved_rw;
                 let rt = self.in_read_position(|c| c.check_expr(right, Some(lt)));
                 rt
             }
@@ -734,8 +746,17 @@ impl<'a> Checker<'a> {
             }
             In => {
                 // TS 6.0 checks `in` operands via plain assignability:
-                // left -> string | number | symbol, right -> object
+                // left -> string | number | symbol, right -> object.
+                // `#field in v` (ergonomic brand check) types the left as
+                // `any` via the private-identifier path in check_ident.
+                let saved_priv = self.cflags.private_in_lhs;
+                if let Expr::Ident(id) = &**left {
+                    if id.name.starts_with('#') {
+                        self.cflags.private_in_lhs = crate::ast::node_key(id);
+                    }
+                }
                 let lt = self.check_expr(left, None);
+                self.cflags.private_in_lhs = saved_priv;
                 let rt = self.check_expr(right, None);
                 let lt_r = self.types.regular(lt);
                 let rt_r = self.types.regular(rt);

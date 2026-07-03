@@ -328,12 +328,22 @@ pub struct CheckFlags {
     /// NonNullExpression-parent disjunct). Keyed by node, so no reset is
     /// needed; parens (`(x)!`) intentionally do not set it.
     pub nonnull_ident: usize,
+    /// node key of a bare `#name` identifier currently checked as the left
+    /// operand of `in` (the ergonomic brand check): valid inside a class
+    /// body even when the name does not resolve (tsc
+    /// checkGrammarPrivateIdentifierExpression isInOperation).
+    pub private_in_lhs: usize,
     /// node key of the prop-access currently being checked AS AN ASSIGNMENT
     /// TARGET: the read seam must not flow-narrow the target reference
     /// itself (tsc AssignmentKind.Definite reads the declared type), while
     /// its RECEIVER sub-reads narrow normally (`control[key] = value` inside
     /// an `if (control !== undefined)` guard sees the narrowed receiver).
     pub assign_target: usize,
+    /// the current `assign_target` belongs to a compound / logical
+    /// assignment: the target reads before it writes (tsc ReadWrite), so
+    /// usage marking still counts it as a use — only plain `=` targets are
+    /// write-only.
+    pub assign_target_rw: bool,
     /// >0 while checking a destructuring assignment TARGET pattern (or a
     /// parenthesized identifier target): every identifier inside is a write
     /// position — the read seam, definite-assignment and auto hooks all
@@ -3962,6 +3972,23 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// Resolve a `#name` against the enclosing class bodies, innermost
+    /// first (tsc lookupSymbolForPrivateIdentifierDeclaration): #names are
+    /// lexically scoped — `new Child().#foo` inside Parent means PARENT's
+    /// #foo regardless of the receiver's type.
+    pub(crate) fn lookup_private_member(&self, name: &str) -> Option<SymbolId> {
+        for &cls in self.stacks.class_stack.iter().rev() {
+            let c = self.symbol(cls);
+            if let Some(m) = c.members.get(name) {
+                return Some(m);
+            }
+            if let Some(m) = c.statics.get(name) {
+                return Some(m);
+            }
+        }
+        None
+    }
+
     /// A reference lexically inside one of the referenced symbol's own
     /// declarations is not a use for the unused check when the declaration is
     /// a function / class / interface / enum / type alias / namespace (tsc
@@ -4098,18 +4125,23 @@ impl<'a> Checker<'a> {
             let Some(decl) = s.decls.first().copied() else {
                 continue;
             };
-            // (is_private_member, is_parameter_property)
+            // (is_private_member, is_parameter_property): `private`-modified
+            // OR #-named members count (tsc checkUnusedClassMembers:
+            // hasEffectiveModifier(Private) || isPrivateIdentifier(name))
+            let priv_name = s.name.starts_with('#');
             let (is_private_member, is_param_prop) = match decl {
                 crate::binder::Decl::PropertyDecl(p) => (
-                    p.modifiers
-                        .iter()
-                        .any(|m| m.kind == crate::ast::ModifierKind::Private),
+                    priv_name
+                        || p.modifiers
+                            .iter()
+                            .any(|m| m.kind == crate::ast::ModifierKind::Private),
                     false,
                 ),
                 crate::binder::Decl::Method(f) => (
-                    f.modifiers
-                        .iter()
-                        .any(|m| m.kind == crate::ast::ModifierKind::Private),
+                    priv_name
+                        || f.modifiers
+                            .iter()
+                            .any(|m| m.kind == crate::ast::ModifierKind::Private),
                     false,
                 ),
                 // a private parameter-property declares a class member (flagged
@@ -4123,9 +4155,64 @@ impl<'a> Checker<'a> {
                 ),
                 _ => (false, false),
             };
-            if is_private_member {
-                to_report.push((s.file, decl.name_span(), s.name.clone(), is_param_prop));
+            if !is_private_member {
+                continue;
             }
+            // a setter whose symbol also has a getter is carried by the
+            // getter's report (tsc: SetAccessor member with a GetAccessor
+            // symbol flag breaks; the getter member reports for the pair)
+            if s.flags & crate::binder::flags::SET_ACCESSOR != 0
+                && s.flags & crate::binder::flags::GET_ACCESSOR == 0
+            {
+                let has_getter_pair = s.parent.is_some()
+                    && self.bind.symbols.iter().enumerate().any(|(j, o)| {
+                        j != i
+                            && o.parent == s.parent
+                            && o.name == s.name
+                            && o.flags & crate::binder::flags::GET_ACCESSOR != 0
+                    });
+                if has_getter_pair {
+                    continue;
+                }
+            }
+            // a merged get/set pair reports once, anchored at the getter
+            let decl = if s.flags & crate::binder::flags::GET_ACCESSOR != 0 {
+                s.decls
+                    .iter()
+                    .copied()
+                    .find(|d| {
+                        matches!(d, crate::binder::Decl::Method(f)
+                            if f.kind == crate::ast::FuncKind::Getter)
+                    })
+                    .unwrap_or(decl)
+            } else {
+                decl
+            };
+            // ambient members are never reported (tsc !(member.flags &
+            // Ambient)): a `declare` on the member itself or on the class —
+            // but tsc's Constructor arm has no such check, so private
+            // parameter-properties report even in ambient classes
+            let ambient = !is_param_prop
+                && (match decl {
+                    crate::binder::Decl::PropertyDecl(p) => crate::ast::has_modifier(
+                        &p.modifiers,
+                        crate::ast::ModifierKind::Declare,
+                    ),
+                    crate::binder::Decl::Method(f) => crate::ast::has_modifier(
+                        &f.modifiers,
+                        crate::ast::ModifierKind::Declare,
+                    ),
+                    _ => false,
+                } || s.parent.is_some_and(|p| {
+                    self.bind.symbols[p.0 as usize].decls.iter().any(|d| {
+                        matches!(d, crate::binder::Decl::Class(c)
+                        if crate::ast::has_modifier(&c.modifiers, crate::ast::ModifierKind::Declare))
+                    })
+                }));
+            if ambient {
+                continue;
+            }
+            to_report.push((s.file, decl.name_span(), s.name.clone(), is_param_prop));
         }
         let as_error = self.options.no_unused_locals;
         for (file, span, name, is_param_prop) in to_report {

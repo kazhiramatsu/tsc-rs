@@ -1378,7 +1378,18 @@ impl<'a> Binder<'a> {
         self.decl_symbol.insert(node_key(c), id);
         self.decl_scope.insert(node_key(c), scope);
         self.decl_file.insert(node_key(c), self.file);
-        self.bind_class(c, scope);
+        // like a named function expression, a named class expression binds
+        // its own name inside a wrapper scope (visible to heritage, members
+        // and static blocks; never surfaced as an unused local)
+        if let Some(n) = &c.name {
+            let s = self.new_scope(Some(scope), ScopeKind::Block);
+            self.scopes[s.0 as usize].values.insert(n.name.clone(), id);
+            self.scopes[s.0 as usize].types.insert(n.name.clone(), id);
+            self.expr_name_symbols.insert(id);
+            self.bind_class(c, s);
+        } else {
+            self.bind_class(c, scope);
+        }
     }
 
     fn bind_static_block(&mut self, b: &'a Block, scope: ScopeId) {
@@ -1389,6 +1400,12 @@ impl<'a> Binder<'a> {
     }
 
     fn bind_class(&mut self, c: &'a ClassDecl, enclosing: ScopeId) {
+        // decorator expressions are ordinary expressions evaluated in the
+        // scope containing the class; bind them so their inner functions
+        // get scopes and parameter bindings
+        for d in &c.decorators {
+            self.bind_expr(&d.expr, enclosing);
+        }
         let mut scope = enclosing;
         if let Some(tps) = &c.type_params {
             scope = self.new_scope(Some(scope), ScopeKind::TypeParams);
@@ -1409,6 +1426,12 @@ impl<'a> Binder<'a> {
                     self.bind_static_block(b, scope);
                 }
                 ClassMember::Property(p) => {
+                    for d in &p.decorators {
+                        self.bind_expr(&d.expr, scope);
+                    }
+                    if let PropName::Computed { expr, .. } = &p.name {
+                        self.bind_expr(expr, scope);
+                    }
                     if let Some(init) = &p.init {
                         self.bind_expr(init, scope);
                     }
@@ -1439,6 +1462,17 @@ impl<'a> Binder<'a> {
                     }
                 }
                 ClassMember::Method(f) | ClassMember::Constructor(f) => {
+                    for d in &f.decorators {
+                        self.bind_expr(&d.expr, scope);
+                    }
+                    for p in &f.params {
+                        for d in &p.decorators {
+                            self.bind_expr(&d.expr, scope);
+                        }
+                    }
+                    if let Some(PropName::Computed { expr, .. }) = &f.name {
+                        self.bind_expr(expr, scope);
+                    }
                     if let (Some(sym), Some(name)) =
                         (class_sym, f.name.as_ref().and_then(|n| n.text()))
                     {
