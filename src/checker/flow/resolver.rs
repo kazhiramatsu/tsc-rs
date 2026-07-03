@@ -60,7 +60,7 @@ enum Step<'a> {
     Cond(&'a Expr, bool, ScopeId, FlowNodeId),
     Assign(&'a Expr, &'a Expr, ScopeId, FlowNodeId),
     Init(&'a VarDeclarator, ScopeId, FlowNodeId),
-    Switch(&'a Expr, &'a [SwitchCase], u32, ScopeId, FlowNodeId),
+    Switch(&'a Expr, &'a [SwitchCase], u32, usize, ScopeId, FlowNodeId),
     Call(&'a Expr, ScopeId, FlowNodeId),
     Nullish(&'a Expr, bool, ScopeId, FlowNodeId),
 }
@@ -183,9 +183,10 @@ impl<'a> Checker<'a> {
                 disc,
                 cases,
                 clause,
+                stmt_key,
                 scope,
                 ante,
-            } => Step::Switch(disc, cases, *clause, *scope, *ante),
+            } => Step::Switch(disc, cases, *clause, *stmt_key, *scope, *ante),
             FlowNode::Call { call, scope, ante } => Step::Call(call, *scope, *ante),
             FlowNode::Nullish {
                 expr,
@@ -317,7 +318,21 @@ impl<'a> Checker<'a> {
                 }
                 FlowRes::Ty(out)
             }
-            Step::Switch(disc, cases, clause, scope, ante) => {
+            Step::Switch(disc, cases, clause, stmt_key, scope, ante) => {
+                // the implicit no-match path past an EXHAUSTIVE switch
+                // contributes nothing to joins (tsc getTypeAtFlowBranchLabel
+                // defers it as `bypassFlow` and drops it when exhaustive);
+                // `never` reproduces that exactly — unions absorb it, and
+                // when every clause returned it is the join's only
+                // antecedent, matching tsc's empty-union = never (the
+                // assertNever idiom). The set is populated when the switch
+                // statement itself is checked — the same source order the
+                // fact path relied on.
+                if clause as usize == cases.len()
+                    && self.flow.exhaustive_switches.contains(&stmt_key)
+                {
+                    return FlowRes::Ty(self.types.never);
+                }
                 let t_in = match self.flow_type_at(key, ante, depth + 1) {
                     FlowRes::Ty(t) => t,
                     other => return other,
@@ -782,6 +797,16 @@ impl<'a> Checker<'a> {
             return None;
         }
         if !self.res.resolving.is_empty() || self.fresolve.suppress > 0 {
+            return None;
+        }
+        // tsc runs flow analysis only for variable-like references
+        // (checkIdentifier bails for function/class/enum/namespace symbols)
+        // — the exhaustive-switch no-match `never` would otherwise leak
+        // into every callee read in post-switch code
+        if self.symbol(key.0).flags
+            & (flags::FUNCTION_SCOPED_VARIABLE | flags::BLOCK_SCOPED_VARIABLE)
+            == 0
+        {
             return None;
         }
         let fnode = *self.bind.flow_node.get(&nk)?;

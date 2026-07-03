@@ -76,11 +76,14 @@ pub enum FlowNode<'a> {
     /// Switch discriminant narrowing: control entered clause `clause` of the
     /// switch on `disc`. A `default` clause (or `clause == cases.len()`, the
     /// implicit no-clause-matched path past the switch) narrows by the
-    /// negation of every case label.
+    /// negation of every case label. `stmt_key` identifies the switch
+    /// statement so the resolver can treat the no-match path of an
+    /// exhaustive switch as unreachable (tsc getTypeAtSwitchClause).
     Switch {
         disc: &'a crate::ast::Expr,
         cases: &'a [crate::ast::SwitchCase],
         clause: u32,
+        stmt_key: usize,
         scope: ScopeId,
         ante: FlowNodeId,
     },

@@ -31,6 +31,8 @@ pub fn build<'a>(bind: &mut BindResult<'a>, files: &'a [(String, SourceText, Sou
         cont: Vec::new(),
         ret: None,
         exc: Vec::new(),
+        labels: Vec::new(),
+        pending_labels: Vec::new(),
         scopes: &bind.node_scope,
         scope: bind.global_scope,
     };
@@ -62,10 +64,29 @@ struct FlowBuilder<'a, 'b> {
     /// `currentExceptionTarget`): every Assign/Init/Call inside the block
     /// edges into the label, so `catch` joins over all of them.
     exc: Vec<FlowNodeId>,
+    /// active statement labels, inner last: (name, break target, continue
+    /// target). The continue slot is filled by the loop arm the label
+    /// directly wraps (tsc activeLabelList).
+    labels: Vec<(String, FlowNodeId, Option<FlowNodeId>)>,
+    /// indices into `labels` whose continue slot the NEXT directly-built
+    /// loop should claim (`a: b: for (...)` — both labels continue to the
+    /// for). Taken (and thereby cleared) at the top of every build_stmt.
+    pending_labels: Vec<usize>,
     /// the binder's container-node → scope map
     scopes: &'b HashMap<usize, ScopeId>,
     /// scope in effect at the point being built
     scope: ScopeId,
+}
+
+/// tsc createFlowCondition treats only literal `true`/`false` conditions
+/// (raw keyword, deliberately NOT paren-stripped) as statically decided:
+/// `while (true)` has an unreachable exit edge, `while (false)` an
+/// unreachable body edge.
+fn const_bool_cond(e: &Expr) -> Option<bool> {
+    match e {
+        Expr::BoolLit { value, .. } => Some(*value),
+        _ => None,
+    }
 }
 
 impl<'a> FlowBuilder<'a, '_> {
@@ -150,6 +171,9 @@ impl<'a> FlowBuilder<'a, '_> {
     }
 
     fn build_stmt(&mut self, stmt: &'a Stmt, flow: FlowNodeId) -> FlowNodeId {
+        // labels apply only to the DIRECTLY labeled statement: take them
+        // here so any non-loop arm implicitly drops the continue claims
+        let pending = std::mem::take(&mut self.pending_labels);
         match stmt {
             Stmt::Var(v) => self.build_var(v, flow),
             Stmt::Expr { expr, .. } => self.build_expr(expr, flow),
@@ -174,8 +198,14 @@ impl<'a> FlowBuilder<'a, '_> {
             }
             Stmt::While { cond, body, .. } => {
                 let loop_label = self.branch(vec![flow]);
+                for &i in &pending {
+                    self.labels[i].2 = Some(loop_label);
+                }
                 let ac = self.build_expr(cond, loop_label);
-                let body_in = self.cond(cond, true, ac);
+                let body_in = match const_bool_cond(cond) {
+                    Some(false) => self.unreachable(),
+                    _ => self.cond(cond, true, ac),
+                };
                 let post = self.branch(vec![]);
                 self.brk.push(post);
                 self.cont.push(loop_label);
@@ -184,14 +214,21 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.brk.pop();
                 self.add_ante(loop_label, body_out);
                 // the exit edge applies `Cond(cond, false)` (tsc's
-                // condition-false antecedent on the post-loop label); safe
-                // now that the helpers implement tsc getTypeWithFacts
-                let exit = self.cond(cond, false, ac);
+                // condition-false antecedent on the post-loop label);
+                // `while (true)` has an unreachable exit — only breaks
+                // reach the post label
+                let exit = match const_bool_cond(cond) {
+                    Some(true) => self.unreachable(),
+                    _ => self.cond(cond, false, ac),
+                };
                 self.add_ante(post, exit);
                 post
             }
             Stmt::DoWhile { body, cond, .. } => {
                 let loop_label = self.branch(vec![flow]);
+                for &i in &pending {
+                    self.labels[i].2 = Some(loop_label);
+                }
                 let post = self.branch(vec![]);
                 self.brk.push(post);
                 self.cont.push(loop_label);
@@ -200,10 +237,17 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.brk.pop();
                 let ac = self.build_expr(cond, body_out);
                 // back edge re-enters under cond-true, exit leaves under
-                // cond-false (tsc's do-while antecedents)
-                let back = self.cond(cond, true, ac);
+                // cond-false (tsc's do-while antecedents); literal
+                // conditions make the respective edge unreachable
+                let back = match const_bool_cond(cond) {
+                    Some(false) => self.unreachable(),
+                    _ => self.cond(cond, true, ac),
+                };
                 self.add_ante(loop_label, back);
-                let exit = self.cond(cond, false, ac);
+                let exit = match const_bool_cond(cond) {
+                    Some(true) => self.unreachable(),
+                    _ => self.cond(cond, false, ac),
+                };
                 self.add_ante(post, exit);
                 post
             }
@@ -223,11 +267,15 @@ impl<'a> FlowBuilder<'a, '_> {
                     };
                 }
                 let loop_label = self.branch(vec![flow]);
+                for &i in &pending {
+                    self.labels[i].2 = Some(loop_label);
+                }
                 let ac = match cond {
                     Some(c) => self.build_expr(c, loop_label),
                     None => loop_label,
                 };
                 let body_in = match cond {
+                    Some(c) if const_bool_cond(c) == Some(false) => self.unreachable(),
                     Some(c) => self.cond(c, true, ac),
                     None => ac,
                 };
@@ -243,10 +291,12 @@ impl<'a> FlowBuilder<'a, '_> {
                 };
                 self.add_ante(loop_label, ai);
                 // the exit edge applies `Cond(cond, false)` (tsc's
-                // condition-false antecedent on the post-loop label)
+                // condition-false antecedent on the post-loop label); a
+                // missing or literal-true condition has NO reachable exit —
+                // only breaks reach the post label
                 let exit = match cond {
-                    Some(c) => self.cond(c, false, ac),
-                    None => loop_label,
+                    Some(c) if const_bool_cond(c) != Some(true) => self.cond(c, false, ac),
+                    _ => self.unreachable(),
                 };
                 self.add_ante(post, exit);
                 self.scope = saved;
@@ -261,6 +311,9 @@ impl<'a> FlowBuilder<'a, '_> {
                 let saved = self.enter(node_key(stmt));
                 let ae = self.build_expr(expr, flow);
                 let loop_label = self.branch(vec![ae]);
+                for &i in &pending {
+                    self.labels[i].2 = Some(loop_label);
+                }
                 // The loop variable is (re)bound each iteration, INSIDE the
                 // loop: loop_label → Init/Assign → body.
                 let body_in = match &**left {
@@ -327,7 +380,41 @@ impl<'a> FlowBuilder<'a, '_> {
                 }
                 self.unreachable()
             }
-            Stmt::Labeled { stmt, .. } => self.build_stmt(stmt, flow),
+            Stmt::Break { label: Some(l), .. } => {
+                if let Some(&(_, post, _)) =
+                    self.labels.iter().rev().find(|(n, ..)| *n == l.name)
+                {
+                    self.add_ante(post, flow);
+                }
+                self.unreachable()
+            }
+            Stmt::Continue { label: Some(l), .. } => {
+                // continue targets the labeled LOOP's label; a label on a
+                // non-loop has no continue slot (the checker reports it)
+                if let Some(&(_, _, Some(ll))) =
+                    self.labels.iter().rev().find(|(n, ..)| *n == l.name)
+                {
+                    self.add_ante(ll, flow);
+                }
+                self.unreachable()
+            }
+            Stmt::Labeled { label, stmt: inner, .. } => {
+                // register the label: breaks join a fresh post label; the
+                // directly-wrapped loop claims the continue slot via
+                // `pending_labels` (nested `a: b: for` — both continue to
+                // the for)
+                let post = self.branch(vec![]);
+                self.labels.push((label.name.clone(), post, None));
+                let idx = self.labels.len() - 1;
+                let mut p = pending;
+                p.push(idx);
+                self.pending_labels = p;
+                let out = self.build_stmt(inner, flow);
+                self.pending_labels.clear();
+                self.labels.truncate(idx);
+                self.add_ante(post, out);
+                post
+            }
             Stmt::With { obj, body, .. } => {
                 let a = self.build_expr(obj, flow);
                 self.build_stmt(body, a)
@@ -349,6 +436,7 @@ impl<'a> FlowBuilder<'a, '_> {
                         disc: expr,
                         cases,
                         clause: i as u32,
+                        stmt_key: node_key(stmt),
                         scope: self.scope,
                         ante: a,
                     });
@@ -370,6 +458,7 @@ impl<'a> FlowBuilder<'a, '_> {
                         disc: expr,
                         cases,
                         clause: cases.len() as u32,
+                        stmt_key: node_key(stmt),
                         scope: self.scope,
                         ante: a,
                     });
@@ -448,7 +537,7 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.build_expr(expr, flow)
             }
             // Empty / Missing / Interface / TypeAlias / Enum / Import*
-            // / ExportNamed / labeled break-continue: no intraprocedural flow.
+            // / ExportNamed: no intraprocedural flow.
             _ => flow,
         }
     }
@@ -668,6 +757,8 @@ impl<'a> FlowBuilder<'a, '_> {
         let saved_brk = std::mem::take(&mut self.brk);
         let saved_cont = std::mem::take(&mut self.cont);
         let saved_exc = std::mem::take(&mut self.exc);
+        let saved_labels = std::mem::take(&mut self.labels);
+        let saved_pending = std::mem::take(&mut self.pending_labels);
         let saved_ret = self.ret.take();
         let start = self.start(outer.map(|o| (o, f.span)));
         let fl = self.build_params(f, start);
@@ -681,6 +772,8 @@ impl<'a> FlowBuilder<'a, '_> {
             None => {}
         }
         self.ret = saved_ret;
+        self.pending_labels = saved_pending;
+        self.labels = saved_labels;
         self.exc = saved_exc;
         self.cont = saved_cont;
         self.brk = saved_brk;
@@ -696,6 +789,8 @@ impl<'a> FlowBuilder<'a, '_> {
         let saved_brk = std::mem::take(&mut self.brk);
         let saved_cont = std::mem::take(&mut self.cont);
         let saved_exc = std::mem::take(&mut self.exc);
+        let saved_labels = std::mem::take(&mut self.labels);
+        let saved_pending = std::mem::take(&mut self.pending_labels);
         let ret = self.branch(vec![]);
         let saved_ret = self.ret.replace(ret);
         let fl = self.build_params(f, flow);
@@ -706,6 +801,8 @@ impl<'a> FlowBuilder<'a, '_> {
         };
         self.add_ante(ret, out);
         self.ret = saved_ret;
+        self.pending_labels = saved_pending;
+        self.labels = saved_labels;
         self.exc = saved_exc;
         self.cont = saved_cont;
         self.brk = saved_brk;
