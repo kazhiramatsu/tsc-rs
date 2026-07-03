@@ -733,6 +733,7 @@ impl<'a> Checker<'a> {
             rest_tp,
             ret,
             decl_key: if has_lazy_ret { node_key(f) } else { 0 },
+            ret_annotation_never: matches!(self.types.kind(ret), crate::types::TypeKind::Never),
             predicate,
             is_abstract: false,
         });
@@ -882,6 +883,7 @@ impl<'a> Checker<'a> {
             rest_tp,
             ret,
             decl_key: 0,
+            ret_annotation_never: matches!(self.types.kind(ret), crate::types::TypeKind::Never),
             predicate,
             is_abstract: false,
         })
@@ -957,6 +959,7 @@ impl<'a> Checker<'a> {
             rest_tp,
             ret,
             decl_key: 0,
+            ret_annotation_never: matches!(self.types.kind(ret), crate::types::TypeKind::Never),
             predicate,
             is_abstract: false,
         })
@@ -1434,6 +1437,7 @@ impl<'a> Checker<'a> {
             rest_tp,
             ret,
             decl_key: 0,
+            ret_annotation_never: matches!(self.types.kind(ret), crate::types::TypeKind::Never),
             predicate: None,
             is_abstract: f.is_abstract,
         })

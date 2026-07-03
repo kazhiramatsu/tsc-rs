@@ -231,6 +231,7 @@ impl<'a> Checker<'a> {
                     rest_tp: None,
                     ret,
                     decl_key: 0,
+                    ret_annotation_never: false,
                     predicate: None,
                     is_abstract: false,
                 });

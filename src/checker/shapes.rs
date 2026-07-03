@@ -986,6 +986,7 @@ impl<'a> Checker<'a> {
                             rest_tp,
                             ret: instance,
                             decl_key: 0,
+                            ret_annotation_never: false,
                             predicate: None,
                             is_abstract: class_is_abstract,
                         });
@@ -1078,6 +1079,7 @@ impl<'a> Checker<'a> {
                     rest_tp: None,
                     ret: instance,
                     decl_key: 0,
+                    ret_annotation_never: false,
                     predicate: None,
                     is_abstract: class_is_abstract,
                 });

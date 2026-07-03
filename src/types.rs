@@ -160,6 +160,11 @@ pub struct Signature {
     pub ret: TypeId,
     /// declaration ptr for lazy body-inferred return types (0 = none)
     pub decl_key: usize,
+    /// the SYNTACTIC return annotation resolved to `never` at declaration
+    /// (tsc getReturnTypeFromAnnotation): drives never-returning-call
+    /// reachability. Instantiation copies it verbatim, so `(): T`
+    /// instantiated at `never` stays false while `(): never` stays true.
+    pub ret_annotation_never: bool,
     /// type-predicate / assertion info from a `x is T` / `asserts x is T`
     /// return type, used for call-site narrowing. None for ordinary returns.
     pub predicate: Option<PredInfo>,

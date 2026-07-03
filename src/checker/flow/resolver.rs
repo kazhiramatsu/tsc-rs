@@ -127,6 +127,187 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// Reachability of a flow node — the LAZY walk (tsc
+    /// isReachableFlowNode): never-returning statement-position calls,
+    /// `assert(false)`, and the exhaustive-switch no-match clause terminate
+    /// flow. Drives TS7027 for plain statements, TS7029, and
+    /// has-implicit-return.
+    pub(crate) fn is_reachable_flow(&mut self, flow: FlowNodeId) -> bool {
+        let mut visiting = std::collections::HashSet::new();
+        self.reachable_walk(flow, true, &mut visiting)
+    }
+
+    /// Reachability of a flow node — the STRUCTURAL walk (tsc's binder
+    /// view, type-blind): Call and Switch are transparent. Drives
+    /// has-explicit-return and TS7027 for class/enum/namespace
+    /// declarations (which carry no flowNode in tsc — the coarse bit).
+    pub(crate) fn is_structurally_reachable(&mut self, flow: FlowNodeId) -> bool {
+        let mut visiting = std::collections::HashSet::new();
+        self.reachable_walk(flow, false, &mut visiting)
+    }
+
+    /// Branch = OR over antecedents with cycle-as-false: loop labels are
+    /// `Branch([entry, back-edges…])` and a back edge can only reach the
+    /// label through the label itself, so this equals tsc's LoopLabel
+    /// "antecedent[0]" rule. Branch results are memoized per mode (least
+    /// fixpoint — cycle-false contributions are deterministic).
+    fn reachable_walk(
+        &mut self,
+        mut flow: FlowNodeId,
+        lazy: bool,
+        visiting: &mut std::collections::HashSet<FlowNodeId>,
+    ) -> bool {
+        loop {
+            enum R<'x> {
+                Done(bool),
+                Next(FlowNodeId),
+                Branch(Vec<FlowNodeId>),
+                Call(&'x Expr, FlowNodeId),
+                Switch(bool, FlowNodeId),
+            }
+            let step = match &self.bind.flow_nodes[flow.0 as usize] {
+                FlowNode::Unreachable => R::Done(false),
+                FlowNode::Start { .. } => R::Done(true),
+                FlowNode::Cond { ante, .. }
+                | FlowNode::Assign { ante, .. }
+                | FlowNode::Init { ante, .. }
+                | FlowNode::Nullish { ante, .. } => R::Next(*ante),
+                FlowNode::Call { call, ante, .. } => R::Call(call, *ante),
+                FlowNode::Switch {
+                    cases,
+                    clause,
+                    stmt_key,
+                    ante,
+                    ..
+                } => R::Switch(
+                    *clause as usize == cases.len()
+                        && self.flow.exhaustive_switches.contains(stmt_key),
+                    *ante,
+                ),
+                FlowNode::Branch(antes) => R::Branch(antes.clone()),
+            };
+            match step {
+                R::Done(r) => return r,
+                R::Next(a) => flow = a,
+                R::Call(call, a) => {
+                    if lazy && self.call_terminates_flow(call) {
+                        return false;
+                    }
+                    flow = a;
+                }
+                R::Switch(exhaustive_no_match, a) => {
+                    if lazy && exhaustive_no_match {
+                        return false;
+                    }
+                    flow = a;
+                }
+                R::Branch(antes) => {
+                    let memo = if lazy {
+                        &self.fresolve.reach_lazy
+                    } else {
+                        &self.fresolve.reach_structural
+                    };
+                    if let Some(&r) = memo.get(&flow) {
+                        return r;
+                    }
+                    if !visiting.insert(flow) {
+                        return false; // cycle: only reachable through itself
+                    }
+                    let mut r = false;
+                    for a in antes {
+                        if self.reachable_walk(a, lazy, visiting) {
+                            r = true;
+                            break;
+                        }
+                    }
+                    visiting.remove(&flow);
+                    if lazy {
+                        self.fresolve.reach_lazy.insert(flow, r);
+                    } else {
+                        self.fresolve.reach_structural.insert(flow, r);
+                    }
+                    return r;
+                }
+            }
+        }
+    }
+
+    /// Does this call terminate flow (tsc getEffectsSignature +
+    /// hasTypePredicateOrNeverReturnType)? Four gates keep it faithful:
+    /// statement position only; dotted-name callee typed through EXPLICIT
+    /// annotations (inferred `never` does not count); a single non-generic
+    /// call signature; and either the return ANNOTATION resolved to
+    /// `never` or a bare `asserts x` applied to a literally-false argument.
+    fn call_terminates_flow(&mut self, call: &Expr) -> bool {
+        let Expr::Call { callee, args, .. } = call else {
+            return false;
+        };
+        if !self
+            .bind
+            .stmt_position_calls
+            .contains(&node_key_expr(call))
+        {
+            return false;
+        }
+        let Some(ct) = self.explicit_type_of_dotted_name(callee) else {
+            return false;
+        };
+        let sigs = self.call_signatures_of(ct);
+        if sigs.len() != 1 {
+            return false;
+        }
+        let sig = self.types.sig(sigs[0]).clone();
+        if !sig.type_params.is_empty() {
+            return false;
+        }
+        if let Some(p) = &sig.predicate {
+            if p.asserts && p.ty.is_none() && p.param >= 0 {
+                if let Some(arg) = args.get(p.param as usize) {
+                    if is_false_expression(arg) {
+                        return true;
+                    }
+                }
+            }
+        }
+        sig.ret_annotation_never
+    }
+
+    /// tsc getTypeOfDottedName / getExplicitTypeOfSymbol: the callee's type
+    /// through EXPLICIT annotations only. Function/method/class symbols are
+    /// always explicit; variables, properties and parameters count only
+    /// when their declaration carries a type annotation. `this` is
+    /// deferred (FN-side).
+    fn explicit_type_of_dotted_name(&mut self, e: &Expr) -> Option<TypeId> {
+        match e {
+            Expr::Paren { inner, .. } => self.explicit_type_of_dotted_name(inner),
+            Expr::Ident(id) => {
+                let sym = self.lookup_value(self.current_scope, &id.name)?;
+                let sym = self.resolve_alias_chain(sym);
+                let s = self.symbol(sym);
+                let explicit = s.flags & (flags::FUNCTION | flags::CLASS | flags::NAMESPACE) != 0
+                    || s.decls.iter().any(|d| match d {
+                        crate::binder::Decl::Var(v, _) => v.ty.is_some(),
+                        crate::binder::Decl::Param(p) => p.ty.is_some(),
+                        _ => false,
+                    });
+                if !explicit {
+                    return None;
+                }
+                Some(self.type_of_symbol(sym))
+            }
+            Expr::PropAccess {
+                obj,
+                name,
+                question_dot: false,
+                ..
+            } => {
+                let ot = self.explicit_type_of_dotted_name(obj)?;
+                self.prop_of_type(ot, &name.name)
+            }
+            _ => None,
+        }
+    }
+
     /// Does the (possibly union) type have an `undefined` constituent?
     /// Structural scan — `void` deliberately does NOT count (tsc
     /// containsUndefinedType checks the Undefined flag; `let x: T | void`
@@ -1110,6 +1291,29 @@ impl<'a> Checker<'a> {
                 FLOW_VERIFY_UNRESOLVED.fetch_add(1, Ordering::Relaxed);
             }
         }
+    }
+}
+
+/// tsc isFalseExpression: literally-false conditions — the `false` keyword,
+/// `&&` with either side false, `||` with both sides false; parens skipped
+/// (unlike flow-edge conditions, which keep tsc's raw-keyword rule).
+fn is_false_expression(e: &Expr) -> bool {
+    match e {
+        Expr::BoolLit { value: false, .. } => true,
+        Expr::Paren { inner, .. } => is_false_expression(inner),
+        Expr::Binary {
+            op: BinOp::AmpAmp,
+            left,
+            right,
+            ..
+        } => is_false_expression(left) || is_false_expression(right),
+        Expr::Binary {
+            op: BinOp::BarBar,
+            left,
+            right,
+            ..
+        } => is_false_expression(left) && is_false_expression(right),
+        _ => false,
     }
 }
 

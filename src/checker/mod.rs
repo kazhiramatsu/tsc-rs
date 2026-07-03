@@ -121,6 +121,13 @@ pub struct FlowResolve {
     /// (annotated, never-assigned `let`s), which tsc checks even across
     /// closures. Keyed so sub-walks of other references are unaffected.
     pub initial: Option<(RefKey, TypeId, crate::ast::Span, bool)>,
+    /// Reachability memos (Branch nodes only — tsc caches its Shared join
+    /// points). Lazy = never-calls/exhaustive-switches terminate flow;
+    /// structural = the binder's type-blind view. Order-dependent exactly
+    /// like tsc: exhaustive_switches grows during checking, and all
+    /// reachability queries run after the switch they cross was checked.
+    pub reach_lazy: HashMap<crate::binder::FlowNodeId, bool>,
+    pub reach_structural: HashMap<crate::binder::FlowNodeId, bool>,
     /// The class's `this` parameter symbol for the current SEEDED query:
     /// `ref_key_in_scope` keys `Expr::This` as this root only while set, so
     /// `this.x = v` Assign targets match the 2564/2565 queries without
