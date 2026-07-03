@@ -182,7 +182,17 @@ impl<'a> FlowBuilder<'a, '_> {
         id
     }
 
+    fn is_unreachable(&self, id: FlowNodeId) -> bool {
+        matches!(self.nodes[id.0 as usize], FlowNode::Unreachable)
+    }
+
+    /// tsc addAntecedent: an unreachable antecedent never enters a label, so
+    /// joins only ever see live edges (dead paths contribute nothing).
     fn branch(&mut self, antes: Vec<FlowNodeId>) -> FlowNodeId {
+        let antes = antes
+            .into_iter()
+            .filter(|&a| !self.is_unreachable(a))
+            .collect();
         self.new_node(FlowNode::Branch(antes))
     }
 
@@ -210,14 +220,27 @@ impl<'a> FlowBuilder<'a, '_> {
         self.new_node(FlowNode::Unreachable)
     }
 
-    /// Append an antecedent to an existing `Branch`/loop label.
+    /// Append an antecedent to an existing `Branch`/loop label. Mirrors tsc
+    /// addAntecedent: unreachable antecedents are skipped and duplicates
+    /// (a re-taken break/continue edge) collapse.
     fn add_ante(&mut self, label: FlowNodeId, ante: FlowNodeId) {
+        if self.is_unreachable(ante) {
+            return;
+        }
         if let FlowNode::Branch(antes) = &mut self.nodes[label.0 as usize] {
-            antes.push(ante);
+            if !antes.contains(&ante) {
+                antes.push(ante);
+            }
         }
     }
 
     fn cond(&mut self, cond: &'a Expr, sense: bool, ante: FlowNodeId) -> FlowNodeId {
+        // tsc createFlowCondition: over an unreachable antecedent the
+        // condition collapses to the antecedent itself — dead code narrows
+        // nothing through if/&&/||/ternaries (switch clauses stay unguarded)
+        if self.is_unreachable(ante) {
+            return ante;
+        }
         // tsc createFlowCondition: a literal true/false condition makes the
         // contradicting edge unreachable — everywhere conditions make flow
         // (if / loops / ternaries / && / ||)
@@ -226,6 +249,20 @@ impl<'a> FlowBuilder<'a, '_> {
         }
         self.new_node(FlowNode::Cond {
             cond,
+            sense,
+            scope: self.scope,
+            ante,
+        })
+    }
+
+    /// `??` edge — tsc routes nullish-coalescing flow through
+    /// createFlowCondition too, so it shares the unreachable short-circuit.
+    fn nullish(&mut self, expr: &'a Expr, sense: bool, ante: FlowNodeId) -> FlowNodeId {
+        if self.is_unreachable(ante) {
+            return ante;
+        }
+        self.new_node(FlowNode::Nullish {
+            expr,
             sense,
             scope: self.scope,
             ante,
@@ -695,23 +732,13 @@ impl<'a> FlowBuilder<'a, '_> {
                     let r_in = match op {
                         BinOp::AmpAmp => self.cond(left, true, al),
                         BinOp::BarBar => self.cond(left, false, al),
-                        _ => self.new_node(FlowNode::Nullish {
-                            expr: left,
-                            sense: false,
-                            scope: self.scope,
-                            ante: al,
-                        }),
+                        _ => self.nullish(left, false, al),
                     };
                     let r_out = self.build_expr(right, r_in);
                     let skip = match op {
                         BinOp::AmpAmp => self.cond(left, false, al),
                         BinOp::BarBar => self.cond(left, true, al),
-                        _ => self.new_node(FlowNode::Nullish {
-                            expr: left,
-                            sense: true,
-                            scope: self.scope,
-                            ante: al,
-                        }),
+                        _ => self.nullish(left, true, al),
                     };
                     self.branch(vec![skip, r_out])
                 } else {
