@@ -286,11 +286,11 @@ impl<'a> Checker<'a> {
                 // narrow the guard into each branch (typeof / truthiness /
                 // equality), like tsc's conditional-expression flow analysis.
                 let t1 = self.narrowed(|this| {
-                    this.narrow_by_condition_for_flow(cond, true);
+                    this.narrow_by_condition(cond, true);
                     this.check_expr(when_true, ctx)
                 });
                 let t2 = self.narrowed(|this| {
-                    this.narrow_by_condition_for_flow(cond, false);
+                    this.narrow_by_condition(cond, false);
                     this.check_expr(when_false, ctx)
                 });
                 let (r1, r2) = (self.types.regular(t1), self.types.regular(t2));

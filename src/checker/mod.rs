@@ -81,8 +81,6 @@ pub struct ReportGuards {
 #[derive(Default)]
 pub struct FlowState {
     pub facts: Vec<HashMap<RefKey, TypeId>>,
-    pub da_facts: Vec<HashSet<RefKey>>,
-    pub record_da_facts: bool,
     pub loop_depth: u32,
     pub switch_depth: u32,
     pub label_stack: Vec<String>,
@@ -186,15 +184,6 @@ pub struct RecursionGuards {
     /// depth > 0 is a legal recursive type (broken permissively) rather than a
     /// circular alias (TS2456).
     pub alias_wrapper_depth: u32,
-}
-
-/// Definite-assignment analysis state (TS2454): tracked declarations and the
-/// set currently proven assigned on the active flow path.
-#[derive(Default)]
-pub struct DefiniteAssignment {
-    pub da_tracked: std::collections::HashMap<crate::binder::SymbolId, String>,
-    pub da_assigned: std::collections::HashSet<crate::binder::SymbolId>,
-    pub da_proven: Vec<std::collections::HashSet<crate::binder::SymbolId>>,
 }
 
 /// Enum checking state: computed member values and whether a const-enum member
@@ -477,8 +466,6 @@ pub struct Checker<'a> {
     pub deferred: DeferredState<'a>,
     /// recursion / DoS guards (see `RecursionGuards`)
     pub guards: RecursionGuards,
-    /// da (see `DefiniteAssignment`)
-    pub da: DefiniteAssignment,
     /// `const c = <type-guard expr>`: maps the constant to the boolean-producing
     /// initializer so that `if (c)` narrows the same references the expression
     /// would (tsc's aliased conditional narrowing).
@@ -551,7 +538,7 @@ pub fn check<'a>(
         for (i, (_n, _t, ast)) in files.iter().enumerate() {
             c.current_file = i;
             let scope = c.bind.module_scope[&i];
-            c.analyze_definite_assignment(&ast.stmts, scope);
+            c.prime_declarator_annotations(&ast.stmts, scope);
             c.check_statements(&ast.stmts, scope);
         }
         c.check_unused();
@@ -594,7 +581,7 @@ pub fn check<'a>(
                 if let Some(lib_scope) = c.bind.module_scope.get(&lib_file).copied() {
                     c.current_file = lib_file;
                     let lib_ast = &files[lib_file].2;
-                    c.analyze_definite_assignment(&lib_ast.stmts, lib_scope);
+                    c.prime_declarator_annotations(&lib_ast.stmts, lib_scope);
                     c.check_statements(&lib_ast.stmts, lib_scope);
                 }
                 loop {
@@ -608,7 +595,7 @@ pub fn check<'a>(
                     let (_n, _t, ast) = &files[i];
                     c.current_file = i;
                     let scope = c.bind.module_scope[&i];
-                    c.analyze_definite_assignment(&ast.stmts, scope);
+                    c.prime_declarator_annotations(&ast.stmts, scope);
                     c.check_statements(&ast.stmts, scope);
                 }
                 *results_ref[w].lock().unwrap() = Some((
@@ -676,7 +663,6 @@ fn new_checker<'a>(
         stacks: TraversalStacks::default(),
         flow: FlowState {
             facts: vec![HashMap::new()],
-            da_facts: vec![HashSet::new()],
             ..Default::default()
         },
         fresolve: FlowResolve::default(),
@@ -693,7 +679,6 @@ fn new_checker<'a>(
         prop_init_pos: None,
         deferred: DeferredState::default(),
         guards: RecursionGuards::default(),
-        da: DefiniteAssignment::default(),
         cond_aliases: std::collections::HashMap::new(),
         symuse: SymbolUsage::default(),
         synth: SynthSymbols {

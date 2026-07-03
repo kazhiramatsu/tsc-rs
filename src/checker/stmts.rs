@@ -420,31 +420,31 @@ impl<'a> Checker<'a> {
                 let then_terminates = super::flow::reachability::stmt_definitely_terminates(then);
                 // check the THEN branch under the true-narrowing of the guard.
                 self.narrowed(|this| {
-                    this.narrow_by_condition_for_flow(cond, true);
+                    this.narrow_by_condition(cond, true);
                     this.check_statement(then);
                 });
                 if let Some(els) = els {
                     self.narrowed(|this| {
-                        this.narrow_by_condition_for_flow(cond, false);
+                        this.narrow_by_condition(cond, false);
                         this.check_statement(els);
                     });
                     let else_terminates =
                         super::flow::reachability::stmt_definitely_terminates(els);
                     if then_terminates && !else_terminates {
-                        self.narrow_by_condition_for_flow(cond, false);
+                        self.narrow_by_condition(cond, false);
                     } else if else_terminates && !then_terminates {
-                        self.narrow_by_condition_for_flow(cond, true);
+                        self.narrow_by_condition(cond, true);
                     }
                 } else if then_terminates {
                     // early-return guard: the negation holds afterwards
-                    self.narrow_by_condition_for_flow(cond, false);
+                    self.narrow_by_condition(cond, false);
                 }
             }
             Stmt::While { cond, body, .. } => {
                 let ct = self.check_expr(cond, None);
                 self.check_testable(cond, ct, TruthinessContext::LoopCondition);
                 self.narrowed(|this| {
-                    this.narrow_by_condition_for_flow(cond, true);
+                    this.narrow_by_condition(cond, true);
                     this.flow.loop_depth += 1;
                     this.check_statement(body);
                     this.flow.loop_depth -= 1;
@@ -486,7 +486,7 @@ impl<'a> Checker<'a> {
                 }
                 self.narrowed(|this| {
                     if let Some(c) = cond {
-                        this.narrow_by_condition_for_flow(c, true);
+                        this.narrow_by_condition(c, true);
                     }
                     this.flow.loop_depth += 1;
                     this.check_statement(body);

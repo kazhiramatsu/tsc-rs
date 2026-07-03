@@ -7,7 +7,7 @@ use crate::binder::flags;
 use crate::checker::operators::facts;
 use crate::checker::{Checker, RefKey};
 use crate::types::{TypeId, TypeKind};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 impl<'a> Checker<'a> {
     // ── narrowing ───────────────────────────────────────────────────────────
@@ -97,32 +97,20 @@ impl<'a> Checker<'a> {
         self.narrow_by_condition(e, sense);
     }
 
-    pub fn narrow_by_condition_for_flow(&mut self, cond: &'a Expr, sense: bool) {
-        let prev = self.flow.record_da_facts;
-        self.flow.record_da_facts = true;
-        self.narrow_by_condition(cond, sense);
-        self.flow.record_da_facts = prev;
-    }
-
     fn collect_narrowing_facts(
         &mut self,
         f: impl FnOnce(&mut Self),
-    ) -> (HashMap<RefKey, TypeId>, HashSet<RefKey>) {
+    ) -> HashMap<RefKey, TypeId> {
         self.flow.facts.push(HashMap::new());
-        self.flow.da_facts.push(HashSet::new());
         f(self);
-        let facts = self.flow.facts.pop().unwrap_or_default();
-        let da_facts = self.flow.da_facts.pop().unwrap_or_default();
-        (facts, da_facts)
+        self.flow.facts.pop().unwrap_or_default()
     }
 
     fn merge_narrowing_alternatives(
         &mut self,
-        left: (HashMap<RefKey, TypeId>, HashSet<RefKey>),
-        right: (HashMap<RefKey, TypeId>, HashSet<RefKey>),
+        left_facts: HashMap<RefKey, TypeId>,
+        right_facts: HashMap<RefKey, TypeId>,
     ) {
-        let (left_facts, left_da_facts) = left;
-        let (right_facts, right_da_facts) = right;
         for (key, left_ty) in left_facts {
             let Some(&right_ty) = right_facts.get(&key) else {
                 continue;
@@ -132,9 +120,6 @@ impl<'a> Checker<'a> {
             } else {
                 self.types.union(vec![left_ty, right_ty])
             };
-            if left_da_facts.contains(&key) && right_da_facts.contains(&key) {
-                self.set_fact_for_definite_assignment(&key);
-            }
             self.set_fact(key, merged);
         }
     }
@@ -285,9 +270,6 @@ impl<'a> Checker<'a> {
                             if let Some(key) = self.ref_key_of_pub(arg) {
                                 if let Some(cur) = self.current_type_of_key(arg, &key) {
                                     let narrowed = self.narrow_to_pred(cur, pty, sense);
-                                    if sense {
-                                        self.set_fact_for_definite_assignment(&key);
-                                    }
                                     self.set_fact(key, narrowed);
                                 }
                             }
@@ -422,9 +404,6 @@ impl<'a> Checker<'a> {
                                         m != inst
                                     })
                                 };
-                                if sense {
-                                    self.set_fact_for_definite_assignment(&key);
-                                }
                                 self.set_fact(key, narrowed);
                             }
                         }
@@ -458,9 +437,6 @@ impl<'a> Checker<'a> {
                         })
                         .collect();
                     let narrowed = self.types.union(kept);
-                    if sense {
-                        self.set_fact_for_definite_assignment(&key);
-                    }
                     self.set_fact(key, narrowed);
                 }
             }
@@ -491,7 +467,6 @@ impl<'a> Checker<'a> {
                             let prefix = RefKey(key.0, key.1[..plen].to_vec());
                             if let Some(cur) = self.current_type_of_key(cond, &prefix) {
                                 let nn = self.non_nullable(cur);
-                                self.set_fact_for_definite_assignment(&prefix);
                                 self.set_fact(prefix, nn);
                             }
                         }
@@ -504,9 +479,6 @@ impl<'a> Checker<'a> {
                     } else {
                         self.falsy_part(cur)
                     };
-                    if sense {
-                        self.set_fact_for_definite_assignment(&key);
-                    }
                     self.set_fact(key, narrowed);
                 }
             }
@@ -575,9 +547,6 @@ impl<'a> Checker<'a> {
         } else {
             self.typeof_filter_negative(cur, lit)
         };
-        if sense {
-            self.set_fact_for_definite_assignment(&key);
-        }
         self.set_fact(key, narrowed);
     }
 

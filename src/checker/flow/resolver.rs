@@ -295,9 +295,7 @@ impl<'a> Checker<'a> {
                 // assignment recording stays off; any diagnostics a lazy
                 // resolution emits along the way are rolled back.
                 let saved_scope = self.current_scope;
-                let saved_da = self.flow.record_da_facts;
                 self.current_scope = scope;
-                self.flow.record_da_facts = false;
                 self.fresolve.quiet += 1;
                 let dlen = self.diags.len();
                 let out = self.narrowed(|c| {
@@ -307,7 +305,6 @@ impl<'a> Checker<'a> {
                 });
                 self.diags.truncate(dlen);
                 self.fresolve.quiet -= 1;
-                self.flow.record_da_facts = saved_da;
                 self.current_scope = saved_scope;
                 if verbose() {
                     let name = self.symbol(key.0).name.clone();
@@ -351,9 +348,7 @@ impl<'a> Checker<'a> {
                 // default clause (or the implicit no-match path) narrows by
                 // the negation of every label.
                 let saved_scope = self.current_scope;
-                let saved_da = self.flow.record_da_facts;
                 self.current_scope = scope;
-                self.flow.record_da_facts = false;
                 self.fresolve.quiet += 1;
                 let dlen = self.diags.len();
                 let out = self.narrowed(|c| {
@@ -372,7 +367,6 @@ impl<'a> Checker<'a> {
                 });
                 self.diags.truncate(dlen);
                 self.fresolve.quiet -= 1;
-                self.flow.record_da_facts = saved_da;
                 self.current_scope = saved_scope;
                 if verbose() && out == self.types.never && t_in != self.types.never {
                     eprintln!(
@@ -426,9 +420,7 @@ impl<'a> Checker<'a> {
                     other => return other,
                 };
                 let saved_scope = self.current_scope;
-                let saved_da = self.flow.record_da_facts;
                 self.current_scope = scope;
-                self.flow.record_da_facts = false;
                 self.fresolve.quiet += 1;
                 let dlen = self.diags.len();
                 let out = self.narrowed(|c| {
@@ -438,7 +430,6 @@ impl<'a> Checker<'a> {
                 });
                 self.diags.truncate(dlen);
                 self.fresolve.quiet -= 1;
-                self.flow.record_da_facts = saved_da;
                 self.current_scope = saved_scope;
                 FlowRes::Ty(out)
             }

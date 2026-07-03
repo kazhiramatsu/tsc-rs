@@ -1,15 +1,15 @@
 //! Control-flow analysis: definite assignment (more to follow:
 //! reachability, narrowing, flow state).
 
-pub mod definite_assignment;
 pub mod narrowing;
 pub mod reachability;
 pub mod resolver;
 
-use crate::binder::SymbolId;
+use crate::ast::*;
+use crate::binder::{ScopeId, SymbolId};
 use crate::checker::{Checker, RefKey};
 use crate::types::TypeId;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 impl<'a> Checker<'a> {
     // ── narrowing facts (populated in stmts/exprs; full engine in P8) ──────
@@ -32,27 +32,6 @@ impl<'a> Checker<'a> {
         }
     }
 
-    pub fn da_fact_for(&self, key: &RefKey) -> bool {
-        self.flow
-            .da_facts
-            .iter()
-            .rev()
-            .any(|frame| frame.contains(key))
-    }
-
-    pub fn set_fact_for_definite_assignment(&mut self, key: &RefKey) {
-        if !self.flow.record_da_facts {
-            return;
-        }
-        debug_assert!(
-            !self.flow.da_facts.is_empty(),
-            "da facts base frame drained"
-        );
-        if let Some(frame) = self.flow.da_facts.last_mut() {
-            frame.insert(key.clone());
-        }
-    }
-
     pub fn invalidate_fact_root(&mut self, root: SymbolId) {
         for frame in self.flow.facts.iter_mut() {
             frame.retain(|k, _| k.0 != root);
@@ -67,10 +46,116 @@ impl<'a> Checker<'a> {
     /// here.
     pub fn narrowed<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
         self.flow.facts.push(HashMap::new());
-        self.flow.da_facts.push(HashSet::new());
         let r = f(self);
         self.flow.facts.pop();
-        self.flow.da_facts.pop();
         r
+    }
+
+    /// Resolve the type annotations of uninitialized `let`/`var` declarators
+    /// ahead of statement checking, in source order. The retired forward
+    /// definite-assignment pass did this as a side effect of computing its
+    /// candidate set; keeping the eager resolution preserves diagnostic
+    /// order (TS2314 on `var g: G;` and friends) and keeps those
+    /// diagnostics from being first-emitted inside a rolled-back narrowing
+    /// scaffold, which would swallow them. Nested function/class bodies
+    /// prime themselves when their bodies are checked.
+    pub fn prime_declarator_annotations(&mut self, stmts: &'a [Stmt], scope: ScopeId) {
+        for stmt in stmts {
+            self.prime_stmt(stmt, scope);
+        }
+    }
+
+    fn prime_stmt(&mut self, stmt: &'a Stmt, scope: ScopeId) {
+        let block_scope = |c: &Self| {
+            c.bind
+                .node_scope
+                .get(&node_key(stmt))
+                .copied()
+                .unwrap_or(scope)
+        };
+        match stmt {
+            Stmt::Var(v) => self.prime_var(v, scope),
+            Stmt::Block(b) => {
+                let s = block_scope(self);
+                self.prime_declarator_annotations(&b.stmts, s);
+            }
+            Stmt::If { then, els, .. } => {
+                self.prime_stmt(then, scope);
+                if let Some(e) = els {
+                    self.prime_stmt(e, scope);
+                }
+            }
+            Stmt::While { body, .. } | Stmt::DoWhile { body, .. } => {
+                self.prime_stmt(body, scope);
+            }
+            Stmt::For { init, body, .. } => {
+                let s = block_scope(self);
+                if let Some(init) = init {
+                    if let ForInit::Var(v) = &**init {
+                        self.prime_var(v, s);
+                    }
+                }
+                self.prime_stmt(body, s);
+            }
+            Stmt::ForIn { body, .. } | Stmt::ForOf { body, .. } => {
+                let s = block_scope(self);
+                self.prime_stmt(body, s);
+            }
+            Stmt::Try {
+                block,
+                catch,
+                finally,
+                ..
+            } => {
+                self.prime_declarator_annotations(&block.stmts, scope);
+                if let Some(cc) = catch {
+                    let cs = self
+                        .bind
+                        .node_scope
+                        .get(&node_key(&cc.block))
+                        .copied()
+                        .unwrap_or(scope);
+                    self.prime_declarator_annotations(&cc.block.stmts, cs);
+                }
+                if let Some(fin) = finally {
+                    self.prime_declarator_annotations(&fin.stmts, scope);
+                }
+            }
+            Stmt::Switch { cases, .. } => {
+                let s = block_scope(self);
+                for c in cases {
+                    self.prime_declarator_annotations(&c.stmts, s);
+                }
+            }
+            Stmt::Labeled { stmt: inner, .. } | Stmt::With { body: inner, .. } => {
+                self.prime_stmt(inner, scope);
+            }
+            // nested function/class scopes prime their own bodies
+            _ => {}
+        }
+    }
+
+    fn prime_var(&mut self, v: &'a VarStmt, scope: ScopeId) {
+        if has_modifier(&v.modifiers, ModifierKind::Declare) {
+            return;
+        }
+        for d in &v.decls {
+            if matches!(v.kind, VarKind::Let | VarKind::Var)
+                && d.init.is_none()
+                && !d.exclam
+            {
+                if let Some(ty) = &d.ty {
+                    let dt = self.resolve_type_cached(ty, scope);
+                    // the retired pass also probed assignability, which
+                    // resolves the annotation's SHAPE eagerly — inline
+                    // object-type annotations emit their member diagnostics
+                    // (TS2314 on `{ x: C }`) here, in source order
+                    if !self.types.is_any_or_error(dt) {
+                        let undef = self.types.undefined;
+                        let _ = self.is_assignable_to(undef, dt);
+                    }
+                }
+            }
+        }
     }
 }

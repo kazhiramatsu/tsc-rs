@@ -626,7 +626,7 @@ impl<'a> Checker<'a> {
                 // the right operand is evaluated only when the left is truthy, so
                 // narrow it by the left's truthiness.
                 let rt = self.narrowed(|this| {
-                    this.narrow_by_condition_for_flow(left, true);
+                    this.narrow_by_condition(left, true);
                     this.check_expr(right, ctx)
                 });
                 let lreg = self.types.regular(lt);
@@ -652,7 +652,7 @@ impl<'a> Checker<'a> {
                 // narrow it by the left's falsiness (e.g. `x == null || x.foo`
                 // narrows `x` to non-null in `x.foo`).
                 let rt = self.narrowed(|this| {
-                    this.narrow_by_condition_for_flow(left, false);
+                    this.narrow_by_condition(left, false);
                     this.check_expr(right, ctx)
                 });
                 let lreg = self.types.regular(lt);

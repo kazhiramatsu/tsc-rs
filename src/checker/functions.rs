@@ -828,7 +828,7 @@ impl<'a> Checker<'a> {
         self.current_scope = scope;
         match &f.body {
             Some(FuncBody::Block(b)) => {
-                self.analyze_definite_assignment(&b.stmts, scope);
+                self.prime_declarator_annotations(&b.stmts, scope);
                 self.check_statements(&b.stmts, scope);
             }
             Some(FuncBody::Expr(e)) => {
