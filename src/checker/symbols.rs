@@ -1815,14 +1815,11 @@ impl<'a> Checker<'a> {
             };
             self.symuse.used_symbols.insert(member);
             let mflags = self.symbol(member).flags;
-            if mflags & flags::INTERFACE != 0 || mflags & flags::CLASS != 0 {
-                let tparams = self.type_params_of_symbol(member);
-                if tparams.is_empty() {
-                    return self.types.intern_kind(TypeKind::Iface(member));
-                }
+            if mflags & (flags::INTERFACE | flags::CLASS) != 0 {
+                return self.class_iface_ref_type(member, r, scope);
             }
             if mflags & flags::TYPE_ALIAS != 0 {
-                return self.declared_alias_type(member);
+                return self.alias_ref_type(member, r, scope);
             }
             if mflags & flags::ENUM != 0 {
                 return self.types.intern_kind(TypeKind::EnumType(member));
@@ -1889,6 +1886,18 @@ impl<'a> Checker<'a> {
             return self.alias_ref_type(sym, r, scope);
         }
         if sflags & (flags::INTERFACE | flags::CLASS) != 0 {
+            self.class_iface_ref_type(sym, r, scope)
+        } else {
+            // not a type (shouldn't reach: lookup_type only returns type-space)
+            self.types.error
+        }
+    }
+
+    /// A (possibly generic) class/interface type reference: arity checking,
+    /// default filling, constraint checking. Shared by the bare and the
+    /// namespace-qualified (`Geo.Point<T>`) resolution paths.
+    fn class_iface_ref_type(&mut self, sym: SymbolId, r: &'a TypeRef, scope: ScopeId) -> TypeId {
+        {
             let tparams = self.type_params_of_symbol(sym);
             let args = r.type_args.as_ref();
             if tparams.is_empty() {
@@ -1954,9 +1963,6 @@ impl<'a> Checker<'a> {
                 self.check_type_arg_constraints(sym, &tparams, &arg_types, args);
             }
             self.types.ref_type(sym, arg_types)
-        } else {
-            // not a type (shouldn't reach: lookup_type only returns type-space)
-            self.types.error
         }
     }
 

@@ -710,6 +710,16 @@ impl<'a> Checker<'a> {
         });
         let is_async = has_modifier(&f.modifiers, ModifierKind::Async)
             && !matches!(f.kind, FuncKind::Getter | FuncKind::Setter);
+        // return-path diagnostics see the awaited annotation even when the
+        // ES5 Promise check below nulls declared_ret for body checking (tsc
+        // unwrapReturnType reads the syntactic annotation's awaited type; an
+        // un-unwrappable thenable maps to errorType = exempt).
+        let ret_paths = if is_async {
+            declared_ret
+                .map(|t| self.awaited_for_return_paths(t, 0).unwrap_or(self.types.error))
+        } else {
+            declared_ret
+        };
         let mut declared_ret = declared_ret;
         if is_async {
             if let (Some(rt_node), Some(dt)) = (f.return_type.as_ref(), declared_ret) {
@@ -809,7 +819,7 @@ impl<'a> Checker<'a> {
         // added to the body) — the bracketed discipline whose violation caused
         // the Phase-1 regression.
         self.with_fn_ctx(fn_ctx, tc, |this| {
-            this.check_function_body_inner(f, scope, ret_ctx, declared_ret, is_async)
+            this.check_function_body_inner(f, scope, ret_ctx, declared_ret, ret_paths)
         });
     }
 
@@ -822,7 +832,7 @@ impl<'a> Checker<'a> {
         scope: crate::binder::ScopeId,
         ret_ctx: Option<TypeId>,
         declared_ret: Option<TypeId>,
-        is_async: bool,
+        ret_paths: Option<TypeId>,
     ) {
         let prev_scope = self.current_scope;
         self.current_scope = scope;
@@ -857,9 +867,7 @@ impl<'a> Checker<'a> {
                     self.error_at(name.span(), &gen::A_get_accessor_must_return_a_value, &[]);
                 }
             }
-            if !is_async {
-                self.check_return_paths(f, declared_ret, b);
-            }
+            self.check_return_paths(f, ret_paths, b);
         }
     }
 }

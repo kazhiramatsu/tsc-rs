@@ -8,6 +8,96 @@ use crate::diagnostics::gen;
 use crate::types::{TypeId, TypeKind};
 
 impl<'a> Checker<'a> {
+    /// tsc getAwaitedTypeNoAlias for the return-path tree, without error
+    /// reporting: `None` plays errorType's role (the caller exempts) — a
+    /// thenable whose promised type cannot be extracted is not analyzable.
+    pub(crate) fn awaited_for_return_paths(&mut self, t: TypeId, depth: u32) -> Option<TypeId> {
+        if depth > 8 {
+            return None;
+        }
+        match self.types.kind(t) {
+            TypeKind::Any | TypeKind::Error => return Some(t),
+            TypeKind::Union(ms) => {
+                let ms = ms.clone();
+                let mut out = Vec::new();
+                for m in ms {
+                    out.push(self.awaited_for_return_paths(m, depth + 1)?);
+                }
+                return Some(self.types.union(out));
+            }
+            _ => {}
+        }
+        if let Some(p) = self.promised_type_of(t) {
+            if p == t {
+                return None;
+            }
+            return self.awaited_for_return_paths(p, depth + 1);
+        }
+        if self.is_thenable_type(t) {
+            return None;
+        }
+        Some(t)
+    }
+
+    /// tsc getPromisedTypeOfPromise (no error reporting, no `this`-parameter
+    /// filtering): a global `Promise<T>` reference yields T directly; anything
+    /// else goes through the structural `then` unwrap — the first parameter
+    /// type of the non-nullish `onfulfilled` callback.
+    fn promised_type_of(&mut self, t: TypeId) -> Option<TypeId> {
+        if let TypeKind::Ref(sym, args) = self.types.kind(t) {
+            if !args.is_empty() && self.symbol(*sym).name == "Promise" {
+                return Some(args[0]);
+            }
+        }
+        let then_fn = self.prop_of_type(t, "then")?;
+        if matches!(self.types.kind(then_fn), TypeKind::Any) {
+            return None;
+        }
+        let sigs = self.call_signatures_of(then_fn);
+        if sigs.is_empty() {
+            return None;
+        }
+        let firsts: Vec<TypeId> = sigs.iter().map(|&s| self.first_param_type(s)).collect();
+        let cb_union = self.types.union(firsts);
+        let onfulfilled = self.facts_filter(
+            cb_union,
+            crate::checker::operators::facts::NE_UNDEFINED_OR_NULL,
+            false,
+        );
+        if matches!(self.types.kind(onfulfilled), TypeKind::Any) {
+            return None;
+        }
+        let cb_sigs = self.call_signatures_of(onfulfilled);
+        if cb_sigs.is_empty() {
+            return None;
+        }
+        let vals: Vec<TypeId> = cb_sigs.iter().map(|&s| self.first_param_type(s)).collect();
+        Some(self.types.union(vals))
+    }
+
+    /// tsc isThenableType: a callable non-nullish `then` property.
+    fn is_thenable_type(&mut self, t: TypeId) -> bool {
+        let Some(then_fn) = self.prop_of_type(t, "then") else {
+            return false;
+        };
+        let nn = self.facts_filter(
+            then_fn,
+            crate::checker::operators::facts::NE_UNDEFINED_OR_NULL,
+            false,
+        );
+        !self.call_signatures_of(nn).is_empty()
+    }
+
+    /// tsc getTypeOfFirstParameterOfSignature: `never` when parameterless.
+    fn first_param_type(&self, s: crate::types::SigId) -> TypeId {
+        self.types
+            .sig(s)
+            .params
+            .first()
+            .map(|p| p.ty)
+            .unwrap_or(self.types.never)
+    }
+
     /// `maybeTypeOfKind(type, Void)`: a `void` anywhere in a union or
     /// intersection exempts the function from return-path analysis.
     fn maybe_void_type(&self, t: TypeId) -> bool {
