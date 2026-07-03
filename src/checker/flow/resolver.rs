@@ -594,6 +594,12 @@ impl<'a> Checker<'a> {
                 FlowRes::Ty(out)
             }
             Step::Call(call, scope, ante) => {
+                // a never-returning statement-position call terminates flow
+                // (tsc getTypeAtFlowCall → unreachable): downstream reads
+                // join over the other paths only
+                if self.call_terminates_flow(call) {
+                    return FlowRes::Dead;
+                }
                 // Mirror the fact path, which applies `apply_assertion_narrowing`
                 // after checking EVERY call (`check_expr`'s Call arm): seed the
                 // antecedent type, re-run it, read the fact back. Calls whose
