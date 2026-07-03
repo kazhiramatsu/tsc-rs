@@ -34,6 +34,7 @@ pub fn build<'a>(bind: &mut BindResult<'a>, files: &'a [(String, SourceText, Sou
         clause_fallthrough: HashMap::new(),
         stmt_position_calls: HashSet::new(),
         fn_keys: Vec::new(),
+        in_param_default: 0,
         brk: Vec::new(),
         cont: Vec::new(),
         ret: None,
@@ -90,6 +91,10 @@ struct FlowBuilder<'a, 'b> {
     stmt_position_calls: HashSet<usize>,
     /// node keys of enclosing function-likes, inner last (for fn_returns)
     fn_keys: Vec<usize>,
+    /// >0 while building parameter default expressions: IIFEs there do NOT
+    /// thread into the enclosing flow (oracle-verified: a throwing IIFE in
+    /// a parameter default leaves the function body reachable)
+    in_param_default: u32,
     /// break-target labels (a `Branch` per enclosing loop/switch), inner last.
     brk: Vec<FlowNodeId>,
     /// continue-target labels, inner last.
@@ -116,11 +121,13 @@ struct FlowBuilder<'a, 'b> {
 }
 
 /// Static truth of a condition built from literal `true`/`false` through
-/// `&&`/`||`/`!`. tsc reaches the same conclusions structurally: its binder
+/// `&&`/`||`. tsc reaches the same conclusions structurally: its binder
 /// recurses bindCondition through logical operators and each literal leaf's
 /// contradicting edge is unreachable (`true || false ? a : b` has an
-/// unreachable false arm). Parens are deliberately NOT stripped — tsc's
-/// createFlowCondition checks the raw keyword, so `(true)` stays dynamic.
+/// unreachable false arm). Parens are deliberately NOT stripped, and `!` is
+/// deliberately NOT evaluated — tsc's createFlowCondition checks the raw
+/// keyword only, so `(true)`, `!true` and `!!false` all stay dynamic
+/// (oracle-verified: `if (!!false) { g(); }` reports no 7027).
 fn const_bool_cond(e: &Expr) -> Option<bool> {
     match e {
         Expr::BoolLit { value, .. } => Some(*value),
@@ -142,11 +149,6 @@ fn const_bool_cond(e: &Expr) -> Option<bool> {
             true => Some(true),
             false => const_bool_cond(right),
         },
-        Expr::Unary {
-            op: UnaryOp::Bang,
-            operand,
-            ..
-        } => const_bool_cond(operand).map(|b| !b),
         _ => None,
     }
 }
@@ -735,8 +737,10 @@ impl<'a> FlowBuilder<'a, '_> {
                 // generator function-expression/arrow callee is part of the
                 // enclosing control flow — arguments evaluate first, then the
                 // body threads from the call site, and `return`s join a label
-                // that becomes the post-call flow.
-                if let Some(f) = iife_callee(callee) {
+                // that becomes the post-call flow. NOT inside parameter
+                // defaults: a throwing IIFE there leaves the function body
+                // reachable (oracle-verified).
+                if let Some(f) = iife_callee(callee).filter(|_| self.in_param_default == 0) {
                     let mut fl = flow;
                     for a in args {
                         fl = self.build_expr(a, fl);
@@ -920,11 +924,13 @@ impl<'a> FlowBuilder<'a, '_> {
     /// Walk parameter default-value expressions so their references get flow
     /// nodes (they evaluate at function entry, in order).
     fn build_params(&mut self, f: &'a FunctionLike, mut flow: FlowNodeId) -> FlowNodeId {
+        self.in_param_default += 1;
         for p in &f.params {
             if let Some(d) = &p.initializer {
                 flow = self.build_expr(d, flow);
             }
         }
+        self.in_param_default -= 1;
         flow
     }
 

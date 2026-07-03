@@ -7,47 +7,167 @@ use crate::binder::{Decl, ScopeId, SymbolId};
 use crate::diagnostics::gen;
 use crate::types::{TypeId, TypeKind};
 
+/// TS7027 statement classification (see `reach_kind`).
+enum ReachKind {
+    /// executable — the lazy reachability walk applies
+    Plain,
+    /// class/enum/namespace declaration — structural walk only
+    Decl,
+    /// non-executable — never reported, breaks contiguous runs
+    Exempt,
+}
+
+/// tsc isInstantiatedModule: a namespace is instantiated (a value exists
+/// at runtime) unless it contains only interfaces, type aliases, and
+/// non-instantiated namespaces — const enums count only when preserved.
+fn namespace_is_instantiated(body: &[Stmt], preserve_const_enums: bool) -> bool {
+    body.iter().any(|s| match s {
+        Stmt::Interface(_) | Stmt::TypeAlias(_) | Stmt::Empty { .. } => false,
+        Stmt::Enum(e) => !e.is_const || preserve_const_enums,
+        Stmt::Namespace(n) => namespace_is_instantiated(&n.body, preserve_const_enums),
+        _ => true,
+    })
+}
+
 impl<'a> Checker<'a> {
     pub fn check_statements(&mut self, stmts: &'a [Stmt], scope: ScopeId) {
         let prev = self.current_scope;
         self.current_scope = scope;
-        let mut unreachable_reported = false;
-        let mut terminated = false;
-        for stmt in stmts {
-            // tsc reports TS7027 for unreachable code by default (as an
-            // "unnecessary"/suggestion diagnostic), escalating to an error only
-            // when allowUnreachableCode is explicitly false. Hoisted declarations
-            // are exempt: function declarations, interfaces/type aliases, and a
-            // bare `var` declaration with no initializers.
-            let hoisted = match stmt {
-                Stmt::Func(_) | Stmt::Interface(_) | Stmt::TypeAlias(_) | Stmt::Empty { .. } => {
-                    true
+        // TS7027 range grouping (tsc checkSourceElementUnreachable): one
+        // diagnostic per contiguous run of executable-and-unreachable
+        // statements, spanning the first's start to the last's end.
+        // Non-executable statements break a run; consumed statements are
+        // remembered so check_statement's per-statement hook (which also
+        // serves non-list positions like `while (false) foo();`) does not
+        // re-report them.
+        if !self.flow.within_unreachable_code
+            && self.options.allow_unreachable_code != Some(true)
+        {
+            let mut i = 0;
+            while i < stmts.len() {
+                let stmt = &stmts[i];
+                if self.flow.reported_unreachable.contains(&node_key(stmt))
+                    || !self.stmt_is_unreachable(stmt)
+                {
+                    i += 1;
+                    continue;
                 }
-                Stmt::Var(v) => {
-                    matches!(v.kind, VarKind::Var) && v.decls.iter().all(|d| d.init.is_none())
+                let mut last = i;
+                self.flow.reported_unreachable.insert(node_key(stmt));
+                for (j, next) in stmts.iter().enumerate().skip(i + 1) {
+                    if matches!(self.reach_kind(next), ReachKind::Exempt)
+                        || !self.stmt_is_unreachable(next)
+                    {
+                        break;
+                    }
+                    self.flow.reported_unreachable.insert(node_key(next));
+                    last = j;
                 }
-                _ => false,
-            };
-            if terminated
-                && !unreachable_reported
-                && self.options.allow_unreachable_code != Some(true)
-                && !hoisted
-            {
                 let as_error = self.options.allow_unreachable_code == Some(false);
-                self.unused_diag(stmt.span(), &gen::Unreachable_code_detected, &[], as_error);
-                unreachable_reported = true;
+                let span = Span::new(stmt.span().start as usize, stmts[last].span().end as usize);
+                self.unused_diag(span, &gen::Unreachable_code_detected, &[], as_error);
+                i = last + 1;
             }
+        }
+        for stmt in stmts {
             self.check_statement(stmt);
-            if super::flow::reachability::stmt_definitely_terminates(stmt)
-                || matches!(stmt, Stmt::Break { .. } | Stmt::Continue { .. })
-            {
-                terminated = true;
-            }
         }
         self.current_scope = prev;
     }
 
+    /// TS7027 kind classification (tsc isPotentiallyExecutableNode + the
+    /// declaration split of isSourceElementUnreachable).
+    fn reach_kind(&self, stmt: &Stmt) -> ReachKind {
+        match stmt {
+            // hoisted / type-only / non-executable — never reported, and
+            // they break a contiguous unreachable run
+            Stmt::Func(_)
+            | Stmt::Interface(_)
+            | Stmt::TypeAlias(_)
+            | Stmt::Empty { .. }
+            | Stmt::Import(_)
+            | Stmt::ImportEquals { .. }
+            | Stmt::ExportNamed { .. }
+            | Stmt::ExportDefault { .. }
+            | Stmt::ExportAssign { .. }
+            | Stmt::Missing { .. } => ReachKind::Exempt,
+            // a Block is not itself executable (tsc kind 242 <
+            // FirstStatement): its first executable INNER statement gets
+            // the report via the per-statement hook
+            Stmt::Block(_) => ReachKind::Exempt,
+            // a bare non-block-scoped `var` with no initializers hoists
+            Stmt::Var(v) => {
+                if matches!(v.kind, VarKind::Var) && v.decls.iter().all(|d| d.init.is_none()) {
+                    ReachKind::Exempt
+                } else {
+                    ReachKind::Plain
+                }
+            }
+            // declarations carry no flowNode in tsc: only the binder's
+            // structural bit applies (a never-call upstream does NOT make
+            // them unreachable), with enum/namespace instantiation filters
+            Stmt::Class(_) => ReachKind::Decl,
+            Stmt::Enum(e) => {
+                if e.is_const && !self.preserve_const_enums_like() {
+                    ReachKind::Exempt
+                } else {
+                    ReachKind::Decl
+                }
+            }
+            Stmt::Namespace(n) => {
+                if namespace_is_instantiated(&n.body, self.preserve_const_enums_like()) {
+                    ReachKind::Decl
+                } else {
+                    ReachKind::Exempt
+                }
+            }
+            _ => ReachKind::Plain,
+        }
+    }
+
+    fn preserve_const_enums_like(&self) -> bool {
+        self.options.preserve_const_enums == Some(true) || self.options.isolated_modules_like()
+    }
+
+    /// Is this statement unreachable for TS7027? Plain statements use the
+    /// lazy walk (never-calls and exhaustive switches terminate flow);
+    /// class/enum/namespace declarations use the structural walk only.
+    fn stmt_is_unreachable(&mut self, stmt: &'a Stmt) -> bool {
+        let kind = self.reach_kind(stmt);
+        if matches!(kind, ReachKind::Exempt) {
+            return false;
+        }
+        let Some(&flow) = self.bind.stmt_flow.get(&node_key(stmt)) else {
+            return false;
+        };
+        match kind {
+            ReachKind::Plain => !self.is_reachable_flow(flow),
+            ReachKind::Decl => !self.is_structurally_reachable(flow),
+            ReachKind::Exempt => false,
+        }
+    }
+
     fn check_statement(&mut self, stmt: &'a Stmt) {
+        // TS7027 per-statement hook (tsc checkSourceElementWorker): covers
+        // non-list positions (`while (false) foo();`); list members were
+        // range-grouped by check_statements. Descendants of an unreachable
+        // statement are suppressed for the duration of its check.
+        let was_within = self.flow.within_unreachable_code;
+        if !was_within && self.options.allow_unreachable_code != Some(true) {
+            if self.flow.reported_unreachable.contains(&node_key(stmt)) {
+                self.flow.within_unreachable_code = true;
+            } else if self.stmt_is_unreachable(stmt) {
+                self.flow.reported_unreachable.insert(node_key(stmt));
+                let as_error = self.options.allow_unreachable_code == Some(false);
+                self.unused_diag(stmt.span(), &gen::Unreachable_code_detected, &[], as_error);
+                self.flow.within_unreachable_code = true;
+            }
+        }
+        self.check_statement_inner(stmt);
+        self.flow.within_unreachable_code = was_within;
+    }
+
+    fn check_statement_inner(&mut self, stmt: &'a Stmt) {
         if self.current_file != self.lib_file
             && self.files[self.current_file].0.ends_with(".d.ts")
             && self.stacks.fn_stack.is_empty()

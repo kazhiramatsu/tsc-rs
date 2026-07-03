@@ -369,8 +369,13 @@ impl<'a> Parser<'a> {
                     })
                     .is_some() =>
             {
+                let await_start = self.start();
                 self.next(); // await
-                self.parse_var_stmt(Vec::new())
+                let mut s = self.parse_var_stmt(Vec::new());
+                if let Stmt::Var(v) = &mut s {
+                    v.span.start = await_start as u32;
+                }
+                s
             }
             _ if self.is_ident_like()
                 && self.token_value() == "using"

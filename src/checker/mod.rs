@@ -86,6 +86,11 @@ pub struct FlowState {
     pub label_stack: Vec<String>,
     pub evolving_nulls: HashMap<SymbolId, (usize, Span)>,
     pub evolving_fired: HashSet<SymbolId>,
+    /// TS7027 state: suppress reports inside an already-reported
+    /// unreachable statement (tsc withinUnreachableCode), and remember
+    /// range-consumed statements so the per-statement hook skips them.
+    pub within_unreachable_code: bool,
+    pub reported_unreachable: HashSet<usize>,
     pub return_stack: Vec<usize>,
     pub exhaustive_switches: std::collections::HashSet<usize>,
 }

@@ -208,16 +208,21 @@ impl<'a> Checker<'a> {
     pub fn apply_assertion_narrowing(&mut self, callee: &'a Expr, args: &'a [Expr]) {
         if let Some((arg, pred)) = self.call_predicate(callee, args) {
             if pred.asserts {
-                if let Some(key) = self.ref_key_of_pub(arg) {
-                    if let Some(cur) = self.current_type_of_key(arg, &key) {
-                        let narrowed = match pred.ty {
-                            // tsc narrows a bare `asserts x` by truthiness
-                            // (getAdjustedTypeWithFacts Truthy)
-                            Some(pty) => self.narrow_to_pred(cur, pty, true),
-                            None => self.truthy_part(cur),
-                        };
-                        self.set_fact(key, narrowed);
+                match pred.ty {
+                    Some(pty) => {
+                        if let Some(key) = self.ref_key_of_pub(arg) {
+                            if let Some(cur) = self.current_type_of_key(arg, &key) {
+                                let narrowed = self.narrow_to_pred(cur, pty, true);
+                                self.set_fact(key, narrowed);
+                            }
+                        }
                     }
+                    // a bare `asserts cond` narrows by the ARGUMENT as a
+                    // true condition (tsc narrowTypeByAssertion →
+                    // narrowType): `assert(x !== undefined)` and
+                    // `assert(typeof x === "string")` narrow x, not just
+                    // bare references
+                    None => self.narrow_by_condition(arg, true),
                 }
             }
         }
