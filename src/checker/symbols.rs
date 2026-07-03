@@ -225,7 +225,9 @@ impl<'a> Checker<'a> {
     }
 
     pub fn resolve_alias_chain(&mut self, sym: SymbolId) -> SymbolId {
-        if let Some(crate::binder::Decl::ImportEquals(_, module)) = self.symbol(sym).decls.first() {
+        if let Some(crate::binder::Decl::ImportEquals(_, module, _)) =
+            self.symbol(sym).decls.first()
+        {
             let mv = module.value.clone();
             if let Some(target) = self.resolve_module(self.current_file, &mv) {
                 if let Some(&eq) = self.bind.export_equals.get(&target) {
@@ -1755,9 +1757,22 @@ impl<'a> Checker<'a> {
         }
         // dotted: namespace-qualified type (Geo.Point)
         if r.name.parts.len() > 1 {
-            let ns = self
+            let root = self
                 .lookup_type(scope, &first.name)
-                .or_else(|| self.lookup_value(scope, &first.name))
+                .or_else(|| self.lookup_value(scope, &first.name));
+            // tsc resolveName marks the root identifier referenced even when
+            // the qualified resolution fails afterwards (`used.T` is a use of
+            // the import alias `used` regardless of what T turns out to be) —
+            // but only a symbol with namespace meaning resolves here (a mere
+            // value, e.g. a variable named like the ref, does not mark)
+            if let Some(sym0) = root {
+                if self.symbol(sym0).flags & (flags::NAMESPACE | flags::ENUM | flags::ALIAS) != 0
+                    && !self.is_self_reference(sym0, first.span)
+                {
+                    self.symuse.used_symbols.insert(sym0);
+                }
+            }
+            let ns = root
                 .map(|s| self.resolve_alias_chain(s))
                 .filter(|s| self.symbol(*s).flags & (flags::NAMESPACE | flags::ENUM) != 0);
             let Some(ns) = ns else {

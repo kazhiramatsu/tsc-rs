@@ -795,7 +795,20 @@ impl<'a> Checker<'a> {
             let is_function = s.flags & flags::FUNCTION != 0;
             let is_namespace = s.flags & flags::NAMESPACE != 0;
             let is_enum = s.flags & flags::ENUM != 0;
-            if !(is_param || is_local_var || is_type_decl || is_function || is_namespace || is_enum)
+            // `import a = …` (either form) reports individually via
+            // errorUnusedLocal in tsc, not through the import-clause grouping
+            let is_import_equals = s.flags & flags::ALIAS != 0
+                && matches!(
+                    s.decls.first(),
+                    Some(crate::binder::Decl::ImportEquals(..))
+                );
+            if !(is_param
+                || is_local_var
+                || is_type_decl
+                || is_function
+                || is_namespace
+                || is_enum
+                || is_import_equals)
             {
                 continue;
             }
@@ -828,6 +841,7 @@ impl<'a> Checker<'a> {
                 crate::binder::Decl::Func(fl) => crate::ast::node_key(fl),
                 crate::binder::Decl::Enum(e) => crate::ast::node_key(e),
                 crate::binder::Decl::Namespace(n) => crate::ast::node_key(n),
+                crate::binder::Decl::ImportEquals(id, _, _) => crate::ast::node_key(id),
                 crate::binder::Decl::Class(c) if self.is_reportable_unused_class_declaration(c) => {
                     crate::ast::node_key(c)
                 }
@@ -955,6 +969,21 @@ impl<'a> Checker<'a> {
                                     ambient,
                                 ));
                             }
+                        }
+                    }
+                    // `export import` is exempt (tsc exportSymbol); ambient
+                    // (inside a `declare module/namespace` body) reports as a
+                    // suggestion; leading underscores are NOT exempt here
+                    // (oracle-pinned: '_undereq' still reports)
+                    crate::binder::Decl::ImportEquals(id, _, exported) => {
+                        if !exported {
+                            per_decl.push((
+                                id.span,
+                                &gen::_0_is_declared_but_its_value_is_never_read,
+                                // NB: `id` is a &&Ident here (match through
+                                // &Decl) — deref for a stable node key
+                                self.bind.decl_ambient.contains(&crate::ast::node_key(*id)),
+                            ));
                         }
                     }
                     // tsc keys the parameter report on local.valueDeclaration:
@@ -4930,7 +4959,7 @@ impl<'a> Checker<'a> {
             Decl::Enum(e) => Some(node_key(*e)),
             Decl::EnumMember(m) => Some(node_key(*m)),
             Decl::Namespace(n) => Some(node_key(*n)),
-            Decl::ImportEquals(i, _) | Decl::PatternVar(i, _) | Decl::PatternParam(i) => {
+            Decl::ImportEquals(i, _, _) | Decl::PatternVar(i, _) | Decl::PatternParam(i) => {
                 Some(node_key(*i))
             }
             Decl::Import(s, _) => Some(node_key(*s)),

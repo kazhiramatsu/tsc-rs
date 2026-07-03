@@ -1192,10 +1192,14 @@ pub enum Stmt {
         expr: Expr,
         span: Span,
     },
-    /// `import name = require("m");`
+    /// `import name = require("m");` / `import name = A.b;`
     ImportEquals {
         name: Ident,
         module: StrLitNode,
+        /// `export import a = …` (ImportEquals carries no modifier list)
+        exported: bool,
+        /// external `require("m")` form (vs an entity-name reference)
+        is_require: bool,
         span: Span,
     },
     Missing {

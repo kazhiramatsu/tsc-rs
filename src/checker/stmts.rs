@@ -376,7 +376,9 @@ impl<'a> Checker<'a> {
                     );
                 }
             }
-            Stmt::ImportEquals { module, .. } => {
+            Stmt::ImportEquals {
+                module, is_require, ..
+            } => {
                 if self
                     .resolve_module(self.current_file, &module.value)
                     .is_none()
@@ -388,16 +390,9 @@ impl<'a> Checker<'a> {
                         &[module.value.clone()],
                     );
                 }
-                // `import a = A.b` (entity form: the stored "module" is the
-                // dotted entity text, not a quoted string) — the reference is
-                // a use of its root (tsc resolveEntityName, isUse)
-                let is_require_form = self.files[self.current_file]
-                    .1
-                    .text
-                    .as_bytes()
-                    .get(module.span.start as usize)
-                    .is_some_and(|b| matches!(b, b'"' | b'\''));
-                if !is_require_form {
+                // `import a = A.b` — the entity reference is a use of its
+                // root (tsc resolveEntityName, isUse)
+                if !is_require {
                     let root = module.value.split('.').next().unwrap_or("");
                     if !root.is_empty() {
                         let scope = self.current_scope;
@@ -459,7 +454,11 @@ impl<'a> Checker<'a> {
                             | Stmt::Enum(_)
                             | Stmt::Namespace(_)
                             | Stmt::Empty { .. }
-                            | Stmt::ExportNamed(_) => {}
+                            | Stmt::ExportNamed(_)
+                            // imports are declarations, allowed in ambient
+                            // module bodies (tsc isDeclarationStatement)
+                            | Stmt::Import(_)
+                            | Stmt::ImportEquals { .. } => {}
                             other => {
                                 let sp = other.span();
                                 self.error_at(
@@ -1011,15 +1010,24 @@ impl<'a> Checker<'a> {
                 if e.module.is_none() {
                     for spec in &e.specifiers {
                         let local = spec.prop_name.as_ref().unwrap_or(&spec.name);
-                        let resolvable =
-                            self.lookup_value(self.current_scope, &local.name).is_some()
-                                || self.lookup_type(self.current_scope, &local.name).is_some();
-                        if !resolvable {
-                            self.error_at(
-                                local.span,
-                                &gen::Cannot_find_name_0,
-                                &[local.name.clone()],
-                            );
+                        let resolved = self
+                            .lookup_value(self.current_scope, &local.name)
+                            .or_else(|| self.lookup_type(self.current_scope, &local.name));
+                        match resolved {
+                            // an `export { x }` specifier gives the local an
+                            // exportSymbol — tsc never unused-reports it
+                            // (module-top specifiers land in the exports
+                            // table; namespace-level ones only get here)
+                            Some(sym) => {
+                                self.symuse.used_symbols.insert(sym);
+                            }
+                            None => {
+                                self.error_at(
+                                    local.span,
+                                    &gen::Cannot_find_name_0,
+                                    &[local.name.clone()],
+                                );
+                            }
                         }
                     }
                 }

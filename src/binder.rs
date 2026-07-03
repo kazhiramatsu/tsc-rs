@@ -173,8 +173,9 @@ pub enum Decl<'a> {
     EnumMember(&'a EnumMemberDecl),
     Namespace(&'a NamespaceDecl),
     DefaultExport,
-    /// `import name = require("m")`
-    ImportEquals(&'a Ident, &'a StrLitNode),
+    /// `import name = require("m")` / `import name = A.b`; the bool is
+    /// `export import`
+    ImportEquals(&'a Ident, &'a StrLitNode, bool),
     /// a name bound inside a destructuring pattern
     PatternVar(&'a Ident, VarKind),
     PatternParam(&'a Ident),
@@ -201,7 +202,7 @@ impl<'a> Decl<'a> {
             Decl::EnumMember(m) => m.name.span(),
             Decl::Namespace(n) => n.name.span,
             Decl::DefaultExport => Span::new(0, 0),
-            Decl::ImportEquals(n, _) => n.span,
+            Decl::ImportEquals(n, _, _) => n.span,
             Decl::PatternVar(i, _) | Decl::PatternParam(i) => i.span,
             Decl::Import(s, _) => s.name.span,
             Decl::ImportDefault(i) => i.default_name.as_ref().unwrap().span,
@@ -900,14 +901,24 @@ impl<'a> Binder<'a> {
                     self.export_assigns.push((self.file, id.name.clone()));
                 }
             }
-            Stmt::ImportEquals { name, module, .. } => {
+            Stmt::ImportEquals {
+                name,
+                module,
+                exported,
+                ..
+            } => {
                 self.declare(
                     scope,
                     &name.name,
                     flags::ALIAS,
-                    Decl::ImportEquals(name, module),
+                    Decl::ImportEquals(name, module, *exported),
                     node_key(name),
                 );
+                // unused-category input: an alias inside an ambient module
+                // reports as a suggestion (tsc unusedIsError ambient check)
+                if self.ambient_context_depth > 0 {
+                    self.decl_ambient.insert(node_key(name));
+                }
             }
             Stmt::ExportDefault { expr, span } => {
                 self.bind_expr(expr, scope);

@@ -253,12 +253,20 @@ impl<'a> Parser<'a> {
                 self.next();
                 let name = self.parse_ident();
                 self.expect(Tok::Eq);
-                let module = self.parse_module_reference();
+                let (module, is_require) = self.parse_module_reference();
+                // `import a = require("m")` is an external module indicator
+                // (tsc isAnExternalModuleIndicatorNode); `import a = Entity`
+                // is not
+                if is_require && self.namespace_depth == 0 {
+                    self.saw_module_syntax = true;
+                }
                 let end = self.prev_end();
                 self.parse_semicolon();
                 Stmt::ImportEquals {
                     name,
                     module,
+                    exported: false,
+                    is_require,
                     span: Span::new(start, end),
                 }
             }
@@ -1704,12 +1712,14 @@ impl<'a> Parser<'a> {
         {
             let name = self.parse_ident();
             self.expect(Tok::Eq);
-            let module = self.parse_module_reference();
+            let (module, is_require) = self.parse_module_reference();
             let end = self.prev_end();
             self.parse_semicolon();
             return Stmt::ImportEquals {
                 name,
                 module,
+                exported: false,
+                is_require,
                 span: Span::new(start, end),
             };
         }
@@ -1877,7 +1887,10 @@ impl<'a> Parser<'a> {
     /// The reference of an import-equals: `require("module")` or a (possibly
     /// dotted) entity name `A.B.C`. The entity-name text is stored verbatim in
     /// the module slot.
-    fn parse_module_reference(&mut self) -> StrLitNode {
+    /// Returns the reference and whether it is the external `require("m")`
+    /// form (an external module reference is a module indicator; an entity
+    /// name is not — tsc isAnExternalModuleIndicatorNode).
+    fn parse_module_reference(&mut self) -> (StrLitNode, bool) {
         if self.is_ident_like()
             && self.token_value() == "require"
             && self
@@ -1911,7 +1924,7 @@ impl<'a> Parser<'a> {
                 }
             };
             self.expect(Tok::CloseParen);
-            m
+            (m, true)
         } else {
             let estart = self.start();
             let mut name = self.parse_ident_name().name;
@@ -1920,10 +1933,13 @@ impl<'a> Parser<'a> {
                 name.push('.');
                 name.push_str(&self.parse_ident_name().name);
             }
-            StrLitNode {
-                value: name,
-                span: Span::new(estart, self.prev_end()),
-            }
+            (
+                StrLitNode {
+                    value: name,
+                    span: Span::new(estart, self.prev_end()),
+                },
+                false,
+            )
         }
     }
 
@@ -2004,12 +2020,14 @@ impl<'a> Parser<'a> {
             self.next(); // import
             let name = self.parse_ident();
             self.expect(Tok::Eq);
-            let module = self.parse_module_reference();
+            let (module, is_require) = self.parse_module_reference();
             let end = self.prev_end();
             self.parse_semicolon();
             return Stmt::ImportEquals {
                 name,
                 module,
+                exported: true,
+                is_require,
                 span: Span::new(start, end),
             };
         }
