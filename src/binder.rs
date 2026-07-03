@@ -295,6 +295,25 @@ pub struct BindResult<'a> {
     /// function-like node ptr -> its END flow (every `return` joined with
     /// the fall-through) — the constructor-end query point for TS2564
     pub fn_end_flow: HashMap<usize, FlowNodeId>,
+    /// statement node ptr -> the flow in effect ON ENTRY to the statement
+    /// (tsc `node.flowNode` for statements) — reachability queries key here
+    pub stmt_flow: HashMap<usize, FlowNodeId>,
+    /// function-like node ptr -> the body's FALL-THROUGH out-flow, recorded
+    /// BEFORE joining the end label (tsc `endFlowNode`: returns are NOT
+    /// mixed in — this is what "has an implicit return" means)
+    pub fn_fallthrough_flow: HashMap<usize, FlowNodeId>,
+    /// function-like node ptr -> the input flow of each `return` statement
+    /// in its body. "Has an explicit return" = any of them is structurally
+    /// reachable (tsc's binder-level hasExplicitReturn, never-call-blind)
+    pub fn_returns: HashMap<usize, Vec<FlowNodeId>>,
+    /// switch-case node ptr -> the clause body's out-flow (the fall-through
+    /// into the next clause) — TS7029 queries its reachability
+    pub clause_fallthrough: HashMap<usize, FlowNodeId>,
+    /// call expressions in STATEMENT position (expression statements and
+    /// comma operands, parens deliberately not stripped): only these
+    /// participate in never-returning-call reachability (tsc
+    /// maybeBindExpressionFlowIfCall creates FlowCall only there)
+    pub stmt_position_calls: HashSet<usize>,
     /// file -> the `export =` symbol
     pub export_equals: HashMap<usize, SymbolId>,
     /// (file, pattern span, member symbols) per destructuring declarator
@@ -427,6 +446,11 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         flow_nodes: Vec::new(),
         flow_node: HashMap::new(),
         fn_end_flow: HashMap::new(),
+        stmt_flow: HashMap::new(),
+        fn_fallthrough_flow: HashMap::new(),
+        fn_returns: HashMap::new(),
+        clause_fallthrough: HashMap::new(),
+        stmt_position_calls: HashSet::new(),
         diags: b.diags,
     }
 }

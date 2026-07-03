@@ -21,13 +21,19 @@
 use crate::ast::*;
 use crate::binder::{BindResult, FlowNode, FlowNodeId, ScopeId};
 use crate::text::SourceText;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub fn build<'a>(bind: &mut BindResult<'a>, files: &'a [(String, SourceText, SourceFileAst)]) {
     let mut b = FlowBuilder {
         nodes: Vec::new(),
         map: HashMap::new(),
         end_flow: HashMap::new(),
+        stmt_flow: HashMap::new(),
+        fallthrough_flow: HashMap::new(),
+        fn_returns: HashMap::new(),
+        clause_fallthrough: HashMap::new(),
+        stmt_position_calls: HashSet::new(),
+        fn_keys: Vec::new(),
         brk: Vec::new(),
         cont: Vec::new(),
         ret: None,
@@ -50,11 +56,21 @@ pub fn build<'a>(bind: &mut BindResult<'a>, files: &'a [(String, SourceText, Sou
         nodes,
         map,
         end_flow,
+        stmt_flow,
+        fallthrough_flow,
+        fn_returns,
+        clause_fallthrough,
+        stmt_position_calls,
         ..
     } = b;
     bind.flow_nodes = nodes;
     bind.flow_node = map;
     bind.fn_end_flow = end_flow;
+    bind.stmt_flow = stmt_flow;
+    bind.fn_fallthrough_flow = fallthrough_flow;
+    bind.fn_returns = fn_returns;
+    bind.clause_fallthrough = clause_fallthrough;
+    bind.stmt_position_calls = stmt_position_calls;
 }
 
 struct FlowBuilder<'a, 'b> {
@@ -62,6 +78,18 @@ struct FlowBuilder<'a, 'b> {
     map: HashMap<usize, FlowNodeId>,
     /// function-like node ptr -> END flow (returns + fall-through joined)
     end_flow: HashMap<usize, FlowNodeId>,
+    /// statement node ptr -> entry flow (tsc statement flowNode)
+    stmt_flow: HashMap<usize, FlowNodeId>,
+    /// function-like node ptr -> body fall-through out (pre-end-join)
+    fallthrough_flow: HashMap<usize, FlowNodeId>,
+    /// function-like node ptr -> each return statement's input flow
+    fn_returns: HashMap<usize, Vec<FlowNodeId>>,
+    /// switch-case node ptr -> clause body out-flow
+    clause_fallthrough: HashMap<usize, FlowNodeId>,
+    /// call expressions in statement position (never-call reachability)
+    stmt_position_calls: HashSet<usize>,
+    /// node keys of enclosing function-likes, inner last (for fn_returns)
+    fn_keys: Vec<usize>,
     /// break-target labels (a `Branch` per enclosing loop/switch), inner last.
     brk: Vec<FlowNodeId>,
     /// continue-target labels, inner last.
@@ -124,6 +152,28 @@ fn const_bool_cond(e: &Expr) -> Option<bool> {
 }
 
 impl<'a> FlowBuilder<'a, '_> {
+    /// Mark call expressions in STATEMENT position (tsc
+    /// maybeBindExpressionFlowIfCall: expression statements and comma
+    /// operands; parens deliberately NOT stripped): only these participate
+    /// in never-returning-call reachability.
+    fn mark_stmt_position_calls(&mut self, e: &'a Expr) {
+        match e {
+            Expr::Call { .. } => {
+                self.stmt_position_calls.insert(node_key(e));
+            }
+            Expr::Binary {
+                op: BinOp::Comma,
+                left,
+                right,
+                ..
+            } => {
+                self.mark_stmt_position_calls(left);
+                self.mark_stmt_position_calls(right);
+            }
+            _ => {}
+        }
+    }
+
     fn new_node(&mut self, n: FlowNode<'a>) -> FlowNodeId {
         let id = FlowNodeId(self.nodes.len() as u32);
         self.nodes.push(n);
@@ -212,12 +262,18 @@ impl<'a> FlowBuilder<'a, '_> {
     }
 
     fn build_stmt(&mut self, stmt: &'a Stmt, flow: FlowNodeId) -> FlowNodeId {
+        // the flow in effect ON ENTRY (tsc assigns node.flowNode before
+        // binding the statement) — reachability queries key here
+        self.stmt_flow.insert(node_key(stmt), flow);
         // labels apply only to the DIRECTLY labeled statement: take them
         // here so any non-loop arm implicitly drops the continue claims
         let pending = std::mem::take(&mut self.pending_labels);
         match stmt {
             Stmt::Var(v) => self.build_var(v, flow),
-            Stmt::Expr { expr, .. } => self.build_expr(expr, flow),
+            Stmt::Expr { expr, .. } => {
+                self.mark_stmt_position_calls(expr);
+                self.build_expr(expr, flow)
+            }
             Stmt::Block(b) => {
                 let saved = self.enter(node_key(b));
                 let out = self.build_stmts(&b.stmts, flow);
@@ -382,6 +438,11 @@ impl<'a> FlowBuilder<'a, '_> {
                 post
             }
             Stmt::Return { expr, .. } => {
+                if let Some(&fk) = self.fn_keys.last() {
+                    // the INPUT flow: "has an explicit return" asks whether
+                    // any return statement is structurally reachable
+                    self.fn_returns.entry(fk).or_default().push(flow);
+                }
                 let mut f = flow;
                 if let Some(e) = expr {
                     f = self.build_expr(e, f);
@@ -474,7 +535,9 @@ impl<'a> FlowBuilder<'a, '_> {
                         Some(f) => self.branch(vec![clause_node, f]),
                         None => clause_node,
                     };
-                    fallthrough = Some(self.build_stmts(&c.stmts, clause_in));
+                    let clause_out = self.build_stmts(&c.stmts, clause_in);
+                    self.clause_fallthrough.insert(node_key(c), clause_out);
+                    fallthrough = Some(clause_out);
                 }
                 if let Some(f) = fallthrough {
                     self.add_ante(post, f);
@@ -789,22 +852,28 @@ impl<'a> FlowBuilder<'a, '_> {
         let saved_pending = std::mem::take(&mut self.pending_labels);
         // every `return` joins the END label with the body's fall-through
         // (tsc's returnFlowNode) — the constructor-end query point for
-        // strictPropertyInitialization
+        // strictPropertyInitialization. The fall-through alone is recorded
+        // separately (tsc endFlowNode): its reachability is "has an
+        // implicit return".
         let end = self.branch(vec![]);
         let saved_ret = self.ret.replace(end);
+        self.fn_keys.push(node_key(f));
         let start = self.start(outer.map(|o| (o, f.span)), Some(f.span));
         let fl = self.build_params(f, start);
         match &f.body {
             Some(FuncBody::Block(b)) => {
                 let out = self.build_stmts(&b.stmts, fl);
+                self.fallthrough_flow.insert(node_key(f), out);
                 self.add_ante(end, out);
             }
             Some(FuncBody::Expr(e)) => {
                 let out = self.build_expr(e, fl);
+                self.fallthrough_flow.insert(node_key(f), out);
                 self.add_ante(end, out);
             }
             None => {}
         }
+        self.fn_keys.pop();
         self.end_flow.insert(node_key(f), end);
         self.ret = saved_ret;
         self.pending_labels = saved_pending;
@@ -828,12 +897,15 @@ impl<'a> FlowBuilder<'a, '_> {
         let saved_pending = std::mem::take(&mut self.pending_labels);
         let ret = self.branch(vec![]);
         let saved_ret = self.ret.replace(ret);
+        self.fn_keys.push(node_key(f));
         let fl = self.build_params(f, flow);
         let out = match &f.body {
             Some(FuncBody::Block(b)) => self.build_stmts(&b.stmts, fl),
             Some(FuncBody::Expr(e)) => self.build_expr(e, fl),
             None => fl,
         };
+        self.fn_keys.pop();
+        self.fallthrough_flow.insert(node_key(f), out);
         self.add_ante(ret, out);
         self.ret = saved_ret;
         self.pending_labels = saved_pending;
