@@ -292,6 +292,12 @@ pub struct BindResult<'a> {
     /// decl node ptrs bound inside an ambient (`declare`) context — the
     /// symbol-level AMBIENT flag is unreliable for lib-merged globals
     pub decl_ambient: HashSet<usize>,
+    /// var declarator node ptrs carrying an `export` modifier — tsc's
+    /// autoType (control-flow-typed unannotated let/var) excludes exports
+    pub decl_exported: HashSet<usize>,
+    /// var declarator node ptrs that are `for (… in/of …)` heads — assigned
+    /// by the loop construct, never autoType candidates
+    pub decl_loop_head: HashSet<usize>,
     /// function-like node ptr -> its END flow (every `return` joined with
     /// the fall-through) — the constructor-end query point for TS2564
     pub fn_end_flow: HashMap<usize, FlowNodeId>,
@@ -356,6 +362,9 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         decl_scope: HashMap::new(),
         decl_file: HashMap::new(),
         decl_ambient: HashSet::new(),
+        decl_exported: HashSet::new(),
+        decl_loop_head: HashSet::new(),
+        in_loop_head: false,
         fn_decls: HashMap::new(),
         diags: Vec::new(),
         file: 0,
@@ -438,6 +447,8 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         decl_scope: b.decl_scope,
         decl_file: b.decl_file,
         decl_ambient: b.decl_ambient,
+        decl_exported: b.decl_exported,
+        decl_loop_head: b.decl_loop_head,
         fn_decls: b.fn_decls,
         export_equals,
         pattern_groups: b.pattern_groups,
@@ -471,6 +482,9 @@ struct Binder<'a> {
     decl_scope: HashMap<usize, ScopeId>,
     decl_file: HashMap<usize, usize>,
     decl_ambient: HashSet<usize>,
+    decl_exported: HashSet<usize>,
+    decl_loop_head: HashSet<usize>,
+    in_loop_head: bool,
     fn_decls: HashMap<usize, &'a FunctionLike>,
     diags: Vec<Diagnostic>,
     file: usize,
@@ -1020,7 +1034,11 @@ impl<'a> Binder<'a> {
                 let s = self.new_scope(Some(scope), ScopeKind::Block);
                 self.node_scope.insert(node_key(stmt), s);
                 match &**left {
-                    ForInit::Var(v) => self.bind_var_stmt(v, s),
+                    ForInit::Var(v) => {
+                        self.in_loop_head = true;
+                        self.bind_var_stmt(v, s);
+                        self.in_loop_head = false;
+                    }
                     ForInit::Expr(e) => self.bind_expr(e, s),
                 }
                 self.bind_expr(expr, s);
@@ -1108,6 +1126,12 @@ impl<'a> Binder<'a> {
             // context) — the symbol flag is unreliable for merged globals
             if is_ambient {
                 self.decl_ambient.insert(node_key(d));
+            }
+            if has_modifier(&v.modifiers, ModifierKind::Export) {
+                self.decl_exported.insert(node_key(d));
+            }
+            if self.in_loop_head {
+                self.decl_loop_head.insert(node_key(d));
             }
             match &d.name {
                 Binding::Ident(_) => {

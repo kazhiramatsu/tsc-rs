@@ -108,6 +108,64 @@ impl<'a> Checker<'a> {
     /// contribute `initial` instead of the declared type (see
     /// `FlowResolve::initial` for the outer-variable rule). The memo is
     /// per-query, so the seeded result never leaks into unseeded queries.
+    /// AUTO-query entry (tsc autoType CFA): an unannotated, noImplicitAny
+    /// let/var whose initializer is absent or nullish reads its control-flow
+    /// type — seeded with the declaration's initial nullish type. A foreign
+    /// container `Start` yields the auto MARKER; a result that IS the marker
+    /// means every path reached such an entry (tsc flowType === autoType) ⇒
+    /// the caller reports TS7005/7034 and converts to `any`. Returns
+    /// `(type, is_marker)`.
+    pub(crate) fn get_flow_type_of_reference_auto(
+        &mut self,
+        key: &RefKey,
+        flow: FlowNodeId,
+        initial: TypeId,
+        decl_span: Span,
+    ) -> Option<(TypeId, bool)> {
+        let marker = match self.fresolve.auto_marker {
+            Some(m) => m,
+            None => {
+                let m = self.types.alloc(TypeKind::Any);
+                self.fresolve.auto_marker = Some(m);
+                m
+            }
+        };
+        self.fresolve.memo.clear();
+        self.fresolve.initial = Some((key.clone(), initial, decl_span, false));
+        self.fresolve.auto = Some(key.clone());
+        let r = self.flow_type_at(key, flow, 0);
+        self.fresolve.initial = None;
+        self.fresolve.auto = None;
+        self.fresolve.in_progress.clear();
+        match r {
+            FlowRes::Ty(t) if t == marker => Some((self.types.any, true)),
+            FlowRes::Ty(t) => Some((self.drop_nullish_when_mixed(t), false)),
+            _ => None,
+        }
+    }
+
+    /// Non-strict CFA joins drop nullish members once a non-nullish type has
+    /// been assigned (oracle: `let x; if (c) x = 1; x` is `number`, but the
+    /// exactly-initial read stays `undefined`). Strict keeps everything.
+    fn drop_nullish_when_mixed(&mut self, t: TypeId) -> TypeId {
+        if self.options.strict_null_checks() {
+            return t;
+        }
+        let members = self.types.union_members(t);
+        if members.len() < 2 {
+            return t;
+        }
+        let live: Vec<TypeId> = members
+            .iter()
+            .copied()
+            .filter(|&m| !matches!(self.types.kind(m), TypeKind::Null | TypeKind::Undefined))
+            .collect();
+        if live.is_empty() || live.len() == members.len() {
+            return t;
+        }
+        self.types.union(live)
+    }
+
     pub(crate) fn get_flow_type_of_reference_seeded(
         &mut self,
         key: &RefKey,
@@ -411,6 +469,15 @@ impl<'a> Checker<'a> {
                         if declares_here || *never_init {
                             return FlowRes::Ty(*it);
                         }
+                        // AUTO query at a FOREIGN container's entry: a
+                        // capture read cannot see the declaring container's
+                        // assignments — tsc autoType (⇒ TS7005/7034 when it
+                        // survives to the result)
+                        if self.fresolve.auto.is_some() {
+                            if let Some(m) = self.fresolve.auto_marker {
+                                return FlowRes::Ty(m);
+                            }
+                        }
                     }
                 }
                 match self.declared_type_of_ref(key) {
@@ -460,6 +527,14 @@ impl<'a> Checker<'a> {
                         FlowRes::Cycle => any_cycle = true,
                         FlowRes::Dead => any_dead = true,
                         FlowRes::Unknown => return FlowRes::Unknown,
+                    }
+                }
+                // tsc: auto is INFECTIOUS at joins — one path reaching a
+                // foreign container's entry unassigned makes the whole join
+                // auto (`let x; () => { if (c) x = 1; x }` reads any + 7005)
+                if let (Some(ak), Some(m)) = (&self.fresolve.auto, self.fresolve.auto_marker) {
+                    if ak == key && tys.contains(&m) {
+                        return FlowRes::Ty(m);
                     }
                 }
                 match tys.len() {
@@ -703,6 +778,16 @@ impl<'a> Checker<'a> {
                 // Assign arm (an Init is a FlowAssignment in tsc)
                 if !self.is_reachable_flow(flow) {
                     return FlowRes::Dead;
+                }
+                // AUTO query (tsc getInitialType): the nullish initializer's
+                // type IS the flow type at the declaration — the declared
+                // `any` would swallow the CFA (`let x = null; if (c) x = 1;
+                // x` reads `number | null` under strict)
+                if matches!(&self.fresolve.auto, Some(ak) if ak == key) {
+                    return FlowRes::Ty(match &decl.init {
+                        Some(Expr::NullLit { .. }) => self.types.null,
+                        _ => self.types.undefined,
+                    });
                 }
                 let Some(declared) = self.declared_type_of_ref(key) else {
                     return FlowRes::Unknown;
@@ -1030,6 +1115,95 @@ impl<'a> Checker<'a> {
     /// (tsc returns `type` after the error). `None` = not a candidate or
     /// the walk cannot answer — the caller falls through to the normal
     /// (unseeded) read path.
+    /// AUTO read (tsc autoType): an unannotated, noImplicitAny, non-ambient,
+    /// non-exported let/var with an absent or nullish initializer reads its
+    /// control-flow type instead of the declared `any`. A marker result
+    /// (every path reached a foreign container's entry) reports TS7005 at
+    /// the read, records the declaration for TS7034, and yields `any`.
+    /// None ⇒ the normal read path proceeds (declared `any`).
+    pub(crate) fn auto_check_ident_read(&mut self, id: &Ident, sym: SymbolId) -> Option<TypeId> {
+        if !self.options.no_implicit_any() {
+            return None;
+        }
+        // re-entrancy + write-position guards. NO `res.resolving` guard,
+        // unlike flow_type_of_read: initializer inference (`const y = x`)
+        // resolves `y` lazily and reads `x` under resolving — the flow graph
+        // is bind-time and position-correct, so the walk is valid there
+        // (tsc flow-analyzes exactly these reads; the resolving guard exists
+        // for the LEXICAL fact fallback, which such reads must not consult).
+        if !self.fresolve.in_progress.is_empty() {
+            return None;
+        }
+        if self.fresolve.suppress > 0 {
+            return None;
+        }
+        let sflags = self.symbol(sym).flags;
+        if sflags & flags::ALIAS != 0 {
+            return None;
+        }
+        if sflags & (flags::FUNCTION_SCOPED_VARIABLE | flags::BLOCK_SCOPED_VARIABLE) == 0 {
+            return None;
+        }
+        let cur_file = self.current_file;
+        let decl = self.symbol(sym).decls.iter().find_map(|d| match d {
+            crate::binder::Decl::Var(v, k)
+                if self.bind.decl_file.get(&node_key(*v)) == Some(&cur_file) =>
+            {
+                Some((*v, *k))
+            }
+            _ => None,
+        });
+        let Some((d, kind)) = decl else {
+            return None;
+        };
+        if !matches!(kind, VarKind::Let | VarKind::Var) || d.exclam || d.ty.is_some() {
+            return None;
+        }
+        if !matches!(d.name, Binding::Ident(_)) {
+            return None;
+        }
+        let decl_key = node_key(d);
+        if self.bind.decl_ambient.contains(&decl_key)
+            || self.bind.decl_exported.contains(&decl_key)
+            || self.bind.decl_loop_head.contains(&decl_key)
+        {
+            return None;
+        }
+        // reads POSITIONED before the declarator keep the declared `any`:
+        // hoisted `var` pre-reads and TDZ `let` reads stay on the legacy
+        // path (a param-initializer scoping divergence resolves `class
+        // extends C` to a body `var C` — typing that read `undefined`
+        // manufactured a 2507 tsc doesn't have; tsc CFA's `x; var x = 1`
+        // → `undefined` is a documented deferral here)
+        if id.span.start < d.span.start {
+            return None;
+        }
+        let initial = match &d.init {
+            None => self.types.undefined,
+            Some(Expr::Ident(i)) if i.name == "undefined" => self.types.undefined,
+            // `= null` stays on the legacy evolving_nulls path until it is
+            // retired (Stage 4 step 3b)
+            Some(Expr::NullLit { .. }) => return None,
+            Some(_) => return None,
+        };
+        let key = RefKey(sym, Vec::new());
+        let fnode = *self.bind.flow_node.get(&node_key(id))?;
+        let (t, is_marker) = self.get_flow_type_of_reference_auto(&key, fnode, initial, d.span)?;
+        if is_marker {
+            if self.fresolve.quiet == 0 {
+                let name = self.symbol(sym).name.clone();
+                self.error_at(
+                    id.span,
+                    &crate::diagnostics::gen::Variable_0_implicitly_has_an_1_type,
+                    &[name, "any".to_string()],
+                );
+                self.flow.auto_fired.insert(sym, (cur_file, d.name.span()));
+            }
+            return Some(self.types.any);
+        }
+        Some(t)
+    }
+
     pub(crate) fn da_check_ident_read(&mut self, id: &Ident, sym: SymbolId) -> Option<TypeId> {
         if !self.options.strict_null_checks() {
             return None;

@@ -555,11 +555,15 @@ impl<'a> Checker<'a> {
             return self.resolve_type(ty, scope);
         }
         if let Some(init) = &d.init {
-            // `let x = null` evolves to any
-            if matches!(kind, VarKind::Let | VarKind::Var)
-                && matches!(init, Expr::NullLit { .. })
-                && d.ty.is_none()
-            {
+            // `let x = null` / `let x = undefined` evolve to any (tsc
+            // widenTypeForVariableLikeDeclaration widens nullish initializers
+            // of unannotated let/var to any; CFA supplies the read types)
+            let nullish_init = match init {
+                Expr::NullLit { .. } => true,
+                Expr::Ident(id) => id.name == "undefined",
+                _ => false,
+            };
+            if matches!(kind, VarKind::Let | VarKind::Var) && d.ty.is_none() && nullish_init {
                 return self.types.any;
             }
             let t = self.check_expr(init, None);

@@ -126,6 +126,10 @@ impl<'a> Checker<'a> {
                 if self.report_direct_unusable_value(operand) {
                     return self.types.number;
                 }
+                // tsc checkNonNullType on the operand: strict rejects any
+                // nullish member; non-strict rejects only an EXACTLY nullish
+                // operand (`let x; -x` reads flow type `undefined` → 18048)
+                let t = self.check_operand_non_nullish(t, operand);
                 if matches!(
                     self.types.kind(t),
                     TypeKind::Bigint | TypeKind::BigIntLit(_)
@@ -177,6 +181,13 @@ impl<'a> Checker<'a> {
             );
         }
         self.types.number
+    }
+
+    fn contains_nullish_member(&mut self, t: TypeId) -> bool {
+        self.types
+            .union_members(t)
+            .iter()
+            .any(|&m| matches!(self.types.kind(m), TypeKind::Null | TypeKind::Undefined))
     }
 
     fn is_arithmetic_operand(&mut self, t: TypeId) -> bool {
@@ -727,6 +738,11 @@ impl<'a> Checker<'a> {
                 if l_unusable || r_unusable {
                     return self.types.boolean;
                 }
+                // tsc checkNonNullType on each operand (18048/18047 instead
+                // of 2365 for nullish operands; the stripped types drive the
+                // applicability check)
+                let lt = self.check_operand_non_nullish(lt, left);
+                let rt = self.check_operand_non_nullish(rt, right);
                 let l_ok = self.is_comparison_operand(lt);
                 let r_ok = self.is_comparison_operand(rt);
                 if !(l_ok && r_ok && self.comparison_compatible(lt, rt)) {
@@ -807,6 +823,7 @@ impl<'a> Checker<'a> {
             Add => {
                 let lt = self.check_expr(left, None);
                 let rt = self.check_expr(right, None);
+                let (mut lt, mut rt) = (lt, rt);
                 if self.options.strict_null_checks()
                     && !self.plus_string_like(lt)
                     && !self.plus_string_like(rt)
@@ -817,6 +834,17 @@ impl<'a> Checker<'a> {
                     let r_unusable = self.report_direct_unusable_value(right);
                     if l_unusable || r_unusable {
                         return self.types.any;
+                    }
+                    // strict-only checkNonNullType for `+` (oracle: the
+                    // non-strict `undefined + 1` keeps the 2365), and only
+                    // for operands actually CONTAINING null/undefined — the
+                    // unknown-operand 18046 stays off for `+` (tsrs inference
+                    // gaps would surface it where tsc infers a real type)
+                    if self.contains_nullish_member(lt) {
+                        lt = self.check_operand_non_nullish(lt, left);
+                    }
+                    if self.contains_nullish_member(rt) {
+                        rt = self.check_operand_non_nullish(rt, right);
                     }
                 }
                 self.check_plus(lt, rt, *span, op_span)
@@ -848,10 +876,24 @@ impl<'a> Checker<'a> {
                     );
                     return self.types.number;
                 }
-                let l_ok = self.is_arithmetic_operand(lt);
-                let r_ok = self.is_arithmetic_operand(rt);
                 let l_unusable = self.report_direct_unusable_value(left);
                 let r_unusable = self.report_direct_unusable_value(right);
+                // tsc checkNonNullType on each operand (18048/18047 before
+                // the arithmetic-operand applicability errors; a direct
+                // null/undefined literal keeps its 18050 report above, and
+                // the error result is arithmetic-ok so nothing double-fires)
+                let lt = if l_unusable {
+                    lt
+                } else {
+                    self.check_operand_non_nullish(lt, left)
+                };
+                let rt = if r_unusable {
+                    rt
+                } else {
+                    self.check_operand_non_nullish(rt, right)
+                };
+                let l_ok = self.is_arithmetic_operand(lt);
+                let r_ok = self.is_arithmetic_operand(rt);
                 if !l_unusable && !l_ok {
                     self.error_at(
                         left.span(),

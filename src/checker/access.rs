@@ -89,6 +89,24 @@ impl<'a> Checker<'a> {
         recv: &'a Expr,
         for_call: bool,
     ) -> TypeId {
+        self.check_non_nullish_ex(t, recv, for_call, true)
+    }
+
+    /// binary/unary OPERAND variant (tsc checkNonNullType at operator
+    /// positions): `void` is NOT nullable there — `t + f` with `f: void`
+    /// keeps its 2365, no 18048 (receivers keep treating void like
+    /// undefined, matching the existing corpus-validated behavior)
+    pub(crate) fn check_operand_non_nullish(&mut self, t: TypeId, operand: &'a Expr) -> TypeId {
+        self.check_non_nullish_ex(t, operand, false, false)
+    }
+
+    fn check_non_nullish_ex(
+        &mut self,
+        t: TypeId,
+        recv: &'a Expr,
+        for_call: bool,
+        void_as_undef: bool,
+    ) -> TypeId {
         if matches!(self.types.kind(t), TypeKind::Unknown) {
             if let Some(name) = self.entity_name_text(recv) {
                 self.error_at(recv.span(), &gen::_0_is_of_type_unknown, &[name]);
@@ -98,15 +116,28 @@ impl<'a> Checker<'a> {
             return self.types.error;
         }
         if !self.options.strict_null_checks() {
-            return t;
+            // a receiver whose type is EXACTLY nullish errors even without
+            // strictNullChecks (tsc checkNonNullType: getNonNullableType
+            // collapses it to never) — e.g. `let x; x.foo` where the flow
+            // type is `undefined`. Mixed unions keep the lenient path.
+            let members = self.types.union_members(t);
+            let pure_nullish = !members.is_empty()
+                && members
+                    .iter()
+                    .all(|&m| matches!(self.types.kind(m), TypeKind::Null | TypeKind::Undefined));
+            if !pure_nullish {
+                return t;
+            }
         }
         let members = self.types.union_members(t);
         let has_null = members
             .iter()
             .any(|&m| matches!(self.types.kind(m), TypeKind::Null));
-        let has_undef = members
-            .iter()
-            .any(|&m| matches!(self.types.kind(m), TypeKind::Undefined | TypeKind::Void));
+        let has_undef = members.iter().any(|&m| match self.types.kind(m) {
+            TypeKind::Undefined => true,
+            TypeKind::Void => void_as_undef,
+            _ => false,
+        });
         if has_null || has_undef {
             if for_call {
                 let msg: &'static DiagnosticMessage = match (has_null, has_undef) {

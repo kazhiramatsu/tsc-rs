@@ -86,6 +86,9 @@ pub struct FlowState {
     pub label_stack: Vec<String>,
     pub evolving_nulls: HashMap<SymbolId, (usize, Span)>,
     pub evolving_fired: HashSet<SymbolId>,
+    /// auto (control-flow-typed) variables whose capture reads fired TS7005
+    /// → TS7034 at the declaration name (file, span) in `check_unused`
+    pub auto_fired: HashMap<SymbolId, (usize, Span)>,
     /// TS7027 state: suppress reports inside an already-reported
     /// unreachable statement (tsc withinUnreachableCode), and remember
     /// range-consumed statements so the per-statement hook skips them.
@@ -138,6 +141,19 @@ pub struct FlowResolve {
     /// `this.x = v` Assign targets match the 2564/2565 queries without
     /// changing Stage-1 narrowing (whose read seams never set it).
     pub this_sym: Option<crate::binder::SymbolId>,
+    /// The reference of the current AUTO query (tsc autoType CFA — an
+    /// unannotated, nullish-or-un-initialized, noImplicitAny let/var read):
+    /// the Init arm yields the initializer's nullish type, a foreign
+    /// container Start yields the auto marker, and Branch joins with a
+    /// marker antecedent stay marker (tsc: auto is infectious at joins).
+    pub auto: Option<RefKey>,
+    /// The non-interned `Any` clone standing in for tsc's autoType. Kind ==
+    /// Any, so every narrowing helper / union / relation treats it as any
+    /// (filters that return their input preserve it; producing filters —
+    /// typeof — kill it, which is what cancels TS7005). Distinct TypeId, so
+    /// a result that IS the marker means "every path reached a foreign
+    /// Start unassigned" ⇒ TS7005/7034.
+    pub auto_marker: Option<TypeId>,
 }
 
 /// Resolution memoization caches: symbol→type, member-shape, signature return &
@@ -569,6 +585,7 @@ pub fn check<'a>(
         HashSet<SymbolId>,
         HashSet<SymbolId>,
         HashMap<SymbolId, (usize, Span)>,
+        HashMap<SymbolId, (usize, Span)>,
     );
     let next = std::sync::atomic::AtomicUsize::new(0);
     let results: Vec<std::sync::Mutex<Option<WorkerOut>>> =
@@ -620,6 +637,7 @@ pub fn check<'a>(
                     std::mem::take(&mut c.symuse.assigned_symbols),
                     std::mem::take(&mut c.flow.evolving_fired),
                     std::mem::take(&mut c.flow.evolving_nulls),
+                    std::mem::take(&mut c.flow.auto_fired),
                 ));
             });
         }
@@ -631,14 +649,16 @@ pub fn check<'a>(
     let mut assigned: HashSet<SymbolId> = HashSet::new();
     let mut fired: HashSet<SymbolId> = HashSet::new();
     let mut nulls: HashMap<SymbolId, (usize, Span)> = HashMap::new();
+    let mut autos: HashMap<SymbolId, (usize, Span)> = HashMap::new();
     let bind_symbol_count = bind.symbols.len() as u32;
     for r in &results {
-        if let Some((d, u, a, f, nl)) = r.lock().unwrap().take() {
+        if let Some((d, u, a, f, nl, af)) = r.lock().unwrap().take() {
             diags.extend(d);
             used.extend(u.into_iter().filter(|sym| sym.0 < bind_symbol_count));
             assigned.extend(a.into_iter().filter(|sym| sym.0 < bind_symbol_count));
             fired.extend(f);
             nulls.extend(nl);
+            autos.extend(af);
         }
     }
 
@@ -650,6 +670,7 @@ pub fn check<'a>(
     fc.symuse.assigned_symbols = assigned;
     fc.flow.evolving_fired = fired;
     fc.flow.evolving_nulls = nulls;
+    fc.flow.auto_fired = autos;
     fc.check_unused();
     diags.extend(std::mem::take(&mut fc.diags));
 
@@ -721,6 +742,22 @@ impl<'a> Checker<'a> {
                 );
                 self.current_file = prev;
             }
+        }
+        // 7034 heads for auto (CFA-typed) variables whose capture reads
+        // produced 7005
+        let mut auto_fired: Vec<(SymbolId, (usize, Span))> =
+            self.flow.auto_fired.iter().map(|(s, l)| (*s, *l)).collect();
+        auto_fired.sort_by_key(|(s, _)| s.0);
+        for (sym, (file, span)) in auto_fired {
+            let name = self.symbol(sym).name.clone();
+            let prev = self.current_file;
+            self.current_file = file;
+            self.error_at(
+                span,
+                &gen::Variable_0_implicitly_has_type_1_in_some_locations_where_its_type_cannot_be_determined,
+                &[name, "any".to_string()],
+            );
+            self.current_file = prev;
         }
         // Unused checks always run: emitted as errors when the corresponding
         // flag is set, otherwise as suggestions (tsc getSuggestionDiagnostics).

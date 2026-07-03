@@ -834,6 +834,12 @@ impl<'a> Checker<'a> {
         if let Some(t) = self.da_check_ident_read(id, sym) {
             return t;
         }
+        // auto (unannotated noImplicitAny let/var) reads take the CFA-seeded
+        // walk: the declared `any` would swallow the control-flow type
+        // (Stage 4, tsc autoType; TS7005/7034 on capture reads)
+        if let Some(t) = self.auto_check_ident_read(id, sym) {
+            return t;
+        }
         if let Some(t) = self.flow_type_of_read(node_key(id), &key) {
             return t;
         }
