@@ -800,14 +800,8 @@ impl<'a> Checker<'a> {
     }
 
     fn da_read(&mut self, id: &'a Ident, scope: ScopeId) {
-        if self.da.da_tracked.is_empty() {
-            return;
-        }
-        if let Some(sym) = self.lookup_value(scope, &id.name) {
-            if self.da.da_tracked.contains_key(&sym) && !self.da_is_assigned_or_proven(sym) {
-                let name = self.da.da_tracked.get(&sym).cloned().unwrap_or_default();
-                self.report_used_before_assigned(id.span, name);
-            }
-        }
+        // emission moved to the CFG-seeded query (da_check_ident_read);
+        // the whole forward pass is deleted in the next step
+        let _ = (id, scope);
     }
 }

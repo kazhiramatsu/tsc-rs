@@ -36,7 +36,7 @@ pub fn build<'a>(bind: &mut BindResult<'a>, files: &'a [(String, SourceText, Sou
         scopes: &bind.node_scope,
         scope: bind.global_scope,
     };
-    let start = b.start(None);
+    let start = b.start(None, None);
     for (i, (_name, _text, ast)) in files.iter().enumerate() {
         b.scope = bind
             .module_scope
@@ -78,13 +78,38 @@ struct FlowBuilder<'a, 'b> {
     scope: ScopeId,
 }
 
-/// tsc createFlowCondition treats only literal `true`/`false` conditions
-/// (raw keyword, deliberately NOT paren-stripped) as statically decided:
-/// `while (true)` has an unreachable exit edge, `while (false)` an
-/// unreachable body edge.
+/// Static truth of a condition built from literal `true`/`false` through
+/// `&&`/`||`/`!`. tsc reaches the same conclusions structurally: its binder
+/// recurses bindCondition through logical operators and each literal leaf's
+/// contradicting edge is unreachable (`true || false ? a : b` has an
+/// unreachable false arm). Parens are deliberately NOT stripped — tsc's
+/// createFlowCondition checks the raw keyword, so `(true)` stays dynamic.
 fn const_bool_cond(e: &Expr) -> Option<bool> {
     match e {
         Expr::BoolLit { value, .. } => Some(*value),
+        Expr::Binary {
+            op: BinOp::AmpAmp,
+            left,
+            right,
+            ..
+        } => match const_bool_cond(left)? {
+            false => Some(false),
+            true => const_bool_cond(right),
+        },
+        Expr::Binary {
+            op: BinOp::BarBar,
+            left,
+            right,
+            ..
+        } => match const_bool_cond(left)? {
+            true => Some(true),
+            false => const_bool_cond(right),
+        },
+        Expr::Unary {
+            op: UnaryOp::Bang,
+            operand,
+            ..
+        } => const_bool_cond(operand).map(|b| !b),
         _ => None,
     }
 }
@@ -102,9 +127,10 @@ impl<'a> FlowBuilder<'a, '_> {
 
     /// A fresh `Start` — a function-body / module / namespace entry. `outer`
     /// (function-expression-like containers only) lets the resolver resume a
-    /// const reference's walk in the enclosing flow; see `FlowNode::Start`.
-    fn start(&mut self, outer: Option<(FlowNodeId, Span)>) -> FlowNodeId {
-        self.new_node(FlowNode::Start { outer })
+    /// const reference's walk in the enclosing flow; `cspan` is the
+    /// container's span for the definite-assignment outer-variable rule.
+    fn start(&mut self, outer: Option<(FlowNodeId, Span)>, cspan: Option<Span>) -> FlowNodeId {
+        self.new_node(FlowNode::Start { outer, cspan })
     }
 
     /// Append an effect node (Assign/Init/Call) and, inside a `try` block,
@@ -131,6 +157,12 @@ impl<'a> FlowBuilder<'a, '_> {
     }
 
     fn cond(&mut self, cond: &'a Expr, sense: bool, ante: FlowNodeId) -> FlowNodeId {
+        // tsc createFlowCondition: a literal true/false condition makes the
+        // contradicting edge unreachable — everywhere conditions make flow
+        // (if / loops / ternaries / && / ||)
+        if const_bool_cond(cond) == Some(!sense) {
+            return self.unreachable();
+        }
         self.new_node(FlowNode::Cond {
             cond,
             sense,
@@ -202,10 +234,7 @@ impl<'a> FlowBuilder<'a, '_> {
                     self.labels[i].2 = Some(loop_label);
                 }
                 let ac = self.build_expr(cond, loop_label);
-                let body_in = match const_bool_cond(cond) {
-                    Some(false) => self.unreachable(),
-                    _ => self.cond(cond, true, ac),
-                };
+                let body_in = self.cond(cond, true, ac);
                 let post = self.branch(vec![]);
                 self.brk.push(post);
                 self.cont.push(loop_label);
@@ -215,12 +244,9 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.add_ante(loop_label, body_out);
                 // the exit edge applies `Cond(cond, false)` (tsc's
                 // condition-false antecedent on the post-loop label);
-                // `while (true)` has an unreachable exit — only breaks
-                // reach the post label
-                let exit = match const_bool_cond(cond) {
-                    Some(true) => self.unreachable(),
-                    _ => self.cond(cond, false, ac),
-                };
+                // `while (true)` gets an unreachable exit from cond() —
+                // only breaks reach the post label
+                let exit = self.cond(cond, false, ac);
                 self.add_ante(post, exit);
                 post
             }
@@ -237,17 +263,11 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.brk.pop();
                 let ac = self.build_expr(cond, body_out);
                 // back edge re-enters under cond-true, exit leaves under
-                // cond-false (tsc's do-while antecedents); literal
-                // conditions make the respective edge unreachable
-                let back = match const_bool_cond(cond) {
-                    Some(false) => self.unreachable(),
-                    _ => self.cond(cond, true, ac),
-                };
+                // cond-false (tsc's do-while antecedents); cond() makes the
+                // contradicted edge of a literal condition unreachable
+                let back = self.cond(cond, true, ac);
                 self.add_ante(loop_label, back);
-                let exit = match const_bool_cond(cond) {
-                    Some(true) => self.unreachable(),
-                    _ => self.cond(cond, false, ac),
-                };
+                let exit = self.cond(cond, false, ac);
                 self.add_ante(post, exit);
                 post
             }
@@ -275,7 +295,6 @@ impl<'a> FlowBuilder<'a, '_> {
                     None => loop_label,
                 };
                 let body_in = match cond {
-                    Some(c) if const_bool_cond(c) == Some(false) => self.unreachable(),
                     Some(c) => self.cond(c, true, ac),
                     None => ac,
                 };
@@ -292,11 +311,11 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.add_ante(loop_label, ai);
                 // the exit edge applies `Cond(cond, false)` (tsc's
                 // condition-false antecedent on the post-loop label); a
-                // missing or literal-true condition has NO reachable exit —
-                // only breaks reach the post label
+                // missing condition has NO reachable exit — only breaks
+                // reach the post label (cond() handles literal true)
                 let exit = match cond {
-                    Some(c) if const_bool_cond(c) != Some(true) => self.cond(c, false, ac),
-                    _ => self.unreachable(),
+                    Some(c) => self.cond(c, false, ac),
+                    None => self.unreachable(),
                 };
                 self.add_ante(post, exit);
                 self.scope = saved;
@@ -514,7 +533,7 @@ impl<'a> FlowBuilder<'a, '_> {
             // ModuleBlock): statements start from a fresh `Start`.
             Stmt::Namespace(n) => {
                 let saved = self.enter(node_key(&**n));
-                let start = self.start(None);
+                let start = self.start(None, Some(n.span));
                 self.build_stmts(&n.body, start);
                 self.scope = saved;
                 flow
@@ -760,7 +779,7 @@ impl<'a> FlowBuilder<'a, '_> {
         let saved_labels = std::mem::take(&mut self.labels);
         let saved_pending = std::mem::take(&mut self.pending_labels);
         let saved_ret = self.ret.take();
-        let start = self.start(outer.map(|o| (o, f.span)));
+        let start = self.start(outer.map(|o| (o, f.span)), Some(f.span));
         let fl = self.build_params(f, start);
         match &f.body {
             Some(FuncBody::Block(b)) => {
@@ -831,14 +850,14 @@ impl<'a> FlowBuilder<'a, '_> {
                 ClassMember::Method(f) => self.build_function(f, outer),
                 ClassMember::Constructor(f) => self.build_function(f, None),
                 ClassMember::StaticBlock(b) => {
-                    let start = self.start(None);
+                    let start = self.start(None, Some(b.span));
                     let sv = self.enter(node_key(b));
                     self.build_stmts(&b.stmts, start);
                     self.scope = sv;
                 }
                 ClassMember::Property(p) => {
                     if let Some(init) = &p.init {
-                        let start = self.start(None);
+                        let start = self.start(None, Some(init.span()));
                         self.build_expr(init, start);
                     }
                 }

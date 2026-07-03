@@ -370,6 +370,12 @@ impl<'a> Checker<'a> {
                 }
             },
             Expr::NonNull { expr, .. } => {
+                // `x!` asserts definite assignment for a DIRECT identifier
+                // operand (tsc checkIdentifier's NonNullExpression-parent
+                // disjunct); parens break it — `(x)!` still checks
+                if let Expr::Ident(id) = &**expr {
+                    self.cflags.nonnull_ident = node_key(id);
+                }
                 let t = self.check_expr(expr, ctx);
                 self.non_nullable(t)
             }
@@ -821,6 +827,12 @@ impl<'a> Checker<'a> {
         let fact = self.fact_for(&key);
         if self.flow_verify {
             self.flow_verify_read(node_key(id), &key, fact, id.span);
+        }
+        // definite-assignment candidates run the walk seeded with
+        // `declared | undefined` instead (Stage 2, tsc initialType) — the
+        // one query yields both the 2454 verdict and the narrowed type
+        if let Some(t) = self.da_check_ident_read(id, sym) {
+            return t;
         }
         if let Some(t) = self.flow_type_of_read(node_key(id), &key) {
             return t;

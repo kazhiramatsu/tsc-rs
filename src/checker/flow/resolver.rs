@@ -54,7 +54,7 @@ enum FlowRes {
 /// A borrow-free copy of one flow node's payload (the `&'a` fields are `Copy`,
 /// so extracting them releases the borrow of `bind.flow_nodes`).
 enum Step<'a> {
-    Start(Option<(FlowNodeId, Span)>),
+    Start(Option<(FlowNodeId, Span)>, Option<Span>),
     Dead,
     Branch(Vec<FlowNodeId>),
     Cond(&'a Expr, bool, ScopeId, FlowNodeId),
@@ -96,17 +96,20 @@ impl<'a> Checker<'a> {
 
     /// Resolve `key`'s flow type at `flow` with a definite-assignment seed
     /// (tsc getFlowTypeOfReference's `initialType` parameter): paths that
-    /// reach the container `Start` without an assignment contribute
-    /// `initial` instead of the declared type. The memo is per-query, so the
-    /// seeded result never leaks into unseeded queries or vice versa.
+    /// reach the declaring container's `Start` without an assignment
+    /// contribute `initial` instead of the declared type (see
+    /// `FlowResolve::initial` for the outer-variable rule). The memo is
+    /// per-query, so the seeded result never leaks into unseeded queries.
     pub(crate) fn get_flow_type_of_reference_seeded(
         &mut self,
         key: &RefKey,
         flow: FlowNodeId,
         initial: TypeId,
+        decl_span: Span,
+        never_initialized: bool,
     ) -> Option<TypeId> {
         self.fresolve.memo.clear();
-        self.fresolve.initial = Some((key.clone(), initial));
+        self.fresolve.initial = Some((key.clone(), initial, decl_span, never_initialized));
         let r = self.flow_type_at(key, flow, 0);
         self.fresolve.initial = None;
         self.fresolve.in_progress.clear();
@@ -163,7 +166,7 @@ impl<'a> Checker<'a> {
 
     fn flow_step(&mut self, key: &RefKey, flow: FlowNodeId, depth: u32) -> FlowRes {
         let step = match &self.bind.flow_nodes[flow.0 as usize] {
-            FlowNode::Start { outer } => Step::Start(*outer),
+            FlowNode::Start { outer, cspan } => Step::Start(*outer, *cspan),
             FlowNode::Unreachable => Step::Dead,
             FlowNode::Branch(antes) => Step::Branch(antes.clone()),
             FlowNode::Cond {
@@ -196,7 +199,7 @@ impl<'a> Checker<'a> {
             } => Step::Nullish(expr, *sense, *scope, *ante),
         };
         match step {
-            Step::Start(outer) => {
+            Step::Start(outer, cspan) => {
                 // tsc extends a bare const reference's flow analysis past
                 // function-expression/arrow/method containers it is captured
                 // by (checkIdentifier's flowContainer loop): resume the walk
@@ -207,12 +210,18 @@ impl<'a> Checker<'a> {
                     }
                 }
                 // seeded (definite-assignment) query: the queried reference
-                // reads its initial type at the container entry — tsc
-                // getTypeAtFlowNode's Start arm consuming initialType. Other
-                // references resolved during the same walk are unaffected.
-                if let Some((ik, it)) = &self.fresolve.initial {
+                // reads its initial type at its DECLARING container's entry
+                // (tsc getTypeAtFlowNode's Start arm consuming initialType).
+                // At a foreign container's entry the variable is outer —
+                // tsc assumes it initialized (declared type) — unless it is
+                // never-initialized, which tsc checks even across closures.
+                if let Some((ik, it, dspan, never_init)) = &self.fresolve.initial {
                     if ik == key {
-                        return FlowRes::Ty(*it);
+                        let declares_here = cspan
+                            .is_none_or(|cs| cs.start <= dspan.start && dspan.end <= cs.end);
+                        if declares_here || *never_init {
+                            return FlowRes::Ty(*it);
+                        }
                     }
                 }
                 match self.declared_type_of_ref(key) {
@@ -229,7 +238,7 @@ impl<'a> Checker<'a> {
                 // `if (c) x = 1; x;` would resolve to the assigned edge's
                 // declared type and swallow the seed.
                 let subsume = match &self.fresolve.initial {
-                    Some((ik, it)) if ik == key => Some(*it) == declared,
+                    Some((ik, it, ..)) if ik == key => Some(*it) == declared,
                     _ => true,
                 };
                 let mut tys: Vec<TypeId> = Vec::new();
@@ -447,11 +456,19 @@ impl<'a> Checker<'a> {
                 match self.ref_key_in_scope(target, scope) {
                     Some(tk) if tk == *key => self.assigned_type(key, expr, scope, ante, depth),
                     // fact parity: an assignment through the same root
-                    // invalidates every fact rooted at it
-                    Some(tk) if tk.0 == key.0 => match self.declared_type_of_ref(key) {
-                        Some(t) => FlowRes::Ty(t),
-                        None => FlowRes::Unknown,
-                    },
+                    // invalidates every fact rooted at it — EXCEPT in a
+                    // seeded (definite-assignment) walk: `b.func1 = …` does
+                    // not assign `b`, so the walk must continue toward the
+                    // entry (tsc keeps flowing past non-matching targets)
+                    Some(tk) if tk.0 == key.0 => {
+                        if matches!(&self.fresolve.initial, Some((ik, ..)) if ik == key) {
+                            return self.flow_type_at(key, ante, depth + 1);
+                        }
+                        match self.declared_type_of_ref(key) {
+                            Some(t) => FlowRes::Ty(t),
+                            None => FlowRes::Unknown,
+                        }
+                    }
                     Some(_) => self.flow_type_at(key, ante, depth + 1),
                     None => match target {
                         // destructuring assignment: clobber only when one of
@@ -619,6 +636,10 @@ impl<'a> Checker<'a> {
     ) -> FlowRes {
         match e {
             Expr::Paren { inner, .. } => self.flow_expr_type(inner, scope, flow, depth),
+            // `undefined` never resolves to a symbol (check_ident special-
+            // cases it); an Unknown here would abort whole walks over
+            // `x = undefined` back edges
+            Expr::Ident(id) if id.name == "undefined" => FlowRes::Ty(self.types.undefined),
             Expr::Ident(_) => match self.ref_key_in_scope(e, scope) {
                 Some(k) => self.flow_type_at(&k, flow, depth + 1),
                 None => FlowRes::Unknown,
@@ -783,6 +804,177 @@ impl<'a> Checker<'a> {
             return self.types.unknown;
         }
         u
+    }
+
+    /// Stage-2 definite assignment at an identifier read (tsc
+    /// checkIdentifier's 2454 path). For a candidate — strictNullChecks on;
+    /// a `let`/`var` declarator without `!`; not ambient/alias/param; the
+    /// declared type neither any/unknown/void nor undefined-including — run
+    /// the flow walk seeded with `declared | undefined` (tsc initialType =
+    /// getOptionalType). A surviving `undefined` means some path reaches the
+    /// container entry unassigned: report 2454 and yield the DECLARED type
+    /// (tsc returns `type` after the error). `None` = not a candidate or
+    /// the walk cannot answer — the caller falls through to the normal
+    /// (unseeded) read path.
+    pub(crate) fn da_check_ident_read(&mut self, id: &Ident, sym: SymbolId) -> Option<TypeId> {
+        if !self.options.strict_null_checks() {
+            return None;
+        }
+        let sflags = self.symbol(sym).flags;
+        if sflags & flags::ALIAS != 0 {
+            return None;
+        }
+        if sflags & (flags::FUNCTION_SCOPED_VARIABLE | flags::BLOCK_SCOPED_VARIABLE) == 0 {
+            return None;
+        }
+        // declaration shape: a let/var declarator IN THIS FILE (a merged
+        // lib global like `var Symbol: SymbolConstructor` picks the local
+        // declarator; a purely cross-file variable is outer by definition
+        // and assumed initialized). Parameters and catch variables never
+        // match (tsc isParameter; catch clauses admit only any/unknown).
+        let cur_file = self.current_file;
+        let decl = self.symbol(sym).decls.iter().find_map(|d| match d {
+            crate::binder::Decl::Var(v, k)
+                if self.bind.decl_file.get(&node_key(*v)) == Some(&cur_file) =>
+            {
+                Some((*v, *k))
+            }
+            _ => None,
+        });
+        let Some((d, kind)) = decl else {
+            return None;
+        };
+        let (has_init, has_exclam, has_ty, decl_key, decl_span) =
+            (d.init.is_some(), d.exclam, d.ty.is_some(), node_key(d), d.span);
+        // `declare let/var` — the DECLARATOR's ambient context, not the
+        // symbol flag (a lib-merged global like `Symbol` carries AMBIENT
+        // from the lib while its local declarator is checkable)
+        if self.bind.decl_ambient.contains(&decl_key) {
+            return None;
+        }
+        if !matches!(kind, VarKind::Let | VarKind::Var) || has_exclam {
+            return None;
+        }
+        // `x!` (direct NonNull parent) asserts initialization — parens
+        // (`(x)!`) deliberately break the exemption, as in tsc
+        if self.cflags.nonnull_ident == node_key(id) {
+            return None;
+        }
+        // declared-type gates (tsc assumeInitialized's type disjuncts).
+        // Unannotated `let x;` is plain `any` here, mirroring tsc's autoType
+        // branch never producing 2454. The gate consults the SAME-FILE
+        // declarator's own annotation when present — a lib-merged global
+        // (`var Symbol: any` over the lib's `declare var Symbol:
+        // SymbolConstructor`) types reads by the first declaration, but the
+        // local `any` annotation still exempts it, matching the oracle.
+        let declared = self.type_of_symbol(sym);
+        // the annotation re-resolve only matters for lib-merged globals
+        // (symbol.file = the lib), where the merged type hides a local
+        // `any`; single-file symbols would only risk re-resolution noise
+        // (recursive aliases resolve to error mid-read)
+        let gate_ty = match &d.ty {
+            Some(ann) if self.symbol(sym).file != self.current_file => {
+                let scope = self
+                    .bind
+                    .decl_scope
+                    .get(&decl_key)
+                    .copied()
+                    .unwrap_or(self.current_scope);
+                self.resolve_type_cached(ann, scope)
+            }
+            _ => declared,
+        };
+        for t in [declared, gate_ty] {
+            if matches!(
+                self.types.kind(t),
+                TypeKind::Any | TypeKind::Unknown | TypeKind::Error | TypeKind::Void
+            ) || self.contains_undefined_member(t)
+            {
+                if verbose() {
+                    let name = self.symbol(sym).name.clone();
+                    let shown = self.display_type(t);
+                    eprintln!("DA_GATE {}@{} bail type={}", name, id.span.start, shown);
+                }
+                return None;
+            }
+        }
+        // outer-variable rule (tsc isOuterVariable && !isNeverInitialized):
+        // the walk consumes the seed only at the DECLARING container's
+        // entry — a read whose walk stops at a foreign (nested) container
+        // entry gets the declared type there, i.e. is assumed initialized.
+        // Never-initialized variables — annotated, never-assigned `let`s
+        // (a for-in/of head cannot carry an annotation, so it never
+        // counts) — consume the seed at ANY entry: tsc checks those even
+        // across closures. Module-level declarations keep the pre-CFG
+        // conservative skip for the never-initialized escalation (any
+        // top-level statement may assign before the function runs).
+        let decl_container = self
+            .bind
+            .decl_container
+            .get(&decl_key)
+            .copied()
+            .unwrap_or(0);
+        let never_initialized = matches!(kind, VarKind::Let)
+            && !has_init
+            && has_ty
+            && decl_container != 0
+            && !self.symuse.assigned_symbols.contains(&sym);
+        let undef = self.types.undefined;
+        let initial = self.types.union(vec![declared, undef]);
+        let key = RefKey(sym, Vec::new());
+        let t =
+            self.flow_type_of_da_read(node_key(id), &key, initial, decl_span, never_initialized);
+        if verbose() {
+            let shown = match t {
+                Some(t) => self.display_type(t),
+                None => "None".into(),
+            };
+            let name = self.symbol(sym).name.clone();
+            eprintln!("DA_CHECK {}@{} -> {}", name, id.span.start, shown);
+        }
+        let t = t?;
+        if self.contains_undefined_member(t) {
+            let name = self.symbol(sym).name.clone();
+            self.report_used_before_assigned(id.span, name);
+            return Some(declared);
+        }
+        Some(t)
+    }
+
+    /// `da_check_ident_read` for a compound-assignment target (`x += 1`
+    /// reads x first — tsc AssignmentKind.Compound proceeds through
+    /// checkIdentifier). Bare and paren-wrapped identifier targets bypass
+    /// the read seam (`check_target_type`), so the compound arm calls this
+    /// directly; only the report side effect matters.
+    pub(crate) fn da_check_compound_target(&mut self, target: &Expr) {
+        let mut e = target;
+        while let Expr::Paren { inner, .. } = e {
+            e = inner;
+        }
+        if let Expr::Ident(id) = e {
+            if let Some(sym) = self.lookup_value(self.current_scope, &id.name) {
+                let _ = self.da_check_ident_read(id, sym);
+            }
+        }
+    }
+
+    /// The seeded-walk entry with the read-seam guard triple.
+    fn flow_type_of_da_read(
+        &mut self,
+        nk: usize,
+        key: &RefKey,
+        initial: TypeId,
+        decl_span: Span,
+        never_initialized: bool,
+    ) -> Option<TypeId> {
+        if !self.fresolve.in_progress.is_empty() {
+            return None;
+        }
+        if !self.res.resolving.is_empty() || self.fresolve.suppress > 0 {
+            return None;
+        }
+        let fnode = *self.bind.flow_node.get(&nk)?;
+        self.get_flow_type_of_reference_seeded(key, fnode, initial, decl_span, never_initialized)
     }
 
     /// Stage-1 read seam: the resolver's answer for reference `key` at AST

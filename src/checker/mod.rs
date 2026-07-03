@@ -114,11 +114,16 @@ pub struct FlowResolve {
     /// real check reaches the same node later.
     pub quiet: u32,
     /// Definite-assignment seed for the current query (tsc's `initialType`):
-    /// when the walk for THIS reference reaches its container `Start`
-    /// without meeting an assignment, it reads the seeded type (typically
-    /// `declared | undefined`) instead of the declared type. Keyed so
-    /// sub-walks of other references (`x = y`'s RHS) are unaffected.
-    pub initial: Option<(RefKey, TypeId)>,
+    /// when the walk for THIS reference reaches a container `Start` without
+    /// meeting an assignment, it reads the seeded type (typically
+    /// `declared | undefined`) instead of the declared type. Fields:
+    /// (reference, seed type, declarator span, never_initialized). The seed
+    /// is consumed only at the Start of the container CONTAINING the
+    /// declarator — at a foreign entry the variable is outer and tsc
+    /// assumes it initialized — EXCEPT for never-initialized variables
+    /// (annotated, never-assigned `let`s), which tsc checks even across
+    /// closures. Keyed so sub-walks of other references are unaffected.
+    pub initial: Option<(RefKey, TypeId, crate::ast::Span, bool)>,
 }
 
 /// Resolution memoization caches: symbol→type, member-shape, signature return &
@@ -298,6 +303,11 @@ pub struct CheckFlags {
     pub skip_ctx_sensitive: bool,
     pub infer_widen_objlit: bool,
     pub in_ctor_param_init: bool,
+    /// node key of an identifier directly wrapped by `!` (NonNull) — that
+    /// read is exempt from definite-assignment checking (tsc's
+    /// NonNullExpression-parent disjunct). Keyed by node, so no reset is
+    /// needed; parens (`(x)!`) intentionally do not set it.
+    pub nonnull_ident: usize,
     /// Nesting depth while checking a class static block. Some names such as
     /// `await` are parse-time invalid in arrow parameter lists there; when the
     /// parser recovers them as an arrow, semantic implicit-any suggestions must
@@ -4729,22 +4739,10 @@ impl<'a> Checker<'a> {
         let Some(decl) = s.decls.first().copied() else {
             return;
         };
-        let (decl_key, decl_end, kind, has_init, has_exclaim, has_annotation_with_undef) =
-            match decl {
-                crate::binder::Decl::Var(d, k) => {
-                    let undef_ok = false;
-                    (
-                        crate::ast::node_key(d),
-                        d.span.end,
-                        k,
-                        d.init.is_some(),
-                        d.exclam,
-                        undef_ok,
-                    )
-                }
-                _ => return,
-            };
-        let _ = has_annotation_with_undef;
+        let (decl_key, decl_end, kind) = match decl {
+            crate::binder::Decl::Var(d, k) => (crate::ast::node_key(d), d.span.end, k),
+            _ => return,
+        };
         let decl_container = self
             .bind
             .decl_container
@@ -4773,65 +4771,9 @@ impl<'a> Checker<'a> {
             if self.options.strict_null_checks() && kind == VarKind::Let {
                 self.report_used_before_assigned(id.span, id.name.clone());
             }
-            return;
         }
-        // definite assignment (2454): let/const without initializer, used
-        // before any assignment has been seen, under strictNullChecks.
-        // Skip for `declare let x: T` (AMBIENT) — tsc treats ambient
-        // declarations as already-initialized.
-        //
-        // NB: this per-ident check duplicates emissions with the forward
-        // `analyze_definite_assignment` pass for the *first* use of a tracked
-        // binding. Under a strict binding-narrowing model that duplication
-        // would be a defect, but tsc emits per-use, so producing a diagnostic
-        // for every uninit-visible read here matches tsc when there is no
-        // narrowing. Narrowing-suppression for the `typeof x === 'string'`
-        // cascade is a separate concern handled by upstream narrowing (which
-        // types the read positions to a non-error apparent type) — a strict
-        // dedup layer here would over-suppress cross-container reads that tsc
-        // *does* fire (`let x; class N { m() { x; } }`).
-        if self.options.strict_null_checks()
-            && !has_init
-            && !has_exclaim
-            && matches!(kind, VarKind::Let)
-            && !self.symuse.assigned_symbols.contains(&sym)
-            && self.symbol(sym).flags & flags::AMBIENT == 0
-        {
-            // Only a subset of narrowing facts prove a read is definitely
-            // assigned. Type facts can also come from branch merges such as
-            // `a || b`, where each side narrows the type but only one side may
-            // have evaluated the binding. Keep TS2454 suppression on the
-            // stricter DA fact stack.
-            let key = crate::checker::RefKey(sym, Vec::new());
-            if self.da_fact_for(&key) {
-                return;
-            }
-            let t = self.type_of_symbol(sym);
-            // Structural "does the declared type already admit undefined?" test.
-            // Deliberately different from the forward pass's `da_var`, which uses
-            // `is_assignable_to(undefined, dt)`: that treats `void` as
-            // undefined-including, so `let x: T | void` is missed there — but tsc
-            // still requires definite assignment for it, and this structural check
-            // fires (correctly). The `strict_null_checks()` guard above is this
-            // path's explicit SNC gate (da_var gates SNC implicitly, via
-            // is_assignable_to). Do not merge the two into one predicate without
-            // the Tier-2 control-flow graph — doing so regresses `let x: T | void`.
-            let allows_undef = match self.types.kind(t) {
-                crate::types::TypeKind::Any
-                | crate::types::TypeKind::Unknown
-                | crate::types::TypeKind::Undefined
-                | crate::types::TypeKind::Error => true,
-                crate::types::TypeKind::Union(ms) => ms
-                    .iter()
-                    .any(|&m| matches!(self.types.kind(m), crate::types::TypeKind::Undefined)),
-                _ => false,
-            };
-            // `let x;` (no annotation) has implicit any — no error
-            let has_annotation = matches!(decl, crate::binder::Decl::Var(d, _) if d.ty.is_some());
-            if !allows_undef && has_annotation {
-                self.report_used_before_assigned(id.span, id.name.clone());
-            }
-        }
+        // (definite assignment for post-declaration reads moved to the
+        // CFG-seeded query — da_check_ident_read in flow/resolver.rs)
     }
 }
 

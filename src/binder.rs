@@ -33,6 +33,12 @@ pub enum FlowNode<'a> {
     /// for constants in `checkIdentifier`).
     Start {
         outer: Option<(FlowNodeId, crate::ast::Span)>,
+        /// The container's source span (`None` = the module itself). A
+        /// seeded definite-assignment walk consumes its seed at this entry
+        /// only when the queried declaration lies INSIDE the container —
+        /// an outer variable is assumed initialized at a foreign entry
+        /// (tsc checkIdentifier's isOuterVariable disjunct).
+        cspan: Option<crate::ast::Span>,
     },
     /// The flow after a `return`/`throw`/`break`/`continue`: no control path
     /// reaches here, so joins skip it entirely (it must NOT contribute the
@@ -283,6 +289,9 @@ pub struct BindResult<'a> {
     pub fn_decls: HashMap<usize, &'a FunctionLike>,
     /// decl node ptr -> file index
     pub decl_file: HashMap<usize, usize>,
+    /// decl node ptrs bound inside an ambient (`declare`) context — the
+    /// symbol-level AMBIENT flag is unreliable for lib-merged globals
+    pub decl_ambient: HashSet<usize>,
     /// file -> the `export =` symbol
     pub export_equals: HashMap<usize, SymbolId>,
     /// (file, pattern span, member symbols) per destructuring declarator
@@ -324,6 +333,7 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         decl_container: HashMap::new(),
         decl_scope: HashMap::new(),
         decl_file: HashMap::new(),
+        decl_ambient: HashSet::new(),
         fn_decls: HashMap::new(),
         diags: Vec::new(),
         file: 0,
@@ -405,6 +415,7 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         decl_container: b.decl_container,
         decl_scope: b.decl_scope,
         decl_file: b.decl_file,
+        decl_ambient: b.decl_ambient,
         fn_decls: b.fn_decls,
         export_equals,
         pattern_groups: b.pattern_groups,
@@ -431,6 +442,7 @@ struct Binder<'a> {
     decl_container: HashMap<usize, usize>,
     decl_scope: HashMap<usize, ScopeId>,
     decl_file: HashMap<usize, usize>,
+    decl_ambient: HashSet<usize>,
     fn_decls: HashMap<usize, &'a FunctionLike>,
     diags: Vec<Diagnostic>,
     file: usize,
@@ -1014,6 +1026,11 @@ impl<'a> Binder<'a> {
                                 Decl::CatchVar(p),
                                 node_key(p),
                             );
+                        } else {
+                            // pattern catch binding (`catch ({ x })`): bind
+                            // the member names in the clause scope so reads
+                            // resolve here instead of to hoisted outer vars
+                            self.bind_catch_pattern(&p.name, cs, p);
                         }
                     }
                     // block locals share the clause scope so redeclaring the
@@ -1059,6 +1076,11 @@ impl<'a> Binder<'a> {
                 VarKind::Const => (scope, flags::BLOCK_SCOPED_VARIABLE | flags::CONST_VARIABLE),
             };
             let fl = if is_ambient { fl | flags::AMBIENT } else { fl };
+            // per-declarator ambient marker (modifier or enclosing `declare`
+            // context) — the symbol flag is unreliable for merged globals
+            if is_ambient {
+                self.decl_ambient.insert(node_key(d));
+            }
             match &d.name {
                 Binding::Ident(_) => {
                     if let Some(id) = d.name.as_ident() {
@@ -1094,6 +1116,38 @@ impl<'a> Binder<'a> {
         }
         if v.decls.len() > 1 && v.decls.iter().all(|d| d.name.as_ident().is_some()) {
             self.var_stmt_groups.push((self.file, v.span, stmt_syms));
+        }
+    }
+
+    /// Bind the member names of a destructuring catch parameter
+    /// (`catch ({ x }: any)`) in the clause scope. Each member types
+    /// through the catch annotation via `Decl::CatchVar` (catch
+    /// annotations admit only `any`/`unknown`, so the member-level
+    /// imprecision is unobservable).
+    fn bind_catch_pattern(&mut self, b: &'a Binding, scope: ScopeId, p: &'a Param) {
+        match b {
+            Binding::Ident(id) => {
+                self.declare(
+                    scope,
+                    &id.name,
+                    flags::BLOCK_SCOPED_VARIABLE,
+                    Decl::CatchVar(p),
+                    node_key(id),
+                );
+            }
+            Binding::Object(pat) => {
+                for prop in &pat.props {
+                    self.bind_catch_pattern(&prop.binding, scope, p);
+                }
+                if let Some(rest) = &pat.rest {
+                    self.bind_catch_pattern(rest, scope, p);
+                }
+            }
+            Binding::Array(pat) => {
+                for el in pat.elements.iter().flatten() {
+                    self.bind_catch_pattern(&el.binding, scope, p);
+                }
+            }
         }
     }
 

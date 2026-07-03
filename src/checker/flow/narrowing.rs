@@ -372,6 +372,16 @@ impl<'a> Checker<'a> {
                     self.narrow_by_equality(target, value, eq_sense, loose);
                     return;
                 }
+                // value equality against a non-literal (tsc
+                // narrowTypeByEquality's general case): the TRUE sense
+                // filters each side to the constituents comparable to the
+                // other side's type; the false sense of a non-unit
+                // comparison narrows nothing. Strict operators only — `==`
+                // admits coercions this filter would wrongly drop.
+                if eq_sense && !loose {
+                    self.narrow_by_value_equality(left, right);
+                    self.narrow_by_value_equality(right, left);
+                }
             }
             Expr::Binary {
                 op: BinOp::Instanceof,
@@ -501,6 +511,56 @@ impl<'a> Checker<'a> {
                 }
             }
         }
+    }
+
+    /// `target === other` (strict, true sense): keep the constituents of
+    /// `target` comparable to `other`'s type — tsc filterType with
+    /// areTypesComparable. `undefined` in a seeded definite-assignment walk
+    /// drops here when the other side can't be undefined.
+    fn narrow_by_value_equality(&mut self, target: &'a Expr, other: &'a Expr) {
+        let Some(key) = self.ref_key_of_pub(target) else {
+            return;
+        };
+        let other_t = match other {
+            Expr::Ident(_) | Expr::This { .. } => self
+                .ref_key_of_pub(other)
+                .and_then(|k| self.current_type_of_key(other, &k)),
+            _ => self
+                .caches
+                .expr_type_cache
+                .get(&crate::checker::exprs::node_key_expr(other))
+                .copied(),
+        };
+        let Some(ot) = other_t else { return };
+        let oreg = self.types.regular(ot);
+        if matches!(
+            self.types.kind(oreg),
+            TypeKind::Any | TypeKind::Unknown | TypeKind::Error
+        ) {
+            return;
+        }
+        let Some(cur) = self.current_type_of_key(target, &key) else {
+            return;
+        };
+        if matches!(self.types.kind(cur), TypeKind::Any | TypeKind::Error) {
+            return;
+        }
+        let ow = self.types.widen_literal(oreg);
+        let members = self.types.union_members(cur);
+        let kept: Vec<TypeId> = members
+            .into_iter()
+            .filter(|&m| {
+                let mw = self.types.widen_literal(m);
+                self.is_assignable_to(mw, ow) || self.is_assignable_to(ow, mw)
+            })
+            .collect();
+        // conservative: a fully-disjoint comparison keeps the current type
+        // (tsc also emits 2367 there; collapsing to never is riskier)
+        if kept.is_empty() {
+            return;
+        }
+        let narrowed = self.types.union(kept);
+        self.set_fact(key, narrowed);
     }
 
     fn narrow_by_typeof(&mut self, target: &'a Expr, lit: &str, sense: bool) {

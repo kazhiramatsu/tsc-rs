@@ -547,6 +547,10 @@ impl<'a> Checker<'a> {
             | ShrAssign | UShrAssign | AmpAssign | BarAssign | CaretAssign => {
                 let ok = self.check_reference_for_assignment(left, false);
                 let lt = self.check_target_type(left);
+                // a compound assignment READS the target first: definite
+                // assignment applies (tsc AssignmentKind.Compound); the
+                // target bypasses the read seam, so check here
+                self.da_check_compound_target(left);
                 let rt = self.check_expr(right, None);
                 let left_null_value = matches!(&**left, Expr::NullLit { .. })
                     && self.report_direct_unusable_value(left);
