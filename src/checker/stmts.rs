@@ -2432,18 +2432,6 @@ impl<'a> Checker<'a> {
                     }
                 }
             }
-            // evolving-any pattern: `let x = null` (7034/7005)
-            if matches!(v.kind, VarKind::Let | VarKind::Var)
-                && d.ty.is_none()
-                && matches!(&d.init, Some(Expr::NullLit { .. }))
-                && self.options.no_implicit_any()
-            {
-                if let Some(&sym2) = self.bind.decl_symbol.get(&key) {
-                    self.flow
-                        .evolving_nulls
-                        .insert(sym2, (self.current_file, d.name.span()));
-                }
-            }
             // circular initializer (7022)
             if let Some(sym) = self.bind.decl_symbol.get(&key).copied() {
                 if d.init.is_some() {

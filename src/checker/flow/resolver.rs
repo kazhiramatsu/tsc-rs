@@ -1181,9 +1181,7 @@ impl<'a> Checker<'a> {
         let initial = match &d.init {
             None => self.types.undefined,
             Some(Expr::Ident(i)) if i.name == "undefined" => self.types.undefined,
-            // `= null` stays on the legacy evolving_nulls path until it is
-            // retired (Stage 4 step 3b)
-            Some(Expr::NullLit { .. }) => return None,
+            Some(Expr::NullLit { .. }) => self.types.null,
             Some(_) => return None,
         };
         let key = RefKey(sym, Vec::new());

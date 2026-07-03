@@ -777,15 +777,6 @@ impl<'a> Checker<'a> {
             return self.types.error;
         };
         self.symuse.used_symbols.insert(sym);
-        if self.flow.evolving_nulls.contains_key(&sym) && !self.stacks.fn_stack.is_empty() {
-            self.error_at(
-                id.span,
-                &gen::Variable_0_implicitly_has_an_1_type,
-                &[id.name.clone(), "any".to_string()],
-            );
-            self.flow.evolving_fired.insert(sym);
-            return self.types.any;
-        }
         if self.symbol(sym).flags & flags::ALIAS != 0 {
             if let Some(crate::binder::Decl::Import(spec, _)) = self.symbol(sym).decls.first() {
                 if spec.type_only {

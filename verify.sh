@@ -183,6 +183,13 @@ const bad: number = "string";
 function fer(p: number) { return p; }
 const r2 = fer("nope");
 EOF
+  # auto-variable capture read -> TS7005 at the read + TS7034 at the decl
+  # (worker-transported auto_fired: the decl's file may be checked by any
+  # worker; check_unused emits 7034 on the merged state)
+  cat > "$d/08_auto.ts" <<'EOF'
+let evCap; evCap = 1;
+export const evReader = () => evCap;
+EOF
   # several files trigger the SAME file-less missing-global -> TS2318 cross-worker dedup
   for k in 1 2 3; do
     cat > "$d/4${k}_deco.ts" <<EOF
@@ -193,10 +200,10 @@ EOF
 
   local all; all=$(ls "$d"/*.ts | sort)
   local nfiles; nfiles=$(printf '%s\n' "$all" | wc -l | tr -d ' ')
-  local base; base=$(TSRS_JOBS=1 "$REL" --noUnusedLocals --noUnusedParameters $all 2>&1 | sort)
+  local base; base=$(TSRS_JOBS=1 "$REL" --noUnusedLocals --noUnusedParameters --noImplicitAny true $all 2>&1 | sort)
   local ok=0 j out
   for j in 2 3 4 8 16; do
-    out=$(TSRS_JOBS=$j "$REL" --noUnusedLocals --noUnusedParameters $all 2>&1 | sort)
+    out=$(TSRS_JOBS=$j "$REL" --noUnusedLocals --noUnusedParameters --noImplicitAny true $all 2>&1 | sort)
     [ "$out" = "$base" ] || { echo "mf: jobs=$j DIFFERS from jobs=1"; ok=1; }
   done
   local codes; codes=$(printf '%s\n' "$base" | grep -oE 'TS[0-9]+' | sort | uniq -c | tr -s ' ' | paste -sd' ' -)

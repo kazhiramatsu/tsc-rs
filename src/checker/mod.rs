@@ -75,7 +75,7 @@ pub struct ReportGuards {
 }
 
 /// Control-flow state: the narrowing fact stack (one frame per active scope),
-/// loop/switch nesting depth, active labels, evolving-`null` variable tracking,
+/// loop/switch nesting depth, active labels, auto-variable TS7034 records,
 /// constructor property-assignment flow, the lazy-return cycle stack, and the
 /// set of exhaustively-covered switches.
 #[derive(Default)]
@@ -84,8 +84,6 @@ pub struct FlowState {
     pub loop_depth: u32,
     pub switch_depth: u32,
     pub label_stack: Vec<String>,
-    pub evolving_nulls: HashMap<SymbolId, (usize, Span)>,
-    pub evolving_fired: HashSet<SymbolId>,
     /// auto (control-flow-typed) variables whose capture reads fired TS7005
     /// → TS7034 at the declaration name (file, span) in `check_unused`
     pub auto_fired: HashMap<SymbolId, (usize, Span)>,
@@ -583,8 +581,6 @@ pub fn check<'a>(
         Vec<Diagnostic>,
         HashSet<SymbolId>,
         HashSet<SymbolId>,
-        HashSet<SymbolId>,
-        HashMap<SymbolId, (usize, Span)>,
         HashMap<SymbolId, (usize, Span)>,
     );
     let next = std::sync::atomic::AtomicUsize::new(0);
@@ -635,8 +631,6 @@ pub fn check<'a>(
                     std::mem::take(&mut c.diags),
                     std::mem::take(&mut c.symuse.used_symbols),
                     std::mem::take(&mut c.symuse.assigned_symbols),
-                    std::mem::take(&mut c.flow.evolving_fired),
-                    std::mem::take(&mut c.flow.evolving_nulls),
                     std::mem::take(&mut c.flow.auto_fired),
                 ));
             });
@@ -647,17 +641,13 @@ pub fn check<'a>(
     let mut diags: Vec<Diagnostic> = Vec::new();
     let mut used: HashSet<SymbolId> = HashSet::new();
     let mut assigned: HashSet<SymbolId> = HashSet::new();
-    let mut fired: HashSet<SymbolId> = HashSet::new();
-    let mut nulls: HashMap<SymbolId, (usize, Span)> = HashMap::new();
     let mut autos: HashMap<SymbolId, (usize, Span)> = HashMap::new();
     let bind_symbol_count = bind.symbols.len() as u32;
     for r in &results {
-        if let Some((d, u, a, f, nl, af)) = r.lock().unwrap().take() {
+        if let Some((d, u, a, af)) = r.lock().unwrap().take() {
             diags.extend(d);
             used.extend(u.into_iter().filter(|sym| sym.0 < bind_symbol_count));
             assigned.extend(a.into_iter().filter(|sym| sym.0 < bind_symbol_count));
-            fired.extend(f);
-            nulls.extend(nl);
             autos.extend(af);
         }
     }
@@ -668,8 +658,6 @@ pub fn check<'a>(
     let mut fc = new_checker(files, options, std::sync::Arc::clone(&bind), lib_file);
     fc.symuse.used_symbols = used;
     fc.symuse.assigned_symbols = assigned;
-    fc.flow.evolving_fired = fired;
-    fc.flow.evolving_nulls = nulls;
     fc.flow.auto_fired = autos;
     fc.check_unused();
     diags.extend(std::mem::take(&mut fc.diags));
@@ -728,21 +716,6 @@ fn new_checker<'a>(
 
 impl<'a> Checker<'a> {
     fn check_unused(&mut self) {
-        // 7034 heads for evolving variables whose reads produced 7005
-        let fired: Vec<SymbolId> = self.flow.evolving_fired.iter().copied().collect();
-        for sym in fired {
-            if let Some(&(file, span)) = self.flow.evolving_nulls.get(&sym) {
-                let name = self.symbol(sym).name.clone();
-                let prev = self.current_file;
-                self.current_file = file;
-                self.error_at(
-                    span,
-                    &gen::Variable_0_implicitly_has_type_1_in_some_locations_where_its_type_cannot_be_determined,
-                    &[name, "any".to_string()],
-                );
-                self.current_file = prev;
-            }
-        }
         // 7034 heads for auto (CFA-typed) variables whose capture reads
         // produced 7005
         let mut auto_fired: Vec<(SymbolId, (usize, Span))> =
