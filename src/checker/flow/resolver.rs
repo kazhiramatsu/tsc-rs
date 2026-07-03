@@ -1,42 +1,20 @@
-//! Tier-2 flow-graph type resolver (Stage 0 dark launch).
+//! The flow-graph type resolver — since Stage 4, THE narrowing engine.
 //!
 //! `get_flow_type_of_reference` answers "what is the type of reference `key`
 //! at flow node `flow`" by walking the bind-time flow graph backward toward
 //! `Start`, reusing `narrow_by_condition` as the condition narrower (seeded
-//! into a scratch fact frame, read back, popped). It is the future
-//! replacement for the lexical fact stack (`fact_for`); during Stage 0 it is
-//! only exercised under `TSRS_FLOW_VERIFY`, which computes BOTH results at
-//! the fact-stack read seams and tallies agreement — program output is
-//! unchanged.
-//!
-//! The walk mirrors the fact stack's semantics on purpose (assignment
-//! narrowing per `operators.rs`, declarator narrowing per `stmts.rs`,
-//! root-invalidation on same-root assignment) so that dark-launch mismatches
-//! isolate real flow-graph wins/bugs instead of known modeling differences.
+//! into a scratch fact frame, read back, popped — the fact stack's only
+//! remaining role). The read seams (`check_ident` / `check_prop_access`),
+//! definite assignment (2454/2564/2565), auto-variable CFA (7005/7034),
+//! reachability (7027/2355/2366/2534/7029/7030) and `this`/typeof-this
+//! narrowing all run on these walks; a `None` answer means the read keeps
+//! the declared / checker-computed type, as tsc does.
 
 use crate::ast::*;
 use crate::binder::{flags, FlowNode, FlowNodeId, ScopeId, SymbolId};
 use crate::checker::exprs::node_key_expr;
 use crate::checker::{Checker, RefKey};
 use crate::types::{TypeId, TypeKind};
-use std::sync::atomic::AtomicUsize;
-
-/// Dark-launch tallies (process-wide; printed by `main` when
-/// `TSRS_FLOW_VERIFY` is set).
-pub static FLOW_VERIFY_MATCH: AtomicUsize = AtomicUsize::new(0);
-/// TypeIds differ but the displayed types are identical (interning
-/// duplicates, e.g. `NonNullable<T>` built at two sites) — agreement.
-pub static FLOW_VERIFY_DISPLAY_MATCH: AtomicUsize = AtomicUsize::new(0);
-pub static FLOW_VERIFY_MISMATCH: AtomicUsize = AtomicUsize::new(0);
-pub static FLOW_VERIFY_UNRESOLVED: AtomicUsize = AtomicUsize::new(0);
-pub static FLOW_VERIFY_NO_NODE: AtomicUsize = AtomicUsize::new(0);
-
-fn verbose() -> bool {
-    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *V.get_or_init(|| {
-        std::env::var("TSRS_FLOW_VERIFY").is_ok_and(|v| v == "v" || v == "verbose")
-    })
-}
 
 /// Outcome of resolving one (ref, flow) pair. `Cycle` marks a loop back-edge
 /// hit while its own resolution is in progress — a `Branch` skips such
@@ -101,12 +79,6 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// Resolve `key`'s flow type at `flow` with a definite-assignment seed
-    /// (tsc getFlowTypeOfReference's `initialType` parameter): paths that
-    /// reach the declaring container's `Start` without an assignment
-    /// contribute `initial` instead of the declared type (see
-    /// `FlowResolve::initial` for the outer-variable rule). The memo is
-    /// per-query, so the seeded result never leaks into unseeded queries.
     /// AUTO-query entry (tsc autoType CFA): an unannotated, noImplicitAny
     /// let/var whose initializer is absent or nullish reads its control-flow
     /// type — seeded with the declaration's initial nullish type. A foreign
@@ -165,6 +137,12 @@ impl<'a> Checker<'a> {
         self.types.union(live)
     }
 
+    /// Resolve `key`'s flow type at `flow` with a definite-assignment seed
+    /// (tsc getFlowTypeOfReference's `initialType` parameter): paths that
+    /// reach the declaring container's `Start` without an assignment
+    /// contribute `initial` instead of the declared type (see
+    /// `FlowResolve::initial` for the outer-variable rule). The memo is
+    /// per-query, so the seeded result never leaks into unseeded queries.
     pub(crate) fn get_flow_type_of_reference_seeded(
         &mut self,
         key: &RefKey,
@@ -579,22 +557,6 @@ impl<'a> Checker<'a> {
                 self.fresolve.quiet -= 1;
                 self.fresolve.scaffold_base.pop();
                 self.current_scope = saved_scope;
-                if verbose() {
-                    let name = self.symbol(key.0).name.clone();
-                    eprintln!(
-                        "FLOW_VERIFY debug: Cond sense={} at {} key={}{} {} -> {}",
-                        sense,
-                        cond.span().start,
-                        name,
-                        if key.1.is_empty() {
-                            String::new()
-                        } else {
-                            format!(".{}", key.1.join("."))
-                        },
-                        self.display_type(t_in),
-                        self.display_type(out)
-                    );
-                }
                 FlowRes::Ty(out)
             }
             Step::Switch(disc, cases, clause, stmt_key, scope, ante) => {
@@ -643,13 +605,6 @@ impl<'a> Checker<'a> {
                 self.fresolve.quiet -= 1;
                 self.fresolve.scaffold_base.pop();
                 self.current_scope = saved_scope;
-                if verbose() && out == self.types.never && t_in != self.types.never {
-                    eprintln!(
-                        "FLOW_VERIFY debug: Switch clause={} narrowed {} -> never",
-                        clause,
-                        self.display_type(t_in)
-                    );
-                }
                 FlowRes::Ty(out)
             }
             Step::Nullish(expr, sense, scope, ante) => {
@@ -1301,11 +1256,6 @@ impl<'a> Checker<'a> {
                 TypeKind::Any | TypeKind::Unknown | TypeKind::Error | TypeKind::Void
             ) || self.contains_undefined_member(t)
             {
-                if verbose() {
-                    let name = self.symbol(sym).name.clone();
-                    let shown = self.display_type(t);
-                    eprintln!("DA_GATE {}@{} bail type={}", name, id.span.start, shown);
-                }
                 return None;
             }
         }
@@ -1335,14 +1285,6 @@ impl<'a> Checker<'a> {
         let key = RefKey(sym, Vec::new());
         let t =
             self.flow_type_of_da_read(node_key(id), &key, initial, decl_span, never_initialized);
-        if verbose() {
-            let shown = match t {
-                Some(t) => self.display_type(t),
-                None => "None".into(),
-            };
-            let name = self.symbol(sym).name.clone();
-            eprintln!("DA_CHECK {}@{} -> {}", name, id.span.start, shown);
-        }
         let t = t?;
         if self.contains_undefined_member(t) {
             let name = self.symbol(sym).name.clone();

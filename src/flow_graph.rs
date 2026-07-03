@@ -1,12 +1,12 @@
-//! Tier-2 control-flow graph builder (Stage 0).
+//! The control-flow graph builder.
 //!
 //! Runs after `bind()`, before the `BindResult` is frozen in an `Arc`,
 //! populating `bind.flow_nodes` + `bind.flow_node`. A syntax-only second pass
 //! mirroring the binder's evaluation-order walk (kept out of binder.rs to
-//! isolate the new logic; the extra traversal is cheap). During Stage 0 the
-//! graph is BUILT but NOT consumed by any diagnostic — `get_flow_type_of_reference`
-//! reads it only under the `TSRS_FLOW_VERIFY` dark-launch flag — so program
-//! output is unchanged regardless of contents.
+//! isolate the logic; the extra traversal is cheap). The graph drives ALL
+//! flow analysis: narrowing at the read seams, definite assignment,
+//! auto-variable CFA, reachability diagnostics, and this/typeof-this
+//! narrowing (`src/checker/flow/resolver.rs`).
 //!
 //! Antecedents point backward toward the function/program `Start`. Reference
 //! expressions are keyed to the flow node in effect at them: identifiers by

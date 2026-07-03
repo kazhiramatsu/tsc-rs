@@ -105,13 +105,6 @@ fn main() {
                         break;
                     }
                     let path = paths_ref[i];
-                    // dark-launch triage: emit a file marker so verbose
-                    // FLOW_VERIFY mismatch lines can be attributed (run with
-                    // --jobs 1 for deterministic interleaving)
-                    if std::env::var("TSRS_FLOW_VERIFY").is_ok_and(|v| v == "v" || v == "verbose")
-                    {
-                        eprintln!("FLOW_VERIFY file {}", path);
-                    }
                     let line = match std::fs::read_to_string(path) {
                         Err(_) => "READERR".to_string(),
                         Ok(text) => {
@@ -177,20 +170,6 @@ fn main() {
             let _ = h.write_all(b"\x01");
             let _ = h.write_all(line.as_bytes());
             let _ = h.write_all(b"\n");
-        }
-        // Tier-2 dark launch: report the flow-resolver vs fact-stack agreement
-        // tally (stderr only; stdout stays byte-identical).
-        if std::env::var("TSRS_FLOW_VERIFY").is_ok_and(|v| !v.is_empty() && v != "0") {
-            use std::sync::atomic::Ordering;
-            use tsrs::checker::flow::resolver as fv;
-            eprintln!(
-                "TSRS_FLOW_VERIFY: match={} display_match={} mismatch={} unresolved={} no_flow_node={}",
-                fv::FLOW_VERIFY_MATCH.load(Ordering::Relaxed),
-                fv::FLOW_VERIFY_DISPLAY_MATCH.load(Ordering::Relaxed),
-                fv::FLOW_VERIFY_MISMATCH.load(Ordering::Relaxed),
-                fv::FLOW_VERIFY_UNRESOLVED.load(Ordering::Relaxed),
-                fv::FLOW_VERIFY_NO_NODE.load(Ordering::Relaxed),
-            );
         }
         return;
     }

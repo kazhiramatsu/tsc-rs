@@ -1,5 +1,6 @@
-//! Control-flow analysis: definite assignment (more to follow:
-//! reachability, narrowing, flow state).
+//! Control-flow analysis: the flow-graph resolver (narrowing, definite
+//! assignment, auto-variable CFA), reachability, and the scaffold scratch
+//! frames the resolver's narrowers run in.
 
 pub mod narrowing;
 pub mod reachability;
@@ -12,7 +13,12 @@ use crate::types::TypeId;
 use std::collections::HashMap;
 
 impl<'a> Checker<'a> {
-    // ── narrowing facts (populated in stmts/exprs; full engine in P8) ──────
+    // ── scaffold scratch frames ────────────────────────────────────────────
+    // The one-time "fact stack" survives only as the resolver scaffolds'
+    // seed-run-readback substrate: a scaffold pushes a frame (`narrowed`),
+    // seeds the queried key (`set_fact`), runs a narrower, reads the result
+    // back (`fact_for`), and pops. Nothing else writes or reads it — the
+    // flow-graph resolver is the narrowing engine (Stage 4).
 
     pub fn fact_for(&self, key: &RefKey) -> Option<TypeId> {
         // hermetic scaffolds: inside a resolver scaffold only the frames the
