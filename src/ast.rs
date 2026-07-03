@@ -931,6 +931,9 @@ pub struct VarDeclarator {
 pub struct VarStmt {
     pub modifiers: Modifiers,
     pub kind: VarKind,
+    /// parsed from a `using` / `await using` declaration (kind is Const);
+    /// tsc exempts underscore-named using declarations from the unused check
+    pub is_using: bool,
     pub decls: Vec<VarDeclarator>,
     /// span of the `var`/`let`/`const` keyword (for 1155 etc.)
     pub kw_span: Span,

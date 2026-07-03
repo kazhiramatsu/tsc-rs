@@ -356,6 +356,11 @@ impl<'a> Parser<'a> {
                         p.next(); // await
                         if p.is_ident_like() && p.token_value() == "using" {
                             p.next(); // using
+                            // NOTE: tsc rejects `[` here too (`await using [x]`
+                            // is an await of an element access); accepting it
+                            // keeps our historical recovery profile — flipping
+                            // it forfeits the file's semantic diagnostics to
+                            // the any-parse-error gate (see check_program_core)
                             if !p.line_break_before()
                                 && (matches!(p.token(), Tok::OpenBrace | Tok::OpenBracket)
                                     || (p.is_ident_like()
@@ -382,11 +387,13 @@ impl<'a> Parser<'a> {
                 && self
                     .lookahead(|p| {
                         p.next();
-                        // `using x = …` — a binding identifier on the same line
-                        // (no destructuring; `using` before a line break or
-                        // before `of`/`in` is a plain identifier).
+                        // `using x = …` — a binding identifier or `{` on the
+                        // same line (tsc allows object patterns through to the
+                        // grammar error; `using [x]` is an element access, and
+                        // `using` before a line break or `of`/`in` is a plain
+                        // identifier).
                         if !p.line_break_before()
-                            && (matches!(p.token(), Tok::OpenBrace | Tok::OpenBracket)
+                            && (p.token() == Tok::OpenBrace
                                 || (p.is_ident_like()
                                     && p.token_value() != "of"
                                     && p.token_value() != "in"))
@@ -503,7 +510,7 @@ impl<'a> Parser<'a> {
                     && p.lookahead(|q| {
                         q.next();
                         if (q.is_ident_like() && q.token_value() != "of" && q.token_value() != "in")
-                            || matches!(q.token(), Tok::OpenBrace | Tok::OpenBracket)
+                            || q.token() == Tok::OpenBrace
                         {
                             Some(())
                         } else {
@@ -519,9 +526,7 @@ impl<'a> Parser<'a> {
                         q.next();
                         if q.is_ident_like() && q.token_value() == "using" {
                             q.next();
-                            if q.is_ident_like()
-                                || matches!(q.token(), Tok::OpenBrace | Tok::OpenBracket)
-                            {
+                            if q.is_ident_like() || q.token() == Tok::OpenBrace {
                                 return Some(());
                             }
                         }
@@ -888,6 +893,9 @@ impl<'a> Parser<'a> {
             Tok::KLet => VarKind::Let,
             _ => VarKind::Const,
         };
+        // reached with a non-var/let/const head token only from the
+        // `using` / `await using` statement dispatch
+        let is_using = !matches!(self.token(), Tok::KVar | Tok::KLet | Tok::KConst);
         self.next();
         let mut decls = Vec::new();
         loop {
@@ -951,6 +959,7 @@ impl<'a> Parser<'a> {
         Stmt::Var(VarStmt {
             modifiers,
             kind,
+            is_using,
             decls,
             kw_span,
             span: Span::new(start, end),
@@ -1111,7 +1120,7 @@ impl<'a> Parser<'a> {
                         if p.line_break_before() {
                             return None;
                         }
-                        if matches!(p.token(), Tok::OpenBrace | Tok::OpenBracket) {
+                        if p.token() == Tok::OpenBrace {
                             return Some(());
                         }
                         if p.is_ident_like() {
@@ -1142,7 +1151,7 @@ impl<'a> Parser<'a> {
                             if !p.line_break_before()
                                 && (p.token() == Tok::KOf
                                     || p.is_ident_like()
-                                    || matches!(p.token(), Tok::OpenBrace | Tok::OpenBracket))
+                                    || p.token() == Tok::OpenBrace)
                             {
                                 return Some(());
                             }
@@ -1151,17 +1160,23 @@ impl<'a> Parser<'a> {
                     })
                     .is_some())
         {
-            // `await using x of …` — consume the leading await first
-            if self.token() == Tok::KAwait {
+            // `await using x of …` — consume the leading await first; the
+            // list span still starts at `await` (tsc anchors 6199 there)
+            let head_await_start = if self.token() == Tok::KAwait {
+                let s = self.start();
                 self.next();
-            }
+                Some(s)
+            } else {
+                None
+            };
             let kw_span = self.token_span();
             let kind = match self.token() {
                 Tok::KVar => VarKind::Var,
                 Tok::KLet => VarKind::Let,
                 _ => VarKind::Const,
             };
-            let vstart = self.start();
+            let head_is_using = !matches!(self.token(), Tok::KVar | Tok::KLet | Tok::KConst);
+            let vstart = head_await_start.unwrap_or_else(|| self.start());
             self.next();
             let dstart = self.start();
             let empty_binding = Binding::Ident(crate::ast::Ident {
@@ -1267,6 +1282,7 @@ impl<'a> Parser<'a> {
                 let left = Box::new(ForInit::Var(VarStmt {
                     modifiers: Vec::new(),
                     kind,
+                    is_using: head_is_using,
                     decls,
                     kw_span,
                     span: if empty_decl {
@@ -1385,6 +1401,7 @@ impl<'a> Parser<'a> {
                 let left = Box::new(ForInit::Var(VarStmt {
                     modifiers: Vec::new(),
                     kind,
+                    is_using: head_is_using,
                     decls,
                     kw_span,
                     span: Span::new(vstart, self.prev_end()),
@@ -1413,6 +1430,7 @@ impl<'a> Parser<'a> {
             Some(Box::new(ForInit::Var(VarStmt {
                 modifiers: Vec::new(),
                 kind,
+                is_using: head_is_using,
                 decls,
                 kw_span,
                 span: Span::new(vstart, self.prev_end()),

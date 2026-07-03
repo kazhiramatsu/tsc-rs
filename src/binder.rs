@@ -322,10 +322,18 @@ pub struct BindResult<'a> {
     pub stmt_position_calls: HashSet<usize>,
     /// file -> the `export =` symbol
     pub export_equals: HashMap<usize, SymbolId>,
-    /// (file, pattern span, member symbols) per destructuring declarator
-    pub pattern_groups: Vec<(usize, Span, Vec<SymbolId>)>,
-    /// (file, stmt-head span, symbols) per multi-declarator var statement
-    pub var_stmt_groups: Vec<(usize, Span, Vec<SymbolId>)>,
+    /// declaration node keys that LOST a duplicate-identifier conflict
+    /// (report_duplicate fired at their declare): tsc puts such declarations
+    /// on a fresh orphan symbol that never enters the scope table, so the
+    /// unused-locals walk never sees them
+    pub duplicate_losers: HashSet<usize>,
+    /// one entry per variable-declaration list (var statement or for-head):
+    /// the unused-check grouping engine's `unusedVariables` axis (tsc
+    /// checkUnusedLocalsAndParameters)
+    pub unused_var_lists: Vec<UnusedVarList>,
+    /// one entry per binding pattern that directly contains bindings: tsc's
+    /// `unusedDestructures` axis (nested patterns get their own entry)
+    pub unused_patterns: Vec<UnusedPattern>,
     /// Symbols declared inside an ambient namespace/module body. Unlike an
     /// explicit `declare` inside a non-ambient namespace, these are not
     /// surfaced as unused locals by tsc.
@@ -344,6 +352,109 @@ pub struct BindResult<'a> {
     pub diags: Vec<Diagnostic>,
 }
 
+/// One declarator of a variable-declaration list, as seen by the unused
+/// grouping engine (tsc checkUnusedLocalsAndParameters).
+#[derive(Clone, Debug)]
+pub struct UnusedListEntry {
+    /// identifier-named declarator's symbol
+    pub sym: Option<SymbolId>,
+    /// whole-pattern declarator: index into `unused_patterns`; joins the
+    /// list's collected set only via tsc's single-element regroup rule
+    pub pattern_idx: Option<usize>,
+    /// diagnostic anchor — the declarator NAME (identifier or pattern; tsc
+    /// createDiagnosticForNode resolves a VariableDeclaration to its name)
+    pub anchor: Span,
+    /// message argument (tsc bindingNameText: first leaf for patterns)
+    pub name: String,
+    /// for-in/for-of head declarator with a leading underscore: exempt
+    /// (tsc isValidUnusedLocalDeclaration), but still counted in `total`
+    pub underscore_exempt: bool,
+    /// lost a duplicate-identifier conflict: in tsc the declaration sits on
+    /// an orphan symbol outside the scope table, so it never reports
+    pub loser: bool,
+}
+
+/// A variable-declaration list (statement or for/for-in/for-of head).
+#[derive(Clone, Debug)]
+pub struct UnusedVarList {
+    pub file: usize,
+    /// 6199 anchor: first token of the statement/list head
+    pub span: Span,
+    /// total declarators — collected entries must equal this for a grouped
+    /// report; used/uncollectible declarators force the per-element form
+    pub total: usize,
+    /// `export`-modified statement: never reported (pattern leaves are not
+    /// in the module exports table, so the flag is carried here)
+    pub exported: bool,
+    pub entries: Vec<UnusedListEntry>,
+}
+
+/// A leaf binding element eligible for collection (tsc addToGroup value).
+#[derive(Clone, Debug)]
+pub struct UnusedPatternElem {
+    pub sym: SymbolId,
+    /// diagnostic anchor — the leaf identifier (tsc createDiagnosticForNode
+    /// resolves a BindingElement to its name)
+    pub anchor: Span,
+    pub name: String,
+    /// `{ k: _x }`: propertyName + leading underscore exempts the element
+    /// (tsc isValidUnusedLocalDeclaration); shorthand `{ _x }` still reports.
+    /// Array elements: any leading underscore exempts.
+    pub underscore_exempt: bool,
+    /// non-rest element of an object pattern whose LAST element is a rest:
+    /// removing it would change the rest's value, so tsc never reports it
+    /// (a misplaced non-final rest suppresses nothing)
+    pub suppressed_by_rest: bool,
+    /// lost a duplicate-identifier conflict: in tsc the declaration sits on
+    /// an orphan symbol outside the scope table, so it never reports
+    pub loser: bool,
+}
+
+/// A binding pattern node (nested patterns are separate entries; an element
+/// whose name is a nested pattern contributes to `total` but is never
+/// collectible, so it forces the per-element form on its parent).
+#[derive(Clone, Debug)]
+pub struct UnusedPattern {
+    pub file: usize,
+    /// 6198 / all-unused-single-element 6133 anchor: the pattern itself
+    pub span: Span,
+    /// syntactic element count: object props + rest; array elements
+    /// INCLUDING elision holes (holes block the all-unused path)
+    pub total: usize,
+    /// root declaration is a parameter (tsc UnusedKind.Parameter:
+    /// noUnusedParameters gates the error form)
+    pub is_param_root: bool,
+    /// object patterns and parameter-rooted array patterns group; array
+    /// patterns under variable declarations report per element (tsc routes
+    /// them through errorUnusedLocal, never through unusedDestructures)
+    pub grouped: bool,
+    /// pattern is itself a declarator name: index into `unused_var_lists`
+    /// for the single-element regroup rule
+    pub parent_list: Option<usize>,
+    /// under an `export`-modified statement: never reported
+    pub exported: bool,
+    pub elements: Vec<UnusedPatternElem>,
+}
+
+/// First leaf identifier of a binding (tsc bindingNameText).
+pub fn first_binding_leaf(b: &Binding) -> Option<&Ident> {
+    match b {
+        Binding::Ident(i) => Some(i),
+        Binding::Object(p) => p
+            .props
+            .first()
+            .map(|pr| &*pr.binding)
+            .or(p.rest.as_deref())
+            .and_then(first_binding_leaf),
+        Binding::Array(p) => p
+            .elements
+            .iter()
+            .flatten()
+            .next()
+            .and_then(|e| first_binding_leaf(&e.binding)),
+    }
+}
+
 pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -> BindResult<'a> {
     let mut b = Binder {
         symbols: Vec::new(),
@@ -359,8 +470,9 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         exports: HashMap::new(),
         default_exports: Vec::new(),
         export_assigns: Vec::new(),
-        pattern_groups: Vec::new(),
-        var_stmt_groups: Vec::new(),
+        duplicate_losers: HashSet::new(),
+        unused_var_lists: Vec::new(),
+        unused_patterns: Vec::new(),
         ambient_context_symbols: HashSet::new(),
         expr_name_symbols: HashSet::new(),
         decl_container: HashMap::new(),
@@ -456,8 +568,9 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         decl_loop_head: b.decl_loop_head,
         fn_decls: b.fn_decls,
         export_equals,
-        pattern_groups: b.pattern_groups,
-        var_stmt_groups: b.var_stmt_groups,
+        duplicate_losers: b.duplicate_losers,
+        unused_var_lists: b.unused_var_lists,
+        unused_patterns: b.unused_patterns,
         ambient_context_symbols: b.ambient_context_symbols,
         expr_name_symbols: b.expr_name_symbols,
         flow_nodes: Vec::new(),
@@ -481,8 +594,9 @@ struct Binder<'a> {
     exports: HashMap<usize, Table>,
     default_exports: Vec<(usize, Span)>,
     export_assigns: Vec<(usize, String)>,
-    pattern_groups: Vec<(usize, Span, Vec<SymbolId>)>,
-    var_stmt_groups: Vec<(usize, Span, Vec<SymbolId>)>,
+    duplicate_losers: HashSet<usize>,
+    unused_var_lists: Vec<UnusedVarList>,
+    unused_patterns: Vec<UnusedPattern>,
     ambient_context_symbols: HashSet<SymbolId>,
     expr_name_symbols: HashSet<SymbolId>,
     decl_container: HashMap<usize, usize>,
@@ -589,6 +703,7 @@ impl<'a> Binder<'a> {
                 // still record the new decl on the symbol so later phases see it
                 self.symbols[eid.0 as usize].decls.push(decl);
                 self.symbols[eid.0 as usize].flags |= flags;
+                self.duplicate_losers.insert(decl_key);
                 eid
             }
         } else {
@@ -1119,9 +1234,24 @@ impl<'a> Binder<'a> {
     }
 
     fn bind_var_stmt(&mut self, v: &'a VarStmt, scope: ScopeId) {
-        let mut stmt_syms: Vec<SymbolId> = Vec::new();
         let is_ambient_context = self.ambient_context_depth > 0;
         let is_ambient = has_modifier(&v.modifiers, ModifierKind::Declare) || is_ambient_context;
+        // `export` creates an export symbol only at a module/namespace top
+        // (tsc local.exportSymbol); on a nested statement it is a grammar
+        // error (1184) and the local is still unused-checked
+        let exported = has_modifier(&v.modifiers, ModifierKind::Export)
+            && matches!(
+                self.scopes[scope.0 as usize].kind,
+                ScopeKind::Global | ScopeKind::Module
+            );
+        let list_idx = self.unused_var_lists.len();
+        self.unused_var_lists.push(UnusedVarList {
+            file: self.file,
+            span: v.span,
+            total: v.decls.len(),
+            exported,
+            entries: Vec::new(),
+        });
         for d in &v.decls {
             let (target, fl) = match v.kind {
                 VarKind::Var => (self.hoist_target(scope), flags::FUNCTION_SCOPED_VARIABLE),
@@ -1134,7 +1264,7 @@ impl<'a> Binder<'a> {
             if is_ambient {
                 self.decl_ambient.insert(node_key(d));
             }
-            if has_modifier(&v.modifiers, ModifierKind::Export) {
+            if exported {
                 self.decl_exported.insert(node_key(d));
             }
             if self.in_loop_head {
@@ -1148,22 +1278,53 @@ impl<'a> Binder<'a> {
                         if is_ambient_context {
                             self.ambient_context_symbols.insert(sid);
                         }
-                        stmt_syms.push(sid);
+                        self.unused_var_lists[list_idx].entries.push(UnusedListEntry {
+                            sym: Some(sid),
+                            pattern_idx: None,
+                            anchor: id.span,
+                            name: id.name.clone(),
+                            // for-in/of heads and using declarations exempt
+                            // underscore names (tsc isValidUnusedLocalDeclaration
+                            // / the Using blockScopeKind check)
+                            underscore_exempt: (self.in_loop_head || v.is_using)
+                                && id.name.starts_with('_'),
+                            loser: self.duplicate_losers.contains(&node_key(d)),
+                        });
                     }
                 }
                 pattern => {
                     let before = self.symbols.len();
-                    self.bind_pattern_names(pattern, target, fl, v.kind, scope);
-                    let members: Vec<SymbolId> = (before..self.symbols.len())
-                        .map(|i| SymbolId(i as u32))
-                        .collect();
+                    // `using [a]` parses as a declaration here but as an
+                    // element-access expression in tsc — don't surface its
+                    // names in the unused engine (parse-divergence shim)
+                    let pidx = self.bind_pattern_binding(
+                        pattern,
+                        target,
+                        fl,
+                        Some(v.kind),
+                        scope,
+                        false,
+                        !v.is_using,
+                        Some(list_idx),
+                        exported,
+                    );
                     if is_ambient_context {
-                        for sym in &members {
-                            self.ambient_context_symbols.insert(*sym);
+                        for i in before..self.symbols.len() {
+                            self.ambient_context_symbols.insert(SymbolId(i as u32));
                         }
                     }
-                    self.pattern_groups
-                        .push((self.file, pattern.span(), members));
+                    if let Some(pidx) = pidx {
+                        self.unused_var_lists[list_idx].entries.push(UnusedListEntry {
+                            sym: None,
+                            pattern_idx: Some(pidx),
+                            anchor: pattern.span(),
+                            name: first_binding_leaf(pattern)
+                                .map(|i| i.name.clone())
+                                .unwrap_or_default(),
+                            underscore_exempt: false,
+                            loser: false,
+                        });
+                    }
                 }
             }
             // Bind the initializer so nested function-likes (arrows, function
@@ -1172,9 +1333,6 @@ impl<'a> Binder<'a> {
             if let Some(init) = &d.init {
                 self.bind_expr(init, scope);
             }
-        }
-        if v.decls.len() > 1 && v.decls.iter().all(|d| d.name.as_ident().is_some()) {
-            self.var_stmt_groups.push((self.file, v.span, stmt_syms));
         }
     }
 
@@ -1210,75 +1368,185 @@ impl<'a> Binder<'a> {
         }
     }
 
-    fn bind_pattern_names(
+    fn declare_pattern_leaf(
+        &mut self,
+        id: &'a Ident,
+        target: ScopeId,
+        fl: u32,
+        var_kind: Option<VarKind>,
+    ) -> SymbolId {
+        match var_kind {
+            Some(k) => self.declare(target, &id.name, fl, Decl::PatternVar(id, k), node_key(id)),
+            None => self.declare(target, &id.name, fl, Decl::PatternParam(id), node_key(id)),
+        }
+    }
+
+    /// Bind a destructuring pattern's names (variable when `var_kind` is
+    /// Some, parameter otherwise) and, when `collect`, record its structure
+    /// for the unused grouping engine. Returns the root pattern's
+    /// `unused_patterns` index when one was recorded.
+    #[allow(clippy::too_many_arguments)]
+    fn bind_pattern_binding(
         &mut self,
         b: &'a Binding,
         target: ScopeId,
         fl: u32,
-        kind: VarKind,
+        var_kind: Option<VarKind>,
         expr_scope: ScopeId,
-    ) {
+        is_param_root: bool,
+        collect: bool,
+        parent_list: Option<usize>,
+        exported: bool,
+    ) -> Option<usize> {
         match b {
             Binding::Ident(id) => {
-                self.declare(
-                    target,
-                    &id.name,
-                    fl,
-                    Decl::PatternVar(id, kind),
-                    node_key(id),
-                );
+                self.declare_pattern_leaf(id, target, fl, var_kind);
+                None
             }
             Binding::Object(p) => {
+                let idx = collect.then(|| {
+                    let i = self.unused_patterns.len();
+                    self.unused_patterns.push(UnusedPattern {
+                        file: self.file,
+                        span: p.span,
+                        total: p.props.len() + p.rest.is_some() as usize,
+                        is_param_root,
+                        grouped: true,
+                        parent_list,
+                        exported,
+                        elements: Vec::new(),
+                    });
+                    i
+                });
+                // the rest suppresses other elements only when it is the LAST
+                // element syntactically (tsc: last(elements).dotDotDotToken);
+                // a misplaced rest (grammar error, still parsed) does not
+                let rest_is_last = p.rest.as_ref().is_some_and(|r| {
+                    p.props.iter().all(|pr| pr.span.start < r.span().start)
+                });
                 for prop in &p.props {
                     if let Some(dflt) = &prop.default {
                         self.bind_expr(dflt, expr_scope);
                     }
-                    self.bind_pattern_names(&prop.binding, target, fl, kind, expr_scope);
+                    match &*prop.binding {
+                        Binding::Ident(id) => {
+                            let sid = self.declare_pattern_leaf(id, target, fl, var_kind);
+                            if let Some(i) = idx {
+                                // shorthand `{ x }` reuses the identifier as
+                                // the key; a distinct key = tsc propertyName
+                                let shorthand = matches!(&prop.key,
+                                    PropName::Ident(k) if k.span.start == id.span.start);
+                                self.unused_patterns[i].elements.push(UnusedPatternElem {
+                                    sym: sid,
+                                    anchor: id.span,
+                                    name: id.name.clone(),
+                                    underscore_exempt: !shorthand && id.name.starts_with('_'),
+                                    suppressed_by_rest: rest_is_last,
+                                    loser: self.duplicate_losers.contains(&node_key(id)),
+                                });
+                            }
+                        }
+                        nested => {
+                            self.bind_pattern_binding(
+                                nested,
+                                target,
+                                fl,
+                                var_kind,
+                                expr_scope,
+                                is_param_root,
+                                collect,
+                                None,
+                                exported,
+                            );
+                        }
+                    }
                 }
                 if let Some(rest) = &p.rest {
-                    self.bind_pattern_names(rest, target, fl, kind, expr_scope);
+                    match &**rest {
+                        Binding::Ident(id) => {
+                            let sid = self.declare_pattern_leaf(id, target, fl, var_kind);
+                            if let Some(i) = idx {
+                                // the rest element itself is always
+                                // collectible (tsc: declaration === lastElement)
+                                self.unused_patterns[i].elements.push(UnusedPatternElem {
+                                    sym: sid,
+                                    anchor: id.span,
+                                    name: id.name.clone(),
+                                    underscore_exempt: false,
+                                    suppressed_by_rest: false,
+                                    loser: self.duplicate_losers.contains(&node_key(id)),
+                                });
+                            }
+                        }
+                        nested => {
+                            self.bind_pattern_binding(
+                                nested,
+                                target,
+                                fl,
+                                var_kind,
+                                expr_scope,
+                                is_param_root,
+                                collect,
+                                None,
+                                exported,
+                            );
+                        }
+                    }
                 }
+                idx
             }
             Binding::Array(p) => {
+                let idx = collect.then(|| {
+                    let i = self.unused_patterns.len();
+                    self.unused_patterns.push(UnusedPattern {
+                        file: self.file,
+                        span: p.span,
+                        total: p.elements.len(),
+                        is_param_root,
+                        // array elements group only under a parameter root;
+                        // under a variable declaration tsc reports each
+                        // element individually (errorUnusedLocal)
+                        grouped: is_param_root,
+                        parent_list,
+                        exported,
+                        elements: Vec::new(),
+                    });
+                    i
+                });
                 for el in p.elements.iter().flatten() {
                     if let Some(dflt) = &el.default {
                         self.bind_expr(dflt, expr_scope);
                     }
-                    self.bind_pattern_names(&el.binding, target, fl, kind, expr_scope);
-                }
-            }
-        }
-    }
-
-    fn bind_param_pattern(&mut self, b: &'a Binding, fn_scope: ScopeId) {
-        match b {
-            Binding::Ident(id) => {
-                self.declare(
-                    fn_scope,
-                    &id.name,
-                    flags::FUNCTION_SCOPED_VARIABLE | flags::PARAMETER,
-                    Decl::PatternParam(id),
-                    node_key(id),
-                );
-            }
-            Binding::Object(p) => {
-                for prop in &p.props {
-                    if let Some(dflt) = &prop.default {
-                        self.bind_expr(dflt, fn_scope);
+                    match &*el.binding {
+                        Binding::Ident(id) => {
+                            let sid = self.declare_pattern_leaf(id, target, fl, var_kind);
+                            if let Some(i) = idx {
+                                self.unused_patterns[i].elements.push(UnusedPatternElem {
+                                    sym: sid,
+                                    anchor: id.span,
+                                    name: id.name.clone(),
+                                    underscore_exempt: id.name.starts_with('_'),
+                                    suppressed_by_rest: false,
+                                    loser: self.duplicate_losers.contains(&node_key(id)),
+                                });
+                            }
+                        }
+                        nested => {
+                            self.bind_pattern_binding(
+                                nested,
+                                target,
+                                fl,
+                                var_kind,
+                                expr_scope,
+                                is_param_root,
+                                collect,
+                                None,
+                                exported,
+                            );
+                        }
                     }
-                    self.bind_param_pattern(&prop.binding, fn_scope);
                 }
-                if let Some(rest) = &p.rest {
-                    self.bind_param_pattern(rest, fn_scope);
-                }
-            }
-            Binding::Array(p) => {
-                for el in p.elements.iter().flatten() {
-                    if let Some(dflt) = &el.default {
-                        self.bind_expr(dflt, fn_scope);
-                    }
-                    self.bind_param_pattern(&el.binding, fn_scope);
-                }
+                idx
             }
         }
     }
@@ -1323,21 +1591,19 @@ impl<'a> Binder<'a> {
                     }
                 }
                 pattern => {
-                    let before = self.symbols.len();
-                    self.bind_param_pattern(pattern, fn_scope);
-                    // a fully-unused destructuring parameter pattern is reported
-                    // as TS6198; group its names so check_unused_groups can see
-                    // them. Only meaningful when the function has a body (tsc
-                    // does not unused-check overload/ambient parameters).
-                    if f.body.is_some() {
-                        let members: Vec<SymbolId> = (before..self.symbols.len())
-                            .map(|i| SymbolId(i as u32))
-                            .collect();
-                        if !members.is_empty() {
-                            self.pattern_groups
-                                .push((self.file, pattern.span(), members));
-                        }
-                    }
+                    // groups are only recorded when the function has a body
+                    // (tsc does not unused-check overload/ambient parameters)
+                    self.bind_pattern_binding(
+                        pattern,
+                        fn_scope,
+                        flags::FUNCTION_SCOPED_VARIABLE | flags::PARAMETER,
+                        None,
+                        fn_scope,
+                        true,
+                        f.body.is_some(),
+                        None,
+                        false,
+                    );
                 }
             }
         }

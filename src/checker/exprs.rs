@@ -1829,6 +1829,18 @@ impl<'a> Checker<'a> {
     /// JSX without `--jsx` / JSX.IntrinsicElements: 17004 at each opening
     /// element tag, 7026 at opening AND closing intrinsic tags
     fn check_jsx(&mut self, j: &'a JsxElement) {
+        // a JSX element references the factory namespace (tsc
+        // markJsxAliasReferenced): the leftmost identifier of jsxFactory,
+        // default `React` — an `import React …` above JSX is not unused
+        let factory_root = self
+            .options
+            .jsx_factory
+            .as_deref()
+            .map(|f| f.split('.').next().unwrap_or(f).to_string())
+            .unwrap_or_else(|| "React".to_string());
+        if let Some(sym) = self.lookup_value(self.current_scope, &factory_root) {
+            self.symuse.used_symbols.insert(sym);
+        }
         let is_intrinsic = j
             .tag
             .as_ref()

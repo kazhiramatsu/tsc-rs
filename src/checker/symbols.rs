@@ -801,7 +801,26 @@ impl<'a> Checker<'a> {
                         if flag {
                             self.cflags.in_ctor_param_init = true;
                         }
+                        // resolve sibling-parameter references in the default
+                        // against the function's own scope — signatures are
+                        // computed from arbitrary contexts (`(a, b = a) => …`
+                        // nested in another default must not resolve `a`
+                        // in the enclosing function). Body-hoisted locals in
+                        // that scope stay invisible (param_init_scope) unless
+                        // down-level emit relocates the parameters (tsc
+                        // requiresScopeChange).
+                        let scope_change = params
+                            .iter()
+                            .any(|q| param_requires_scope_change(q, self.options));
+                        let prev_scope = self.current_scope;
+                        let prev_pis = self.cflags.param_init_scope;
+                        self.current_scope = scope;
+                        if !scope_change {
+                            self.cflags.param_init_scope = Some(scope);
+                        }
                         let it = self.check_expr(init, None);
+                        self.cflags.param_init_scope = prev_pis;
+                        self.current_scope = prev_scope;
                         if flag {
                             self.cflags.in_ctor_param_init = false;
                         }
@@ -2343,6 +2362,143 @@ pub(crate) fn collect_infer_nodes<'b>(
             }
         }
         _ => {}
+    }
+}
+
+/// tsc requiresScopeChange: does down-level emit move this parameter's
+/// name/initializer into the function body? When it does, parameter
+/// initializers resolve body-hoisted locals like any other position; when it
+/// does not, resolution skips them (useOuterVariableScopeInParameter).
+/// Triggers: a static field of a class expression without standard
+/// class-field emit, `??` / `?.` below ES2020, an object-rest binding
+/// element below ES2017. Nested function-likes are not entered.
+pub(crate) fn param_requires_scope_change(
+    p: &crate::ast::Param,
+    o: &crate::options::CompilerOptions,
+) -> bool {
+    scope_change_binding(&p.name, o)
+        || p.initializer
+            .as_ref()
+            .is_some_and(|e| scope_change_expr(e, o))
+}
+
+fn scope_change_binding(b: &crate::ast::Binding, o: &crate::options::CompilerOptions) -> bool {
+    use crate::ast::Binding;
+    match b {
+        Binding::Ident(_) => false,
+        Binding::Object(p) => {
+            (p.rest.is_some() && o.script_target_rank() < 4)
+                || p.props.iter().any(|pr| {
+                    matches!(&pr.key, crate::ast::PropName::Computed { expr, .. }
+                        if scope_change_expr(expr, o))
+                        || pr.default.as_ref().is_some_and(|d| scope_change_expr(d, o))
+                        || scope_change_binding(&pr.binding, o)
+                })
+                || p.rest.as_deref().is_some_and(|r| scope_change_binding(r, o))
+        }
+        Binding::Array(p) => p.elements.iter().flatten().any(|el| {
+            el.default.as_ref().is_some_and(|d| scope_change_expr(d, o))
+                || scope_change_binding(&el.binding, o)
+        }),
+    }
+}
+
+fn scope_change_expr(e: &crate::ast::Expr, o: &crate::options::CompilerOptions) -> bool {
+    use crate::ast::{BinOp, ClassMember, Expr, ModifierKind, ObjectProp, PropName};
+    let rank = o.script_target_rank();
+    let computed = |key: &PropName| {
+        matches!(key, PropName::Computed { expr, .. } if scope_change_expr(expr, o))
+    };
+    match e {
+        Expr::Arrow(_) | Expr::FunctionExpr(_) => false,
+        Expr::ClassExpr(c) => {
+            c.extends
+                .as_ref()
+                .is_some_and(|h| scope_change_expr(&h.expr, o))
+                || c.members.iter().any(|m| match m {
+                    ClassMember::Property(p) => {
+                        if p.modifiers.iter().any(|md| md.kind == ModifierKind::Static) {
+                            !o.use_define_for_class_fields()
+                        } else {
+                            computed(&p.name)
+                        }
+                    }
+                    ClassMember::Method(f) | ClassMember::Constructor(f) => f
+                        .name
+                        .as_ref()
+                        .is_some_and(computed),
+                    ClassMember::StaticBlock(_) | ClassMember::Index(_) => false,
+                })
+        }
+        Expr::PropAccess { question_dot, obj, .. } => {
+            (*question_dot && rank < 7) || scope_change_expr(obj, o)
+        }
+        Expr::ElemAccess {
+            question_dot,
+            obj,
+            index,
+            ..
+        } => {
+            (*question_dot && rank < 7)
+                || scope_change_expr(obj, o)
+                || scope_change_expr(index, o)
+        }
+        Expr::Call {
+            question_dot,
+            callee,
+            args,
+            ..
+        } => {
+            (*question_dot && rank < 7)
+                || scope_change_expr(callee, o)
+                || args.iter().any(|a| scope_change_expr(a, o))
+        }
+        Expr::Binary { op, left, right, .. } => {
+            (*op == BinOp::QuestionQuestion && rank < 7)
+                || scope_change_expr(left, o)
+                || scope_change_expr(right, o)
+        }
+        Expr::Object { props, .. } => props.iter().any(|pr| match pr {
+            // tsc visits only the NAME of a property assignment here
+            ObjectProp::Property { name, .. } => computed(name),
+            ObjectProp::Method(f) => f.name.as_ref().is_some_and(computed),
+            ObjectProp::Shorthand { .. } => false,
+            ObjectProp::Spread { expr, .. } => scope_change_expr(expr, o),
+        }),
+        Expr::Array { .. } => array_elems_scope_change(e, o),
+        Expr::Paren { inner: x, .. }
+        | Expr::NonNull { expr: x, .. }
+        | Expr::Spread { expr: x, .. }
+        | Expr::Await { expr: x, .. }
+        | Expr::Unary { operand: x, .. }
+        | Expr::Update { operand: x, .. } => scope_change_expr(x, o),
+        Expr::Assertion { expr, .. } => scope_change_expr(expr, o),
+        Expr::Cond {
+            cond,
+            when_true,
+            when_false,
+            ..
+        } => {
+            scope_change_expr(cond, o)
+                || scope_change_expr(when_true, o)
+                || scope_change_expr(when_false, o)
+        }
+        Expr::New { callee, args, .. } => {
+            scope_change_expr(callee, o)
+                || args
+                    .as_ref()
+                    .is_some_and(|a| a.iter().any(|x| scope_change_expr(x, o)))
+        }
+        Expr::Yield { expr: Some(x), .. } => scope_change_expr(x, o),
+        _ => false,
+    }
+}
+
+fn array_elems_scope_change(e: &crate::ast::Expr, o: &crate::options::CompilerOptions) -> bool {
+    if let crate::ast::Expr::Array { elements, .. } = e {
+        elements.iter().any(|x| scope_change_expr(x, o))
+    } else {
+        false
     }
 }
 

@@ -1392,6 +1392,108 @@ interface Escaped<_T> {}
     }
 
     #[test]
+    fn unused_grouping_engine_mirrors_tsc_group_flush_rules() {
+        let opts = CompilerOptions {
+            no_unused_locals: true,
+            no_unused_parameters: true,
+            diag_json: true,
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![InputFile {
+                name: "main.ts".to_string(),
+                text: r#"
+declare const src: any;
+export function all_vars() {
+    let a = 1, b = 2;
+}
+export function partial_pattern({ k: y, b }: any) {
+    return b;
+}
+export function full_pattern() {
+    const { c, d } = src;
+}
+export function rest_suppresses() {
+    const { e, ...rest } = src;
+}
+export function regroup_single() {
+    const { f } = src;
+}
+export function underscore_partial({ k: _x, g }: any) {
+    return g;
+}
+"#
+                .to_string(),
+            }],
+            &opts,
+        );
+
+        // let a, b — all unused → one 6199 at the statement, no per-name 6133
+        assert!(out.contains("All variables are unused."), "{out}");
+        assert!(!out.contains("'a' is declared"), "{out}");
+        // {k: y, b} partial → per-element 6133 for y only
+        assert!(
+            out.contains("'y' is declared but its value is never read."),
+            "{out}"
+        );
+        // {c, d} fully unused → 6198
+        assert!(
+            out.contains("All destructured elements are unused."),
+            "{out}"
+        );
+        assert!(!out.contains("'c' is declared"), "{out}");
+        // {e, ...rest}: e is suppressed by the trailing rest; rest reports
+        assert!(!out.contains("'e' is declared"), "{out}");
+        assert!(
+            out.contains("'rest' is declared but its value is never read."),
+            "{out}"
+        );
+        // single-element pattern regroups into its list: 6133 named 'f'
+        assert!(
+            out.contains("'f' is declared but its value is never read."),
+            "{out}"
+        );
+        // {k: _x, g}: propertyName + underscore exempts _x, forcing the
+        // per-element form — no 6198, no report for _x
+        assert!(!out.contains("'_x' is declared"), "{out}");
+    }
+
+    #[test]
+    fn single_name_unused_import_reports_6133_on_the_import_statement() {
+        let opts = CompilerOptions {
+            no_unused_locals: true,
+            diag_json: true,
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: "mod.ts".to_string(),
+                    text: "export const v1 = 1; export const v2 = 2;".to_string(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: "import { v1 } from \"./mod\";\nimport { v1 as r1, v2 as r2 } from \"./mod\";\nexport {};\n"
+                        .to_string(),
+                },
+            ],
+            &opts,
+        );
+
+        // one declared name → 6133 with the name, anchored at the statement
+        assert!(
+            out.contains("'v1' is declared but its value is never read."),
+            "{out}"
+        );
+        // two declared names, all unused → 6192
+        assert!(
+            out.contains("All imports in import declaration are unused."),
+            "{out}"
+        );
+        assert!(!out.contains("'r1' is declared"), "{out}");
+    }
+
+    #[test]
     fn await_using_of_in_for_await_header_is_not_parsed_as_await_expression() {
         let source = "declare const x: any[];\nfor await (await using of x);\n";
         let (ast, diags) = crate::parser::parse_with_jsx(source, 0, false);

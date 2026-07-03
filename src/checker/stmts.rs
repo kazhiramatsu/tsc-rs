@@ -1278,6 +1278,11 @@ impl<'a> Checker<'a> {
             Binding::Array(p) => {
                 if self.types.is_any_or_error(source) {
                     for el in p.elements.iter().flatten() {
+                        // defaults are still expressions (tsc checkExpression):
+                        // `[a, b = a]` reads `a` even when the source erred
+                        if let Some(dflt) = &el.default {
+                            self.check_expr(dflt, None);
+                        }
                         self.destructure_binding(&el.binding, self.types.any);
                     }
                     return;
@@ -1291,6 +1296,9 @@ impl<'a> Checker<'a> {
                     let d = self.display_type(source);
                     self.error_at(p.span, &gen::Type_0_is_not_an_array_type, &[d]);
                     for el in p.elements.iter().flatten() {
+                        if let Some(dflt) = &el.default {
+                            self.check_expr(dflt, None);
+                        }
                         self.destructure_binding(&el.binding, self.types.error);
                     }
                     return;

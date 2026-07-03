@@ -323,6 +323,11 @@ pub struct CheckFlags {
     pub skip_ctx_sensitive: bool,
     pub infer_widen_objlit: bool,
     pub in_ctor_param_init: bool,
+    /// Some(fn scope) while checking a parameter initializer of that
+    /// function: body-scoped locals hoisted into the same scope table are
+    /// not visible from parameter defaults — resolution skips them and
+    /// continues outward (tsc useOuterVariableScopeInParameter, #36295)
+    pub param_init_scope: Option<ScopeId>,
     /// node key of an identifier directly wrapped by `!` (NonNull) — that
     /// read is exempt from definite-assignment checking (tsc's
     /// NonNullExpression-parent disjunct). Keyed by node, so no reset is
@@ -803,9 +808,15 @@ impl<'a> Checker<'a> {
             let Some(decl) = s.decls.first().copied() else {
                 continue;
             };
-            // only function-contained locals (top-level script vars are global)
+            // only function-contained locals (top-level script vars are global).
+            // Plain variable declarators (and pattern leaves) belong to the
+            // grouping engine (check_unused_groups); a Var first-decl passes
+            // here only for a merged symbol's type-side (6196) or
+            // function-side (`var f; function f() {}`) report.
             let decl_key = match decl {
-                crate::binder::Decl::Var(d, _) => crate::ast::node_key(d),
+                crate::binder::Decl::Var(d, _) if is_type_decl || is_function => {
+                    crate::ast::node_key(d)
+                }
                 crate::binder::Decl::Param(p) => crate::ast::node_key(p),
                 crate::binder::Decl::Interface(i) => crate::ast::node_key(i),
                 crate::binder::Decl::Alias(a) => crate::ast::node_key(a),
@@ -4039,78 +4050,182 @@ impl<'a> Checker<'a> {
         };
         let decl_key = match decl {
             crate::binder::Decl::Var(d, _) => crate::ast::node_key(*d),
+            crate::binder::Decl::PatternVar(id, _) => crate::ast::node_key(*id),
             _ => return false,
         };
+        if self.is_direct_static_block_declaration(decl_key) {
+            return true;
+        }
         let file_is_module = self.files[s.file].2.is_module;
         let ds = self.bind.decl_scope.get(&decl_key).copied();
         let ms = self.bind.module_scope.get(&s.file).copied();
         ds.is_some() && ds == ms && !file_is_module
     }
 
-    /// 6198 (all destructured elements unused) / 6199 (all variables unused)
+    /// Symbol-level skip for the grouping engine: a used / never-surfaced
+    /// symbol is not collectible (tsc `local.isReferenced || local.exportSymbol`
+    /// plus the scopes tsc never registers).
+    fn unused_symbol_skip(&self, sym: SymbolId) -> bool {
+        self.symuse.used_symbols.contains(&sym)
+            || self.bind.expr_name_symbols.contains(&sym)
+            || self.unused_group_symbol_exempt(sym)
+    }
+
+    /// The unused-variable grouping engine — a mirror of tsc
+    /// checkUnusedLocalsAndParameters' unusedDestructures / unusedVariables
+    /// axes: 6198/6199 when every element of a pattern / list is unused,
+    /// per-element 6133 when only some are, the object-trailing-rest
+    /// suppression rule, and the single-element-pattern regroup into its
+    /// variable list. Owns ALL reporting for variable declarators and
+    /// binding-pattern leaves (the per-symbol main loop skips them).
     fn check_unused_groups(&mut self) {
-        let as_error = self.options.no_unused_locals;
-        let mut grouped: HashSet<SymbolId> = HashSet::new();
-        let pattern_groups = self.bind.pattern_groups.clone();
-        let var_groups = self.bind.var_stmt_groups.clone();
-        for (file, span, syms) in pattern_groups {
-            if file == self.lib_file || syms.is_empty() {
+        let no_locals = self.options.no_unused_locals;
+        let no_params = self.options.no_unused_parameters;
+        let patterns = self.bind.unused_patterns.clone();
+        let lists = self.bind.unused_var_lists.clone();
+        let mut regrouped: HashSet<usize> = HashSet::new();
+        // (file, span, message, args, as_error)
+        let mut reports: Vec<(usize, Span, &'static DiagnosticMessage, Vec<String>, bool)> =
+            Vec::new();
+        for (idx, pat) in patterns.iter().enumerate() {
+            if pat.file == self.lib_file || pat.exported {
                 continue;
             }
-            if syms.iter().any(|s| self.unused_group_symbol_exempt(*s)) {
+            let col: Vec<&crate::binder::UnusedPatternElem> = pat
+                .elements
+                .iter()
+                .filter(|e| {
+                    !e.underscore_exempt
+                        && !e.suppressed_by_rest
+                        && !e.loser
+                        // a var merged with a function is silent on the var
+                        // side: tsc binds functions FIRST, so the variable
+                        // declaration lands on an orphan symbol
+                        && self.bind.symbols[e.sym.0 as usize].flags & flags::FUNCTION == 0
+                        && !self.unused_symbol_skip(e.sym)
+                })
+                .collect();
+            if col.is_empty() {
                 continue;
             }
-            // tsc reports 6198 ("all destructured elements are unused") for a
-            // fully-unused destructuring *parameter* even as a suggestion, but
-            // never for a destructuring *variable* unless noUnusedLocals is on —
-            // it does not surface unused locals as suggestions (an unused
-            // `const a = 1` is silent too). Gate the variable case accordingly.
-            let is_param = matches!(
-                self.bind.symbols[syms[0].0 as usize].decls.first(),
-                Some(crate::binder::Decl::PatternParam(_))
-            );
-            if !is_param && !as_error {
-                continue;
-            }
-            if syms.iter().all(|s| {
-                !self.symuse.used_symbols.contains(s) && !self.symuse.assigned_symbols.contains(s)
-            }) {
-                for s in &syms {
-                    grouped.insert(*s);
-                }
-                let prev = self.current_file;
-                self.current_file = file;
-                self.unused_diag(
-                    span,
-                    &gen::All_destructured_elements_are_unused,
-                    &[],
+            let as_error = if pat.is_param_root { no_params } else { no_locals };
+            let (grouped_col, plain_col): (Vec<_>, Vec<_>) = if pat.grouped {
+                (col, Vec::new())
+            } else {
+                // array pattern under a variable declaration: elements report
+                // individually (tsc errorUnusedLocal) — EXCEPT elements whose
+                // symbol is merged with a parameter (`async function f(x) {
+                // var [x] = y; }`): tsc keys the group test on the symbol's
+                // valueDeclaration, which is the parameter, so those group
+                col.into_iter().partition(|e| {
+                    self.bind.symbols[e.sym.0 as usize].flags & flags::PARAMETER != 0
+                })
+            };
+            for e in plain_col {
+                reports.push((
+                    pat.file,
+                    e.anchor,
+                    &gen::_0_is_declared_but_its_value_is_never_read,
+                    vec![e.name.clone()],
                     as_error,
-                );
-                self.current_file = prev;
+                ));
             }
-        }
-        for (file, span, syms) in var_groups {
-            if file == self.lib_file || syms.len() < 2 {
+            let col = grouped_col;
+            let as_error = if !pat.grouped { no_params } else { as_error };
+            if col.is_empty() {
                 continue;
             }
-            if syms.iter().any(|s| self.unused_group_symbol_exempt(*s)) {
-                continue;
-            }
-            if syms.iter().all(|s| {
-                !self.symuse.used_symbols.contains(s) && !self.symuse.assigned_symbols.contains(s)
-            }) {
-                for s in &syms {
-                    grouped.insert(*s);
+            if col.len() == pat.total {
+                if col.len() == 1 && pat.parent_list.is_some() {
+                    // fully-unused single-element pattern that is a whole
+                    // declarator: reported by its variable list instead
+                    regrouped.insert(idx);
+                } else if col.len() == 1 {
+                    reports.push((
+                        pat.file,
+                        pat.span,
+                        &gen::_0_is_declared_but_its_value_is_never_read,
+                        vec![col[0].name.clone()],
+                        as_error,
+                    ));
+                } else {
+                    reports.push((
+                        pat.file,
+                        pat.span,
+                        &gen::All_destructured_elements_are_unused,
+                        Vec::new(),
+                        as_error,
+                    ));
                 }
-                let prev = self.current_file;
-                self.current_file = file;
-                self.unused_diag(span, &gen::All_variables_are_unused, &[], as_error);
-                self.current_file = prev;
+            } else {
+                for e in col {
+                    reports.push((
+                        pat.file,
+                        e.anchor,
+                        &gen::_0_is_declared_but_its_value_is_never_read,
+                        vec![e.name.clone()],
+                        as_error,
+                    ));
+                }
             }
         }
-        // suppress per-symbol 6133 for grouped reports
-        for s in grouped {
-            self.symuse.used_symbols.insert(s);
+        for list in &lists {
+            if list.file == self.lib_file || list.exported {
+                continue;
+            }
+            let col: Vec<&crate::binder::UnusedListEntry> = list
+                .entries
+                .iter()
+                .filter(|en| match (en.sym, en.pattern_idx) {
+                    _ if en.underscore_exempt || en.loser => false,
+                    (Some(s), _) => {
+                        // var merged with a function: silent on the var side
+                        // (tsc binds functions first; the var decl is orphaned)
+                        self.bind.symbols[s.0 as usize].flags & flags::FUNCTION == 0
+                            && !self.unused_symbol_skip(s)
+                    }
+                    (None, Some(p)) => regrouped.contains(&p),
+                    _ => false,
+                })
+                .collect();
+            if col.is_empty() {
+                continue;
+            }
+            if col.len() == list.total {
+                if col.len() == 1 {
+                    reports.push((
+                        list.file,
+                        col[0].anchor,
+                        &gen::_0_is_declared_but_its_value_is_never_read,
+                        vec![col[0].name.clone()],
+                        no_locals,
+                    ));
+                } else {
+                    reports.push((
+                        list.file,
+                        list.span,
+                        &gen::All_variables_are_unused,
+                        Vec::new(),
+                        no_locals,
+                    ));
+                }
+            } else {
+                for en in col {
+                    reports.push((
+                        list.file,
+                        en.anchor,
+                        &gen::_0_is_declared_but_its_value_is_never_read,
+                        vec![en.name.clone()],
+                        no_locals,
+                    ));
+                }
+            }
+        }
+        for (file, span, msg, args, as_error) in reports {
+            let prev = self.current_file;
+            self.current_file = file;
+            self.unused_diag(span, msg, &args, as_error);
+            self.current_file = prev;
         }
     }
 
@@ -4288,8 +4403,17 @@ impl<'a> Checker<'a> {
 
     fn check_unused_imports(&mut self) {
         use std::collections::HashMap as Map;
+        // is the entry a named specifier or the clause's default name (the
+        // kinds tsc isTypeDeclaration resolves through the clause's
+        // `isTypeOnly` for the 6196 message)? namespace imports are not.
+        struct ImportEntry {
+            sym: SymbolId,
+            name: String,
+            span: Span,
+            clause_typed: bool,
+        }
         // group import alias symbols by their import declaration
-        let mut groups: Map<usize, (usize, Span, Vec<(SymbolId, String, Span)>)> = Map::new();
+        let mut groups: Map<usize, (usize, &crate::ast::ImportDecl, Vec<ImportEntry>)> = Map::new();
         for i in 0..self.bind.symbols.len() {
             let sym = SymbolId(i as u32);
             let s = &self.bind.symbols[i];
@@ -4299,76 +4423,97 @@ impl<'a> Checker<'a> {
             let Some(decl) = s.decls.first().copied() else {
                 continue;
             };
-            let (idecl_key, idecl_span, name, name_span, file) = match decl {
+            let (idecl, name, name_span, clause_typed) = match decl {
                 crate::binder::Decl::Import(spec, idecl) => (
-                    crate::ast::node_key(idecl),
-                    idecl.span,
+                    idecl,
                     spec.name.name.clone(),
                     spec.name.span,
-                    s.file,
+                    idecl.type_only,
                 ),
                 crate::binder::Decl::ImportDefault(idecl) => {
                     let n = idecl.default_name.as_ref().unwrap();
-                    (
-                        crate::ast::node_key(idecl),
-                        idecl.span,
-                        n.name.clone(),
-                        n.span,
-                        s.file,
-                    )
+                    (idecl, n.name.clone(), n.span, idecl.type_only)
                 }
                 crate::binder::Decl::ImportNamespace(idecl) => {
                     let n = idecl.namespace_name.as_ref().unwrap();
-                    (
-                        crate::ast::node_key(idecl),
-                        idecl.span,
-                        n.name.clone(),
-                        n.span,
-                        s.file,
-                    )
+                    (idecl, n.name.clone(), n.span, false)
                 }
+                // `import x = require("m")` reports individually in tsc
+                // (errorUnusedLocal, not the import grouping), but alias-use
+                // marking for qualified/typeof references is not reliable yet
+                // — deferred to the import-kinds sweep (U5)
                 _ => continue,
             };
             let entry = groups
-                .entry(idecl_key)
-                .or_insert((file, idecl_span, Vec::new()));
-            entry.2.push((sym, name, name_span));
+                .entry(crate::ast::node_key(idecl))
+                .or_insert((s.file, idecl, Vec::new()));
+            entry.2.push(ImportEntry {
+                sym,
+                name,
+                span: name_span,
+                clause_typed,
+            });
         }
-        let mut to_report: Vec<(usize, Span, Option<(String, Span)>)> = Vec::new();
-        for (_k, (file, ispan, specs)) in groups {
-            let unused: Vec<&(SymbolId, String, Span)> = specs
+        // (file, span, message, args)
+        let mut to_report: Vec<(usize, Span, &'static DiagnosticMessage, Vec<String>)> =
+            Vec::new();
+        for (_k, (file, idecl, entries)) in groups {
+            // total DECLARED names, syntactically (tsc nDeclarations) — a
+            // leading-underscore name is never collectible but still counts,
+            // forcing the per-element form on the others
+            let total = idecl.default_name.is_some() as usize
+                + idecl.namespace_name.is_some() as usize
+                + idecl.named.as_ref().map_or(0, |v| v.len());
+            let unused: Vec<&ImportEntry> = entries
                 .iter()
-                .filter(|(s, _, _)| !self.symuse.used_symbols.contains(s))
+                .filter(|e| {
+                    !e.name.starts_with('_')
+                        && !self.symuse.used_symbols.contains(&e.sym)
+                        // a re-exported import is its own use (tsc exportSymbol)
+                        && !self
+                            .bind
+                            .exports
+                            .get(&file)
+                            .is_some_and(|t| t.iter().any(|(_, x)| *x == e.sym))
+                })
                 .collect();
             if unused.is_empty() {
                 continue;
             }
-            if unused.len() == specs.len() {
-                to_report.push((file, ispan, None));
+            if unused.len() == total {
+                if total == 1 {
+                    to_report.push((
+                        file,
+                        idecl.span,
+                        &gen::_0_is_declared_but_its_value_is_never_read,
+                        vec![unused[0].name.clone()],
+                    ));
+                } else {
+                    to_report.push((
+                        file,
+                        idecl.span,
+                        &gen::All_imports_in_import_declaration_are_unused,
+                        Vec::new(),
+                    ));
+                }
             } else {
-                for (_, n, sp) in unused {
-                    to_report.push((file, *sp, Some((n.clone(), *sp))));
+                for e in unused {
+                    // tsc errorUnusedLocal: a type-only import binding is a
+                    // type declaration — "declared but never used"
+                    let msg = if e.clause_typed {
+                        &gen::_0_is_declared_but_never_used
+                    } else {
+                        &gen::_0_is_declared_but_its_value_is_never_read
+                    };
+                    to_report.push((file, e.span, msg, vec![e.name.clone()]));
                 }
             }
         }
         let imports_as_error = self.options.no_unused_locals;
-        for (file, span, detail) in to_report {
+        for (file, span, msg, args) in to_report {
             let prev = self.current_file;
             self.current_file = file;
-            match detail {
-                None => self.unused_diag(
-                    span,
-                    &gen::All_imports_in_import_declaration_are_unused,
-                    &[],
-                    imports_as_error,
-                ),
-                Some((name, nspan)) => self.unused_diag(
-                    nspan,
-                    &gen::_0_is_declared_but_its_value_is_never_read,
-                    &[name],
-                    imports_as_error,
-                ),
-            }
+            self.unused_diag(span, msg, &args, imports_as_error);
             self.current_file = prev;
         }
     }
@@ -4789,6 +4934,32 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// `lookup_value` for parameter-initializer positions: at the owning
+    /// function's scope only parameters are visible — a body-hoisted local
+    /// of the same name is skipped and resolution continues outward (tsc
+    /// useOuterVariableScopeInParameter).
+    fn lookup_value_param_init(
+        &self,
+        mut scope: ScopeId,
+        name: &str,
+        fn_scope: ScopeId,
+    ) -> Option<SymbolId> {
+        loop {
+            let s = self.scope_at(scope);
+            if let Some(id) = s.values.get(name) {
+                if scope != fn_scope
+                    || self.bind.symbols[id.0 as usize].flags & flags::PARAMETER != 0
+                {
+                    return Some(id);
+                }
+            }
+            match s.parent {
+                Some(p) => scope = p,
+                None => return None,
+            }
+        }
+    }
+
     pub fn lookup_type(&self, mut scope: ScopeId, name: &str) -> Option<SymbolId> {
         loop {
             let s = self.scope_at(scope);
@@ -4807,7 +4978,11 @@ impl<'a> Checker<'a> {
         if id.name.is_empty() {
             return None; // parse-error identifier
         }
-        if let Some(sym) = self.lookup_value(scope, &id.name) {
+        let resolved = match self.cflags.param_init_scope {
+            Some(fs) => self.lookup_value_param_init(scope, &id.name, fs),
+            None => self.lookup_value(scope, &id.name),
+        };
+        if let Some(sym) = resolved {
             let f = self.bind.symbols[sym.0 as usize].flags;
             if f & flags::NAMESPACE != 0
                 && f & (flags::FUNCTION | flags::CLASS | flags::ENUM) == 0
