@@ -418,7 +418,15 @@ impl<'a> Checker<'a> {
                     None => FlowRes::Unknown,
                 }
             }
-            Step::Dead => FlowRes::Dead,
+            // tsc getTypeAtFlowNode's unreachable terminus yields the
+            // DECLARED type, unnarrowed (a read whose own flow sits in dead
+            // code). Never-call deadness is different: it is the propagated
+            // FlowRes::Dead from the Call arm (tsc unreachableNeverType,
+            // dissolving at joins / unwrapping to declared at the read).
+            Step::Dead => match self.declared_type_of_ref(key) {
+                Some(t) => FlowRes::Ty(t),
+                None => FlowRes::Unknown,
+            },
             Step::Branch(antes) => {
                 let declared = self.declared_type_of_ref(key);
                 // tsc takes the declared-type subsumption shortcut only when
@@ -643,7 +651,16 @@ impl<'a> Checker<'a> {
                     return self.flow_type_at(key, ante, depth + 1);
                 }
                 match self.ref_key_in_scope(target, scope) {
-                    Some(tk) if tk == *key => self.assigned_type(key, expr, scope, ante, depth),
+                    // tsc getTypeAtFlowAssignment: a MATCHING assignment on an
+                    // unreachable path contributes unreachableNeverType —
+                    // dropped at joins, declared at the read (`if (false)
+                    // { x = 1 } x` must not see `1`)
+                    Some(tk) if tk == *key => {
+                        if !self.is_reachable_flow(flow) {
+                            return FlowRes::Dead;
+                        }
+                        self.assigned_type(key, expr, scope, ante, depth)
+                    }
                     // fact parity: an assignment through the same root
                     // invalidates every fact rooted at it — EXCEPT in a
                     // seeded (definite-assignment) walk: `b.func1 = …` does
@@ -681,6 +698,11 @@ impl<'a> Checker<'a> {
             Step::Init(decl, scope, ante) => {
                 if !self.decl_declares(decl, key.0) {
                     return self.flow_type_at(key, ante, depth + 1);
+                }
+                // dead initialization — same tsc reachability guard as the
+                // Assign arm (an Init is a FlowAssignment in tsc)
+                if !self.is_reachable_flow(flow) {
+                    return FlowRes::Dead;
                 }
                 let Some(declared) = self.declared_type_of_ref(key) else {
                     return FlowRes::Unknown;
