@@ -412,12 +412,22 @@ impl<'a> Checker<'a> {
                     if let Expr::Binary {
                         op: BinOp::Assign,
                         left,
+                        right,
                         ..
                     } = tgt
                     {
+                        // element default: its initializer is a read position
+                        self.in_read_position(|c| c.check_expr(right, None));
                         tgt = left;
                     }
                     if let Expr::Spread { expr, .. } = tgt {
+                        // a rest target still counts as a use: tsc accessKind
+                        // has no SpreadElement case, so the leaf reads as Read
+                        if let Expr::Ident(id) = &**expr {
+                            if let Some(sym) = self.lookup_value(self.current_scope, &id.name) {
+                                self.symuse.used_symbols.insert(sym);
+                            }
+                        }
                         tgt = expr;
                     }
                     if matches!(tgt, Expr::Missing { .. }) {
@@ -436,19 +446,34 @@ impl<'a> Checker<'a> {
                                 self.symuse.assigned_symbols.insert(sym);
                             }
                         }
-                        ObjectProp::Property { value, .. } => {
+                        ObjectProp::Property { name, value, .. } => {
+                            // a computed key is a read position (tsc accessKind:
+                            // ComputedPropertyName parents read as Read)
+                            if let crate::ast::PropName::Computed { expr: kexpr, .. } = name {
+                                self.in_read_position(|c| c.check_expr(kexpr, None));
+                            }
                             let mut tgt = value;
                             if let Expr::Binary {
                                 op: BinOp::Assign,
                                 left,
+                                right,
                                 ..
                             } = tgt
                             {
+                                // property default: initializer is a read position
+                                self.in_read_position(|c| c.check_expr(right, None));
                                 tgt = left;
                             }
                             ok &= self.check_reference_for_assignment(tgt, _for_update);
                         }
                         ObjectProp::Spread { expr, .. } => {
+                            // rest targets count as uses (accessKind quirk, see
+                            // the array arm)
+                            if let Expr::Ident(id) = expr {
+                                if let Some(sym) = self.lookup_value(self.current_scope, &id.name) {
+                                    self.symuse.used_symbols.insert(sym);
+                                }
+                            }
                             ok &= self.check_reference_for_assignment(expr, _for_update);
                         }
                         ObjectProp::Method(m) => {
@@ -496,11 +521,11 @@ impl<'a> Checker<'a> {
                         &gen::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access,
                         &[],
                     );
-                    return self.check_expr(right, None);
+                    return self.in_read_position(|c| c.check_expr(right, None));
                 }
                 let ok = self.check_reference_for_assignment(left, false);
                 if !ok {
-                    return self.check_expr(right, None);
+                    return self.in_read_position(|c| c.check_expr(right, None));
                 }
                 // A destructuring-assignment pattern (`[a, b] = …`, `({x} = …)`)
                 // was validated element-wise by check_reference_for_assignment;
@@ -508,10 +533,10 @@ impl<'a> Checker<'a> {
                 // value/narrowing path below, which would mis-read the pattern as
                 // a value expression.
                 if matches!(&**left, Expr::Array { .. } | Expr::Object { .. }) {
-                    return self.check_expr(right, None);
+                    return self.in_read_position(|c| c.check_expr(right, None));
                 }
                 let lt = self.check_target_type(left);
-                let rt = self.check_expr(right, Some(lt));
+                let rt = self.in_read_position(|c| c.check_expr(right, Some(lt)));
                 // The assigned value must be assignable to the target's declared
                 // type (`x = v` where `x: number` and `v: string` is TS2322).
                 // `check_reference_for_assignment` already handled non-assignable
@@ -528,6 +553,7 @@ impl<'a> Checker<'a> {
             AddAssign | SubAssign | MulAssign | DivAssign | ModAssign | ExpAssign | ShlAssign
             | ShrAssign | UShrAssign | AmpAssign | BarAssign | CaretAssign => {
                 let ok = self.check_reference_for_assignment(left, false);
+                self.mark_readwrite_target_used(left);
                 let lt = self.check_target_type(left);
                 // a compound assignment READS the target first: definite
                 // assignment applies (tsc AssignmentKind.Compound); the
@@ -557,8 +583,9 @@ impl<'a> Checker<'a> {
             }
             AmpAmpAssign | BarBarAssign | QuestionQuestionAssign => {
                 self.check_reference_for_assignment(left, false);
+                self.mark_readwrite_target_used(left);
                 let lt = self.check_target_type(left);
-                let rt = self.check_expr(right, Some(lt));
+                let rt = self.in_read_position(|c| c.check_expr(right, Some(lt)));
                 rt
             }
             Comma => {
@@ -902,6 +929,33 @@ impl<'a> Checker<'a> {
         let r = self.types.regular(t);
         let w = self.types.widen_literal(r);
         self.display_type(w)
+    }
+
+    /// A compound / logical-assignment / update target READS before it
+    /// writes (tsc accessKind: ReadWrite), so unlike a plain `=` target it
+    /// counts as a use of the symbol.
+    pub(crate) fn mark_readwrite_target_used(&mut self, target: &'a Expr) {
+        let mut t = target;
+        while let Expr::Paren { inner, .. } = t {
+            t = inner;
+        }
+        if let Expr::Ident(id) = t {
+            if let Some(sym) = self.lookup_value(self.current_scope, &id.name) {
+                self.symuse.used_symbols.insert(sym);
+            }
+        }
+    }
+
+    /// Run `f` with the pattern-target counter cleared: a read position
+    /// nested inside an assignment-target pattern (computed key, default
+    /// initializer, member-access receiver/index) is a use again (tsc
+    /// accessKind returns Read for those parents).
+    pub(crate) fn in_read_position<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        let saved = self.cflags.pattern_target;
+        self.cflags.pattern_target = 0;
+        let r = f(self);
+        self.cflags.pattern_target = saved;
+        r
     }
 
     /// type of an assignment target (no narrowing — declared types)

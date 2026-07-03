@@ -790,7 +790,13 @@ impl<'a> Checker<'a> {
         let Some(sym) = self.resolve_value_ident(id, scope) else {
             return self.types.error;
         };
-        self.symuse.used_symbols.insert(sym);
+        // a write-only leaf of a destructuring/parenthesized assignment target
+        // is not a use (tsc resolveName isUse = !isWriteOnlyAccess); reads that
+        // resume inside the pattern (computed keys, defaults, member-access
+        // receivers) run with the counter cleared and do mark
+        if self.cflags.pattern_target == 0 {
+            self.symuse.used_symbols.insert(sym);
+        }
         if self.symbol(sym).flags & flags::ALIAS != 0 {
             if let Some(crate::binder::Decl::Import(spec, _)) = self.symbol(sym).decls.first() {
                 if spec.type_only {
@@ -809,7 +815,9 @@ impl<'a> Checker<'a> {
             sym
         };
         // type-only symbols used as values: interface/type alias
-        self.symuse.used_symbols.insert(sym);
+        if self.cflags.pattern_target == 0 {
+            self.symuse.used_symbols.insert(sym);
+        }
         // const enums may only appear as property/index access receivers
         if self.symbol(sym).flags & flags::ENUM != 0 && !self.enums.const_enum_ident_ok {
             let is_const_enum = self
@@ -1291,9 +1299,10 @@ impl<'a> Checker<'a> {
                     }
                     self.check_computed_name_grammar(name);
                     // computed names with literal keys check against the
-                    // contextual property type (2418)
+                    // contextual property type (2418); the key expression is a
+                    // read even when this literal is an assignment target
                     if let PropName::Computed { expr: kexpr, .. } = name {
-                        let kt = self.check_expr(kexpr, None);
+                        let kt = self.in_read_position(|c| c.check_expr(kexpr, None));
                         let kr = self.types.regular(kt);
                         if let TypeKind::StrLit(kname) = self.types.kind(kr).clone() {
                             let kname = kname.to_str_lossy().into_owned();

@@ -3956,6 +3956,39 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// A symbol tsc would never surface in an unused group: lib/.d.ts
+    /// declarations, ambient-context members, exports, and top-level bindings
+    /// of a script file (those live on `globals`, not the file's locals, so
+    /// checkUnusedLocalsAndParameters never sees them).
+    fn unused_group_symbol_exempt(&self, sym: SymbolId) -> bool {
+        let s = &self.bind.symbols[sym.0 as usize];
+        if s.file == self.lib_file || self.files[s.file].0.ends_with(".d.ts") {
+            return true;
+        }
+        if self.bind.ambient_context_symbols.contains(&sym) {
+            return true;
+        }
+        if self.is_exported_namespace_member(sym) || self.has_exported_module_declaration(s) {
+            return true;
+        }
+        if let Some(exports) = self.bind.exports.get(&s.file) {
+            if exports.iter().any(|(_, e)| *e == sym) {
+                return true;
+            }
+        }
+        let Some(decl) = s.decls.first() else {
+            return true;
+        };
+        let decl_key = match decl {
+            crate::binder::Decl::Var(d, _) => crate::ast::node_key(*d),
+            _ => return false,
+        };
+        let file_is_module = self.files[s.file].2.is_module;
+        let ds = self.bind.decl_scope.get(&decl_key).copied();
+        let ms = self.bind.module_scope.get(&s.file).copied();
+        ds.is_some() && ds == ms && !file_is_module
+    }
+
     /// 6198 (all destructured elements unused) / 6199 (all variables unused)
     fn check_unused_groups(&mut self) {
         let as_error = self.options.no_unused_locals;
@@ -3964,6 +3997,9 @@ impl<'a> Checker<'a> {
         let var_groups = self.bind.var_stmt_groups.clone();
         for (file, span, syms) in pattern_groups {
             if file == self.lib_file || syms.is_empty() {
+                continue;
+            }
+            if syms.iter().any(|s| self.unused_group_symbol_exempt(*s)) {
                 continue;
             }
             // tsc reports 6198 ("all destructured elements are unused") for a
@@ -3997,6 +4033,9 @@ impl<'a> Checker<'a> {
         }
         for (file, span, syms) in var_groups {
             if file == self.lib_file || syms.len() < 2 {
+                continue;
+            }
+            if syms.iter().any(|s| self.unused_group_symbol_exempt(*s)) {
                 continue;
             }
             if syms.iter().all(|s| {

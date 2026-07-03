@@ -321,7 +321,9 @@ impl<'a> Checker<'a> {
         };
         let prev_flag = self.enums.const_enum_ident_ok;
         self.enums.const_enum_ident_ok = true;
-        let mut obj_t = self.check_expr(obj, None);
+        // the receiver of a member-access target is a read even inside an
+        // assignment pattern (tsc accessKind: PropertyAccess → Read)
+        let mut obj_t = self.in_read_position(|c| c.check_expr(obj, None));
         self.enums.const_enum_ident_ok = prev_flag;
         if self.types.is_error(obj_t) {
             return self.types.error;
@@ -815,9 +817,11 @@ impl<'a> Checker<'a> {
         };
         let prev_flag = self.enums.const_enum_ident_ok;
         self.enums.const_enum_ident_ok = true;
-        let mut obj_t = self.check_expr(obj, None);
+        // receiver + index of an element-access target are reads even inside
+        // an assignment pattern (tsc accessKind: PropertyAccess → Read)
+        let mut obj_t = self.in_read_position(|c| c.check_expr(obj, None));
         self.enums.const_enum_ident_ok = prev_flag;
-        let idx_t = self.check_expr(index, None);
+        let idx_t = self.in_read_position(|c| c.check_expr(index, None));
         if self.types.is_error(obj_t) || self.types.is_error(idx_t) {
             return self.types.error;
         }
