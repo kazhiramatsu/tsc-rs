@@ -3317,4 +3317,300 @@ function s3(x: number) {
         assert!(!out.contains("main.ts(10,18)"), "{out}");
         assert!(!out.contains("main.ts(13,18)"), "{out}");
     }
+
+    /// Stage 4: auto-variable CFA (tsc autoType). The oracle fixture
+    /// controlFlowNoImplicitAny is OUTSIDE the gate corpus, so these pins
+    /// carry it: same-container reads take the flow union with the nullish
+    /// initial (strict), and no 7005/7034 fires for them.
+    #[test]
+    fn stage4_auto_variable_cfa_strict() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+declare let cond: boolean;
+function f1() {
+    let x;
+    if (cond) { x = 1; }
+    if (cond) { x = "hello"; }
+    const y = x;
+    const z: never = y;
+}
+function f3() {
+    let x = null;
+    if (cond) { x = 1; }
+    const y = x;
+    const z: never = y;
+}
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+        assert!(
+            out.contains("Type 'string | number | undefined' is not assignable to type 'never'"),
+            "{out}"
+        );
+        assert!(
+            out.contains("Type 'number | null' is not assignable to type 'never'"),
+            "{out}"
+        );
+        assert!(!out.contains("TS7005"), "{out}");
+        assert!(!out.contains("TS7034"), "{out}");
+    }
+
+    /// Stage 4: capture reads of auto variables are tsc's autoType — any +
+    /// TS7005 at the read + TS7034 at the declaration; a capture that
+    /// assigns locally before reading resolves and stays silent.
+    #[test]
+    fn stage4_auto_capture_reads_7005_7034() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+function f9() {
+    let x;
+    x = 1;
+    const g = () => x;
+    g();
+}
+function f6() {
+    let ok;
+    const h = () => { ok = 2; return ok; };
+    h();
+}
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+        assert!(
+            out.contains("main.ts(3,9): error TS7034"),
+            "7034 at the decl name: {out}"
+        );
+        assert!(
+            out.contains("main.ts(5,21): error TS7005"),
+            "7005 at the capture read: {out}"
+        );
+        assert!(
+            !out.contains("Variable 'ok' implicitly"),
+            "locally-assigned capture stays silent: {out}"
+        );
+    }
+
+    /// Stage 4: non-strict CFA drops nullish members once mixed with an
+    /// assigned type, but an exactly-initial read stays `undefined` and a
+    /// property access on it errors 18048 even without strictNullChecks
+    /// (tsc checkNonNullType's top-level-flags path).
+    #[test]
+    fn stage4_auto_nonstrict_mixed_drop_and_pure_nullish() {
+        let opts = CompilerOptions {
+            strict: Some(false),
+            no_implicit_any: Some(true),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+declare let cond: boolean;
+function p1() {
+    let x;
+    if (cond) { x = 1; }
+    const y = x;
+    const z: never = y;
+}
+function p3b() {
+    let x;
+    x.foo;
+    x = 1;
+}
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+        assert!(
+            out.contains("Type 'number' is not assignable to type 'never'"),
+            "nullish dropped when mixed: {out}"
+        );
+        assert!(
+            out.contains("main.ts(11,5): error TS18048"),
+            "pure-undefined receiver errors even non-strict: {out}"
+        );
+    }
+
+    /// Stage 4: unreachable code narrows nothing (tsc collapses conditions
+    /// over unreachable flow in the binder), and a dead matching assignment
+    /// contributes nothing to live joins (reachability guard).
+    #[test]
+    fn stage4_dead_code_reads_declared() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+function f(x: string | number) {
+    return;
+    if (typeof x === "string") {
+        const s: string = x;
+    }
+}
+function g() {
+    let x: number | string = "a";
+    if (false) { x = 1; }
+    const y: string = x;
+}
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+        assert!(
+            out.contains("main.ts(5,15): error TS2322"),
+            "dead-code reads are DECLARED, unnarrowed: {out}"
+        );
+        assert!(
+            !out.contains("main.ts(11,"),
+            "dead assignment drops from the join: {out}"
+        );
+    }
+
+    /// Stage 4: `this` narrows like any reference — both the VALUE `this`
+    /// and a root-level `typeof this` annotation read the narrowed type
+    /// under `this instanceof D` (the fact stack never narrowed values).
+    #[test]
+    fn stage4_this_and_typeof_this_narrowing() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+class D1 { f1() { return 1; } }
+class C {
+    m() {
+        if (this instanceof D1) {
+            const d: typeof this = this;
+            d.f1();
+        }
+    }
+}
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+        assert!(!out.contains("TS2339"), "member resolves on narrowed this: {out}");
+        assert!(!out.contains("TS2741"), "value this narrows too: {out}");
+        assert!(!out.contains("TS2322"), "{out}");
+    }
+
+    /// Stage 4: comparison/arithmetic/unary operands containing nullish
+    /// report 18048 (tsc checkNonNullType at operator positions), not the
+    /// operator-applicability errors.
+    #[test]
+    fn stage4_operand_nullish_18048() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: "function f() {\n    let x;\n    x < 1;\n    -x;\n    x * 2;\n}\n"
+                        .to_string(),
+                },
+            ],
+            &opts,
+        );
+        assert!(out.contains("main.ts(3,5): error TS18048"), "{out}");
+        assert!(out.contains("main.ts(4,6): error TS18048"), "{out}");
+        assert!(out.contains("main.ts(5,5): error TS18048"), "{out}");
+        assert!(!out.contains("TS2365"), "{out}");
+        assert!(!out.contains("TS2362"), "{out}");
+    }
+
+    /// Stage 4 write positions: a prop/elem assignment TARGET reads its
+    /// declared reference type (tsc AssignmentKind.Definite) while the
+    /// RECEIVER narrows normally — `control[key] = value` under a guard.
+    #[test]
+    fn stage4_write_target_receiver_narrows() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: String::new(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+interface A { p: string; }
+function u<T extends A, K extends keyof T>(c: T | undefined, k: K, v: T[K]) {
+    if (c !== undefined) {
+        c[k] = v;
+    }
+}
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+        assert!(!out.contains("TS18048"), "receiver is narrowed: {out}");
+        assert!(!out.contains("TS2322"), "target member type accepts T[K]: {out}");
+    }
 }
