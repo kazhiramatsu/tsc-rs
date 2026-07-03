@@ -1907,6 +1907,131 @@ function f<T, U>(t: T, u: U) {
     }
 
     #[test]
+    fn definite_assignment_flow_query_2454() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: "interface Object {}\ninterface Function {}\ninterface Boolean {}\ninterface Number {}\ninterface String {}\ninterface RegExp {}\ninterface IArguments {}\ninterface Array<T> { length: number; [n: number]: T; }\n".to_string(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+declare const cond: boolean;
+function loops() {
+    let a: number;
+    while (cond) { a = 1; }
+    a;                        // 2454: zero-iteration path
+    let b: number;
+    while (true) { b = 1; break; }
+    b;                        // ok: only the break edge reaches here
+}
+function seq() {
+    let c: number;
+    if (cond) { c = 1; }
+    c;                        // 2454: else path unassigned
+    let d: number;
+    if (cond) { d = 1; } else { d = 2; }
+    d;                        // ok: both branches assign
+    let e: number;
+    e!;                       // ok: non-null assertion asserts assignment
+    (e)!;                     // 2454: parens break the exemption (tsc)
+    let f: number;
+    f **= 2;                  // 2454: compound assignment reads first
+    let g: string | void;
+    g;                        // 2454: void does not count as undefined
+}
+function exhaustive(x: "a" | "b") {
+    let y: number;
+    switch (x) {
+        case "a": y = 1; break;
+        case "b": y = 2; break;
+    }
+    y;                        // ok: exhaustive switch, no-match unreachable
+}
+function tryFlow() {
+    let t: number;
+    try { t = mayThrow(); } catch { }
+    t;                        // 2454: the exception path skips the assignment
+}
+declare function mayThrow(): number;
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+        let count_2454 = out.matches("TS2454").count();
+        assert!(out.contains("main.ts(6,5): error TS2454"), "{out}");
+        assert!(out.contains("main.ts(14,5): error TS2454"), "{out}");
+        assert!(out.contains("main.ts(20,6): error TS2454"), "{out}");
+        assert!(out.contains("main.ts(22,5): error TS2454"), "{out}");
+        assert!(out.contains("main.ts(24,5): error TS2454"), "{out}");
+        assert!(out.contains("main.ts(37,5): error TS2454"), "{out}");
+        assert_eq!(count_2454, 6, "{out}");
+    }
+
+    #[test]
+    fn strict_property_initialization_flow_2564_2565() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: LIB_NAME.to_string(),
+                    text: "interface Object {}\ninterface Function {}\ninterface Boolean {}\ninterface Number {}\ninterface String {}\ninterface RegExp {}\ninterface IArguments {}\ninterface Array<T> { length: number; [n: number]: T; }\n".to_string(),
+                },
+                InputFile {
+                    name: "main.ts".to_string(),
+                    text: r#"
+declare const cond: boolean;
+class A {
+    a: number;               // 2564: never assigned
+    b: number;               // ok: assigned unconditionally
+    c: number;               // 2564: only one branch assigns
+    d: number;               // ok: both branches assign
+    e: number;               // ok: early return guards the fallthrough
+    f: number;               // KNOWN DIVERGENCE: assigned in try-finally
+                             // without catch — tsc's ReduceLabel drops the
+                             // exceptional antecedents (no error); tsrs's
+                             // end join keeps them, so 2564 fires here
+    "s": number;             // ok: literal-named props are exempt
+    u: number | undefined;   // ok: undefined-including type
+    constructor() {
+        const r1 = this.b;   // 2565: read before the assignment below
+        this.b = 1;
+        const r2 = this.b;   // ok
+        if (cond) { this.c = 1; this.d = 1; } else { this.d = 2; }
+        if (cond) { this.e = 1; return; }
+        this.e = 2;
+        try { this.f = 1; } finally { }
+    }
+    m(): number { return this.a; }  // ok: methods are not the constructor
+}
+"#
+                    .to_string(),
+                },
+            ],
+            &opts,
+        );
+        assert!(out.contains("main.ts(4,5): error TS2564"), "{out}");
+        assert!(out.contains("main.ts(6,5): error TS2564"), "{out}");
+        // the third 2564 pins the try/finally ReduceLabel divergence on `f`
+        assert!(out.contains("main.ts(9,5): error TS2564"), "{out}");
+        assert_eq!(out.matches("TS2564").count(), 3, "{out}");
+        assert!(out.contains("error TS2565: Property 'b'"), "{out}");
+        assert_eq!(out.matches("TS2565").count(), 1, "{out}");
+    }
+
+    #[test]
     fn deferred_mapped_type_display_is_canonical() {
         let opts = CompilerOptions {
             strict: Some(true),
