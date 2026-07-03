@@ -70,7 +70,15 @@ impl<'a> Checker<'a> {
     /// symbol's type walked along the property path. This is
     /// `current_type_of_key` minus the `fact_for` lookups.
     pub(crate) fn declared_type_of_ref(&mut self, key: &RefKey) -> Option<TypeId> {
-        let mut t = self.type_of_symbol(key.0);
+        let mut t = if Some(key.0) == self.fresolve.this_sym {
+            // the synthetic `this` root of a seeded 2564/2565 query: the
+            // declaring class's instance type (the symbol itself is a type
+            // parameter with no value declaration)
+            let owner = self.this_param_owner(key.0)?;
+            self.types.intern_kind(TypeKind::Iface(owner))
+        } else {
+            self.type_of_symbol(key.0)
+        };
         for part in &key.1 {
             t = self.prop_of_type(t, part)?;
         }
@@ -437,10 +445,13 @@ impl<'a> Checker<'a> {
                 // only variables (var/let/const/params/catch) are flow-
                 // narrowed by assignments; a bogus assignment to an enum
                 // object / namespace / class (`E = null`) is an error and
-                // must not make downstream reads of `E` see `null`
-                if self.symbol(key.0).flags
-                    & (flags::FUNCTION_SCOPED_VARIABLE | flags::BLOCK_SCOPED_VARIABLE)
-                    == 0
+                // must not make downstream reads of `E` see `null`. The
+                // synthetic `this` root of a seeded 2564/2565 query is
+                // narrowable by construction.
+                if Some(key.0) != self.fresolve.this_sym
+                    && self.symbol(key.0).flags
+                        & (flags::FUNCTION_SCOPED_VARIABLE | flags::BLOCK_SCOPED_VARIABLE)
+                        == 0
                 {
                     return self.flow_type_at(key, ante, depth + 1);
                 }
@@ -648,6 +659,9 @@ impl<'a> Checker<'a> {
     /// resolver was invoked. `this` is not keyed (matches `ref_key_of`).
     pub(crate) fn ref_key_in_scope(&self, e: &Expr, scope: ScopeId) -> Option<RefKey> {
         match e {
+            // `this` is keyed only during a this-seeded query (2564/2565);
+            // Stage-1 narrowing reads never set this_sym
+            Expr::This { .. } => self.fresolve.this_sym.map(|s| RefKey(s, Vec::new())),
             Expr::Ident(id) => self
                 .lookup_value(scope, &id.name)
                 .map(|s| RefKey(s, Vec::new())),
@@ -947,6 +961,34 @@ impl<'a> Checker<'a> {
                 let _ = self.da_check_ident_read(id, sym);
             }
         }
+    }
+
+    /// TS2564: is `this.<prop>` definitely assigned at the constructor's
+    /// END flow (every `return` joined with the fall-through)? Mirrors tsc
+    /// isPropertyInitializedInConstructor: seed `propType | undefined`, key
+    /// `this` for the query's duration, and read whether `undefined`
+    /// survived. `None` = the graph cannot answer (no end flow recorded) —
+    /// callers treat that as not-assigned, like the old syntactic scan.
+    pub(crate) fn prop_assigned_in_ctor_flow(
+        &mut self,
+        class_sym: SymbolId,
+        ctor_key: usize,
+        prop: &str,
+        prop_ty: TypeId,
+        prop_span: Span,
+    ) -> Option<bool> {
+        let end = *self.bind.fn_end_flow.get(&ctor_key)?;
+        let this_sym = self.this_param_of(class_sym);
+        let key = RefKey(this_sym, vec![prop.to_string()]);
+        let undef = self.types.undefined;
+        let initial = self.types.union(vec![prop_ty, undef]);
+        self.fresolve.this_sym = Some(this_sym);
+        // never_initialized=true: the property "declares" outside the
+        // constructor's span, so the seed must be consumable at the ctor's
+        // own entry
+        let t = self.get_flow_type_of_reference_seeded(&key, end, initial, prop_span, true);
+        self.fresolve.this_sym = None;
+        t.map(|t| !self.contains_undefined_member(t))
     }
 
     /// The seeded-walk entry with the read-seam guard triple.

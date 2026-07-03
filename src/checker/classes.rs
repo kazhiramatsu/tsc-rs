@@ -5,7 +5,7 @@
 use crate::ast::*;
 use crate::binder::{flags, SymbolId};
 use crate::checker::stmts::{
-    class_member_prop_name, collect_this_spans, stmts_assign_this_prop, super_call_pos,
+    class_member_prop_name, collect_this_spans, super_call_pos,
     DecoratorKind, MemberKind,
 };
 use crate::checker::{Checker, CtorFieldContext, CtorFieldContextKind, Slot};
@@ -856,6 +856,9 @@ impl<'a> Checker<'a> {
         let class_is_ambient =
             has_modifier(&c.modifiers, ModifierKind::Declare) || self.in_ambient_context();
         let instance = self.types.intern_kind(TypeKind::Iface(sym));
+        // strictPropertyInitialization candidates, resolved after the member
+        // loop (the constructor's body must have been checked first)
+        let mut pending_2564: Vec<(&'a PropertyDecl, TypeId)> = Vec::new();
         for m in &c.members {
             match m {
                 ClassMember::StaticBlock(b) => {
@@ -1035,22 +1038,34 @@ impl<'a> Checker<'a> {
                                 self.check_assignable(it, dt, p.name.span(), None, Some(init));
                             }
                         }
-                    } else if let Some(_dt) = declared {
-                        // strictPropertyInitialization
+                    } else if let Some(dt) = declared {
+                        // strictPropertyInitialization. tsc additionally
+                        // exempts string/numeric-literal-named properties
+                        // and any/unknown or undefined-including types
+                        // (checkPropertyInitialization). The flow query is
+                        // DEFERRED past the member loop — tsc checks
+                        // property initialization after the class body, and
+                        // the constructor's expressions must be checked
+                        // (cached) before its end flow can be resolved.
                         if self.options.strict_property_initialization()
                             && !p.question
                             && !p.exclam
                             && !has_modifier(&p.modifiers, ModifierKind::Static)
                             && !has_modifier(&p.modifiers, ModifierKind::Declare)
                             && !has_modifier(&p.modifiers, ModifierKind::Abstract)
-                            && !self.is_definitely_assigned_in_ctor(c, &p.name)
+                            && !matches!(
+                                p.name,
+                                PropName::String { .. } | PropName::Number { .. }
+                            )
+                            && !matches!(
+                                self.types.kind(dt),
+                                crate::types::TypeKind::Any
+                                    | crate::types::TypeKind::Unknown
+                                    | crate::types::TypeKind::Error
+                            )
+                            && !self.contains_undefined_member(dt)
                         {
-                            let n = self.display_prop_name_for_error(&p.name);
-                            self.error_at(
-                                p.name.span(),
-                                &gen::Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_constructor,
-                                &[n],
-                            );
+                            pending_2564.push((p, dt));
                         }
                     }
                 }
@@ -1128,6 +1143,19 @@ impl<'a> Checker<'a> {
                     self.flow.ctor_flow = None;
                 }
                 ClassMember::Index(_) => {}
+            }
+        }
+        // strictPropertyInitialization (tsc checkPropertyInitialization runs
+        // after the class body): query each candidate at the constructor's
+        // end flow
+        for (p, dt) in pending_2564 {
+            if !self.is_definitely_assigned_in_ctor(c, &p.name, dt) {
+                let n = self.display_prop_name_for_error(&p.name);
+                self.error_at(
+                    p.name.span(),
+                    &gen::Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_constructor,
+                    &[n],
+                );
             }
         }
         // heritage compatibility — tsc: silent whole-type check; on failure,
@@ -1260,12 +1288,32 @@ impl<'a> Checker<'a> {
             .unwrap_or(false)
     }
 
-    fn is_definitely_assigned_in_ctor(&self, c: &'a ClassDecl, name: &PropName) -> bool {
+    /// tsc isPropertyInitializedInConstructor: query the property's flow at
+    /// the first bodied constructor's END flow. A computed name has no
+    /// RefKey path — it stays "not assigned" (a known FP corner when
+    /// someone assigns `this[expr]`).
+    fn is_definitely_assigned_in_ctor(
+        &mut self,
+        c: &'a ClassDecl,
+        name: &PropName,
+        prop_ty: TypeId,
+    ) -> bool {
         let Some(n) = name.text() else { return false };
+        let Some(&class_sym) = self.stacks.class_stack.last() else {
+            return false;
+        };
         for m in &c.members {
             if let ClassMember::Constructor(f) = m {
-                if let Some(FuncBody::Block(b)) = &f.body {
-                    return stmts_assign_this_prop(&b.stmts, &n);
+                if matches!(&f.body, Some(FuncBody::Block(_))) {
+                    return self
+                        .prop_assigned_in_ctor_flow(
+                            class_sym,
+                            node_key(&**f),
+                            &n,
+                            prop_ty,
+                            name.span(),
+                        )
+                        .unwrap_or(false);
                 }
             }
         }

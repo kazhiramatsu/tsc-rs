@@ -27,6 +27,7 @@ pub fn build<'a>(bind: &mut BindResult<'a>, files: &'a [(String, SourceText, Sou
     let mut b = FlowBuilder {
         nodes: Vec::new(),
         map: HashMap::new(),
+        end_flow: HashMap::new(),
         brk: Vec::new(),
         cont: Vec::new(),
         ret: None,
@@ -45,14 +46,22 @@ pub fn build<'a>(bind: &mut BindResult<'a>, files: &'a [(String, SourceText, Sou
             .unwrap_or(bind.global_scope);
         b.build_stmts(&ast.stmts, start);
     }
-    let FlowBuilder { nodes, map, .. } = b;
+    let FlowBuilder {
+        nodes,
+        map,
+        end_flow,
+        ..
+    } = b;
     bind.flow_nodes = nodes;
     bind.flow_node = map;
+    bind.fn_end_flow = end_flow;
 }
 
 struct FlowBuilder<'a, 'b> {
     nodes: Vec<FlowNode<'a>>,
     map: HashMap<usize, FlowNodeId>,
+    /// function-like node ptr -> END flow (returns + fall-through joined)
+    end_flow: HashMap<usize, FlowNodeId>,
     /// break-target labels (a `Branch` per enclosing loop/switch), inner last.
     brk: Vec<FlowNodeId>,
     /// continue-target labels, inner last.
@@ -778,18 +787,25 @@ impl<'a> FlowBuilder<'a, '_> {
         let saved_exc = std::mem::take(&mut self.exc);
         let saved_labels = std::mem::take(&mut self.labels);
         let saved_pending = std::mem::take(&mut self.pending_labels);
-        let saved_ret = self.ret.take();
+        // every `return` joins the END label with the body's fall-through
+        // (tsc's returnFlowNode) — the constructor-end query point for
+        // strictPropertyInitialization
+        let end = self.branch(vec![]);
+        let saved_ret = self.ret.replace(end);
         let start = self.start(outer.map(|o| (o, f.span)), Some(f.span));
         let fl = self.build_params(f, start);
         match &f.body {
             Some(FuncBody::Block(b)) => {
-                self.build_stmts(&b.stmts, fl);
+                let out = self.build_stmts(&b.stmts, fl);
+                self.add_ante(end, out);
             }
             Some(FuncBody::Expr(e)) => {
-                self.build_expr(e, fl);
+                let out = self.build_expr(e, fl);
+                self.add_ante(end, out);
             }
             None => {}
         }
+        self.end_flow.insert(node_key(f), end);
         self.ret = saved_ret;
         self.pending_labels = saved_pending;
         self.labels = saved_labels;

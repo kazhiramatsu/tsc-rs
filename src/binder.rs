@@ -292,6 +292,9 @@ pub struct BindResult<'a> {
     /// decl node ptrs bound inside an ambient (`declare`) context — the
     /// symbol-level AMBIENT flag is unreliable for lib-merged globals
     pub decl_ambient: HashSet<usize>,
+    /// function-like node ptr -> its END flow (every `return` joined with
+    /// the fall-through) — the constructor-end query point for TS2564
+    pub fn_end_flow: HashMap<usize, FlowNodeId>,
     /// file -> the `export =` symbol
     pub export_equals: HashMap<usize, SymbolId>,
     /// (file, pattern span, member symbols) per destructuring declarator
@@ -423,6 +426,7 @@ pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -
         ambient_context_symbols: b.ambient_context_symbols,
         flow_nodes: Vec::new(),
         flow_node: HashMap::new(),
+        fn_end_flow: HashMap::new(),
         diags: b.diags,
     }
 }

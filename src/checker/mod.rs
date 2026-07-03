@@ -122,6 +122,11 @@ pub struct FlowResolve {
     /// (annotated, never-assigned `let`s), which tsc checks even across
     /// closures. Keyed so sub-walks of other references are unaffected.
     pub initial: Option<(RefKey, TypeId, crate::ast::Span, bool)>,
+    /// The class's `this` parameter symbol for the current SEEDED query:
+    /// `ref_key_in_scope` keys `Expr::This` as this root only while set, so
+    /// `this.x = v` Assign targets match the 2564/2565 queries without
+    /// changing Stage-1 narrowing (whose read seams never set it).
+    pub this_sym: Option<crate::binder::SymbolId>,
 }
 
 /// Resolution memoization caches: symbol→type, member-shape, signature return &
