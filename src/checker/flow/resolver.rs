@@ -1395,14 +1395,18 @@ impl<'a> Checker<'a> {
     /// node `nk`, now used IN PLACE of the lexical fact when it can be
     /// computed. `None` sends the caller down the legacy fact path: type
     /// positions have no flow node, dead-code walks return no answer, and
-    /// out-of-lexical-context reads (lazy symbol resolution, TS2403's
-    /// re-derivation, resolver re-entrancy) must not consult a flow node
-    /// that describes a different program point.
+    /// out-of-lexical-context re-checks (TS2403's re-derivation, write
+    /// positions) must not consult a flow node that describes a different
+    /// program point. Reads under LAZY SYMBOL RESOLUTION (`res.resolving`)
+    /// DO walk: initializer inference (`const y = x` resolving `y`) reads
+    /// `x` at its own position, and the bind-time graph is position-correct
+    /// no matter when resolution happens — the old guard existed for the
+    /// lexical fact fallback, whose state describes the wrong statement.
     pub(crate) fn flow_type_of_read(&mut self, nk: usize, key: &RefKey) -> Option<TypeId> {
         if !self.fresolve.in_progress.is_empty() {
             return None;
         }
-        if !self.res.resolving.is_empty() || self.fresolve.suppress > 0 {
+        if self.fresolve.suppress > 0 {
             return None;
         }
         // tsc runs flow analysis only for variable-like references
