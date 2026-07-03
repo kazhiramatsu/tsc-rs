@@ -388,6 +388,29 @@ impl<'a> Checker<'a> {
                         &[module.value.clone()],
                     );
                 }
+                // `import a = A.b` (entity form: the stored "module" is the
+                // dotted entity text, not a quoted string) — the reference is
+                // a use of its root (tsc resolveEntityName, isUse)
+                let is_require_form = self.files[self.current_file]
+                    .1
+                    .text
+                    .as_bytes()
+                    .get(module.span.start as usize)
+                    .is_some_and(|b| matches!(b, b'"' | b'\''));
+                if !is_require_form {
+                    let root = module.value.split('.').next().unwrap_or("");
+                    if !root.is_empty() {
+                        let scope = self.current_scope;
+                        if let Some(sym) = self
+                            .lookup_value(scope, root)
+                            .or_else(|| self.lookup_type(scope, root))
+                        {
+                            if !self.is_self_reference(sym, module.span) {
+                                self.symuse.used_symbols.insert(sym);
+                            }
+                        }
+                    }
+                }
             }
             Stmt::With {
                 obj, body, kw_span, ..

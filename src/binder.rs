@@ -386,6 +386,9 @@ pub struct UnusedVarList {
     /// `export`-modified statement: never reported (pattern leaves are not
     /// in the module exports table, so the flag is carried here)
     pub exported: bool,
+    /// `declare`-modified (or ambient-context) list: tsc unusedIsError keeps
+    /// ambient declarations at suggestion category even under noUnusedLocals
+    pub ambient: bool,
     pub entries: Vec<UnusedListEntry>,
 }
 
@@ -1250,6 +1253,7 @@ impl<'a> Binder<'a> {
             span: v.span,
             total: v.decls.len(),
             exported,
+            ambient: is_ambient,
             entries: Vec::new(),
         });
         for d in &v.decls {

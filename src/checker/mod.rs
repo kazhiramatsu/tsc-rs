@@ -793,7 +793,10 @@ impl<'a> Checker<'a> {
             let is_type_decl = s.flags & (flags::INTERFACE | flags::TYPE_ALIAS) != 0
                 || self.has_unused_class_declaration(s);
             let is_function = s.flags & flags::FUNCTION != 0;
-            if !(is_param || is_local_var || is_type_decl || is_function) {
+            let is_namespace = s.flags & flags::NAMESPACE != 0;
+            let is_enum = s.flags & flags::ENUM != 0;
+            if !(is_param || is_local_var || is_type_decl || is_function || is_namespace || is_enum)
+            {
                 continue;
             }
             let as_error = if is_param { no_params } else { no_locals };
@@ -814,13 +817,17 @@ impl<'a> Checker<'a> {
             // here only for a merged symbol's type-side (6196) or
             // function-side (`var f; function f() {}`) report.
             let decl_key = match decl {
-                crate::binder::Decl::Var(d, _) if is_type_decl || is_function => {
+                crate::binder::Decl::Var(d, _)
+                    if is_type_decl || is_function || is_namespace || is_enum =>
+                {
                     crate::ast::node_key(d)
                 }
                 crate::binder::Decl::Param(p) => crate::ast::node_key(p),
                 crate::binder::Decl::Interface(i) => crate::ast::node_key(i),
                 crate::binder::Decl::Alias(a) => crate::ast::node_key(a),
                 crate::binder::Decl::Func(fl) => crate::ast::node_key(fl),
+                crate::binder::Decl::Enum(e) => crate::ast::node_key(e),
+                crate::binder::Decl::Namespace(n) => crate::ast::node_key(n),
                 crate::binder::Decl::Class(c) if self.is_reportable_unused_class_declaration(c) => {
                     crate::ast::node_key(c)
                 }
@@ -887,44 +894,213 @@ impl<'a> Checker<'a> {
             }
             let name = s.name.clone();
             let file = s.file;
-            // tsc reports an unused function on *each* of its declarations
-            // (every overload signature plus the implementation).
-            let spans: Vec<crate::ast::Span> = if is_function {
-                s.decls
-                    .iter()
-                    .filter(|d| matches!(d, crate::binder::Decl::Func(_)))
-                    .map(|d| d.name_span())
-                    .collect()
-            } else if is_type_decl {
-                let spans = self.unused_type_decl_spans(s);
-                if spans.is_empty() {
-                    continue;
+            // tsc errorUnusedLocal runs per DECLARATION: a merged symbol
+            // reports at each of its declarations with that declaration's own
+            // message (6196 for type declarations, 6133 otherwise) and its own
+            // category — an ambient (`declare`) declaration is never an error
+            // (tsc unusedIsError), it stays a suggestion even under the flags.
+            use crate::ast::ModifierKind as MK;
+            let mut per_decl: Vec<(crate::ast::Span, &'static DiagnosticMessage, bool)> =
+                Vec::new();
+            let mut param_reported = false;
+            for d in &s.decls {
+                match d {
+                    crate::binder::Decl::Func(f) => per_decl.push((
+                        d.name_span(),
+                        &gen::_0_is_declared_but_its_value_is_never_read,
+                        has_modifier(&f.modifiers, MK::Declare),
+                    )),
+                    crate::binder::Decl::Class(c)
+                        if self.is_reportable_unused_class_declaration(c) =>
+                    {
+                        per_decl.push((
+                            d.name_span(),
+                            &gen::_0_is_declared_but_never_used,
+                            has_modifier(&c.modifiers, MK::Declare),
+                        ));
+                    }
+                    crate::binder::Decl::Interface(i) => per_decl.push((
+                        i.name.span,
+                        &gen::_0_is_declared_but_never_used,
+                        has_modifier(&i.modifiers, MK::Declare),
+                    )),
+                    crate::binder::Decl::Alias(a) => per_decl.push((
+                        a.name.span,
+                        &gen::_0_is_declared_but_never_used,
+                        has_modifier(&a.modifiers, MK::Declare),
+                    )),
+                    crate::binder::Decl::Enum(e) => {
+                        let ambient = has_modifier(&e.modifiers, MK::Declare);
+                        let state = if e.is_const { 2 } else { 1 };
+                        if (as_error && !ambient)
+                            || !self.unused_suggestion_emit_suppressed(ambient, state)
+                        {
+                            per_decl.push((
+                                e.name.span,
+                                &gen::_0_is_declared_but_never_used,
+                                ambient,
+                            ));
+                        }
+                    }
+                    crate::binder::Decl::Namespace(n) => {
+                        if let Some(span) = self.reportable_namespace_name_span(n) {
+                            let ambient = has_modifier(&n.modifiers, MK::Declare);
+                            let state = self.module_body_instance_state(s.file, &n.body);
+                            if (as_error && !ambient)
+                                || !self.unused_suggestion_emit_suppressed(ambient, state)
+                            {
+                                per_decl.push((
+                                    span,
+                                    &gen::_0_is_declared_but_its_value_is_never_read,
+                                    ambient,
+                                ));
+                            }
+                        }
+                    }
+                    // tsc keys the parameter report on local.valueDeclaration:
+                    // a merged param symbol (duplicate names) reports once
+                    crate::binder::Decl::Param(p) => {
+                        if !param_reported {
+                            param_reported = true;
+                            per_decl.push((
+                                p.name.span(),
+                                &gen::_0_is_declared_but_its_value_is_never_read,
+                                false,
+                            ));
+                        }
+                    }
+                    _ => {}
                 }
-                spans
-            } else {
-                vec![decl.name_span()]
-            };
+            }
+            // duplicate-reported type symbols anchor once, at the first decl
+            if s.dup_reported && is_type_decl && !is_function {
+                per_decl.truncate(1);
+            }
+            if per_decl.is_empty() {
+                continue;
+            }
             let prev = self.current_file;
             self.current_file = file;
-            for span in spans {
-                if is_type_decl {
-                    self.unused_diag(
-                        span,
-                        &gen::_0_is_declared_but_never_used,
-                        &[name.clone()],
-                        as_error,
-                    );
-                } else {
-                    self.unused_diag(
-                        span,
-                        &gen::_0_is_declared_but_its_value_is_never_read,
-                        &[name.clone()],
-                        as_error,
-                    );
-                }
+            for (span, msg, ambient) in per_decl {
+                self.unused_diag(span, msg, &[name.clone()], as_error && !ambient);
             }
             self.current_file = prev;
         }
+    }
+
+    /// tsc getModuleInstanceState over a namespace body: 0 = NonInstantiated,
+    /// 1 = Instantiated, 2 = ConstEnumOnly. Anything not explicitly
+    /// type-only (interfaces, type aliases, unexported imports, uninstantiated
+    /// sub-namespaces) instantiates the module.
+    fn module_body_instance_state(&self, file: usize, body: &'a [Stmt]) -> u8 {
+        let mut state = 0u8;
+        for stmt in body {
+            let s = match stmt {
+                Stmt::Interface(_) | Stmt::TypeAlias(_) => 0,
+                Stmt::Enum(e) => {
+                    if e.is_const {
+                        2
+                    } else {
+                        1
+                    }
+                }
+                Stmt::Import(_) => 0,
+                // `export import a = X` instantiates; a plain alias does not.
+                // ImportEquals carries no modifiers — the export-parsed form's
+                // span starts at the `export` keyword
+                Stmt::ImportEquals { span, .. } => {
+                    let text = self.files[file].1.text.as_bytes();
+                    if text
+                        .get(span.start as usize..)
+                        .is_some_and(|t| t.starts_with(b"export"))
+                    {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                // `export { a, b }` resolves per-target in tsc; approximated
+                // as type-only. Re-exports (`export … from "m"`, `export *`)
+                // fall through to Instantiated like tsc's default arm.
+                Stmt::ExportNamed(en) if !en.star && en.module.is_none() => 0,
+                Stmt::Namespace(n2) => self.module_body_instance_state(file, &n2.body),
+                Stmt::Empty { .. } => 0,
+                _ => 1,
+            };
+            match s {
+                1 => return 1,
+                2 => state = 2,
+                _ => {}
+            }
+        }
+        state
+    }
+
+    /// Is this namespace/enum declaration reached by the JS emitter? The
+    /// conformance oracle collects unused SUGGESTIONS only after
+    /// program.emit(), whose namespace/enum transforms resolve the container
+    /// name and mark it referenced — so an emitted declaration never surfaces
+    /// as an unused suggestion (it still surfaces as an error under
+    /// noUnusedLocals, which runs before emit).
+    fn unused_suggestion_emit_suppressed(&self, ambient: bool, state: u8) -> bool {
+        !ambient
+            && !self.options.no_emit
+            && (state == 1 || (state == 2 && self.options.preserve_const_enums == Some(true)))
+    }
+
+    /// The name span an unused namespace declaration reports at, or None when
+    /// tsc never checks it: string-named ambient modules (`declare module
+    /// "m"`) and `global` augmentation blocks (tsc isAmbientModule /
+    /// isGlobalScopeAugmentation). For a dotted `namespace A.B` the parser
+    /// flattens the name (text = first part, span = whole path); tsc anchors
+    /// at the first identifier, so trim the span to the stored text.
+    fn reportable_namespace_name_span(
+        &self,
+        n: &'a crate::ast::NamespaceDecl,
+    ) -> Option<crate::ast::Span> {
+        let file = self.bind.decl_file.get(&node_key(n)).copied()?;
+        let text = self.files[file].1.text.as_bytes();
+        let start = n.name.span.start as usize;
+        match text.get(start) {
+            Some(b'"') | Some(b'\'') => return None,
+            _ => {}
+        }
+        // Parse-profile mirrors, pending real parser parity (deferred with
+        // the parse-error lever): tsc never binds these as namespaces at all.
+        // (a) `debugger` is a reserved word tsc rejects as a namespace name
+        // (our scanner has no debugger keyword — it scans as Ident);
+        // (b) a name on a different line than the `namespace` keyword is ASI'd
+        // into separate expression statements by tsc
+        // (asiPreventsParsingAsNamespace*), while our parser still accepts it.
+        if n.name.name == "debugger" {
+            return None;
+        }
+        if text[..start]
+            .iter()
+            .rev()
+            .take_while(|b| b.is_ascii_whitespace())
+            .any(|&b| b == b'\n' || b == b'\r')
+        {
+            return None;
+        }
+        if n.name.name == "global" {
+            // `global { }` / `declare global { }` name the block with the
+            // keyword itself; a namespace really named global is preceded by
+            // the `namespace`/`module` keyword
+            let before = &text[..start];
+            let trimmed = before
+                .iter()
+                .rposition(|b| !b.is_ascii_whitespace())
+                .map(|i| &before[..=i])
+                .unwrap_or(b"");
+            if !(trimmed.ends_with(b"namespace") || trimmed.ends_with(b"module")) {
+                return None;
+            }
+        }
+        Some(crate::ast::Span::new(
+            start,
+            start + n.name.name.len(),
+        ))
     }
 
     fn is_exported_namespace_member(&self, sym: SymbolId) -> bool {
@@ -4205,6 +4381,7 @@ impl<'a> Checker<'a> {
             if col.is_empty() {
                 continue;
             }
+            let as_error = no_locals && !list.ambient;
             if col.len() == list.total {
                 if col.len() == 1 {
                     reports.push((
@@ -4212,7 +4389,7 @@ impl<'a> Checker<'a> {
                         col[0].anchor,
                         &gen::_0_is_declared_but_its_value_is_never_read,
                         vec![col[0].name.clone()],
-                        no_locals,
+                        as_error,
                     ));
                 } else {
                     reports.push((
@@ -4220,7 +4397,7 @@ impl<'a> Checker<'a> {
                         list.span,
                         &gen::All_variables_are_unused,
                         Vec::new(),
-                        no_locals,
+                        as_error,
                     ));
                 }
             } else {
@@ -4230,7 +4407,7 @@ impl<'a> Checker<'a> {
                         en.anchor,
                         &gen::_0_is_declared_but_its_value_is_never_read,
                         vec![en.name.clone()],
-                        no_locals,
+                        as_error,
                     ));
                 }
             }
@@ -5002,6 +5179,11 @@ impl<'a> Checker<'a> {
                 && f & (flags::FUNCTION | flags::CLASS | flags::ENUM) == 0
                 && self.bind.symbols[sym.0 as usize].members.0.is_empty()
             {
+                // tsc resolveName succeeds (and marks isReferenced) before
+                // the namespace-as-value error is raised
+                if !self.is_self_reference(sym, id.span) {
+                    self.symuse.used_symbols.insert(sym);
+                }
                 self.error_at(
                     id.span,
                     &gen::Cannot_use_namespace_0_as_a_value,
