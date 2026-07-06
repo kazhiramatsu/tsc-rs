@@ -407,6 +407,14 @@ impl<'a> Checker<'a> {
         } else {
             obj_t
         };
+        if self.cflags.assign_target == crate::checker::exprs::node_key_expr(e)
+            && !self.cflags.assign_target_rw
+            && !*question_dot
+            && self.prop_info_of_type(obj_t, &name.name).is_none()
+            && self.is_function_expando_base(obj)
+        {
+            return self.types.any;
+        }
         let result = self.prop_access_type(obj_t, name, this_receiver);
         // usage tracking: mark the accessed member symbol used so check_unused
         // (private members, namespace/enum exports) does not flag it. Works for
@@ -490,6 +498,22 @@ impl<'a> Checker<'a> {
             result = self.types.union(vec![result, self.types.undefined]);
         }
         result
+    }
+
+    fn is_function_expando_base(&self, obj: &Expr) -> bool {
+        let Expr::Ident(id) = obj else {
+            return false;
+        };
+        let Some(sym) = self.lookup_value(self.current_scope, &id.name) else {
+            return false;
+        };
+        self.symbol(sym).decls.iter().any(|decl| match decl {
+            crate::binder::Decl::Func(_) => true,
+            crate::binder::Decl::Var(d, VarKind::Const) => {
+                matches!(d.init, Some(Expr::FunctionExpr(_)) | Some(Expr::Arrow(_)))
+            }
+            _ => false,
+        })
     }
 
     /// Substitute the polymorphic `this` of a member's declaring owner with the
