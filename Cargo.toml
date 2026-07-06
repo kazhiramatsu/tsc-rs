@@ -3,6 +3,7 @@ name = "tsrs"
 version = "0.1.0"
 edition = "2021"
 description = "A TypeScript type checker in Rust reproducing tsc diagnostics byte-for-byte"
+license = "MIT"
 build = "build.rs"
 
 [lib]
