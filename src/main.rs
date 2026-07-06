@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -13,7 +13,15 @@ fn main() {
         // or `PATH\x01PANIC` / `PATH\x01READERR`. Panics are contained so a
         // single bad file cannot abort the batch.
         let listfile = &args[pos + 1];
-        let list = std::fs::read_to_string(listfile).expect("read list file");
+        let list = if listfile == "-" {
+            let mut input = String::new();
+            std::io::stdin()
+                .read_to_string(&mut input)
+                .expect("read stdin list");
+            input
+        } else {
+            std::fs::read_to_string(listfile).expect("read list file")
+        };
         let mut out = String::new();
         for path in list.lines() {
             let path = path.trim();
@@ -66,7 +74,15 @@ fn main() {
         // file; a separate per-file timeout scan handles hangs / non-unwinding
         // aborts (those are not attributable here once output is buffered).
         let listfile = &args[pos + 1];
-        let list = std::fs::read_to_string(listfile).expect("read list file");
+        let list = if listfile == "-" {
+            let mut input = String::new();
+            std::io::stdin()
+                .read_to_string(&mut input)
+                .expect("read stdin list");
+            input
+        } else {
+            std::fs::read_to_string(listfile).expect("read list file")
+        };
         let paths: Vec<&str> = list
             .lines()
             .map(|l| l.trim())
@@ -179,6 +195,29 @@ fn main() {
             tsrs::diagnostics::gen::ALL_BY_CODE.len()
         );
         return;
+    }
+    if let Some(pos) = args.iter().position(|a| a == "--check-stdin") {
+        let name = args
+            .get(pos + 1)
+            .cloned()
+            .unwrap_or_else(|| "main.ts".to_string());
+        let mut text = String::new();
+        std::io::stdin()
+            .read_to_string(&mut text)
+            .expect("read stdin source");
+        let mut opts = tsrs::options::CompilerOptions {
+            strict: Some(true),
+            diag_json: true,
+            ..Default::default()
+        };
+        if args.iter().any(|a| a == "--noStrict") {
+            opts.strict = Some(false);
+        }
+        let (out, code) = tsrs::check_program(vec![tsrs::InputFile { name, text }], &opts);
+        let mut stdout = std::io::stdout().lock();
+        stdout.write_all(out.as_bytes()).expect("write stdout");
+        stdout.flush().ok();
+        std::process::exit(code);
     }
     if args.is_empty() {
         eprintln!("usage: tsrs [--strict] [--noUnusedLocals] [...tsc-style flags] <files...>");

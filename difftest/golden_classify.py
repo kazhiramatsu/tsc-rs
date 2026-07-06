@@ -19,15 +19,14 @@ the lesser evil and is sometimes an accepted trade-off).
 """
 import json
 import os
-import shutil
-import subprocess
 import sys
-import tempfile
 from collections import Counter
 from pathlib import Path
 
 ROOT = Path(os.environ.get("TSRS_ROOT", Path(__file__).resolve().parents[1]))
-ORACLE = os.environ.get("TSRS_DIAG_ORACLE", str(ROOT / "difftest" / "diag_oracle.js"))
+sys.path.insert(0, str(ROOT))
+import scripts.parallel_classify as classify  # noqa: E402
+
 # library-internal codes that diverge only because of the curated lib stub.
 LIBCODES = {2318, 2304, 2583, 2584, 2792}
 
@@ -59,28 +58,13 @@ def load(path):
 
 def tsc_diags(path, lib):
     """Run tsc on `path` (as main.ts) with `lib`; set[(code, (line, col))] or None."""
-    work = tempfile.mkdtemp()
-    try:
-        shutil.copy(lib, os.path.join(work, "lib.tsrs.d.ts"))
-        shutil.copy(path, os.path.join(work, "main.ts"))
-        r = subprocess.run(
-            ["node", ORACLE, os.path.join(work, "main.ts"), os.path.join(work, "lib.tsrs.d.ts")],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        return None
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-    try:
-        d = json.loads(r.stdout)
-    except json.JSONDecodeError:
+    d = classify.tsc_diags_one(path, lib)
+    if d is None:
         return None
     return {
-        (x["code"], (x.get("startLine"), x.get("startCol")))
-        for x in d.get("diagnostics", [])
-        if x.get("file") and x["file"].endswith("main.ts")
+        (code, loc)
+        for file, code, loc in d
+        if file == "main.ts"
     }
 
 

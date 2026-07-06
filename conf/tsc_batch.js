@@ -40,4 +40,9 @@ for (const c of cases) {
   try { sg = prog.getSuggestionDiagnostics(sf); } catch (e) {}
   out[c.name] = [...ds, ...sg].map(d => [d.code, d.start, d.category]);
 }
-fs.writeFileSync(process.argv[3], JSON.stringify(out));
+const output = JSON.stringify(out);
+if (process.argv[3] === '-') {
+  process.stdout.write(output);
+} else {
+  fs.writeFileSync(process.argv[3], output);
+}

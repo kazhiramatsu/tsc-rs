@@ -19,7 +19,7 @@ Usage:
   python3 difftest/diag_cmp.py <file.ts> [--strict] [--all-files]
   echo 'code' | python3 difftest/diag_cmp.py - [--strict]
 """
-import json, subprocess, sys, tempfile, os, shutil
+import json, subprocess, sys, os
 from pathlib import Path
 
 ROOT = Path(os.environ.get("TSRS_ROOT", Path(__file__).resolve().parents[1]))
@@ -36,32 +36,47 @@ def chain_key(m):
     return tuple(k)
 
 def run(path, strict, all_files):
-    work = tempfile.mkdtemp()
-    try:
-        base = "main.tsx" if path.endswith(".tsx") else "main.ts"
-        if path == "-":
-            data = sys.stdin.read()
-            with open(os.path.join(work, base), "w") as f:
-                f.write(data)
-        else:
-            base = os.path.basename(path)
-            shutil.copy(path, os.path.join(work, base))
-        shutil.copy(LIB, os.path.join(work, "lib.tsrs.d.ts"))
-        main = os.path.join(work, base)
-        lib = os.path.join(work, "lib.tsrs.d.ts")
+    if path == "-":
+        base = "main.ts"
+        data = sys.stdin.read()
+        tsrs_cmd = [TSRS, "--check-stdin", base]
+        tsrs_input = data
+        tsrs_cwd = str(ROOT)
+    else:
+        base = os.path.basename(path)
+        with open(path, encoding="utf8", errors="replace") as fh:
+            data = fh.read()
+        tsrs_cmd = [TSRS, "--strict", "--diag-json", os.path.abspath(path)]
+        tsrs_input = None
+        tsrs_cwd = str(ROOT)
 
-        # tsc oracle
-        oc = subprocess.run(["node", ORACLE, main, lib] + (["--all-files"] if all_files else []),
-                            capture_output=True, text=True)
-        tsc = json.loads(oc.stdout or '{"diagnostics":[]}')
+    with open(LIB, encoding="utf8", errors="replace") as fh:
+        lib_text = fh.read()
+    payload = {
+        "files": [(base, data)],
+        "extraRootFiles": [],
+        "options": {
+            "strict": True,
+            "declaration": True,
+            "target": "latest",
+            "module": "esnext",
+            "moduleResolution": "bundler",
+            "noEmit": False,
+        },
+        "libName": "lib.tsrs.d.ts",
+        "libText": lib_text,
+    }
 
-        # tsrs
-        env = dict(os.environ, TSRS_VIRTUAL_CWD=work)
-        tr = subprocess.run([TSRS, "--strict", "--diag-json", base],
-                            capture_output=True, text=True, cwd=work, env=env)
-        tsrs = json.loads(tr.stdout or '{"diagnostics":[]}')
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+    # tsc oracle
+    oc = subprocess.run(
+        ["node", ORACLE, "--program-json", "-", *(["--all-files"] if all_files else [])],
+        input=json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        capture_output=True, text=True)
+    tsc = json.loads(oc.stdout or '{"diagnostics":[]}')
+
+    # tsrs
+    tr = subprocess.run(tsrs_cmd, input=tsrs_input, capture_output=True, text=True, cwd=tsrs_cwd)
+    tsrs = json.loads(tr.stdout or '{"diagnostics":[]}')
 
     # Scope to the main file unless --all-files (the oracle already scopes;
     # tsrs may additionally report on the prepended lib).

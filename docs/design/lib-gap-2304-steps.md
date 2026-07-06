@@ -61,10 +61,10 @@ for a weak model:
 2. Loading: two call sites must agree IN THE SAME COMMIT:
    - tsrs harness: where the batch runner injects the lib file into the
      program (grep `lib.tsrs.d.ts` in src/ and src/harness/).
-   - oracle runner: `scripts/parallel_classify.py` copies the lib into
-     the temp program (`shutil.copy(lib, lib_path)`) and
-     `full_conformance_compare.py` mirrors it. Both take a `--lib`
-     path; extend both to accept the layered set and select by the
+  - oracle runner: `scripts/parallel_classify.py` /
+     `full_conformance_compare.py` pass the lib text through the
+     in-memory oracle payload. Both take a `--lib` path; extend both to
+     accept the layered set and select by the
      fixture's `@target` (mapping: es3/es5→[es5], es6/es2015→+es2015,
      … esnext→all). The target string is already parsed —
      grep `script_target_rank` (tsrs) and `target` handling in

@@ -1,4 +1,4 @@
-import json, os, subprocess, sys, tempfile, shutil
+import json, os, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(os.environ.get("TSRS_ROOT", Path(__file__).resolve().parents[1]))
@@ -9,27 +9,15 @@ TSC_BATCH = os.environ.get("TSRS_TSC_BATCH", str(ROOT / "conf" / "tsc_batch.js")
 LIB_CODES={2318,2304,2583,2584,2792}
 cases=json.load(open(sys.argv[1]))
 # tsc batch
-tsc_res=tempfile.NamedTemporaryFile(delete=False)
-tsc_res.close()
-try:
-    subprocess.run(['node', TSC_BATCH, sys.argv[1], tsc_res.name], check=True)
-    tscr=json.load(open(tsc_res.name))
-finally:
-    try:
-        os.unlink(tsc_res.name)
-    except OSError:
-        pass
+tsc_proc=subprocess.run(['node', TSC_BATCH, sys.argv[1], '-'], check=True, capture_output=True, text=True)
+tscr=json.loads(tsc_proc.stdout)
 # tsrs per-case
-work=tempfile.mkdtemp()
-shutil.copy(LIB, os.path.join(work,'lib.tsrs.d.ts'))
 def norm(diags):
     # diags: list of [code,start,cat]; ignore lib codes; drop suggestions? keep but tag
     return sorted((c,s) for c,s,cat in diags if c not in LIB_CODES)
 fp_cases=[]; fn_cases=[]; match=0
 for c in cases:
-    open(os.path.join(work,'main.ts'),'w').write(c['src'])
-    env=dict(os.environ); env['TSRS_VIRTUAL_CWD']=work
-    p=subprocess.run([B,'--strict','--diag-json','main.ts'],cwd=work,capture_output=True,text=True,env=env)
+    p=subprocess.run([B,'--check-stdin','main.ts'],input=c['src'],capture_output=True,text=True)
     try:
         tj=json.loads(p.stdout)
         td=[[d['code'],d.get('start'),d.get('category',1)] for d in tj['diagnostics'] if d.get('file')=='main.ts']
@@ -42,7 +30,6 @@ for c in cases:
     if not fp and not fn: match+=1
     if fp: fp_cases.append((c['name'],fp,tsc_n,tsrs_n,c['src']))
     if fn: fn_cases.append((c['name'],fn,tsc_n,tsrs_n,c['src']))
-shutil.rmtree(work)
 print(f"TOTAL {len(cases)} | MATCH {match} | FP-cases {len(fp_cases)} | FN-cases {len(fn_cases)}")
 print("\n=== FALSE POSITIVES (tsrs errors tsc doesn't) ===")
 for n,fp,tsc,tsrs,src in fp_cases[:40]:

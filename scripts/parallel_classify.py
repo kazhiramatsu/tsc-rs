@@ -6,7 +6,7 @@ Changed fixtures are expanded with the same harness directives that
 The comparison scope intentionally stays at the historical `main.ts` /
 `main.tsx` diagnostics gate.
 """
-import json, os, sys, subprocess, tempfile, shutil
+import json, os, sys, subprocess
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -43,6 +43,7 @@ def env_positive_int(name, default):
 CLASSIFY_JOBS = env_positive_int("TSRS_CLASSIFY_JOBS", 4)
 TSC_TIMEOUT = env_positive_int("TSRS_TSC_TIMEOUT", 45)
 EXTENSIONLESS_TRIES = (".ts", ".tsx", ".d.ts", ".mts", ".cts", ".json")
+_LIB_TEXT_CACHE = {}
 
 BOOL_OPTIONS = {
     "strict": "strict",
@@ -310,59 +311,50 @@ def fixture_disk_name(name):
         parts.append(part)
     return "/".join(parts) or "main.ts"
 
-def write_fixture_file(work, name, text):
-    rel = fixture_disk_name(name)
-    out = os.path.join(work, *rel.split("/"))
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    with open(out, "w", encoding="utf8") as fh:
-        fh.write(text)
-    return out
+def lib_text(lib):
+    text = _LIB_TEXT_CACHE.get(lib)
+    if text is None:
+        with open(lib, encoding="utf8", errors="replace") as fh:
+            text = fh.read()
+        _LIB_TEXT_CACHE[lib] = text
+    return text
 
-def extra_root_path(work, name):
-    rel = fixture_disk_name(name)
-    path = os.path.join(work, *rel.split("/"))
-    base = os.path.basename(rel)
-    if "." in base:
-        return path
-    for ext in EXTENSIONLESS_TRIES:
-        candidate = path + ext
-        if os.path.exists(candidate):
-            return candidate
-    return path
+def fixture_payload(path, lib):
+    with open(path, encoding="utf8", errors="replace") as fh:
+        fixture = parse_fixture(fh.read())
+    if path.endswith(".tsx") and len(fixture["files"]) == 1 and fixture["files"][0][0] == "main.ts":
+        fixture["files"][0] = ("main.tsx", fixture["files"][0][1])
+
+    opts = compiler_options_from_directives(fixture["options"])
+    if opts is None:
+        return None
+
+    return {
+        "files": fixture["files"],
+        "extraRootFiles": fixture["extra_root_files"],
+        "options": opts,
+        "libName": "lib.tsrs.d.ts",
+        "libText": lib_text(lib),
+        "extensionlessTries": list(EXTENSIONLESS_TRIES),
+    }
 
 def tsc_diags_one(path, lib):
-    work = tempfile.mkdtemp()
+    payload = fixture_payload(path, lib)
+    if payload is None:
+        return None
     try:
-        with open(path, encoding="utf8", errors="replace") as fh:
-            fixture = parse_fixture(fh.read())
-        if path.endswith(".tsx") and len(fixture["files"]) == 1 and fixture["files"][0][0] == "main.ts":
-            fixture["files"][0] = ("main.tsx", fixture["files"][0][1])
-
-        opts = compiler_options_from_directives(fixture["options"])
-        if opts is None:
+        r = subprocess.run(
+            ["node", ORACLE, "--program-json", "-", "--all-files"],
+            input=json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+            capture_output=True,
+            text=True,
+            timeout=TSC_TIMEOUT)
+        if r.returncode != 0:
             return None
-
-        roots = [write_fixture_file(work, name, text) for name, text in fixture["files"]]
-        roots.extend(extra_root_path(work, name) for name in fixture["extra_root_files"])
-        lib_path = os.path.join(work, "lib.tsrs.d.ts")
-        shutil.copy(lib, lib_path)
-        roots.append(lib_path)
-        opts_path = os.path.join(work, "compiler-options.json")
-        with open(opts_path, "w", encoding="utf8") as fh:
-            json.dump(opts, fh)
-
-        try:
-            r = subprocess.run(
-                ["node", ORACLE, "--options-json", opts_path, "--all-files", *roots],
-                capture_output=True, text=True, timeout=TSC_TIMEOUT)
-            if r.returncode != 0:
-                return None
-            d = json.loads(r.stdout)
-            return snapshot_diag_set(d.get("diagnostics", []))
-        except Exception:
-            return None
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+        d = json.loads(r.stdout)
+        return snapshot_diag_set(d.get("diagnostics", []))
+    except Exception:
+        return None
 
 def worker(args):
     fn, lib = args

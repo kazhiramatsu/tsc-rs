@@ -14,10 +14,8 @@ code/category/source/flags, full span, message chain, and relatedInformation.
 import argparse
 import json
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -182,50 +180,8 @@ def tsc_diags_one_memory(path, lib, strict):
         return None
 
 
-def strict_tsc_diags_one_disk(path, lib):
-    work = tempfile.mkdtemp()
-    try:
-        with open(path, encoding="utf8", errors="replace") as fh:
-            fixture = classify.parse_fixture(fh.read())
-        if path.endswith(".tsx") and len(fixture["files"]) == 1 and fixture["files"][0][0] == "main.ts":
-            fixture["files"][0] = ("main.tsx", fixture["files"][0][1])
-
-        opts = classify.compiler_options_from_directives(fixture["options"])
-        if opts is None:
-            return None
-
-        roots = [classify.write_fixture_file(work, name, text) for name, text in fixture["files"]]
-        roots.extend(classify.extra_root_path(work, name) for name in fixture["extra_root_files"])
-        lib_path = os.path.join(work, "lib.tsrs.d.ts")
-        shutil.copy(lib, lib_path)
-        roots.append(lib_path)
-        opts_path = os.path.join(work, "compiler-options.json")
-        with open(opts_path, "w", encoding="utf8") as fh:
-            json.dump(opts, fh)
-
-        try:
-            r = subprocess.run(
-                ["node", classify.ORACLE, "--options-json", opts_path, "--all-files", *roots],
-                capture_output=True,
-                text=True,
-                timeout=classify.TSC_TIMEOUT,
-            )
-            if r.returncode != 0:
-                return None
-            data = json.loads(r.stdout)
-            return strict_snapshot_diag_set(data.get("diagnostics", []))
-        except Exception:
-            return None
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-
 def tsc_worker(args):
-    path, lib, strict, disk_oracle = args
-    if disk_oracle:
-        if strict:
-            return path, strict_tsc_diags_one_disk(path, lib)
-        return path, classify.tsc_diags_one(path, lib)
+    path, lib, strict = args
     return path, tsc_diags_one_memory(path, lib, strict)
 
 
@@ -300,11 +256,6 @@ def main():
     ap.add_argument("--out-json", default=None)
     ap.add_argument("--out-txt", default=None)
     ap.add_argument("--progress-every", type=int, default=100)
-    ap.add_argument(
-        "--disk-oracle",
-        action="store_true",
-        help="use the legacy disk-backed oracle fixture expansion",
-    )
     args = ap.parse_args()
 
     if args.out_json is None:
@@ -337,7 +288,7 @@ def main():
     print(f"tsrs_snapshot: {args.snapshot}")
     print(f"fixtures: {len(paths)} (missing_paths={len(missing)})")
     print(f"tsc_workers: {classify.CLASSIFY_JOBS}, tsc_timeout: {classify.TSC_TIMEOUT}s")
-    print(f"oracle_io: {'disk' if args.disk_oracle else 'memory'}")
+    print("oracle_io: memory")
     print(f"output_json: {args.out_json}")
     sys.stdout.flush()
 
@@ -345,7 +296,7 @@ def main():
     tsc_fail = []
     with ProcessPoolExecutor(max_workers=classify.CLASSIFY_JOBS) as ex:
         futures = {
-            ex.submit(tsc_worker, (path, args.lib, args.strict, args.disk_oracle)): path
+            ex.submit(tsc_worker, (path, args.lib, args.strict)): path
             for path in paths
         }
         done = 0
