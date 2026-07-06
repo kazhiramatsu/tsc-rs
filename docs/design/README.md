@@ -11,6 +11,45 @@ session context can implement it. **Read this file first — the working
 protocol below is not optional; it is how this project avoids shipping
 regressions.**
 
+## Start here — pick your path
+
+There are two kinds of task. Read ONLY the path for yours; the other
+docs are reference, pulled in as those paths tell you to.
+
+**Path A — improve the EXISTING checker (the normal task).** You are
+raising conformance by fixing FPs/FNs in the current Rust code.
+1. Read the "Working protocol" section below (in this file).
+2. Read [EXECUTION-GUIDE.md](EXECUTION-GUIDE.md) — the literal step
+   loop, FP-triage procedure, and stop conditions. Non-negotiable.
+3. Pick a workstream from the priority table below. Read its
+   `<name>.md` (design) then `<name>-steps.md` (numbered steps).
+4. Keep [knowledge-base.md](knowledge-base.md) and
+   [tsc-source-guide.md](tsc-source-guide.md) open — consult them
+   whenever a probe confuses you or you need a tsc line anchor.
+5. Follow the loop. Commit only at 0 NEW_FP. Leave a `NOTES-*.md` at
+   any stop condition. Do NOT read the rebuild docs (core-interfaces,
+   checker-*, greenfield) for this path unless a step sends you there.
+
+**Path B — rebuild a subsystem from scratch (rare, opt-in).** You are
+replacing a subsystem (or the whole checker) with a fresh tsc-faithful
+port, because stall-playbook attribution justified it.
+1. Read [greenfield.md](greenfield.md) — the architecture verdict,
+   crate layout, and especially §10 (strangler adoption) and §11 (when
+   a rebuild is actually justified — check you qualify).
+2. Read [core-interfaces.md](core-interfaces.md) — the data contracts
+   and the must-match-vs-may-differ table.
+3. Read the algorithm docs for the subsystem you are porting:
+   [syntax-and-binder.md](syntax-and-binder.md) (front end),
+   [checker-foundations.md](checker-foundations.md) (type computation,
+   contextual typing, construction), [checker-key-functions.md](checker-key-functions.md)
+   (relation/inference/overload/flow).
+4. Follow the greenfield §12 milestone gates AND the same 0-NEW_FP
+   working protocol below — a rebuild is still classifier-gated
+   step by step (stall-playbook §3 house style).
+
+If you were handed a task with no path specified, it is almost always
+Path A. When in doubt, do Path A.
+
 Document map:
 - **[EXECUTION-GUIDE.md](EXECUTION-GUIDE.md)** — the operating manual
   for implementing agents (step loop, FP triage, stop conditions, hard
