@@ -23,6 +23,14 @@ Document map:
   stop-points in [T] stages.
 - `NOTES-*.md` — reports produced by implementing agents (mining
   tables, stop-notes). Never deleted, only appended.
+- **[stall-playbook.md](stall-playbook.md)** — strategic layer: how to
+  detect/attribute a convergence stall, the catalog of architectural
+  ceilings (relation-engine Ternary×5, resolution-order freshness,
+  declaration-identity types, instantiation depth, module infra,
+  strict-mode frontier) each with symptom signature + migration design,
+  and the mandatory house style for big refactors. Consult it whenever
+  two consecutive workstreams under-deliver, and BEFORE starting any
+  refactor larger than one subsystem.
 
 ## Priority table (expected yield, highest first)
 
