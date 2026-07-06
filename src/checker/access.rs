@@ -415,6 +415,11 @@ impl<'a> Checker<'a> {
         {
             return self.types.any;
         }
+        if let Some(sym) = self.function_expando_base_symbol(obj) {
+            if let Some(&ty) = self.function_expando_props.get(&(sym, name.name.clone())) {
+                return ty;
+            }
+        }
         let result = self.prop_access_type(obj_t, name, this_receiver);
         // usage tracking: mark the accessed member symbol used so check_unused
         // (private members, namespace/enum exports) does not flag it. Works for
@@ -500,20 +505,31 @@ impl<'a> Checker<'a> {
         result
     }
 
-    fn is_function_expando_base(&self, obj: &Expr) -> bool {
+    pub(crate) fn function_expando_base_symbol(
+        &self,
+        obj: &Expr,
+    ) -> Option<crate::binder::SymbolId> {
         let Expr::Ident(id) = obj else {
-            return false;
+            return None;
         };
         let Some(sym) = self.lookup_value(self.current_scope, &id.name) else {
-            return false;
+            return None;
         };
-        self.symbol(sym).decls.iter().any(|decl| match decl {
-            crate::binder::Decl::Func(_) => true,
-            crate::binder::Decl::Var(d, VarKind::Const) => {
-                matches!(d.init, Some(Expr::FunctionExpr(_)) | Some(Expr::Arrow(_)))
-            }
-            _ => false,
-        })
+        self.symbol(sym)
+            .decls
+            .iter()
+            .any(|decl| match decl {
+                crate::binder::Decl::Func(_) => true,
+                crate::binder::Decl::Var(d, VarKind::Const) => {
+                    matches!(d.init, Some(Expr::FunctionExpr(_)) | Some(Expr::Arrow(_)))
+                }
+                _ => false,
+            })
+            .then_some(sym)
+    }
+
+    fn is_function_expando_base(&self, obj: &Expr) -> bool {
+        self.function_expando_base_symbol(obj).is_some()
     }
 
     /// Substitute the polymorphic `this` of a member's declaring owner with the

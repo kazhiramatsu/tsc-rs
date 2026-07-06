@@ -667,6 +667,7 @@ impl<'a> Checker<'a> {
                 if !self.types.is_any_or_error(lt) && !self.types.is_error(rt) {
                     self.check_assignable(rt, lt, left.span(), None, Some(right));
                 }
+                self.record_function_expando_assignment(left, rt);
                 rt
             }
             AddAssign | SubAssign | MulAssign | DivAssign | ModAssign | ExpAssign | ShlAssign
@@ -1183,6 +1184,32 @@ impl<'a> Checker<'a> {
                 }
             }
         }
+    }
+
+    fn record_function_expando_assignment(&mut self, target: &'a Expr, value: TypeId) {
+        let Expr::PropAccess {
+            obj,
+            question_dot: false,
+            name,
+            ..
+        } = target
+        else {
+            return;
+        };
+        let Some(sym) = self.function_expando_base_symbol(obj) else {
+            return;
+        };
+        if !self
+            .symbol(sym)
+            .decls
+            .iter()
+            .any(|decl| matches!(decl, crate::binder::Decl::Func(_)))
+        {
+            return;
+        }
+        let _ = value;
+        self.function_expando_props
+            .insert((sym, name.name.clone()), self.types.any);
     }
 
     fn check_plus(&mut self, lt: TypeId, rt: TypeId, span: Span, _op_span: &Span) -> TypeId {

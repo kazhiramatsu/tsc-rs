@@ -539,6 +539,8 @@ pub struct Checker<'a> {
     /// initializer so that `if (c)` narrows the same references the expression
     /// would (tsc's aliased conditional narrowing).
     pub cond_aliases: std::collections::HashMap<crate::binder::SymbolId, &'a Expr>,
+    /// Function expando writes (`fn.prop = value`) discovered while checking.
+    pub function_expando_props: HashMap<(SymbolId, String), TypeId>,
     /// symuse (see `SymbolUsage`)
     pub symuse: SymbolUsage,
     /// checker-minted type-param symbols (see `SynthSymbols`); keeps `bind` immutable
@@ -782,6 +784,7 @@ fn new_checker<'a>(
         deferred: DeferredState::default(),
         guards: RecursionGuards::default(),
         cond_aliases: std::collections::HashMap::new(),
+        function_expando_props: HashMap::new(),
         symuse: SymbolUsage::default(),
         synth: SynthSymbols {
             base: synth_base,
