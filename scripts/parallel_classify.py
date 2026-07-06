@@ -370,7 +370,7 @@ class OracleWorker:
         self.next_id += 1
         req_id = self.next_id
         try:
-            self.proc.stdin.write(json.dumps({"id": req_id, "payload": payload}, ensure_ascii=False, separators=(",", ":")) + "\n")
+            self.proc.stdin.write(json.dumps({"id": req_id, "payload": payload}, separators=(",", ":")) + "\n")
             self.proc.stdin.flush()
         except Exception:
             self.restart()
