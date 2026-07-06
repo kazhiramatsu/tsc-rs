@@ -145,7 +145,44 @@ def load_snapshot(path, strict):
     return out
 
 
-def strict_tsc_diags_one(path, lib):
+def tsc_diags_one_memory(path, lib, strict):
+    with open(path, encoding="utf8", errors="replace") as fh:
+        fixture = classify.parse_fixture(fh.read())
+    if path.endswith(".tsx") and len(fixture["files"]) == 1 and fixture["files"][0][0] == "main.ts":
+        fixture["files"][0] = ("main.tsx", fixture["files"][0][1])
+
+    opts = classify.compiler_options_from_directives(fixture["options"])
+    if opts is None:
+        return None
+
+    with open(lib, encoding="utf8", errors="replace") as fh:
+        lib_text = fh.read()
+    payload = {
+        "files": fixture["files"],
+        "extraRootFiles": fixture["extra_root_files"],
+        "options": opts,
+        "libName": "lib.tsrs.d.ts",
+        "libText": lib_text,
+        "extensionlessTries": list(classify.EXTENSIONLESS_TRIES),
+    }
+    try:
+        r = subprocess.run(
+            ["node", classify.ORACLE, "--program-json", "-", "--all-files"],
+            input=json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+            capture_output=True,
+            text=True,
+            timeout=classify.TSC_TIMEOUT,
+        )
+        if r.returncode != 0:
+            return None
+        data = json.loads(r.stdout)
+        diags = data.get("diagnostics", [])
+        return strict_snapshot_diag_set(diags) if strict else classify.snapshot_diag_set(diags)
+    except Exception:
+        return None
+
+
+def strict_tsc_diags_one_disk(path, lib):
     work = tempfile.mkdtemp()
     try:
         with open(path, encoding="utf8", errors="replace") as fh:
@@ -184,10 +221,12 @@ def strict_tsc_diags_one(path, lib):
 
 
 def tsc_worker(args):
-    path, lib, strict = args
-    if strict:
-        return path, strict_tsc_diags_one(path, lib)
-    return path, classify.tsc_diags_one(path, lib)
+    path, lib, strict, disk_oracle = args
+    if disk_oracle:
+        if strict:
+            return path, strict_tsc_diags_one_disk(path, lib)
+        return path, classify.tsc_diags_one(path, lib)
+    return path, tsc_diags_one_memory(path, lib, strict)
 
 
 STRICT_MATCH_KEY_FIELDS = ("file", "code", "startLine", "startCol")
@@ -261,6 +300,11 @@ def main():
     ap.add_argument("--out-json", default=None)
     ap.add_argument("--out-txt", default=None)
     ap.add_argument("--progress-every", type=int, default=100)
+    ap.add_argument(
+        "--disk-oracle",
+        action="store_true",
+        help="use the legacy disk-backed oracle fixture expansion",
+    )
     args = ap.parse_args()
 
     if args.out_json is None:
@@ -293,13 +337,17 @@ def main():
     print(f"tsrs_snapshot: {args.snapshot}")
     print(f"fixtures: {len(paths)} (missing_paths={len(missing)})")
     print(f"tsc_workers: {classify.CLASSIFY_JOBS}, tsc_timeout: {classify.TSC_TIMEOUT}s")
+    print(f"oracle_io: {'disk' if args.disk_oracle else 'memory'}")
     print(f"output_json: {args.out_json}")
     sys.stdout.flush()
 
     tsc_by_file = {}
     tsc_fail = []
     with ProcessPoolExecutor(max_workers=classify.CLASSIFY_JOBS) as ex:
-        futures = {ex.submit(tsc_worker, (path, args.lib, args.strict)): path for path in paths}
+        futures = {
+            ex.submit(tsc_worker, (path, args.lib, args.strict, args.disk_oracle)): path
+            for path in paths
+        }
         done = 0
         for fut in as_completed(futures):
             done += 1

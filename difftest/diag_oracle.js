@@ -20,6 +20,7 @@
 // Usage:
 //   node diag_oracle.js <main.ts> [otherFile.ts ...] [--all-files]
 //   node diag_oracle.js --options-json opts.json --all-files <root.ts> ...
+//   node diag_oracle.js --program-json program.json --all-files
 //   Mirrors difftest/cmp.sh (--noLib --strict). files[0] scopes which
 //   diagnostics are reported unless --all-files is given.
 //   Emits: { emittedFiles, emitSkipped, diagnostics: [...] }.
@@ -45,6 +46,7 @@ const ts = loadTypescript();
 
 let allFiles = false;
 let optionsJson = null;
+let programJson = null;
 const files = [];
 for (let i = 2; i < process.argv.length; i++) {
   const arg = process.argv[i];
@@ -52,6 +54,8 @@ for (let i = 2; i < process.argv.length; i++) {
     allFiles = true;
   } else if (arg === "--options-json") {
     optionsJson = process.argv[++i];
+  } else if (arg === "--program-json") {
+    programJson = process.argv[++i];
   } else if (arg.startsWith("--")) {
     console.error(`diag_oracle.js: unknown option ${arg}`);
     process.exit(2);
@@ -59,11 +63,10 @@ for (let i = 2; i < process.argv.length; i++) {
     files.push(path.resolve(arg));
   }
 }
-if (files.length === 0) {
+if (!programJson && files.length === 0) {
   console.error("diag_oracle.js: expected at least one input file");
   process.exit(2);
 }
-const mainBase = path.basename(files[0]);
 
 function enumValue(map, raw, fallback) {
   if (raw === null || raw === undefined) return fallback;
@@ -162,7 +165,100 @@ if (optionsJson) {
   options = coerceCompilerOptions(JSON.parse(fs.readFileSync(optionsJson, "utf8")));
 }
 
-const program = ts.createProgram(files, options);
+function fixtureDiskName(name) {
+  name = String(name || "main.ts").replace(/\\/g, "/");
+  while (name.startsWith("/")) name = name.slice(1);
+  if (name.length >= 2 && name[1] === ":") name = name[0] + "_" + name.slice(2);
+  const parts = [];
+  for (const part of name.split("/")) {
+    if (!part || part === "." || part === "..") continue;
+    parts.push(part);
+  }
+  return parts.join("/") || "main.ts";
+}
+
+function createMemoryProgram(payload) {
+  const base = path.resolve(payload.baseDir || "/tsrs-oracle");
+  const extTries = payload.extensionlessTries || [".ts", ".tsx", ".d.ts", ".mts", ".cts", ".json"];
+  const sources = new Map();
+  const dirs = new Set([base]);
+  const noteDir = (fileName) => {
+    let dir = path.dirname(fileName);
+    while (dir && dir !== path.dirname(dir)) {
+      dirs.add(dir);
+      if (dir === base) break;
+      dir = path.dirname(dir);
+    }
+  };
+  const toPath = (name) => path.join(base, ...fixtureDiskName(name).split("/"));
+  for (const [name, text] of payload.files || []) {
+    const fileName = toPath(name);
+    sources.set(fileName, String(text));
+    noteDir(fileName);
+  }
+  if (payload.libText !== undefined) {
+    const fileName = toPath(payload.libName || "lib.tsrs.d.ts");
+    sources.set(fileName, String(payload.libText));
+    noteDir(fileName);
+  }
+  const roots = [];
+  for (const [name] of payload.files || []) roots.push(toPath(name));
+  for (const name of payload.extraRootFiles || []) {
+    const p = toPath(name);
+    const b = path.basename(fixtureDiskName(name));
+    if (b.includes(".")) {
+      roots.push(p);
+    } else {
+      const found = extTries.map(ext => p + ext).find(candidate => sources.has(candidate));
+      roots.push(found || p);
+    }
+  }
+  if (payload.libText !== undefined) roots.push(toPath(payload.libName || "lib.tsrs.d.ts"));
+
+  options = coerceCompilerOptions(payload.options || {});
+  const host = ts.createCompilerHost(options);
+  const defaultFileExists = host.fileExists.bind(host);
+  const defaultReadFile = host.readFile.bind(host);
+  const defaultDirectoryExists = host.directoryExists && host.directoryExists.bind(host);
+  host.getCurrentDirectory = () => base;
+  host.fileExists = (fileName) => sources.has(path.resolve(fileName)) || defaultFileExists(fileName);
+  host.directoryExists = (dirName) => {
+    const resolved = path.resolve(dirName);
+    return dirs.has(resolved) || (defaultDirectoryExists ? defaultDirectoryExists(dirName) : false);
+  };
+  host.realpath = (fileName) => path.resolve(fileName);
+  host.getDirectories = (dirName) => {
+    const resolved = path.resolve(dirName);
+    const prefix = resolved.endsWith(path.sep) ? resolved : resolved + path.sep;
+    const out = new Set();
+    for (const dir of dirs) {
+      if (!dir.startsWith(prefix)) continue;
+      const rest = dir.slice(prefix.length);
+      if (rest && !rest.includes(path.sep)) out.add(rest);
+    }
+    return [...out];
+  };
+  host.readFile = (fileName) => {
+    const p = path.resolve(fileName);
+    return sources.has(p) ? sources.get(p) : defaultReadFile(fileName);
+  };
+  host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
+    const text = host.readFile(fileName);
+    if (text === undefined) return undefined;
+    return ts.createSourceFile(fileName, text, languageVersion, shouldCreateNewSourceFile);
+  };
+  host.writeFile = () => {};
+  return ts.createProgram(roots, options, host);
+}
+
+let program;
+if (programJson) {
+  const raw = programJson === "-" ? fs.readFileSync(0, "utf8") : fs.readFileSync(programJson, "utf8");
+  program = createMemoryProgram(JSON.parse(raw));
+} else {
+  program = ts.createProgram(files, options);
+}
+const mainBase = path.basename(program.getRootFileNames()[0] || files[0] || "main.ts");
 
 const diagSet = [];
 const seen = new Set();
