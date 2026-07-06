@@ -181,7 +181,9 @@ def tsc_diags_one_memory(path, lib, strict):
 
 
 def tsc_worker(args):
-    path, lib, strict = args
+    path, lib, strict, throttle_ms = args
+    if throttle_ms > 0:
+        time.sleep(throttle_ms / 1000.0)
     return path, tsc_diags_one_memory(path, lib, strict)
 
 
@@ -256,6 +258,18 @@ def main():
     ap.add_argument("--out-json", default=None)
     ap.add_argument("--out-txt", default=None)
     ap.add_argument("--progress-every", type=int, default=100)
+    ap.add_argument(
+        "--jobs",
+        type=int,
+        default=None,
+        help="number of concurrent tsc oracle workers (default: TSRS_CLASSIFY_JOBS or 4)",
+    )
+    ap.add_argument(
+        "--throttle-ms",
+        type=int,
+        default=0,
+        help="sleep this many milliseconds before each oracle run to reduce sustained CPU load",
+    )
     args = ap.parse_args()
 
     if args.out_json is None:
@@ -274,6 +288,11 @@ def main():
     tsrs_by_file = load_snapshot(args.snapshot, args.strict)
     paths = sorted(path for path in tsrs_by_file if os.path.exists(path))
     missing = sorted(set(tsrs_by_file) - set(paths))
+    jobs = args.jobs if args.jobs is not None else classify.CLASSIFY_JOBS
+    if jobs < 1:
+        print(f"--jobs must be >= 1, got {jobs}", file=sys.stderr)
+        return 2
+    throttle_ms = max(0, args.throttle_ms)
 
     start = time.time()
     print("full_compare_scope: primary main.ts/main.tsx diagnostics")
@@ -287,16 +306,18 @@ def main():
     )
     print(f"tsrs_snapshot: {args.snapshot}")
     print(f"fixtures: {len(paths)} (missing_paths={len(missing)})")
-    print(f"tsc_workers: {classify.CLASSIFY_JOBS}, tsc_timeout: {classify.TSC_TIMEOUT}s")
+    print(f"tsc_workers: {jobs}, tsc_timeout: {classify.TSC_TIMEOUT}s")
+    if throttle_ms:
+        print(f"oracle_throttle_ms: {throttle_ms}")
     print("oracle_io: memory")
     print(f"output_json: {args.out_json}")
     sys.stdout.flush()
 
     tsc_by_file = {}
     tsc_fail = []
-    with ProcessPoolExecutor(max_workers=classify.CLASSIFY_JOBS) as ex:
+    with ProcessPoolExecutor(max_workers=jobs) as ex:
         futures = {
-            ex.submit(tsc_worker, (path, args.lib, args.strict)): path
+            ex.submit(tsc_worker, (path, args.lib, args.strict, throttle_ms)): path
             for path in paths
         }
         done = 0
@@ -417,6 +438,8 @@ def main():
         "missing_paths": len(missing),
         "classified": classified,
         "tsc_fail": len(tsc_fail),
+        "tsc_workers": jobs,
+        "oracle_throttle_ms": throttle_ms,
         "raw_exact_match_files": raw_match,
         "raw_exact_match_rate": raw_match / classified if classified else None,
         "raw_mismatch_files": classified - raw_match,
