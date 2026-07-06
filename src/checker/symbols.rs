@@ -394,6 +394,47 @@ impl<'a> Checker<'a> {
                 });
                 return self.types.alloc(TypeKind::Anon(shape));
             }
+            // CLASS method overloads: the bodyless `Decl::Method` declarations
+            // are the visible signatures; the body-bearing implementation is
+            // hidden (same rule as overloaded functions above). Without this
+            // the property type carried only the FIRST overload, so
+            // `c.foo("bye")` failed against `foo(x: 'hi')`.
+            let cdecls: Vec<&'a FunctionLike> = self
+                .symbol(sym)
+                .decls
+                .iter()
+                .filter_map(|d| match d {
+                    Decl::Method(f) if f.kind == FuncKind::Method => Some(*f),
+                    _ => None,
+                })
+                .collect();
+            let overloads: Vec<&'a FunctionLike> = cdecls
+                .iter()
+                .copied()
+                .filter(|f| f.body.is_none())
+                .collect();
+            if !overloads.is_empty() && cdecls.len() > 1 {
+                let impl_decl: Option<&'a FunctionLike> =
+                    cdecls.iter().copied().find(|f| f.body.is_some());
+                let sigs: Vec<crate::types::SigId> =
+                    overloads.iter().map(|f| self.signature_of(f)).collect();
+                let shape = self.types.alloc_shape(Shape {
+                    props: Vec::new(),
+                    call_sigs: sigs,
+                    ctor_sigs: Vec::new(),
+                    index_infos: Vec::new(),
+                });
+                if let Some(impl_f) = impl_decl {
+                    if let Some(nsp) = impl_f.name.as_ref().map(|nm| nm.span()) {
+                        let ifile = self.symbol(sym).file;
+                        let isig = self.signature_of(impl_f);
+                        self.caches
+                            .overload_impl
+                            .insert(shape, (isig, nsp.start, nsp.len(), ifile));
+                    }
+                }
+                return self.types.alloc(TypeKind::Anon(shape));
+            }
         }
         let Some(decl) = s.decls.first().copied() else {
             return self.types.error;
@@ -737,6 +778,7 @@ impl<'a> Checker<'a> {
             rest_tp,
             ret,
             decl_key: if has_lazy_ret { node_key(f) } else { 0 },
+            from_method: matches!(f.kind, crate::ast::FuncKind::Method),
             ret_annotation_never: matches!(self.types.kind(ret), crate::types::TypeKind::Never),
             predicate,
             is_abstract: false,
@@ -906,6 +948,7 @@ impl<'a> Checker<'a> {
             rest_tp,
             ret,
             decl_key: 0,
+            from_method: true,
             ret_annotation_never: matches!(self.types.kind(ret), crate::types::TypeKind::Never),
             predicate,
             is_abstract: false,
@@ -982,6 +1025,7 @@ impl<'a> Checker<'a> {
             rest_tp,
             ret,
             decl_key: 0,
+            from_method: false,
             ret_annotation_never: matches!(self.types.kind(ret), crate::types::TypeKind::Never),
             predicate,
             is_abstract: false,
@@ -1482,6 +1526,7 @@ impl<'a> Checker<'a> {
             rest_tp,
             ret,
             decl_key: 0,
+            from_method: false,
             ret_annotation_never: matches!(self.types.kind(ret), crate::types::TypeKind::Never),
             predicate: None,
             is_abstract: f.is_abstract,
@@ -1515,6 +1560,25 @@ impl<'a> Checker<'a> {
                 }
                 TypeMember::Method(ms) => {
                     let Some(name) = ms.name.text() else { continue };
+                    // overloaded method in a type literal: same-name members
+                    // are ONE property whose type carries every call
+                    // signature (tsc binds them to a single symbol) — a
+                    // second push would be shadowed by first-wins prop lookup
+                    if let Some(i) = shape
+                        .props
+                        .iter()
+                        .position(|p| p.name == name && p.is_method)
+                    {
+                        let sig = self.method_signature(ms, scope);
+                        let prev = shape.props[i].ty;
+                        if let TypeKind::Anon(ps) = self.types.kind(prev) {
+                            let mut merged = self.types.shape(*ps).clone();
+                            merged.call_sigs.push(sig);
+                            let sid = self.types.alloc_shape(merged);
+                            shape.props[i].ty = self.types.alloc(TypeKind::Anon(sid));
+                        }
+                        continue;
+                    }
                     let t = self.method_sig_type(ms, scope);
                     shape.props.push(PropInfo {
                         name,

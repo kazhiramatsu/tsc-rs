@@ -527,16 +527,47 @@ impl<'a> Checker<'a> {
         if parts.is_empty() {
             return self.types.string_lit(&head);
         }
-        let mut tpl: Vec<crate::types::TplPart> = Vec::new();
-        if !head.is_empty() {
-            tpl.push(crate::types::TplPart::Str(head));
-        }
-        for (t, text) in parts {
-            tpl.push(crate::types::TplPart::Ty(t));
-            if !text.is_empty() {
-                tpl.push(crate::types::TplPart::Str(text));
+        // tsc getTemplateLiteralType: nested template-literal spans are
+        // INLINED and string-literal spans fold into the surrounding text,
+        // so `AA${`${number}`}` and `AA${number}` intern identically
+        // (stringMappingOverPatternLiterals equivalences); adjacent literal
+        // fragments merge for the same reason
+        fn push_str(tpl: &mut Vec<crate::types::TplPart>, s: &str) {
+            if s.is_empty() {
+                return;
+            }
+            if let Some(crate::types::TplPart::Str(last)) = tpl.last_mut() {
+                last.push_str(s);
+            } else {
+                tpl.push(crate::types::TplPart::Str(s.to_string()));
             }
         }
-        self.types.intern_kind(TypeKind::TemplateLit(tpl))
+        let mut tpl: Vec<crate::types::TplPart> = Vec::new();
+        push_str(&mut tpl, &head);
+        for (t, text) in parts {
+            match self.types.kind(t).clone() {
+                TypeKind::TemplateLit(inner) => {
+                    for p in inner {
+                        match p {
+                            crate::types::TplPart::Str(s) => push_str(&mut tpl, &s),
+                            crate::types::TplPart::Ty(it) => {
+                                tpl.push(crate::types::TplPart::Ty(it))
+                            }
+                        }
+                    }
+                }
+                TypeKind::StrLit(s) => push_str(&mut tpl, &s.to_str_lossy()),
+                _ => tpl.push(crate::types::TplPart::Ty(t)),
+            }
+            push_str(&mut tpl, &text);
+        }
+        match tpl.as_slice() {
+            [] => self.types.string_lit(""),
+            [crate::types::TplPart::Str(s)] => {
+                let s = s.clone();
+                self.types.string_lit(&s)
+            }
+            _ => self.types.intern_kind(TypeKind::TemplateLit(tpl)),
+        }
     }
 }

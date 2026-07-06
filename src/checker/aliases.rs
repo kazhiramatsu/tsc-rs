@@ -37,6 +37,29 @@ impl<'a> Checker<'a> {
                     .collect();
                 self.types.union(mapped)
             }
+            // a template PATTERN maps its literal parts; hole types map
+            // recursively (digits have no case, so number/bigint holes are
+            // identity; a boolean hole becomes its cased literal union) —
+            // Uppercase<`aA${number}${boolean}`> = `AA${number}${"TRUE"|"FALSE"}`
+            TypeKind::TemplateLit(parts) => {
+                let mapped: Vec<crate::types::TplPart> = parts
+                    .iter()
+                    .map(|p| match p {
+                        crate::types::TplPart::Str(s) => crate::types::TplPart::Str(case.apply(s)),
+                        crate::types::TplPart::Ty(t) => {
+                            let mt = if *t == self.types.boolean {
+                                let tt = self.types.string_lit(&case.apply("true"));
+                                let ff = self.types.string_lit(&case.apply("false"));
+                                self.types.union(vec![tt, ff])
+                            } else {
+                                self.apply_string_intrinsic(case, *t)
+                            };
+                            crate::types::TplPart::Ty(mt)
+                        }
+                    })
+                    .collect();
+                self.types.intern_kind(TypeKind::TemplateLit(mapped))
+            }
             _ => arg,
         }
     }
@@ -97,9 +120,19 @@ impl<'a> Checker<'a> {
                     .collect();
                 self.types.union(mapped)
             }
-            TypeKind::String | TypeKind::TemplateLit(_) | TypeKind::TypeParam(_) => {
-                self.types.string
+            // template PATTERNS keep their shape with literal parts cased
+            // (apply_string_intrinsic) — collapsing to `string` lost
+            // Uppercase<`aA${number}`> ~ `AA${number}` equivalence
+            TypeKind::TemplateLit(_) => {
+                let case = match kind {
+                    0 => StrCase::Upper,
+                    1 => StrCase::Lower,
+                    2 => StrCase::Capitalize,
+                    _ => StrCase::Uncapitalize,
+                };
+                self.apply_string_intrinsic(case, s)
             }
+            TypeKind::String | TypeKind::TypeParam(_) => self.types.string,
             _ => s,
         }
     }

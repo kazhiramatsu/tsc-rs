@@ -412,6 +412,7 @@ impl<'a> Checker<'a> {
             rest_tp: None,
             ret: nret,
             decl_key: 0,
+            from_method: s.from_method,
             ret_annotation_never: s.ret_annotation_never,
             predicate: None,
             is_abstract: s.is_abstract,

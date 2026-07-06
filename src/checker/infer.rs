@@ -483,7 +483,7 @@ impl<'a> Checker<'a> {
 
     /// Resolve every type parameter of `s` to its inferred type from `infos`,
     /// leaving `unknown` for any parameter no argument constrained.
-    fn get_inferred_types(
+    pub(crate) fn get_inferred_types(
         &mut self,
         s: &crate::types::Signature,
         infos: &InferMap,
@@ -1207,8 +1207,24 @@ impl<'a> Checker<'a> {
                 // to that literal — a false positive on the common
                 // `reduce(arr, (a, b) => …, 0)` pattern. Covariant inference of
                 // parameters is FP-safe (it only ever widens the result).
-                for (pp, ap) in ps.params.iter().zip(as_.params.iter()) {
-                    self.infer_from(pp.ty, ap.ty, tps, infos, priority, contravariant);
+                // position-based like tsc applyToParameterTypes: a source
+                // REST parameter supplies every remaining position —
+                // `(...ts: D[])` against `(t: T, t1: T)` must infer T := D
+                for (i, pp) in ps.params.iter().enumerate() {
+                    let ap_ty = as_.params.get(i).map(|p| p.ty).or(as_.rest);
+                    if let Some(a) = ap_ty {
+                        self.infer_from(pp.ty, a, tps, infos, priority, contravariant);
+                    }
+                }
+                // pattern-side plain rest element takes the source's type at
+                // that position (rest-vs-rest or rest-vs-trailing-fixed)
+                if ps.rest_tp.is_none() {
+                    if let Some(pr) = ps.rest {
+                        let i = ps.params.len();
+                        if let Some(a) = as_.params.get(i).map(|p| p.ty).or(as_.rest) {
+                            self.infer_from(pr, a, tps, infos, priority, contravariant);
+                        }
+                    }
                 }
                 // a rest parameter typed as a bare infer (`(...args: infer P)`,
                 // used by Parameters/ConstructorParameters) infers the tuple of

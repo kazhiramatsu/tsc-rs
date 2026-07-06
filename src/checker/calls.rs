@@ -231,6 +231,7 @@ impl<'a> Checker<'a> {
                     rest_tp: None,
                     ret,
                     decl_key: 0,
+                    from_method: sigs.iter().any(|s| s.from_method),
                     ret_annotation_never: false,
                     predicate: None,
                     is_abstract: false,

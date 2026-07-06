@@ -1510,6 +1510,17 @@ impl<'a> Checker<'a> {
                 let v = f64::from_bits(*bits);
                 return matches!(self.enums.enum_member_values.get(m), Some(super::EnumValue::Number(mv)) if *mv == v);
             }
+            // tsc isSimpleTypeRelatedTo (assignable/comparable): plain
+            // `number` is assignable to numeric enum TYPES (`e = n` is
+            // legal; numeric literals still need a matching member value —
+            // the arms above). Member targets deliberately excluded: tsc
+            // allows those too, but tsrs's covariant-inference candidate
+            // ranking keys on this relation and mis-picks enum members over
+            // `number` (genericCallWithGenericSignatureArguments3).
+            (TypeKind::Number, TypeKind::EnumType(_)) => {
+                let (n, _) = self.enum_member_kinds_of(tgt);
+                return n;
+            }
             (_, TypeKind::EnumType(_) | TypeKind::EnumMember(_)) => return false,
             (TypeKind::EnumType(_) | TypeKind::EnumMember(_), _) => {}
             _ => {}
@@ -1986,14 +1997,19 @@ impl<'a> Checker<'a> {
                 }
                 return false;
             }
+            // tsc signaturesRelatedTo: overloaded (multi-signature) lists
+            // relate with BOTH signatures' type params erased to any; only
+            // the single-vs-single case instantiates a generic source in
+            // context (and erases only under the comparable relation)
+            let multi = s_shape.call_sigs.len() > 1 || t_shape.call_sigs.len() > 1;
             for &t_sig in &t_shape.call_sigs {
                 let matched = s_shape
                     .call_sigs
                     .iter()
-                    .any(|&s_sig| self.signature_related(s_sig, t_sig, false, &mut None));
+                    .any(|&s_sig| self.signature_related(s_sig, t_sig, false, multi, &mut None));
                 if !matched {
                     if let Some(&s_sig) = s_shape.call_sigs.first() {
-                        let _ = self.signature_related(s_sig, t_sig, false, ctx);
+                        let _ = self.signature_related(s_sig, t_sig, false, multi, ctx);
                     }
                     return false;
                 }
@@ -2013,14 +2029,15 @@ impl<'a> Checker<'a> {
                 }
                 return false;
             }
+            let multi = s_shape.ctor_sigs.len() > 1 || t_shape.ctor_sigs.len() > 1;
             for &t_sig in &t_shape.ctor_sigs {
                 let matched = s_shape
                     .ctor_sigs
                     .iter()
-                    .any(|&s_sig| self.signature_related(s_sig, t_sig, true, &mut None));
+                    .any(|&s_sig| self.signature_related(s_sig, t_sig, true, multi, &mut None));
                 if !matched {
                     if let Some(&s_sig) = s_shape.ctor_sigs.first() {
-                        let _ = self.signature_related(s_sig, t_sig, true, ctx);
+                        let _ = self.signature_related(s_sig, t_sig, true, multi, ctx);
                     }
                     return false;
                 }
@@ -2238,6 +2255,7 @@ impl<'a> Checker<'a> {
         s_sig: crate::types::SigId,
         t_sig: crate::types::SigId,
         is_ctor: bool,
+        force_erase: bool,
         ctx: &mut Option<&mut RelCtx>,
     ) -> bool {
         let s = self.types.sig(s_sig).clone();
@@ -2246,11 +2264,13 @@ impl<'a> Checker<'a> {
         // must relate to `<U>(x: U) => U`. tsc instantiates the source in the
         // context of the target's type parameters — here we map the source's
         // parameters onto the target's positionally so the bodies compare with a
-        // common set of type variables. In comparable mode BOTH signatures
-        // instead erase their own type params to `any` (tsc getErasedSignature
-        // under `eraseGenerics = relation === comparableRelation`), which is
-        // what lets `{ fn<T>(x: T): T }` compare against `{ fn(): string }`.
-        let erase = self.rel.erase_generic_sigs;
+        // common set of type variables. Erasure of BOTH signatures' own type
+        // params to `any` (tsc getErasedSignature) applies in comparable mode
+        // (`eraseGenerics = relation === comparableRelation`) — what lets
+        // `{ fn<T>(x: T): T }` compare against `{ fn(): string }` — AND
+        // whenever either side's signature list is overloaded (force_erase;
+        // tsc signaturesRelatedTo passes erase=true outside the 1-vs-1 case).
+        let erase = force_erase || self.rel.erase_generic_sigs;
         let mk_erase = |this: &mut Self,
                         tps: &[crate::binder::SymbolId]|
          -> Option<crate::checker::symbols::Mapper> {
@@ -2275,6 +2295,56 @@ impl<'a> Checker<'a> {
                 m.insert(*sp, tp_ty);
             }
             (Some(m), None)
+        } else if !s.type_params.is_empty() {
+            // tsc compareSignaturesRelated: a generic SOURCE signature whose
+            // type params don't line up with the target's is INSTANTIATED IN
+            // THE CONTEXT of the target (instantiateSignatureInContextOf) —
+            // T in `<T>(x: T) => T[]` infers from the target's parameter and
+            // return types (applyToParameterTypes/applyToReturnTypes), then
+            // the relation proceeds with that instantiation. Without this,
+            // `<T>(x: T) => T[]` never relates to `(x: number) => number[]`.
+            let mut infos: crate::checker::infer::InferMap = Default::default();
+            let s_positions = s.params.len() + usize::from(s.rest.is_some());
+            for i in 0..s_positions {
+                let s_ty = s.params.get(i).map(|p| p.ty).or(s.rest);
+                let t_ty = t.params.get(i).map(|p| p.ty).or(t.rest);
+                if let (Some(sp), Some(tp)) = (s_ty, t_ty) {
+                    self.infer_from(
+                        sp,
+                        tp,
+                        &s.type_params,
+                        &mut infos,
+                        crate::checker::infer::infer_prio::NONE,
+                        false,
+                    );
+                }
+            }
+            let s_ret_raw = self.sig_return(s_sig);
+            let t_ret_raw = self.sig_return(t_sig);
+            self.infer_from(
+                s_ret_raw,
+                t_ret_raw,
+                &s.type_params,
+                &mut infos,
+                crate::checker::infer::infer_prio::RETURN_TYPE,
+                false,
+            );
+            let mut inferred = self.get_inferred_types(&s, &infos);
+            // tsc getInferredType clamps an inference to the parameter's
+            // constraint — `<T extends Derived>(...x: T[]) => T` inferred
+            // against `(...x: Base[]) => Base` yields T = Derived, and the
+            // relation then correctly FAILS (Base ⊄ Derived)
+            for &tp in &s.type_params {
+                if let Some(c0) = self.constraint_of_type_param(tp) {
+                    let c = self.instantiate_type(c0, &inferred);
+                    if let Some(&cur) = inferred.get(&tp) {
+                        if !self.is_assignable_to(cur, c) {
+                            inferred.insert(tp, c);
+                        }
+                    }
+                }
+            }
+            (Some(inferred), None)
         } else {
             (None, None)
         };
@@ -2345,11 +2415,12 @@ impl<'a> Checker<'a> {
         // rest element compares against the target's type at that position —
         // `(...a: Base[])` vs `(...a: C[])` is how the fixed loop above,
         // which only walks source fixed params, misses Base~C entirely).
-        // BIVARIANT deliberately: a Signature carries no method-declared bit,
-        // and tsc keeps method params bivariant even under
-        // strictFunctionTypes — one-directional overlap must not fail here
-        // (never[]→ReadonlyArray<T> via concat). No-relationship elements
-        // still fail both directions.
+        // Variance follows the TARGET's declaration kind like tsc
+        // compareSignaturesRelated strictVariance: methods stay bivariant
+        // even under strictFunctionTypes (never[]→ReadonlyArray<T> via
+        // concat), plain function types are strictly contravariant
+        // (`(...x: Base[]) => Base` must reject a Derived-constrained
+        // generic source).
         if let Some(s_rest) = s.rest {
             let i = s.params.len();
             let t_count = t.params.len() + usize::from(t.rest.is_some());
@@ -2362,8 +2433,10 @@ impl<'a> Checker<'a> {
                     .unwrap_or(self.types.any);
                 let t_param_ty = map_tgt(self, t_param_ty);
                 let s_param_ty = map_src(self, s_rest);
+                let bivariant =
+                    !is_ctor && (!self.options.strict_function_types() || t.from_method);
                 let related = self.is_assignable_to(t_param_ty, s_param_ty)
-                    || self.is_assignable_to(s_param_ty, t_param_ty);
+                    || (bivariant && self.is_assignable_to(s_param_ty, t_param_ty));
                 if !related {
                     if ctx.is_some() {
                         let r = self.related_with_display_override(

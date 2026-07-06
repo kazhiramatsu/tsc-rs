@@ -1798,6 +1798,17 @@ impl<'a> Binder<'a> {
                                     self.symbols[existing.0 as usize]
                                         .decls
                                         .push(Decl::Method(f));
+                                } else if ef & flags::METHOD != 0 && fl & flags::METHOD != 0 {
+                                    // method OVERLOADS merge into one member
+                                    // symbol (tsc binds every same-name method
+                                    // declaration together); without this the
+                                    // 2nd+ overload was an orphan and the
+                                    // member type carried only the first
+                                    // signature
+                                    self.symbols[existing.0 as usize]
+                                        .decls
+                                        .push(Decl::Method(f));
+                                    self.decl_symbol.insert(node_key(&**f), existing);
                                 }
                             } else {
                                 table.insert(name, mid);

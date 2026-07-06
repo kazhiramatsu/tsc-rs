@@ -160,6 +160,10 @@ pub struct Signature {
     pub ret: TypeId,
     /// declaration ptr for lazy body-inferred return types (0 = none)
     pub decl_key: usize,
+    /// declared as a class/interface METHOD (tsc keeps method parameters
+    /// bivariant even under strictFunctionTypes; compareSignaturesRelated
+    /// keys strictVariance on the TARGET declaration kind)
+    pub from_method: bool,
     /// the SYNTACTIC return annotation resolved to `never` at declaration
     /// (tsc getReturnTypeFromAnnotation): drives never-returning-call
     /// reachability. Instantiation copies it verbatim, so `(): T`

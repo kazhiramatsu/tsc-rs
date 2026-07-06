@@ -794,6 +794,16 @@ impl<'a> Checker<'a> {
 
     /// Post-assignment type of `key` when `expr` assigns exactly to it —
     /// mirrors the fact-stack updates in `operators.rs`.
+    /// tsc typeMaybeAssignableTo: a union source may fit through any single
+    /// constituent (`string | number` maybe-assignable to `string`)
+    fn type_maybe_assignable_to(&mut self, src: TypeId, tgt: TypeId) -> bool {
+        if let TypeKind::Union(ms) = self.types.kind(src) {
+            let ms = ms.clone();
+            return ms.iter().any(|&m| self.is_assignable_to(m, tgt));
+        }
+        self.is_assignable_to(src, tgt)
+    }
+
     fn assigned_type(
         &mut self,
         key: &RefKey,
@@ -821,11 +831,34 @@ impl<'a> Checker<'a> {
                 if self.types.is_error(rt) {
                     return FlowRes::Ty(declared);
                 }
-                let narrowed = self.types.regular(rt);
-                let widened = self.types.widen_literal(narrowed);
-                if !self.is_global_object_type(declared) && self.is_assignable_to(widened, declared)
-                {
-                    FlowRes::Ty(widened)
+                let assigned = self.types.regular(rt);
+                // AUTO query (tsc getTypeAtFlowAssignment autoType arm):
+                // the widened assigned type IS the flow type
+                if matches!(&self.fresolve.auto, Some(ak) if ak == key) {
+                    let widened = self.types.widen_literal(assigned);
+                    return FlowRes::Ty(widened);
+                }
+                // tsc: only a UNION declared type reduces on assignment
+                // (getAssignmentReducedType filters the DECLARED members by
+                // the assigned type); every other declared type stays put —
+                // `let c: (x: number) => number[]; c = genericFn; c` reads
+                // the declared concrete signature, not typeof genericFn
+                let dreg = self.types.regular(declared);
+                if let TypeKind::Union(members) = self.types.kind(dreg) {
+                    if matches!(self.types.kind(assigned), TypeKind::Never) {
+                        return FlowRes::Ty(assigned);
+                    }
+                    let members = members.clone();
+                    let kept: Vec<TypeId> = members
+                        .into_iter()
+                        .filter(|&m| self.type_maybe_assignable_to(assigned, m))
+                        .collect();
+                    let filtered = self.types.union(kept);
+                    if self.is_assignable_to(assigned, filtered) {
+                        FlowRes::Ty(filtered)
+                    } else {
+                        FlowRes::Ty(declared)
+                    }
                 } else {
                     FlowRes::Ty(declared)
                 }
