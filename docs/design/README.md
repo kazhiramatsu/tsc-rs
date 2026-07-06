@@ -38,14 +38,19 @@ Document map:
   and the mandatory house style for big refactors. Consult it whenever
   two consecutive workstreams under-deliver, and BEFORE starting any
   refactor larger than one subsystem.
-- **[greenfield.md](greenfield.md)** — the from-scratch design
-  (north star): why the semantic core deliberately mirrors tsc's
-  architecture (empirical argument), where Rust-native improvement is
-  legitimate (identity/links/determinism mechanics, port ledger), the
-  day-1 test-harness design (single-source fixture expansion, in-repo
-  goldens, comparison tiers with ratchets, metamorphic invariants,
-  differential fuzzing), and the ordered list of pieces to retrofit
-  WITHOUT rebuilding. Read §6 before proposing any rewrite.
+- **[greenfield.md](greenfield.md)** — the from-scratch design at
+  implementation grade: architecture verdict (tsc-shaped core, with
+  the empirical argument), workspace/crate layout, concrete core types
+  (allocation-identity Type model with tsc's exact interning surface,
+  links tables with the one-write/speculation rule, Ternary×5 relation
+  engine, tsc-bit-compatible generated flags/SyntaxKind), diagnostics
+  pipeline (emit-free suggestion band), the day-1 harness (program.json
+  /diagnostics.json schemas, oracle process pool, in-repo goldens,
+  T0–T4 ratchets, invariant suite, differential fuzzer with reducer),
+  port-ledger tooling, performance/determinism budget, the strangler
+  adoption map into THIS repo (§10), rebuild-trigger conditions (§11),
+  and a milestone plan M0–M9 with measurable acceptance gates (§12).
+  Read §10–§11 before proposing any rewrite.
 
 ## Priority table (expected yield, highest first)
 
