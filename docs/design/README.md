@@ -30,6 +30,13 @@ Document map:
 - **[tsc-source-guide.md](tsc-source-guide.md)** — how to read the
   vendored `_tsc.js` (techniques, verified function/line index for
   this build, checkMode bits, structural facts confirmed so far).
+- **[core-interfaces.md](core-interfaces.md)** — the DATA CONTRACTS:
+  the actual tsc interface definitions (Node, Symbol, Type, Signature,
+  FlowNode, InferenceInfo, Diagnostic, CompilerOptions, the check-program
+  API) with their Rust mappings, and an observability table stating
+  field-by-field what MUST match tsc (identity, order, diagnostic shape)
+  versus what MAY differ (allocation ids, caches). Read this to know the
+  shape of everything the algorithm docs read and write.
 - **[checker-key-functions.md](checker-key-functions.md)** —
   implementation-grade porting notes for the load-bearing algorithms:
   the relation engine (`isTypeRelatedTo`/`recursiveTypeRelatedTo` with

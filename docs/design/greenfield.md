@@ -75,6 +75,12 @@ switch arms be ported verbatim.
 
 ## 4. Core data model (concrete)
 
+> The actual tsc interface definitions (Node/Symbol/Type/Signature/
+> FlowNode/InferenceInfo/Diagnostic/CompilerOptions) with field-by-field
+> Rust mappings and the must-match-vs-may-differ observability table are
+> in [core-interfaces.md](core-interfaces.md). This section gives the
+> DESIGN rationale for the shapes; that doc is the reference contract.
+
 ### 4.1 Ids and arenas
 
 ```rust
