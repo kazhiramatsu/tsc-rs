@@ -135,6 +135,15 @@ This makes the anon-identity divergence class (fx2/fx4, the 2403
 mapped-identity family) unrepresentable, and it makes tsc's
 `typeMembershipMap` dedup semantics fall out for free.
 
+> The foundational MACHINERY (lazy type computation + the
+> `pushTypeResolution` cycle stack, the eager/deferred check-driver
+> ordering, contextual typing, `getUnionType`/`getIntersectionType`
+> construction, widening, `instantiateType`/TypeMapper, member access)
+> has its own porting notes in
+> [checker-foundations.md](checker-foundations.md). This section (§4)
+> gives the data-model shapes those functions read/write; that doc gives
+> the functions.
+
 ### 4.3 Links tables (the memo policy, in one place)
 
 ```rust

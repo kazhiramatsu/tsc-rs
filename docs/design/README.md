@@ -43,6 +43,17 @@ Document map:
   mirroring the real control flow, with tsc line anchors and the
   current-tsrs gap. Read alongside greenfield §4–5 (data model) and
   stall-playbook §2.1.
+- **[checker-foundations.md](checker-foundations.md)** — the machinery
+  UNDER those four algorithms, where the load-bearing DESIGN DECISIONS
+  live: lazy type computation + the `pushTypeResolution` cycle stack,
+  the check driver's eager/deferred two-phase ordering (why resolution
+  order is observable), contextual typing (`getContextualType`), type
+  construction/normalization (`getUnionType`/`getIntersectionType` incl.
+  the identity-dedup that structural interning can't reproduce),
+  widening + fresh literals, `instantiateType`/TypeMapper, and member
+  access (`getApparentType`/`resolveStructuredTypeMembers`/
+  `getTargetSymbol`). Prerequisites for checker-key-functions; maps into
+  the greenfield milestones.
 - **[stall-playbook.md](stall-playbook.md)** — strategic layer: how to
   detect/attribute a convergence stall, the catalog of architectural
   ceilings (relation-engine Ternary×5, resolution-order freshness,

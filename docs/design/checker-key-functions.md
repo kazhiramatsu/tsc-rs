@@ -17,7 +17,12 @@ the two pieces tsrs approximates.
 
 Read tsc-source-guide.md first for how to navigate `_tsc.js`. Every
 skeleton below is a PORT TARGET, not pseudocode to improvise from — when
-in doubt, read the cited lines and probe.
+in doubt, read the cited lines and probe. The MACHINERY these four
+algorithms sit on (lazy type computation + cycle stack, the check
+driver's eager/deferred ordering, contextual typing, type
+construction/normalization, widening, instantiation, member access) is
+in [checker-foundations.md](checker-foundations.md) — read it first if
+you are building the whole checker rather than one algorithm.
 
 Convention: `T` = TypeId, `Ternary` = { False=0, Unknown=1, Maybe=3,
 True=-1 } (tsc's exact values; `& 1` tests truthiness the way tsc's
