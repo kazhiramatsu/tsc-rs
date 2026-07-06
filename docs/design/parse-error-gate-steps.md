@@ -68,13 +68,23 @@ fn collect_parse_error_stmts(
 }
 ```
 
-NOTE: field names (`d.file_index`, `d.start`, `Span.start/end` types,
-`SourceFileAst.statements`, the `Stmt` variant names) MUST be checked
-against the real definitions in `src/diagnostics/mod.rs` and
-`src/ast.rs` before compiling — adjust mechanically; the SHAPE of the
-function is what this spec fixes. If `Diagnostic` has no file index
-field, key by file via the diagnostic's `file` string instead (compare
-with `parsed[i].0`).
+VERIFIED anchors (checked @3242fdc — adjust only if drifted):
+- `diagnostics::Diagnostic` fields: `file: Option<usize>` (index into
+  the program file list; use `d.file == Some(i)`), `start: u32`,
+  `length: u32` (src/diagnostics/mod.rs:107).
+- `Stmt` variants (src/ast.rs:1090+): `Var(VarStmt)`,
+  `Func(Box<FunctionLike>)`, `Class`, `Interface`, `TypeAlias`, `Enum`,
+  `Namespace`, `With{..}`, `Return{..}`, `If{..}`, `While{..}`,
+  `DoWhile{..}`, `For{..}`, `ForIn{..}`, `ForOf{..}`, `Block(Block)`,
+  `Expr{..}`, `Empty{..}`, `Break{..}`, `Continue{..}`, `Throw{..}`,
+  `Try{..}`, `Switch{..}`, `Labeled{..}`, `Import(..)`,
+  `ExportNamed(..)` (+ a few export/import-equals variants — read the
+  enum). For stage 0, recursing into `Block(b)` (`b.stmts`), `If`,
+  `While/DoWhile/For*` bodies, `Try` blocks, `Switch` case stmt lists,
+  `Labeled` and `Namespace` bodies is sufficient; the exact field names
+  are one `Read` of the enum away.
+- Statement-list root: check the actual field name on the parsed file
+  AST (`ast::SourceFileAst`) — grep `statements` in src/ast.rs.
 
 Call it right after the parse loop and keep it unused for now:
 

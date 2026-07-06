@@ -23,6 +23,13 @@ Document map:
   stop-points in [T] stages.
 - `NOTES-*.md` — reports produced by implementing agents (mining
   tables, stop-notes). Never deleted, only appended.
+- **[knowledge-base.md](knowledge-base.md)** — pinned non-obvious facts
+  (oracle emit artifact, standing families with known root causes,
+  probe noise, harness gotchas, relation-engine invariants, tooling
+  landmines). Check it BEFORE investigating any confusing FP/FN.
+- **[tsc-source-guide.md](tsc-source-guide.md)** — how to read the
+  vendored `_tsc.js` (techniques, verified function/line index for
+  this build, checkMode bits, structural facts confirmed so far).
 - **[stall-playbook.md](stall-playbook.md)** — strategic layer: how to
   detect/attribute a convergence stall, the catalog of architectural
   ceilings (relation-engine Ternary×5, resolution-order freshness,
@@ -39,7 +46,7 @@ Document map:
 | 1 | Parse-error semantic gate + non-LHS `=` recovery (PAIRED — do together) | [parse-error-gate.md](parse-error-gate.md) | [steps](parse-error-gate-steps.md) | whole-file FN flips: every fixture with ≥1 syntax error loses ALL semantic diags (6133×387 mostly here, 1005×125, 1109×80, parserRealSource11 alone = 87 FN) | largest single FN lever; hundreds of file flips |
 | 2 | Relation-core 2: 2339 mining + assignable-side private nominality | [relation-core-2.md](relation-core-2.md) | [steps](relation-core-2-steps.md) | 2339 = FP #1 (529), 2322 #2 (483), 2345 #3 (357); nominality FPs 2415/2430/2445 mapped | few hundred FPs |
 | 3 | lib-gap axis (2304) | [lib-gap-2304.md](lib-gap-2304.md) | [steps](lib-gap-2304-steps.md) | 2304 = FN #1 (1,622 raw; partially excluded from the gate-filtered metric) | raw-metric heavy; moderate filtered yield |
-| 4 | U6: unused-FP finish | buckets in the conformance-sweep memory; FP 6133 = 156 | small, self-contained | ~100 FPs |
+| 4 | U6: unused-FP finish | [u6-unused-fp.md](u6-unused-fp.md) (buckets + root causes A/B/C inside) | FP 6133 = 156 | small, self-contained; best FIRST workstream for a new agent | ~100 FPs |
 | 5 | Architectural debt (do only when a workstream is blocked on it) | [architectural-debt.md](architectural-debt.md) | anon-`{}` identity, StringMapping kind, inference widen ordering, 2403 mapped-identity (276) | unblocks documented FNs |
 
 ## Working protocol (MANDATORY)

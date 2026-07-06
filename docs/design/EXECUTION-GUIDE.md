@@ -5,6 +5,53 @@ designs in this directory. It is written so that you never need to make
 a judgment call that isn't spelled out. When you hit a situation not
 covered here or in the workstream doc, STOP (see "Stop conditions").
 
+## First 10 minutes of any session
+
+1. Read, in order: this file → README.md → knowledge-base.md → your
+   workstream's `<name>.md` and `<name>-steps.md`. Skim
+   tsc-source-guide.md so you know it exists.
+2. `git log --oneline -5` and `git status` — working tree must be
+   clean; note the HEAD hash in your running notes.
+3. `ls /tmp/golden_diag.txt /tmp/chunk1.txt` — if missing:
+   `bash scripts/bootstrap.sh && ./verify.sh golden-save`.
+4. `cargo build --release && cargo test --release` — green before you
+   touch anything (record the test count; it is the baseline).
+5. Sanity probe: `python3 scripts/probe.py difftest/corpus.txt` is NOT
+   a fixture — instead probe any fixture from your workstream's list
+   and confirm the output has both a tsrs and a tsc section.
+
+## Conventions
+
+- Branch: `git checkout -b <workstream-short-name>` for multi-stage
+  work; single-gated-commit work may go on main directly.
+- Commit messages: first line `<workstream> <step>: <what>` (e.g.
+  `parse-gate 1.2: LHS gate in parse_assignment_expr`); body lists the
+  gate numbers when a classifier ran (`classifier: 0 NEW_FP / 0 NEW_FN,
+  +N adds / -M standing FPs`).
+- `cargo fmt` ONLY immediately before a commit (it rewrites files and
+  invalidates line-number notes and pending edit anchors).
+- Adding an integration test (pins exact tsc-shaped output): tests live
+  in `src/lib.rs` `mod tests` (~line 933). Pattern:
+
+```rust
+#[test]
+fn my_pin_name() {
+    let opts = CompilerOptions { strict: Some(true),
+        target: Some("es2015".to_string()), ..CompilerOptions::default() };
+    let (out, _code) = check_program(
+        vec![InputFile { name: "main.ts".into(), text: "...".into() }],
+        &opts,
+    );
+    assert!(out.contains("main.ts(2,11): error TS2331"));
+    assert!(!out.contains("TS2683")); // negative pins matter as much
+}
+```
+
+  The expected strings come from an ORACLE PROBE, never from your
+  expectation. Include `InputFile { name: LIB_NAME.to_string(), text:
+  String::new() }` first when the test needs an empty lib (see
+  neighboring tests for when).
+
 ## The loop (never deviate)
 
 Work in steps. A "step" is defined by the workstream doc. For EVERY step:
