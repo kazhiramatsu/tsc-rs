@@ -626,6 +626,20 @@ impl<'a> Checker<'a> {
                 }
             }
         }
+        let object_member_apparent = self.apparent_type(obj_t);
+        if !matches!(
+            self.types.kind(object_member_apparent),
+            TypeKind::EnumObject(_)
+        ) && self.shape_of_type(object_member_apparent).is_some()
+        {
+            if let Some(obj_sym) = self.global_type_symbol("Object") {
+                let obj_ty = self.types.intern_kind(TypeKind::Iface(obj_sym));
+                if let Some(p) = self.prop_info_of_type(obj_ty, &name.name) {
+                    self.check_member_access_control(&p, name);
+                    return Some(p.ty);
+                }
+            }
+        }
         // index signature fallback
         if let Some(sid) = {
             let ap = self.apparent_type(obj_t);
