@@ -30,6 +30,16 @@ Document map:
 - **[tsc-source-guide.md](tsc-source-guide.md)** — how to read the
   vendored `_tsc.js` (techniques, verified function/line index for
   this build, checkMode bits, structural facts confirmed so far).
+- **[checker-key-functions.md](checker-key-functions.md)** —
+  implementation-grade porting notes for the load-bearing algorithms
+  (the relation engine `isTypeRelatedTo`/`recursiveTypeRelatedTo` with
+  the maybe-stack/Ternary caching, inference `getInferredType`/
+  `getCovariantInference` with the exact widenLiteralTypes rule, and
+  overload resolution `resolveCall`/`chooseOverload` with the two-pass
+  relation + inference re-run). Rust-shaped skeletons that mirror the
+  real control flow, with tsc line anchors and the current-tsrs gap.
+  Read alongside greenfield §4–5 (data model) and stall-playbook §2.1
+  (why the relation engine is the highest-leverage rebuild).
 - **[stall-playbook.md](stall-playbook.md)** — strategic layer: how to
   detect/attribute a convergence stall, the catalog of architectural
   ceilings (relation-engine Ternary×5, resolution-order freshness,

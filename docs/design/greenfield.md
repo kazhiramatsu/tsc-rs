@@ -187,6 +187,13 @@ FlowNodes built at bind time, `FlowFlags` bit-compatible, resolver =
 `getFlowTypeOfReference` port. The one upgrade: `getTypeAtFlow*` arms
 live in ONE module ordered as in checker.ts, each with a ledger entry.
 
+> The load-bearing algorithms (`isTypeRelatedTo`/`recursiveTypeRelatedTo`,
+> `getInferredType`/`getCovariantInference`, `resolveCall`/`chooseOverload`)
+> have implementation-grade porting notes — Rust-shaped skeletons mirroring
+> the real control flow, with line anchors — in
+> [checker-key-functions.md](checker-key-functions.md). §4.7–4.8 here give
+> the data-model shape; that doc gives the algorithms.
+
 ### 4.7 Relations engine (day-1 shape)
 
 ```rust
