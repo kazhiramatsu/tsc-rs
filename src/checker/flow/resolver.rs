@@ -277,11 +277,7 @@ impl<'a> Checker<'a> {
         let Expr::Call { callee, args, .. } = call else {
             return false;
         };
-        if !self
-            .bind
-            .stmt_position_calls
-            .contains(&node_key_expr(call))
-        {
+        if !self.bind.stmt_position_calls.contains(&node_key_expr(call)) {
             return false;
         }
         let Some(ct) = self.explicit_type_of_dotted_name(callee) else {
@@ -441,8 +437,8 @@ impl<'a> Checker<'a> {
                 // never-initialized, which tsc checks even across closures.
                 if let Some((ik, it, dspan, never_init)) = &self.fresolve.initial {
                     if ik == key {
-                        let declares_here = cspan
-                            .is_none_or(|cs| cs.start <= dspan.start && dspan.end <= cs.end);
+                        let declares_here =
+                            cspan.is_none_or(|cs| cs.start <= dspan.start && dspan.end <= cs.end);
                         if declares_here || *never_init {
                             return FlowRes::Ty(*it);
                         }
@@ -765,7 +761,8 @@ impl<'a> Checker<'a> {
                 }
                 if let (Binding::Ident(_), Some(init)) = (&decl.name, &decl.init) {
                     if matches!(self.types.kind(declared), TypeKind::Union(_)) {
-                        let it = match self.flow_expr_type(init, scope, ante, depth, Some(declared)) {
+                        let it = match self.flow_expr_type(init, scope, ante, depth, Some(declared))
+                        {
                             FlowRes::Ty(t) => t,
                             _ => return FlowRes::Ty(declared),
                         };
@@ -826,8 +823,7 @@ impl<'a> Checker<'a> {
                 }
                 let narrowed = self.types.regular(rt);
                 let widened = self.types.widen_literal(narrowed);
-                if !self.is_global_object_type(declared)
-                    && self.is_assignable_to(widened, declared)
+                if !self.is_global_object_type(declared) && self.is_assignable_to(widened, declared)
                 {
                     FlowRes::Ty(widened)
                 } else {
@@ -835,8 +831,7 @@ impl<'a> Checker<'a> {
                 }
             }
             Expr::Binary {
-                op:
-                    op @ (BinOp::AmpAmpAssign | BinOp::BarBarAssign | BinOp::QuestionQuestionAssign),
+                op: op @ (BinOp::AmpAmpAssign | BinOp::BarBarAssign | BinOp::QuestionQuestionAssign),
                 right,
                 ..
             } => {
@@ -920,12 +915,12 @@ impl<'a> Checker<'a> {
                     let saved_scope = self.current_scope;
                     self.current_scope = scope;
                     self.fresolve.scaffold_base.push(self.flow.facts.len());
-                self.fresolve.quiet += 1;
+                    self.fresolve.quiet += 1;
                     let dlen = self.diags.len();
                     let t = self.check_expr(e, ctx);
                     self.diags.truncate(dlen);
                     self.fresolve.quiet -= 1;
-                self.fresolve.scaffold_base.pop();
+                    self.fresolve.scaffold_base.pop();
                     self.current_scope = saved_scope;
                     FlowRes::Ty(t)
                 }
@@ -1021,9 +1016,7 @@ impl<'a> Checker<'a> {
                     }
                     self.pattern_target_clobbers(tgt, scope, root)
                 }
-                ObjectProp::Spread { expr, .. } => {
-                    self.pattern_target_clobbers(expr, scope, root)
-                }
+                ObjectProp::Spread { expr, .. } => self.pattern_target_clobbers(expr, scope, root),
                 ObjectProp::Method(_) => false,
             }),
             _ => false,
@@ -1210,8 +1203,13 @@ impl<'a> Checker<'a> {
         let Some((d, kind)) = decl else {
             return None;
         };
-        let (has_init, has_exclam, has_ty, decl_key, decl_span) =
-            (d.init.is_some(), d.exclam, d.ty.is_some(), node_key(d), d.span);
+        let (has_init, has_exclam, has_ty, decl_key, decl_span) = (
+            d.init.is_some(),
+            d.exclam,
+            d.ty.is_some(),
+            node_key(d),
+            d.span,
+        );
         // `declare let/var` — the DECLARATOR's ambient context, not the
         // symbol flag (a lib-merged global like `Symbol` carries AMBIENT
         // from the lib while its local declarator is checkable)
@@ -1404,7 +1402,6 @@ impl<'a> Checker<'a> {
         let fnode = *self.bind.flow_node.get(&nk)?;
         self.get_flow_type_of_reference(key, fnode)
     }
-
 }
 
 /// tsc isFalseExpression: literally-false conditions — the `false` keyword,

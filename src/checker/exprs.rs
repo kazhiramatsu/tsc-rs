@@ -1574,8 +1574,12 @@ impl<'a> Checker<'a> {
                             .filter(|&m| {
                                 !matches!(
                                     self.types.kind(m).clone(),
-                                    TypeKind::BoolLit(false) | TypeKind::StrLit(_) | TypeKind::NumLit(_) | TypeKind::BigIntLit(_)
-                                ) || self.type_facts(m) & crate::checker::operators::facts::TRUTHY != 0
+                                    TypeKind::BoolLit(false)
+                                        | TypeKind::StrLit(_)
+                                        | TypeKind::NumLit(_)
+                                        | TypeKind::BigIntLit(_)
+                                ) || self.type_facts(m) & crate::checker::operators::facts::TRUTHY
+                                    != 0
                             })
                             .collect();
                         treg = self.types.union(kept);

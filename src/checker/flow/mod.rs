@@ -148,10 +148,7 @@ impl<'a> Checker<'a> {
             return;
         }
         for d in &v.decls {
-            if matches!(v.kind, VarKind::Let | VarKind::Var)
-                && d.init.is_none()
-                && !d.exclam
-            {
+            if matches!(v.kind, VarKind::Let | VarKind::Var) && d.init.is_none() && !d.exclam {
                 if let Some(ty) = &d.ty {
                     let dt = self.resolve_type_cached(ty, scope);
                     // the retired pass also probed assignability, which

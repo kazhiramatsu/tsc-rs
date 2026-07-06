@@ -151,7 +151,11 @@ impl<'a> Checker<'a> {
         }
         // tsc HasExplicitReturn: any syntactic `return` bound in the container
         // (value-less counts; its own reachability does not).
-        let has_explicit_return = self.bind.fn_returns.get(&fk).map_or(false, |v| !v.is_empty());
+        let has_explicit_return = self
+            .bind
+            .fn_returns
+            .get(&fk)
+            .map_or(false, |v| !v.is_empty());
         let span = f
             .return_type
             .as_ref()
@@ -239,4 +243,3 @@ fn stmt_contains_return_with_expr(s: &Stmt) -> bool {
         _ => false,
     }
 }
-

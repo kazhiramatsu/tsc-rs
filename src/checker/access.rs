@@ -201,10 +201,7 @@ impl<'a> Checker<'a> {
         let Some(&cls) = self.stacks.class_stack.last() else {
             return;
         };
-        let Some(msym) = self.bind.symbols[cls.0 as usize]
-            .members
-            .get(&name.name)
-        else {
+        let Some(msym) = self.bind.symbols[cls.0 as usize].members.get(&name.name) else {
             return;
         };
         if self.symbol(msym).flags & (flags::ABSTRACT | flags::AMBIENT) != 0 {
@@ -451,16 +448,17 @@ impl<'a> Checker<'a> {
                 // auto-accessor fields count as setters too: writing one
                 // invokes the generated setter (tsc gives them SetAccessor
                 // flags, so the write-only exception never applies)
-                let is_setter = self.symbol(msym).flags & crate::binder::flags::SET_ACCESSOR
-                    != 0
+                let is_setter = self.symbol(msym).flags & crate::binder::flags::SET_ACCESSOR != 0
                     || self.symbol(msym).decls.first().is_some_and(|d| {
                         matches!(d, crate::binder::Decl::PropertyDecl(p)
                             if p.accessor_span.is_some())
                     });
                 let self_access = matches!(&**obj, Expr::This { .. })
-                    && self.stacks.fn_stack.last().is_some_and(|f| {
-                        self.bind.decl_symbol.get(&f.fn_key) == Some(&msym)
-                    });
+                    && self
+                        .stacks
+                        .fn_stack
+                        .last()
+                        .is_some_and(|f| self.bind.decl_symbol.get(&f.fn_key) == Some(&msym));
                 (plain_write && !is_setter) || self_access
             };
             if !skip {

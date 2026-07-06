@@ -364,11 +364,11 @@ impl<'a> Parser<'a> {
                         p.next(); // await
                         if p.is_ident_like() && p.token_value() == "using" {
                             p.next(); // using
-                            // NOTE: tsc rejects `[` here too (`await using [x]`
-                            // is an await of an element access); accepting it
-                            // keeps our historical recovery profile — flipping
-                            // it forfeits the file's semantic diagnostics to
-                            // the any-parse-error gate (see check_program_core)
+                                      // NOTE: tsc rejects `[` here too (`await using [x]`
+                                      // is an await of an element access); accepting it
+                                      // keeps our historical recovery profile — flipping
+                                      // it forfeits the file's semantic diagnostics to
+                                      // the any-parse-error gate (see check_program_core)
                             if !p.line_break_before()
                                 && (matches!(p.token(), Tok::OpenBrace | Tok::OpenBracket)
                                     || (p.is_ident_like()

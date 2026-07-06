@@ -519,9 +519,7 @@ impl<'a> FlowBuilder<'a, '_> {
                 self.unreachable()
             }
             Stmt::Break { label: Some(l), .. } => {
-                if let Some(&(_, post, _)) =
-                    self.labels.iter().rev().find(|(n, ..)| *n == l.name)
-                {
+                if let Some(&(_, post, _)) = self.labels.iter().rev().find(|(n, ..)| *n == l.name) {
                     self.add_ante(post, flow);
                 }
                 self.unreachable()
@@ -536,7 +534,9 @@ impl<'a> FlowBuilder<'a, '_> {
                 }
                 self.unreachable()
             }
-            Stmt::Labeled { label, stmt: inner, .. } => {
+            Stmt::Labeled {
+                label, stmt: inner, ..
+            } => {
                 // register the label: breaks join a fresh post label; the
                 // directly-wrapped loop claims the continue slot via
                 // `pending_labels` (nested `a: b: for` — both continue to
@@ -728,10 +728,7 @@ impl<'a> FlowBuilder<'a, '_> {
                         scope: self.scope,
                         ante: ar,
                     })
-                } else if matches!(
-                    op,
-                    BinOp::AmpAmp | BinOp::BarBar | BinOp::QuestionQuestion
-                ) {
+                } else if matches!(op, BinOp::AmpAmp | BinOp::BarBar | BinOp::QuestionQuestion) {
                     // the expression's out-flow joins the skip edge (RHS not
                     // evaluated) with the RHS out-flow, so downstream reads
                     // see narrowings/assignments from both paths (tsc

@@ -715,8 +715,10 @@ impl<'a> Checker<'a> {
         // unwrapReturnType reads the syntactic annotation's awaited type; an
         // un-unwrappable thenable maps to errorType = exempt).
         let ret_paths = if is_async {
-            declared_ret
-                .map(|t| self.awaited_for_return_paths(t, 0).unwrap_or(self.types.error))
+            declared_ret.map(|t| {
+                self.awaited_for_return_paths(t, 0)
+                    .unwrap_or(self.types.error)
+            })
         } else {
             declared_ret
         };

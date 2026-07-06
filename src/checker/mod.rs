@@ -468,6 +468,13 @@ pub struct RelationState {
     pub relation_stack: Vec<(TypeId, TypeId)>,
     pub relation_depth_overflow: bool,
     pub keep_head_for_missing: bool,
+    /// tsc comparableRelation mode: single-signature pairs relate with their
+    /// own type parameters erased to `any` (signaturesRelatedTo
+    /// `eraseGenerics = relation === comparableRelation`). Set for the
+    /// duration of a `cast_comparable` query; results go to the separate
+    /// `comparable_cache` so the assignable-relation cache stays clean.
+    pub erase_generic_sigs: bool,
+    pub comparable_cache: HashMap<(TypeId, TypeId), bool>,
 }
 
 pub struct Checker<'a> {
@@ -798,10 +805,7 @@ impl<'a> Checker<'a> {
             // `import a = …` (either form) reports individually via
             // errorUnusedLocal in tsc, not through the import-clause grouping
             let is_import_equals = s.flags & flags::ALIAS != 0
-                && matches!(
-                    s.decls.first(),
-                    Some(crate::binder::Decl::ImportEquals(..))
-                );
+                && matches!(s.decls.first(), Some(crate::binder::Decl::ImportEquals(..)));
             if !(is_param
                 || is_local_var
                 || is_type_decl
@@ -1126,10 +1130,7 @@ impl<'a> Checker<'a> {
                 return None;
             }
         }
-        Some(crate::ast::Span::new(
-            start,
-            start + n.name.name.len(),
-        ))
+        Some(crate::ast::Span::new(start, start + n.name.name.len()))
     }
 
     fn is_exported_namespace_member(&self, sym: SymbolId) -> bool {
@@ -4327,7 +4328,11 @@ impl<'a> Checker<'a> {
             if col.is_empty() {
                 continue;
             }
-            let as_error = if pat.is_param_root { no_params } else { no_locals };
+            let as_error = if pat.is_param_root {
+                no_params
+            } else {
+                no_locals
+            };
             let (grouped_col, plain_col): (Vec<_>, Vec<_>) = if pat.grouped {
                 (col, Vec::new())
             } else {
@@ -4664,9 +4669,10 @@ impl<'a> Checker<'a> {
                 // — deferred to the import-kinds sweep (U5)
                 _ => continue,
             };
-            let entry = groups
-                .entry(crate::ast::node_key(idecl))
-                .or_insert((s.file, idecl, Vec::new()));
+            let entry =
+                groups
+                    .entry(crate::ast::node_key(idecl))
+                    .or_insert((s.file, idecl, Vec::new()));
             entry.2.push(ImportEntry {
                 sym,
                 name,
@@ -4675,8 +4681,7 @@ impl<'a> Checker<'a> {
             });
         }
         // (file, span, message, args)
-        let mut to_report: Vec<(usize, Span, &'static DiagnosticMessage, Vec<String>)> =
-            Vec::new();
+        let mut to_report: Vec<(usize, Span, &'static DiagnosticMessage, Vec<String>)> = Vec::new();
         for (_k, (file, idecl, entries)) in groups {
             // total DECLARED names, syntactically (tsc nDeclarations) — a
             // leading-underscore name is never collectible but still counts,
@@ -4797,11 +4802,7 @@ impl<'a> Checker<'a> {
     // `self` for the whole scope (the body needs `&mut self`).
 
     /// Push `sym` on `this_type_stack` for the duration of `f`.
-    pub(crate) fn with_this_type<R>(
-        &mut self,
-        sym: SymbolId,
-        f: impl FnOnce(&mut Self) -> R,
-    ) -> R {
+    pub(crate) fn with_this_type<R>(&mut self, sym: SymbolId, f: impl FnOnce(&mut Self) -> R) -> R {
         self.stacks.this_type_stack.push(sym);
         let r = f(self);
         self.stacks.this_type_stack.pop();

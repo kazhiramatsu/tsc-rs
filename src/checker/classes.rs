@@ -5,8 +5,7 @@
 use crate::ast::*;
 use crate::binder::{flags, SymbolId};
 use crate::checker::stmts::{
-    class_member_prop_name, collect_this_spans, super_call_pos,
-    DecoratorKind, MemberKind,
+    class_member_prop_name, collect_this_spans, super_call_pos, DecoratorKind, MemberKind,
 };
 use crate::checker::{Checker, CtorFieldContext, CtorFieldContextKind, Slot};
 use crate::diagnostics::gen;
@@ -30,7 +29,6 @@ impl<'a> Checker<'a> {
         self.fresolve.quiet -= 1;
         self.diags.truncate(before);
     }
-
 
     pub fn check_class_pub(&mut self, c: &'a ClassDecl) {
         self.check_class(c);
@@ -609,7 +607,9 @@ impl<'a> Checker<'a> {
             kind: crate::checker::ContainerKind::ClassBody,
             explicit_this: None,
         };
-        self.with_class_body(sym, class_tc, |this| this.check_class_inner(c, sym, key, scope));
+        self.with_class_body(sym, class_tc, |this| {
+            this.check_class_inner(c, sym, key, scope)
+        });
         self.current_scope = prev_scope;
     }
 
@@ -1063,8 +1063,8 @@ impl<'a> Checker<'a> {
                                 blocked_names: ctor_field_blocked_names.clone().unwrap_or_default(),
                                 kind: CtorFieldContextKind::Initializer,
                             });
-                            let it =
-                                this.with_ctor_field(field_ctx, |this| this.check_expr(init, declared));
+                            let it = this
+                                .with_ctor_field(field_ctx, |this| this.check_expr(init, declared));
                             this.prop_init_pos = None;
                             it
                         });
@@ -1088,10 +1088,7 @@ impl<'a> Checker<'a> {
                             && !has_modifier(&p.modifiers, ModifierKind::Static)
                             && !has_modifier(&p.modifiers, ModifierKind::Declare)
                             && !has_modifier(&p.modifiers, ModifierKind::Abstract)
-                            && !matches!(
-                                p.name,
-                                PropName::String { .. } | PropName::Number { .. }
-                            )
+                            && !matches!(p.name, PropName::String { .. } | PropName::Number { .. })
                             && !matches!(
                                 self.types.kind(dt),
                                 crate::types::TypeKind::Any

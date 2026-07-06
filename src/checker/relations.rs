@@ -124,7 +124,13 @@ impl<'a> Checker<'a> {
         if src == tgt {
             return true;
         }
-        if let Some(&r) = self.rel.relation_cache.get(&(src, tgt)) {
+        let comparable = self.rel.erase_generic_sigs;
+        let cached = if comparable {
+            self.rel.comparable_cache.get(&(src, tgt))
+        } else {
+            self.rel.relation_cache.get(&(src, tgt))
+        };
+        if let Some(&r) = cached {
             return r;
         }
         if self
@@ -144,7 +150,11 @@ impl<'a> Checker<'a> {
         let r = self.related(src, tgt, &mut None);
         self.rel.relation_stack.pop();
         if top_level {
-            self.rel.relation_cache.insert((src, tgt), r);
+            if comparable {
+                self.rel.comparable_cache.insert((src, tgt), r);
+            } else {
+                self.rel.relation_cache.insert((src, tgt), r);
+            }
         }
         r
     }
@@ -973,6 +983,30 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// (private, protected) declaration modifiers of a class-member property
+    /// (None-symbol shapes — object literals, mapped types — are public)
+    fn prop_nonpublic(&self, p: &crate::types::PropInfo) -> (bool, bool) {
+        let Some(msym) = p.symbol else {
+            return (false, false);
+        };
+        self.symbol(msym)
+            .decls
+            .first()
+            .map(|d| {
+                let mods = match d {
+                    crate::binder::Decl::PropertyDecl(p) => &p.modifiers,
+                    crate::binder::Decl::Method(f) => &f.modifiers,
+                    crate::binder::Decl::Param(p) => &p.modifiers,
+                    _ => return (false, false),
+                };
+                (
+                    crate::ast::has_modifier(mods, crate::ast::ModifierKind::Private),
+                    crate::ast::has_modifier(mods, crate::ast::ModifierKind::Protected),
+                )
+            })
+            .unwrap_or((false, false))
+    }
+
     fn class_extends_class(
         &mut self,
         source: crate::binder::SymbolId,
@@ -1141,6 +1175,35 @@ impl<'a> Checker<'a> {
         if src == tgt {
             return true;
         }
+        // comparable mode: tsc tries the simple rules REVERSED at every
+        // recursion level (`relation === comparableRelation &&
+        // isSimpleTypeRelatedTo(target, source)`), which is what makes a
+        // BASE primitive comparable to one of its literals — `s === "x"`
+        // with s: string. Forward literal→base already relates normally.
+        if self.rel.erase_generic_sigs {
+            let s = self.types.regular(src);
+            let t = self.types.regular(tgt);
+            let reversed_simple = matches!(
+                (self.types.kind(s), self.types.kind(t)),
+                (TypeKind::String, TypeKind::StrLit(_))
+                    | (TypeKind::String, TypeKind::TemplateLit(_))
+                    | (TypeKind::Number, TypeKind::NumLit(_))
+                    | (TypeKind::Bigint, TypeKind::BigIntLit(_))
+                    // reversed t&Unknown: `unknown` overlaps everything in
+                    // the comparable relation (T extends unknown === 42)
+                    | (TypeKind::Unknown, _)
+            ) || (s == self.types.boolean
+                && matches!(self.types.kind(t), TypeKind::BoolLit(_)))
+                // `object` (NonPrimitive) overlaps the empty object type
+                // (tsc: assignable/comparable admit any object-flagged
+                // source into an empty target — `{} as T` with
+                // `T extends object`)
+                || (matches!(self.types.kind(s), TypeKind::NonPrimitive)
+                    && self.is_empty_object_type(t));
+            if reversed_simple {
+                return true;
+            }
+        }
         // Bound infinitely-expanding comparisons the way tsc's isDeeplyNestedType
         // does. is_assignable_to applies a relation-stack guard, but the internal
         // `related`/`related_with_head` recursion (type-argument variance,
@@ -1234,6 +1297,14 @@ impl<'a> Checker<'a> {
         // source union: every member must be related
         // (the boolean intrinsic union reports as a unit, like tsc)
         if let TypeKind::Union(members) = &sk {
+            // comparable relation: SOME member suffices (tsc isRelatedTo
+            // `relation === comparableRelation ? someTypeRelatedToType : ...`
+            // — `C | undefined` is comparable to `Base | undefined` through
+            // the shared `undefined`)
+            if self.rel.erase_generic_sigs {
+                let members = members.clone();
+                return members.iter().any(|&m| self.is_assignable_to(m, tgt));
+            }
             if src == self.types.boolean {
                 // `boolean` (= true | false) is assignable to a target iff both
                 // `true` and `false` are. We check via decomposition but never
@@ -1795,6 +1866,69 @@ impl<'a> Checker<'a> {
                 tp_ty = self.types.union(vec![tp_ty, self.types.undefined]);
             }
             let _ = &tp_ty;
+            // tsc propertyRelatedTo accessibility gate: private/protected
+            // members are NOMINAL — they relate only when both sides carry
+            // the modifier AND originate in the same declaration. Two
+            // classes each declaring `private a: string` are neither
+            // assignable nor comparable (2442); private-vs-public is 2325.
+            // COMPARABLE MODE ONLY for now: the assignable relation has
+            // heritage/override paths (2415/2430/2445) whose tsc semantics
+            // (getTargetSymbol, override tolerance, interface-inherited
+            // members) this gate does not yet mirror — enabling it there
+            // trades 14 corpus FPs for the 8 it fixes. Full propertyRelatedTo
+            // parity is a separate work item.
+            let (s_np, t_np) = if self.rel.erase_generic_sigs {
+                (self.prop_nonpublic(sp), self.prop_nonpublic(tp))
+            } else {
+                ((false, false), (false, false))
+            };
+            if s_np != t_np {
+                if let Some(c) = ctx.as_deref_mut() {
+                    let (priv_side, other) = if s_np.0 || s_np.1 {
+                        (self.display_type(src), self.display_type(tgt))
+                    } else {
+                        (self.display_type(tgt), self.display_type(src))
+                    };
+                    self.rel_report_error(
+                        c,
+                        &gen::Property_0_is_private_in_type_1_but_not_in_type_2,
+                        vec![tp.name.clone(), priv_side, other],
+                    );
+                }
+                if ctx.is_none() {
+                    return false;
+                }
+                result = false;
+                break;
+            }
+            if (s_np.0 || s_np.1) && sp.symbol != tp.symbol {
+                // protected members tolerate related declaring classes;
+                // private require identity
+                let tolerated = s_np.1 && !s_np.0 && {
+                    let sc = sp.symbol.and_then(|m| self.symbol(m).parent);
+                    let tc = tp.symbol.and_then(|m| self.symbol(m).parent);
+                    match (sc, tc) {
+                        (Some(a), Some(b)) => {
+                            self.class_extends_class(a, b) || self.class_extends_class(b, a)
+                        }
+                        _ => false,
+                    }
+                };
+                if !tolerated {
+                    if let Some(c) = ctx.as_deref_mut() {
+                        self.rel_report_error(
+                            c,
+                            &gen::Types_have_separate_declarations_of_a_private_property_0,
+                            vec![tp.name.clone()],
+                        );
+                    }
+                    if ctx.is_none() {
+                        return false;
+                    }
+                    result = false;
+                    break;
+                }
+            }
             // method-declared members compare bivariantly (tsc keeps methods
             // bivariant even under strictFunctionTypes)
             let bivariant_ok = (tp.is_method || sp.is_method)
@@ -2035,6 +2169,26 @@ impl<'a> Checker<'a> {
                 return false;
             }
         }
+        // source rest slot, same bivariant check (a rest-only signature
+        // otherwise never compares its element — `fn(...a: Base[])` vs
+        // `fn(...a: C[])` must fail)
+        if let Some(s_rest) = s.rest {
+            let i = s.params.len();
+            let t_count = t.params.len() + usize::from(t.rest.is_some());
+            if i + 1 <= t_count {
+                let t_param_ty = t
+                    .params
+                    .get(i)
+                    .map(|p| p.ty)
+                    .or(t.rest)
+                    .unwrap_or(self.types.any);
+                if !self.is_assignable_to(t_param_ty, s_rest)
+                    && !self.is_assignable_to(s_rest, t_param_ty)
+                {
+                    return false;
+                }
+            }
+        }
         let s_ret = self.sig_return(s_sigs[0]);
         let t_ret = self.sig_return(t_sigs[0]);
         if matches!(self.types.kind(t_ret), TypeKind::Void) {
@@ -2092,20 +2246,46 @@ impl<'a> Checker<'a> {
         // must relate to `<U>(x: U) => U`. tsc instantiates the source in the
         // context of the target's type parameters — here we map the source's
         // parameters onto the target's positionally so the bodies compare with a
-        // common set of type variables.
-        let tp_mapper: Option<crate::checker::symbols::Mapper> =
-            if !s.type_params.is_empty() && s.type_params.len() == t.type_params.len() {
-                let mut m = crate::checker::symbols::Mapper::new();
-                for (sp, tp) in s.type_params.iter().zip(t.type_params.iter()) {
-                    let tp_ty = self.types.intern_kind(TypeKind::TypeParam(*tp));
-                    m.insert(*sp, tp_ty);
-                }
-                Some(m)
-            } else {
-                None
-            };
+        // common set of type variables. In comparable mode BOTH signatures
+        // instead erase their own type params to `any` (tsc getErasedSignature
+        // under `eraseGenerics = relation === comparableRelation`), which is
+        // what lets `{ fn<T>(x: T): T }` compare against `{ fn(): string }`.
+        let erase = self.rel.erase_generic_sigs;
+        let mk_erase = |this: &mut Self,
+                        tps: &[crate::binder::SymbolId]|
+         -> Option<crate::checker::symbols::Mapper> {
+            if tps.is_empty() {
+                return None;
+            }
+            let mut m = crate::checker::symbols::Mapper::new();
+            for &p in tps {
+                m.insert(p, this.types.any);
+            }
+            Some(m)
+        };
+        let (tp_mapper, t_mapper) = if erase {
+            (
+                mk_erase(self, &s.type_params),
+                mk_erase(self, &t.type_params),
+            )
+        } else if !s.type_params.is_empty() && s.type_params.len() == t.type_params.len() {
+            let mut m = crate::checker::symbols::Mapper::new();
+            for (sp, tp) in s.type_params.iter().zip(t.type_params.iter()) {
+                let tp_ty = self.types.intern_kind(TypeKind::TypeParam(*tp));
+                m.insert(*sp, tp_ty);
+            }
+            (Some(m), None)
+        } else {
+            (None, None)
+        };
         let map_src = |this: &mut Self, ty: TypeId| -> TypeId {
             match &tp_mapper {
+                Some(m) => this.instantiate_type(ty, m),
+                None => ty,
+            }
+        };
+        let map_tgt = |this: &mut Self, ty: TypeId| -> TypeId {
+            match &t_mapper {
                 Some(m) => this.instantiate_type(ty, m),
                 None => ty,
             }
@@ -2122,6 +2302,7 @@ impl<'a> Checker<'a> {
                 .map(|p| p.ty)
                 .or(t.rest)
                 .unwrap_or(self.types.any);
+            let t_param_ty = map_tgt(self, t_param_ty);
             let s_param_ty = map_src(self, sp.ty);
             let related = self.is_assignable_to(t_param_ty, s_param_ty)
                 || (!is_ctor
@@ -2159,10 +2340,60 @@ impl<'a> Checker<'a> {
                 return false;
             }
         }
+        // the source REST slot (tsc position-based params: with a rest param
+        // involved paramCount = min(sourceCount, targetCount), so the source
+        // rest element compares against the target's type at that position —
+        // `(...a: Base[])` vs `(...a: C[])` is how the fixed loop above,
+        // which only walks source fixed params, misses Base~C entirely).
+        // BIVARIANT deliberately: a Signature carries no method-declared bit,
+        // and tsc keeps method params bivariant even under
+        // strictFunctionTypes — one-directional overlap must not fail here
+        // (never[]→ReadonlyArray<T> via concat). No-relationship elements
+        // still fail both directions.
+        if let Some(s_rest) = s.rest {
+            let i = s.params.len();
+            let t_count = t.params.len() + usize::from(t.rest.is_some());
+            if i + 1 <= t_count {
+                let t_param_ty = t
+                    .params
+                    .get(i)
+                    .map(|p| p.ty)
+                    .or(t.rest)
+                    .unwrap_or(self.types.any);
+                let t_param_ty = map_tgt(self, t_param_ty);
+                let s_param_ty = map_src(self, s_rest);
+                let related = self.is_assignable_to(t_param_ty, s_param_ty)
+                    || self.is_assignable_to(s_param_ty, t_param_ty);
+                if !related {
+                    if ctx.is_some() {
+                        let r = self.related_with_display_override(
+                            t_param_ty, s_param_ty, ctx, None, None, None,
+                        );
+                        debug_assert!(!r);
+                        if let Some(c) = ctx.as_deref_mut() {
+                            let s_name = s.rest_name.clone().unwrap_or_else(|| "args".into());
+                            let t_name = t
+                                .params
+                                .get(i)
+                                .map(|p| p.name.clone())
+                                .or_else(|| t.rest_name.clone())
+                                .unwrap_or_else(|| "args".into());
+                            self.rel_report_error(
+                                c,
+                                &gen::Types_of_parameters_0_and_1_are_incompatible,
+                                vec![s_name, t_name],
+                            );
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
         // return types (void target accepts anything)
         let s_ret = self.sig_return(s_sig);
         let s_ret = map_src(self, s_ret);
         let t_ret = self.sig_return(t_sig);
+        let t_ret = map_tgt(self, t_ret);
         if matches!(self.types.kind(t_ret), TypeKind::Void) {
             return true;
         }

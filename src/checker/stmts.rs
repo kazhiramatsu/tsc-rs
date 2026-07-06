@@ -46,8 +46,8 @@ impl<'a> Checker<'a> {
         // statement; a premature walk would memoize a stale "reachable".
         // The forward extension only inspects statements inside the dead
         // region, whose verdicts cannot be flipped by later registrations.
-        let do_ranges = !self.flow.within_unreachable_code
-            && self.options.allow_unreachable_code != Some(true);
+        let do_ranges =
+            !self.flow.within_unreachable_code && self.options.allow_unreachable_code != Some(true);
         for (i, stmt) in stmts.iter().enumerate() {
             if do_ranges
                 && !self.flow.reported_unreachable.contains(&node_key(stmt))
@@ -2793,4 +2793,3 @@ pub(crate) fn collect_this_spans(stmts: &[Stmt], out: &mut Vec<Span>) {
         }
     }
 }
-

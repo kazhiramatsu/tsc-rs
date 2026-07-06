@@ -3647,7 +3647,10 @@ class C {
             ],
             &opts,
         );
-        assert!(!out.contains("TS2339"), "member resolves on narrowed this: {out}");
+        assert!(
+            !out.contains("TS2339"),
+            "member resolves on narrowed this: {out}"
+        );
         assert!(!out.contains("TS2741"), "value this narrows too: {out}");
         assert!(!out.contains("TS2322"), "{out}");
     }
@@ -3713,6 +3716,9 @@ function u<T extends A, K extends keyof T>(c: T | undefined, k: K, v: T[K]) {
             &opts,
         );
         assert!(!out.contains("TS18048"), "receiver is narrowed: {out}");
-        assert!(!out.contains("TS2322"), "target member type accepts T[K]: {out}");
+        assert!(
+            !out.contains("TS2322"),
+            "target member type accepts T[K]: {out}"
+        );
     }
 }

@@ -639,7 +639,7 @@ impl<'a> Checker<'a> {
 
     /// The constraint of a type parameter, or `unknown` when it has none; any
     /// other type is returned unchanged. Used by the cast comparability check.
-    fn param_constraint_or_unknown(&mut self, t: TypeId) -> TypeId {
+    pub(crate) fn param_constraint_or_unknown(&mut self, t: TypeId) -> TypeId {
         if let TypeKind::TypeParam(s) = self.types.kind(t) {
             let s = *s;
             self.constraint_of_type_param(s)
@@ -656,54 +656,142 @@ impl<'a> Checker<'a> {
     /// type), two distinct type parameters never overlap, and an indexed access
     /// is treated as indeterminate since it could resolve to any value type.
     pub(crate) fn cast_comparable(&mut self, a: TypeId, b: TypeId) -> bool {
-        let pa = matches!(self.types.kind(a), TypeKind::TypeParam(_));
-        let pb = matches!(self.types.kind(b), TypeKind::TypeParam(_));
-        if pa && pb {
-            return a == b;
-        }
-        if self.cast_keyof_overlaps(a, b) {
+        // tsc areTypesComparable = isTypeComparableTo(a,b) ||
+        // isTypeComparableTo(b,a). The whole query runs in the
+        // comparableRelation: generic signatures erase and union sources
+        // need only one member (relations.rs, gated on erase_generic_sigs);
+        // results are cached separately from the assignable relation.
+        let saved = self.rel.erase_generic_sigs;
+        self.rel.erase_generic_sigs = true;
+        let r = self.comparable_dir(a, b) || self.comparable_dir(b, a);
+        self.rel.erase_generic_sigs = saved;
+        r
+    }
+
+    /// isTypeComparableTo(src, tgt), directional. Type-parameter operands
+    /// keep the cast-tuned symmetric constraint overlap (matches oracle:
+    /// `n as T`, `t as string`, `t === "x"` are all legal for unconstrained
+    /// T); direction matters for intersections, where tsc's collapse rule
+    /// (unionOrIntersectionRelatedTo: primitive target → instantiable
+    /// members replaced by their base constraints, and if the re-formed
+    /// intersection collapses the verdict is decided RIGHT THERE) is what
+    /// makes `x === "hello"` an error for `x: T & number`.
+    fn comparable_dir(&mut self, src: TypeId, tgt: TypeId) -> bool {
+        if src == tgt {
             return true;
         }
-        if pa {
-            let ca = self.param_constraint_or_unknown(a);
-            if self.cast_keyof_overlaps(ca, b) {
-                return true;
-            }
-            return self.is_assignable_to(ca, b) || self.is_assignable_to(b, ca);
+        let pa = match self.types.kind(src) {
+            TypeKind::TypeParam(s) => Some(*s),
+            _ => None,
+        };
+        let pb = match self.types.kind(tgt) {
+            TypeKind::TypeParam(s) => Some(*s),
+            _ => None,
+        };
+        if pa.is_some() && pb.is_some() {
+            return src == tgt;
         }
-        if pb {
-            let cb = self.param_constraint_or_unknown(b);
-            if self.cast_keyof_overlaps(a, cb) {
-                return true;
-            }
-            return self.is_assignable_to(a, cb) || self.is_assignable_to(cb, a);
+        if self.cast_keyof_overlaps(src, tgt) {
+            return true;
         }
-        if matches!(self.types.kind(a), TypeKind::IndexedAccess(..))
-            || matches!(self.types.kind(b), TypeKind::IndexedAccess(..))
+        // SOURCE type parameter: unconstrained overlaps any single concrete
+        // type (oracle: `t as string` / `t === "x"` are legal); constrained
+        // compares through the constraint, DIRECTIONALLY (tsc walks
+        // isRelatedTo(constraint, target) — `T extends string|number` is
+        // comparable to `"x"` via string~"x", but NOT to a disjoint object)
+        if let Some(s_sym) = pa {
+            return match self.constraint_of_type_param(s_sym) {
+                None => true,
+                Some(ca) => {
+                    if self.cast_keyof_overlaps(ca, tgt) {
+                        return true;
+                    }
+                    self.comparable_dir(ca, tgt)
+                }
+            };
+        }
+        // TARGET type parameter: tsc has NO constraint rule on this side —
+        // `42` is not comparable to a constrained T even when 42 satisfies
+        // the constraint (unknownControlFlow fx3/fx4). Unconstrained still
+        // accepts (`n as T` legality comes from the source side, but keep
+        // the unconstrained target permissive for the symmetric cast form).
+        if let Some(t_sym) = pb {
+            return match self.constraint_of_type_param(t_sym) {
+                None => true,
+                Some(cb) => {
+                    if self.cast_keyof_overlaps(src, cb) {
+                        return true;
+                    }
+                    self.is_assignable_to(src, tgt)
+                }
+            };
+        }
+        if matches!(self.types.kind(src), TypeKind::IndexedAccess(..))
+            || matches!(self.types.kind(tgt), TypeKind::IndexedAccess(..))
         {
             return true;
         }
-        // an intersection is comparable when one of its members is comparable
-        // (`<number & Brand>0` is fine because `number` is comparable to `0`).
-        if let TypeKind::Intersection(ms) = self.types.kind(a) {
-            let ms = ms.clone();
-            if ms.iter().any(|&m| self.cast_comparable(m, b)) {
-                return true;
+        if let TypeKind::Intersection(ms) = self.types.kind(src) {
+            let mut ms = ms.clone();
+            // tsc: comparable + primitive target → substitute type params
+            // with their base constraints; a collapsed (non-intersection)
+            // result decides bidirectionally without falling through —
+            // `T&number` with `T extends string|number` collapses to
+            // `number`, so `=== "hello"` errors
+            if self.comparable_primitive_like(tgt)
+                && ms
+                    .iter()
+                    .any(|&m| matches!(self.types.kind(m), TypeKind::TypeParam(_)))
+            {
+                let subst: Vec<TypeId> = ms
+                    .iter()
+                    .map(|&m| self.param_constraint_or_unknown(m))
+                    .collect();
+                let collapsed = self.intersect_all(subst);
+                match self.types.kind(collapsed) {
+                    TypeKind::Never => return false,
+                    TypeKind::Intersection(nms) => ms = nms.clone(),
+                    _ => {
+                        return self.is_assignable_to(collapsed, tgt)
+                            || self.is_assignable_to(tgt, collapsed);
+                    }
+                }
             }
+            // someTypeRelatedToType: one constituent, directionally
+            return ms.iter().any(|&m| self.comparable_dir(m, tgt));
         }
-        if let TypeKind::Intersection(ms) = self.types.kind(b) {
+        if let TypeKind::Intersection(ms) = self.types.kind(tgt) {
+            // typeRelatedToEachType: EVERY target constituent ('"hello"' is
+            // not comparable to `T & number` because number rejects it;
+            // `<number & Brand>0` still passes via the reverse direction's
+            // number~0 overlap)
             let ms = ms.clone();
-            let primitive_branded = ms.iter().any(|&m| self.cast_primitive_like(m));
-            let comparable = if primitive_branded {
-                ms.iter().any(|&m| self.cast_comparable(a, m))
-            } else {
-                ms.iter().all(|&m| self.cast_comparable(a, m))
-            };
-            if comparable {
-                return true;
-            }
+            return ms.iter().all(|&m| self.comparable_dir(src, m));
         }
-        self.is_assignable_to(a, b) || self.is_assignable_to(b, a)
+        self.is_assignable_to(src, tgt)
+    }
+
+    /// tsc TypeFlags.Primitive projection for the comparable collapse rule
+    /// (`boolean` is the true|false union in tsrs, hence the id check)
+    fn comparable_primitive_like(&self, t: TypeId) -> bool {
+        t == self.types.boolean
+            || matches!(
+                self.types.kind(t),
+                TypeKind::String
+                    | TypeKind::StrLit(_)
+                    | TypeKind::TemplateLit(_)
+                    | TypeKind::Number
+                    | TypeKind::NumLit(_)
+                    | TypeKind::Bigint
+                    | TypeKind::BigIntLit(_)
+                    | TypeKind::BoolLit(_)
+                    | TypeKind::EsSymbol
+                    | TypeKind::Null
+                    | TypeKind::Undefined
+                    | TypeKind::Void
+                    | TypeKind::EnumType(_)
+                    | TypeKind::EnumMember(_)
+            )
     }
 
     fn cast_keyof_overlaps(&mut self, a: TypeId, b: TypeId) -> bool {
@@ -716,25 +804,6 @@ impl<'a> Checker<'a> {
             return self.is_assignable_to(a, keys) || self.is_assignable_to(keys, a);
         }
         false
-    }
-
-    fn cast_primitive_like(&self, t: TypeId) -> bool {
-        matches!(
-            self.types.kind(t),
-            TypeKind::String
-                | TypeKind::Number
-                | TypeKind::Bigint
-                | TypeKind::EsSymbol
-                | TypeKind::Null
-                | TypeKind::Undefined
-                | TypeKind::Void
-                | TypeKind::StrLit(_)
-                | TypeKind::NumLit(_)
-                | TypeKind::BigIntLit(_)
-                | TypeKind::BoolLit(_)
-                | TypeKind::EnumType(_)
-                | TypeKind::EnumMember(_)
-        )
     }
 
     fn has_primitive_constraint(&mut self, tp: SymbolId) -> bool {

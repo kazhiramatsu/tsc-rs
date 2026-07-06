@@ -726,16 +726,50 @@ impl<'a> Checker<'a> {
                 if l_unusable || r_unusable {
                     return self.types.boolean;
                 }
+                // tsc checkForDisallowedESSymbolOperand: a symbol-like
+                // operand is a single 2469 on that operand and skips the
+                // applicability check entirely
+                let sym_operand = if self.maybe_symbol_like(lt) {
+                    Some(left.span())
+                } else if self.maybe_symbol_like(rt) {
+                    Some(right.span())
+                } else {
+                    None
+                };
+                if let Some(sp) = sym_operand {
+                    self.error_at(
+                        sp,
+                        &gen::The_0_operator_cannot_be_applied_to_type_symbol,
+                        &[op.text().to_string()],
+                    );
+                    return self.types.boolean;
+                }
                 // tsc checkNonNullType on each operand (18048/18047 instead
-                // of 2365 for nullish operands; the stripped types drive the
-                // applicability check)
+                // of 2365 for nullish operands; a wholly-nullish operand
+                // resolves to the error type, which passes the check below)
                 let lt = self.check_operand_non_nullish(lt, left);
                 let rt = self.check_operand_non_nullish(rt, right);
-                let l_ok = self.is_comparison_operand(lt);
-                let r_ok = self.is_comparison_operand(rt);
-                if !(l_ok && r_ok && self.comparison_compatible(lt, rt)) {
-                    let ld = self.display_type_widened(lt);
-                    let rd = self.display_type_widened(rt);
+                let lb = self.base_type_for_comparison(lt);
+                let rb = self.base_type_for_comparison(rt);
+                // tsc: OK when either side is any, both sides are assignable
+                // to number|bigint, or NEITHER is and the types are mutually
+                // comparable (string<string, object<object of overlapping
+                // shape, T<x through the constraint, ...)
+                let ok = if self.types.is_any_or_error(lb) || self.types.is_any_or_error(rb) {
+                    true
+                } else {
+                    let num_or_bigint = {
+                        let n = self.types.number;
+                        let b = self.types.bigint;
+                        self.types.union(vec![n, b])
+                    };
+                    let l_num = self.is_assignable_to(lb, num_or_bigint);
+                    let r_num = self.is_assignable_to(rb, num_or_bigint);
+                    (l_num && r_num) || (!l_num && !r_num && self.cast_comparable(lb, rb))
+                };
+                if !ok {
+                    let ld = self.display_type(lb);
+                    let rd = self.display_type(rb);
                     self.error_at(
                         *span,
                         &gen::Operator_0_cannot_be_applied_to_types_1_and_2,
@@ -1012,8 +1046,7 @@ impl<'a> Checker<'a> {
                     }
                     _ => {
                         let saved = self.cflags.assign_target;
-                        self.cflags.assign_target =
-                            crate::checker::exprs::node_key_expr(stripped);
+                        self.cflags.assign_target = crate::checker::exprs::node_key_expr(stripped);
                         let t = self.check_expr(target, None);
                         self.cflags.assign_target = saved;
                         t
@@ -1059,54 +1092,57 @@ impl<'a> Checker<'a> {
         self.types.any
     }
 
-    fn is_comparison_operand(&mut self, t: TypeId) -> bool {
-        if let TypeKind::Intersection(ms) = self.types.kind(t) {
-            let ms = ms.clone();
-            return ms.iter().any(|&m| self.is_comparison_operand(m));
-        }
-        matches!(
-            self.types.kind(t),
-            TypeKind::Any
-                | TypeKind::Error
-                | TypeKind::Number
-                | TypeKind::NumLit(_)
-                | TypeKind::String
-                | TypeKind::StrLit(_)
-                | TypeKind::Bigint
-                | TypeKind::BigIntLit(_)
-        )
-    }
-
-    fn cmp_numeric(&mut self, t: TypeId) -> bool {
+    /// tsc maybeTypeOfKindConsideringBaseConstraint(t, ESSymbolLike): any
+    /// union/intersection constituent — or the base constraint of a type
+    /// parameter — is symbol-valued
+    fn maybe_symbol_like(&mut self, t: TypeId) -> bool {
         match self.types.kind(t) {
-            TypeKind::Any
-            | TypeKind::Error
-            | TypeKind::Number
-            | TypeKind::NumLit(_)
-            | TypeKind::Bigint
-            | TypeKind::BigIntLit(_) => true,
-            TypeKind::Intersection(ms) => {
+            TypeKind::EsSymbol => true,
+            TypeKind::Union(ms) | TypeKind::Intersection(ms) => {
                 let ms = ms.clone();
-                ms.iter().any(|&m| self.cmp_numeric(m))
+                ms.iter().any(|&m| self.maybe_symbol_like(m))
+            }
+            TypeKind::TypeParam(_) => {
+                let c = self.param_constraint_or_unknown(t);
+                c != t && self.maybe_symbol_like(c)
             }
             _ => false,
         }
     }
 
-    fn cmp_stringy(&mut self, t: TypeId) -> bool {
+    /// tsc getBaseTypeOfLiteralTypeForComparison: literals (and enum-flavored
+    /// types) drop to their primitive base — string/template-literal kinds to
+    /// string, numeric literals AND enums to number — memberwise over unions
+    fn base_type_for_comparison(&mut self, t: TypeId) -> TypeId {
         match self.types.kind(t) {
-            TypeKind::Any | TypeKind::Error | TypeKind::String | TypeKind::StrLit(_) => true,
-            TypeKind::Intersection(ms) => {
-                let ms = ms.clone();
-                ms.iter().any(|&m| self.cmp_stringy(m))
+            TypeKind::StrLit(_) | TypeKind::TemplateLit(_) => self.types.string,
+            TypeKind::NumLit(_) => self.types.number,
+            TypeKind::BigIntLit(_) => self.types.bigint,
+            TypeKind::BoolLit(_) => self.types.boolean,
+            TypeKind::EnumType(_) | TypeKind::EnumMember(_) => {
+                let (numeric, string) = self.enum_member_kinds_of(t);
+                match (numeric, string) {
+                    (true, false) => self.types.number,
+                    (false, true) => self.types.string,
+                    (true, true) => {
+                        let n = self.types.number;
+                        let s = self.types.string;
+                        self.types.union(vec![n, s])
+                    }
+                    // an empty enum still compares as numeric (tsc Enum flag)
+                    (false, false) => self.types.number,
+                }
             }
-            _ => false,
+            TypeKind::Union(ms) => {
+                let based: Vec<TypeId> = ms
+                    .clone()
+                    .iter()
+                    .map(|&m| self.base_type_for_comparison(m))
+                    .collect();
+                self.types.union(based)
+            }
+            _ => t,
         }
-    }
-
-    fn comparison_compatible(&mut self, lt: TypeId, rt: TypeId) -> bool {
-        (self.cmp_numeric(lt) && self.cmp_numeric(rt))
-            || (self.cmp_stringy(lt) && self.cmp_stringy(rt))
     }
 
     /// 2367 comparison-overlap check
@@ -1130,7 +1166,11 @@ impl<'a> Checker<'a> {
         {
             return;
         }
-        if self.is_assignable_to(lw, rw) || self.is_assignable_to(rw, lw) {
+        // tsc isTypeEqualityComparableTo runs the COMPARABLE relation
+        // (generic signatures erased, union source needs one member,
+        // private members nominal) — it subsumes plain assignability via
+        // its fallback, so this is THE overlap test
+        if self.cast_comparable(lw, rw) {
             return;
         }
         // literal vs base of other side (e.g. "a" === someString); when BOTH
@@ -1143,9 +1183,12 @@ impl<'a> Checker<'a> {
         };
         let both_units = unit_only(self, lw) && unit_only(self, rw);
         if !both_units {
+            // retry with literals widened — but only when widening changed
+            // something, and still under the comparable relation (a plain
+            // assignable retry would bypass private-member nominality)
             let lwide = self.types.widen_literal(lw);
             let rwide = self.types.widen_literal(rw);
-            if self.is_assignable_to(lwide, rwide) || self.is_assignable_to(rwide, lwide) {
+            if (lwide != lw || rwide != rw) && self.cast_comparable(lwide, rwide) {
                 return;
             }
         }
@@ -1433,15 +1476,13 @@ impl<'a> Checker<'a> {
             // fact under strict (tsc EmptyObjectStrictFacts) — it admits any
             // non-nullish value, falsy ones included
             TypeKind::Anon(_) | TypeKind::DeferredObj(_) => {
-                let empty = self
-                    .shape_of_type(t)
-                    .is_some_and(|s| {
-                        let sh = self.types.shape(s);
-                        sh.props.is_empty()
-                            && sh.call_sigs.is_empty()
-                            && sh.ctor_sigs.is_empty()
-                            && sh.index_infos.is_empty()
-                    });
+                let empty = self.shape_of_type(t).is_some_and(|s| {
+                    let sh = self.types.shape(s);
+                    sh.props.is_empty()
+                        && sh.call_sigs.is_empty()
+                        && sh.ctor_sigs.is_empty()
+                        && sh.index_infos.is_empty()
+                });
                 if empty {
                     if strict {
                         ALL & !(EQ_UNDEFINED | EQ_NULL | EQ_UNDEFINED_OR_NULL)

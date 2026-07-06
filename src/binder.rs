@@ -1293,18 +1293,20 @@ impl<'a> Binder<'a> {
                         if is_ambient_context {
                             self.ambient_context_symbols.insert(sid);
                         }
-                        self.unused_var_lists[list_idx].entries.push(UnusedListEntry {
-                            sym: Some(sid),
-                            pattern_idx: None,
-                            anchor: id.span,
-                            name: id.name.clone(),
-                            // for-in/of heads and using declarations exempt
-                            // underscore names (tsc isValidUnusedLocalDeclaration
-                            // / the Using blockScopeKind check)
-                            underscore_exempt: (self.in_loop_head || v.is_using)
-                                && id.name.starts_with('_'),
-                            loser: self.duplicate_losers.contains(&node_key(d)),
-                        });
+                        self.unused_var_lists[list_idx]
+                            .entries
+                            .push(UnusedListEntry {
+                                sym: Some(sid),
+                                pattern_idx: None,
+                                anchor: id.span,
+                                name: id.name.clone(),
+                                // for-in/of heads and using declarations exempt
+                                // underscore names (tsc isValidUnusedLocalDeclaration
+                                // / the Using blockScopeKind check)
+                                underscore_exempt: (self.in_loop_head || v.is_using)
+                                    && id.name.starts_with('_'),
+                                loser: self.duplicate_losers.contains(&node_key(d)),
+                            });
                     }
                 }
                 pattern => {
@@ -1329,16 +1331,18 @@ impl<'a> Binder<'a> {
                         }
                     }
                     if let Some(pidx) = pidx {
-                        self.unused_var_lists[list_idx].entries.push(UnusedListEntry {
-                            sym: None,
-                            pattern_idx: Some(pidx),
-                            anchor: pattern.span(),
-                            name: first_binding_leaf(pattern)
-                                .map(|i| i.name.clone())
-                                .unwrap_or_default(),
-                            underscore_exempt: false,
-                            loser: false,
-                        });
+                        self.unused_var_lists[list_idx]
+                            .entries
+                            .push(UnusedListEntry {
+                                sym: None,
+                                pattern_idx: Some(pidx),
+                                anchor: pattern.span(),
+                                name: first_binding_leaf(pattern)
+                                    .map(|i| i.name.clone())
+                                    .unwrap_or_default(),
+                                underscore_exempt: false,
+                                loser: false,
+                            });
                     }
                 }
             }
@@ -1436,9 +1440,10 @@ impl<'a> Binder<'a> {
                 // the rest suppresses other elements only when it is the LAST
                 // element syntactically (tsc: last(elements).dotDotDotToken);
                 // a misplaced rest (grammar error, still parsed) does not
-                let rest_is_last = p.rest.as_ref().is_some_and(|r| {
-                    p.props.iter().all(|pr| pr.span.start < r.span().start)
-                });
+                let rest_is_last = p
+                    .rest
+                    .as_ref()
+                    .is_some_and(|r| p.props.iter().all(|pr| pr.span.start < r.span().start));
                 for prop in &p.props {
                     if let Some(dflt) = &prop.default {
                         self.bind_expr(dflt, expr_scope);

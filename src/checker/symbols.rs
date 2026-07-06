@@ -114,9 +114,7 @@ impl<'a> Checker<'a> {
             "unknown",
             "bigint",
         ];
-        if RESERVED.contains(&tp.name.name.as_str())
-            && self.report_once_node(2368, node_key(tp))
-        {
+        if RESERVED.contains(&tp.name.name.as_str()) && self.report_once_node(2368, node_key(tp)) {
             self.error_at(
                 tp.name.span,
                 &gen::Type_parameter_name_cannot_be_0,
@@ -1299,6 +1297,14 @@ impl<'a> Checker<'a> {
                     }
                     return t;
                 }
+                // `typeof undefined` — the global undefined value symbol
+                // (tsc undefinedSymbol; not in any tsrs scope)
+                if first.name == "undefined"
+                    && name.parts.len() == 1
+                    && self.lookup_value(scope, "undefined").is_none()
+                {
+                    return self.types.undefined;
+                }
                 let Some(sym0) = self.lookup_value(scope, &first.name) else {
                     self.error_at(first.span, &gen::Cannot_find_name_0, &[first.name.clone()]);
                     return self.types.error;
@@ -2425,7 +2431,9 @@ fn scope_change_binding(b: &crate::ast::Binding, o: &crate::options::CompilerOpt
                         || pr.default.as_ref().is_some_and(|d| scope_change_expr(d, o))
                         || scope_change_binding(&pr.binding, o)
                 })
-                || p.rest.as_deref().is_some_and(|r| scope_change_binding(r, o))
+                || p.rest
+                    .as_deref()
+                    .is_some_and(|r| scope_change_binding(r, o))
         }
         Binding::Array(p) => p.elements.iter().flatten().any(|el| {
             el.default.as_ref().is_some_and(|d| scope_change_expr(d, o))
@@ -2437,9 +2445,7 @@ fn scope_change_binding(b: &crate::ast::Binding, o: &crate::options::CompilerOpt
 fn scope_change_expr(e: &crate::ast::Expr, o: &crate::options::CompilerOptions) -> bool {
     use crate::ast::{BinOp, ClassMember, Expr, ModifierKind, ObjectProp, PropName};
     let rank = o.script_target_rank();
-    let computed = |key: &PropName| {
-        matches!(key, PropName::Computed { expr, .. } if scope_change_expr(expr, o))
-    };
+    let computed = |key: &PropName| matches!(key, PropName::Computed { expr, .. } if scope_change_expr(expr, o));
     match e {
         Expr::Arrow(_) | Expr::FunctionExpr(_) => false,
         Expr::ClassExpr(c) => {
@@ -2454,25 +2460,22 @@ fn scope_change_expr(e: &crate::ast::Expr, o: &crate::options::CompilerOptions) 
                             computed(&p.name)
                         }
                     }
-                    ClassMember::Method(f) | ClassMember::Constructor(f) => f
-                        .name
-                        .as_ref()
-                        .is_some_and(computed),
+                    ClassMember::Method(f) | ClassMember::Constructor(f) => {
+                        f.name.as_ref().is_some_and(computed)
+                    }
                     ClassMember::StaticBlock(_) | ClassMember::Index(_) => false,
                 })
         }
-        Expr::PropAccess { question_dot, obj, .. } => {
-            (*question_dot && rank < 7) || scope_change_expr(obj, o)
-        }
+        Expr::PropAccess {
+            question_dot, obj, ..
+        } => (*question_dot && rank < 7) || scope_change_expr(obj, o),
         Expr::ElemAccess {
             question_dot,
             obj,
             index,
             ..
         } => {
-            (*question_dot && rank < 7)
-                || scope_change_expr(obj, o)
-                || scope_change_expr(index, o)
+            (*question_dot && rank < 7) || scope_change_expr(obj, o) || scope_change_expr(index, o)
         }
         Expr::Call {
             question_dot,
@@ -2484,7 +2487,9 @@ fn scope_change_expr(e: &crate::ast::Expr, o: &crate::options::CompilerOptions) 
                 || scope_change_expr(callee, o)
                 || args.iter().any(|a| scope_change_expr(a, o))
         }
-        Expr::Binary { op, left, right, .. } => {
+        Expr::Binary {
+            op, left, right, ..
+        } => {
             (*op == BinOp::QuestionQuestion && rank < 7)
                 || scope_change_expr(left, o)
                 || scope_change_expr(right, o)

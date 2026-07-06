@@ -93,10 +93,7 @@ impl<'a> Checker<'a> {
         Some(t)
     }
 
-    fn collect_narrowing_facts(
-        &mut self,
-        f: impl FnOnce(&mut Self),
-    ) -> HashMap<RefKey, TypeId> {
+    fn collect_narrowing_facts(&mut self, f: impl FnOnce(&mut Self)) -> HashMap<RefKey, TypeId> {
         self.flow.facts.push(HashMap::new());
         f(self);
         self.flow.facts.pop().unwrap_or_default()
@@ -527,11 +524,10 @@ impl<'a> Checker<'a> {
                 self.is_assignable_to(mw, ow) || self.is_assignable_to(ow, mw)
             })
             .collect();
-        // conservative: a fully-disjoint comparison keeps the current type
-        // (tsc also emits 2367 there; collapsing to never is riskier)
-        if kept.is_empty() {
-            return;
-        }
+        // a fully-disjoint comparison narrows to NEVER (tsc filterType) —
+        // the 2367 fires at the comparison itself, and the never silences
+        // the remaining arms of an `a === b || b === a` chain exactly like
+        // tsc (equalityWithIntersectionTypes01)
         let narrowed = self.types.union(kept);
         self.set_fact(key, narrowed);
     }
@@ -588,9 +584,7 @@ impl<'a> Checker<'a> {
 
     fn typeof_filter(&mut self, t: TypeId, lit: &str) -> TypeId {
         // tsc narrowTypeByTypeName keeps `any` whole for "object"/"function"
-        if matches!(self.types.kind(t), TypeKind::Any)
-            && matches!(lit, "object" | "function")
-        {
+        if matches!(self.types.kind(t), TypeKind::Any) && matches!(lit, "object" | "function") {
             return t;
         }
         // unknown / any: produce the primitive directly
