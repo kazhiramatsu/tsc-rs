@@ -4,7 +4,7 @@
 
 use crate::ast::*;
 use crate::binder::{flags, SymbolId};
-use crate::checker::exprs::{expected_args_display, node_key_expr};
+use crate::checker::exprs::{expected_args_display, expr_contains_optional_chain, node_key_expr};
 use crate::checker::Checker;
 use crate::diagnostics::{gen, DiagnosticMessage};
 use crate::types::{SigId, TypeId, TypeKind};
@@ -133,7 +133,7 @@ impl<'a> Checker<'a> {
             }
             return self.types.error;
         }
-        if *question_dot {
+        if *question_dot || expr_contains_optional_chain(callee) {
             callee_t = self.non_nullable(callee_t);
         } else if self.options.strict_null_checks() {
             let members = self.types.union_members(callee_t);

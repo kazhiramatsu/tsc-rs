@@ -593,10 +593,14 @@ impl<'a> Checker<'a> {
             let ty = self.instantiate_this_in_member(p.ty, p.symbol, this_receiver);
             return Some(ty);
         }
-        if matches!(
+        let function_like = matches!(
             self.types.kind(self.types.regular(obj_t)),
             TypeKind::ClassStatics(_) | TypeKind::MappedClassStatics(_, _)
-        ) {
+        ) || self.shape_of_type(obj_t).is_some_and(|sid| {
+            let shape = self.types.shape(sid);
+            !shape.call_sigs.is_empty() || !shape.ctor_sigs.is_empty()
+        });
+        if function_like {
             if let Some(fun_sym) = self.global_type_symbol("Function") {
                 let fun_ty = self.types.intern_kind(TypeKind::Iface(fun_sym));
                 if let Some(p) = self.prop_info_of_type(fun_ty, &name.name) {
