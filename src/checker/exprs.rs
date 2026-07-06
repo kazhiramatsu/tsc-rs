@@ -13,6 +13,44 @@ enum ComputedKeyKind {
     Number,
 }
 
+fn is_reserved_word_shorthand_recovery(name: &str) -> bool {
+    matches!(
+        name,
+        "break"
+            | "case"
+            | "catch"
+            | "class"
+            | "const"
+            | "continue"
+            | "debugger"
+            | "default"
+            | "delete"
+            | "do"
+            | "else"
+            | "export"
+            | "extends"
+            | "finally"
+            | "for"
+            | "function"
+            | "if"
+            | "import"
+            | "in"
+            | "instanceof"
+            | "new"
+            | "return"
+            | "super"
+            | "switch"
+            | "this"
+            | "throw"
+            | "try"
+            | "typeof"
+            | "var"
+            | "void"
+            | "while"
+            | "with"
+    )
+}
+
 impl<'a> Checker<'a> {
     fn syntactic_computed_key_kind(&self, expr: &'a Expr) -> Option<ComputedKeyKind> {
         match expr {
@@ -718,11 +756,13 @@ impl<'a> Checker<'a> {
             // body it is 18016; unresolved outside an `in` left operand is
             // 2304. The expression types as `any` either way.
             if self.stacks.class_stack.is_empty() {
-                self.error_at(
-                    id.span,
-                    &gen::Private_identifiers_are_not_allowed_outside_class_bodies,
-                    &[],
-                );
+                if !self.parse_error_files.contains(&self.current_file) {
+                    self.error_at(
+                        id.span,
+                        &gen::Private_identifiers_are_not_allowed_outside_class_bodies,
+                        &[],
+                    );
+                }
                 return self.types.error;
             }
             let resolved = self.lookup_private_member(&id.name);
@@ -745,6 +785,14 @@ impl<'a> Checker<'a> {
                 CtorFieldContextKind::Initializer => {
                     if let Some(&cls) = self.stacks.class_stack.last() {
                         if self.symbol(cls).members.get(&id.name).is_some() {
+                            if self.parse_error_files.contains(&self.current_file) {
+                                self.error_at(
+                                    id.span,
+                                    &gen::Cannot_find_name_0,
+                                    &[id.name.clone()],
+                                );
+                                return self.types.error;
+                            }
                             self.error_at(
                                 id.span,
                                 &gen::Cannot_find_name_0_Did_you_mean_the_instance_member_this_0,
@@ -753,6 +801,14 @@ impl<'a> Checker<'a> {
                             return self.types.error;
                         }
                         if self.symbol(cls).statics.get(&id.name).is_some() {
+                            if self.parse_error_files.contains(&self.current_file) {
+                                self.error_at(
+                                    id.span,
+                                    &gen::Cannot_find_name_0,
+                                    &[id.name.clone()],
+                                );
+                                return self.types.error;
+                            }
                             let cn = self.symbol(cls).name.clone();
                             self.error_at(
                                 id.span,
@@ -1422,6 +1478,17 @@ impl<'a> Checker<'a> {
                         continue;
                     }
                     if self.lookup_value(self.current_scope, &name.name).is_none() {
+                        if is_reserved_word_shorthand_recovery(&name.name) {
+                            contribs.push(Contribution::Own(PropInfo {
+                                name: name.name.clone(),
+                                ty: self.types.error,
+                                optional: false,
+                                readonly: false,
+                                is_method: false,
+                                symbol: None,
+                            }));
+                            continue;
+                        }
                         self.error_at(
                             name.span,
                             &gen::No_value_exists_in_scope_for_the_shorthand_property_0_Either_declare_one_or_provide_an_initializer,
@@ -1749,6 +1816,10 @@ impl<'a> Checker<'a> {
     }
 
     fn check_dup_object_prop(&mut self, seen: &mut Vec<(String, Span)>, name: &str, span: Span) {
+        if self.parse_error_files.contains(&self.current_file) {
+            seen.push((name.to_string(), span));
+            return;
+        }
         if seen.iter().any(|(n, _)| n == name) {
             self.error_at(
                 span,
@@ -1849,11 +1920,12 @@ impl<'a> Checker<'a> {
             .tag
             .as_ref()
             .map(|t| {
-                t.name
-                    .chars()
-                    .next()
-                    .map(|c| c.is_ascii_lowercase())
-                    .unwrap_or(false)
+                !t.name.contains('.')
+                    && t.name
+                        .chars()
+                        .next()
+                        .map(|c| c.is_ascii_lowercase())
+                        .unwrap_or(false)
             })
             .unwrap_or(false);
         if is_intrinsic && self.options.no_implicit_any() {
@@ -1869,11 +1941,13 @@ impl<'a> Checker<'a> {
                 self.check_ident_pub(tag);
             }
         }
-        self.error_at(
-            j.span,
-            &gen::Cannot_use_JSX_unless_the_jsx_flag_is_provided,
-            &[],
-        );
+        if self.options.jsx.is_none() {
+            self.error_at(
+                j.span,
+                &gen::Cannot_use_JSX_unless_the_jsx_flag_is_provided,
+                &[],
+            );
+        }
         for a in &j.attrs {
             if let Some(v) = &a.value {
                 self.check_expr(v, None);

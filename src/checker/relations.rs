@@ -277,6 +277,19 @@ impl<'a> Checker<'a> {
         if msg.elided {
             return;
         }
+        if self.parse_error_files.contains(&self.current_file)
+            && matches!(msg.code, 2339 | 2345 | 2365 | 2769 | 7008 | 7053)
+        {
+            ctx.reported_standalone = true;
+            return;
+        }
+        if msg.code == 2322
+            && self.parse_error_files.contains(&self.current_file)
+            && !self.parse_error_within_next_lines(self.current_file, ctx.error_span, 10)
+        {
+            ctx.reported_standalone = true;
+            return;
+        }
         if ctx.skip_parent == 0 {
             let mut chain = MessageChain::new(msg, &args);
             if let Some(old) = ctx.error_info.take() {

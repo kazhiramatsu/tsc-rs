@@ -355,24 +355,29 @@ impl<'a> Checker<'a> {
             Get,
             Set,
         }
-        let mut sites: Vec<(String, K, Span, bool)> = Vec::new();
+        let mut sites: Vec<(String, K, Span, bool, bool)> = Vec::new();
         for m in &c.members {
             match m {
                 ClassMember::Property(p) => {
                     if let Some(n) = p.name.text() {
                         let is_static = has_modifier(&p.modifiers, ModifierKind::Static);
-                        sites.push((n, K::Field, p.name.span(), is_static));
+                        let is_literal_name =
+                            matches!(p.name, PropName::String { .. } | PropName::Number { .. });
+                        sites.push((n, K::Field, p.name.span(), is_static, is_literal_name));
                     }
                 }
                 ClassMember::Method(f) => {
-                    if let Some(n) = f.name.as_ref().and_then(|x| x.text()) {
+                    if let Some(name) = f.name.as_ref() {
+                        let Some(n) = name.text() else { continue };
                         let k = match f.kind {
                             FuncKind::Getter => K::Get,
                             FuncKind::Setter => K::Set,
                             _ => K::Method,
                         };
                         let is_static = has_modifier(&f.modifiers, ModifierKind::Static);
-                        sites.push((n, k, f.name.as_ref().unwrap().span(), is_static));
+                        let is_literal_name =
+                            matches!(name, PropName::String { .. } | PropName::Number { .. });
+                        sites.push((n, k, name.span(), is_static, is_literal_name));
                     }
                 }
                 _ => {}
@@ -397,6 +402,11 @@ impl<'a> Checker<'a> {
                 let name = sites[i].0.clone();
                 if accessor_involved {
                     // later site only
+                    if !reported.contains(&sites[i].2) {
+                        reported.push(sites[i].2);
+                        self.error_at(sites[i].2, &gen::Duplicate_identifier_0, &[name.clone()]);
+                    }
+                } else if sites[i].4 || sites[j].4 {
                     if !reported.contains(&sites[i].2) {
                         reported.push(sites[i].2);
                         self.error_at(sites[i].2, &gen::Duplicate_identifier_0, &[name.clone()]);

@@ -72,6 +72,9 @@ pub struct ReportGuards {
     /// TS2454 "used before assigned", keyed by (file, read-span start): dedups
     /// the forward DA pass against the per-use check at the same read position.
     pub reported_2454: HashSet<(usize, usize)>,
+    /// In parse-error files, tsc avoids repeating the same missing-name
+    /// spelling suggestion at every recovered use site.
+    pub reported_missing_name_suggestions: HashSet<(usize, String, String)>,
 }
 
 /// Control-flow state: the narrowing fact stack (one frame per active scope),
@@ -522,6 +525,12 @@ pub struct Checker<'a> {
     pub yield_statement_positions: HashSet<usize>,
     /// start offset of the property whose initializer is being checked (2729)
     pub prop_init_pos: Option<usize>,
+    /// statements whose spans contain parse errors; semantic checks skip them.
+    pub parse_error_stmts: &'a HashSet<usize>,
+    /// file indices that have at least one parse error.
+    pub parse_error_files: &'a HashSet<usize>,
+    /// exact parse-error offsets, used for same-line recovered declarations.
+    pub parse_error_offsets: &'a [(usize, u32)],
     /// deferred / lazy type-evaluation state (see `DeferredState`)
     pub deferred: DeferredState<'a>,
     /// recursion / DoS guards (see `RecursionGuards`)
@@ -551,6 +560,9 @@ pub fn check<'a>(
     files: &'a Files,
     options: &'a CompilerOptions,
     mut bind: BindResult<'a>,
+    parse_error_stmts: &'a HashSet<usize>,
+    parse_error_files: &'a HashSet<usize>,
+    parse_error_offsets: &'a [(usize, u32)],
 ) -> Vec<Diagnostic> {
     // The binder result is immutable during checking (Phase 3a), so the files of
     // a single program can be checked in parallel: each worker owns a Checker
@@ -566,7 +578,13 @@ pub fn check<'a>(
     // owned/mutable (before the Arc freeze below). Syntax-only; not yet consumed
     // by diagnostics, so output is unchanged. See src/flow_graph.rs.
     crate::flow_graph::build(&mut bind, files);
-    let binder_diags = std::mem::take(&mut bind.diags);
+    let binder_diags: Vec<Diagnostic> = std::mem::take(&mut bind.diags)
+        .into_iter()
+        .filter(|d| {
+            !(d.message.code == 2300
+                && d.file.is_some_and(|file| parse_error_files.contains(&file)))
+        })
+        .collect();
     let lib_file = (0..files.len())
         .find(|&i| files[i].0 == crate::LIB_NAME || files[i].0.ends_with("/lib.tsrs.d.ts"))
         .unwrap_or(0);
@@ -594,7 +612,15 @@ pub fn check<'a>(
     // unused pass on it directly — no thread spawn, no merge. Behaviourally
     // identical to the pre-parallel implementation (and to the parallel path).
     if jobs == 1 {
-        let mut c = new_checker(files, options, std::sync::Arc::clone(&bind), lib_file);
+        let mut c = new_checker(
+            files,
+            options,
+            std::sync::Arc::clone(&bind),
+            lib_file,
+            parse_error_stmts,
+            parse_error_files,
+            parse_error_offsets,
+        );
         for (i, (_n, _t, ast)) in files.iter().enumerate() {
             c.current_file = i;
             let scope = c.bind.module_scope[&i];
@@ -624,7 +650,15 @@ pub fn check<'a>(
         for w in 0..jobs {
             let bind_w = std::sync::Arc::clone(bind_ref);
             s.spawn(move || {
-                let mut c = new_checker(files, options, bind_w, lib_file);
+                let mut c = new_checker(
+                    files,
+                    options,
+                    bind_w,
+                    lib_file,
+                    parse_error_stmts,
+                    parse_error_files,
+                    parse_error_offsets,
+                );
                 // Deterministic seed (Stage 1, docs/determinism-design.md): every
                 // worker checks the lib file first, so lib globals are interned in
                 // the same order — and thus get the same TypeIds — in every worker,
@@ -685,7 +719,15 @@ pub fn check<'a>(
     // single sequential unused pass over the whole program, with the merged
     // cross-file usage state (a symbol used in one file must not be reported
     // unused because another worker checked its declaration).
-    let mut fc = new_checker(files, options, std::sync::Arc::clone(&bind), lib_file);
+    let mut fc = new_checker(
+        files,
+        options,
+        std::sync::Arc::clone(&bind),
+        lib_file,
+        parse_error_stmts,
+        parse_error_files,
+        parse_error_offsets,
+    );
     fc.symuse.used_symbols = used;
     fc.symuse.assigned_symbols = assigned;
     fc.flow.auto_fired = autos;
@@ -703,6 +745,9 @@ fn new_checker<'a>(
     options: &'a CompilerOptions,
     bind: std::sync::Arc<BindResult<'a>>,
     lib_file: usize,
+    parse_error_stmts: &'a HashSet<usize>,
+    parse_error_files: &'a HashSet<usize>,
+    parse_error_offsets: &'a [(usize, u32)],
 ) -> Checker<'a> {
     let synth_base = bind.symbols.len() as u32;
     let synth_scope_base = bind.scopes.len() as u32;
@@ -731,6 +776,9 @@ fn new_checker<'a>(
         reported: ReportGuards::default(),
         yield_statement_positions: HashSet::new(),
         prop_init_pos: None,
+        parse_error_stmts,
+        parse_error_files,
+        parse_error_offsets,
         deferred: DeferredState::default(),
         guards: RecursionGuards::default(),
         cond_aliases: std::collections::HashMap::new(),
@@ -779,6 +827,9 @@ impl<'a> Checker<'a> {
                 continue;
             }
             if self.files[s.file].0.ends_with(".d.ts") {
+                continue;
+            }
+            if self.symbol_decls_only_in_parse_error_stmts(s) {
                 continue;
             }
             if self.bind.ambient_context_symbols.contains(&sym) {
@@ -993,7 +1044,9 @@ impl<'a> Checker<'a> {
                     // tsc keys the parameter report on local.valueDeclaration:
                     // a merged param symbol (duplicate names) reports once
                     crate::binder::Decl::Param(p) => {
-                        if !param_reported {
+                        if !param_reported
+                            && !self.parse_error_after_on_same_line(file, p.name.span())
+                        {
                             param_reported = true;
                             per_decl.push((
                                 p.name.span(),
@@ -1854,6 +1907,15 @@ impl<'a> Checker<'a> {
     }
 
     fn class_suppresses_unused(&self, class: &'a crate::ast::ClassDecl) -> bool {
+        let file = self.bind.decl_file.get(&node_key(class)).copied();
+        if file.is_some_and(|file| self.parse_error_files.contains(&file))
+            && (!class.decorators.is_empty()
+                || has_modifier(&class.modifiers, ModifierKind::Abstract)
+                || Self::class_has_member_or_param_decorator(class)
+                || matches!(&class.extends, Some(h) if matches!(&h.expr, Expr::Ident(id) if id.name == "await")))
+        {
+            return true;
+        }
         class
             .decorators
             .iter()
@@ -1872,6 +1934,16 @@ impl<'a> Checker<'a> {
                     .is_some_and(Self::expr_has_super_call_type_args),
                 _ => false,
             })
+    }
+
+    fn class_has_member_or_param_decorator(class: &'a crate::ast::ClassDecl) -> bool {
+        class.members.iter().any(|member| match member {
+            ClassMember::Property(p) => !p.decorators.is_empty(),
+            ClassMember::Method(f) | ClassMember::Constructor(f) => {
+                !f.decorators.is_empty() || f.params.iter().any(|p| !p.decorators.is_empty())
+            }
+            _ => false,
+        })
     }
 
     fn class_source_contains_super_type_args(&self, class: &'a crate::ast::ClassDecl) -> bool {
@@ -4254,6 +4326,9 @@ impl<'a> Checker<'a> {
         if s.file == self.lib_file || self.files[s.file].0.ends_with(".d.ts") {
             return true;
         }
+        if self.symbol_decls_only_in_parse_error_stmts(s) {
+            return true;
+        }
         if self.bind.ambient_context_symbols.contains(&sym) {
             return true;
         }
@@ -4280,6 +4355,166 @@ impl<'a> Checker<'a> {
         let ds = self.bind.decl_scope.get(&decl_key).copied();
         let ms = self.bind.module_scope.get(&s.file).copied();
         ds.is_some() && ds == ms && !file_is_module
+    }
+
+    fn symbol_decls_only_in_parse_error_stmts(&self, symbol: &crate::binder::Symbol<'a>) -> bool {
+        !symbol.decls.is_empty()
+            && symbol.decls.iter().all(|decl| {
+                self.span_in_parse_error_stmt(symbol.file, decl.name_span())
+                    || self.parse_error_after_on_same_line(symbol.file, decl.name_span())
+            })
+    }
+
+    pub(crate) fn parse_error_after_on_same_line(&self, file: usize, span: Span) -> bool {
+        let Some((_, text, _)) = self.files.get(file) else {
+            return false;
+        };
+        let (line, col) = text.line_col(span.start);
+        self.parse_error_offsets
+            .iter()
+            .filter(|(f, _)| *f == file)
+            .any(|(_, start)| {
+                let (err_line, err_col) = text.line_col(*start);
+                err_line == line && err_col >= col
+            })
+    }
+
+    fn parse_error_within_next_line(&self, file: usize, span: Span) -> bool {
+        self.parse_error_within_next_lines(file, span, 1)
+    }
+
+    fn parse_error_within_next_lines(&self, file: usize, span: Span, max_lines: u32) -> bool {
+        let Some((_, text, _)) = self.files.get(file) else {
+            return false;
+        };
+        let (line, col) = text.line_col(span.start);
+        self.parse_error_offsets
+            .iter()
+            .filter(|(f, _)| *f == file)
+            .any(|(_, start)| {
+                let (err_line, err_col) = text.line_col(*start);
+                (err_line == line && err_col >= col)
+                    || (err_line > line && err_line <= line + max_lines)
+            })
+    }
+
+    fn parse_error_at_or_after(&self, file: usize, span: Span) -> bool {
+        let Some((_, text, _)) = self.files.get(file) else {
+            return false;
+        };
+        let (line, col) = text.line_col(span.start);
+        self.parse_error_offsets
+            .iter()
+            .filter(|(f, _)| *f == file)
+            .any(|(_, start)| {
+                let (err_line, err_col) = text.line_col(*start);
+                err_line > line || (err_line == line && err_col >= col)
+            })
+    }
+
+    fn span_in_parse_error_stmt(&self, file: usize, span: Span) -> bool {
+        fn walk(stmts: &[Stmt], marks: &HashSet<usize>, span: Span) -> bool {
+            for stmt in stmts {
+                let sp = stmt.span();
+                if sp.start <= span.start && span.start < sp.end {
+                    if marks.contains(&crate::ast::node_key(stmt)) {
+                        return true;
+                    }
+                    match stmt {
+                        Stmt::Func(f) => {
+                            if walk_function(f, marks, span) {
+                                return true;
+                            }
+                        }
+                        Stmt::Class(c) => {
+                            if walk_class(c, marks, span) {
+                                return true;
+                            }
+                        }
+                        Stmt::Namespace(n) => {
+                            if walk(&n.body, marks, span) {
+                                return true;
+                            }
+                        }
+                        Stmt::With { body, .. } => {
+                            if walk(std::slice::from_ref(body.as_ref()), marks, span) {
+                                return true;
+                            }
+                        }
+                        Stmt::If { then, els, .. } => {
+                            if walk(std::slice::from_ref(then.as_ref()), marks, span)
+                                || els
+                                    .as_deref()
+                                    .is_some_and(|els| walk(std::slice::from_ref(els), marks, span))
+                            {
+                                return true;
+                            }
+                        }
+                        Stmt::While { body, .. }
+                        | Stmt::DoWhile { body, .. }
+                        | Stmt::For { body, .. }
+                        | Stmt::ForIn { body, .. }
+                        | Stmt::ForOf { body, .. } => {
+                            if walk(std::slice::from_ref(body.as_ref()), marks, span) {
+                                return true;
+                            }
+                        }
+                        Stmt::Block(block) => {
+                            if walk(&block.stmts, marks, span) {
+                                return true;
+                            }
+                        }
+                        Stmt::Try {
+                            block,
+                            catch,
+                            finally,
+                            ..
+                        } => {
+                            if walk(&block.stmts, marks, span)
+                                || catch
+                                    .as_ref()
+                                    .is_some_and(|catch| walk(&catch.block.stmts, marks, span))
+                                || finally
+                                    .as_ref()
+                                    .is_some_and(|finally| walk(&finally.stmts, marks, span))
+                            {
+                                return true;
+                            }
+                        }
+                        Stmt::Switch { cases, .. } => {
+                            if cases.iter().any(|case| walk(&case.stmts, marks, span)) {
+                                return true;
+                            }
+                        }
+                        Stmt::Labeled { stmt, .. } => {
+                            if walk(std::slice::from_ref(stmt.as_ref()), marks, span) {
+                                return true;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            false
+        }
+
+        fn walk_function(f: &FunctionLike, marks: &HashSet<usize>, span: Span) -> bool {
+            matches!(&f.body, Some(FuncBody::Block(block)) if walk(&block.stmts, marks, span))
+        }
+
+        fn walk_class(c: &ClassDecl, marks: &HashSet<usize>, span: Span) -> bool {
+            c.members.iter().any(|member| match member {
+                ClassMember::StaticBlock(block) => walk(&block.stmts, marks, span),
+                ClassMember::Method(f) | ClassMember::Constructor(f) => {
+                    walk_function(f, marks, span)
+                }
+                _ => false,
+            })
+        }
+
+        self.files
+            .get(file)
+            .is_some_and(|(_, _, ast)| walk(&ast.stmts, self.parse_error_stmts, span))
     }
 
     /// Symbol-level skip for the grouping engine: a used / never-surfaced
@@ -4322,6 +4557,7 @@ impl<'a> Checker<'a> {
                         // side: tsc binds functions FIRST, so the variable
                         // declaration lands on an orphan symbol
                         && self.bind.symbols[e.sym.0 as usize].flags & flags::FUNCTION == 0
+                        && !self.parse_error_after_on_same_line(pat.file, e.anchor)
                         && !self.unused_symbol_skip(e.sym)
                 })
                 .collect();
@@ -4496,6 +4732,9 @@ impl<'a> Checker<'a> {
                 _ => (false, false),
             };
             if !is_private_member {
+                continue;
+            }
+            if self.parse_error_files.contains(&s.file) && !priv_name {
                 continue;
             }
             // a setter whose symbol also has a getter is carried by the
@@ -4683,6 +4922,16 @@ impl<'a> Checker<'a> {
         // (file, span, message, args)
         let mut to_report: Vec<(usize, Span, &'static DiagnosticMessage, Vec<String>)> = Vec::new();
         for (_k, (file, idecl, entries)) in groups {
+            if self.parse_error_after_on_same_line(file, idecl.span)
+                || (self.parse_error_files.contains(&file)
+                    && self.files[file]
+                        .1
+                        .text
+                        .get(idecl.span.start as usize..idecl.span.end as usize)
+                        .is_some_and(|s| s.contains(" with") || s.contains(" assert")))
+            {
+                continue;
+            }
             // total DECLARED names, syntactically (tsc nDeclarations) — a
             // leading-underscore name is never collectible but still counts,
             // forcing the per-element form on the others
@@ -4754,6 +5003,45 @@ impl<'a> Checker<'a> {
         args: &[String],
         category_override: Option<Category>,
     ) {
+        if self.parse_error_files.contains(&self.current_file)
+            && matches!(
+                msg.code,
+                1015 | 1036
+                    | 1054
+                    | 1093
+                    | 1095
+                    | 1182
+                    | 2300
+                    | 2314
+                    | 2322
+                    | 2339
+                    | 2345
+                    | 2363
+                    | 2364
+                    | 2365
+                    | 2370
+                    | 2391
+                    | 2403
+                    | 2503
+                    | 2532
+                    | 2554
+                    | 2680
+                    | 2694
+                    | 2695
+                    | 2769
+                    | 2774
+                    | 7006
+                    | 7008
+                    | 7010
+                    | 7027
+                    | 7031
+                    | 7044
+                    | 7050
+                    | 7053
+            )
+        {
+            return;
+        }
         let mut chain = MessageChain::new(msg, args);
         if let Some(category) = category_override {
             chain.category = category;
@@ -4778,6 +5066,28 @@ impl<'a> Checker<'a> {
         args: &[String],
         as_error: bool,
     ) {
+        if args.first().is_some_and(|name| name.starts_with('#'))
+            && self.parse_error_after_on_same_line(self.current_file, span)
+        {
+            return;
+        }
+        if self.parse_error_files.contains(&self.current_file)
+            && matches!(msg.code, 6133 | 6196 | 6198 | 6199)
+            && self.parse_error_at_or_after(self.current_file, span)
+        {
+            return;
+        }
+        if self.parse_error_files.contains(&self.current_file)
+            && msg.code == 6133
+            && args.first().is_some_and(|name| {
+                matches!(
+                    name.as_str(),
+                    "string" | "number" | "boolean" | "bigint" | "symbol"
+                )
+            })
+        {
+            return;
+        }
         let category = if as_error {
             None
         } else {
@@ -4976,6 +5286,48 @@ impl<'a> Checker<'a> {
         args: &[String],
         related: Vec<RelatedInfo>,
     ) {
+        if self.parse_error_files.contains(&self.current_file)
+            && matches!(
+                msg.code,
+                1015 | 1036
+                    | 1054
+                    | 1093
+                    | 1095
+                    | 1182
+                    | 2300
+                    | 2314
+                    | 2322
+                    | 2339
+                    | 2345
+                    | 2363
+                    | 2364
+                    | 2365
+                    | 2370
+                    | 2391
+                    | 2403
+                    | 2503
+                    | 2532
+                    | 2554
+                    | 2680
+                    | 2694
+                    | 2695
+                    | 2769
+                    | 2774
+                    | 7006
+                    | 7008
+                    | 7010
+                    | 7027
+                    | 7031
+                    | 7044
+                    | 7050
+                    | 7053
+            )
+        {
+            return;
+        }
+        if msg.code == 2365 && self.parse_error_within_next_line(self.current_file, span) {
+            return;
+        }
         self.diags.push(Diagnostic {
             file: Some(self.current_file),
             start: span.start,
@@ -5055,6 +5407,11 @@ impl<'a> Checker<'a> {
     }
 
     pub fn error_chain_at(&mut self, span: Span, chain: MessageChain) {
+        if self.parse_error_files.contains(&self.current_file)
+            && matches!(chain.code, 2339 | 2345 | 2365 | 2769 | 7008 | 7053)
+        {
+            return;
+        }
         self.diags.push(Diagnostic {
             file: Some(self.current_file),
             start: span.start,
@@ -5258,11 +5615,25 @@ impl<'a> Checker<'a> {
             self.error_at(id.span, msg, &args);
             return None;
         }
+        if self.parse_error_files.contains(&self.current_file) {
+            self.error_at(id.span, &gen::Cannot_find_name_0, &[id.name.clone()]);
+            return None;
+        }
         // suggestion
         let candidates = self.value_names_in_scope(scope);
         if let Some(suggestion) =
             spelling_suggestion(&id.name, candidates.iter().map(|s| s.as_str()))
         {
+            if self.parse_error_files.contains(&self.current_file)
+                && !self.reported.reported_missing_name_suggestions.insert((
+                    self.current_file,
+                    id.name.clone(),
+                    suggestion.to_string(),
+                ))
+            {
+                self.error_at(id.span, &gen::Cannot_find_name_0, &[id.name.clone()]);
+                return None;
+            }
             let args = [id.name.clone(), suggestion.to_string()];
             if let Some(sug_sym) = self
                 .lookup_value(scope, suggestion)

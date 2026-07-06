@@ -7,6 +7,36 @@ use crate::ast::*;
 use crate::diagnostics::gen;
 use crate::scanner::Tok;
 
+/// tsc isLeftHandSideExpressionKind (_tsc.js:12210): expression forms allowed
+/// to the left of an assignment operator during parsing.
+fn is_left_hand_side_expr(e: &Expr) -> bool {
+    matches!(
+        e,
+        Expr::Ident(_)
+            | Expr::NumLit { .. }
+            | Expr::StrLit { .. }
+            | Expr::BigIntLit { .. }
+            | Expr::BoolLit { .. }
+            | Expr::NullLit { .. }
+            | Expr::RegexLit { .. }
+            | Expr::Template { .. }
+            | Expr::Array { .. }
+            | Expr::Object { .. }
+            | Expr::FunctionExpr(_)
+            | Expr::ClassExpr(_)
+            | Expr::Call { .. }
+            | Expr::New { .. }
+            | Expr::PropAccess { .. }
+            | Expr::ElemAccess { .. }
+            | Expr::Paren { .. }
+            | Expr::NonNull { .. }
+            | Expr::This { .. }
+            | Expr::Super { .. }
+            | Expr::ImportCall { .. }
+            | Expr::ImportMeta { .. }
+    )
+}
+
 impl<'a> Parser<'a> {
     pub(crate) fn parse_expression(&mut self) -> Expr {
         let start = self.start();
@@ -79,6 +109,11 @@ impl<'a> Parser<'a> {
             _ => None,
         };
         if let Some(op) = op {
+            if !is_left_hand_side_expr(&left) {
+                // tsc leaves the assignment token unconsumed here; statement
+                // recovery reports the parse error at that token.
+                return left;
+            }
             let op_span = self.token_span();
             self.next();
             let right = self.parse_assignment_expr();

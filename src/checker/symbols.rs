@@ -1982,7 +1982,9 @@ impl<'a> Checker<'a> {
                 }
             }
             let type_names = self.type_names_in_scope(scope);
-            if let Some(sug) =
+            if self.parse_error_files.contains(&self.current_file) {
+                self.error_at(first.span, &gen::Cannot_find_name_0, &[first.name.clone()]);
+            } else if let Some(sug) =
                 super::spelling_suggestion(&first.name, type_names.iter().map(|s| s.as_str()))
             {
                 self.error_at(

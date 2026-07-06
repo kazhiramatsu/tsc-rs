@@ -783,6 +783,25 @@ impl<'a> Checker<'a> {
         c: &'a ClassDecl,
         h: &'a HeritageClause,
     ) -> Option<TypeId> {
+        if let Expr::Ident(id) = &h.expr {
+            if matches!(
+                id.name.as_str(),
+                "string" | "number" | "boolean" | "bigint" | "symbol"
+            ) {
+                self.error_at(
+                    id.span,
+                    &gen::A_class_cannot_extend_a_primitive_type_like_0_Classes_can_only_extend_constructable_values,
+                    &[id.name.clone()],
+                );
+                return Some(self.types.error);
+            }
+            if id.name == "null" {
+                return Some(self.types.any);
+            }
+        }
+        if matches!(h.expr, Expr::NullLit { .. }) {
+            return Some(self.types.any);
+        }
         let scope = self
             .bind
             .node_scope

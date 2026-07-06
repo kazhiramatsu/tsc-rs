@@ -49,6 +49,9 @@ impl<'a> Checker<'a> {
         let do_ranges =
             !self.flow.within_unreachable_code && self.options.allow_unreachable_code != Some(true);
         for (i, stmt) in stmts.iter().enumerate() {
+            if self.parse_error_stmts.contains(&node_key(stmt)) {
+                continue;
+            }
             if do_ranges
                 && !self.flow.reported_unreachable.contains(&node_key(stmt))
                 && self.stmt_is_unreachable(stmt)
@@ -1205,6 +1208,9 @@ impl<'a> Checker<'a> {
             decls.iter().copied().filter(|f| f.body.is_some()).collect();
         if impls.is_empty() {
             if let Some(name) = overloads[0].name_ident() {
+                if self.parse_error_after_on_same_line(self.current_file, name.span) {
+                    return;
+                }
                 self.error_at(
                     name.span,
                     &gen::Function_implementation_is_missing_or_not_immediately_following_the_declaration,
@@ -2276,8 +2282,16 @@ impl<'a> Checker<'a> {
             self.checked_decls.insert(key);
             // `const x: number;` with no initializer (outside ambient contexts and
             // for-in/of headers) is TS1155. Destructuring patterns get TS1182 below.
-            if matches!(v.kind, VarKind::Const) && d.init.is_none() && !is_declare && !in_for {
+            if matches!(v.kind, VarKind::Const)
+                && d.init.is_none()
+                && !is_declare
+                && !in_for
+                && !(v.is_using && self.parse_error_files.contains(&self.current_file))
+            {
                 if let Binding::Ident(id) = &d.name {
+                    if self.parse_error_after_on_same_line(self.current_file, id.span) {
+                        continue;
+                    }
                     self.error_at(
                         id.span,
                         &gen::_0_declarations_must_be_initialized,
@@ -2538,7 +2552,7 @@ impl<'a> Checker<'a> {
             );
         }
         let invalid_return = self.stacks.fn_stack.is_empty();
-        if invalid_return {
+        if invalid_return && !self.parse_error_files.contains(&self.current_file) {
             self.error_at(
                 span,
                 &gen::A_return_statement_can_only_be_used_within_a_function_body,
@@ -2593,6 +2607,12 @@ impl<'a> Checker<'a> {
     fn check_import(&mut self, i: &'a ImportDecl) {
         // tsc checkGrammarModifiers: `declare` → 1079; modifiers that pass the
         let Some(target) = self.resolve_module(self.current_file, &i.module.value) else {
+            if self.parse_error_files.contains(&self.current_file)
+                && !i.module.value.starts_with("./")
+                && !i.module.value.starts_with("../")
+            {
+                return;
+            }
             self.error_at(
                 i.module.span,
                 &gen::Cannot_find_module_0_or_its_corresponding_type_declarations,

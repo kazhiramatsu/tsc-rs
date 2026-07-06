@@ -982,6 +982,25 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_object_pattern_binding_after_colon(&mut self) -> Binding {
+        if self.token().is_keyword()
+            && !self.is_ident_like()
+            && !self.token().is_strict_reserved_word()
+        {
+            let name = self.token_value_or_text();
+            let span = self.token_span();
+            self.error_at_current(
+                &gen::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here,
+                std::slice::from_ref(&name),
+            );
+            self.next();
+            self.error_at_current(&gen::_0_expected, &[":".to_string()]);
+            Binding::Ident(Ident { name, span })
+        } else {
+            self.parse_binding()
+        }
+    }
+
     fn parse_object_pattern(&mut self) -> ObjectPattern {
         let start = self.start();
         self.expect(Tok::OpenBrace);
@@ -1014,7 +1033,7 @@ impl<'a> Parser<'a> {
             let pstart = self.start();
             let key = self.parse_prop_name();
             let binding: Binding = if self.eat(Tok::Colon) {
-                self.parse_binding()
+                self.parse_object_pattern_binding_after_colon()
             } else if let PropName::Ident(id) = &key {
                 Binding::Ident(id.clone())
             } else {
@@ -1036,6 +1055,15 @@ impl<'a> Parser<'a> {
                 span: Span::new(pstart, self.prev_end()),
             });
             if !self.eat(Tok::Comma) {
+                if self.token() != Tok::CloseBrace && self.token() != Tok::Eof {
+                    self.error_at_current(&gen::_0_expected, &[",".to_string()]);
+                    while !matches!(self.token(), Tok::Comma | Tok::CloseBrace | Tok::Eof) {
+                        self.next();
+                    }
+                    if self.eat(Tok::Comma) {
+                        continue;
+                    }
+                }
                 break;
             }
         }

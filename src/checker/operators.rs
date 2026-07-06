@@ -154,11 +154,28 @@ impl<'a> Checker<'a> {
     pub(crate) fn check_update(&mut self, operand: &'a Expr, _span: Span) -> TypeId {
         let t = self.check_expr(operand, None);
         // assignment-target checks first (matches tsc order: 2588 before 2356)
-        let is_ref_like = matches!(
-            operand,
-            Expr::Ident(_) | Expr::PropAccess { .. } | Expr::ElemAccess { .. } | Expr::Paren { .. }
-        );
+        let parenthesized_generic_invalid = matches!(operand, Expr::Paren { .. })
+            && Self::is_generic_invalid_assignment_target_after_parens(operand);
+        let is_ref_like = !parenthesized_generic_invalid
+            && matches!(
+                operand,
+                Expr::Ident(_)
+                    | Expr::PropAccess { .. }
+                    | Expr::ElemAccess { .. }
+                    | Expr::Paren { .. }
+            );
         if !is_ref_like {
+            if parenthesized_generic_invalid
+                && (!self.is_arithmetic_operand(t)
+                    || Self::expr_contains_numeric_elem_access(Self::skip_parens(operand)))
+            {
+                self.error_at(
+                    operand.span(),
+                    &gen::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
+                    &[],
+                );
+                return self.types.number;
+            }
             self.error_at(
                 operand.span(),
                 &gen::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
@@ -399,6 +416,15 @@ impl<'a> Checker<'a> {
                 }
                 true
             }
+            Expr::Super { .. } if self.parse_error_files.contains(&self.current_file) => false,
+            Expr::Paren { inner, .. } if Self::is_generic_invalid_assignment_target(inner) => {
+                self.error_at(
+                    target.span(),
+                    &gen::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access,
+                    &[],
+                );
+                false
+            }
             Expr::Paren { inner, .. } => self.check_reference_for_assignment(inner, _for_update),
             // tsc checkReferenceExpression skips assertions like parens
             // (skipOuterExpressions Assertions | Parentheses): `(x as T) = v`
@@ -505,6 +531,93 @@ impl<'a> Checker<'a> {
         }
     }
 
+    fn is_generic_invalid_assignment_target(target: &Expr) -> bool {
+        matches!(
+            target,
+            Expr::NumLit { .. }
+                | Expr::StrLit { .. }
+                | Expr::BigIntLit { .. }
+                | Expr::BoolLit { .. }
+                | Expr::NullLit { .. }
+                | Expr::RegexLit { .. }
+                | Expr::Template { .. }
+                | Expr::Arrow(_)
+                | Expr::FunctionExpr(_)
+                | Expr::ClassExpr(_)
+                | Expr::Call { .. }
+                | Expr::New { .. }
+                | Expr::Unary { .. }
+                | Expr::Update { .. }
+                | Expr::Binary { .. }
+                | Expr::Cond { .. }
+                | Expr::This { .. }
+                | Expr::Super { .. }
+                | Expr::Spread { .. }
+                | Expr::Await { .. }
+                | Expr::Yield { .. }
+                | Expr::ImportCall { .. }
+                | Expr::ImportMeta { .. }
+                | Expr::JsxElement(_)
+                | Expr::Missing { .. }
+        )
+    }
+
+    fn is_generic_invalid_assignment_target_after_parens(target: &Expr) -> bool {
+        match target {
+            Expr::Paren { inner, .. } => {
+                Self::is_generic_invalid_assignment_target_after_parens(inner)
+            }
+            _ => Self::is_generic_invalid_assignment_target(target),
+        }
+    }
+
+    fn skip_parens(target: &Expr) -> &Expr {
+        match target {
+            Expr::Paren { inner, .. } => Self::skip_parens(inner),
+            _ => target,
+        }
+    }
+
+    fn expr_contains_numeric_elem_access(expr: &Expr) -> bool {
+        match expr {
+            Expr::ElemAccess { index, .. } if matches!(index.as_ref(), Expr::NumLit { .. }) => true,
+            Expr::Paren { inner, .. }
+            | Expr::Assertion { expr: inner, .. }
+            | Expr::NonNull { expr: inner, .. }
+            | Expr::Await { expr: inner, .. }
+            | Expr::Spread { expr: inner, .. }
+            | Expr::Unary { operand: inner, .. }
+            | Expr::Update { operand: inner, .. } => Self::expr_contains_numeric_elem_access(inner),
+            Expr::Binary { left, right, .. } => {
+                Self::expr_contains_numeric_elem_access(left)
+                    || Self::expr_contains_numeric_elem_access(right)
+            }
+            Expr::Cond {
+                cond,
+                when_true,
+                when_false,
+                ..
+            } => {
+                Self::expr_contains_numeric_elem_access(cond)
+                    || Self::expr_contains_numeric_elem_access(when_true)
+                    || Self::expr_contains_numeric_elem_access(when_false)
+            }
+            Expr::Call { callee, args, .. }
+            | Expr::New {
+                callee,
+                args: Some(args),
+                ..
+            } => {
+                Self::expr_contains_numeric_elem_access(callee)
+                    || args.iter().any(Self::expr_contains_numeric_elem_access)
+            }
+            Expr::New {
+                callee, args: None, ..
+            } => Self::expr_contains_numeric_elem_access(callee),
+            _ => false,
+        }
+    }
+
     pub(crate) fn check_binary(&mut self, e: &'a Expr, ctx: Option<TypeId>) -> TypeId {
         let Expr::Binary {
             op,
@@ -558,7 +671,23 @@ impl<'a> Checker<'a> {
             }
             AddAssign | SubAssign | MulAssign | DivAssign | ModAssign | ExpAssign | ShlAssign
             | ShrAssign | UShrAssign | AmpAssign | BarAssign | CaretAssign => {
-                let ok = self.check_reference_for_assignment(left, false);
+                if self.parse_error_files.contains(&self.current_file)
+                    && matches!(&**left, Expr::Object { .. } | Expr::Array { .. })
+                {
+                    self.check_expr(right, None);
+                    return self.types.number;
+                }
+                let generic_invalid_arithmetic_target =
+                    matches!(
+                        op,
+                        SubAssign | MulAssign | DivAssign | ModAssign | ExpAssign
+                    ) && !matches!(Self::skip_parens(left), Expr::NullLit { .. })
+                        && Self::is_generic_invalid_assignment_target_after_parens(left);
+                let ok = if generic_invalid_arithmetic_target {
+                    true
+                } else {
+                    self.check_reference_for_assignment(left, false)
+                };
                 self.mark_readwrite_target_used(left);
                 let saved_rw = self.cflags.assign_target_rw;
                 self.cflags.assign_target_rw = true;
@@ -569,8 +698,6 @@ impl<'a> Checker<'a> {
                 // target bypasses the read seam, so check here
                 self.da_check_compound_target(left);
                 let rt = self.check_expr(right, None);
-                let left_null_value = matches!(&**left, Expr::NullLit { .. })
-                    && self.report_direct_unusable_value(left);
                 if *op == AddAssign {
                     if self.options.strict_null_checks()
                         && !self.plus_string_like(lt)
@@ -580,6 +707,8 @@ impl<'a> Checker<'a> {
                         self.report_direct_unusable_value(right);
                     }
                 } else {
+                    let left_null_value = matches!(&**left, Expr::NullLit { .. })
+                        && self.report_direct_unusable_value(left);
                     let right_unusable = self.report_direct_unusable_value(right);
                     if ok && !left_null_value && !self.is_arithmetic_operand(lt) {
                         self.error_at(left.span(), &gen::The_left_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type, &[]);

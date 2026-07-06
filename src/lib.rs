@@ -640,9 +640,10 @@ fn check_program_core(
     root_diags: Vec<diagnostics::Diagnostic>,
     options: &CompilerOptions,
 ) -> (String, i32) {
-    // Parse every file; tsc gating: any syntactic diagnostic suppresses all
-    // option/global/semantic diagnostics.
+    // Parse every file first. tsc still binds/checks files with syntax errors;
+    // semantic checks self-censor around the parse-error-bearing nodes.
     let mut parsed: Vec<(String, SourceText, ast::SourceFileAst)> = Vec::new();
+    let root_has_diags = !root_diags.is_empty();
     let mut syntactic: Vec<diagnostics::Diagnostic> = root_diags;
     for (i, (name, text)) in files.iter().enumerate() {
         let st = SourceText::new(text.clone());
@@ -651,6 +652,13 @@ fn check_program_core(
         syntactic.append(&mut diags);
         parsed.push((name.clone(), st, file_ast));
     }
+    let parse_error_stmts = collect_parse_error_stmts(&parsed, &syntactic);
+    let parse_error_files: std::collections::HashSet<usize> =
+        syntactic.iter().filter_map(|d| d.file).collect();
+    let parse_error_offsets: Vec<(usize, u32)> = syntactic
+        .iter()
+        .filter_map(|d| d.file.map(|file| (file, d.start)))
+        .collect();
 
     // Triple-slash `/// <reference path="…" />` directives. tsc extracts these
     // pragmas from the leading comment block of every file (processCommentPragmas
@@ -739,108 +747,113 @@ fn check_program_core(
     // (forceConsistentCasingInFileNames, default on). Same bucket as the other
     // reference-directive program diagnostics above.
     ref_program_diags.extend(detect_casing_conflicts(&files));
-    let diags: Vec<diagnostics::Diagnostic> = if !syntactic.is_empty() {
-        syntactic
+    let mut diags: Vec<diagnostics::Diagnostic> = syntactic;
+    // options diagnostics gate semantic output (tsc getOptionsDiagnostics)
+    let opt_diags = crate::options::check_options(options);
+    if root_has_diags {
+        // Root-file diagnostics (unsupported/missing roots) are command-line
+        // program errors, not per-node parse errors; tsc does not continue into
+        // semantic checking for those partially materialized programs.
+    } else if !opt_diags.is_empty() {
+        diags.extend(opt_diags);
     } else {
-        // options diagnostics gate semantic output (tsc getOptionsDiagnostics)
-        let opt_diags = crate::options::check_options(options);
-        if !opt_diags.is_empty() {
-            opt_diags
-        } else {
-            let mut bound = binder::bind(&parsed);
-            binder::run_function_impl_checks(&mut bound);
-            let mut diags = checker::check(&parsed, options, bound);
-            // TS6131: --outFile with module left unset, against the first
-            // non-ambient external-module file (semantic bucket, span on the
-            // externalModuleIndicator — like TS1148 below). A SET module that
-            // isn't amd/system is TS6082 in check_options instead.
-            if options.out_file.is_some()
-                && !options.emit_declaration_only
-                && options.module.is_none()
-            {
-                let indicator = parsed
-                    .iter()
-                    .enumerate()
-                    .find_map(|(fi, (name, _st, ast))| {
-                        if name.ends_with(".d.ts") {
-                            return None;
-                        }
-                        module_indicator_span(&ast.stmts).map(|sp| (fi, sp))
-                    });
-                if let Some((fi, sp)) = indicator {
-                    diags.push(diagnostics::Diagnostic {
-                        file: Some(fi),
-                        start: sp.start,
-                        length: sp.end - sp.start,
-                        message: diagnostics::MessageChain::new(
-                            &diagnostics::gen::Cannot_compile_modules_using_option_0_unless_the_module_flag_is_amd_or_system,
-                            &["outFile".to_string()],
-                        ),
-                        related: Vec::new(),
-                    });
-                }
+        let mut bound = binder::bind(&parsed);
+        binder::run_function_impl_checks(&mut bound);
+        diags.extend(checker::check(
+            &parsed,
+            options,
+            bound,
+            &parse_error_stmts,
+            &parse_error_files,
+            &parse_error_offsets,
+        ));
+        // TS6131: --outFile with module left unset, against the first
+        // non-ambient external-module file (semantic bucket, span on the
+        // externalModuleIndicator — like TS1148 below). A SET module that
+        // isn't amd/system is TS6082 in check_options instead.
+        if options.out_file.is_some() && !options.emit_declaration_only && options.module.is_none()
+        {
+            let indicator = parsed
+                .iter()
+                .enumerate()
+                .find_map(|(fi, (name, _st, ast))| {
+                    if name.ends_with(".d.ts") {
+                        return None;
+                    }
+                    module_indicator_span(&ast.stmts).map(|sp| (fi, sp))
+                });
+            if let Some((fi, sp)) = indicator {
+                diags.push(diagnostics::Diagnostic {
+                    file: Some(fi),
+                    start: sp.start,
+                    length: sp.end - sp.start,
+                    message: diagnostics::MessageChain::new(
+                        &diagnostics::gen::Cannot_compile_modules_using_option_0_unless_the_module_flag_is_amd_or_system,
+                        &["outFile".to_string()],
+                    ),
+                    related: Vec::new(),
+                });
             }
-            // TS1148: explicit --module none + pre-ES2015 target + module
-            // syntax. tsc adds this once, file-bound, in the semantic bucket
-            // (it does NOT gate); isolatedModules/verbatim divert to TS5047.
-            if options.module.as_deref() == Some("none")
-                && options.script_target_rank() < 2
-                && !options.isolated_modules
-                && !options.verbatim_module_syntax
-            {
-                let indicator = parsed
-                    .iter()
-                    .enumerate()
-                    .find_map(|(fi, (name, _st, ast))| {
-                        if name.ends_with(".d.ts") {
-                            return None;
-                        }
-                        module_indicator_span(&ast.stmts).map(|sp| (fi, sp))
-                    });
-                if let Some((fi, sp)) = indicator {
+        }
+        // TS1148: explicit --module none + pre-ES2015 target + module
+        // syntax. tsc adds this once, file-bound, in the semantic bucket
+        // (it does NOT gate); isolatedModules/verbatim divert to TS5047.
+        if options.module.as_deref() == Some("none")
+            && options.script_target_rank() < 2
+            && !options.isolated_modules
+            && !options.verbatim_module_syntax
+        {
+            let indicator = parsed
+                .iter()
+                .enumerate()
+                .find_map(|(fi, (name, _st, ast))| {
+                    if name.ends_with(".d.ts") {
+                        return None;
+                    }
+                    module_indicator_span(&ast.stmts).map(|sp| (fi, sp))
+                });
+            if let Some((fi, sp)) = indicator {
+                diags.push(diagnostics::Diagnostic {
+                    file: Some(fi),
+                    start: sp.start,
+                    length: sp.end - sp.start,
+                    message: diagnostics::MessageChain::new(
+                        &diagnostics::gen::Cannot_use_imports_exports_or_module_augmentations_when_module_is_none,
+                        &[],
+                    ),
+                    related: Vec::new(),
+                });
+            }
+        }
+        // @ts-expect-error / @ts-ignore: suppress next-line diagnostics
+        for (fi, (_n, st, ast)) in parsed.iter().enumerate() {
+            for &(dstart, dend, expect) in &ast.comment_directives {
+                let dline = st.line_col(dstart).0;
+                let before = diags.len();
+                diags.retain(|d| {
+                    if d.file != Some(fi) {
+                        return true;
+                    }
+                    st.line_col(d.start).0 != dline + 1
+                });
+                if expect && diags.len() == before {
                     diags.push(diagnostics::Diagnostic {
                         file: Some(fi),
-                        start: sp.start,
-                        length: sp.end - sp.start,
+                        start: dstart,
+                        length: dend - dstart,
                         message: diagnostics::MessageChain::new(
-                            &diagnostics::gen::Cannot_use_imports_exports_or_module_augmentations_when_module_is_none,
+                            &diagnostics::gen::Unused_ts_expect_error_directive,
                             &[],
                         ),
                         related: Vec::new(),
                     });
                 }
             }
-            // @ts-expect-error / @ts-ignore: suppress next-line diagnostics
-            for (fi, (_n, st, ast)) in parsed.iter().enumerate() {
-                for &(dstart, dend, expect) in &ast.comment_directives {
-                    let dline = st.line_col(dstart).0;
-                    let before = diags.len();
-                    diags.retain(|d| {
-                        if d.file != Some(fi) {
-                            return true;
-                        }
-                        st.line_col(d.start).0 != dline + 1
-                    });
-                    if expect && diags.len() == before {
-                        diags.push(diagnostics::Diagnostic {
-                            file: Some(fi),
-                            start: dstart,
-                            length: dend - dstart,
-                            message: diagnostics::MessageChain::new(
-                                &diagnostics::gen::Unused_ts_expect_error_directive,
-                                &[],
-                            ),
-                            related: Vec::new(),
-                        });
-                    }
-                }
-            }
-            // Reference-directive program diagnostics (TS1006/TS6053) print
-            // with the semantic bucket and sort by position alongside it.
-            diags.extend(ref_program_diags);
-            diags
         }
-    };
+        // Reference-directive program diagnostics (TS1006/TS6053) print
+        // with the semantic bucket and sort by position alongside it.
+        diags.extend(ref_program_diags);
+    }
     let files: Vec<(String, SourceText)> = parsed.into_iter().map(|(n, t, _)| (n, t)).collect();
 
     let paths: Vec<String> = files.iter().map(|(n, _)| n.to_lowercase()).collect();
@@ -879,6 +892,111 @@ fn module_indicator_span(stmts: &[ast::Stmt]) -> Option<text::Span> {
         Stmt::Enum(e) if has_modifier(&e.modifiers, ModifierKind::Export) => Some(e.span),
         _ => None,
     })
+}
+
+/// node_keys of the innermost statements whose span contains a syntactic
+/// diagnostic -- the tsrs projection of tsc's ThisNodeOrAnySubNodesHasError.
+fn collect_parse_error_stmts(
+    parsed: &[(String, SourceText, ast::SourceFileAst)],
+    syntactic: &[diagnostics::Diagnostic],
+) -> std::collections::HashSet<usize> {
+    use ast::{ClassMember, FuncBody, Stmt};
+
+    fn walk(stmts: &[Stmt], file: usize, out: &mut Vec<(usize, ast::Span, usize)>) {
+        for s in stmts {
+            out.push((ast::node_key(s), s.span(), file));
+            match s {
+                Stmt::Func(f) => walk_function(f, file, out),
+                Stmt::Class(c) => walk_class(c, file, out),
+                Stmt::Namespace(n) => walk(&n.body, file, out),
+                Stmt::With { body, .. } => walk(std::slice::from_ref(body.as_ref()), file, out),
+                Stmt::If { then, els, .. } => {
+                    walk(std::slice::from_ref(then.as_ref()), file, out);
+                    if let Some(els) = els {
+                        walk(std::slice::from_ref(els.as_ref()), file, out);
+                    }
+                }
+                Stmt::While { body, .. }
+                | Stmt::DoWhile { body, .. }
+                | Stmt::For { body, .. }
+                | Stmt::ForIn { body, .. }
+                | Stmt::ForOf { body, .. } => {
+                    walk(std::slice::from_ref(body.as_ref()), file, out);
+                }
+                Stmt::Block(b) => walk(&b.stmts, file, out),
+                Stmt::Try {
+                    block,
+                    catch,
+                    finally,
+                    ..
+                } => {
+                    walk(&block.stmts, file, out);
+                    if let Some(catch) = catch {
+                        walk(&catch.block.stmts, file, out);
+                    }
+                    if let Some(finally) = finally {
+                        walk(&finally.stmts, file, out);
+                    }
+                }
+                Stmt::Switch { cases, .. } => {
+                    for case in cases {
+                        walk(&case.stmts, file, out);
+                    }
+                }
+                Stmt::Labeled { stmt, .. } => {
+                    walk(std::slice::from_ref(stmt.as_ref()), file, out);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn walk_function(f: &ast::FunctionLike, file: usize, out: &mut Vec<(usize, ast::Span, usize)>) {
+        if let Some(FuncBody::Block(block)) = &f.body {
+            walk(&block.stmts, file, out);
+        }
+    }
+
+    fn walk_class(c: &ast::ClassDecl, file: usize, out: &mut Vec<(usize, ast::Span, usize)>) {
+        for member in &c.members {
+            match member {
+                ClassMember::StaticBlock(block) => walk(&block.stmts, file, out),
+                ClassMember::Method(f) | ClassMember::Constructor(f) => walk_function(f, file, out),
+                _ => {}
+            }
+        }
+    }
+
+    let mut all: Vec<(usize, ast::Span, usize)> = Vec::new();
+    for (i, (_, _, ast)) in parsed.iter().enumerate() {
+        walk(&ast.stmts, i, &mut all);
+    }
+
+    let mut marks = std::collections::HashSet::new();
+    for d in syntactic {
+        let Some(file) = d.file else {
+            continue;
+        };
+        let diag_line = parsed[file].1.line_col(d.start).0;
+        let mut best: Option<(usize, u32)> = None;
+        for (key, sp, f) in &all {
+            if *f != file || sp.start > d.start {
+                continue;
+            }
+            let contains = d.start < sp.end;
+            let same_line_after = !contains && parsed[*f].1.line_col(sp.end).0 == diag_line;
+            if contains || same_line_after {
+                let len = sp.end - sp.start;
+                if best.map_or(true, |(_, best_len)| len < best_len) {
+                    best = Some((*key, len));
+                }
+            }
+        }
+        if let Some((key, _)) = best {
+            marks.insert(key);
+        }
+    }
+    marks
 }
 
 /// Full CLI pipeline: parse argv tsc-style (response files, enum-value and
@@ -3041,6 +3159,74 @@ async function f() {
 
         assert_eq!(out.matches("error TS17006").count(), 8, "{out}");
         assert_eq!(out.matches("error TS17007").count(), 2, "{out}");
+    }
+
+    #[test]
+    fn non_lhs_assignment_recovery_reports_parse_error_at_operator() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: "f1.ts".to_string(),
+                    text: "declare var a: number; declare var b: number; declare var c: number;\na + b = c;\n"
+                        .to_string(),
+                },
+                InputFile {
+                    name: "f2.ts".to_string(),
+                    text: "declare var x: boolean;\n!x = false;\n".to_string(),
+                },
+                InputFile {
+                    name: "f3.ts".to_string(),
+                    text: "declare var p: Promise<number>;\nasync function f() { await p = 3; }\n"
+                        .to_string(),
+                },
+                InputFile {
+                    name: "f4.ts".to_string(),
+                    text: "declare var n: number;\nn++ = 3;\n".to_string(),
+                },
+            ],
+            &opts,
+        );
+
+        assert!(out.contains("f1.ts(2,7): error TS1005"), "{out}");
+        assert!(out.contains("f2.ts(2,4): error TS1005"), "{out}");
+        assert!(out.contains("f3.ts(2,30): error TS1005"), "{out}");
+        assert!(out.contains("f4.ts(2,5): error TS1005"), "{out}");
+        assert_eq!(out.matches("error TS1005").count(), 4, "{out}");
+        assert!(!out.contains("error TS2364"), "{out}");
+    }
+
+    #[test]
+    fn object_binding_keyword_recovery_consumes_initializer() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![
+                InputFile {
+                    name: "kw1.ts".to_string(),
+                    text: "var { while: while } = { while: 1 }\n".to_string(),
+                },
+                InputFile {
+                    name: "kw2.ts".to_string(),
+                    text: "var { \"while\": while } = { while: 1 }\n".to_string(),
+                },
+            ],
+            &opts,
+        );
+
+        assert!(out.contains("kw1.ts(1,14): error TS1359"), "{out}");
+        assert!(out.contains("kw1.ts(1,20): error TS1005"), "{out}");
+        assert!(out.contains("kw2.ts(1,16): error TS1359"), "{out}");
+        assert!(out.contains("kw2.ts(1,22): error TS1005"), "{out}");
+        assert_eq!(out.matches("error TS1359").count(), 2, "{out}");
+        assert_eq!(out.matches("error TS1005").count(), 2, "{out}");
     }
 
     #[test]

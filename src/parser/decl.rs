@@ -259,7 +259,8 @@ impl<'a> Parser<'a> {
             let is_get = self.token() == Tok::KGet;
             let snap = self.save();
             self.next();
-            if self.token() == Tok::OpenParen
+            if self.line_break_before()
+                || self.token() == Tok::OpenParen
                 || self.token() == Tok::Colon
                 || self.token() == Tok::Eq
                 || self.token() == Tok::Semicolon
