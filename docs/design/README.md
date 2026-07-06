@@ -11,13 +11,26 @@ session context can implement it. **Read this file first — the working
 protocol below is not optional; it is how this project avoids shipping
 regressions.**
 
+Document map:
+- **[EXECUTION-GUIDE.md](EXECUTION-GUIDE.md)** — the operating manual
+  for implementing agents (step loop, FP triage, stop conditions, hard
+  prohibitions). Low-capability agents follow it LITERALLY.
+- `<workstream>.md` — the design (why + architecture + tsc anchors).
+- `<workstream>-steps.md` — numbered implementation steps with code
+  skeletons, per-step verification commands, expected outputs, and
+  difficulty labels ([M] mechanical / [P] probe-first / [T] triage-
+  heavy). Weak models execute the [M]/[P] steps and STOP at the marked
+  stop-points in [T] stages.
+- `NOTES-*.md` — reports produced by implementing agents (mining
+  tables, stop-notes). Never deleted, only appended.
+
 ## Priority table (expected yield, highest first)
 
-| # | Workstream | Doc | Standing damage | Expected yield |
-|---|-----------|-----|-----------------|----------------|
-| 1 | Parse-error semantic gate + non-LHS `=` recovery (PAIRED — do together) | [parse-error-gate.md](parse-error-gate.md) | whole-file FN flips: every fixture with ≥1 syntax error loses ALL semantic diags (6133×387 mostly here, 1005×125, 1109×80, parserRealSource11 alone = 87 FN) | largest single FN lever; hundreds of file flips |
-| 2 | Relation-core 2: 2339 mining + assignable-side private nominality | [relation-core-2.md](relation-core-2.md) | 2339 = FP #1 (529), 2322 #2 (483), 2345 #3 (357); nominality FPs 2415/2430/2445 mapped | few hundred FPs |
-| 3 | lib-gap axis (2304) | [lib-gap-2304.md](lib-gap-2304.md) | 2304 = FN #1 (1,622 raw; partially excluded from the gate-filtered metric) | raw-metric heavy; moderate filtered yield |
+| # | Workstream | Design | Steps | Standing damage | Expected yield |
+|---|-----------|--------|-------|-----------------|----------------|
+| 1 | Parse-error semantic gate + non-LHS `=` recovery (PAIRED — do together) | [parse-error-gate.md](parse-error-gate.md) | [steps](parse-error-gate-steps.md) | whole-file FN flips: every fixture with ≥1 syntax error loses ALL semantic diags (6133×387 mostly here, 1005×125, 1109×80, parserRealSource11 alone = 87 FN) | largest single FN lever; hundreds of file flips |
+| 2 | Relation-core 2: 2339 mining + assignable-side private nominality | [relation-core-2.md](relation-core-2.md) | [steps](relation-core-2-steps.md) | 2339 = FP #1 (529), 2322 #2 (483), 2345 #3 (357); nominality FPs 2415/2430/2445 mapped | few hundred FPs |
+| 3 | lib-gap axis (2304) | [lib-gap-2304.md](lib-gap-2304.md) | [steps](lib-gap-2304-steps.md) | 2304 = FN #1 (1,622 raw; partially excluded from the gate-filtered metric) | raw-metric heavy; moderate filtered yield |
 | 4 | U6: unused-FP finish | buckets in the conformance-sweep memory; FP 6133 = 156 | small, self-contained | ~100 FPs |
 | 5 | Architectural debt (do only when a workstream is blocked on it) | [architectural-debt.md](architectural-debt.md) | anon-`{}` identity, StringMapping kind, inference widen ordering, 2403 mapped-identity (276) | unblocks documented FNs |
 
