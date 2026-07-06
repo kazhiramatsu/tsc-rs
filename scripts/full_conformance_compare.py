@@ -14,7 +14,6 @@ code/category/source/flags, full span, message chain, and relatedInformation.
 import argparse
 import json
 import os
-import subprocess
 import sys
 import time
 from collections import Counter
@@ -144,40 +143,14 @@ def load_snapshot(path, strict):
 
 
 def tsc_diags_one_memory(path, lib, strict):
-    with open(path, encoding="utf8", errors="replace") as fh:
-        fixture = classify.parse_fixture(fh.read())
-    if path.endswith(".tsx") and len(fixture["files"]) == 1 and fixture["files"][0][0] == "main.ts":
-        fixture["files"][0] = ("main.tsx", fixture["files"][0][1])
-
-    opts = classify.compiler_options_from_directives(fixture["options"])
-    if opts is None:
+    payload = classify.fixture_payload(path, lib)
+    if payload is None:
         return None
-
-    with open(lib, encoding="utf8", errors="replace") as fh:
-        lib_text = fh.read()
-    payload = {
-        "files": fixture["files"],
-        "extraRootFiles": fixture["extra_root_files"],
-        "options": opts,
-        "libName": "lib.tsrs.d.ts",
-        "libText": lib_text,
-        "extensionlessTries": list(classify.EXTENSIONLESS_TRIES),
-    }
-    try:
-        r = subprocess.run(
-            ["node", classify.ORACLE, "--program-json", "-", "--all-files"],
-            input=json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-            capture_output=True,
-            text=True,
-            timeout=classify.TSC_TIMEOUT,
-        )
-        if r.returncode != 0:
-            return None
-        data = json.loads(r.stdout)
-        diags = data.get("diagnostics", [])
-        return strict_snapshot_diag_set(diags) if strict else classify.snapshot_diag_set(diags)
-    except Exception:
+    data = classify.oracle_worker().run(payload)
+    if data is None:
         return None
+    diags = data.get("diagnostics", [])
+    return strict_snapshot_diag_set(diags) if strict else classify.snapshot_diag_set(diags)
 
 
 def tsc_worker(args):

@@ -6,7 +6,7 @@ Changed fixtures are expanded with the same harness directives that
 The comparison scope intentionally stays at the historical `main.ts` /
 `main.tsx` diagnostics gate.
 """
-import json, os, sys, subprocess
+import atexit, json, os, select, sys, subprocess, time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -44,6 +44,7 @@ CLASSIFY_JOBS = env_positive_int("TSRS_CLASSIFY_JOBS", 4)
 TSC_TIMEOUT = env_positive_int("TSRS_TSC_TIMEOUT", 45)
 EXTENSIONLESS_TRIES = (".ts", ".tsx", ".d.ts", ".mts", ".cts", ".json")
 _LIB_TEXT_CACHE = {}
+_ORACLE_WORKER = None
 
 BOOL_OPTIONS = {
     "strict": "strict",
@@ -338,23 +339,82 @@ def fixture_payload(path, lib):
         "extensionlessTries": list(EXTENSIONLESS_TRIES),
     }
 
+class OracleWorker:
+    def __init__(self):
+        self.proc = subprocess.Popen(
+            ["node", ORACLE, "--server-jsonl", "--all-files"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+        self.next_id = 0
+
+    def close(self):
+        if self.proc.poll() is None:
+            try:
+                self.proc.stdin.close()
+            except Exception:
+                pass
+            try:
+                self.proc.terminate()
+            except Exception:
+                pass
+
+    def restart(self):
+        self.close()
+        self.__init__()
+
+    def run(self, payload):
+        self.next_id += 1
+        req_id = self.next_id
+        try:
+            self.proc.stdin.write(json.dumps({"id": req_id, "payload": payload}, ensure_ascii=False, separators=(",", ":")) + "\n")
+            self.proc.stdin.flush()
+        except Exception:
+            self.restart()
+            return None
+
+        deadline = time.monotonic() + TSC_TIMEOUT
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                self.restart()
+                return None
+            ready, _, _ = select.select([self.proc.stdout], [], [], remaining)
+            if not ready:
+                self.restart()
+                return None
+            line = self.proc.stdout.readline()
+            if not line:
+                self.restart()
+                return None
+            try:
+                response = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if response.get("id") != req_id:
+                continue
+            if not response.get("ok"):
+                return None
+            return response.get("result")
+
+def oracle_worker():
+    global _ORACLE_WORKER
+    if _ORACLE_WORKER is None or _ORACLE_WORKER.proc.poll() is not None:
+        _ORACLE_WORKER = OracleWorker()
+        atexit.register(_ORACLE_WORKER.close)
+    return _ORACLE_WORKER
+
 def tsc_diags_one(path, lib):
     payload = fixture_payload(path, lib)
     if payload is None:
         return None
-    try:
-        r = subprocess.run(
-            ["node", ORACLE, "--program-json", "-", "--all-files"],
-            input=json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-            capture_output=True,
-            text=True,
-            timeout=TSC_TIMEOUT)
-        if r.returncode != 0:
-            return None
-        d = json.loads(r.stdout)
-        return snapshot_diag_set(d.get("diagnostics", []))
-    except Exception:
+    d = oracle_worker().run(payload)
+    if d is None:
         return None
+    return snapshot_diag_set(d.get("diagnostics", []))
 
 def worker(args):
     fn, lib = args

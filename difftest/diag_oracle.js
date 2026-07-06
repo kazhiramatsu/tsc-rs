@@ -47,6 +47,7 @@ const ts = loadTypescript();
 let allFiles = false;
 let optionsJson = null;
 let programJson = null;
+let serverJsonl = false;
 const files = [];
 for (let i = 2; i < process.argv.length; i++) {
   const arg = process.argv[i];
@@ -56,6 +57,8 @@ for (let i = 2; i < process.argv.length; i++) {
     optionsJson = process.argv[++i];
   } else if (arg === "--program-json") {
     programJson = process.argv[++i];
+  } else if (arg === "--server-jsonl") {
+    serverJsonl = true;
   } else if (arg.startsWith("--")) {
     console.error(`diag_oracle.js: unknown option ${arg}`);
     process.exit(2);
@@ -63,7 +66,7 @@ for (let i = 2; i < process.argv.length; i++) {
     files.push(path.resolve(arg));
   }
 }
-if (!programJson && files.length === 0) {
+if (!serverJsonl && !programJson && files.length === 0) {
   console.error("diag_oracle.js: expected at least one input file");
   process.exit(2);
 }
@@ -252,48 +255,54 @@ function createMemoryProgram(payload) {
 }
 
 let program;
-if (programJson) {
+if (serverJsonl) {
+  runServerJsonl();
+} else if (programJson) {
   const raw = programJson === "-" ? fs.readFileSync(0, "utf8") : fs.readFileSync(programJson, "utf8");
   program = createMemoryProgram(JSON.parse(raw));
+  writeResult(program);
 } else {
   program = ts.createProgram(files, options);
+  writeResult(program);
 }
-const mainBase = path.basename(program.getRootFileNames()[0] || files[0] || "main.ts");
 
-const diagSet = [];
-const seen = new Set();
-function add(list) {
-  for (const d of list || []) {
-    const key =
-      d.code + "|" + (d.file ? d.file.fileName : "") + "|" + d.start + "|" +
-      d.length + "|" +
-      (typeof d.messageText === "string" ? d.messageText : d.messageText.messageText);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    diagSet.push(d);
+function collectDiagnostics(program) {
+  const diagSet = [];
+  const seen = new Set();
+  function add(list) {
+    for (const d of list || []) {
+      const key =
+        d.code + "|" + (d.file ? d.file.fileName : "") + "|" + d.start + "|" +
+        d.length + "|" +
+        (typeof d.messageText === "string" ? d.messageText : d.messageText.messageText);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      diagSet.push(d);
+    }
   }
-}
 
-add(program.getConfigFileParsingDiagnostics && program.getConfigFileParsingDiagnostics());
-add(program.getOptionsDiagnostics());
-add(program.getGlobalDiagnostics());
-for (const sf of program.getSourceFiles()) {
-  add(program.getSyntacticDiagnostics(sf));
-  add(program.getSemanticDiagnostics(sf));
-  add(program.getDeclarationDiagnostics(sf));
-}
+  add(program.getConfigFileParsingDiagnostics && program.getConfigFileParsingDiagnostics());
+  add(program.getOptionsDiagnostics());
+  add(program.getGlobalDiagnostics());
+  for (const sf of program.getSourceFiles()) {
+    add(program.getSyntacticDiagnostics(sf));
+    add(program.getSemanticDiagnostics(sf));
+    add(program.getDeclarationDiagnostics(sf));
+  }
 
-let emittedFiles = [];
-let emitSkipped = false;
-try {
-  const writeDiscard = (fileName) => { emittedFiles.push(path.basename(fileName)); };
-  const emitResult = program.emit(undefined, writeDiscard);
-  emitSkipped = !!emitResult.emitSkipped;
-  add(emitResult.diagnostics);
-} catch (e) {}
+  let emittedFiles = [];
+  let emitSkipped = false;
+  try {
+    const writeDiscard = (fileName) => { emittedFiles.push(path.basename(fileName)); };
+    const emitResult = program.emit(undefined, writeDiscard);
+    emitSkipped = !!emitResult.emitSkipped;
+    add(emitResult.diagnostics);
+  } catch (e) {}
 
-for (const sf of program.getSourceFiles()) {
-  try { add(program.getSuggestionDiagnostics(sf)); } catch (e) {}
+  for (const sf of program.getSourceFiles()) {
+    try { add(program.getSuggestionDiagnostics(sf)); } catch (e) {}
+  }
+  return { diagSet, emittedFiles, emitSkipped };
 }
 
 function chain(mt) {
@@ -338,9 +347,37 @@ function serialize(d) {
   };
 }
 
-const reported = diagSet
-  .filter((d) => allFiles || !d.file || path.basename(d.file.fileName) === mainBase)
-  .map(serialize)
-  .sort((a, b) => (a.start || 0) - (b.start || 0) || a.code - b.code || a.category - b.category);
+function resultForProgram(program) {
+  const mainBase = path.basename(program.getRootFileNames()[0] || files[0] || "main.ts");
+  const { diagSet, emittedFiles, emitSkipped } = collectDiagnostics(program);
+  const reported = diagSet
+    .filter((d) => allFiles || !d.file || path.basename(d.file.fileName) === mainBase)
+    .map(serialize)
+    .sort((a, b) => (a.start || 0) - (b.start || 0) || a.code - b.code || a.category - b.category);
+  return { emittedFiles, emitSkipped, diagnostics: reported };
+}
 
-process.stdout.write(JSON.stringify({ emittedFiles, emitSkipped, diagnostics: reported }, null, 2) + "\n");
+function writeResult(program) {
+  process.stdout.write(JSON.stringify(resultForProgram(program), null, 2) + "\n");
+}
+
+function runServerJsonl() {
+  const readline = require("readline");
+  const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+  rl.on("line", (line) => {
+    if (!line.trim()) return;
+    let id = null;
+    try {
+      const request = JSON.parse(line);
+      id = request.id === undefined ? null : request.id;
+      const program = createMemoryProgram(request.payload || request);
+      process.stdout.write(JSON.stringify({ id, ok: true, result: resultForProgram(program) }) + "\n");
+    } catch (error) {
+      process.stdout.write(JSON.stringify({
+        id,
+        ok: false,
+        error: error && error.stack ? String(error.stack) : String(error),
+      }) + "\n");
+    }
+  });
+}
