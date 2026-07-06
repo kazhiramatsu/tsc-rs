@@ -8,6 +8,13 @@ gives: entry signature, a Rust-shaped skeleton mirroring the real
 control flow, the non-obvious invariants, tsc line anchors (vendored
 6.0.3 — re-grep if re-vendored), and the current-tsrs gap.
 
+Sections: §1 relation engine, §2 inference, §3 overload resolution,
+§4 control-flow analysis (narrowing + reachability), §5 porting order.
+§1–3 are type-side algorithms the current tsrs approximates and would
+be REBUILT; §4 is a design tsrs already validated (Tier-2 CFG) and
+would be PORTED as-is — the notes there fix the exact shape and flag
+the two pieces tsrs approximates.
+
 Read tsc-source-guide.md first for how to navigate `_tsc.js`. Every
 skeleton below is a PORT TARGET, not pseudocode to improvise from — when
 in doubt, read the cited lines and probe.
@@ -498,21 +505,382 @@ selected error candidate.
 
 ---
 
-## 4. Porting order (respecting dependencies)
+## 4. Control-flow analysis (narrowing + reachability)
+
+Unlike §1–3, the current tsrs already has a tsc-shaped flow engine: a
+bind-time FlowNode graph and a `get_flow_type_of_reference` resolver
+(Tier-2, docs/determinism-design.md). So for a rebuild this is a
+STRAIGHT PORT of a design tsrs validated; the notes below fix the exact
+shape and flag the two pieces tsrs approximates (the incomplete-type
+loop-convergence mechanism, and full `isMatchingReference`).
+
+Two halves: **bind time** builds the graph; **check time** resolves a
+reference's type by walking it backward.
+
+Call graph (check time):
+```
+getFlowTypeOfReference (70394)
+  └ getTypeAtFlowNode (70420)   backward walk, flags dispatch, shared cache
+      ├ getTypeAtFlowAssignment (70502)   None ⇒ walk to antecedent
+      ├ getTypeAtFlowCall (70566)         assertions / never-returns
+      ├ getTypeAtFlowCondition (70614) ─ narrowType (71400)  the narrower
+      ├ getTypeAtSwitchClause                narrow by discriminant/typeof
+      ├ getTypeAtFlowBranchLabel (70653)  JOIN (union of antecedents)
+      ├ getTypeAtFlowLoopLabel (70694)    JOIN + incomplete-type fixpoint
+      └ getTypeAtFlowArrayMutation (70588)  evolving arrays
+isReachableFlowNode (70240)   separate reachability walk (7027/2367/...)
+```
+
+### 4.1 The FlowType wrapper and the "incomplete" bit — THE key mechanism
+
+tsc does NOT pass bare types through the flow walk. It passes `FlowType`
+= either a plain type OR `{ flags: Incomplete, type }`. The `incomplete`
+bit means "this type was computed while a loop back-edge was still being
+resolved, so it is a lower bound, not final." This is what makes loop
+narrowing terminate correctly. The current tsrs handles loops via a
+"Cycle" resolution (per Tier-2 memory) — a rebuild should port the real
+incomplete-type machinery instead; it is more faithful.
+
+```rust
+enum FlowType { Type(T), Incomplete(T) }   // tsc createFlowType / isIncomplete
+fn type_from_flow_type(ft: FlowType) -> T { match ft { FlowType::Type(t)|FlowType::Incomplete(t) => t } }
+```
+
+### 4.2 getTypeAtFlowNode — the backward walk — tsc 70420
+
+```rust
+fn get_type_at_flow_node(&mut self, mut flow: FlowId) -> FlowType {
+    if self.flow_depth == 2000 { self.flow_analysis_disabled = true; /* report + errorType */ }
+    self.flow_depth += 1;
+    let mut shared: Option<FlowId> = None;
+    loop {
+        let flags = self.flow_flags(flow);
+        if flags.contains(SHARED) {
+            // shared-flow cache: a node reached by multiple paths is memoized
+            // within THIS getFlowTypeOfReference invocation (sharedFlowStart..Count)
+            for i in self.shared_start..self.shared_count {
+                if self.shared_nodes[i] == flow { self.flow_depth -= 1; return self.shared_types[i]; }
+            }
+            shared = Some(flow);
+        }
+        let ty: FlowType = if flags.contains(ASSIGNMENT) {
+            match self.get_type_at_flow_assignment(flow) { Some(t) => t, None => { flow = self.antecedent(flow); continue; } }
+        } else if flags.contains(CALL) {
+            match self.get_type_at_flow_call(flow) { Some(t) => t, None => { flow = self.antecedent(flow); continue; } }
+        } else if flags.intersects(CONDITION) {           // TrueCondition|FalseCondition
+            self.get_type_at_flow_condition(flow)
+        } else if flags.contains(SWITCH_CLAUSE) {
+            self.get_type_at_switch_clause(flow)
+        } else if flags.intersects(LABEL) {               // BranchLabel|LoopLabel
+            if self.antecedents(flow).len() == 1 { flow = self.antecedents(flow)[0]; continue; }  // fast path
+            if flags.contains(BRANCH_LABEL) { self.get_type_at_flow_branch_label(flow) }
+            else { self.get_type_at_flow_loop_label(flow) }
+        } else if flags.contains(ARRAY_MUTATION) {
+            match self.get_type_at_flow_array_mutation(flow) { Some(t) => t, None => { flow = self.antecedent(flow); continue; } }
+        } else if flags.contains(REDUCE_LABEL) {
+            // try/finally ReduceLabel: temporarily swap the target's antecedents
+            let node = self.flow_node(flow); let saved = self.label_antecedents(node.target);
+            self.set_label_antecedents(node.target, node.antecedents);
+            let t = self.get_type_at_flow_node(self.antecedent(flow));
+            self.set_label_antecedents(node.target, saved); t
+        } else if flags.contains(START) {
+            // Start: if the container differs from flowContainer AND the reference
+            // is a bare non-this/non-access ref, resume in the OUTER container's flow
+            let container = self.flow_container_node(flow);
+            if container.is_some() && container != Some(self.flow_container)
+               && !self.reference_is_access_or_nonarrow_this() {
+                flow = self.container_flow_node(container); continue;
+            }
+            FlowType::Type(self.initial_type)
+        } else {
+            FlowType::Type(self.convert_auto_to_any(self.declared_type))  // Unreachable terminus
+        };
+        if let Some(s) = shared {
+            self.shared_nodes[self.shared_count] = s; self.shared_types[self.shared_count] = ty; self.shared_count += 1;
+        }
+        self.flow_depth -= 1;
+        return ty;
+    }
+}
+```
+
+Invariants:
+- **Assignment/Call/ArrayMutation return `Option`**: `None` means "this
+  node does not affect the reference" ⇒ `continue` to the antecedent.
+  This antecedent-walk-on-None is the single most common pattern; the
+  current tsrs Step::Assign arm mirrors it.
+- **Shared-flow cache** is per-`getFlowTypeOfReference` call (reset via
+  `sharedFlowStart`), NOT global — a node reached by N paths is computed
+  once per reference query. tsrs should confirm it has this (perf +
+  correctness for diamond CFGs).
+- **Start outer-resume**: bare `const` refs declared outside the current
+  flow container resume in the outer container (funcexpr/arrow capture);
+  property/element accesses and non-arrow `this` do NOT. tsrs has this
+  (`FlowNode::Start{outer}` from Tier-2).
+- **Depth 2000** disables flow analysis for the whole file with a flow
+  error — a real, if rare, diagnostic.
+
+### 4.3 getTypeAtFlowBranchLabel — the JOIN — tsc 70653
+
+```rust
+fn get_type_at_flow_branch_label(&mut self, flow: FlowId) -> FlowType {
+    let mut antecedent_types = Vec::new();
+    let (mut subtype_reduction, mut seen_incomplete) = (false, false);
+    let mut bypass: Option<FlowId> = None;
+    for &ante in self.antecedents(flow) {
+        // an EMPTY switch clause (clauseStart==clauseEnd) is deferred as bypassFlow
+        if bypass.is_none() && self.is_empty_switch_clause(ante) { bypass = Some(ante); continue; }
+        let ft = self.get_type_at_flow_node(ante);
+        let t = type_from_flow_type(ft);
+        // short-circuit: an antecedent that is exactly the unnarrowed declared type
+        if t == self.declared_type && self.declared_type == self.initial_type { return FlowType::Type(t); }
+        push_if_unique(&mut antecedent_types, t);
+        if !self.is_type_subset_of(t, self.initial_type) { subtype_reduction = true; }
+        if let FlowType::Incomplete(_) = ft { seen_incomplete = true; }
+    }
+    if let Some(bp) = bypass {
+        // the default/no-match path of a non-exhaustive switch rejoins here
+        let ft = self.get_type_at_flow_node(bp); let t = type_from_flow_type(ft);
+        if !self.is_never(t) && !antecedent_types.contains(&t) && !self.is_exhaustive_switch(bp) {
+            /* same short-circuit + push + subtype/incomplete bookkeeping */
+        }
+    }
+    FlowType::new(self.get_union_or_evolving_array_type(&antecedent_types,
+                    if subtype_reduction { UnionReduction::Subtype } else { UnionReduction::Literal }),
+                  seen_incomplete)
+}
+```
+
+- `getUnionOrEvolvingArrayType` (70759) does the union AND
+  `recombineUnknownType` (re-joins a decomposed `{}|null|undefined` back
+  to `unknown` — tsrs learned this in Stage-1, keep it) and returns the
+  IDENTICAL `declaredType` object when the union equals it (identity
+  preservation matters for the branch short-circuit above).
+- `subtypeReduction` uses the SUBTYPE relation (§1.5) — another reason
+  Subtype is load-bearing.
+
+### 4.4 getTypeAtFlowLoopLabel — the fixpoint — tsc 70694
+
+The convergence mechanism. First antecedent (loop entry) is resolved
+normally; subsequent antecedents (back-edges) are resolved with the
+CURRENT partial `antecedentTypes` published on a `flowLoopNodes` stack,
+so a self-reference during back-edge resolution returns the
+accumulated-so-far union tagged `incomplete`. Terminates because each
+pass only adds members.
+
+```rust
+fn get_type_at_flow_loop_label(&mut self, flow: FlowId) -> FlowType {
+    let id = self.flow_node_id(flow);
+    let key = self.get_or_set_cache_key();                // getFlowCacheKey; None ⇒ declared
+    if key.is_none() { return FlowType::Type(self.declared_type); }
+    if let Some(c) = self.flow_loop_caches[id].get(key) { return FlowType::Type(c); }
+    // in-progress back-edge: return the partial union as INCOMPLETE
+    for i in self.flow_loop_start..self.flow_loop_count {
+        if self.flow_loop_nodes[i] == flow && self.flow_loop_keys[i] == key && !self.flow_loop_types[i].is_empty() {
+            return FlowType::Incomplete(self.get_union_or_evolving_array_type(&self.flow_loop_types[i], UnionReduction::Literal));
+        }
+    }
+    let mut antecedent_types = Vec::new();
+    let mut subtype_reduction = false;
+    let mut first: Option<FlowType> = None;
+    for &ante in self.antecedents(flow) {
+        let ft = if first.is_none() {
+            let f = self.get_type_at_flow_node(ante); first = Some(f); f
+        } else {
+            // publish partial types for the back-edge walk, clear the flow-type cache
+            self.flow_loop_nodes[self.flow_loop_count] = flow; self.flow_loop_keys[self.flow_loop_count] = key;
+            self.flow_loop_types[self.flow_loop_count] = antecedent_types.clone(); self.flow_loop_count += 1;
+            let saved = self.flow_type_cache.take();
+            let f = self.get_type_at_flow_node(ante);
+            self.flow_type_cache = saved; self.flow_loop_count -= 1;
+            if let Some(c) = self.flow_loop_caches[id].get(key) { return FlowType::Type(c); }  // finalized during recursion
+            f
+        };
+        let t = type_from_flow_type(ft);
+        push_if_unique(&mut antecedent_types, t);
+        if !self.is_type_subset_of(t, self.initial_type) { subtype_reduction = true; }
+        if t == self.declared_type { break; }            // reached the widest possible; stop
+    }
+    let result = self.get_union_or_evolving_array_type(&antecedent_types,
+                    if subtype_reduction { UnionReduction::Subtype } else { UnionReduction::Literal });
+    if let Some(FlowType::Incomplete(_)) = first { return FlowType::Incomplete(result); }  // don't cache while incomplete
+    self.flow_loop_caches[id].insert(key, result);
+    FlowType::Type(result)
+}
+```
+
+- The `flowTypeCache = void 0` swap during back-edge resolution is what
+  prevents caching partial results into the per-reference flow-type
+  cache. Get this wrong and loop narrowing either over- or under-narrows.
+- `t == declaredType` early break: once an antecedent widens to the
+  declared type, no further widening is possible.
+
+### 4.5 getTypeAtFlowCondition → narrowType — tsc 70614 / 71400
+
+```rust
+fn get_type_at_flow_condition(&mut self, flow: FlowId) -> FlowType {
+    let ft = self.get_type_at_flow_node(self.antecedent(flow));
+    let t = type_from_flow_type(ft);
+    if self.is_never(t) { return ft; }                    // never stays never (dead edge)
+    let assume_true = self.flow_flags(flow).contains(TRUE_CONDITION);
+    let narrowed = self.narrow_type(self.finalize_evolving_array(t), self.flow_node_expr(flow), assume_true);
+    if narrowed == t { ft } else { FlowType::new(narrowed, ft.is_incomplete()) }
+}
+```
+
+`narrowType` (71400) is the dispatch the current tsrs `narrow_by_condition`
+mirrors. The port structure:
+
+```rust
+fn narrow_type(&mut self, ty: T, expr: NodeId, assume_true: bool) -> T {
+    // optional-chain root / ?? / ??= left operand ⇒ narrowTypeByOptionality
+    if self.is_optional_chain_root(expr) || self.is_nullish_coalesce_left(expr) {
+        return self.narrow_type_by_optionality(ty, expr, assume_true);
+    }
+    match self.node_kind(expr) {
+        Identifier => {
+            // const-variable INLINING: narrow through `const c = <guard>; if (c)`
+            // guarded by inlineLevel < 5 and isConstantReference(reference)
+            if !self.is_matching_reference(self.reference, expr) && self.inline_level < 5 {
+                if let Some(init) = self.constant_var_initializer(expr) {
+                    self.inline_level += 1;
+                    let r = self.narrow_type(ty, init, assume_true);
+                    self.inline_level -= 1; return r;
+                }
+            }
+            self.narrow_type_by_truthiness(ty, expr, assume_true)   // fallthrough
+        }
+        ThisKeyword | SuperKeyword | PropertyAccess | ElementAccess =>
+            self.narrow_type_by_truthiness(ty, expr, assume_true),
+        Call => self.narrow_type_by_call_expression(ty, expr, assume_true),
+        Paren | NonNull | Satisfies => self.narrow_type(ty, self.inner_expr(expr), assume_true),
+        Binary => self.narrow_type_by_binary_expression(ty, expr, assume_true),
+        PrefixUnary if self.is_bang(expr) => self.narrow_type(ty, self.operand(expr), !assume_true),
+        _ => ty,
+    }
+}
+```
+
+Sub-narrowers (each already partly in tsrs `narrowing.rs` — mirror the
+tsc source when touching them): `narrowTypeByTruthiness` (70855;
+Truthy/Falsy facts via `getAdjustedTypeWithFacts`, + discriminant-property
+path), `narrowTypeByBinaryExpression` (`===`/`!==`/`==`/`!=` →
+`narrowTypeByEquality` 71048, `instanceof`, `in` →
+`narrowTypeByInKeyword`, assignment), `narrowTypeByTypeof` (71081),
+`narrowTypeByDiscriminant` (70815 — the discriminated-union workhorse),
+`narrowTypeBySwitchOnDiscriminant`. The **facts model**
+(`getTypeFacts`/`getTypeWithFacts`/`getAdjustedTypeWithFacts`) is tsrs's
+`type_facts`/`facts_filter` (operator sweep) — bit-compatible fact
+values let these port verbatim.
+
+### 4.6 isMatchingReference — narrowing's identity gate — tsc 69448
+
+Everything above only narrows when the guarded expression IS the
+reference being resolved. tsc's `isMatchingReference` is a structural
+match (identifiers by resolved symbol; property/element access by
+accessed-name + matching receiver; `this`/`super`/meta-property; comma
+and assignment unwrapping). The current tsrs models references as
+`RefKey(SymbolId, Vec<PropName>)` (`ref_key_of`) — a SIMPLER model that
+works for the common cases but is not full `isMatchingReference` (e.g.
+element access with a constant/unassigned-local index, 69476). A rebuild
+should port `isMatchingReference` + `getAccessedPropertyName` directly;
+retrofitting tsrs means extending `ref_key_of` case by case as mining
+demands (each gap is a narrowing FN).
+
+### 4.7 isReachableFlowNode — reachability — tsc 70240
+
+Separate from type resolution: a boolean backward walk used for 7027
+(unreachable code), 2367-family exhaustiveness, 2534/2355/2366 return
+checks, 7029. The current tsrs `reachable_walk` (Stage-3) mirrors this.
+
+```rust
+fn is_reachable_flow_node_worker(&mut self, mut flow: FlowId, mut no_cache: bool) -> bool {
+    loop {
+        if Some(flow) == self.last_flow_node { return self.last_flow_reachable; }
+        let flags = self.flow_flags(flow);
+        if flags.contains(SHARED) && !no_cache {
+            let id = self.flow_node_id(flow);
+            return *self.flow_node_reachable.entry(id).or_insert_with(|| self.is_reachable_worker(flow, true));
+        }
+        if flags.intersects(ASSIGNMENT|CONDITION|ARRAY_MUTATION) { flow = self.antecedent(flow); }
+        else if flags.contains(CALL) {
+            // never-returning call OR asserts-false ⇒ UNREACHABLE past here
+            if let Some(sig) = self.effects_signature(flow) {
+                if self.is_asserts_false(sig, flow) { return false; }
+                if self.is_never(self.return_type(sig)) { return false; }
+            }
+            flow = self.antecedent(flow);
+        }
+        else if flags.contains(BRANCH_LABEL) { return self.antecedents(flow).iter().any(|&f| self.is_reachable_worker(f, false)); }  // OR
+        else if flags.contains(LOOP_LABEL) { let a = self.antecedents(flow); if a.is_empty() { return false; } flow = a[0]; }        // entry edge
+        else if flags.contains(SWITCH_CLAUSE) { if self.is_empty_exhaustive_clause(flow) { return false; } flow = self.antecedent(flow); }
+        else if flags.contains(REDUCE_LABEL) { /* antecedent swap like §4.2 */ }
+        else { return !flags.contains(UNREACHABLE); }
+    }
+}
+```
+
+- **`lastFlowNode` single-entry cache**: the immediately previous query
+  is memoized (common because reachability is asked per statement in
+  order). Plus a per-shared-node cache. Keep both.
+- Never-call detection (`getEffectsSignature` + never return / asserts
+  false) is the tricky gate; tsrs has the `stmt_position_calls` /
+  `ret_annotation_never` machinery from Stage-3 — mirror
+  `getEffectsSignature` when extending it.
+
+### 4.8 Bind-time construction (keep tsrs's, it's correct)
+
+The graph is built in the binder: `createFlowCondition`/`Assignment`/
+`Call`/`BranchLabel`/`LoopLabel`/`ReduceLabel`, wired by `addAntecedent`
+and `finishFlowLabel`. `bindCondition` (43193) splits into true/false
+targets via `doWithConditionalBranches` (this is where `&&`/`||`/`??`/
+optional-chain edges come from — bindCondition does NOT add plain
+Cond nodes for logical/optional-chain expressions; the sub-expression
+binding already created the edges). `bindWhileStatement` (43217) shows
+the loop-label pattern: pre-loop LoopLabel, body BranchLabel, post
+BranchLabel, back-edge added after the body. tsrs's `flow_graph.rs`
+already implements this family (Tier-2, byte-identical-gated). For a
+rebuild: port the `FlowFlags` bit-compatibly and the bind*Statement
+family verbatim; it is the foundation everything in §4 walks.
+
+### 4.9 getInitial/AssignedType + narrowable adjustment
+
+`getInitialType` (69905) / `getAssignedType` feed the Assignment/Init
+arms; `getNarrowableTypeForReference` (71640, cited in
+checker-key-functions §3-adjacent) substitutes generic union
+constraints at constraint positions. The auto/evolving-array machinery
+(`convertAutoToAny`, `getEvolvingArrayType`, `finalizeEvolvingArrayType`)
+handles `let x; … x` and `var a = []; a.push(…)` — tsrs has auto-CFA
+(Stage-4) but NOT evolving arrays (documented gap; architectural-debt.md
+§4). Port evolving arrays here if 7005-family mining demands it.
+
+---
+
+## 5. Porting order (respecting dependencies)
 
 1. `getRelationKey` + `Relation` enum + per-relation caches (data).
 2. `Ternary`, the maybe-stack, `recursiveTypeRelatedTo`,
    `isDeeplyNestedType`, `recursion_identity` — the engine core.
 3. `structuredTypeRelatedTo` arms, one family per commit.
 4. Subtype/StrictSubtype relations + `getCommonSupertype`/union subtype
-   reduction (unblocks covariant inference + overload pass 1).
+   reduction (unblocks covariant inference + overload pass 1 + the
+   flow JOIN's subtypeReduction).
 5. `inferTypes`/`inferFromTypes` with `top_level`/`is_fixed`/priority
    bits; then `getCovariantInference` full rule +
    `isTypeParameterAtTopLevel`; then `getInferredType` full clamp.
 6. `resolveCall`/`chooseOverload` two-pass + inference re-run;
    `getSignatureApplicabilityError` elaboration for T2+.
+7. Flow: bind-time graph (`FlowFlags` + bind*Statement) → FlowType/
+   incomplete wrapper + `getTypeAtFlowNode` walk → branch/loop JOINs →
+   `narrowType` dispatch + sub-narrowers (reuse the fact model) →
+   `isMatchingReference` → `isReachableFlowNode`. In a rebuild this
+   depends on §1 (narrowing uses relations, JOINs use Subtype) but is
+   otherwise self-contained; tsrs already validated the design, so port
+   it as-is rather than re-deriving.
 
 Each step is classifier-gated (0 NEW_FP). Steps 1–3 are a
 byte-identical-then-flip migration per the house style
 (stall-playbook §3): dark-launch the new engine behind a verify seam
 tallying agreement vs the old bool engine before flipping read sites.
+The flow engine has a proven precedent for exactly this dark-launch
+(the `TSRS_FLOW_VERIFY` seam from Tier-2 — reuse the pattern).
