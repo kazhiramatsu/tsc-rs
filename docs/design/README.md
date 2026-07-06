@@ -54,6 +54,17 @@ Document map:
   access (`getApparentType`/`resolveStructuredTypeMembers`/
   `getTargetSymbol`). Prerequisites for checker-key-functions; maps into
   the greenfield milestones.
+- **[syntax-and-binder.md](syntax-and-binder.md)** — the FRONT END that
+  runs before the checker: the scanner (`scan` dispatch, the
+  context-sensitive `reScan` family, `speculationHelper` backtracking),
+  the parser (the Pratt binary-expression loop, list-parsing recovery
+  `parseDelimitedList`/`isListTerminator`/`abortParsingListOrMoveToNextToken`,
+  and the `ThisNodeHasError` parse-error flag that makes per-node gating
+  free), and the binder (`declareSymbol` merge engine with includes/
+  excludes masks, locals-vs-exports, `getContainerFlags` scope tree,
+  flow-graph construction, strict mode). The two ports that DELETE
+  downstream work: the parse-error flag (retires parse-error-gate.md)
+  and the declareSymbol merge (retires the overload-merge family).
 - **[stall-playbook.md](stall-playbook.md)** — strategic layer: how to
   detect/attribute a convergence stall, the catalog of architectural
   ceilings (relation-engine Ternary×5, resolution-order freshness,

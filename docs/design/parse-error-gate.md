@@ -1,5 +1,13 @@
 # Design: per-node parse-error gating + non-LHS `=` recovery (PAIRED)
 
+> Background: [syntax-and-binder.md](syntax-and-binder.md) §1–2 explains
+> the scanner reScan family, the parser Pratt loop, list-parsing
+> recovery, and the `ThisNodeHasError` flag mechanism — the machinery
+> this workstream retrofits. In a from-scratch build this whole
+> workstream evaporates (the flag is set at parse time); this doc is the
+> RETROFIT into the current whole-file-gated parser.
+
+
 **Yield**: the single largest FN lever left. tsrs currently drops ALL
 semantic diagnostics for any file containing ≥1 syntax error; tsc drops
 only checks whose enclosing node actually contains the parse error.

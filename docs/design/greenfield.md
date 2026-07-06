@@ -177,6 +177,14 @@ Binder merge rules ported from binder.ts's `declareSymbol`
 (excludes/includes masks — the class-overload orphaning bug becomes
 impossible because the merge table IS tsc's).
 
+> The front-end algorithms (scanner `scan`/`reScan`/speculation, parser
+> Pratt loop + list-parsing recovery + the `ThisNodeHasError` flag,
+> binder `declareSymbol` merge + `getContainerFlags` scope tree + flow
+> construction) have implementation-grade porting notes in
+> [syntax-and-binder.md](syntax-and-binder.md). §4.5–4.6 here give the
+> AST/flow data-model shape; that doc gives the algorithms that build
+> them.
+
 ### 4.5 AST + recovery
 
 Nodes carry `flags: NodeFlags` including `ThisNodeHasError` /
