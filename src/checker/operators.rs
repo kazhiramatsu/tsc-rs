@@ -731,6 +731,10 @@ impl<'a> Checker<'a> {
                 rt
             }
             Comma => {
+                let before = self.diags.len();
+                self.check_expr(left, None);
+                let left_used_before_assigned =
+                    self.diags[before..].iter().any(|d| d.message.code == 2454);
                 let side_effect_free = matches!(
                     &**left,
                     Expr::Ident(_)
@@ -741,14 +745,13 @@ impl<'a> Checker<'a> {
                         | Expr::BigIntLit { .. }
                         | Expr::RegexLit { .. }
                 );
-                if side_effect_free {
+                if side_effect_free && !left_used_before_assigned {
                     self.error_at(
                         left.span(),
                         &gen::Left_side_of_comma_operator_is_unused_and_has_no_side_effects,
                         &[],
                     );
                 }
-                self.check_expr(left, None);
                 self.check_expr(right, ctx)
             }
             AmpAmp => {
