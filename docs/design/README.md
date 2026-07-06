@@ -38,6 +38,14 @@ Document map:
   and the mandatory house style for big refactors. Consult it whenever
   two consecutive workstreams under-deliver, and BEFORE starting any
   refactor larger than one subsystem.
+- **[greenfield.md](greenfield.md)** — the from-scratch design
+  (north star): why the semantic core deliberately mirrors tsc's
+  architecture (empirical argument), where Rust-native improvement is
+  legitimate (identity/links/determinism mechanics, port ledger), the
+  day-1 test-harness design (single-source fixture expansion, in-repo
+  goldens, comparison tiers with ratchets, metamorphic invariants,
+  differential fuzzing), and the ordered list of pieces to retrofit
+  WITHOUT rebuilding. Read §6 before proposing any rewrite.
 
 ## Priority table (expected yield, highest first)
 
