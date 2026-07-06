@@ -928,7 +928,7 @@ impl<'a> Checker<'a> {
                     });
                 }
                 ClassMember::Property(p) => {
-                    if p.accessor_span.is_some() {
+                    if p.accessor_span.is_some() && self.options.script_target_rank() < 2 {
                         self.error_at(
                             p.name.span(),
                             &gen::Properties_with_the_accessor_modifier_are_only_available_when_targeting_ECMAScript_2015_and_higher,
