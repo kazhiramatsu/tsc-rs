@@ -71,6 +71,14 @@ flowchart TD
 
 ## Current Implementation Gaps
 
+Current code already has a minimal `CallCandidateTrial` in
+`src/checker/calls.rs`. It records signature, mapper, arity,
+non-function argument verdict, first failed argument, and invalid spread
+position. Treat that as a useful seed, not as the boundary described in
+this document: diagnostics, contextual argument types, expression cache
+writes, `param_ctx_types`, and context-sensitive function-body effects
+are still not fully staged per candidate.
+
 ### Overload trials are not isolated
 
 `resolve_overloaded_call` in `src/checker/calls.rs` checks non-function

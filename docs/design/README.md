@@ -34,6 +34,9 @@ roadmaps, and completed step guides live under `archive/`.
 - [type-checking-2xxx-roadmap.md](type-checking-2xxx-roadmap.md):
   cross-workstream design for 2XXX diagnostics and the local-vs-deep
   architecture decision boundary.
+- [type-checking-2xxx-execution-plan.md](type-checking-2xxx-execution-plan.md):
+  readiness checks, dependency order, and stop conditions for entering
+  central 2XXX behavior work.
 - [candidate-call-resolution.md](candidate-call-resolution.md):
   transactional call-candidate design for `TS2345`, `TS2554`,
   `TS2769`, and `TS2349`.

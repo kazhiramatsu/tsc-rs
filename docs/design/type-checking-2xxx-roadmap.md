@@ -14,6 +14,9 @@ Related focused docs:
 
 - `archive/workstreams/relation-core-2.md`: archived mapped
   relation/member-access fixes and 2339 mining.
+- `type-checking-2xxx-execution-plan.md`: readiness checks,
+  dependency order, and stop conditions for central 2XXX behavior
+  changes.
 - `candidate-call-resolution.md`: transactional call candidate design
   for 2345/2554/2769/2349.
 - `checker-key-functions.md`: tsc-faithful relation, inference,
@@ -362,6 +365,11 @@ Use this matrix before editing.
 | Fix needs overload candidate-specific contextual typing | Extend `CallCandidateTrial` first. |
 | Fix requires a broad `prop_of_type` fallback | Mine receiver shapes and mirror tsc member access instead. |
 | Fix requires changing structural interning | Prefer targeted diagnostic-site compare; full identity migration only after threshold. |
+
+For central 2XXX behavior changes, also apply
+`type-checking-2xxx-execution-plan.md`. This roadmap explains ownership
+and direction; the execution plan gives the preflight gates for deciding
+whether a behavior edit is ready.
 
 ## Sequencing
 
