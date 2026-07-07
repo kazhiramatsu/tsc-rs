@@ -28,6 +28,10 @@ roadmaps, and completed step guides live under `archive/`.
   instantiation, and member access.
 - [checker-key-functions.md](checker-key-functions.md): relation,
   inference, overload, and flow algorithms.
+- [greenfield/](greenfield/README.md): the execution companion to the
+  five docs above — milestone-by-milestone (M0-M7) step guides that
+  sequence the from-scratch build for implementing agents, with
+  verified tsc anchors and per-stage acceptance gates.
 
 ## Active Deep Designs
 

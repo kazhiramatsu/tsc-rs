@@ -472,7 +472,10 @@ every step of the migration exactly as it protected the sweeps.
 
 Each milestone has a MEASURABLE acceptance gate; no milestone starts
 before the previous gate is green. Estimates assume one strong agent
-with review.
+with review. Execution-grade step guides for every milestone (stage
+sequences, verified tsc anchors, per-stage verification, failure
+modes — written so low-capability agents can implement them) live in
+[greenfield/](greenfield/README.md).
 
 | M | Deliverable | Acceptance gate |
 |---|-------------|-----------------|

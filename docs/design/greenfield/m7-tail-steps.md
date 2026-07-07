@@ -1,0 +1,114 @@
+# M7: grammar checks, unused band, suggestions — steps
+
+Parent design: greenfield.md §5 (checker organization, suppression
+surfaces), §6 (suggestion band, emit-free contract);
+checker-foundations.md §2 (the driver slots these fill). tsc regions:
+the `checkGrammar*` family, `checkUnusedIdentifiers` (82954),
+`getSuggestionDiagnostics` (123761). Prerequisite: M6 gate green.
+
+Gate: T0 ≥ 63%; T1 (category-aware) measured and added to
+ratchet.toml.
+
+## Stage 8.1: grammar checks [M]
+
+Fill the driver's grammar slot (M4 stage 5.4 hook): port the
+`checkGrammar*` family in checker.ts order — modifiers
+(order/placement 1029/1044-family), computed property names,
+parameter lists (rest/optional ordering), accessors, heritage
+clauses, statement-position rules (1105 break/continue, labeled
+rules), strict-mode checks not owned by the binder, `use strict`
++ ES-target gates (private names 18028-family, static blocks 18037/
+18041 await/return rules), the regex-literal re-scan worker (the
+error-reporting half deferred from M1a stage 1.6 —
+`checkGrammarRegularExpressionLiteral` → scanRegularExpressionWorker
+port, flag-vs-target 1501 checks), meta-property placement (17013
+new.target via getNewTargetContainer), super-call ordering (17009/
+17011).
+
+One commit per family; each with oracle-probed micro pins.
+
+Commit(s): `m7 8.1a-f: grammar check families (+rate)`.
+
+## Stage 8.2: suppression surfaces in one module [M]
+
+Per greenfield §5: centralize the ported dedup/suppression rules —
+errorType-silences-cascade sites, once-per-node and once-per-symbol
+report marks, the duplicate-diagnostic dedup in the final sort. Audit
+every M4-M6 emission site against this module; ad-hoc suppression
+found elsewhere moves here or is deleted.
+
+Commit: `m7 8.2: suppression surface audit`.
+
+## Stage 8.3: unused identifiers [M]
+
+`registerForUnusedIdentifiersCheck` + `checkUnusedIdentifiers`
+(82954) and its per-kind workers (locals-and-parameters with the
+grouping rules — per-list 6199/6198 vs per-element 6133, pattern
+regrouping, trailing-rest suppression; class members incl. private
+`#` names and setter-pairs; type parameters; imports incl. the
+single-name statement-anchor form and type-only clauses). Underscore
+exemptions per position; export/global/ambient visibility rules;
+`isReferenced` marking discipline across the checker (the read/write
+distinction: write-only accesses do not mark).
+
+The category rule: under `noUnusedLocals/Parameters` these are
+errors; otherwise they surface as suggestions — which requires stage
+8.4's band to exist for the suggestion half. Land 8.3 emitting the
+error-mode half first, gate, then wire the suggestion half in 8.4.
+
+Commit(s): `m7 8.3a-b: unused identifiers (+rate)`.
+
+## Stage 8.4: the suggestion band, emit-free [M]
+
+Port `getSuggestionDiagnostics` (123761) composition: the unused
+suggestions from 8.3, `infer-from-usage` 7043-7050 family, 80007
+await-has-no-effect, 80008 big-literals, and the rest the corpus
+exercises. THE CONTRACT (greenfield §6): the oracle driver never
+emits, so the checker implements the emit-side visibility rules
+DIRECTLY — module/enum instance-state marking
+(`getModuleInstanceState` — bound in M2 stage 3.4) determines which
+container names count as referenced under the no-emit rules;
+`no_emit`/`preserve_const_enums`/`emit_declaration_only` gate them
+(core-interfaces §8). Category plumbing: suggestions carry
+DiagnosticCategory::Suggestion and the `reportsUnnecessary` bit.
+
+Activate T1 in the comparator and ratchet:
+
+```sh
+cargo xtask conformance --tier t1     # first measurement; record + ratchet
+```
+
+Commit: `m7 8.4: suggestion band + T1 activation`.
+
+## Stage 8.5: options + program-level diagnostics [M]
+
+`getOptionsDiagnostics` port (invalid combinations, 5069/5052-family
+the corpus exercises), the strict-family expansion
+(`getStrictOptionValue`), file-level program diagnostics
+(1148/6131-family, reference directives, case-collision 1149/1261),
+exit-code semantics for the CLI, and the T4 output formatter
+(`formatDiagnosticsWithColorAndContext`-shape minus color for the
+hash — byte parity is M8's tier work; land the structure).
+
+Commit: `m7 8.5: options + program diagnostics`.
+
+## Final gate
+
+```sh
+cargo xtask conformance              # expect: T0 ≥ 63%; T1 recorded
+cargo xtask invariants --suite all
+cargo xtask ledger check
+```
+
+M7 closes the build plan; M8 is the mining loop (README) and M9 the
+fuzzer (greenfield §7.7). Write `docs/NOTES-m7.md` with the T0
+residue's top-20 codes — it is M8's opening backlog.
+
+## Expected failure modes
+
+| Symptom | Diagnosis | Fix |
+|---|---|---|
+| Unused FNs cluster in parse-errored fixtures | per-node gate consuming statements too broadly | The gate is containsParseError on the ENCLOSING node (M1 flags), not per statement/file |
+| Suggestion counts differ wildly on namespace/enum fixtures | emit-marking rules missing | Stage 8.4's instance-state rules are the contract; do NOT add emit to the oracle instead |
+| One member reported per overload/merged symbol set | reporting keyed per declaration instead of per symbol (or vice versa) | Each unused family has an explicit anchor rule in the tsc source — port per family |
+| T1 regresses while T0 climbs | category drift (error vs suggestion) | The band is decided by options + suppression rules, never by where the check lives |
