@@ -344,11 +344,19 @@ impl<'a> Checker<'a> {
                 let loose = matches!(op, BinOp::EqEq | BinOp::NotEq);
                 // typeof x === "..."
                 if let Some((target, lit)) = typeof_comparison(left, right) {
+                    if Self::typeof_comparison_excludes_optional_short_circuit(&lit, eq_sense) {
+                        self.narrow_optional_chain_presence(target);
+                    }
                     self.narrow_by_typeof(target, &lit, eq_sense);
                     return;
                 }
                 // x === null/undefined/literal
                 if let Some((target, value)) = literal_comparison(left, right) {
+                    if self
+                        .literal_comparison_excludes_optional_short_circuit(&value, eq_sense, loose)
+                    {
+                        self.narrow_optional_chain_presence(target);
+                    }
                     self.narrow_by_equality(target, value, eq_sense, loose);
                     return;
                 }
@@ -358,6 +366,10 @@ impl<'a> Checker<'a> {
                 // other side's type; the false sense of a non-unit
                 // comparison narrows nothing. Strict operators only — `==`
                 // admits coercions this filter would wrongly drop.
+                if eq_sense {
+                    self.narrow_optional_chain_presence_for_value_equality(left, right, loose);
+                    self.narrow_optional_chain_presence_for_value_equality(right, left, loose);
+                }
                 if eq_sense && !loose {
                     self.narrow_by_value_equality(left, right);
                     self.narrow_by_value_equality(right, left);
@@ -483,15 +495,128 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// `target === other` (strict, true sense): keep the constituents of
-    /// `target` comparable to `other`'s type — tsc filterType with
-    /// areTypesComparable. `undefined` in a seeded definite-assignment walk
-    /// drops here when the other side can't be undefined.
-    fn narrow_by_value_equality(&mut self, target: &'a Expr, other: &'a Expr) {
-        let Some(key) = self.ref_key_of_pub(target) else {
+    fn optional_chain_ref_key(&mut self, e: &'a Expr) -> Option<RefKey> {
+        match e {
+            Expr::Ident(id) => {
+                let sym = self.lookup_value(self.current_scope, &id.name)?;
+                Some(RefKey(sym, Vec::new()))
+            }
+            Expr::This { .. } => {
+                let owner = *self
+                    .stacks
+                    .class_stack
+                    .last()
+                    .or_else(|| self.stacks.this_type_stack.last())?;
+                Some(RefKey(self.this_param_of(owner), Vec::new()))
+            }
+            Expr::PropAccess { obj, name, .. } => {
+                let mut k = self.optional_chain_ref_key(obj)?;
+                k.1.push(name.name.clone());
+                Some(k)
+            }
+            Expr::ElemAccess { obj, index, .. } => {
+                let mut k = self.optional_chain_ref_key(obj)?;
+                let Expr::StrLit { value, .. } = &**index else {
+                    return None;
+                };
+                k.1.push(value.to_str_lossy().into_owned());
+                Some(k)
+            }
+            Expr::Call { callee, .. } => self.optional_chain_ref_key(callee),
+            Expr::Paren { inner, .. } => self.optional_chain_ref_key(inner),
+            _ => None,
+        }
+    }
+
+    fn expr_has_optional_chain(e: &Expr) -> bool {
+        match e {
+            Expr::PropAccess {
+                obj, question_dot, ..
+            }
+            | Expr::ElemAccess {
+                obj, question_dot, ..
+            } => *question_dot || Self::expr_has_optional_chain(obj),
+            Expr::Call {
+                callee,
+                question_dot,
+                ..
+            } => *question_dot || Self::expr_has_optional_chain(callee),
+            Expr::Paren { inner, .. } => Self::expr_has_optional_chain(inner),
+            _ => false,
+        }
+    }
+
+    fn narrow_optional_chain_presence(&mut self, target: &'a Expr) {
+        if !Self::expr_has_optional_chain(target) {
+            return;
+        }
+        let Some(key) = self.optional_chain_ref_key(target) else {
             return;
         };
-        let other_t = match other {
+        for plen in 0..=key.1.len() {
+            let prefix = RefKey(key.0, key.1[..plen].to_vec());
+            if let Some(cur) = self.current_type_of_key(target, &prefix) {
+                let nn = self.non_nullable(cur);
+                self.set_fact(prefix, nn);
+            }
+        }
+    }
+
+    fn literal_comparison_excludes_optional_short_circuit(
+        &mut self,
+        value: &NarrowValue,
+        eq_sense: bool,
+        loose: bool,
+    ) -> bool {
+        match (value, eq_sense, loose) {
+            (NarrowValue::Undefined, true, _) => false,
+            (NarrowValue::Null, true, true) => false,
+            (NarrowValue::Null, true, false) => true,
+            (NarrowValue::Str(_) | NarrowValue::Num(_) | NarrowValue::Bool(_), true, _) => true,
+            (NarrowValue::Undefined, false, _) => true,
+            (NarrowValue::Null, false, true) => true,
+            _ => false,
+        }
+    }
+
+    fn typeof_comparison_excludes_optional_short_circuit(lit: &str, eq_sense: bool) -> bool {
+        if eq_sense {
+            lit != "undefined"
+        } else {
+            lit == "undefined"
+        }
+    }
+
+    fn narrow_optional_chain_presence_for_value_equality(
+        &mut self,
+        target: &'a Expr,
+        other: &'a Expr,
+        loose: bool,
+    ) {
+        let Some(other_t) = self.equality_other_type(other) else {
+            return;
+        };
+        if matches!(
+            self.types.kind(other_t),
+            TypeKind::Any | TypeKind::Unknown | TypeKind::Error
+        ) {
+            return;
+        }
+        let members = self.types.union_members(other_t);
+        let has_undefined = members
+            .iter()
+            .any(|&m| matches!(self.types.kind(m), TypeKind::Undefined));
+        let has_null = members
+            .iter()
+            .any(|&m| matches!(self.types.kind(m), TypeKind::Null));
+        if has_undefined || (loose && has_null) {
+            return;
+        }
+        self.narrow_optional_chain_presence(target);
+    }
+
+    fn equality_other_type(&mut self, other: &'a Expr) -> Option<TypeId> {
+        match other {
             Expr::Ident(_) | Expr::This { .. } => self
                 .ref_key_of_pub(other)
                 .and_then(|k| self.current_type_of_key(other, &k)),
@@ -500,7 +625,18 @@ impl<'a> Checker<'a> {
                 .expr_type_cache
                 .get(&crate::checker::exprs::node_key_expr(other))
                 .copied(),
+        }
+    }
+
+    /// `target === other` (strict, true sense): keep the constituents of
+    /// `target` comparable to `other`'s type — tsc filterType with
+    /// areTypesComparable. `undefined` in a seeded definite-assignment walk
+    /// drops here when the other side can't be undefined.
+    fn narrow_by_value_equality(&mut self, target: &'a Expr, other: &'a Expr) {
+        let Some(key) = self.ref_key_of_pub(target) else {
+            return;
         };
+        let other_t = self.equality_other_type(other);
         let Some(ot) = other_t else { return };
         let oreg = self.types.regular(ot);
         if matches!(
