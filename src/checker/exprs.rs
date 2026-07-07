@@ -536,7 +536,10 @@ impl<'a> Checker<'a> {
                 // a used yield result needs the generator's TNext: without a
                 // return-type annotation it is implicitly any (7057)
                 let key = node_key_expr(e);
-                if in_generator && !self.yield_statement_positions.contains(&key) {
+                if in_generator
+                    && self.cflags.suppress_computed_method_yield_implicit_any == 0
+                    && !self.yield_statement_positions.contains(&key)
+                {
                     let annotated = self
                         .stacks
                         .fn_stack
@@ -1522,6 +1525,11 @@ impl<'a> Checker<'a> {
                     spans.push((name.name.clone(), name.span));
                 }
                 ObjectProp::Method(f) => {
+                    if let Some(name) = &f.name {
+                        self.cflags.suppress_computed_method_yield_implicit_any += 1;
+                        self.check_computed_name_grammar(name);
+                        self.cflags.suppress_computed_method_yield_implicit_any -= 1;
+                    }
                     let n = f.name.as_ref().and_then(|nm| nm.text());
                     if n.is_none() {
                         let pctx = f

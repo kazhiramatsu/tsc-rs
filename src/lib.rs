@@ -1409,6 +1409,7 @@ let o: I = {
                 text: r#"
 Symbol.dispose;
 Symbol.asyncDispose;
+({ [Symbol.dispose]() {} });
 RegExp.escape;
 Promise.allSettled([]);
 Object.fromEntries([]);
@@ -1426,7 +1427,7 @@ plain.includes;
 
         assert_eq!(
             out.matches("\"code\":2550,\"category\":1").count(),
-            6,
+            7,
             "{out}"
         );
         assert!(
@@ -1435,6 +1436,36 @@ plain.includes;
         );
         assert!(
             !out.contains("Property 'includes' does not exist on type '{}'. Do you need"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn yield_implicit_any_ignores_computed_object_method_names() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            diag_json: true,
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![InputFile {
+                name: "main.ts".to_string(),
+                text: r#"
+function* g() {
+    let prop = { [yield 0]: 1 };
+    let method = { [yield 0]() {} };
+    let accessor = { get [yield 0]() { return 0; } };
+}
+"#
+                .to_string(),
+            }],
+            &opts,
+        );
+
+        assert_eq!(
+            out.matches("\"code\":7057,\"category\":1").count(),
+            1,
             "{out}"
         );
     }

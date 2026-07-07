@@ -372,6 +372,10 @@ pub struct CheckFlags {
     /// otherwise report implicit-any parameters even though their contextual
     /// type comes from the generator's contextual `Iterator<Y>` yield type.
     pub suppress_yield_function_implicit_any_params: u32,
+    /// Object-literal computed method/accessor names are checked for ordinary
+    /// expression errors, but tsc does not treat `yield` there as a consumed
+    /// generator-next value for TS7057. Computed property assignments still do.
+    pub suppress_computed_method_yield_implicit_any: u32,
     /// Nesting depth while evaluating a class heritage expression. Property
     /// lookup through the current class's `this` type can re-enter its
     /// instance-shape computation before the base type is known; that is not a
