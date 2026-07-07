@@ -84,6 +84,37 @@ impl<'a> Checker<'a> {
         }
     }
 
+    fn is_untyped_function_call_type(&mut self, func_t: TypeId) -> bool {
+        if self.types.is_error(func_t) {
+            return false;
+        }
+        if matches!(self.types.kind(func_t), TypeKind::Any) {
+            return true;
+        }
+        let apparent = self.apparent_type(func_t);
+        if matches!(self.types.kind(apparent), TypeKind::Any)
+            && matches!(self.types.kind(func_t), TypeKind::TypeParam(_))
+        {
+            return true;
+        }
+        if matches!(
+            self.types.kind(apparent),
+            TypeKind::Union(_) | TypeKind::Never
+        ) {
+            return false;
+        }
+        if !self.call_signatures_of(apparent).is_empty()
+            || !self.ctor_signatures_of(apparent).is_empty()
+        {
+            return false;
+        }
+        let Some(function_sym) = self.global_type_symbol("Function") else {
+            return false;
+        };
+        let function_ty = self.types.intern_kind(TypeKind::Iface(function_sym));
+        self.is_assignable_to(func_t, function_ty)
+    }
+
     pub(crate) fn contextual_function_arg_count(&self, a: &Expr) -> u32 {
         match a {
             Expr::Arrow(_) | Expr::FunctionExpr(_) => 1,
@@ -151,7 +182,7 @@ impl<'a> Checker<'a> {
         }
         if type_args.is_some() {
             let ct = self.check_call_callee_expr(callee);
-            if matches!(self.types.kind(ct), TypeKind::Any) {
+            if self.is_untyped_function_call_type(ct) {
                 for a in args {
                     self.check_expr(a, None);
                 }
@@ -217,6 +248,12 @@ impl<'a> Checker<'a> {
                 self.check_expr(a, None);
             }
             return self.types.error;
+        }
+        if self.is_untyped_function_call_type(callee_t) {
+            for a in args {
+                self.check_expr(a, None);
+            }
+            return self.types.any;
         }
         if self.types.is_any_or_error(callee_t) {
             for a in args {
