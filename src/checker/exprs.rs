@@ -13,6 +13,124 @@ enum ComputedKeyKind {
     Number,
 }
 
+fn first_this_or_super_in_computed_name(e: &Expr) -> Option<(bool, Span)> {
+    match e {
+        Expr::This { span } => Some((false, *span)),
+        Expr::Super { span } => Some((true, *span)),
+        Expr::Array { elements, .. } => {
+            for el in elements {
+                if let Some(hit) = first_this_or_super_in_computed_name(el) {
+                    return Some(hit);
+                }
+            }
+            None
+        }
+        Expr::Object { props, .. } => {
+            for prop in props {
+                match prop {
+                    ObjectProp::Property { name, value, .. } => {
+                        if let PropName::Computed { expr, .. } = name {
+                            if let Some(hit) = first_this_or_super_in_computed_name(expr) {
+                                return Some(hit);
+                            }
+                        }
+                        if let Some(hit) = first_this_or_super_in_computed_name(value) {
+                            return Some(hit);
+                        }
+                    }
+                    ObjectProp::Spread { expr, .. } => {
+                        if let Some(hit) = first_this_or_super_in_computed_name(expr) {
+                            return Some(hit);
+                        }
+                    }
+                    ObjectProp::Shorthand { .. } | ObjectProp::Method(_) => {}
+                }
+            }
+            None
+        }
+        Expr::Call { callee, args, .. } => {
+            if let Some(hit) = first_this_or_super_in_computed_name(callee) {
+                return Some(hit);
+            }
+            for arg in args {
+                if let Some(hit) = first_this_or_super_in_computed_name(arg) {
+                    return Some(hit);
+                }
+            }
+            None
+        }
+        Expr::New { callee, args, .. } => {
+            if let Some(hit) = first_this_or_super_in_computed_name(callee) {
+                return Some(hit);
+            }
+            for arg in args.iter().flatten() {
+                if let Some(hit) = first_this_or_super_in_computed_name(arg) {
+                    return Some(hit);
+                }
+            }
+            None
+        }
+        Expr::PropAccess { obj, .. } => first_this_or_super_in_computed_name(obj),
+        Expr::ElemAccess { obj, index, .. } => first_this_or_super_in_computed_name(obj)
+            .or_else(|| first_this_or_super_in_computed_name(index)),
+        Expr::Unary { operand, .. } | Expr::Update { operand, .. } => {
+            first_this_or_super_in_computed_name(operand)
+        }
+        Expr::Binary { left, right, .. } => first_this_or_super_in_computed_name(left)
+            .or_else(|| first_this_or_super_in_computed_name(right)),
+        Expr::Cond {
+            cond,
+            when_true,
+            when_false,
+            ..
+        } => first_this_or_super_in_computed_name(cond)
+            .or_else(|| first_this_or_super_in_computed_name(when_true))
+            .or_else(|| first_this_or_super_in_computed_name(when_false)),
+        Expr::Paren { inner, .. } => first_this_or_super_in_computed_name(inner),
+        Expr::Assertion { expr, .. } | Expr::NonNull { expr, .. } => {
+            first_this_or_super_in_computed_name(expr)
+        }
+        Expr::Spread { expr, .. } | Expr::Await { expr, .. } => {
+            first_this_or_super_in_computed_name(expr)
+        }
+        Expr::Yield { expr, .. } => expr
+            .as_deref()
+            .and_then(first_this_or_super_in_computed_name),
+        Expr::ImportCall { args, .. } => {
+            for arg in args {
+                if let Some(hit) = first_this_or_super_in_computed_name(arg) {
+                    return Some(hit);
+                }
+            }
+            None
+        }
+        Expr::Template { parts, .. } => {
+            for part in parts {
+                if let TemplatePart::Expr(expr) = part {
+                    if let Some(hit) = first_this_or_super_in_computed_name(expr) {
+                        return Some(hit);
+                    }
+                }
+            }
+            None
+        }
+        Expr::Ident(_)
+        | Expr::NumLit { .. }
+        | Expr::StrLit { .. }
+        | Expr::BigIntLit { .. }
+        | Expr::BoolLit { .. }
+        | Expr::NullLit { .. }
+        | Expr::RegexLit { .. }
+        | Expr::TemplateStringsArray { .. }
+        | Expr::Arrow(_)
+        | Expr::FunctionExpr(_)
+        | Expr::ClassExpr(_)
+        | Expr::ImportMeta { .. }
+        | Expr::JsxElement(_)
+        | Expr::Missing { .. } => None,
+    }
+}
+
 fn is_reserved_word_shorthand_recovery(name: &str) -> bool {
     matches!(
         name,
@@ -1040,9 +1158,74 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn check_computed_name_grammar(&mut self, name: &'a PropName) {
+    fn computed_property_name_type_contains_nullable(&self, t: TypeId) -> bool {
+        match self.types.kind(self.types.regular(t)) {
+            TypeKind::Null | TypeKind::Undefined => true,
+            TypeKind::Union(ms) => ms
+                .iter()
+                .any(|&m| self.computed_property_name_type_contains_nullable(m)),
+            _ => false,
+        }
+    }
+
+    fn is_valid_computed_property_name_type(&mut self, t: TypeId) -> bool {
+        if self.computed_property_name_type_contains_nullable(t) {
+            return false;
+        }
+        let t = self.types.regular(t);
+        if self.types.is_any_or_error(t) {
+            return true;
+        }
+        let string_number_symbol = self.types.union(vec![
+            self.types.string,
+            self.types.number,
+            self.types.es_symbol,
+        ]);
+        self.is_assignable_to(t, string_number_symbol)
+    }
+
+    pub(crate) fn check_computed_property_name(&mut self, name: &'a PropName) -> Option<TypeId> {
+        self.check_computed_property_name_impl(name, false, false)
+    }
+
+    pub(crate) fn check_computed_class_member_name(
+        &mut self,
+        name: &'a PropName,
+        suppress_in_type_error: bool,
+    ) -> Option<TypeId> {
+        self.check_computed_property_name_impl(name, true, suppress_in_type_error)
+    }
+
+    fn check_computed_property_name_impl(
+        &mut self,
+        name: &'a PropName,
+        class_member_context: bool,
+        suppress_in_type_error: bool,
+    ) -> Option<TypeId> {
         if let PropName::Computed { expr, .. } = name {
-            self.check_expr(expr, None);
+            if class_member_context {
+                if let Some((is_super, span)) = first_this_or_super_in_computed_name(expr) {
+                    let msg = if is_super {
+                        &gen::super_cannot_be_referenced_in_a_computed_property_name
+                    } else {
+                        &gen::this_cannot_be_referenced_in_a_computed_property_name
+                    };
+                    self.error_at(span, msg, &[]);
+                    return Some(self.types.error);
+                }
+            }
+            self.cflags.suppress_computed_name_namespace_value_error += 1;
+            let t = self.check_expr(expr, None);
+            self.cflags.suppress_computed_name_namespace_value_error -= 1;
+            let skip_2464 =
+                suppress_in_type_error && matches!(&**expr, Expr::Binary { op: BinOp::In, .. });
+            if !skip_2464 && !self.is_valid_computed_property_name_type(t) {
+                self.error_at(
+                    name.span(),
+                    &gen::A_computed_property_name_must_be_of_type_string_number_symbol_or_any,
+                    &[],
+                );
+            }
             if matches!(
                 &**expr,
                 Expr::Binary {
@@ -1056,7 +1239,17 @@ impl<'a> Checker<'a> {
                     &[],
                 );
             }
+            Some(t)
+        } else {
+            None
         }
+    }
+
+    fn check_computed_object_method_name(&mut self, name: &'a PropName) -> Option<TypeId> {
+        self.cflags.suppress_computed_method_yield_implicit_any += 1;
+        let out = self.check_computed_property_name(name);
+        self.cflags.suppress_computed_method_yield_implicit_any -= 1;
+        out
     }
 
     fn check_objlit_accessor_duplicates(&mut self, props: &'a [ObjectProp]) {
@@ -1377,7 +1570,7 @@ impl<'a> Checker<'a> {
                     if let Some(qs) = question_span {
                         self.error_at(*qs, &gen::An_object_member_cannot_be_declared_optional, &[]);
                     }
-                    self.check_computed_name_grammar(name);
+                    self.check_computed_property_name(name);
                     // computed names with literal keys check against the
                     // contextual property type (2418); the key expression is a
                     // read even when this literal is an assignment target
@@ -1526,9 +1719,7 @@ impl<'a> Checker<'a> {
                 }
                 ObjectProp::Method(f) => {
                     if let Some(name) = &f.name {
-                        self.cflags.suppress_computed_method_yield_implicit_any += 1;
-                        self.check_computed_name_grammar(name);
-                        self.cflags.suppress_computed_method_yield_implicit_any -= 1;
+                        self.check_computed_object_method_name(name);
                     }
                     let n = f.name.as_ref().and_then(|nm| nm.text());
                     if n.is_none() {

@@ -1396,6 +1396,72 @@ let o: I = {
     }
 
     #[test]
+    fn invalid_computed_property_name_types_report_2464() {
+        let opts = CompilerOptions {
+            strict: Some(false),
+            diag_json: true,
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![InputFile {
+                name: "main.ts".to_string(),
+                text: r#"
+declare const b: boolean;
+({ [b]: 0, [true]: 1, [[]]: 2, [{}]: 3, [undefined]: 4, [null]: 5, ["ok"]: 6, [1]: 7 });
+class C {
+    [b]() {}
+    static [true]() {}
+    ["ok"]() {}
+    [1]() {}
+}
+"#
+                .to_string(),
+            }],
+            &opts,
+        );
+
+        assert_eq!(
+            out.matches("\"code\":2464,\"category\":1").count(),
+            8,
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn class_computed_names_use_class_specific_expression_rules() {
+        let opts = CompilerOptions {
+            strict: Some(true),
+            diag_json: true,
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![InputFile {
+                name: "main.ts".to_string(),
+                text: r#"
+namespace M {
+    namespace Symbol { }
+    class Base { bar() { return 0; } }
+    class C extends Base {
+        [Symbol.iterator]() { }
+        [{ [this.bar()]: 1 }[0]]() { }
+        [{ [super.bar()]: 1 }[0]]() { }
+    }
+}
+"#
+                .to_string(),
+            }],
+            &opts,
+        );
+
+        assert!(out.contains("\"code\":2465,\"category\":1"), "{out}");
+        assert!(out.contains("\"code\":2466,\"category\":1"), "{out}");
+        assert!(!out.contains("\"code\":2708"), "{out}");
+        assert!(!out.contains("\"code\":7053"), "{out}");
+    }
+
+    #[test]
     fn later_es_member_suggestions_are_receiver_specific() {
         let opts = CompilerOptions {
             strict: Some(true),

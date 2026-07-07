@@ -688,12 +688,7 @@ impl<'a> Checker<'a> {
                             DecoratorKind::Property,
                         );
                     }
-                    // a computed member name is an ordinary expression whose
-                    // reads count as uses (`[(f = ..., "_")]`); its own
-                    // diagnostics are not modeled in this pass yet
-                    if let PropName::Computed { expr, .. } = &p.name {
-                        self.check_expr_for_usage_only(expr);
-                    }
+                    self.check_computed_class_member_name(&p.name, true);
                 }
                 ClassMember::Method(f) => {
                     if matches!(f.kind, FuncKind::Getter | FuncKind::Setter) {
@@ -785,9 +780,11 @@ impl<'a> Checker<'a> {
                             self.check_expr_for_usage_only(&d.expr);
                         }
                     }
-                    // computed method names likewise
-                    if let Some(PropName::Computed { expr, .. }) = &f.name {
-                        self.check_expr_for_usage_only(expr);
+                    if let Some(name) = &f.name {
+                        self.check_computed_class_member_name(
+                            name,
+                            !matches!(f.kind, FuncKind::Getter | FuncKind::Setter),
+                        );
                     }
                 }
                 _ => {}

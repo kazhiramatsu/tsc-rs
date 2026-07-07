@@ -376,6 +376,9 @@ pub struct CheckFlags {
     /// expression errors, but tsc does not treat `yield` there as a consumed
     /// generator-next value for TS7057. Computed property assignments still do.
     pub suppress_computed_method_yield_implicit_any: u32,
+    /// `checkComputedPropertyName` lets namespace-only entity names stay
+    /// unresolved in computed names instead of reporting TS2708.
+    pub suppress_computed_name_namespace_value_error: u32,
     /// Nesting depth while evaluating a class heritage expression. Property
     /// lookup through the current class's `this` type can re-enter its
     /// instance-shape computation before the base type is known; that is not a
@@ -5588,6 +5591,9 @@ impl<'a> Checker<'a> {
                 && f & (flags::FUNCTION | flags::CLASS | flags::ENUM) == 0
                 && self.bind.symbols[sym.0 as usize].members.0.is_empty()
             {
+                if self.cflags.suppress_computed_name_namespace_value_error > 0 {
+                    return None;
+                }
                 // tsc resolveName succeeds (and marks isReferenced) before
                 // the namespace-as-value error is raised
                 if !self.is_self_reference(sym, id.span) {
