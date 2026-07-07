@@ -222,7 +222,7 @@ live in ONE module ordered as in checker.ts, each with a ledger entry.
 ### 4.7 Relations engine (day-1 shape)
 
 ```rust
-pub enum Relation { Identity, Subtype, StrictSubtype, Assignable, Comparable }
+pub enum RelationKind { Identity, Subtype, StrictSubtype, Assignable, Comparable }
 pub enum Ternary { False = 0, Unknown = 1, Maybe = 3, True = -1i8 as isize } // tsc values
 
 pub struct RelationCaches { per_relation: [HashMap<RelationKey, RelationResult>; 5] }

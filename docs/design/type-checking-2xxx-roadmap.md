@@ -302,6 +302,10 @@ queries through `RelationKind::Assignable` and comparable queries
 through `RelationKind::Comparable`. Only after that should behavior
 change.
 
+tsc also keeps a sixth auxiliary map, `enumRelation`, used only by
+`isEnumTypeRelatedTo`. It is deliberately out of scope for this enum;
+model enum compatibility caching separately if mining ever surfaces it.
+
 ### Candidate Checking Must Be Transactional
 
 Overload/call candidate probing must not permanently mutate:
@@ -380,8 +384,12 @@ This sequence keeps local yield and deep refactors aligned.
 Proceed with workstreams whose behavior does not cross 2XXX seams:
 
 - `destructuring-parameter-implicit-any.md`;
-- parse-error semantic gate;
-- lib-gap 2304;
+- parse-error semantic gate: design parked in
+  `archive/workstreams/parse-error-gate.md` — archived for shelf
+  hygiene, not completed; revive the doc when scheduling it;
+- lib-gap 2304: parked in `archive/workstreams/lib-gap-2304.md`, also
+  not completed; mostly buys the raw metric, so check gate visibility
+  before scheduling;
 - focused grammar/declaration checks.
 
 These reduce noise and make later 2XXX mining cleaner.
@@ -428,6 +436,10 @@ Keep early stages byte-identical. Only after the boundary is real should
 2345/2554/2769 inference and overload ranking behavior change.
 
 ### Phase 4: Relation-Kind Dark Launch
+
+Phases 3 and 4 are both no-behavior scaffolds and are order-independent
+of each other; the numbering is not a dependency. Start with whichever
+seam the next mined cluster needs first.
 
 Introduce `RelationKind` and per-kind cache plumbing without behavior
 change:

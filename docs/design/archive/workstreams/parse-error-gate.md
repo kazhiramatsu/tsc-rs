@@ -1,6 +1,6 @@
 # Design: per-node parse-error gating + non-LHS `=` recovery (PAIRED)
 
-> Background: [syntax-and-binder.md](syntax-and-binder.md) §1–2 explains
+> Background: [syntax-and-binder.md](../../syntax-and-binder.md) §1–2 explains
 > the scanner reScan family, the parser Pratt loop, list-parsing
 > recovery, and the `ThisNodeHasError` flag mechanism — the machinery
 > this workstream retrofits. In a from-scratch build this whole

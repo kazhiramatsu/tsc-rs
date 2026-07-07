@@ -26,12 +26,12 @@ docs are reference, pulled in as those paths tell you to.
 **Path A — improve the EXISTING checker (the normal task).** You are
 raising conformance by fixing FPs/FNs in the current Rust code.
 1. Read the "Working protocol" section below (in this file).
-2. Read [EXECUTION-GUIDE.md](EXECUTION-GUIDE.md) — the literal step
+2. Read [EXECUTION-GUIDE.md](../EXECUTION-GUIDE.md) — the literal step
    loop, FP-triage procedure, and stop conditions. Non-negotiable.
 3. Pick a workstream from the priority table below. Read its
    `<name>.md` (design) then `<name>-steps.md` (numbered steps).
-4. Keep [knowledge-base.md](knowledge-base.md) and
-   [tsc-source-guide.md](tsc-source-guide.md) open — consult them
+4. Keep [knowledge-base.md](../knowledge-base.md) and
+   [tsc-source-guide.md](../tsc-source-guide.md) open — consult them
    whenever a probe confuses you or you need a tsc line anchor.
 5. Follow the loop. Commit only at 0 NEW_FP. Leave a `NOTES-*.md` at
    any stop condition. Do NOT read the rebuild docs (core-interfaces,
@@ -40,15 +40,15 @@ raising conformance by fixing FPs/FNs in the current Rust code.
 **Path B — rebuild a subsystem from scratch (rare, opt-in).** You are
 replacing a subsystem (or the whole checker) with a fresh tsc-faithful
 port, because stall-playbook attribution justified it.
-1. Read [greenfield.md](greenfield.md) — the architecture verdict,
+1. Read [greenfield.md](../greenfield.md) — the architecture verdict,
    crate layout, and especially §10 (strangler adoption) and §11 (when
    a rebuild is actually justified — check you qualify).
-2. Read [core-interfaces.md](core-interfaces.md) — the data contracts
+2. Read [core-interfaces.md](../core-interfaces.md) — the data contracts
    and the must-match-vs-may-differ table.
 3. Read the algorithm docs for the subsystem you are porting:
-   [syntax-and-binder.md](syntax-and-binder.md) (front end),
-   [checker-foundations.md](checker-foundations.md) (type computation,
-   contextual typing, construction), [checker-key-functions.md](checker-key-functions.md)
+   [syntax-and-binder.md](../syntax-and-binder.md) (front end),
+   [checker-foundations.md](../checker-foundations.md) (type computation,
+   contextual typing, construction), [checker-key-functions.md](../checker-key-functions.md)
    (relation/inference/overload/flow).
 4. Follow the greenfield §12 milestone gates AND the same 0-NEW_FP
    working protocol below — a rebuild is still classifier-gated
@@ -58,7 +58,7 @@ If you were handed a task with no path specified, it is almost always
 Path A. When in doubt, do Path A.
 
 Document map:
-- **[EXECUTION-GUIDE.md](EXECUTION-GUIDE.md)** — the operating manual
+- **[EXECUTION-GUIDE.md](../EXECUTION-GUIDE.md)** — the operating manual
   for implementing agents (step loop, FP triage, stop conditions, hard
   prohibitions). Low-capability agents follow it LITERALLY.
 - `<workstream>.md` — the design (why + architecture + tsc anchors).
@@ -69,21 +69,21 @@ Document map:
   stop-points in [T] stages.
 - `NOTES-*.md` — reports produced by implementing agents (mining
   tables, stop-notes). Never deleted, only appended.
-- **[knowledge-base.md](knowledge-base.md)** — pinned non-obvious facts
+- **[knowledge-base.md](../knowledge-base.md)** — pinned non-obvious facts
   (oracle emit artifact, standing families with known root causes,
   probe noise, harness gotchas, relation-engine invariants, tooling
   landmines). Check it BEFORE investigating any confusing FP/FN.
-- **[tsc-source-guide.md](tsc-source-guide.md)** — how to read the
+- **[tsc-source-guide.md](../tsc-source-guide.md)** — how to read the
   vendored `_tsc.js` (techniques, verified function/line index for
   this build, checkMode bits, structural facts confirmed so far).
-- **[core-interfaces.md](core-interfaces.md)** — the DATA CONTRACTS:
+- **[core-interfaces.md](../core-interfaces.md)** — the DATA CONTRACTS:
   the actual tsc interface definitions (Node, Symbol, Type, Signature,
   FlowNode, InferenceInfo, Diagnostic, CompilerOptions, the check-program
   API) with their Rust mappings, and an observability table stating
   field-by-field what MUST match tsc (identity, order, diagnostic shape)
   versus what MAY differ (allocation ids, caches). Read this to know the
   shape of everything the algorithm docs read and write.
-- **[checker-key-functions.md](checker-key-functions.md)** —
+- **[checker-key-functions.md](../checker-key-functions.md)** —
   implementation-grade porting notes for the load-bearing algorithms:
   the relation engine (`isTypeRelatedTo`/`recursiveTypeRelatedTo` with
   the maybe-stack/Ternary caching), inference (`getInferredType`/
@@ -96,7 +96,7 @@ Document map:
   mirroring the real control flow, with tsc line anchors and the
   current-tsrs gap. Read alongside greenfield §4–5 (data model) and
   stall-playbook §2.1.
-- **[checker-foundations.md](checker-foundations.md)** — the machinery
+- **[checker-foundations.md](../checker-foundations.md)** — the machinery
   UNDER those four algorithms, where the load-bearing DESIGN DECISIONS
   live: lazy type computation + the `pushTypeResolution` cycle stack,
   the check driver's eager/deferred two-phase ordering (why resolution
@@ -107,7 +107,7 @@ Document map:
   access (`getApparentType`/`resolveStructuredTypeMembers`/
   `getTargetSymbol`). Prerequisites for checker-key-functions; maps into
   the greenfield milestones.
-- **[syntax-and-binder.md](syntax-and-binder.md)** — the FRONT END that
+- **[syntax-and-binder.md](../syntax-and-binder.md)** — the FRONT END that
   runs before the checker: the scanner (`scan` dispatch, the
   context-sensitive `reScan` family, `speculationHelper` backtracking),
   the parser (the Pratt binary-expression loop, list-parsing recovery
@@ -118,14 +118,14 @@ Document map:
   flow-graph construction, strict mode). The two ports that DELETE
   downstream work: the parse-error flag (retires parse-error-gate.md)
   and the declareSymbol merge (retires the overload-merge family).
-- **[type-checking-2xxx-roadmap.md](type-checking-2xxx-roadmap.md)** —
+- **[type-checking-2xxx-roadmap.md](../type-checking-2xxx-roadmap.md)** —
   the cross-workstream design for the 2XXX diagnostic band. Read before
   broad work on relation, member access, call/overload resolution,
   inference, flow/operator checks, or type identity. It answers which
   2XXX fixes can still be local and which require deeper seams such as
   transactional call candidates, relation-kind caches, or the Ternary
   relation engine.
-- **[stall-playbook.md](stall-playbook.md)** — strategic layer: how to
+- **[stall-playbook.md](../stall-playbook.md)** — strategic layer: how to
   detect/attribute a convergence stall, the catalog of architectural
   ceilings (relation-engine Ternary×5, resolution-order freshness,
   declaration-identity types, instantiation depth, module infra,
@@ -133,7 +133,7 @@ Document map:
   and the mandatory house style for big refactors. Consult it whenever
   two consecutive workstreams under-deliver, and BEFORE starting any
   refactor larger than one subsystem.
-- **[greenfield.md](greenfield.md)** — the from-scratch design at
+- **[greenfield.md](../greenfield.md)** — the from-scratch design at
   implementation grade: architecture verdict (tsc-shaped core, with
   the empirical argument), workspace/crate layout, concrete core types
   (allocation-identity Type model with tsc's exact interning surface,
@@ -151,13 +151,13 @@ Document map:
 
 | # | Workstream | Design | Steps | Standing damage | Expected yield |
 |---|-----------|--------|-------|-----------------|----------------|
-| 1 | Parse-error semantic gate + non-LHS `=` recovery (PAIRED — do together) | [parse-error-gate.md](parse-error-gate.md) | [steps](parse-error-gate-steps.md) | whole-file FN flips: every fixture with ≥1 syntax error loses ALL semantic diags (6133×387 mostly here, 1005×125, 1109×80, parserRealSource11 alone = 87 FN) | largest single FN lever; hundreds of file flips |
-| 2 | Relation-core 2: 2339 mining + assignable-side private nominality | [relation-core-2.md](relation-core-2.md) | [steps](relation-core-2-steps.md) | 2339 = FP #1 (529), 2322 #2 (483), 2345 #3 (357); nominality FPs 2415/2430/2445 mapped | few hundred FPs |
-| 3 | lib-gap axis (2304) | [lib-gap-2304.md](lib-gap-2304.md) | [steps](lib-gap-2304-steps.md) | 2304 = FN #1 (1,622 raw; partially excluded from the gate-filtered metric) | raw-metric heavy; moderate filtered yield |
-| 4 | U6: unused-FP finish | [u6-unused-fp.md](u6-unused-fp.md) (buckets + root causes A/B/C inside) | FP 6133 = 156 | small, self-contained; best FIRST workstream for a new agent | ~100 FPs |
-| 5 | Architectural debt (do only when a workstream is blocked on it) | [architectural-debt.md](architectural-debt.md) | anon-`{}` identity, StringMapping kind, inference widen ordering, 2403 mapped-identity (276) | unblocks documented FNs |
-| 6 | TS7031 destructuring parameter implicit-any | [destructuring-parameter-implicit-any.md](destructuring-parameter-implicit-any.md) | [steps](destructuring-parameter-implicit-any-steps.md) | leaf defaults, parameter initializers, contextual parameter types, signature/member coverage | small but FP-sensitive |
-| 7 | 2XXX type-checking roadmap (read before broad 2XXX work) | [type-checking-2xxx-roadmap.md](type-checking-2xxx-roadmap.md) | n/a | 2322/2339/2345/2554/2769 and related deep type-checker families | design gate for local-vs-architecture decisions |
+| 1 | Parse-error semantic gate + non-LHS `=` recovery (PAIRED — do together) | [parse-error-gate.md](workstreams/parse-error-gate.md) | [steps](workstreams/parse-error-gate-steps.md) | whole-file FN flips: every fixture with ≥1 syntax error loses ALL semantic diags (6133×387 mostly here, 1005×125, 1109×80, parserRealSource11 alone = 87 FN) | largest single FN lever; hundreds of file flips |
+| 2 | Relation-core 2: 2339 mining + assignable-side private nominality | [relation-core-2.md](workstreams/relation-core-2.md) | [steps](workstreams/relation-core-2-steps.md) | 2339 = FP #1 (529), 2322 #2 (483), 2345 #3 (357); nominality FPs 2415/2430/2445 mapped | few hundred FPs |
+| 3 | lib-gap axis (2304) | [lib-gap-2304.md](workstreams/lib-gap-2304.md) | [steps](workstreams/lib-gap-2304-steps.md) | 2304 = FN #1 (1,622 raw; partially excluded from the gate-filtered metric) | raw-metric heavy; moderate filtered yield |
+| 4 | U6: unused-FP finish | [u6-unused-fp.md](workstreams/u6-unused-fp.md) (buckets + root causes A/B/C inside) | FP 6133 = 156 | small, self-contained; best FIRST workstream for a new agent | ~100 FPs |
+| 5 | Architectural debt (do only when a workstream is blocked on it) | [architectural-debt.md](../architectural-debt.md) | anon-`{}` identity, StringMapping kind, inference widen ordering, 2403 mapped-identity (276) | unblocks documented FNs |
+| 6 | TS7031 destructuring parameter implicit-any | [destructuring-parameter-implicit-any.md](../destructuring-parameter-implicit-any.md) | [steps](../destructuring-parameter-implicit-any-steps.md) | leaf defaults, parameter initializers, contextual parameter types, signature/member coverage | small but FP-sensitive |
+| 7 | 2XXX type-checking roadmap (read before broad 2XXX work) | [type-checking-2xxx-roadmap.md](../type-checking-2xxx-roadmap.md) | n/a | 2322/2339/2345/2554/2769 and related deep type-checker families | design gate for local-vs-architecture decisions |
 
 ## Working protocol (MANDATORY)
 

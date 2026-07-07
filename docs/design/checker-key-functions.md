@@ -58,9 +58,9 @@ fn is_type_related_to(&mut self, mut src: T, mut tgt: T, rel: Relation) -> bool 
     if self.is_fresh_literal(src) { src = self.regular_type(src); }
     if self.is_fresh_literal(tgt) { tgt = self.regular_type(tgt); }
     if src == tgt { return true; }
-    if rel != Relation::Identity {
+    if rel != RelationKind::Identity {
         // comparable: try REVERSED simple rules first (base ~ its literal etc.)
-        if rel == Relation::Comparable && !self.is_never(tgt)
+        if rel == RelationKind::Comparable && !self.is_never(tgt)
               && self.is_simple_type_related_to(tgt, src, rel)
            || self.is_simple_type_related_to(src, tgt, rel) { return true; }
     } else {
@@ -228,7 +228,7 @@ types, variance-driven type-argument comparison via `relateVariances`.
 ### 1.5 The five relations
 
 ```rust
-enum Relation { Identity, Subtype, StrictSubtype, Assignable, Comparable }
+enum RelationKind { Identity, Subtype, StrictSubtype, Assignable, Comparable }
 ```
 
 - **Assignable / Comparable**: already exercised by tsrs.
@@ -244,6 +244,11 @@ enum Relation { Identity, Subtype, StrictSubtype, Assignable, Comparable }
 Each relation gets its OWN cache: `[RelCache; 5]` keyed by relation.
 Never share (the current `comparable_cache` split is the 2-relation
 special case of this).
+
+tsc also has a sixth auxiliary map, `enumRelation`, used only by
+`isEnumTypeRelatedTo` to cache enum-compatibility verdicts per
+symbol pair. It is intentionally not a `RelationKind` variant; model
+it separately if enum-compatibility caching ever becomes necessary.
 
 ---
 
@@ -410,11 +415,11 @@ fn resolve_call(&mut self, node: NodeId, signatures: &[SignatureId],
     // PASS 1: subtype relation (picks the most specific overload)
     let mut result = None;
     if candidates.len() > 1 {
-        result = self.choose_overload(&mut candidates, Relation::Subtype, single_non_generic, &mut arg_check_mode, args);
+        result = self.choose_overload(&mut candidates, RelationKind::Subtype, single_non_generic, &mut arg_check_mode, args);
     }
     // PASS 2: assignable relation
     if result.is_none() {
-        result = self.choose_overload(&mut candidates, Relation::Assignable, single_non_generic, &mut arg_check_mode, args);
+        result = self.choose_overload(&mut candidates, RelationKind::Assignable, single_non_generic, &mut arg_check_mode, args);
     }
     if let Some(r) = result { return r; }
     // failure: pick a candidate for error elaboration (getCandidateForOverloadFailure)

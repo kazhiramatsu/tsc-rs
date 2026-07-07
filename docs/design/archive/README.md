@@ -15,10 +15,21 @@ design index.
 
 ## Archived Workstreams
 
+Status legend: **parked** = not completed, archived to keep the
+top-level index small; revive the doc (and refresh its snapshot
+numbers) when scheduling it. **superseded** = its role as a design
+entry point moved elsewhere; keep for provenance.
+
 - [workstreams/parse-error-gate.md](workstreams/parse-error-gate.md)
-- [workstreams/parse-error-gate-steps.md](workstreams/parse-error-gate-steps.md)
+  and [steps](workstreams/parse-error-gate-steps.md) — **parked, not
+  completed**; still a large FN lever (see the 2XXX roadmap Phase 0).
 - [workstreams/relation-core-2.md](workstreams/relation-core-2.md)
-- [workstreams/relation-core-2-steps.md](workstreams/relation-core-2-steps.md)
+  and [steps](workstreams/relation-core-2-steps.md) — **superseded**
+  by `../type-checking-2xxx-roadmap.md` as the relation/2339 entry
+  point; mapped sub-designs remain useful provenance.
 - [workstreams/lib-gap-2304.md](workstreams/lib-gap-2304.md)
-- [workstreams/lib-gap-2304-steps.md](workstreams/lib-gap-2304-steps.md)
-- [workstreams/u6-unused-fp.md](workstreams/u6-unused-fp.md)
+  and [steps](workstreams/lib-gap-2304-steps.md) — **parked, not
+  completed**; mostly buys the raw metric (2304 is gate-filtered).
+- [workstreams/u6-unused-fp.md](workstreams/u6-unused-fp.md) —
+  **parked, not completed**; ~173 unused-family FPs remained at
+  @3242fdc.

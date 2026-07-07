@@ -61,7 +61,11 @@ These constraints apply to every central 2XXX change.
 8. `NEW_FP` / `NEW_FN` is not a stop signal. It is a triage signal.
    Classify whether the new movement came from the intended owner seam.
    Continue when the cause is understood and the direction is still
-   toward tsc semantics.
+   toward tsc semantics. "Continue" means keep working the branch, not
+   commit with regressions: the commit gate in `EXECUTION-GUIDE.md`
+   still applies unchanged (0 NEW_FP at commit; the only exception is
+   intra-branch commits on a feature branch whose workstream doc
+   declares the series).
 
 ## Evidence Ladder
 
@@ -100,7 +104,12 @@ to need running notes. The ledger must include:
 
 ### B. No-Behavior Scaffolds
 
-Add scaffolds before semantic edits:
+Add scaffolds before semantic edits. The relation-kind facade and the
+candidate speculation boundary are independent seams: they may land in
+either order. Neither the list below nor the roadmap's phase numbering
+(candidate boundary as Phase 3, relation kind as Phase 4) implies a
+required order between them; pick whichever the next mined cluster
+needs first.
 
 - `RelationKind` facade:
   `Assignable` delegates to current `is_assignable_to`; `Comparable`
@@ -121,6 +130,11 @@ Add scaffolds before semantic edits:
   either use overlays or snapshot only the affected maps. It must cover
   `expr_type_cache`, `param_ctx_types`, `checked_decls`, diagnostics,
   and contextual function-body state touched by candidate probes.
+  The relation caches (`relation_cache`, `comparable_cache`) stay
+  outside this boundary on purpose: they are written only for
+  top-level queries and their entries are candidate-independent facts
+  about type pairs. Revisit that exclusion only if the Ternary
+  migration shows maybe-results leaking into them.
 
 ### C. High-Confidence Local 2XXX Fixes
 
@@ -139,14 +153,28 @@ explained by one owner.
 
 ### D. Call Candidate Behavior
 
-After the candidate boundary exists, change call behavior in this order:
+After the candidate boundary exists, change call behavior in this
+order. Steps 1 and 2 are already partially implemented; there the
+remaining work is extension, not a first implementation — probe the
+current behavior before assuming a gap.
 
 1. Explicit type arguments applied per overload candidate.
+   Current state: `call_candidate_trial` already receives `type_args`
+   per candidate. Remaining scope must come from mining, not assumed.
 2. Spread expansion into effective argument slots.
+   Current state: `expand_call_args_for_signature` already expands
+   array-literal spreads per signature (commits `5f8f143`, `5cd38b8`,
+   `fc87c74`). Remaining: the spread shapes and overload interplay
+   that mining still shows diverging.
 3. Candidate-local contextual argument types.
 4. Failure-candidate diagnostic selection.
 5. Callable union signature set synthesis.
 6. Overload ranking passes that depend on subtype relation.
+
+The narrow versions of steps 1-2 that the roadmap lists as safe
+current work (diagnostic fallback preserved, single-signature calls,
+overload selection unchanged) remain allowed before the boundary; only
+the full per-candidate behavior waits for it.
 
 Do not mix inference widening changes into these steps. If a call fix
 needs subtype ranking, stop at the call boundary and add the
@@ -159,6 +187,9 @@ Only after call candidate state is isolated:
 1. `InferenceInfo.top_level` and `is_fixed` data.
 2. `getCovariantInference` literal widening rules.
 3. `getInferredType` covariant/contravariant/default/constraint clamp.
+   Current state: constraint clamping already landed in `infer.rs`
+   (relation-core 1); the remaining fidelity is in the
+   covariant/contravariant/default selection rules.
 4. Contextual return-type inference before argument inference.
 5. Missing inference priority bits, one probe at a time.
 

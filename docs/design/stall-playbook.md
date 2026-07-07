@@ -89,7 +89,7 @@ NOT cached, which is exactly the class of bug the bool engine cannot
 express (we cache coinductive `true`s that tsc would discard).
 
 **Remedy design** (large; the Tier-2 of the type side):
-- `enum Relation { Identity, Subtype, StrictSubtype, Assignable, Comparable }`
+- `enum RelationKind { Identity, Subtype, StrictSubtype, Assignable, Comparable }`
   threaded as a parameter through `related()` and everything it calls;
   the `erase_generic_sigs` flag and `force_erase` parameter dissolve
   into `relation == Comparable` checks (mechanical translation of the
