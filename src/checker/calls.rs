@@ -269,6 +269,7 @@ impl<'a> Checker<'a> {
                 args,
                 type_args.as_deref(),
                 *span,
+                e,
                 impl_info,
                 ctx,
             );
@@ -773,8 +774,9 @@ impl<'a> Checker<'a> {
         &mut self,
         sigs: &[SigId],
         args: &'a [Expr],
-        _type_args: Option<&'a [TypeNode]>,
+        type_args: Option<&'a [TypeNode]>,
         call_span: Span,
+        _call_expr: &'a Expr,
         impl_info: Option<(SigId, u32, u32, usize)>,
         ctx: Option<TypeId>,
     ) -> TypeId {
@@ -811,9 +813,112 @@ impl<'a> Checker<'a> {
                 }
             })
             .collect();
+        if let Some(targs) = type_args {
+            let matching: Vec<SigId> = sigs
+                .iter()
+                .copied()
+                .filter(|&sig| self.types.sig(sig).type_params.len() == targs.len())
+                .collect();
+            if matching.is_empty() {
+                let min = sigs
+                    .iter()
+                    .map(|&sig| self.types.sig(sig).type_params.len())
+                    .min()
+                    .unwrap_or(0);
+                let max = sigs
+                    .iter()
+                    .map(|&sig| self.types.sig(sig).type_params.len())
+                    .max()
+                    .unwrap_or(min);
+                let expected = if min == max {
+                    min.to_string()
+                } else {
+                    format!("{}-{}", min, max)
+                };
+                let span = targs.first().map(|t| t.span()).unwrap_or(call_span);
+                self.error_at(
+                    span,
+                    &gen::Expected_0_type_arguments_but_got_1,
+                    &[expected, targs.len().to_string()],
+                );
+                for (i, at) in arg_types.iter().enumerate() {
+                    if at.is_none() {
+                        self.clear_function_like_expr_check_cache(&args[i]);
+                        self.check_expr(&args[i], None);
+                    }
+                }
+                return self.types.error;
+            }
+            let mut first_trial: Option<CallCandidateTrial> = None;
+            for sig in matching {
+                let trial = self.call_candidate_trial(sig, args, &arg_types, type_args, ctx);
+                if first_trial.is_none() {
+                    first_trial = Some(CallCandidateTrial {
+                        sig: trial.sig,
+                        mapper: trial.mapper.clone(),
+                        arity_ok: trial.arity_ok,
+                        non_function_args_ok: trial.non_function_args_ok,
+                        first_failed_arg_index: trial.first_failed_arg_index,
+                    });
+                }
+                if trial.arity_ok && trial.non_function_args_ok {
+                    let s = self.types.sig(trial.sig).clone();
+                    for (i, a) in args.iter().enumerate() {
+                        if matches!(a, Expr::Arrow(_) | Expr::FunctionExpr(_)) {
+                            let pt0 = s
+                                .params
+                                .get(i)
+                                .map(|p| p.ty)
+                                .or(s.rest)
+                                .unwrap_or(self.types.any);
+                            let pt = self.instantiate_type(pt0, &trial.mapper);
+                            let at = self.check_expr(a, Some(pt));
+                            let _ = self.check_assignable(at, pt, a.span(), None, Some(a));
+                        }
+                    }
+                    return self.instantiate_type(s.ret, &trial.mapper);
+                }
+            }
+            if let Some(trial) = first_trial {
+                if let Some(i) = trial.first_failed_arg_index {
+                    let s = self.types.sig(trial.sig).clone();
+                    let pt0 = s
+                        .params
+                        .get(i)
+                        .map(|p| p.ty)
+                        .or(s.rest)
+                        .unwrap_or(self.types.any);
+                    let pt = self.instantiate_type(pt0, &trial.mapper);
+                    let at = arg_types
+                        .get(i)
+                        .and_then(|t| *t)
+                        .unwrap_or_else(|| self.check_expr(&args[i], Some(pt)));
+                    self.check_assignable(
+                        at,
+                        pt,
+                        args[i].span(),
+                        Some((
+                            &gen::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1,
+                            Vec::new(),
+                        )),
+                        Some(&args[i]),
+                    );
+                    return self.types.error;
+                }
+                if !trial.arity_ok {
+                    let s = self.types.sig(trial.sig).clone();
+                    self.error_at(
+                        call_span,
+                        &gen::Expected_0_arguments_but_got_1,
+                        &[expected_args_display(&s), (args.len() as u32).to_string()],
+                    );
+                    return self.types.error;
+                }
+            }
+        }
         let mut first_failed_arg_index: Option<usize> = None;
         for &sig in sigs {
-            let trial = self.call_candidate_trial(sig, args, &arg_types, ctx);
+            let trial = self.call_candidate_trial(sig, args, &arg_types, type_args, ctx);
             if !trial.arity_ok {
                 continue;
             }
@@ -961,6 +1066,7 @@ impl<'a> Checker<'a> {
         sig: SigId,
         args: &'a [Expr],
         arg_types: &[Option<TypeId>],
+        type_args: Option<&'a [TypeNode]>,
         ctx: Option<TypeId>,
     ) -> CallCandidateTrial {
         let s = self.types.sig(sig).clone();
@@ -977,12 +1083,23 @@ impl<'a> Checker<'a> {
             };
         }
 
-        // Infer type arguments for generic overloads from the arguments.
-        let mapper: HashMap<SymbolId, TypeId> = if s.type_params.is_empty() {
-            HashMap::new()
-        } else {
-            self.infer_type_arguments(&s, args, ctx)
-        };
+        // Infer or apply type arguments for generic overloads from the
+        // candidate's own signature. Mismatched explicit arity deliberately
+        // falls back to the historical inference path for now; reporting will
+        // move into the trial object in a later milestone.
+        let mapper: HashMap<SymbolId, TypeId> =
+            if let Some(targs) = type_args.filter(|targs| targs.len() == s.type_params.len()) {
+                let scope = self.current_scope;
+                s.type_params
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &tp)| (tp, self.resolve_type(&targs[i], scope)))
+                    .collect()
+            } else if s.type_params.is_empty() {
+                HashMap::new()
+            } else {
+                self.infer_type_arguments(&s, args, ctx)
+            };
 
         for (i, at) in arg_types.iter().enumerate() {
             let Some(at) = at else { continue }; // arrows checked after selection
