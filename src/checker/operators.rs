@@ -598,6 +598,63 @@ impl<'a> Checker<'a> {
         }
     }
 
+    fn check_destructuring_assignment(&mut self, target: &'a Expr, source: TypeId) {
+        if let Expr::Array { elements, span } = target {
+            self.check_array_destructuring_assignment(elements, *span, source);
+        }
+    }
+
+    fn check_array_destructuring_assignment(
+        &mut self,
+        elements: &'a [Expr],
+        pattern_span: crate::text::Span,
+        source: TypeId,
+    ) {
+        let source = self.types.regular(source);
+        // General array/tuple destructuring assignment needs flow-sensitive
+        // source decomposition. Keep this path to the iterable-only case that
+        // tsc models as `any` elements, plus `any[]` for a rest target.
+        if !self.is_downlevel_iterable_only_source(source) {
+            return;
+        }
+
+        if !self.downlevel_iteration_is_enabled() {
+            self.report_downlevel_iteration_if_needed(source, pattern_span);
+        }
+
+        for el in elements {
+            let mut target = el;
+            if let Expr::Binary {
+                op: BinOp::Assign,
+                left,
+                ..
+            } = target
+            {
+                target = left;
+            }
+            let is_rest = if let Expr::Spread { expr, .. } = target {
+                target = expr;
+                true
+            } else {
+                false
+            };
+            if matches!(target, Expr::Missing { .. }) {
+                continue;
+            }
+            if is_rest {
+                let rest_ty = self.array_type(self.types.any);
+                self.check_destructuring_assignment_target(target, rest_ty);
+            }
+        }
+    }
+
+    fn check_destructuring_assignment_target(&mut self, target: &'a Expr, value_ty: TypeId) {
+        let target_ty = self.check_target_type(target);
+        if !self.types.is_any_or_error(target_ty) && !self.types.is_error(value_ty) {
+            self.check_assignable(value_ty, target_ty, target.span(), None, None);
+        }
+    }
+
     fn expr_contains_numeric_elem_access(expr: &Expr) -> bool {
         match expr {
             Expr::ElemAccess { index, .. } if matches!(index.as_ref(), Expr::NumLit { .. }) => true,
@@ -667,12 +724,14 @@ impl<'a> Checker<'a> {
                     return self.in_read_position(|c| c.check_expr(right, None));
                 }
                 // A destructuring-assignment pattern (`[a, b] = …`, `({x} = …)`)
-                // was validated element-wise by check_reference_for_assignment;
-                // type-check the right-hand side on its own and skip the scalar
-                // value/narrowing path below, which would mis-read the pattern as
-                // a value expression.
+                // was validated element-wise by check_reference_for_assignment.
+                // Type-check the right-hand side as the source value and skip the
+                // scalar value/narrowing path below, which would mis-read the
+                // pattern as a value expression.
                 if matches!(&**left, Expr::Array { .. } | Expr::Object { .. }) {
-                    return self.in_read_position(|c| c.check_expr(right, None));
+                    let rt = self.in_read_position(|c| c.check_expr(right, None));
+                    self.check_destructuring_assignment(left, rt);
+                    return rt;
                 }
                 let lt = self.check_target_type(left);
                 let rt = self.in_read_position(|c| c.check_expr(right, Some(lt)));
