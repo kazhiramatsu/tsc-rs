@@ -148,12 +148,15 @@ The residue decomposes into four distinct sub-problems (do not treat
    `decorators/invalid` (13), `parser/ecmascript5/RegressionTests`
    (12).
 2. Scanner cluster — `es6/unicodeExtendedEscapes` (25 sole files, the
-   single largest directory): tsrs emits 1199 "Unterminated Unicode
-   escape sequence" where tsc emits 1501/1508/1125/1198 from its
-   regex/`\u{...}` scanning. `src/checker/regex.rs` is a verbatim
-   port of tsc's `scanRegularExpressionWorker`, so the divergence is
-   in the scanner-side extended-escape path, not the regex checker.
-   Likely one or two root causes; mine before assuming.
+   single largest directory). ROOT CAUSES CONFIRMED (steps:
+   `non-2xxx-quick-wins-steps.md` QW-B/QW-C): (a) the 19 regex
+   fixtures' FNs (1501/1508/1125/1198) exist because
+   `src/checker/regex.rs` — a complete port of tsc's
+   `scanRegularExpressionWorker` — is DEAD CODE: its entry point
+   `check_grammar_regex_literal` has zero callers; (b) the 6
+   string/template fixtures' 1199 FPs exist because tsrs's scanner
+   sink lacks tsc's `parseErrorAtPosition` rule that collapses
+   consecutive parse errors at the same start position.
 3. FN-only grammar checks tsrs never emits: 1212/1359 (reserved-word
    identifier checks, 44+24 FN), 1206 "Decorators are not valid here"
    (41), 1100 strict-mode `arguments`/`eval` (40), 1029 modifier
@@ -254,8 +257,13 @@ Sole 37 / involved 82. The code range hides three unrelated owners:
   class semantics (2XXX roadmap owner section) — schedule as ONE
   privateNames cluster together with its 2XXX codes (2300 dup
   private names, 2339 on `#x` access), not code-by-code.
-- `TS18037` await-in-static-block (13 FN): unimplemented leaf,
-  class-semantics owner.
+- Static-block statement grammar `TS18037`/`TS18041`/`TS1163`
+  (13+6+2 FN in `classes/classStaticBlock/*`): tsrs classifies
+  `await`/`return`/`yield` directly inside a static block as if the
+  block were transparent, emitting 1375/1378/1108 FPs at the same
+  positions where tsc emits 18037/18041/1163 — one wiring
+  (fn-depth-aware static-block tracking) fixes both sides. Steps:
+  `non-2xxx-quick-wins-steps.md` QW-D.
 
 ### 5. Override and Declaration-Emit 4XXX
 
@@ -278,10 +286,13 @@ Sole 19 (15 of them in `conformance/override/`) / involved 31.
 
 Sole 8 / involved 18; FN-dominant (77).
 
-- `TS17013` meta-property placement (34 FN): UNIMPLEMENTED. Leaf
-  port anchored to tsc `checkNewTargetMetaProperty` /
-  `getNewTargetContainer`; clusters in `es6/newTarget` and
-  `classes/constructorDeclarations/superCalls`.
+- `TS17013` meta-property placement (34 FN, all in
+  `es6/newTarget/invalidNewTarget.*`): UNIMPLEMENTED — the parser
+  folds `new.target` into the catch-all `Expr::ImportMeta` and
+  discards the name, so the checker cannot see it. Leaf port
+  anchored to tsc `checkNewTargetMetaProperty` /
+  `getNewTargetContainer`. Steps:
+  `non-2xxx-quick-wins-steps.md` QW-E.
 - `TS17009`/`TS17011` super-before-this ordering (22+7 FN, partially
   implemented at `src/checker/classes.rs:1200`): under-emission in
   the statement-order tracking; fidelity against tsc
@@ -349,10 +360,11 @@ on its own merits, per that doc's caveat.
 Phases are independent unless stated; N0 items can interleave with
 2XXX scaffold work as §C-style local fixes (execution plan).
 
-- N0 — quick wins, one owner and one commit each: 18033 enum
-  constant classification; 17013 meta-property port;
-  unicodeExtendedEscapes scanner mining (then likely 1-2 fixes);
-  18037 static-block await.
+- N0 — quick wins, one owner and one commit each; implementation
+  steps: `non-2xxx-quick-wins-steps.md` (five verified workstreams:
+  QW-A enum constant evaluation 18033/1066, QW-B wire the dead
+  regex validator, QW-C scanner same-start dedup, QW-D static-block
+  statement grammar 18037/18041/1163, QW-E `new.target` 17013).
 - N1 — parse recovery + gate granularity (the big one): re-mine,
   refresh `archive/workstreams/parse-error-gate.md` premises
   (post-`5412cb1` state above), then run it as the series-gated

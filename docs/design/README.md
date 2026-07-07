@@ -41,6 +41,10 @@ roadmaps, and completed step guides live under `archive/`.
   everything outside the 2XXX band — parser recovery/parse-error gate
   residue, implicit-any 7XXX, unused band, 18XXX sub-families,
   override 4XXX, 17XXX, suggestion families, lib axis, and infra.
+- [non-2xxx-quick-wins-steps.md](non-2xxx-quick-wins-steps.md):
+  implementation steps for the five N0 quick wins (enum constant
+  evaluation, regex-validator wiring, scanner dedup, static-block
+  grammar, `new.target`). Move to `archive/` as workstreams land.
 - [relation-kind-facade-steps.md](relation-kind-facade-steps.md):
   byte-identical implementation steps for the `RelationKind` facade
   scaffold. Move to `archive/` when it lands.
