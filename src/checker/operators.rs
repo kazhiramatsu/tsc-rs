@@ -165,10 +165,30 @@ impl<'a> Checker<'a> {
                     | Expr::Paren { .. }
             );
         if !is_ref_like {
+            if self.parse_error_files.contains(&self.current_file) {
+                return self.types.number;
+            }
+            if matches!(
+                operand,
+                Expr::Unary {
+                    op: UnaryOp::Delete,
+                    ..
+                }
+            ) {
+                return self.types.number;
+            }
             if parenthesized_generic_invalid
                 && (!self.is_arithmetic_operand(t)
                     || Self::expr_contains_numeric_elem_access(Self::skip_parens(operand)))
             {
+                self.error_at(
+                    operand.span(),
+                    &gen::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
+                    &[],
+                );
+                return self.types.number;
+            }
+            if !matches!(operand, Expr::NullLit { .. }) && !self.is_arithmetic_operand(t) {
                 self.error_at(
                     operand.span(),
                     &gen::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
