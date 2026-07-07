@@ -425,6 +425,9 @@ impl<'a> Checker<'a> {
 
     /// 2387/2388: method overloads must agree on staticness
     fn check_method_overload_staticness(&mut self, c: &'a ClassDecl) {
+        if has_modifier(&c.modifiers, ModifierKind::Declare) {
+            return;
+        }
         let mut current_name: Option<String> = None;
         let mut current: Vec<(&'a FunctionLike, bool)> = Vec::new();
         let flush = |this: &mut Self, decls: &mut Vec<(&'a FunctionLike, bool)>| {
