@@ -18,6 +18,36 @@ struct CallCandidateTrial {
     first_failed_arg_index: Option<usize>,
 }
 
+struct ExpandedCallArgs<'a> {
+    slots: Vec<ExpandedCallArg<'a>>,
+    exact_len: Option<usize>,
+}
+
+enum ExpandedCallArg<'a> {
+    Expr(&'a Expr),
+    Type { ty: TypeId, span: Span },
+    ArraySpread { elem_ty: TypeId, span: Span },
+    Rest { elem_ty: TypeId, span: Span },
+}
+
+impl ExpandedCallArg<'_> {
+    fn span(&self) -> Span {
+        match self {
+            ExpandedCallArg::Expr(expr) => expr.span(),
+            ExpandedCallArg::Type { span, .. }
+            | ExpandedCallArg::ArraySpread { span, .. }
+            | ExpandedCallArg::Rest { span, .. } => *span,
+        }
+    }
+
+    fn is_fixed_slot(&self) -> bool {
+        !matches!(
+            self,
+            ExpandedCallArg::Rest { .. } | ExpandedCallArg::ArraySpread { .. }
+        )
+    }
+}
+
 impl<'a> Checker<'a> {
     fn is_immediately_invoked_function_callee(e: &'a Expr) -> bool {
         match e {
@@ -1175,6 +1205,250 @@ impl<'a> Checker<'a> {
         self.display_type(r)
     }
 
+    fn tuple_elem_call_type(&mut self, elem: crate::types::TupleElem) -> TypeId {
+        if elem.optional && self.options.strict_null_checks() {
+            self.types.union(vec![elem.ty, self.types.undefined])
+        } else {
+            elem.ty
+        }
+    }
+
+    fn expanded_fixed_slot_count(slots: &[ExpandedCallArg<'a>]) -> usize {
+        slots.iter().filter(|slot| slot.is_fixed_slot()).count()
+    }
+
+    fn spread_can_cover_remaining_params(sig: &crate::types::Signature, start: usize) -> bool {
+        start < sig.params.len() && sig.params[start..].iter().all(|param| param.optional)
+    }
+
+    fn fixed_params_from_are_any(&self, sig: &crate::types::Signature, start: usize) -> bool {
+        start < sig.params.len()
+            && sig.params[start..]
+                .iter()
+                .all(|param| matches!(self.types.kind(param.ty), TypeKind::Any))
+    }
+
+    fn spread_source_element_type(&mut self, ty: TypeId) -> Option<TypeId> {
+        if self.types.is_any_or_error(ty) {
+            return Some(self.types.any);
+        }
+        if let Some(elem) = self.array_element_type(ty) {
+            return Some(elem);
+        }
+        match self.types.kind(ty).clone() {
+            TypeKind::Tuple(elems) | TypeKind::ReadonlyTuple(elems) => {
+                let elem_types = elems
+                    .into_iter()
+                    .map(|elem| self.tuple_elem_call_type(elem))
+                    .collect();
+                Some(self.types.union(elem_types))
+            }
+            TypeKind::Union(members) => {
+                let mut elem_types = Vec::with_capacity(members.len());
+                for member in members {
+                    let elem = self.spread_source_element_type(member)?;
+                    elem_types.push(elem);
+                }
+                Some(self.types.union(elem_types))
+            }
+            TypeKind::TypeParam(sym) => {
+                let constraint = self.constraint_of_type_param(sym)?;
+                self.spread_source_element_type(constraint)
+            }
+            _ => {
+                if self.is_known_iterable_object_source(ty) {
+                    return Some(self.types.any);
+                }
+                if self.is_iterator_like_source(ty) {
+                    return Some(self.types.any);
+                }
+                let shape = self.shape_of_type(ty)?;
+                let infos = self.types.shape(shape).index_infos.clone();
+                infos
+                    .iter()
+                    .find(|info| info.key == self.types.number)
+                    .map(|info| info.value)
+            }
+        }
+    }
+
+    fn is_known_iterable_object_source(&mut self, ty: TypeId) -> bool {
+        let apparent = self.apparent_type(ty);
+        let sym = match self.types.kind(apparent) {
+            TypeKind::Iface(sym)
+            | TypeKind::Ref(sym, _)
+            | TypeKind::MappedIface(sym, _)
+            | TypeKind::ClassStatics(sym)
+            | TypeKind::MappedClassStatics(sym, _) => *sym,
+            _ => return false,
+        };
+        matches!(
+            self.symbol(sym).name.as_str(),
+            "Map" | "ReadonlyMap" | "Set" | "ReadonlySet"
+        )
+    }
+
+    fn is_iterator_like_source(&mut self, ty: TypeId) -> bool {
+        let Some(next_ty) = self.prop_of_type(ty, "next") else {
+            return false;
+        };
+        let Some(sig) = self.call_signatures_of(next_ty).first().copied() else {
+            return false;
+        };
+        let ret = self.sig_return(sig);
+        self.prop_of_type(ret, "value").is_some()
+    }
+
+    fn report_spread_argument_error(&mut self, span: Span, already_reported: &mut bool) {
+        if *already_reported {
+            return;
+        }
+        self.error_at(
+            span,
+            &gen::A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter,
+            &[],
+        );
+        *already_reported = true;
+    }
+
+    fn expand_call_args_for_signature(
+        &mut self,
+        sig: &crate::types::Signature,
+        args: &'a [Expr],
+        allow_iife_any_tuple_rest: bool,
+    ) -> ExpandedCallArgs<'a> {
+        let mut slots = Vec::new();
+        let mut exact_len = Some(0usize);
+        let mut reported_spread_error = false;
+
+        for arg in args {
+            let Expr::Spread { expr, span } = arg else {
+                slots.push(ExpandedCallArg::Expr(arg));
+                if let Some(len) = &mut exact_len {
+                    *len += 1;
+                }
+                continue;
+            };
+
+            let spread_starts_at = Self::expanded_fixed_slot_count(&slots);
+            let spread_ty = self.check_expr(expr, None);
+            match self.types.kind(spread_ty).clone() {
+                TypeKind::Tuple(elems) | TypeKind::ReadonlyTuple(elems) => {
+                    for elem in elems {
+                        if elem.rest {
+                            let rest_starts_at = Self::expanded_fixed_slot_count(&slots);
+                            if sig.rest.is_some() && rest_starts_at >= sig.params.len() {
+                                let elem_ty = self.tuple_elem_call_type(elem);
+                                slots.push(ExpandedCallArg::Rest {
+                                    elem_ty,
+                                    span: *span,
+                                });
+                                exact_len = None;
+                            } else if allow_iife_any_tuple_rest
+                                && self.fixed_params_from_are_any(sig, rest_starts_at)
+                            {
+                                let elem_ty = self.tuple_elem_call_type(elem);
+                                slots.push(ExpandedCallArg::ArraySpread {
+                                    elem_ty,
+                                    span: *span,
+                                });
+                                exact_len = None;
+                            } else {
+                                self.report_spread_argument_error(
+                                    *span,
+                                    &mut reported_spread_error,
+                                );
+                                exact_len = None;
+                                break;
+                            }
+                        } else {
+                            let ty = self.tuple_elem_call_type(elem);
+                            slots.push(ExpandedCallArg::Type { ty, span: *span });
+                            if let Some(len) = &mut exact_len {
+                                *len += 1;
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    if let Some(elem_ty) = self.spread_source_element_type(spread_ty) {
+                        if sig.rest.is_some() && spread_starts_at >= sig.params.len() {
+                            slots.push(ExpandedCallArg::Rest {
+                                elem_ty,
+                                span: *span,
+                            });
+                            exact_len = None;
+                        } else if Self::spread_can_cover_remaining_params(sig, spread_starts_at) {
+                            slots.push(ExpandedCallArg::ArraySpread {
+                                elem_ty,
+                                span: *span,
+                            });
+                            exact_len = None;
+                        } else {
+                            self.report_spread_argument_error(*span, &mut reported_spread_error);
+                            exact_len = None;
+                        }
+                    } else if sig.rest.is_some() && spread_starts_at >= sig.params.len() {
+                        let ty = self.types.regular(spread_ty);
+                        let display = self.display_type(ty);
+                        self.error_at(expr.span(), &gen::Type_0_is_not_an_array_type, &[display]);
+                        exact_len = None;
+                    } else {
+                        self.report_spread_argument_error(*span, &mut reported_spread_error);
+                        exact_len = None;
+                    }
+                }
+            }
+        }
+
+        ExpandedCallArgs { slots, exact_len }
+    }
+
+    fn report_call_arity_error(
+        &mut self,
+        sig: &crate::types::Signature,
+        argc: u32,
+        call_span: Span,
+        extra_span: Option<Span>,
+    ) {
+        let max = sig.params.len() as u32;
+        if sig.rest.is_some() {
+            self.error_at(
+                call_span,
+                &gen::Expected_at_least_0_arguments_but_got_1,
+                &[sig.min_args.to_string(), argc.to_string()],
+            );
+        } else if argc > max {
+            self.error_at(
+                extra_span.unwrap_or(call_span),
+                &gen::Expected_0_arguments_but_got_1,
+                &[expected_args_display(sig), argc.to_string()],
+            );
+        } else {
+            self.error_at(
+                call_span,
+                &gen::Expected_0_arguments_but_got_1,
+                &[expected_args_display(sig), argc.to_string()],
+            );
+            if let Some(p) = sig.params.get(argc as usize) {
+                if let Some(sp) = p.decl_span {
+                    let ri = crate::diagnostics::RelatedInfo {
+                        file: Some(p.decl_file),
+                        start: sp.start,
+                        length: sp.len(),
+                        message: crate::diagnostics::MessageChain::new(
+                            &gen::An_argument_for_0_was_not_provided,
+                            &[p.name.clone()],
+                        ),
+                    };
+                    if let Some(d) = self.diags.last_mut() {
+                        d.related.push(ri);
+                    }
+                }
+            }
+        }
+    }
+
     /// signature application: explicit type args / inference, arity, per-arg checks
     fn resolve_call(
         &mut self,
@@ -1265,120 +1539,237 @@ impl<'a> Checker<'a> {
 
         // arity
         let has_spread = args.iter().any(|a| matches!(a, Expr::Spread { .. }));
+        let allow_iife_any_tuple_rest = matches!(
+            call_expr,
+            Expr::Call { callee, .. } if Self::is_immediately_invoked_function_callee(callee)
+        );
+        let expanded_args = if has_spread {
+            Some(self.expand_call_args_for_signature(&s, args, allow_iife_any_tuple_rest))
+        } else {
+            None
+        };
+        let mut arity_failed = false;
         if !has_spread {
             let argc = args.len() as u32;
             let max = s.params.len() as u32;
             if argc < s.min_args || (s.rest.is_none() && argc > max) {
-                if s.rest.is_some() {
-                    self.error_at(
-                        call_span,
-                        &gen::Expected_at_least_0_arguments_but_got_1,
-                        &[s.min_args.to_string(), argc.to_string()],
-                    );
-                } else if argc > max {
-                    // span: first extra argument
-                    let span = args[max as usize].span();
-                    self.error_at(
-                        span,
-                        &gen::Expected_0_arguments_but_got_1,
-                        &[expected_args_display(&s), argc.to_string()],
-                    );
+                let extra_span = if s.rest.is_none() && argc > max {
+                    Some(args[max as usize].span())
                 } else {
-                    self.error_at(
-                        call_span,
-                        &gen::Expected_0_arguments_but_got_1,
-                        &[expected_args_display(&s), argc.to_string()],
-                    );
-                    // tsc adds "An argument for '<param>' was not provided." (TS6210)
-                    // pointing at the first parameter that received no argument.
-                    if let Some(p) = s.params.get(argc as usize) {
-                        if let Some(sp) = p.decl_span {
-                            let ri = crate::diagnostics::RelatedInfo {
-                                file: Some(p.decl_file),
-                                start: sp.start,
-                                length: sp.len(),
-                                message: crate::diagnostics::MessageChain::new(
-                                    &gen::An_argument_for_0_was_not_provided,
-                                    &[p.name.clone()],
-                                ),
-                            };
-                            if let Some(d) = self.diags.last_mut() {
-                                d.related.push(ri);
+                    None
+                };
+                self.report_call_arity_error(&s, argc, call_span, extra_span);
+                arity_failed = true;
+            }
+        } else if let Some(plan) = &expanded_args {
+            if let Some(exact_len) = plan.exact_len {
+                let argc = exact_len as u32;
+                let max = s.params.len() as u32;
+                if argc < s.min_args || (s.rest.is_none() && argc > max) {
+                    let extra_span = if s.rest.is_none() && argc > max {
+                        plan.slots.get(max as usize).map(|slot| slot.span())
+                    } else {
+                        None
+                    };
+                    self.report_call_arity_error(&s, argc, call_span, extra_span);
+                    arity_failed = true;
+                }
+            }
+        }
+
+        // per-argument checks
+        if let Some(plan) = &expanded_args {
+            let mut arg_i = 0usize;
+            let mut suppress_arg_assignability = arity_failed;
+            for slot in &plan.slots {
+                let param_ty = s
+                    .params
+                    .get(arg_i)
+                    .map(|p| p.ty)
+                    .or(s.rest)
+                    .unwrap_or(self.types.any);
+                let param_ty = self.instantiate_type(param_ty, &mapper);
+                match slot {
+                    ExpandedCallArg::Expr(a) => {
+                        if suppress_arg_assignability {
+                            self.check_expr(a, None);
+                            arg_i += 1;
+                            continue;
+                        }
+                        if !s.type_params.is_empty()
+                            && type_args.is_none()
+                            && self.arg_needs_recheck(a)
+                        {
+                            self.caches.expr_type_cache.remove(&node_key_expr(a));
+                            self.drop_nested_objlit_caches(a);
+                        }
+                        let at = self.check_expr(a, Some(param_ty));
+                        if !self.types.is_error(at)
+                            && !self.types.is_error(param_ty)
+                            && !self.is_assignable_to(at, param_ty)
+                        {
+                            let ok = self.check_assignable(
+                                at,
+                                param_ty,
+                                a.span(),
+                                Some((
+                                    &gen::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1,
+                                    Vec::new(),
+                                )),
+                                Some(a),
+                            );
+                            if stop_after_first_arg_error || (!ok && !self.arg_needs_recheck(a)) {
+                                suppress_arg_assignability = true;
+                            }
+                        }
+                        arg_i += 1;
+                    }
+                    ExpandedCallArg::Type { ty, span } => {
+                        if !suppress_arg_assignability
+                            && !self.types.is_error(*ty)
+                            && !self.types.is_error(param_ty)
+                            && !self.is_assignable_to(*ty, param_ty)
+                        {
+                            let ok = self.check_assignable(
+                                *ty,
+                                param_ty,
+                                *span,
+                                Some((
+                                    &gen::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1,
+                                    Vec::new(),
+                                )),
+                                None,
+                            );
+                            if stop_after_first_arg_error || !ok {
+                                suppress_arg_assignability = true;
+                            }
+                        }
+                        arg_i += 1;
+                    }
+                    ExpandedCallArg::ArraySpread { elem_ty, span } => {
+                        if !suppress_arg_assignability {
+                            for param_idx in arg_i..s.params.len() {
+                                let param_ty =
+                                    self.instantiate_type(s.params[param_idx].ty, &mapper);
+                                if !self.types.is_error(*elem_ty)
+                                    && !self.types.is_error(param_ty)
+                                    && !self.is_assignable_to(*elem_ty, param_ty)
+                                {
+                                    let ok = self.check_assignable(
+                                        *elem_ty,
+                                        param_ty,
+                                        *span,
+                                        Some((
+                                            &gen::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1,
+                                            Vec::new(),
+                                        )),
+                                        None,
+                                    );
+                                    if stop_after_first_arg_error || !ok {
+                                        suppress_arg_assignability = true;
+                                    }
+                                    break;
+                                }
+                            }
+                            if !suppress_arg_assignability {
+                                if let Some(rest_ty) = s.rest {
+                                    let rest_ty = self.instantiate_type(rest_ty, &mapper);
+                                    if !self.types.is_error(*elem_ty)
+                                        && !self.types.is_error(rest_ty)
+                                        && !self.is_assignable_to(*elem_ty, rest_ty)
+                                    {
+                                        let ok = self.check_assignable(
+                                            *elem_ty,
+                                            rest_ty,
+                                            *span,
+                                            Some((
+                                                &gen::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1,
+                                                Vec::new(),
+                                            )),
+                                            None,
+                                        );
+                                        if stop_after_first_arg_error || !ok {
+                                            suppress_arg_assignability = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        arg_i = s.params.len();
+                    }
+                    ExpandedCallArg::Rest { elem_ty, span } => {
+                        if !suppress_arg_assignability
+                            && !self.types.is_error(*elem_ty)
+                            && !self.types.is_error(param_ty)
+                            && !self.is_assignable_to(*elem_ty, param_ty)
+                        {
+                            let ok = self.check_assignable(
+                                *elem_ty,
+                                param_ty,
+                                *span,
+                                Some((
+                                    &gen::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1,
+                                    Vec::new(),
+                                )),
+                                None,
+                            );
+                            if stop_after_first_arg_error || !ok {
+                                suppress_arg_assignability = true;
                             }
                         }
                     }
                 }
             }
         } else {
-            // spread argument must be a tuple or target a rest param
+            let mut arg_i = 0usize;
+            let mut suppress_arg_assignability = arity_failed;
             for a in args {
-                if let Expr::Spread { expr, span } = a {
-                    let t = self.check_expr(expr, None);
-                    let is_tuple = matches!(self.types.kind(t), TypeKind::Tuple(_));
-                    if !is_tuple && s.rest.is_none() {
-                        self.error_at(
-                            *span,
-                            &gen::A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter,
-                            &[],
+                let param_ty = s
+                    .params
+                    .get(arg_i)
+                    .map(|p| p.ty)
+                    .or(s.rest)
+                    .unwrap_or(self.types.any);
+                let param_ty = self.instantiate_type(param_ty, &mapper);
+                if suppress_arg_assignability {
+                    self.check_expr(a, None);
+                    arg_i += 1;
+                    continue;
+                }
+                // A context-sensitive function argument (an arrow / function
+                // expression with non-annotated parameters) was first checked during
+                // inference with provisional type arguments, so its parameter types
+                // may reflect an intermediate inferred type. Drop its cached type so
+                // it is re-evaluated against the final parameter type; its signature
+                // is then rebuilt from the (re-established) contextual parameter
+                // types. The body is not re-checked — `checked_decls` is left set —
+                // so this re-evaluation emits no duplicate diagnostics, it only
+                // refreshes the argument's parameter types for the assignability
+                // check below.
+                if !s.type_params.is_empty() && type_args.is_none() && self.arg_needs_recheck(a) {
+                    self.caches.expr_type_cache.remove(&node_key_expr(a));
+                    self.drop_nested_objlit_caches(a);
+                }
+                let at = self.check_expr(a, Some(param_ty));
+                if !self.types.is_error(at) && !self.types.is_error(param_ty) {
+                    if !self.is_assignable_to(at, param_ty) {
+                        let ok = self.check_assignable(
+                            at,
+                            param_ty,
+                            a.span(),
+                            Some((
+                                &gen::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1,
+                                Vec::new(),
+                            )),
+                            Some(a),
                         );
+                        if stop_after_first_arg_error || (!ok && !self.arg_needs_recheck(a)) {
+                            suppress_arg_assignability = true;
+                        }
                     }
                 }
-            }
-        }
-
-        // per-argument checks
-        let mut arg_i = 0usize;
-        let mut suppress_arg_assignability = false;
-        for a in args {
-            if matches!(a, Expr::Spread { .. }) {
                 arg_i += 1;
-                continue;
             }
-            let param_ty = s
-                .params
-                .get(arg_i)
-                .map(|p| p.ty)
-                .or(s.rest)
-                .unwrap_or(self.types.any);
-            let param_ty = self.instantiate_type(param_ty, &mapper);
-            if suppress_arg_assignability {
-                self.check_expr(a, None);
-                arg_i += 1;
-                continue;
-            }
-            // A context-sensitive function argument (an arrow / function
-            // expression with non-annotated parameters) was first checked during
-            // inference with provisional type arguments, so its parameter types
-            // may reflect an intermediate inferred type. Drop its cached type so
-            // it is re-evaluated against the final parameter type; its signature
-            // is then rebuilt from the (re-established) contextual parameter
-            // types. The body is not re-checked — `checked_decls` is left set —
-            // so this re-evaluation emits no duplicate diagnostics, it only
-            // refreshes the argument's parameter types for the assignability
-            // check below.
-            if !s.type_params.is_empty() && type_args.is_none() && self.arg_needs_recheck(a) {
-                self.caches.expr_type_cache.remove(&node_key_expr(a));
-                self.drop_nested_objlit_caches(a);
-            }
-            let at = self.check_expr(a, Some(param_ty));
-            if !self.types.is_error(at) && !self.types.is_error(param_ty) {
-                if !self.is_assignable_to(at, param_ty) {
-                    self.check_assignable(
-                        at,
-                        param_ty,
-                        a.span(),
-                        Some((
-                            &gen::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1,
-                            Vec::new(),
-                        )),
-                        Some(a),
-                    );
-                    if stop_after_first_arg_error {
-                        suppress_arg_assignability = true;
-                    }
-                }
-            }
-            arg_i += 1;
         }
         let _ = call_expr;
         let ret = self.sig_return(sig);
