@@ -1,5 +1,6 @@
-use crate::ast::{ClassMember, Expr, PropName, TypeMember};
+use crate::ast::{node_key, ClassMember, Expr, FuncBody, FunctionLike, PropName, Stmt, TypeMember};
 use crate::binder::Decl;
+use crate::checker::symbols::Mapper;
 use crate::checker::Checker;
 use crate::diagnostics::gen;
 use crate::text::Span;
@@ -30,6 +31,9 @@ impl<'a> Checker<'a> {
         let Some(next_ty) = self.prop_of_type(ty, "next") else {
             return false;
         };
+        if matches!(self.types.kind(self.types.regular(next_ty)), TypeKind::Any) {
+            return true;
+        }
         !self.call_signatures_of(next_ty).is_empty()
     }
 
@@ -69,26 +73,88 @@ impl<'a> Checker<'a> {
         Some(self.types.error)
     }
 
-    pub(crate) fn has_symbol_iterator_member(&mut self, ty: TypeId) -> bool {
+    pub(crate) fn symbol_iterator_member_type(&mut self, ty: TypeId) -> Option<TypeId> {
         let apparent0 = self.apparent_type(ty);
         let apparent = self.types.regular(apparent0);
-        let sym = match self.types.kind(apparent) {
-            TypeKind::Iface(sym) | TypeKind::Ref(sym, _) | TypeKind::MappedIface(sym, _) => *sym,
-            _ => return false,
+        let (sym, mapper) = match self.types.kind(apparent).clone() {
+            TypeKind::Iface(sym) => (sym, Mapper::new()),
+            TypeKind::Ref(sym, args) => {
+                let mut mapper = Mapper::new();
+                for (i, param) in self.type_params_of_symbol(sym).into_iter().enumerate() {
+                    if let Some(&arg) = args.get(i) {
+                        mapper.insert(param, arg);
+                    }
+                }
+                (sym, mapper)
+            }
+            TypeKind::MappedIface(sym, entries) => (sym, self.mapper_from_entries(&entries)),
+            _ => return None,
         };
-        self.symbol(sym).decls.iter().any(|decl| match decl {
-            Decl::Class(c) => c.members.iter().any(|m| match m {
-                ClassMember::Property(p) => prop_name_is_symbol_iterator(&p.name),
-                ClassMember::Method(f) => f.name.as_ref().is_some_and(prop_name_is_symbol_iterator),
-                _ => false,
-            }),
-            Decl::Interface(i) => i.members.iter().any(|m| match m {
-                TypeMember::Prop(p) => prop_name_is_symbol_iterator(&p.name),
-                TypeMember::Method(m) => prop_name_is_symbol_iterator(&m.name),
-                _ => false,
-            }),
-            _ => false,
-        })
+        let decls = self.symbol(sym).decls.clone();
+        for decl in decls {
+            match decl {
+                Decl::Class(c) => {
+                    for member in &c.members {
+                        match member {
+                            ClassMember::Property(p) if prop_name_is_symbol_iterator(&p.name) => {
+                                let raw = self
+                                    .bind
+                                    .decl_symbol
+                                    .get(&node_key(p))
+                                    .copied()
+                                    .map(|sym| self.type_of_symbol_lazy(sym))
+                                    .unwrap_or_else(|| {
+                                        let scope = self.scope_of_decl(node_key(p));
+                                        p.ty.as_ref()
+                                            .map(|ty| self.resolve_type(ty, scope))
+                                            .unwrap_or(self.types.any)
+                                    });
+                                return Some(self.instantiate_type(raw, &mapper));
+                            }
+                            ClassMember::Method(f)
+                                if f.name.as_ref().is_some_and(prop_name_is_symbol_iterator) =>
+                            {
+                                let raw = if method_body_is_single_return_this(f) {
+                                    self.owner_instance_type(sym)
+                                } else {
+                                    let sig = self.signature_of(f);
+                                    self.sig_return(sig)
+                                };
+                                return Some(self.instantiate_type(raw, &mapper));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                Decl::Interface(i) => {
+                    let scope = self
+                        .bind
+                        .node_scope
+                        .get(&node_key(i))
+                        .copied()
+                        .unwrap_or(self.bind.global_scope);
+                    for member in &i.members {
+                        match member {
+                            TypeMember::Prop(p) if prop_name_is_symbol_iterator(&p.name) => {
+                                let raw =
+                                    p.ty.as_ref()
+                                        .map(|ty| self.resolve_type(ty, scope))
+                                        .unwrap_or(self.types.any);
+                                return Some(self.instantiate_type(raw, &mapper));
+                            }
+                            TypeMember::Method(m) if prop_name_is_symbol_iterator(&m.name) => {
+                                let sig = self.method_signature(m, scope);
+                                let raw = self.sig_return(sig);
+                                return Some(self.instantiate_type(raw, &mapper));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
     }
 
     pub(crate) fn is_downlevel_iterable_only_source(&mut self, ty: TypeId) -> bool {
@@ -115,8 +181,13 @@ impl<'a> Checker<'a> {
                 .constraint_of_type_param(sym)
                 .is_some_and(|constraint| self.is_downlevel_iterable_only_source(constraint)),
             _ => {
-                self.has_symbol_iterator_member(regular) && self.is_iterator_like_source(regular)
-                    || self.is_known_iterable_object_source(regular)
+                self.is_known_iterable_object_source(regular)
+                    || self
+                        .symbol_iterator_member_type(regular)
+                        .is_some_and(|iterator_ty| {
+                            self.types.is_any_or_error(iterator_ty)
+                                || self.is_iterator_like_source(iterator_ty)
+                        })
             }
         }
     }
@@ -147,5 +218,20 @@ fn prop_name_is_symbol_iterator(name: &PropName) -> bool {
             question_dot: false,
             ..
         } if matches!(obj.as_ref(), Expr::Ident(id) if id.name == "Symbol") && name.name == "iterator"
+    )
+}
+
+fn method_body_is_single_return_this(f: &FunctionLike) -> bool {
+    if f.return_type.is_some() {
+        return false;
+    }
+    let Some(FuncBody::Block(block)) = &f.body else {
+        return false;
+    };
+    matches!(
+        block.stmts.as_slice(),
+        [Stmt::Return {
+            expr: Some(expr), ..
+        }] if matches!(expr, Expr::This { .. })
     )
 }

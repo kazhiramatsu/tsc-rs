@@ -155,7 +155,11 @@ impl<'a> Checker<'a> {
 
     pub fn array_element_type(&mut self, t: TypeId) -> Option<TypeId> {
         match self.types.kind(t) {
-            TypeKind::Ref(sym, args) if Some(*sym) == self.array_symbol() && args.len() == 1 => {
+            TypeKind::Ref(sym, args)
+                if args.len() == 1
+                    && (Some(*sym) == self.array_symbol()
+                        || Some(*sym) == self.global_type_symbol("ReadonlyArray")) =>
+            {
                 Some(args[0])
             }
             TypeKind::ReadonlyArray(e) => Some(*e),

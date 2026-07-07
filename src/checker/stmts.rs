@@ -3801,6 +3801,9 @@ impl<'a> Checker<'a> {
             if let Some(elem) = self.for_of_generator_element_type(t, expr.span()) {
                 return elem;
             }
+            if self.is_downlevel_iterable_only_source(t) {
+                return self.types.any;
+            }
         }
         if self.is_downlevel_iterable_only_source(t) {
             if !self.downlevel_iteration_is_enabled() {
