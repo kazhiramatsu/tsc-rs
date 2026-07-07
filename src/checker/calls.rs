@@ -1440,33 +1440,6 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn is_known_iterable_object_source(&mut self, ty: TypeId) -> bool {
-        let apparent = self.apparent_type(ty);
-        let sym = match self.types.kind(apparent) {
-            TypeKind::Iface(sym)
-            | TypeKind::Ref(sym, _)
-            | TypeKind::MappedIface(sym, _)
-            | TypeKind::ClassStatics(sym)
-            | TypeKind::MappedClassStatics(sym, _) => *sym,
-            _ => return false,
-        };
-        matches!(
-            self.symbol(sym).name.as_str(),
-            "Map" | "ReadonlyMap" | "Set" | "ReadonlySet"
-        )
-    }
-
-    fn is_iterator_like_source(&mut self, ty: TypeId) -> bool {
-        let Some(next_ty) = self.prop_of_type(ty, "next") else {
-            return false;
-        };
-        let Some(sig) = self.call_signatures_of(next_ty).first().copied() else {
-            return false;
-        };
-        let ret = self.sig_return(sig);
-        self.prop_of_type(ret, "value").is_some()
-    }
-
     fn report_spread_argument_error(&mut self, span: Span, already_reported: &mut bool) {
         if *already_reported {
             return;
@@ -1573,6 +1546,12 @@ impl<'a> Checker<'a> {
                     }
                 }
                 _ => {
+                    if report_errors
+                        && !self.downlevel_iteration_is_enabled()
+                        && self.is_downlevel_iterable_only_source(spread_ty)
+                    {
+                        self.report_downlevel_iteration_if_needed(spread_ty, expr.span());
+                    }
                     if let Some(elem_ty) = self.spread_source_element_type(spread_ty) {
                         if sig.rest.is_some() && spread_starts_at >= sig.params.len() {
                             slots.push(ExpandedCallArg::Rest {

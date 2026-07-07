@@ -1724,7 +1724,7 @@ impl<'a> Checker<'a> {
                 let prev = self.current_scope;
                 self.current_scope = scope;
                 let t = self.check_expr(expr, None);
-                let elem = self.for_of_element_type(t, expr);
+                let elem = self.for_of_element_type(t, expr, await_span.is_some());
                 if let ForInit::Var(v) = &**left {
                     for d in &v.decls {
                         if let Some(sym) = self.bind.decl_symbol.get(&node_key(d)).copied() {
@@ -2301,6 +2301,21 @@ impl<'a> Checker<'a> {
                     _ => None,
                 };
                 if arr_elem.is_none() && tuple_elems.is_none() {
+                    if self.is_downlevel_iterable_only_source(source) {
+                        let elem_ty = if self.downlevel_iteration_is_enabled() {
+                            self.types.any
+                        } else {
+                            self.report_downlevel_iteration_if_needed(source, p.span);
+                            self.types.error
+                        };
+                        for el in p.elements.iter().flatten() {
+                            if let Some(dflt) = &el.default {
+                                self.check_expr(dflt, None);
+                            }
+                            self.destructure_binding(&el.binding, elem_ty);
+                        }
+                        return;
+                    }
                     let d = self.display_type(source);
                     self.error_at(p.span, &gen::Type_0_is_not_an_array_type, &[d]);
                     for el in p.elements.iter().flatten() {
@@ -3769,7 +3784,7 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn for_of_element_type(&mut self, t: TypeId, expr: &'a Expr) -> TypeId {
+    fn for_of_element_type(&mut self, t: TypeId, expr: &'a Expr, is_for_await: bool) -> TypeId {
         if self.types.is_any_or_error(t) {
             return self.types.any;
         }
@@ -3781,6 +3796,18 @@ impl<'a> Checker<'a> {
         }
         if matches!(self.types.kind(t), TypeKind::String | TypeKind::StrLit(_)) {
             return self.types.string;
+        }
+        if is_for_await {
+            if let Some(elem) = self.for_of_generator_element_type(t, expr.span()) {
+                return elem;
+            }
+        }
+        if self.is_downlevel_iterable_only_source(t) {
+            if !self.downlevel_iteration_is_enabled() {
+                self.report_downlevel_iteration_if_needed(t, expr.span());
+                return self.types.error;
+            }
+            return self.types.any;
         }
         let d = self.display_type(t);
         self.error_at(

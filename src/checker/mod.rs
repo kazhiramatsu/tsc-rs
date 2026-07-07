@@ -13,6 +13,7 @@ pub mod flow;
 pub mod functions;
 pub mod infer;
 pub mod instantiate;
+pub mod iteration;
 pub mod operators;
 pub mod relation_errors;
 pub mod relations;

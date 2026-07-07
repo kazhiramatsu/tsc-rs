@@ -1133,12 +1133,21 @@ impl<'a> Checker<'a> {
                         TypeKind::Tuple(_) | TypeKind::ReadonlyTuple(_)
                     );
                 if !arrayish {
-                    let d = self.display_type(sr);
-                    self.error_at(expr.span(), &gen::Type_0_is_not_an_array_type, &[d]);
+                    if self.is_downlevel_iterable_only_source(sr) {
+                        self.report_downlevel_iteration_if_needed(sr, expr.span());
+                    } else {
+                        let d = self.display_type(sr);
+                        self.error_at(expr.span(), &gen::Type_0_is_not_an_array_type, &[d]);
+                    }
                 }
-                let t = self.check_expr(expr, None);
-                if let Some(inner) = self.array_element_type(t) {
+                if let Some(inner) = self.array_element_type(st) {
                     member_types.push(inner);
+                } else if !arrayish && self.is_downlevel_iterable_only_source(sr) {
+                    member_types.push(if self.downlevel_iteration_is_enabled() {
+                        self.types.any
+                    } else {
+                        self.types.error
+                    });
                 }
                 continue;
             }
