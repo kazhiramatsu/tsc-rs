@@ -134,8 +134,8 @@ needs first.
 
 - Diagnostic/cache transaction primitive:
   the checker already has a speculation mechanism — the flow
-  resolver's `quiet` machinery (`FlowResolveState::quiet` +
-  `scaffold_base` in `src/checker/mod.rs`). Under `quiet > 0` the
+  resolver's `quiet` machinery (the `FlowResolve` struct's `quiet` +
+  `scaffold_base` fields in `src/checker/mod.rs`). Under `quiet > 0` the
   once-per-node/symbol report guards are not consumed,
   `expr_type_cache` is not populated, and `fact_for` is scoped to the
   scaffold's own frames; call sites truncate `diags` afterwards. Build

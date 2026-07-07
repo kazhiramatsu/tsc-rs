@@ -33,7 +33,7 @@ covered here or in the workstream doc, STOP (see "Stop conditions").
 - `cargo fmt` ONLY immediately before a commit (it rewrites files and
   invalidates line-number notes and pending edit anchors).
 - Adding an integration test (pins exact tsc-shaped output): tests live
-  in `src/lib.rs` `mod tests` (~line 933). Pattern:
+  in `src/lib.rs` `mod tests` (~line 1051). Pattern:
 
 ```rust
 #[test]

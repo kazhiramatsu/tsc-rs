@@ -31,6 +31,63 @@ Needing any other file is a stop condition (see EXECUTION-GUIDE.md).
   `comparable_dir` both directions, restores.
 - `check_assignable` (`src/checker/relations.rs`, near line 105) is the
   reporting entry; it delegates to `is_assignable_to` first.
+- `relation_cache` / `comparable_cache` have exactly ONE reader and
+  ONE writer each, both inside `is_assignable_to` (the get near
+  line 131, the top-level insert near line 156). No other code touches
+  them; Stage 3's blast radius is exactly that function plus comments.
+- `RelationState` is constructed only through `#[derive(Default)]`
+  (`RelationState::default()` in `Checker::new`, `mod.rs` near
+  line 799). No literal construction site exists.
+
+### Stage 1 edit list: every `erase_generic_sigs` site
+
+`grep -rn erase_generic_sigs src/` returns exactly the sites below
+(re-run it first; if new sites have appeared since this doc was
+written, convert them by the same read/write rules and note them in
+the commit body):
+
+| Site (near line) | Kind | Edit |
+|---|---|---|
+| `mod.rs:504` `pub erase_generic_sigs: bool` + its doc comment | field decl | replace with the `kind` field (snippet below) |
+| `relations.rs:130` `let comparable = self.rel.erase_generic_sigs;` | read | `let comparable = self.rel.erase_generic_sigs();` |
+| `relations.rs:1316`, `relations.rs:1437` `if self.rel.erase_generic_sigs {` | read | `if self.rel.erase_generic_sigs() {` |
+| `relations.rs:2036` `... = if self.rel.erase_generic_sigs {` | read | method call, same conversion |
+| `relations.rs:2418` `let erase = force_erase \|\| self.rel.erase_generic_sigs;` | read | method call, same conversion |
+| `infer.rs:693-696` save / set `true` / restore | the only write | kind save/restore (snippet below) |
+| `infer.rs:691` comment "gated on erase_generic_sigs" | comment | reword to "gated on `RelationKind::Comparable`" |
+
+Field replacement in `mod.rs` (doc comment rewritten for the new
+field; use the full path or add a `use`):
+
+```rust
+/// Active relation kind for the current query (tsc: which relation
+/// map a query consults). `Comparable` subsumes the old
+/// `erase_generic_sigs` flag: single-signature pairs relate with
+/// their own type parameters erased to `any` (signaturesRelatedTo
+/// `eraseGenerics = relation === comparableRelation`). Set for the
+/// duration of a `cast_comparable` query via save/restore in
+/// `infer.rs`; results go to the kind's own cache.
+pub kind: crate::checker::relations::RelationKind,
+```
+
+Write conversion in `cast_comparable` (`infer.rs`; needs
+`use crate::checker::relations::RelationKind;` or the full path):
+
+```rust
+// before                                   // after
+let saved = self.rel.erase_generic_sigs;    let saved = self.rel.kind;
+self.rel.erase_generic_sigs = true;         self.rel.kind = RelationKind::Comparable;
+/* comparable_dir both directions */        /* unchanged */
+self.rel.erase_generic_sigs = saved;        self.rel.kind = saved;
+```
+
+After converting, all three greps must return nothing:
+
+```sh
+grep -rn "\.erase_generic_sigs;" src/
+grep -rn "erase_generic_sigs =" src/
+grep -rn "erase_generic_sigs: bool" src/
+```
 
 ## Stage 0: Baseline [P]
 
@@ -69,12 +126,15 @@ impl RelationState {
 }
 ```
 
-Then `grep -rn erase_generic_sigs src/` and convert every site:
+Then convert every site in the "Stage 1 edit list" above:
 
 - reads become `self.rel.erase_generic_sigs()` (method call);
 - the save/restore in `cast_comparable` (`infer.rs`) becomes a
-  save/restore of `self.rel.kind` (`Assignable` state saved, set to
-  `Comparable`, restored after).
+  save/restore of `self.rel.kind` — save whatever the current kind
+  is, set `Comparable`, restore the SAVED value (do NOT hardcode the
+  restore to `Assignable`);
+- run the three "must return nothing" greps from the edit list before
+  building.
 
 No other logic changes. Verify:
 
@@ -111,9 +171,11 @@ pub fn relate(&mut self, kind: RelationKind, src: TypeId, tgt: TypeId) -> bool {
 ```
 
 `is_assignable_to` itself keeps its current body and its current
-meaning: "relate under the AMBIENT kind". Do not reroute its ~139
-existing call sites; they inherit the ambient kind exactly as they
-inherit `erase_generic_sigs` today. `cast_comparable` keeps its
+meaning: "relate under the AMBIENT kind". Do not reroute its ~127
+existing call sites
+(`grep -rn "is_assignable_to(" src/ | grep -v "fn is_assignable_to" | wc -l`);
+they inherit the ambient kind exactly as they inherit
+`erase_generic_sigs` today. `cast_comparable` keeps its
 bidirectional `areTypesComparable` role on top of the `Comparable`
 kind.
 
@@ -141,11 +203,42 @@ pub fn cache_mut(&mut self) -> &mut HashMap<(TypeId, TypeId), bool> {
 ```
 
 Update the get/insert sites inside `is_assignable_to`
-(`relations.rs`, near lines 131-160) to use the accessors; the
-`if comparable { comparable_cache } else { relation_cache }` branch
-disappears. Keep the top-level-only insert rule unchanged. Grep for
-any remaining `relation_cache` / `comparable_cache` references
-(doc comments in `mod.rs` included) and update them.
+(`relations.rs`, near lines 131-160). Per the "Current shape" notes,
+these are the ONLY code references to either cache, so this stage
+touches exactly two expressions plus comments:
+
+```rust
+// before (get, ~130-135; `comparable` local from Stage 1)
+let comparable = self.rel.erase_generic_sigs();
+let cached = if comparable {
+    self.rel.comparable_cache.get(&(src, tgt))
+} else {
+    self.rel.relation_cache.get(&(src, tgt))
+};
+// after
+let cached = self.rel.cache().get(&(src, tgt));
+
+// before (insert, ~155-160)
+if top_level {
+    if comparable {
+        self.rel.comparable_cache.insert((src, tgt), r);
+    } else {
+        self.rel.relation_cache.insert((src, tgt), r);
+    }
+}
+// after
+if top_level {
+    self.rel.cache_mut().insert((src, tgt), r);
+}
+```
+
+The `comparable` local has no remaining use afterwards — delete it.
+Keep the top-level-only insert rule unchanged. Then
+`grep -rn "relation_cache\|comparable_cache" src/` and update the
+leftover doc comments (the `RelationState` struct docs in `mod.rs`);
+the grep must end with zero code references to the old field names.
+`#[derive(Default)]` on `RelationState` keeps working: arrays of
+`Default` elements implement `Default`.
 
 This is byte-identical because the ambient kind is always `Assignable`
 or `Comparable`, which index exactly the two maps that existed before;
