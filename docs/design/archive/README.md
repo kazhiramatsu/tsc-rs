@@ -22,7 +22,9 @@ entry point moved elsewhere; keep for provenance.
 
 - [workstreams/parse-error-gate.md](workstreams/parse-error-gate.md)
   and [steps](workstreams/parse-error-gate-steps.md) — **parked, not
-  completed**; still a large FN lever (see the 2XXX roadmap Phase 0).
+  completed**; prerequisite for comprehensive 2XXX FN coverage (see
+  the 2XXX roadmap Phase 0 and its Grammar / Declaration owner
+  section).
 - [workstreams/relation-core-2.md](workstreams/relation-core-2.md)
   and [steps](workstreams/relation-core-2-steps.md) — **superseded**
   by `../type-checking-2xxx-roadmap.md` as the relation/2339 entry

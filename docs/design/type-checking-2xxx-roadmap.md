@@ -56,6 +56,20 @@ The distribution matters: 2XXX work is now too large to treat as a list
 of independent diagnostics. Most high-yield changes pass through a few
 shared mechanisms.
 
+Coverage audit (same snapshot, @82d0b3b — refresh before acting):
+
+- If every 2XXX divergence were fixed, the gate-filtered match rate
+  would move 66.94% → 83.53% (980 mismatch files flip). 312 further
+  files mix 2XXX with non-2XXX diffs and do not flip on 2XXX alone;
+  661 mismatch files have no 2XXX diff at all (dominated by 1XXX
+  parse recovery, 6133, and the 7XXX implicit-any family).
+- 155 gate-filtered 2XXX codes have FP = 0 and FN > 0 (924 FN total):
+  checks tsrs never emits. These are leaf-local ports, not seam work;
+  see the FN-only inventory in Phase 1.
+- The `other 2XXX` bucket above decomposes mostly into the
+  class-semantics, instantiation, and iteration owners below, plus
+  name suggestion (`TS2552`, the largest other-bucket FP at 72).
+
 ## Verdict: Can We Keep Going As-Is?
 
 Short answer: no for the central 2XXX cluster, yes for bounded
@@ -101,7 +115,7 @@ Use this map to decide where a 2XXX divergence belongs before editing.
 ### Relation / Assignability
 
 Primary codes: `TS2322`, `TS2411`, `TS2741`, `TS2740`, `TS2344`,
-`TS2415`, `TS2430`, `TS2442`, `TS2403`.
+`TS2415`, `TS2420`, `TS2430`, `TS2442`, `TS2403`.
 
 Owner modules:
 
@@ -137,7 +151,7 @@ Deep-design trigger:
 ### Member / Name / Access
 
 Primary codes: `TS2339`, `TS2538`, `TS2536`, `TS7053`, `TS2708`,
-`TS2503`, `TS2307`, `TS2693`.
+`TS2503`, `TS2307`, `TS2693`, `TS2552`.
 
 Owner modules:
 
@@ -258,7 +272,12 @@ Required design alignment:
 
 - Parser recovery and semantic gating belong with the front-end design;
   archived retrofit notes live in
-  `archive/workstreams/parse-error-gate.md`.
+  `archive/workstreams/parse-error-gate.md`. Much of this bucket's FN
+  side (and 2XXX FNs elsewhere) sits behind that gate:
+  `parser/ecmascript5` alone holds ~244 gate-filtered mismatch files
+  including ~192 2XXX FNs at @82d0b3b. Treat the parse-error gate as
+  the unlock for comprehensive 2XXX FN coverage, not as optional
+  cleanup.
 - Declaration merge fixes must preserve binder symbol identity because
   later 2XXX relation/access diagnostics consume those symbols.
 
@@ -272,6 +291,96 @@ Deep-design trigger:
 
 - a grammar fix changes which declarations enter the binder or changes
   symbol identity used by relation/member access.
+
+### Class Semantics
+
+Primary codes: `TS2337`, `TS2340`, `TS2369`, `TS2377`, `TS2445`,
+`TS2446`, `TS2526`.
+
+Owner modules:
+
+- `src/checker/classes.rs`
+- `src/checker/access.rs` (private/protected access-site checks)
+- `src/checker/functions.rs` (parameter properties)
+- binder for member symbol flags and heritage
+
+Required design alignment:
+
+- Most of this family is FN-only (2337, 2340, 2369, 2446 have zero
+  FPs): the checks do not exist yet. Each is a leaf-local port with an
+  exact tsc anchor (`checkSuperExpression`, constructor checks,
+  property-access visibility), not seam work.
+- Private/protected access-site checks must consume symbol visibility
+  and declaring-class links; do not model them as relation failures.
+  The assignability-side nominality (2415/2430/heritage) stays with
+  the relation owner.
+
+Safe current work:
+
+- FN-only ports from the Phase 1 inventory, one code per commit, with
+  focused fixtures.
+
+Deep-design trigger:
+
+- a fix requires changing member symbol identity or inherited-shape
+  symbols — that is relation/member seam territory.
+
+### Generic Instantiation / Type Construction
+
+Primary codes: `TS2313`, `TS2314`, `TS2315`, plus the instantiation
+side of `TS2344` (shared with relation).
+
+Owner modules:
+
+- `src/checker/instantiate.rs`
+- `src/checker/aliases.rs`, `src/checker/conditional.rs`
+- type-reference resolution in `src/checker/symbols.rs`
+
+Required design alignment:
+
+- Type-argument arity (2314) and circular constraints (2313) are
+  checked at type-reference resolution (tsc
+  `getTypeFromTypeReference` / `checkTypeReferenceNode`), not in the
+  relation engine. Do not bolt them onto `is_assignable_to`.
+- Circularity detection follows the resolution stack, mirroring the
+  lazy-resolution design in `checker-foundations.md`.
+
+Safe current work:
+
+- 2314 arity and 2313 circularity ports: mostly FN-only, leaf-local.
+
+Deep-design trigger:
+
+- a fix requires changing lazy resolution order or instantiation
+  caching — design against `checker-foundations.md` first.
+
+### Iteration / Destructuring Protocol
+
+Primary codes: `TS2461`, `TS2488`, `TS2493`, `TS2698` (object spread
+construction, adjacent).
+
+Owner modules:
+
+- `src/checker/iteration.rs`
+- `src/checker/stmts.rs` (for-of, destructuring statements)
+- `src/checker/exprs.rs` (array/object spread and destructuring)
+
+Required design alignment:
+
+- Mirror tsc's `getIterationTypesOfIterable` family. Recent iterable
+  work (yield-star operands, iterable destructuring assignments —
+  commits around `82d0b3b`) is the provenance and the house pattern.
+- Spread argument expansion in calls stays with the call owner.
+
+Safe current work:
+
+- 2461/2488/2493 leaf ports with iterable probes;
+- 2698 object-spread construction with a tsc `getSpreadType` anchor.
+
+Deep-design trigger:
+
+- an iterable check starts needing relation-mode distinctions or
+  candidate-local behavior.
 
 ## Cross-Cutting Invariants
 
@@ -386,7 +495,10 @@ Proceed with workstreams whose behavior does not cross 2XXX seams:
 - `destructuring-parameter-implicit-any.md`;
 - parse-error semantic gate: design parked in
   `archive/workstreams/parse-error-gate.md` — archived for shelf
-  hygiene, not completed; revive the doc when scheduling it;
+  hygiene, not completed. This one is not optional for the 2XXX goal:
+  it is the prerequisite for comprehensive 2XXX FN coverage (see the
+  Grammar / Declaration owner section). Schedule it before or
+  alongside the FN-side mining, and revive the doc when doing so;
 - lib-gap 2304: parked in `archive/workstreams/lib-gap-2304.md`, also
   not completed; mostly buys the raw metric, so check gate visibility
   before scheduling;
@@ -402,8 +514,12 @@ write a `docs/design/NOTES-<date>-2xxx.md` ledger with:
 - top 20 FP and FN codes;
 - top files per code;
 - owner bucket from this roadmap;
-- whether each top code is local, relation, call, member, flow, or
-  parser/binder.
+- whether each top code is local, relation, call, member, flow,
+  parser/binder, class semantics, instantiation, or iteration;
+- the FN-only inventory: gate-filtered 2XXX codes with FP = 0 and
+  FN > 0 (checks tsrs never emits — 155 codes / 924 FN at @82d0b3b).
+  These are leaf-local ports that can proceed in parallel with the
+  scaffolds; rank them by count and assign each an owner.
 
 Do this with the full JSON, not memory. The distribution moves after
 every successful workstream.

@@ -40,7 +40,9 @@ These constraints apply to every central 2XXX change.
 
 2. A 2XXX behavior change must name its owner before editing:
    relation, member/access, call/overload, inference, flow/operator,
-   declaration/binder, or type identity.
+   declaration/binder, class semantics, generic
+   instantiation/construction, iteration/destructuring, or type
+   identity.
 
 3. A relation behavior change must not add another mode flag to
    `is_assignable_to`. It needs the relation-kind seam first.
@@ -100,6 +102,9 @@ to need running notes. The ledger must include:
 - owner bucket;
 - whether the issue is local or shared;
 - expected seam dependency;
+- the FN-only inventory (gate-filtered FP = 0, FN > 0): checks tsrs
+  never emits, ranked by count with an owner each — these are
+  leaf-local ports, not seam work;
 - current and post-change FP/FN movement.
 
 ### B. No-Behavior Scaffolds
@@ -157,7 +162,10 @@ need the deep seams:
 - `TS2339` receiver-shape mining with one tsc member-access branch per
   fix;
 - parser/binder namespace and duplicate-declaration shape fixes;
-- grammar checks with exact tsc anchors.
+- grammar checks with exact tsc anchors;
+- missing-check ports from the FN-only inventory (class semantics,
+  instantiation, iteration, grammar families), one tsc anchor per
+  code, one code per commit.
 
 These changes should stay small enough that `NEW_FP` / `NEW_FN` can be
 explained by one owner.
@@ -255,6 +263,7 @@ Use this matrix when choosing the next implementation candidate.
 | `TS2403` dominates | Targeted redeclaration compare before global identity work. |
 | Micro probe passes but full fixture fails | Suspect cache/order/candidate mutation; build scaffold or transaction first. |
 | One local helper explains the whole diff | Local fix is acceptable; still run full golden-check. |
+| An FN-only code dominates (tsrs never emits it) | Leaf-local port with a tsc anchor and focused fixtures; no seam dependency. |
 | New movement crosses relation and call families | Treat as shared seam evidence, not noise. |
 
 ## Readiness Checklists
