@@ -760,6 +760,13 @@ impl<'a> Checker<'a> {
         {
             return true;
         }
+        if (self.is_global_function_interface_type(src)
+            && self.type_has_call_or_construct_sigs(tgt))
+            || (self.is_global_function_interface_type(tgt)
+                && self.type_has_call_or_construct_sigs(src))
+        {
+            return true;
+        }
         if let TypeKind::Intersection(ms) = self.types.kind(src) {
             let mut ms = ms.clone();
             // tsc: comparable + primitive target → substitute type params
@@ -798,6 +805,26 @@ impl<'a> Checker<'a> {
             return ms.iter().all(|&m| self.comparable_dir(src, m));
         }
         self.is_assignable_to(src, tgt)
+    }
+
+    fn is_global_function_interface_type(&self, t: TypeId) -> bool {
+        let Some(function_sym) = self.global_type_symbol("Function") else {
+            return false;
+        };
+        match self.types.kind(t) {
+            TypeKind::Iface(sym) | TypeKind::Ref(sym, _) | TypeKind::MappedIface(sym, _) => {
+                *sym == function_sym
+            }
+            _ => false,
+        }
+    }
+
+    fn type_has_call_or_construct_sigs(&mut self, t: TypeId) -> bool {
+        let Some(shape) = self.shape_of_type(t) else {
+            return false;
+        };
+        let shape = self.types.shape(shape);
+        !shape.call_sigs.is_empty() || !shape.ctor_sigs.is_empty()
     }
 
     /// tsc TypeFlags.Primitive projection for the comparable collapse rule
