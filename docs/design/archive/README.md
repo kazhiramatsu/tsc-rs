@@ -21,10 +21,14 @@ numbers) when scheduling it. **superseded** = its role as a design
 entry point moved elsewhere; keep for provenance.
 
 - [workstreams/parse-error-gate.md](workstreams/parse-error-gate.md)
-  and [steps](workstreams/parse-error-gate-steps.md) — **parked, not
-  completed**; prerequisite for comprehensive 2XXX FN coverage (see
-  the 2XXX roadmap Phase 0 and its Grammar / Declaration owner
-  section).
+  and [steps](workstreams/parse-error-gate-steps.md) — **parked,
+  first tranche landed**: commit `5412cb1` (2026-07-07) shipped the
+  paired non-LHS `=` recovery + statement-level un-gating, so the
+  doc's "tsrs drops ALL semantics on any parse error" premise and its
+  yield numbers are STALE — refresh before reviving. The residue
+  (recovery-profile parity, node-level gate granularity, FN-only
+  grammar checks) is mapped in `../non-2xxx-blockers.md` owner 1;
+  still the prerequisite for comprehensive 2XXX FN coverage.
 - [workstreams/relation-core-2.md](workstreams/relation-core-2.md)
   and [steps](workstreams/relation-core-2-steps.md) — **superseded**
   by `../type-checking-2xxx-roadmap.md` as the relation/2339 entry

@@ -27,6 +27,9 @@ Related focused docs:
 - `architectural-debt.md`: known targeted debts such as 2403 identity,
   StringMapping, and inference widening order.
 - `stall-playbook.md`: when local work has hit an architecture ceiling.
+- `non-2xxx-blockers.md`: the blocker map for everything outside the
+  2XXX band (parser recovery/gate residue, implicit-any, unused band,
+  and the smaller families); owns the 312 mixed-file co-blockers.
 
 ## Current Snapshot
 
@@ -493,12 +496,15 @@ This sequence keeps local yield and deep refactors aligned.
 Proceed with workstreams whose behavior does not cross 2XXX seams:
 
 - `destructuring-parameter-implicit-any.md`;
-- parse-error semantic gate: design parked in
-  `archive/workstreams/parse-error-gate.md` — archived for shelf
-  hygiene, not completed. This one is not optional for the 2XXX goal:
-  it is the prerequisite for comprehensive 2XXX FN coverage (see the
-  Grammar / Declaration owner section). Schedule it before or
-  alongside the FN-side mining, and revive the doc when doing so;
+- parse-error semantic gate: first tranche LANDED at `5412cb1`
+  (non-LHS `=` recovery + statement-level un-gating); the parked
+  design in `archive/workstreams/parse-error-gate.md` predates that
+  commit and needs its premises refreshed before reviving. The
+  residue (recovery parity, node-level granularity — mapped in
+  `non-2xxx-blockers.md` owner 1) is still not optional for the 2XXX
+  goal: it remains the prerequisite for comprehensive 2XXX FN
+  coverage (see the Grammar / Declaration owner section). Schedule it
+  before or alongside the FN-side mining;
 - lib-gap 2304: parked in `archive/workstreams/lib-gap-2304.md`, also
   not completed; mostly buys the raw metric, so check gate visibility
   before scheduling;

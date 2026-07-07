@@ -37,6 +37,10 @@ roadmaps, and completed step guides live under `archive/`.
 - [type-checking-2xxx-execution-plan.md](type-checking-2xxx-execution-plan.md):
   readiness checks, dependency order, and stop conditions for entering
   central 2XXX behavior work.
+- [non-2xxx-blockers.md](non-2xxx-blockers.md): the blocker map for
+  everything outside the 2XXX band — parser recovery/parse-error gate
+  residue, implicit-any 7XXX, unused band, 18XXX sub-families,
+  override 4XXX, 17XXX, suggestion families, lib axis, and infra.
 - [relation-kind-facade-steps.md](relation-kind-facade-steps.md):
   byte-identical implementation steps for the `RelationKind` facade
   scaffold. Move to `archive/` when it lands.
