@@ -120,9 +120,10 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// 7032/7033: accessor signatures derive their property type from the
-    /// getter when possible; otherwise a setter without an annotated value
-    /// parameter leaves the property as implicit any.
+    /// 7032/7033: accessor signatures derive their property type from an
+    /// annotated getter/body or setter parameter. Getter-only declarations that
+    /// provide no type report 7033; setter declarations report 7032 only when
+    /// the accessor pair provides no property type.
     fn check_accessor_implicit_any(&mut self, c: &'a ClassDecl) {
         use std::collections::HashMap as Map;
 
@@ -135,9 +136,15 @@ impl<'a> Checker<'a> {
             })
         }
 
-        fn is_private_name(name: &PropName) -> bool {
-            matches!(name, PropName::Ident(id) if id.name.starts_with('#'))
-        }
+        let accessor_key = |this: &Self, name: &PropName| -> Option<String> {
+            match name {
+                PropName::Computed { .. } => {
+                    let display = this.display_prop_name_for_error(name);
+                    (!display.is_empty()).then_some(display)
+                }
+                _ => name.text(),
+            }
+        };
 
         let mut pairs: Map<(String, bool), (Option<&'a FunctionLike>, Option<&'a FunctionLike>)> =
             Map::new();
@@ -149,10 +156,7 @@ impl<'a> Checker<'a> {
             let Some(name) = f.name.as_ref() else {
                 continue;
             };
-            if is_private_name(name) {
-                continue;
-            }
-            let Some(text) = name.text() else {
+            let Some(text) = accessor_key(self, name) else {
                 continue;
             };
             let is_static = has_modifier(&f.modifiers, ModifierKind::Static);
@@ -168,8 +172,11 @@ impl<'a> Checker<'a> {
             let getter_has_type = getter
                 .map(|g| g.return_type.is_some() || g.body.is_some())
                 .unwrap_or(false);
+            let setter_has_type = setter
+                .and_then(|s| value_param(s).and_then(|p| p.ty.as_ref()))
+                .is_some();
             if let Some(g) = getter {
-                if !getter_has_type {
+                if !getter_has_type && setter.is_none() {
                     if let Some(name) = &g.name {
                         let display_name = self.display_prop_name_for_error(name);
                         if self.report_once_node(7033, node_key(g)) {
@@ -190,26 +197,23 @@ impl<'a> Checker<'a> {
                     }
                 }
             }
-            if !getter_has_type {
+            if !getter_has_type && !setter_has_type {
                 if let Some(s) = setter {
-                    let setter_has_type = value_param(s).and_then(|p| p.ty.as_ref()).is_some();
-                    if !setter_has_type {
-                        if let Some(name) = &s.name {
-                            let display_name = self.display_prop_name_for_error(name);
-                            if self.report_once_node(7032, node_key(s)) {
-                                if self.options.no_implicit_any() {
-                                    self.error_at(
-                                        name.span(),
-                                        &gen::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
-                                        &[display_name],
-                                    );
-                                } else {
-                                    self.suggestion_at(
-                                        name.span(),
-                                        &gen::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
-                                        &[display_name],
-                                    );
-                                }
+                    if let Some(name) = &s.name {
+                        let display_name = self.display_prop_name_for_error(name);
+                        if self.report_once_node(7032, node_key(s)) {
+                            if self.options.no_implicit_any() {
+                                self.error_at(
+                                    name.span(),
+                                    &gen::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
+                                    &[display_name],
+                                );
+                            } else {
+                                self.suggestion_at(
+                                    name.span(),
+                                    &gen::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
+                                    &[display_name],
+                                );
                             }
                         }
                     }

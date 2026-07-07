@@ -1367,6 +1367,40 @@ mod tests {
     }
 
     #[test]
+    fn class_computed_and_private_setters_report_implicit_any() {
+        let opts = CompilerOptions {
+            strict: Some(false),
+            diag_json: true,
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![InputFile {
+                name: "main.ts".to_string(),
+                text: r#"
+declare const key: string;
+class C {
+    set [key](v) { }
+    set #x(v) { }
+}
+
+abstract class A {
+    abstract get typedPair();
+    abstract set typedPair(v: number);
+    abstract get loosePair();
+    abstract set loosePair(v);
+}
+"#
+                .to_string(),
+            }],
+            &opts,
+        );
+
+        assert_eq!(out.matches("\"code\":7032").count(), 3, "{out}");
+        assert!(!out.contains("\"code\":7033"), "{out}");
+    }
+
+    #[test]
     fn computed_object_members_use_index_signature_context() {
         let opts = CompilerOptions {
             strict: Some(true),
