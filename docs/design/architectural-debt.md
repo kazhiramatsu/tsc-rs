@@ -133,4 +133,5 @@ infer.rs's covariant-inference comment (guard against re-breaking it).
   two suppressions in `reportable_namespace_name_span`; the real fix is
   scanner + `nextTokenIsIdentifierOrStringLiteralOnSameLine` mirroring,
   coupled to the parse-error-gate work (same recovery-profile risk).
-  Fold into parse-error-gate.md scope if that lands first.
+  Historical retrofit notes live in
+  `archive/workstreams/parse-error-gate.md`.

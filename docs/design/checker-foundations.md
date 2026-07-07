@@ -380,9 +380,10 @@ Design decisions:
 - **createUnionOrIntersectionProperty** (59100): how a property is
   synthesized across union/intersection members (optional-flag
   combination, `getTargetSymbol` identity for the nominal-privacy
-  check that relation-core-2 needs). Port `getTargetSymbol` here — it is
+  check that the archived relation-core notes identified). Port
+  `getTargetSymbol` here — it is
   the origin-symbol accessor the assignable-side nominality work
-  (relation-core-2-steps STAGE N) depends on.
+  (archive/workstreams/relation-core-2-steps.md STAGE N) depends on.
 
 ---
 

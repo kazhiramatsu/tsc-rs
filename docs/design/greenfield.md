@@ -490,5 +490,6 @@ with review.
 The single most load-bearing scheduling fact, learned here: **M1's
 parser-with-tsc-recovery is the foundation everything else prices
 in.** The current repo did M1 approximately and has been paying the
-parse-error-gate + recovery-profile tax ever since. In a rebuild it is
+parse-error-gate + recovery-profile tax ever since (archived retrofit
+notes live in `archive/workstreams/parse-error-gate.md`). In a rebuild it is
 the first thing done exactly.

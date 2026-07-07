@@ -358,7 +358,8 @@ The current tsrs relation-core-1 added a SIMPLIFIED constraint clamp
 (`relations.rs`, "clamps an inference to the parameter's constraint")
 that just replaces with the constraint. The full version above (filter
 for ReturnType priority, fallback-then-constraint) is the real thing —
-port it when doing inference fidelity (relation-core-2-steps STAGE I).
+port it when doing inference fidelity (historical notes:
+archive/workstreams/relation-core-2-steps.md STAGE I).
 
 ### 2.3 inferTypeArguments — contextual return inference — tsc 75938
 

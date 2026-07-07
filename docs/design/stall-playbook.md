@@ -7,13 +7,14 @@ know about, each with a symptom signature and a migration design,
 (3) fixes the house style for large refactors (the pattern that already
 worked twice) so a big rework doesn't regress the sweep.
 
-Baseline for calibration: as of @3242fdc the sweep has moved
+Historical baseline for calibration: as of @3242fdc the sweep had moved
 gate-filtered conformance 50.4% → 62.35% in ~4 days of sessions with
 zero shipped regressions. Historical per-workstream yield: operator
 sweep −1,063 FPs, relation-core-1 −140 FPs, unused sweep ≈ −500 FPs +
 1,200 adds. Expect yields of that ORDER while the mapped workstreams
 (parse-error gate, relation-core-2, lib-gap) remain; a stall before
-those are done is an execution problem, not an architecture problem.
+those mapped workstreams remained was an execution problem, not an
+architecture problem.
 
 ## 1. Stall detection & attribution
 
@@ -133,7 +134,8 @@ not from arrival order.
   `widen_literal` / `widen_fresh` call site (~grep count as of
   @3242fdc: small, <30) and classify each against the tsc rule it
   should implement; replace order-dependent ones with the rule
-  (relation-core-2-steps.md STAGE I covers the inference instance).
+  (archive/workstreams/relation-core-2-steps.md STAGE I covers the
+  historical inference instance).
 - Add a determinism check to CI: run 20 fixtures BOTH whole and
   bisected (first half only) and assert the shared prefix's
   diagnostics agree. Cheap harness, catches the whole class.
@@ -243,7 +245,7 @@ codified here as requirements for any §2 remedy:
    double-maintains.
 5. Every stage lands on main only when its OWN gates pass; long
    migrations ride a feature branch with the SERIES gate at the end
-   (parse-error-gate precedent).
+   (archived parse-error-gate precedent).
 6. Determinism check (`verify.sh mf`) is mandatory for anything
    touching flow, worker transport, or output ordering.
 

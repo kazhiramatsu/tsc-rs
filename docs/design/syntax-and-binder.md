@@ -7,7 +7,8 @@ recovery + error flags), and the symbol/scope/flow tables. The
 milestone lesson from greenfield §12 bears repeating: **M1's
 parser-with-tsc-recovery is the foundation everything downstream prices
 in** — the current repo approximated it and pays the parse-error-gate
-tax (parse-error-gate.md) to this day. In a rebuild these are done
+tax (archive/workstreams/parse-error-gate.md) to this day. In a rebuild
+these are done
 exactly, first.
 
 Same rule: PORT the tsc source. Line anchors are vendored tsc 6.0.3.
@@ -74,7 +75,8 @@ parser asks it to re-scan the current token differently:
 DESIGN DECISION for the port: reScan mutates the scanner in place from
 `token_start`; it must be idempotent and cheap. The current tsrs
 already has `reScanGreaterToken` (used in the non-LHS-`=` recovery work,
-parse-error-gate-steps §1). A rebuild ports the whole family — several
+archive/workstreams/parse-error-gate-steps.md §1). A rebuild ports the
+whole family — several
 are needed for correct type-argument / regex / template parsing.
 
 ### 1.4 Speculation — `speculationHelper` 11099
@@ -119,7 +121,8 @@ pos/end and the parse-error flag).
 - **`parseErrorBeforeNextFinishedNode`**: when a parse error is
   reported, this flag is set; the NEXT `finishNode` transfers it to the
   node as `NodeFlags.ThisNodeHasError`. This is the mechanism that
-  makes `containsParseError` work (checker-foundations / parse-error-gate.md)
+  makes `containsParseError` work (checker-foundations /
+  archive/workstreams/parse-error-gate.md)
   — the flag propagates to ancestors via `ThisNodeOrAnySubNodesHasError`.
   A rebuild gets per-node parse-error gating FOR FREE by porting this;
   the current tsrs lacks it and approximates with the whole-file gate.
@@ -158,7 +161,8 @@ fn parse_binary_expression_rest(&mut self, precedence: u8, mut left: Node, pos: 
 - `getBinaryOperatorPrecedence` returns 0 for non-operators (loop
   exits). The `>` vs `>=` associativity split for `**` and the
   reScanGreater-per-iteration are the two easy-to-miss correctness bits.
-- **The non-LHS `=` recovery** (parse-error-gate.md §A) lives in
+- **The non-LHS `=` recovery**
+  (archive/workstreams/parse-error-gate.md §A) lives in
   `parseAssignmentExpressionOrHigher` (which calls
   parseBinaryExpressionOrHigher then checks
   `isLeftHandSideExpression(left) && isAssignmentOperator(reScanGreater())`).
@@ -172,7 +176,7 @@ fn parse_binary_expression_rest(&mut self, precedence: u8, mut left: Node, pos: 
 
 Every comma/semicolon/brace-delimited construct goes through
 `parseDelimitedList` (30428) or `parseList`. The recovery behavior here
-IS the parser's error tolerance, and it is what the parse-error-gate
+IS the parser's error tolerance, and it is what the archived parse-error-gate
 work must interoperate with.
 
 ```rust
@@ -213,7 +217,7 @@ fn parse_delimited_list(&mut self, kind: ParsingContext, parse_element: impl Fn(
   returns true to ABORT this list and let the outer context handle the
   token; otherwise skips one token and continues. This nested-context
   awareness is what lets `[a, {b: , c]` recover sanely. THE recovery
-  engine; the parse-error-gate work reads the RESULT of this.
+  engine; the archived parse-error-gate work reads the RESULT of this.
 - The `start == token_full_start ⇒ next_token()` guard is the
   no-infinite-loop backstop (force progress when a bad element didn't
   consume anything).
@@ -381,5 +385,5 @@ everything:
 
 The parse-error flag (2) and the declareSymbol merge (3) are the two
 front-end ports that, done right, DELETE whole classes of downstream
-work the current repo still carries (parse-error-gate.md and the
+work the current repo still carries (archive/workstreams/parse-error-gate.md and the
 overload-merge family respectively).

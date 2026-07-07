@@ -17,7 +17,7 @@ are collected pre-emit). tsrs mirrors this via
 and `unused_suggestion_emit_suppressed` (honors noEmit /
 preserveConstEnums) in the checker. If a suggestion-band FP/FN makes
 no sense, CHECK EMIT-MARKING FIRST. The es5-async transform is the
-suspected next instance (u6-unused-fp.md root cause B).
+suspected next instance (archive/workstreams/u6-unused-fp.md root cause B).
 
 ## 2. Suggestion vs error band
 
@@ -68,15 +68,17 @@ deliberately deferred. Do not re-diagnose from scratch.)
   from the scanner). Two suppressions live in
   `reportable_namespace_name_span` (name == "debugger", cross-line
   namespace names); the real lookahead fix is coupled to parser
-  recovery (parse-error-gate work) — remove the suppressions when that
+  recovery (archive/workstreams/parse-error-gate.md work) — remove the suppressions when that
   lands.
 - **Dotted-namespace flattening**: `namespace a.b.c` parses as ONE
   NamespaceDecl (name = first part). Causes 2339/2708 FPs and
-  shadowedInternalModule phantoms. Design: relation-core-2.md §A.4.
+  shadowedInternalModule phantoms. Design provenance:
+  archive/workstreams/relation-core-2.md §A.4.
 - **Documented FNs** (accepted): unknownControlFlow fx2/fx4 (anon-`{}`
   declaration identity — stall-playbook §2.3);
   typeArgumentsWithStringLiteralTypes01 (order-dependent literal
-  widening — stall-playbook §2.2 / relation-core-2-steps STAGE I).
+  widening — stall-playbook §2.2 /
+  archive/workstreams/relation-core-2-steps.md STAGE I).
 
 ## 5. Harness & corpus facts
 
@@ -123,8 +125,9 @@ deliberately deferred. Do not re-diagnose from scratch.)
 - `Signature.from_method` = declared as class/interface METHOD (tsc
   strictVariance keys on the TARGET declaration kind).
 - Private/protected nominality (2325/2442) enforced in the per-prop
-  loop COMPARABLE-MODE ONLY (see relation-core-2-steps STAGE N for the
-  assignable-side plan).
+  loop COMPARABLE-MODE ONLY (see
+  archive/workstreams/relation-core-2-steps.md STAGE N for the
+  historical assignable-side plan).
 - Assignment narrowing (flow resolver `assigned_type`): union declared
   → getAssignmentReducedType filter; auto query → widened RHS;
   everything else → DECLARED. Pinned by oracle probe

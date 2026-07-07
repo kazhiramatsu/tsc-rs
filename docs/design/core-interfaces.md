@@ -253,7 +253,7 @@ nodes reached by multiple paths — the shared-flow cache keys on it.
 ```
 
 Rust (the current tsrs `InferenceInfo` LACKS `topLevel`/`isFixed` —
-adding them is a relation-core-2 prerequisite, checker-key §2.1):
+adding them is a relation-core prerequisite, checker-key §2.1):
 
 ```rust
 struct InferenceInfo {
@@ -350,7 +350,7 @@ struct CompilerOptions {
     no_unused_locals, no_unused_parameters: Option<bool>,
     no_implicit_returns, no_fallthrough_cases_in_switch: Option<bool>,
     exact_optional_property_types: Option<bool>,
-    target: Option<String>,   // ScriptTarget — gates lib layer (lib-gap-2304) + downlevel
+    target: Option<String>,   // ScriptTarget — gates lib layer + downlevel
     lib: Option<Vec<String>>,
     module: Option<String>,   // ModuleKind — gates module semantics
     // …emit options mostly irrelevant to diagnostics, EXCEPT:
@@ -360,8 +360,10 @@ struct CompilerOptions {
 
 - `strict` expands to the family unless a member is set explicitly —
   port the expansion (`getStrictOptionValue`).
-- `target` gates lib inclusion (lib-gap-2304.md) AND downlevel
-  diagnostics (es5-async, the U6 root cause B, u6-unused-fp.md).
+- `target` gates lib inclusion (archived notes:
+  `archive/workstreams/lib-gap-2304.md`) AND downlevel diagnostics
+  (es5-async, the U6 root cause B,
+  `archive/workstreams/u6-unused-fp.md`).
 - `no_emit`/`preserve_const_enums`/`emit_declaration_only` interact with
   the suggestion-band emit-marking (knowledge-base §1).
 

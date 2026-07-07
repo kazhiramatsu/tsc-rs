@@ -1,256 +1,68 @@
-# Convergence roadmap & working protocol
+# Design index
 
-Status as of 2026-07-06, main @3242fdc.
-Absolute conformance (all 5907 fixtures vs the real tsc 6.0.3 oracle):
-**raw exact-match 60.52% / gate-filtered 62.35%**, FP 5,231 / FN 7,806
-(`/tmp/fcc_rc1.json`; regenerate with the command below — /tmp is ephemeral).
+`docs/design` is the place for durable design: north-star architecture,
+deep checker seams, and active designs that should guide future
+implementation. Tactical workstream plans, old snapshot-specific
+roadmaps, and completed step guides live under `archive/`.
 
-This directory is the implementation-ready design set for the remaining
-high-impact workstreams. Each doc is written so that an agent with no
-session context can implement it. **Read this file first — the working
-protocol below is not optional; it is how this project avoids shipping
-regressions.**
+## How to Use This Directory
 
-## Start here — pick your path
+- Start with the smallest design that owns the subsystem you are about
+  to change.
+- Read the referenced tsc anchors and probe before changing behavior.
+- Keep implementation checklists close to the design while they are
+  active, then move stale or completed checklists into `archive/`.
+- Do not add broad local patches to 2XXX behavior without reading the
+  2XXX roadmap first.
 
-There are two kinds of task. Read ONLY the path for yours; the other
-docs are reference, pulled in as those paths tell you to.
+## Core Architecture
 
-**Path A — improve the EXISTING checker (the normal task).** You are
-raising conformance by fixing FPs/FNs in the current Rust code.
-1. Read the "Working protocol" section below (in this file).
-2. Read [EXECUTION-GUIDE.md](EXECUTION-GUIDE.md) — the literal step
-   loop, FP-triage procedure, and stop conditions. Non-negotiable.
-3. Pick a workstream from the priority table below. Read its
-   `<name>.md` (design) then `<name>-steps.md` (numbered steps).
-4. Keep [knowledge-base.md](knowledge-base.md) and
-   [tsc-source-guide.md](tsc-source-guide.md) open — consult them
-   whenever a probe confuses you or you need a tsc line anchor.
-5. Follow the loop. Commit only at 0 NEW_FP. Leave a `NOTES-*.md` at
-   any stop condition. Do NOT read the rebuild docs (core-interfaces,
-   checker-*, greenfield) for this path unless a step sends you there.
+- [greenfield.md](greenfield.md): from-scratch north-star architecture
+  and rebuild trigger conditions.
+- [core-interfaces.md](core-interfaces.md): data contracts for nodes,
+  symbols, types, signatures, flow, diagnostics, and options.
+- [syntax-and-binder.md](syntax-and-binder.md): scanner, parser,
+  recovery, binder, symbol merge, and flow graph construction.
+- [checker-foundations.md](checker-foundations.md): lazy resolution,
+  check ordering, contextual typing, type construction, widening,
+  instantiation, and member access.
+- [checker-key-functions.md](checker-key-functions.md): relation,
+  inference, overload, and flow algorithms.
 
-**Path B — rebuild a subsystem from scratch (rare, opt-in).** You are
-replacing a subsystem (or the whole checker) with a fresh tsc-faithful
-port, because stall-playbook attribution justified it.
-1. Read [greenfield.md](greenfield.md) — the architecture verdict,
-   crate layout, and especially §10 (strangler adoption) and §11 (when
-   a rebuild is actually justified — check you qualify).
-2. Read [core-interfaces.md](core-interfaces.md) — the data contracts
-   and the must-match-vs-may-differ table.
-3. Read the algorithm docs for the subsystem you are porting:
-   [syntax-and-binder.md](syntax-and-binder.md) (front end),
-   [checker-foundations.md](checker-foundations.md) (type computation,
-   contextual typing, construction), [checker-key-functions.md](checker-key-functions.md)
-   (relation/inference/overload/flow).
-4. Follow the greenfield §12 milestone gates AND the same 0-NEW_FP
-   working protocol below — a rebuild is still classifier-gated
-   step by step (stall-playbook §3 house style).
+## Active Deep Designs
 
-If you were handed a task with no path specified, it is almost always
-Path A. When in doubt, do Path A.
+- [type-checking-2xxx-roadmap.md](type-checking-2xxx-roadmap.md):
+  cross-workstream design for 2XXX diagnostics and the local-vs-deep
+  architecture decision boundary.
+- [candidate-call-resolution.md](candidate-call-resolution.md):
+  transactional call-candidate design for `TS2345`, `TS2554`,
+  `TS2769`, and `TS2349`.
+- [destructuring-parameter-implicit-any.md](destructuring-parameter-implicit-any.md):
+  leaf-level `TS7031` design for destructuring parameters.
+- [destructuring-parameter-implicit-any-steps.md](destructuring-parameter-implicit-any-steps.md):
+  current implementation steps for the `TS7031` design. Move this to
+  `archive/` when the workstream lands or becomes stale.
+- [architectural-debt.md](architectural-debt.md): targeted debt items
+  that should be implemented only when a workstream proves they block
+  meaningful progress.
+- [stall-playbook.md](stall-playbook.md): how to detect an architecture
+  stall and choose the right deeper migration.
 
-Document map:
-- **[EXECUTION-GUIDE.md](EXECUTION-GUIDE.md)** — the operating manual
-  for implementing agents (step loop, FP triage, stop conditions, hard
-  prohibitions). Low-capability agents follow it LITERALLY.
-- `<workstream>.md` — the design (why + architecture + tsc anchors).
-- `<workstream>-steps.md` — numbered implementation steps with code
-  skeletons, per-step verification commands, expected outputs, and
-  difficulty labels ([M] mechanical / [P] probe-first / [T] triage-
-  heavy). Weak models execute the [M]/[P] steps and STOP at the marked
-  stop-points in [T] stages.
-- `NOTES-*.md` — reports produced by implementing agents (mining
-  tables, stop-notes). Never deleted, only appended.
-- **[knowledge-base.md](knowledge-base.md)** — pinned non-obvious facts
-  (oracle emit artifact, standing families with known root causes,
-  probe noise, harness gotchas, relation-engine invariants, tooling
-  landmines). Check it BEFORE investigating any confusing FP/FN.
-- **[tsc-source-guide.md](tsc-source-guide.md)** — how to read the
-  vendored `_tsc.js` (techniques, verified function/line index for
-  this build, checkMode bits, structural facts confirmed so far).
-- **[core-interfaces.md](core-interfaces.md)** — the DATA CONTRACTS:
-  the actual tsc interface definitions (Node, Symbol, Type, Signature,
-  FlowNode, InferenceInfo, Diagnostic, CompilerOptions, the check-program
-  API) with their Rust mappings, and an observability table stating
-  field-by-field what MUST match tsc (identity, order, diagnostic shape)
-  versus what MAY differ (allocation ids, caches). Read this to know the
-  shape of everything the algorithm docs read and write.
-- **[checker-key-functions.md](checker-key-functions.md)** —
-  implementation-grade porting notes for the load-bearing algorithms:
-  the relation engine (`isTypeRelatedTo`/`recursiveTypeRelatedTo` with
-  the maybe-stack/Ternary caching), inference (`getInferredType`/
-  `getCovariantInference` with the exact widenLiteralTypes rule),
-  overload resolution (`resolveCall`/`chooseOverload` with the two-pass
-  relation + inference re-run), and control-flow analysis
-  (`getFlowTypeOfReference`/`getTypeAtFlowNode` walk, the FlowType
-  incomplete-bit loop fixpoint, `narrowType` dispatch,
-  `isMatchingReference`, `isReachableFlowNode`). Rust-shaped skeletons
-  mirroring the real control flow, with tsc line anchors and the
-  current-tsrs gap. Read alongside greenfield §4–5 (data model) and
-  stall-playbook §2.1.
-- **[checker-foundations.md](checker-foundations.md)** — the machinery
-  UNDER those four algorithms, where the load-bearing DESIGN DECISIONS
-  live: lazy type computation + the `pushTypeResolution` cycle stack,
-  the check driver's eager/deferred two-phase ordering (why resolution
-  order is observable), contextual typing (`getContextualType`), type
-  construction/normalization (`getUnionType`/`getIntersectionType` incl.
-  the identity-dedup that structural interning can't reproduce),
-  widening + fresh literals, `instantiateType`/TypeMapper, and member
-  access (`getApparentType`/`resolveStructuredTypeMembers`/
-  `getTargetSymbol`). Prerequisites for checker-key-functions; maps into
-  the greenfield milestones.
-- **[syntax-and-binder.md](syntax-and-binder.md)** — the FRONT END that
-  runs before the checker: the scanner (`scan` dispatch, the
-  context-sensitive `reScan` family, `speculationHelper` backtracking),
-  the parser (the Pratt binary-expression loop, list-parsing recovery
-  `parseDelimitedList`/`isListTerminator`/`abortParsingListOrMoveToNextToken`,
-  and the `ThisNodeHasError` parse-error flag that makes per-node gating
-  free), and the binder (`declareSymbol` merge engine with includes/
-  excludes masks, locals-vs-exports, `getContainerFlags` scope tree,
-  flow-graph construction, strict mode). The two ports that DELETE
-  downstream work: the parse-error flag (retires parse-error-gate.md)
-  and the declareSymbol merge (retires the overload-merge family).
-- **[stall-playbook.md](stall-playbook.md)** — strategic layer: how to
-  detect/attribute a convergence stall, the catalog of architectural
-  ceilings (relation-engine Ternary×5, resolution-order freshness,
-  declaration-identity types, instantiation depth, module infra,
-  strict-mode frontier) each with symptom signature + migration design,
-  and the mandatory house style for big refactors. Consult it whenever
-  two consecutive workstreams under-deliver, and BEFORE starting any
-  refactor larger than one subsystem.
-- **[greenfield.md](greenfield.md)** — the from-scratch design at
-  implementation grade: architecture verdict (tsc-shaped core, with
-  the empirical argument), workspace/crate layout, concrete core types
-  (allocation-identity Type model with tsc's exact interning surface,
-  links tables with the one-write/speculation rule, Ternary×5 relation
-  engine, tsc-bit-compatible generated flags/SyntaxKind), diagnostics
-  pipeline (emit-free suggestion band), the day-1 harness (program.json
-  /diagnostics.json schemas, oracle process pool, in-repo goldens,
-  T0–T4 ratchets, invariant suite, differential fuzzer with reducer),
-  port-ledger tooling, performance/determinism budget, the strangler
-  adoption map into THIS repo (§10), rebuild-trigger conditions (§11),
-  and a milestone plan M0–M9 with measurable acceptance gates (§12).
-  Read §10–§11 before proposing any rewrite.
+## Reference and Process
 
-## Priority table (expected yield, highest first)
+- [EXECUTION-GUIDE.md](EXECUTION-GUIDE.md): implementation loop,
+  verification rules, and FP/FN triage procedure.
+- [knowledge-base.md](knowledge-base.md): pinned non-obvious facts and
+  standing pitfalls.
+- [tsc-source-guide.md](tsc-source-guide.md): how to navigate the
+  vendored `_tsc.js` source.
 
-| # | Workstream | Design | Steps | Standing damage | Expected yield |
-|---|-----------|--------|-------|-----------------|----------------|
-| 1 | Parse-error semantic gate + non-LHS `=` recovery (PAIRED — do together) | [parse-error-gate.md](parse-error-gate.md) | [steps](parse-error-gate-steps.md) | whole-file FN flips: every fixture with ≥1 syntax error loses ALL semantic diags (6133×387 mostly here, 1005×125, 1109×80, parserRealSource11 alone = 87 FN) | largest single FN lever; hundreds of file flips |
-| 2 | Relation-core 2: 2339 mining + assignable-side private nominality | [relation-core-2.md](relation-core-2.md) | [steps](relation-core-2-steps.md) | 2339 = FP #1 (529), 2322 #2 (483), 2345 #3 (357); nominality FPs 2415/2430/2445 mapped | few hundred FPs |
-| 3 | lib-gap axis (2304) | [lib-gap-2304.md](lib-gap-2304.md) | [steps](lib-gap-2304-steps.md) | 2304 = FN #1 (1,622 raw; partially excluded from the gate-filtered metric) | raw-metric heavy; moderate filtered yield |
-| 4 | U6: unused-FP finish | [u6-unused-fp.md](u6-unused-fp.md) (buckets + root causes A/B/C inside) | FP 6133 = 156 | small, self-contained; best FIRST workstream for a new agent | ~100 FPs |
-| 5 | Architectural debt (do only when a workstream is blocked on it) | [architectural-debt.md](architectural-debt.md) | anon-`{}` identity, StringMapping kind, inference widen ordering, 2403 mapped-identity (276) | unblocks documented FNs |
+## Archive
 
-## Working protocol (MANDATORY)
+- [archive/README.md](archive/README.md): archived roadmaps and
+  snapshot-specific workstreams.
+- [archive/convergence-roadmap-2026-07.md](archive/convergence-roadmap-2026-07.md):
+  old 2026-07 convergence roadmap and priority table.
 
-### Environment
-
-- Repo: `/Users/hiramatsu/dev/tsc-rs`. Oracle: `oracle/` (tsc 6.0.3,
-  vendored; read `oracle/node_modules/typescript/lib/_tsc.js` for tsc
-  source-of-truth). Corpus: `ts-tests/` (5,907 conformance fixtures).
-- `scripts/bootstrap.sh` re-provisions everything under `/tmp`
-  (chunk lists `/tmp/chunk{1,2,3,_tail}.txt`, golden
-  `/tmp/golden_diag.txt`). /tmp is wiped on reboot — if the golden is
-  missing, run bootstrap, then IMMEDIATELY refresh the golden from the
-  CURRENT commit (`./verify.sh golden-save`) so the baseline matches HEAD.
-- **Never override oracle-script parallelism.** Run
-  `full_conformance_compare.py` / `parallel_classify.py` with their
-  defaults (no `TSRS_CLASSIFY_JOBS` in the environment), in the
-  background. `TSRS_JOBS=1` (the tsrs checker's own default) is a
-  separate knob; leave it alone too.
-- macOS: no `timeout`/`gtimeout`; `sed -n "A,+Np"` is unsupported (BSD
-  sed) — use explicit ranges.
-
-### The gate — nothing lands without it
-
-1. Build: `cargo build --release` (probe and verify use
-   `target/release/tsrs`; a stale binary silently invalidates every probe).
-2. Tests: `cargo test --release` — 89 integration tests, all green.
-3. Classifier: `./verify.sh golden-check` (background; takes minutes).
-   **0 NEW_FP is a hard gate.** NEW_FN does not fail the script but the
-   sweep standard is 0/0; every accepted NEW_FN must be root-caused and
-   documented in the commit message (see "documented FNs" below).
-4. Flow-affecting changes additionally: `./verify.sh mf`
-   (worker-transport byte-identity across jobs 1–16).
-5. `cargo fmt` before committing. Commit. THEN `./verify.sh golden-save`
-   to refresh the golden to the committed output.
-6. Re-measure absolutes when a workstream completes:
-   `python3 scripts/full_conformance_compare.py --snapshot /tmp/golden_diag.txt --lib lib/lib.tsrs.d.ts --out-json /tmp/fcc_X.json --out-txt /tmp/fcc_X.txt`
-   (serial ≈ 15 min, default-parallel ≈ 4 min; 5,907/5,907 classified,
-   `tsc_fail` must be 0).
-
-### Investigation tools
-
-- `python3 scripts/probe.py <fixture.ts>` — side-by-side tsrs/oracle on
-  one fixture. Lines prefixed `*` are one-sided; everything before the
-  `--- tsc:` divider is the tsrs side (one-sided there = FP), after it =
-  oracle side (one-sided = FN). Awk splitter:
-  `awk '/--- tsc:/{s=1} /^  \* main/{print (s?"FN ":"FP ") $0}'`
-- Micro-fixtures: write minimal `.ts` files (WITH `// @...` harness
-  directives — batch base options are strict unless overridden) into a
-  scratch dir and probe them. The oracle answers any semantics question
-  in seconds; prefer probing over reasoning from memory of tsc behavior.
-  This session's rule of thumb: **when two derivations disagree, stop
-  deriving and probe.**
-- Per-file delta vs golden: use `/tmp/golden_now.txt` (written by
-  `golden-check`) against `/tmp/golden_diag.txt`, keyed by FULL absolute
-  path. Two landmines that produced bogus deltas this session:
-  relative-vs-absolute path keys, and fixtures whose names are prefixes
-  of other fixtures (`grep` both `partiallyAnnotatedFunctionInference`
-  files). Match on the exact golden key.
-- Line numbers: `main.ts:N` = fixture line N after directive-header
-  stripping. Directive count varies per fixture; verify alignment by
-  column/message text, not arithmetic.
-
-### Design rules learned the hard way (read before writing code)
-
-- **Mirror tsc source; never curve-fit.** Grep
-  `oracle/node_modules/typescript/lib/_tsc.js` for the function, read it,
-  port its actual branch structure. Every "plausible" shortcut this
-  sweep tried was caught by the classifier.
-- **Expect masked-deficiency reveals.** tsrs contains compensating
-  approximations; making one subsystem tsc-true exposes its neighbors as
-  NEW_FPs. The correct response is to root-fix the revealed deficiency
-  (it kills standing FPs too), not to soften the new code. Budget gate
-  iterations for this: recent workstreams needed 3–4 rounds to 0 NEW_FP.
-- **Relation-cache hygiene:** `is_assignable_to` memoizes per
-  `(src,tgt)` in `rel.relation_cache`; the comparable relation runs
-  under `rel.erase_generic_sigs` with its own `rel.comparable_cache`.
-  Any new relation MODE needs its own cache or it cross-pollutes.
-- **`fresolve.quiet` for exploratory checks:** scaffolded/speculative
-  `check_expr` runs must not populate `expr_type_cache` or consume
-  `report_once_*` budgets (see Tier-2 memory; violating this loses
-  diagnostics permanently).
-- Check-order sensitivity exists (lazy resolution + caches). If a
-  fixture behaves differently truncated vs whole, you are looking at a
-  resolution-order artifact; time-box it and document rather than chase
-  (cf. typeArgumentsWithStringLiteralTypes01).
-
-### Currently accepted documented FNs (do not "rediscover")
-
-1. unknownControlFlow fx2/fx4 (2367×2): tsc `getIntersectionType` keys
-   anonymous `{}` type literals by DECLARATION identity; tsrs interns
-   structurally. See architectural-debt.md §1.
-2. typeArgumentsWithStringLiteralTypes01 (2345×1): check-order-dependent
-   literal widening in inference. See architectural-debt.md §3.
-
-## History (context for why the code looks the way it does)
-
-- Tier-1/Tier-2 refactor: CFG flow resolver is the only flow engine
-  (docs/determinism-design.md; fact stack retired 2026-07-03).
-- Unused sweep U1–U5c: tsc checkUnusedLocals/ClassMembers parity.
-- Operator sweep 1 (@b8cf99e): the tsc COMPARABLE relation
-  (erase-generics, union-source SOME, reversed-simple, intersection
-  constraint-collapse, comparable-mode private nominality, disjoint
-  `===` narrows to never). −1,063 standing FPs.
-- Relation-core 1 (@3242fdc): instantiateSignatureInContextOf +
-  constraint clamp, multi-sig erase, tsc assignment narrowing
-  (union-only reduce), class-method-overload binder merge,
-  `Signature.from_method` variance, number→enum simple rule,
-  Uppercase-over-patterns + template normalization, position-based
-  param inference. −140 standing FPs.
-
-Cumulative sweep since Tier-2 merge: **+1,461 correct additions /
-−1,721 standing FP removals**, zero shipped regressions.
+Archived documents are preserved for context, not treated as the current
+source of design truth.

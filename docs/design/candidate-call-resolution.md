@@ -11,7 +11,8 @@ Related background:
   notes.
 - `checker-foundations.md` §3 for contextual typing and the eager /
   deferred checking split.
-- `relation-core-2.md` §B3 for the current inference-quality residue.
+- `archive/workstreams/relation-core-2.md` §B3 for the archived
+  inference-quality residue that motivated this design.
 
 ## Problem
 

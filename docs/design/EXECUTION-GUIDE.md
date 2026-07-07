@@ -7,9 +7,11 @@ covered here or in the workstream doc, STOP (see "Stop conditions").
 
 ## First 10 minutes of any session
 
-1. Read, in order: this file → README.md → knowledge-base.md → your
-   workstream's `<name>.md` and `<name>-steps.md`. Skim
-   tsc-source-guide.md so you know it exists.
+1. Read, in order: this file → README.md → knowledge-base.md → the
+   design document that owns your subsystem. If the task explicitly
+   names an archived workstream, read the matching file under
+   `archive/workstreams/`. Skim tsc-source-guide.md so you know it
+   exists.
 2. `git log --oneline -5` and `git status` — working tree must be
    clean; note the HEAD hash in your running notes.
 3. `ls /tmp/golden_diag.txt /tmp/chunk1.txt` — if missing:

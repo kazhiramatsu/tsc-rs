@@ -23,7 +23,7 @@ access (the KNOWN dotted-namespace flattening bug — see below).
 import json, os, re
 from collections import Counter
 d = json.load(open('/tmp/fcc_rc1.json'))
-files = Counter(); 
+files = Counter();
 for m in d['mismatches']:
     n = sum(1 for t in m['gate_filtered_fp'] if t[1] == 2339)
     if n: files[os.path.basename(m['path'])] += n
