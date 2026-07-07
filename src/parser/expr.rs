@@ -990,13 +990,18 @@ impl<'a> Parser<'a> {
                     } else if matches!(self.token(), Tok::NoSubTemplate | Tok::TemplateHead) {
                         // `a?.\`...\`` — a tagged template in an optional chain is
                         // invalid but parsed (the checker reports the error).
-                        let t = self.parse_template_expr();
-                        let span = Span::new(start, t.span().end as usize);
+                        let args = self.parse_tagged_template_args();
+                        let span = Span::new(
+                            start,
+                            args.first()
+                                .map(|arg| arg.span().end as usize)
+                                .unwrap_or(start),
+                        );
                         e = Expr::Call {
                             callee: Box::new(e),
                             question_dot: true,
                             type_args: None,
-                            args: vec![t],
+                            args,
                             span,
                         };
                     } else {
@@ -1085,6 +1090,24 @@ impl<'a> Parser<'a> {
                                 span,
                             };
                         }
+                        Some((targs, None))
+                            if matches!(self.token(), Tok::NoSubTemplate | Tok::TemplateHead) =>
+                        {
+                            let args = self.parse_tagged_template_args();
+                            let span = Span::new(
+                                start,
+                                args.first()
+                                    .map(|arg| arg.span().end as usize)
+                                    .unwrap_or(start),
+                            );
+                            e = Expr::Call {
+                                callee: Box::new(e),
+                                question_dot: false,
+                                type_args: Some(targs),
+                                args,
+                                span,
+                            };
+                        }
                         Some((_targs, None)) => {
                             // bare instantiation expression — type args consumed
                             // but not separately modeled in the AST.
@@ -1101,14 +1124,18 @@ impl<'a> Parser<'a> {
                     };
                 }
                 Tok::NoSubTemplate | Tok::TemplateHead => {
-                    // tagged template — parse and degrade (not in v1 checking)
-                    let t = self.parse_template_expr();
-                    let span = Span::new(start, t.span().end as usize);
+                    let args = self.parse_tagged_template_args();
+                    let span = Span::new(
+                        start,
+                        args.first()
+                            .map(|arg| arg.span().end as usize)
+                            .unwrap_or(start),
+                    );
                     e = Expr::Call {
                         callee: Box::new(e),
                         question_dot: false,
                         type_args: None,
-                        args: vec![t],
+                        args,
                         span,
                     };
                 }
@@ -1116,6 +1143,20 @@ impl<'a> Parser<'a> {
             }
         }
         e
+    }
+
+    fn parse_tagged_template_args(&mut self) -> Vec<Expr> {
+        let template = self.parse_template_expr();
+        let span = template.span();
+        let mut args = vec![Expr::TemplateStringsArray { span }];
+        if let Expr::Template { parts, .. } = template {
+            for part in parts {
+                if let TemplatePart::Expr(expr) = part {
+                    args.push(expr);
+                }
+            }
+        }
+        args
     }
 
     pub(crate) fn parse_template_expr(&mut self) -> Expr {

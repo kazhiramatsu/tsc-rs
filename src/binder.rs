@@ -2031,6 +2031,7 @@ impl<'a> Binder<'a> {
             | Expr::BoolLit { .. }
             | Expr::NullLit { .. }
             | Expr::RegexLit { .. }
+            | Expr::TemplateStringsArray { .. }
             | Expr::This { .. }
             | Expr::Super { .. }
             | Expr::Missing { .. } => {}

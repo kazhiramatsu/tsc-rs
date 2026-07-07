@@ -119,10 +119,14 @@ impl<'a> Checker<'a> {
             self.cflags.skip_ctx_sensitive = false;
             arg_types[i] = Some(t);
             if let Some(pt) = param_ty {
-                // an array/object literal argument infers at LITERAL priority so
-                // that a concrete annotation (e.g. a callback parameter type)
-                // outweighs an element-derived inference.
-                let prio = if matches!(a, Expr::Array { .. }) {
+                // An array literal normally infers at LITERAL priority so a
+                // concrete annotation can outweigh element-derived inference.
+                // A naked `T` parameter is different: the array value itself is
+                // the direct candidate and must not be discarded by later
+                // nullish candidates.
+                let prio = if matches!(a, Expr::Array { .. })
+                    && !self.is_naked_inference_type_param(pt, &s.type_params)
+                {
                     infer_prio::LITERAL
                 } else {
                     infer_prio::NONE
@@ -601,6 +605,12 @@ impl<'a> Checker<'a> {
             1 => return types[0],
             _ => {}
         }
+        if types
+            .iter()
+            .any(|&t| matches!(self.types.kind(t), TypeKind::Any))
+        {
+            return self.types.any;
+        }
         if self.literals_share_base(types) {
             return self.types.union(types.to_vec());
         }
@@ -610,7 +620,26 @@ impl<'a> Checker<'a> {
                 acc = t; // keep the supertype
             }
         }
-        acc
+        if types.iter().all(|&t| self.is_assignable_to(t, acc)) {
+            acc
+        } else if self.should_union_unrelated_inference_candidates(types) {
+            self.types.union(types.to_vec())
+        } else {
+            acc
+        }
+    }
+
+    fn is_naked_inference_type_param(&self, ty: TypeId, tps: &[SymbolId]) -> bool {
+        matches!(self.types.kind(ty), TypeKind::TypeParam(sym) if tps.contains(sym))
+    }
+
+    fn should_union_unrelated_inference_candidates(&self, types: &[TypeId]) -> bool {
+        types.iter().any(|&t| {
+            matches!(
+                self.types.kind(t),
+                TypeKind::Null | TypeKind::Undefined | TypeKind::Void
+            )
+        })
     }
 
     /// Whether every type is a literal and they share the same base primitive

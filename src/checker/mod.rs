@@ -1715,6 +1715,7 @@ impl<'a> Checker<'a> {
             | Expr::BoolLit { .. }
             | Expr::NullLit { .. }
             | Expr::RegexLit { .. }
+            | Expr::TemplateStringsArray { .. }
             | Expr::This { .. }
             | Expr::Super { .. }
             | Expr::Yield { expr: None, .. }
@@ -3161,6 +3162,7 @@ impl<'a> Checker<'a> {
             | Expr::BoolLit { .. }
             | Expr::NullLit { .. }
             | Expr::RegexLit { .. }
+            | Expr::TemplateStringsArray { .. }
             | Expr::Template { .. }
             | Expr::This { .. }
             | Expr::Super { .. }
@@ -4249,6 +4251,7 @@ impl<'a> Checker<'a> {
             | Expr::BoolLit { .. }
             | Expr::NullLit { .. }
             | Expr::RegexLit { .. }
+            | Expr::TemplateStringsArray { .. }
             | Expr::Template { .. }
             | Expr::This { .. }
             | Expr::Super { .. }

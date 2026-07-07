@@ -592,6 +592,10 @@ pub enum Expr {
         text: String,
         span: Span,
     },
+    /// Synthetic first argument of a tagged template call.
+    TemplateStringsArray {
+        span: Span,
+    },
     Template {
         parts: Vec<TemplatePart>,
         span: Span,
@@ -752,6 +756,7 @@ impl Expr {
             | Expr::BoolLit { span, .. }
             | Expr::NullLit { span }
             | Expr::RegexLit { span, .. }
+            | Expr::TemplateStringsArray { span }
             | Expr::Template { span, .. }
             | Expr::Array { span, .. }
             | Expr::Object { span, .. }

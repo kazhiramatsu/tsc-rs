@@ -201,6 +201,10 @@ impl<'a> Checker<'a> {
                 .global_type_symbol("RegExp")
                 .map(|s| self.types.intern_kind(TypeKind::Iface(s)))
                 .unwrap_or(self.types.any),
+            Expr::TemplateStringsArray { .. } => self
+                .global_type_symbol("TemplateStringsArray")
+                .map(|s| self.types.intern_kind(TypeKind::Iface(s)))
+                .unwrap_or(self.types.any),
             Expr::Template { parts, .. } => {
                 // Collect the leading text and, for each substitution, its type
                 // and the text that follows it.
