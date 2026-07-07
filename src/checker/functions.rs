@@ -137,6 +137,33 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// Untyped destructuring parameters bind from `any`; only feed an array
+    /// default into destructuring when doing so is needed to surface TS2802.
+    fn destructuring_param_source_type(
+        &mut self,
+        p: &'a Param,
+        scope: crate::binder::ScopeId,
+    ) -> TypeId {
+        if let Some(ty) = &p.ty {
+            return self.resolve_type(ty, scope);
+        }
+        if let Some(ctx) = self.caches.param_ctx_types.get(&node_key(p)).copied() {
+            return ctx;
+        }
+        if !matches!(&p.name, Binding::Array(_)) {
+            return self.types.any;
+        }
+        let Some(init) = &p.initializer else {
+            return self.types.any;
+        };
+        let init_t = self.check_expr(init, None);
+        if self.is_downlevel_iterable_only_source(init_t) {
+            init_t
+        } else {
+            self.types.any
+        }
+    }
+
     pub(crate) fn report_function_type_implicit_any_params(
         &mut self,
         f: &'a FunctionTypeNode,
@@ -924,15 +951,7 @@ impl<'a> Checker<'a> {
                     .get(&key)
                     .copied()
                     .unwrap_or(self.current_scope);
-                let t = match &p.ty {
-                    Some(ty) => self.resolve_type(ty, scope2),
-                    None => self
-                        .caches
-                        .param_ctx_types
-                        .get(&node_key(p))
-                        .copied()
-                        .unwrap_or(self.types.any),
-                };
+                let t = self.destructuring_param_source_type(p, scope2);
                 self.destructure_binding(&p.name, t);
             }
         }
