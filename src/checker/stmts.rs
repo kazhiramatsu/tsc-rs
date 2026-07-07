@@ -5,7 +5,7 @@ use super::{operators::TruthinessContext, Checker, EnumValue};
 use crate::ast::*;
 use crate::binder::{Decl, ScopeId, SymbolId};
 use crate::diagnostics::gen;
-use crate::types::{TypeId, TypeKind};
+use crate::types::{ParamInfo, Shape, Signature, TypeId, TypeKind};
 
 /// TS7027 statement classification (see `reach_kind`).
 enum ReachKind {
@@ -1402,7 +1402,8 @@ impl<'a> Checker<'a> {
         context_type: &str,
         kind: DecoratorKind,
     ) {
-        let t = self.check_expr(&d.expr, None);
+        let ctx = self.decorator_expression_context(&d.expr, kind);
+        let t = self.check_expr(&d.expr, ctx);
         if self.types.is_any_or_error(t) {
             return;
         }
@@ -1464,6 +1465,56 @@ impl<'a> Checker<'a> {
                 related: Vec::new(),
             });
         }
+    }
+
+    fn decorator_expression_context(
+        &mut self,
+        expr: &'a Expr,
+        kind: DecoratorKind,
+    ) -> Option<TypeId> {
+        match expr {
+            Expr::Paren { inner, .. } => self.decorator_expression_context(inner, kind),
+            Expr::Arrow(_) | Expr::FunctionExpr(_) => Some(self.decorator_function_context(kind)),
+            _ => None,
+        }
+    }
+
+    fn decorator_function_context(&mut self, kind: DecoratorKind) -> TypeId {
+        let arity = match kind {
+            DecoratorKind::Class => 2,
+            DecoratorKind::Property => 2,
+            DecoratorKind::Method => 3,
+        };
+        let params = (0..arity)
+            .map(|i| ParamInfo {
+                name: format!("arg{}", i),
+                ty: self.types.any,
+                optional: false,
+                decl_span: None,
+                decl_file: self.current_file,
+            })
+            .collect();
+        let sig = self.types.alloc_sig(Signature {
+            type_params: Vec::new(),
+            params,
+            min_args: arity as u32,
+            rest: None,
+            rest_name: None,
+            rest_tp: None,
+            ret: self.types.any,
+            decl_key: 0,
+            from_method: false,
+            ret_annotation_never: false,
+            predicate: None,
+            is_abstract: false,
+        });
+        let shape = self.types.alloc_shape(Shape {
+            props: Vec::new(),
+            call_sigs: vec![sig],
+            ctor_sigs: Vec::new(),
+            index_infos: Vec::new(),
+        });
+        self.types.alloc(TypeKind::Anon(shape))
     }
 
     pub fn check_duplicate_modifiers(&mut self, mods: &Modifiers) {
@@ -2506,7 +2557,7 @@ impl<'a> Checker<'a> {
             t
         };
         let this_t = self.declared_var_type(d);
-        if first_t != this_t {
+        if first_t != this_t && !self.subsequent_var_types_equivalent(first, d, first_t, this_t) {
             let name = self.symbol(sym).name.clone();
             let ft = self.display_type(first_t);
             let tt = self.display_type(this_t);
@@ -2520,6 +2571,166 @@ impl<'a> Checker<'a> {
                 &[name, ft, tt],
                 related,
             );
+        }
+    }
+
+    fn subsequent_var_types_equivalent(
+        &mut self,
+        first: &'a VarDeclarator,
+        current: &'a VarDeclarator,
+        first_t: TypeId,
+        current_t: TypeId,
+    ) -> bool {
+        let first_uses = first
+            .ty
+            .as_ref()
+            .is_some_and(Self::type_node_uses_mapped_identity_form);
+        let current_uses = current
+            .ty
+            .as_ref()
+            .is_some_and(Self::type_node_uses_mapped_identity_form);
+        if !(first_uses || current_uses) {
+            return false;
+        }
+        let first_readonly = first.ty.as_ref().is_some_and(Self::type_node_adds_readonly);
+        let current_readonly = current
+            .ty
+            .as_ref()
+            .is_some_and(Self::type_node_adds_readonly);
+        if first_readonly && !current_readonly && !self.type_all_props_readonly(current_t) {
+            return false;
+        }
+        if current_readonly && !first_readonly && !self.type_all_props_readonly(first_t) {
+            return false;
+        }
+        let first_optional = first.ty.as_ref().is_some_and(Self::type_node_adds_optional);
+        let current_optional = current
+            .ty
+            .as_ref()
+            .is_some_and(Self::type_node_adds_optional);
+        if first_optional && !current_optional && !self.type_all_props_optional(current_t) {
+            return false;
+        }
+        if current_optional && !first_optional && !self.type_all_props_optional(first_t) {
+            return false;
+        }
+        self.is_assignable_to(first_t, current_t) && self.is_assignable_to(current_t, first_t)
+    }
+
+    fn type_all_props_readonly(&mut self, t: TypeId) -> bool {
+        let t = self.apparent_type(t);
+        self.shape_of_type(t).is_some_and(|sid| {
+            let shape = self.types.shape(sid);
+            !shape.props.is_empty() && shape.props.iter().all(|p| p.readonly)
+        })
+    }
+
+    fn type_all_props_optional(&mut self, t: TypeId) -> bool {
+        let t = self.apparent_type(t);
+        self.shape_of_type(t).is_some_and(|sid| {
+            let shape = self.types.shape(sid);
+            !shape.props.is_empty() && shape.props.iter().all(|p| p.optional)
+        })
+    }
+
+    fn type_node_adds_readonly(node: &TypeNode) -> bool {
+        match node {
+            TypeNode::Mapped(m) => matches!(m.readonly_mod, Some(MappedModifier::Add)),
+            TypeNode::Ref(r) if r.name.parts.len() == 1 && r.name.parts[0].name == "Readonly" => {
+                true
+            }
+            TypeNode::Ref(r) => r
+                .type_args
+                .as_ref()
+                .is_some_and(|args| args.iter().any(Self::type_node_adds_readonly)),
+            _ => false,
+        }
+    }
+
+    fn type_node_adds_optional(node: &TypeNode) -> bool {
+        match node {
+            TypeNode::Mapped(m) => matches!(m.optional_mod, Some(MappedModifier::Add)),
+            TypeNode::Ref(r) if r.name.parts.len() == 1 && r.name.parts[0].name == "Partial" => {
+                true
+            }
+            TypeNode::Ref(r) => r
+                .type_args
+                .as_ref()
+                .is_some_and(|args| args.iter().any(Self::type_node_adds_optional)),
+            _ => false,
+        }
+    }
+
+    fn type_node_uses_mapped_identity_form(node: &TypeNode) -> bool {
+        match node {
+            TypeNode::Keyof { .. } | TypeNode::Mapped(_) | TypeNode::IndexedAccess { .. } => true,
+            TypeNode::Ref(r) => {
+                if r.name.parts.len() == 1 {
+                    match r.name.parts[0].name.as_str() {
+                        "Pick" | "Partial" | "Readonly" | "Required" => return true,
+                        _ => {}
+                    }
+                }
+                r.type_args
+                    .as_ref()
+                    .is_some_and(|args| args.iter().any(Self::type_node_uses_mapped_identity_form))
+            }
+            TypeNode::Union { members, .. } | TypeNode::Intersection { members, .. } => members
+                .iter()
+                .any(|t| Self::type_node_uses_mapped_identity_form(t)),
+            TypeNode::Array { elem, .. }
+            | TypeNode::ReadonlyOp { ty: elem, .. }
+            | TypeNode::Paren { inner: elem, .. } => {
+                Self::type_node_uses_mapped_identity_form(elem)
+            }
+            TypeNode::Tuple { elems, .. } => elems
+                .iter()
+                .any(|e| Self::type_node_uses_mapped_identity_form(&e.ty)),
+            TypeNode::TypeLiteral { members, .. } => members.iter().any(|m| match m {
+                TypeMember::Prop(PropSig { ty: Some(ty), .. }) => {
+                    Self::type_node_uses_mapped_identity_form(ty)
+                }
+                TypeMember::Method(MethodSig {
+                    return_type: Some(ty),
+                    ..
+                })
+                | TypeMember::Call(CallSig {
+                    return_type: Some(ty),
+                    ..
+                })
+                | TypeMember::Ctor(CallSig {
+                    return_type: Some(ty),
+                    ..
+                }) => Self::type_node_uses_mapped_identity_form(ty),
+                TypeMember::Index(IndexSig { value_type, .. }) => {
+                    Self::type_node_uses_mapped_identity_form(value_type)
+                }
+                _ => false,
+            }),
+            TypeNode::Conditional(c) => {
+                Self::type_node_uses_mapped_identity_form(&c.check)
+                    || Self::type_node_uses_mapped_identity_form(&c.extends_ty)
+                    || Self::type_node_uses_mapped_identity_form(&c.true_ty)
+                    || Self::type_node_uses_mapped_identity_form(&c.false_ty)
+            }
+            TypeNode::Function(f) | TypeNode::Ctor(f) => {
+                f.params.iter().any(|p| {
+                    p.ty.as_ref()
+                        .is_some_and(Self::type_node_uses_mapped_identity_form)
+                }) || Self::type_node_uses_mapped_identity_form(&f.return_type)
+            }
+            TypeNode::TypeQuery { type_args, .. } => type_args
+                .as_ref()
+                .is_some_and(|args| args.iter().any(Self::type_node_uses_mapped_identity_form)),
+            TypeNode::Infer { .. }
+            | TypeNode::TemplateLit { .. }
+            | TypeNode::Predicate { .. }
+            | TypeNode::This(_)
+            | TypeNode::Keyword(..)
+            | TypeNode::LiteralString { .. }
+            | TypeNode::LiteralNumber { .. }
+            | TypeNode::LiteralBigInt { .. }
+            | TypeNode::LiteralBool { .. } => false,
         }
     }
 

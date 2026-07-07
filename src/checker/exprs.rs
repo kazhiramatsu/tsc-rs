@@ -5,7 +5,7 @@ use super::{operators::TruthinessContext, Checker, CtorFieldContextKind, RefKey}
 use crate::ast::*;
 use crate::binder::{flags, SymbolId};
 use crate::diagnostics::{gen, MessageChain, RelatedInfo};
-use crate::types::{PropInfo, Shape, TypeId, TypeKind};
+use crate::types::{ParamInfo, PropInfo, Shape, Signature, TypeId, TypeKind};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ComputedKeyKind {
@@ -1845,18 +1845,78 @@ impl<'a> Checker<'a> {
             }
         }
         if let TypeKind::Union(members) = self.types.kind(c).clone() {
-            let mut found: Option<crate::types::SigId> = None;
+            let mut found = Vec::new();
             for &m in &members {
                 for s in self.call_signatures_of(m) {
-                    if found.is_some() {
-                        return None; // ambiguous: more than one callable member
-                    }
-                    found = Some(s);
+                    found.push(s);
                 }
             }
-            return found;
+            return match found.len() {
+                0 => None,
+                1 => Some(found[0]),
+                _ => self.combine_contextual_call_sigs(&found),
+            };
         }
         None
+    }
+
+    fn combine_contextual_call_sigs(
+        &mut self,
+        sigs: &[crate::types::SigId],
+    ) -> Option<crate::types::SigId> {
+        let first = self.types.sig(*sigs.first()?).clone();
+        if first.rest.is_some() || !first.type_params.is_empty() {
+            return None;
+        }
+        let arity = first.params.len();
+        let mut params = Vec::with_capacity(arity);
+        for i in 0..arity {
+            let mut tys = Vec::new();
+            let mut optional = false;
+            for &sid in sigs {
+                let sig = self.types.sig(sid);
+                if sig.rest.is_some() || !sig.type_params.is_empty() || sig.params.len() != arity {
+                    return None;
+                }
+                let p = &sig.params[i];
+                if p.ty != first.params[i].ty || p.optional != first.params[i].optional {
+                    return None;
+                }
+                tys.push(p.ty);
+                optional |= p.optional;
+            }
+            params.push(ParamInfo {
+                name: first.params[i].name.clone(),
+                ty: self.types.union(tys),
+                optional,
+                decl_span: None,
+                decl_file: self.current_file,
+            });
+        }
+        Some(
+            self.types.alloc_sig(Signature {
+                type_params: Vec::new(),
+                params,
+                min_args: sigs
+                    .iter()
+                    .map(|&sid| self.types.sig(sid).min_args)
+                    .max()
+                    .unwrap_or(0),
+                rest: None,
+                rest_name: None,
+                rest_tp: None,
+                // The synthesized signature is used only for contextual parameter
+                // types. The outer relation reports return incompatibilities.
+                ret: self.types.any,
+                decl_key: 0,
+                from_method: sigs.iter().any(|&sid| self.types.sig(sid).from_method),
+                ret_annotation_never: sigs
+                    .iter()
+                    .all(|&sid| self.types.sig(sid).ret_annotation_never),
+                predicate: None,
+                is_abstract: false,
+            }),
+        )
     }
 
     pub(crate) fn contextual_param_call_sig(&mut self, c: TypeId) -> Option<crate::types::SigId> {

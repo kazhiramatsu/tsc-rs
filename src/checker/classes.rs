@@ -425,38 +425,55 @@ impl<'a> Checker<'a> {
 
     /// 2387/2388: method overloads must agree on staticness
     fn check_method_overload_staticness(&mut self, c: &'a ClassDecl) {
-        use std::collections::HashMap as Map;
-        let mut groups: Map<String, Vec<(&'a FunctionLike, bool)>> = Map::new();
-        for m in &c.members {
-            if let ClassMember::Method(f) = m {
-                if matches!(f.kind, FuncKind::Method) {
-                    if let Some(n) = f.name.as_ref().and_then(|n| n.text()) {
-                        let is_static = has_modifier(&f.modifiers, ModifierKind::Static);
-                        groups.entry(n).or_default().push((f, is_static));
+        let mut current_name: Option<String> = None;
+        let mut current: Vec<(&'a FunctionLike, bool)> = Vec::new();
+        let flush = |this: &mut Self, decls: &mut Vec<(&'a FunctionLike, bool)>| {
+            if decls.len() < 2 {
+                decls.clear();
+                return;
+            }
+            if !decls.iter().any(|(f, _)| f.body.is_none()) {
+                decls.clear();
+                return;
+            }
+            let canonical = decls[0].1;
+            if !decls.iter().all(|(_, s)| *s == canonical) {
+                for (f, is_static) in decls.iter().skip(1) {
+                    if *is_static != canonical {
+                        let span = f.name.as_ref().map(|n| n.span()).unwrap_or(f.span);
+                        let msg: &'static crate::diagnostics::DiagnosticMessage = if canonical {
+                            &gen::Function_overload_must_be_static
+                        } else {
+                            &gen::Function_overload_must_not_be_static
+                        };
+                        this.error_at(span, msg, &[]);
                     }
                 }
             }
-        }
-        for (_n, decls) in groups {
-            if decls.len() < 2 {
-                continue;
-            }
-            let canonical = decls[0].1;
-            if decls.iter().all(|(_, s)| *s == canonical) {
-                continue;
-            }
-            for (f, is_static) in &decls[1..] {
-                if *is_static != canonical {
-                    let span = f.name.as_ref().map(|n| n.span()).unwrap_or(f.span);
-                    let msg: &'static crate::diagnostics::DiagnosticMessage = if canonical {
-                        &gen::Function_overload_must_be_static
-                    } else {
-                        &gen::Function_overload_must_not_be_static
-                    };
-                    self.error_at(span, msg, &[]);
+            decls.clear();
+        };
+        for m in &c.members {
+            if let ClassMember::Method(f) = m {
+                if matches!(f.kind, FuncKind::Method) {
+                    if let Some(name) = f.name.as_ref() {
+                        let n = match name.text() {
+                            Some(t) => t,
+                            None => self.display_prop_name_for_error(name),
+                        };
+                        if current_name.as_deref() != Some(n.as_str()) {
+                            flush(self, &mut current);
+                            current_name = Some(n);
+                        }
+                        let is_static = has_modifier(&f.modifiers, ModifierKind::Static);
+                        current.push((f, is_static));
+                    }
+                    continue;
                 }
             }
+            flush(self, &mut current);
+            current_name = None;
         }
+        flush(self, &mut current);
     }
 
     /// 2390/2392: constructor overloads need exactly one implementation
