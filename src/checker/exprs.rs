@@ -131,6 +131,32 @@ fn first_this_or_super_in_computed_name(e: &Expr) -> Option<(bool, Span)> {
     }
 }
 
+fn is_entity_name_expr(e: &Expr) -> bool {
+    match e {
+        Expr::Ident(_) => true,
+        Expr::PropAccess { obj, .. } => is_entity_name_expr(obj),
+        _ => false,
+    }
+}
+
+fn is_simple_computed_class_property_name_expr(e: &Expr) -> bool {
+    match e {
+        Expr::StrLit { .. } | Expr::NumLit { .. } => true,
+        Expr::Template { parts, .. } => parts.iter().all(|p| matches!(p, TemplatePart::Str(_))),
+        _ => false,
+    }
+}
+
+fn should_report_class_property_dynamic_name_error(name: &PropName) -> bool {
+    let PropName::Computed { expr, .. } = name else {
+        return false;
+    };
+    if matches!(&**expr, Expr::Binary { op: BinOp::In, .. }) {
+        return false;
+    }
+    !is_entity_name_expr(expr) && !is_simple_computed_class_property_name_expr(expr)
+}
+
 fn is_reserved_word_shorthand_recovery(name: &str) -> bool {
     matches!(
         name,
@@ -1194,6 +1220,20 @@ impl<'a> Checker<'a> {
         suppress_in_type_error: bool,
     ) -> Option<TypeId> {
         self.check_computed_property_name_impl(name, true, suppress_in_type_error)
+    }
+
+    pub(crate) fn check_computed_class_property_name(
+        &mut self,
+        name: &'a PropName,
+    ) -> Option<TypeId> {
+        if should_report_class_property_dynamic_name_error(name) {
+            self.error_at(
+                name.span(),
+                &gen::A_computed_property_name_in_a_class_property_declaration_must_have_a_simple_literal_type_or_a_unique_symbol_type,
+                &[],
+            );
+        }
+        self.check_computed_property_name_impl(name, true, true)
     }
 
     fn check_computed_property_name_impl(

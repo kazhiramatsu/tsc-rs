@@ -1462,6 +1462,42 @@ namespace M {
     }
 
     #[test]
+    fn class_computed_properties_report_invalid_dynamic_names() {
+        let opts = CompilerOptions {
+            strict: Some(false),
+            diag_json: true,
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![InputFile {
+                name: "main.ts".to_string(),
+                text: r#"
+declare const s: string;
+declare const a: any;
+class C {
+    [s] = 1;
+    ["x"] = 1;
+    [0] = 1;
+    [`plain`] = 1;
+    [s + s] = 1;
+    [<any>true] = 1;
+    [`x${a}`] = 1;
+}
+"#
+                .to_string(),
+            }],
+            &opts,
+        );
+
+        assert_eq!(
+            out.matches("\"code\":1166,\"category\":1").count(),
+            3,
+            "{out}"
+        );
+    }
+
+    #[test]
     fn later_es_member_suggestions_are_receiver_specific() {
         let opts = CompilerOptions {
             strict: Some(true),

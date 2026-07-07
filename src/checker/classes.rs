@@ -688,7 +688,7 @@ impl<'a> Checker<'a> {
                             DecoratorKind::Property,
                         );
                     }
-                    self.check_computed_class_member_name(&p.name, true);
+                    self.check_computed_class_property_name(&p.name);
                 }
                 ClassMember::Method(f) => {
                     if matches!(f.kind, FuncKind::Getter | FuncKind::Setter) {
