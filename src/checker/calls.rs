@@ -17,6 +17,7 @@ struct CallCandidateTrial {
     arity_ok: bool,
     non_function_args_ok: bool,
     first_failed_arg_index: Option<usize>,
+    first_invalid_spread_arg_index: Option<usize>,
 }
 
 struct ExpandedCallArgs<'a> {
@@ -951,6 +952,7 @@ impl<'a> Checker<'a> {
                         arity_ok: trial.arity_ok,
                         non_function_args_ok: trial.non_function_args_ok,
                         first_failed_arg_index: trial.first_failed_arg_index,
+                        first_invalid_spread_arg_index: trial.first_invalid_spread_arg_index,
                     });
                 }
                 if trial.arity_ok && trial.non_function_args_ok {
@@ -1010,11 +1012,16 @@ impl<'a> Checker<'a> {
         }
         let mut first_failed_arg_index: Option<usize> = None;
         let mut first_failed_arg_span: Option<Span> = None;
+        let mut first_invalid_spread_arg_index: Option<usize> = None;
         let mut all_failed_on_arity = true;
         let mut arity_ok_count = 0usize;
         let mut only_arity_ok_trial: Option<CallCandidateTrial> = None;
         for &sig in sigs {
             let trial = self.call_candidate_trial(sig, args, &arg_types, type_args, ctx);
+            if let Some(i) = trial.first_invalid_spread_arg_index {
+                first_invalid_spread_arg_index =
+                    Some(first_invalid_spread_arg_index.map_or(i, |prev| prev.min(i)));
+            }
             if !trial.arity_ok {
                 continue;
             }
@@ -1057,6 +1064,14 @@ impl<'a> Checker<'a> {
                     }
                 }
                 return self.instantiate_type(s.ret, &trial.mapper);
+            }
+        }
+        if all_failed_on_arity {
+            if let Some(i) = first_invalid_spread_arg_index {
+                let mut reported = false;
+                let span = args.get(i).map(|arg| arg.span()).unwrap_or(call_span);
+                self.report_spread_argument_error(span, &mut reported);
+                return self.types.error;
             }
         }
         if use_failure_trial_diagnostics && all_failed_on_arity {
@@ -1226,6 +1241,9 @@ impl<'a> Checker<'a> {
                 first_failed_arg_index: expanded_args
                     .as_ref()
                     .and_then(|plan| plan.first_invalid_spread_arg_index),
+                first_invalid_spread_arg_index: expanded_args
+                    .as_ref()
+                    .and_then(|plan| plan.first_invalid_spread_arg_index),
             };
         }
 
@@ -1274,6 +1292,7 @@ impl<'a> Checker<'a> {
                                 arity_ok,
                                 non_function_args_ok: false,
                                 first_failed_arg_index: Some(*arg_index),
+                                first_invalid_spread_arg_index: None,
                             };
                         }
                         arg_i += 1;
@@ -1286,6 +1305,7 @@ impl<'a> Checker<'a> {
                                 arity_ok,
                                 non_function_args_ok: false,
                                 first_failed_arg_index: Some(*arg_index),
+                                first_invalid_spread_arg_index: None,
                             };
                         }
                         arg_i += 1;
@@ -1302,6 +1322,7 @@ impl<'a> Checker<'a> {
                                     arity_ok,
                                     non_function_args_ok: false,
                                     first_failed_arg_index: Some(*arg_index),
+                                    first_invalid_spread_arg_index: None,
                                 };
                             }
                         }
@@ -1314,6 +1335,7 @@ impl<'a> Checker<'a> {
                                     arity_ok,
                                     non_function_args_ok: false,
                                     first_failed_arg_index: Some(*arg_index),
+                                    first_invalid_spread_arg_index: None,
                                 };
                             }
                         }
@@ -1329,6 +1351,7 @@ impl<'a> Checker<'a> {
                                 arity_ok,
                                 non_function_args_ok: false,
                                 first_failed_arg_index: Some(*arg_index),
+                                first_invalid_spread_arg_index: None,
                             };
                         }
                     }
@@ -1351,6 +1374,7 @@ impl<'a> Checker<'a> {
                         arity_ok,
                         non_function_args_ok: false,
                         first_failed_arg_index: Some(i),
+                        first_invalid_spread_arg_index: None,
                     };
                 }
             }
@@ -1362,6 +1386,7 @@ impl<'a> Checker<'a> {
             arity_ok,
             non_function_args_ok: true,
             first_failed_arg_index: None,
+            first_invalid_spread_arg_index: None,
         }
     }
 
