@@ -829,6 +829,12 @@ impl<'a> Checker<'a> {
     ) -> TypeId {
         let is_tagged_template_call =
             matches!(args.first(), Some(Expr::TemplateStringsArray { .. }));
+        let has_spread_arg = args.iter().any(|arg| matches!(arg, Expr::Spread { .. }));
+        let all_candidates_non_generic = sigs
+            .iter()
+            .all(|&sig| self.types.sig(sig).type_params.is_empty());
+        let use_failure_trial_diagnostics =
+            is_tagged_template_call || (all_candidates_non_generic && !has_spread_arg);
         // tsc getTypeArgumentArityError: when no overload accepts the
         // when every overload fails on arity alone, report 2554 with a range;
         // Pre-check non-arrow arguments once. Function-like arguments are
@@ -966,7 +972,7 @@ impl<'a> Checker<'a> {
             }
         }
         let mut first_failed_arg_index: Option<usize> = None;
-        let mut first_failed_arg_span_for_tagged: Option<Span> = None;
+        let mut first_failed_arg_span: Option<Span> = None;
         let mut all_failed_on_arity = true;
         let mut arity_ok_count = 0usize;
         let mut only_arity_ok_trial: Option<CallCandidateTrial> = None;
@@ -983,13 +989,14 @@ impl<'a> Checker<'a> {
                 None
             };
             if let Some(i) = trial.first_failed_arg_index {
-                if is_tagged_template_call && first_failed_arg_span_for_tagged.is_none() {
+                if use_failure_trial_diagnostics && first_failed_arg_span.is_none() {
                     let s = self.types.sig(sig);
-                    first_failed_arg_span_for_tagged = Some(if s.type_params.is_empty() {
-                        args.get(i).map(|arg| arg.span()).unwrap_or(call_span)
-                    } else {
-                        call_span
-                    });
+                    first_failed_arg_span =
+                        Some(if !s.type_params.is_empty() && is_tagged_template_call {
+                            call_span
+                        } else {
+                            args.get(i).map(|arg| arg.span()).unwrap_or(call_span)
+                        });
                 }
                 first_failed_arg_index =
                     Some(first_failed_arg_index.map_or(i, |prev| std::cmp::min(prev, i)));
@@ -1015,11 +1022,11 @@ impl<'a> Checker<'a> {
                 return self.instantiate_type(s.ret, &trial.mapper);
             }
         }
-        if is_tagged_template_call && all_failed_on_arity {
+        if use_failure_trial_diagnostics && all_failed_on_arity {
             self.report_overload_arity_error(sigs, args.len() as u32, call_span, args);
             return self.types.error;
         }
-        if is_tagged_template_call && arity_ok_count == 1 {
+        if use_failure_trial_diagnostics && arity_ok_count == 1 {
             if let Some(trial) = only_arity_ok_trial {
                 if trial.first_failed_arg_index.is_some() {
                     return self.resolve_call_with_options(
@@ -1057,7 +1064,7 @@ impl<'a> Checker<'a> {
         let mut head =
             crate::diagnostics::MessageChain::new(&gen::No_overload_matches_this_call, &[]);
         let n = sigs.len();
-        let mut error_span = first_failed_arg_span_for_tagged.unwrap_or(call_span);
+        let mut error_span = first_failed_arg_span.unwrap_or(call_span);
         for (idx, &sig) in sigs.iter().enumerate() {
             let s = self.types.sig(sig).clone();
             let sig_display = self.display_sig_for_overload(sig);
@@ -1087,7 +1094,7 @@ impl<'a> Checker<'a> {
                         .unwrap_or(self.types.any);
                     let pt = self.instantiate_type(pt0, &mapper);
                     if !self.is_assignable_to(at, pt) {
-                        if !is_tagged_template_call && idx == 0 {
+                        if idx == 0 && first_failed_arg_span.is_none() {
                             error_span = args[i].span();
                         }
                         let ad = self.display_type_for_error(at, pt);
