@@ -1477,6 +1477,34 @@ impl<'a> Checker<'a> {
         }
     }
 
+    fn array_literal_spread_slots(
+        &mut self,
+        expr: &'a Expr,
+        span: Span,
+        arg_index: usize,
+    ) -> Option<Vec<ExpandedCallArg<'a>>> {
+        let mut expr = expr;
+        while let Expr::Paren { inner, .. } = expr {
+            expr = inner;
+        }
+        let Expr::Array { elements, .. } = expr else {
+            return None;
+        };
+        let mut slots = Vec::with_capacity(elements.len());
+        for element in elements {
+            if matches!(element, Expr::Spread { .. }) {
+                return None;
+            }
+            let ty = self.check_expr(element, None);
+            slots.push(ExpandedCallArg::Type {
+                ty,
+                span,
+                arg_index,
+            });
+        }
+        Some(slots)
+    }
+
     fn report_spread_argument_error(&mut self, span: Span, already_reported: &mut bool) {
         if *already_reported {
             return;
@@ -1531,6 +1559,14 @@ impl<'a> Checker<'a> {
             };
 
             let spread_starts_at = Self::expanded_fixed_slot_count(&slots);
+            if let Some(mut literal_slots) = self.array_literal_spread_slots(expr, *span, arg_index)
+            {
+                if let Some(len) = &mut exact_len {
+                    *len += literal_slots.len();
+                }
+                slots.append(&mut literal_slots);
+                continue;
+            }
             let spread_ty = arg_types
                 .and_then(|types| types.get(arg_index))
                 .and_then(|ty| *ty)
