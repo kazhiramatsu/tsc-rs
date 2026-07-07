@@ -21,19 +21,35 @@ struct CallCandidateTrial {
 struct ExpandedCallArgs<'a> {
     slots: Vec<ExpandedCallArg<'a>>,
     exact_len: Option<usize>,
+    first_invalid_spread_arg_index: Option<usize>,
 }
 
 enum ExpandedCallArg<'a> {
-    Expr(&'a Expr),
-    Type { ty: TypeId, span: Span },
-    ArraySpread { elem_ty: TypeId, span: Span },
-    Rest { elem_ty: TypeId, span: Span },
+    Expr {
+        expr: &'a Expr,
+        arg_index: usize,
+    },
+    Type {
+        ty: TypeId,
+        span: Span,
+        arg_index: usize,
+    },
+    ArraySpread {
+        elem_ty: TypeId,
+        span: Span,
+        arg_index: usize,
+    },
+    Rest {
+        elem_ty: TypeId,
+        span: Span,
+        arg_index: usize,
+    },
 }
 
 impl ExpandedCallArg<'_> {
     fn span(&self) -> Span {
         match self {
-            ExpandedCallArg::Expr(expr) => expr.span(),
+            ExpandedCallArg::Expr { expr, .. } => expr.span(),
             ExpandedCallArg::Type { span, .. }
             | ExpandedCallArg::ArraySpread { span, .. }
             | ExpandedCallArg::Rest { span, .. } => *span,
@@ -1100,16 +1116,37 @@ impl<'a> Checker<'a> {
         ctx: Option<TypeId>,
     ) -> CallCandidateTrial {
         let s = self.types.sig(sig).clone();
-        let argc = args.len() as u32;
-        let max = s.params.len() as u32;
-        let arity_ok = argc >= s.min_args && (s.rest.is_some() || argc <= max);
+        let has_spread = args.iter().any(|a| matches!(a, Expr::Spread { .. }));
+        let expanded_args = if has_spread {
+            Some(self.expand_call_args_for_signature(&s, args, Some(arg_types), false, false))
+        } else {
+            None
+        };
+        let arity_ok = if let Some(plan) = &expanded_args {
+            if plan.first_invalid_spread_arg_index.is_some() {
+                false
+            } else if let Some(exact_len) = plan.exact_len {
+                let argc = exact_len as u32;
+                let max = s.params.len() as u32;
+                argc >= s.min_args && (s.rest.is_some() || argc <= max)
+            } else {
+                let fixed = Self::expanded_fixed_slot_count(&plan.slots) as u32;
+                fixed >= s.min_args && (s.rest.is_some() || fixed <= s.params.len() as u32)
+            }
+        } else {
+            let argc = args.len() as u32;
+            let max = s.params.len() as u32;
+            argc >= s.min_args && (s.rest.is_some() || argc <= max)
+        };
         if !arity_ok {
             return CallCandidateTrial {
                 sig,
                 mapper: HashMap::new(),
                 arity_ok,
                 non_function_args_ok: false,
-                first_failed_arg_index: None,
+                first_failed_arg_index: expanded_args
+                    .as_ref()
+                    .and_then(|plan| plan.first_invalid_spread_arg_index),
             };
         }
 
@@ -1131,23 +1168,112 @@ impl<'a> Checker<'a> {
                 self.infer_type_arguments(&s, args, ctx)
             };
 
-        for (i, at) in arg_types.iter().enumerate() {
-            let Some(at) = at else { continue }; // arrows checked after selection
-            let pt0 = s
-                .params
-                .get(i)
-                .map(|p| p.ty)
-                .or(s.rest)
-                .unwrap_or(self.types.any);
-            let pt = self.instantiate_type(pt0, &mapper);
-            if !self.is_assignable_to(*at, pt) {
-                return CallCandidateTrial {
-                    sig,
-                    mapper,
-                    arity_ok,
-                    non_function_args_ok: false,
-                    first_failed_arg_index: Some(i),
-                };
+        if let Some(plan) = &expanded_args {
+            let mut arg_i = 0usize;
+            for slot in &plan.slots {
+                let pt0 = s
+                    .params
+                    .get(arg_i)
+                    .map(|p| p.ty)
+                    .or(s.rest)
+                    .unwrap_or(self.types.any);
+                let pt = self.instantiate_type(pt0, &mapper);
+                match slot {
+                    ExpandedCallArg::Expr { expr, arg_index } => {
+                        if matches!(expr, Expr::Arrow(_) | Expr::FunctionExpr(_)) {
+                            arg_i += 1;
+                            continue;
+                        }
+                        let at = arg_types
+                            .get(*arg_index)
+                            .and_then(|ty| *ty)
+                            .unwrap_or_else(|| self.check_expr(expr, None));
+                        if !self.is_assignable_to(at, pt) {
+                            return CallCandidateTrial {
+                                sig,
+                                mapper,
+                                arity_ok,
+                                non_function_args_ok: false,
+                                first_failed_arg_index: Some(*arg_index),
+                            };
+                        }
+                        arg_i += 1;
+                    }
+                    ExpandedCallArg::Type { ty, arg_index, .. } => {
+                        if !self.is_assignable_to(*ty, pt) {
+                            return CallCandidateTrial {
+                                sig,
+                                mapper,
+                                arity_ok,
+                                non_function_args_ok: false,
+                                first_failed_arg_index: Some(*arg_index),
+                            };
+                        }
+                        arg_i += 1;
+                    }
+                    ExpandedCallArg::ArraySpread {
+                        elem_ty, arg_index, ..
+                    } => {
+                        for param_idx in arg_i..s.params.len() {
+                            let pt = self.instantiate_type(s.params[param_idx].ty, &mapper);
+                            if !self.is_assignable_to(*elem_ty, pt) {
+                                return CallCandidateTrial {
+                                    sig,
+                                    mapper,
+                                    arity_ok,
+                                    non_function_args_ok: false,
+                                    first_failed_arg_index: Some(*arg_index),
+                                };
+                            }
+                        }
+                        if let Some(rest_ty) = s.rest {
+                            let pt = self.instantiate_type(rest_ty, &mapper);
+                            if !self.is_assignable_to(*elem_ty, pt) {
+                                return CallCandidateTrial {
+                                    sig,
+                                    mapper,
+                                    arity_ok,
+                                    non_function_args_ok: false,
+                                    first_failed_arg_index: Some(*arg_index),
+                                };
+                            }
+                        }
+                        arg_i = s.params.len();
+                    }
+                    ExpandedCallArg::Rest {
+                        elem_ty, arg_index, ..
+                    } => {
+                        if !self.is_assignable_to(*elem_ty, pt) {
+                            return CallCandidateTrial {
+                                sig,
+                                mapper,
+                                arity_ok,
+                                non_function_args_ok: false,
+                                first_failed_arg_index: Some(*arg_index),
+                            };
+                        }
+                    }
+                }
+            }
+        } else {
+            for (i, at) in arg_types.iter().enumerate() {
+                let Some(at) = at else { continue }; // arrows checked after selection
+                let pt0 = s
+                    .params
+                    .get(i)
+                    .map(|p| p.ty)
+                    .or(s.rest)
+                    .unwrap_or(self.types.any);
+                let pt = self.instantiate_type(pt0, &mapper);
+                if !self.is_assignable_to(*at, pt) {
+                    return CallCandidateTrial {
+                        sig,
+                        mapper,
+                        arity_ok,
+                        non_function_args_ok: false,
+                        first_failed_arg_index: Some(i),
+                    };
+                }
             }
         }
 
@@ -1311,19 +1437,41 @@ impl<'a> Checker<'a> {
         *already_reported = true;
     }
 
+    fn note_invalid_spread(
+        &mut self,
+        arg_index: usize,
+        span: Span,
+        first_invalid: &mut Option<usize>,
+        already_reported: &mut bool,
+        report_errors: bool,
+    ) {
+        if first_invalid.is_none() {
+            *first_invalid = Some(arg_index);
+        }
+        if report_errors {
+            self.report_spread_argument_error(span, already_reported);
+        }
+    }
+
     fn expand_call_args_for_signature(
         &mut self,
         sig: &crate::types::Signature,
         args: &'a [Expr],
+        arg_types: Option<&[Option<TypeId>]>,
         allow_iife_any_tuple_rest: bool,
+        report_errors: bool,
     ) -> ExpandedCallArgs<'a> {
         let mut slots = Vec::new();
         let mut exact_len = Some(0usize);
+        let mut first_invalid_spread_arg_index = None;
         let mut reported_spread_error = false;
 
-        for arg in args {
+        for (arg_index, arg) in args.iter().enumerate() {
             let Expr::Spread { expr, span } = arg else {
-                slots.push(ExpandedCallArg::Expr(arg));
+                slots.push(ExpandedCallArg::Expr {
+                    expr: arg,
+                    arg_index,
+                });
                 if let Some(len) = &mut exact_len {
                     *len += 1;
                 }
@@ -1331,7 +1479,10 @@ impl<'a> Checker<'a> {
             };
 
             let spread_starts_at = Self::expanded_fixed_slot_count(&slots);
-            let spread_ty = self.check_expr(expr, None);
+            let spread_ty = arg_types
+                .and_then(|types| types.get(arg_index))
+                .and_then(|ty| *ty)
+                .unwrap_or_else(|| self.check_expr(expr, None));
             match self.types.kind(spread_ty).clone() {
                 TypeKind::Tuple(elems) | TypeKind::ReadonlyTuple(elems) => {
                     for elem in elems {
@@ -1342,6 +1493,7 @@ impl<'a> Checker<'a> {
                                 slots.push(ExpandedCallArg::Rest {
                                     elem_ty,
                                     span: *span,
+                                    arg_index,
                                 });
                                 exact_len = None;
                             } else if allow_iife_any_tuple_rest
@@ -1351,19 +1503,27 @@ impl<'a> Checker<'a> {
                                 slots.push(ExpandedCallArg::ArraySpread {
                                     elem_ty,
                                     span: *span,
+                                    arg_index,
                                 });
                                 exact_len = None;
                             } else {
-                                self.report_spread_argument_error(
+                                self.note_invalid_spread(
+                                    arg_index,
                                     *span,
+                                    &mut first_invalid_spread_arg_index,
                                     &mut reported_spread_error,
+                                    report_errors,
                                 );
                                 exact_len = None;
                                 break;
                             }
                         } else {
                             let ty = self.tuple_elem_call_type(elem);
-                            slots.push(ExpandedCallArg::Type { ty, span: *span });
+                            slots.push(ExpandedCallArg::Type {
+                                ty,
+                                span: *span,
+                                arg_index,
+                            });
                             if let Some(len) = &mut exact_len {
                                 *len += 1;
                             }
@@ -1376,32 +1536,59 @@ impl<'a> Checker<'a> {
                             slots.push(ExpandedCallArg::Rest {
                                 elem_ty,
                                 span: *span,
+                                arg_index,
                             });
                             exact_len = None;
                         } else if Self::spread_can_cover_remaining_params(sig, spread_starts_at) {
                             slots.push(ExpandedCallArg::ArraySpread {
                                 elem_ty,
                                 span: *span,
+                                arg_index,
                             });
                             exact_len = None;
                         } else {
-                            self.report_spread_argument_error(*span, &mut reported_spread_error);
+                            self.note_invalid_spread(
+                                arg_index,
+                                *span,
+                                &mut first_invalid_spread_arg_index,
+                                &mut reported_spread_error,
+                                report_errors,
+                            );
                             exact_len = None;
                         }
                     } else if sig.rest.is_some() && spread_starts_at >= sig.params.len() {
                         let ty = self.types.regular(spread_ty);
                         let display = self.display_type(ty);
-                        self.error_at(expr.span(), &gen::Type_0_is_not_an_array_type, &[display]);
+                        if first_invalid_spread_arg_index.is_none() {
+                            first_invalid_spread_arg_index = Some(arg_index);
+                        }
+                        if report_errors {
+                            self.error_at(
+                                expr.span(),
+                                &gen::Type_0_is_not_an_array_type,
+                                &[display],
+                            );
+                        }
                         exact_len = None;
                     } else {
-                        self.report_spread_argument_error(*span, &mut reported_spread_error);
+                        self.note_invalid_spread(
+                            arg_index,
+                            *span,
+                            &mut first_invalid_spread_arg_index,
+                            &mut reported_spread_error,
+                            report_errors,
+                        );
                         exact_len = None;
                     }
                 }
             }
         }
 
-        ExpandedCallArgs { slots, exact_len }
+        ExpandedCallArgs {
+            slots,
+            exact_len,
+            first_invalid_spread_arg_index,
+        }
     }
 
     fn report_call_arity_error(
@@ -1544,7 +1731,13 @@ impl<'a> Checker<'a> {
             Expr::Call { callee, .. } if Self::is_immediately_invoked_function_callee(callee)
         );
         let expanded_args = if has_spread {
-            Some(self.expand_call_args_for_signature(&s, args, allow_iife_any_tuple_rest))
+            Some(self.expand_call_args_for_signature(
+                &s,
+                args,
+                None,
+                allow_iife_any_tuple_rest,
+                true,
+            ))
         } else {
             None
         };
@@ -1590,7 +1783,7 @@ impl<'a> Checker<'a> {
                     .unwrap_or(self.types.any);
                 let param_ty = self.instantiate_type(param_ty, &mapper);
                 match slot {
-                    ExpandedCallArg::Expr(a) => {
+                    ExpandedCallArg::Expr { expr: a, .. } => {
                         if suppress_arg_assignability {
                             self.check_expr(a, None);
                             arg_i += 1;
@@ -1624,7 +1817,7 @@ impl<'a> Checker<'a> {
                         }
                         arg_i += 1;
                     }
-                    ExpandedCallArg::Type { ty, span } => {
+                    ExpandedCallArg::Type { ty, span, .. } => {
                         if !suppress_arg_assignability
                             && !self.types.is_error(*ty)
                             && !self.types.is_error(param_ty)
@@ -1646,7 +1839,7 @@ impl<'a> Checker<'a> {
                         }
                         arg_i += 1;
                     }
-                    ExpandedCallArg::ArraySpread { elem_ty, span } => {
+                    ExpandedCallArg::ArraySpread { elem_ty, span, .. } => {
                         if !suppress_arg_assignability {
                             for param_idx in arg_i..s.params.len() {
                                 let param_ty =
@@ -1697,7 +1890,7 @@ impl<'a> Checker<'a> {
                         }
                         arg_i = s.params.len();
                     }
-                    ExpandedCallArg::Rest { elem_ty, span } => {
+                    ExpandedCallArg::Rest { elem_ty, span, .. } => {
                         if !suppress_arg_assignability
                             && !self.types.is_error(*elem_ty)
                             && !self.types.is_error(param_ty)
