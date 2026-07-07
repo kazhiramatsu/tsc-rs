@@ -55,6 +55,22 @@ pub struct FnCtx {
     pub this_ty: Option<TypeId>,
 }
 
+/// A jump boundary is a function body or class static block. Labels and
+/// unlabeled break/continue targets cannot cross one of these boundaries.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct JumpBoundary {
+    pub fn_depth: usize,
+    pub static_block_depth: u32,
+}
+
+pub struct LabelFrame {
+    pub name: String,
+    pub span: Span,
+    pub boundary: JumpBoundary,
+    pub is_iteration: bool,
+    pub used: bool,
+}
+
 /// Single-report dedup guards: ensure a given diagnostic is emitted at most once
 /// even when its node/symbol is reached from several code paths. (The final
 /// `sort_and_dedupe` only collapses byte-identical diagnostics; these guards
@@ -79,15 +95,15 @@ pub struct ReportGuards {
 }
 
 /// Control-flow state: the narrowing fact stack (one frame per active scope),
-/// loop/switch nesting depth, active labels, auto-variable TS7034 records,
-/// constructor property-assignment flow, the lazy-return cycle stack, and the
-/// set of exhaustively-covered switches.
+/// jump-target stacks, auto-variable TS7034 records, constructor
+/// property-assignment flow, the lazy-return cycle stack, and the set of
+/// exhaustively-covered switches.
 #[derive(Default)]
 pub struct FlowState {
     pub facts: Vec<HashMap<RefKey, TypeId>>,
-    pub loop_depth: u32,
-    pub switch_depth: u32,
-    pub label_stack: Vec<String>,
+    pub loop_stack: Vec<JumpBoundary>,
+    pub switch_stack: Vec<JumpBoundary>,
+    pub label_stack: Vec<LabelFrame>,
     /// auto (control-flow-typed) variables whose capture reads fired TS7005
     /// → TS7034 at the declaration name (file, span) in `check_unused`
     pub auto_fired: HashMap<SymbolId, (usize, Span)>,

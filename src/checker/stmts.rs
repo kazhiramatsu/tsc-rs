@@ -1,7 +1,7 @@
 //! Statement checking: declarations, control flow with flow-lite narrowing,
 //! return paths, imports.
 
-use super::{operators::TruthinessContext, Checker, EnumValue};
+use super::{operators::TruthinessContext, Checker, EnumValue, JumpBoundary};
 use crate::ast::*;
 use crate::binder::{Decl, ScopeId, SymbolId};
 use crate::diagnostics::gen;
@@ -910,6 +910,120 @@ impl<'a> Checker<'a> {
         self.options.preserve_const_enums == Some(true) || self.options.isolated_modules_like()
     }
 
+    fn jump_boundary(&self) -> JumpBoundary {
+        JumpBoundary {
+            fn_depth: self.stacks.fn_stack.len(),
+            static_block_depth: self.cflags.in_class_static_block,
+        }
+    }
+
+    fn has_local_loop_target(&self) -> bool {
+        let boundary = self.jump_boundary();
+        self.flow.loop_stack.iter().rev().any(|&b| b == boundary)
+    }
+
+    fn has_local_break_target(&self) -> bool {
+        let boundary = self.jump_boundary();
+        self.flow.loop_stack.iter().rev().any(|&b| b == boundary)
+            || self.flow.switch_stack.iter().rev().any(|&b| b == boundary)
+    }
+
+    fn stmt_is_iteration_label_target(stmt: &Stmt) -> bool {
+        match stmt {
+            Stmt::While { .. }
+            | Stmt::DoWhile { .. }
+            | Stmt::For { .. }
+            | Stmt::ForIn { .. }
+            | Stmt::ForOf { .. } => true,
+            Stmt::Labeled { stmt: inner, .. } => Self::stmt_is_iteration_label_target(inner),
+            _ => false,
+        }
+    }
+
+    fn stmt_is_disallowed_label_target(stmt: &Stmt) -> bool {
+        matches!(
+            stmt,
+            Stmt::Var(_)
+                | Stmt::Func(_)
+                | Stmt::Class(_)
+                | Stmt::Interface(_)
+                | Stmt::TypeAlias(_)
+                | Stmt::Enum(_)
+                | Stmt::Namespace(_)
+                | Stmt::Import(_)
+                | Stmt::ExportNamed(_)
+                | Stmt::ExportDefault { .. }
+                | Stmt::ExportAssign { .. }
+                | Stmt::ImportEquals { .. }
+        )
+    }
+
+    fn find_label_frame(&self, name: &str) -> Option<usize> {
+        self.flow
+            .label_stack
+            .iter()
+            .rposition(|frame| frame.name == name)
+    }
+
+    fn report_missing_break_target(&mut self, span: Span) {
+        if self.jump_boundary().fn_depth > 0 || self.jump_boundary().static_block_depth > 0 {
+            self.error_at(
+                Span::new(span.start as usize, span.start as usize + 5),
+                &gen::Jump_target_cannot_cross_function_boundary,
+                &[],
+            );
+        } else {
+            self.error_at(
+                span,
+                &gen::A_break_statement_can_only_be_used_within_an_enclosing_iteration_or_switch_statement,
+                &[],
+            );
+        }
+    }
+
+    fn report_missing_continue_target(&mut self, span: Span) {
+        if self.jump_boundary().fn_depth > 0 || self.jump_boundary().static_block_depth > 0 {
+            self.error_at(
+                Span::new(span.start as usize, span.start as usize + 8),
+                &gen::Jump_target_cannot_cross_function_boundary,
+                &[],
+            );
+        } else {
+            self.error_at(
+                span,
+                &gen::A_continue_statement_can_only_be_used_within_an_enclosing_iteration_statement,
+                &[],
+            );
+        }
+    }
+
+    fn label_is_enum_member_recovery(&self, label_span: Span) -> bool {
+        if !self.parse_error_files.contains(&self.current_file) {
+            return false;
+        }
+        let Some((_, text, _)) = self.files.get(self.current_file) else {
+            return false;
+        };
+        let start = (label_span.start as usize).min(text.text.len());
+        let line_start = text.text[..start]
+            .rfind(['\n', '\r'])
+            .map(|idx| idx + 1)
+            .unwrap_or(0);
+        for line in text.text[..line_start].lines().rev() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with("//") {
+                continue;
+            }
+            if trimmed.starts_with('}') {
+                return false;
+            }
+            if trimmed.contains("enum ") && trimmed.contains('{') {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Is this statement unreachable for TS7027? Plain statements use the
     /// lazy walk (never-calls and exhaustive switches terminate flow);
     /// class/enum/namespace declarations use the structural walk only.
@@ -1353,14 +1467,16 @@ impl<'a> Checker<'a> {
             Stmt::While { cond, body, .. } => {
                 let ct = self.check_expr(cond, None);
                 self.check_testable(cond, ct, TruthinessContext::LoopCondition);
-                self.flow.loop_depth += 1;
+                let boundary = self.jump_boundary();
+                self.flow.loop_stack.push(boundary);
                 self.check_statement(body);
-                self.flow.loop_depth -= 1;
+                self.flow.loop_stack.pop();
             }
             Stmt::DoWhile { body, cond, .. } => {
-                self.flow.loop_depth += 1;
+                let boundary = self.jump_boundary();
+                self.flow.loop_stack.push(boundary);
                 self.check_statement(body);
-                self.flow.loop_depth -= 1;
+                self.flow.loop_stack.pop();
                 let ct = self.check_expr(cond, None);
                 self.check_testable(cond, ct, TruthinessContext::LoopCondition);
             }
@@ -1391,9 +1507,10 @@ impl<'a> Checker<'a> {
                     let ct = self.check_expr(c, None);
                     self.check_testable(c, ct, TruthinessContext::LoopCondition);
                 }
-                self.flow.loop_depth += 1;
+                let boundary = self.jump_boundary();
+                self.flow.loop_stack.push(boundary);
                 self.check_statement(body);
-                self.flow.loop_depth -= 1;
+                self.flow.loop_stack.pop();
                 if let Some(i) = incr {
                     self.check_expr(i, None);
                 }
@@ -1504,9 +1621,10 @@ impl<'a> Checker<'a> {
                 let prev = self.current_scope;
                 self.current_scope = scope;
                 self.check_expr(expr, None);
-                self.flow.loop_depth += 1;
+                let boundary = self.jump_boundary();
+                self.flow.loop_stack.push(boundary);
                 self.check_statement(body);
-                self.flow.loop_depth -= 1;
+                self.flow.loop_stack.pop();
                 self.current_scope = prev;
             }
             Stmt::ForOf {
@@ -1614,9 +1732,10 @@ impl<'a> Checker<'a> {
                         }
                     }
                 }
-                self.flow.loop_depth += 1;
+                let boundary = self.jump_boundary();
+                self.flow.loop_stack.push(boundary);
                 self.check_statement(body);
-                self.flow.loop_depth -= 1;
+                self.flow.loop_stack.pop();
                 self.current_scope = prev;
             }
             Stmt::Block(b) => {
@@ -1678,7 +1797,8 @@ impl<'a> Checker<'a> {
                     .copied()
                     .unwrap_or(self.current_scope);
                 let mut saw_default = false;
-                self.flow.switch_depth += 1;
+                let boundary = self.jump_boundary();
+                self.flow.switch_stack.push(boundary);
                 for c in cases {
                     // clause narrowing (matched case / negated default) is the
                     // resolver's Switch arm; the checker only validates labels
@@ -1720,7 +1840,7 @@ impl<'a> Checker<'a> {
                     }
                     self.check_statements(&c.stmts, scope);
                 }
-                self.flow.switch_depth -= 1;
+                self.flow.switch_stack.pop();
                 // record exhaustiveness (no default, but case labels cover every
                 // member of the finite discriminant) for return-reachability; the
                 // discriminant and labels are already type-checked above, so this
@@ -1777,9 +1897,44 @@ impl<'a> Checker<'a> {
             Stmt::Labeled {
                 label, stmt: inner, ..
             } => {
-                self.flow.label_stack.push(label.name.clone());
+                let suppress_unused_label = self.flow.within_unreachable_code
+                    || (self.options.allow_unreachable_code == Some(true)
+                        && self.stmt_is_unreachable(stmt))
+                    || (self.cflags.in_class_static_block > 0 && label.name == "await")
+                    || self.label_is_enum_member_recovery(label.span);
+                let boundary = self.jump_boundary();
+                if self
+                    .flow
+                    .label_stack
+                    .iter()
+                    .any(|frame| frame.boundary == boundary && frame.name == label.name)
+                {
+                    self.error_at(
+                        label.span,
+                        &gen::Duplicate_label_0,
+                        std::slice::from_ref(&label.name),
+                    );
+                }
+                if self.options.script_target_rank() >= 2
+                    && Self::stmt_is_disallowed_label_target(inner)
+                {
+                    self.error_at(label.span, &gen::A_label_is_not_allowed_here, &[]);
+                }
+                self.flow.label_stack.push(super::LabelFrame {
+                    name: label.name.clone(),
+                    span: label.span,
+                    boundary,
+                    is_iteration: Self::stmt_is_iteration_label_target(inner),
+                    used: false,
+                });
                 self.check_statement(inner);
-                self.flow.label_stack.pop();
+                let frame = self.flow.label_stack.pop().unwrap();
+                if !frame.used
+                    && self.options.allow_unused_labels != Some(true)
+                    && !suppress_unused_label
+                {
+                    self.unused_diag(frame.span, &gen::Unused_label, &[], false);
+                }
             }
             Stmt::Import(i) => {
                 if !self.stacks.fn_stack.is_empty() {
@@ -1820,36 +1975,69 @@ impl<'a> Checker<'a> {
             }
             Stmt::Break { label, span } => {
                 if let Some(l) = label {
-                    if !self.flow.label_stack.contains(&l.name) {
+                    let boundary = self.jump_boundary();
+                    if let Some(idx) = self.find_label_frame(&l.name) {
+                        if self.flow.label_stack[idx].boundary == boundary {
+                            self.flow.label_stack[idx].used = true;
+                        } else {
+                            self.error_at(
+                                Span::new(span.start as usize, span.start as usize + 5),
+                                &gen::Jump_target_cannot_cross_function_boundary,
+                                &[],
+                            );
+                        }
+                    } else if boundary.fn_depth > 0 || boundary.static_block_depth > 0 {
+                        self.error_at(
+                            Span::new(span.start as usize, span.start as usize + 5),
+                            &gen::Jump_target_cannot_cross_function_boundary,
+                            &[],
+                        );
+                    } else {
                         self.error_at(
                             Span::new(span.start as usize, span.start as usize + 5),
                             &gen::A_break_statement_can_only_jump_to_a_label_of_an_enclosing_statement,
                             &[],
                         );
                     }
-                } else if self.flow.loop_depth == 0 && self.flow.switch_depth == 0 {
-                    self.error_at(
-                        *span,
-                        &gen::A_break_statement_can_only_be_used_within_an_enclosing_iteration_or_switch_statement,
-                        &[],
-                    );
+                } else if !self.has_local_break_target() {
+                    self.report_missing_break_target(*span);
                 }
             }
             Stmt::Continue { label, span } => {
                 if let Some(l) = label {
-                    if !self.flow.label_stack.contains(&l.name) {
+                    let boundary = self.jump_boundary();
+                    if let Some(idx) = self.find_label_frame(&l.name) {
+                        if self.flow.label_stack[idx].boundary == boundary {
+                            self.flow.label_stack[idx].used = true;
+                            if !self.flow.label_stack[idx].is_iteration {
+                                self.error_at(
+                                    Span::new(span.start as usize, span.start as usize + 8),
+                                    &gen::A_continue_statement_can_only_jump_to_a_label_of_an_enclosing_iteration_statement,
+                                    &[],
+                                );
+                            }
+                        } else {
+                            self.error_at(
+                                Span::new(span.start as usize, span.start as usize + 8),
+                                &gen::Jump_target_cannot_cross_function_boundary,
+                                &[],
+                            );
+                        }
+                    } else if boundary.fn_depth > 0 || boundary.static_block_depth > 0 {
+                        self.error_at(
+                            Span::new(span.start as usize, span.start as usize + 8),
+                            &gen::Jump_target_cannot_cross_function_boundary,
+                            &[],
+                        );
+                    } else {
                         self.error_at(
                             Span::new(span.start as usize, span.start as usize + 8),
                             &gen::A_continue_statement_can_only_jump_to_a_label_of_an_enclosing_iteration_statement,
                             &[],
                         );
                     }
-                } else if self.flow.loop_depth == 0 {
-                    self.error_at(
-                        *span,
-                        &gen::A_continue_statement_can_only_be_used_within_an_enclosing_iteration_statement,
-                        &[],
-                    );
+                } else if !self.has_local_loop_target() {
+                    self.report_missing_continue_target(*span);
                 }
             }
             Stmt::Empty { .. } | Stmt::Missing { .. } => {}
