@@ -206,7 +206,7 @@ impl<'a> Checker<'a> {
     }
 }
 
-fn prop_name_is_symbol_iterator(name: &PropName) -> bool {
+pub(crate) fn prop_name_is_symbol_iterator(name: &PropName) -> bool {
     let PropName::Computed { expr, .. } = name else {
         return false;
     };

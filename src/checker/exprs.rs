@@ -652,28 +652,33 @@ impl<'a> Checker<'a> {
                     );
                 }
                 if let Some(e2) = expr {
-                    // a plain `yield v` must produce the generator's yield type;
-                    // `yield* it` delegates to an iterable and is not checked here.
-                    let yt = if *delegate {
-                        None
+                    if *delegate {
+                        let et = self.check_expr(e2, None);
+                        if !self.stacks.fn_stack.last().is_some_and(|f| f.is_async) {
+                            let iter_source =
+                                self.yield_star_syntactic_iterator_source(e2).unwrap_or(et);
+                            self.report_downlevel_iteration_if_needed(iter_source, e2.span());
+                        }
                     } else {
-                        self.current_yield_type()
-                    };
-                    let count = if self.cflags.suppress_yield_function_implicit_any_params > 0 {
-                        self.contextual_function_arg_count(e2)
-                    } else {
-                        0
-                    };
-                    let et = if count > 0 {
-                        self.with_suppressed_next_n_function_implicit_any_params(count, |this| {
-                            this.check_expr(e2, yt)
-                        })
-                    } else {
-                        self.check_expr(e2, yt)
-                    };
-                    if let Some(yt) = yt {
-                        if !self.types.is_any_or_error(yt) {
-                            self.check_assignable(et, yt, e2.span(), None, Some(e2));
+                        // a plain `yield v` must produce the generator's yield type.
+                        let yt = self.current_yield_type();
+                        let count = if self.cflags.suppress_yield_function_implicit_any_params > 0 {
+                            self.contextual_function_arg_count(e2)
+                        } else {
+                            0
+                        };
+                        let et = if count > 0 {
+                            self.with_suppressed_next_n_function_implicit_any_params(
+                                count,
+                                |this| this.check_expr(e2, yt),
+                            )
+                        } else {
+                            self.check_expr(e2, yt)
+                        };
+                        if let Some(yt) = yt {
+                            if !self.types.is_any_or_error(yt) {
+                                self.check_assignable(et, yt, e2.span(), None, Some(e2));
+                            }
                         }
                     }
                 }
@@ -2324,6 +2329,27 @@ impl<'a> Checker<'a> {
             }
             _ => None,
         }
+    }
+
+    fn yield_star_syntactic_iterator_source(&mut self, expr: &'a Expr) -> Option<TypeId> {
+        let Expr::Object { props, .. } = expr else {
+            return None;
+        };
+        for prop in props {
+            let ObjectProp::Method(f) = prop else {
+                continue;
+            };
+            let Some(name) = &f.name else { continue };
+            if crate::checker::iteration::prop_name_is_symbol_iterator(name) {
+                return Some(
+                    self.with_suppressed_next_function_implicit_any_params(|this| {
+                        let sig = this.signature_of(f);
+                        this.sig_return(sig)
+                    }),
+                );
+            }
+        }
+        None
     }
 
     fn awaited_type(&mut self, t: TypeId) -> TypeId {
