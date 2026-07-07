@@ -156,7 +156,7 @@ impl<'a> Checker<'a> {
     /// Whether a type-parameter constraint `c` makes its parameter a valid
     /// index for `obj`: it is `keyof obj`, or an intersection that still has
     /// `keyof obj` as an operand (`keyof T & string`).
-    fn index_constraint_covers(&self, c: TypeId, obj: TypeId) -> bool {
+    pub(crate) fn index_constraint_covers(&self, c: TypeId, obj: TypeId) -> bool {
         match self.types.kind(c) {
             TypeKind::Keyof(inner) => *inner == obj,
             TypeKind::Intersection(ms) => {

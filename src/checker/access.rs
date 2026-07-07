@@ -940,6 +940,15 @@ impl<'a> Checker<'a> {
             return self.types.any;
         }
         let idx_r = self.types.regular(idx_t);
+        let is_plain_write_target = self.cflags.assign_target
+            == crate::checker::exprs::node_key_expr(e)
+            && !self.cflags.assign_target_rw
+            || self.cflags.pattern_target > 0;
+        if !is_plain_write_target {
+            if let Some(t) = self.generic_constraint_index_read(obj_t, idx_r) {
+                return t;
+            }
+        }
         // a generic object (type parameter, or a parameterized intersection like
         // `T & U`) indexed by a generic key resolves to an indexed access type,
         // preserving genericity (`o[k]` → `o[K]`) rather than going through the
@@ -1143,6 +1152,41 @@ impl<'a> Checker<'a> {
             }
         }
         self.types.any
+    }
+
+    fn generic_constraint_index_read(&mut self, obj_t: TypeId, idx_t: TypeId) -> Option<TypeId> {
+        let TypeKind::TypeParam(obj_sym) = self.types.kind(obj_t).clone() else {
+            return None;
+        };
+        let key_covers_obj = match self.types.kind(idx_t).clone() {
+            TypeKind::Keyof(inner) => inner == obj_t,
+            TypeKind::TypeParam(key_sym) => self
+                .constraint_of_type_param(key_sym)
+                .is_some_and(|c| self.index_constraint_covers(c, obj_t)),
+            _ => false,
+        };
+        if !key_covers_obj {
+            return None;
+        }
+        let constraint = self.constraint_of_type_param(obj_sym)?;
+        let apparent = self.apparent_type(constraint);
+        let sid = self.shape_of_type(apparent)?;
+        let infos = self.types.shape(sid).index_infos.clone();
+        let mut string_value = None;
+        let mut number_value = None;
+        for info in infos {
+            match self.types.kind(info.key) {
+                TypeKind::String => string_value = Some(info.value),
+                TypeKind::Number => number_value = Some(info.value),
+                _ => {}
+            }
+        }
+        let value = string_value.or(number_value)?;
+        if self.options.no_unchecked_indexed_access {
+            Some(self.types.union(vec![value, self.types.undefined]))
+        } else {
+            Some(value)
+        }
     }
 
     /// Index belongs to the `number` category — `number`/`numeric literal`, or

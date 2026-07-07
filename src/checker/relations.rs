@@ -2,7 +2,7 @@
 //! ported from checker.ts (checkTypeRelatedTo and friends, TS 6.0).
 
 use super::Checker;
-use crate::ast::{Expr, Span};
+use crate::ast::{Expr, MappedModifier, Span, TypeNode};
 use crate::checker::symbols::Mapper;
 use crate::diagnostics::{gen, DiagnosticMessage, MessageChain, RelatedInfo};
 use crate::types::{TypeId, TypeKind};
@@ -18,6 +18,9 @@ struct RelationDisplay {
 struct DeferredMappedRelationParts {
     constraint: TypeId,
     value: TypeId,
+    optional_strength: u8,
+    value_non_nullable: bool,
+    simple_value_template: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -1089,6 +1092,71 @@ impl<'a> Checker<'a> {
         false
     }
 
+    fn deferred_mapped_related(&mut self, src: TypeId, tgt: TypeId) -> bool {
+        let Some(src_key) = self.deferred_mapped_node_key(src) else {
+            return false;
+        };
+        let Some(src_node) = self
+            .deferred
+            .deferred_mappeds
+            .get(&src_key)
+            .map(|&(node, _, _)| node)
+        else {
+            return false;
+        };
+        let common_key_sym = self.synthetic_type_param(src_key, &src_node.key.name);
+        let (Some(src_parts), Some(tgt_parts)) = (
+            self.deferred_mapped_relation_parts(src, common_key_sym),
+            self.deferred_mapped_relation_parts(tgt, common_key_sym),
+        ) else {
+            return false;
+        };
+        if !matches!(self.types.kind(src_parts.constraint), TypeKind::Keyof(_))
+            || !matches!(self.types.kind(tgt_parts.constraint), TypeKind::Keyof(_))
+            || !src_parts.simple_value_template
+            || !tgt_parts.simple_value_template
+        {
+            return false;
+        }
+        let keys_covered = self.display_type(src_parts.constraint)
+            == self.display_type(tgt_parts.constraint)
+            || self.is_assignable_to(tgt_parts.constraint, src_parts.constraint);
+        keys_covered
+            && src_parts.optional_strength >= tgt_parts.optional_strength
+            && self.mapped_value_related(
+                src_parts.value,
+                tgt_parts.value,
+                src_parts.value_non_nullable,
+                tgt_parts.value_non_nullable,
+            )
+    }
+
+    fn mapped_value_related(
+        &mut self,
+        src: TypeId,
+        tgt: TypeId,
+        src_non_nullable: bool,
+        tgt_non_nullable: bool,
+    ) -> bool {
+        if tgt_non_nullable && !src_non_nullable {
+            return false;
+        }
+        if src == tgt {
+            return true;
+        }
+        if self.is_non_nullable_intersection(tgt) && !self.is_non_nullable_intersection(src) {
+            return false;
+        }
+        self.is_assignable_to(src, tgt)
+    }
+
+    fn is_non_nullable_intersection(&self, t: TypeId) -> bool {
+        let TypeKind::Intersection(members) = self.types.kind(t) else {
+            return false;
+        };
+        members.iter().any(|&m| self.is_empty_object_type(m))
+    }
+
     fn deferred_mapped_node_key(&self, t: TypeId) -> Option<usize> {
         match self.types.kind(t) {
             TypeKind::DeferredMapped(key, _) => Some(*key),
@@ -1130,7 +1198,47 @@ impl<'a> Checker<'a> {
         self.current_file = prev_file;
         self.diags.truncate(before_diags);
 
-        Some(DeferredMappedRelationParts { constraint, value })
+        let optional_strength = match node.optional_mod {
+            Some(MappedModifier::Add) => 0,
+            None => 1,
+            Some(MappedModifier::Remove) => 2,
+        };
+        let value_non_nullable = node
+            .value
+            .as_ref()
+            .is_some_and(|v| Self::is_non_nullable_type_node(v));
+        let simple_value_template = node
+            .value
+            .as_ref()
+            .is_some_and(|v| Self::is_simple_mapped_value_node(v));
+
+        Some(DeferredMappedRelationParts {
+            constraint,
+            value,
+            optional_strength,
+            value_non_nullable,
+            simple_value_template,
+        })
+    }
+
+    fn is_non_nullable_type_node(node: &TypeNode) -> bool {
+        matches!(node, TypeNode::Ref(r)
+            if r.name.parts.len() == 1 && r.name.parts[0].name == "NonNullable")
+    }
+
+    fn is_simple_mapped_value_node(node: &TypeNode) -> bool {
+        match node {
+            TypeNode::IndexedAccess { .. } => true,
+            TypeNode::Ref(r)
+                if r.name.parts.len() == 1 && r.name.parts[0].name == "NonNullable" =>
+            {
+                r.type_args
+                    .as_ref()
+                    .and_then(|args| args.first())
+                    .is_some_and(Self::is_simple_mapped_value_node)
+            }
+            _ => false,
+        }
     }
 
     fn explain_indexed_access_relation(
@@ -1155,6 +1263,18 @@ impl<'a> Checker<'a> {
         }
 
         false
+    }
+
+    fn indexed_access_related(&mut self, src: TypeId, tgt: TypeId) -> bool {
+        let (TypeKind::IndexedAccess(src_obj, src_idx), TypeKind::IndexedAccess(tgt_obj, tgt_idx)) =
+            (self.types.kind(src).clone(), self.types.kind(tgt).clone())
+        else {
+            return false;
+        };
+        let same_index = src_idx == tgt_idx
+            || (self.is_assignable_to(src_idx, tgt_idx) && self.is_assignable_to(tgt_idx, src_idx))
+            || self.display_type(src_idx) == self.display_type(tgt_idx);
+        same_index && self.is_assignable_to(src_obj, tgt_obj)
     }
 
     // ── the structural relation itself ──────────────────────────────────────
@@ -1418,6 +1538,11 @@ impl<'a> Checker<'a> {
         if matches!(tk, TypeKind::Keyof(_)) {
             return self.relate_to_target_keyof(src, tgt, ctx);
         }
+        if matches!(sk, TypeKind::IndexedAccess(..)) && matches!(tk, TypeKind::IndexedAccess(..)) {
+            if self.indexed_access_related(src, tgt) {
+                return true;
+            }
+        }
         // an indexed access on a type parameter relates through its base
         // constraint (`T['length']` → `number`), matching tsc; deferred
         // conditionals and mapped types remain opaque below.
@@ -1429,6 +1554,12 @@ impl<'a> Checker<'a> {
         if matches!(tk, TypeKind::IndexedAccess(..)) {
             if let Some(tc) = self.indexed_access_base_constraint(tgt) {
                 return self.related(src, tc, ctx);
+            }
+        }
+        if matches!(sk, TypeKind::DeferredMapped(..)) && matches!(tk, TypeKind::DeferredMapped(..))
+        {
+            if self.deferred_mapped_related(src, tgt) {
+                return true;
             }
         }
         if ctx.is_some()
