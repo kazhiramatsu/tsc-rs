@@ -10,6 +10,14 @@ use crate::diagnostics::{gen, DiagnosticMessage};
 use crate::types::{SigId, TypeId, TypeKind};
 use std::collections::HashMap;
 
+struct CallCandidateTrial {
+    sig: SigId,
+    mapper: HashMap<SymbolId, TypeId>,
+    arity_ok: bool,
+    non_function_args_ok: bool,
+    first_failed_arg_index: Option<usize>,
+}
+
 impl<'a> Checker<'a> {
     fn is_immediately_invoked_function_callee(e: &'a Expr) -> bool {
         match e {
@@ -805,36 +813,16 @@ impl<'a> Checker<'a> {
             .collect();
         let mut first_failed_arg_index: Option<usize> = None;
         for &sig in sigs {
-            let s = self.types.sig(sig).clone();
-            let argc = args.len() as u32;
-            let max = s.params.len() as u32;
-            if argc < s.min_args || (s.rest.is_none() && argc > max) {
+            let trial = self.call_candidate_trial(sig, args, &arg_types, ctx);
+            if !trial.arity_ok {
                 continue;
             }
-            // infer type arguments for generic overloads from the arguments
-            let mapper: HashMap<SymbolId, TypeId> = if s.type_params.is_empty() {
-                HashMap::new()
-            } else {
-                self.infer_type_arguments(&s, args, ctx)
-            };
-            let mut ok = true;
-            for (i, at) in arg_types.iter().enumerate() {
-                let Some(at) = at else { continue }; // arrows checked below
-                let pt0 = s
-                    .params
-                    .get(i)
-                    .map(|p| p.ty)
-                    .or(s.rest)
-                    .unwrap_or(self.types.any);
-                let pt = self.instantiate_type(pt0, &mapper);
-                if !self.is_assignable_to(*at, pt) {
-                    ok = false;
-                    first_failed_arg_index =
-                        Some(first_failed_arg_index.map_or(i, |prev| std::cmp::min(prev, i)));
-                    break;
-                }
+            if let Some(i) = trial.first_failed_arg_index {
+                first_failed_arg_index =
+                    Some(first_failed_arg_index.map_or(i, |prev| std::cmp::min(prev, i)));
             }
-            if ok {
+            if trial.non_function_args_ok {
+                let s = self.types.sig(trial.sig).clone();
                 // This overload fits the non-arrow arguments; commit to it and
                 // check any function-like arguments with their contextual
                 // parameter types (also emits their body diagnostics once).
@@ -846,12 +834,12 @@ impl<'a> Checker<'a> {
                             .map(|p| p.ty)
                             .or(s.rest)
                             .unwrap_or(self.types.any);
-                        let pt = self.instantiate_type(pt0, &mapper);
+                        let pt = self.instantiate_type(pt0, &trial.mapper);
                         let at = self.check_expr(a, Some(pt));
                         let _ = self.check_assignable(at, pt, a.span(), None, Some(a));
                     }
                 }
-                return self.instantiate_type(s.ret, &mapper);
+                return self.instantiate_type(s.ret, &trial.mapper);
             }
         }
         // No overload accepted the arguments. Finalize argument types —
@@ -966,6 +954,63 @@ impl<'a> Checker<'a> {
             }
         }
         self.types.error
+    }
+
+    fn call_candidate_trial(
+        &mut self,
+        sig: SigId,
+        args: &'a [Expr],
+        arg_types: &[Option<TypeId>],
+        ctx: Option<TypeId>,
+    ) -> CallCandidateTrial {
+        let s = self.types.sig(sig).clone();
+        let argc = args.len() as u32;
+        let max = s.params.len() as u32;
+        let arity_ok = argc >= s.min_args && (s.rest.is_some() || argc <= max);
+        if !arity_ok {
+            return CallCandidateTrial {
+                sig,
+                mapper: HashMap::new(),
+                arity_ok,
+                non_function_args_ok: false,
+                first_failed_arg_index: None,
+            };
+        }
+
+        // Infer type arguments for generic overloads from the arguments.
+        let mapper: HashMap<SymbolId, TypeId> = if s.type_params.is_empty() {
+            HashMap::new()
+        } else {
+            self.infer_type_arguments(&s, args, ctx)
+        };
+
+        for (i, at) in arg_types.iter().enumerate() {
+            let Some(at) = at else { continue }; // arrows checked after selection
+            let pt0 = s
+                .params
+                .get(i)
+                .map(|p| p.ty)
+                .or(s.rest)
+                .unwrap_or(self.types.any);
+            let pt = self.instantiate_type(pt0, &mapper);
+            if !self.is_assignable_to(*at, pt) {
+                return CallCandidateTrial {
+                    sig,
+                    mapper,
+                    arity_ok,
+                    non_function_args_ok: false,
+                    first_failed_arg_index: Some(i),
+                };
+            }
+        }
+
+        CallCandidateTrial {
+            sig,
+            mapper,
+            arity_ok,
+            non_function_args_ok: true,
+            first_failed_arg_index: None,
+        }
     }
 
     fn display_sig_for_overload(&mut self, sig: SigId) -> String {
