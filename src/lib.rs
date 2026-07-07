@@ -1449,6 +1449,33 @@ type Boxed = { readonly ok: unique symbol; bad: unique symbol };
     }
 
     #[test]
+    fn function_type_nodes_report_implicit_any_params() {
+        let opts = CompilerOptions {
+            strict: Some(false),
+            diag_json: true,
+            target: Some("es2015".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![InputFile {
+                name: "main.ts".to_string(),
+                text: r#"
+type F<T> = (value) => T;
+type G<T> = (T) => void;
+type H = (string) => void;
+declare function takes(cb: (event) => void): void;
+"#
+                .to_string(),
+            }],
+            &opts,
+        );
+
+        assert_eq!(out.matches("\"code\":7044").count(), 2, "{out}");
+        assert_eq!(out.matches("\"code\":7051").count(), 2, "{out}");
+        assert!(!out.contains("\"code\":7006"), "{out}");
+    }
+
+    #[test]
     fn computed_object_members_use_index_signature_context() {
         let opts = CompilerOptions {
             strict: Some(true),

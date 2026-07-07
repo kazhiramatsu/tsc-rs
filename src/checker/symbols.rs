@@ -1230,6 +1230,7 @@ impl<'a> Checker<'a> {
                 self.intersect_all(resolved)
             }
             TypeNode::Function(f) => {
+                self.report_function_type_implicit_any_params(f, scope);
                 let sig = self.function_type_node_sig(f, scope);
                 let shape = self.types.alloc_shape(Shape {
                     props: Vec::new(),
@@ -1240,6 +1241,7 @@ impl<'a> Checker<'a> {
                 self.types.alloc(TypeKind::Anon(shape))
             }
             TypeNode::Ctor(f) => {
+                self.report_function_type_implicit_any_params(f, scope);
                 let sig = self.function_type_node_sig(f, scope);
                 let shape = self.types.alloc_shape(Shape {
                     props: Vec::new(),

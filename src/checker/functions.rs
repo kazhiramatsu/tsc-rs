@@ -137,6 +137,242 @@ impl<'a> Checker<'a> {
         }
     }
 
+    pub(crate) fn report_function_type_implicit_any_params(
+        &mut self,
+        f: &'a FunctionTypeNode,
+        scope: crate::binder::ScopeId,
+    ) {
+        let guard_code = if self.options.no_implicit_any() {
+            7006
+        } else {
+            7044
+        };
+        for (idx, p) in f.params.iter().enumerate() {
+            if self.report_function_type_param_name_without_type(f, p, idx, scope) {
+                continue;
+            }
+            if self.report_once_node(guard_code, node_key(p)) {
+                self.report_implicit_any_param(p);
+            }
+        }
+    }
+
+    fn report_function_type_param_name_without_type(
+        &mut self,
+        f: &'a FunctionTypeNode,
+        p: &'a Param,
+        idx: usize,
+        scope: crate::binder::ScopeId,
+    ) -> bool {
+        if p.ty.is_some() {
+            return false;
+        }
+        let Some(id) = p.name.as_ident() else {
+            return false;
+        };
+        let keyword_type_name = matches!(
+            id.name.as_str(),
+            "string"
+                | "number"
+                | "boolean"
+                | "symbol"
+                | "object"
+                | "any"
+                | "unknown"
+                | "never"
+                | "bigint"
+        );
+        let own_type_param = f
+            .type_params
+            .as_ref()
+            .is_some_and(|tps| tps.iter().any(|tp| tp.name.name == id.name));
+        if !keyword_type_name && !own_type_param && self.lookup_type(scope, &id.name).is_none() {
+            return false;
+        }
+        if self.report_once_node(7051, node_key(p)) {
+            self.suggestion_at(
+                id.span,
+                &gen::Parameter_has_a_name_but_no_type_Did_you_mean_0_Colon_1,
+                &[format!("arg{}", idx), id.name.clone()],
+            );
+        }
+        true
+    }
+
+    pub(crate) fn report_function_type_implicit_any_in_function_like(
+        &mut self,
+        f: &'a FunctionLike,
+        scope: crate::binder::ScopeId,
+    ) {
+        if let Some(tps) = &f.type_params {
+            for tp in tps {
+                if let Some(ty) = &tp.constraint {
+                    self.report_function_type_implicit_any_in_type(ty, scope);
+                }
+                if let Some(ty) = &tp.default {
+                    self.report_function_type_implicit_any_in_type(ty, scope);
+                }
+            }
+        }
+        for p in &f.params {
+            if let Some(ty) = &p.ty {
+                self.report_function_type_implicit_any_in_type(ty, scope);
+            }
+        }
+        if let Some(ty) = &f.return_type {
+            self.report_function_type_implicit_any_in_type(ty, scope);
+        }
+    }
+
+    pub(crate) fn report_function_type_implicit_any_in_type(
+        &mut self,
+        ty: &'a TypeNode,
+        scope: crate::binder::ScopeId,
+    ) {
+        match ty {
+            TypeNode::Function(f) | TypeNode::Ctor(f) => {
+                self.report_function_type_implicit_any_params(f, scope);
+                if let Some(tps) = &f.type_params {
+                    for tp in tps {
+                        if let Some(ty) = &tp.constraint {
+                            self.report_function_type_implicit_any_in_type(ty, scope);
+                        }
+                        if let Some(ty) = &tp.default {
+                            self.report_function_type_implicit_any_in_type(ty, scope);
+                        }
+                    }
+                }
+                for p in &f.params {
+                    if let Some(ty) = &p.ty {
+                        self.report_function_type_implicit_any_in_type(ty, scope);
+                    }
+                }
+                self.report_function_type_implicit_any_in_type(&f.return_type, scope);
+            }
+            TypeNode::Paren { inner, .. }
+            | TypeNode::Array { elem: inner, .. }
+            | TypeNode::Keyof { ty: inner, .. }
+            | TypeNode::Unique { ty: inner, .. }
+            | TypeNode::ReadonlyOp { ty: inner, .. } => {
+                self.report_function_type_implicit_any_in_type(inner, scope)
+            }
+            TypeNode::Tuple { elems, .. } => {
+                for elem in elems {
+                    self.report_function_type_implicit_any_in_type(&elem.ty, scope);
+                }
+            }
+            TypeNode::Union { members, .. } | TypeNode::Intersection { members, .. } => {
+                for member in members {
+                    self.report_function_type_implicit_any_in_type(member, scope);
+                }
+            }
+            TypeNode::TypeLiteral { members, .. } => {
+                for member in members {
+                    match member {
+                        TypeMember::Prop(PropSig { ty: Some(ty), .. }) => {
+                            self.report_function_type_implicit_any_in_type(ty, scope);
+                        }
+                        TypeMember::Method(m) => {
+                            if let Some(tps) = &m.type_params {
+                                for tp in tps {
+                                    if let Some(ty) = &tp.constraint {
+                                        self.report_function_type_implicit_any_in_type(ty, scope);
+                                    }
+                                    if let Some(ty) = &tp.default {
+                                        self.report_function_type_implicit_any_in_type(ty, scope);
+                                    }
+                                }
+                            }
+                            for p in &m.params {
+                                if let Some(ty) = &p.ty {
+                                    self.report_function_type_implicit_any_in_type(ty, scope);
+                                }
+                            }
+                            if let Some(ty) = &m.return_type {
+                                self.report_function_type_implicit_any_in_type(ty, scope);
+                            }
+                        }
+                        TypeMember::Call(s) | TypeMember::Ctor(s) => {
+                            if let Some(tps) = &s.type_params {
+                                for tp in tps {
+                                    if let Some(ty) = &tp.constraint {
+                                        self.report_function_type_implicit_any_in_type(ty, scope);
+                                    }
+                                    if let Some(ty) = &tp.default {
+                                        self.report_function_type_implicit_any_in_type(ty, scope);
+                                    }
+                                }
+                            }
+                            for p in &s.params {
+                                if let Some(ty) = &p.ty {
+                                    self.report_function_type_implicit_any_in_type(ty, scope);
+                                }
+                            }
+                            if let Some(ty) = &s.return_type {
+                                self.report_function_type_implicit_any_in_type(ty, scope);
+                            }
+                        }
+                        TypeMember::Index(ix) => {
+                            self.report_function_type_implicit_any_in_type(&ix.key_type, scope);
+                            self.report_function_type_implicit_any_in_type(&ix.value_type, scope);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            TypeNode::Ref(TypeRef { type_args, .. }) | TypeNode::TypeQuery { type_args, .. } => {
+                if let Some(args) = type_args {
+                    for arg in args {
+                        self.report_function_type_implicit_any_in_type(arg, scope);
+                    }
+                }
+            }
+            TypeNode::IndexedAccess { obj, index, .. } => {
+                self.report_function_type_implicit_any_in_type(obj, scope);
+                self.report_function_type_implicit_any_in_type(index, scope);
+            }
+            TypeNode::Conditional(c) => {
+                self.report_function_type_implicit_any_in_type(&c.check, scope);
+                self.report_function_type_implicit_any_in_type(&c.extends_ty, scope);
+                self.report_function_type_implicit_any_in_type(&c.true_ty, scope);
+                self.report_function_type_implicit_any_in_type(&c.false_ty, scope);
+            }
+            TypeNode::Predicate { ty: Some(ty), .. } => {
+                self.report_function_type_implicit_any_in_type(ty, scope);
+            }
+            TypeNode::Infer {
+                constraint: Some(ty),
+                ..
+            } => {
+                self.report_function_type_implicit_any_in_type(ty, scope);
+            }
+            TypeNode::Mapped(m) => {
+                self.report_function_type_implicit_any_in_type(&m.constraint, scope);
+                if let Some(ty) = &m.name_type {
+                    self.report_function_type_implicit_any_in_type(ty, scope);
+                }
+                if let Some(ty) = &m.value {
+                    self.report_function_type_implicit_any_in_type(ty, scope);
+                }
+            }
+            TypeNode::TemplateLit { parts, .. } => {
+                for (ty, _) in parts {
+                    self.report_function_type_implicit_any_in_type(ty, scope);
+                }
+            }
+            TypeNode::Keyword(..)
+            | TypeNode::This(_)
+            | TypeNode::LiteralString { .. }
+            | TypeNode::LiteralNumber { .. }
+            | TypeNode::LiteralBigInt { .. }
+            | TypeNode::LiteralBool { .. }
+            | TypeNode::Predicate { ty: None, .. }
+            | TypeNode::Infer {
+                constraint: None, ..
+            } => {}
+        }
+    }
+
     pub(crate) fn report_implicit_any_return_named(&mut self, span: Span, name: String) {
         if self.options.no_implicit_any() {
             self.error_at(
@@ -255,6 +491,7 @@ impl<'a> Checker<'a> {
             self.cflags.suppress_next_function_implicit_any_return -= 1;
         }
         self.check_unique_symbol_function_like(f);
+        self.report_function_type_implicit_any_in_function_like(f, scope);
         // implicit-any params: errors under noImplicitAny, suggestions otherwise.
         if report_implicit_params && !suppress_implicit_params {
             for p in &f.params {
