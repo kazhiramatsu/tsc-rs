@@ -512,6 +512,12 @@ impl<'a> Checker<'a> {
         let Some(cur) = self.current_type_of_key(target, &key) else {
             return;
         };
+        if matches!(self.types.kind(cur), TypeKind::Unknown) {
+            if let Some(narrowed) = self.unknown_value_equality_type(oreg) {
+                self.set_fact(key, narrowed);
+            }
+            return;
+        }
         if matches!(self.types.kind(cur), TypeKind::Any | TypeKind::Error) {
             return;
         }
@@ -530,6 +536,29 @@ impl<'a> Checker<'a> {
         // tsc (equalityWithIntersectionTypes01)
         let narrowed = self.types.union(kept);
         self.set_fact(key, narrowed);
+    }
+
+    fn unknown_value_equality_type(&mut self, other: TypeId) -> Option<TypeId> {
+        match self.types.kind(other).clone() {
+            TypeKind::Any | TypeKind::Unknown | TypeKind::Error => None,
+            TypeKind::Union(_) if other == self.types.boolean => Some(other),
+            TypeKind::Union(_) | TypeKind::Intersection(_) => None,
+            TypeKind::String
+            | TypeKind::Number
+            | TypeKind::Bigint
+            | TypeKind::EsSymbol
+            | TypeKind::Undefined
+            | TypeKind::Null
+            | TypeKind::NonPrimitive
+            | TypeKind::StrLit(_)
+            | TypeKind::NumLit(_)
+            | TypeKind::BigIntLit(_)
+            | TypeKind::BoolLit(_)
+            | TypeKind::EnumType(_)
+            | TypeKind::EnumMember(_) => Some(other),
+            _ if self.is_object_like(other) => Some(other),
+            _ => None,
+        }
     }
 
     fn narrow_by_typeof(&mut self, target: &'a Expr, lit: &str, sense: bool) {
@@ -777,24 +806,30 @@ impl<'a> Checker<'a> {
             }
             (NarrowValue::Str(s), true, _) => {
                 let lit = self.types.string_lit(s);
-                let members = self.types.union_members(cur);
-                if members.contains(&lit) {
-                    lit
-                } else if matches!(self.types.kind(cur), TypeKind::String) {
+                if matches!(self.types.kind(cur), TypeKind::Unknown) {
                     lit
                 } else {
-                    // keep members that could equal the literal (e.g. `string`
-                    // stays, other primitives drop): `string | number === "s"`
-                    // narrows to string, like tsc.
-                    let kept: Vec<TypeId> = members
-                        .iter()
-                        .copied()
-                        .filter(|&m| self.is_assignable_to(lit, m) || self.is_assignable_to(m, lit))
-                        .collect();
-                    if kept.is_empty() {
-                        cur
+                    let members = self.types.union_members(cur);
+                    if members.contains(&lit) {
+                        lit
+                    } else if matches!(self.types.kind(cur), TypeKind::String) {
+                        lit
                     } else {
-                        self.types.union(kept)
+                        // keep members that could equal the literal (e.g. `string`
+                        // stays, other primitives drop): `string | number === "s"`
+                        // narrows to string, like tsc.
+                        let kept: Vec<TypeId> = members
+                            .iter()
+                            .copied()
+                            .filter(|&m| {
+                                self.is_assignable_to(lit, m) || self.is_assignable_to(m, lit)
+                            })
+                            .collect();
+                        if kept.is_empty() {
+                            cur
+                        } else {
+                            self.types.union(kept)
+                        }
                     }
                 }
             }
@@ -818,21 +853,27 @@ impl<'a> Checker<'a> {
             }
             (NarrowValue::Num(v), true, _) => {
                 let lit = self.types.number_lit(*v);
-                let members = self.types.union_members(cur);
-                if members.contains(&lit) {
-                    lit
-                } else if matches!(self.types.kind(cur), TypeKind::Number) {
+                if matches!(self.types.kind(cur), TypeKind::Unknown) {
                     lit
                 } else {
-                    let kept: Vec<TypeId> = members
-                        .iter()
-                        .copied()
-                        .filter(|&m| self.is_assignable_to(lit, m) || self.is_assignable_to(m, lit))
-                        .collect();
-                    if kept.is_empty() {
-                        cur
+                    let members = self.types.union_members(cur);
+                    if members.contains(&lit) {
+                        lit
+                    } else if matches!(self.types.kind(cur), TypeKind::Number) {
+                        lit
                     } else {
-                        self.types.union(kept)
+                        let kept: Vec<TypeId> = members
+                            .iter()
+                            .copied()
+                            .filter(|&m| {
+                                self.is_assignable_to(lit, m) || self.is_assignable_to(m, lit)
+                            })
+                            .collect();
+                        if kept.is_empty() {
+                            cur
+                        } else {
+                            self.types.union(kept)
+                        }
                     }
                 }
             }
@@ -857,11 +898,15 @@ impl<'a> Checker<'a> {
                 } else {
                     self.types.false_t
                 };
-                let members = self.types.union_members(cur);
-                if members.contains(&lit) {
+                if matches!(self.types.kind(cur), TypeKind::Unknown) {
                     lit
                 } else {
-                    cur
+                    let members = self.types.union_members(cur);
+                    if members.contains(&lit) {
+                        lit
+                    } else {
+                        cur
+                    }
                 }
             }
             (NarrowValue::Bool(b), false, _) => {
@@ -883,7 +928,10 @@ impl<'a> Checker<'a> {
             Expr::BoolLit { value, .. } => NarrowValue::Bool(*value),
             Expr::NullLit { .. } => NarrowValue::Null,
             Expr::Ident(id) if id.name == "undefined" => NarrowValue::Undefined,
-            _ => return,
+            _ => {
+                self.narrow_by_value_equality(expr, test);
+                return;
+            }
         };
         self.narrow_by_equality(expr, value, true, false);
     }
