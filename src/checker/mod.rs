@@ -1186,6 +1186,12 @@ impl<'a> Checker<'a> {
                 return None;
             }
         }
+        if n.body
+            .iter()
+            .any(|stmt| self.parse_error_stmts.contains(&node_key(stmt)))
+        {
+            return None;
+        }
         Some(crate::ast::Span::new(start, start + n.name.name.len()))
     }
 
@@ -2409,7 +2415,9 @@ impl<'a> Checker<'a> {
                 decl: tp,
                 name: tp.name.name.clone(),
                 span,
-                exempt: tp.name.name.starts_with('_'),
+                exempt: tp.name.name.starts_with('_')
+                    || self.span_in_parse_error_stmt(file, tp.name.span)
+                    || self.parse_error_after_on_same_line(file, tp.name.span),
             });
         }
         if !params.is_empty() {
@@ -4404,18 +4412,26 @@ impl<'a> Checker<'a> {
             })
     }
 
-    fn parse_error_at_or_after(&self, file: usize, span: Span) -> bool {
+    fn parse_error_brackets_adjacent_lines(&self, file: usize, span: Span) -> bool {
         let Some((_, text, _)) = self.files.get(file) else {
             return false;
         };
         let (line, col) = text.line_col(span.start);
-        self.parse_error_offsets
-            .iter()
-            .filter(|(f, _)| *f == file)
-            .any(|(_, start)| {
-                let (err_line, err_col) = text.line_col(*start);
-                err_line > line || (err_line == line && err_col >= col)
-            })
+        let mut before = false;
+        let mut after = false;
+        for (_, start) in self.parse_error_offsets.iter().filter(|(f, _)| *f == file) {
+            let (err_line, err_col) = text.line_col(*start);
+            if (err_line == line && err_col <= col) || (err_line < line && line - err_line <= 1) {
+                before = true;
+            }
+            if (err_line == line && err_col >= col) || (err_line > line && err_line - line <= 1) {
+                after = true;
+            }
+            if before && after {
+                return true;
+            }
+        }
+        false
     }
 
     fn span_in_parse_error_stmt(&self, file: usize, span: Span) -> bool {
@@ -4558,6 +4574,7 @@ impl<'a> Checker<'a> {
                 .filter(|e| {
                     !e.underscore_exempt
                         && !e.suppressed_by_rest
+                        && !e.syntax_exempt
                         && !e.loser
                         // a var merged with a function is silent on the var
                         // side: tsc binds functions FIRST, so the variable
@@ -4648,6 +4665,7 @@ impl<'a> Checker<'a> {
                         // var merged with a function: silent on the var side
                         // (tsc binds functions first; the var decl is orphaned)
                         self.bind.symbols[s.0 as usize].flags & flags::FUNCTION == 0
+                            && !self.parse_error_brackets_adjacent_lines(list.file, en.anchor)
                             && !self.unused_symbol_skip(s)
                     }
                     (None, Some(p)) => regrouped.contains(&p),
@@ -5074,12 +5092,6 @@ impl<'a> Checker<'a> {
     ) {
         if args.first().is_some_and(|name| name.starts_with('#'))
             && self.parse_error_after_on_same_line(self.current_file, span)
-        {
-            return;
-        }
-        if self.parse_error_files.contains(&self.current_file)
-            && matches!(msg.code, 6133 | 6196 | 6198 | 6199)
-            && self.parse_error_at_or_after(self.current_file, span)
         {
             return;
         }

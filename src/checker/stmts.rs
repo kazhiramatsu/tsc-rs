@@ -50,6 +50,7 @@ impl<'a> Checker<'a> {
             !self.flow.within_unreachable_code && self.options.allow_unreachable_code != Some(true);
         for (i, stmt) in stmts.iter().enumerate() {
             if self.parse_error_stmts.contains(&node_key(stmt)) {
+                self.mark_parse_error_stmt_uses(stmt);
                 continue;
             }
             if do_ranges
@@ -74,6 +75,784 @@ impl<'a> Checker<'a> {
             self.check_statement(stmt);
         }
         self.current_scope = prev;
+    }
+
+    /// Parse-error statements are not semantically checked, but tsc still lets
+    /// references inside recovered syntax count for the later unused pass. This
+    /// walker deliberately records only symbol usage/assignment side effects.
+    fn mark_parse_error_stmt_uses(&mut self, stmt: &'a Stmt) {
+        self.mark_stmt_uses(stmt);
+    }
+
+    fn with_usage_scope<R>(&mut self, key: usize, f: impl FnOnce(&mut Self) -> R) -> R {
+        let scope = self
+            .bind
+            .node_scope
+            .get(&key)
+            .copied()
+            .unwrap_or(self.current_scope);
+        let prev = self.current_scope;
+        self.current_scope = scope;
+        let r = f(self);
+        self.current_scope = prev;
+        r
+    }
+
+    fn mark_ident_read(&mut self, id: &'a Ident) {
+        if id.name.is_empty() {
+            return;
+        }
+        let sym = if id.name.starts_with('#') {
+            self.lookup_private_member(&id.name)
+        } else {
+            self.lookup_value(self.current_scope, &id.name)
+                .or_else(|| self.lookup_type(self.current_scope, &id.name))
+        };
+        if let Some(sym) = sym {
+            if !self.is_self_reference(sym, id.span) {
+                self.symuse.used_symbols.insert(sym);
+            }
+        }
+    }
+
+    fn mark_ident_write(&mut self, id: &'a Ident) {
+        if let Some(sym) = self.lookup_value(self.current_scope, &id.name) {
+            self.symuse.assigned_symbols.insert(sym);
+        }
+    }
+
+    fn mark_entity_type_read(&mut self, name: &'a EntityName) {
+        if let Some(first) = name.parts.first() {
+            if let Some(sym) = self
+                .lookup_type(self.current_scope, &first.name)
+                .or_else(|| self.lookup_value(self.current_scope, &first.name))
+            {
+                if !self.is_self_reference(sym, first.span) {
+                    self.symuse.used_symbols.insert(sym);
+                }
+            }
+        }
+    }
+
+    fn mark_entity_value_read(&mut self, name: &'a EntityName) {
+        if let Some(first) = name.parts.first() {
+            if let Some(sym) = self
+                .lookup_value(self.current_scope, &first.name)
+                .or_else(|| self.lookup_type(self.current_scope, &first.name))
+            {
+                if !self.is_self_reference(sym, first.span) {
+                    self.symuse.used_symbols.insert(sym);
+                }
+            }
+        }
+    }
+
+    fn mark_prop_name_uses(&mut self, name: &'a PropName) {
+        if let PropName::Computed { expr, .. } = name {
+            self.mark_expr_uses(expr);
+        }
+    }
+
+    fn mark_binding_uses(&mut self, b: &'a Binding) {
+        match b {
+            Binding::Ident(_) => {}
+            Binding::Object(p) => {
+                for prop in &p.props {
+                    self.mark_prop_name_uses(&prop.key);
+                    self.mark_binding_uses(&prop.binding);
+                    if let Some(default) = &prop.default {
+                        self.mark_expr_uses(default);
+                    }
+                }
+                if let Some(rest) = &p.rest {
+                    self.mark_binding_uses(rest);
+                }
+            }
+            Binding::Array(p) => {
+                for elem in p.elements.iter().flatten() {
+                    self.mark_binding_uses(&elem.binding);
+                    if let Some(default) = &elem.default {
+                        self.mark_expr_uses(default);
+                    }
+                }
+            }
+        }
+    }
+
+    fn mark_param_uses(&mut self, p: &'a Param) {
+        self.mark_binding_uses(&p.name);
+        if let Some(ty) = &p.ty {
+            self.mark_type_uses(ty);
+        }
+        if let Some(init) = &p.initializer {
+            self.mark_expr_uses(init);
+        }
+    }
+
+    fn mark_function_signature_uses(&mut self, f: &'a FunctionLike) {
+        if let Some(name) = &f.name {
+            self.mark_prop_name_uses(name);
+        }
+        if let Some(tps) = &f.type_params {
+            for tp in tps {
+                if let Some(c) = &tp.constraint {
+                    self.mark_type_uses(c);
+                }
+                if let Some(d) = &tp.default {
+                    self.mark_type_uses(d);
+                }
+            }
+        }
+        for p in &f.params {
+            self.mark_param_uses(p);
+        }
+        if let Some(ret) = &f.return_type {
+            self.mark_type_uses(ret);
+        }
+    }
+
+    fn mark_function_uses(&mut self, f: &'a FunctionLike) {
+        self.mark_function_signature_uses(f);
+        let scope = self
+            .bind
+            .node_scope
+            .get(&node_key(f))
+            .copied()
+            .unwrap_or(self.current_scope);
+        let prev = self.current_scope;
+        self.current_scope = scope;
+        if let Some(body) = &f.body {
+            match body {
+                FuncBody::Block(block) => {
+                    for stmt in &block.stmts {
+                        self.mark_stmt_uses(stmt);
+                    }
+                }
+                FuncBody::Expr(expr) => self.mark_expr_uses(expr),
+            }
+        }
+        self.current_scope = prev;
+    }
+
+    fn mark_class_uses(&mut self, c: &'a ClassDecl) {
+        if let Some(tps) = &c.type_params {
+            for tp in tps {
+                if let Some(cn) = &tp.constraint {
+                    self.mark_type_uses(cn);
+                }
+                if let Some(default) = &tp.default {
+                    self.mark_type_uses(default);
+                }
+            }
+        }
+        if let Some(ext) = &c.extends {
+            self.mark_expr_uses(&ext.expr);
+            if let Some(args) = &ext.type_args {
+                for arg in args {
+                    self.mark_type_uses(arg);
+                }
+            }
+        }
+        for imp in &c.implements {
+            self.mark_entity_type_read(&imp.name);
+            if let Some(args) = &imp.type_args {
+                for arg in args {
+                    self.mark_type_uses(arg);
+                }
+            }
+        }
+        let pushed = self.bind.decl_symbol.get(&node_key(c)).copied();
+        if let Some(sym) = pushed {
+            self.stacks.class_stack.push(sym);
+        }
+        for member in &c.members {
+            match member {
+                ClassMember::StaticBlock(block) => {
+                    self.with_usage_scope(node_key(block), |this| {
+                        for stmt in &block.stmts {
+                            this.mark_stmt_uses(stmt);
+                        }
+                    });
+                }
+                ClassMember::Property(p) => {
+                    self.mark_prop_name_uses(&p.name);
+                    if let Some(ty) = &p.ty {
+                        self.mark_type_uses(ty);
+                    }
+                    if let Some(init) = &p.init {
+                        self.mark_expr_uses(init);
+                    }
+                }
+                ClassMember::Method(f) | ClassMember::Constructor(f) => self.mark_function_uses(f),
+                ClassMember::Index(i) => {
+                    self.mark_type_uses(&i.key_type);
+                    self.mark_type_uses(&i.value_type);
+                }
+            }
+        }
+        if pushed.is_some() {
+            self.stacks.class_stack.pop();
+        }
+    }
+
+    fn mark_var_uses(&mut self, v: &'a VarStmt) {
+        for d in &v.decls {
+            self.mark_binding_uses(&d.name);
+            if let Some(ty) = &d.ty {
+                self.mark_type_uses(ty);
+            }
+            if let Some(init) = &d.init {
+                self.mark_expr_uses(init);
+            }
+        }
+    }
+
+    fn mark_for_init_uses(&mut self, init: &'a ForInit, as_target: bool) {
+        match init {
+            ForInit::Var(v) => self.mark_var_uses(v),
+            ForInit::Expr(e) => {
+                if as_target {
+                    self.mark_assignment_target_uses(e, false);
+                } else {
+                    self.mark_expr_uses(e);
+                }
+            }
+        }
+    }
+
+    fn mark_stmt_uses(&mut self, stmt: &'a Stmt) {
+        match stmt {
+            Stmt::Var(v) => self.mark_var_uses(v),
+            Stmt::Func(f) => self.mark_function_uses(f),
+            Stmt::Class(c) => self.mark_class_uses(c),
+            Stmt::Interface(i) => {
+                if let Some(tps) = &i.type_params {
+                    for tp in tps {
+                        if let Some(c) = &tp.constraint {
+                            self.mark_type_uses(c);
+                        }
+                        if let Some(d) = &tp.default {
+                            self.mark_type_uses(d);
+                        }
+                    }
+                }
+                for ext in &i.extends {
+                    self.mark_entity_type_read(&ext.name);
+                    if let Some(args) = &ext.type_args {
+                        for arg in args {
+                            self.mark_type_uses(arg);
+                        }
+                    }
+                }
+                for member in &i.members {
+                    self.mark_type_member_uses(member);
+                }
+            }
+            Stmt::TypeAlias(t) => {
+                if let Some(tps) = &t.type_params {
+                    for tp in tps {
+                        if let Some(c) = &tp.constraint {
+                            self.mark_type_uses(c);
+                        }
+                        if let Some(d) = &tp.default {
+                            self.mark_type_uses(d);
+                        }
+                    }
+                }
+                self.mark_type_uses(&t.ty);
+            }
+            Stmt::Enum(e) => {
+                for member in &e.members {
+                    self.mark_prop_name_uses(&member.name);
+                    if let Some(init) = &member.init {
+                        self.mark_expr_uses(init);
+                    }
+                }
+            }
+            Stmt::Namespace(n) => {
+                self.with_usage_scope(node_key(&**n), |this| {
+                    for stmt in &n.body {
+                        this.mark_stmt_uses(stmt);
+                    }
+                });
+            }
+            Stmt::With { obj, body, .. } => {
+                self.mark_expr_uses(obj);
+                self.mark_stmt_uses(body);
+            }
+            Stmt::Return { expr, .. } => {
+                if let Some(expr) = expr {
+                    self.mark_expr_uses(expr);
+                }
+            }
+            Stmt::If {
+                cond, then, els, ..
+            } => {
+                self.mark_expr_uses(cond);
+                self.mark_stmt_uses(then);
+                if let Some(els) = els {
+                    self.mark_stmt_uses(els);
+                }
+            }
+            Stmt::While { cond, body, .. } => {
+                self.mark_expr_uses(cond);
+                self.mark_stmt_uses(body);
+            }
+            Stmt::DoWhile { body, cond, .. } => {
+                self.mark_stmt_uses(body);
+                self.mark_expr_uses(cond);
+            }
+            Stmt::For {
+                init,
+                cond,
+                incr,
+                body,
+                ..
+            } => {
+                self.with_usage_scope(node_key(stmt), |this| {
+                    if let Some(init) = init {
+                        this.mark_for_init_uses(init, false);
+                    }
+                    if let Some(cond) = cond {
+                        this.mark_expr_uses(cond);
+                    }
+                    if let Some(incr) = incr {
+                        this.mark_expr_uses(incr);
+                    }
+                    this.mark_stmt_uses(body);
+                });
+            }
+            Stmt::ForIn {
+                left, expr, body, ..
+            }
+            | Stmt::ForOf {
+                left, expr, body, ..
+            } => {
+                self.with_usage_scope(node_key(stmt), |this| {
+                    this.mark_for_init_uses(left, true);
+                    this.mark_expr_uses(expr);
+                    this.mark_stmt_uses(body);
+                });
+            }
+            Stmt::Block(b) => {
+                self.with_usage_scope(node_key(b), |this| {
+                    for stmt in &b.stmts {
+                        this.mark_stmt_uses(stmt);
+                    }
+                });
+            }
+            Stmt::Expr { expr, .. } | Stmt::Throw { expr, .. } => self.mark_expr_uses(expr),
+            Stmt::Try {
+                block,
+                catch,
+                finally,
+                ..
+            } => {
+                self.with_usage_scope(node_key(block), |this| {
+                    for stmt in &block.stmts {
+                        this.mark_stmt_uses(stmt);
+                    }
+                });
+                if let Some(catch) = catch {
+                    if let Some(param) = &catch.param {
+                        self.mark_param_uses(param);
+                    }
+                    self.with_usage_scope(node_key(&catch.block), |this| {
+                        for stmt in &catch.block.stmts {
+                            this.mark_stmt_uses(stmt);
+                        }
+                    });
+                }
+                if let Some(finally) = finally {
+                    self.with_usage_scope(node_key(finally), |this| {
+                        for stmt in &finally.stmts {
+                            this.mark_stmt_uses(stmt);
+                        }
+                    });
+                }
+            }
+            Stmt::Switch { expr, cases, .. } => {
+                self.with_usage_scope(node_key(stmt), |this| {
+                    this.mark_expr_uses(expr);
+                    for case in cases {
+                        if let Some(test) = &case.test {
+                            this.mark_expr_uses(test);
+                        }
+                        for stmt in &case.stmts {
+                            this.mark_stmt_uses(stmt);
+                        }
+                    }
+                });
+            }
+            Stmt::Labeled { stmt, .. } => self.mark_stmt_uses(stmt),
+            Stmt::ExportDefault { expr, .. } | Stmt::ExportAssign { expr, .. } => {
+                self.mark_expr_uses(expr);
+            }
+            Stmt::ImportEquals {
+                module, is_require, ..
+            } => {
+                if !is_require {
+                    let root = module.value.split('.').next().unwrap_or("");
+                    if let Some(sym) = self
+                        .lookup_value(self.current_scope, root)
+                        .or_else(|| self.lookup_type(self.current_scope, root))
+                    {
+                        self.symuse.used_symbols.insert(sym);
+                    }
+                }
+            }
+            Stmt::Import(_)
+            | Stmt::ExportNamed(_)
+            | Stmt::Empty { .. }
+            | Stmt::Break { .. }
+            | Stmt::Continue { .. }
+            | Stmt::Missing { .. } => {}
+        }
+    }
+
+    fn mark_assignment_target_uses(&mut self, expr: &'a Expr, read: bool) {
+        match expr {
+            Expr::Ident(id) => {
+                if read {
+                    self.mark_ident_read(id);
+                } else {
+                    self.mark_ident_write(id);
+                }
+            }
+            Expr::Paren { inner, .. } | Expr::NonNull { expr: inner, .. } => {
+                self.mark_assignment_target_uses(inner, read);
+            }
+            Expr::PropAccess { obj, .. } => self.mark_expr_uses(obj),
+            Expr::ElemAccess { obj, index, .. } => {
+                self.mark_expr_uses(obj);
+                self.mark_expr_uses(index);
+            }
+            Expr::Array { elements, .. } => {
+                for elem in elements {
+                    self.mark_assignment_target_uses(elem, read);
+                }
+            }
+            Expr::Object { props, .. } => {
+                for prop in props {
+                    match prop {
+                        ObjectProp::Property { name, value, .. } => {
+                            self.mark_prop_name_uses(name);
+                            self.mark_assignment_target_uses(value, read);
+                        }
+                        ObjectProp::Shorthand { name, .. } => {
+                            if read {
+                                self.mark_ident_read(name);
+                            } else {
+                                self.mark_ident_write(name);
+                            }
+                        }
+                        ObjectProp::Spread { expr, .. } => {
+                            self.mark_assignment_target_uses(expr, read);
+                        }
+                        ObjectProp::Method(f) => self.mark_function_uses(f),
+                    }
+                }
+            }
+            _ => self.mark_expr_uses(expr),
+        }
+    }
+
+    fn mark_object_prop_uses(&mut self, prop: &'a ObjectProp) {
+        match prop {
+            ObjectProp::Property { name, value, .. } => {
+                self.mark_prop_name_uses(name);
+                self.mark_expr_uses(value);
+            }
+            ObjectProp::Shorthand { name, .. } => self.mark_ident_read(name),
+            ObjectProp::Spread { expr, .. } => self.mark_expr_uses(expr),
+            ObjectProp::Method(f) => self.mark_function_uses(f),
+        }
+    }
+
+    fn mark_expr_uses(&mut self, expr: &'a Expr) {
+        match expr {
+            Expr::Ident(id) => self.mark_ident_read(id),
+            Expr::Template { parts, .. } => {
+                for part in parts {
+                    if let TemplatePart::Expr(expr) = part {
+                        self.mark_expr_uses(expr);
+                    }
+                }
+            }
+            Expr::Array { elements, .. } => {
+                for elem in elements {
+                    self.mark_expr_uses(elem);
+                }
+            }
+            Expr::Object { props, .. } => {
+                for prop in props {
+                    self.mark_object_prop_uses(prop);
+                }
+            }
+            Expr::Arrow(f) | Expr::FunctionExpr(f) => self.mark_function_uses(f),
+            Expr::ClassExpr(c) => self.mark_class_uses(c),
+            Expr::Call {
+                callee,
+                type_args,
+                args,
+                ..
+            }
+            | Expr::New {
+                callee,
+                type_args,
+                args: Some(args),
+                ..
+            } => {
+                self.mark_expr_uses(callee);
+                if let Some(type_args) = type_args {
+                    for arg in type_args {
+                        self.mark_type_uses(arg);
+                    }
+                }
+                for arg in args {
+                    self.mark_expr_uses(arg);
+                }
+            }
+            Expr::New {
+                callee,
+                type_args,
+                args: None,
+                ..
+            } => {
+                self.mark_expr_uses(callee);
+                if let Some(type_args) = type_args {
+                    for arg in type_args {
+                        self.mark_type_uses(arg);
+                    }
+                }
+            }
+            Expr::PropAccess { obj, .. } => self.mark_expr_uses(obj),
+            Expr::ElemAccess { obj, index, .. } => {
+                self.mark_expr_uses(obj);
+                self.mark_expr_uses(index);
+            }
+            Expr::Unary { operand, .. }
+            | Expr::Spread { expr: operand, .. }
+            | Expr::Await { expr: operand, .. }
+            | Expr::NonNull { expr: operand, .. }
+            | Expr::Paren { inner: operand, .. } => self.mark_expr_uses(operand),
+            Expr::Update { operand, .. } => self.mark_assignment_target_uses(operand, true),
+            Expr::Binary {
+                op, left, right, ..
+            } => {
+                if op.is_assignment() {
+                    self.mark_assignment_target_uses(left, *op != BinOp::Assign);
+                    self.mark_expr_uses(right);
+                } else {
+                    self.mark_expr_uses(left);
+                    self.mark_expr_uses(right);
+                }
+            }
+            Expr::Cond {
+                cond,
+                when_true,
+                when_false,
+                ..
+            } => {
+                self.mark_expr_uses(cond);
+                self.mark_expr_uses(when_true);
+                self.mark_expr_uses(when_false);
+            }
+            Expr::Assertion { expr, ty, .. } => {
+                self.mark_expr_uses(expr);
+                self.mark_type_uses(ty);
+            }
+            Expr::Yield { expr, .. } => {
+                if let Some(expr) = expr {
+                    self.mark_expr_uses(expr);
+                }
+            }
+            Expr::ImportCall { args, .. } => {
+                for arg in args {
+                    self.mark_expr_uses(arg);
+                }
+            }
+            Expr::JsxElement(j) => self.mark_jsx_uses(j),
+            Expr::NumLit { .. }
+            | Expr::StrLit { .. }
+            | Expr::BigIntLit { .. }
+            | Expr::BoolLit { .. }
+            | Expr::NullLit { .. }
+            | Expr::RegexLit { .. }
+            | Expr::TemplateStringsArray { .. }
+            | Expr::This { .. }
+            | Expr::Super { .. }
+            | Expr::ImportMeta { .. }
+            | Expr::Missing { .. } => {}
+        }
+    }
+
+    fn mark_jsx_uses(&mut self, j: &'a JsxElement) {
+        if let Some(tag) = &j.tag {
+            self.mark_ident_read(tag);
+        }
+        for attr in &j.attrs {
+            if let Some(value) = &attr.value {
+                self.mark_expr_uses(value);
+            }
+        }
+        for child in &j.children {
+            match child {
+                JsxChild::Element(e) => self.mark_jsx_uses(e),
+                JsxChild::Expr(e) => self.mark_expr_uses(e),
+                JsxChild::Text => {}
+            }
+        }
+    }
+
+    fn mark_type_member_uses(&mut self, member: &'a TypeMember) {
+        match member {
+            TypeMember::Prop(p) => {
+                self.mark_prop_name_uses(&p.name);
+                if let Some(ty) = &p.ty {
+                    self.mark_type_uses(ty);
+                }
+            }
+            TypeMember::Method(m) => {
+                self.mark_prop_name_uses(&m.name);
+                if let Some(tps) = &m.type_params {
+                    for tp in tps {
+                        if let Some(c) = &tp.constraint {
+                            self.mark_type_uses(c);
+                        }
+                        if let Some(d) = &tp.default {
+                            self.mark_type_uses(d);
+                        }
+                    }
+                }
+                for p in &m.params {
+                    self.mark_param_uses(p);
+                }
+                if let Some(ret) = &m.return_type {
+                    self.mark_type_uses(ret);
+                }
+            }
+            TypeMember::Call(sig) | TypeMember::Ctor(sig) => {
+                if let Some(tps) = &sig.type_params {
+                    for tp in tps {
+                        if let Some(c) = &tp.constraint {
+                            self.mark_type_uses(c);
+                        }
+                        if let Some(d) = &tp.default {
+                            self.mark_type_uses(d);
+                        }
+                    }
+                }
+                for p in &sig.params {
+                    self.mark_param_uses(p);
+                }
+                if let Some(ret) = &sig.return_type {
+                    self.mark_type_uses(ret);
+                }
+            }
+            TypeMember::Index(i) => {
+                self.mark_type_uses(&i.key_type);
+                self.mark_type_uses(&i.value_type);
+            }
+        }
+    }
+
+    fn mark_type_uses(&mut self, ty: &'a TypeNode) {
+        match ty {
+            TypeNode::Ref(r) => {
+                self.mark_entity_type_read(&r.name);
+                if let Some(args) = &r.type_args {
+                    for arg in args {
+                        self.mark_type_uses(arg);
+                    }
+                }
+            }
+            TypeNode::Array { elem, .. }
+            | TypeNode::Keyof { ty: elem, .. }
+            | TypeNode::ReadonlyOp { ty: elem, .. }
+            | TypeNode::Paren { inner: elem, .. } => self.mark_type_uses(elem),
+            TypeNode::Tuple { elems, .. } => {
+                for elem in elems {
+                    self.mark_type_uses(&elem.ty);
+                }
+            }
+            TypeNode::Union { members, .. } | TypeNode::Intersection { members, .. } => {
+                for member in members {
+                    self.mark_type_uses(member);
+                }
+            }
+            TypeNode::Function(f) | TypeNode::Ctor(f) => {
+                if let Some(tps) = &f.type_params {
+                    for tp in tps {
+                        if let Some(c) = &tp.constraint {
+                            self.mark_type_uses(c);
+                        }
+                        if let Some(d) = &tp.default {
+                            self.mark_type_uses(d);
+                        }
+                    }
+                }
+                for p in &f.params {
+                    self.mark_param_uses(p);
+                }
+                self.mark_type_uses(&f.return_type);
+            }
+            TypeNode::TypeLiteral { members, .. } => {
+                for member in members {
+                    self.mark_type_member_uses(member);
+                }
+            }
+            TypeNode::TypeQuery {
+                name, type_args, ..
+            } => {
+                self.mark_entity_value_read(name);
+                if let Some(args) = type_args {
+                    for arg in args {
+                        self.mark_type_uses(arg);
+                    }
+                }
+            }
+            TypeNode::IndexedAccess { obj, index, .. } => {
+                self.mark_type_uses(obj);
+                self.mark_type_uses(index);
+            }
+            TypeNode::Conditional(c) => {
+                self.mark_type_uses(&c.check);
+                self.mark_type_uses(&c.extends_ty);
+                self.mark_type_uses(&c.true_ty);
+                self.mark_type_uses(&c.false_ty);
+            }
+            TypeNode::Predicate { ty, .. } => {
+                if let Some(ty) = ty {
+                    self.mark_type_uses(ty);
+                }
+            }
+            TypeNode::Infer { constraint, .. } => {
+                if let Some(c) = constraint {
+                    self.mark_type_uses(c);
+                }
+            }
+            TypeNode::Mapped(m) => {
+                self.mark_type_uses(&m.constraint);
+                if let Some(name_type) = &m.name_type {
+                    self.mark_type_uses(name_type);
+                }
+                if let Some(value) = &m.value {
+                    self.mark_type_uses(value);
+                }
+            }
+            TypeNode::TemplateLit { parts, .. } => {
+                for (part, _) in parts {
+                    self.mark_type_uses(part);
+                }
+            }
+            TypeNode::Keyword(_, _)
+            | TypeNode::This(_)
+            | TypeNode::LiteralString { .. }
+            | TypeNode::LiteralNumber { .. }
+            | TypeNode::LiteralBigInt { .. }
+            | TypeNode::LiteralBool { .. } => {}
+        }
     }
 
     /// TS7027 kind classification (tsc isPotentiallyExecutableNode + the

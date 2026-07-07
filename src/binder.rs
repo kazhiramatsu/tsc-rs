@@ -409,6 +409,8 @@ pub struct UnusedPatternElem {
     /// removing it would change the rest's value, so tsc never reports it
     /// (a misplaced non-final rest suppresses nothing)
     pub suppressed_by_rest: bool,
+    /// parser-recovery bindings tsc never enters into the unused group
+    pub syntax_exempt: bool,
     /// lost a duplicate-identifier conflict: in tsc the declaration sits on
     /// an orphan symbol outside the scope table, so it never reports
     pub loser: bool,
@@ -457,6 +459,44 @@ pub fn first_binding_leaf(b: &Binding) -> Option<&Ident> {
             .next()
             .and_then(|e| first_binding_leaf(&e.binding)),
     }
+}
+
+fn is_reserved_word_shorthand_recovery(name: &str) -> bool {
+    matches!(
+        name,
+        "break"
+            | "case"
+            | "catch"
+            | "class"
+            | "const"
+            | "continue"
+            | "debugger"
+            | "default"
+            | "delete"
+            | "do"
+            | "else"
+            | "export"
+            | "extends"
+            | "finally"
+            | "for"
+            | "function"
+            | "if"
+            | "import"
+            | "in"
+            | "instanceof"
+            | "new"
+            | "return"
+            | "super"
+            | "switch"
+            | "this"
+            | "throw"
+            | "try"
+            | "typeof"
+            | "var"
+            | "void"
+            | "while"
+            | "with"
+    )
 }
 
 pub fn bind<'a>(files: &'a [(String, crate::text::SourceText, SourceFileAst)]) -> BindResult<'a> {
@@ -1462,6 +1502,8 @@ impl<'a> Binder<'a> {
                                     name: id.name.clone(),
                                     underscore_exempt: !shorthand && id.name.starts_with('_'),
                                     suppressed_by_rest: rest_is_last,
+                                    syntax_exempt: shorthand
+                                        && is_reserved_word_shorthand_recovery(&id.name),
                                     loser: self.duplicate_losers.contains(&node_key(id)),
                                 });
                             }
@@ -1494,6 +1536,7 @@ impl<'a> Binder<'a> {
                                     name: id.name.clone(),
                                     underscore_exempt: false,
                                     suppressed_by_rest: false,
+                                    syntax_exempt: false,
                                     loser: self.duplicate_losers.contains(&node_key(id)),
                                 });
                             }
@@ -1547,6 +1590,7 @@ impl<'a> Binder<'a> {
                                     name: id.name.clone(),
                                     underscore_exempt: id.name.starts_with('_'),
                                     suppressed_by_rest: false,
+                                    syntax_exempt: false,
                                     loser: self.duplicate_losers.contains(&node_key(id)),
                                 });
                             }
