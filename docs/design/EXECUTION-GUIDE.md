@@ -66,7 +66,7 @@ Work in steps. A "step" is defined by the workstream doc. For EVERY step:
    errors. If you cannot fix them in 3 attempts, revert the step
    (`git checkout -- <files>`) and record a stop-note.
 3. Test: `cargo test --release 2>&1 | grep "test result:"`
-   → all suites `ok`, first suite `89 passed` (or higher if a step
+   → all suites `ok`, first suite `98 passed` (or higher if a step
    says to add tests). ANY failure: the step is wrong. Do not edit the
    failing test to make it pass — tests here pin tsc behavior. Revert
    and record a stop-note.
@@ -126,6 +126,38 @@ EOF
 4. Diagnose against the workstream doc's "expected failure modes"
    table. If your diagnosis matches a listed mode, apply its listed
    fix. If not → stop-note.
+
+## Full-corpus snapshot for mining (FCC)
+
+When a design doc says "refresh the full JSON" / "fresh snapshot"
+(e.g. the 2XXX roadmap Phase 1 ledger), this is the procedure:
+
+```sh
+./verify.sh golden-check     # refreshes /tmp/golden_now.txt first
+python3 scripts/full_conformance_compare.py --out-json /tmp/fcc_<slug>.json
+```
+
+Run it with defaults — never pass `--jobs` or set
+`TSRS_CLASSIFY_JOBS` (see Hard prohibitions). The JSON contains
+`top_gate_filtered_fp_codes` / `top_gate_filtered_fn_codes` (top 20)
+and a per-fixture `mismatches` list. Top files for one code:
+
+```python
+python3 - <<'EOF'
+import json
+from collections import Counter
+d = json.load(open('/tmp/fcc_<slug>.json'))
+CODE, SIDE = 2345, 'gate_filtered_fp'   # <-- edit
+c = Counter()
+for m in d['mismatches']:
+    for _, k, _ in m[SIDE]:
+        if k == CODE: c[m['path']] += 1
+for p, n in c.most_common(15): print(n, p)
+EOF
+```
+
+Name snapshots `/tmp/fcc_<what-just-landed>.json` and record the HEAD
+hash next to any numbers you copy into a design doc or ledger.
 
 ## Stop conditions (produce a note and halt the workstream)
 

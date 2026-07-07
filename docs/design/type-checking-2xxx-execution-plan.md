@@ -115,6 +115,7 @@ needs first.
   `Assignable` delegates to current `is_assignable_to`; `Comparable`
   delegates to current comparable behavior; `Identity`, `Subtype`, and
   `StrictSubtype` exist but no call site relies on distinct behavior.
+  Implementation steps: `relation-kind-facade-steps.md`.
 
 - Relation cache container:
   introduce per-kind cache shape without changing results. Existing
@@ -124,17 +125,27 @@ needs first.
   extend `CallCandidateTrial` so it can stage contextual argument types,
   diagnostics, cache writes, and function-body effects. The first commit
   may only record these values; it should not change candidate choice.
+  Implementation steps: `candidate-boundary-steps.md`.
 
 - Diagnostic/cache transaction primitive:
-  create a small explicit boundary for speculative checking. It should
-  either use overlays or snapshot only the affected maps. It must cover
-  `expr_type_cache`, `param_ctx_types`, `checked_decls`, diagnostics,
-  and contextual function-body state touched by candidate probes.
-  The relation caches (`relation_cache`, `comparable_cache`) stay
-  outside this boundary on purpose: they are written only for
-  top-level queries and their entries are candidate-independent facts
-  about type pairs. Revisit that exclusion only if the Ternary
-  migration shows maybe-results leaking into them.
+  the checker already has a speculation mechanism — the flow
+  resolver's `quiet` machinery (`FlowResolveState::quiet` +
+  `scaffold_base` in `src/checker/mod.rs`). Under `quiet > 0` the
+  once-per-node/symbol report guards are not consumed,
+  `expr_type_cache` is not populated, and `fact_for` is scoped to the
+  scaffold's own frames; call sites truncate `diags` afterwards. Build
+  the boundary by extracting and extending THIS mechanism (see
+  `candidate-boundary-steps.md` Stage 1); never add a second parallel
+  speculation system. Beyond what `quiet` already covers, the boundary
+  must audit and, where candidate-dependent, stage: `node_type_cache`,
+  `param_ctx_types`, `checked_decls`, `sym_type`, `sig_ret_cache`,
+  `fresh_obj_props`, `used_symbols`/`assigned_symbols`, and the flow
+  resolver `memo`/reachability maps (the audit table lives in the
+  steps doc, Stage 2). The relation caches (`relation_cache`,
+  `comparable_cache`) stay outside this boundary on purpose: they are
+  written only for top-level queries and their entries are
+  candidate-independent facts about type pairs. Revisit that exclusion
+  only if the Ternary migration shows maybe-results leaking into them.
 
 ### C. High-Confidence Local 2XXX Fixes
 
@@ -324,7 +335,10 @@ movement because the checker-visible seams are not isolated enough.
 
 The next safe implementation candidates are therefore:
 
-1. byte-identical `RelationKind` facade;
+1. byte-identical `RelationKind` facade
+   (steps: `relation-kind-facade-steps.md`);
 2. byte-identical expansion of `CallCandidateTrial` into a real
-   speculative boundary;
-3. targeted local 2XXX clusters that do not cross those seams.
+   speculative boundary (steps: `candidate-boundary-steps.md`);
+3. targeted local 2XXX clusters that do not cross those seams
+   (mining ledger first; see the FCC snapshot procedure in
+   `EXECUTION-GUIDE.md`).

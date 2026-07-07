@@ -37,6 +37,12 @@ roadmaps, and completed step guides live under `archive/`.
 - [type-checking-2xxx-execution-plan.md](type-checking-2xxx-execution-plan.md):
   readiness checks, dependency order, and stop conditions for entering
   central 2XXX behavior work.
+- [relation-kind-facade-steps.md](relation-kind-facade-steps.md):
+  byte-identical implementation steps for the `RelationKind` facade
+  scaffold. Move to `archive/` when it lands.
+- [candidate-boundary-steps.md](candidate-boundary-steps.md):
+  byte-identical implementation steps for the call-candidate
+  speculation boundary scaffold. Move to `archive/` when it lands.
 - [candidate-call-resolution.md](candidate-call-resolution.md):
   transactional call-candidate design for `TS2345`, `TS2554`,
   `TS2769`, and `TS2349`.

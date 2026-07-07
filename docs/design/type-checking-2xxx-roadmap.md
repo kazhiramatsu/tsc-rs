@@ -424,6 +424,9 @@ Each should be its own gate-clean commit.
 
 ### Phase 3: Transactional Call Candidate Boundary
 
+Implementation steps for the scaffold part:
+`candidate-boundary-steps.md`.
+
 Extend `CallCandidateTrial` until it can stage:
 
 - contextual argument types;
@@ -439,7 +442,8 @@ Keep early stages byte-identical. Only after the boundary is real should
 
 Phases 3 and 4 are both no-behavior scaffolds and are order-independent
 of each other; the numbering is not a dependency. Start with whichever
-seam the next mined cluster needs first.
+seam the next mined cluster needs first. Implementation steps:
+`relation-kind-facade-steps.md`.
 
 Introduce `RelationKind` and per-kind cache plumbing without behavior
 change:
