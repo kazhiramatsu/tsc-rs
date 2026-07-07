@@ -1391,6 +1391,7 @@ impl<'a> Checker<'a> {
                 }
                 self.keyof_union(t)
             }
+            TypeNode::Unique { ty, .. } => self.resolve_type(ty, scope),
             TypeNode::ReadonlyOp { ty, .. }
                 if !matches!(&**ty, TypeNode::Array { .. } | TypeNode::Tuple { .. }) =>
             {

@@ -19,6 +19,7 @@ pub mod relations;
 pub mod shapes;
 pub mod stmts;
 pub mod symbols;
+pub mod unique;
 
 use crate::ast::*;
 use crate::binder::{flags, BindResult, ScopeId, SymbolId};
@@ -1762,6 +1763,7 @@ impl<'a> Checker<'a> {
             TypeNode::Array { elem, .. }
             | TypeNode::Paren { inner: elem, .. }
             | TypeNode::Keyof { ty: elem, .. }
+            | TypeNode::Unique { ty: elem, .. }
             | TypeNode::ReadonlyOp { ty: elem, .. } => {
                 self.collect_class_type_uses_in_type(elem, scope, out);
             }
@@ -3254,6 +3256,7 @@ impl<'a> Checker<'a> {
             TypeNode::Array { elem, .. }
             | TypeNode::Paren { inner: elem, .. }
             | TypeNode::Keyof { ty: elem, .. }
+            | TypeNode::Unique { ty: elem, .. }
             | TypeNode::ReadonlyOp { ty: elem, .. } => {
                 self.collect_type_param_refs_in_type(group_names, shadowed, elem, out);
             }
@@ -3411,6 +3414,7 @@ impl<'a> Checker<'a> {
             TypeNode::Array { elem, .. }
             | TypeNode::Paren { inner: elem, .. }
             | TypeNode::Keyof { ty: elem, .. }
+            | TypeNode::Unique { ty: elem, .. }
             | TypeNode::ReadonlyOp { ty: elem, .. } => {
                 Self::collect_infer_type_names(elem, out);
             }
@@ -4068,6 +4072,7 @@ impl<'a> Checker<'a> {
             TypeNode::Array { elem, .. }
             | TypeNode::Paren { inner: elem, .. }
             | TypeNode::Keyof { ty: elem, .. }
+            | TypeNode::Unique { ty: elem, .. }
             | TypeNode::ReadonlyOp { ty: elem, .. } => {
                 self.collect_type_param_groups_in_type(file, elem, groups)
             }

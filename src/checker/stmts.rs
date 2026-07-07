@@ -769,6 +769,7 @@ impl<'a> Checker<'a> {
             }
             TypeNode::Array { elem, .. }
             | TypeNode::Keyof { ty: elem, .. }
+            | TypeNode::Unique { ty: elem, .. }
             | TypeNode::ReadonlyOp { ty: elem, .. }
             | TypeNode::Paren { inner: elem, .. } => self.mark_type_uses(elem),
             TypeNode::Tuple { elems, .. } => {
@@ -1041,6 +1042,7 @@ impl<'a> Checker<'a> {
                         }
                     }
                 }
+                self.check_unique_symbol_type_params(&i.type_params);
                 // 2428: merged declarations need identical type parameters
                 if let Some(&sym) = self.bind.decl_symbol.get(&node_key(&**i)) {
                     if self.report_once_sym(2428, sym) {
@@ -1322,6 +1324,8 @@ impl<'a> Checker<'a> {
                         &[t.name.name.clone()],
                     );
                 }
+                self.check_unique_symbol_type_params(&t.type_params);
+                self.report_unique_symbols_in_type(&t.ty);
                 if let Some(sym) = self.bind.decl_symbol.get(&node_key(&**t)).copied() {
                     self.declared_alias_type(sym);
                 }
@@ -2354,6 +2358,9 @@ impl<'a> Checker<'a> {
     ) {
         let mut implicit_any_prop_names = std::collections::HashSet::new();
         for m in members {
+            if !implicit_any_only {
+                self.check_unique_symbol_type_member(m);
+            }
             match m {
                 TypeMember::Prop(p) => {
                     let implicit_any_name = self.type_member_implicit_any_name(&p.name);
@@ -3110,6 +3117,7 @@ impl<'a> Checker<'a> {
                 continue;
             }
             self.checked_decls.insert(key);
+            self.check_unique_symbol_var_decl(d, v.kind, !in_for);
             // `const x: number;` with no initializer (outside ambient contexts and
             // for-in/of headers) is TS1155. Destructuring patterns get TS1182 below.
             if matches!(v.kind, VarKind::Const)
@@ -3458,6 +3466,7 @@ impl<'a> Checker<'a> {
                 .iter()
                 .any(|t| Self::type_node_uses_mapped_identity_form(t)),
             TypeNode::Array { elem, .. }
+            | TypeNode::Unique { ty: elem, .. }
             | TypeNode::ReadonlyOp { ty: elem, .. }
             | TypeNode::Paren { inner: elem, .. } => {
                 Self::type_node_uses_mapped_identity_form(elem)

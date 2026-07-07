@@ -675,6 +675,7 @@ impl<'a> Checker<'a> {
                 self.error_at(n.span, &gen::Class_name_cannot_be_0, &[n.name.clone()]);
             }
         }
+        self.check_unique_symbol_type_params(&c.type_params);
         self.check_ctor_overloads(c);
         self.check_accessor_visibility(c);
         self.check_accessor_implicit_any(c);
@@ -685,6 +686,7 @@ impl<'a> Checker<'a> {
         for m in &c.members {
             match m {
                 ClassMember::Property(p) => {
+                    self.check_unique_symbol_class_property(p);
                     for d in &p.decorators {
                         self.check_decorator(
                             d,

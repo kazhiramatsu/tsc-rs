@@ -254,6 +254,7 @@ impl<'a> Checker<'a> {
         if suppress_implicit_return {
             self.cflags.suppress_next_function_implicit_any_return -= 1;
         }
+        self.check_unique_symbol_function_like(f);
         // implicit-any params: errors under noImplicitAny, suggestions otherwise.
         if report_implicit_params && !suppress_implicit_params {
             for p in &f.params {

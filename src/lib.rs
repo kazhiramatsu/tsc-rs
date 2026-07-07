@@ -1401,6 +1401,54 @@ abstract class A {
     }
 
     #[test]
+    fn unique_symbol_types_are_restricted_to_declaration_contexts() {
+        let opts = CompilerOptions {
+            strict: Some(false),
+            diag_json: true,
+            target: Some("esnext".to_string()),
+            ..CompilerOptions::default()
+        };
+        let (out, _code) = check_program(
+            vec![InputFile {
+                name: "main.ts".to_string(),
+                text: r#"
+declare const ok: unique symbol;
+declare const wrappedOk: (unique symbol);
+declare const invalidUniqueOperand: unique number;
+declare const {}: unique symbol;
+declare let badLet: unique symbol;
+declare var badVar: unique symbol;
+declare const nested: (unique symbol)[];
+
+class C {
+    readonly readonlyOnly: unique symbol;
+    static staticOnly: unique symbol;
+    static readonly ok: unique symbol;
+}
+
+interface I {
+    readonly ok: unique symbol;
+    bad: unique symbol;
+    method(arg: unique symbol): unique symbol;
+}
+
+type Alias = unique symbol;
+type Boxed = { readonly ok: unique symbol; bad: unique symbol };
+"#
+                .to_string(),
+            }],
+            &opts,
+        );
+
+        assert_eq!(out.matches("\"code\":1330").count(), 2, "{out}");
+        assert_eq!(out.matches("\"code\":1331").count(), 2, "{out}");
+        assert_eq!(out.matches("\"code\":1332").count(), 2, "{out}");
+        assert_eq!(out.matches("\"code\":1333").count(), 1, "{out}");
+        assert_eq!(out.matches("\"code\":1335").count(), 4, "{out}");
+        assert_eq!(out.matches("\"code\":1005").count(), 1, "{out}");
+    }
+
+    #[test]
     fn computed_object_members_use_index_signature_context() {
         let opts = CompilerOptions {
             strict: Some(true),

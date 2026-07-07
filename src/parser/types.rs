@@ -646,8 +646,8 @@ impl<'a> Parser<'a> {
                 }
             }
             // `unique symbol` — the only valid `unique` type operator. `unique`
-            // is contextual (arrives as an identifier). Uniqueness identity is
-            // not tracked; the operand `symbol` type is used.
+            // is contextual (arrives as an identifier); keep the operator so the
+            // checker can validate its declaration context.
             _ if self.is_ident_like()
                 && self.token_value() == "unique"
                 && self
@@ -668,9 +668,16 @@ impl<'a> Parser<'a> {
                     })
                     .is_some() =>
             {
+                let start = span.start as usize;
                 self.next(); // unique
-                             // operand type (uniqueness identity is not tracked)
-                self.parse_postfix_type()
+                let valid_symbol = self.token() == Tok::KSymbol;
+                let ty = self.parse_postfix_type();
+                let end = ty.span().end as usize;
+                TypeNode::Unique {
+                    ty: Box::new(ty),
+                    span: Span::new(start, end),
+                    valid_symbol,
+                }
             }
             _ if self.is_ident_like()
                 && self.token_value() == "infer"

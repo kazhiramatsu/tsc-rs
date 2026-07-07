@@ -169,6 +169,14 @@ pub enum TypeNode {
         ty: Box<TypeNode>,
         span: Span,
     },
+    /// `unique T` (only `unique symbol` is syntactically valid). The checker
+    /// validates whether this type operator is used in an allowed declaration
+    /// context; type resolution still treats it as its operand type.
+    Unique {
+        ty: Box<TypeNode>,
+        span: Span,
+        valid_symbol: bool,
+    },
     /// readonly T (type operator, e.g. readonly string[])
     ReadonlyOp {
         ty: Box<TypeNode>,
@@ -246,6 +254,7 @@ impl TypeNode {
             | TypeNode::Paren { span, .. }
             | TypeNode::TypeQuery { span, .. }
             | TypeNode::Keyof { span, .. }
+            | TypeNode::Unique { span, .. }
             | TypeNode::ReadonlyOp { span, .. }
             | TypeNode::IndexedAccess { span, .. }
             | TypeNode::Infer { span, .. }
