@@ -1605,8 +1605,9 @@ impl<'a> Checker<'a> {
                 let s = s.to_str_lossy().into_owned();
                 return self.template_matches_typed(&parts, &s);
             }
-            if matches!(sk, TypeKind::TemplateLit(_)) {
-                return sk == tk;
+            if let TypeKind::TemplateLit(src_parts) = &sk {
+                let src_parts = src_parts.clone();
+                return self.template_pattern_related(&src_parts, &parts);
             }
             return false;
         }
@@ -2775,6 +2776,158 @@ impl<'a> Checker<'a> {
             return template_matches(parts, s);
         }
         self.tpl_match_from(parts, 0, s)
+    }
+
+    fn template_pattern_related(
+        &mut self,
+        src: &[crate::types::TplPart],
+        tgt: &[crate::types::TplPart],
+    ) -> bool {
+        self.tpl_pattern_from(src.to_vec(), tgt, 0)
+    }
+
+    fn tpl_pattern_from(
+        &mut self,
+        src: Vec<crate::types::TplPart>,
+        tgt: &[crate::types::TplPart],
+        ti: usize,
+    ) -> bool {
+        use crate::types::TplPart;
+        if ti == tgt.len() {
+            return src.is_empty();
+        }
+        match &tgt[ti] {
+            TplPart::Str(text) => self
+                .consume_template_literal_prefix(src, text)
+                .is_some_and(|rest| self.tpl_pattern_from(rest, tgt, ti + 1)),
+            TplPart::Ty(ty) => {
+                let ty = *ty;
+                let next_literal = tgt[ti + 1..].iter().find_map(|part| match part {
+                    TplPart::Str(s) if !s.is_empty() => Some(s.as_str()),
+                    _ => None,
+                });
+                if let Some(lit) = next_literal {
+                    for (prefix, rest) in self.split_template_pattern_before_literal(&src, lit) {
+                        if self.template_segment_assignable_to_placeholder(&prefix, ty)
+                            && self.tpl_pattern_from(rest, tgt, ti + 1)
+                        {
+                            return true;
+                        }
+                    }
+                    false
+                } else {
+                    self.template_segment_assignable_to_placeholder(&src, ty)
+                }
+            }
+        }
+    }
+
+    fn consume_template_literal_prefix(
+        &self,
+        mut parts: Vec<crate::types::TplPart>,
+        literal: &str,
+    ) -> Option<Vec<crate::types::TplPart>> {
+        use crate::types::TplPart;
+        if literal.is_empty() {
+            return Some(parts);
+        }
+        let Some(first) = parts.first_mut() else {
+            return None;
+        };
+        match first {
+            TplPart::Str(s) if s.starts_with(literal) => {
+                s.drain(..literal.len());
+                if s.is_empty() {
+                    parts.remove(0);
+                }
+                Some(parts)
+            }
+            _ => None,
+        }
+    }
+
+    fn split_template_pattern_before_literal(
+        &self,
+        parts: &[crate::types::TplPart],
+        literal: &str,
+    ) -> Vec<(Vec<crate::types::TplPart>, Vec<crate::types::TplPart>)> {
+        use crate::types::TplPart;
+        let mut out = Vec::new();
+        let mut prefix = Vec::new();
+        for (i, part) in parts.iter().enumerate() {
+            match part {
+                TplPart::Ty(t) => prefix.push(TplPart::Ty(*t)),
+                TplPart::Str(s) => {
+                    let mut start = 0;
+                    while let Some(pos) = s[start..].find(literal) {
+                        let pos = start + pos;
+                        let mut pre = prefix.clone();
+                        if pos > 0 {
+                            pre.push(TplPart::Str(s[..pos].to_string()));
+                        }
+                        let mut rest = Vec::new();
+                        rest.push(TplPart::Str(s[pos..].to_string()));
+                        rest.extend(parts[i + 1..].iter().cloned());
+                        out.push((pre, rest));
+                        start = pos + literal.len();
+                    }
+                    prefix.push(TplPart::Str(s.clone()));
+                }
+            }
+        }
+        out
+    }
+
+    fn template_segment_assignable_to_placeholder(
+        &mut self,
+        parts: &[crate::types::TplPart],
+        target: TypeId,
+    ) -> bool {
+        use crate::types::TplPart;
+        if parts.is_empty() {
+            return self.placeholder_accepts(target, "");
+        }
+        let mut static_text = String::new();
+        let all_static = parts.iter().all(|part| match part {
+            TplPart::Str(s) => {
+                static_text.push_str(s);
+                true
+            }
+            _ => false,
+        });
+        if all_static {
+            return self.placeholder_accepts(target, &static_text);
+        }
+        if matches!(self.types.kind(target), TypeKind::String) {
+            return parts.iter().all(|part| match part {
+                TplPart::Str(_) => true,
+                TplPart::Ty(t) => self.template_placeholder_subsumes(*t, target),
+            });
+        }
+        parts.len() == 1
+            && match parts[0] {
+                TplPart::Str(ref s) => self.placeholder_accepts(target, s),
+                TplPart::Ty(t) => self.template_placeholder_subsumes(t, target),
+            }
+    }
+
+    fn template_placeholder_subsumes(&mut self, src: TypeId, tgt: TypeId) -> bool {
+        if src == tgt || matches!(self.types.kind(tgt), TypeKind::String) {
+            return true;
+        }
+        match self.types.kind(src).clone() {
+            TypeKind::TypeParam(sym) => self
+                .constraint_of_type_param(sym)
+                .is_some_and(|c| self.template_placeholder_subsumes(c, tgt)),
+            TypeKind::Union(members) if src == self.types.boolean => {
+                self.template_placeholder_subsumes(self.types.true_t, tgt)
+                    && self.template_placeholder_subsumes(self.types.false_t, tgt)
+            }
+            TypeKind::NumLit(_) => matches!(self.types.kind(tgt), TypeKind::Number),
+            TypeKind::BigIntLit(_) => matches!(self.types.kind(tgt), TypeKind::Bigint),
+            TypeKind::BoolLit(_) => tgt == self.types.boolean,
+            _ => self.is_assignable_to(src, tgt),
+        }
     }
 
     fn tpl_match_from(&mut self, parts: &[crate::types::TplPart], pi: usize, rest: &str) -> bool {
