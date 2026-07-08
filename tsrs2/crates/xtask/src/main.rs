@@ -15,6 +15,7 @@ fn main() {
     match command.as_deref() {
         None | Some("scaffold-smoke") => scaffold_smoke(),
         Some("expand") => run_or_exit(expand_fixture(args)),
+        Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("codegen") => match args.next().as_deref() {
             Some("diags") => run_or_exit(codegen_diags(false)),
             Some("diags-check") => run_or_exit(codegen_diags(true)),
@@ -66,6 +67,84 @@ fn expand_fixture(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     }
 
     Ok(())
+}
+
+fn oracle_smoke(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut limit = 100usize;
+    let mut args = args.peekable();
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--limit" => {
+                let value = args.next().ok_or("missing value after --limit")?;
+                limit = value.parse()?;
+            }
+            _ => return Err(format!("unexpected oracle-smoke argument: {arg}").into()),
+        }
+    }
+
+    let workspace = find_tsrs2_root()?;
+    let fixtures_root = workspace.join("ts-tests/tests/cases/conformance");
+    let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+    let temp_root = std::env::temp_dir().join(format!("tsrs2-oracle-smoke-{}", std::process::id()));
+    if temp_root.exists() {
+        fs::remove_dir_all(&temp_root)?;
+    }
+    fs::create_dir_all(&temp_root)?;
+
+    let mut fixtures = collect_fixture_paths(&fixtures_root)?;
+    fixtures.sort();
+    fixtures.truncate(limit);
+
+    let pool = tsrs2_oracle::OraclePool::new(tsrs2_oracle::OraclePool::default_size())?;
+    let mut program_count = 0usize;
+    for (index, fixture) in fixtures.iter().enumerate() {
+        let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let out_dir = temp_root.join(index.to_string());
+        let paths = tsrs2_harness::write_program_jsons(&programs, &out_dir)?;
+        for path in paths {
+            let first = pool.diagnostics(&path)?;
+            let second = pool.diagnostics(&path)?;
+            if first != second {
+                return Err(
+                    format!("oracle output changed between runs for {}", path.display()).into(),
+                );
+            }
+            program_count += 1;
+        }
+    }
+
+    fs::remove_dir_all(&temp_root)?;
+    println!(
+        "oracle smoke passed: {} fixtures, {} program.json files",
+        fixtures.len(),
+        program_count
+    );
+    Ok(())
+}
+
+fn collect_fixture_paths(root: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+    let mut stack = vec![root.to_owned()];
+    let mut fixtures = Vec::new();
+    while let Some(path) = stack.pop() {
+        for entry in fs::read_dir(&path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if is_fixture_path(&path) {
+                fixtures.push(path);
+            }
+        }
+    }
+    Ok(fixtures)
+}
+
+fn is_fixture_path(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|extension| extension.to_str()),
+        Some("ts" | "tsx" | "js" | "jsx")
+    )
 }
 
 fn run_or_exit(result: Result<(), Box<dyn Error>>) {
