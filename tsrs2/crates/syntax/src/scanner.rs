@@ -107,6 +107,28 @@ struct Scanner<'text> {
     errors: Vec<ScanError>,
 }
 
+trait Truthy {
+    fn is_truthy(&self) -> bool;
+}
+
+impl Truthy for bool {
+    fn is_truthy(&self) -> bool {
+        *self
+    }
+}
+
+impl<T> Truthy for Option<T> {
+    fn is_truthy(&self) -> bool {
+        self.is_some()
+    }
+}
+
+impl Truthy for SyntaxKind {
+    fn is_truthy(&self) -> bool {
+        *self != SyntaxKind::Unknown
+    }
+}
+
 impl<'text> Scanner<'text> {
     fn new(text: &'text str, language_variant: LanguageVariant) -> Self {
         Self {
@@ -357,6 +379,30 @@ impl<'text> Scanner<'text> {
         self.token_value = state.token_value;
         self.token_flags = state.token_flags;
         self.errors.truncate(state.error_len);
+    }
+
+    #[allow(dead_code)]
+    fn speculation_helper<R: Truthy>(
+        &mut self,
+        callback: impl FnOnce(&mut Self) -> R,
+        is_lookahead: bool,
+    ) -> R {
+        let saved = self.save();
+        let result = callback(self);
+        if is_lookahead || !result.is_truthy() {
+            self.restore(saved);
+        }
+        result
+    }
+
+    #[allow(dead_code)]
+    fn look_ahead<R: Truthy>(&mut self, callback: impl FnOnce(&mut Self) -> R) -> R {
+        self.speculation_helper(callback, true)
+    }
+
+    #[allow(dead_code)]
+    fn try_scan<R: Truthy>(&mut self, callback: impl FnOnce(&mut Self) -> R) -> R {
+        self.speculation_helper(callback, false)
     }
 
     fn pos(&self) -> usize {
@@ -1763,6 +1809,63 @@ mod tests {
 
         assert_eq!(scanner.pos(), 0);
         assert_eq!(scanner.errors(), &[]);
+    }
+
+    #[test]
+    fn look_ahead_always_rewinds_after_truthy_result() {
+        let mut scanner = Scanner::new("a b", LanguageVariant::Standard);
+
+        let result = scanner.look_ahead(|scanner| {
+            assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+            Some(scanner.pos())
+        });
+
+        assert_eq!(result, Some(1));
+        assert_eq!(scanner.pos(), 0);
+        assert_eq!(scanner.token, SyntaxKind::Unknown);
+    }
+
+    #[test]
+    fn try_scan_commits_truthy_and_rewinds_falsy() {
+        let mut scanner = Scanner::new("a b", LanguageVariant::Standard);
+
+        let result = scanner.try_scan(|scanner| scanner.scan());
+
+        assert_eq!(result, SyntaxKind::Identifier);
+        assert_eq!(scanner.pos(), 1);
+        assert_eq!(scanner.token, SyntaxKind::Identifier);
+
+        let result = scanner.try_scan(|scanner| {
+            assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+            false
+        });
+
+        assert!(!result);
+        assert_eq!(scanner.pos(), 1);
+        assert_eq!(scanner.token, SyntaxKind::Identifier);
+    }
+
+    #[test]
+    fn speculation_restores_nested_state_and_errors() {
+        let mut scanner = Scanner::new("a \"\\xG\"", LanguageVariant::Standard);
+
+        let result = scanner.look_ahead(|scanner| {
+            assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+            let inner = scanner.try_scan(|scanner| {
+                assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+                assert_eq!(scanner.errors().len(), 1);
+                true
+            });
+            assert!(inner);
+            assert_eq!(scanner.pos(), "a \"\\xG\"".len());
+            assert_eq!(scanner.errors().len(), 1);
+            true
+        });
+
+        assert!(result);
+        assert_eq!(scanner.pos(), 0);
+        assert_eq!(scanner.token, SyntaxKind::Unknown);
+        assert!(scanner.errors().is_empty());
     }
 
     #[test]
