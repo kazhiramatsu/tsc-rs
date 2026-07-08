@@ -55,6 +55,11 @@ struct TokenFlags(u32);
 
 impl TokenFlags {
     const PRECEDING_LINE_BREAK: Self = Self(1);
+    const UNTERMINATED: Self = Self(4);
+    const EXTENDED_UNICODE_ESCAPE: Self = Self(8);
+    const UNICODE_ESCAPE: Self = Self(1024);
+    const CONTAINS_INVALID_ESCAPE: Self = Self(2048);
+    const HEX_ESCAPE: Self = Self(4096);
 
     const fn empty() -> Self {
         Self(0)
@@ -526,20 +531,37 @@ impl<'text> Scanner<'text> {
     fn scan_string_literal(&mut self) -> SyntaxKind {
         let quote = self.current_char().expect("string literal starts at quote");
         self.advance_char();
+        self.token_value.clear();
+        let mut segment_start = self.pos;
 
-        while let Some(ch) = self.current_char() {
+        loop {
+            let Some(ch) = self.current_char() else {
+                self.token_value
+                    .push_str(&self.text[segment_start..self.pos]);
+                self.token_flags.insert(TokenFlags::UNTERMINATED);
+                self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
+                break;
+            };
+
             if ch == quote {
+                self.token_value
+                    .push_str(&self.text[segment_start..self.pos]);
                 self.advance_char();
                 break;
             }
             if ch == '\\' {
-                self.advance_char();
-                if self.current_char().is_some() {
-                    self.advance_char();
-                }
+                self.token_value
+                    .push_str(&self.text[segment_start..self.pos]);
+                let escaped = self.scan_escape_sequence();
+                self.token_value.push_str(&escaped);
+                segment_start = self.pos;
                 continue;
             }
-            if is_line_break(ch) {
+            if matches!(ch, '\n' | '\r') {
+                self.token_value
+                    .push_str(&self.text[segment_start..self.pos]);
+                self.token_flags.insert(TokenFlags::UNTERMINATED);
+                self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
                 break;
             }
             self.advance_char();
@@ -547,6 +569,162 @@ impl<'text> Scanner<'text> {
 
         self.token = SyntaxKind::StringLiteral;
         self.token
+    }
+
+    fn scan_escape_sequence(&mut self) -> String {
+        let start = self.pos;
+        self.pos += 1;
+        if self.pos >= self.end {
+            self.error_at(self.pos, 0, &gen::Unexpected_end_of_text);
+            return String::new();
+        }
+
+        let ch = self
+            .current_char()
+            .expect("escape sequence has a character after backslash");
+        self.advance_char();
+
+        match ch {
+            '0' => {
+                if !self.current_char().is_some_and(|ch| ch.is_ascii_digit()) {
+                    return "\0".to_owned();
+                }
+                self.scan_octal_escape(start, ch)
+            }
+            '1'..='7' => self.scan_octal_escape(start, ch),
+            '8' | '9' => {
+                self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
+                self.error_at(
+                    start,
+                    self.pos - start,
+                    &gen::Escape_sequence_0_is_not_allowed,
+                );
+                ch.to_string()
+            }
+            'b' => "\u{0008}".to_owned(),
+            't' => "\t".to_owned(),
+            'n' => "\n".to_owned(),
+            'v' => "\u{000b}".to_owned(),
+            'f' => "\u{000c}".to_owned(),
+            'r' => "\r".to_owned(),
+            '\'' => "'".to_owned(),
+            '"' => "\"".to_owned(),
+            'u' => {
+                if self.starts_with("{") {
+                    self.pos = start;
+                    return self.scan_extended_unicode_escape(true);
+                }
+                let digits_start = self.pos;
+                for _ in 0..4 {
+                    if !self.current_char().is_some_and(|ch| ch.is_ascii_hexdigit()) {
+                        self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
+                        self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
+                        return self.text[start..self.pos].to_owned();
+                    }
+                    self.advance_char();
+                }
+                self.token_flags.insert(TokenFlags::UNICODE_ESCAPE);
+                let value =
+                    u32::from_str_radix(&self.text[digits_start..self.pos], 16).unwrap_or(0xfffd);
+                utf16_encode_as_string(value)
+            }
+            'x' => {
+                let digits_start = self.pos;
+                for _ in 0..2 {
+                    if !self.current_char().is_some_and(|ch| ch.is_ascii_hexdigit()) {
+                        self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
+                        self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
+                        return self.text[start..self.pos].to_owned();
+                    }
+                    self.advance_char();
+                }
+                self.token_flags.insert(TokenFlags::HEX_ESCAPE);
+                let value =
+                    u32::from_str_radix(&self.text[digits_start..self.pos], 16).unwrap_or(0xfffd);
+                utf16_encode_as_string(value)
+            }
+            '\r' => {
+                if self.current_char() == Some('\n') {
+                    self.advance_char();
+                }
+                String::new()
+            }
+            '\n' | '\u{2028}' | '\u{2029}' => String::new(),
+            _ => ch.to_string(),
+        }
+    }
+
+    fn scan_octal_escape(&mut self, start: usize, first: char) -> String {
+        if self.current_char().is_some_and(is_octal_digit) {
+            self.advance_char();
+        }
+        if matches!(first, '0'..='3') && self.current_char().is_some_and(is_octal_digit) {
+            self.advance_char();
+        }
+
+        self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
+        self.error_at(
+            start,
+            self.pos - start,
+            &gen::Octal_escape_sequences_are_not_allowed_Use_the_syntax_0,
+        );
+        let value = u32::from_str_radix(&self.text[start + 1..self.pos], 8).unwrap_or(0xfffd);
+        utf16_encode_as_string(value)
+    }
+
+    fn scan_extended_unicode_escape(&mut self, report: bool) -> String {
+        let start = self.pos;
+        self.pos += 3;
+        let escaped_start = self.pos;
+
+        while self.current_char().is_some_and(|ch| ch.is_ascii_hexdigit()) {
+            self.advance_char();
+        }
+        let value_text = &self.text[escaped_start..self.pos];
+        let value = if value_text.is_empty() {
+            None
+        } else {
+            u32::from_str_radix(value_text, 16).ok()
+        };
+
+        let mut invalid = false;
+        if value.is_none() {
+            if report {
+                self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
+            }
+            invalid = true;
+        } else if value.is_some_and(|value| value > 0x10ffff) {
+            if report {
+                self.error_at(
+                    escaped_start,
+                    self.pos - escaped_start,
+                    &gen::An_extended_Unicode_escape_value_must_be_between_0x0_and_0x10FFFF_inclusive,
+                );
+            }
+            invalid = true;
+        }
+
+        if self.pos >= self.end {
+            if report {
+                self.error_at(self.pos, 0, &gen::Unexpected_end_of_text);
+            }
+            invalid = true;
+        } else if self.starts_with("}") {
+            self.pos += 1;
+        } else {
+            if report {
+                self.error_at(self.pos, 0, &gen::Unterminated_Unicode_escape_sequence);
+            }
+            invalid = true;
+        }
+
+        if invalid {
+            self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
+            return self.text[start..self.pos].to_owned();
+        }
+
+        self.token_flags.insert(TokenFlags::EXTENDED_UNICODE_ESCAPE);
+        utf16_encode_as_string(value.expect("valid extended escape has a value"))
     }
 
     fn scan_template_token(&mut self) -> SyntaxKind {
@@ -661,6 +839,16 @@ impl<'text> Scanner<'text> {
 
 fn is_ascii_digit(byte: u8) -> bool {
     byte.is_ascii_digit()
+}
+
+fn is_octal_digit(ch: char) -> bool {
+    matches!(ch, '0'..='7')
+}
+
+fn utf16_encode_as_string(value: u32) -> String {
+    char::from_u32(value)
+        .unwrap_or(char::REPLACEMENT_CHARACTER)
+        .to_string()
 }
 
 pub fn scan_tokens(text: &str, variant: LanguageVariant) -> Vec<TokenRecord> {
@@ -846,5 +1034,213 @@ mod tests {
                 SyntaxKind::SemicolonToken,
             ]
         );
+    }
+
+    #[test]
+    fn string_escape_sequences_set_value_and_flags() {
+        let mut scanner = Scanner::new("\"\\n\\t\\x41\\u0042\\u{43}\"", LanguageVariant::Standard);
+
+        assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+
+        assert_eq!(scanner.token_value, "\n\tABC");
+        assert!(scanner.token_flags.contains(TokenFlags::HEX_ESCAPE));
+        assert!(scanner.token_flags.contains(TokenFlags::UNICODE_ESCAPE));
+        assert!(scanner
+            .token_flags
+            .contains(TokenFlags::EXTENDED_UNICODE_ESCAPE));
+        assert!(scanner.errors().is_empty());
+    }
+
+    #[test]
+    fn invalid_extended_unicode_escape_reports_1198() {
+        let mut scanner = Scanner::new("\"\\u{110000}\"", LanguageVariant::Standard);
+
+        assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+
+        assert!(scanner
+            .token_flags
+            .contains(TokenFlags::CONTAINS_INVALID_ESCAPE));
+        assert_eq!(
+            scanner
+                .errors()
+                .iter()
+                .map(|error| error.message.code)
+                .collect::<Vec<_>>(),
+            vec![1198]
+        );
+    }
+
+    #[test]
+    fn unterminated_string_reports_1002() {
+        let mut scanner = Scanner::new("\"abc", LanguageVariant::Standard);
+
+        assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+
+        assert!(scanner.token_flags.contains(TokenFlags::UNTERMINATED));
+        assert_eq!(scanner.errors().len(), 1);
+        assert_eq!(scanner.errors()[0].message.code, 1002);
+    }
+
+    #[test]
+    fn string_escape_oracle_pins() {
+        struct Case {
+            text: &'static str,
+            value: &'static str,
+            flags: u32,
+            errors: &'static [(usize, usize, u32)],
+        }
+
+        let cases = [
+            Case {
+                text: "\"\\n\"",
+                value: "\n",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\t\"",
+                value: "\t",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\b\"",
+                value: "\u{0008}",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\v\"",
+                value: "\u{000b}",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\f\"",
+                value: "\u{000c}",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\r\"",
+                value: "\r",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\'\"",
+                value: "'",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "'\\\"'",
+                value: "\"",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\0\"",
+                value: "\0",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\x41\"",
+                value: "A",
+                flags: 4096,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\u0042\"",
+                value: "B",
+                flags: 1024,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\u{43}\"",
+                value: "C",
+                flags: 8,
+                errors: &[],
+            },
+            Case {
+                text: "\"a\\\nb\"",
+                value: "ab",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"a\\\r\nb\"",
+                value: "ab",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "\"\\xG\"",
+                value: "\\xG",
+                flags: 2048,
+                errors: &[(3, 0, 1125)],
+            },
+            Case {
+                text: "\"\\u00G0\"",
+                value: "\\u00G0",
+                flags: 2048,
+                errors: &[(5, 0, 1125)],
+            },
+            Case {
+                text: "\"\\u{}\"",
+                value: "\\u{}",
+                flags: 2048,
+                errors: &[(4, 0, 1125)],
+            },
+            Case {
+                text: "\"\\u{110000}\"",
+                value: "\\u{110000}",
+                flags: 2048,
+                errors: &[(4, 6, 1198)],
+            },
+            Case {
+                text: "\"\\u{41\"",
+                value: "\\u{41",
+                flags: 2048,
+                errors: &[(6, 0, 1199)],
+            },
+            Case {
+                text: "\"\\8\"",
+                value: "8",
+                flags: 2048,
+                errors: &[(1, 2, 1488)],
+            },
+            Case {
+                text: "\"\\123\"",
+                value: "S",
+                flags: 2048,
+                errors: &[(1, 4, 1487)],
+            },
+            Case {
+                text: "\"abc",
+                value: "abc",
+                flags: 4,
+                errors: &[(4, 0, 1002)],
+            },
+        ];
+
+        for case in cases {
+            let mut scanner = Scanner::new(case.text, LanguageVariant::Standard);
+
+            assert_eq!(scanner.scan(), SyntaxKind::StringLiteral, "{}", case.text);
+            assert_eq!(scanner.token_value, case.value, "{}", case.text);
+            assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
+            assert_eq!(
+                scanner
+                    .errors()
+                    .iter()
+                    .map(|error| (error.start, error.length, error.message.code))
+                    .collect::<Vec<_>>(),
+                case.errors,
+                "{}",
+                case.text
+            );
+        }
     }
 }
