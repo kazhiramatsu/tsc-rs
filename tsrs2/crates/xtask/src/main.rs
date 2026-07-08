@@ -1,12 +1,16 @@
 #![forbid(unsafe_code)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt::Write as _;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+
+use sha2::{Digest, Sha256};
+use tsrs2_checker::{CompilerOptions, InputFile};
+use tsrs2_diags::DiagnosticList;
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -18,6 +22,19 @@ fn main() {
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("conformance") => run_or_exit(conformance(args)),
+        Some("invariants") => run_or_exit(invariants(args)),
+        Some("ledger") => match args.next().as_deref() {
+            Some("check") => run_or_exit(ledger_check()),
+            Some("coverage") => run_or_exit(ledger_coverage()),
+            Some(other) => {
+                eprintln!("unknown ledger command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing ledger command");
+                std::process::exit(2);
+            }
+        },
         Some("ci") => run_or_exit(ci()),
         Some("codegen") => match args.next().as_deref() {
             Some("diags") => run_or_exit(codegen_diags(false)),
@@ -172,10 +189,805 @@ fn parse_conformance_args(
     })
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InvariantSuite {
+    All,
+    PrefixDeterminism,
+    Idempotence,
+    JobsIndependence,
+    Encodings,
+    MatrixIndependence,
+}
+
+impl InvariantSuite {
+    fn parse(value: &str) -> Result<Self, Box<dyn Error>> {
+        match value {
+            "all" => Ok(Self::All),
+            "prefix-determinism" => Ok(Self::PrefixDeterminism),
+            "idempotence" => Ok(Self::Idempotence),
+            "jobs-independence" => Ok(Self::JobsIndependence),
+            "encodings" => Ok(Self::Encodings),
+            "matrix-independence" => Ok(Self::MatrixIndependence),
+            _ => Err(format!("unknown invariant suite: {value}").into()),
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::PrefixDeterminism => "prefix-determinism",
+            Self::Idempotence => "idempotence",
+            Self::JobsIndependence => "jobs-independence",
+            Self::Encodings => "encodings",
+            Self::MatrixIndependence => "matrix-independence",
+        }
+    }
+
+    fn includes(self, suite: Self) -> bool {
+        self == Self::All || self == suite
+    }
+}
+
+struct InvariantArgs {
+    suite: InvariantSuite,
+    limit: usize,
+}
+
+#[derive(Clone, Debug)]
+struct SampleProgram {
+    fixture: String,
+    matrix_key: String,
+    files: Vec<InputFile>,
+}
+
+fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let args = parse_invariant_args(args)?;
+    let workspace = find_tsrs2_root()?;
+    let programs = load_sample_programs(&workspace, args.limit)?;
+    let fixture_count = programs
+        .iter()
+        .map(|program| program.fixture.as_str())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+
+    if args.suite.includes(InvariantSuite::PrefixDeterminism) {
+        run_prefix_determinism(&programs)?;
+        println!(
+            "invariant prefix-determinism ok: programs={}",
+            programs.len()
+        );
+    }
+    if args.suite.includes(InvariantSuite::Idempotence) {
+        run_idempotence(&programs)?;
+        println!("invariant idempotence ok: programs={}", programs.len());
+    }
+    if args.suite.includes(InvariantSuite::JobsIndependence) {
+        run_jobs_independence(&programs)?;
+        println!(
+            "invariant jobs-independence ok: programs={}",
+            programs.len()
+        );
+    }
+    if args.suite.includes(InvariantSuite::Encodings) {
+        run_encodings(&programs)?;
+        println!("invariant encodings ok: programs={}", programs.len());
+    }
+    if args.suite.includes(InvariantSuite::MatrixIndependence) {
+        run_matrix_independence(&programs)?;
+        println!(
+            "invariant matrix-independence ok: programs={}",
+            programs.len()
+        );
+    }
+
+    println!(
+        "invariants suite={} fixtures={} programs={} ok",
+        args.suite.name(),
+        fixture_count,
+        programs.len()
+    );
+    Ok(())
+}
+
+fn parse_invariant_args(
+    args: impl Iterator<Item = String>,
+) -> Result<InvariantArgs, Box<dyn Error>> {
+    let mut suite = InvariantSuite::All;
+    let mut limit = 200usize;
+    let mut args = args.peekable();
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--suite" => {
+                let value = args.next().ok_or("missing value after --suite")?;
+                suite = InvariantSuite::parse(&value)?;
+            }
+            "--limit" => {
+                let value = args.next().ok_or("missing value after --limit")?;
+                limit = value.parse()?;
+            }
+            _ => return Err(format!("unexpected invariants argument: {arg}").into()),
+        }
+    }
+
+    Ok(InvariantArgs { suite, limit })
+}
+
+fn load_sample_programs(
+    workspace: &Path,
+    limit: usize,
+) -> Result<Vec<SampleProgram>, Box<dyn Error>> {
+    let fixtures_root = workspace.join("ts-tests/tests/cases/conformance");
+    let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+    let mut fixtures = collect_fixture_paths(&fixtures_root)?;
+    fixtures.sort();
+    fixtures.truncate(limit);
+
+    let mut programs = Vec::new();
+    for fixture in fixtures {
+        let fixture_key = fixture
+            .strip_prefix(&fixtures_root)?
+            .to_string_lossy()
+            .replace('\\', "/");
+        for program in tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)? {
+            let files = program
+                .files
+                .into_iter()
+                .map(|file| {
+                    Ok(InputFile {
+                        name: file.name,
+                        text: base64_decode_to_string(&file.text_b64)?,
+                    })
+                })
+                .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+            programs.push(SampleProgram {
+                fixture: fixture_key.clone(),
+                matrix_key: program.matrix_key,
+                files,
+            });
+        }
+    }
+
+    Ok(programs)
+}
+
+fn run_prefix_determinism(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+    for program in programs {
+        let full = check_diagnostics(&program.files);
+        for file_index in 0..program.files.len() {
+            let prefix_end = midpoint_char_boundary(&program.files[file_index].text);
+            let prefix_units = utf16_units(&program.files[file_index].text[..prefix_end]);
+            let mut prefix_files = program.files.clone();
+            prefix_files[file_index].text.truncate(prefix_end);
+            let prefix = check_diagnostics(&prefix_files);
+            let file_name = &program.files[file_index].name;
+            let full_prefix = diagnostics_before(&full, file_name, prefix_units);
+            let prefix_prefix = diagnostics_before(&prefix, file_name, prefix_units);
+            if full_prefix != prefix_prefix {
+                return Err(format!(
+                    "prefix-determinism failed for {} [{}] file {}",
+                    program.fixture, program.matrix_key, file_name
+                )
+                .into());
+            }
+        }
+    }
+    Ok(())
+}
+
+fn run_idempotence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+    for program in programs {
+        let first = check_bytes(&program.files);
+        let second = check_bytes(&program.files);
+        if first != second {
+            return Err(format!(
+                "idempotence failed for {} [{}]",
+                program.fixture, program.matrix_key
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
+fn run_jobs_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+    let baseline = run_programs_in_job_order(programs, 1);
+    for jobs in 2..=16 {
+        let candidate = run_programs_in_job_order(programs, jobs);
+        if baseline != candidate {
+            return Err(format!("jobs-independence failed for jobs={jobs}").into());
+        }
+    }
+    Ok(())
+}
+
+fn run_encodings(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+    for program in programs {
+        let baseline = diagnostic_semantic_bytes(&check_diagnostics(&program.files));
+        for file_index in 0..program.files.len() {
+            let original = &program.files[file_index].text;
+            let variants = [
+                original.trim_start_matches('\u{feff}').to_owned(),
+                format!("\u{feff}{}", original.trim_start_matches('\u{feff}')),
+                original.replace("\r\n", "\n"),
+                original.replace('\n', "\r\n"),
+            ];
+            for variant in variants {
+                let mut files = program.files.clone();
+                files[file_index].text = variant;
+                let candidate = diagnostic_semantic_bytes(&check_diagnostics(&files));
+                if baseline != candidate {
+                    return Err(format!(
+                        "encodings failed for {} [{}] file {}",
+                        program.fixture, program.matrix_key, files[file_index].name
+                    )
+                    .into());
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn run_matrix_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+    let mut by_fixture = BTreeMap::<&str, Vec<&SampleProgram>>::new();
+    for program in programs {
+        by_fixture
+            .entry(&program.fixture)
+            .or_default()
+            .push(program);
+    }
+
+    for (fixture, fixture_programs) in by_fixture {
+        if fixture_programs.len() < 2 {
+            continue;
+        }
+        let forward = fixture_programs
+            .iter()
+            .map(|program| (program_key(program), check_bytes(&program.files)))
+            .collect::<BTreeMap<_, _>>();
+        let reverse = fixture_programs
+            .iter()
+            .rev()
+            .map(|program| (program_key(program), check_bytes(&program.files)))
+            .collect::<BTreeMap<_, _>>();
+        if forward != reverse {
+            return Err(format!("matrix-independence failed for {fixture}").into());
+        }
+    }
+    Ok(())
+}
+
+fn run_programs_in_job_order(programs: &[SampleProgram], jobs: usize) -> BTreeMap<String, String> {
+    let mut output = BTreeMap::new();
+    for job in 0..jobs {
+        for (index, program) in programs.iter().enumerate() {
+            if index % jobs == job {
+                output.insert(program_key(program), check_bytes(&program.files));
+            }
+        }
+    }
+    output
+}
+
+fn program_key(program: &SampleProgram) -> String {
+    if program.matrix_key.is_empty() {
+        program.fixture.clone()
+    } else {
+        format!("{}#{}", program.fixture, program.matrix_key)
+    }
+}
+
+fn check_diagnostics(files: &[InputFile]) -> DiagnosticList {
+    tsrs2_checker::check_program(files, &CompilerOptions::default()).diagnostics
+}
+
+fn check_bytes(files: &[InputFile]) -> String {
+    diagnostic_bytes(&check_diagnostics(files))
+}
+
+fn diagnostic_bytes(diagnostics: &DiagnosticList) -> String {
+    format!("{diagnostics:#?}")
+}
+
+fn diagnostic_semantic_bytes(diagnostics: &DiagnosticList) -> String {
+    let mut out = String::new();
+    for diagnostic in diagnostics {
+        let _ = writeln!(
+            out,
+            "{}|{}|{}",
+            diagnostic.file_name.as_deref().unwrap_or(""),
+            diagnostic.code(),
+            diagnostic.message_text()
+        );
+    }
+    out
+}
+
+fn diagnostics_before(
+    diagnostics: &DiagnosticList,
+    file_name: &str,
+    utf16_limit: u32,
+) -> Vec<String> {
+    diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.file_name.as_deref() == Some(file_name)
+                && diagnostic.start.is_some_and(|start| start < utf16_limit)
+        })
+        .map(|diagnostic| {
+            format!(
+                "{}|{:?}|{:?}|{}|{}",
+                diagnostic.file_name.as_deref().unwrap_or(""),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.code(),
+                diagnostic.message_text()
+            )
+        })
+        .collect()
+}
+
+fn midpoint_char_boundary(text: &str) -> usize {
+    let midpoint = text.len() / 2;
+    text.char_indices()
+        .map(|(index, _)| index)
+        .take_while(|index| *index <= midpoint)
+        .last()
+        .unwrap_or(0)
+}
+
+fn utf16_units(text: &str) -> u32 {
+    text.encode_utf16().count() as u32
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct LedgerEntry {
+    rust_path: PathBuf,
+    rust_line: usize,
+    rust_fn: String,
+    port_name: String,
+    version: String,
+    span_file: String,
+    span_start: usize,
+    span_end: usize,
+    hash: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+struct PublicFunction {
+    path: PathBuf,
+    line: usize,
+    name: String,
+}
+
+fn ledger_check() -> Result<(), Box<dyn Error>> {
+    let workspace = find_tsrs2_root()?;
+    let entries = collect_ledger_entries(&workspace)?;
+    let stale = verify_ledger_entries(&workspace, &entries)?;
+    let public_functions = collect_hot_public_functions(&workspace)?;
+    let unported = unported_public_functions(&entries, &public_functions);
+    let todo_sites = collect_todo_port_sites(&workspace)?;
+
+    for entry in &stale {
+        eprintln!("{entry}");
+    }
+    for site in &todo_sites {
+        eprintln!("todo_port site: {site}");
+    }
+
+    println!(
+        "ledger check: entries={} stale={} hot_pub_fns={} unported_pub_fns={} todo_port={}",
+        entries.len(),
+        stale.len(),
+        public_functions.len(),
+        unported.len(),
+        todo_sites.len()
+    );
+    if !unported.is_empty() {
+        println!("unported pub fns:");
+        for function in &unported {
+            println!(
+                "  {}:{} {}",
+                display_relative(&workspace, &function.path),
+                function.line,
+                function.name
+            );
+        }
+    }
+
+    if !stale.is_empty() || !todo_sites.is_empty() {
+        return Err("ledger check failed".into());
+    }
+    Ok(())
+}
+
+fn ledger_coverage() -> Result<(), Box<dyn Error>> {
+    let workspace = find_tsrs2_root()?;
+    let entries = collect_ledger_entries(&workspace)?;
+    let public_functions = collect_hot_public_functions(&workspace)?;
+    let unported = unported_public_functions(&entries, &public_functions);
+
+    println!(
+        "ledger coverage: ported_entries={} hot_pub_fns={} unported_pub_fns={}",
+        entries.len(),
+        public_functions.len(),
+        unported.len()
+    );
+    println!("ledger coverage: runtime hit data is not instrumented in M0");
+    Ok(())
+}
+
+fn collect_ledger_entries(workspace: &Path) -> Result<Vec<LedgerEntry>, Box<dyn Error>> {
+    let mut entries = Vec::new();
+    for path in collect_rs_paths(&workspace.join("crates"))? {
+        let text = fs::read_to_string(&path)?;
+        entries.extend(parse_ledger_entries_in_file(&path, &text)?);
+    }
+    entries.sort_by(|left, right| {
+        left.rust_path
+            .cmp(&right.rust_path)
+            .then_with(|| left.rust_line.cmp(&right.rust_line))
+    });
+    Ok(entries)
+}
+
+fn parse_ledger_entries_in_file(
+    path: &Path,
+    text: &str,
+) -> Result<Vec<LedgerEntry>, Box<dyn Error>> {
+    let mut entries = Vec::new();
+    let mut docs = Vec::<String>::new();
+    let mut doc_start = 0usize;
+
+    for (index, line) in text.lines().enumerate() {
+        let line_number = index + 1;
+        let trimmed = line.trim_start();
+        if let Some(doc) = trimmed.strip_prefix("///") {
+            if docs.is_empty() {
+                doc_start = line_number;
+            }
+            docs.push(doc.trim().to_owned());
+            continue;
+        }
+
+        if trimmed.is_empty() || trimmed.starts_with("#[") {
+            continue;
+        }
+
+        if let Some(fn_name) = function_name(trimmed) {
+            if let Some(entry) = parse_ledger_doc(path, doc_start, &fn_name, &docs)? {
+                entries.push(entry);
+            }
+        }
+        docs.clear();
+    }
+
+    Ok(entries)
+}
+
+fn parse_ledger_doc(
+    path: &Path,
+    rust_line: usize,
+    rust_fn: &str,
+    docs: &[String],
+) -> Result<Option<LedgerEntry>, Box<dyn Error>> {
+    let Some(port_line) = docs
+        .iter()
+        .find_map(|doc| doc.strip_prefix("tsc-port:").map(str::trim))
+    else {
+        return Ok(None);
+    };
+    let hash = docs
+        .iter()
+        .find_map(|doc| doc.strip_prefix("tsc-hash:").map(str::trim))
+        .and_then(|value| value.split_whitespace().next())
+        .ok_or_else(|| format!("{}:{rust_line} missing tsc-hash", path.display()))?;
+    let span = docs
+        .iter()
+        .find_map(|doc| doc.strip_prefix("tsc-span:").map(str::trim))
+        .ok_or_else(|| format!("{}:{rust_line} missing tsc-span", path.display()))?;
+    let (port_name, version) = parse_tsc_port(port_line)
+        .ok_or_else(|| format!("{}:{rust_line} malformed tsc-port", path.display()))?;
+    let (span_file, span_start, span_end) = parse_tsc_span(span)
+        .ok_or_else(|| format!("{}:{rust_line} malformed tsc-span", path.display()))?;
+
+    Ok(Some(LedgerEntry {
+        rust_path: path.to_owned(),
+        rust_line,
+        rust_fn: rust_fn.to_owned(),
+        port_name,
+        version,
+        span_file,
+        span_start,
+        span_end,
+        hash: hash.to_owned(),
+    }))
+}
+
+fn parse_tsc_port(value: &str) -> Option<(String, String)> {
+    let mut parts = value.split_whitespace();
+    let name = parts.next()?.to_owned();
+    let version = parts.next()?.strip_prefix('@')?.to_owned();
+    Some((name, version))
+}
+
+fn parse_tsc_span(value: &str) -> Option<(String, usize, usize)> {
+    let (file, range) = value.rsplit_once(':')?;
+    let (start, end) = range.split_once('-')?;
+    Some((file.to_owned(), start.parse().ok()?, end.parse().ok()?))
+}
+
+fn verify_ledger_entries(
+    workspace: &Path,
+    entries: &[LedgerEntry],
+) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut stale = Vec::new();
+    for entry in entries {
+        let actual = source_slice_hash(
+            workspace,
+            &entry.span_file,
+            entry.span_start,
+            entry.span_end,
+        )?;
+        if actual != entry.hash {
+            stale.push(format!(
+                "{}:{} {} stale: expected {} actual {}",
+                display_relative(workspace, &entry.rust_path),
+                entry.rust_line,
+                entry.rust_fn,
+                entry.hash,
+                actual
+            ));
+        }
+    }
+    Ok(stale)
+}
+
+fn source_slice_hash(
+    workspace: &Path,
+    span_file: &str,
+    start: usize,
+    end: usize,
+) -> Result<String, Box<dyn Error>> {
+    if start == 0 || end < start {
+        return Err(format!("invalid tsc span range {start}-{end}").into());
+    }
+    let path = ledger_source_path(workspace, span_file)?;
+    let text = fs::read_to_string(&path)?;
+    let lines = text.split_inclusive('\n').collect::<Vec<_>>();
+    if end > lines.len() {
+        return Err(format!(
+            "{} has {} lines, cannot read {start}-{end}",
+            path.display(),
+            lines.len()
+        )
+        .into());
+    }
+    let slice = lines[start - 1..end].concat();
+    Ok(sha256_hex(slice.as_bytes()))
+}
+
+fn ledger_source_path(workspace: &Path, span_file: &str) -> Result<PathBuf, Box<dyn Error>> {
+    let span_path = Path::new(span_file);
+    if span_path.is_absolute() && span_path.is_file() {
+        return Ok(span_path.to_owned());
+    }
+
+    let mut candidates = vec![
+        workspace
+            .join("vendor/typescript-6.0.3/src/compiler")
+            .join(span_file),
+        workspace
+            .join("vendor/typescript-6.0.3/lib")
+            .join(span_file),
+    ];
+    if let Some(parent) = workspace.parent() {
+        candidates.push(parent.join("ts-tests/src/compiler").join(span_file));
+        candidates.push(parent.join(span_file));
+    }
+    candidates.push(workspace.join(span_file));
+
+    candidates
+        .into_iter()
+        .find(|path| path.is_file())
+        .ok_or_else(|| format!("missing ledger source file: {span_file}").into())
+}
+
+fn collect_hot_public_functions(workspace: &Path) -> Result<Vec<PublicFunction>, Box<dyn Error>> {
+    let hot_files = [
+        workspace.join("crates/checker/src/lib.rs"),
+        workspace.join("crates/binder/src/lib.rs"),
+        workspace.join("crates/syntax/src/lib.rs"),
+        workspace.join("crates/syntax/src/for_each_child.rs"),
+    ];
+    let mut functions = Vec::new();
+    for path in hot_files {
+        if !path.is_file() {
+            continue;
+        }
+        let text = fs::read_to_string(&path)?;
+        for (index, line) in text.lines().enumerate() {
+            let trimmed = line.trim_start();
+            if is_public_fn_line(trimmed) {
+                if let Some(name) = function_name(trimmed) {
+                    functions.push(PublicFunction {
+                        path: path.clone(),
+                        line: index + 1,
+                        name,
+                    });
+                }
+            }
+        }
+    }
+    functions.sort();
+    Ok(functions)
+}
+
+fn unported_public_functions(
+    entries: &[LedgerEntry],
+    public_functions: &[PublicFunction],
+) -> Vec<PublicFunction> {
+    let ported = entries
+        .iter()
+        .map(|entry| (entry.rust_path.clone(), entry.rust_fn.clone()))
+        .collect::<BTreeSet<_>>();
+    public_functions
+        .iter()
+        .filter(|function| !ported.contains(&(function.path.clone(), function.name.clone())))
+        .cloned()
+        .collect()
+}
+
+fn collect_todo_port_sites(workspace: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut sites = Vec::new();
+    for path in collect_rs_paths(&workspace.join("crates"))? {
+        if path
+            .strip_prefix(workspace)
+            .is_ok_and(|relative| relative.starts_with("crates/xtask"))
+        {
+            continue;
+        }
+        let text = fs::read_to_string(&path)?;
+        for (index, line) in text.lines().enumerate() {
+            if line.contains("todo_port!(") {
+                sites.push(format!(
+                    "{}:{}",
+                    display_relative(workspace, &path),
+                    index + 1
+                ));
+            }
+        }
+    }
+    sites.sort();
+    Ok(sites)
+}
+
+fn collect_rs_paths(root: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+    let mut stack = vec![root.to_owned()];
+    let mut paths = Vec::new();
+    while let Some(path) = stack.pop() {
+        for entry in fs::read_dir(&path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                if path.file_name().and_then(|name| name.to_str()) != Some("target") {
+                    stack.push(path);
+                }
+            } else if path.extension().and_then(|extension| extension.to_str()) == Some("rs") {
+                paths.push(path);
+            }
+        }
+    }
+    paths.sort();
+    Ok(paths)
+}
+
+fn is_public_fn_line(line: &str) -> bool {
+    line.starts_with("pub fn ") || line.starts_with("pub async fn ")
+}
+
+fn function_name(line: &str) -> Option<String> {
+    let fn_start = line.find("fn ")? + "fn ".len();
+    let rest = &line[fn_start..];
+    let name = rest
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+        .collect::<String>();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    let mut out = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        let _ = write!(out, "{byte:02x}");
+    }
+    out
+}
+
+fn display_relative(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn base64_decode_to_string(input: &str) -> Result<String, Box<dyn Error>> {
+    let bytes = input.as_bytes();
+    if !bytes.len().is_multiple_of(4) {
+        return Err("invalid base64 length".into());
+    }
+
+    let mut out = Vec::with_capacity(bytes.len() / 4 * 3);
+    for chunk in bytes.chunks_exact(4) {
+        let chunk = [chunk[0], chunk[1], chunk[2], chunk[3]];
+        decode_base64_chunk(&chunk, &mut out)?;
+    }
+    Ok(String::from_utf8(out)?)
+}
+
+fn decode_base64_chunk(chunk: &[u8; 4], out: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
+    let pad = chunk.iter().rev().take_while(|byte| **byte == b'=').count();
+    if pad > 2 {
+        return Err("invalid base64 padding".into());
+    }
+
+    let first = decode_base64_value(chunk[0])?;
+    let second = decode_base64_value(chunk[1])?;
+    let third = if chunk[2] == b'=' {
+        0
+    } else {
+        decode_base64_value(chunk[2])?
+    };
+    let fourth = if chunk[3] == b'=' {
+        0
+    } else {
+        decode_base64_value(chunk[3])?
+    };
+
+    out.push((first << 2) | (second >> 4));
+    if pad < 2 {
+        out.push((second << 4) | (third >> 2));
+    }
+    if pad < 1 {
+        out.push((third << 6) | fourth);
+    }
+    Ok(())
+}
+
+fn decode_base64_value(byte: u8) -> Result<u8, Box<dyn Error>> {
+    match byte {
+        b'A'..=b'Z' => Ok(byte - b'A'),
+        b'a'..=b'z' => Ok(byte - b'a' + 26),
+        b'0'..=b'9' => Ok(byte - b'0' + 52),
+        b'+' => Ok(62),
+        b'/' => Ok(63),
+        _ => Err(format!("invalid base64 byte: {byte}").into()),
+    }
+}
+
 fn ci() -> Result<(), Box<dyn Error>> {
     run_command(Command::new("cargo").arg("build").arg("--workspace"))?;
     run_command(Command::new("cargo").arg("test").arg("--workspace"))?;
     run_command(Command::new("cargo").arg("xtask").arg("conformance"))?;
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("invariants")
+            .arg("--suite")
+            .arg("all"),
+    )?;
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("ledger")
+            .arg("check"),
+    )?;
     Ok(())
 }
 

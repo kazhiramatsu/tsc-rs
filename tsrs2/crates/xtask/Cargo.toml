@@ -9,6 +9,9 @@ name = "xtask"
 path = "src/main.rs"
 
 [dependencies]
+sha2 = "0.10"
+tsrs2-checker = { path = "../checker" }
 tsrs2-conformance = { path = "../conformance" }
+tsrs2-diags = { path = "../diags" }
 tsrs2-harness = { path = "../harness" }
 tsrs2-oracle = { path = "../oracle" }
