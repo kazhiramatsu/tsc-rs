@@ -15,3 +15,4 @@ tsrs2-conformance = { path = "../conformance" }
 tsrs2-diags = { path = "../diags" }
 tsrs2-harness = { path = "../harness" }
 tsrs2-oracle = { path = "../oracle" }
+tsrs2-syntax = { path = "../syntax" }

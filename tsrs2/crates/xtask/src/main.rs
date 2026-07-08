@@ -19,6 +19,8 @@ fn main() {
     match command.as_deref() {
         None | Some("scaffold-smoke") => scaffold_smoke(),
         Some("expand") => run_or_exit(expand_fixture(args)),
+        Some("tokens") => run_or_exit(tokens(args)),
+        Some("token-diff") => run_or_exit(token_diff(args)),
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("conformance") => run_or_exit(conformance(args)),
@@ -87,6 +89,179 @@ fn expand_fixture(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     }
 
     Ok(())
+}
+
+fn tokens(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let path = parse_single_path_arg("tokens", args)?;
+    print!("{}", rust_token_dump(&path)?);
+    Ok(())
+}
+
+struct TokenDiffArgs {
+    corpus: bool,
+    files: Vec<PathBuf>,
+    limit: Option<usize>,
+}
+
+fn token_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let args = parse_token_diff_args(args)?;
+    let workspace = find_tsrs2_root()?;
+    let mut files = if args.corpus {
+        collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?
+    } else {
+        args.files
+    };
+    if files.is_empty() {
+        return Err("token-diff requires --corpus, --files, or a file path".into());
+    }
+    files.sort();
+    if let Some(limit) = args.limit {
+        files.truncate(limit);
+    }
+
+    let mut differing = 0usize;
+    for file in &files {
+        let rust = rust_token_dump(file)?;
+        let oracle = oracle_token_dump(&workspace, file)?;
+        if rust != oracle {
+            differing += 1;
+            if differing <= 10 {
+                let (line, left, right) = first_diff(&rust, &oracle);
+                println!(
+                    "diff {} line {}:\n  tsrs:   {}\n  oracle: {}",
+                    file.display(),
+                    line,
+                    left.unwrap_or("<missing>"),
+                    right.unwrap_or("<missing>")
+                );
+            }
+        }
+    }
+
+    if differing > 0 {
+        return Err(format!(
+            "token diff failed: {differing}/{} files differ",
+            files.len()
+        )
+        .into());
+    }
+    println!("token diff ok: files={}", files.len());
+    Ok(())
+}
+
+fn parse_single_path_arg(
+    command: &str,
+    args: impl Iterator<Item = String>,
+) -> Result<PathBuf, Box<dyn Error>> {
+    let mut path = None;
+    for arg in args {
+        if path.is_none() {
+            path = Some(PathBuf::from(arg));
+        } else {
+            return Err(format!("unexpected {command} argument: {arg}").into());
+        }
+    }
+    path.ok_or_else(|| format!("missing file path for {command}").into())
+}
+
+fn parse_token_diff_args(
+    args: impl Iterator<Item = String>,
+) -> Result<TokenDiffArgs, Box<dyn Error>> {
+    let mut corpus = false;
+    let mut files = Vec::new();
+    let mut limit = None;
+    let mut args = args.peekable();
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--corpus" => corpus = true,
+            "--files" => {
+                let value = args.next().ok_or("missing value after --files")?;
+                files.extend(
+                    value
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(PathBuf::from),
+                );
+            }
+            "--limit" => {
+                let value = args.next().ok_or("missing value after --limit")?;
+                limit = Some(value.parse()?);
+            }
+            _ => files.push(PathBuf::from(arg)),
+        }
+    }
+
+    Ok(TokenDiffArgs {
+        corpus,
+        files,
+        limit,
+    })
+}
+
+fn rust_token_dump(path: &Path) -> Result<String, Box<dyn Error>> {
+    let text = fs::read_to_string(path)?;
+    let variant = language_variant_for_path(path);
+    let mut out = String::new();
+    for token in tsrs2_syntax::scan_tokens(&text, variant) {
+        let _ = writeln!(
+            out,
+            "{}\t{}\t{}\t{}",
+            token.kind as u16,
+            token.start,
+            token.end,
+            u8::from(token.preceding_line_break)
+        );
+    }
+    Ok(out)
+}
+
+fn oracle_token_dump(workspace: &Path, path: &Path) -> Result<String, Box<dyn Error>> {
+    let output = Command::new("node")
+        .arg(workspace.join("crates/oracle/token-dump.mjs"))
+        .arg(path)
+        .arg(language_variant_arg(path))
+        .output()?;
+    if !output.status.success() {
+        return Err(format!(
+            "oracle token dump failed for {}: {}",
+            path.display(),
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+    Ok(String::from_utf8(output.stdout)?)
+}
+
+fn language_variant_for_path(path: &Path) -> tsrs2_syntax::LanguageVariant {
+    match path.extension().and_then(|extension| extension.to_str()) {
+        Some("tsx" | "jsx") => tsrs2_syntax::LanguageVariant::Jsx,
+        _ => tsrs2_syntax::LanguageVariant::Standard,
+    }
+}
+
+fn language_variant_arg(path: &Path) -> &'static str {
+    match language_variant_for_path(path) {
+        tsrs2_syntax::LanguageVariant::Standard => "standard",
+        tsrs2_syntax::LanguageVariant::Jsx => "jsx",
+    }
+}
+
+fn first_diff<'a>(left: &'a str, right: &'a str) -> (usize, Option<&'a str>, Option<&'a str>) {
+    let mut left_lines = left.lines();
+    let mut right_lines = right.lines();
+    for line_number in 1.. {
+        let left = left_lines.next();
+        let right = right_lines.next();
+        if left != right {
+            return (line_number, left, right);
+        }
+        if left.is_none() && right.is_none() {
+            return (line_number, None, None);
+        }
+    }
+    unreachable!("unbounded line iterator returns from inside the loop")
 }
 
 fn oracle_refresh(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -800,6 +975,7 @@ fn collect_hot_public_functions(workspace: &Path) -> Result<Vec<PublicFunction>,
         workspace.join("crates/binder/src/lib.rs"),
         workspace.join("crates/syntax/src/lib.rs"),
         workspace.join("crates/syntax/src/for_each_child.rs"),
+        workspace.join("crates/syntax/src/scanner.rs"),
     ];
     let mut functions = Vec::new();
     for path in hot_files {

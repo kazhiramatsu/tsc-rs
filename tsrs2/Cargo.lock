@@ -313,6 +313,7 @@ dependencies = [
  "tsrs2-diags",
  "tsrs2-harness",
  "tsrs2-oracle",
+ "tsrs2-syntax",
 ]
 
 [[package]]
