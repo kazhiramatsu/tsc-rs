@@ -1,4 +1,4 @@
-use crate::SyntaxKind;
+use crate::{chars, keywords, SyntaxKind};
 use tsrs2_diags::{gen, DiagnosticMessage};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -90,7 +90,7 @@ struct Scanner<'text> {
     token: SyntaxKind,
     token_value: String,
     token_flags: TokenFlags,
-    _language_variant: LanguageVariant,
+    language_variant: LanguageVariant,
     errors: Vec<ScanError>,
 }
 
@@ -105,7 +105,7 @@ impl<'text> Scanner<'text> {
             token: SyntaxKind::Unknown,
             token_value: String::new(),
             token_flags: TokenFlags::empty(),
-            _language_variant: language_variant,
+            language_variant,
             errors: Vec::new(),
         }
     }
@@ -146,6 +146,174 @@ impl<'text> Scanner<'text> {
             if self.starts_with("/*") {
                 self.skip_multi_line_comment();
                 continue;
+            }
+
+            match ch {
+                '!' => {
+                    if self.starts_with("!==") {
+                        return self.finish_token(SyntaxKind::ExclamationEqualsEqualsToken, 3);
+                    }
+                    if self.starts_with("!=") {
+                        return self.finish_token(SyntaxKind::ExclamationEqualsToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::ExclamationToken, 1);
+                }
+                '"' | '\'' => return self.scan_string_literal(),
+                '`' => return self.scan_template_token(),
+                '%' => {
+                    if self.starts_with("%=") {
+                        return self.finish_token(SyntaxKind::PercentEqualsToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::PercentToken, 1);
+                }
+                '&' => {
+                    if self.starts_with("&&=") {
+                        return self.finish_token(SyntaxKind::AmpersandAmpersandEqualsToken, 3);
+                    }
+                    if self.starts_with("&&") {
+                        return self.finish_token(SyntaxKind::AmpersandAmpersandToken, 2);
+                    }
+                    if self.starts_with("&=") {
+                        return self.finish_token(SyntaxKind::AmpersandEqualsToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::AmpersandToken, 1);
+                }
+                '(' => return self.finish_token(SyntaxKind::OpenParenToken, 1),
+                ')' => return self.finish_token(SyntaxKind::CloseParenToken, 1),
+                '*' => {
+                    if self.starts_with("**=") {
+                        return self.finish_token(SyntaxKind::AsteriskAsteriskEqualsToken, 3);
+                    }
+                    if self.starts_with("**") {
+                        return self.finish_token(SyntaxKind::AsteriskAsteriskToken, 2);
+                    }
+                    if self.starts_with("*=") {
+                        return self.finish_token(SyntaxKind::AsteriskEqualsToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::AsteriskToken, 1);
+                }
+                '+' => {
+                    if self.starts_with("++") {
+                        return self.finish_token(SyntaxKind::PlusPlusToken, 2);
+                    }
+                    if self.starts_with("+=") {
+                        return self.finish_token(SyntaxKind::PlusEqualsToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::PlusToken, 1);
+                }
+                ',' => return self.finish_token(SyntaxKind::CommaToken, 1),
+                '-' => {
+                    if self.starts_with("--") {
+                        return self.finish_token(SyntaxKind::MinusMinusToken, 2);
+                    }
+                    if self.starts_with("-=") {
+                        return self.finish_token(SyntaxKind::MinusEqualsToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::MinusToken, 1);
+                }
+                '.' => {
+                    if self.byte_at(self.pos + 1).is_some_and(is_ascii_digit) {
+                        return self.scan_number_literal();
+                    }
+                    if self.starts_with("...") {
+                        return self.finish_token(SyntaxKind::DotDotDotToken, 3);
+                    }
+                    return self.finish_token(SyntaxKind::DotToken, 1);
+                }
+                '/' => {
+                    if self.starts_with("/=") {
+                        return self.finish_token(SyntaxKind::SlashEqualsToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::SlashToken, 1);
+                }
+                '0'..='9' => return self.scan_number_literal(),
+                ':' => return self.finish_token(SyntaxKind::ColonToken, 1),
+                ';' => return self.finish_token(SyntaxKind::SemicolonToken, 1),
+                '<' => {
+                    if self.starts_with("<<=") {
+                        return self.finish_token(SyntaxKind::LessThanLessThanEqualsToken, 3);
+                    }
+                    if self.starts_with("<<") {
+                        return self.finish_token(SyntaxKind::LessThanLessThanToken, 2);
+                    }
+                    if self.starts_with("<=") {
+                        return self.finish_token(SyntaxKind::LessThanEqualsToken, 2);
+                    }
+                    if self.language_variant == LanguageVariant::Jsx
+                        && self.starts_with("</")
+                        && !self.starts_with("</*")
+                    {
+                        return self.finish_token(SyntaxKind::LessThanSlashToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::LessThanToken, 1);
+                }
+                '=' => {
+                    if self.starts_with("===") {
+                        return self.finish_token(SyntaxKind::EqualsEqualsEqualsToken, 3);
+                    }
+                    if self.starts_with("==") {
+                        return self.finish_token(SyntaxKind::EqualsEqualsToken, 2);
+                    }
+                    if self.starts_with("=>") {
+                        return self.finish_token(SyntaxKind::EqualsGreaterThanToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::EqualsToken, 1);
+                }
+                '>' => return self.finish_token(SyntaxKind::GreaterThanToken, 1),
+                '?' => {
+                    if self.starts_with("?.")
+                        && !self.byte_at(self.pos + 2).is_some_and(is_ascii_digit)
+                    {
+                        return self.finish_token(SyntaxKind::QuestionDotToken, 2);
+                    }
+                    if self.starts_with("??=") {
+                        return self.finish_token(SyntaxKind::QuestionQuestionEqualsToken, 3);
+                    }
+                    if self.starts_with("??") {
+                        return self.finish_token(SyntaxKind::QuestionQuestionToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::QuestionToken, 1);
+                }
+                '[' => return self.finish_token(SyntaxKind::OpenBracketToken, 1),
+                ']' => return self.finish_token(SyntaxKind::CloseBracketToken, 1),
+                '^' => {
+                    if self.starts_with("^=") {
+                        return self.finish_token(SyntaxKind::CaretEqualsToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::CaretToken, 1);
+                }
+                '{' => return self.finish_token(SyntaxKind::OpenBraceToken, 1),
+                '|' => {
+                    if self.starts_with("||=") {
+                        return self.finish_token(SyntaxKind::BarBarEqualsToken, 3);
+                    }
+                    if self.starts_with("||") {
+                        return self.finish_token(SyntaxKind::BarBarToken, 2);
+                    }
+                    if self.starts_with("|=") {
+                        return self.finish_token(SyntaxKind::BarEqualsToken, 2);
+                    }
+                    return self.finish_token(SyntaxKind::BarToken, 1);
+                }
+                '}' => return self.finish_token(SyntaxKind::CloseBraceToken, 1),
+                '~' => return self.finish_token(SyntaxKind::TildeToken, 1),
+                '@' => return self.finish_token(SyntaxKind::AtToken, 1),
+                '\\' => {
+                    if let Some(kind) = self.scan_identifier_escape_start() {
+                        return kind;
+                    }
+                }
+                '#' => return self.scan_private_identifier(),
+                '\u{fffd}' => {
+                    self.pos = self.end;
+                    self.token = SyntaxKind::NonTextFileMarkerTrivia;
+                    return self.token;
+                }
+                _ => {
+                    if chars::is_identifier_start(ch) {
+                        return self.scan_identifier();
+                    }
+                }
             }
 
             self.advance_char();
@@ -236,6 +404,226 @@ impl<'text> Scanner<'text> {
         self.error_at(start, self.end.saturating_sub(start), &gen::expected);
     }
 
+    fn scan_identifier(&mut self) -> SyntaxKind {
+        self.token_value.clear();
+        let first = self
+            .current_char()
+            .expect("scan_identifier requires a current character");
+        self.token_value.push(first);
+        self.advance_char();
+        self.scan_identifier_parts();
+        self.finish_identifier_token()
+    }
+
+    fn scan_identifier_escape_start(&mut self) -> Option<SyntaxKind> {
+        let start = self.pos;
+        let ch = self.scan_unicode_escape()?;
+        if !chars::is_identifier_start(ch) {
+            self.pos = start;
+            return None;
+        }
+        self.token_value.clear();
+        self.token_value.push(ch);
+        self.scan_identifier_parts();
+        Some(self.finish_identifier_token())
+    }
+
+    fn scan_identifier_parts(&mut self) {
+        while let Some(ch) = self.current_char() {
+            if chars::is_identifier_part(ch) {
+                self.token_value.push(ch);
+                self.advance_char();
+            } else if ch == '\\' {
+                let start = self.pos;
+                if let Some(ch) = self.scan_unicode_escape() {
+                    if chars::is_identifier_part(ch) {
+                        self.token_value.push(ch);
+                        continue;
+                    }
+                }
+                self.pos = start;
+                break;
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn finish_identifier_token(&mut self) -> SyntaxKind {
+        self.token = keywords::keyword_kind(&self.token_value).unwrap_or(SyntaxKind::Identifier);
+        self.token
+    }
+
+    fn scan_private_identifier(&mut self) -> SyntaxKind {
+        self.pos += 1;
+        self.token_value.clear();
+        self.token_value.push('#');
+
+        if let Some(ch) = self.current_char() {
+            if chars::is_identifier_start(ch) {
+                self.token_value.push(ch);
+                self.advance_char();
+                self.scan_identifier_parts();
+            } else if ch == '\\' {
+                let start = self.pos;
+                if let Some(ch) = self.scan_unicode_escape() {
+                    if chars::is_identifier_start(ch) {
+                        self.token_value.push(ch);
+                        self.scan_identifier_parts();
+                    } else {
+                        self.pos = start;
+                    }
+                }
+            }
+        }
+
+        self.token = SyntaxKind::PrivateIdentifier;
+        self.token
+    }
+
+    fn scan_unicode_escape(&mut self) -> Option<char> {
+        if !self.starts_with("\\u") {
+            return None;
+        }
+
+        let start = self.pos;
+        self.pos += 2;
+
+        let value = if self.starts_with("{") {
+            self.pos += 1;
+            let digits_start = self.pos;
+            while self.current_char().is_some_and(|ch| ch.is_ascii_hexdigit()) {
+                self.advance_char();
+            }
+            if self.pos == digits_start || !self.starts_with("}") {
+                self.pos = start;
+                return None;
+            }
+            let value = u32::from_str_radix(&self.text[digits_start..self.pos], 16).ok()?;
+            self.pos += 1;
+            value
+        } else {
+            if self.pos + 4 > self.end {
+                self.pos = start;
+                return None;
+            }
+            let end = self.pos + 4;
+            let digits = &self.text[self.pos..end];
+            if !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                self.pos = start;
+                return None;
+            }
+            self.pos = end;
+            u32::from_str_radix(digits, 16).ok()?
+        };
+
+        char::from_u32(value).or_else(|| {
+            self.pos = start;
+            None
+        })
+    }
+
+    fn scan_string_literal(&mut self) -> SyntaxKind {
+        let quote = self.current_char().expect("string literal starts at quote");
+        self.advance_char();
+
+        while let Some(ch) = self.current_char() {
+            if ch == quote {
+                self.advance_char();
+                break;
+            }
+            if ch == '\\' {
+                self.advance_char();
+                if self.current_char().is_some() {
+                    self.advance_char();
+                }
+                continue;
+            }
+            if is_line_break(ch) {
+                break;
+            }
+            self.advance_char();
+        }
+
+        self.token = SyntaxKind::StringLiteral;
+        self.token
+    }
+
+    fn scan_template_token(&mut self) -> SyntaxKind {
+        self.pos += 1;
+        while self.pos < self.end {
+            if self.starts_with("`") {
+                self.pos += 1;
+                self.token = SyntaxKind::NoSubstitutionTemplateLiteral;
+                return self.token;
+            }
+            if self.starts_with("${") {
+                self.pos += 2;
+                self.token = SyntaxKind::TemplateHead;
+                return self.token;
+            }
+            if self.starts_with("\\") {
+                self.pos += 1;
+                if self.current_char().is_some() {
+                    self.advance_char();
+                }
+            } else {
+                self.advance_char();
+            }
+        }
+        self.token = SyntaxKind::NoSubstitutionTemplateLiteral;
+        self.token
+    }
+
+    fn scan_number_literal(&mut self) -> SyntaxKind {
+        if self.starts_with("0x") || self.starts_with("0X") {
+            self.pos += 2;
+            self.skip_while_ascii(|byte| byte.is_ascii_hexdigit() || byte == b'_');
+            return self.finish_number_with_bigint_suffix();
+        }
+        if self.starts_with("0b") || self.starts_with("0B") {
+            self.pos += 2;
+            self.skip_while_ascii(|byte| matches!(byte, b'0' | b'1' | b'_'));
+            return self.finish_number_with_bigint_suffix();
+        }
+        if self.starts_with("0o") || self.starts_with("0O") {
+            self.pos += 2;
+            self.skip_while_ascii(|byte| matches!(byte, b'0'..=b'7' | b'_'));
+            return self.finish_number_with_bigint_suffix();
+        }
+
+        self.skip_while_ascii(|byte| byte.is_ascii_digit() || byte == b'_');
+        if self.starts_with(".") {
+            self.pos += 1;
+            self.skip_while_ascii(|byte| byte.is_ascii_digit() || byte == b'_');
+        }
+        if matches!(self.byte_at(self.pos), Some(b'e' | b'E')) {
+            self.pos += 1;
+            if matches!(self.byte_at(self.pos), Some(b'+' | b'-')) {
+                self.pos += 1;
+            }
+            self.skip_while_ascii(|byte| byte.is_ascii_digit() || byte == b'_');
+        }
+
+        self.finish_number_with_bigint_suffix()
+    }
+
+    fn finish_number_with_bigint_suffix(&mut self) -> SyntaxKind {
+        if self.starts_with("n") {
+            self.pos += 1;
+            self.token = SyntaxKind::BigIntLiteral;
+        } else {
+            self.token = SyntaxKind::NumericLiteral;
+        }
+        self.token
+    }
+
+    fn finish_token(&mut self, kind: SyntaxKind, width: usize) -> SyntaxKind {
+        self.pos += width;
+        self.token = kind;
+        kind
+    }
+
     fn error_at(&mut self, start: usize, length: usize, message: &'static DiagnosticMessage) {
         self.errors.push(ScanError {
             message,
@@ -259,6 +647,20 @@ impl<'text> Scanner<'text> {
     fn starts_with(&self, needle: &str) -> bool {
         self.text[self.pos..].starts_with(needle)
     }
+
+    fn byte_at(&self, pos: usize) -> Option<u8> {
+        self.text.as_bytes().get(pos).copied()
+    }
+
+    fn skip_while_ascii(&mut self, predicate: impl Fn(u8) -> bool) {
+        while self.byte_at(self.pos).is_some_and(&predicate) {
+            self.pos += 1;
+        }
+    }
+}
+
+fn is_ascii_digit(byte: u8) -> bool {
+    byte.is_ascii_digit()
 }
 
 pub fn scan_tokens(text: &str, variant: LanguageVariant) -> Vec<TokenRecord> {
@@ -312,7 +714,7 @@ mod tests {
         assert_eq!(
             scan_tokens("// line\nx", LanguageVariant::Standard),
             vec![TokenRecord {
-                kind: SyntaxKind::Unknown,
+                kind: SyntaxKind::Identifier,
                 start: 8,
                 end: 9,
                 preceding_line_break: true,
@@ -333,7 +735,7 @@ mod tests {
         assert_eq!(
             scan_tokens("/* \u{1f600} */x", LanguageVariant::Standard),
             vec![TokenRecord {
-                kind: SyntaxKind::Unknown,
+                kind: SyntaxKind::Identifier,
                 start: 8,
                 end: 9,
                 preceding_line_break: false,
@@ -365,5 +767,84 @@ mod tests {
 
         assert_eq!(scanner.pos(), 0);
         assert_eq!(scanner.errors(), &[]);
+    }
+
+    #[test]
+    fn scans_keywords_and_punctuation() {
+        let tokens = scan_tokens(
+            "class C { async m() { return x?.y ?? 1; } }",
+            LanguageVariant::Standard,
+        )
+        .into_iter()
+        .map(|token| token.kind)
+        .collect::<Vec<_>>();
+
+        assert_eq!(
+            tokens,
+            vec![
+                SyntaxKind::ClassKeyword,
+                SyntaxKind::Identifier,
+                SyntaxKind::OpenBraceToken,
+                SyntaxKind::AsyncKeyword,
+                SyntaxKind::Identifier,
+                SyntaxKind::OpenParenToken,
+                SyntaxKind::CloseParenToken,
+                SyntaxKind::OpenBraceToken,
+                SyntaxKind::ReturnKeyword,
+                SyntaxKind::Identifier,
+                SyntaxKind::QuestionDotToken,
+                SyntaxKind::Identifier,
+                SyntaxKind::QuestionQuestionToken,
+                SyntaxKind::NumericLiteral,
+                SyntaxKind::SemicolonToken,
+                SyntaxKind::CloseBraceToken,
+                SyntaxKind::CloseBraceToken,
+            ]
+        );
+    }
+
+    #[test]
+    fn greater_than_compounds_wait_for_rescan() {
+        let tokens = scan_tokens("a >= b >> c >>>= d", LanguageVariant::Standard)
+            .into_iter()
+            .map(|token| token.kind)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            tokens,
+            vec![
+                SyntaxKind::Identifier,
+                SyntaxKind::GreaterThanToken,
+                SyntaxKind::EqualsToken,
+                SyntaxKind::Identifier,
+                SyntaxKind::GreaterThanToken,
+                SyntaxKind::GreaterThanToken,
+                SyntaxKind::Identifier,
+                SyntaxKind::GreaterThanToken,
+                SyntaxKind::GreaterThanToken,
+                SyntaxKind::GreaterThanToken,
+                SyntaxKind::EqualsToken,
+                SyntaxKind::Identifier,
+            ]
+        );
+    }
+
+    #[test]
+    fn unicode_identifier_ranges_match_tsc_table() {
+        let tokens = scan_tokens("var 才能ソЫ = 1;", LanguageVariant::Standard)
+            .into_iter()
+            .map(|token| token.kind)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            tokens,
+            vec![
+                SyntaxKind::VarKeyword,
+                SyntaxKind::Identifier,
+                SyntaxKind::EqualsToken,
+                SyntaxKind::NumericLiteral,
+                SyntaxKind::SemicolonToken,
+            ]
+        );
     }
 }

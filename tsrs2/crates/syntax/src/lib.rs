@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 
+mod chars;
 pub mod for_each_child;
+mod keywords;
 pub mod kind;
 pub mod nodes;
 pub mod scanner;
