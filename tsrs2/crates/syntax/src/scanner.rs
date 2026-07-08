@@ -560,7 +560,7 @@ impl<'text> Scanner<'text> {
             if ch == '\\' {
                 self.token_value
                     .push_str(&self.text[segment_start..self.pos]);
-                let escaped = self.scan_escape_sequence();
+                let escaped = self.scan_escape_sequence(true);
                 self.token_value.push_str(&escaped);
                 segment_start = self.pos;
                 continue;
@@ -579,11 +579,13 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    fn scan_escape_sequence(&mut self) -> String {
+    fn scan_escape_sequence(&mut self, report_errors: bool) -> String {
         let start = self.pos;
         self.pos += 1;
         if self.pos >= self.end {
-            self.error_at(self.pos, 0, &gen::Unexpected_end_of_text);
+            if report_errors {
+                self.error_at(self.pos, 0, &gen::Unexpected_end_of_text);
+            }
             return String::new();
         }
 
@@ -597,17 +599,21 @@ impl<'text> Scanner<'text> {
                 if !self.current_char().is_some_and(|ch| ch.is_ascii_digit()) {
                     return "\0".to_owned();
                 }
-                self.scan_octal_escape(start, ch)
+                self.scan_octal_escape(start, ch, report_errors)
             }
-            '1'..='7' => self.scan_octal_escape(start, ch),
+            '1'..='7' => self.scan_octal_escape(start, ch, report_errors),
             '8' | '9' => {
                 self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
-                self.error_at(
-                    start,
-                    self.pos - start,
-                    &gen::Escape_sequence_0_is_not_allowed,
-                );
-                ch.to_string()
+                if report_errors {
+                    self.error_at(
+                        start,
+                        self.pos - start,
+                        &gen::Escape_sequence_0_is_not_allowed,
+                    );
+                    ch.to_string()
+                } else {
+                    self.text[start..self.pos].to_owned()
+                }
             }
             'b' => "\u{0008}".to_owned(),
             't' => "\t".to_owned(),
@@ -620,13 +626,15 @@ impl<'text> Scanner<'text> {
             'u' => {
                 if self.starts_with("{") {
                     self.pos = start;
-                    return self.scan_extended_unicode_escape(true);
+                    return self.scan_extended_unicode_escape(report_errors);
                 }
                 let digits_start = self.pos;
                 for _ in 0..4 {
                     if !self.current_char().is_some_and(|ch| ch.is_ascii_hexdigit()) {
                         self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
-                        self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
+                        if report_errors {
+                            self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
+                        }
                         return self.text[start..self.pos].to_owned();
                     }
                     self.advance_char();
@@ -641,7 +649,9 @@ impl<'text> Scanner<'text> {
                 for _ in 0..2 {
                     if !self.current_char().is_some_and(|ch| ch.is_ascii_hexdigit()) {
                         self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
-                        self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
+                        if report_errors {
+                            self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
+                        }
                         return self.text[start..self.pos].to_owned();
                     }
                     self.advance_char();
@@ -662,7 +672,7 @@ impl<'text> Scanner<'text> {
         }
     }
 
-    fn scan_octal_escape(&mut self, start: usize, first: char) -> String {
+    fn scan_octal_escape(&mut self, start: usize, first: char, report_errors: bool) -> String {
         if self.current_char().is_some_and(is_octal_digit) {
             self.advance_char();
         }
@@ -671,13 +681,17 @@ impl<'text> Scanner<'text> {
         }
 
         self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
-        self.error_at(
-            start,
-            self.pos - start,
-            &gen::Octal_escape_sequences_are_not_allowed_Use_the_syntax_0,
-        );
-        let value = u32::from_str_radix(&self.text[start + 1..self.pos], 8).unwrap_or(0xfffd);
-        utf16_encode_as_string(value)
+        if report_errors {
+            self.error_at(
+                start,
+                self.pos - start,
+                &gen::Octal_escape_sequences_are_not_allowed_Use_the_syntax_0,
+            );
+            let value = u32::from_str_radix(&self.text[start + 1..self.pos], 8).unwrap_or(0xfffd);
+            utf16_encode_as_string(value)
+        } else {
+            self.text[start..self.pos].to_owned()
+        }
     }
 
     fn scan_extended_unicode_escape(&mut self, report: bool) -> String {
@@ -736,28 +750,81 @@ impl<'text> Scanner<'text> {
     }
 
     fn scan_template_token(&mut self) -> SyntaxKind {
+        self.scan_template_and_set_token_value(false)
+    }
+
+    fn scan_template_and_set_token_value(
+        &mut self,
+        should_emit_invalid_escape_error: bool,
+    ) -> SyntaxKind {
+        let started_with_backtick = self.byte_at(self.pos) == Some(b'`');
         self.pos += 1;
-        while self.pos < self.end {
-            if self.starts_with("`") {
+        let mut segment_start = self.pos;
+        let mut contents = String::new();
+
+        let token = loop {
+            if self.pos >= self.end {
+                contents.push_str(&self.text[segment_start..self.pos]);
+                self.token_flags.insert(TokenFlags::UNTERMINATED);
+                self.error_at(self.pos, 0, &gen::Unterminated_template_literal);
+                break if started_with_backtick {
+                    SyntaxKind::NoSubstitutionTemplateLiteral
+                } else {
+                    SyntaxKind::TemplateTail
+                };
+            }
+
+            let ch = self
+                .current_char()
+                .expect("position before end has a UTF-8 scalar");
+            if ch == '`' {
+                contents.push_str(&self.text[segment_start..self.pos]);
                 self.pos += 1;
-                self.token = SyntaxKind::NoSubstitutionTemplateLiteral;
-                return self.token;
+                break if started_with_backtick {
+                    SyntaxKind::NoSubstitutionTemplateLiteral
+                } else {
+                    SyntaxKind::TemplateTail
+                };
             }
             if self.starts_with("${") {
+                contents.push_str(&self.text[segment_start..self.pos]);
                 self.pos += 2;
-                self.token = SyntaxKind::TemplateHead;
-                return self.token;
+                break if started_with_backtick {
+                    SyntaxKind::TemplateHead
+                } else {
+                    SyntaxKind::TemplateMiddle
+                };
             }
-            if self.starts_with("\\") {
+            if ch == '\\' {
+                contents.push_str(&self.text[segment_start..self.pos]);
+                let escaped = self.scan_escape_sequence(should_emit_invalid_escape_error);
+                contents.push_str(&escaped);
+                segment_start = self.pos;
+                continue;
+            }
+            if ch == '\r' {
+                contents.push_str(&self.text[segment_start..self.pos]);
                 self.pos += 1;
-                if self.current_char().is_some() {
-                    self.advance_char();
+                if self.byte_at(self.pos) == Some(b'\n') {
+                    self.pos += 1;
                 }
-            } else {
-                self.advance_char();
+                contents.push('\n');
+                segment_start = self.pos;
+                continue;
             }
-        }
-        self.token = SyntaxKind::NoSubstitutionTemplateLiteral;
+
+            self.advance_char();
+        };
+
+        self.token_value = contents;
+        self.token = token;
+        self.token
+    }
+
+    #[allow(dead_code)]
+    fn re_scan_template_token(&mut self, is_tagged_template: bool) -> SyntaxKind {
+        self.pos = self.token_start;
+        self.token = self.scan_template_and_set_token_value(!is_tagged_template);
         self.token
     }
 
@@ -1876,5 +1943,189 @@ mod tests {
         assert_eq!(scanner.errors()[0].length, 3);
         assert_eq!(scanner.errors()[0].message.code, 1121);
         assert_eq!(scanner.errors()[0].args, vec!["-0o1".to_owned()]);
+    }
+
+    #[test]
+    fn template_literal_oracle_pins() {
+        struct Case {
+            text: &'static str,
+            kind: SyntaxKind,
+            end: usize,
+            value: &'static str,
+            flags: u32,
+            errors: &'static [(usize, usize, u32)],
+        }
+
+        let cases = [
+            Case {
+                text: "`a`",
+                kind: SyntaxKind::NoSubstitutionTemplateLiteral,
+                end: 3,
+                value: "a",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "`a${b}`",
+                kind: SyntaxKind::TemplateHead,
+                end: 4,
+                value: "a",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "`a\\nb`",
+                kind: SyntaxKind::NoSubstitutionTemplateLiteral,
+                end: 6,
+                value: "a\nb",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "`a\r\nb`",
+                kind: SyntaxKind::NoSubstitutionTemplateLiteral,
+                end: 6,
+                value: "a\nb",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "`a\rb`",
+                kind: SyntaxKind::NoSubstitutionTemplateLiteral,
+                end: 5,
+                value: "a\nb",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "`\\xG`",
+                kind: SyntaxKind::NoSubstitutionTemplateLiteral,
+                end: 5,
+                value: "\\xG",
+                flags: 2048,
+                errors: &[],
+            },
+            Case {
+                text: "`\\u{110000}`",
+                kind: SyntaxKind::NoSubstitutionTemplateLiteral,
+                end: 12,
+                value: "\\u{110000}",
+                flags: 2048,
+                errors: &[],
+            },
+            Case {
+                text: "`abc",
+                kind: SyntaxKind::NoSubstitutionTemplateLiteral,
+                end: 4,
+                value: "abc",
+                flags: 4,
+                errors: &[(4, 0, 1160)],
+            },
+        ];
+
+        for case in cases {
+            let mut scanner = Scanner::new(case.text, LanguageVariant::Standard);
+
+            assert_eq!(scanner.scan(), case.kind, "{}", case.text);
+            assert_eq!(scanner.pos(), case.end, "{}", case.text);
+            assert_eq!(scanner.token_value, case.value, "{}", case.text);
+            assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
+            assert_eq!(
+                scanner
+                    .errors()
+                    .iter()
+                    .map(|error| (error.start, error.length, error.message.code))
+                    .collect::<Vec<_>>(),
+                case.errors,
+                "{}",
+                case.text
+            );
+        }
+    }
+
+    #[test]
+    fn rescan_template_token_oracle_pins() {
+        struct Case {
+            text: &'static str,
+            is_tagged_template: bool,
+            kind: SyntaxKind,
+            end: usize,
+            value: &'static str,
+            flags: u32,
+            errors: &'static [(usize, usize, u32)],
+        }
+
+        let cases = [
+            Case {
+                text: "}tail`",
+                is_tagged_template: false,
+                kind: SyntaxKind::TemplateTail,
+                end: 6,
+                value: "tail",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "}mid${x}`",
+                is_tagged_template: false,
+                kind: SyntaxKind::TemplateMiddle,
+                end: 6,
+                value: "mid",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "}\\xG`",
+                is_tagged_template: false,
+                kind: SyntaxKind::TemplateTail,
+                end: 5,
+                value: "\\xG",
+                flags: 2048,
+                errors: &[(3, 0, 1125)],
+            },
+            Case {
+                text: "}\\u{110000}`",
+                is_tagged_template: false,
+                kind: SyntaxKind::TemplateTail,
+                end: 12,
+                value: "\\u{110000}",
+                flags: 2048,
+                errors: &[(4, 6, 1198)],
+            },
+            Case {
+                text: "}\\xG`",
+                is_tagged_template: true,
+                kind: SyntaxKind::TemplateTail,
+                end: 5,
+                value: "\\xG",
+                flags: 2048,
+                errors: &[],
+            },
+        ];
+
+        for case in cases {
+            let mut scanner = Scanner::new(case.text, LanguageVariant::Standard);
+
+            assert_eq!(scanner.scan(), SyntaxKind::CloseBraceToken, "{}", case.text);
+            assert_eq!(
+                scanner.re_scan_template_token(case.is_tagged_template),
+                case.kind,
+                "{}",
+                case.text
+            );
+            assert_eq!(scanner.pos(), case.end, "{}", case.text);
+            assert_eq!(scanner.token_value, case.value, "{}", case.text);
+            assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
+            assert_eq!(
+                scanner
+                    .errors()
+                    .iter()
+                    .map(|error| (error.start, error.length, error.message.code))
+                    .collect::<Vec<_>>(),
+                case.errors,
+                "{}",
+                case.text
+            );
+        }
     }
 }
