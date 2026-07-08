@@ -4,10 +4,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt::Write as _;
 use std::fs;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tsrs2_checker::{CompilerOptions, InputFile};
 use tsrs2_diags::DiagnosticList;
@@ -121,14 +123,17 @@ fn token_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         files.truncate(limit);
     }
 
+    let mut oracle = TokenDumpOracle::spawn(&workspace)?;
     let mut differing = 0usize;
     for file in &files {
-        let rust = rust_token_dump(file)?;
-        let oracle = oracle_token_dump(&workspace, file)?;
-        if rust != oracle {
+        let text = fs::read_to_string(file)?;
+        let variant = language_variant_for_path(file);
+        let rust = rust_token_dump_text(&text, variant);
+        let oracle_dump = oracle.token_dump(file, &text, language_variant_arg(file))?;
+        if rust != oracle_dump {
             differing += 1;
             if differing <= 10 {
-                let (line, left, right) = first_diff(&rust, &oracle);
+                let (line, left, right) = first_diff(&rust, &oracle_dump);
                 println!(
                     "diff {} line {}:\n  tsrs:   {}\n  oracle: {}",
                     file.display(),
@@ -205,8 +210,12 @@ fn parse_token_diff_args(
 fn rust_token_dump(path: &Path) -> Result<String, Box<dyn Error>> {
     let text = fs::read_to_string(path)?;
     let variant = language_variant_for_path(path);
+    Ok(rust_token_dump_text(&text, variant))
+}
+
+fn rust_token_dump_text(text: &str, variant: tsrs2_syntax::LanguageVariant) -> String {
     let mut out = String::new();
-    for token in tsrs2_syntax::scan_tokens(&text, variant) {
+    for token in tsrs2_syntax::scan_tokens(text, variant) {
         let _ = writeln!(
             out,
             "{}\t{}\t{}\t{}",
@@ -216,24 +225,132 @@ fn rust_token_dump(path: &Path) -> Result<String, Box<dyn Error>> {
             u8::from(token.preceding_line_break)
         );
     }
-    Ok(out)
+    out
 }
 
-fn oracle_token_dump(workspace: &Path, path: &Path) -> Result<String, Box<dyn Error>> {
-    let output = Command::new("node")
-        .arg(workspace.join("crates/oracle/token-dump.mjs"))
-        .arg(path)
-        .arg(language_variant_arg(path))
-        .output()?;
-    if !output.status.success() {
-        return Err(format!(
-            "oracle token dump failed for {}: {}",
-            path.display(),
-            String::from_utf8_lossy(&output.stderr)
-        )
-        .into());
+#[derive(Debug, Serialize)]
+struct TokenDumpRequest<'text> {
+    id: u64,
+    payload: TokenDumpPayload<'text>,
+}
+
+#[derive(Debug, Serialize)]
+struct TokenDumpPayload<'text> {
+    #[serde(rename = "textBase64")]
+    text_base64: &'text str,
+    variant: &'static str,
+}
+
+#[derive(Debug, Deserialize)]
+struct TokenDumpResponse {
+    id: Option<u64>,
+    ok: bool,
+    result: Option<String>,
+    error: Option<String>,
+}
+
+struct TokenDumpOracle {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+    next_id: u64,
+}
+
+impl TokenDumpOracle {
+    fn spawn(workspace: &Path) -> Result<Self, Box<dyn Error>> {
+        let mut child = Command::new("node")
+            .arg(workspace.join("crates/oracle/token-dump.mjs"))
+            .arg("--server-jsonl")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or("token dump oracle stdin unavailable")?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or("token dump oracle stdout unavailable")?;
+
+        Ok(Self {
+            child,
+            stdin,
+            stdout: BufReader::new(stdout),
+            next_id: 1,
+        })
     }
-    Ok(String::from_utf8(output.stdout)?)
+
+    fn token_dump(
+        &mut self,
+        path: &Path,
+        text: &str,
+        variant: &'static str,
+    ) -> Result<String, Box<dyn Error>> {
+        let id = self.next_id;
+        self.next_id += 1;
+        let text_base64 = BASE64.encode(text);
+        let request = serde_json::to_string(&TokenDumpRequest {
+            id,
+            payload: TokenDumpPayload {
+                text_base64: &text_base64,
+                variant,
+            },
+        })?;
+        writeln!(self.stdin, "{request}")?;
+        self.stdin.flush()?;
+
+        let mut line = String::new();
+        let read = self.stdout.read_line(&mut line)?;
+        if read == 0 {
+            return Err(format!(
+                "oracle token dump worker exited without a response for {}",
+                path.display()
+            )
+            .into());
+        }
+
+        let response: TokenDumpResponse = serde_json::from_str(&line)?;
+        if response.id != Some(id) {
+            return Err(format!(
+                "oracle token dump response id mismatch for {}: expected {id}, got {}{}",
+                path.display(),
+                response
+                    .id
+                    .map(|id| id.to_string())
+                    .unwrap_or_else(|| "null".to_owned()),
+                response
+                    .error
+                    .as_deref()
+                    .map(|error| format!(": {error}"))
+                    .unwrap_or_default()
+            )
+            .into());
+        }
+        if !response.ok {
+            return Err(format!(
+                "oracle token dump failed for {}: {}",
+                path.display(),
+                response.error.unwrap_or_else(|| "unknown error".to_owned())
+            )
+            .into());
+        }
+        response.result.ok_or_else(|| {
+            format!(
+                "oracle token dump response missing result for {}",
+                path.display()
+            )
+            .into()
+        })
+    }
+}
+
+impl Drop for TokenDumpOracle {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
 }
 
 fn language_variant_for_path(path: &Path) -> tsrs2_syntax::LanguageVariant {
