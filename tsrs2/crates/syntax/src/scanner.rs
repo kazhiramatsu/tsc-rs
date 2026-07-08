@@ -426,7 +426,7 @@ impl<'text> Scanner<'text> {
         std::mem::take(&mut self.errors)
     }
 
-    fn has_preceding_line_break(&self) -> bool {
+    pub(crate) fn has_preceding_line_break(&self) -> bool {
         self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
