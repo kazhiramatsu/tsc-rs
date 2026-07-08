@@ -143,7 +143,13 @@ struct DirectiveSpec {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct MatrixDimension {
     canonical: String,
-    values: Vec<String>,
+    values: Vec<MatrixValue>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct MatrixValue {
+    key: String,
+    value: OptionValue,
 }
 
 #[derive(Clone, Debug)]
@@ -151,6 +157,9 @@ struct LibResolver {
     lib_dir: PathBuf,
     lib_map: BTreeMap<String, String>,
     target_values: BTreeMap<String, i32>,
+    module_values: BTreeMap<String, i32>,
+    jsx_values: BTreeMap<String, i32>,
+    module_resolution_values: BTreeMap<String, i32>,
     target_to_lib: BTreeMap<i32, String>,
     lib_priority: BTreeMap<String, usize>,
     fallback_priority: usize,
@@ -219,7 +228,7 @@ fn expand_parsed_fixture(
     parsed: &ParsedFixture,
     resolver: &LibResolver,
 ) -> HarnessResult<Vec<ProgramJson>> {
-    let (base_options, matrix_dimensions) = build_options(&parsed.directives)?;
+    let (base_options, matrix_dimensions) = build_options(&parsed.directives, resolver)?;
     let matrix_points = matrix_points(&matrix_dimensions);
     let mut programs = Vec::with_capacity(matrix_points.len());
 
@@ -227,8 +236,8 @@ fn expand_parsed_fixture(
         let mut options = base_options.clone();
         let mut key_parts = Vec::new();
         for (name, value) in point {
-            options.insert(name.clone(), OptionValue::String(value.clone()));
-            key_parts.push(format!("{name}={value}"));
+            options.insert(name.clone(), value.value.clone());
+            key_parts.push(format!("{}={}", name, value.key));
         }
         let matrix_key = key_parts.join(",");
         let libs = resolve_program_libs(&options, resolver)?;
@@ -363,6 +372,7 @@ fn split_fixture_files(
 
 fn build_options(
     directives: &BTreeMap<String, DirectiveValue>,
+    resolver: &LibResolver,
 ) -> HarnessResult<(BTreeMap<String, OptionValue>, Vec<MatrixDimension>)> {
     let mut options = BTreeMap::new();
     let mut matrix_dimensions = Vec::new();
@@ -375,10 +385,17 @@ fn build_options(
 
         match spec.kind {
             DirectiveKind::Bool => {
-                options.insert(
-                    canonical.clone(),
-                    OptionValue::Bool(parse_bool(&directive.value)?),
-                );
+                if is_bool_matrix_value(&directive.value) {
+                    matrix_dimensions.push(MatrixDimension {
+                        canonical: canonical.clone(),
+                        values: expand_bool_matrix_values(&directive.value)?,
+                    });
+                } else {
+                    options.insert(
+                        canonical.clone(),
+                        OptionValue::Bool(parse_bool(&directive.value)?),
+                    );
+                }
             }
             DirectiveKind::Number => {
                 options.insert(
@@ -402,14 +419,14 @@ fn build_options(
                 );
             }
             DirectiveKind::MatrixString => {
-                let values = split_option_list(&directive.value);
+                let values = expand_matrix_string_values(canonical, &directive.value, resolver)?;
                 if values.len() > 1 {
                     matrix_dimensions.push(MatrixDimension {
                         canonical: canonical.clone(),
                         values,
                     });
                 } else if let Some(value) = values.into_iter().next() {
-                    options.insert(canonical.clone(), OptionValue::String(value));
+                    options.insert(canonical.clone(), value.value);
                 } else {
                     options.insert(canonical.clone(), OptionValue::Null);
                 }
@@ -423,8 +440,86 @@ fn build_options(
     Ok((options, matrix_dimensions))
 }
 
-fn matrix_points(dimensions: &[MatrixDimension]) -> Vec<Vec<(String, String)>> {
-    let mut points: Vec<Vec<(String, String)>> = vec![Vec::new()];
+fn is_bool_matrix_value(raw: &str) -> bool {
+    let values = split_option_list(raw);
+    values.len() > 1 || values.iter().any(|value| value == "*")
+}
+
+fn expand_bool_matrix_values(raw: &str) -> HarnessResult<Vec<MatrixValue>> {
+    let values = split_option_list(raw);
+    let bools = if values.iter().any(|value| value == "*") {
+        let mut excluded = Vec::new();
+        for value in values.iter().filter_map(|value| value.strip_prefix('-')) {
+            excluded.push(parse_bool(value)?);
+        }
+        [false, true]
+            .into_iter()
+            .filter(|value| !excluded.contains(value))
+            .collect::<Vec<_>>()
+    } else {
+        let mut bools = Vec::with_capacity(values.len());
+        for value in values {
+            let value = parse_bool(&value)?;
+            if !bools.contains(&value) {
+                bools.push(value);
+            }
+        }
+        bools
+    };
+
+    if bools.is_empty() {
+        return Err(HarnessError::new("boolean matrix expanded to no values"));
+    }
+    Ok(bools
+        .into_iter()
+        .map(|value| MatrixValue {
+            key: value.to_string(),
+            value: OptionValue::Bool(value),
+        })
+        .collect())
+}
+
+fn expand_matrix_string_values(
+    canonical: &str,
+    raw: &str,
+    resolver: &LibResolver,
+) -> HarnessResult<Vec<MatrixValue>> {
+    let values = split_option_list(raw);
+    if !values.iter().any(|value| value == "*") {
+        return Ok(values
+            .into_iter()
+            .map(|value| MatrixValue {
+                key: value.clone(),
+                value: OptionValue::String(value),
+            })
+            .collect());
+    }
+
+    let all_values = resolver.matrix_string_values(canonical).ok_or_else(|| {
+        HarnessError::new(format!("wildcard matrix is not supported for {canonical}"))
+    })?;
+    let excluded = values
+        .iter()
+        .filter_map(|value| value.strip_prefix('-').map(str::to_owned))
+        .collect::<BTreeSet<_>>();
+    let expanded = all_values
+        .into_iter()
+        .filter(|value| !excluded.contains(value))
+        .map(|value| MatrixValue {
+            key: value.clone(),
+            value: OptionValue::String(value),
+        })
+        .collect::<Vec<_>>();
+    if expanded.is_empty() {
+        return Err(HarnessError::new(format!(
+            "wildcard matrix for {canonical} expanded to no values"
+        )));
+    }
+    Ok(expanded)
+}
+
+fn matrix_points(dimensions: &[MatrixDimension]) -> Vec<Vec<(String, MatrixValue)>> {
+    let mut points: Vec<Vec<(String, MatrixValue)>> = vec![Vec::new()];
     for dimension in dimensions {
         let mut next = Vec::with_capacity(points.len() * dimension.values.len());
         for point in &points {
@@ -482,6 +577,12 @@ impl LibResolver {
             lib_dir: lib_dir.to_owned(),
             lib_map,
             target_values: parse_option_number_map(&tsc, "var targetOptionDeclaration")?,
+            module_values: parse_option_number_map(&tsc, "var moduleOptionDeclaration")?,
+            jsx_values: parse_standalone_number_map(
+                &tsc,
+                "var jsxOptionMap = new Map(Object.entries({",
+            )?,
+            module_resolution_values: parse_option_number_map(&tsc, "name: \"moduleResolution\"")?,
             target_to_lib: parse_target_to_lib_map(&tsc)?,
             lib_priority,
             fallback_priority,
@@ -525,6 +626,22 @@ impl LibResolver {
             .get(&target_value)
             .cloned()
             .unwrap_or_else(|| "lib.d.ts".to_owned()))
+    }
+
+    fn matrix_string_values(&self, canonical: &str) -> Option<Vec<String>> {
+        let values = match canonical {
+            "target" => &self.target_values,
+            "module" => &self.module_values,
+            "jsx" => &self.jsx_values,
+            "moduleResolution" => &self.module_resolution_values,
+            _ => return None,
+        };
+        let mut values = values
+            .iter()
+            .map(|(name, value)| (*value, name.clone()))
+            .collect::<Vec<_>>();
+        values.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
+        Some(values.into_iter().map(|(_, name)| name).collect())
     }
 
     fn expand_lib_files(&self, roots: &[String]) -> HarnessResult<Vec<String>> {
@@ -625,6 +742,7 @@ fn directive_spec(normalized_name: &str) -> Option<DirectiveSpec> {
         "emitdeclarationonly" => bool_option("emitDeclarationOnly"),
         "emitdecoratormetadata" => bool_option("emitDecoratorMetadata"),
         "esmoduleinterop" => bool_option("esModuleInterop"),
+        "exactoptionalpropertytypes" => bool_option("exactOptionalPropertyTypes"),
         "experimentaldecorators" => bool_option("experimentalDecorators"),
         "importhelpers" => bool_option("importHelpers"),
         "isolatedmodules" => bool_option("isolatedModules"),
@@ -675,18 +793,27 @@ fn directive_spec(normalized_name: &str) -> Option<DirectiveSpec> {
         "baseurl" => string_option("baseUrl"),
         "ignoredeprecations" => string_option("ignoreDeprecations"),
         "importsnotusedasvalues" => lower_string_option("importsNotUsedAsValues"),
-        "jsx" => lower_string_option("jsx"),
+        "jsxfactory" => string_option("jsxFactory"),
+        "jsxfragmentfactory" => string_option("jsxFragmentFactory"),
+        "jsximportsource" => string_option("jsxImportSource"),
         "moduledetection" => lower_string_option("moduleDetection"),
-        "moduleresolution" => lower_string_option("moduleResolution"),
         "outdir" => string_option("outDir"),
         "outfile" => string_option("outFile"),
         "rootdir" => string_option("rootDir"),
+        "jsx" => DirectiveSpec {
+            canonical: "jsx",
+            kind: DirectiveKind::MatrixString,
+        },
         "target" => DirectiveSpec {
             canonical: "target",
             kind: DirectiveKind::MatrixString,
         },
         "module" => DirectiveSpec {
             canonical: "module",
+            kind: DirectiveKind::MatrixString,
+        },
+        "moduleresolution" => DirectiveSpec {
+            canonical: "moduleResolution",
             kind: DirectiveKind::MatrixString,
         },
         "customconditions" => list_option("customConditions"),
@@ -797,10 +924,26 @@ fn split_option_list(value: &str) -> Vec<String> {
 fn split_lines_keep_endings(text: &str) -> Vec<&str> {
     let mut lines = Vec::new();
     let mut start = 0;
-    for (index, ch) in text.char_indices() {
-        if ch == '\n' {
-            lines.push(&text[start..index + ch.len_utf8()]);
-            start = index + ch.len_utf8();
+    let bytes = text.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\n' => {
+                index += 1;
+                lines.push(&text[start..index]);
+                start = index;
+            }
+            b'\r' => {
+                index += 1;
+                if bytes.get(index) == Some(&b'\n') {
+                    index += 1;
+                }
+                lines.push(&text[start..index]);
+                start = index;
+            }
+            _ => {
+                index += 1;
+            }
         }
     }
     if start < text.len() {
@@ -880,6 +1023,41 @@ fn parse_option_number_map(tsc: &str, marker: &str) -> HarnessResult<BTreeMap<St
         .ok_or_else(|| HarnessError::new(format!("missing option map for {marker}")))?
         + start
         + "type: new Map(Object.entries({".len();
+    let map_end = tsc[map_start..]
+        .find("}))")
+        .ok_or_else(|| HarnessError::new(format!("unterminated option map for {marker}")))?
+        + map_start;
+    let body = &tsc[map_start..map_end];
+    let mut values = BTreeMap::new();
+    for line in body.lines() {
+        let line = line.trim().trim_end_matches(',');
+        let Some(colon) = line.find(':') else {
+            continue;
+        };
+        let key = line[..colon].trim().trim_matches('"').to_owned();
+        let value = line[colon + 1..]
+            .split_whitespace()
+            .next()
+            .ok_or_else(|| HarnessError::new(format!("missing numeric value for option {key}")))?
+            .parse::<i32>()
+            .map_err(|err| {
+                HarnessError::new(format!("invalid numeric value for option {key}: {err}"))
+            })?;
+        values.insert(key, value);
+    }
+    if values.is_empty() {
+        return Err(HarnessError::new(format!(
+            "failed to parse option map for {marker}"
+        )));
+    }
+    Ok(values)
+}
+
+fn parse_standalone_number_map(tsc: &str, marker: &str) -> HarnessResult<BTreeMap<String, i32>> {
+    let map_start = tsc
+        .find(marker)
+        .ok_or_else(|| HarnessError::new(format!("missing {marker} in _tsc.js")))?
+        + marker.len();
     let map_end = tsc[map_start..]
         .find("}))")
         .ok_or_else(|| HarnessError::new(format!("unterminated option map for {marker}")))?

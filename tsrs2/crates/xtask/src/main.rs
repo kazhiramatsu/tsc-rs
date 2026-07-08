@@ -16,6 +16,9 @@ fn main() {
         None | Some("scaffold-smoke") => scaffold_smoke(),
         Some("expand") => run_or_exit(expand_fixture(args)),
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
+        Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
+        Some("conformance") => run_or_exit(conformance(args)),
+        Some("ci") => run_or_exit(ci()),
         Some("codegen") => match args.next().as_deref() {
             Some("diags") => run_or_exit(codegen_diags(false)),
             Some("diags-check") => run_or_exit(codegen_diags(true)),
@@ -66,6 +69,121 @@ fn expand_fixture(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
         println!("{}", path.display());
     }
 
+    Ok(())
+}
+
+fn oracle_refresh(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let parsed = parse_conformance_args(args)?;
+    let workspace = find_tsrs2_root()?;
+    let summary = tsrs2_conformance::refresh_oracle_goldens(&tsrs2_conformance::RefreshOptions {
+        workspace,
+        limit: parsed.limit,
+        files: parsed.files,
+    })?;
+    println!(
+        "oracle refresh wrote {} fixtures / {} cases / {} oracle diagnostics under {}",
+        summary.fixtures, summary.cases, summary.oracle_diagnostics, summary.goldens_root
+    );
+    Ok(())
+}
+
+fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let parsed = parse_conformance_args(args)?;
+    let workspace = find_tsrs2_root()?;
+    let out_json = parsed
+        .out_json
+        .unwrap_or_else(|| workspace.join("target/conformance/mismatches.json"));
+    let summary = tsrs2_conformance::run_conformance(&tsrs2_conformance::ConformanceOptions {
+        workspace,
+        limit: parsed.limit,
+        files: parsed.files,
+        out_json: out_json.clone(),
+        band: parsed.band,
+    })?;
+    println!(
+        "conformance band={} fixtures={} cases={} T0={:.4}% matched={}/{} FP={} FN={} mismatches={}",
+        summary.band,
+        summary.fixtures_total,
+        summary.cases_total,
+        summary.t0_rate * 100.0,
+        summary.matched_t0_diagnostics,
+        summary.oracle_diagnostics,
+        summary.false_positive_diagnostics,
+        summary.false_negative_diagnostics,
+        summary.mismatch_cases
+    );
+    println!("mismatch json: {}", out_json.display());
+    Ok(())
+}
+
+struct ConformanceArgs {
+    limit: Option<usize>,
+    files: Vec<PathBuf>,
+    out_json: Option<PathBuf>,
+    band: tsrs2_conformance::DiagnosticBand,
+}
+
+fn parse_conformance_args(
+    args: impl Iterator<Item = String>,
+) -> Result<ConformanceArgs, Box<dyn Error>> {
+    let mut limit = None;
+    let mut files = Vec::new();
+    let mut out_json = None;
+    let mut band = tsrs2_conformance::DiagnosticBand::All;
+    let mut args = args.peekable();
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--limit" => {
+                let value = args.next().ok_or("missing value after --limit")?;
+                limit = Some(value.parse()?);
+            }
+            "--files" => {
+                let value = args.next().ok_or("missing value after --files")?;
+                files.extend(
+                    value
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(PathBuf::from),
+                );
+            }
+            "--out-json" => {
+                let value = args.next().ok_or("missing value after --out-json")?;
+                out_json = Some(PathBuf::from(value));
+            }
+            "--band" => {
+                let value = args.next().ok_or("missing value after --band")?;
+                band = match value.as_str() {
+                    "all" => tsrs2_conformance::DiagnosticBand::All,
+                    "2xxx" => tsrs2_conformance::DiagnosticBand::TwoXxx,
+                    _ => return Err(format!("unknown conformance band: {value}").into()),
+                };
+            }
+            _ => return Err(format!("unexpected conformance argument: {arg}").into()),
+        }
+    }
+
+    Ok(ConformanceArgs {
+        limit,
+        files,
+        out_json,
+        band,
+    })
+}
+
+fn ci() -> Result<(), Box<dyn Error>> {
+    run_command(Command::new("cargo").arg("build").arg("--workspace"))?;
+    run_command(Command::new("cargo").arg("test").arg("--workspace"))?;
+    run_command(Command::new("cargo").arg("xtask").arg("conformance"))?;
+    Ok(())
+}
+
+fn run_command(command: &mut Command) -> Result<(), Box<dyn Error>> {
+    let status = command.status()?;
+    if !status.success() {
+        return Err(format!("command failed with status {status:?}").into());
+    }
     Ok(())
 }
 
