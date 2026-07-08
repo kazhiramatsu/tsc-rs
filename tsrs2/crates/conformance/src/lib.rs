@@ -430,27 +430,14 @@ impl GoldenMessageChain {
 
 fn current_tsrs_diagnostics(
     program: &tsrs2_harness::ProgramJson,
-    vendor_lib_dir: &Path,
+    _vendor_lib_dir: &Path,
 ) -> ConformanceResult<Vec<GoldenDiag>> {
     let mut files = Vec::new();
-    let file_texts = file_texts_for_program(program, vendor_lib_dir)?;
-
-    for lib in &program.libs {
-        let text = file_texts
-            .get(lib)
-            .ok_or_else(|| format!("missing lib text for {lib}"))?
-            .clone();
-        files.push(InputFile {
-            name: lib.clone(),
-            text,
-        });
-    }
+    let mut file_texts = BTreeMap::new();
 
     for file in &program.files {
-        let text = file_texts
-            .get(&file.name)
-            .ok_or_else(|| format!("missing file text for {}", file.name))?
-            .clone();
+        let text = base64_decode_to_string(&file.text_b64)?;
+        file_texts.insert(file.name.clone(), text.clone());
         files.push(InputFile {
             name: file.name.clone(),
             text,

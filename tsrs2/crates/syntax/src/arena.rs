@@ -37,6 +37,10 @@ impl NodeArena {
         self.push_node(kind, NodeData::Token, pos, end, flags)
     }
 
+    pub fn alloc_missing(&mut self, kind: SyntaxKind, pos: usize) -> NodeId {
+        self.push_node(kind, NodeData::missing(kind), pos, pos, NodeFlags::NONE)
+    }
+
     pub fn alloc_array(
         &mut self,
         nodes: Vec<NodeId>,

@@ -3206,6 +3206,28 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     }
     writeln!(out, "        }}")?;
     writeln!(out, "    }}")?;
+    writeln!(out)?;
+    writeln!(out, "    pub fn missing(kind: SyntaxKind) -> Self {{")?;
+    writeln!(out, "        match kind {{")?;
+    for schema in schemas {
+        writeln!(
+            out,
+            "            SyntaxKind::{} => Self::{}({} {{",
+            schema.kind_name, schema.kind_name, schema.data_name
+        )?;
+        for field in &schema.fields {
+            writeln!(
+                out,
+                "                {}: {},",
+                field.rust_name,
+                render_missing_field_value(field, &schema.kind_name)
+            )?;
+        }
+        writeln!(out, "            }}),")?;
+    }
+    writeln!(out, "            _ => Self::Token,")?;
+    writeln!(out, "        }}")?;
+    writeln!(out, "    }}")?;
     for schema in schemas {
         let accessor = format!("as_{}", snake_case(&schema.kind_name));
         writeln!(out)?;
@@ -3237,10 +3259,34 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
         out,
         "        let _ = IdentifierData {{ escaped_text: String::new(), text: String::new() }};"
     )?;
+    writeln!(
+        out,
+        "        assert_eq!(NodeData::missing(SyntaxKind::Identifier).kind(), Some(SyntaxKind::Identifier));"
+    )?;
+    writeln!(
+        out,
+        "        assert_eq!(NodeData::missing(SyntaxKind::SemicolonToken).kind(), None);"
+    )?;
     writeln!(out, "    }}")?;
     writeln!(out, "}}")?;
 
     Ok(out)
+}
+
+fn render_missing_field_value(field: &SchemaField, kind_name: &str) -> String {
+    if field.optional {
+        return "None".to_owned();
+    }
+
+    match field.ty {
+        RustFieldType::Node => "NodeId::default()".to_owned(),
+        RustFieldType::NodeArray => "NodeArrayId::default()".to_owned(),
+        RustFieldType::Bool => "false".to_owned(),
+        RustFieldType::String => "String::new()".to_owned(),
+        RustFieldType::Number => "0.0".to_owned(),
+        RustFieldType::SyntaxKind => format!("SyntaxKind::{kind_name}"),
+        RustFieldType::Payload => "NodePayload::String(String::new())".to_owned(),
+    }
 }
 
 fn render_field_type(field: &SchemaField) -> String {

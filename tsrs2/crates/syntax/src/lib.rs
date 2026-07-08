@@ -6,16 +6,17 @@ pub mod for_each_child;
 mod keywords;
 pub mod kind;
 pub mod nodes;
+mod parser;
 pub mod scanner;
 
-use tsrs2_diags::{compute_line_map, DiagnosticList, LineMap};
+use tsrs2_diags::{DiagnosticList, LineMap};
 
 pub use arena::NodeArena;
 pub use for_each_child::{for_each_child, NodeLookup};
 pub use kind::SyntaxKind;
 pub use nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData};
+pub use parser::{ParseOptions, SyntaxCursor};
 pub use scanner::{scan_tokens, LanguageVariant, TokenRecord};
-use tsrs2_types::NodeFlags;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {
@@ -47,44 +48,10 @@ impl SourceFile {
 pub fn parse_source_file(
     file_name: impl Into<String>,
     text: impl Into<String>,
-    language_variant: LanguageVariant,
+    options: ParseOptions,
+    cursor: Option<&SyntaxCursor>,
 ) -> SourceFile {
-    let file_name = file_name.into();
-    let text = text.into();
-    let line_map = compute_line_map(&text);
-    let is_declaration_file = file_name.ends_with(".d.ts");
-    let eof_pos = text.len();
-
-    let mut arena = NodeArena::new();
-    let statements = arena.empty_array(0);
-    let end_of_file_token = arena.alloc_token(
-        SyntaxKind::EndOfFileToken,
-        eof_pos,
-        eof_pos,
-        NodeFlags::NONE,
-    );
-    let root = arena.alloc_node(
-        NodeData::SourceFile(SourceFileData {
-            statements: Some(statements),
-            end_of_file_token: Some(end_of_file_token),
-        }),
-        0,
-        eof_pos,
-        NodeFlags::NONE,
-    );
-    arena.finalize_tree(root);
-
-    SourceFile {
-        file_name,
-        text,
-        language_variant,
-        is_declaration_file,
-        line_map,
-        arena,
-        root,
-        external_module_indicator: None,
-        parse_diagnostics: Vec::new(),
-    }
+    parser::parse_source_file(file_name.into(), text.into(), options, cursor)
 }
 
 #[cfg(test)]
@@ -93,7 +60,7 @@ mod tests {
 
     #[test]
     fn parse_source_file_creates_root_and_eof_nodes() {
-        let source = parse_source_file("a.ts", "", LanguageVariant::Standard);
+        let source = parse_source_file("a.ts", "", ParseOptions::default(), None);
 
         assert_eq!(source.node_count(), 2);
         assert_eq!(source.identifier_count(), 0);

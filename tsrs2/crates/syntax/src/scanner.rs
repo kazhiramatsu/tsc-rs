@@ -1,8 +1,9 @@
 use crate::{chars, keywords, SyntaxKind};
 use tsrs2_diags::{gen, DiagnosticMessage};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum LanguageVariant {
+    #[default]
     Standard,
     Jsx,
 }
@@ -43,11 +44,11 @@ impl Utf16OffsetMap {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct ScanError {
-    message: &'static DiagnosticMessage,
-    start: usize,
-    length: usize,
-    args: Vec<String>,
+pub(crate) struct ScanError {
+    pub(crate) message: &'static DiagnosticMessage,
+    pub(crate) start: usize,
+    pub(crate) length: usize,
+    pub(crate) args: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -84,7 +85,7 @@ impl TokenFlags {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(dead_code)]
-struct ScannerState {
+pub(crate) struct ScannerState {
     pos: usize,
     full_start_pos: usize,
     token_start: usize,
@@ -94,7 +95,7 @@ struct ScannerState {
     error_len: usize,
 }
 
-struct Scanner<'text> {
+pub(crate) struct Scanner<'text> {
     text: &'text str,
     end: usize,
     pos: usize,
@@ -130,7 +131,7 @@ impl Truthy for SyntaxKind {
 }
 
 impl<'text> Scanner<'text> {
-    fn new(text: &'text str, language_variant: LanguageVariant) -> Self {
+    pub(crate) fn new(text: &'text str, language_variant: LanguageVariant) -> Self {
         Self {
             text,
             end: text.len(),
@@ -145,7 +146,7 @@ impl<'text> Scanner<'text> {
         }
     }
 
-    fn scan(&mut self) -> SyntaxKind {
+    pub(crate) fn scan(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
         self.token_value.clear();
@@ -358,7 +359,7 @@ impl<'text> Scanner<'text> {
     }
 
     #[allow(dead_code)]
-    fn save(&self) -> ScannerState {
+    pub(crate) fn save(&self) -> ScannerState {
         ScannerState {
             pos: self.pos,
             full_start_pos: self.full_start_pos,
@@ -371,7 +372,7 @@ impl<'text> Scanner<'text> {
     }
 
     #[allow(dead_code)]
-    fn restore(&mut self, state: ScannerState) {
+    pub(crate) fn restore(&mut self, state: ScannerState) {
         self.pos = state.pos;
         self.full_start_pos = state.full_start_pos;
         self.token_start = state.token_start;
@@ -405,12 +406,24 @@ impl<'text> Scanner<'text> {
         self.speculation_helper(callback, false)
     }
 
-    fn pos(&self) -> usize {
+    pub(crate) fn pos(&self) -> usize {
         self.pos
     }
 
-    fn token_start(&self) -> usize {
+    pub(crate) fn full_start_pos(&self) -> usize {
+        self.full_start_pos
+    }
+
+    pub(crate) fn token(&self) -> SyntaxKind {
+        self.token
+    }
+
+    pub(crate) fn token_start(&self) -> usize {
         self.token_start
+    }
+
+    pub(crate) fn take_errors(&mut self) -> Vec<ScanError> {
+        std::mem::take(&mut self.errors)
     }
 
     fn has_preceding_line_break(&self) -> bool {

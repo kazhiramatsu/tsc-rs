@@ -1635,6 +1635,845 @@ impl NodeData {
         }
     }
 
+    pub fn missing(kind: SyntaxKind) -> Self {
+        match kind {
+            SyntaxKind::ArrayBindingPattern => {
+                Self::ArrayBindingPattern(ArrayBindingPatternData { elements: None })
+            }
+            SyntaxKind::ArrayLiteralExpression => {
+                Self::ArrayLiteralExpression(ArrayLiteralExpressionData { elements: None })
+            }
+            SyntaxKind::ArrayType => Self::ArrayType(ArrayTypeData { element_type: None }),
+            SyntaxKind::ArrowFunction => Self::ArrowFunction(ArrowFunctionData {
+                modifiers: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+                equals_greater_than_token: None,
+                body: None,
+            }),
+            SyntaxKind::AsExpression => Self::AsExpression(AsExpressionData {
+                expression: None,
+                r#type: None,
+            }),
+            SyntaxKind::AwaitExpression => {
+                Self::AwaitExpression(AwaitExpressionData { expression: None })
+            }
+            SyntaxKind::BigIntLiteral => Self::BigIntLiteral(BigIntLiteralData {
+                text: String::new(),
+            }),
+            SyntaxKind::BinaryExpression => Self::BinaryExpression(BinaryExpressionData {
+                left: None,
+                operator_token: None,
+                right: None,
+            }),
+            SyntaxKind::BindingElement => Self::BindingElement(BindingElementData {
+                dot_dot_dot_token: None,
+                property_name: None,
+                name: None,
+                initializer: None,
+            }),
+            SyntaxKind::Block => Self::Block(BlockData { statements: None }),
+            SyntaxKind::BreakStatement => Self::BreakStatement(BreakStatementData { label: None }),
+            SyntaxKind::CallExpression => Self::CallExpression(CallExpressionData {
+                expression: None,
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: None,
+            }),
+            SyntaxKind::CallSignature => Self::CallSignature(CallSignatureData {
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+            }),
+            SyntaxKind::CaseBlock => Self::CaseBlock(CaseBlockData { clauses: None }),
+            SyntaxKind::CaseClause => Self::CaseClause(CaseClauseData {
+                expression: None,
+                statements: None,
+            }),
+            SyntaxKind::CatchClause => Self::CatchClause(CatchClauseData {
+                variable_declaration: None,
+                block: None,
+            }),
+            SyntaxKind::ClassDeclaration => Self::ClassDeclaration(ClassDeclarationData {
+                modifiers: None,
+                name: None,
+                type_parameters: None,
+                heritage_clauses: None,
+                members: None,
+            }),
+            SyntaxKind::ClassExpression => Self::ClassExpression(ClassExpressionData {
+                modifiers: None,
+                name: None,
+                type_parameters: None,
+                heritage_clauses: None,
+                members: None,
+            }),
+            SyntaxKind::ClassStaticBlockDeclaration => {
+                Self::ClassStaticBlockDeclaration(ClassStaticBlockDeclarationData {
+                    modifiers: None,
+                    body: None,
+                })
+            }
+            SyntaxKind::CommaListExpression => {
+                Self::CommaListExpression(CommaListExpressionData { elements: None })
+            }
+            SyntaxKind::ComputedPropertyName => {
+                Self::ComputedPropertyName(ComputedPropertyNameData { expression: None })
+            }
+            SyntaxKind::ConditionalExpression => {
+                Self::ConditionalExpression(ConditionalExpressionData {
+                    condition: None,
+                    question_token: None,
+                    when_true: None,
+                    colon_token: None,
+                    when_false: None,
+                })
+            }
+            SyntaxKind::ConditionalType => Self::ConditionalType(ConditionalTypeData {
+                check_type: None,
+                extends_type: None,
+                true_type: None,
+                false_type: None,
+            }),
+            SyntaxKind::ConstructSignature => Self::ConstructSignature(ConstructSignatureData {
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+            }),
+            SyntaxKind::Constructor => Self::Constructor(ConstructorData {
+                modifiers: None,
+                name: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+                body: None,
+            }),
+            SyntaxKind::ConstructorType => Self::ConstructorType(ConstructorTypeData {
+                modifiers: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+            }),
+            SyntaxKind::ContinueStatement => {
+                Self::ContinueStatement(ContinueStatementData { label: None })
+            }
+            SyntaxKind::Decorator => Self::Decorator(DecoratorData { expression: None }),
+            SyntaxKind::DefaultClause => {
+                Self::DefaultClause(DefaultClauseData { statements: None })
+            }
+            SyntaxKind::DeleteExpression => {
+                Self::DeleteExpression(DeleteExpressionData { expression: None })
+            }
+            SyntaxKind::DoStatement => Self::DoStatement(DoStatementData {
+                statement: None,
+                expression: None,
+            }),
+            SyntaxKind::ElementAccessExpression => {
+                Self::ElementAccessExpression(ElementAccessExpressionData {
+                    expression: None,
+                    question_dot_token: None,
+                    argument_expression: None,
+                })
+            }
+            SyntaxKind::EnumDeclaration => Self::EnumDeclaration(EnumDeclarationData {
+                modifiers: None,
+                name: None,
+                members: None,
+            }),
+            SyntaxKind::EnumMember => Self::EnumMember(EnumMemberData {
+                name: None,
+                initializer: None,
+            }),
+            SyntaxKind::ExportAssignment => Self::ExportAssignment(ExportAssignmentData {
+                modifiers: None,
+                expression: None,
+            }),
+            SyntaxKind::ExportDeclaration => Self::ExportDeclaration(ExportDeclarationData {
+                modifiers: None,
+                export_clause: None,
+                module_specifier: None,
+                attributes: None,
+            }),
+            SyntaxKind::ExportSpecifier => Self::ExportSpecifier(ExportSpecifierData {
+                property_name: None,
+                name: None,
+            }),
+            SyntaxKind::ExpressionStatement => {
+                Self::ExpressionStatement(ExpressionStatementData { expression: None })
+            }
+            SyntaxKind::ExpressionWithTypeArguments => {
+                Self::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
+                    expression: None,
+                    type_arguments: None,
+                })
+            }
+            SyntaxKind::ExternalModuleReference => {
+                Self::ExternalModuleReference(ExternalModuleReferenceData { expression: None })
+            }
+            SyntaxKind::ForInStatement => Self::ForInStatement(ForInStatementData {
+                initializer: None,
+                expression: None,
+                statement: None,
+            }),
+            SyntaxKind::ForOfStatement => Self::ForOfStatement(ForOfStatementData {
+                await_modifier: None,
+                initializer: None,
+                expression: None,
+                statement: None,
+            }),
+            SyntaxKind::ForStatement => Self::ForStatement(ForStatementData {
+                initializer: None,
+                condition: None,
+                incrementor: None,
+                statement: None,
+            }),
+            SyntaxKind::FunctionDeclaration => Self::FunctionDeclaration(FunctionDeclarationData {
+                modifiers: None,
+                asterisk_token: None,
+                name: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+                body: None,
+            }),
+            SyntaxKind::FunctionExpression => Self::FunctionExpression(FunctionExpressionData {
+                modifiers: None,
+                asterisk_token: None,
+                name: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+                body: None,
+            }),
+            SyntaxKind::FunctionType => Self::FunctionType(FunctionTypeData {
+                modifiers: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+            }),
+            SyntaxKind::GetAccessor => Self::GetAccessor(GetAccessorData {
+                modifiers: None,
+                name: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+                body: None,
+            }),
+            SyntaxKind::HeritageClause => Self::HeritageClause(HeritageClauseData { types: None }),
+            SyntaxKind::Identifier => Self::Identifier(IdentifierData {
+                escaped_text: String::new(),
+                text: String::new(),
+            }),
+            SyntaxKind::IfStatement => Self::IfStatement(IfStatementData {
+                expression: None,
+                then_statement: None,
+                else_statement: None,
+            }),
+            SyntaxKind::ImportAttribute => Self::ImportAttribute(ImportAttributeData {
+                name: None,
+                value: None,
+            }),
+            SyntaxKind::ImportAttributes => {
+                Self::ImportAttributes(ImportAttributesData { elements: None })
+            }
+            SyntaxKind::ImportClause => Self::ImportClause(ImportClauseData {
+                name: None,
+                named_bindings: None,
+            }),
+            SyntaxKind::ImportDeclaration => Self::ImportDeclaration(ImportDeclarationData {
+                modifiers: None,
+                import_clause: None,
+                module_specifier: None,
+                attributes: None,
+            }),
+            SyntaxKind::ImportEqualsDeclaration => {
+                Self::ImportEqualsDeclaration(ImportEqualsDeclarationData {
+                    modifiers: None,
+                    name: None,
+                    module_reference: None,
+                })
+            }
+            SyntaxKind::ImportSpecifier => Self::ImportSpecifier(ImportSpecifierData {
+                property_name: None,
+                name: None,
+            }),
+            SyntaxKind::ImportType => Self::ImportType(ImportTypeData {
+                argument: None,
+                attributes: None,
+                qualifier: None,
+                type_arguments: None,
+            }),
+            SyntaxKind::ImportTypeAssertionContainer => {
+                Self::ImportTypeAssertionContainer(ImportTypeAssertionContainerData {
+                    assert_clause: None,
+                })
+            }
+            SyntaxKind::IndexSignature => Self::IndexSignature(IndexSignatureData {
+                modifiers: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+            }),
+            SyntaxKind::IndexedAccessType => Self::IndexedAccessType(IndexedAccessTypeData {
+                object_type: None,
+                index_type: None,
+            }),
+            SyntaxKind::InferType => Self::InferType(InferTypeData {
+                type_parameter: None,
+            }),
+            SyntaxKind::InterfaceDeclaration => {
+                Self::InterfaceDeclaration(InterfaceDeclarationData {
+                    modifiers: None,
+                    name: None,
+                    type_parameters: None,
+                    heritage_clauses: None,
+                    members: None,
+                })
+            }
+            SyntaxKind::IntersectionType => {
+                Self::IntersectionType(IntersectionTypeData { types: None })
+            }
+            SyntaxKind::JSDoc => Self::JSDoc(JSDocData {
+                comment: None,
+                tags: None,
+            }),
+            SyntaxKind::JSDocAugmentsTag => Self::JSDocAugmentsTag(JSDocAugmentsTagData {
+                tag_name: None,
+                class: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocAuthorTag => Self::JSDocAuthorTag(JSDocAuthorTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocCallbackTag => Self::JSDocCallbackTag(JSDocCallbackTagData {
+                tag_name: None,
+                full_name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocClassTag => Self::JSDocClassTag(JSDocClassTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocDeprecatedTag => Self::JSDocDeprecatedTag(JSDocDeprecatedTagData {
+                readonly_pos: 0.0,
+                readonly_end: 0.0,
+                readonly_kind: SyntaxKind::JSDocDeprecatedTag,
+                readonly_flags: NodeId::default(),
+                readonly_parent: NodeId::default(),
+                readonly_tag_name: NodeId::default(),
+                readonly_comment: None,
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocEnumTag => Self::JSDocEnumTag(JSDocEnumTagData {
+                tag_name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocFunctionType => Self::JSDocFunctionType(JSDocFunctionTypeData {
+                parameters: None,
+                r#type: None,
+            }),
+            SyntaxKind::JSDocImplementsTag => Self::JSDocImplementsTag(JSDocImplementsTagData {
+                tag_name: None,
+                class: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocImportTag => Self::JSDocImportTag(JSDocImportTagData {
+                tag_name: None,
+                import_clause: None,
+                module_specifier: None,
+                attributes: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocLink => Self::JSDocLink(JSDocLinkData { name: None }),
+            SyntaxKind::JSDocLinkCode => Self::JSDocLinkCode(JSDocLinkCodeData { name: None }),
+            SyntaxKind::JSDocLinkPlain => Self::JSDocLinkPlain(JSDocLinkPlainData { name: None }),
+            SyntaxKind::JSDocMemberName => Self::JSDocMemberName(JSDocMemberNameData {
+                left: None,
+                right: None,
+            }),
+            SyntaxKind::JSDocNameReference => {
+                Self::JSDocNameReference(JSDocNameReferenceData { name: None })
+            }
+            SyntaxKind::JSDocNonNullableType => {
+                Self::JSDocNonNullableType(JSDocNonNullableTypeData { r#type: None })
+            }
+            SyntaxKind::JSDocNullableType => {
+                Self::JSDocNullableType(JSDocNullableTypeData { r#type: None })
+            }
+            SyntaxKind::JSDocOptionalType => {
+                Self::JSDocOptionalType(JSDocOptionalTypeData { r#type: None })
+            }
+            SyntaxKind::JSDocOverloadTag => Self::JSDocOverloadTag(JSDocOverloadTagData {
+                tag_name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocOverrideTag => Self::JSDocOverrideTag(JSDocOverrideTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocParameterTag => Self::JSDocParameterTag(JSDocParameterTagData {
+                tag_name: None,
+                name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocPrivateTag => Self::JSDocPrivateTag(JSDocPrivateTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocPropertyTag => Self::JSDocPropertyTag(JSDocPropertyTagData {
+                tag_name: None,
+                name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocProtectedTag => Self::JSDocProtectedTag(JSDocProtectedTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocPublicTag => Self::JSDocPublicTag(JSDocPublicTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocReadonlyTag => Self::JSDocReadonlyTag(JSDocReadonlyTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocReturnTag => Self::JSDocReturnTag(JSDocReturnTagData {
+                tag_name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocSatisfiesTag => Self::JSDocSatisfiesTag(JSDocSatisfiesTagData {
+                tag_name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocSeeTag => Self::JSDocSeeTag(JSDocSeeTagData {
+                tag_name: None,
+                name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocSignature => Self::JSDocSignature(JSDocSignatureData { r#type: None }),
+            SyntaxKind::JSDocTag => Self::JSDocTag(JSDocTagData {
+                tag_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocTemplateTag => Self::JSDocTemplateTag(JSDocTemplateTagData {
+                tag_name: None,
+                constraint: None,
+                type_parameters: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocThisTag => Self::JSDocThisTag(JSDocThisTagData {
+                tag_name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocThrowsTag => Self::JSDocThrowsTag(JSDocThrowsTagData {
+                tag_name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocTypeExpression => {
+                Self::JSDocTypeExpression(JSDocTypeExpressionData { r#type: None })
+            }
+            SyntaxKind::JSDocTypeLiteral => Self::JSDocTypeLiteral(JSDocTypeLiteralData {}),
+            SyntaxKind::JSDocTypeTag => Self::JSDocTypeTag(JSDocTypeTagData {
+                tag_name: None,
+                type_expression: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocTypedefTag => Self::JSDocTypedefTag(JSDocTypedefTagData {
+                tag_name: None,
+                type_expression: None,
+                full_name: None,
+                comment: None,
+            }),
+            SyntaxKind::JSDocVariadicType => {
+                Self::JSDocVariadicType(JSDocVariadicTypeData { r#type: None })
+            }
+            SyntaxKind::JsxAttribute => Self::JsxAttribute(JsxAttributeData {
+                name: None,
+                initializer: None,
+            }),
+            SyntaxKind::JsxAttributes => {
+                Self::JsxAttributes(JsxAttributesData { properties: None })
+            }
+            SyntaxKind::JsxClosingElement => {
+                Self::JsxClosingElement(JsxClosingElementData { tag_name: None })
+            }
+            SyntaxKind::JsxElement => Self::JsxElement(JsxElementData {
+                opening_element: None,
+                children: None,
+                closing_element: None,
+            }),
+            SyntaxKind::JsxExpression => Self::JsxExpression(JsxExpressionData {
+                dot_dot_dot_token: None,
+                expression: None,
+            }),
+            SyntaxKind::JsxFragment => Self::JsxFragment(JsxFragmentData {
+                opening_fragment: None,
+                children: None,
+                closing_fragment: None,
+            }),
+            SyntaxKind::JsxNamespacedName => Self::JsxNamespacedName(JsxNamespacedNameData {
+                namespace: None,
+                name: None,
+            }),
+            SyntaxKind::JsxOpeningElement => Self::JsxOpeningElement(JsxOpeningElementData {
+                tag_name: None,
+                type_arguments: None,
+                attributes: None,
+            }),
+            SyntaxKind::JsxSelfClosingElement => {
+                Self::JsxSelfClosingElement(JsxSelfClosingElementData {
+                    tag_name: None,
+                    type_arguments: None,
+                    attributes: None,
+                })
+            }
+            SyntaxKind::JsxSpreadAttribute => {
+                Self::JsxSpreadAttribute(JsxSpreadAttributeData { expression: None })
+            }
+            SyntaxKind::JsxText => Self::JsxText(JsxTextData {
+                text: String::new(),
+            }),
+            SyntaxKind::LabeledStatement => Self::LabeledStatement(LabeledStatementData {
+                label: None,
+                statement: None,
+            }),
+            SyntaxKind::LiteralType => Self::LiteralType(LiteralTypeData { literal: None }),
+            SyntaxKind::MappedType => Self::MappedType(MappedTypeData {
+                readonly_token: None,
+                type_parameter: None,
+                r#type: None,
+                name_type: None,
+                question_token: None,
+                members: None,
+            }),
+            SyntaxKind::MetaProperty => Self::MetaProperty(MetaPropertyData { name: None }),
+            SyntaxKind::MethodDeclaration => Self::MethodDeclaration(MethodDeclarationData {
+                modifiers: None,
+                asterisk_token: None,
+                name: None,
+                question_token: None,
+                exclamation_token: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+                body: None,
+            }),
+            SyntaxKind::MethodSignature => Self::MethodSignature(MethodSignatureData {
+                modifiers: None,
+                name: None,
+                question_token: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+            }),
+            SyntaxKind::MissingDeclaration => {
+                Self::MissingDeclaration(MissingDeclarationData { modifiers: None })
+            }
+            SyntaxKind::ModuleBlock => Self::ModuleBlock(ModuleBlockData { statements: None }),
+            SyntaxKind::ModuleDeclaration => Self::ModuleDeclaration(ModuleDeclarationData {
+                modifiers: None,
+                name: None,
+                body: None,
+            }),
+            SyntaxKind::NamedExports => Self::NamedExports(NamedExportsData { elements: None }),
+            SyntaxKind::NamedImports => Self::NamedImports(NamedImportsData { elements: None }),
+            SyntaxKind::NamedTupleMember => Self::NamedTupleMember(NamedTupleMemberData {
+                dot_dot_dot_token: None,
+                name: None,
+                question_token: None,
+                r#type: None,
+            }),
+            SyntaxKind::NamespaceExport => {
+                Self::NamespaceExport(NamespaceExportData { name: None })
+            }
+            SyntaxKind::NamespaceExportDeclaration => {
+                Self::NamespaceExportDeclaration(NamespaceExportDeclarationData {
+                    modifiers: None,
+                    name: None,
+                })
+            }
+            SyntaxKind::NamespaceImport => {
+                Self::NamespaceImport(NamespaceImportData { name: None })
+            }
+            SyntaxKind::NewExpression => Self::NewExpression(NewExpressionData {
+                expression: None,
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: None,
+            }),
+            SyntaxKind::NoSubstitutionTemplateLiteral => {
+                Self::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
+                    text: String::new(),
+                })
+            }
+            SyntaxKind::NonNullExpression => {
+                Self::NonNullExpression(NonNullExpressionData { expression: None })
+            }
+            SyntaxKind::NumericLiteral => Self::NumericLiteral(NumericLiteralData {
+                text: String::new(),
+            }),
+            SyntaxKind::ObjectBindingPattern => {
+                Self::ObjectBindingPattern(ObjectBindingPatternData { elements: None })
+            }
+            SyntaxKind::ObjectLiteralExpression => {
+                Self::ObjectLiteralExpression(ObjectLiteralExpressionData { properties: None })
+            }
+            SyntaxKind::OptionalType => Self::OptionalType(OptionalTypeData { r#type: None }),
+            SyntaxKind::Parameter => Self::Parameter(ParameterData {
+                modifiers: None,
+                dot_dot_dot_token: None,
+                name: None,
+                question_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            SyntaxKind::ParenthesizedExpression => {
+                Self::ParenthesizedExpression(ParenthesizedExpressionData { expression: None })
+            }
+            SyntaxKind::ParenthesizedType => {
+                Self::ParenthesizedType(ParenthesizedTypeData { r#type: None })
+            }
+            SyntaxKind::PartiallyEmittedExpression => {
+                Self::PartiallyEmittedExpression(PartiallyEmittedExpressionData {
+                    expression: None,
+                })
+            }
+            SyntaxKind::PostfixUnaryExpression => {
+                Self::PostfixUnaryExpression(PostfixUnaryExpressionData { operand: None })
+            }
+            SyntaxKind::PrefixUnaryExpression => {
+                Self::PrefixUnaryExpression(PrefixUnaryExpressionData { operand: None })
+            }
+            SyntaxKind::PrivateIdentifier => Self::PrivateIdentifier(PrivateIdentifierData {
+                escaped_text: String::new(),
+                text: String::new(),
+            }),
+            SyntaxKind::PropertyAccessExpression => {
+                Self::PropertyAccessExpression(PropertyAccessExpressionData {
+                    expression: None,
+                    question_dot_token: None,
+                    name: None,
+                })
+            }
+            SyntaxKind::PropertyAssignment => Self::PropertyAssignment(PropertyAssignmentData {
+                modifiers: None,
+                name: None,
+                question_token: None,
+                exclamation_token: None,
+                initializer: None,
+            }),
+            SyntaxKind::PropertyDeclaration => Self::PropertyDeclaration(PropertyDeclarationData {
+                modifiers: None,
+                name: None,
+                question_token: None,
+                exclamation_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            SyntaxKind::PropertySignature => Self::PropertySignature(PropertySignatureData {
+                modifiers: None,
+                name: None,
+                question_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            SyntaxKind::QualifiedName => Self::QualifiedName(QualifiedNameData {
+                left: None,
+                right: None,
+            }),
+            SyntaxKind::RegularExpressionLiteral => {
+                Self::RegularExpressionLiteral(RegularExpressionLiteralData {
+                    text: String::new(),
+                })
+            }
+            SyntaxKind::RestType => Self::RestType(RestTypeData { r#type: None }),
+            SyntaxKind::ReturnStatement => {
+                Self::ReturnStatement(ReturnStatementData { expression: None })
+            }
+            SyntaxKind::SatisfiesExpression => Self::SatisfiesExpression(SatisfiesExpressionData {
+                expression: None,
+                r#type: None,
+            }),
+            SyntaxKind::SetAccessor => Self::SetAccessor(SetAccessorData {
+                modifiers: None,
+                name: None,
+                r#type: None,
+                type_parameters: None,
+                parameters: None,
+                body: None,
+            }),
+            SyntaxKind::ShorthandPropertyAssignment => {
+                Self::ShorthandPropertyAssignment(ShorthandPropertyAssignmentData {
+                    modifiers: None,
+                    name: None,
+                    question_token: None,
+                    exclamation_token: None,
+                    equals_token: None,
+                    object_assignment_initializer: None,
+                })
+            }
+            SyntaxKind::SourceFile => Self::SourceFile(SourceFileData {
+                statements: None,
+                end_of_file_token: None,
+            }),
+            SyntaxKind::SpreadAssignment => {
+                Self::SpreadAssignment(SpreadAssignmentData { expression: None })
+            }
+            SyntaxKind::SpreadElement => {
+                Self::SpreadElement(SpreadElementData { expression: None })
+            }
+            SyntaxKind::StringLiteral => Self::StringLiteral(StringLiteralData {
+                text: String::new(),
+            }),
+            SyntaxKind::SwitchStatement => Self::SwitchStatement(SwitchStatementData {
+                expression: None,
+                case_block: None,
+            }),
+            SyntaxKind::SyntaxList => Self::SyntaxList(SyntaxListData {
+                readonly_pos: 0.0,
+                readonly_end: 0.0,
+                readonly_kind: SyntaxKind::SyntaxList,
+                readonly_flags: NodeId::default(),
+                readonly_parent: NodeId::default(),
+            }),
+            SyntaxKind::TaggedTemplateExpression => {
+                Self::TaggedTemplateExpression(TaggedTemplateExpressionData {
+                    tag: None,
+                    question_dot_token: None,
+                    type_arguments: None,
+                    template: None,
+                })
+            }
+            SyntaxKind::TemplateExpression => Self::TemplateExpression(TemplateExpressionData {
+                head: None,
+                template_spans: None,
+            }),
+            SyntaxKind::TemplateHead => Self::TemplateHead(TemplateHeadData {
+                text: String::new(),
+                raw_text: None,
+            }),
+            SyntaxKind::TemplateLiteralType => Self::TemplateLiteralType(TemplateLiteralTypeData {
+                readonly_pos: 0.0,
+                readonly_end: 0.0,
+                readonly_kind: SyntaxKind::TemplateLiteralType,
+                readonly_flags: NodeId::default(),
+                readonly_parent: NodeId::default(),
+                readonly_head: NodePayload::String(String::new()),
+                readonly_template_spans: NodeArrayId::default(),
+                head: None,
+                template_spans: None,
+            }),
+            SyntaxKind::TemplateLiteralTypeSpan => {
+                Self::TemplateLiteralTypeSpan(TemplateLiteralTypeSpanData {
+                    r#type: None,
+                    literal: None,
+                })
+            }
+            SyntaxKind::TemplateMiddle => Self::TemplateMiddle(TemplateMiddleData {
+                text: String::new(),
+                raw_text: None,
+            }),
+            SyntaxKind::TemplateSpan => Self::TemplateSpan(TemplateSpanData {
+                expression: None,
+                literal: None,
+            }),
+            SyntaxKind::TemplateTail => Self::TemplateTail(TemplateTailData {
+                text: String::new(),
+                raw_text: None,
+            }),
+            SyntaxKind::ThrowStatement => {
+                Self::ThrowStatement(ThrowStatementData { expression: None })
+            }
+            SyntaxKind::TryStatement => Self::TryStatement(TryStatementData {
+                try_block: None,
+                catch_clause: None,
+                finally_block: None,
+            }),
+            SyntaxKind::TupleType => Self::TupleType(TupleTypeData { elements: None }),
+            SyntaxKind::TypeAliasDeclaration => {
+                Self::TypeAliasDeclaration(TypeAliasDeclarationData {
+                    modifiers: None,
+                    name: None,
+                    r#type: None,
+                    type_parameters: None,
+                })
+            }
+            SyntaxKind::TypeAssertionExpression => {
+                Self::TypeAssertionExpression(TypeAssertionExpressionData {
+                    r#type: None,
+                    expression: None,
+                })
+            }
+            SyntaxKind::TypeLiteral => Self::TypeLiteral(TypeLiteralData { members: None }),
+            SyntaxKind::TypeOfExpression => {
+                Self::TypeOfExpression(TypeOfExpressionData { expression: None })
+            }
+            SyntaxKind::TypeOperator => Self::TypeOperator(TypeOperatorData { r#type: None }),
+            SyntaxKind::TypeParameter => Self::TypeParameter(TypeParameterData {
+                modifiers: None,
+                name: None,
+                constraint: None,
+                r#default: None,
+                expression: None,
+            }),
+            SyntaxKind::TypePredicate => Self::TypePredicate(TypePredicateData {
+                asserts_modifier: None,
+                parameter_name: None,
+                r#type: None,
+            }),
+            SyntaxKind::TypeQuery => Self::TypeQuery(TypeQueryData {
+                expr_name: None,
+                type_arguments: None,
+            }),
+            SyntaxKind::TypeReference => Self::TypeReference(TypeReferenceData {
+                type_name: None,
+                type_arguments: None,
+            }),
+            SyntaxKind::UnionType => Self::UnionType(UnionTypeData { types: None }),
+            SyntaxKind::VariableDeclaration => Self::VariableDeclaration(VariableDeclarationData {
+                name: None,
+                exclamation_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            SyntaxKind::VariableDeclarationList => {
+                Self::VariableDeclarationList(VariableDeclarationListData { declarations: None })
+            }
+            SyntaxKind::VariableStatement => Self::VariableStatement(VariableStatementData {
+                modifiers: None,
+                declaration_list: None,
+            }),
+            SyntaxKind::VoidExpression => {
+                Self::VoidExpression(VoidExpressionData { expression: None })
+            }
+            SyntaxKind::WhileStatement => Self::WhileStatement(WhileStatementData {
+                expression: None,
+                statement: None,
+            }),
+            SyntaxKind::WithStatement => Self::WithStatement(WithStatementData {
+                expression: None,
+                statement: None,
+            }),
+            SyntaxKind::YieldExpression => Self::YieldExpression(YieldExpressionData {
+                asterisk_token: None,
+                expression: None,
+            }),
+            _ => Self::Token,
+        }
+    }
+
     pub fn as_array_binding_pattern(&self) -> Option<&ArrayBindingPatternData> {
         match self {
             Self::ArrayBindingPattern(data) => Some(data),
@@ -2958,5 +3797,10 @@ mod tests {
             escaped_text: String::new(),
             text: String::new(),
         };
+        assert_eq!(
+            NodeData::missing(SyntaxKind::Identifier).kind(),
+            Some(SyntaxKind::Identifier)
+        );
+        assert_eq!(NodeData::missing(SyntaxKind::SemicolonToken).kind(), None);
     }
 }

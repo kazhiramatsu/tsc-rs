@@ -20,12 +20,12 @@ pub fn check_program(files: &[InputFile], _options: &CompilerOptions) -> CheckRe
     let mut diagnostics = Vec::new();
 
     for file in files {
-        let mut source_file = tsrs2_syntax::parse_source_file(
+        let source_file = tsrs2_syntax::parse_source_file(
             file.name.clone(),
             file.text.clone(),
-            tsrs2_syntax::LanguageVariant::Standard,
+            tsrs2_syntax::ParseOptions::default(),
+            None,
         );
-        diagnostics.append(&mut source_file.parse_diagnostics);
         diagnostics.append(&mut tsrs2_binder::bind_source_file(&source_file));
     }
 
