@@ -1,10 +1,14 @@
 #![forbid(unsafe_code)]
 
+pub mod for_each_child;
 pub mod kind;
+pub mod nodes;
 
 use tsrs2_diags::DiagnosticList;
 
+pub use for_each_child::{for_each_child, NodeLookup};
 pub use kind::SyntaxKind;
+pub use nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceFile {

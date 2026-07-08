@@ -1,0 +1,2398 @@
+{
+  "schema": 1,
+  "nodes": [
+    {
+      "kindName": "ArrayBindingPattern",
+      "dataName": "ArrayBindingPatternData",
+      "fields": [
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "elements", "array": true}
+      ]
+    },
+    {
+      "kindName": "ArrayLiteralExpression",
+      "dataName": "ArrayLiteralExpressionData",
+      "fields": [
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "elements", "array": true}
+      ]
+    },
+    {
+      "kindName": "ArrayType",
+      "dataName": "ArrayTypeData",
+      "fields": [
+        {"name": "elementType", "rustName": "element_type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "elementType", "array": false}
+      ]
+    },
+    {
+      "kindName": "ArrowFunction",
+      "dataName": "ArrowFunctionData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "equalsGreaterThanToken", "rustName": "equals_greater_than_token", "type": "Node", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true},
+        {"name": "equalsGreaterThanToken", "array": false},
+        {"name": "body", "array": false}
+      ]
+    },
+    {
+      "kindName": "AsExpression",
+      "dataName": "AsExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "AwaitExpression",
+      "dataName": "AwaitExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "BigIntLiteral",
+      "dataName": "BigIntLiteralData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "BinaryExpression",
+      "dataName": "BinaryExpressionData",
+      "fields": [
+        {"name": "left", "rustName": "left", "type": "Node", "optional": true, "child": true},
+        {"name": "operatorToken", "rustName": "operator_token", "type": "Node", "optional": true, "child": true},
+        {"name": "right", "rustName": "right", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "left", "array": false},
+        {"name": "operatorToken", "array": false},
+        {"name": "right", "array": false}
+      ]
+    },
+    {
+      "kindName": "BindingElement",
+      "dataName": "BindingElementData",
+      "fields": [
+        {"name": "dotDotDotToken", "rustName": "dot_dot_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "propertyName", "rustName": "property_name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "dotDotDotToken", "array": false},
+        {"name": "propertyName", "array": false},
+        {"name": "name", "array": false},
+        {"name": "initializer", "array": false}
+      ]
+    },
+    {
+      "kindName": "Block",
+      "dataName": "BlockData",
+      "fields": [
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "statements", "array": true}
+      ]
+    },
+    {
+      "kindName": "BreakStatement",
+      "dataName": "BreakStatementData",
+      "fields": [
+        {"name": "label", "rustName": "label", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "label", "array": false}
+      ]
+    },
+    {
+      "kindName": "CallExpression",
+      "dataName": "CallExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "arguments", "rustName": "arguments", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "questionDotToken", "array": false},
+        {"name": "typeArguments", "array": true},
+        {"name": "arguments", "array": true}
+      ]
+    },
+    {
+      "kindName": "CallSignature",
+      "dataName": "CallSignatureData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true}
+      ]
+    },
+    {
+      "kindName": "CaseBlock",
+      "dataName": "CaseBlockData",
+      "fields": [
+        {"name": "clauses", "rustName": "clauses", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "clauses", "array": true}
+      ]
+    },
+    {
+      "kindName": "CaseClause",
+      "dataName": "CaseClauseData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "statements", "array": true}
+      ]
+    },
+    {
+      "kindName": "CatchClause",
+      "dataName": "CatchClauseData",
+      "fields": [
+        {"name": "variableDeclaration", "rustName": "variable_declaration", "type": "Node", "optional": true, "child": true},
+        {"name": "block", "rustName": "block", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "variableDeclaration", "array": false},
+        {"name": "block", "array": false}
+      ]
+    },
+    {
+      "kindName": "ClassDeclaration",
+      "dataName": "ClassDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "heritageClauses", "rustName": "heritage_clauses", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "heritageClauses", "array": true},
+        {"name": "members", "array": true}
+      ]
+    },
+    {
+      "kindName": "ClassExpression",
+      "dataName": "ClassExpressionData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "heritageClauses", "rustName": "heritage_clauses", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "heritageClauses", "array": true},
+        {"name": "members", "array": true}
+      ]
+    },
+    {
+      "kindName": "ClassStaticBlockDeclaration",
+      "dataName": "ClassStaticBlockDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "body", "array": false}
+      ]
+    },
+    {
+      "kindName": "CommaListExpression",
+      "dataName": "CommaListExpressionData",
+      "fields": [
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "elements", "array": true}
+      ]
+    },
+    {
+      "kindName": "ComputedPropertyName",
+      "dataName": "ComputedPropertyNameData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "ConditionalExpression",
+      "dataName": "ConditionalExpressionData",
+      "fields": [
+        {"name": "condition", "rustName": "condition", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "whenTrue", "rustName": "when_true", "type": "Node", "optional": true, "child": true},
+        {"name": "colonToken", "rustName": "colon_token", "type": "Node", "optional": true, "child": true},
+        {"name": "whenFalse", "rustName": "when_false", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "condition", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "whenTrue", "array": false},
+        {"name": "colonToken", "array": false},
+        {"name": "whenFalse", "array": false}
+      ]
+    },
+    {
+      "kindName": "ConditionalType",
+      "dataName": "ConditionalTypeData",
+      "fields": [
+        {"name": "checkType", "rustName": "check_type", "type": "Node", "optional": true, "child": true},
+        {"name": "extendsType", "rustName": "extends_type", "type": "Node", "optional": true, "child": true},
+        {"name": "trueType", "rustName": "true_type", "type": "Node", "optional": true, "child": true},
+        {"name": "falseType", "rustName": "false_type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "checkType", "array": false},
+        {"name": "extendsType", "array": false},
+        {"name": "trueType", "array": false},
+        {"name": "falseType", "array": false}
+      ]
+    },
+    {
+      "kindName": "ConstructSignature",
+      "dataName": "ConstructSignatureData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true}
+      ]
+    },
+    {
+      "kindName": "Constructor",
+      "dataName": "ConstructorData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true},
+        {"name": "body", "array": false}
+      ]
+    },
+    {
+      "kindName": "ConstructorType",
+      "dataName": "ConstructorTypeData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true}
+      ]
+    },
+    {
+      "kindName": "ContinueStatement",
+      "dataName": "ContinueStatementData",
+      "fields": [
+        {"name": "label", "rustName": "label", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "label", "array": false}
+      ]
+    },
+    {
+      "kindName": "Decorator",
+      "dataName": "DecoratorData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "DefaultClause",
+      "dataName": "DefaultClauseData",
+      "fields": [
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "statements", "array": true}
+      ]
+    },
+    {
+      "kindName": "DeleteExpression",
+      "dataName": "DeleteExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "DoStatement",
+      "dataName": "DoStatementData",
+      "fields": [
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "statement", "array": false},
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "ElementAccessExpression",
+      "dataName": "ElementAccessExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "argumentExpression", "rustName": "argument_expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "questionDotToken", "array": false},
+        {"name": "argumentExpression", "array": false}
+      ]
+    },
+    {
+      "kindName": "EnumDeclaration",
+      "dataName": "EnumDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "members", "array": true}
+      ]
+    },
+    {
+      "kindName": "EnumMember",
+      "dataName": "EnumMemberData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false},
+        {"name": "initializer", "array": false}
+      ]
+    },
+    {
+      "kindName": "ExportAssignment",
+      "dataName": "ExportAssignmentData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "ExportDeclaration",
+      "dataName": "ExportDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "exportClause", "rustName": "export_clause", "type": "Node", "optional": true, "child": true},
+        {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": true, "child": true},
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "exportClause", "array": false},
+        {"name": "moduleSpecifier", "array": false},
+        {"name": "attributes", "array": false}
+      ]
+    },
+    {
+      "kindName": "ExportSpecifier",
+      "dataName": "ExportSpecifierData",
+      "fields": [
+        {"name": "propertyName", "rustName": "property_name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "propertyName", "array": false},
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "ExpressionStatement",
+      "dataName": "ExpressionStatementData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "ExpressionWithTypeArguments",
+      "dataName": "ExpressionWithTypeArgumentsData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "typeArguments", "array": true}
+      ]
+    },
+    {
+      "kindName": "ExternalModuleReference",
+      "dataName": "ExternalModuleReferenceData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "ForInStatement",
+      "dataName": "ForInStatementData",
+      "fields": [
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "initializer", "array": false},
+        {"name": "expression", "array": false},
+        {"name": "statement", "array": false}
+      ]
+    },
+    {
+      "kindName": "ForOfStatement",
+      "dataName": "ForOfStatementData",
+      "fields": [
+        {"name": "awaitModifier", "rustName": "await_modifier", "type": "Node", "optional": true, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "awaitModifier", "array": false},
+        {"name": "initializer", "array": false},
+        {"name": "expression", "array": false},
+        {"name": "statement", "array": false}
+      ]
+    },
+    {
+      "kindName": "ForStatement",
+      "dataName": "ForStatementData",
+      "fields": [
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true},
+        {"name": "condition", "rustName": "condition", "type": "Node", "optional": true, "child": true},
+        {"name": "incrementor", "rustName": "incrementor", "type": "Node", "optional": true, "child": true},
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "initializer", "array": false},
+        {"name": "condition", "array": false},
+        {"name": "incrementor", "array": false},
+        {"name": "statement", "array": false}
+      ]
+    },
+    {
+      "kindName": "FunctionDeclaration",
+      "dataName": "FunctionDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "asteriskToken", "array": false},
+        {"name": "name", "array": false},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true},
+        {"name": "body", "array": false}
+      ]
+    },
+    {
+      "kindName": "FunctionExpression",
+      "dataName": "FunctionExpressionData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "asteriskToken", "array": false},
+        {"name": "name", "array": false},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true},
+        {"name": "body", "array": false}
+      ]
+    },
+    {
+      "kindName": "FunctionType",
+      "dataName": "FunctionTypeData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true}
+      ]
+    },
+    {
+      "kindName": "GetAccessor",
+      "dataName": "GetAccessorData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true},
+        {"name": "body", "array": false}
+      ]
+    },
+    {
+      "kindName": "HeritageClause",
+      "dataName": "HeritageClauseData",
+      "fields": [
+        {"name": "types", "rustName": "types", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "types", "array": true}
+      ]
+    },
+    {
+      "kindName": "Identifier",
+      "dataName": "IdentifierData",
+      "fields": [
+        {"name": "escapedText", "rustName": "escaped_text", "type": "String", "optional": false, "child": false},
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "IfStatement",
+      "dataName": "IfStatementData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "thenStatement", "rustName": "then_statement", "type": "Node", "optional": true, "child": true},
+        {"name": "elseStatement", "rustName": "else_statement", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "thenStatement", "array": false},
+        {"name": "elseStatement", "array": false}
+      ]
+    },
+    {
+      "kindName": "ImportAttribute",
+      "dataName": "ImportAttributeData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "value", "rustName": "value", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false},
+        {"name": "value", "array": false}
+      ]
+    },
+    {
+      "kindName": "ImportAttributes",
+      "dataName": "ImportAttributesData",
+      "fields": [
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "elements", "array": true}
+      ]
+    },
+    {
+      "kindName": "ImportClause",
+      "dataName": "ImportClauseData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "namedBindings", "rustName": "named_bindings", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false},
+        {"name": "namedBindings", "array": false}
+      ]
+    },
+    {
+      "kindName": "ImportDeclaration",
+      "dataName": "ImportDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "importClause", "rustName": "import_clause", "type": "Node", "optional": true, "child": true},
+        {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": true, "child": true},
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "importClause", "array": false},
+        {"name": "moduleSpecifier", "array": false},
+        {"name": "attributes", "array": false}
+      ]
+    },
+    {
+      "kindName": "ImportEqualsDeclaration",
+      "dataName": "ImportEqualsDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "moduleReference", "rustName": "module_reference", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "moduleReference", "array": false}
+      ]
+    },
+    {
+      "kindName": "ImportSpecifier",
+      "dataName": "ImportSpecifierData",
+      "fields": [
+        {"name": "propertyName", "rustName": "property_name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "propertyName", "array": false},
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "ImportType",
+      "dataName": "ImportTypeData",
+      "fields": [
+        {"name": "argument", "rustName": "argument", "type": "Node", "optional": true, "child": true},
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true},
+        {"name": "qualifier", "rustName": "qualifier", "type": "Node", "optional": true, "child": true},
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "argument", "array": false},
+        {"name": "attributes", "array": false},
+        {"name": "qualifier", "array": false},
+        {"name": "typeArguments", "array": true}
+      ]
+    },
+    {
+      "kindName": "ImportTypeAssertionContainer",
+      "dataName": "ImportTypeAssertionContainerData",
+      "fields": [
+        {"name": "assertClause", "rustName": "assert_clause", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "assertClause", "array": false}
+      ]
+    },
+    {
+      "kindName": "IndexSignature",
+      "dataName": "IndexSignatureData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true}
+      ]
+    },
+    {
+      "kindName": "IndexedAccessType",
+      "dataName": "IndexedAccessTypeData",
+      "fields": [
+        {"name": "objectType", "rustName": "object_type", "type": "Node", "optional": true, "child": true},
+        {"name": "indexType", "rustName": "index_type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "objectType", "array": false},
+        {"name": "indexType", "array": false}
+      ]
+    },
+    {
+      "kindName": "InferType",
+      "dataName": "InferTypeData",
+      "fields": [
+        {"name": "typeParameter", "rustName": "type_parameter", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "typeParameter", "array": false}
+      ]
+    },
+    {
+      "kindName": "InterfaceDeclaration",
+      "dataName": "InterfaceDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "heritageClauses", "rustName": "heritage_clauses", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "heritageClauses", "array": true},
+        {"name": "members", "array": true}
+      ]
+    },
+    {
+      "kindName": "IntersectionType",
+      "dataName": "IntersectionTypeData",
+      "fields": [
+        {"name": "types", "rustName": "types", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "types", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDoc",
+      "dataName": "JSDocData",
+      "fields": [
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "tags", "rustName": "tags", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "comment", "array": true},
+        {"name": "tags", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocAugmentsTag",
+      "dataName": "JSDocAugmentsTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "class", "rustName": "class", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "class", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocAuthorTag",
+      "dataName": "JSDocAuthorTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocCallbackTag",
+      "dataName": "JSDocCallbackTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "fullName", "rustName": "full_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "fullName", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocClassTag",
+      "dataName": "JSDocClassTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocDeprecatedTag",
+      "dataName": "JSDocDeprecatedTagData",
+      "fields": [
+        {"name": "readonly pos", "rustName": "readonly_pos", "type": "Number", "optional": false, "child": false},
+        {"name": "readonly end", "rustName": "readonly_end", "type": "Number", "optional": false, "child": false},
+        {"name": "readonly kind", "rustName": "readonly_kind", "type": "SyntaxKind", "optional": false, "child": false},
+        {"name": "readonly flags", "rustName": "readonly_flags", "type": "Node", "optional": false, "child": false},
+        {"name": "readonly parent", "rustName": "readonly_parent", "type": "Node", "optional": false, "child": false},
+        {"name": "readonly tagName", "rustName": "readonly_tag_name", "type": "Node", "optional": false, "child": false},
+        {"name": "readonly comment", "rustName": "readonly_comment", "type": "NodeArray", "optional": true, "child": false},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocEnumTag",
+      "dataName": "JSDocEnumTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocFunctionType",
+      "dataName": "JSDocFunctionTypeData",
+      "fields": [
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "parameters", "array": true},
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocImplementsTag",
+      "dataName": "JSDocImplementsTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "class", "rustName": "class", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "class", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocImportTag",
+      "dataName": "JSDocImportTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "importClause", "rustName": "import_clause", "type": "Node", "optional": true, "child": true},
+        {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": true, "child": true},
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "importClause", "array": false},
+        {"name": "moduleSpecifier", "array": false},
+        {"name": "attributes", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocLink",
+      "dataName": "JSDocLinkData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocLinkCode",
+      "dataName": "JSDocLinkCodeData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocLinkPlain",
+      "dataName": "JSDocLinkPlainData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocMemberName",
+      "dataName": "JSDocMemberNameData",
+      "fields": [
+        {"name": "left", "rustName": "left", "type": "Node", "optional": true, "child": true},
+        {"name": "right", "rustName": "right", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "left", "array": false},
+        {"name": "right", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocNameReference",
+      "dataName": "JSDocNameReferenceData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocNonNullableType",
+      "dataName": "JSDocNonNullableTypeData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocNullableType",
+      "dataName": "JSDocNullableTypeData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocOptionalType",
+      "dataName": "JSDocOptionalTypeData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocOverloadTag",
+      "dataName": "JSDocOverloadTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocOverrideTag",
+      "dataName": "JSDocOverrideTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocParameterTag",
+      "dataName": "JSDocParameterTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "name", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocPrivateTag",
+      "dataName": "JSDocPrivateTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocPropertyTag",
+      "dataName": "JSDocPropertyTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "name", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocProtectedTag",
+      "dataName": "JSDocProtectedTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocPublicTag",
+      "dataName": "JSDocPublicTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocReadonlyTag",
+      "dataName": "JSDocReadonlyTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocReturnTag",
+      "dataName": "JSDocReturnTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocSatisfiesTag",
+      "dataName": "JSDocSatisfiesTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocSeeTag",
+      "dataName": "JSDocSeeTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "name", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocSignature",
+      "dataName": "JSDocSignatureData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocTag",
+      "dataName": "JSDocTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocTemplateTag",
+      "dataName": "JSDocTemplateTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "constraint", "rustName": "constraint", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "constraint", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocThisTag",
+      "dataName": "JSDocThisTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocThrowsTag",
+      "dataName": "JSDocThrowsTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocTypeExpression",
+      "dataName": "JSDocTypeExpressionData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "JSDocTypeLiteral",
+      "dataName": "JSDocTypeLiteralData",
+      "fields": [
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "JSDocTypeTag",
+      "dataName": "JSDocTypeTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocTypedefTag",
+      "dataName": "JSDocTypedefTagData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "fullName", "rustName": "full_name", "type": "Node", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeExpression", "array": false},
+        {"name": "fullName", "array": false},
+        {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocVariadicType",
+      "dataName": "JSDocVariadicTypeData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxAttribute",
+      "dataName": "JsxAttributeData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false},
+        {"name": "initializer", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxAttributes",
+      "dataName": "JsxAttributesData",
+      "fields": [
+        {"name": "properties", "rustName": "properties", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "properties", "array": true}
+      ]
+    },
+    {
+      "kindName": "JsxClosingElement",
+      "dataName": "JsxClosingElementData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxElement",
+      "dataName": "JsxElementData",
+      "fields": [
+        {"name": "openingElement", "rustName": "opening_element", "type": "Node", "optional": true, "child": true},
+        {"name": "children", "rustName": "children", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "closingElement", "rustName": "closing_element", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "openingElement", "array": false},
+        {"name": "children", "array": true},
+        {"name": "closingElement", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxExpression",
+      "dataName": "JsxExpressionData",
+      "fields": [
+        {"name": "dotDotDotToken", "rustName": "dot_dot_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "dotDotDotToken", "array": false},
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxFragment",
+      "dataName": "JsxFragmentData",
+      "fields": [
+        {"name": "openingFragment", "rustName": "opening_fragment", "type": "Node", "optional": true, "child": true},
+        {"name": "children", "rustName": "children", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "closingFragment", "rustName": "closing_fragment", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "openingFragment", "array": false},
+        {"name": "children", "array": true},
+        {"name": "closingFragment", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxNamespacedName",
+      "dataName": "JsxNamespacedNameData",
+      "fields": [
+        {"name": "namespace", "rustName": "namespace", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "namespace", "array": false},
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxOpeningElement",
+      "dataName": "JsxOpeningElementData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeArguments", "array": true},
+        {"name": "attributes", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxSelfClosingElement",
+      "dataName": "JsxSelfClosingElementData",
+      "fields": [
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tagName", "array": false},
+        {"name": "typeArguments", "array": true},
+        {"name": "attributes", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxSpreadAttribute",
+      "dataName": "JsxSpreadAttributeData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "JsxText",
+      "dataName": "JsxTextData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "LabeledStatement",
+      "dataName": "LabeledStatementData",
+      "fields": [
+        {"name": "label", "rustName": "label", "type": "Node", "optional": true, "child": true},
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "label", "array": false},
+        {"name": "statement", "array": false}
+      ]
+    },
+    {
+      "kindName": "LiteralType",
+      "dataName": "LiteralTypeData",
+      "fields": [
+        {"name": "literal", "rustName": "literal", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "literal", "array": false}
+      ]
+    },
+    {
+      "kindName": "MappedType",
+      "dataName": "MappedTypeData",
+      "fields": [
+        {"name": "readonlyToken", "rustName": "readonly_token", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameter", "rustName": "type_parameter", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "nameType", "rustName": "name_type", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "readonlyToken", "array": false},
+        {"name": "typeParameter", "array": false},
+        {"name": "type", "array": false},
+        {"name": "nameType", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "members", "array": true}
+      ]
+    },
+    {
+      "kindName": "MetaProperty",
+      "dataName": "MetaPropertyData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "MethodDeclaration",
+      "dataName": "MethodDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "asteriskToken", "array": false},
+        {"name": "name", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "exclamationToken", "array": false},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true},
+        {"name": "body", "array": false}
+      ]
+    },
+    {
+      "kindName": "MethodSignature",
+      "dataName": "MethodSignatureData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true}
+      ]
+    },
+    {
+      "kindName": "MissingDeclaration",
+      "dataName": "MissingDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true}
+      ]
+    },
+    {
+      "kindName": "ModuleBlock",
+      "dataName": "ModuleBlockData",
+      "fields": [
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "statements", "array": true}
+      ]
+    },
+    {
+      "kindName": "ModuleDeclaration",
+      "dataName": "ModuleDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "body", "array": false}
+      ]
+    },
+    {
+      "kindName": "NamedExports",
+      "dataName": "NamedExportsData",
+      "fields": [
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "elements", "array": true}
+      ]
+    },
+    {
+      "kindName": "NamedImports",
+      "dataName": "NamedImportsData",
+      "fields": [
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "elements", "array": true}
+      ]
+    },
+    {
+      "kindName": "NamedTupleMember",
+      "dataName": "NamedTupleMemberData",
+      "fields": [
+        {"name": "dotDotDotToken", "rustName": "dot_dot_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "dotDotDotToken", "array": false},
+        {"name": "name", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "NamespaceExport",
+      "dataName": "NamespaceExportData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "NamespaceExportDeclaration",
+      "dataName": "NamespaceExportDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "NamespaceImport",
+      "dataName": "NamespaceImportData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "NewExpression",
+      "dataName": "NewExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "arguments", "rustName": "arguments", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "questionDotToken", "array": false},
+        {"name": "typeArguments", "array": true},
+        {"name": "arguments", "array": true}
+      ]
+    },
+    {
+      "kindName": "NoSubstitutionTemplateLiteral",
+      "dataName": "NoSubstitutionTemplateLiteralData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "NonNullExpression",
+      "dataName": "NonNullExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "NumericLiteral",
+      "dataName": "NumericLiteralData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "ObjectBindingPattern",
+      "dataName": "ObjectBindingPatternData",
+      "fields": [
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "elements", "array": true}
+      ]
+    },
+    {
+      "kindName": "ObjectLiteralExpression",
+      "dataName": "ObjectLiteralExpressionData",
+      "fields": [
+        {"name": "properties", "rustName": "properties", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "properties", "array": true}
+      ]
+    },
+    {
+      "kindName": "OptionalType",
+      "dataName": "OptionalTypeData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "Parameter",
+      "dataName": "ParameterData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "dotDotDotToken", "rustName": "dot_dot_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "dotDotDotToken", "array": false},
+        {"name": "name", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "type", "array": false},
+        {"name": "initializer", "array": false}
+      ]
+    },
+    {
+      "kindName": "ParenthesizedExpression",
+      "dataName": "ParenthesizedExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "ParenthesizedType",
+      "dataName": "ParenthesizedTypeData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "PartiallyEmittedExpression",
+      "dataName": "PartiallyEmittedExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "PostfixUnaryExpression",
+      "dataName": "PostfixUnaryExpressionData",
+      "fields": [
+        {"name": "operand", "rustName": "operand", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "operand", "array": false}
+      ]
+    },
+    {
+      "kindName": "PrefixUnaryExpression",
+      "dataName": "PrefixUnaryExpressionData",
+      "fields": [
+        {"name": "operand", "rustName": "operand", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "operand", "array": false}
+      ]
+    },
+    {
+      "kindName": "PrivateIdentifier",
+      "dataName": "PrivateIdentifierData",
+      "fields": [
+        {"name": "escapedText", "rustName": "escaped_text", "type": "String", "optional": false, "child": false},
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "PropertyAccessExpression",
+      "dataName": "PropertyAccessExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "questionDotToken", "array": false},
+        {"name": "name", "array": false}
+      ]
+    },
+    {
+      "kindName": "PropertyAssignment",
+      "dataName": "PropertyAssignmentData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "exclamationToken", "array": false},
+        {"name": "initializer", "array": false}
+      ]
+    },
+    {
+      "kindName": "PropertyDeclaration",
+      "dataName": "PropertyDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "exclamationToken", "array": false},
+        {"name": "type", "array": false},
+        {"name": "initializer", "array": false}
+      ]
+    },
+    {
+      "kindName": "PropertySignature",
+      "dataName": "PropertySignatureData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "type", "array": false},
+        {"name": "initializer", "array": false}
+      ]
+    },
+    {
+      "kindName": "QualifiedName",
+      "dataName": "QualifiedNameData",
+      "fields": [
+        {"name": "left", "rustName": "left", "type": "Node", "optional": true, "child": true},
+        {"name": "right", "rustName": "right", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "left", "array": false},
+        {"name": "right", "array": false}
+      ]
+    },
+    {
+      "kindName": "RegularExpressionLiteral",
+      "dataName": "RegularExpressionLiteralData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "RestType",
+      "dataName": "RestTypeData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "ReturnStatement",
+      "dataName": "ReturnStatementData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "SatisfiesExpression",
+      "dataName": "SatisfiesExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "SetAccessor",
+      "dataName": "SetAccessorData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true},
+        {"name": "body", "array": false}
+      ]
+    },
+    {
+      "kindName": "ShorthandPropertyAssignment",
+      "dataName": "ShorthandPropertyAssignmentData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
+        {"name": "equalsToken", "rustName": "equals_token", "type": "Node", "optional": true, "child": true},
+        {"name": "objectAssignmentInitializer", "rustName": "object_assignment_initializer", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "questionToken", "array": false},
+        {"name": "exclamationToken", "array": false},
+        {"name": "equalsToken", "array": false},
+        {"name": "objectAssignmentInitializer", "array": false}
+      ]
+    },
+    {
+      "kindName": "SourceFile",
+      "dataName": "SourceFileData",
+      "fields": [
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "endOfFileToken", "rustName": "end_of_file_token", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "statements", "array": true},
+        {"name": "endOfFileToken", "array": false}
+      ]
+    },
+    {
+      "kindName": "SpreadAssignment",
+      "dataName": "SpreadAssignmentData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "SpreadElement",
+      "dataName": "SpreadElementData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "StringLiteral",
+      "dataName": "StringLiteralData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "SwitchStatement",
+      "dataName": "SwitchStatementData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "caseBlock", "rustName": "case_block", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "caseBlock", "array": false}
+      ]
+    },
+    {
+      "kindName": "SyntaxList",
+      "dataName": "SyntaxListData",
+      "fields": [
+        {"name": "readonly pos", "rustName": "readonly_pos", "type": "Number", "optional": false, "child": false},
+        {"name": "readonly end", "rustName": "readonly_end", "type": "Number", "optional": false, "child": false},
+        {"name": "readonly kind", "rustName": "readonly_kind", "type": "SyntaxKind", "optional": false, "child": false},
+        {"name": "readonly flags", "rustName": "readonly_flags", "type": "Node", "optional": false, "child": false},
+        {"name": "readonly parent", "rustName": "readonly_parent", "type": "Node", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "TaggedTemplateExpression",
+      "dataName": "TaggedTemplateExpressionData",
+      "fields": [
+        {"name": "tag", "rustName": "tag", "type": "Node", "optional": true, "child": true},
+        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "template", "rustName": "template", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tag", "array": false},
+        {"name": "questionDotToken", "array": false},
+        {"name": "typeArguments", "array": true},
+        {"name": "template", "array": false}
+      ]
+    },
+    {
+      "kindName": "TemplateExpression",
+      "dataName": "TemplateExpressionData",
+      "fields": [
+        {"name": "head", "rustName": "head", "type": "Node", "optional": true, "child": true},
+        {"name": "templateSpans", "rustName": "template_spans", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "head", "array": false},
+        {"name": "templateSpans", "array": true}
+      ]
+    },
+    {
+      "kindName": "TemplateHead",
+      "dataName": "TemplateHeadData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false},
+        {"name": "rawText", "rustName": "raw_text", "type": "String", "optional": true, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "TemplateLiteralType",
+      "dataName": "TemplateLiteralTypeData",
+      "fields": [
+        {"name": "readonly pos", "rustName": "readonly_pos", "type": "Number", "optional": false, "child": false},
+        {"name": "readonly end", "rustName": "readonly_end", "type": "Number", "optional": false, "child": false},
+        {"name": "readonly kind", "rustName": "readonly_kind", "type": "SyntaxKind", "optional": false, "child": false},
+        {"name": "readonly flags", "rustName": "readonly_flags", "type": "Node", "optional": false, "child": false},
+        {"name": "readonly parent", "rustName": "readonly_parent", "type": "Node", "optional": false, "child": false},
+        {"name": "readonly head", "rustName": "readonly_head", "type": "Payload", "optional": false, "child": false},
+        {"name": "readonly templateSpans", "rustName": "readonly_template_spans", "type": "NodeArray", "optional": false, "child": false},
+        {"name": "head", "rustName": "head", "type": "Node", "optional": true, "child": true},
+        {"name": "templateSpans", "rustName": "template_spans", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "head", "array": false},
+        {"name": "templateSpans", "array": true}
+      ]
+    },
+    {
+      "kindName": "TemplateLiteralTypeSpan",
+      "dataName": "TemplateLiteralTypeSpanData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "literal", "rustName": "literal", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false},
+        {"name": "literal", "array": false}
+      ]
+    },
+    {
+      "kindName": "TemplateMiddle",
+      "dataName": "TemplateMiddleData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false},
+        {"name": "rawText", "rustName": "raw_text", "type": "String", "optional": true, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "TemplateSpan",
+      "dataName": "TemplateSpanData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "literal", "rustName": "literal", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "literal", "array": false}
+      ]
+    },
+    {
+      "kindName": "TemplateTail",
+      "dataName": "TemplateTailData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false},
+        {"name": "rawText", "rustName": "raw_text", "type": "String", "optional": true, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
+      "kindName": "ThrowStatement",
+      "dataName": "ThrowStatementData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "TryStatement",
+      "dataName": "TryStatementData",
+      "fields": [
+        {"name": "tryBlock", "rustName": "try_block", "type": "Node", "optional": true, "child": true},
+        {"name": "catchClause", "rustName": "catch_clause", "type": "Node", "optional": true, "child": true},
+        {"name": "finallyBlock", "rustName": "finally_block", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "tryBlock", "array": false},
+        {"name": "catchClause", "array": false},
+        {"name": "finallyBlock", "array": false}
+      ]
+    },
+    {
+      "kindName": "TupleType",
+      "dataName": "TupleTypeData",
+      "fields": [
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "elements", "array": true}
+      ]
+    },
+    {
+      "kindName": "TypeAliasDeclaration",
+      "dataName": "TypeAliasDeclarationData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "type", "array": false},
+        {"name": "typeParameters", "array": true}
+      ]
+    },
+    {
+      "kindName": "TypeAssertionExpression",
+      "dataName": "TypeAssertionExpressionData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false},
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "TypeLiteral",
+      "dataName": "TypeLiteralData",
+      "fields": [
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "members", "array": true}
+      ]
+    },
+    {
+      "kindName": "TypeOfExpression",
+      "dataName": "TypeOfExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "TypeOperator",
+      "dataName": "TypeOperatorData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "TypeParameter",
+      "dataName": "TypeParameterData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "constraint", "rustName": "constraint", "type": "Node", "optional": true, "child": true},
+        {"name": "default", "rustName": "r#default", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "name", "array": false},
+        {"name": "constraint", "array": false},
+        {"name": "default", "array": false},
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "TypePredicate",
+      "dataName": "TypePredicateData",
+      "fields": [
+        {"name": "assertsModifier", "rustName": "asserts_modifier", "type": "Node", "optional": true, "child": true},
+        {"name": "parameterName", "rustName": "parameter_name", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "assertsModifier", "array": false},
+        {"name": "parameterName", "array": false},
+        {"name": "type", "array": false}
+      ]
+    },
+    {
+      "kindName": "TypeQuery",
+      "dataName": "TypeQueryData",
+      "fields": [
+        {"name": "exprName", "rustName": "expr_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "exprName", "array": false},
+        {"name": "typeArguments", "array": true}
+      ]
+    },
+    {
+      "kindName": "TypeReference",
+      "dataName": "TypeReferenceData",
+      "fields": [
+        {"name": "typeName", "rustName": "type_name", "type": "Node", "optional": true, "child": true},
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "typeName", "array": false},
+        {"name": "typeArguments", "array": true}
+      ]
+    },
+    {
+      "kindName": "UnionType",
+      "dataName": "UnionTypeData",
+      "fields": [
+        {"name": "types", "rustName": "types", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "types", "array": true}
+      ]
+    },
+    {
+      "kindName": "VariableDeclaration",
+      "dataName": "VariableDeclarationData",
+      "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "name", "array": false},
+        {"name": "exclamationToken", "array": false},
+        {"name": "type", "array": false},
+        {"name": "initializer", "array": false}
+      ]
+    },
+    {
+      "kindName": "VariableDeclarationList",
+      "dataName": "VariableDeclarationListData",
+      "fields": [
+        {"name": "declarations", "rustName": "declarations", "type": "NodeArray", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "declarations", "array": true}
+      ]
+    },
+    {
+      "kindName": "VariableStatement",
+      "dataName": "VariableStatementData",
+      "fields": [
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "declarationList", "rustName": "declaration_list", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "modifiers", "array": true},
+        {"name": "declarationList", "array": false}
+      ]
+    },
+    {
+      "kindName": "VoidExpression",
+      "dataName": "VoidExpressionData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false}
+      ]
+    },
+    {
+      "kindName": "WhileStatement",
+      "dataName": "WhileStatementData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "statement", "array": false}
+      ]
+    },
+    {
+      "kindName": "WithStatement",
+      "dataName": "WithStatementData",
+      "fields": [
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "expression", "array": false},
+        {"name": "statement", "array": false}
+      ]
+    },
+    {
+      "kindName": "YieldExpression",
+      "dataName": "YieldExpressionData",
+      "fields": [
+        {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+      ],
+      "children": [
+        {"name": "asteriskToken", "array": false},
+        {"name": "expression", "array": false}
+      ]
+    }
+  ]
+}
