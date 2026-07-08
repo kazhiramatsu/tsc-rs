@@ -57,9 +57,17 @@ impl TokenFlags {
     const PRECEDING_LINE_BREAK: Self = Self(1);
     const UNTERMINATED: Self = Self(4);
     const EXTENDED_UNICODE_ESCAPE: Self = Self(8);
+    const SCIENTIFIC: Self = Self(16);
+    const OCTAL: Self = Self(32);
+    const HEX_SPECIFIER: Self = Self(64);
+    const BINARY_SPECIFIER: Self = Self(128);
+    const OCTAL_SPECIFIER: Self = Self(256);
+    const CONTAINS_SEPARATOR: Self = Self(512);
     const UNICODE_ESCAPE: Self = Self(1024);
     const CONTAINS_INVALID_ESCAPE: Self = Self(2048);
     const HEX_ESCAPE: Self = Self(4096);
+    const CONTAINS_LEADING_ZERO: Self = Self(8192);
+    const CONTAINS_INVALID_SEPARATOR: Self = Self(16384);
 
     const fn empty() -> Self {
         Self(0)
@@ -754,46 +762,404 @@ impl<'text> Scanner<'text> {
     }
 
     fn scan_number_literal(&mut self) -> SyntaxKind {
-        if self.starts_with("0x") || self.starts_with("0X") {
+        let start = self.pos;
+
+        if self.byte_at(self.pos) == Some(b'0')
+            && self.pos + 2 < self.end
+            && matches!(self.byte_at(self.pos + 1), Some(b'x' | b'X'))
+        {
             self.pos += 2;
-            self.skip_while_ascii(|byte| byte.is_ascii_hexdigit() || byte == b'_');
-            return self.finish_number_with_bigint_suffix();
+            self.token_value = self.scan_hex_digits(1, true, true);
+            if self.token_value.is_empty() {
+                self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
+                self.token_value = "0".to_owned();
+            }
+            self.token_value = format!("0x{}", self.token_value);
+            self.token_flags.insert(TokenFlags::HEX_SPECIFIER);
+            return self.check_big_int_suffix();
         }
-        if self.starts_with("0b") || self.starts_with("0B") {
+        if self.byte_at(self.pos) == Some(b'0')
+            && self.pos + 2 < self.end
+            && matches!(self.byte_at(self.pos + 1), Some(b'b' | b'B'))
+        {
             self.pos += 2;
-            self.skip_while_ascii(|byte| matches!(byte, b'0' | b'1' | b'_'));
-            return self.finish_number_with_bigint_suffix();
+            self.token_value = self.scan_binary_or_octal_digits(2);
+            if self.token_value.is_empty() {
+                self.error_at(self.pos, 0, &gen::Binary_digit_expected);
+                self.token_value = "0".to_owned();
+            }
+            self.token_value = format!("0b{}", self.token_value);
+            self.token_flags.insert(TokenFlags::BINARY_SPECIFIER);
+            return self.check_big_int_suffix();
         }
-        if self.starts_with("0o") || self.starts_with("0O") {
+        if self.byte_at(self.pos) == Some(b'0')
+            && self.pos + 2 < self.end
+            && matches!(self.byte_at(self.pos + 1), Some(b'o' | b'O'))
+        {
             self.pos += 2;
-            self.skip_while_ascii(|byte| matches!(byte, b'0'..=b'7' | b'_'));
-            return self.finish_number_with_bigint_suffix();
+            self.token_value = self.scan_binary_or_octal_digits(8);
+            if self.token_value.is_empty() {
+                self.error_at(self.pos, 0, &gen::Octal_digit_expected);
+                self.token_value = "0".to_owned();
+            }
+            self.token_value = format!("0o{}", self.token_value);
+            self.token_flags.insert(TokenFlags::OCTAL_SPECIFIER);
+            return self.check_big_int_suffix();
         }
 
-        self.skip_while_ascii(|byte| byte.is_ascii_digit() || byte == b'_');
-        if self.starts_with(".") {
+        self.scan_number(start)
+    }
+
+    fn scan_number(&mut self, start: usize) -> SyntaxKind {
+        let main_fragment = if self.byte_at(self.pos) == Some(b'0') {
             self.pos += 1;
-            self.skip_while_ascii(|byte| byte.is_ascii_digit() || byte == b'_');
+            if self.byte_at(self.pos) == Some(b'_') {
+                self.token_flags.insert(TokenFlags::CONTAINS_SEPARATOR);
+                self.token_flags
+                    .insert(TokenFlags::CONTAINS_INVALID_SEPARATOR);
+                self.error_at(self.pos, 1, &gen::Numeric_separators_are_not_allowed_here);
+                self.pos -= 1;
+                self.scan_number_fragment()
+            } else {
+                let (digits, is_octal) = self.scan_digits();
+                if !is_octal {
+                    self.token_flags.insert(TokenFlags::CONTAINS_LEADING_ZERO);
+                    js_number_to_string(&digits)
+                } else if digits.is_empty() {
+                    "0".to_owned()
+                } else {
+                    let value = trim_leading_zeroes(&digits);
+                    self.token_value = radix_digits_to_decimal_string(value, 8);
+                    self.token_flags.insert(TokenFlags::OCTAL);
+                    let with_minus = self.token == SyntaxKind::MinusToken;
+                    let error_start = if with_minus {
+                        start.saturating_sub(1)
+                    } else {
+                        start
+                    };
+                    let arg = format!("{}0o{}", if with_minus { "-" } else { "" }, value);
+                    self.error_at_with_args(
+                        error_start,
+                        self.pos - error_start,
+                        &gen::Octal_literals_are_not_allowed_Use_the_syntax_0,
+                        vec![arg],
+                    );
+                    self.token = SyntaxKind::NumericLiteral;
+                    return self.token;
+                }
+            }
+        } else {
+            self.scan_number_fragment()
+        };
+
+        let mut decimal_fragment = None;
+        if self.byte_at(self.pos) == Some(b'.') {
+            self.pos += 1;
+            decimal_fragment = Some(self.scan_number_fragment());
         }
+
+        let mut end = self.pos;
+        let mut scientific_fragment = None;
         if matches!(self.byte_at(self.pos), Some(b'e' | b'E')) {
             self.pos += 1;
+            self.token_flags.insert(TokenFlags::SCIENTIFIC);
             if matches!(self.byte_at(self.pos), Some(b'+' | b'-')) {
                 self.pos += 1;
             }
-            self.skip_while_ascii(|byte| byte.is_ascii_digit() || byte == b'_');
+            let pre_numeric_part = self.pos;
+            let final_fragment = self.scan_number_fragment();
+            if final_fragment.is_empty() {
+                self.error_at(self.pos, 0, &gen::Digit_expected);
+            } else {
+                scientific_fragment = Some(format!(
+                    "{}{}",
+                    &self.text[end..pre_numeric_part],
+                    final_fragment
+                ));
+                end = self.pos;
+            }
         }
 
-        self.finish_number_with_bigint_suffix()
+        let mut result = if self.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
+            let mut result = main_fragment;
+            if let Some(fragment) = &decimal_fragment {
+                result.push('.');
+                result.push_str(fragment);
+            }
+            if let Some(fragment) = &scientific_fragment {
+                result.push_str(fragment);
+            }
+            result
+        } else {
+            self.text[start..end].to_owned()
+        };
+
+        if self.token_flags.contains(TokenFlags::CONTAINS_LEADING_ZERO) {
+            self.error_at(
+                start,
+                end.saturating_sub(start),
+                &gen::Decimals_with_leading_zeros_are_not_allowed,
+            );
+            self.token_value = js_number_to_string(&result);
+            self.token = SyntaxKind::NumericLiteral;
+            return self.token;
+        }
+
+        if decimal_fragment.is_some() || self.token_flags.contains(TokenFlags::SCIENTIFIC) {
+            let is_scientific =
+                decimal_fragment.is_none() && self.token_flags.contains(TokenFlags::SCIENTIFIC);
+            self.check_for_identifier_start_after_numeric_literal(start, is_scientific);
+            self.token_value = js_number_to_string(&result);
+            self.token = SyntaxKind::NumericLiteral;
+            return self.token;
+        }
+
+        self.token_value = std::mem::take(&mut result);
+        let token = self.check_big_int_suffix();
+        self.check_for_identifier_start_after_numeric_literal(start, false);
+        token
     }
 
-    fn finish_number_with_bigint_suffix(&mut self) -> SyntaxKind {
-        if self.starts_with("n") {
+    fn scan_number_fragment(&mut self) -> String {
+        let mut start = self.pos;
+        let mut allow_separator = false;
+        let mut is_previous_token_separator = false;
+        let mut result = String::new();
+
+        loop {
+            match self.byte_at(self.pos) {
+                Some(b'_') => {
+                    self.token_flags.insert(TokenFlags::CONTAINS_SEPARATOR);
+                    if allow_separator {
+                        allow_separator = false;
+                        is_previous_token_separator = true;
+                        result.push_str(&self.text[start..self.pos]);
+                    } else {
+                        self.token_flags
+                            .insert(TokenFlags::CONTAINS_INVALID_SEPARATOR);
+                        let message = if is_previous_token_separator {
+                            &gen::Multiple_consecutive_numeric_separators_are_not_permitted
+                        } else {
+                            &gen::Numeric_separators_are_not_allowed_here
+                        };
+                        self.error_at(self.pos, 1, message);
+                    }
+                    self.pos += 1;
+                    start = self.pos;
+                }
+                Some(byte) if byte.is_ascii_digit() => {
+                    allow_separator = true;
+                    is_previous_token_separator = false;
+                    self.pos += 1;
+                }
+                _ => break,
+            }
+        }
+
+        if self.pos > 0 && self.byte_at(self.pos - 1) == Some(b'_') {
+            self.token_flags
+                .insert(TokenFlags::CONTAINS_INVALID_SEPARATOR);
+            self.error_at(
+                self.pos - 1,
+                1,
+                &gen::Numeric_separators_are_not_allowed_here,
+            );
+        }
+        result.push_str(&self.text[start..self.pos]);
+        result
+    }
+
+    fn scan_digits(&mut self) -> (String, bool) {
+        let start = self.pos;
+        let mut is_octal = true;
+        while let Some(byte) = self.byte_at(self.pos) {
+            if !byte.is_ascii_digit() {
+                break;
+            }
+            if !matches!(byte, b'0'..=b'7') {
+                is_octal = false;
+            }
+            self.pos += 1;
+        }
+        (self.text[start..self.pos].to_owned(), is_octal)
+    }
+
+    fn scan_hex_digits(
+        &mut self,
+        min_count: usize,
+        scan_as_many_as_possible: bool,
+        can_have_separators: bool,
+    ) -> String {
+        let mut value = String::new();
+        let mut allow_separator = false;
+        let mut is_previous_token_separator = false;
+
+        while value.len() < min_count || scan_as_many_as_possible {
+            let Some(byte) = self.byte_at(self.pos) else {
+                break;
+            };
+            if can_have_separators && byte == b'_' {
+                self.token_flags.insert(TokenFlags::CONTAINS_SEPARATOR);
+                if allow_separator {
+                    allow_separator = false;
+                    is_previous_token_separator = true;
+                } else {
+                    let message = if is_previous_token_separator {
+                        &gen::Multiple_consecutive_numeric_separators_are_not_permitted
+                    } else {
+                        &gen::Numeric_separators_are_not_allowed_here
+                    };
+                    self.error_at(self.pos, 1, message);
+                }
+                self.pos += 1;
+                continue;
+            }
+
+            allow_separator = can_have_separators;
+            let lower = byte.to_ascii_lowercase();
+            if !lower.is_ascii_hexdigit() {
+                break;
+            }
+            value.push(lower as char);
+            self.pos += 1;
+            is_previous_token_separator = false;
+        }
+
+        if value.len() < min_count {
+            value.clear();
+        }
+        if self.pos > 0 && self.byte_at(self.pos - 1) == Some(b'_') {
+            self.error_at(
+                self.pos - 1,
+                1,
+                &gen::Numeric_separators_are_not_allowed_here,
+            );
+        }
+        value
+    }
+
+    fn scan_binary_or_octal_digits(&mut self, base: u8) -> String {
+        let mut value = String::new();
+        let mut separator_allowed = false;
+        let mut is_previous_token_separator = false;
+
+        loop {
+            let Some(byte) = self.byte_at(self.pos) else {
+                break;
+            };
+            if byte == b'_' {
+                self.token_flags.insert(TokenFlags::CONTAINS_SEPARATOR);
+                if separator_allowed {
+                    separator_allowed = false;
+                    is_previous_token_separator = true;
+                } else {
+                    let message = if is_previous_token_separator {
+                        &gen::Multiple_consecutive_numeric_separators_are_not_permitted
+                    } else {
+                        &gen::Numeric_separators_are_not_allowed_here
+                    };
+                    self.error_at(self.pos, 1, message);
+                }
+                self.pos += 1;
+                continue;
+            }
+
+            separator_allowed = true;
+            if !byte.is_ascii_digit() || byte - b'0' >= base {
+                break;
+            }
+            value.push(byte as char);
+            self.pos += 1;
+            is_previous_token_separator = false;
+        }
+
+        if self.pos > 0 && self.byte_at(self.pos - 1) == Some(b'_') {
+            self.error_at(
+                self.pos - 1,
+                1,
+                &gen::Numeric_separators_are_not_allowed_here,
+            );
+        }
+        value
+    }
+
+    fn check_big_int_suffix(&mut self) -> SyntaxKind {
+        if self.byte_at(self.pos) == Some(b'n') {
+            self.token_value.push('n');
+            if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
+                let digits = &self.token_value[2..self.token_value.len() - 1];
+                self.token_value = format!("{}n", radix_digits_to_decimal_string(digits, 2));
+            } else if self.token_flags.contains(TokenFlags::OCTAL_SPECIFIER) {
+                let digits = &self.token_value[2..self.token_value.len() - 1];
+                self.token_value = format!("{}n", radix_digits_to_decimal_string(digits, 8));
+            }
             self.pos += 1;
             self.token = SyntaxKind::BigIntLiteral;
         } else {
+            if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
+                self.token_value = radix_digits_to_decimal_string(&self.token_value[2..], 2);
+            } else if self.token_flags.contains(TokenFlags::OCTAL_SPECIFIER) {
+                self.token_value = radix_digits_to_decimal_string(&self.token_value[2..], 8);
+            } else if self.token_flags.contains(TokenFlags::HEX_SPECIFIER) {
+                self.token_value = radix_digits_to_decimal_string(&self.token_value[2..], 16);
+            } else {
+                self.token_value = js_number_to_string(&self.token_value);
+            }
             self.token = SyntaxKind::NumericLiteral;
         }
         self.token
+    }
+
+    fn check_for_identifier_start_after_numeric_literal(
+        &mut self,
+        numeric_start: usize,
+        is_scientific: bool,
+    ) {
+        let Some(ch) = self.current_char() else {
+            return;
+        };
+        if !chars::is_identifier_start(ch) {
+            return;
+        }
+
+        let identifier_start = self.pos;
+        let length = self.scan_identifier_part_length();
+        if length == 1 && self.text[identifier_start..].starts_with('n') {
+            let message = if is_scientific {
+                &gen::A_bigint_literal_cannot_use_exponential_notation
+            } else {
+                &gen::A_bigint_literal_must_be_an_integer
+            };
+            self.error_at(numeric_start, identifier_start - numeric_start + 1, message);
+        } else {
+            self.error_at(
+                identifier_start,
+                length,
+                &gen::An_identifier_or_keyword_cannot_immediately_follow_a_numeric_literal,
+            );
+            self.pos = identifier_start;
+        }
+    }
+
+    fn scan_identifier_part_length(&mut self) -> usize {
+        let start = self.pos;
+        while let Some(ch) = self.current_char() {
+            if chars::is_identifier_part(ch) {
+                self.advance_char();
+            } else if ch == '\\' {
+                let escape_start = self.pos;
+                if let Some(ch) = self.scan_unicode_escape() {
+                    if chars::is_identifier_part(ch) {
+                        continue;
+                    }
+                }
+                self.pos = escape_start;
+                break;
+            } else {
+                break;
+            }
+        }
+        self.pos - start
     }
 
     fn finish_token(&mut self, kind: SyntaxKind, width: usize) -> SyntaxKind {
@@ -803,11 +1169,21 @@ impl<'text> Scanner<'text> {
     }
 
     fn error_at(&mut self, start: usize, length: usize, message: &'static DiagnosticMessage) {
+        self.error_at_with_args(start, length, message, Vec::new());
+    }
+
+    fn error_at_with_args(
+        &mut self,
+        start: usize,
+        length: usize,
+        message: &'static DiagnosticMessage,
+        args: Vec<String>,
+    ) {
         self.errors.push(ScanError {
             message,
             start,
             length,
-            args: Vec::new(),
+            args,
         });
     }
 
@@ -829,12 +1205,6 @@ impl<'text> Scanner<'text> {
     fn byte_at(&self, pos: usize) -> Option<u8> {
         self.text.as_bytes().get(pos).copied()
     }
-
-    fn skip_while_ascii(&mut self, predicate: impl Fn(u8) -> bool) {
-        while self.byte_at(self.pos).is_some_and(&predicate) {
-            self.pos += 1;
-        }
-    }
 }
 
 fn is_ascii_digit(byte: u8) -> bool {
@@ -849,6 +1219,76 @@ fn utf16_encode_as_string(value: u32) -> String {
     char::from_u32(value)
         .unwrap_or(char::REPLACEMENT_CHARACTER)
         .to_string()
+}
+
+fn trim_leading_zeroes(text: &str) -> &str {
+    let trimmed = text.trim_start_matches('0');
+    if trimmed.is_empty() {
+        "0"
+    } else {
+        trimmed
+    }
+}
+
+fn radix_digits_to_decimal_string(digits: &str, radix: u32) -> String {
+    let mut decimal_digits = vec![0_u8];
+
+    for byte in digits.bytes() {
+        let Some(digit) = ascii_digit_value(byte) else {
+            continue;
+        };
+        if digit >= radix {
+            continue;
+        }
+
+        let mut carry = digit;
+        for place in &mut decimal_digits {
+            let value = u32::from(*place) * radix + carry;
+            *place = (value % 10) as u8;
+            carry = value / 10;
+        }
+        while carry > 0 {
+            decimal_digits.push((carry % 10) as u8);
+            carry /= 10;
+        }
+    }
+
+    while decimal_digits.len() > 1 && decimal_digits.last() == Some(&0) {
+        decimal_digits.pop();
+    }
+
+    decimal_digits
+        .iter()
+        .rev()
+        .map(|digit| char::from(b'0' + *digit))
+        .collect()
+}
+
+fn ascii_digit_value(byte: u8) -> Option<u32> {
+    match byte {
+        b'0'..=b'9' => Some(u32::from(byte - b'0')),
+        b'a'..=b'f' => Some(u32::from(byte - b'a' + 10)),
+        b'A'..=b'F' => Some(u32::from(byte - b'A' + 10)),
+        _ => None,
+    }
+}
+
+fn js_number_to_string(text: &str) -> String {
+    let normalized;
+    let text = if text.starts_with('.') {
+        normalized = format!("0{text}");
+        normalized.as_str()
+    } else {
+        text
+    };
+
+    match text.parse::<f64>() {
+        Ok(0.0) => "0".to_owned(),
+        Ok(value) if value.is_finite() => value.to_string(),
+        Ok(value) if value.is_sign_positive() => "Infinity".to_owned(),
+        Ok(_) => "-Infinity".to_owned(),
+        Err(_) => "NaN".to_owned(),
+    }
 }
 
 pub fn scan_tokens(text: &str, variant: LanguageVariant) -> Vec<TokenRecord> {
@@ -1242,5 +1682,199 @@ mod tests {
                 case.text
             );
         }
+    }
+
+    #[test]
+    fn numeric_literal_oracle_pins() {
+        struct Case {
+            text: &'static str,
+            kind: SyntaxKind,
+            end: usize,
+            value: &'static str,
+            flags: u32,
+            errors: &'static [(usize, usize, u32)],
+        }
+
+        let cases = [
+            Case {
+                text: "1_2",
+                kind: SyntaxKind::NumericLiteral,
+                end: 3,
+                value: "12",
+                flags: 512,
+                errors: &[],
+            },
+            Case {
+                text: "1__2",
+                kind: SyntaxKind::NumericLiteral,
+                end: 4,
+                value: "12",
+                flags: 16896,
+                errors: &[(2, 1, 6189)],
+            },
+            Case {
+                text: "1_",
+                kind: SyntaxKind::NumericLiteral,
+                end: 2,
+                value: "1",
+                flags: 16896,
+                errors: &[(1, 1, 6188)],
+            },
+            Case {
+                text: "0_1",
+                kind: SyntaxKind::NumericLiteral,
+                end: 3,
+                value: "1",
+                flags: 16896,
+                errors: &[(1, 1, 6188)],
+            },
+            Case {
+                text: "01",
+                kind: SyntaxKind::NumericLiteral,
+                end: 2,
+                value: "1",
+                flags: 32,
+                errors: &[(0, 2, 1121)],
+            },
+            Case {
+                text: "08",
+                kind: SyntaxKind::NumericLiteral,
+                end: 2,
+                value: "8",
+                flags: 8192,
+                errors: &[(0, 2, 1489)],
+            },
+            Case {
+                text: "1e2",
+                kind: SyntaxKind::NumericLiteral,
+                end: 3,
+                value: "100",
+                flags: 16,
+                errors: &[],
+            },
+            Case {
+                text: "1e+n",
+                kind: SyntaxKind::NumericLiteral,
+                end: 4,
+                value: "1",
+                flags: 16,
+                errors: &[(3, 0, 1124), (0, 4, 1352)],
+            },
+            Case {
+                text: "1.0n",
+                kind: SyntaxKind::NumericLiteral,
+                end: 4,
+                value: "1",
+                flags: 0,
+                errors: &[(0, 4, 1353)],
+            },
+            Case {
+                text: "1n",
+                kind: SyntaxKind::BigIntLiteral,
+                end: 2,
+                value: "1n",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "0xAFn",
+                kind: SyntaxKind::BigIntLiteral,
+                end: 5,
+                value: "0xafn",
+                flags: 64,
+                errors: &[],
+            },
+            Case {
+                text: "0x_f",
+                kind: SyntaxKind::NumericLiteral,
+                end: 4,
+                value: "15",
+                flags: 576,
+                errors: &[(2, 1, 6188)],
+            },
+            Case {
+                text: "0x",
+                kind: SyntaxKind::NumericLiteral,
+                end: 1,
+                value: "0",
+                flags: 0,
+                errors: &[(1, 1, 1351)],
+            },
+            Case {
+                text: "0b101n",
+                kind: SyntaxKind::BigIntLiteral,
+                end: 6,
+                value: "5n",
+                flags: 128,
+                errors: &[],
+            },
+            Case {
+                text: "0b_",
+                kind: SyntaxKind::NumericLiteral,
+                end: 3,
+                value: "0",
+                flags: 640,
+                errors: &[(2, 1, 6188), (2, 1, 6188), (3, 0, 1177)],
+            },
+            Case {
+                text: "0o77n",
+                kind: SyntaxKind::BigIntLiteral,
+                end: 5,
+                value: "63n",
+                flags: 256,
+                errors: &[],
+            },
+            Case {
+                text: ".5",
+                kind: SyntaxKind::NumericLiteral,
+                end: 2,
+                value: "0.5",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "00.1",
+                kind: SyntaxKind::NumericLiteral,
+                end: 2,
+                value: "0",
+                flags: 32,
+                errors: &[(0, 2, 1121)],
+            },
+        ];
+
+        for case in cases {
+            let mut scanner = Scanner::new(case.text, LanguageVariant::Standard);
+
+            assert_eq!(scanner.scan(), case.kind, "{}", case.text);
+            assert_eq!(scanner.pos(), case.end, "{}", case.text);
+            assert_eq!(scanner.token_value, case.value, "{}", case.text);
+            assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
+            assert_eq!(
+                scanner
+                    .errors()
+                    .iter()
+                    .map(|error| (error.start, error.length, error.message.code))
+                    .collect::<Vec<_>>(),
+                case.errors,
+                "{}",
+                case.text
+            );
+        }
+    }
+
+    #[test]
+    fn legacy_octal_after_minus_reports_from_minus() {
+        let mut scanner = Scanner::new("-01", LanguageVariant::Standard);
+
+        assert_eq!(scanner.scan(), SyntaxKind::MinusToken);
+        assert_eq!(scanner.scan(), SyntaxKind::NumericLiteral);
+
+        assert_eq!(scanner.token_value, "1");
+        assert_eq!(scanner.token_flags.0, 32);
+        assert_eq!(scanner.errors().len(), 1);
+        assert_eq!(scanner.errors()[0].start, 0);
+        assert_eq!(scanner.errors()[0].length, 3);
+        assert_eq!(scanner.errors()[0].message.code, 1121);
+        assert_eq!(scanner.errors()[0].args, vec!["-0o1".to_owned()]);
     }
 }
