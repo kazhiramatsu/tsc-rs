@@ -282,6 +282,7 @@ name = "tsrs2-syntax"
 version = "0.1.0"
 dependencies = [
  "tsrs2-diags",
+ "tsrs2-types",
 ]
 
 [[package]]

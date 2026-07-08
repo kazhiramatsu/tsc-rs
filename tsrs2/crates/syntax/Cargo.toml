@@ -10,3 +10,4 @@ path = "src/lib.rs"
 
 [dependencies]
 tsrs2-diags = { path = "../diags" }
+tsrs2-types = { path = "../types" }

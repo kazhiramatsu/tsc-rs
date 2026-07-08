@@ -1,0 +1,201 @@
+use crate::for_each_child::{for_each_child, NodeLookup};
+use crate::nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId};
+use crate::SyntaxKind;
+use tsrs2_types::NodeFlags;
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct NodeArena {
+    nodes: Vec<Node>,
+    arrays: Vec<NodeArray>,
+}
+
+impl NodeArena {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn alloc_node(
+        &mut self,
+        data: NodeData,
+        pos: usize,
+        end: usize,
+        flags: NodeFlags,
+    ) -> NodeId {
+        let kind = data
+            .kind()
+            .expect("NodeData::Token must be allocated with alloc_token");
+        self.push_node(kind, data, pos, end, flags)
+    }
+
+    pub fn alloc_token(
+        &mut self,
+        kind: SyntaxKind,
+        pos: usize,
+        end: usize,
+        flags: NodeFlags,
+    ) -> NodeId {
+        self.push_node(kind, NodeData::Token, pos, end, flags)
+    }
+
+    pub fn alloc_array(
+        &mut self,
+        nodes: Vec<NodeId>,
+        pos: usize,
+        end: usize,
+        has_trailing_comma: bool,
+    ) -> NodeArrayId {
+        let id = NodeArrayId(self.arrays.len() as u32);
+        self.arrays.push(NodeArray {
+            nodes,
+            pos: pos as u32,
+            end: end as u32,
+            has_trailing_comma,
+        });
+        id
+    }
+
+    pub fn empty_array(&mut self, pos: usize) -> NodeArrayId {
+        self.alloc_array(Vec::new(), pos, pos, false)
+    }
+
+    pub fn node(&self, id: NodeId) -> &Node {
+        &self.nodes[self.node_index(id)]
+    }
+
+    pub fn node_mut(&mut self, id: NodeId) -> &mut Node {
+        let index = self.node_index(id);
+        &mut self.nodes[index]
+    }
+
+    pub fn nodes(&self) -> &[Node] {
+        &self.nodes
+    }
+
+    pub fn node_array(&self, id: NodeArrayId) -> &NodeArray {
+        &self.arrays[self.array_index(id)]
+    }
+
+    pub fn node_arrays(&self) -> &[NodeArray] {
+        &self.arrays
+    }
+
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
+    pub fn finalize_tree(&mut self, root: NodeId) {
+        let mut seen = vec![false; self.nodes.len()];
+        self.finalize_node(root, None, &mut seen);
+    }
+
+    fn push_node(
+        &mut self,
+        kind: SyntaxKind,
+        data: NodeData,
+        pos: usize,
+        end: usize,
+        flags: NodeFlags,
+    ) -> NodeId {
+        let id = NodeId(self.nodes.len() as u32);
+        self.nodes.push(Node {
+            kind,
+            flags: flags.bits(),
+            pos: pos as u32,
+            end: end as u32,
+            parent: None,
+            data,
+        });
+        id
+    }
+
+    fn finalize_node(&mut self, id: NodeId, parent: Option<NodeId>, seen: &mut [bool]) -> bool {
+        let index = self.node_index(id);
+        assert!(!seen[index], "node has more than one parent: {id:?}");
+        seen[index] = true;
+        self.nodes[index].parent = parent;
+
+        let children = self.children(id);
+        let mut contains_error =
+            NodeFlags::from_bits(self.nodes[index].flags).contains(NodeFlags::THIS_NODE_HAS_ERROR);
+
+        for child in children {
+            if self.finalize_node(child, Some(id), seen) {
+                contains_error = true;
+            }
+        }
+
+        if contains_error {
+            self.nodes[index].flags |= NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR.bits();
+        }
+
+        contains_error
+    }
+
+    fn children(&self, id: NodeId) -> Vec<NodeId> {
+        let mut children = Vec::new();
+        for_each_child(self, self.node(id), |child| {
+            children.push(child);
+            false
+        });
+        children
+    }
+
+    fn node_index(&self, id: NodeId) -> usize {
+        let index = id.0 as usize;
+        assert!(index < self.nodes.len(), "invalid NodeId: {id:?}");
+        index
+    }
+
+    fn array_index(&self, id: NodeArrayId) -> usize {
+        let index = id.0 as usize;
+        assert!(index < self.arrays.len(), "invalid NodeArrayId: {id:?}");
+        index
+    }
+}
+
+impl NodeLookup for NodeArena {
+    fn node_array(&self, id: NodeArrayId) -> &NodeArray {
+        self.node_array(id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nodes::{SourceFileData, StringLiteralData};
+
+    #[test]
+    fn finalizes_parent_links_and_error_aggregation() {
+        let mut arena = NodeArena::new();
+        let stmt = arena.alloc_node(
+            NodeData::StringLiteral(StringLiteralData {
+                text: "x".to_owned(),
+            }),
+            0,
+            1,
+            NodeFlags::THIS_NODE_HAS_ERROR,
+        );
+        let statements = arena.alloc_array(vec![stmt], 0, 1, false);
+        let eof = arena.alloc_token(SyntaxKind::EndOfFileToken, 1, 1, NodeFlags::NONE);
+        let root = arena.alloc_node(
+            NodeData::SourceFile(SourceFileData {
+                statements: Some(statements),
+                end_of_file_token: Some(eof),
+            }),
+            0,
+            1,
+            NodeFlags::NONE,
+        );
+
+        arena.finalize_tree(root);
+
+        assert_eq!(arena.node(stmt).parent, Some(root));
+        assert_eq!(arena.node(eof).parent, Some(root));
+        assert!(NodeFlags::from_bits(arena.node(root).flags)
+            .contains(NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR));
+    }
+}
