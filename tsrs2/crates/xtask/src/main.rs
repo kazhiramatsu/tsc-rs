@@ -14,6 +14,7 @@ fn main() {
 
     match command.as_deref() {
         None | Some("scaffold-smoke") => scaffold_smoke(),
+        Some("expand") => run_or_exit(expand_fixture(args)),
         Some("codegen") => match args.next().as_deref() {
             Some("diags") => run_or_exit(codegen_diags(false)),
             Some("diags-check") => run_or_exit(codegen_diags(true)),
@@ -35,6 +36,36 @@ fn main() {
             std::process::exit(2);
         }
     }
+}
+
+fn expand_fixture(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut fixture = None;
+    let mut out_dir = None;
+    let mut args = args.peekable();
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--out-dir" => {
+                let value = args.next().ok_or("missing value after --out-dir")?;
+                out_dir = Some(PathBuf::from(value));
+            }
+            _ if fixture.is_none() => fixture = Some(PathBuf::from(arg)),
+            _ => return Err(format!("unexpected expand argument: {arg}").into()),
+        }
+    }
+
+    let fixture = fixture.ok_or("missing fixture path for expand")?;
+    let out_dir = out_dir.ok_or("missing --out-dir for expand")?;
+    let workspace = find_tsrs2_root()?;
+    let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+    let programs = tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
+    let paths = tsrs2_harness::write_program_jsons(&programs, &out_dir)?;
+
+    for path in paths {
+        println!("{}", path.display());
+    }
+
+    Ok(())
 }
 
 fn run_or_exit(result: Result<(), Box<dyn Error>>) {
