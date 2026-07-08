@@ -828,6 +828,297 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    #[allow(dead_code)]
+    fn re_scan_greater_token(&mut self) -> SyntaxKind {
+        if self.token == SyntaxKind::GreaterThanToken {
+            if self.byte_at(self.pos) == Some(b'>') {
+                if self.byte_at(self.pos + 1) == Some(b'>') {
+                    if self.byte_at(self.pos + 2) == Some(b'=') {
+                        self.pos += 3;
+                        self.token = SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken;
+                        return self.token;
+                    }
+                    self.pos += 2;
+                    self.token = SyntaxKind::GreaterThanGreaterThanGreaterThanToken;
+                    return self.token;
+                }
+                if self.byte_at(self.pos + 1) == Some(b'=') {
+                    self.pos += 2;
+                    self.token = SyntaxKind::GreaterThanGreaterThanEqualsToken;
+                    return self.token;
+                }
+                self.pos += 1;
+                self.token = SyntaxKind::GreaterThanGreaterThanToken;
+                return self.token;
+            }
+            if self.byte_at(self.pos) == Some(b'=') {
+                self.pos += 1;
+                self.token = SyntaxKind::GreaterThanEqualsToken;
+                return self.token;
+            }
+        }
+        self.token
+    }
+
+    #[allow(dead_code)]
+    fn re_scan_slash_token(&mut self, _report_errors: bool) -> SyntaxKind {
+        if !matches!(
+            self.token,
+            SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken
+        ) {
+            return self.token;
+        }
+
+        let start_of_regexp_body = self.token_start + 1;
+        self.pos = start_of_regexp_body;
+        let mut in_escape = false;
+        let mut in_character_class = false;
+
+        loop {
+            let Some(ch) = self.current_char() else {
+                self.token_flags.insert(TokenFlags::UNTERMINATED);
+                break;
+            };
+            if is_line_break(ch) {
+                self.token_flags.insert(TokenFlags::UNTERMINATED);
+                break;
+            }
+            if in_escape {
+                in_escape = false;
+            } else if ch == '/' && !in_character_class {
+                break;
+            } else if ch == '[' {
+                in_character_class = true;
+            } else if ch == '\\' {
+                in_escape = true;
+            } else if ch == ']' {
+                in_character_class = false;
+            }
+            self.advance_char();
+        }
+
+        let end_of_regexp_body = self.pos;
+        if self.token_flags.contains(TokenFlags::UNTERMINATED) {
+            self.pos = self.regex_unterminated_error_end(start_of_regexp_body, end_of_regexp_body);
+            self.error_at(
+                self.token_start,
+                self.pos - self.token_start,
+                &gen::Unterminated_regular_expression_literal,
+            );
+        } else {
+            self.pos += 1;
+            while let Some(ch) = self.current_char() {
+                if !chars::is_identifier_part(ch) {
+                    break;
+                }
+                self.advance_char();
+            }
+        }
+
+        self.token_value = self.text[self.token_start..self.pos].to_owned();
+        self.token = SyntaxKind::RegularExpressionLiteral;
+        self.token
+    }
+
+    fn regex_unterminated_error_end(&self, start: usize, end: usize) -> usize {
+        let mut pos = start;
+        let mut in_escape = false;
+        let mut character_class_depth = 0_u32;
+        let mut in_decimal_quantifier = false;
+        let mut group_depth = 0_u32;
+
+        while pos < end {
+            let ch = self.text[pos..]
+                .chars()
+                .next()
+                .expect("regex recovery stays on UTF-8 boundaries");
+            if in_escape {
+                in_escape = false;
+            } else if ch == '\\' {
+                in_escape = true;
+            } else if ch == '[' {
+                character_class_depth += 1;
+            } else if ch == ']' && character_class_depth > 0 {
+                character_class_depth -= 1;
+            } else if character_class_depth == 0 {
+                if ch == '{' {
+                    in_decimal_quantifier = true;
+                } else if ch == '}' && in_decimal_quantifier {
+                    in_decimal_quantifier = false;
+                } else if !in_decimal_quantifier {
+                    if ch == '(' {
+                        group_depth += 1;
+                    } else if ch == ')' && group_depth > 0 {
+                        group_depth -= 1;
+                    } else if matches!(ch, ')' | ']' | '}') {
+                        break;
+                    }
+                }
+            }
+            pos += ch.len_utf8();
+        }
+
+        while pos > self.token_start {
+            let Some((previous_pos, ch)) = self.text[..pos].char_indices().next_back() else {
+                break;
+            };
+            if is_whitespace_like(ch) || ch == ';' {
+                pos = previous_pos;
+            } else {
+                break;
+            }
+        }
+        pos
+    }
+
+    #[allow(dead_code)]
+    fn re_scan_less_than_token(&mut self) -> SyntaxKind {
+        if self.token == SyntaxKind::LessThanLessThanToken {
+            self.pos = self.token_start + 1;
+            self.token = SyntaxKind::LessThanToken;
+        }
+        self.token
+    }
+
+    #[allow(dead_code)]
+    fn re_scan_hash_token(&mut self) -> SyntaxKind {
+        if self.token == SyntaxKind::PrivateIdentifier {
+            self.pos = self.token_start + 1;
+            self.token = SyntaxKind::HashToken;
+        }
+        self.token
+    }
+
+    #[allow(dead_code)]
+    fn scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
+        self.full_start_pos = self.pos;
+        self.token_start = self.pos;
+
+        let Some(ch) = self.current_char() else {
+            self.token = SyntaxKind::EndOfFileToken;
+            return self.token;
+        };
+
+        if ch == '<' {
+            if self.byte_at(self.pos + 1) == Some(b'/') {
+                self.pos += 2;
+                self.token = SyntaxKind::LessThanSlashToken;
+                return self.token;
+            }
+            self.pos += 1;
+            self.token = SyntaxKind::LessThanToken;
+            return self.token;
+        }
+
+        if ch == '{' {
+            self.pos += 1;
+            self.token = SyntaxKind::OpenBraceToken;
+            return self.token;
+        }
+
+        let mut first_non_whitespace = 0_isize;
+        while let Some(ch) = self.current_char() {
+            if ch == '{' || ch == '<' {
+                break;
+            }
+            if ch == '>' {
+                self.error_at(self.pos, 1, &gen::Unexpected_token_Did_you_mean_or_gt);
+            }
+            if ch == '}' {
+                self.error_at(self.pos, 1, &gen::Unexpected_token_Did_you_mean_or_rbrace);
+            }
+            if is_line_break(ch) && first_non_whitespace == 0 {
+                first_non_whitespace = -1;
+            } else if !allow_multiline_jsx_text && is_line_break(ch) && first_non_whitespace > 0 {
+                break;
+            } else if !is_whitespace_like(ch) {
+                first_non_whitespace = self.pos as isize;
+            }
+            self.advance_char();
+        }
+
+        self.token_value = self.text[self.full_start_pos..self.pos].to_owned();
+        self.token = if first_non_whitespace == -1 {
+            SyntaxKind::JsxTextAllWhiteSpaces
+        } else {
+            SyntaxKind::JsxText
+        };
+        self.token
+    }
+
+    #[allow(dead_code)]
+    fn re_scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
+        self.pos = self.full_start_pos;
+        self.token_start = self.full_start_pos;
+        self.scan_jsx_token(allow_multiline_jsx_text)
+    }
+
+    #[allow(dead_code)]
+    fn scan_jsx_identifier(&mut self) -> SyntaxKind {
+        if !token_is_identifier_or_keyword(self.token) {
+            return self.token;
+        }
+
+        while self.pos < self.end {
+            if self.byte_at(self.pos) == Some(b'-') {
+                self.token_value.push('-');
+                self.pos += 1;
+                continue;
+            }
+
+            let old_pos = self.pos;
+            self.scan_identifier_parts();
+            if self.pos == old_pos {
+                break;
+            }
+        }
+
+        self.finish_identifier_token()
+    }
+
+    #[allow(dead_code)]
+    fn scan_jsx_attribute_value(&mut self) -> SyntaxKind {
+        self.full_start_pos = self.pos;
+        match self.current_char() {
+            Some('"' | '\'') => self.scan_jsx_attribute_string(),
+            _ => self.scan(),
+        }
+    }
+
+    fn scan_jsx_attribute_string(&mut self) -> SyntaxKind {
+        let quote = self
+            .current_char()
+            .expect("JSX attribute string starts at a quote");
+        self.advance_char();
+        self.token_value.clear();
+        let segment_start = self.pos;
+
+        while let Some(ch) = self.current_char() {
+            if ch == quote {
+                self.token_value
+                    .push_str(&self.text[segment_start..self.pos]);
+                self.advance_char();
+                self.token = SyntaxKind::StringLiteral;
+                return self.token;
+            }
+            self.advance_char();
+        }
+
+        self.token_value
+            .push_str(&self.text[segment_start..self.pos]);
+        self.token_flags.insert(TokenFlags::UNTERMINATED);
+        self.error_at(self.pos, 0, &gen::Unterminated_string_literal);
+        self.token = SyntaxKind::StringLiteral;
+        self.token
+    }
+
+    #[allow(dead_code)]
+    fn re_scan_jsx_attribute_value(&mut self) -> SyntaxKind {
+        self.pos = self.full_start_pos;
+        self.token_start = self.full_start_pos;
+        self.scan_jsx_attribute_value()
+    }
+
     fn scan_number_literal(&mut self) -> SyntaxKind {
         let start = self.pos;
 
@@ -1390,6 +1681,16 @@ fn is_single_line_whitespace(ch: char) -> bool {
         ' ' | '\t' | '\u{000B}' | '\u{000C}' | '\u{0085}' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
             ..='\u{200B}' | '\u{202F}' | '\u{205F}' | '\u{3000}' | '\u{FEFF}'
     )
+}
+
+fn is_whitespace_like(ch: char) -> bool {
+    is_line_break(ch) || is_single_line_whitespace(ch)
+}
+
+fn token_is_identifier_or_keyword(kind: SyntaxKind) -> bool {
+    kind == SyntaxKind::Identifier
+        || (kind as u16) >= (SyntaxKind::FirstKeyword as u16)
+            && (kind as u16) <= (SyntaxKind::LastKeyword as u16)
 }
 
 #[cfg(test)]
@@ -2127,5 +2428,223 @@ mod tests {
                 case.text
             );
         }
+    }
+
+    #[test]
+    fn rescan_greater_less_and_hash_oracle_pins() {
+        let cases = [
+            (">=", SyntaxKind::GreaterThanEqualsToken, 2),
+            (">>=", SyntaxKind::GreaterThanGreaterThanEqualsToken, 3),
+            (">>>", SyntaxKind::GreaterThanGreaterThanGreaterThanToken, 3),
+            (
+                ">>>=",
+                SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken,
+                4,
+            ),
+        ];
+
+        for (text, expected_kind, expected_end) in cases {
+            let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+            assert_eq!(scanner.scan(), SyntaxKind::GreaterThanToken, "{text}");
+            assert_eq!(scanner.re_scan_greater_token(), expected_kind, "{text}");
+            assert_eq!(scanner.pos(), expected_end, "{text}");
+        }
+
+        let mut scanner = Scanner::new("<<", LanguageVariant::Standard);
+        assert_eq!(scanner.scan(), SyntaxKind::LessThanLessThanToken);
+        assert_eq!(scanner.re_scan_less_than_token(), SyntaxKind::LessThanToken);
+        assert_eq!(scanner.pos(), 1);
+
+        let mut scanner = Scanner::new("#x", LanguageVariant::Standard);
+        assert_eq!(scanner.scan(), SyntaxKind::PrivateIdentifier);
+        assert_eq!(scanner.re_scan_hash_token(), SyntaxKind::HashToken);
+        assert_eq!(scanner.pos(), 1);
+    }
+
+    #[test]
+    fn rescan_slash_regex_extent_oracle_pins() {
+        struct Case {
+            text: &'static str,
+            first: SyntaxKind,
+            end: usize,
+            value: &'static str,
+            flags: u32,
+            errors: &'static [(usize, usize, u32)],
+        }
+
+        let cases = [
+            Case {
+                text: "/abc/g",
+                first: SyntaxKind::SlashToken,
+                end: 6,
+                value: "/abc/g",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "/a[b\\/]c/i",
+                first: SyntaxKind::SlashToken,
+                end: 10,
+                value: "/a[b\\/]c/i",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "/=x/",
+                first: SyntaxKind::SlashEqualsToken,
+                end: 4,
+                value: "/=x/",
+                flags: 0,
+                errors: &[],
+            },
+            Case {
+                text: "/unterminated",
+                first: SyntaxKind::SlashToken,
+                end: 13,
+                value: "/unterminated",
+                flags: 4,
+                errors: &[(0, 13, 1161)],
+            },
+            Case {
+                text: "/abc\nnext",
+                first: SyntaxKind::SlashToken,
+                end: 4,
+                value: "/abc",
+                flags: 4,
+                errors: &[(0, 4, 1161)],
+            },
+        ];
+
+        for case in cases {
+            let mut scanner = Scanner::new(case.text, LanguageVariant::Standard);
+
+            assert_eq!(scanner.scan(), case.first, "{}", case.text);
+            assert_eq!(
+                scanner.re_scan_slash_token(false),
+                SyntaxKind::RegularExpressionLiteral,
+                "{}",
+                case.text
+            );
+            assert_eq!(scanner.pos(), case.end, "{}", case.text);
+            assert_eq!(scanner.token_value, case.value, "{}", case.text);
+            assert_eq!(scanner.token_flags.0, case.flags, "{}", case.text);
+            assert_eq!(
+                scanner
+                    .errors()
+                    .iter()
+                    .map(|error| (error.start, error.length, error.message.code))
+                    .collect::<Vec<_>>(),
+                case.errors,
+                "{}",
+                case.text
+            );
+        }
+    }
+
+    #[test]
+    fn jsx_scanner_oracle_pins() {
+        struct JsxCase {
+            text: &'static str,
+            kind: SyntaxKind,
+            end: usize,
+            value: &'static str,
+            errors: &'static [(usize, usize, u32)],
+        }
+
+        let cases = [
+            JsxCase {
+                text: "<div",
+                kind: SyntaxKind::LessThanToken,
+                end: 1,
+                value: "",
+                errors: &[],
+            },
+            JsxCase {
+                text: "</div",
+                kind: SyntaxKind::LessThanSlashToken,
+                end: 2,
+                value: "",
+                errors: &[],
+            },
+            JsxCase {
+                text: "hello {x}",
+                kind: SyntaxKind::JsxText,
+                end: 6,
+                value: "hello ",
+                errors: &[],
+            },
+            JsxCase {
+                text: "  \n  <x",
+                kind: SyntaxKind::JsxTextAllWhiteSpaces,
+                end: 5,
+                value: "  \n  ",
+                errors: &[],
+            },
+            JsxCase {
+                text: "a>b",
+                kind: SyntaxKind::JsxText,
+                end: 3,
+                value: "a>b",
+                errors: &[(1, 1, 1382)],
+            },
+            JsxCase {
+                text: "a}b",
+                kind: SyntaxKind::JsxText,
+                end: 3,
+                value: "a}b",
+                errors: &[(1, 1, 1381)],
+            },
+        ];
+
+        for case in cases {
+            let mut scanner = Scanner::new(case.text, LanguageVariant::Jsx);
+
+            assert_eq!(scanner.scan_jsx_token(true), case.kind, "{}", case.text);
+            assert_eq!(scanner.pos(), case.end, "{}", case.text);
+            assert_eq!(scanner.token_value, case.value, "{}", case.text);
+            assert_eq!(
+                scanner
+                    .errors()
+                    .iter()
+                    .map(|error| (error.start, error.length, error.message.code))
+                    .collect::<Vec<_>>(),
+                case.errors,
+                "{}",
+                case.text
+            );
+        }
+    }
+
+    #[test]
+    fn jsx_identifier_and_attribute_value_oracle_pins() {
+        let mut scanner = Scanner::new("foo-bar", LanguageVariant::Jsx);
+        assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+        assert_eq!(scanner.scan_jsx_identifier(), SyntaxKind::Identifier);
+        assert_eq!(scanner.pos(), 7);
+        assert_eq!(scanner.token_value, "foo-bar");
+
+        let mut scanner = Scanner::new("class-name", LanguageVariant::Jsx);
+        assert_eq!(scanner.scan(), SyntaxKind::ClassKeyword);
+        assert_eq!(scanner.scan_jsx_identifier(), SyntaxKind::Identifier);
+        assert_eq!(scanner.pos(), 10);
+        assert_eq!(scanner.token_value, "class-name");
+
+        let mut scanner = Scanner::new("\"a\\nb\"", LanguageVariant::Jsx);
+        assert_eq!(
+            scanner.scan_jsx_attribute_value(),
+            SyntaxKind::StringLiteral
+        );
+        assert_eq!(scanner.pos(), 6);
+        assert_eq!(scanner.token_value, "a\\nb");
+        assert!(scanner.errors().is_empty());
+
+        let mut scanner = Scanner::new("\"a\nb\"", LanguageVariant::Jsx);
+        assert_eq!(
+            scanner.scan_jsx_attribute_value(),
+            SyntaxKind::StringLiteral
+        );
+        assert_eq!(scanner.pos(), 5);
+        assert_eq!(scanner.token_value, "a\nb");
+        assert!(scanner.errors().is_empty());
     }
 }
