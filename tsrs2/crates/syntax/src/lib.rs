@@ -1,6 +1,10 @@
 #![forbid(unsafe_code)]
 
+pub mod kind;
+
 use tsrs2_diags::DiagnosticList;
+
+pub use kind::SyntaxKind;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceFile {
