@@ -2519,6 +2519,7 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
     let interfaces = parse_dts_interfaces(&dts)?;
     let mut dts_nodes = collect_dts_nodes(&interfaces)?;
     seed_token_payload_nodes(&mut dts_nodes);
+    seed_fieldless_nodes(&mut dts_nodes);
     let schemas = merge_node_schema(child_table, dts_nodes);
 
     let nodes_rs = rustfmt_text(&render_nodes_rs(&schemas)?)?;
@@ -2932,6 +2933,12 @@ fn seed_token_payload_nodes(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
                 },
             ]
         });
+    }
+}
+
+fn seed_fieldless_nodes(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
+    for kind in ["DebuggerStatement", "EmptyStatement", "OmittedExpression"] {
+        nodes.entry(kind.to_owned()).or_default();
     }
 }
 

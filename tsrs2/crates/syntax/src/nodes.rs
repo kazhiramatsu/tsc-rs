@@ -214,6 +214,9 @@ pub struct ContinueStatementData {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct DebuggerStatementData {}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct DecoratorData {
     pub expression: Option<NodeId>,
 }
@@ -240,6 +243,9 @@ pub struct ElementAccessExpressionData {
     pub question_dot_token: Option<NodeId>,
     pub argument_expression: Option<NodeId>,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct EmptyStatementData {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct EnumDeclarationData {
@@ -906,6 +912,9 @@ pub struct ObjectLiteralExpressionData {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct OmittedExpressionData {}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct OptionalTypeData {
     pub r#type: Option<NodeId>,
 }
@@ -1277,11 +1286,13 @@ pub enum NodeData {
     Constructor(ConstructorData),
     ConstructorType(ConstructorTypeData),
     ContinueStatement(ContinueStatementData),
+    DebuggerStatement(DebuggerStatementData),
     Decorator(DecoratorData),
     DefaultClause(DefaultClauseData),
     DeleteExpression(DeleteExpressionData),
     DoStatement(DoStatementData),
     ElementAccessExpression(ElementAccessExpressionData),
+    EmptyStatement(EmptyStatementData),
     EnumDeclaration(EnumDeclarationData),
     EnumMember(EnumMemberData),
     ExportAssignment(ExportAssignmentData),
@@ -1384,6 +1395,7 @@ pub enum NodeData {
     NumericLiteral(NumericLiteralData),
     ObjectBindingPattern(ObjectBindingPatternData),
     ObjectLiteralExpression(ObjectLiteralExpressionData),
+    OmittedExpression(OmittedExpressionData),
     OptionalType(OptionalTypeData),
     Parameter(ParameterData),
     ParenthesizedExpression(ParenthesizedExpressionData),
@@ -1470,11 +1482,13 @@ impl NodeData {
             Self::Constructor(_) => Some(SyntaxKind::Constructor),
             Self::ConstructorType(_) => Some(SyntaxKind::ConstructorType),
             Self::ContinueStatement(_) => Some(SyntaxKind::ContinueStatement),
+            Self::DebuggerStatement(_) => Some(SyntaxKind::DebuggerStatement),
             Self::Decorator(_) => Some(SyntaxKind::Decorator),
             Self::DefaultClause(_) => Some(SyntaxKind::DefaultClause),
             Self::DeleteExpression(_) => Some(SyntaxKind::DeleteExpression),
             Self::DoStatement(_) => Some(SyntaxKind::DoStatement),
             Self::ElementAccessExpression(_) => Some(SyntaxKind::ElementAccessExpression),
+            Self::EmptyStatement(_) => Some(SyntaxKind::EmptyStatement),
             Self::EnumDeclaration(_) => Some(SyntaxKind::EnumDeclaration),
             Self::EnumMember(_) => Some(SyntaxKind::EnumMember),
             Self::ExportAssignment(_) => Some(SyntaxKind::ExportAssignment),
@@ -1579,6 +1593,7 @@ impl NodeData {
             Self::NumericLiteral(_) => Some(SyntaxKind::NumericLiteral),
             Self::ObjectBindingPattern(_) => Some(SyntaxKind::ObjectBindingPattern),
             Self::ObjectLiteralExpression(_) => Some(SyntaxKind::ObjectLiteralExpression),
+            Self::OmittedExpression(_) => Some(SyntaxKind::OmittedExpression),
             Self::OptionalType(_) => Some(SyntaxKind::OptionalType),
             Self::Parameter(_) => Some(SyntaxKind::Parameter),
             Self::ParenthesizedExpression(_) => Some(SyntaxKind::ParenthesizedExpression),
@@ -1758,6 +1773,7 @@ impl NodeData {
             SyntaxKind::ContinueStatement => {
                 Self::ContinueStatement(ContinueStatementData { label: None })
             }
+            SyntaxKind::DebuggerStatement => Self::DebuggerStatement(DebuggerStatementData {}),
             SyntaxKind::Decorator => Self::Decorator(DecoratorData { expression: None }),
             SyntaxKind::DefaultClause => {
                 Self::DefaultClause(DefaultClauseData { statements: None })
@@ -1776,6 +1792,7 @@ impl NodeData {
                     argument_expression: None,
                 })
             }
+            SyntaxKind::EmptyStatement => Self::EmptyStatement(EmptyStatementData {}),
             SyntaxKind::EnumDeclaration => Self::EnumDeclaration(EnumDeclarationData {
                 modifiers: None,
                 name: None,
@@ -2230,6 +2247,7 @@ impl NodeData {
             SyntaxKind::ObjectLiteralExpression => {
                 Self::ObjectLiteralExpression(ObjectLiteralExpressionData { properties: None })
             }
+            SyntaxKind::OmittedExpression => Self::OmittedExpression(OmittedExpressionData {}),
             SyntaxKind::OptionalType => Self::OptionalType(OptionalTypeData { r#type: None }),
             SyntaxKind::Parameter => Self::Parameter(ParameterData {
                 modifiers: None,
@@ -2663,6 +2681,13 @@ impl NodeData {
         }
     }
 
+    pub fn as_debugger_statement(&self) -> Option<&DebuggerStatementData> {
+        match self {
+            Self::DebuggerStatement(data) => Some(data),
+            _ => None,
+        }
+    }
+
     pub fn as_decorator(&self) -> Option<&DecoratorData> {
         match self {
             Self::Decorator(data) => Some(data),
@@ -2694,6 +2719,13 @@ impl NodeData {
     pub fn as_element_access_expression(&self) -> Option<&ElementAccessExpressionData> {
         match self {
             Self::ElementAccessExpression(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    pub fn as_empty_statement(&self) -> Option<&EmptyStatementData> {
+        match self {
+            Self::EmptyStatement(data) => Some(data),
             _ => None,
         }
     }
@@ -3410,6 +3442,13 @@ impl NodeData {
     pub fn as_object_literal_expression(&self) -> Option<&ObjectLiteralExpressionData> {
         match self {
             Self::ObjectLiteralExpression(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    pub fn as_omitted_expression(&self) -> Option<&OmittedExpressionData> {
+        match self {
+            Self::OmittedExpression(data) => Some(data),
             _ => None,
         }
     }

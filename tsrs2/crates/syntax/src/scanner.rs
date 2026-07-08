@@ -422,6 +422,10 @@ impl<'text> Scanner<'text> {
         self.token_start
     }
 
+    pub(crate) fn token_value(&self) -> &str {
+        &self.token_value
+    }
+
     pub(crate) fn take_errors(&mut self) -> Vec<ScanError> {
         std::mem::take(&mut self.errors)
     }
@@ -881,7 +885,7 @@ impl<'text> Scanner<'text> {
     }
 
     #[allow(dead_code)]
-    fn re_scan_template_token(&mut self, is_tagged_template: bool) -> SyntaxKind {
+    pub(crate) fn re_scan_template_token(&mut self, is_tagged_template: bool) -> SyntaxKind {
         self.pos = self.token_start;
         self.token = self.scan_template_and_set_token_value(!is_tagged_template);
         self.token
@@ -920,7 +924,7 @@ impl<'text> Scanner<'text> {
     }
 
     #[allow(dead_code)]
-    fn re_scan_slash_token(&mut self, _report_errors: bool) -> SyntaxKind {
+    pub(crate) fn re_scan_slash_token(&mut self, _report_errors: bool) -> SyntaxKind {
         if !matches!(
             self.token,
             SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken

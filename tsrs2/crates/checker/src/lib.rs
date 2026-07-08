@@ -26,6 +26,7 @@ pub fn check_program(files: &[InputFile], _options: &CompilerOptions) -> CheckRe
             tsrs2_syntax::ParseOptions::default(),
             None,
         );
+        diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
         diagnostics.append(&mut tsrs2_binder::bind_source_file(&source_file));
     }
 
@@ -43,5 +44,19 @@ mod tests {
     fn empty_engine_returns_no_diagnostics() {
         let result = check_program(&[], &CompilerOptions::default());
         assert!(result.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn check_program_includes_parse_diagnostics() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "\"unterminated".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+
+        assert_eq!(result.diagnostics.len(), 1);
+        assert_eq!(result.diagnostics[0].code(), 1002);
     }
 }

@@ -359,6 +359,14 @@
       ]
     },
     {
+      "kindName": "DebuggerStatement",
+      "dataName": "DebuggerStatementData",
+      "fields": [
+      ],
+      "children": [
+      ]
+    },
+    {
       "kindName": "Decorator",
       "dataName": "DecoratorData",
       "fields": [
@@ -412,6 +420,14 @@
         {"name": "expression", "array": false},
         {"name": "questionDotToken", "array": false},
         {"name": "argumentExpression", "array": false}
+      ]
+    },
+    {
+      "kindName": "EmptyStatement",
+      "dataName": "EmptyStatementData",
+      "fields": [
+      ],
+      "children": [
       ]
     },
     {
@@ -1730,6 +1746,14 @@
       ],
       "children": [
         {"name": "properties", "array": true}
+      ]
+    },
+    {
+      "kindName": "OmittedExpression",
+      "dataName": "OmittedExpressionData",
+      "fields": [
+      ],
+      "children": [
       ]
     },
     {

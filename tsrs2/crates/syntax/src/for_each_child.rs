@@ -302,6 +302,7 @@ where
             }
             None
         }
+        NodeData::DebuggerStatement(_data) => None,
         NodeData::Decorator(data) => {
             if let Some(result) = visit_optional_node(data.expression, &mut cb) {
                 return Some(result);
@@ -341,6 +342,7 @@ where
             }
             None
         }
+        NodeData::EmptyStatement(_data) => None,
         NodeData::EnumDeclaration(data) => {
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
@@ -1372,6 +1374,7 @@ where
             }
             None
         }
+        NodeData::OmittedExpression(_data) => None,
         NodeData::OptionalType(data) => {
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
