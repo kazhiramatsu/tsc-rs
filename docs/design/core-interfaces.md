@@ -151,9 +151,18 @@ struct Type {
     data: TypeData,            // Intrinsic | Literal{fresh/regular/wide} | Union | Intersection
                                // | ObjectAnon{decl} | ObjectReference | Interface | TypeParameter
                                // | IndexedAccess | Conditional | Mapped | TemplateLiteral
-                               // | StringMapping | …
+                               // | StringMapping | Substitution | ReverseMapped
+                               // | EvolvingArray{element} | UniqueESSymbol | EnumMember | …
 }
 ```
+
+Audit notes on the tail variants: `EvolvingArray` is a REAL type
+kind (ObjectFlags.EvolvingArray — the `var a = []; a.push(x)` flow
+machinery, checker-key §4.9, needs a TypeData home, not a flow-local
+hack); `ReverseMapped` backs the CheckFlags-dispatched symbol typing
+(checker-foundations §1.1); tuples are NOT a variant — a tuple is an
+ObjectReference to a synthesized generic TupleType target carrying
+ElementFlags (impl-checker-2xxx §2 addendum).
 
 Load-bearing (all of it):
 - **`flags: TypeFlags`** is consulted on nearly every checker line;
@@ -208,6 +217,21 @@ Load-bearing: `min_args`/`rest` (arity checks, overload resolution
 checker-key §3), `predicate` (narrowing), `from_method` (variance),
 `type_params` (erase-generics + inference). `IndexInfo` (D6873): `{
 keyType, type, isReadonly }` — the string/number/symbol index sigs.
+
+`PredInfo` is tsc's `TypePredicate` (D6441-6469), a four-variant
+union — port all four, the narrowers dispatch on them:
+
+```rust
+enum PredInfo {
+    This { ty: TypeId },                                   // `this is T`
+    Identifier { param_index: u32, name: String, ty: TypeId },  // `x is T`
+    AssertsThis { ty: Option<TypeId> },                    // `asserts this [is T]`
+    AssertsIdentifier { param_index: u32, name: String, ty: Option<TypeId> },
+}
+```
+
+The `checkTypePredicate` declaration check (2677: predicate type must
+be assignable to the parameter's type) consumes this shape too.
 
 ---
 

@@ -116,6 +116,17 @@ assert_eq!(FlowFlags::TRUE_CONDITION.bits(), 32);
 
 Commit: `m0 0.3: enum codegen from vendored tsc`.
 
+Second codegen target, same stage: the NODE SCHEMA. Extract
+`forEachChildTable` (`_tsc.js` 28319 — per-kind child field names in
+visit order) cross-checked against the `typescript.d.ts` interfaces
+(parsed via the vendored `typescript.js` itself), and generate the
+tsc-field-compatible node structs + `for_each_child`. Full design and
+contract: [impl-nodes.md](impl-nodes.md) §1-2. Also port the line-map
+utilities there (§3) into `crates/diags` — every tier's line/col
+comparison uses them.
+
+Commit: `m0 0.3n: node schema codegen + line map`.
+
 ## Stage 0.4: xtask codegen — diagnostic messages [M]
 
 Generate `crates/diags/src/gen.rs` from the vendored

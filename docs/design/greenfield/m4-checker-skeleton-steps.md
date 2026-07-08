@@ -105,9 +105,12 @@ arithmetic 2362/2363, comparison via comparable relation, equality,
 in/instanceof, logical, assignment incl. 2322 reporting +
 `getRegularTypeOfObjectLiteral` at assignment positions) →
 conditional `?:` (union of branches; no narrowing yet) →
-arrow/function expressions (signature from annotation; body checking
-DEFERRED; return-type inference from body for un-annotated functions
-— `getReturnTypeFromBody`, un-narrowed).
+await/yield (impl-checker-2xxx §5 rows 12-13: `getAwaitedType`,
+async return checking) → JSX for .tsx (impl-checker-2xxx §5b) →
+arrow/function expressions (signature from annotation via
+`getContextualSignature`; body checking DEFERRED; return-type
+inference from body for un-annotated functions —
+`getReturnTypeFromBody`, un-narrowed).
 
 Contextual typing arrives WITH this stage per checker-foundations §3:
 `getContextualType` (73471) parent-walk + the pushed-context stack +

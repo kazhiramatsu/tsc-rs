@@ -160,6 +160,9 @@ Commit: `m1 2.7: JSX (+rate)`.
 
 ```sh
 cargo xtask conformance --syntactic-only   # expect: ≥ 99.5%
+cargo xtask ast-diff --corpus              # expect: clean on all parse-error-free
+                                           # fixtures (impl-nodes.md §5; record the
+                                           # error-fixture exclusion count)
 cargo xtask invariants --suite prefix-determinism
 cargo xtask ledger check
 ```

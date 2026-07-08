@@ -22,6 +22,37 @@ algorithm skeletons — each stage names the parent-doc section and the
 tsc anchor to port from. If a steps doc and a parent doc disagree, the
 parent doc plus the tsc source win; file a doc fix.
 
+**Scheduling authority:**
+[2xxx-first-order.md](2xxx-first-order.md) — the build is ordered
+around one goal: complete 2XXX-band parity first (phases 0-9,
+re-sequencing the milestone table below; no emitter is built). The
+impl companions carry copy-level code and port tables:
+[impl-nodes.md](impl-nodes.md) (the tsc-field-compatible Node
+contract: generated node structs + for_each_child from
+forEachChildTable, line map, externalModuleIndicator, the AST tree
+differ), [impl-scanner.md](impl-scanner.md),
+[impl-parser.md](impl-parser.md),
+[impl-binder.md](impl-binder.md),
+[impl-checker-2xxx.md](impl-checker-2xxx.md) (which also holds the
+2XXX emission-map inventory that defines "complete"), backed by
+[2xxx-emitter-inventory.md](2xxx-emitter-inventory.md) — the
+generated, complete checklist of all 246 tsc functions that emit
+band codes, each with its Rust module home — and
+[2xxx-emitter-descriptions.md](2xxx-emitter-descriptions.md), the
+hand-audited companion describing what each of those functions
+implements and when each code fires.
+[program-and-modules.md](program-and-modules.md) closes the three
+architecture holes outside the classic four phases: the Program/host
+layer, module resolution, and checker initialization (globals
+merging, getGlobalType environment).
+[lsp-and-incremental.md](lsp-and-incremental.md) records tsc's
+incremental architecture (syntaxCursor-fed parser, disposable
+checker), the rules phases 0-9 must follow to keep the LSP door
+open (reserved cursor parameter, per-parse NodeIds, no
+node-id-keyed cross-program caches), and the future L-track. Work a
+phase by reading: this README → 2xxx-first-order.md → the phase's
+steps doc → its impl companion → the cited parent-doc sections.
+
 This is a FROM-SCRATCH build (workspace `tsrs2/`). Nothing in the
 existing `src/` is consulted; the only implementation references are
 the vendored tsc and these documents.
