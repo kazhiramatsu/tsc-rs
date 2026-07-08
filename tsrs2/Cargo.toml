@@ -1,0 +1,22 @@
+[workspace]
+members = [
+    "crates/syntax",
+    "crates/binder",
+    "crates/types",
+    "crates/checker",
+    "crates/diags",
+    "crates/harness",
+    "crates/oracle",
+    "crates/conformance",
+    "crates/fuzz",
+    "crates/xtask",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.lints.clippy]
+iter_over_hash_type = "deny"

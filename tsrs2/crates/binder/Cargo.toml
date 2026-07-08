@@ -1,0 +1,16 @@
+[package]
+name = "tsrs2-binder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "tsrs2_binder"
+path = "src/lib.rs"
+
+[dependencies]
+tsrs2-diags = { path = "../diags" }
+tsrs2-syntax = { path = "../syntax" }
+
+[lints]
+workspace = true

@@ -1,0 +1,12 @@
+[package]
+name = "tsrs2-fuzz"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "tsrs2_fuzz"
+path = "src/lib.rs"
+
+[dependencies]
+tsrs2-checker = { path = "../checker" }

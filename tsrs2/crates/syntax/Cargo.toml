@@ -1,0 +1,12 @@
+[package]
+name = "tsrs2-syntax"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "tsrs2_syntax"
+path = "src/lib.rs"
+
+[dependencies]
+tsrs2-diags = { path = "../diags" }

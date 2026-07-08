@@ -1,0 +1,18 @@
+[package]
+name = "tsrs2-checker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "tsrs2_checker"
+path = "src/lib.rs"
+
+[dependencies]
+tsrs2-binder = { path = "../binder" }
+tsrs2-diags = { path = "../diags" }
+tsrs2-syntax = { path = "../syntax" }
+tsrs2-types = { path = "../types" }
+
+[lints]
+workspace = true

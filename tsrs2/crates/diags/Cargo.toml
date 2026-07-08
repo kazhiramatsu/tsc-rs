@@ -1,0 +1,9 @@
+[package]
+name = "tsrs2-diags"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "tsrs2_diags"
+path = "src/lib.rs"

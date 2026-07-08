@@ -1,0 +1,12 @@
+[package]
+name = "tsrs2-oracle"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "tsrs2_oracle"
+path = "src/lib.rs"
+
+[dependencies]
+tsrs2-diags = { path = "../diags" }
