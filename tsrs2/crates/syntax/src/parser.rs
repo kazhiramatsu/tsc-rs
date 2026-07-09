@@ -2,21 +2,25 @@
 
 use crate::arena::NodeArena;
 use crate::nodes::{
-    ArrayBindingPatternData, ArrayLiteralExpressionData, BigIntLiteralData, BindingElementData,
-    BlockData, BreakStatementData, CaseBlockData, CaseClauseData, CatchClauseData,
-    ClassExpressionData, ComputedPropertyNameData, ContinueStatementData, DebuggerStatementData,
-    DefaultClauseData, DoStatementData, EmptyStatementData, ExpressionStatementData,
-    ForInStatementData, ForOfStatementData, ForStatementData, FunctionExpressionData,
-    IdentifierData, IfStatementData, LabeledStatementData, MetaPropertyData, MethodDeclarationData,
-    MissingDeclarationData, NewExpressionData, NoSubstitutionTemplateLiteralData, NodeData, NodeId,
-    NumericLiteralData, ObjectBindingPatternData, ObjectLiteralExpressionData,
-    OmittedExpressionData, ParenthesizedExpressionData, PrivateIdentifierData,
-    PropertyAssignmentData, RegularExpressionLiteralData, ReturnStatementData,
-    ShorthandPropertyAssignmentData, SourceFileData, SpreadAssignmentData, SpreadElementData,
-    StringLiteralData, SwitchStatementData, TemplateExpressionData, TemplateHeadData,
+    ArrayBindingPatternData, ArrayLiteralExpressionData, AwaitExpressionData, BigIntLiteralData,
+    BindingElementData, BlockData, BreakStatementData, CallExpressionData, CaseBlockData,
+    CaseClauseData, CatchClauseData, ClassExpressionData, ComputedPropertyNameData,
+    ContinueStatementData, DebuggerStatementData, DefaultClauseData, DeleteExpressionData,
+    DoStatementData, ElementAccessExpressionData, EmptyStatementData, ExpressionStatementData,
+    ExpressionWithTypeArgumentsData, ForInStatementData, ForOfStatementData, ForStatementData,
+    FunctionExpressionData, IdentifierData, IfStatementData, LabeledStatementData,
+    MetaPropertyData, MethodDeclarationData, MissingDeclarationData, NewExpressionData,
+    NoSubstitutionTemplateLiteralData, NodeData, NodeId, NonNullExpressionData, NumericLiteralData,
+    ObjectBindingPatternData, ObjectLiteralExpressionData, OmittedExpressionData,
+    ParenthesizedExpressionData, PostfixUnaryExpressionData, PrefixUnaryExpressionData,
+    PrivateIdentifierData, PropertyAccessExpressionData, PropertyAssignmentData,
+    RegularExpressionLiteralData, ReturnStatementData, ShorthandPropertyAssignmentData,
+    SourceFileData, SpreadAssignmentData, SpreadElementData, StringLiteralData,
+    SwitchStatementData, TaggedTemplateExpressionData, TemplateExpressionData, TemplateHeadData,
     TemplateMiddleData, TemplateSpanData, TemplateTailData, ThrowStatementData, TryStatementData,
-    VariableDeclarationData, VariableDeclarationListData, VariableStatementData,
-    WhileStatementData, WithStatementData,
+    TypeOfExpressionData, VariableDeclarationData, VariableDeclarationListData,
+    VariableStatementData, VoidExpressionData, WhileStatementData, WithStatementData,
+    YieldExpressionData,
 };
 use crate::scanner::{LanguageVariant, Scanner};
 use crate::{SourceFile, SyntaxKind};
@@ -332,8 +336,12 @@ impl<'text> Parser<'text> {
 
         while !self.is_list_terminator(context) {
             if self.is_list_element(context, false) {
+                let start_pos = self.scanner.full_start_pos();
                 if let Some(element) = parse_element(self) {
                     list.push(element);
+                    if start_pos == self.scanner.full_start_pos() {
+                        self.next_token();
+                    }
                     continue;
                 }
             }
@@ -797,6 +805,14 @@ impl<'text> Parser<'text> {
 
     fn is_identifier(&self) -> bool {
         token_is_identifier_or_keyword(self.token())
+    }
+
+    fn is_identifier_or_keyword_or_literal(&self) -> bool {
+        token_is_identifier_or_keyword(self.token())
+            || matches!(
+                self.token(),
+                SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral | SyntaxKind::StringLiteral
+            )
     }
 
     fn is_type_member_start(&self) -> bool {
@@ -1676,9 +1692,174 @@ impl<'text> Parser<'text> {
     }
 
     fn parse_assignment_expression_or_higher(&mut self) -> NodeId {
-        let expression = self.parse_primary_expression();
-        self.skip_postfix_expression_rest();
+        if self.is_yield_expression() {
+            return self.parse_yield_expression();
+        }
+        self.parse_unary_expression_or_higher()
+    }
+
+    fn parse_unary_expression_or_higher(&mut self) -> NodeId {
+        self.parse_simple_unary_expression()
+    }
+
+    fn parse_simple_unary_expression(&mut self) -> NodeId {
+        match self.token() {
+            SyntaxKind::PlusToken
+            | SyntaxKind::MinusToken
+            | SyntaxKind::TildeToken
+            | SyntaxKind::ExclamationToken => self.parse_prefix_unary_expression(),
+            SyntaxKind::DeleteKeyword => self.parse_delete_expression(),
+            SyntaxKind::TypeOfKeyword => self.parse_type_of_expression(),
+            SyntaxKind::VoidKeyword => self.parse_void_expression(),
+            SyntaxKind::AwaitKeyword if self.is_await_expression() => self.parse_await_expression(),
+            _ => self.parse_update_expression(),
+        }
+    }
+
+    fn parse_prefix_unary_expression(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        let operand = self.parse_simple_unary_expression();
+        self.finish_node_data(
+            NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                operand: Some(operand),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_delete_expression(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        let expression = self.parse_simple_unary_expression();
+        self.finish_node_data(
+            NodeData::DeleteExpression(DeleteExpressionData {
+                expression: Some(expression),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_type_of_expression(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        let expression = self.parse_simple_unary_expression();
+        self.finish_node_data(
+            NodeData::TypeOfExpression(TypeOfExpressionData {
+                expression: Some(expression),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_void_expression(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        let expression = self.parse_simple_unary_expression();
+        self.finish_node_data(
+            NodeData::VoidExpression(VoidExpressionData {
+                expression: Some(expression),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_await_expression(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        let expression = self.parse_simple_unary_expression();
+        self.finish_node_data(
+            NodeData::AwaitExpression(AwaitExpressionData {
+                expression: Some(expression),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_update_expression(&mut self) -> NodeId {
+        if matches!(
+            self.token(),
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) {
+            let pos = self.node_pos();
+            self.next_token();
+            let operand = self.parse_left_hand_side_expression_or_higher();
+            return self.finish_node_data(
+                NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                    operand: Some(operand),
+                }),
+                pos,
+            );
+        }
+
+        let expression = self.parse_left_hand_side_expression_or_higher();
+        if matches!(
+            self.token(),
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) && !self.scanner.has_preceding_line_break()
+        {
+            self.next_token();
+            return self.finish_node_data(
+                NodeData::PostfixUnaryExpression(PostfixUnaryExpressionData {
+                    operand: Some(expression),
+                }),
+                self.arena.node(expression).pos as usize,
+            );
+        }
         expression
+    }
+
+    fn is_await_expression(&mut self) -> bool {
+        self.token() == SyntaxKind::AwaitKeyword
+            && (self.in_await_context()
+                || self.look_ahead(|parser| {
+                    parser.next_token();
+                    parser.is_identifier_or_keyword_or_literal()
+                        && !parser.scanner.has_preceding_line_break()
+                }))
+    }
+
+    fn is_yield_expression(&mut self) -> bool {
+        self.token() == SyntaxKind::YieldKeyword
+            && (self.in_yield_context()
+                || self.look_ahead(|parser| {
+                    parser.next_token();
+                    parser.is_identifier_or_keyword_or_literal()
+                        && !parser.scanner.has_preceding_line_break()
+                }))
+    }
+
+    fn parse_yield_expression(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        let (asterisk_token, expression) = if !self.scanner.has_preceding_line_break()
+            && (self.token() == SyntaxKind::AsteriskToken || self.is_start_of_expression())
+        {
+            let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
+            let expression = self.parse_assignment_expression_or_higher();
+            (asterisk_token, Some(expression))
+        } else {
+            (None, None)
+        };
+        self.finish_node_data(
+            NodeData::YieldExpression(YieldExpressionData {
+                asterisk_token,
+                expression,
+            }),
+            pos,
+        )
+    }
+
+    fn parse_left_hand_side_expression_or_higher(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let expression = self.parse_member_expression_or_higher();
+        self.parse_call_expression_rest(pos, expression)
+    }
+
+    fn parse_member_expression_or_higher(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let expression = self.parse_primary_expression();
+        self.parse_member_expression_rest(pos, expression, true)
     }
 
     fn parse_primary_expression(&mut self) -> NodeId {
@@ -1696,7 +1877,7 @@ impl<'text> Parser<'text> {
             SyntaxKind::NoSubstitutionTemplateLiteral => {
                 self.parse_no_substitution_template_literal()
             }
-            SyntaxKind::FunctionKeyword => self.parse_function_expression_stub(None),
+            SyntaxKind::FunctionKeyword => self.parse_function_expression_stub(None, false),
             SyntaxKind::ClassKeyword => self.parse_class_expression_stub(),
             SyntaxKind::NewKeyword => self.parse_new_expression_stub(),
             SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken => {
@@ -1724,7 +1905,7 @@ impl<'text> Parser<'text> {
             {
                 let pos = self.node_pos();
                 self.next_token();
-                self.parse_function_expression_stub(Some(pos))
+                self.parse_function_expression_stub(Some(pos), true)
             }
             kind if token_is_identifier_or_keyword(kind) => self.parse_identifier(),
             _ => self.create_missing_node(
@@ -1734,6 +1915,313 @@ impl<'text> Parser<'text> {
                 &[],
             ),
         }
+    }
+
+    fn parse_member_expression_rest(
+        &mut self,
+        pos: usize,
+        mut expression: NodeId,
+        allow_optional_chain: bool,
+    ) -> NodeId {
+        loop {
+            let mut question_dot_token = None;
+            let is_property_access = if allow_optional_chain
+                && self.is_start_of_optional_property_or_element_access_chain()
+            {
+                question_dot_token = self.parse_optional_token(SyntaxKind::QuestionDotToken);
+                self.is_identifier()
+            } else {
+                self.parse_optional(SyntaxKind::DotToken)
+            };
+
+            if is_property_access {
+                expression =
+                    self.parse_property_access_expression_rest(pos, expression, question_dot_token);
+                continue;
+            }
+
+            if self.parse_optional(SyntaxKind::OpenBracketToken) {
+                expression =
+                    self.parse_element_access_expression_rest(pos, expression, question_dot_token);
+                continue;
+            }
+
+            if self.is_template_start_of_tagged_template() {
+                let (tag, type_arguments) = if question_dot_token.is_none() {
+                    self.split_expression_with_type_arguments(expression)
+                } else {
+                    (expression, None)
+                };
+                expression =
+                    self.parse_tagged_template_rest(pos, tag, question_dot_token, type_arguments);
+                continue;
+            }
+
+            if question_dot_token.is_none() {
+                if self.token() == SyntaxKind::ExclamationToken
+                    && !self.scanner.has_preceding_line_break()
+                {
+                    self.next_token();
+                    expression = self.finish_node_data(
+                        NodeData::NonNullExpression(NonNullExpressionData {
+                            expression: Some(expression),
+                        }),
+                        pos,
+                    );
+                    continue;
+                }
+
+                if let Some(type_arguments) = self.try_parse_type_arguments_in_expression() {
+                    expression = self.finish_node_data(
+                        NodeData::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
+                            expression: Some(expression),
+                            type_arguments: Some(type_arguments),
+                        }),
+                        pos,
+                    );
+                    continue;
+                }
+            }
+
+            return expression;
+        }
+    }
+
+    fn parse_call_expression_rest(&mut self, pos: usize, mut expression: NodeId) -> NodeId {
+        loop {
+            expression = self.parse_member_expression_rest(pos, expression, true);
+
+            let question_dot_token = self.parse_optional_token(SyntaxKind::QuestionDotToken);
+            let type_arguments = if question_dot_token.is_some() {
+                self.try_parse_type_arguments_in_expression()
+            } else {
+                None
+            };
+
+            if question_dot_token.is_some() && self.is_template_start_of_tagged_template() {
+                expression = self.parse_tagged_template_rest(
+                    pos,
+                    expression,
+                    question_dot_token,
+                    type_arguments,
+                );
+                continue;
+            }
+
+            if type_arguments.is_some() || self.token() == SyntaxKind::OpenParenToken {
+                let (callee, expression_type_arguments) = if question_dot_token.is_none()
+                    && self.arena.node(expression).kind == SyntaxKind::ExpressionWithTypeArguments
+                {
+                    self.split_expression_with_type_arguments(expression)
+                } else {
+                    (expression, None)
+                };
+                let arguments = self.parse_argument_list();
+                expression = self.finish_node_data(
+                    NodeData::CallExpression(CallExpressionData {
+                        expression: Some(callee),
+                        question_dot_token,
+                        type_arguments: type_arguments.or(expression_type_arguments),
+                        arguments: Some(arguments),
+                    }),
+                    pos,
+                );
+                continue;
+            }
+
+            if let Some(question_dot_token) = question_dot_token {
+                let name = self.create_missing_node(
+                    SyntaxKind::Identifier,
+                    false,
+                    Some(&gen::Identifier_expected),
+                    &[],
+                );
+                expression = self.finish_node_data(
+                    NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                        expression: Some(expression),
+                        question_dot_token: Some(question_dot_token),
+                        name: Some(name),
+                    }),
+                    pos,
+                );
+            }
+
+            break;
+        }
+
+        expression
+    }
+
+    fn parse_property_access_expression_rest(
+        &mut self,
+        pos: usize,
+        expression: NodeId,
+        question_dot_token: Option<NodeId>,
+    ) -> NodeId {
+        let name = self.parse_right_side_of_dot();
+        self.finish_node_data(
+            NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                expression: Some(expression),
+                question_dot_token,
+                name: Some(name),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_element_access_expression_rest(
+        &mut self,
+        pos: usize,
+        expression: NodeId,
+        question_dot_token: Option<NodeId>,
+    ) -> NodeId {
+        let argument_expression = if self.token() == SyntaxKind::CloseBracketToken {
+            self.create_missing_node(
+                SyntaxKind::Identifier,
+                true,
+                Some(&gen::An_element_access_expression_should_take_an_argument),
+                &[],
+            )
+        } else {
+            self.allow_in(|parser| parser.parse_expression())
+        };
+        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+        self.finish_node_data(
+            NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                expression: Some(expression),
+                question_dot_token,
+                argument_expression: Some(argument_expression),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_tagged_template_rest(
+        &mut self,
+        pos: usize,
+        tag: NodeId,
+        question_dot_token: Option<NodeId>,
+        type_arguments: Option<crate::NodeArrayId>,
+    ) -> NodeId {
+        let template = if self.token() == SyntaxKind::NoSubstitutionTemplateLiteral {
+            self.scanner.re_scan_template_token(true);
+            self.drain_scanner_errors();
+            self.parse_no_substitution_template_literal()
+        } else {
+            self.parse_template_expression(true)
+        };
+        self.finish_node_data(
+            NodeData::TaggedTemplateExpression(TaggedTemplateExpressionData {
+                tag: Some(tag),
+                question_dot_token,
+                type_arguments,
+                template: Some(template),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_argument_list(&mut self) -> crate::NodeArrayId {
+        self.parse_expected(SyntaxKind::OpenParenToken, None);
+        let arguments = self.parse_delimited_list(
+            ParsingContext::ArgumentExpressions,
+            |parser| Some(parser.parse_argument_or_array_literal_element()),
+            false,
+        );
+        self.parse_expected(SyntaxKind::CloseParenToken, None);
+        arguments
+    }
+
+    fn try_parse_type_arguments_in_expression(&mut self) -> Option<crate::NodeArrayId> {
+        self.try_parse(|parser| parser.parse_type_arguments_in_expression())
+    }
+
+    fn parse_type_arguments_in_expression(&mut self) -> Option<crate::NodeArrayId> {
+        if self.scanner.re_scan_less_than_token() != SyntaxKind::LessThanToken {
+            return None;
+        }
+        self.next_token();
+        let type_arguments = self.parse_delimited_list(
+            ParsingContext::TypeArguments,
+            |parser| Some(parser.parse_type()),
+            false,
+        );
+        if self.scanner.re_scan_greater_token() != SyntaxKind::GreaterThanToken {
+            return None;
+        }
+        self.next_token();
+
+        self.can_follow_type_arguments_in_expression()
+            .then_some(type_arguments)
+    }
+
+    fn can_follow_type_arguments_in_expression(&self) -> bool {
+        match self.token() {
+            SyntaxKind::OpenParenToken
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateHead => true,
+            SyntaxKind::LessThanToken
+            | SyntaxKind::GreaterThanToken
+            | SyntaxKind::PlusToken
+            | SyntaxKind::MinusToken => false,
+            _ => {
+                self.scanner.has_preceding_line_break()
+                    || is_binary_operator(self.token())
+                    || !self.is_start_of_expression()
+            }
+        }
+    }
+
+    fn is_start_of_optional_property_or_element_access_chain(&mut self) -> bool {
+        self.token() == SyntaxKind::QuestionDotToken
+            && self.look_ahead(|parser| {
+                parser.next_token();
+                parser.is_identifier()
+                    || parser.token() == SyntaxKind::OpenBracketToken
+                    || parser.is_template_start_of_tagged_template()
+            })
+    }
+
+    fn is_template_start_of_tagged_template(&self) -> bool {
+        matches!(
+            self.token(),
+            SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::TemplateHead
+        )
+    }
+
+    fn parse_right_side_of_dot(&mut self) -> NodeId {
+        if self.token() == SyntaxKind::PrivateIdentifier {
+            self.parse_private_identifier()
+        } else if self.is_identifier() {
+            self.parse_identifier()
+        } else {
+            self.create_missing_node(
+                SyntaxKind::Identifier,
+                true,
+                Some(&gen::Identifier_expected),
+                &[],
+            )
+        }
+    }
+
+    fn expression_with_type_arguments_parts(
+        &self,
+        expression: NodeId,
+    ) -> Option<(NodeId, crate::NodeArrayId)> {
+        self.arena
+            .node(expression)
+            .data
+            .as_expression_with_type_arguments()
+            .and_then(|data| Some((data.expression?, data.type_arguments?)))
+    }
+
+    fn split_expression_with_type_arguments(
+        &self,
+        expression: NodeId,
+    ) -> (NodeId, Option<crate::NodeArrayId>) {
+        self.expression_with_type_arguments_parts(expression)
+            .map(|(expression, type_arguments)| (expression, Some(type_arguments)))
+            .unwrap_or((expression, None))
     }
 
     fn parse_parenthesized_expression(&mut self) -> NodeId {
@@ -1770,8 +2258,9 @@ impl<'text> Parser<'text> {
         }
 
         let expression = if self.is_start_of_left_hand_side_expression() {
+            let expression_pos = self.node_pos();
             let expression = self.parse_primary_expression();
-            self.skip_postfix_expression_rest();
+            let expression = self.parse_member_expression_rest(expression_pos, expression, false);
             Some(expression)
         } else {
             Some(self.create_missing_node(
@@ -1781,11 +2270,12 @@ impl<'text> Parser<'text> {
                 &[],
             ))
         };
+        let (expression, type_arguments) = expression
+            .map(|expression| self.split_expression_with_type_arguments(expression))
+            .map(|(expression, type_arguments)| (Some(expression), type_arguments))
+            .unwrap_or((None, None));
         let arguments = if self.token() == SyntaxKind::OpenParenToken {
-            self.next_token();
-            self.skip_balanced_until(SyntaxKind::CloseParenToken);
-            self.parse_expected(SyntaxKind::CloseParenToken, None);
-            Some(self.arena.empty_array(self.node_pos()))
+            Some(self.parse_argument_list())
         } else {
             None
         };
@@ -1793,7 +2283,7 @@ impl<'text> Parser<'text> {
             NodeData::NewExpression(NewExpressionData {
                 expression,
                 question_dot_token: None,
-                type_arguments: None,
+                type_arguments,
                 arguments,
             }),
             pos,
@@ -1989,10 +2479,15 @@ impl<'text> Parser<'text> {
         )
     }
 
-    fn parse_function_expression_stub(&mut self, forced_pos: Option<usize>) -> NodeId {
+    fn parse_function_expression_stub(
+        &mut self,
+        forced_pos: Option<usize>,
+        is_async: bool,
+    ) -> NodeId {
         let pos = forced_pos.unwrap_or_else(|| self.node_pos());
         self.parse_expected(SyntaxKind::FunctionKeyword, None);
         let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
+        let is_generator = asterisk_token.is_some();
         let name = if self.is_binding_identifier() {
             Some(self.parse_binding_identifier())
         } else {
@@ -2011,7 +2506,8 @@ impl<'text> Parser<'text> {
         };
         let r#type = self.parse_type_annotation();
         let body = if self.token() == SyntaxKind::OpenBraceToken {
-            Some(self.parse_block(false, None))
+            let (set, clear) = context_flags_for_function_body(is_generator, is_async);
+            Some(self.do_in_context(set, clear, |parser| parser.parse_block(false, None)))
         } else {
             None
         };
@@ -2453,6 +2949,14 @@ impl<'text> Parser<'text> {
         self.do_in_context(NodeFlags::DISALLOW_IN_CONTEXT, NodeFlags::NONE, f)
     }
 
+    fn in_await_context(&self) -> bool {
+        self.context_flags.contains(NodeFlags::AWAIT_CONTEXT)
+    }
+
+    fn in_yield_context(&self) -> bool {
+        self.context_flags.contains(NodeFlags::YIELD_CONTEXT)
+    }
+
     fn is_variable_statement_start(&mut self) -> bool {
         matches!(
             self.token(),
@@ -2670,6 +3174,22 @@ fn is_keyword(kind: SyntaxKind) -> bool {
 fn is_binary_operator(kind: SyntaxKind) -> bool {
     kind.value() >= SyntaxKind::FirstBinaryOperator.value()
         && kind.value() <= SyntaxKind::LastBinaryOperator.value()
+}
+
+fn context_flags_for_function_body(is_generator: bool, is_async: bool) -> (NodeFlags, NodeFlags) {
+    let mut set = NodeFlags::NONE;
+    let mut clear = NodeFlags::NONE;
+    if is_generator {
+        set |= NodeFlags::YIELD_CONTEXT;
+    } else {
+        clear |= NodeFlags::YIELD_CONTEXT;
+    }
+    if is_async {
+        set |= NodeFlags::AWAIT_CONTEXT;
+    } else {
+        clear |= NodeFlags::AWAIT_CONTEXT;
+    }
+    (set, clear)
 }
 
 #[cfg(test)]
@@ -2934,6 +3454,282 @@ mod tests {
         assert_eq!(
             source.arena.node(template).kind,
             SyntaxKind::TemplateExpression
+        );
+    }
+
+    #[test]
+    fn parse_member_and_call_expression_shapes() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "foo.bar(1, ...xs); obj?.prop?.[key]?.(arg); tag<T>`x${y}z`; new Foo<T>(arg); x!.y;"
+                .to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+        assert_eq!(statements.nodes.len(), 5);
+
+        let call_statement = source
+            .arena
+            .node(statements.nodes[0])
+            .data
+            .as_expression_statement()
+            .expect("call statement");
+        let call = source
+            .arena
+            .node(call_statement.expression.expect("call expression"))
+            .data
+            .as_call_expression()
+            .expect("call expression");
+        assert_eq!(
+            source.arena.node(call.expression.expect("callee")).kind,
+            SyntaxKind::PropertyAccessExpression
+        );
+        let call_arguments = source
+            .arena
+            .node_array(call.arguments.expect("call arguments"));
+        assert_eq!(call_arguments.nodes.len(), 2);
+        assert_eq!(
+            source.arena.node(call_arguments.nodes[1]).kind,
+            SyntaxKind::SpreadElement
+        );
+
+        let optional_call_statement = source
+            .arena
+            .node(statements.nodes[1])
+            .data
+            .as_expression_statement()
+            .expect("optional call statement");
+        let optional_call = source
+            .arena
+            .node(optional_call_statement.expression.expect("optional call"))
+            .data
+            .as_call_expression()
+            .expect("optional call expression");
+        assert!(optional_call.question_dot_token.is_some());
+        assert_eq!(
+            source
+                .arena
+                .node(optional_call.expression.expect("optional callee"))
+                .kind,
+            SyntaxKind::ElementAccessExpression
+        );
+
+        let tagged_statement = source
+            .arena
+            .node(statements.nodes[2])
+            .data
+            .as_expression_statement()
+            .expect("tagged template statement");
+        let tagged = source
+            .arena
+            .node(tagged_statement.expression.expect("tagged template"))
+            .data
+            .as_tagged_template_expression()
+            .expect("tagged template expression");
+        assert!(tagged.type_arguments.is_some());
+        assert_eq!(
+            source.arena.node(tagged.template.expect("template")).kind,
+            SyntaxKind::TemplateExpression
+        );
+
+        let new_statement = source
+            .arena
+            .node(statements.nodes[3])
+            .data
+            .as_expression_statement()
+            .expect("new expression statement");
+        let new_expression = source
+            .arena
+            .node(new_statement.expression.expect("new expression"))
+            .data
+            .as_new_expression()
+            .expect("new expression");
+        assert!(new_expression.type_arguments.is_some());
+        assert_eq!(
+            source
+                .arena
+                .node_array(new_expression.arguments.expect("new arguments"))
+                .nodes
+                .len(),
+            1
+        );
+
+        let non_null_statement = source
+            .arena
+            .node(statements.nodes[4])
+            .data
+            .as_expression_statement()
+            .expect("non-null statement");
+        let property_access = source
+            .arena
+            .node(non_null_statement.expression.expect("property access"))
+            .data
+            .as_property_access_expression()
+            .expect("property access expression");
+        assert_eq!(
+            source
+                .arena
+                .node(property_access.expression.expect("non-null base"))
+                .kind,
+            SyntaxKind::NonNullExpression
+        );
+    }
+
+    #[test]
+    fn parse_unary_update_await_and_yield_shapes() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "++a; b--; delete obj.x; typeof y; void z; await q; const g = function*(){ yield; yield* q; }; const h = async function(){ await q; };".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+        assert_eq!(statements.nodes.len(), 8);
+
+        let expression_statement_expression = |index: usize| -> NodeId {
+            source
+                .arena
+                .node(statements.nodes[index])
+                .data
+                .as_expression_statement()
+                .expect("expression statement")
+                .expression
+                .expect("expression")
+        };
+
+        assert_eq!(
+            source.arena.node(expression_statement_expression(0)).kind,
+            SyntaxKind::PrefixUnaryExpression
+        );
+        assert_eq!(
+            source.arena.node(expression_statement_expression(1)).kind,
+            SyntaxKind::PostfixUnaryExpression
+        );
+        assert_eq!(
+            source.arena.node(expression_statement_expression(2)).kind,
+            SyntaxKind::DeleteExpression
+        );
+        assert_eq!(
+            source.arena.node(expression_statement_expression(3)).kind,
+            SyntaxKind::TypeOfExpression
+        );
+        assert_eq!(
+            source.arena.node(expression_statement_expression(4)).kind,
+            SyntaxKind::VoidExpression
+        );
+        assert_eq!(
+            source.arena.node(expression_statement_expression(5)).kind,
+            SyntaxKind::AwaitExpression
+        );
+
+        let variable_initializer = |index: usize| -> NodeId {
+            let variable_statement = source
+                .arena
+                .node(statements.nodes[index])
+                .data
+                .as_variable_statement()
+                .expect("variable statement");
+            let declaration_list = source
+                .arena
+                .node(
+                    variable_statement
+                        .declaration_list
+                        .expect("declaration list"),
+                )
+                .data
+                .as_variable_declaration_list()
+                .expect("declaration list data");
+            let declarations = source
+                .arena
+                .node_array(declaration_list.declarations.expect("declarations"));
+            source
+                .arena
+                .node(declarations.nodes[0])
+                .data
+                .as_variable_declaration()
+                .expect("declaration")
+                .initializer
+                .expect("initializer")
+        };
+
+        let generator = source
+            .arena
+            .node(variable_initializer(6))
+            .data
+            .as_function_expression()
+            .expect("generator function expression");
+        let generator_body = source
+            .arena
+            .node(generator.body.expect("generator body"))
+            .data
+            .as_block()
+            .expect("generator body block");
+        let generator_statements = source
+            .arena
+            .node_array(generator_body.statements.expect("generator statements"));
+        assert_eq!(generator_statements.nodes.len(), 2);
+        for statement in &generator_statements.nodes {
+            let expression = source
+                .arena
+                .node(*statement)
+                .data
+                .as_expression_statement()
+                .expect("yield expression statement")
+                .expression
+                .expect("yield expression");
+            assert_eq!(
+                source.arena.node(expression).kind,
+                SyntaxKind::YieldExpression
+            );
+        }
+
+        let async_function = source
+            .arena
+            .node(variable_initializer(7))
+            .data
+            .as_function_expression()
+            .expect("async function expression");
+        let async_body = source
+            .arena
+            .node(async_function.body.expect("async body"))
+            .data
+            .as_block()
+            .expect("async body block");
+        let async_statements = source
+            .arena
+            .node_array(async_body.statements.expect("async statements"));
+        let await_expression = source
+            .arena
+            .node(async_statements.nodes[0])
+            .data
+            .as_expression_statement()
+            .expect("await expression statement")
+            .expression
+            .expect("await expression");
+        assert_eq!(
+            source.arena.node(await_expression).kind,
+            SyntaxKind::AwaitExpression
         );
     }
 

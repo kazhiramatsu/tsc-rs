@@ -892,7 +892,7 @@ impl<'text> Scanner<'text> {
     }
 
     #[allow(dead_code)]
-    fn re_scan_greater_token(&mut self) -> SyntaxKind {
+    pub(crate) fn re_scan_greater_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::GreaterThanToken {
             if self.byte_at(self.pos) == Some(b'>') {
                 if self.byte_at(self.pos + 1) == Some(b'>') {
@@ -1035,7 +1035,7 @@ impl<'text> Scanner<'text> {
     }
 
     #[allow(dead_code)]
-    fn re_scan_less_than_token(&mut self) -> SyntaxKind {
+    pub(crate) fn re_scan_less_than_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::LessThanLessThanToken {
             self.pos = self.token_start + 1;
             self.token = SyntaxKind::LessThanToken;
