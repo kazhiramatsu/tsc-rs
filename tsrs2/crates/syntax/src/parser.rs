@@ -5,8 +5,8 @@ use crate::nodes::{
     ArrayBindingPatternData, ArrayLiteralExpressionData, AsExpressionData, AwaitExpressionData,
     BigIntLiteralData, BinaryExpressionData, BindingElementData, BlockData, BreakStatementData,
     CallExpressionData, CaseBlockData, CaseClauseData, CatchClauseData, ClassExpressionData,
-    ComputedPropertyNameData,
-    ContinueStatementData, DebuggerStatementData, DefaultClauseData, DeleteExpressionData,
+    ComputedPropertyNameData, ConditionalExpressionData, ContinueStatementData,
+    DebuggerStatementData, DefaultClauseData, DeleteExpressionData,
     DoStatementData, ElementAccessExpressionData, EmptyStatementData, ExpressionStatementData,
     ExpressionWithTypeArgumentsData, ForInStatementData, ForOfStatementData, ForStatementData,
     FunctionExpressionData, IdentifierData, IfStatementData, LabeledStatementData,
@@ -1709,7 +1709,50 @@ impl<'text> Parser<'text> {
         if self.is_yield_expression() {
             return self.parse_yield_expression();
         }
-        self.parse_binary_expression_or_higher(LOWEST_OPERATOR_PRECEDENCE)
+        // Arrow speculation (tryParseParenthesizedArrowFunctionExpression,
+        // async simple arrow, Identifier =>) is the remaining 2.4 production.
+        let pos = self.node_pos();
+        let expr = self.parse_binary_expression_or_higher(LOWEST_OPERATOR_PRECEDENCE);
+        if is_left_hand_side_expression_kind(self.arena.node(expr).kind)
+            && is_assignment_operator(self.scanner.re_scan_greater_token())
+        {
+            let operator_token = self.parse_token_node();
+            let right = self.parse_assignment_expression_or_higher();
+            return self.make_binary_expression(expr, operator_token, right, pos);
+        }
+        self.parse_conditional_expression_rest(expr, pos)
+    }
+
+    fn parse_conditional_expression_rest(&mut self, left_operand: NodeId, pos: usize) -> NodeId {
+        let Some(question_token) = self.parse_optional_token(SyntaxKind::QuestionToken) else {
+            return left_operand;
+        };
+        let when_true = self.do_in_context(
+            NodeFlags::NONE,
+            NodeFlags::DISALLOW_IN_CONTEXT | NodeFlags::DECORATOR_CONTEXT,
+            |parser| parser.parse_assignment_expression_or_higher(),
+        );
+        let colon_token = self.parse_expected_token(SyntaxKind::ColonToken);
+        let when_false = if self.node_is_present(colon_token) {
+            self.parse_assignment_expression_or_higher()
+        } else {
+            self.create_missing_node(
+                SyntaxKind::Identifier,
+                true,
+                Some(&gen::_0_expected),
+                &[&token_to_string(SyntaxKind::ColonToken)],
+            )
+        };
+        self.finish_node_data(
+            NodeData::ConditionalExpression(ConditionalExpressionData {
+                condition: Some(left_operand),
+                question_token: Some(question_token),
+                when_true: Some(when_true),
+                colon_token: Some(colon_token),
+                when_false: Some(when_false),
+            }),
+            pos,
+        )
     }
 
     fn parse_binary_expression_or_higher(&mut self, precedence: i32) -> NodeId {
@@ -2930,6 +2973,18 @@ impl<'text> Parser<'text> {
         }
     }
 
+    fn parse_expected_token(&mut self, kind: SyntaxKind) -> NodeId {
+        match self.parse_optional_token(kind) {
+            Some(token) => token,
+            None => self.create_missing_node(kind, true, None, &[]),
+        }
+    }
+
+    fn node_is_present(&self, id: NodeId) -> bool {
+        let node = self.arena.node(id);
+        node.pos != node.end || node.kind == SyntaxKind::EndOfFileToken
+    }
+
     fn parse_optional_token(&mut self, kind: SyntaxKind) -> Option<NodeId> {
         if self.token() == kind {
             Some(self.parse_token_node())
@@ -3361,6 +3416,50 @@ fn is_keyword(kind: SyntaxKind) -> bool {
 fn is_binary_operator(kind: SyntaxKind) -> bool {
     kind.value() >= SyntaxKind::FirstBinaryOperator.value()
         && kind.value() <= SyntaxKind::LastBinaryOperator.value()
+}
+
+fn is_assignment_operator(kind: SyntaxKind) -> bool {
+    kind.value() >= SyntaxKind::FirstAssignment.value()
+        && kind.value() <= SyntaxKind::LastAssignment.value()
+}
+
+/// tsc isLeftHandSideExpressionKind: the only left sides an assignment
+/// operator may bind to; otherwise `=` is left for the outer context.
+fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::NewExpression
+            | SyntaxKind::CallExpression
+            | SyntaxKind::JsxElement
+            | SyntaxKind::JsxSelfClosingElement
+            | SyntaxKind::JsxFragment
+            | SyntaxKind::TaggedTemplateExpression
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::Identifier
+            | SyntaxKind::PrivateIdentifier
+            | SyntaxKind::RegularExpressionLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateExpression
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::ThisKeyword
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::ExpressionWithTypeArguments
+            | SyntaxKind::MetaProperty
+            | SyntaxKind::ImportKeyword
+            | SyntaxKind::MissingDeclaration
+    )
 }
 
 /// tsc OperatorPrecedence.Lowest (Comma). `getBinaryOperatorPrecedence`
@@ -4111,6 +4210,111 @@ mod tests {
             source.arena.node(negated).kind,
             SyntaxKind::PrefixUnaryExpression
         );
+    }
+
+    #[test]
+    fn parse_assignment_right_associative_and_rescanned_operator() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "a = b = c; x >>= y;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+
+        let (left, equals, chained) = binary_parts(&source, expressions[0]);
+        assert_eq!(equals, SyntaxKind::EqualsToken);
+        assert_eq!(source.arena.node(left).kind, SyntaxKind::Identifier);
+        let (_, inner_equals, _) = binary_parts(&source, chained);
+        assert_eq!(inner_equals, SyntaxKind::EqualsToken);
+
+        let (_, shift_assign, _) = binary_parts(&source, expressions[1]);
+        assert_eq!(
+            shift_assign,
+            SyntaxKind::GreaterThanGreaterThanEqualsToken
+        );
+    }
+
+    #[test]
+    fn assignment_to_non_lhs_leaves_equals_for_outer_context() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "a + b = c;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(!source.parse_diagnostics.is_empty());
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+        let first = source
+            .arena
+            .node(statements.nodes[0])
+            .data
+            .as_expression_statement()
+            .expect("expression statement")
+            .expression
+            .expect("expression");
+        let (_, plus, _) = binary_parts(&source, first);
+        assert_eq!(plus, SyntaxKind::PlusToken);
+    }
+
+    #[test]
+    fn parse_conditional_expression_shapes() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "a ? b : c ? d : e;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        let conditional = source
+            .arena
+            .node(expressions[0])
+            .data
+            .as_conditional_expression()
+            .expect("conditional expression");
+        let when_false = conditional.when_false.expect("when false");
+        assert_eq!(
+            source.arena.node(when_false).kind,
+            SyntaxKind::ConditionalExpression
+        );
+    }
+
+    #[test]
+    fn conditional_missing_colon_recovers_with_missing_when_false() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "a ? b;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(!source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        let conditional = source
+            .arena
+            .node(expressions[0])
+            .data
+            .as_conditional_expression()
+            .expect("conditional expression");
+        let colon = conditional.colon_token.expect("colon token");
+        let colon_node = source.arena.node(colon);
+        assert_eq!(colon_node.pos, colon_node.end);
+        let when_false = conditional.when_false.expect("when false");
+        let when_false_node = source.arena.node(when_false);
+        assert_eq!(when_false_node.pos, when_false_node.end);
     }
 
     #[test]
