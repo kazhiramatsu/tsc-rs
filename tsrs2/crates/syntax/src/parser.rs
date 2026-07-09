@@ -2,8 +2,9 @@
 
 use crate::arena::NodeArena;
 use crate::nodes::{
-    ArrayBindingPatternData, ArrayLiteralExpressionData, AsExpressionData, AwaitExpressionData,
-    BigIntLiteralData, BinaryExpressionData, BindingElementData, BlockData, BreakStatementData,
+    ArrayBindingPatternData, ArrayLiteralExpressionData, ArrowFunctionData, AsExpressionData,
+    AwaitExpressionData, BigIntLiteralData, BinaryExpressionData, BindingElementData, BlockData,
+    BreakStatementData,
     CallExpressionData, CaseBlockData, CaseClauseData, CatchClauseData, ClassExpressionData,
     ComputedPropertyNameData, ConditionalExpressionData, ContinueStatementData,
     DebuggerStatementData, DefaultClauseData, DeleteExpressionData,
@@ -12,7 +13,7 @@ use crate::nodes::{
     FunctionExpressionData, IdentifierData, IfStatementData, LabeledStatementData,
     MetaPropertyData, MethodDeclarationData, MissingDeclarationData, NewExpressionData,
     NoSubstitutionTemplateLiteralData, NodeData, NodeId, NonNullExpressionData, NumericLiteralData,
-    ObjectBindingPatternData, ObjectLiteralExpressionData, OmittedExpressionData,
+    ObjectBindingPatternData, ObjectLiteralExpressionData, OmittedExpressionData, ParameterData,
     ParenthesizedExpressionData, PostfixUnaryExpressionData, PrefixUnaryExpressionData,
     PrivateIdentifierData, PropertyAccessExpressionData, PropertyAssignmentData,
     RegularExpressionLiteralData, ReturnStatementData, SatisfiesExpressionData,
@@ -146,6 +147,15 @@ struct Parser<'text> {
     parse_diagnostics: DiagnosticList,
     parse_error_before_next_finished_node: bool,
     parsing_context: u32,
+    not_parenthesized_arrow: std::collections::HashSet<usize>,
+}
+
+/// tsc Tristate: the arrow-function lookahead verdict.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Tristate {
+    False,
+    True,
+    Unknown,
 }
 
 struct FinishedParse {
@@ -172,6 +182,7 @@ impl<'text> Parser<'text> {
             parse_diagnostics: Vec::new(),
             parse_error_before_next_finished_node: false,
             parsing_context: 0,
+            not_parenthesized_arrow: std::collections::HashSet::new(),
         }
     }
 
@@ -359,9 +370,21 @@ impl<'text> Parser<'text> {
     fn parse_delimited_list(
         &mut self,
         context: ParsingContext,
-        mut parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
+        parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
         consider_semicolon_as_delimiter: bool,
     ) -> crate::NodeArrayId {
+        self.parse_delimited_list_worker(context, parse_element, consider_semicolon_as_delimiter)
+            .expect("non-speculative element parsers always yield an element")
+    }
+
+    /// tsc parseDelimitedList: `None` when an element parser aborts,
+    /// which only speculative parsers (parseParameterForSpeculation) do.
+    fn parse_delimited_list_worker(
+        &mut self,
+        context: ParsingContext,
+        mut parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
+        consider_semicolon_as_delimiter: bool,
+    ) -> Option<crate::NodeArrayId> {
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
         let mut list = Vec::new();
@@ -373,7 +396,7 @@ impl<'text> Parser<'text> {
                 let start_pos = self.scanner.full_start_pos();
                 let Some(element) = parse_element(self) else {
                     self.parsing_context = saved_context;
-                    return self.arena.empty_array(list_pos);
+                    return None;
                 };
                 list.push(element);
 
@@ -412,8 +435,10 @@ impl<'text> Parser<'text> {
         }
 
         self.parsing_context = saved_context;
-        self.arena
-            .alloc_array(list, list_pos, self.node_pos(), comma_start.is_some())
+        Some(
+            self.arena
+                .alloc_array(list, list_pos, self.node_pos(), comma_start.is_some()),
+        )
     }
 
     fn is_list_terminator(&mut self, context: ParsingContext) -> bool {
@@ -1180,7 +1205,7 @@ impl<'text> Parser<'text> {
         };
 
         if is_for_of {
-            let expression = self.allow_in(|parser| parser.parse_assignment_expression_or_higher());
+            let expression = self.allow_in(|parser| parser.parse_assignment_expression_or_higher(true));
             self.parse_expected(SyntaxKind::CloseParenToken, None);
             let statement = self.parse_statement();
             return self.finish_node_data(
@@ -1694,9 +1719,9 @@ impl<'text> Parser<'text> {
             self.set_decorator_context(false);
         }
         let pos = self.node_pos();
-        let mut expr = self.parse_assignment_expression_or_higher();
+        let mut expr = self.parse_assignment_expression_or_higher(true);
         while let Some(operator_token) = self.parse_optional_token(SyntaxKind::CommaToken) {
-            let right = self.parse_assignment_expression_or_higher();
+            let right = self.parse_assignment_expression_or_higher(true);
             expr = self.make_binary_expression(expr, operator_token, right, pos);
         }
         if save_decorator_context {
@@ -1705,36 +1730,63 @@ impl<'text> Parser<'text> {
         expr
     }
 
-    fn parse_assignment_expression_or_higher(&mut self) -> NodeId {
+    fn parse_assignment_expression_or_higher(
+        &mut self,
+        allow_return_type_in_arrow_function: bool,
+    ) -> NodeId {
         if self.is_yield_expression() {
             return self.parse_yield_expression();
         }
-        // Arrow speculation (tryParseParenthesizedArrowFunctionExpression,
-        // async simple arrow, Identifier =>) is the remaining 2.4 production.
+        let arrow_expression = self
+            .try_parse_parenthesized_arrow_function_expression(allow_return_type_in_arrow_function)
+            .or_else(|| {
+                self.try_parse_async_simple_arrow_function_expression(
+                    allow_return_type_in_arrow_function,
+                )
+            });
+        if let Some(arrow_expression) = arrow_expression {
+            return arrow_expression;
+        }
         let pos = self.node_pos();
         let expr = self.parse_binary_expression_or_higher(LOWEST_OPERATOR_PRECEDENCE);
+        if self.arena.node(expr).kind == SyntaxKind::Identifier
+            && self.token() == SyntaxKind::EqualsGreaterThanToken
+        {
+            return self.parse_simple_arrow_function_expression(
+                pos,
+                expr,
+                allow_return_type_in_arrow_function,
+                None,
+            );
+        }
         if is_left_hand_side_expression_kind(self.arena.node(expr).kind)
             && is_assignment_operator(self.scanner.re_scan_greater_token())
         {
             let operator_token = self.parse_token_node();
-            let right = self.parse_assignment_expression_or_higher();
+            let right =
+                self.parse_assignment_expression_or_higher(allow_return_type_in_arrow_function);
             return self.make_binary_expression(expr, operator_token, right, pos);
         }
-        self.parse_conditional_expression_rest(expr, pos)
+        self.parse_conditional_expression_rest(expr, pos, allow_return_type_in_arrow_function)
     }
 
-    fn parse_conditional_expression_rest(&mut self, left_operand: NodeId, pos: usize) -> NodeId {
+    fn parse_conditional_expression_rest(
+        &mut self,
+        left_operand: NodeId,
+        pos: usize,
+        allow_return_type_in_arrow_function: bool,
+    ) -> NodeId {
         let Some(question_token) = self.parse_optional_token(SyntaxKind::QuestionToken) else {
             return left_operand;
         };
         let when_true = self.do_in_context(
             NodeFlags::NONE,
             NodeFlags::DISALLOW_IN_CONTEXT | NodeFlags::DECORATOR_CONTEXT,
-            |parser| parser.parse_assignment_expression_or_higher(),
+            |parser| parser.parse_assignment_expression_or_higher(false),
         );
         let colon_token = self.parse_expected_token(SyntaxKind::ColonToken);
         let when_false = if self.node_is_present(colon_token) {
-            self.parse_assignment_expression_or_higher()
+            self.parse_assignment_expression_or_higher(allow_return_type_in_arrow_function)
         } else {
             self.create_missing_node(
                 SyntaxKind::Identifier,
@@ -1753,6 +1805,373 @@ impl<'text> Parser<'text> {
             }),
             pos,
         )
+    }
+
+    fn try_parse_parenthesized_arrow_function_expression(
+        &mut self,
+        allow_return_type_in_arrow_function: bool,
+    ) -> Option<NodeId> {
+        match self.is_parenthesized_arrow_function_expression() {
+            Tristate::False => None,
+            Tristate::True => self.parse_parenthesized_arrow_function_expression(true, true),
+            Tristate::Unknown => self.try_parse(|parser| {
+                parser.parse_possible_parenthesized_arrow_function_expression(
+                    allow_return_type_in_arrow_function,
+                )
+            }),
+        }
+    }
+
+    fn is_parenthesized_arrow_function_expression(&mut self) -> Tristate {
+        if matches!(
+            self.token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken | SyntaxKind::AsyncKeyword
+        ) {
+            return self
+                .look_ahead(|parser| parser.is_parenthesized_arrow_function_expression_worker());
+        }
+        if self.token() == SyntaxKind::EqualsGreaterThanToken {
+            // ERROR RECOVERY TWEAK: "a, => b" — treat => as a (bad) arrow.
+            return Tristate::True;
+        }
+        Tristate::False
+    }
+
+    fn is_parenthesized_arrow_function_expression_worker(&mut self) -> Tristate {
+        if self.token() == SyntaxKind::AsyncKeyword {
+            self.next_token();
+            if self.scanner.has_preceding_line_break() {
+                return Tristate::False;
+            }
+            if !matches!(
+                self.token(),
+                SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+            ) {
+                return Tristate::False;
+            }
+        }
+
+        let first = self.token();
+        let second = self.next_token();
+
+        if first == SyntaxKind::OpenParenToken {
+            if second == SyntaxKind::CloseParenToken {
+                let third = self.next_token();
+                return match third {
+                    SyntaxKind::EqualsGreaterThanToken
+                    | SyntaxKind::ColonToken
+                    | SyntaxKind::OpenBraceToken => Tristate::True,
+                    _ => Tristate::False,
+                };
+            }
+            if matches!(
+                second,
+                SyntaxKind::OpenBracketToken | SyntaxKind::OpenBraceToken
+            ) {
+                return Tristate::Unknown;
+            }
+            if second == SyntaxKind::DotDotDotToken {
+                return Tristate::True;
+            }
+            if self.is_modifier_kind(second)
+                && second != SyntaxKind::AsyncKeyword
+                && self.look_ahead(|parser| {
+                    parser.next_token();
+                    parser.is_identifier()
+                })
+            {
+                if self.next_token() == SyntaxKind::AsKeyword {
+                    return Tristate::False;
+                }
+                return Tristate::True;
+            }
+            if !self.is_identifier() && second != SyntaxKind::ThisKeyword {
+                return Tristate::False;
+            }
+            match self.next_token() {
+                SyntaxKind::ColonToken => Tristate::True,
+                SyntaxKind::QuestionToken => {
+                    self.next_token();
+                    if matches!(
+                        self.token(),
+                        SyntaxKind::ColonToken
+                            | SyntaxKind::CommaToken
+                            | SyntaxKind::EqualsToken
+                            | SyntaxKind::CloseParenToken
+                    ) {
+                        return Tristate::True;
+                    }
+                    Tristate::False
+                }
+                SyntaxKind::CommaToken | SyntaxKind::EqualsToken | SyntaxKind::CloseParenToken => {
+                    Tristate::Unknown
+                }
+                _ => Tristate::False,
+            }
+        } else {
+            debug_assert_eq!(first, SyntaxKind::LessThanToken);
+            if !self.is_identifier() && self.token() != SyntaxKind::ConstKeyword {
+                return Tristate::False;
+            }
+            if self.language_variant == LanguageVariant::Jsx {
+                let is_arrow_function_in_jsx = self.look_ahead(|parser| {
+                    parser.parse_optional(SyntaxKind::ConstKeyword);
+                    let third = parser.next_token();
+                    if third == SyntaxKind::ExtendsKeyword {
+                        let fourth = parser.next_token();
+                        !matches!(
+                            fourth,
+                            SyntaxKind::EqualsToken
+                                | SyntaxKind::GreaterThanToken
+                                | SyntaxKind::SlashToken
+                        )
+                    } else {
+                        matches!(third, SyntaxKind::CommaToken | SyntaxKind::EqualsToken)
+                    }
+                });
+                if is_arrow_function_in_jsx {
+                    return Tristate::True;
+                }
+                return Tristate::False;
+            }
+            Tristate::Unknown
+        }
+    }
+
+    fn parse_possible_parenthesized_arrow_function_expression(
+        &mut self,
+        allow_return_type_in_arrow_function: bool,
+    ) -> Option<NodeId> {
+        let token_pos = self.scanner.token_start();
+        if self.not_parenthesized_arrow.contains(&token_pos) {
+            return None;
+        }
+        let result = self.parse_parenthesized_arrow_function_expression(
+            false,
+            allow_return_type_in_arrow_function,
+        );
+        if result.is_none() {
+            self.not_parenthesized_arrow.insert(token_pos);
+        }
+        result
+    }
+
+    fn try_parse_async_simple_arrow_function_expression(
+        &mut self,
+        allow_return_type_in_arrow_function: bool,
+    ) -> Option<NodeId> {
+        if self.token() == SyntaxKind::AsyncKeyword
+            && self.look_ahead(|parser| parser.is_un_parenthesized_async_arrow_function_worker())
+                == Tristate::True
+        {
+            let pos = self.node_pos();
+            let async_modifier = self.parse_modifiers_for_arrow_function();
+            let expr = self.parse_binary_expression_or_higher(LOWEST_OPERATOR_PRECEDENCE);
+            return Some(self.parse_simple_arrow_function_expression(
+                pos,
+                expr,
+                allow_return_type_in_arrow_function,
+                async_modifier,
+            ));
+        }
+        None
+    }
+
+    fn is_un_parenthesized_async_arrow_function_worker(&mut self) -> Tristate {
+        if self.token() == SyntaxKind::AsyncKeyword {
+            self.next_token();
+            if self.scanner.has_preceding_line_break()
+                || self.token() == SyntaxKind::EqualsGreaterThanToken
+            {
+                return Tristate::False;
+            }
+            let expr = self.parse_binary_expression_or_higher(LOWEST_OPERATOR_PRECEDENCE);
+            if !self.scanner.has_preceding_line_break()
+                && self.arena.node(expr).kind == SyntaxKind::Identifier
+                && self.token() == SyntaxKind::EqualsGreaterThanToken
+            {
+                return Tristate::True;
+            }
+        }
+        Tristate::False
+    }
+
+    fn parse_modifiers_for_arrow_function(&mut self) -> Option<crate::NodeArrayId> {
+        if self.token() != SyntaxKind::AsyncKeyword {
+            return None;
+        }
+        let pos = self.node_pos();
+        let modifier = self.parse_token_node();
+        let end = self.arena.node(modifier).end as usize;
+        Some(self.arena.alloc_array(vec![modifier], pos, end, false))
+    }
+
+    fn parse_parenthesized_arrow_function_expression(
+        &mut self,
+        allow_ambiguity: bool,
+        allow_return_type_in_arrow_function: bool,
+    ) -> Option<NodeId> {
+        let pos = self.node_pos();
+        let modifiers = self.parse_modifiers_for_arrow_function();
+        let is_async = modifiers.is_some();
+        // parseTypeParameters lands with stage 2.5; until then a `<` head
+        // fails the OpenParen check below and speculation unwinds.
+        let type_parameters: Option<crate::NodeArrayId> = None;
+
+        let parameters: crate::NodeArrayId;
+        if !self.parse_expected(SyntaxKind::OpenParenToken, None) {
+            if !allow_ambiguity {
+                return None;
+            }
+            // tsc createMissingList
+            parameters = self.arena.empty_array(self.node_pos());
+        } else {
+            match self.parse_parameters_worker(false, is_async, allow_ambiguity) {
+                Some(list) => parameters = list,
+                None if !allow_ambiguity => return None,
+                None => parameters = self.arena.empty_array(self.node_pos()),
+            }
+            if !self.parse_expected(SyntaxKind::CloseParenToken, None) && !allow_ambiguity {
+                return None;
+            }
+        }
+
+        let has_return_colon = self.token() == SyntaxKind::ColonToken;
+        let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
+        // typeHasArrowFunctionBlockingParseError lands with the 2.5 type grammar.
+        if !allow_ambiguity
+            && self.token() != SyntaxKind::EqualsGreaterThanToken
+            && self.token() != SyntaxKind::OpenBraceToken
+        {
+            return None;
+        }
+
+        let last_token = self.token();
+        let equals_greater_than_token =
+            self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken);
+        let body = if matches!(
+            last_token,
+            SyntaxKind::EqualsGreaterThanToken | SyntaxKind::OpenBraceToken
+        ) {
+            self.parse_arrow_function_expression_body(
+                is_async,
+                allow_return_type_in_arrow_function,
+            )
+        } else if self.is_identifier() {
+            self.parse_identifier()
+        } else {
+            self.create_missing_node(
+                SyntaxKind::Identifier,
+                true,
+                Some(&gen::Identifier_expected),
+                &[],
+            )
+        };
+
+        // `a ? (b): c => d` — inside a conditional's whenTrue an arrow with a
+        // return type must be followed by the conditional's own colon.
+        if !allow_return_type_in_arrow_function
+            && has_return_colon
+            && self.token() != SyntaxKind::ColonToken
+        {
+            return None;
+        }
+
+        Some(self.finish_node_data(
+            NodeData::ArrowFunction(ArrowFunctionData {
+                modifiers,
+                r#type,
+                type_parameters,
+                parameters: Some(parameters),
+                equals_greater_than_token: Some(equals_greater_than_token),
+                body: Some(body),
+            }),
+            pos,
+        ))
+    }
+
+    fn parse_simple_arrow_function_expression(
+        &mut self,
+        pos: usize,
+        identifier: NodeId,
+        allow_return_type_in_arrow_function: bool,
+        async_modifier: Option<crate::NodeArrayId>,
+    ) -> NodeId {
+        debug_assert_eq!(self.token(), SyntaxKind::EqualsGreaterThanToken);
+        let identifier_pos = self.arena.node(identifier).pos as usize;
+        let parameter = self.finish_node_data(
+            NodeData::Parameter(ParameterData {
+                modifiers: None,
+                dot_dot_dot_token: None,
+                name: Some(identifier),
+                question_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            identifier_pos,
+        );
+        let parameter_node = self.arena.node(parameter);
+        let (parameter_pos, parameter_end) =
+            (parameter_node.pos as usize, parameter_node.end as usize);
+        let parameters = self
+            .arena
+            .alloc_array(vec![parameter], parameter_pos, parameter_end, false);
+        let equals_greater_than_token =
+            self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken);
+        let body = self.parse_arrow_function_expression_body(
+            async_modifier.is_some(),
+            allow_return_type_in_arrow_function,
+        );
+        self.finish_node_data(
+            NodeData::ArrowFunction(ArrowFunctionData {
+                modifiers: async_modifier,
+                r#type: None,
+                type_parameters: None,
+                parameters: Some(parameters),
+                equals_greater_than_token: Some(equals_greater_than_token),
+                body: Some(body),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_arrow_function_expression_body(
+        &mut self,
+        is_async: bool,
+        allow_return_type_in_arrow_function: bool,
+    ) -> NodeId {
+        if self.token() == SyntaxKind::OpenBraceToken {
+            return self.parse_function_block(false, is_async, false, None);
+        }
+        if self.token() != SyntaxKind::SemicolonToken
+            && self.token() != SyntaxKind::FunctionKeyword
+            && self.token() != SyntaxKind::ClassKeyword
+            && self.is_start_of_statement()
+            && !self.is_start_of_expression_statement()
+        {
+            return self.parse_function_block(false, is_async, true, None);
+        }
+        let saved_yield_context = self.in_yield_context();
+        self.set_yield_context(false);
+        let node = if is_async {
+            self.do_in_context(NodeFlags::AWAIT_CONTEXT, NodeFlags::NONE, |parser| {
+                parser.parse_assignment_expression_or_higher(allow_return_type_in_arrow_function)
+            })
+        } else {
+            self.do_in_context(NodeFlags::NONE, NodeFlags::AWAIT_CONTEXT, |parser| {
+                parser.parse_assignment_expression_or_higher(allow_return_type_in_arrow_function)
+            })
+        };
+        self.set_yield_context(saved_yield_context);
+        node
+    }
+
+    fn is_start_of_expression_statement(&self) -> bool {
+        self.token() != SyntaxKind::OpenBraceToken
+            && self.token() != SyntaxKind::FunctionKeyword
+            && self.token() != SyntaxKind::ClassKeyword
+            && self.token() != SyntaxKind::AtToken
+            && self.is_start_of_expression()
     }
 
     fn parse_binary_expression_or_higher(&mut self, precedence: i32) -> NodeId {
@@ -2048,7 +2467,7 @@ impl<'text> Parser<'text> {
             && (self.token() == SyntaxKind::AsteriskToken || self.is_start_of_expression())
         {
             let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
-            let expression = self.parse_assignment_expression_or_higher();
+            let expression = self.parse_assignment_expression_or_higher(true);
             (asterisk_token, Some(expression))
         } else {
             (None, None)
@@ -2545,13 +2964,13 @@ impl<'text> Parser<'text> {
             return self
                 .finish_node_data(NodeData::OmittedExpression(OmittedExpressionData {}), pos);
         }
-        self.parse_assignment_expression_or_higher()
+        self.parse_assignment_expression_or_higher(true)
     }
 
     fn parse_spread_element(&mut self) -> NodeId {
         let pos = self.node_pos();
         self.parse_expected(SyntaxKind::DotDotDotToken, None);
-        let expression = self.parse_assignment_expression_or_higher();
+        let expression = self.parse_assignment_expression_or_higher(true);
         self.finish_node_data(
             NodeData::SpreadElement(SpreadElementData {
                 expression: Some(expression),
@@ -2563,7 +2982,7 @@ impl<'text> Parser<'text> {
     fn parse_object_literal_element(&mut self) -> NodeId {
         let pos = self.node_pos();
         if self.parse_optional(SyntaxKind::DotDotDotToken) {
-            let expression = self.parse_assignment_expression_or_higher();
+            let expression = self.parse_assignment_expression_or_higher(true);
             return self.finish_node_data(
                 NodeData::SpreadAssignment(SpreadAssignmentData {
                     expression: Some(expression),
@@ -2596,7 +3015,7 @@ impl<'text> Parser<'text> {
         if token_is_identifier && self.token() != SyntaxKind::ColonToken {
             let equals_token = self.parse_optional_token(SyntaxKind::EqualsToken);
             let object_assignment_initializer = if equals_token.is_some() {
-                Some(self.allow_in(|parser| parser.parse_assignment_expression_or_higher()))
+                Some(self.allow_in(|parser| parser.parse_assignment_expression_or_higher(true)))
             } else {
                 None
             };
@@ -2614,7 +3033,7 @@ impl<'text> Parser<'text> {
         }
 
         self.parse_expected(SyntaxKind::ColonToken, None);
-        let initializer = self.allow_in(|parser| parser.parse_assignment_expression_or_higher());
+        let initializer = self.allow_in(|parser| parser.parse_assignment_expression_or_higher(true));
         self.finish_node_data(
             NodeData::PropertyAssignment(PropertyAssignmentData {
                 modifiers: None,
@@ -2691,6 +3110,174 @@ impl<'text> Parser<'text> {
         )
     }
 
+    fn is_parameter_name_start(&self) -> bool {
+        self.is_binding_identifier()
+            || matches!(
+                self.token(),
+                SyntaxKind::OpenBracketToken | SyntaxKind::OpenBraceToken
+            )
+    }
+
+    fn parse_parameter(&mut self, in_outer_await_context: bool) -> NodeId {
+        self.parse_parameter_worker(in_outer_await_context, true)
+            .expect("allow_ambiguity parameter always yields")
+    }
+
+    fn parse_parameter_for_speculation(&mut self, in_outer_await_context: bool) -> Option<NodeId> {
+        self.parse_parameter_worker(in_outer_await_context, false)
+    }
+
+    fn parse_parameter_worker(
+        &mut self,
+        _in_outer_await_context: bool,
+        allow_ambiguity: bool,
+    ) -> Option<NodeId> {
+        let pos = self.node_pos();
+        // parseModifiers (accessibility/decorators) lands with stage 2.6;
+        // the in/out-of-await-context wrap only affects modifier parsing.
+        let modifiers: Option<crate::NodeArrayId> = None;
+
+        if self.token() == SyntaxKind::ThisKeyword {
+            let name = self.parse_identifier();
+            let r#type = self.parse_type_annotation();
+            return Some(self.finish_node_data(
+                NodeData::Parameter(ParameterData {
+                    modifiers,
+                    dot_dot_dot_token: None,
+                    name: Some(name),
+                    question_token: None,
+                    r#type,
+                    initializer: None,
+                }),
+                pos,
+            ));
+        }
+
+        let dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
+        if !allow_ambiguity && !self.is_parameter_name_start() {
+            return None;
+        }
+        let name = self.parse_name_of_parameter(modifiers.is_some());
+        let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
+        let r#type = self.parse_type_annotation();
+        let initializer = self.parse_initializer();
+        Some(self.finish_node_data(
+            NodeData::Parameter(ParameterData {
+                modifiers,
+                dot_dot_dot_token,
+                name: Some(name),
+                question_token,
+                r#type,
+                initializer,
+            }),
+            pos,
+        ))
+    }
+
+    fn parse_name_of_parameter(&mut self, has_modifiers: bool) -> NodeId {
+        let name = self.parse_identifier_or_pattern();
+        let name_node = self.arena.node(name);
+        if name_node.pos == name_node.end
+            && !has_modifiers
+            && self.is_modifier_kind(self.token())
+        {
+            // A modifier alone ("void foo(private)") would loop forever;
+            // consume it so the list makes progress (tsc parseNameOfParameter).
+            self.next_token();
+        }
+        name
+    }
+
+    fn parse_parameters_worker(
+        &mut self,
+        yield_context: bool,
+        await_context: bool,
+        allow_ambiguity: bool,
+    ) -> Option<crate::NodeArrayId> {
+        let saved_yield_context = self.in_yield_context();
+        let saved_await_context = self.in_await_context();
+        self.set_yield_context(yield_context);
+        self.set_await_context(await_context);
+        let parameters = self.parse_delimited_list_worker(
+            ParsingContext::Parameters,
+            |parser| {
+                if allow_ambiguity {
+                    Some(parser.parse_parameter(saved_await_context))
+                } else {
+                    parser.parse_parameter_for_speculation(saved_await_context)
+                }
+            },
+            false,
+        );
+        self.set_yield_context(saved_yield_context);
+        self.set_await_context(saved_await_context);
+        parameters
+    }
+
+    fn parse_parameters(&mut self, yield_context: bool, await_context: bool) -> crate::NodeArrayId {
+        if !self.parse_expected(SyntaxKind::OpenParenToken, None) {
+            // tsc createMissingList
+            return self.arena.empty_array(self.node_pos());
+        }
+        let parameters = self
+            .parse_parameters_worker(yield_context, await_context, true)
+            .expect("allow_ambiguity parameter list always yields");
+        self.parse_expected(SyntaxKind::CloseParenToken, None);
+        parameters
+    }
+
+    fn parse_return_type(&mut self, return_token: SyntaxKind, is_type: bool) -> Option<NodeId> {
+        if self.should_parse_return_type(return_token, is_type) {
+            // allowConditionalTypesAnd(parseTypeOrTypePredicate) lands with 2.5
+            Some(self.do_in_context(
+                NodeFlags::NONE,
+                NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT,
+                |parser| parser.parse_type(),
+            ))
+        } else {
+            None
+        }
+    }
+
+    fn should_parse_return_type(&mut self, return_token: SyntaxKind, is_type: bool) -> bool {
+        if return_token == SyntaxKind::EqualsGreaterThanToken {
+            self.parse_expected(return_token, None);
+            true
+        } else if self.parse_optional(SyntaxKind::ColonToken) {
+            true
+        } else if is_type && self.token() == SyntaxKind::EqualsGreaterThanToken {
+            self.parse_error_at_current_token(
+                &gen::_0_expected,
+                &[&token_to_string(SyntaxKind::ColonToken)],
+            );
+            self.next_token();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn parse_function_block(
+        &mut self,
+        is_generator: bool,
+        is_async: bool,
+        ignore_missing_open_brace: bool,
+        diagnostic_message: Option<&'static DiagnosticMessage>,
+    ) -> NodeId {
+        let (set, clear) = context_flags_for_function_body(is_generator, is_async);
+        let save_decorator_context = self.in_decorator_context();
+        if save_decorator_context {
+            self.set_decorator_context(false);
+        }
+        let block = self.do_in_context(set, clear, |parser| {
+            parser.parse_block(ignore_missing_open_brace, diagnostic_message)
+        });
+        if save_decorator_context {
+            self.set_decorator_context(true);
+        }
+        block
+    }
+
     fn parse_function_expression_stub(
         &mut self,
         forced_pos: Option<usize>,
@@ -2708,21 +3295,9 @@ impl<'text> Parser<'text> {
         if self.token() == SyntaxKind::LessThanToken {
             self.skip_until_method_body_or_delimiter();
         }
-        let parameters_pos = self.node_pos();
-        let parameters = if self.parse_optional(SyntaxKind::OpenParenToken) {
-            self.skip_balanced_until(SyntaxKind::CloseParenToken);
-            self.parse_expected(SyntaxKind::CloseParenToken, None);
-            self.arena.empty_array(parameters_pos)
-        } else {
-            self.arena.empty_array(parameters_pos)
-        };
-        let r#type = self.parse_type_annotation();
-        let body = if self.token() == SyntaxKind::OpenBraceToken {
-            let (set, clear) = context_flags_for_function_body(is_generator, is_async);
-            Some(self.do_in_context(set, clear, |parser| parser.parse_block(false, None)))
-        } else {
-            None
-        };
+        let parameters = self.parse_parameters(is_generator, is_async);
+        let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
+        let body = Some(self.parse_function_block(is_generator, is_async, false, None));
         self.finish_node_data(
             NodeData::FunctionExpression(FunctionExpressionData {
                 modifiers: None,
@@ -2953,7 +3528,7 @@ impl<'text> Parser<'text> {
 
     fn parse_initializer(&mut self) -> Option<NodeId> {
         if self.parse_optional(SyntaxKind::EqualsToken) {
-            Some(self.parse_assignment_expression_or_higher())
+            Some(self.parse_assignment_expression_or_higher(true))
         } else {
             None
         }
@@ -3181,14 +3756,24 @@ impl<'text> Parser<'text> {
         self.context_flags.contains(NodeFlags::DECORATOR_CONTEXT)
     }
 
-    fn set_decorator_context(&mut self, value: bool) {
+    fn set_context_flag(&mut self, value: bool, flag: NodeFlags) {
         self.context_flags = if value {
-            self.context_flags | NodeFlags::DECORATOR_CONTEXT
+            self.context_flags | flag
         } else {
-            NodeFlags::from_bits(
-                self.context_flags.bits() & !NodeFlags::DECORATOR_CONTEXT.bits(),
-            )
+            NodeFlags::from_bits(self.context_flags.bits() & !flag.bits())
         };
+    }
+
+    fn set_decorator_context(&mut self, value: bool) {
+        self.set_context_flag(value, NodeFlags::DECORATOR_CONTEXT);
+    }
+
+    fn set_yield_context(&mut self, value: bool) {
+        self.set_context_flag(value, NodeFlags::YIELD_CONTEXT);
+    }
+
+    fn set_await_context(&mut self, value: bool) {
+        self.set_context_flag(value, NodeFlags::AWAIT_CONTEXT);
     }
 
     fn in_await_context(&self) -> bool {
@@ -3240,36 +3825,103 @@ impl<'text> Parser<'text> {
     }
 
     fn is_start_of_declaration(&mut self) -> bool {
-        self.look_ahead(|parser| {
-            matches!(
-                parser.token(),
-                SyntaxKind::AtToken
-                    | SyntaxKind::VarKeyword
-                    | SyntaxKind::LetKeyword
-                    | SyntaxKind::ConstKeyword
-                    | SyntaxKind::UsingKeyword
-                    | SyntaxKind::AwaitKeyword
-                    | SyntaxKind::FunctionKeyword
-                    | SyntaxKind::ClassKeyword
-                    | SyntaxKind::EnumKeyword
-                    | SyntaxKind::InterfaceKeyword
-                    | SyntaxKind::TypeKeyword
-                    | SyntaxKind::ModuleKeyword
-                    | SyntaxKind::NamespaceKeyword
-                    | SyntaxKind::ImportKeyword
-                    | SyntaxKind::ExportKeyword
-                    | SyntaxKind::DeclareKeyword
-                    | SyntaxKind::AsyncKeyword
-                    | SyntaxKind::AbstractKeyword
-                    | SyntaxKind::AccessorKeyword
-                    | SyntaxKind::PrivateKeyword
-                    | SyntaxKind::ProtectedKeyword
-                    | SyntaxKind::PublicKeyword
-                    | SyntaxKind::StaticKeyword
-                    | SyntaxKind::ReadonlyKeyword
-                    | SyntaxKind::GlobalKeyword
-            )
-        })
+        self.look_ahead(|parser| parser.is_declaration())
+    }
+
+    fn is_declaration(&mut self) -> bool {
+        loop {
+            match self.token() {
+                SyntaxKind::VarKeyword
+                | SyntaxKind::LetKeyword
+                | SyntaxKind::ConstKeyword
+                | SyntaxKind::FunctionKeyword
+                | SyntaxKind::ClassKeyword
+                | SyntaxKind::EnumKeyword => return true,
+                SyntaxKind::UsingKeyword => return self.is_using_declaration(),
+                SyntaxKind::AwaitKeyword => return self.is_await_using_declaration(),
+                // 'declare'/'module'/'namespace'/'interface'/'type' are legal
+                // identifiers; only a same-line identifier after them commits
+                // to the declaration reading (tsc isDeclaration).
+                SyntaxKind::InterfaceKeyword
+                | SyntaxKind::TypeKeyword
+                | SyntaxKind::DeferKeyword => {
+                    return self.next_token_is_identifier_on_same_line();
+                }
+                SyntaxKind::ModuleKeyword | SyntaxKind::NamespaceKeyword => {
+                    return self.next_token_is_identifier_or_string_literal_on_same_line();
+                }
+                SyntaxKind::AbstractKeyword
+                | SyntaxKind::AccessorKeyword
+                | SyntaxKind::AsyncKeyword
+                | SyntaxKind::DeclareKeyword
+                | SyntaxKind::PrivateKeyword
+                | SyntaxKind::ProtectedKeyword
+                | SyntaxKind::PublicKeyword
+                | SyntaxKind::ReadonlyKeyword => {
+                    let previous_token = self.token();
+                    self.next_token();
+                    if self.scanner.has_preceding_line_break() {
+                        return false;
+                    }
+                    if previous_token == SyntaxKind::DeclareKeyword
+                        && self.token() == SyntaxKind::TypeKeyword
+                    {
+                        return true;
+                    }
+                }
+                SyntaxKind::GlobalKeyword => {
+                    self.next_token();
+                    return matches!(
+                        self.token(),
+                        SyntaxKind::OpenBraceToken
+                            | SyntaxKind::Identifier
+                            | SyntaxKind::ExportKeyword
+                    );
+                }
+                SyntaxKind::ImportKeyword => {
+                    self.next_token();
+                    return matches!(
+                        self.token(),
+                        SyntaxKind::DeferKeyword
+                            | SyntaxKind::StringLiteral
+                            | SyntaxKind::AsteriskToken
+                            | SyntaxKind::OpenBraceToken
+                    ) || token_is_identifier_or_keyword(self.token());
+                }
+                SyntaxKind::ExportKeyword => {
+                    let mut current_token = self.next_token();
+                    if current_token == SyntaxKind::TypeKeyword {
+                        current_token = self.look_ahead(|parser| parser.next_token());
+                    }
+                    if matches!(
+                        current_token,
+                        SyntaxKind::EqualsToken
+                            | SyntaxKind::AsteriskToken
+                            | SyntaxKind::OpenBraceToken
+                            | SyntaxKind::DefaultKeyword
+                            | SyntaxKind::AsKeyword
+                            | SyntaxKind::AtToken
+                    ) {
+                        return true;
+                    }
+                }
+                SyntaxKind::StaticKeyword => {
+                    self.next_token();
+                }
+                _ => return false,
+            }
+        }
+    }
+
+    fn next_token_is_identifier_on_same_line(&mut self) -> bool {
+        self.next_token();
+        !self.scanner.has_preceding_line_break() && self.is_identifier()
+    }
+
+    fn next_token_is_identifier_or_string_literal_on_same_line(&mut self) -> bool {
+        self.next_token();
+        !self.scanner.has_preceding_line_break()
+            && (self.is_identifier() || self.token() == SyntaxKind::StringLiteral)
     }
 
     fn is_identifier_node(&self, id: NodeId) -> bool {
@@ -4315,6 +4967,200 @@ mod tests {
         let when_false = conditional.when_false.expect("when false");
         let when_false_node = source.arena.node(when_false);
         assert_eq!(when_false_node.pos, when_false_node.end);
+    }
+
+    #[test]
+    fn parse_arrow_function_shapes() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "x => x; (a, b) => a; () => 1; (...xs) => xs; (a) => { return a; };".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        assert_eq!(expressions.len(), 5);
+
+        for &expression in &expressions {
+            assert_eq!(
+                source.arena.node(expression).kind,
+                SyntaxKind::ArrowFunction
+            );
+        }
+
+        let simple = source
+            .arena
+            .node(expressions[0])
+            .data
+            .as_arrow_function()
+            .expect("simple arrow");
+        let simple_parameters = source
+            .arena
+            .node_array(simple.parameters.expect("parameters"));
+        assert_eq!(simple_parameters.nodes.len(), 1);
+        assert!(simple.equals_greater_than_token.is_some());
+
+        let two_parameters = source
+            .arena
+            .node(expressions[1])
+            .data
+            .as_arrow_function()
+            .expect("two-parameter arrow");
+        assert_eq!(
+            source
+                .arena
+                .node_array(two_parameters.parameters.expect("parameters"))
+                .nodes
+                .len(),
+            2
+        );
+
+        let rest = source
+            .arena
+            .node(expressions[3])
+            .data
+            .as_arrow_function()
+            .expect("rest arrow");
+        let rest_parameters = source
+            .arena
+            .node_array(rest.parameters.expect("parameters"));
+        let rest_parameter = source
+            .arena
+            .node(rest_parameters.nodes[0])
+            .data
+            .as_parameter()
+            .expect("rest parameter");
+        assert!(rest_parameter.dot_dot_dot_token.is_some());
+
+        let block_body = source
+            .arena
+            .node(expressions[4])
+            .data
+            .as_arrow_function()
+            .expect("block-body arrow");
+        assert_eq!(
+            source.arena.node(block_body.body.expect("body")).kind,
+            SyntaxKind::Block
+        );
+    }
+
+    #[test]
+    fn parse_async_arrow_and_line_break_asi() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "async x => x; async (a) => a; async\ny => y;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        assert_eq!(expressions.len(), 4);
+
+        for &expression in &expressions[..2] {
+            let arrow = source
+                .arena
+                .node(expression)
+                .data
+                .as_arrow_function()
+                .expect("async arrow");
+            assert!(arrow.modifiers.is_some());
+        }
+
+        assert_eq!(source.arena.node(expressions[2]).kind, SyntaxKind::Identifier);
+        assert_eq!(
+            source.arena.node(expressions[3]).kind,
+            SyntaxKind::ArrowFunction
+        );
+    }
+
+    #[test]
+    fn parenthesized_expression_not_mistaken_for_arrow() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "(a, b); (a);".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        for &expression in &expressions {
+            assert_eq!(
+                source.arena.node(expression).kind,
+                SyntaxKind::ParenthesizedExpression
+            );
+        }
+    }
+
+    #[test]
+    fn conditional_when_true_rejects_arrow_return_type() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "a ? (b): c => d;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        let conditional = source
+            .arena
+            .node(expressions[0])
+            .data
+            .as_conditional_expression()
+            .expect("conditional expression");
+        assert_eq!(
+            source
+                .arena
+                .node(conditional.when_true.expect("when true"))
+                .kind,
+            SyntaxKind::ParenthesizedExpression
+        );
+        assert_eq!(
+            source
+                .arena
+                .node(conditional.when_false.expect("when false"))
+                .kind,
+            SyntaxKind::ArrowFunction
+        );
+    }
+
+    #[test]
+    fn function_expression_parses_real_parameters() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "(function (this: T, a, b = 1) { return a; });".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        let parenthesized = source
+            .arena
+            .node(expressions[0])
+            .data
+            .as_parenthesized_expression()
+            .expect("parenthesized expression");
+        let function = source
+            .arena
+            .node(parenthesized.expression.expect("function expression"))
+            .data
+            .as_function_expression()
+            .expect("function expression");
+        let parameters = source
+            .arena
+            .node_array(function.parameters.expect("parameters"));
+        assert_eq!(parameters.nodes.len(), 3);
+        let default_parameter = source
+            .arena
+            .node(parameters.nodes[2])
+            .data
+            .as_parameter()
+            .expect("defaulted parameter");
+        assert!(default_parameter.initializer.is_some());
     }
 
     #[test]
