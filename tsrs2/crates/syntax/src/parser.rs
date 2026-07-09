@@ -2,9 +2,10 @@
 
 use crate::arena::NodeArena;
 use crate::nodes::{
-    ArrayBindingPatternData, ArrayLiteralExpressionData, AwaitExpressionData, BigIntLiteralData,
-    BindingElementData, BlockData, BreakStatementData, CallExpressionData, CaseBlockData,
-    CaseClauseData, CatchClauseData, ClassExpressionData, ComputedPropertyNameData,
+    ArrayBindingPatternData, ArrayLiteralExpressionData, AsExpressionData, AwaitExpressionData,
+    BigIntLiteralData, BinaryExpressionData, BindingElementData, BlockData, BreakStatementData,
+    CallExpressionData, CaseBlockData, CaseClauseData, CatchClauseData, ClassExpressionData,
+    ComputedPropertyNameData,
     ContinueStatementData, DebuggerStatementData, DefaultClauseData, DeleteExpressionData,
     DoStatementData, ElementAccessExpressionData, EmptyStatementData, ExpressionStatementData,
     ExpressionWithTypeArgumentsData, ForInStatementData, ForOfStatementData, ForStatementData,
@@ -14,13 +15,13 @@ use crate::nodes::{
     ObjectBindingPatternData, ObjectLiteralExpressionData, OmittedExpressionData,
     ParenthesizedExpressionData, PostfixUnaryExpressionData, PrefixUnaryExpressionData,
     PrivateIdentifierData, PropertyAccessExpressionData, PropertyAssignmentData,
-    RegularExpressionLiteralData, ReturnStatementData, ShorthandPropertyAssignmentData,
-    SourceFileData, SpreadAssignmentData, SpreadElementData, StringLiteralData,
-    SwitchStatementData, TaggedTemplateExpressionData, TemplateExpressionData, TemplateHeadData,
-    TemplateMiddleData, TemplateSpanData, TemplateTailData, ThrowStatementData, TryStatementData,
-    TypeOfExpressionData, VariableDeclarationData, VariableDeclarationListData,
-    VariableStatementData, VoidExpressionData, WhileStatementData, WithStatementData,
-    YieldExpressionData,
+    RegularExpressionLiteralData, ReturnStatementData, SatisfiesExpressionData,
+    ShorthandPropertyAssignmentData, SourceFileData, SpreadAssignmentData, SpreadElementData,
+    StringLiteralData, SwitchStatementData, TaggedTemplateExpressionData, TemplateExpressionData,
+    TemplateHeadData, TemplateMiddleData, TemplateSpanData, TemplateTailData, ThrowStatementData,
+    TryStatementData, TypeAssertionExpressionData, TypeOfExpressionData, VariableDeclarationData,
+    VariableDeclarationListData, VariableStatementData, VoidExpressionData, WhileStatementData,
+    WithStatementData, YieldExpressionData,
 };
 use crate::scanner::{LanguageVariant, Scanner};
 use crate::{SourceFile, SyntaxKind};
@@ -1688,18 +1689,167 @@ impl<'text> Parser<'text> {
     }
 
     fn parse_expression(&mut self) -> NodeId {
-        self.parse_assignment_expression_or_higher()
+        let save_decorator_context = self.in_decorator_context();
+        if save_decorator_context {
+            self.set_decorator_context(false);
+        }
+        let pos = self.node_pos();
+        let mut expr = self.parse_assignment_expression_or_higher();
+        while let Some(operator_token) = self.parse_optional_token(SyntaxKind::CommaToken) {
+            let right = self.parse_assignment_expression_or_higher();
+            expr = self.make_binary_expression(expr, operator_token, right, pos);
+        }
+        if save_decorator_context {
+            self.set_decorator_context(true);
+        }
+        expr
     }
 
     fn parse_assignment_expression_or_higher(&mut self) -> NodeId {
         if self.is_yield_expression() {
             return self.parse_yield_expression();
         }
-        self.parse_unary_expression_or_higher()
+        self.parse_binary_expression_or_higher(LOWEST_OPERATOR_PRECEDENCE)
+    }
+
+    fn parse_binary_expression_or_higher(&mut self, precedence: i32) -> NodeId {
+        let pos = self.node_pos();
+        let left_operand = self.parse_unary_expression_or_higher();
+        self.parse_binary_expression_rest(precedence, left_operand, pos)
+    }
+
+    fn parse_binary_expression_rest(
+        &mut self,
+        precedence: i32,
+        mut left_operand: NodeId,
+        pos: usize,
+    ) -> NodeId {
+        loop {
+            self.scanner.re_scan_greater_token();
+            let new_precedence = get_binary_operator_precedence(self.token());
+            let consume_current_operator = if self.token() == SyntaxKind::AsteriskAsteriskToken {
+                new_precedence >= precedence
+            } else {
+                new_precedence > precedence
+            };
+            if !consume_current_operator {
+                break;
+            }
+            if self.token() == SyntaxKind::InKeyword && self.in_disallow_in_context() {
+                break;
+            }
+            if matches!(
+                self.token(),
+                SyntaxKind::AsKeyword | SyntaxKind::SatisfiesKeyword
+            ) {
+                if self.scanner.has_preceding_line_break() {
+                    break;
+                }
+                let keyword_kind = self.token();
+                self.next_token();
+                let r#type = self.parse_type();
+                left_operand = if keyword_kind == SyntaxKind::SatisfiesKeyword {
+                    self.make_satisfies_expression(left_operand, r#type)
+                } else {
+                    self.make_as_expression(left_operand, r#type)
+                };
+            } else {
+                let operator_token = self.parse_token_node();
+                let right = self.parse_binary_expression_or_higher(new_precedence);
+                left_operand = self.make_binary_expression(left_operand, operator_token, right, pos);
+            }
+        }
+        left_operand
+    }
+
+    fn make_binary_expression(
+        &mut self,
+        left: NodeId,
+        operator_token: NodeId,
+        right: NodeId,
+        pos: usize,
+    ) -> NodeId {
+        self.finish_node_data(
+            NodeData::BinaryExpression(BinaryExpressionData {
+                left: Some(left),
+                operator_token: Some(operator_token),
+                right: Some(right),
+            }),
+            pos,
+        )
+    }
+
+    fn make_as_expression(&mut self, left: NodeId, r#type: NodeId) -> NodeId {
+        let pos = self.arena.node(left).pos as usize;
+        self.finish_node_data(
+            NodeData::AsExpression(AsExpressionData {
+                expression: Some(left),
+                r#type: Some(r#type),
+            }),
+            pos,
+        )
+    }
+
+    fn make_satisfies_expression(&mut self, left: NodeId, r#type: NodeId) -> NodeId {
+        let pos = self.arena.node(left).pos as usize;
+        self.finish_node_data(
+            NodeData::SatisfiesExpression(SatisfiesExpressionData {
+                expression: Some(left),
+                r#type: Some(r#type),
+            }),
+            pos,
+        )
     }
 
     fn parse_unary_expression_or_higher(&mut self) -> NodeId {
-        self.parse_simple_unary_expression()
+        if self.is_update_expression() {
+            let pos = self.node_pos();
+            let update_expression = self.parse_update_expression();
+            if self.token() == SyntaxKind::AsteriskAsteriskToken {
+                let precedence = get_binary_operator_precedence(self.token());
+                return self.parse_binary_expression_rest(precedence, update_expression, pos);
+            }
+            return update_expression;
+        }
+
+        let unary_operator = self.token();
+        let start = self.scanner.token_start();
+        let simple_unary_expression = self.parse_simple_unary_expression();
+        if self.token() == SyntaxKind::AsteriskAsteriskToken {
+            let node = self.arena.node(simple_unary_expression);
+            let end = node.end as usize;
+            if node.kind == SyntaxKind::TypeAssertionExpression {
+                self.parse_error_at_position(
+                    start,
+                    end.saturating_sub(start),
+                    &gen::A_type_assertion_expression_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses,
+                    &[],
+                );
+            } else {
+                self.parse_error_at_position(
+                    start,
+                    end.saturating_sub(start),
+                    &gen::An_unary_expression_with_the_0_operator_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses,
+                    &[&token_to_string(unary_operator)],
+                );
+            }
+        }
+        simple_unary_expression
+    }
+
+    fn is_update_expression(&self) -> bool {
+        match self.token() {
+            SyntaxKind::PlusToken
+            | SyntaxKind::MinusToken
+            | SyntaxKind::TildeToken
+            | SyntaxKind::ExclamationToken
+            | SyntaxKind::DeleteKeyword
+            | SyntaxKind::TypeOfKeyword
+            | SyntaxKind::VoidKeyword
+            | SyntaxKind::AwaitKeyword => false,
+            SyntaxKind::LessThanToken => self.language_variant == LanguageVariant::Jsx,
+            _ => true,
+        }
     }
 
     fn parse_simple_unary_expression(&mut self) -> NodeId {
@@ -1711,9 +1861,28 @@ impl<'text> Parser<'text> {
             SyntaxKind::DeleteKeyword => self.parse_delete_expression(),
             SyntaxKind::TypeOfKeyword => self.parse_type_of_expression(),
             SyntaxKind::VoidKeyword => self.parse_void_expression(),
+            SyntaxKind::LessThanToken if self.language_variant != LanguageVariant::Jsx => {
+                self.parse_type_assertion()
+            }
             SyntaxKind::AwaitKeyword if self.is_await_expression() => self.parse_await_expression(),
             _ => self.parse_update_expression(),
         }
+    }
+
+    fn parse_type_assertion(&mut self) -> NodeId {
+        debug_assert!(self.language_variant != LanguageVariant::Jsx);
+        let pos = self.node_pos();
+        self.parse_expected(SyntaxKind::LessThanToken, None);
+        let r#type = self.parse_type();
+        self.parse_expected(SyntaxKind::GreaterThanToken, None);
+        let expression = self.parse_simple_unary_expression();
+        self.finish_node_data(
+            NodeData::TypeAssertionExpression(TypeAssertionExpressionData {
+                r#type: Some(r#type),
+                expression: Some(expression),
+            }),
+            pos,
+        )
     }
 
     fn parse_prefix_unary_expression(&mut self) -> NodeId {
@@ -2949,6 +3118,24 @@ impl<'text> Parser<'text> {
         self.do_in_context(NodeFlags::DISALLOW_IN_CONTEXT, NodeFlags::NONE, f)
     }
 
+    fn in_disallow_in_context(&self) -> bool {
+        self.context_flags.contains(NodeFlags::DISALLOW_IN_CONTEXT)
+    }
+
+    fn in_decorator_context(&self) -> bool {
+        self.context_flags.contains(NodeFlags::DECORATOR_CONTEXT)
+    }
+
+    fn set_decorator_context(&mut self, value: bool) {
+        self.context_flags = if value {
+            self.context_flags | NodeFlags::DECORATOR_CONTEXT
+        } else {
+            NodeFlags::from_bits(
+                self.context_flags.bits() & !NodeFlags::DECORATOR_CONTEXT.bits(),
+            )
+        };
+    }
+
     fn in_await_context(&self) -> bool {
         self.context_flags.contains(NodeFlags::AWAIT_CONTEXT)
     }
@@ -3174,6 +3361,42 @@ fn is_keyword(kind: SyntaxKind) -> bool {
 fn is_binary_operator(kind: SyntaxKind) -> bool {
     kind.value() >= SyntaxKind::FirstBinaryOperator.value()
         && kind.value() <= SyntaxKind::LastBinaryOperator.value()
+}
+
+/// tsc OperatorPrecedence.Lowest (Comma). `getBinaryOperatorPrecedence`
+/// never returns it, so the Pratt loop always consumes the first operator.
+const LOWEST_OPERATOR_PRECEDENCE: i32 = 0;
+
+/// tsc getBinaryOperatorPrecedence; -1 for non-operators (loop exits).
+/// In TS 6.0 Coalesce == LogicalOR == 5.
+fn get_binary_operator_precedence(kind: SyntaxKind) -> i32 {
+    match kind {
+        SyntaxKind::QuestionQuestionToken => 5,
+        SyntaxKind::BarBarToken => 5,
+        SyntaxKind::AmpersandAmpersandToken => 6,
+        SyntaxKind::BarToken => 7,
+        SyntaxKind::CaretToken => 8,
+        SyntaxKind::AmpersandToken => 9,
+        SyntaxKind::EqualsEqualsToken
+        | SyntaxKind::ExclamationEqualsToken
+        | SyntaxKind::EqualsEqualsEqualsToken
+        | SyntaxKind::ExclamationEqualsEqualsToken => 10,
+        SyntaxKind::LessThanToken
+        | SyntaxKind::GreaterThanToken
+        | SyntaxKind::LessThanEqualsToken
+        | SyntaxKind::GreaterThanEqualsToken
+        | SyntaxKind::InstanceOfKeyword
+        | SyntaxKind::InKeyword
+        | SyntaxKind::AsKeyword
+        | SyntaxKind::SatisfiesKeyword => 11,
+        SyntaxKind::LessThanLessThanToken
+        | SyntaxKind::GreaterThanGreaterThanToken
+        | SyntaxKind::GreaterThanGreaterThanGreaterThanToken => 12,
+        SyntaxKind::PlusToken | SyntaxKind::MinusToken => 13,
+        SyntaxKind::AsteriskToken | SyntaxKind::SlashToken | SyntaxKind::PercentToken => 14,
+        SyntaxKind::AsteriskAsteriskToken => 15,
+        _ => -1,
+    }
 }
 
 fn context_flags_for_function_body(is_generator: bool, is_async: bool) -> (NodeFlags, NodeFlags) {
@@ -3730,6 +3953,163 @@ mod tests {
         assert_eq!(
             source.arena.node(await_expression).kind,
             SyntaxKind::AwaitExpression
+        );
+    }
+
+    fn expression_statements(source: &SourceFile) -> Vec<NodeId> {
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+        statements
+            .nodes
+            .iter()
+            .map(|&statement| {
+                source
+                    .arena
+                    .node(statement)
+                    .data
+                    .as_expression_statement()
+                    .expect("expression statement")
+                    .expression
+                    .expect("expression")
+            })
+            .collect()
+    }
+
+    fn binary_parts(source: &SourceFile, id: NodeId) -> (NodeId, SyntaxKind, NodeId) {
+        let binary = source
+            .arena
+            .node(id)
+            .data
+            .as_binary_expression()
+            .expect("binary expression");
+        (
+            binary.left.expect("left"),
+            source
+                .arena
+                .node(binary.operator_token.expect("operator token"))
+                .kind,
+            binary.right.expect("right"),
+        )
+    }
+
+    #[test]
+    fn parse_binary_expression_precedence_shapes() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "1 + 2 * 3; 2 ** 3 ** 4; a >> b >>> c; x, y;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        assert_eq!(expressions.len(), 4);
+
+        let (_, plus, multiply) = binary_parts(&source, expressions[0]);
+        assert_eq!(plus, SyntaxKind::PlusToken);
+        let (_, asterisk, _) = binary_parts(&source, multiply);
+        assert_eq!(asterisk, SyntaxKind::AsteriskToken);
+
+        let (base, outer_exponent, tower) = binary_parts(&source, expressions[1]);
+        assert_eq!(outer_exponent, SyntaxKind::AsteriskAsteriskToken);
+        assert_eq!(source.arena.node(base).kind, SyntaxKind::NumericLiteral);
+        let (_, inner_exponent, _) = binary_parts(&source, tower);
+        assert_eq!(inner_exponent, SyntaxKind::AsteriskAsteriskToken);
+
+        let (shift, unsigned_shift, _) = binary_parts(&source, expressions[2]);
+        assert_eq!(
+            unsigned_shift,
+            SyntaxKind::GreaterThanGreaterThanGreaterThanToken
+        );
+        let (_, signed_shift, _) = binary_parts(&source, shift);
+        assert_eq!(signed_shift, SyntaxKind::GreaterThanGreaterThanToken);
+
+        let (_, comma, _) = binary_parts(&source, expressions[3]);
+        assert_eq!(comma, SyntaxKind::CommaToken);
+    }
+
+    #[test]
+    fn parse_relational_chain_not_type_arguments() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "a < b > c;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        let (less, greater, _) = binary_parts(&source, expressions[0]);
+        assert_eq!(greater, SyntaxKind::GreaterThanToken);
+        let (_, less_operator, _) = binary_parts(&source, less);
+        assert_eq!(less_operator, SyntaxKind::LessThanToken);
+    }
+
+    #[test]
+    fn parse_as_satisfies_and_type_assertion() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "x as T; y satisfies U; <T>z;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        assert_eq!(
+            source.arena.node(expressions[0]).kind,
+            SyntaxKind::AsExpression
+        );
+        assert_eq!(
+            source.arena.node(expressions[1]).kind,
+            SyntaxKind::SatisfiesExpression
+        );
+        assert_eq!(
+            source.arena.node(expressions[2]).kind,
+            SyntaxKind::TypeAssertionExpression
+        );
+    }
+
+    #[test]
+    fn as_on_new_line_breaks_binary_loop() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "x\nas;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let expressions = expression_statements(&source);
+        assert_eq!(expressions.len(), 2);
+        assert_eq!(source.arena.node(expressions[0]).kind, SyntaxKind::Identifier);
+        assert_eq!(source.arena.node(expressions[1]).kind, SyntaxKind::Identifier);
+    }
+
+    #[test]
+    fn unary_left_of_exponent_reports_17006_but_still_parses() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "-x ** 2;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert_eq!(source.parse_diagnostics.len(), 1);
+        assert_eq!(source.parse_diagnostics[0].code(), 17006);
+        let expressions = expression_statements(&source);
+        let (negated, exponent, _) = binary_parts(&source, expressions[0]);
+        assert_eq!(exponent, SyntaxKind::AsteriskAsteriskToken);
+        assert_eq!(
+            source.arena.node(negated).kind,
+            SyntaxKind::PrefixUnaryExpression
         );
     }
 
