@@ -8,7 +8,7 @@ use tsrs2_binder::{InternalSymbolName, SymbolId};
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     ElementFlags, M4Dependency, ObjectFlags, PseudoBigInt, SignatureFlags, SymbolFlags, TypeData,
-    TypeFlags, TypeId,
+    TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::links::LinkSlot;
@@ -239,7 +239,7 @@ impl<'a> CheckerState<'a> {
         for element in elements {
             types.push(self.get_type_from_type_node(element)?);
         }
-        let union = self.tables.get_union_type_interim(&types);
+        let union = self.tables.get_union_type(&types, UnionReduction::Literal);
         self.links
             .set_node_resolved_type(self.speculation_depth, node, LinkSlot::Resolved(union));
         Ok(union)
