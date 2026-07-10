@@ -206,10 +206,9 @@ impl<'a> CheckerState<'a> {
         }
         if includes & (TypeFlags::TEMPLATE_LITERAL.bits() | TypeFlags::STRING_MAPPING.bits()) != 0
             && includes & TypeFlags::STRING_LITERAL.bits() != 0
+            && self.extract_redundant_template_literals(&mut type_set)?
         {
-            return Err(Unsupported::new(
-                "extractRedundantTemplateLiterals needs isTypeSubtypeOf (stage 4.6)",
-            ));
+            return Ok(self.tables.intrinsics.never);
         }
         if includes & TypeFlags::ANY.bits() != 0 {
             return Ok(if includes & TypeFlags::INCLUDES_WILDCARD.bits() != 0 {

@@ -87,6 +87,8 @@ pub struct CheckerState<'a> {
     pub members: Vec<ResolvedMembers>,
     /// checker-key §1.5: five per-relation caches + enumRelation.
     pub relations: RelationCaches,
+    /// tsc subtypeReductionCache (47000), list-id keyed.
+    pub subtype_reduction_cache: std::collections::HashMap<String, Vec<tsrs2_types::TypeId>>,
     /// greenfield §4.3: all links writes assert this is zero.
     pub speculation_depth: u32,
     /// createAnonymousType(undefined, emptySymbols, ...) (_tsc.js 47132).
@@ -111,6 +113,7 @@ impl<'a> CheckerState<'a> {
             signatures: Vec::new(),
             members: Vec::new(),
             relations: RelationCaches::default(),
+            subtype_reduction_cache: std::collections::HashMap::new(),
             speculation_depth: 0,
             empty_object_type: TypeId(0),
             empty_type_literal_type: TypeId(0),

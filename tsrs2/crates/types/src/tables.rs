@@ -539,6 +539,14 @@ impl TypeTables {
     /// aliases; getAliasId is the empty string until then, so the
     /// unionOfUnionTypes fast-path key is `{smallerId}{infix}{largerId}`.
     pub fn get_union_type(&mut self, types: &[TypeId], reduction: UnionReduction) -> TypeId {
+        // Subtype reduction needs the relation engine (removeSubtypes
+        // 61368) — the checker-side get_union_type_ex handles it; the
+        // tables twin serves the pure construction callers, which are
+        // all Literal/None.
+        debug_assert!(
+            reduction != UnionReduction::Subtype,
+            "Subtype union reduction goes through CheckerState::get_union_type_ex"
+        );
         self.get_union_type_with_origin(types, reduction, None)
     }
 
@@ -577,6 +585,16 @@ impl TypeTables {
             return id;
         }
         self.get_union_type_worker(types, reduction, origin)
+    }
+
+    /// unionOfUnionTypes fast-path cache access for the checker-side
+    /// Subtype-capable getUnionType twin.
+    pub fn union_of_union_types_get(&self, key: &str) -> Option<TypeId> {
+        self.union_of_union_types.get(key).copied()
+    }
+
+    pub fn union_of_union_types_insert(&mut self, key: String, id: TypeId) {
+        self.union_of_union_types.insert(key, id);
     }
 
     /// tsc-port: getUnionTypeWorker @6.0.3
@@ -674,6 +692,19 @@ impl TypeTables {
                 };
             }
         }
+        self.finish_union_type_set(type_set, includes, types, origin)
+    }
+
+    /// The getUnionTypeWorker TAIL (61586-61612): named-union origin
+    /// denormalization + objectFlags computation + interning. Shared
+    /// with the checker-side Subtype-capable twin (stage 4.8).
+    pub fn finish_union_type_set(
+        &mut self,
+        type_set: Vec<TypeId>,
+        includes: i32,
+        types: &[TypeId],
+        origin: Option<TypeId>,
+    ) -> TypeId {
         let mut origin = origin;
         if origin.is_none() && includes & TypeFlags::UNION.bits() != 0 {
             let mut named_unions: Vec<TypeId> = Vec::new();
@@ -732,7 +763,7 @@ impl TypeTables {
     ///
     /// stableTypeOrdering is off: insertion keyed by type id with the
     /// append fast path (61350).
-    fn add_type_to_union(
+    pub fn add_type_to_union(
         &mut self,
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
@@ -781,7 +812,7 @@ impl TypeTables {
     /// tsc-port: addTypesToUnion @6.0.3
     /// tsc-hash: 14b6eea2a85c949d2f78fa0e81a934b7a2168d3e5c42fb693dbcbdee0e65192c
     /// tsc-span: _tsc.js:61358-61367
-    fn add_types_to_union(
+    pub fn add_types_to_union(
         &mut self,
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
@@ -813,7 +844,7 @@ impl TypeTables {
     /// tsc-port: removeRedundantLiteralTypes @6.0.3
     /// tsc-hash: a63f90845eb37ca5c250c229a45e22b0d616ab03684122545adffe5d897ac53b
     /// tsc-span: _tsc.js:61422-61433
-    fn remove_redundant_literal_types(
+    pub fn remove_redundant_literal_types(
         &mut self,
         types: &mut Vec<TypeId>,
         includes: i32,
