@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 use tsrs2_checker::{CompilerOptions, InputFile};
 use tsrs2_diags::DiagnosticList;
 
+mod relpin;
 mod symbol_audit;
 
 fn main() {
@@ -34,6 +35,18 @@ fn main() {
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("conformance") => run_or_exit(conformance(args)),
         Some("invariants") => run_or_exit(invariants(args)),
+        Some("relpin") => match args.next().as_deref() {
+            Some("gen") => run_or_exit(relpin::gen(args)),
+            Some("run") => run_or_exit(relpin::run(args)),
+            Some(other) => {
+                eprintln!("unknown relpin command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing relpin command (gen|run)");
+                std::process::exit(2);
+            }
+        },
         Some("ledger") => match args.next().as_deref() {
             Some("check") => run_or_exit(ledger_check()),
             Some("coverage") => run_or_exit(ledger_coverage()),
@@ -642,9 +655,7 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                     if positions_only {
                         lines
                             .iter()
-                            .map(|line| {
-                                line.splitn(3, '\t').take(2).collect::<Vec<_>>().join("\t")
-                            })
+                            .map(|line| line.splitn(3, '\t').take(2).collect::<Vec<_>>().join("\t"))
                             .collect::<Vec<_>>()
                             .join("\n")
                     } else {
@@ -659,15 +670,12 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                 //  - `__#N@` private-name ids embed tsc's program-global
                 //    getSymbolId counter (libs advance it) — the counter
                 //    digits are wildcarded, keeping the structure check.
-                let (oracle_lines, rust_lines) = if oracle_file.lines.len()
-                    == rust_file.lines.len()
+                let (oracle_lines, rust_lines) = if oracle_file.lines.len() == rust_file.lines.len()
                     && !positions_only
                 {
                     let mut oracle_lines = Vec::new();
                     let mut rust_lines = Vec::new();
-                    for (oracle_line, rust_line) in
-                        oracle_file.lines.iter().zip(&rust_file.lines)
-                    {
+                    for (oracle_line, rust_line) in oracle_file.lines.iter().zip(&rust_file.lines) {
                         let oracle_flags: i64 = oracle_line
                             .split('\t')
                             .nth(3)
@@ -753,8 +761,7 @@ fn bind_corpus(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     }
     let workspace = find_tsrs2_root()?;
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
-    let mut fixtures =
-        collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?;
+    let mut fixtures = collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?;
     fixtures.sort();
     if let Some(limit) = limit {
         fixtures.truncate(limit);
@@ -923,10 +930,7 @@ impl SymbolDumpOracle {
         })
     }
 
-    fn symbol_dump(
-        &mut self,
-        program_json: &Path,
-    ) -> Result<Vec<OracleFileAudit>, Box<dyn Error>> {
+    fn symbol_dump(&mut self, program_json: &Path) -> Result<Vec<OracleFileAudit>, Box<dyn Error>> {
         let id = self.next_id;
         self.next_id += 1;
         let request = serde_json::to_string(&SymbolDumpRequest {

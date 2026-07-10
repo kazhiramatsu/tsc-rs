@@ -1,0 +1,1458 @@
+# Relation pin suite (greenfield M3 stage 4.0).
+#
+# Each [[pair]] asks: is `source` related to `target` under `relation`
+# ("assignable" default, or "comparable")? `expect` is ORACLE TRUTH —
+# filled by `cargo xtask relpin gen`, never by hand. The generated
+# fixtures live in pins/fixtures/relations/ (regenerated wholesale by
+# gen; do not edit). `cargo xtask relpin run` asks the engine the same
+# questions; the M3 gate is 0 disagreements. This file grows per
+# milestone — it is never M3-frozen.
+#
+# Pin fields: source/target (type annotations), relation, options
+# (emitted as harness // @option: directives; matrix values rejected),
+# setup (prelude declarations, e.g. recursive interfaces), expr
+# (fixture assigns this expression instead of a declared var, so the
+# source stays a FRESH literal — excess-property/weak-type pins).
+#
+# M3 scoping (m3-types-relations-steps.md): everything here must be
+# constructible WITHOUT a TypeMapper. DEFERRED TO M4 pin rows: generic
+# references, arrays (`T[]`, needs global Array declared type), enums,
+# variance pairs, deeply-expanding generics, StringMapping, primitives
+# vs objects with required members (apparent types), tuple-to-object
+# relations (tuple member instantiation), rest-parameter signatures.
+
+# ---- primitives x primitives ----
+
+[[pair]]
+source = "string"
+target = "string"
+expect = "yes"
+
+[[pair]]
+source = "number"
+target = "number"
+expect = "yes"
+
+[[pair]]
+source = "boolean"
+target = "boolean"
+expect = "yes"
+
+[[pair]]
+source = "bigint"
+target = "bigint"
+expect = "yes"
+
+[[pair]]
+source = "symbol"
+target = "symbol"
+expect = "yes"
+
+[[pair]]
+source = "number"
+target = "string"
+expect = "no"
+
+[[pair]]
+source = "string"
+target = "number"
+expect = "no"
+
+[[pair]]
+source = "number"
+target = "bigint"
+expect = "no"
+
+[[pair]]
+source = "bigint"
+target = "number"
+expect = "no"
+
+[[pair]]
+source = "boolean"
+target = "number"
+expect = "no"
+
+[[pair]]
+source = "symbol"
+target = "string"
+expect = "no"
+
+[[pair]]
+source = "string"
+target = "boolean"
+expect = "no"
+
+[[pair]]
+source = "number"
+target = "object"
+expect = "no"
+
+[[pair]]
+source = "object"
+target = "string"
+expect = "no"
+
+# ---- literals (regular, from declared vars) ----
+
+[[pair]]
+source = "1"
+target = "number"
+expect = "yes"
+
+[[pair]]
+source = "number"
+target = "1"
+expect = "no"
+
+[[pair]]
+source = "1"
+target = "2"
+expect = "no"
+
+[[pair]]
+source = "1"
+target = "1"
+expect = "yes"
+
+[[pair]]
+source = '"a"'
+target = "string"
+expect = "yes"
+
+[[pair]]
+source = "string"
+target = '"a"'
+expect = "no"
+
+[[pair]]
+source = '"a"'
+target = '"b"'
+expect = "no"
+
+[[pair]]
+source = '"a"'
+target = '"a"'
+expect = "yes"
+
+[[pair]]
+source = "true"
+target = "boolean"
+expect = "yes"
+
+[[pair]]
+source = "boolean"
+target = "true"
+expect = "no"
+
+[[pair]]
+source = "false"
+target = "false"
+expect = "yes"
+
+[[pair]]
+source = "1n"
+target = "bigint"
+expect = "yes"
+
+[[pair]]
+source = "bigint"
+target = "1n"
+expect = "no"
+
+[[pair]]
+source = "1n"
+target = "2n"
+expect = "no"
+
+[[pair]]
+source = "1"
+target = "string"
+expect = "no"
+
+[[pair]]
+source = '"1"'
+target = "number"
+expect = "no"
+
+[[pair]]
+source = "true"
+target = "1"
+expect = "no"
+
+[[pair]]
+source = "0"
+target = "false"
+expect = "no"
+
+[[pair]]
+source = "1"
+target = "boolean"
+expect = "no"
+
+# ---- literals (fresh, from literal expressions) ----
+
+[[pair]]
+source = "1"
+target = "number"
+expr = "1"
+expect = "yes"
+
+[[pair]]
+source = "1"
+target = "2"
+expr = "1"
+expect = "no"
+
+[[pair]]
+source = "1"
+target = "1"
+expr = "1"
+expect = "yes"
+
+[[pair]]
+source = '"a"'
+target = '"a"'
+expr = '"a"'
+expect = "yes"
+
+[[pair]]
+source = '"a"'
+target = '"b"'
+expr = '"a"'
+expect = "no"
+
+[[pair]]
+source = '"a"'
+target = "string"
+expr = '"a"'
+expect = "yes"
+
+[[pair]]
+source = "true"
+target = "boolean"
+expr = "true"
+expect = "yes"
+
+[[pair]]
+source = "1n"
+target = "bigint"
+expr = "1n"
+expect = "yes"
+
+# ---- unions ----
+
+[[pair]]
+source = "1"
+target = "1 | 2"
+expect = "yes"
+
+[[pair]]
+source = "1 | 2"
+target = "1"
+expect = "no"
+
+[[pair]]
+source = "1 | 2"
+target = "2 | 1"
+expect = "yes"
+
+[[pair]]
+source = "1 | 2"
+target = "1 | 2 | 3"
+expect = "yes"
+
+[[pair]]
+source = "1 | 2 | 3"
+target = "1 | 2"
+expect = "no"
+
+[[pair]]
+source = '"a" | "b"'
+target = "string"
+expect = "yes"
+
+[[pair]]
+source = "string"
+target = '"a" | "b"'
+expect = "no"
+
+[[pair]]
+source = "number"
+target = "number | string"
+expect = "yes"
+
+[[pair]]
+source = "number | string"
+target = "string"
+expect = "no"
+
+[[pair]]
+source = "never"
+target = "1 | 2"
+expect = "yes"
+
+[[pair]]
+source = "1 | 2"
+target = "unknown"
+expect = "yes"
+
+[[pair]]
+source = "1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12"
+target = "number"
+expect = "yes"
+
+[[pair]]
+source = '"a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l"'
+target = "string"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a: number } | { b: string }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number } | { b: string }"
+target = "{ a: number }"
+expect = "no"
+
+[[pair]]
+source = "{ a: number } | { a: string }"
+target = "{ a: number | string }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number | string }"
+target = "{ a: number } | { a: string }"
+expect = "no"
+
+# >= 10 constituents: the getKeyPropertyName / union key-property
+# machinery (typeRelatedToSomeType fast path at 65495).
+
+[[pair]]
+source = '{ k: "a", v: number }'
+target = '{ k: "a", v: number } | { k: "b", v: number } | { k: "c", v: number } | { k: "d", v: number } | { k: "e", v: number } | { k: "f", v: number } | { k: "g", v: number } | { k: "h", v: number } | { k: "i", v: number } | { k: "j", v: number } | { k: "l", v: number } | { k: "m", v: number }'
+expect = "yes"
+
+[[pair]]
+source = '{ k: "zz", v: number }'
+target = '{ k: "a", v: number } | { k: "b", v: number } | { k: "c", v: number } | { k: "d", v: number } | { k: "e", v: number } | { k: "f", v: number } | { k: "g", v: number } | { k: "h", v: number } | { k: "i", v: number } | { k: "j", v: number } | { k: "l", v: number } | { k: "m", v: number }'
+expect = "no"
+
+# Source relates to NEITHER constituent alone — only the
+# discriminated-target split (typeRelatedToDiscriminatedType 66523)
+# proves it.
+
+[[pair]]
+source = '{ k: "a" | "b", v: number }'
+target = '{ k: "a", v: number } | { k: "b", v: number }'
+expect = "yes"
+
+# ---- intersections ----
+
+[[pair]]
+source = "{ a: number } & { b: string }"
+target = "{ a: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number } & { b: string }"
+target = "{ a: number, b: string }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number, b: string }"
+target = "{ a: number } & { b: string }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a: number } & { b: string }"
+expect = "no"
+
+[[pair]]
+source = "{ a: number } & { b: string }"
+target = "{ b: string } & { a: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number } & { b: string }"
+target = "{ a: number } | { b: string }"
+expect = "yes"
+
+[[pair]]
+source = "string & number"
+target = "never"
+expect = "yes"
+
+[[pair]]
+source = "1 & 2"
+target = "never"
+expect = "yes"
+
+[[pair]]
+source = '"a" & string'
+target = '"a"'
+expect = "yes"
+
+[[pair]]
+source = '("a" | "b") & string'
+target = '"a" | "b"'
+expect = "yes"
+
+[[pair]]
+source = "unknown & string"
+target = "string"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number } & unknown"
+target = "{ a: number }"
+expect = "yes"
+
+[[pair]]
+source = "string"
+target = "string & {}"
+expect = "yes"
+
+# ---- object literals: width, optionality, readonly, methods ----
+
+[[pair]]
+source = "{ a: number }"
+target = "{}"
+expect = "yes"
+
+[[pair]]
+source = "{}"
+target = "{ a: number }"
+expect = "no"
+
+[[pair]]
+source = "{ a: number, b: string }"
+target = "{ a: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a: number, b: string }"
+expect = "no"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a?: number, b?: string }"
+expect = "yes"
+
+[[pair]]
+source = "{ a?: number }"
+target = "{ a: number }"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "{ a?: number }"
+target = "{ a: number }"
+options = { strictNullChecks = false }
+expect = "no"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a?: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: 1 }"
+target = "{ a: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a: 1 }"
+expect = "no"
+
+[[pair]]
+source = "{ a: { b: number } }"
+target = "{ a: { b: number } }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: { b: number, c: string } }"
+target = "{ a: { b: number } }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: { b: string } }"
+target = "{ a: { b: number } }"
+expect = "no"
+
+[[pair]]
+source = "{ readonly a: number }"
+target = "{ a: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ readonly a: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ m(): number }"
+target = "{ m: () => number }"
+expect = "yes"
+
+[[pair]]
+source = "{ m: () => number }"
+target = "{ m(): number }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a: number | string }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number | string }"
+target = "{ a: number }"
+expect = "no"
+
+# ---- excess property (fresh object literals) + weak types ----
+# Both checks live in isRelatedTo (65201/65208), NOT propertiesRelatedTo.
+
+[[pair]]
+source = "{ a: number, b: number }"
+target = "{ a: number }"
+expr = "{ a: 1, b: 2 }"
+expect = "no"
+
+[[pair]]
+source = "{ a: number, b: number }"
+target = "{ a: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a: number, b?: string }"
+expr = "{ a: 1 }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number, c: number }"
+target = "{ a: number, b?: string }"
+expr = "{ a: 1, c: 3 }"
+expect = "no"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a: number } | { b: string }"
+expr = "{ a: 1 }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number, x: number }"
+target = "{ a: number } | { b: string }"
+expr = "{ a: 1, x: 2 }"
+expect = "no"
+
+[[pair]]
+source = "{ b: number, c: number }"
+target = "{ a?: number, x?: string }"
+expect = "no"
+
+[[pair]]
+source = "{ a: number, b: number }"
+target = "{ a?: number, x?: string }"
+expect = "yes"
+
+[[pair]]
+source = "string"
+target = "{ a?: number }"
+expect = "yes"
+
+# ---- functions: arity, returns, param variance ----
+
+[[pair]]
+source = "() => void"
+target = "() => void"
+expect = "yes"
+
+[[pair]]
+source = "() => number"
+target = "() => void"
+expect = "yes"
+
+[[pair]]
+source = "() => void"
+target = "() => number"
+expect = "no"
+
+[[pair]]
+source = "() => 1"
+target = "() => number"
+expect = "yes"
+
+[[pair]]
+source = "() => number"
+target = "() => 1"
+expect = "no"
+
+[[pair]]
+source = "(x: number) => void"
+target = "() => void"
+expect = "no"
+
+[[pair]]
+source = "() => void"
+target = "(x: number) => void"
+expect = "yes"
+
+[[pair]]
+source = "(a: number) => void"
+target = "(a: number, b: string) => void"
+expect = "yes"
+
+[[pair]]
+source = "(a: number, b: string) => void"
+target = "(a: number) => void"
+expect = "no"
+
+[[pair]]
+source = "(a?: number) => void"
+target = "(a: number) => void"
+expect = "yes"
+
+[[pair]]
+source = "(a: number) => void"
+target = "(a?: number) => void"
+expect = "no"
+
+[[pair]]
+source = "() => undefined"
+target = "() => void"
+options = { strictNullChecks = true }
+expect = "yes"
+
+[[pair]]
+source = "() => void"
+target = "() => undefined"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "() => { a: number, b: string }"
+target = "() => { a: number }"
+expect = "yes"
+
+[[pair]]
+source = "() => { a: number }"
+target = "() => { a: number, b: string }"
+expect = "no"
+
+# strictFunctionTypes contravariance vs bivariance, per pin.
+
+[[pair]]
+source = "(x: number) => void"
+target = "(x: 1) => void"
+options = { strictFunctionTypes = true }
+expect = "yes"
+
+[[pair]]
+source = "(x: 1) => void"
+target = "(x: number) => void"
+options = { strictFunctionTypes = true }
+expect = "no"
+
+[[pair]]
+source = "(x: number) => void"
+target = "(x: 1) => void"
+options = { strictFunctionTypes = false }
+expect = "yes"
+
+[[pair]]
+source = "(x: 1) => void"
+target = "(x: number) => void"
+options = { strictFunctionTypes = false }
+expect = "yes"
+
+[[pair]]
+source = "(x: { a: number }) => void"
+target = "(x: { a: number, b: string }) => void"
+options = { strictFunctionTypes = true }
+expect = "yes"
+
+[[pair]]
+source = "(x: { a: number, b: string }) => void"
+target = "(x: { a: number }) => void"
+options = { strictFunctionTypes = true }
+expect = "no"
+
+[[pair]]
+source = "(x: { a: number, b: string }) => void"
+target = "(x: { a: number }) => void"
+options = { strictFunctionTypes = false }
+expect = "yes"
+
+# Method syntax stays bivariant under strictFunctionTypes; property
+# function syntax is contravariant (signature kind from declaration).
+
+[[pair]]
+source = "{ m(x: 1): void }"
+target = "{ m(x: number): void }"
+options = { strictFunctionTypes = true }
+expect = "yes"
+
+[[pair]]
+source = "{ m(x: number): void }"
+target = "{ m(x: 1): void }"
+options = { strictFunctionTypes = true }
+expect = "yes"
+
+[[pair]]
+source = "{ m: (x: 1) => void }"
+target = "{ m: (x: number) => void }"
+options = { strictFunctionTypes = true }
+expect = "no"
+
+[[pair]]
+source = "{ m: (x: number) => void }"
+target = "{ m: (x: 1) => void }"
+options = { strictFunctionTypes = true }
+expect = "yes"
+
+# any params, construct signatures, functions vs objects.
+
+[[pair]]
+source = "(x: any) => void"
+target = "(x: number) => void"
+expect = "yes"
+
+[[pair]]
+source = "(x: number) => void"
+target = "(x: any) => void"
+expect = "yes"
+
+[[pair]]
+source = "new () => { a: number }"
+target = "new () => {}"
+expect = "yes"
+
+[[pair]]
+source = "new () => {}"
+target = "new () => { a: number }"
+expect = "no"
+
+[[pair]]
+source = "() => void"
+target = "new () => void"
+expect = "no"
+
+[[pair]]
+source = "new () => void"
+target = "() => void"
+expect = "no"
+
+[[pair]]
+source = "() => void"
+target = "{}"
+expect = "yes"
+
+[[pair]]
+source = "() => void"
+target = "{ a: number }"
+expect = "no"
+
+# ---- tuples: arity, optional, rest, variadic, readonly ----
+
+[[pair]]
+source = "[number]"
+target = "[number]"
+expect = "yes"
+
+[[pair]]
+source = "[number, string]"
+target = "[number, string]"
+expect = "yes"
+
+[[pair]]
+source = "[number, string]"
+target = "[number]"
+expect = "no"
+
+[[pair]]
+source = "[number]"
+target = "[number, string]"
+expect = "no"
+
+[[pair]]
+source = "[number]"
+target = "[number, string?]"
+expect = "yes"
+
+[[pair]]
+source = "[number, string?]"
+target = "[number]"
+expect = "no"
+
+[[pair]]
+source = "[number, string]"
+target = "[number, string?]"
+expect = "yes"
+
+[[pair]]
+source = "[]"
+target = "[]"
+expect = "yes"
+
+[[pair]]
+source = "[]"
+target = "[number?]"
+expect = "yes"
+
+[[pair]]
+source = "[number?]"
+target = "[]"
+expect = "no"
+
+[[pair]]
+source = "[number]"
+target = "readonly [number]"
+expect = "yes"
+
+[[pair]]
+source = "readonly [number]"
+target = "[number]"
+expect = "no"
+
+[[pair]]
+source = "readonly [number]"
+target = "readonly [number]"
+expect = "yes"
+
+[[pair]]
+source = "[number, ...string[]]"
+target = "[number, string]"
+expect = "no"
+
+[[pair]]
+source = "[number, string, string]"
+target = "[number, ...string[]]"
+expect = "yes"
+
+[[pair]]
+source = "[number]"
+target = "[number, ...string[]]"
+expect = "yes"
+
+[[pair]]
+source = "[number, ...string[]]"
+target = "[number, ...string[]]"
+expect = "yes"
+
+[[pair]]
+source = "[number, ...[string, boolean]]"
+target = "[number, string, boolean]"
+expect = "yes"
+
+[[pair]]
+source = "[number, string, boolean]"
+target = "[number, ...[string, boolean]]"
+expect = "yes"
+
+[[pair]]
+source = "[1, 2]"
+target = "[number, number]"
+expect = "yes"
+
+[[pair]]
+source = "[number, number]"
+target = "[1, 2]"
+expect = "no"
+
+# ---- recursive interfaces: the Maybe path (non-generic) ----
+
+[[pair]]
+setup = "interface A { next: B }\ninterface B { next: A }"
+source = "A"
+target = "B"
+expect = "yes"
+
+[[pair]]
+setup = "interface A { next: B }\ninterface B { next: A }"
+source = "B"
+target = "A"
+expect = "yes"
+
+[[pair]]
+setup = "interface A { next: B; tag: number }\ninterface B { next: A; tag: number }"
+source = "A"
+target = "B"
+expect = "yes"
+
+[[pair]]
+setup = "interface A { next: B; x: number }\ninterface B { next: A; x: string }"
+source = "A"
+target = "B"
+expect = "no"
+
+[[pair]]
+setup = "interface D1 { next: D2 }\ninterface D2 { next: D1; x: number }\ninterface E1 { next: E2 }\ninterface E2 { next: E1; x: string }"
+source = "D1"
+target = "E1"
+expect = "no"
+
+[[pair]]
+setup = "interface L { v: number; next: L }\ninterface M { v: number; next: M }"
+source = "L"
+target = "M"
+expect = "yes"
+
+[[pair]]
+setup = "interface L { v: number; next: L }\ninterface N { v: string; next: N }"
+source = "L"
+target = "N"
+expect = "no"
+
+[[pair]]
+setup = "interface L2 { v: number; next?: L2 }\ninterface M2 { v: number; next?: M2 }"
+source = "L2"
+target = "M2"
+options = { strictNullChecks = true }
+expect = "yes"
+
+[[pair]]
+setup = "interface P { p: Q }\ninterface Q { p: R }\ninterface R { p: P }\ninterface X { p: X }"
+source = "P"
+target = "X"
+expect = "yes"
+
+[[pair]]
+setup = "interface P { p: Q }\ninterface Q { p: R }\ninterface R { p: P }\ninterface X { p: X }"
+source = "X"
+target = "P"
+expect = "yes"
+
+[[pair]]
+setup = "interface TA { self(): TB }\ninterface TB { self(): TA }"
+source = "TA"
+target = "TB"
+expect = "yes"
+
+[[pair]]
+setup = "interface J { v: number; next: J | null }\ninterface K { v: number; next: K | null }"
+source = "J"
+target = "K"
+options = { strictNullChecks = true }
+expect = "yes"
+
+[[pair]]
+setup = "interface G { next: G }\ninterface H { next?: H }"
+source = "G"
+target = "H"
+options = { strictNullChecks = true }
+expect = "yes"
+
+[[pair]]
+setup = "interface G { next: G }\ninterface H { next?: H }"
+source = "H"
+target = "G"
+options = { strictNullChecks = true }
+expect = "no"
+
+# ---- template literals ----
+
+[[pair]]
+source = '"abc"'
+target = "`a${string}`"
+expect = "yes"
+
+[[pair]]
+source = '"xbc"'
+target = "`a${string}`"
+expect = "no"
+
+[[pair]]
+source = "`a${string}`"
+target = "string"
+expect = "yes"
+
+[[pair]]
+source = "string"
+target = "`a${string}`"
+expect = "no"
+
+[[pair]]
+source = "string"
+target = "`${string}`"
+expect = "yes"
+
+[[pair]]
+source = '"a1"'
+target = "`a${number}`"
+expect = "yes"
+
+[[pair]]
+source = '"ax"'
+target = "`a${number}`"
+expect = "no"
+
+[[pair]]
+source = '"1.5"'
+target = "`${number}`"
+expect = "yes"
+
+[[pair]]
+source = '"x"'
+target = "`${number}`"
+expect = "no"
+
+[[pair]]
+source = "`a${string}b`"
+target = "`a${string}`"
+expect = "yes"
+
+[[pair]]
+source = "`a${string}`"
+target = "`a${string}b`"
+expect = "no"
+
+[[pair]]
+source = '"a1" | "a2"'
+target = "`a${number}`"
+expect = "yes"
+
+[[pair]]
+source = "`a${number}`"
+target = "`a${string}`"
+expect = "yes"
+
+[[pair]]
+source = "`a${string}`"
+target = "`a${number}`"
+expect = "no"
+
+# ---- index signatures ----
+
+[[pair]]
+source = "{ a: number }"
+target = "{ [k: string]: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: string }"
+target = "{ [k: string]: number }"
+expect = "no"
+
+[[pair]]
+source = "{ a: number, b: string }"
+target = "{ [k: string]: number | string }"
+expect = "yes"
+
+[[pair]]
+source = "{ [k: string]: number }"
+target = "{ [k: string]: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ [k: string]: number }"
+target = "{ [k: string]: string }"
+expect = "no"
+
+[[pair]]
+source = '{ [k: string]: "a" }'
+target = "{ [k: string]: string }"
+expect = "yes"
+
+[[pair]]
+source = "{ [k: string]: number }"
+target = "{ [k: number]: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ [k: number]: number }"
+target = "{ [k: string]: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ 0: string }"
+target = "{ [k: number]: string }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: string }"
+target = "{ [k: number]: string }"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ readonly [k: string]: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ readonly [k: string]: number }"
+target = "{ [k: string]: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ [k: symbol]: number }"
+target = "{ [k: symbol]: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ [k: string]: number, a: number }"
+target = "{ [k: string]: number }"
+expect = "yes"
+
+# ---- any / unknown / never / void edges ----
+
+[[pair]]
+source = "any"
+target = "number"
+expect = "yes"
+
+[[pair]]
+source = "number"
+target = "any"
+expect = "yes"
+
+[[pair]]
+source = "any"
+target = "never"
+expect = "no"
+
+[[pair]]
+source = "any"
+target = "unknown"
+expect = "yes"
+
+[[pair]]
+source = "unknown"
+target = "any"
+expect = "yes"
+
+[[pair]]
+source = "never"
+target = "number"
+expect = "yes"
+
+[[pair]]
+source = "number"
+target = "never"
+expect = "no"
+
+[[pair]]
+source = "never"
+target = "never"
+expect = "yes"
+
+[[pair]]
+source = "unknown"
+target = "number"
+expect = "no"
+
+[[pair]]
+source = "number"
+target = "unknown"
+expect = "yes"
+
+[[pair]]
+source = "unknown"
+target = "{}"
+expect = "no"
+
+[[pair]]
+source = "unknown"
+target = "object"
+expect = "no"
+
+[[pair]]
+source = "{}"
+target = "unknown"
+expect = "yes"
+
+[[pair]]
+source = "string"
+target = "{}"
+expect = "yes"
+
+[[pair]]
+source = "number"
+target = "{}"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "object"
+expect = "yes"
+
+[[pair]]
+source = "object"
+target = "{}"
+expect = "yes"
+
+[[pair]]
+source = "[number]"
+target = "object"
+expect = "yes"
+
+[[pair]]
+source = "number"
+target = "void"
+expect = "no"
+
+[[pair]]
+source = "void"
+target = "void"
+expect = "yes"
+
+# ---- null / undefined under strictNullChecks on AND off ----
+
+[[pair]]
+source = "null"
+target = "number"
+options = { strictNullChecks = false }
+expect = "yes"
+
+[[pair]]
+source = "null"
+target = "number"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "undefined"
+target = "number"
+options = { strictNullChecks = false }
+expect = "yes"
+
+[[pair]]
+source = "undefined"
+target = "number"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "null"
+target = "{}"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "null"
+target = "{}"
+options = { strictNullChecks = false }
+expect = "yes"
+
+[[pair]]
+source = "undefined"
+target = "{}"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "undefined"
+target = "void"
+options = { strictNullChecks = true }
+expect = "yes"
+
+[[pair]]
+source = "void"
+target = "undefined"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "void"
+target = "undefined"
+options = { strictNullChecks = false }
+expect = "no"
+
+[[pair]]
+source = "null"
+target = "undefined"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "null"
+target = "undefined"
+options = { strictNullChecks = false }
+expect = "yes"
+
+[[pair]]
+source = "undefined"
+target = "null"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "undefined"
+target = "number | undefined"
+options = { strictNullChecks = true }
+expect = "yes"
+
+[[pair]]
+source = "number | undefined"
+target = "number"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "number | undefined"
+target = "number"
+options = { strictNullChecks = false }
+expect = "yes"
+
+[[pair]]
+source = "null"
+target = "object"
+options = { strictNullChecks = false }
+expect = "yes"
+
+[[pair]]
+source = "null"
+target = "object"
+options = { strictNullChecks = true }
+expect = "no"
+
+# ---- comparable (s as Target; 2352-family presence) ----
+
+[[pair]]
+source = "number"
+target = "1"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "1"
+target = "number"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "1"
+target = "2"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "string"
+target = '"a"'
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = '"a"'
+target = '"b"'
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "string"
+target = "number"
+relation = "comparable"
+expect = "no"
+
+[[pair]]
+source = "boolean"
+target = "true"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "number"
+target = "string | number"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "1 | 2"
+target = "2 | 3"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ a: number, b: string }"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number }"
+target = "{ b: string }"
+relation = "comparable"
+expect = "no"
+
+[[pair]]
+source = "number"
+target = "unknown"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "unknown"
+target = "number"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "number"
+target = "never"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "never"
+target = "number"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "null"
+target = "number"
+relation = "comparable"
+options = { strictNullChecks = true }
+expect = "no"
+
+[[pair]]
+source = "null"
+target = "number"
+relation = "comparable"
+options = { strictNullChecks = false }
+expect = "yes"
+
+[[pair]]
+source = "undefined"
+target = "void"
+relation = "comparable"
+options = { strictNullChecks = true }
+expect = "yes"
+
+[[pair]]
+source = "string"
+target = "`a${string}`"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "[number, number]"
+target = "[number, 1]"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "(x: number) => void"
+target = "(x: string) => void"
+relation = "comparable"
+expect = "no"
+
+[[pair]]
+source = "{}"
+target = "{ a: number }"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+source = "{ a: number, b: number }"
+target = "{ a: number }"
+relation = "comparable"
+expr = "{ a: 1, b: 2 }"
+expect = "yes"

@@ -13,6 +13,10 @@ pub struct CompilerOptions {
     pub target: Option<i32>,
     pub always_strict: Option<bool>,
     pub strict: Option<bool>,
+    /// strict-family flags the relation engine consumes (M3+); read
+    /// through strict_option_value like tsc getStrictOptionValue.
+    pub strict_null_checks: Option<bool>,
+    pub strict_function_types: Option<bool>,
     /// Consumed by bindCaseBlock (clause.fallthroughFlowNode).
     pub no_fallthrough_cases_in_switch: Option<bool>,
 }

@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 mod js_grammar;
+pub mod relpin;
 
 use tsrs2_diags::DiagnosticList;
 

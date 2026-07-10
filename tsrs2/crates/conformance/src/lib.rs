@@ -690,6 +690,8 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         target,
         always_strict: bool_option("alwaysStrict"),
         strict: bool_option("strict"),
+        strict_null_checks: bool_option("strictNullChecks"),
+        strict_function_types: bool_option("strictFunctionTypes"),
         no_fallthrough_cases_in_switch: bool_option("noFallthroughCasesInSwitch"),
     }
 }
