@@ -226,7 +226,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:61642-61649
     ///
     /// Alias symbols are M4; UnionReduction::Literal replaces the
-    /// interim constructor in stage 4.2.
+    /// interim constructor in stage 4.2. Routes through the checker
+    /// twin (twin rule, unions.rs) so `"abc" | \`a${string}\``
+    /// annotations run the template-literal reduction like tsc.
     fn get_type_from_union_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
@@ -239,7 +241,7 @@ impl<'a> CheckerState<'a> {
         for element in elements {
             types.push(self.get_type_from_type_node(element)?);
         }
-        let union = self.tables.get_union_type(&types, UnionReduction::Literal);
+        let union = self.get_union_type_ex(&types, UnionReduction::Literal)?;
         self.links
             .set_node_resolved_type(self.speculation_depth, node, LinkSlot::Resolved(union));
         Ok(union)
@@ -1378,6 +1380,22 @@ mod tests {
         let binder = bind_source_file(&source, &options);
         let mut state = CheckerState::new(&source, binder, &options);
         run(&mut state)
+    }
+
+    #[test]
+    fn union_annotation_reduces_string_literals_matched_by_templates() {
+        with_state(
+            "declare var a: \"abc\" | `a${string}`;\ndeclare var b: `a${string}`;\n",
+            |state| {
+                let a = annotation_type(state, "a");
+                let b = annotation_type(state, "b");
+                // The annotation path routes through the checker union
+                // twin, so removeStringLiteralsMatchedByTemplateLiterals
+                // collapses the union to the template itself, like
+                // getUnionTypeWorker (61547-61549) does.
+                assert_eq!(a, b);
+            },
+        );
     }
 
     #[test]

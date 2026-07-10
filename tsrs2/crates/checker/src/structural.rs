@@ -579,6 +579,116 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
     }
 
+    /// tsc-port: discriminateTypeByDiscriminableItems @6.0.3
+    /// tsc-hash: 1290115be563c6a5dbeaf88f7facf3ed9a8fed47250275f155ab82f834058cbd
+    /// tsc-span: _tsc.js:67259-67284
+    ///
+    /// M3 slice: the discriminators are the filtered source properties
+    /// (findMatchingDiscriminantType builds `[() => getTypeOfSymbol(p),
+    /// p.escapedName]` pairs, 90526-90528); M6's contextual-typing
+    /// callers pass other thunks and generalize the parameter then.
+    pub(crate) fn discriminate_type_by_discriminable_items(
+        &mut self,
+        target: TypeId,
+        discriminators: &[SymbolId],
+    ) -> CheckResult2<TypeId> {
+        let types = self.union_members(target);
+        let mut include: Vec<Ternary> = Vec::with_capacity(types.len());
+        for &t in &types {
+            let excluded = self.flags(t).intersects(TypeFlags::PRIMITIVE) || {
+                let reduced = self.st.get_reduced_type(t)?;
+                self.flags(reduced).intersects(TypeFlags::NEVER)
+            };
+            include.push(if excluded {
+                Ternary::FALSE
+            } else {
+                Ternary::TRUE
+            });
+        }
+        for &prop in discriminators {
+            let property_name = self.st.binder.symbols.symbol(prop).escaped_name.clone();
+            let discriminating_type = self.st.get_type_of_symbol(prop)?;
+            let mut matched = false;
+            for i in 0..types.len() {
+                if is_true(include[i]) {
+                    if let Some(target_type) = self
+                        .st
+                        .get_type_of_property_or_index_signature_of_type(types[i], &property_name)?
+                    {
+                        if self.some_type_related_for_discrimination(
+                            discriminating_type,
+                            target_type,
+                        )? {
+                            matched = true;
+                        } else {
+                            include[i] = Ternary::MAYBE;
+                        }
+                    }
+                }
+            }
+            for slot in include.iter_mut() {
+                if *slot == Ternary::MAYBE {
+                    *slot = if matched {
+                        Ternary::FALSE
+                    } else {
+                        Ternary::TRUE
+                    };
+                }
+            }
+        }
+        let filtered = if include.contains(&Ternary::FALSE) {
+            let kept: Vec<TypeId> = types
+                .iter()
+                .zip(include.iter())
+                .filter(|&(_, &inc)| is_true(inc))
+                .map(|(&t, _)| t)
+                .collect();
+            self.st.get_union_type_ex(&kept, UnionReduction::None)?
+        } else {
+            target
+        };
+        Ok(if self.flags(filtered).intersects(TypeFlags::NEVER) {
+            target
+        } else {
+            filtered
+        })
+    }
+
+    /// The `someType(getDiscriminatingType(), t => !!related(t,
+    /// targetType))` slice of 67268 — someType's general port is M5
+    /// 6.1; `related` is the closure's isRelatedTo with its tsc
+    /// default arguments.
+    fn some_type_related_for_discrimination(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<bool> {
+        if self.flags(source).intersects(TypeFlags::UNION) {
+            for t in self.union_members(source) {
+                let related = self.is_related_to(
+                    t,
+                    target,
+                    RecursionFlags::BOTH,
+                    /*report_errors*/ false,
+                    IntersectionState::NONE,
+                )?;
+                if is_true(related) {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        } else {
+            let related = self.is_related_to(
+                source,
+                target,
+                RecursionFlags::BOTH,
+                /*report_errors*/ false,
+                IntersectionState::NONE,
+            )?;
+            Ok(is_true(related))
+        }
+    }
+
     /// tsc-port: isPropertySymbolTypeRelated @6.0.3
     /// tsc-hash: 7fd07b9a0e96f5465c47515c67349cd76363821b9d0633c65248662ae558d4b5
     /// tsc-span: _tsc.js:66641-66662
@@ -1763,6 +1873,9 @@ impl<'a> CheckerState<'a> {
         )) {
             return Ok(self.empty_object_type);
         }
+        if flags.intersects(TypeFlags::UNKNOWN) && !self.tables.strict_null_checks {
+            return Ok(self.empty_object_type);
+        }
         Ok(ty)
     }
 
@@ -1887,6 +2000,25 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
+    /// tsc-port: getTypeOfPropertyOrIndexSignatureOfType @6.0.3
+    /// tsc-hash: ae41aa69b4517daebd8ee32fa4aa6db6ef15902492947777622dd0cabd315099
+    /// tsc-span: _tsc.js:55807-55817
+    pub fn get_type_of_property_or_index_signature_of_type(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let Some(prop) = self.get_property_of_type_full(ty, name)? {
+            return Ok(Some(self.get_type_of_symbol(prop)?));
+        }
+        let Some(prop_type) = self.get_applicable_index_info_for_name(ty, name)? else {
+            return Ok(None);
+        };
+        Ok(Some(self.tables.add_optionality(
+            prop_type, /*is_property*/ true, /*is_optional*/ true,
+        )))
+    }
+
     /// tsc-port: getPropertyOfUnionOrIntersectionType @6.0.3
     /// tsc-hash: b4f449a45ce4346e6e458eb4962ea77e413761aeff9603015c0c64c55bcb87da
     /// tsc-span: _tsc.js:59283-59286
@@ -1912,6 +2044,134 @@ impl<'a> CheckerState<'a> {
         } else {
             Ok(Some(property))
         }
+    }
+
+    /// tsc-port: getReducedType @6.0.3
+    /// tsc-hash: abdfab6ced2592e580352b92374d1ca078ca38b3ca65ba80961e5f8c83ee32f7
+    /// tsc-span: _tsc.js:59287-59297
+    ///
+    /// The IsNeverIntersection pair is a monotone objectFlags cache —
+    /// tsc mutates the interned type in place and so does the arena.
+    pub fn get_reduced_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::UNION)
+            && self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
+        {
+            if let Some(cached) = self.links.ty(ty).resolved_reduced_type.resolved() {
+                return Ok(cached);
+            }
+            let reduced = self.get_reduced_union_type(ty)?;
+            self.links
+                .set_type_resolved_reduced_type(self.speculation_depth, ty, reduced);
+            return Ok(reduced);
+        }
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            if !self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED)
+            {
+                let properties = self.get_properties_of_union_or_intersection_type(ty)?;
+                let mut is_never = false;
+                for prop in properties {
+                    if self.is_never_reduced_property(prop)? {
+                        is_never = true;
+                        break;
+                    }
+                }
+                let mut bits = ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED.bits();
+                if is_never {
+                    bits |= ObjectFlags::IS_NEVER_INTERSECTION.bits();
+                }
+                let object_flags = self.tables.object_flags_of(ty).bits() | bits;
+                self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(object_flags);
+            }
+            return Ok(
+                if self
+                    .tables
+                    .object_flags_of(ty)
+                    .intersects(ObjectFlags::IS_NEVER_INTERSECTION)
+                {
+                    self.tables.intrinsics.never
+                } else {
+                    ty
+                },
+            );
+        }
+        Ok(ty)
+    }
+
+    /// tsc-port: getReducedUnionType @6.0.3
+    /// tsc-hash: b3c08b496383a35f8652196b191738f0a7d6d25a3857ed0a0f7e25cdc41340e1
+    /// tsc-span: _tsc.js:59298-59308
+    fn get_reduced_union_type(&mut self, union: TypeId) -> CheckResult2<TypeId> {
+        let TypeData::Union { types, .. } = self.tables.type_of(union).data.clone() else {
+            unreachable!("union flag implies union data");
+        };
+        let mut reduced_types = Vec::with_capacity(types.len());
+        let mut changed = false;
+        for &t in types.iter() {
+            let reduced = self.get_reduced_type(t)?;
+            changed |= reduced != t;
+            reduced_types.push(reduced);
+        }
+        if !changed {
+            return Ok(union);
+        }
+        let reduced = self.get_union_type_ex(&reduced_types, UnionReduction::Literal)?;
+        if self.tables.flags_of(reduced).intersects(TypeFlags::UNION)
+            && self
+                .links
+                .ty(reduced)
+                .resolved_reduced_type
+                .resolved()
+                .is_none()
+        {
+            self.links
+                .set_type_resolved_reduced_type(self.speculation_depth, reduced, reduced);
+        }
+        Ok(reduced)
+    }
+
+    /// tsc-port: isNeverReducedProperty @6.0.3
+    /// tsc-hash: 6239810100fef7b16f70be793af343c3fe86bd83f6aab87b19c43d34405a50fd
+    /// tsc-span: _tsc.js:59309-59311
+    fn is_never_reduced_property(&mut self, prop: SymbolId) -> CheckResult2<bool> {
+        if self.is_discriminant_with_never_type(prop)? {
+            return Ok(true);
+        }
+        Ok(self.is_conflicting_private_property(prop))
+    }
+
+    /// tsc-port: isDiscriminantWithNeverType @6.0.3
+    /// tsc-hash: 1fc8f6f43e8013bfb1ee1898a7b5059256701d01c190b703d2362a0853b11aa0
+    /// tsc-span: _tsc.js:59312-59314
+    fn is_discriminant_with_never_type(&mut self, prop: SymbolId) -> CheckResult2<bool> {
+        if self.symbol_flags(prop).intersects(SymbolFlags::OPTIONAL) {
+            return Ok(false);
+        }
+        let check_flags = self.get_check_flags(prop);
+        if check_flags.bits()
+            & (CheckFlags::DISCRIMINANT.bits() | CheckFlags::HAS_NEVER_TYPE.bits())
+            != CheckFlags::DISCRIMINANT.bits()
+        {
+            return Ok(false);
+        }
+        let ty = self.get_type_of_symbol(prop)?;
+        Ok(self.tables.flags_of(ty).intersects(TypeFlags::NEVER))
+    }
+
+    /// tsc-port: isConflictingPrivateProperty @6.0.3
+    /// tsc-hash: b85fdb88b67c0b34d28d407511d88581db1c95deddc8b1ff1251ebca97fe2704
+    /// tsc-span: _tsc.js:59315-59317
+    fn is_conflicting_private_property(&self, prop: SymbolId) -> bool {
+        self.binder.symbols.symbol(prop).value_declaration.is_none()
+            && self
+                .get_check_flags(prop)
+                .intersects(CheckFlags::CONTAINS_PRIVATE)
     }
 
     /// tsc-port: getUnionOrIntersectionProperty @6.0.3
@@ -2117,8 +2377,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let combined = if is_union {
-            self.tables
-                .get_union_type(&prop_types, UnionReduction::Literal)
+            self.get_union_type_ex(&prop_types, UnionReduction::Literal)?
         } else {
             self.get_intersection_type(&prop_types, tsrs2_types::IntersectionFlags::NONE)?
         };
@@ -2752,12 +3011,15 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
     ) -> bool {
+        // JS strings index by UTF-16 code unit — byte slicing panics
+        // on multi-byte chars (the review's `é` pin) and would compare
+        // different prefixes anyway.
         let (source_texts, _) = self.template_parts_of(source);
         let (target_texts, _) = self.template_parts_of(target);
-        let source_start = &source_texts[0];
-        let target_start = &target_texts[0];
-        let source_end = &source_texts[source_texts.len() - 1];
-        let target_end = &target_texts[target_texts.len() - 1];
+        let source_start = utf16_units(&source_texts[0]);
+        let target_start = utf16_units(&target_texts[0]);
+        let source_end = utf16_units(&source_texts[source_texts.len() - 1]);
+        let target_end = utf16_units(&target_texts[target_texts.len() - 1]);
         let start_len = source_start.len().min(target_start.len());
         let end_len = source_end.len().min(target_end.len());
         source_start[..start_len] != target_start[..start_len]
@@ -2957,7 +3219,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: de966da853f6f389697dbdb53fbec18574c39bdbf035afd06091fbad6a9877cd
     /// tsc-span: _tsc.js:68587-68636
     ///
-    /// The pure text-matching algorithm, ported exactly.
+    /// The pure text-matching algorithm, ported exactly — over UTF-16
+    /// code units, because every JS index/length here (`pos + 1`,
+    /// `indexOf`, `slice`) counts code units (the review's `é` pins
+    /// panicked the byte-indexed version). A slice that would strand
+    /// half a surrogate pair (astral char split by an empty
+    /// placeholder step) escapes as Unsupported rather than fabricate
+    /// a replacement-character literal.
     #[allow(clippy::needless_range_loop)] // seg/pos cursor walk, ported as tsc wrote it
     fn infer_from_literal_parts_to_template_literal(
         &mut self,
@@ -2965,43 +3233,49 @@ impl<'a> CheckerState<'a> {
         source_types: &[TypeId],
         target: TypeId,
     ) -> CheckResult2<Option<Vec<TypeId>>> {
+        let source_units: Vec<Vec<u16>> = source_texts.iter().map(|t| utf16_units(t)).collect();
         let last_source_index = source_texts.len() - 1;
-        let source_start_text = &source_texts[0];
-        let source_end_text = &source_texts[last_source_index];
         let (target_texts, _) = self.template_parts_of(target);
-        let last_target_index = target_texts.len() - 1;
-        let target_start_text = &target_texts[0];
-        let target_end_text = &target_texts[last_target_index];
-        if (last_source_index == 0
-            && source_start_text.len() < target_start_text.len() + target_end_text.len())
-            || !source_start_text.starts_with(target_start_text.as_str())
-            || !source_end_text.ends_with(target_end_text.as_str())
+        let target_units: Vec<Vec<u16>> = target_texts.iter().map(|t| utf16_units(t)).collect();
+        let last_target_index = target_units.len() - 1;
         {
-            return Ok(None);
+            let source_start = &source_units[0];
+            let source_end = &source_units[last_source_index];
+            let target_start = &target_units[0];
+            let target_end = &target_units[last_target_index];
+            if (last_source_index == 0
+                && source_start.len() < target_start.len() + target_end.len())
+                || !source_start.starts_with(target_start)
+                || !source_end.ends_with(target_end)
+            {
+                return Ok(None);
+            }
         }
-        let remaining_end_text =
-            source_end_text[..source_end_text.len() - target_end_text.len()].to_owned();
-        let get_source_text = |index: usize| -> &str {
+        let remaining_end_units: Vec<u16> = {
+            let source_end = &source_units[last_source_index];
+            source_end[..source_end.len() - target_units[last_target_index].len()].to_vec()
+        };
+        let get_source_units = |index: usize| -> &[u16] {
             if index < last_source_index {
-                &source_texts[index]
+                &source_units[index]
             } else {
-                &remaining_end_text
+                &remaining_end_units
             }
         };
         let mut matches: Vec<TypeId> = Vec::new();
         let mut seg = 0usize;
-        let mut pos = target_start_text.len();
+        let mut pos = target_units[0].len();
         macro_rules! add_match {
             ($s:expr, $p:expr) => {{
                 let s = $s;
                 let p = $p;
                 let match_type = if s == seg {
-                    let text = get_source_text(s)[pos..p].to_owned();
+                    let text = utf16_to_string(&get_source_units(s)[pos..p])?;
                     self.tables.get_string_literal_type(&text)
                 } else {
-                    let mut texts = vec![source_texts[seg][pos..].to_owned()];
+                    let mut texts = vec![utf16_to_string(&source_units[seg][pos..])?];
                     texts.extend(source_texts[seg + 1..s].iter().cloned());
-                    texts.push(get_source_text(s)[..p].to_owned());
+                    texts.push(utf16_to_string(&get_source_units(s)[..p])?);
                     let types = source_types[seg..s].to_vec();
                     self.tables.get_template_literal_type(&texts, &types)
                 };
@@ -3014,19 +3288,19 @@ impl<'a> CheckerState<'a> {
             }};
         }
         for i in 1..last_target_index {
-            let delim = &target_texts[i];
+            let delim = &target_units[i];
             if !delim.is_empty() {
                 let mut s = seg;
                 let mut p = pos;
                 loop {
-                    match get_source_text(s)[p..].find(delim.as_str()) {
-                        Some(offset) => {
-                            p += offset;
+                    match find_utf16(get_source_units(s), delim, p) {
+                        Some(found) => {
+                            p = found;
                             break;
                         }
                         None => {
                             s += 1;
-                            if s == source_texts.len() {
+                            if s == source_units.len() {
                                 return Ok(None);
                             }
                             p = 0;
@@ -3035,7 +3309,7 @@ impl<'a> CheckerState<'a> {
                 }
                 add_match!(s, p);
                 pos += delim.len();
-            } else if pos < get_source_text(seg).len() {
+            } else if pos < get_source_units(seg).len() {
                 let p = pos + 1;
                 add_match!(seg, p);
             } else if seg < last_source_index {
@@ -3044,9 +3318,34 @@ impl<'a> CheckerState<'a> {
                 return Ok(None);
             }
         }
-        add_match!(last_source_index, get_source_text(last_source_index).len());
+        add_match!(last_source_index, get_source_units(last_source_index).len());
         Ok(Some(matches))
     }
+}
+
+/// JS string indexing operates on UTF-16 code units; the template
+/// matcher does all its cursor arithmetic in that domain.
+fn utf16_units(s: &str) -> Vec<u16> {
+    s.encode_utf16().collect()
+}
+
+/// `haystack.indexOf(needle, from)` over UTF-16 code units.
+fn find_utf16(haystack: &[u16], needle: &[u16], from: usize) -> Option<usize> {
+    if needle.is_empty() {
+        return Some(from.min(haystack.len()));
+    }
+    if haystack.len() < needle.len() {
+        return None;
+    }
+    (from..=haystack.len() - needle.len()).find(|&i| haystack[i..i + needle.len()] == *needle)
+}
+
+/// Decode a code-unit slice back to a Rust string; a stranded
+/// surrogate half (JS would keep it, Rust strings cannot) escapes as
+/// Unsupported instead of fabricating U+FFFD literal text.
+fn utf16_to_string(units: &[u16]) -> CheckResult2<String> {
+    String::from_utf16(units)
+        .map_err(|_| Unsupported::new("template inference strands a surrogate half (UTF-16)"))
 }
 
 /// tsc isNumericLiteralName over JS number round-trip (19205): the
@@ -3080,14 +3379,11 @@ fn js_string_to_number(s: &str) -> Option<f64> {
     trimmed.parse::<f64>().ok().filter(|n| !n.is_nan())
 }
 
-/// JS number formatting for the round-trip checks (integers and plain
-/// decimals; exponent forms are outside annotation-reachable inputs).
+/// JS number formatting for the round-trip checks — the canonical
+/// ECMAScript Number::toString lives in tsrs2_types (template folding
+/// shares it).
 fn js_number_to_string(value: f64) -> String {
-    if value == value.trunc() && value.abs() < 1e21 {
-        format!("{}", value as i64)
-    } else {
-        format!("{value}")
-    }
+    tsrs2_types::js_number_to_string(value)
 }
 
 #[cfg(test)]

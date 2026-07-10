@@ -7,7 +7,9 @@ pub mod ty;
 
 pub use flags::*;
 pub use options::CompilerOptions;
-pub use tables::{IntersectionFlags, Intrinsics, M4Dependency, TypeTables, UnionReduction};
+pub use tables::{
+    js_number_to_string, IntersectionFlags, Intrinsics, M4Dependency, TypeTables, UnionReduction,
+};
 pub use ty::{LiteralValue, PseudoBigInt, SymbolId, TupleTargetData, Type, TypeData, TypeId};
 
 pub fn is_scaffolded() -> bool {

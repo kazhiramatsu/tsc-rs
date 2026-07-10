@@ -340,14 +340,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3dae128d6a34d9e3525686ca6159a04b73c849d6f3c552641a7f2f6c2e03cbb1
     /// tsc-span: _tsc.js:64814-64826
     ///
-    /// getReducedType (59287) is the ledgered STUB returning its input
-    /// (discriminant reduction is M4 5.3's getReducedApparentType).
+    /// getReducedType is REAL (structural.rs; the review pin
+    /// `{kind:"a"}&{kind:"b"}` → `{q:number}` caught the identity
+    /// stub); getReducedApparentType stays M4 5.3.
     fn get_normalized_union_or_intersection_type(
         &mut self,
         ty: TypeId,
         writing: bool,
     ) -> CheckResult2<TypeId> {
-        // getReducedType stub: reduced === type always in M3.
+        let reduced = self.get_reduced_type(ty)?;
+        if reduced != ty {
+            return Ok(reduced);
+        }
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION)
             && self.should_normalize_intersection(ty)
         {
@@ -789,9 +793,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: c9ac69cbc7b688113c52b401fd2f3f9bfc51f883792a0ce5250f12e1fd6bd128
     /// tsc-span: _tsc.js:65332-65346
     ///
-    /// getApparentType is identity for the M3-reachable inputs (object
-    /// members of union targets); union/intersection property
-    /// synthesis is 4.6/M4 — object constituents only here.
+    /// Union constituents can themselves be unions or intersections
+    /// (the review pin `({a}&{b})|{c}` caught the object-only slice
+    /// fabricating undefinedType), so the property lookup branches on
+    /// UnionOrIntersection exactly as 65336 does.
     pub(crate) fn get_type_of_property_in_types(
         &mut self,
         types: Vec<TypeId>,
@@ -799,28 +804,40 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     ) -> CheckResult2<TypeId> {
         let mut prop_types = Vec::with_capacity(types.len());
         for ty in types {
-            let prop_type = match self.st.get_type_of_property_of_type(ty, name)? {
-                Some(prop_type) => prop_type,
-                None => match self.st.get_applicable_index_info_for_name(ty, name)? {
+            let apparent = self.st.get_apparent_type_m3(ty)?;
+            let prop = if self
+                .st
+                .tables
+                .flags_of(apparent)
+                .intersects(TypeFlags::UNION_OR_INTERSECTION)
+            {
+                self.st
+                    .get_property_of_union_or_intersection_type(apparent, name, false)?
+            } else {
+                self.st.get_property_of_object_type(apparent, name)?
+            };
+            let prop_type = match prop {
+                Some(prop) => self.st.get_type_of_symbol(prop)?,
+                None => match self.st.get_applicable_index_info_for_name(apparent, name)? {
                     Some(index_type) => index_type,
                     None => self.st.tables.intrinsics.undefined,
                 },
             };
             prop_types.push(prop_type);
         }
-        Ok(self
-            .st
-            .tables
-            .get_union_type(&prop_types, UnionReduction::Literal))
+        self.st
+            .get_union_type_ex(&prop_types, UnionReduction::Literal)
     }
 
-    /// findMatchingDiscriminantType (90518) — the
-    /// getMatchingUnionConstituentForType fast path is live (ported
-    /// below); the findDiscriminantProperties arm needs synthesized
-    /// union properties with Discriminant check flags (4.6's
-    /// typeRelatedToDiscriminatedType machinery / M5 reuse) and is
-    /// verdict-neutral for every M3 pin shape (non-unit source
-    /// properties never discriminate), so it returns None until then.
+    /// tsc-port: findMatchingDiscriminantType @6.0.3
+    /// tsc-hash: e07652728870af7f3805be6bccca52c6ee84e585ffe0f0357a2c25c15d97a973
+    /// tsc-span: _tsc.js:90518-90536
+    ///
+    /// Both arms are live (the review pin `{kind:"a",x:1,y:2}` →
+    /// discriminated union caught the missing
+    /// discriminateTypeByDiscriminableItems arm returning a wrong
+    /// Related); `isRelatedTo` is the closure argument, so the port
+    /// lives on RelationChecker.
     pub(crate) fn find_matching_discriminant_type(
         &mut self,
         source: TypeId,
@@ -836,6 +853,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .get_matching_union_constituent_for_type(target, source)?
             {
                 return Ok(Some(matched));
+            }
+            let source_properties = self.st.get_properties_of_type(source)?;
+            if let Some(filtered) = self
+                .st
+                .find_discriminant_properties(&source_properties, target)?
+            {
+                let discriminated =
+                    self.discriminate_type_by_discriminable_items(target, &filtered)?;
+                if discriminated != target {
+                    return Ok(Some(discriminated));
+                }
             }
         }
         Ok(None)
@@ -1438,12 +1466,39 @@ impl<'a> CheckerState<'a> {
     /// The value-type of the applicable index info for a property
     /// name (getApplicableIndexInfoForName slice: string index catches
     /// every name, number index catches numeric names; symbol keys are
-    /// late-bound names, M4).
+    /// late-bound names, M4). Union/intersection index-info synthesis
+    /// (resolveUnionTypeMembers / intersection index merging) is M4
+    /// 5.3 — a union/intersection whose object member carries index
+    /// infos escapes as Unsupported instead of silently answering
+    /// None.
     pub fn get_applicable_index_info_for_name(
         &mut self,
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<TypeId>> {
+        if self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::UNION_OR_INTERSECTION)
+        {
+            let members = match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                TypeData::Intersection { types } => types.to_vec(),
+                _ => Vec::new(),
+            };
+            for t in members {
+                if !self.tables.flags_of(t).intersects(TypeFlags::OBJECT) {
+                    continue;
+                }
+                let resolved = self.resolve_structured_type_members(t)?;
+                if !self.members_of(resolved).index_infos.is_empty() {
+                    return Err(Unsupported::new(
+                        "union/intersection index-info synthesis (M4 5.3)",
+                    ));
+                }
+            }
+            return Ok(None);
+        }
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
@@ -1980,7 +2035,7 @@ impl<'a> CheckerState<'a> {
             if !changed {
                 return Ok(ty);
             }
-            return Ok(self.tables.get_union_type(&mapped, UnionReduction::Literal));
+            return self.get_union_type_ex(&mapped, UnionReduction::Literal);
         }
         Ok(ty)
     }

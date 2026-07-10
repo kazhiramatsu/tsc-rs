@@ -63,6 +63,10 @@ pub struct Intrinsics {
     pub string_or_number: TypeId,
     pub string_number_symbol: TypeId,
     pub number_or_bigint: TypeId,
+    /// getUnionType([string, number, boolean, bigint, null, undefined]) (47101).
+    pub template_constraint: TypeId,
+    /// getTemplateLiteralType(["", ""], [numberType]) (47102).
+    pub numeric_string: TypeId,
     pub unique_literal: TypeId,
 }
 
@@ -166,6 +170,8 @@ impl TypeTables {
                 string_or_number: TypeId(0),
                 string_number_symbol: TypeId(0),
                 number_or_bigint: TypeId(0),
+                template_constraint: TypeId(0),
+                numeric_string: TypeId(0),
                 unique_literal: TypeId(0),
             },
             string_literal_types: HashMap::new(),
@@ -239,9 +245,10 @@ impl TypeTables {
     }
 
     /// The initial type block, in tsc's allocation order (47011-47111)
-    /// so ids line up run-for-run. Only the intrinsics M3 consumes are
-    /// materialized; the block is complete regardless because later
-    /// stages read ids positionally never numerically.
+    /// so ids line up run-for-run — EVERY type-allocating statement in
+    /// that span is materialized (the mapper vars allocate no types);
+    /// skipping one would shift every later id and reorder sorted
+    /// unions relative to the oracle.
     fn create_initial_types(&mut self) {
         let none = ObjectFlags::from_bits(0);
         let widening = ObjectFlags::CONTAINS_WIDENING_TYPE;
@@ -321,6 +328,12 @@ impl TypeTables {
         let string_number_symbol =
             self.get_union_type(&[string, number, es_symbol], UnionReduction::Literal);
         let number_or_bigint = self.get_union_type(&[number, bigint], UnionReduction::Literal);
+        let template_constraint = self.get_union_type(
+            &[string, number, boolean, bigint, null, undefined],
+            UnionReduction::Literal,
+        );
+        let numeric_string =
+            self.get_template_literal_type(&[String::new(), String::new()], &[number]);
         let unique_literal =
             self.create_intrinsic_type(TypeFlags::NEVER, "never", none, Some("unique literal"));
 
@@ -359,6 +372,8 @@ impl TypeTables {
             string_or_number,
             string_number_symbol,
             number_or_bigint,
+            template_constraint,
+            numeric_string,
             unique_literal,
         };
     }
@@ -605,11 +620,17 @@ impl TypeTables {
     /// - UnionReduction::Subtype STUBS to Literal reduction until stage
     ///   4.8 flips it on (removeSubtypes + the reduceVoidUndefined flag
     ///   both wait there; nothing before overloads/JOINs consumes it).
-    /// - removeStringLiteralsMatchedByTemplateLiterals (61547-61549) is
-    ///   a gated stub: its matcher (isTypeMatchedByTemplateLiteralType
-    ///   68580) recurses into isTypeAssignableTo, so it lands with the
-    ///   4.6 template relation arm via a checker-provided hook. No M3
-    ///   pin constructs a string-literal ∪ template union.
+    /// - removeStringLiteralsMatchedByTemplateLiterals (61547-61549)
+    ///   lives on the CHECKER twin only (its matcher recurses into the
+    ///   engine). Twin rule: checker code never calls this worker —
+    ///   every checker-side union routes through get_union_type_ex
+    ///   (unions.rs). The residual skip is the tables-INTERNAL unions
+    ///   (template-literal distribution, tuple rest-window), which can
+    ///   carry literal ∪ template mixes and then intern an unreduced
+    ///   set — a known identity divergence until those constructors
+    ///   move checker-side (M4); they never take the unionOfUnionTypes
+    ///   fast path with such mixes today, so the shared cache stays
+    ///   consistent between the twins.
     /// - removeConstrainedTypeVariables (61550-61552) is unreachable:
     ///   ObjectFlags::IsConstrainedTypeVariable intersections are born
     ///   in getIntersectionType step 6 (M4 type variables).
@@ -2008,15 +2029,53 @@ fn number_map_key(value: f64) -> u64 {
     }
 }
 
-/// JS number-to-string for the template-literal folding path. Covers
-/// the annotation-reachable shapes (integers and simple decimals); the
-/// full JS dtoa shortest-round-trip algorithm is not needed until
-/// non-literal sources exist.
-fn js_number_to_string(value: f64) -> String {
-    if value == value.trunc() && value.abs() < 1e21 {
-        format!("{}", value as i64)
+/// JS `String(number)` — ECMAScript Number::toString(10). Rust's
+/// float formatting supplies the shortest round-trip digits; the
+/// decimal-vs-exponent layout rules (decimal for -6 < n <= 21,
+/// exponent with explicit sign otherwise, -0 prints "0") are the
+/// spec's, so folded template texts match tsc's `"" + type.value`
+/// exactly (getTemplateStringForType, _tsc.js:62110).
+pub fn js_number_to_string(value: f64) -> String {
+    if value.is_nan() {
+        return "NaN".to_string();
+    }
+    if value == f64::INFINITY {
+        return "Infinity".to_string();
+    }
+    if value == f64::NEG_INFINITY {
+        return "-Infinity".to_string();
+    }
+    if value == 0.0 {
+        return "0".to_string();
+    }
+    if value < 0.0 {
+        return format!("-{}", js_number_to_string(-value));
+    }
+    // Shortest round-trip digits: "d[.ddd]e<exp>" from LowerExp.
+    let exp_form = format!("{value:e}");
+    let (mantissa, exp) = exp_form.split_once('e').expect("LowerExp always emits 'e'");
+    let exp: i32 = exp.parse().expect("LowerExp exponent is an integer");
+    let mut digits: String = mantissa.chars().filter(|c| *c != '.').collect();
+    while digits.len() > 1 && digits.ends_with('0') {
+        digits.pop();
+    }
+    // value = 0.<digits> * 10^n with k significant digits.
+    let k = digits.len() as i32;
+    let n = exp + 1;
+    if k <= n && n <= 21 {
+        format!("{digits}{}", "0".repeat((n - k) as usize))
+    } else if 0 < n && n <= 21 {
+        format!("{}.{}", &digits[..n as usize], &digits[n as usize..])
+    } else if -6 < n && n <= 0 {
+        format!("0.{}{digits}", "0".repeat((-n) as usize))
     } else {
-        format!("{value}")
+        let e = n - 1;
+        let sign = if e >= 0 { "+" } else { "-" };
+        if k == 1 {
+            format!("{digits}e{sign}{}", e.abs())
+        } else {
+            format!("{}.{}e{sign}{}", &digits[..1], &digits[1..], e.abs())
+        }
     }
 }
 
@@ -2047,6 +2106,54 @@ mod tests {
             loose.intrinsics.undefined
         );
         assert_ne!(loose.intrinsics.null_widening, loose.intrinsics.null);
+
+        // 47101-47102: templateConstraintType + numericStringType sit
+        // between numberOrBigInt and uniqueLiteral (skipping them
+        // shifted every later id off the oracle's).
+        assert!(t.intrinsics.number_or_bigint < t.intrinsics.template_constraint);
+        assert!(t.intrinsics.template_constraint < t.intrinsics.numeric_string);
+        assert!(t.intrinsics.numeric_string < t.intrinsics.unique_literal);
+    }
+
+    #[test]
+    fn template_constraint_and_numeric_string_shapes() {
+        let mut t = tables();
+        assert!(t
+            .flags_of(t.intrinsics.template_constraint)
+            .intersects(TypeFlags::UNION));
+        match &t.type_of(t.intrinsics.numeric_string).data {
+            TypeData::TemplateLiteral { texts, types } => {
+                assert_eq!(texts.len(), 2);
+                assert!(texts.iter().all(|text| text.is_empty()));
+                assert_eq!(types.len(), 1);
+                assert_eq!(types[0], t.intrinsics.number);
+            }
+            other => panic!("numeric_string should be a template literal: {other:?}"),
+        }
+        let number = t.intrinsics.number;
+        let again = t.get_template_literal_type(&[String::new(), String::new()], &[number]);
+        assert_eq!(again, t.intrinsics.numeric_string);
+    }
+
+    #[test]
+    fn js_number_to_string_matches_ecmascript_number_to_string() {
+        assert_eq!(js_number_to_string(0.0), "0");
+        assert_eq!(js_number_to_string(-0.0), "0");
+        assert_eq!(js_number_to_string(1.0), "1");
+        assert_eq!(js_number_to_string(123.456), "123.456");
+        assert_eq!(js_number_to_string(-1.5), "-1.5");
+        // Above 2^63: `as i64` saturation fabricated 9223372036854775807.
+        assert_eq!(js_number_to_string(1e19), "10000000000000000000");
+        assert_eq!(js_number_to_string(1e20), "100000000000000000000");
+        // The decimal/exponent thresholds (ES2023 6.1.6.1.20).
+        assert_eq!(js_number_to_string(1e21), "1e+21");
+        assert_eq!(js_number_to_string(2.5e21), "2.5e+21");
+        assert_eq!(js_number_to_string(1e-6), "0.000001");
+        assert_eq!(js_number_to_string(1e-7), "1e-7");
+        assert_eq!(js_number_to_string(1.5e-7), "1.5e-7");
+        assert_eq!(js_number_to_string(f64::INFINITY), "Infinity");
+        assert_eq!(js_number_to_string(f64::NEG_INFINITY), "-Infinity");
+        assert_eq!(js_number_to_string(f64::NAN), "NaN");
     }
 
     #[test]

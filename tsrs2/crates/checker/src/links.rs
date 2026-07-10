@@ -77,6 +77,9 @@ pub struct TypeLinks {
     /// tsc unionType.keyPropertyName/constituentMap (getKeyPropertyName
     /// 69612): None name = the "" no-key-property sentinel.
     pub union_key_property: LinkSlot<UnionKeyProperty>,
+    /// tsc unionType.resolvedReducedType (getReducedType 59289 +
+    /// getReducedUnionType's self-stamp 59305).
+    pub resolved_reduced_type: LinkSlot<TypeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -201,6 +204,19 @@ impl LinksTables {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.entry(id).or_default().resolved_properties,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    pub fn set_type_resolved_reduced_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().resolved_reduced_type,
             LinkSlot::Resolved(value),
         );
     }

@@ -383,9 +383,7 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
-        Ok(self
-            .tables
-            .get_union_type_with_origin(&constituents, UnionReduction::Literal, origin))
+        self.get_union_type_ex_with_origin(&constituents, UnionReduction::Literal, origin)
     }
 
     /// tsc-port: getCrossProductIntersections @6.0.3

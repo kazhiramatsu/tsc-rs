@@ -1456,3 +1456,77 @@ target = "{ a: number }"
 relation = "comparable"
 expr = "{ a: 1, b: 2 }"
 expect = "yes"
+
+# ---- M3 review burndown (2026-07-11): pins for the confirmed
+# wrong-verdict/panic divergences E1-E5 (session review of @1cfa38c);
+# each row names the fix it guards ----
+
+# E1 getTypeOfPropertyInTypes: intersection constituent inside a union
+# target (excess-property path synthesized undefinedType before).
+[[pair]]
+source = "{ a: string, b: string }"
+expr = '{ a: "x", b: "y" }'
+target = "({ a: string } & { b: string }) | { c: string }"
+expect = "yes"
+
+# E1 companions: intersection-with-union source projections
+# (ReadPartial filter + distribution identity).
+[[pair]]
+source = "({ a: string } | { b: number }) & { c: boolean }"
+target = "{ c: boolean }"
+expect = "yes"
+
+[[pair]]
+source = "({ a: string } | { b: number }) & { c: boolean }"
+target = "{ a: string }"
+expect = "no"
+
+[[pair]]
+source = "{ a: number, b: number }"
+target = "({ a: string } | { b: number }) & { a: number }"
+expect = "yes"
+
+# E2 findMatchingDiscriminantType: the discriminateTypeByDiscriminableItems
+# arm (fresh literal members discriminate; dropping the arm said yes).
+[[pair]]
+source = '{ kind: "a", x: number, y: number }'
+expr = '{ kind: "a", x: 1, y: 2 }'
+target = '{ kind: "a", x: number } | { kind: "b", y: number }'
+expect = "no"
+
+# E3 getApparentType: unknown && !strictNullChecks -> emptyObjectType.
+[[pair]]
+source = "unknown"
+target = "{}"
+options = { strictNullChecks = false }
+expect = "yes"
+
+# E4 getReducedType: conflicting-discriminant intersections reduce to
+# never (source side and inside a union target).
+[[pair]]
+source = '{ kind: "a" } & { kind: "b" }'
+target = "{ q: number }"
+expect = "yes"
+
+[[pair]]
+source = "{ q: number }"
+target = '({ kind: "a" } & { kind: "b" }) | { q: number }'
+expect = "yes"
+
+# E5 UTF-16 template matching: non-ASCII text panicked the
+# byte-indexed matcher (empty-delimiter step + prefix comparison).
+[[pair]]
+source = '"é"'
+target = "`${string}${string}`"
+expect = "yes"
+
+[[pair]]
+source = '"é!"'
+target = "`${string}${string}!`"
+expect = "yes"
+
+[[pair]]
+source = "{ p: `é${string}` }"
+target = "{ p: `e${string}` }"
+relation = "comparable"
+expect = "no"

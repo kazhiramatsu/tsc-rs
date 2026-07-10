@@ -3,13 +3,16 @@
 //! the template-literal string reduction that needed the engine, and
 //! getCommonSupertype.
 //!
-//! The tables-side get_union_type serves the pure construction
-//! callers (all Literal/None); every checker-side union that can carry
-//! Subtype reduction or string-literal ∪ template mixes goes through
-//! get_union_type_ex here. Residual (ledgered in tables): unions built
-//! INSIDE pure tables paths — template-literal distribution and the
-//! tuple rest-window — skip the string-literal-vs-template reduction
-//! until those constructors move checker-side with M4.
+//! Twin rule (INVARIANT): every union built from CHECKER code — type
+//! nodes (annotate), property synthesis (structural), cross-product
+//! distribution (intersect), literal base-typing (engine) — routes
+//! through get_union_type_ex/get_union_type_ex_with_origin here, so
+//! Subtype reduction and the string-literal ∪ template reduction can
+//! fire. The tables-side get_union_type is ONLY for unions built
+//! inside pure tables constructors. Residual (ledgered in tables):
+//! those tables-internal unions — template-literal distribution and
+//! the tuple rest-window — skip the string-literal-vs-template
+//! reduction until the constructors move checker-side with M4.
 
 use tsrs2_types::{TypeData, TypeFlags, TypeId, UnionReduction};
 
@@ -54,6 +57,18 @@ impl<'a> CheckerState<'a> {
         types: &[TypeId],
         reduction: UnionReduction,
     ) -> CheckResult2<TypeId> {
+        self.get_union_type_ex_with_origin(types, reduction, None)
+    }
+
+    /// The origin-carrying entry (the `origin` parameter at 61505);
+    /// the fast-path cache is bypassed when an origin rides along,
+    /// exactly as tsc's `!origin` guard does.
+    pub fn get_union_type_ex_with_origin(
+        &mut self,
+        types: &[TypeId],
+        reduction: UnionReduction,
+        origin: Option<TypeId>,
+    ) -> CheckResult2<TypeId> {
         if types.is_empty() {
             return Ok(self.tables.intrinsics.never);
         }
@@ -61,6 +76,7 @@ impl<'a> CheckerState<'a> {
             return Ok(types[0]);
         }
         if types.len() == 2
+            && origin.is_none()
             && (self.tables.flags_of(types[0]).intersects(TypeFlags::UNION)
                 || self.tables.flags_of(types[1]).intersects(TypeFlags::UNION))
         {
@@ -74,17 +90,18 @@ impl<'a> CheckerState<'a> {
             if let Some(id) = self.tables.union_of_union_types_get(&key) {
                 return Ok(id);
             }
-            let id = self.get_union_type_ex_worker(types, reduction)?;
+            let id = self.get_union_type_ex_worker(types, reduction, None)?;
             self.tables.union_of_union_types_insert(key, id);
             return Ok(id);
         }
-        self.get_union_type_ex_worker(types, reduction)
+        self.get_union_type_ex_worker(types, reduction, origin)
     }
 
     fn get_union_type_ex_worker(
         &mut self,
         types: &[TypeId],
         reduction: UnionReduction,
+        origin: Option<TypeId>,
     ) -> CheckResult2<TypeId> {
         let mut type_set: Vec<TypeId> = Vec::new();
         let includes = self.tables.add_types_to_union(&mut type_set, 0, types);
@@ -165,7 +182,7 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self
             .tables
-            .finish_union_type_set(type_set, includes, types, None))
+            .finish_union_type_set(type_set, includes, types, origin))
     }
 
     /// tsc-port: removeStringLiteralsMatchedByTemplateLiterals @6.0.3
