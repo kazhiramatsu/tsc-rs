@@ -54,6 +54,11 @@ pub fn parse_source_file(
     parser::parse_source_file(file_name.into(), text.into(), options, cursor)
 }
 
+/// tsc parseJsonText: .json inputs parse as a single JSON value expression.
+pub fn parse_json_text(file_name: impl Into<String>, text: impl Into<String>) -> SourceFile {
+    parser::parse_json_text(file_name.into(), text.into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

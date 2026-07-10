@@ -25,6 +25,7 @@ fn main() {
         Some("token-diff") => run_or_exit(token_diff(args)),
         Some("ast-dump") => run_or_exit(ast_dump(args)),
         Some("ast-diff") => run_or_exit(ast_diff(args)),
+        Some("parse-diags") => run_or_exit(parse_diags(args)),
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("conformance") => run_or_exit(conformance(args)),
@@ -249,6 +250,34 @@ struct TokenDumpResponse {
     ok: bool,
     result: Option<String>,
     error: Option<String>,
+}
+
+fn parse_diags(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let path = parse_single_path_arg("parse-diags", args)?;
+    let text = fs::read_to_string(&path)?;
+    let file_name = path.to_string_lossy();
+    let source = if file_name.ends_with(".json") {
+        tsrs2_syntax::parse_json_text(file_name.to_string(), text)
+    } else {
+        tsrs2_syntax::parse_source_file(
+            file_name.to_string(),
+            text,
+            tsrs2_syntax::ParseOptions {
+                language_variant: language_variant_for_path(&path),
+            },
+            None,
+        )
+    };
+    for diagnostic in &source.parse_diagnostics {
+        println!(
+            "{} start={} len={} :: {}",
+            diagnostic.code(),
+            diagnostic.start.unwrap_or(0),
+            diagnostic.length.unwrap_or(0),
+            diagnostic.message.text
+        );
+    }
+    Ok(())
 }
 
 fn ast_dump(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {

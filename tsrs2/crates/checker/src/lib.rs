@@ -23,6 +23,13 @@ pub fn check_program(files: &[InputFile], _options: &CompilerOptions) -> CheckRe
     let mut syntactic_diagnostics = Vec::new();
 
     for file in files {
+        // tsc ensureScriptKind: .json programs parse as JSON values.
+        if file.name.ends_with(".json") {
+            let source_file = tsrs2_syntax::parse_json_text(file.name.clone(), file.text.clone());
+            syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
+            diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
+            continue;
+        }
         // tsc getLanguageVariant, restricted to the extensions this engine
         // accepts (JS inputs are not handled yet).
         let language_variant = if file.name.ends_with(".tsx") || file.name.ends_with(".jsx") {

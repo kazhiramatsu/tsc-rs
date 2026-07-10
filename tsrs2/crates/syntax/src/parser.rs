@@ -1190,10 +1190,9 @@ impl<'text> Parser<'text> {
             | SyntaxKind::TryKeyword
             | SyntaxKind::DebuggerKeyword
             | SyntaxKind::CatchKeyword
-            | SyntaxKind::FinallyKeyword
-            | SyntaxKind::ConstKeyword
-            | SyntaxKind::ExportKeyword
-            | SyntaxKind::AsyncKeyword
+            | SyntaxKind::FinallyKeyword => true,
+            SyntaxKind::ConstKeyword | SyntaxKind::ExportKeyword => self.is_start_of_declaration(),
+            SyntaxKind::AsyncKeyword
             | SyntaxKind::DeclareKeyword
             | SyntaxKind::InterfaceKeyword
             | SyntaxKind::ModuleKeyword
@@ -1201,6 +1200,17 @@ impl<'text> Parser<'text> {
             | SyntaxKind::TypeKeyword
             | SyntaxKind::GlobalKeyword
             | SyntaxKind::DeferKeyword => true,
+            SyntaxKind::AccessorKeyword
+            | SyntaxKind::PublicKeyword
+            | SyntaxKind::PrivateKeyword
+            | SyntaxKind::ProtectedKeyword
+            | SyntaxKind::StaticKeyword
+            | SyntaxKind::ReadonlyKeyword => {
+                self.is_start_of_declaration()
+                    || !self.look_ahead(|parser| {
+                        parser.next_token_is_identifier_or_keyword_on_same_line()
+                    })
+            }
             _ => self.is_start_of_expression(),
         }
     }
@@ -2936,13 +2946,25 @@ impl<'text> Parser<'text> {
         )
     }
 
+    /// tsc parseArrayBindingElement.
     fn parse_array_binding_element(&mut self) -> NodeId {
+        let pos = self.node_pos();
         if self.token() == SyntaxKind::CommaToken {
-            let pos = self.node_pos();
             return self
                 .finish_node_data(NodeData::OmittedExpression(OmittedExpressionData {}), pos);
         }
-        self.parse_binding_element()
+        let dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
+        let name = self.parse_identifier_or_pattern();
+        let initializer = self.parse_initializer();
+        self.finish_node_data(
+            NodeData::BindingElement(BindingElementData {
+                dot_dot_dot_token,
+                property_name: None,
+                name: Some(name),
+                initializer,
+            }),
+            pos,
+        )
     }
 
     fn parse_object_binding_pattern(&mut self) -> NodeId {
@@ -2964,18 +2986,17 @@ impl<'text> Parser<'text> {
         )
     }
 
+    /// tsc parseObjectBindingElement.
     fn parse_object_binding_element(&mut self) -> NodeId {
-        self.parse_binding_element()
-    }
-
-    fn parse_binding_element(&mut self) -> NodeId {
         let pos = self.node_pos();
         let dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
-        let first_name = self.parse_binding_identifier();
-        let (property_name, name) = if self.parse_optional(SyntaxKind::ColonToken) {
-            (Some(first_name), self.parse_identifier_or_pattern())
+        let token_is_identifier = self.is_binding_identifier();
+        let mut property_name = Some(self.parse_property_name());
+        let name = if token_is_identifier && self.token() != SyntaxKind::ColonToken {
+            property_name.take().expect("property name was just parsed")
         } else {
-            (None, first_name)
+            self.parse_expected(SyntaxKind::ColonToken, None);
+            self.parse_identifier_or_pattern()
         };
         let initializer = self.parse_initializer();
         self.finish_node_data(
@@ -3110,7 +3131,7 @@ impl<'text> Parser<'text> {
             NodeFlags::DISALLOW_IN_CONTEXT | NodeFlags::DECORATOR_CONTEXT,
             |parser| parser.parse_assignment_expression_or_higher(false),
         );
-        let colon_token = self.parse_expected_token(SyntaxKind::ColonToken);
+        let colon_token = self.parse_expected_token(SyntaxKind::ColonToken, None);
         let when_false = if self.node_is_present(colon_token) {
             self.parse_assignment_expression_or_higher(allow_return_type_in_arrow_function)
         } else {
@@ -3615,7 +3636,7 @@ impl<'text> Parser<'text> {
 
         let last_token = self.token();
         let equals_greater_than_token =
-            self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken);
+            self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken, None);
         let body = if matches!(
             last_token,
             SyntaxKind::EqualsGreaterThanToken | SyntaxKind::OpenBraceToken
@@ -3681,7 +3702,7 @@ impl<'text> Parser<'text> {
             self.arena
                 .alloc_array(vec![parameter], parameter_pos, parameter_end, false);
         let equals_greater_than_token =
-            self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken);
+            self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken, None);
         let body = self.parse_arrow_function_expression_body(
             async_modifier.is_some(),
             allow_return_type_in_arrow_function,
@@ -7201,7 +7222,7 @@ impl<'text> Parser<'text> {
 
     fn parse_asserts_type_predicate(&mut self) -> NodeId {
         let pos = self.node_pos();
-        let asserts_modifier = self.parse_expected_token(SyntaxKind::AssertsKeyword);
+        let asserts_modifier = self.parse_expected_token(SyntaxKind::AssertsKeyword, None);
         let parameter_name = if self.token() == SyntaxKind::ThisKeyword {
             self.parse_this_type_node()
         } else {
@@ -7468,10 +7489,15 @@ impl<'text> Parser<'text> {
         }
     }
 
-    fn parse_expected_token(&mut self, kind: SyntaxKind) -> NodeId {
+    /// tsc parseExpectedToken.
+    fn parse_expected_token(
+        &mut self,
+        kind: SyntaxKind,
+        message: Option<&'static DiagnosticMessage>,
+    ) -> NodeId {
         match self.parse_optional_token(kind) {
             Some(token) => token,
-            None => self.create_missing_node(kind, true, None, &[]),
+            None => self.create_missing_node(kind, true, message, &[]),
         }
     }
 
@@ -7820,6 +7846,98 @@ pub fn parse_source_file(
     });
     debug_assert_eq!(parser.token(), SyntaxKind::EndOfFileToken);
     let end_of_file_token = parser.parse_token_node();
+    let finished = parser.finish(statements, end_of_file_token);
+    SourceFile {
+        file_name: finished.file_name,
+        text,
+        language_variant: finished.language_variant,
+        is_declaration_file: finished.is_declaration_file,
+        line_map: finished.line_map,
+        arena: finished.arena,
+        root: finished.root,
+        external_module_indicator: None,
+        parse_diagnostics: finished.parse_diagnostics,
+    }
+}
+
+/// tsc Parser.parseJsonText. The JavaScriptFile/JsonFile context flags are
+/// not stamped (nothing consumes them yet).
+pub fn parse_json_text(file_name: String, text: String) -> SourceFile {
+    let mut parser = Parser::new(file_name, &text, LanguageVariant::Standard);
+    parser.next_token();
+    let pos = parser.node_pos();
+
+    let (statements, end_of_file_token) = if parser.token() == SyntaxKind::EndOfFileToken {
+        let statements = parser.arena.alloc_array(Vec::new(), pos, pos, false);
+        let end_of_file_token = parser.parse_token_node();
+        (statements, end_of_file_token)
+    } else {
+        let mut expressions = Vec::new();
+        while parser.token() != SyntaxKind::EndOfFileToken {
+            let expression = match parser.token() {
+                SyntaxKind::OpenBracketToken => parser.parse_array_literal_expression(),
+                SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword | SyntaxKind::NullKeyword => {
+                    parser.parse_token_node()
+                }
+                SyntaxKind::MinusToken => {
+                    if parser.look_ahead(|parser| {
+                        parser.next_token() == SyntaxKind::NumericLiteral
+                            && parser.next_token() != SyntaxKind::ColonToken
+                    }) {
+                        parser.parse_prefix_unary_expression()
+                    } else {
+                        parser.parse_object_literal_expression()
+                    }
+                }
+                SyntaxKind::NumericLiteral
+                    if parser
+                        .look_ahead(|parser| parser.next_token() != SyntaxKind::ColonToken) =>
+                {
+                    parser.parse_numeric_literal()
+                }
+                SyntaxKind::StringLiteral
+                    if parser
+                        .look_ahead(|parser| parser.next_token() != SyntaxKind::ColonToken) =>
+                {
+                    parser.parse_string_literal()
+                }
+                _ => parser.parse_object_literal_expression(),
+            };
+
+            if expressions.is_empty() && parser.token() != SyntaxKind::EndOfFileToken {
+                parser.parse_error_at_current_token(&gen::Unexpected_token, &[]);
+            }
+            expressions.push(expression);
+        }
+
+        let expression = if expressions.len() > 1 {
+            let expressions_end = parser.node_pos();
+            let elements = parser
+                .arena
+                .alloc_array(expressions, pos, expressions_end, false);
+            parser.finish_node_data(
+                NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
+                    elements: Some(elements),
+                }),
+                pos,
+            )
+        } else {
+            expressions[0]
+        };
+        let statement = parser.finish_node_data(
+            NodeData::ExpressionStatement(ExpressionStatementData {
+                expression: Some(expression),
+            }),
+            pos,
+        );
+        let statements = parser
+            .arena
+            .alloc_array(vec![statement], pos, parser.node_pos(), false);
+        let end_of_file_token =
+            parser.parse_expected_token(SyntaxKind::EndOfFileToken, Some(&gen::Unexpected_token));
+        (statements, end_of_file_token)
+    };
+
     let finished = parser.finish(statements, end_of_file_token);
     SourceFile {
         file_name: finished.file_name,
@@ -8488,6 +8606,114 @@ mod tests {
             source.arena.node(body_statements.nodes[0]).kind,
             SyntaxKind::ExpressionStatement
         );
+    }
+
+    #[test]
+    fn export_before_bare_identifier_reports_declaration_expected() {
+        // tsc: `export i` is not a statement start (isStartOfStatement
+        // ExportKeyword arm → isStartOfDeclaration false), so the list
+        // machinery reports 1128 at `export`, not 1434.
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "declare module \"*.foo\" {\n  export i\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let pins: Vec<(u32, u32, u32)> = source
+            .parse_diagnostics
+            .iter()
+            .map(|d| (d.code(), d.start.unwrap_or(0), d.length.unwrap_or(0)))
+            .collect();
+        assert_eq!(pins, [(1128, 27, 6), (1005, 36, 0)]);
+    }
+
+    #[test]
+    fn binding_patterns_support_computed_names_and_nesting() {
+        // tsc parses both clean: computed property names in object binding
+        // elements, nested patterns in array binding elements.
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "declare var f: any; let [{ [f(1)]: x } = f(0)] = []; let [[a], { b: [c] }] = f;"
+                .to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+    }
+
+    #[test]
+    fn parse_json_text_oracle_pins() {
+        // Pins collected from ts.parseJsonText (vendor 6.0.3).
+        type JsonPin = (&'static str, &'static [(u32, u32, u32)], Option<SyntaxKind>);
+        let cases: &[JsonPin] = &[
+            (
+                "{ \"name\": \"p\", \"exports\": { \".\": \"./i.js\" } }",
+                &[],
+                Some(SyntaxKind::ObjectLiteralExpression),
+            ),
+            ("-5", &[], Some(SyntaxKind::PrefixUnaryExpression)),
+            (
+                "1 2",
+                &[(1012, 2, 1)],
+                Some(SyntaxKind::ArrayLiteralExpression),
+            ),
+            ("", &[], None),
+            ("\"hello\"", &[], Some(SyntaxKind::StringLiteral)),
+            (
+                "[1, true, null]",
+                &[],
+                Some(SyntaxKind::ArrayLiteralExpression),
+            ),
+            // Unquoted keys and trailing commas are checker errors, not
+            // parse errors.
+            (
+                "{ name: 1, }",
+                &[],
+                Some(SyntaxKind::ObjectLiteralExpression),
+            ),
+        ];
+        for (text, diagnostics, expression_kind) in cases {
+            let source = parse_json_text("a.json".to_owned(), (*text).to_owned());
+            let pins: Vec<(u32, u32, u32)> = source
+                .parse_diagnostics
+                .iter()
+                .map(|d| (d.code(), d.start.unwrap_or(0), d.length.unwrap_or(0)))
+                .collect();
+            assert_eq!(&pins, diagnostics, "diagnostics for {text:?}");
+
+            let root = source
+                .arena
+                .node(source.root)
+                .data
+                .as_source_file()
+                .expect("source file root");
+            let statements = source
+                .arena
+                .node_array(root.statements.expect("statements"));
+            match expression_kind {
+                None => assert!(statements.nodes.is_empty(), "statements for {text:?}"),
+                Some(kind) => {
+                    let statement = source
+                        .arena
+                        .node(statements.nodes[0])
+                        .data
+                        .as_expression_statement()
+                        .expect("expression statement");
+                    assert_eq!(
+                        source
+                            .arena
+                            .node(statement.expression.expect("expression"))
+                            .kind,
+                        *kind,
+                        "expression kind for {text:?}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
