@@ -6041,7 +6041,11 @@ impl<'text> Parser<'text> {
     fn parse_template_fragment(&mut self, kind: SyntaxKind) -> NodeId {
         let pos = self.node_pos();
         let end = self.scanner.pos();
-        let text = self.current_token_text();
+        // tsc parseTemplateHead/MiddleOrTail read the token value
+        // directly: the empty cooked text of `${x}`-style fragments is
+        // legitimate (current_token_text's missing-token fallback would
+        // turn it into the token NAME).
+        let text = self.scanner.token_value().to_owned();
         let data = match kind {
             SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData {
                 text,

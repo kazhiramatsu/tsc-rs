@@ -55,6 +55,14 @@ pub struct SymbolLinks {
     pub declared_type: LinkSlot<TypeId>,
     /// tsc links.type (getTypeOfVariableOrParameterOrProperty 56633).
     pub type_of_symbol: LinkSlot<TypeId>,
+    /// tsc TransientSymbol links.checkFlags (synthetic union/
+    /// intersection properties, createUnionOrIntersectionProperty).
+    pub check_flags: tsrs2_types::CheckFlags,
+    /// tsc links.containingType for synthetic properties.
+    pub containing_type: Option<TypeId>,
+    /// tsc links.isDiscriminantProperty cache (isDiscriminantProperty
+    /// 69562).
+    pub is_discriminant_property: Option<bool>,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -63,6 +71,9 @@ pub struct SymbolLinks {
 #[derive(Clone, Debug, Default)]
 pub struct TypeLinks {
     pub resolved_members: LinkSlot<crate::state::MembersId>,
+    /// tsc unionOrIntersection type.resolvedProperties
+    /// (getPropertiesOfUnionOrIntersectionType 58721).
+    pub resolved_properties: LinkSlot<Box<[SymbolId]>>,
     /// tsc unionType.keyPropertyName/constituentMap (getKeyPropertyName
     /// 69612): None name = the "" no-key-property sentinel.
     pub union_key_property: LinkSlot<UnionKeyProperty>,
@@ -80,6 +91,10 @@ pub struct LinksTables {
     node: HashMap<NodeId, NodeLinks>,
     symbol: HashMap<SymbolId, SymbolLinks>,
     ty: HashMap<TypeId, TypeLinks>,
+    /// tsc unionType.propertyCache / propertyCacheWithoutObjectFunctionPropertyAugment
+    /// (getUnionOrIntersectionProperty 59246) — a monotone cache, not a
+    /// one-write slot; only successful synthesis is cached, like tsc.
+    pub union_property_cache: HashMap<(TypeId, String, bool), SymbolId>,
 }
 
 impl LinksTables {
@@ -152,6 +167,41 @@ impl LinksTables {
         Self::write_slot(
             &mut self.symbol.entry(id).or_default().type_of_symbol,
             value,
+        );
+    }
+
+    pub fn set_symbol_synthetic(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        check_flags: tsrs2_types::CheckFlags,
+        containing_type: TypeId,
+        type_of_symbol: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        links.check_flags = check_flags;
+        links.containing_type = Some(containing_type);
+        Self::write_slot(
+            &mut links.type_of_symbol,
+            LinkSlot::Resolved(type_of_symbol),
+        );
+    }
+
+    pub fn set_symbol_is_discriminant(&mut self, id: SymbolId, value: bool) {
+        self.symbol.entry(id).or_default().is_discriminant_property = Some(value);
+    }
+
+    pub fn set_type_resolved_properties(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: Box<[SymbolId]>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().resolved_properties,
+            LinkSlot::Resolved(value),
         );
     }
 

@@ -166,6 +166,20 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
             | ObjectFlags::FRESH_LITERAL.bits();
         state.tables.type_mut(ty).object_flags = tsrs2_types::ObjectFlags::from_bits(flags);
         state.tables.type_mut(ty).fresh_type = Some(ty);
+        // A REAL object literal's symbol is a VALUE symbol whose
+        // valueDeclaration is the literal node, and every own
+        // property's declaration parent is that node — which is what
+        // shouldCheckAsExcessProperty (65411) keys on. The probe's
+        // annotation-derived __type symbol has no value declaration
+        // (TypeLiteral is not a value flag), so the shim installs the
+        // type-literal node as one; own members' parents already
+        // match.
+        if let Some(symbol) = state.tables.type_of(ty).symbol {
+            let symbol_data = state.binder.symbols.symbol_mut(symbol);
+            if symbol_data.value_declaration.is_none() {
+                symbol_data.value_declaration = symbol_data.declarations.first().copied();
+            }
+        }
     }
     ty
 }

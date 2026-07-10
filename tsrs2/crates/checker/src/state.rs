@@ -80,6 +80,8 @@ pub struct CheckerState<'a> {
     pub source: &'a SourceFile,
     pub options: &'a CompilerOptions,
     pub tables: TypeTables,
+    /// tsc strictFunctionTypes via getStrictOptionValue.
+    pub strict_function_types: bool,
     pub links: LinksTables,
     pub signatures: Vec<Signature>,
     pub members: Vec<ResolvedMembers>,
@@ -96,6 +98,7 @@ pub struct CheckerState<'a> {
 impl<'a> CheckerState<'a> {
     pub fn new(source: &'a SourceFile, binder: Binder<'a>, options: &'a CompilerOptions) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
+        let strict_function_types = options.strict_option_value(options.strict_function_types);
         let exact_optional = options.exact_optional_property_types.unwrap_or(false);
         let tables = TypeTables::new(strict_null_checks, exact_optional);
         let mut state = Self {
@@ -103,6 +106,7 @@ impl<'a> CheckerState<'a> {
             source,
             options,
             tables,
+            strict_function_types,
             links: LinksTables::default(),
             signatures: Vec::new(),
             members: Vec::new(),

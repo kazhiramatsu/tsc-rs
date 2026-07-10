@@ -8,6 +8,7 @@ pub mod links;
 pub mod relate;
 pub mod relpin;
 pub mod state;
+pub mod structural;
 
 use tsrs2_diags::DiagnosticList;
 

@@ -28,15 +28,15 @@ use crate::state::{CheckResult2, CheckerState, Unsupported};
 
 /// stableTypeOrdering off: binary search keyed by type id over the
 /// id-sorted member list (tsc containsType 61327).
-fn contains_type(types: &[TypeId], ty: TypeId) -> bool {
+pub(crate) fn contains_type(types: &[TypeId], ty: TypeId) -> bool {
     types.binary_search(&ty).is_ok()
 }
 
-fn ternary_and(left: Ternary, right: Ternary) -> Ternary {
+pub(crate) fn ternary_and(left: Ternary, right: Ternary) -> Ternary {
     Ternary::from_bits(left.bits() & right.bits())
 }
 
-fn is_true(result: Ternary) -> bool {
+pub(crate) fn is_true(result: Ternary) -> bool {
     result.bits() != 0
 }
 
@@ -489,27 +489,27 @@ impl<'a> CheckerState<'a> {
 /// Maybe results are never cached mid-recursion, commit happens on
 /// unwind of the outermost frame, relationCount bounds complexity,
 /// depth 100 per side hard-cuts recursion.
-struct RelationChecker<'r, 'a> {
-    st: &'r mut CheckerState<'a>,
-    relation: RelationKind,
-    maybe_keys: Vec<String>,
-    maybe_keys_set: HashSet<String>,
-    source_stack: Vec<TypeId>,
-    target_stack: Vec<TypeId>,
-    maybe_count: usize,
-    source_depth: usize,
-    target_depth: usize,
-    expanding_flags: ExpandingFlags,
-    overflow: bool,
-    relation_count: i64,
+pub(crate) struct RelationChecker<'r, 'a> {
+    pub(crate) st: &'r mut CheckerState<'a>,
+    pub(crate) relation: RelationKind,
+    pub(crate) maybe_keys: Vec<String>,
+    pub(crate) maybe_keys_set: HashSet<String>,
+    pub(crate) source_stack: Vec<TypeId>,
+    pub(crate) target_stack: Vec<TypeId>,
+    pub(crate) maybe_count: usize,
+    pub(crate) source_depth: usize,
+    pub(crate) target_depth: usize,
+    pub(crate) expanding_flags: ExpandingFlags,
+    pub(crate) overflow: bool,
+    pub(crate) relation_count: i64,
 }
 
 impl<'r, 'a> RelationChecker<'r, 'a> {
-    fn flags(&self, ty: TypeId) -> TypeFlags {
+    pub(crate) fn flags(&self, ty: TypeId) -> TypeFlags {
         self.st.tables.flags_of(ty)
     }
 
-    fn union_members(&self, ty: TypeId) -> Vec<TypeId> {
+    pub(crate) fn union_members(&self, ty: TypeId) -> Vec<TypeId> {
         match &self.st.tables.type_of(ty).data {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
             _ => unreachable!("member access on a non-union/intersection"),
@@ -525,7 +525,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// post-normalization simple check (65197). The excess-property
     /// and weak-type checks live HERE (65199/65208), before
     /// union/intersection dispatch — NOT in propertiesRelatedTo.
-    fn is_related_to(
+    pub(crate) fn is_related_to(
         &mut self,
         original_source: TypeId,
         original_target: TypeId,
@@ -792,7 +792,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// getApparentType is identity for the M3-reachable inputs (object
     /// members of union targets); union/intersection property
     /// synthesis is 4.6/M4 — object constituents only here.
-    fn get_type_of_property_in_types(
+    pub(crate) fn get_type_of_property_in_types(
         &mut self,
         types: Vec<TypeId>,
         name: &str,
@@ -821,7 +821,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// typeRelatedToDiscriminatedType machinery / M5 reuse) and is
     /// verdict-neutral for every M3 pin shape (non-unit source
     /// properties never discriminate), so it returns None until then.
-    fn find_matching_discriminant_type(
+    pub(crate) fn find_matching_discriminant_type(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -848,7 +848,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// The comparable instantiable-constraint replacement (65440-65460)
     /// keys on Instantiable members — unconstructible before M4, so
     /// sameMap is the identity and the branch falls through as in tsc.
-    fn union_or_intersection_related_to(
+    pub(crate) fn union_or_intersection_related_to(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -898,7 +898,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-port: eachTypeRelatedToSomeType @6.0.3
     /// tsc-hash: b9bb261a94173a03379c5bc2d6e22817708d020d37d3922ecd5556d86b7eda94
     /// tsc-span: _tsc.js:65466-65483
-    fn each_type_related_to_some_type(
+    pub(crate) fn each_type_related_to_some_type(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -1144,7 +1144,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// is the propagatingVarianceFlags accumulation (outofband handler
     /// is never installed in M3). An Unsupported unwinds the stacks
     /// exactly like a False WITHOUT caching anything.
-    fn recursive_type_related_to(
+    pub(crate) fn recursive_type_related_to(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -1291,19 +1291,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         self.maybe_count = maybe_start;
     }
-
-    /// structuredTypeRelatedTo (65872) — stage 4.6. Reporting the
-    /// boundary keeps structural pins honestly unsupported instead of
-    /// producing wrong verdicts.
-    fn structured_type_related_to(
-        &mut self,
-        _source: TypeId,
-        _target: TypeId,
-        _report_errors: bool,
-        _intersection_state: IntersectionState,
-    ) -> CheckResult2<Ternary> {
-        Err(Unsupported::new("structuredTypeRelatedTo (stage 4.6)"))
-    }
 }
 
 impl<'a> CheckerState<'a> {
@@ -1411,17 +1398,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult2<Vec<tsrs2_binder::SymbolId>> {
-        let flags = self.tables.flags_of(ty);
-        if flags.intersects(TypeFlags::OBJECT) {
-            let members = self.resolve_structured_type_members(ty)?;
-            return Ok(self.members_of(members).properties.clone());
-        }
-        if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
-            return Err(Unsupported::new(
-                "union/intersection property synthesis (stage 4.6/M4)",
-            ));
-        }
-        Ok(Vec::new())
+        self.get_properties_of_type_full(ty)
     }
 
     /// The object-member slice of getTypeOfPropertyOfType.
