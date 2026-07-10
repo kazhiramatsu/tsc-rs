@@ -18,11 +18,25 @@ pub struct CheckResult {
     pub syntactic_diagnostics: DiagnosticList,
 }
 
+fn is_supported_source_file_name(name: &str) -> bool {
+    [
+        ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".json",
+    ]
+    .iter()
+    .any(|extension| name.ends_with(extension))
+}
+
 pub fn check_program(files: &[InputFile], _options: &CompilerOptions) -> CheckResult {
     let mut diagnostics = Vec::new();
     let mut syntactic_diagnostics = Vec::new();
 
     for file in files {
+        // tsc createProgram only loads roots with supported extensions;
+        // anything else (.txt, extensionless) never yields syntactic
+        // diagnostics.
+        if !is_supported_source_file_name(&file.name) {
+            continue;
+        }
         // tsc ensureScriptKind: .json programs parse as JSON values.
         if file.name.ends_with(".json") {
             let source_file = tsrs2_syntax::parse_json_text(file.name.clone(), file.text.clone());

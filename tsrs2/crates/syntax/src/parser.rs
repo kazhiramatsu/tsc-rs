@@ -367,24 +367,63 @@ impl<'text> Parser<'text> {
         self.finish_node(id, pos)
     }
 
+    /// tsc createMissingNode: reportAtCurrentPosition=true errors at the
+    /// token FULL start with length 0; otherwise at the current token span.
     fn create_missing_node(
         &mut self,
         kind: SyntaxKind,
-        report: bool,
+        report_at_current_position: bool,
         message: Option<&'static DiagnosticMessage>,
         args: &[&str],
     ) -> NodeId {
-        if report {
+        if report_at_current_position {
             if let Some(message) = message {
-                self.parse_error_at_current_token(message, args);
-            } else {
-                self.parse_error_at_current_token(&gen::_0_expected, &[&token_to_string(kind)]);
+                self.parse_error_at_position(self.scanner.full_start_pos(), 0, message, args);
             }
+        } else if let Some(message) = message {
+            self.parse_error_at_current_token(message, args);
         }
 
         let pos = self.scanner.token_start();
         let id = self.arena.alloc_missing(kind, pos);
         self.finish_node_at(id, pos, pos)
+    }
+
+    /// tsc createIdentifier: the real-identifier path is parse_identifier;
+    /// this is the private-identifier/missing tail. (The Unknown-token
+    /// reScanInvalidIdentifier retry is not surfaced by the scanner yet.)
+    fn create_identifier_node(
+        &mut self,
+        is_identifier: bool,
+        diagnostic_message: Option<&'static DiagnosticMessage>,
+        private_identifier_diagnostic_message: Option<&'static DiagnosticMessage>,
+    ) -> NodeId {
+        if is_identifier {
+            return self.parse_identifier();
+        }
+        if self.token() == SyntaxKind::PrivateIdentifier {
+            self.parse_error_at_current_token(
+                private_identifier_diagnostic_message
+                    .unwrap_or(&gen::Private_identifiers_are_not_allowed_outside_class_bodies),
+                &[],
+            );
+            return self.create_identifier_node(true, None, None);
+        }
+        let report_at_current_position = self.token() == SyntaxKind::EndOfFileToken;
+        let is_reserved_word = self.token().value() >= SyntaxKind::FirstReservedWord.value()
+            && self.token().value() <= SyntaxKind::LastReservedWord.value();
+        let msg_arg = self.current_token_text();
+        let default_message = if is_reserved_word {
+            &gen::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here
+        } else {
+            &gen::Identifier_expected
+        };
+        self.create_missing_node(
+            SyntaxKind::Identifier,
+            report_at_current_position,
+            Some(diagnostic_message.unwrap_or(default_message)),
+            &[&msg_arg],
+        )
     }
 
     fn do_in_context<R>(
@@ -2729,12 +2768,19 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         self.parse_expected(SyntaxKind::ThrowKeyword, None);
         let expression = if self.scanner.has_preceding_line_break() {
-            self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                Some(&gen::Expression_expected),
-                &[],
-            )
+            // tsc: an ASI'd throw gets an EMPTY identifier without a parse
+            // error here; the missing-semicolon path reports instead.
+            let pos = self.node_pos();
+            let id = self.arena.alloc_node(
+                NodeData::Identifier(IdentifierData {
+                    escaped_text: String::new(),
+                    text: String::new(),
+                }),
+                pos,
+                pos,
+                NodeFlags::NONE,
+            );
+            self.finish_node(id, pos)
         } else {
             self.allow_in(|parser| parser.parse_expression())
         };
@@ -3010,20 +3056,10 @@ impl<'text> Parser<'text> {
         )
     }
 
+    /// tsc parseBindingIdentifier.
     fn parse_binding_identifier(&mut self) -> NodeId {
-        if self.token() == SyntaxKind::PrivateIdentifier {
-            return self.parse_private_identifier();
-        }
-        if self.is_binding_identifier() {
-            self.parse_identifier()
-        } else {
-            self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                Some(&gen::Identifier_expected),
-                &[],
-            )
-        }
+        let is_binding_identifier = self.is_binding_identifier();
+        self.create_identifier_node(is_binding_identifier, None, None)
     }
 
     fn parse_identifier(&mut self) -> NodeId {
@@ -3137,7 +3173,7 @@ impl<'text> Parser<'text> {
         } else {
             self.create_missing_node(
                 SyntaxKind::Identifier,
-                true,
+                false,
                 Some(&gen::_0_expected),
                 &[&token_to_string(SyntaxKind::ColonToken)],
             )
@@ -3453,12 +3489,9 @@ impl<'text> Parser<'text> {
             // `@await x` inside an async body: `await` cannot be an
             // identifier here, so a missing identifier heads the chain.
             let pos = self.node_pos();
-            let await_expression = self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                Some(&gen::Expression_expected),
-                &[],
-            );
+            let is_identifier = self.is_identifier();
+            let await_expression =
+                self.create_identifier_node(is_identifier, Some(&gen::Expression_expected), None);
             self.next_token();
             let member_expression = self.parse_member_expression_rest(pos, await_expression, true);
             return self.parse_call_expression_rest(pos, member_expression);
@@ -3642,15 +3675,9 @@ impl<'text> Parser<'text> {
             SyntaxKind::EqualsGreaterThanToken | SyntaxKind::OpenBraceToken
         ) {
             self.parse_arrow_function_expression_body(is_async, allow_return_type_in_arrow_function)
-        } else if self.is_identifier() {
-            self.parse_identifier()
         } else {
-            self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                Some(&gen::Identifier_expected),
-                &[],
-            )
+            let is_identifier = self.is_identifier();
+            self.create_identifier_node(is_identifier, None, None)
         };
 
         // `a ? (b): c => d` — inside a conditional's whenTrue an arrow with a
@@ -4730,11 +4757,11 @@ impl<'text> Parser<'text> {
                     self.drain_scanner_errors();
                     self.parse_regular_expression_literal()
                 } else {
-                    self.create_missing_node(
-                        SyntaxKind::Identifier,
-                        true,
+                    let is_identifier = self.is_identifier();
+                    self.create_identifier_node(
+                        is_identifier,
                         Some(&gen::Expression_expected),
-                        &[],
+                        None,
                     )
                 }
             }
@@ -4750,14 +4777,33 @@ impl<'text> Parser<'text> {
             {
                 self.parse_function_expression()
             }
-            kind if token_is_identifier_or_keyword(kind) => self.parse_identifier(),
-            _ => self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                Some(&gen::Expression_expected),
-                &[],
-            ),
+            SyntaxKind::AtToken => self.parse_decorated_expression(),
+            _ => {
+                let is_identifier = self.is_identifier();
+                self.create_identifier_node(is_identifier, Some(&gen::Expression_expected), None)
+            }
         }
+    }
+
+    /// tsc parseDecoratedExpression: `@dec class {}` in expression position.
+    fn parse_decorated_expression(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let modifiers = self.parse_modifiers(true, false, false);
+        if self.token() == SyntaxKind::ClassKeyword {
+            return self.parse_class_declaration_or_expression(pos, modifiers, false);
+        }
+        let missing = self.create_missing_node(
+            SyntaxKind::MissingDeclaration,
+            true,
+            Some(&gen::Expression_expected),
+            &[],
+        );
+        let node = self.arena.node_mut(missing);
+        node.pos = pos as u32;
+        if let NodeData::MissingDeclaration(data) = &mut node.data {
+            data.modifiers = modifiers;
+        }
+        missing
     }
 
     fn parse_member_expression_rest(
@@ -5078,30 +5124,14 @@ impl<'text> Parser<'text> {
 
     /// tsc parseIdentifier: an identifier, or a missing node with an error.
     fn parse_identifier_or_missing(&mut self) -> NodeId {
-        if self.is_identifier() {
-            self.parse_identifier()
-        } else {
-            self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                Some(&gen::Identifier_expected),
-                &[],
-            )
-        }
+        let is_identifier = self.is_identifier();
+        self.create_identifier_node(is_identifier, None, None)
     }
 
     /// tsc parseIdentifierName: reserved words allowed.
     fn parse_identifier_name(&mut self, message: Option<&'static DiagnosticMessage>) -> NodeId {
-        if token_is_identifier_or_keyword(self.token()) {
-            self.parse_identifier()
-        } else {
-            self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                message.or(Some(&gen::Identifier_expected)),
-                &[],
-            )
-        }
+        let is_identifier = token_is_identifier_or_keyword(self.token());
+        self.create_identifier_node(is_identifier, message, None)
     }
 
     /// tsc parseEntityName.
@@ -5113,15 +5143,9 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let mut entity = if allow_reserved_words {
             self.parse_identifier_name(diagnostic)
-        } else if self.is_identifier() {
-            self.parse_identifier()
         } else {
-            self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                diagnostic.or(Some(&gen::Identifier_expected)),
-                &[],
-            )
+            let is_identifier = self.is_identifier();
+            self.create_identifier_node(is_identifier, diagnostic, None)
         };
         while self.parse_optional(SyntaxKind::DotToken) {
             if self.token() == SyntaxKind::LessThanToken {
@@ -5179,12 +5203,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         self.parse_expected(SyntaxKind::OpenParenToken, None);
         let expression = if self.token() == SyntaxKind::CloseParenToken {
-            self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                Some(&gen::Expression_expected),
-                &[],
-            )
+            self.create_identifier_node(false, Some(&gen::Expression_expected), None)
         } else {
             self.allow_in(|parser| parser.parse_expression())
         };
@@ -5214,12 +5233,14 @@ impl<'text> Parser<'text> {
             let expression = self.parse_member_expression_rest(expression_pos, expression, false);
             Some(expression)
         } else {
-            Some(self.create_missing_node(
-                SyntaxKind::Identifier,
-                true,
-                Some(&gen::Expression_expected),
-                &[],
-            ))
+            {
+                let is_identifier = self.is_identifier();
+                Some(self.create_identifier_node(
+                    is_identifier,
+                    Some(&gen::Expression_expected),
+                    None,
+                ))
+            }
         };
         let (expression, type_arguments) = expression
             .map(|expression| self.split_expression_with_type_arguments(expression))
@@ -5736,7 +5757,7 @@ impl<'text> Parser<'text> {
         } else {
             self.create_missing_node(
                 SyntaxKind::TemplateTail,
-                true,
+                false,
                 Some(&gen::_0_expected),
                 &["}"],
             )
@@ -5753,7 +5774,7 @@ impl<'text> Parser<'text> {
             SyntaxKind::TemplateTail => self.parse_template_fragment(SyntaxKind::TemplateTail),
             _ => self.create_missing_node(
                 SyntaxKind::TemplateTail,
-                true,
+                false,
                 Some(&gen::_0_expected),
                 &["}"],
             ),
@@ -7497,7 +7518,10 @@ impl<'text> Parser<'text> {
     ) -> NodeId {
         match self.parse_optional_token(kind) {
             Some(token) => token,
-            None => self.create_missing_node(kind, true, message, &[]),
+            None => {
+                let message = message.unwrap_or(&gen::_0_expected);
+                self.create_missing_node(kind, false, Some(message), &[&token_to_string(kind)])
+            }
         }
     }
 
