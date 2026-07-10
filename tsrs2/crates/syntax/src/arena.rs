@@ -54,12 +54,21 @@ impl NodeArena {
             pos: pos as u32,
             end: end as u32,
             has_trailing_comma,
+            is_missing_list: false,
         });
         id
     }
 
     pub fn empty_array(&mut self, pos: usize) -> NodeArrayId {
         self.alloc_array(Vec::new(), pos, pos, false)
+    }
+
+    /// tsc createMissingList: an empty list tagged so isMissingList checks
+    /// (typeHasArrowFunctionBlockingParseError) can distinguish it from `()`.
+    pub fn missing_array(&mut self, pos: usize) -> NodeArrayId {
+        let id = self.empty_array(pos);
+        self.arrays[id.0 as usize].is_missing_list = true;
+        id
     }
 
     pub fn node(&self, id: NodeId) -> &Node {

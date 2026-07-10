@@ -14,6 +14,8 @@ pub struct NodeArray {
     pub pos: u32,
     pub end: u32,
     pub has_trailing_comma: bool,
+    /// tsc createMissingList's isMissingList marker.
+    pub is_missing_list: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]

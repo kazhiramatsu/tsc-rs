@@ -2,27 +2,35 @@
 
 use crate::arena::NodeArena;
 use crate::nodes::{
-    ArrayBindingPatternData, ArrayLiteralExpressionData, ArrowFunctionData, AsExpressionData,
-    AwaitExpressionData, BigIntLiteralData, BinaryExpressionData, BindingElementData, BlockData,
-    BreakStatementData,
-    CallExpressionData, CaseBlockData, CaseClauseData, CatchClauseData, ClassExpressionData,
-    ComputedPropertyNameData, ConditionalExpressionData, ContinueStatementData,
-    DebuggerStatementData, DefaultClauseData, DeleteExpressionData,
+    ArrayBindingPatternData, ArrayLiteralExpressionData, ArrayTypeData, ArrowFunctionData,
+    AsExpressionData, AwaitExpressionData, BigIntLiteralData, BinaryExpressionData,
+    BindingElementData, BlockData, BreakStatementData, CallExpressionData, CallSignatureData,
+    CaseBlockData, CaseClauseData, CatchClauseData, ClassExpressionData, ComputedPropertyNameData,
+    ConditionalExpressionData, ConditionalTypeData, ConstructSignatureData, ConstructorTypeData,
+    ContinueStatementData, DebuggerStatementData, DefaultClauseData, DeleteExpressionData,
     DoStatementData, ElementAccessExpressionData, EmptyStatementData, ExpressionStatementData,
     ExpressionWithTypeArgumentsData, ForInStatementData, ForOfStatementData, ForStatementData,
-    FunctionExpressionData, IdentifierData, IfStatementData, LabeledStatementData,
-    MetaPropertyData, MethodDeclarationData, MissingDeclarationData, NewExpressionData,
-    NoSubstitutionTemplateLiteralData, NodeData, NodeId, NonNullExpressionData, NumericLiteralData,
-    ObjectBindingPatternData, ObjectLiteralExpressionData, OmittedExpressionData, ParameterData,
-    ParenthesizedExpressionData, PostfixUnaryExpressionData, PrefixUnaryExpressionData,
+    FunctionExpressionData, FunctionTypeData, GetAccessorData, IdentifierData, IfStatementData,
+    ImportAttributeData, ImportAttributesData, ImportTypeData, IndexSignatureData,
+    IndexedAccessTypeData, InferTypeData, IntersectionTypeData, JSDocFunctionTypeData,
+    JSDocNonNullableTypeData, JSDocNullableTypeData, JSDocOptionalTypeData, JSDocVariadicTypeData,
+    LabeledStatementData, LiteralTypeData, MappedTypeData, MetaPropertyData, MethodDeclarationData,
+    MethodSignatureData, MissingDeclarationData, NamedTupleMemberData, NewExpressionData,
+    NoSubstitutionTemplateLiteralData, NodeData, NodeId, NodePayload, NonNullExpressionData,
+    NumericLiteralData, ObjectBindingPatternData, ObjectLiteralExpressionData,
+    OmittedExpressionData, OptionalTypeData, ParameterData, ParenthesizedExpressionData,
+    ParenthesizedTypeData, PostfixUnaryExpressionData, PrefixUnaryExpressionData,
     PrivateIdentifierData, PropertyAccessExpressionData, PropertyAssignmentData,
-    RegularExpressionLiteralData, ReturnStatementData, SatisfiesExpressionData,
-    ShorthandPropertyAssignmentData, SourceFileData, SpreadAssignmentData, SpreadElementData,
-    StringLiteralData, SwitchStatementData, TaggedTemplateExpressionData, TemplateExpressionData,
-    TemplateHeadData, TemplateMiddleData, TemplateSpanData, TemplateTailData, ThrowStatementData,
-    TryStatementData, TypeAssertionExpressionData, TypeOfExpressionData, VariableDeclarationData,
-    VariableDeclarationListData, VariableStatementData, VoidExpressionData, WhileStatementData,
-    WithStatementData, YieldExpressionData,
+    PropertySignatureData, QualifiedNameData, RegularExpressionLiteralData, RestTypeData,
+    ReturnStatementData, SatisfiesExpressionData, SetAccessorData, ShorthandPropertyAssignmentData,
+    SourceFileData, SpreadAssignmentData, SpreadElementData, StringLiteralData,
+    SwitchStatementData, TaggedTemplateExpressionData, TemplateExpressionData, TemplateHeadData,
+    TemplateLiteralTypeData, TemplateLiteralTypeSpanData, TemplateMiddleData, TemplateSpanData,
+    TemplateTailData, ThrowStatementData, TryStatementData, TupleTypeData,
+    TypeAssertionExpressionData, TypeLiteralData, TypeOfExpressionData, TypeOperatorData,
+    TypeParameterData, TypePredicateData, TypeQueryData, TypeReferenceData, UnionTypeData,
+    VariableDeclarationData, VariableDeclarationListData, VariableStatementData,
+    VoidExpressionData, WhileStatementData, WithStatementData, YieldExpressionData,
 };
 use crate::scanner::{LanguageVariant, Scanner};
 use crate::{SourceFile, SyntaxKind};
@@ -829,8 +837,18 @@ impl<'text> Parser<'text> {
             || self.token().value() > SyntaxKind::LastReservedWord.value()
     }
 
+    /// tsc isIdentifier: contextual keywords count, reserved words do not.
     fn is_identifier(&self) -> bool {
-        token_is_identifier_or_keyword(self.token())
+        if self.token() == SyntaxKind::Identifier {
+            return true;
+        }
+        if self.token() == SyntaxKind::YieldKeyword && self.in_yield_context() {
+            return false;
+        }
+        if self.token() == SyntaxKind::AwaitKeyword && self.in_await_context() {
+            return false;
+        }
+        self.token().value() > SyntaxKind::LastReservedWord.value()
     }
 
     fn is_identifier_or_keyword_or_literal(&self) -> bool {
@@ -841,17 +859,40 @@ impl<'text> Parser<'text> {
             )
     }
 
-    fn is_type_member_start(&self) -> bool {
-        matches!(
+    /// tsc isTypeMemberStart. Advances the scanner; call under look_ahead.
+    fn is_type_member_start(&mut self) -> bool {
+        if matches!(
             self.token(),
             SyntaxKind::OpenParenToken
                 | SyntaxKind::LessThanToken
-                | SyntaxKind::OpenBracketToken
-                | SyntaxKind::AsteriskToken
-                | SyntaxKind::DotDotDotToken
-                | SyntaxKind::QuestionToken
-        ) || self.is_literal_property_name()
-            || self.is_modifier_kind(self.token())
+                | SyntaxKind::GetKeyword
+                | SyntaxKind::SetKeyword
+        ) {
+            return true;
+        }
+        let mut id_token = false;
+        while self.is_modifier_kind(self.token()) {
+            id_token = true;
+            self.next_token();
+        }
+        if self.token() == SyntaxKind::OpenBracketToken {
+            return true;
+        }
+        if self.is_literal_property_name() {
+            id_token = true;
+            self.next_token();
+        }
+        if id_token {
+            return matches!(
+                self.token(),
+                SyntaxKind::OpenParenToken
+                    | SyntaxKind::LessThanToken
+                    | SyntaxKind::QuestionToken
+                    | SyntaxKind::ColonToken
+                    | SyntaxKind::CommaToken
+            ) || self.can_parse_semicolon();
+        }
+        false
     }
 
     fn is_class_member_start(&self) -> bool {
@@ -867,7 +908,7 @@ impl<'text> Parser<'text> {
             || self.is_modifier_kind(self.token())
     }
 
-    fn is_start_of_parameter(&self, is_jsdoc_parameter: bool) -> bool {
+    fn is_start_of_parameter(&mut self, is_jsdoc_parameter: bool) -> bool {
         self.token() == SyntaxKind::DotDotDotToken
             || self.is_binding_identifier_or_private_identifier_or_pattern()
             || self.is_modifier_kind(self.token())
@@ -875,7 +916,7 @@ impl<'text> Parser<'text> {
             || self.is_start_of_type(!is_jsdoc_parameter)
     }
 
-    fn is_start_of_type(&self, in_start_of_parameter: bool) -> bool {
+    fn is_start_of_type(&mut self, in_start_of_parameter: bool) -> bool {
         match self.token() {
             SyntaxKind::AnyKeyword
             | SyntaxKind::UnknownKeyword
@@ -914,13 +955,37 @@ impl<'text> Parser<'text> {
             | SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::TemplateHead => true,
             SyntaxKind::FunctionKeyword => !in_start_of_parameter,
-            SyntaxKind::MinusToken => !in_start_of_parameter,
-            SyntaxKind::OpenParenToken => !in_start_of_parameter,
+            SyntaxKind::MinusToken => {
+                !in_start_of_parameter
+                    && self.look_ahead(|parser| parser.next_token_is_numeric_or_big_int_literal())
+            }
+            SyntaxKind::OpenParenToken => {
+                !in_start_of_parameter
+                    && self.look_ahead(|parser| parser.is_start_of_parenthesized_or_function_type())
+            }
             _ => self.is_identifier(),
         }
     }
 
-    fn is_start_of_left_hand_side_expression(&self) -> bool {
+    fn is_start_of_parenthesized_or_function_type(&mut self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::CloseParenToken
+            || self.is_start_of_parameter(false)
+            || self.is_start_of_type(false)
+    }
+
+    fn next_token_is_numeric_or_big_int_literal(&mut self) -> bool {
+        self.next_token();
+        matches!(
+            self.token(),
+            SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral
+        )
+    }
+
+    fn is_start_of_left_hand_side_expression(&mut self) -> bool {
+        if self.token() == SyntaxKind::ImportKeyword {
+            return self.look_ahead(|parser| parser.next_token_is_open_paren_or_less_than_or_dot());
+        }
         matches!(
             self.token(),
             SyntaxKind::ThisKeyword
@@ -944,7 +1009,14 @@ impl<'text> Parser<'text> {
         ) || self.is_identifier()
     }
 
-    fn is_start_of_expression(&self) -> bool {
+    fn next_token_is_open_paren_or_less_than_or_dot(&mut self) -> bool {
+        matches!(
+            self.next_token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken | SyntaxKind::DotToken
+        )
+    }
+
+    fn is_start_of_expression(&mut self) -> bool {
         if self.is_start_of_left_hand_side_expression() {
             return true;
         }
@@ -969,8 +1041,13 @@ impl<'text> Parser<'text> {
             || self.is_identifier()
     }
 
-    fn is_start_of_statement(&self) -> bool {
+    fn is_start_of_statement(&mut self) -> bool {
         match self.token() {
+            SyntaxKind::ImportKeyword => {
+                self.is_start_of_declaration()
+                    || self
+                        .look_ahead(|parser| parser.next_token_is_open_paren_or_less_than_or_dot())
+            }
             SyntaxKind::AtToken
             | SyntaxKind::SemicolonToken
             | SyntaxKind::OpenBraceToken
@@ -1016,6 +1093,7 @@ impl<'text> Parser<'text> {
                 | SyntaxKind::AsyncKeyword
                 | SyntaxKind::ConstKeyword
                 | SyntaxKind::DeclareKeyword
+                | SyntaxKind::DefaultKeyword
                 | SyntaxKind::ExportKeyword
                 | SyntaxKind::InKeyword
                 | SyntaxKind::PrivateKeyword
@@ -1023,6 +1101,7 @@ impl<'text> Parser<'text> {
                 | SyntaxKind::PublicKeyword
                 | SyntaxKind::ReadonlyKeyword
                 | SyntaxKind::StaticKeyword
+                | SyntaxKind::OutKeyword
                 | SyntaxKind::OverrideKeyword
         )
     }
@@ -1205,7 +1284,8 @@ impl<'text> Parser<'text> {
         };
 
         if is_for_of {
-            let expression = self.allow_in(|parser| parser.parse_assignment_expression_or_higher(true));
+            let expression =
+                self.allow_in(|parser| parser.parse_assignment_expression_or_higher(true));
             self.parse_expected(SyntaxKind::CloseParenToken, None);
             let statement = self.parse_statement();
             return self.finish_node_data(
@@ -1996,6 +2076,170 @@ impl<'text> Parser<'text> {
         Tristate::False
     }
 
+    /// tsc parseContextualModifier.
+    fn parse_contextual_modifier(&mut self, t: SyntaxKind) -> bool {
+        self.token() == t && self.try_parse(|parser| parser.next_token_can_follow_modifier())
+    }
+
+    fn next_token_is_on_same_line_and_can_follow_modifier(&mut self) -> bool {
+        self.next_token();
+        if self.scanner.has_preceding_line_break() {
+            return false;
+        }
+        self.can_follow_modifier()
+    }
+
+    fn next_token_can_follow_modifier(&mut self) -> bool {
+        match self.token() {
+            SyntaxKind::ConstKeyword => self.next_token() == SyntaxKind::EnumKeyword,
+            SyntaxKind::ExportKeyword => {
+                self.next_token();
+                if self.token() == SyntaxKind::DefaultKeyword {
+                    return self
+                        .look_ahead(|parser| parser.next_token_can_follow_default_keyword());
+                }
+                if self.token() == SyntaxKind::TypeKeyword {
+                    return self
+                        .look_ahead(|parser| parser.next_token_can_follow_export_modifier());
+                }
+                self.can_follow_export_modifier()
+            }
+            SyntaxKind::DefaultKeyword => self.next_token_can_follow_default_keyword(),
+            SyntaxKind::StaticKeyword => {
+                self.next_token();
+                self.can_follow_modifier()
+            }
+            SyntaxKind::GetKeyword | SyntaxKind::SetKeyword => {
+                self.next_token();
+                self.can_follow_get_or_set_keyword()
+            }
+            _ => self.next_token_is_on_same_line_and_can_follow_modifier(),
+        }
+    }
+
+    fn can_follow_export_modifier(&self) -> bool {
+        self.token() == SyntaxKind::AtToken
+            || self.token() != SyntaxKind::AsteriskToken
+                && self.token() != SyntaxKind::AsKeyword
+                && self.token() != SyntaxKind::OpenBraceToken
+                && self.can_follow_modifier()
+    }
+
+    fn next_token_can_follow_export_modifier(&mut self) -> bool {
+        self.next_token();
+        self.can_follow_export_modifier()
+    }
+
+    fn parse_any_contextual_modifier(&mut self) -> bool {
+        self.is_modifier_kind(self.token())
+            && self.try_parse(|parser| parser.next_token_can_follow_modifier())
+    }
+
+    fn can_follow_modifier(&self) -> bool {
+        matches!(
+            self.token(),
+            SyntaxKind::OpenBracketToken
+                | SyntaxKind::OpenBraceToken
+                | SyntaxKind::AsteriskToken
+                | SyntaxKind::DotDotDotToken
+        ) || self.is_literal_property_name()
+    }
+
+    fn can_follow_get_or_set_keyword(&self) -> bool {
+        self.token() == SyntaxKind::OpenBracketToken || self.is_literal_property_name()
+    }
+
+    fn next_token_can_follow_default_keyword(&mut self) -> bool {
+        self.next_token();
+        match self.token() {
+            SyntaxKind::ClassKeyword
+            | SyntaxKind::FunctionKeyword
+            | SyntaxKind::InterfaceKeyword
+            | SyntaxKind::AtToken => true,
+            SyntaxKind::AbstractKeyword => {
+                self.look_ahead(|parser| parser.next_token_is_class_keyword_on_same_line())
+            }
+            SyntaxKind::AsyncKeyword => {
+                self.look_ahead(|parser| parser.next_token_is_function_keyword_on_same_line())
+            }
+            _ => false,
+        }
+    }
+
+    fn next_token_is_class_keyword_on_same_line(&mut self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::ClassKeyword && !self.scanner.has_preceding_line_break()
+    }
+
+    fn next_token_is_function_keyword_on_same_line(&mut self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::FunctionKeyword && !self.scanner.has_preceding_line_break()
+    }
+
+    fn next_token_is_open_brace(&mut self) -> bool {
+        self.next_token() == SyntaxKind::OpenBraceToken
+    }
+
+    /// tsc tryParseModifier.
+    fn try_parse_modifier(
+        &mut self,
+        has_seen_static_modifier: bool,
+        permit_const_as_modifier: bool,
+        stop_on_start_of_class_static_block: bool,
+    ) -> Option<NodeId> {
+        let pos = self.node_pos();
+        let kind = self.token();
+        if self.token() == SyntaxKind::ConstKeyword && permit_const_as_modifier {
+            if !self.try_parse(|parser| parser.next_token_is_on_same_line_and_can_follow_modifier())
+            {
+                return None;
+            }
+        } else {
+            if self.token() == SyntaxKind::StaticKeyword
+                && (has_seen_static_modifier
+                    || stop_on_start_of_class_static_block
+                        && self.look_ahead(|parser| parser.next_token_is_open_brace()))
+            {
+                return None;
+            }
+            if !self.parse_any_contextual_modifier() {
+                return None;
+            }
+        }
+        // The modifier token itself has already been consumed above.
+        let id = self
+            .arena
+            .alloc_token(kind, pos, self.scanner.full_start_pos(), NodeFlags::NONE);
+        Some(self.finish_node(id, pos))
+    }
+
+    /// tsc parseModifiers. Decorators (`allow_decorators`) land with 2.6.
+    fn parse_modifiers(
+        &mut self,
+        _allow_decorators: bool,
+        permit_const_as_modifier: bool,
+        stop_on_start_of_class_static_block: bool,
+    ) -> Option<crate::NodeArrayId> {
+        let pos = self.node_pos();
+        let mut list = Vec::new();
+        let mut has_seen_static_modifier = false;
+        while let Some(modifier) = self.try_parse_modifier(
+            has_seen_static_modifier,
+            permit_const_as_modifier,
+            stop_on_start_of_class_static_block,
+        ) {
+            if self.arena.node(modifier).kind == SyntaxKind::StaticKeyword {
+                has_seen_static_modifier = true;
+            }
+            list.push(modifier);
+        }
+        if list.is_empty() {
+            None
+        } else {
+            Some(self.arena.alloc_array(list, pos, self.node_pos(), false))
+        }
+    }
+
     fn parse_modifiers_for_arrow_function(&mut self) -> Option<crate::NodeArrayId> {
         if self.token() != SyntaxKind::AsyncKeyword {
             return None;
@@ -2014,9 +2258,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let modifiers = self.parse_modifiers_for_arrow_function();
         let is_async = modifiers.is_some();
-        // parseTypeParameters lands with stage 2.5; until then a `<` head
-        // fails the OpenParen check below and speculation unwinds.
-        let type_parameters: Option<crate::NodeArrayId> = None;
+        let type_parameters = self.parse_type_parameters();
 
         let parameters: crate::NodeArrayId;
         if !self.parse_expected(SyntaxKind::OpenParenToken, None) {
@@ -2024,7 +2266,7 @@ impl<'text> Parser<'text> {
                 return None;
             }
             // tsc createMissingList
-            parameters = self.arena.empty_array(self.node_pos());
+            parameters = self.arena.missing_array(self.node_pos());
         } else {
             match self.parse_parameters_worker(false, is_async, allow_ambiguity) {
                 Some(list) => parameters = list,
@@ -2038,10 +2280,25 @@ impl<'text> Parser<'text> {
 
         let has_return_colon = self.token() == SyntaxKind::ColonToken;
         let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
-        // typeHasArrowFunctionBlockingParseError lands with the 2.5 type grammar.
+        if let Some(return_type) = r#type {
+            if !allow_ambiguity && self.type_has_arrow_function_blocking_parse_error(return_type) {
+                return None;
+            }
+        }
+        // A JSDoc function type as the (unwrapped) return type means the `=>`
+        // belongs to that type, not to an arrow body.
+        let mut unwrapped_type = r#type;
+        while let Some(current) = unwrapped_type {
+            match &self.arena.node(current).data {
+                NodeData::ParenthesizedType(data) => unwrapped_type = data.r#type,
+                _ => break,
+            }
+        }
+        let has_jsdoc_function_type = unwrapped_type
+            .is_some_and(|current| self.arena.node(current).kind == SyntaxKind::JSDocFunctionType);
         if !allow_ambiguity
             && self.token() != SyntaxKind::EqualsGreaterThanToken
-            && self.token() != SyntaxKind::OpenBraceToken
+            && (has_jsdoc_function_type || self.token() != SyntaxKind::OpenBraceToken)
         {
             return None;
         }
@@ -2053,10 +2310,7 @@ impl<'text> Parser<'text> {
             last_token,
             SyntaxKind::EqualsGreaterThanToken | SyntaxKind::OpenBraceToken
         ) {
-            self.parse_arrow_function_expression_body(
-                is_async,
-                allow_return_type_in_arrow_function,
-            )
+            self.parse_arrow_function_expression_body(is_async, allow_return_type_in_arrow_function)
         } else if self.is_identifier() {
             self.parse_identifier()
         } else {
@@ -2113,9 +2367,9 @@ impl<'text> Parser<'text> {
         let parameter_node = self.arena.node(parameter);
         let (parameter_pos, parameter_end) =
             (parameter_node.pos as usize, parameter_node.end as usize);
-        let parameters = self
-            .arena
-            .alloc_array(vec![parameter], parameter_pos, parameter_end, false);
+        let parameters =
+            self.arena
+                .alloc_array(vec![parameter], parameter_pos, parameter_end, false);
         let equals_greater_than_token =
             self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken);
         let body = self.parse_arrow_function_expression_body(
@@ -2166,7 +2420,7 @@ impl<'text> Parser<'text> {
         node
     }
 
-    fn is_start_of_expression_statement(&self) -> bool {
+    fn is_start_of_expression_statement(&mut self) -> bool {
         self.token() != SyntaxKind::OpenBraceToken
             && self.token() != SyntaxKind::FunctionKeyword
             && self.token() != SyntaxKind::ClassKeyword
@@ -2218,7 +2472,8 @@ impl<'text> Parser<'text> {
             } else {
                 let operator_token = self.parse_token_node();
                 let right = self.parse_binary_expression_or_higher(new_precedence);
-                left_operand = self.make_binary_expression(left_operand, operator_token, right, pos);
+                left_operand =
+                    self.make_binary_expression(left_operand, operator_token, right, pos);
             }
         }
         left_operand
@@ -2689,7 +2944,7 @@ impl<'text> Parser<'text> {
         expression: NodeId,
         question_dot_token: Option<NodeId>,
     ) -> NodeId {
-        let name = self.parse_right_side_of_dot();
+        let name = self.parse_right_side_of_dot(true, true);
         self.finish_node_data(
             NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
                 expression: Some(expression),
@@ -2786,7 +3041,7 @@ impl<'text> Parser<'text> {
             .then_some(type_arguments)
     }
 
-    fn can_follow_type_arguments_in_expression(&self) -> bool {
+    fn can_follow_type_arguments_in_expression(&mut self) -> bool {
         match self.token() {
             SyntaxKind::OpenParenToken
             | SyntaxKind::NoSubstitutionTemplateLiteral
@@ -2820,10 +3075,49 @@ impl<'text> Parser<'text> {
         )
     }
 
-    fn parse_right_side_of_dot(&mut self) -> NodeId {
+    /// tsc parseRightSideOfDot; the allowUnicodeEscapeSequenceInIdentifierName
+    /// error is not ported (scanner does not surface escape flags yet).
+    fn parse_right_side_of_dot(
+        &mut self,
+        allow_identifier_names: bool,
+        allow_private_identifiers: bool,
+    ) -> NodeId {
+        // A keyword on a fresh line followed by another identifier likely
+        // starts the next construct; give the dot a missing name instead.
+        if self.scanner.has_preceding_line_break() && token_is_identifier_or_keyword(self.token()) {
+            let matches_pattern =
+                self.look_ahead(|parser| parser.next_token_is_identifier_or_keyword_on_same_line());
+            if matches_pattern {
+                return self.create_missing_node(
+                    SyntaxKind::Identifier,
+                    true,
+                    Some(&gen::Identifier_expected),
+                    &[],
+                );
+            }
+        }
         if self.token() == SyntaxKind::PrivateIdentifier {
-            self.parse_private_identifier()
-        } else if self.is_identifier() {
+            let node = self.parse_private_identifier();
+            return if allow_private_identifiers {
+                node
+            } else {
+                self.create_missing_node(
+                    SyntaxKind::Identifier,
+                    true,
+                    Some(&gen::Identifier_expected),
+                    &[],
+                )
+            };
+        }
+        if allow_identifier_names {
+            return self.parse_identifier_name(None);
+        }
+        self.parse_identifier_or_missing()
+    }
+
+    /// tsc parseIdentifier: an identifier, or a missing node with an error.
+    fn parse_identifier_or_missing(&mut self) -> NodeId {
+        if self.is_identifier() {
             self.parse_identifier()
         } else {
             self.create_missing_node(
@@ -2833,6 +3127,66 @@ impl<'text> Parser<'text> {
                 &[],
             )
         }
+    }
+
+    /// tsc parseIdentifierName: reserved words allowed.
+    fn parse_identifier_name(&mut self, message: Option<&'static DiagnosticMessage>) -> NodeId {
+        if token_is_identifier_or_keyword(self.token()) {
+            self.parse_identifier()
+        } else {
+            self.create_missing_node(
+                SyntaxKind::Identifier,
+                true,
+                message.or(Some(&gen::Identifier_expected)),
+                &[],
+            )
+        }
+    }
+
+    /// tsc parseEntityName.
+    fn parse_entity_name(
+        &mut self,
+        allow_reserved_words: bool,
+        diagnostic: Option<&'static DiagnosticMessage>,
+    ) -> NodeId {
+        let pos = self.node_pos();
+        let mut entity = if allow_reserved_words {
+            self.parse_identifier_name(diagnostic)
+        } else if self.is_identifier() {
+            self.parse_identifier()
+        } else {
+            self.create_missing_node(
+                SyntaxKind::Identifier,
+                true,
+                diagnostic.or(Some(&gen::Identifier_expected)),
+                &[],
+            )
+        };
+        while self.parse_optional(SyntaxKind::DotToken) {
+            if self.token() == SyntaxKind::LessThanToken {
+                // The entity is followed by type arguments; the caller
+                // (parseTypeReference et al.) picks them up.
+                break;
+            }
+            let right = self.parse_right_side_of_dot(allow_reserved_words, false);
+            entity = self.finish_node_data(
+                NodeData::QualifiedName(QualifiedNameData {
+                    left: Some(entity),
+                    right: Some(right),
+                }),
+                pos,
+            );
+        }
+        entity
+    }
+
+    fn parse_entity_name_of_type_reference(&mut self) -> NodeId {
+        self.parse_entity_name(true, Some(&gen::Type_expected))
+    }
+
+    fn next_token_is_identifier_or_keyword_on_same_line(&mut self) -> bool {
+        self.next_token();
+        token_is_identifier_or_keyword(self.token()) && !self.scanner.has_preceding_line_break()
     }
 
     fn expression_with_type_arguments_parts(
@@ -2991,6 +3345,14 @@ impl<'text> Parser<'text> {
             );
         }
 
+        let modifiers = self.parse_modifiers(true, false, false);
+        if self.parse_contextual_modifier(SyntaxKind::GetKeyword) {
+            return self.parse_accessor_declaration(pos, modifiers, SyntaxKind::GetAccessor, false);
+        }
+        if self.parse_contextual_modifier(SyntaxKind::SetKeyword) {
+            return self.parse_accessor_declaration(pos, modifiers, SyntaxKind::SetAccessor, false);
+        }
+
         let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
         let token_is_identifier = self.is_identifier();
         let name = self.parse_property_name();
@@ -3003,8 +3365,9 @@ impl<'text> Parser<'text> {
                 SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
             )
         {
-            return self.parse_method_declaration_stub(
+            return self.parse_method_declaration(
                 pos,
+                modifiers,
                 asterisk_token,
                 name,
                 question_token,
@@ -3021,7 +3384,7 @@ impl<'text> Parser<'text> {
             };
             return self.finish_node_data(
                 NodeData::ShorthandPropertyAssignment(ShorthandPropertyAssignmentData {
-                    modifiers: None,
+                    modifiers,
                     name: Some(name),
                     question_token,
                     exclamation_token,
@@ -3033,10 +3396,11 @@ impl<'text> Parser<'text> {
         }
 
         self.parse_expected(SyntaxKind::ColonToken, None);
-        let initializer = self.allow_in(|parser| parser.parse_assignment_expression_or_higher(true));
+        let initializer =
+            self.allow_in(|parser| parser.parse_assignment_expression_or_higher(true));
         self.finish_node_data(
             NodeData::PropertyAssignment(PropertyAssignmentData {
-                modifiers: None,
+                modifiers,
                 name: Some(name),
                 question_token,
                 exclamation_token,
@@ -3069,45 +3433,46 @@ impl<'text> Parser<'text> {
         )
     }
 
-    fn parse_method_declaration_stub(
+    /// tsc parseMethodDeclaration.
+    fn parse_method_declaration(
         &mut self,
         pos: usize,
+        modifiers: Option<crate::NodeArrayId>,
         asterisk_token: Option<NodeId>,
         name: NodeId,
         question_token: Option<NodeId>,
         exclamation_token: Option<NodeId>,
     ) -> NodeId {
-        if self.token() == SyntaxKind::LessThanToken {
-            self.skip_until_method_body_or_delimiter();
-        }
-        let parameters_pos = self.node_pos();
-        let parameters = if self.parse_optional(SyntaxKind::OpenParenToken) {
-            self.skip_balanced_until(SyntaxKind::CloseParenToken);
-            self.parse_expected(SyntaxKind::CloseParenToken, None);
-            self.arena.empty_array(parameters_pos)
-        } else {
-            self.arena.empty_array(parameters_pos)
-        };
-        let r#type = self.parse_type_annotation();
-        let body = if self.token() == SyntaxKind::OpenBraceToken {
-            Some(self.parse_block(false, None))
-        } else {
-            None
-        };
+        let is_generator = asterisk_token.is_some();
+        let is_async = self.modifiers_contain(modifiers, SyntaxKind::AsyncKeyword);
+        let type_parameters = self.parse_type_parameters();
+        let parameters = self.parse_parameters(is_generator, is_async);
+        let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
+        let body = self.parse_function_block_or_semicolon(is_generator, is_async, false);
         self.finish_node_data(
             NodeData::MethodDeclaration(MethodDeclarationData {
-                modifiers: None,
+                modifiers,
                 asterisk_token,
                 name: Some(name),
                 question_token,
                 exclamation_token,
                 r#type,
-                type_parameters: None,
+                type_parameters,
                 parameters: Some(parameters),
                 body,
             }),
             pos,
         )
+    }
+
+    fn modifiers_contain(&self, modifiers: Option<crate::NodeArrayId>, kind: SyntaxKind) -> bool {
+        modifiers.is_some_and(|list| {
+            self.arena
+                .node_array(list)
+                .nodes
+                .iter()
+                .any(|&modifier| self.arena.node(modifier).kind == kind)
+        })
     }
 
     fn is_parameter_name_start(&self) -> bool {
@@ -3177,10 +3542,7 @@ impl<'text> Parser<'text> {
     fn parse_name_of_parameter(&mut self, has_modifiers: bool) -> NodeId {
         let name = self.parse_identifier_or_pattern();
         let name_node = self.arena.node(name);
-        if name_node.pos == name_node.end
-            && !has_modifiers
-            && self.is_modifier_kind(self.token())
-        {
+        if name_node.pos == name_node.end && !has_modifiers && self.is_modifier_kind(self.token()) {
             // A modifier alone ("void foo(private)") would loop forever;
             // consume it so the list makes progress (tsc parseNameOfParameter).
             self.next_token();
@@ -3217,7 +3579,7 @@ impl<'text> Parser<'text> {
     fn parse_parameters(&mut self, yield_context: bool, await_context: bool) -> crate::NodeArrayId {
         if !self.parse_expected(SyntaxKind::OpenParenToken, None) {
             // tsc createMissingList
-            return self.arena.empty_array(self.node_pos());
+            return self.arena.missing_array(self.node_pos());
         }
         let parameters = self
             .parse_parameters_worker(yield_context, await_context, true)
@@ -3228,12 +3590,7 @@ impl<'text> Parser<'text> {
 
     fn parse_return_type(&mut self, return_token: SyntaxKind, is_type: bool) -> Option<NodeId> {
         if self.should_parse_return_type(return_token, is_type) {
-            // allowConditionalTypesAnd(parseTypeOrTypePredicate) lands with 2.5
-            Some(self.do_in_context(
-                NodeFlags::NONE,
-                NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT,
-                |parser| parser.parse_type(),
-            ))
+            Some(self.allow_conditional_types_and(|parser| parser.parse_type_or_type_predicate()))
         } else {
             None
         }
@@ -3292,9 +3649,7 @@ impl<'text> Parser<'text> {
         } else {
             None
         };
-        if self.token() == SyntaxKind::LessThanToken {
-            self.skip_until_method_body_or_delimiter();
-        }
+        let type_parameters = self.parse_type_parameters();
         let parameters = self.parse_parameters(is_generator, is_async);
         let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
         let body = Some(self.parse_function_block(is_generator, is_async, false, None));
@@ -3304,7 +3659,7 @@ impl<'text> Parser<'text> {
                 asterisk_token,
                 name,
                 r#type,
-                type_parameters: None,
+                type_parameters,
                 parameters: Some(parameters),
                 body,
             }),
@@ -3378,7 +3733,18 @@ impl<'text> Parser<'text> {
     fn parse_template_span(&mut self, is_tagged_template: bool) -> NodeId {
         let pos = self.node_pos();
         let expression = self.allow_in(|parser| parser.parse_expression());
-        let literal = if self.token() == SyntaxKind::CloseBraceToken {
+        let literal = self.parse_literal_of_template_span(is_tagged_template);
+        self.finish_node_data(
+            NodeData::TemplateSpan(TemplateSpanData {
+                expression: Some(expression),
+                literal: Some(literal),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_literal_of_template_span(&mut self, is_tagged_template: bool) -> NodeId {
+        if self.token() == SyntaxKind::CloseBraceToken {
             self.scanner.re_scan_template_token(is_tagged_template);
             self.drain_scanner_errors();
             self.parse_template_middle_or_tail()
@@ -3389,14 +3755,7 @@ impl<'text> Parser<'text> {
                 Some(&gen::_0_expected),
                 &["}"],
             )
-        };
-        self.finish_node_data(
-            NodeData::TemplateSpan(TemplateSpanData {
-                expression: Some(expression),
-                literal: Some(literal),
-            }),
-            pos,
-        )
+        }
     }
 
     fn parse_template_head(&mut self) -> NodeId {
@@ -3518,12 +3877,1435 @@ impl<'text> Parser<'text> {
         }
     }
 
-    fn parse_type(&mut self) -> NodeId {
-        if self.is_start_of_type(false) {
-            self.parse_primary_expression()
+    /// tsc parseBracketedList.
+    fn parse_bracketed_list(
+        &mut self,
+        context: ParsingContext,
+        parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
+        open: SyntaxKind,
+        close: SyntaxKind,
+    ) -> crate::NodeArrayId {
+        if self.parse_expected(open, None) {
+            let result = self.parse_delimited_list(context, parse_element, false);
+            self.parse_expected(close, None);
+            result
         } else {
-            self.create_missing_node(SyntaxKind::Identifier, true, Some(&gen::Type_expected), &[])
+            self.arena.missing_array(self.node_pos())
         }
+    }
+
+    /// Kind-only nodes (ThisType, JSDoc sentinel types) carry no data.
+    fn finish_kind_only_node(&mut self, kind: SyntaxKind, pos: usize) -> NodeId {
+        let id = self
+            .arena
+            .alloc_token(kind, pos, self.scanner.full_start_pos(), NodeFlags::NONE);
+        self.finish_node(id, pos)
+    }
+
+    fn parse_template_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let head = self.parse_template_head();
+        let spans_pos = self.node_pos();
+        let mut spans = Vec::new();
+        loop {
+            let span = self.parse_template_type_span();
+            let literal_kind = match &self.arena.node(span).data {
+                NodeData::TemplateLiteralTypeSpan(data) => {
+                    data.literal.map(|literal| self.arena.node(literal).kind)
+                }
+                _ => None,
+            };
+            spans.push(span);
+            if literal_kind != Some(SyntaxKind::TemplateMiddle) {
+                break;
+            }
+        }
+        let template_spans = self
+            .arena
+            .alloc_array(spans, spans_pos, self.node_pos(), false);
+        self.finish_node_data(
+            NodeData::TemplateLiteralType(TemplateLiteralTypeData {
+                readonly_pos: 0.0,
+                readonly_end: 0.0,
+                readonly_kind: SyntaxKind::TemplateLiteralType,
+                readonly_flags: NodeId::default(),
+                readonly_parent: NodeId::default(),
+                readonly_head: NodePayload::String(String::new()),
+                readonly_template_spans: crate::NodeArrayId::default(),
+                head: Some(head),
+                template_spans: Some(template_spans),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_template_type_span(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let r#type = self.parse_type();
+        let literal = self.parse_literal_of_template_span(false);
+        self.finish_node_data(
+            NodeData::TemplateLiteralTypeSpan(TemplateLiteralTypeSpanData {
+                r#type: Some(r#type),
+                literal: Some(literal),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_type_arguments_of_type_reference(&mut self) -> Option<crate::NodeArrayId> {
+        if !self.scanner.has_preceding_line_break()
+            && self.scanner.re_scan_less_than_token() == SyntaxKind::LessThanToken
+        {
+            Some(self.parse_bracketed_list(
+                ParsingContext::TypeArguments,
+                |parser| Some(parser.parse_type()),
+                SyntaxKind::LessThanToken,
+                SyntaxKind::GreaterThanToken,
+            ))
+        } else {
+            None
+        }
+    }
+
+    /// tsc tryParseTypeArguments (not speculative: `<` commits the list).
+    fn try_parse_type_arguments(&mut self) -> Option<crate::NodeArrayId> {
+        if self.token() == SyntaxKind::LessThanToken {
+            Some(self.parse_bracketed_list(
+                ParsingContext::TypeArguments,
+                |parser| Some(parser.parse_type()),
+                SyntaxKind::LessThanToken,
+                SyntaxKind::GreaterThanToken,
+            ))
+        } else {
+            None
+        }
+    }
+
+    fn parse_type_reference(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let type_name = self.parse_entity_name_of_type_reference();
+        let type_arguments = self.parse_type_arguments_of_type_reference();
+        self.finish_node_data(
+            NodeData::TypeReference(TypeReferenceData {
+                type_name: Some(type_name),
+                type_arguments,
+            }),
+            pos,
+        )
+    }
+
+    fn type_has_arrow_function_blocking_parse_error(&self, id: NodeId) -> bool {
+        let node = self.arena.node(id);
+        match &node.data {
+            NodeData::TypeReference(data) => data
+                .type_name
+                .is_none_or(|type_name| !self.node_is_present(type_name)),
+            NodeData::FunctionType(FunctionTypeData {
+                parameters, r#type, ..
+            })
+            | NodeData::ConstructorType(ConstructorTypeData {
+                parameters, r#type, ..
+            }) => {
+                parameters.is_some_and(|list| self.arena.node_array(list).is_missing_list)
+                    || r#type.is_some_and(|t| self.type_has_arrow_function_blocking_parse_error(t))
+            }
+            NodeData::ParenthesizedType(data) => data
+                .r#type
+                .is_some_and(|t| self.type_has_arrow_function_blocking_parse_error(t)),
+            _ => false,
+        }
+    }
+
+    fn parse_this_type_predicate(&mut self, lhs: NodeId) -> NodeId {
+        self.next_token();
+        let pos = self.arena.node(lhs).pos as usize;
+        let r#type = self.parse_type();
+        self.finish_node_data(
+            NodeData::TypePredicate(TypePredicateData {
+                asserts_modifier: None,
+                parameter_name: Some(lhs),
+                r#type: Some(r#type),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_this_type_node(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        self.finish_kind_only_node(SyntaxKind::ThisType, pos)
+    }
+
+    fn parse_jsdoc_all_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        self.finish_kind_only_node(SyntaxKind::JSDocAllType, pos)
+    }
+
+    fn parse_jsdoc_non_nullable_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        let r#type = self.parse_non_array_type();
+        self.finish_node_data(
+            NodeData::JSDocNonNullableType(JSDocNonNullableTypeData {
+                r#type: Some(r#type),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_jsdoc_unknown_or_nullable_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.next_token();
+        if matches!(
+            self.token(),
+            SyntaxKind::CommaToken
+                | SyntaxKind::CloseBraceToken
+                | SyntaxKind::CloseParenToken
+                | SyntaxKind::GreaterThanToken
+                | SyntaxKind::EqualsToken
+                | SyntaxKind::BarToken
+        ) {
+            self.finish_kind_only_node(SyntaxKind::JSDocUnknownType, pos)
+        } else {
+            let r#type = self.parse_type();
+            self.finish_node_data(
+                NodeData::JSDocNullableType(JSDocNullableTypeData {
+                    r#type: Some(r#type),
+                }),
+                pos,
+            )
+        }
+    }
+
+    fn next_token_is_open_paren(&mut self) -> bool {
+        self.next_token() == SyntaxKind::OpenParenToken
+    }
+
+    fn parse_jsdoc_function_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        if self.try_parse(|parser| parser.next_token_is_open_paren()) {
+            let parameters = self.parse_jsdoc_function_parameters();
+            let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
+            return self.finish_node_data(
+                NodeData::JSDocFunctionType(JSDocFunctionTypeData {
+                    parameters: Some(parameters),
+                    r#type,
+                }),
+                pos,
+            );
+        }
+        // `function` used as a plain type name.
+        let type_name = self.parse_identifier_name(None);
+        self.finish_node_data(
+            NodeData::TypeReference(TypeReferenceData {
+                type_name: Some(type_name),
+                type_arguments: None,
+            }),
+            pos,
+        )
+    }
+
+    /// tsc parseParameters with SignatureFlags.Type | SignatureFlags.JSDoc.
+    fn parse_jsdoc_function_parameters(&mut self) -> crate::NodeArrayId {
+        if !self.parse_expected(SyntaxKind::OpenParenToken, None) {
+            return self.arena.missing_array(self.node_pos());
+        }
+        let saved_yield_context = self.in_yield_context();
+        let saved_await_context = self.in_await_context();
+        self.set_yield_context(false);
+        self.set_await_context(false);
+        let parameters = self.parse_delimited_list(
+            ParsingContext::JSDocParameters,
+            |parser| Some(parser.parse_jsdoc_parameter()),
+            false,
+        );
+        self.set_yield_context(saved_yield_context);
+        self.set_await_context(saved_await_context);
+        self.parse_expected(SyntaxKind::CloseParenToken, None);
+        parameters
+    }
+
+    fn parse_jsdoc_parameter(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let mut name = None;
+        if matches!(
+            self.token(),
+            SyntaxKind::ThisKeyword | SyntaxKind::NewKeyword
+        ) {
+            name = Some(self.parse_identifier_name(None));
+            self.parse_expected(SyntaxKind::ColonToken, None);
+        }
+        let r#type = self.parse_jsdoc_type();
+        self.finish_node_data(
+            NodeData::Parameter(ParameterData {
+                modifiers: None,
+                dot_dot_dot_token: None,
+                name,
+                question_token: None,
+                r#type: Some(r#type),
+                initializer: None,
+            }),
+            pos,
+        )
+    }
+
+    /// tsc parseJSDocType minus the JSDoc-comment-only namepath branch and
+    /// the setSkipJsDocLeadingAsterisks scanner mode (both unreachable from
+    /// type positions in source text).
+    fn parse_jsdoc_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let has_dot_dot_dot = self.parse_optional(SyntaxKind::DotDotDotToken);
+        let mut r#type = self.parse_type_or_type_predicate();
+        if has_dot_dot_dot {
+            r#type = self.finish_node_data(
+                NodeData::JSDocVariadicType(JSDocVariadicTypeData {
+                    r#type: Some(r#type),
+                }),
+                pos,
+            );
+        }
+        if self.token() == SyntaxKind::EqualsToken {
+            self.next_token();
+            return self.finish_node_data(
+                NodeData::JSDocOptionalType(JSDocOptionalTypeData {
+                    r#type: Some(r#type),
+                }),
+                pos,
+            );
+        }
+        r#type
+    }
+
+    fn parse_type_query(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.parse_expected(SyntaxKind::TypeOfKeyword, None);
+        let expr_name = self.parse_entity_name(true, None);
+        let type_arguments = if !self.scanner.has_preceding_line_break() {
+            self.try_parse_type_arguments()
+        } else {
+            None
+        };
+        self.finish_node_data(
+            NodeData::TypeQuery(TypeQueryData {
+                expr_name: Some(expr_name),
+                type_arguments,
+            }),
+            pos,
+        )
+    }
+
+    fn parse_type_parameter(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let modifiers = self.parse_modifiers(false, true, false);
+        let name = self.parse_identifier_or_missing();
+        let mut constraint = None;
+        let mut expression = None;
+        if self.parse_optional(SyntaxKind::ExtendsKeyword) {
+            // A type acts as the constraint; anything else is a bogus
+            // expression kept for error reporting (tsc parseTypeParameter).
+            if self.is_start_of_type(false) || !self.is_start_of_expression() {
+                constraint = Some(self.parse_type());
+            } else {
+                expression = Some(self.parse_unary_expression_or_higher());
+            }
+        }
+        let default_type = if self.parse_optional(SyntaxKind::EqualsToken) {
+            Some(self.parse_type())
+        } else {
+            None
+        };
+        self.finish_node_data(
+            NodeData::TypeParameter(TypeParameterData {
+                modifiers,
+                name: Some(name),
+                constraint,
+                r#default: default_type,
+                expression,
+            }),
+            pos,
+        )
+    }
+
+    fn parse_type_parameters(&mut self) -> Option<crate::NodeArrayId> {
+        if self.token() == SyntaxKind::LessThanToken {
+            Some(self.parse_bracketed_list(
+                ParsingContext::TypeParameters,
+                |parser| Some(parser.parse_type_parameter()),
+                SyntaxKind::LessThanToken,
+                SyntaxKind::GreaterThanToken,
+            ))
+        } else {
+            None
+        }
+    }
+
+    fn parse_type_member_semicolon(&mut self) {
+        if self.parse_optional(SyntaxKind::CommaToken) {
+            return;
+        }
+        self.parse_semicolon();
+    }
+
+    fn parse_signature_member(&mut self, kind: SyntaxKind) -> NodeId {
+        let pos = self.node_pos();
+        if kind == SyntaxKind::ConstructSignature {
+            self.parse_expected(SyntaxKind::NewKeyword, None);
+        }
+        let type_parameters = self.parse_type_parameters();
+        let parameters = self.parse_parameters(false, false);
+        let r#type = self.parse_return_type(SyntaxKind::ColonToken, true);
+        self.parse_type_member_semicolon();
+        let data = if kind == SyntaxKind::CallSignature {
+            NodeData::CallSignature(CallSignatureData {
+                r#type,
+                type_parameters,
+                parameters: Some(parameters),
+            })
+        } else {
+            NodeData::ConstructSignature(ConstructSignatureData {
+                r#type,
+                type_parameters,
+                parameters: Some(parameters),
+            })
+        };
+        self.finish_node_data(data, pos)
+    }
+
+    fn is_index_signature(&mut self) -> bool {
+        self.token() == SyntaxKind::OpenBracketToken
+            && self.look_ahead(|parser| parser.is_unambiguously_index_signature())
+    }
+
+    fn is_unambiguously_index_signature(&mut self) -> bool {
+        self.next_token();
+        if matches!(
+            self.token(),
+            SyntaxKind::DotDotDotToken | SyntaxKind::CloseBracketToken
+        ) {
+            return true;
+        }
+        if self.is_modifier_kind(self.token()) {
+            self.next_token();
+            if self.is_identifier() {
+                return true;
+            }
+        } else if !self.is_identifier() {
+            return false;
+        } else {
+            self.next_token();
+        }
+        if matches!(
+            self.token(),
+            SyntaxKind::ColonToken | SyntaxKind::CommaToken
+        ) {
+            return true;
+        }
+        if self.token() != SyntaxKind::QuestionToken {
+            return false;
+        }
+        self.next_token();
+        matches!(
+            self.token(),
+            SyntaxKind::ColonToken | SyntaxKind::CommaToken | SyntaxKind::CloseBracketToken
+        )
+    }
+
+    fn parse_index_signature_declaration(
+        &mut self,
+        pos: usize,
+        modifiers: Option<crate::NodeArrayId>,
+    ) -> NodeId {
+        let parameters = self.parse_bracketed_list(
+            ParsingContext::Parameters,
+            |parser| Some(parser.parse_parameter(false)),
+            SyntaxKind::OpenBracketToken,
+            SyntaxKind::CloseBracketToken,
+        );
+        let r#type = self.parse_type_annotation();
+        self.parse_type_member_semicolon();
+        self.finish_node_data(
+            NodeData::IndexSignature(IndexSignatureData {
+                modifiers,
+                r#type,
+                type_parameters: None,
+                parameters: Some(parameters),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_property_or_method_signature(
+        &mut self,
+        pos: usize,
+        modifiers: Option<crate::NodeArrayId>,
+    ) -> NodeId {
+        let name = self.parse_property_name();
+        let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
+        let data = if matches!(
+            self.token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+        ) {
+            let type_parameters = self.parse_type_parameters();
+            let parameters = self.parse_parameters(false, false);
+            let r#type = self.parse_return_type(SyntaxKind::ColonToken, true);
+            NodeData::MethodSignature(MethodSignatureData {
+                modifiers,
+                name: Some(name),
+                question_token,
+                r#type,
+                type_parameters,
+                parameters: Some(parameters),
+            })
+        } else {
+            let r#type = self.parse_type_annotation();
+            // An initializer is a grammar error the checker reports; the
+            // parser still consumes it (tsc parsePropertyOrMethodSignature).
+            let initializer = if self.token() == SyntaxKind::EqualsToken {
+                self.parse_initializer()
+            } else {
+                None
+            };
+            NodeData::PropertySignature(PropertySignatureData {
+                modifiers,
+                name: Some(name),
+                question_token,
+                r#type,
+                initializer,
+            })
+        };
+        self.parse_type_member_semicolon();
+        self.finish_node_data(data, pos)
+    }
+
+    fn parse_type_member(&mut self) -> NodeId {
+        if matches!(
+            self.token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+        ) {
+            return self.parse_signature_member(SyntaxKind::CallSignature);
+        }
+        if self.token() == SyntaxKind::NewKeyword
+            && self.look_ahead(|parser| parser.next_token_is_open_paren_or_less_than())
+        {
+            return self.parse_signature_member(SyntaxKind::ConstructSignature);
+        }
+        let pos = self.node_pos();
+        let modifiers = self.parse_modifiers(false, false, false);
+        if self.parse_contextual_modifier(SyntaxKind::GetKeyword) {
+            return self.parse_accessor_declaration(pos, modifiers, SyntaxKind::GetAccessor, true);
+        }
+        if self.parse_contextual_modifier(SyntaxKind::SetKeyword) {
+            return self.parse_accessor_declaration(pos, modifiers, SyntaxKind::SetAccessor, true);
+        }
+        if self.is_index_signature() {
+            return self.parse_index_signature_declaration(pos, modifiers);
+        }
+        self.parse_property_or_method_signature(pos, modifiers)
+    }
+
+    fn next_token_is_open_paren_or_less_than(&mut self) -> bool {
+        matches!(
+            self.next_token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+        )
+    }
+
+    /// tsc parseAccessorDeclaration; `in_type_member` mirrors
+    /// SignatureFlags.Type (no body expected, type-member semicolons).
+    fn parse_accessor_declaration(
+        &mut self,
+        pos: usize,
+        modifiers: Option<crate::NodeArrayId>,
+        kind: SyntaxKind,
+        in_type_member: bool,
+    ) -> NodeId {
+        let name = self.parse_property_name();
+        let type_parameters = self.parse_type_parameters();
+        let parameters = self.parse_parameters(false, false);
+        let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
+        let body = self.parse_function_block_or_semicolon(false, false, in_type_member);
+        let data = if kind == SyntaxKind::GetAccessor {
+            NodeData::GetAccessor(GetAccessorData {
+                modifiers,
+                name: Some(name),
+                r#type,
+                type_parameters,
+                parameters: Some(parameters),
+                body,
+            })
+        } else {
+            NodeData::SetAccessor(SetAccessorData {
+                modifiers,
+                name: Some(name),
+                r#type,
+                type_parameters,
+                parameters: Some(parameters),
+                body,
+            })
+        };
+        self.finish_node_data(data, pos)
+    }
+
+    /// tsc parseFunctionBlockOrSemicolon.
+    fn parse_function_block_or_semicolon(
+        &mut self,
+        is_generator: bool,
+        is_async: bool,
+        in_type_member: bool,
+    ) -> Option<NodeId> {
+        if self.token() != SyntaxKind::OpenBraceToken {
+            if in_type_member {
+                self.parse_type_member_semicolon();
+                return None;
+            }
+            if self.can_parse_semicolon() {
+                self.parse_semicolon();
+                return None;
+            }
+        }
+        Some(self.parse_function_block(is_generator, is_async, false, None))
+    }
+
+    fn parse_type_literal(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let members = self.parse_object_type_members();
+        self.finish_node_data(
+            NodeData::TypeLiteral(TypeLiteralData {
+                members: Some(members),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_object_type_members(&mut self) -> crate::NodeArrayId {
+        if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
+            let members = self.parse_list(ParsingContext::TypeMembers, |parser| {
+                Some(parser.parse_type_member())
+            });
+            self.parse_expected(SyntaxKind::CloseBraceToken, None);
+            members
+        } else {
+            self.arena.missing_array(self.node_pos())
+        }
+    }
+
+    fn is_start_of_mapped_type(&mut self) -> bool {
+        self.next_token();
+        if matches!(self.token(), SyntaxKind::PlusToken | SyntaxKind::MinusToken) {
+            return self.next_token() == SyntaxKind::ReadonlyKeyword;
+        }
+        if self.token() == SyntaxKind::ReadonlyKeyword {
+            self.next_token();
+        }
+        self.token() == SyntaxKind::OpenBracketToken
+            && self.next_token_is_identifier()
+            && self.next_token() == SyntaxKind::InKeyword
+    }
+
+    fn next_token_is_identifier(&mut self) -> bool {
+        self.next_token();
+        self.is_identifier()
+    }
+
+    fn parse_mapped_type_parameter(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let name = self.parse_identifier_name(None);
+        self.parse_expected(SyntaxKind::InKeyword, None);
+        let r#type = self.parse_type();
+        self.finish_node_data(
+            NodeData::TypeParameter(TypeParameterData {
+                modifiers: None,
+                name: Some(name),
+                constraint: Some(r#type),
+                r#default: None,
+                expression: None,
+            }),
+            pos,
+        )
+    }
+
+    fn parse_mapped_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.parse_expected(SyntaxKind::OpenBraceToken, None);
+        let mut readonly_token = None;
+        if matches!(
+            self.token(),
+            SyntaxKind::ReadonlyKeyword | SyntaxKind::PlusToken | SyntaxKind::MinusToken
+        ) {
+            let token = self.parse_token_node();
+            readonly_token = Some(token);
+            if self.arena.node(token).kind != SyntaxKind::ReadonlyKeyword {
+                self.parse_expected(SyntaxKind::ReadonlyKeyword, None);
+            }
+        }
+        self.parse_expected(SyntaxKind::OpenBracketToken, None);
+        let type_parameter = self.parse_mapped_type_parameter();
+        let name_type = if self.parse_optional(SyntaxKind::AsKeyword) {
+            Some(self.parse_type())
+        } else {
+            None
+        };
+        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+        let mut question_token = None;
+        if matches!(
+            self.token(),
+            SyntaxKind::QuestionToken | SyntaxKind::PlusToken | SyntaxKind::MinusToken
+        ) {
+            let token = self.parse_token_node();
+            question_token = Some(token);
+            if self.arena.node(token).kind != SyntaxKind::QuestionToken {
+                self.parse_expected(SyntaxKind::QuestionToken, None);
+            }
+        }
+        let r#type = self.parse_type_annotation();
+        self.parse_semicolon();
+        let members = self.parse_list(ParsingContext::TypeMembers, |parser| {
+            Some(parser.parse_type_member())
+        });
+        self.parse_expected(SyntaxKind::CloseBraceToken, None);
+        self.finish_node_data(
+            NodeData::MappedType(MappedTypeData {
+                readonly_token,
+                type_parameter: Some(type_parameter),
+                r#type,
+                name_type,
+                question_token,
+                members: Some(members),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_tuple_element_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        if self.parse_optional(SyntaxKind::DotDotDotToken) {
+            let r#type = self.parse_type();
+            return self.finish_node_data(
+                NodeData::RestType(RestTypeData {
+                    r#type: Some(r#type),
+                }),
+                pos,
+            );
+        }
+        let r#type = self.parse_type();
+        // Postfix `T?` (JSDocNullableType whose pos matches its inner type)
+        // becomes an optional tuple element with the same range and flags.
+        let rewrap = match &self.arena.node(r#type).data {
+            NodeData::JSDocNullableType(data) => data
+                .r#type
+                .filter(|inner| self.arena.node(r#type).pos == self.arena.node(*inner).pos),
+            _ => None,
+        };
+        if let Some(inner) = rewrap {
+            let node = self.arena.node(r#type);
+            let (node_pos, node_end, node_flags) =
+                (node.pos as usize, node.end as usize, node.flags);
+            return self.arena.alloc_node(
+                NodeData::OptionalType(OptionalTypeData {
+                    r#type: Some(inner),
+                }),
+                node_pos,
+                node_end,
+                NodeFlags::from_bits(node_flags),
+            );
+        }
+        r#type
+    }
+
+    fn is_next_token_colon_or_question_colon(&mut self) -> bool {
+        self.next_token() == SyntaxKind::ColonToken
+            || self.token() == SyntaxKind::QuestionToken
+                && self.next_token() == SyntaxKind::ColonToken
+    }
+
+    fn is_tuple_element_name(&mut self) -> bool {
+        if self.token() == SyntaxKind::DotDotDotToken {
+            return token_is_identifier_or_keyword(self.next_token())
+                && self.is_next_token_colon_or_question_colon();
+        }
+        token_is_identifier_or_keyword(self.token()) && self.is_next_token_colon_or_question_colon()
+    }
+
+    fn parse_tuple_element_name_or_tuple_element_type(&mut self) -> NodeId {
+        if self.look_ahead(|parser| parser.is_tuple_element_name()) {
+            let pos = self.node_pos();
+            let dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
+            let name = self.parse_identifier_name(None);
+            let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
+            self.parse_expected(SyntaxKind::ColonToken, None);
+            let r#type = self.parse_tuple_element_type();
+            return self.finish_node_data(
+                NodeData::NamedTupleMember(NamedTupleMemberData {
+                    dot_dot_dot_token,
+                    name: Some(name),
+                    question_token,
+                    r#type: Some(r#type),
+                }),
+                pos,
+            );
+        }
+        self.parse_tuple_element_type()
+    }
+
+    fn parse_tuple_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let elements = self.parse_bracketed_list(
+            ParsingContext::TupleElementTypes,
+            |parser| Some(parser.parse_tuple_element_name_or_tuple_element_type()),
+            SyntaxKind::OpenBracketToken,
+            SyntaxKind::CloseBracketToken,
+        );
+        self.finish_node_data(
+            NodeData::TupleType(TupleTypeData {
+                elements: Some(elements),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_parenthesized_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.parse_expected(SyntaxKind::OpenParenToken, None);
+        let r#type = self.parse_type();
+        self.parse_expected(SyntaxKind::CloseParenToken, None);
+        self.finish_node_data(
+            NodeData::ParenthesizedType(ParenthesizedTypeData {
+                r#type: Some(r#type),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_modifiers_for_constructor_type(&mut self) -> Option<crate::NodeArrayId> {
+        if self.token() != SyntaxKind::AbstractKeyword {
+            return None;
+        }
+        let pos = self.node_pos();
+        let modifier = self.parse_token_node();
+        let end = self.arena.node(modifier).end as usize;
+        Some(self.arena.alloc_array(vec![modifier], pos, end, false))
+    }
+
+    fn parse_function_or_constructor_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let modifiers = self.parse_modifiers_for_constructor_type();
+        let is_constructor_type = self.parse_optional(SyntaxKind::NewKeyword);
+        debug_assert!(
+            modifiers.is_none() || is_constructor_type,
+            "Per isStartOfFunctionOrConstructorType, a function type cannot have modifiers."
+        );
+        let type_parameters = self.parse_type_parameters();
+        let parameters = self.parse_parameters(false, false);
+        let r#type = self.parse_return_type(SyntaxKind::EqualsGreaterThanToken, false);
+        let data = if is_constructor_type {
+            NodeData::ConstructorType(ConstructorTypeData {
+                modifiers,
+                r#type,
+                type_parameters,
+                parameters: Some(parameters),
+            })
+        } else {
+            NodeData::FunctionType(FunctionTypeData {
+                modifiers,
+                r#type,
+                type_parameters,
+                parameters: Some(parameters),
+            })
+        };
+        self.finish_node_data(data, pos)
+    }
+
+    fn parse_keyword_and_no_dot(&mut self) -> Option<NodeId> {
+        let node = self.parse_token_node();
+        if self.token() == SyntaxKind::DotToken {
+            None
+        } else {
+            Some(node)
+        }
+    }
+
+    fn parse_literal_type_node(&mut self, negative: bool) -> NodeId {
+        let pos = self.node_pos();
+        if negative {
+            self.next_token();
+        }
+        let mut expression = match self.token() {
+            SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword | SyntaxKind::NullKeyword => {
+                self.parse_token_node()
+            }
+            SyntaxKind::StringLiteral => self.parse_string_literal(),
+            SyntaxKind::NumericLiteral => self.parse_numeric_literal(),
+            SyntaxKind::BigIntLiteral => self.parse_big_int_literal(),
+            SyntaxKind::NoSubstitutionTemplateLiteral => {
+                self.parse_no_substitution_template_literal()
+            }
+            // parseLiteralTypeNode is only entered on literal starts.
+            _ => self.parse_token_node(),
+        };
+        if negative {
+            expression = self.finish_node_data(
+                NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                    operand: Some(expression),
+                }),
+                pos,
+            );
+        }
+        self.finish_node_data(
+            NodeData::LiteralType(LiteralTypeData {
+                literal: Some(expression),
+            }),
+            pos,
+        )
+    }
+
+    fn is_start_of_type_of_import_type(&mut self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::ImportKeyword
+    }
+
+    /// tsc parseImportType. Source flags (PossiblyContainsDynamicImport) and
+    /// the isTypeOf marker have no home in the current node data yet.
+    fn parse_import_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let _is_type_of = self.parse_optional(SyntaxKind::TypeOfKeyword);
+        self.parse_expected(SyntaxKind::ImportKeyword, None);
+        self.parse_expected(SyntaxKind::OpenParenToken, None);
+        let argument = self.parse_type();
+        let mut attributes = None;
+        if self.parse_optional(SyntaxKind::CommaToken) {
+            self.parse_expected(SyntaxKind::OpenBraceToken, None);
+            if matches!(
+                self.token(),
+                SyntaxKind::WithKeyword | SyntaxKind::AssertKeyword
+            ) {
+                self.next_token();
+            } else {
+                self.parse_error_at_current_token(
+                    &gen::_0_expected,
+                    &[&token_to_string(SyntaxKind::WithKeyword)],
+                );
+            }
+            self.parse_expected(SyntaxKind::ColonToken, None);
+            attributes = Some(self.parse_import_attributes_body());
+            self.parse_optional(SyntaxKind::CommaToken);
+            self.parse_expected(SyntaxKind::CloseBraceToken, None);
+        }
+        self.parse_expected(SyntaxKind::CloseParenToken, None);
+        let qualifier = if self.parse_optional(SyntaxKind::DotToken) {
+            Some(self.parse_entity_name_of_type_reference())
+        } else {
+            None
+        };
+        let type_arguments = self.parse_type_arguments_of_type_reference();
+        self.finish_node_data(
+            NodeData::ImportType(ImportTypeData {
+                argument: Some(argument),
+                attributes,
+                qualifier,
+                type_arguments,
+            }),
+            pos,
+        )
+    }
+
+    /// tsc parseImportAttributes with skipKeyword=true.
+    fn parse_import_attributes_body(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let elements = if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
+            let elements = self.parse_delimited_list(
+                ParsingContext::ImportAttributes,
+                |parser| Some(parser.parse_import_attribute()),
+                true,
+            );
+            self.parse_expected(SyntaxKind::CloseBraceToken, None);
+            elements
+        } else {
+            self.arena.empty_array(self.node_pos())
+        };
+        self.finish_node_data(
+            NodeData::ImportAttributes(ImportAttributesData {
+                elements: Some(elements),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_import_attribute(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let name = if token_is_identifier_or_keyword(self.token()) {
+            self.parse_identifier_name(None)
+        } else {
+            self.parse_string_literal()
+        };
+        self.parse_expected(SyntaxKind::ColonToken, None);
+        let value = self.parse_assignment_expression_or_higher(true);
+        self.finish_node_data(
+            NodeData::ImportAttribute(ImportAttributeData {
+                name: Some(name),
+                value: Some(value),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_non_array_type(&mut self) -> NodeId {
+        match self.token() {
+            SyntaxKind::AnyKeyword
+            | SyntaxKind::UnknownKeyword
+            | SyntaxKind::StringKeyword
+            | SyntaxKind::NumberKeyword
+            | SyntaxKind::BigIntKeyword
+            | SyntaxKind::SymbolKeyword
+            | SyntaxKind::BooleanKeyword
+            | SyntaxKind::UndefinedKeyword
+            | SyntaxKind::NeverKeyword
+            | SyntaxKind::ObjectKeyword => {
+                match self.try_parse(|parser| parser.parse_keyword_and_no_dot()) {
+                    Some(node) => node,
+                    None => self.parse_type_reference(),
+                }
+            }
+            SyntaxKind::AsteriskEqualsToken => {
+                // `*=` in a type position is a JSDoc all-type followed by `=`.
+                self.scanner.re_scan_asterisk_equals_token();
+                self.parse_jsdoc_all_type()
+            }
+            SyntaxKind::AsteriskToken => self.parse_jsdoc_all_type(),
+            SyntaxKind::QuestionQuestionToken => {
+                // `??` splits into `?` heading a JSDoc unknown/nullable type.
+                self.scanner.re_scan_question_token();
+                self.parse_jsdoc_unknown_or_nullable_type()
+            }
+            SyntaxKind::QuestionToken => self.parse_jsdoc_unknown_or_nullable_type(),
+            SyntaxKind::FunctionKeyword => self.parse_jsdoc_function_type(),
+            SyntaxKind::ExclamationToken => self.parse_jsdoc_non_nullable_type(),
+            SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NullKeyword => self.parse_literal_type_node(false),
+            SyntaxKind::MinusToken => {
+                if self.look_ahead(|parser| parser.next_token_is_numeric_or_big_int_literal()) {
+                    self.parse_literal_type_node(true)
+                } else {
+                    self.parse_type_reference()
+                }
+            }
+            SyntaxKind::VoidKeyword => self.parse_token_node(),
+            SyntaxKind::ThisKeyword => {
+                let this_keyword = self.parse_this_type_node();
+                if self.token() == SyntaxKind::IsKeyword && !self.scanner.has_preceding_line_break()
+                {
+                    self.parse_this_type_predicate(this_keyword)
+                } else {
+                    this_keyword
+                }
+            }
+            SyntaxKind::TypeOfKeyword => {
+                if self.look_ahead(|parser| parser.is_start_of_type_of_import_type()) {
+                    self.parse_import_type()
+                } else {
+                    self.parse_type_query()
+                }
+            }
+            SyntaxKind::OpenBraceToken => {
+                if self.look_ahead(|parser| parser.is_start_of_mapped_type()) {
+                    self.parse_mapped_type()
+                } else {
+                    self.parse_type_literal()
+                }
+            }
+            SyntaxKind::OpenBracketToken => self.parse_tuple_type(),
+            SyntaxKind::OpenParenToken => self.parse_parenthesized_type(),
+            SyntaxKind::ImportKeyword => self.parse_import_type(),
+            SyntaxKind::AssertsKeyword => {
+                if self
+                    .look_ahead(|parser| parser.next_token_is_identifier_or_keyword_on_same_line())
+                {
+                    self.parse_asserts_type_predicate()
+                } else {
+                    self.parse_type_reference()
+                }
+            }
+            SyntaxKind::TemplateHead => self.parse_template_type(),
+            _ => self.parse_type_reference(),
+        }
+    }
+
+    fn parse_postfix_type_or_higher(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let mut r#type = self.parse_non_array_type();
+        while !self.scanner.has_preceding_line_break() {
+            match self.token() {
+                SyntaxKind::ExclamationToken => {
+                    self.next_token();
+                    r#type = self.finish_node_data(
+                        NodeData::JSDocNonNullableType(JSDocNonNullableTypeData {
+                            r#type: Some(r#type),
+                        }),
+                        pos,
+                    );
+                }
+                SyntaxKind::QuestionToken => {
+                    // A `?` that begins a conditional type's branches is not
+                    // a postfix nullable marker.
+                    if self.look_ahead(|parser| parser.next_token_is_start_of_type()) {
+                        return r#type;
+                    }
+                    self.next_token();
+                    r#type = self.finish_node_data(
+                        NodeData::JSDocNullableType(JSDocNullableTypeData {
+                            r#type: Some(r#type),
+                        }),
+                        pos,
+                    );
+                }
+                SyntaxKind::OpenBracketToken => {
+                    self.parse_expected(SyntaxKind::OpenBracketToken, None);
+                    if self.is_start_of_type(false) {
+                        let index_type = self.parse_type();
+                        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+                        r#type = self.finish_node_data(
+                            NodeData::IndexedAccessType(IndexedAccessTypeData {
+                                object_type: Some(r#type),
+                                index_type: Some(index_type),
+                            }),
+                            pos,
+                        );
+                    } else {
+                        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+                        r#type = self.finish_node_data(
+                            NodeData::ArrayType(ArrayTypeData {
+                                element_type: Some(r#type),
+                            }),
+                            pos,
+                        );
+                    }
+                }
+                _ => return r#type,
+            }
+        }
+        r#type
+    }
+
+    fn next_token_is_start_of_type(&mut self) -> bool {
+        self.next_token();
+        self.is_start_of_type(false)
+    }
+
+    /// The operator token kind is recoverable from the source range; the
+    /// node data only stores the operand (same convention as
+    /// PrefixUnaryExpression).
+    fn parse_type_operator(&mut self, operator: SyntaxKind) -> NodeId {
+        let pos = self.node_pos();
+        self.parse_expected(operator, None);
+        let r#type = self.parse_type_operator_or_higher();
+        self.finish_node_data(
+            NodeData::TypeOperator(TypeOperatorData {
+                r#type: Some(r#type),
+            }),
+            pos,
+        )
+    }
+
+    fn try_parse_constraint_of_infer_type(&mut self) -> Option<NodeId> {
+        if self.parse_optional(SyntaxKind::ExtendsKeyword) {
+            let constraint = self.disallow_conditional_types_and(|parser| parser.parse_type());
+            if self.in_disallow_conditional_types_context()
+                || self.token() != SyntaxKind::QuestionToken
+            {
+                return Some(constraint);
+            }
+        }
+        None
+    }
+
+    fn parse_type_parameter_of_infer_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let name = self.parse_identifier_or_missing();
+        let constraint = self.try_parse(|parser| parser.try_parse_constraint_of_infer_type());
+        self.finish_node_data(
+            NodeData::TypeParameter(TypeParameterData {
+                modifiers: None,
+                name: Some(name),
+                constraint,
+                r#default: None,
+                expression: None,
+            }),
+            pos,
+        )
+    }
+
+    fn parse_infer_type(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.parse_expected(SyntaxKind::InferKeyword, None);
+        let type_parameter = self.parse_type_parameter_of_infer_type();
+        self.finish_node_data(
+            NodeData::InferType(InferTypeData {
+                type_parameter: Some(type_parameter),
+            }),
+            pos,
+        )
+    }
+
+    fn parse_type_operator_or_higher(&mut self) -> NodeId {
+        match self.token() {
+            SyntaxKind::KeyOfKeyword | SyntaxKind::UniqueKeyword | SyntaxKind::ReadonlyKeyword => {
+                self.parse_type_operator(self.token())
+            }
+            SyntaxKind::InferKeyword => self.parse_infer_type(),
+            _ => self.allow_conditional_types_and(|parser| parser.parse_postfix_type_or_higher()),
+        }
+    }
+
+    fn parse_function_or_constructor_type_to_error(
+        &mut self,
+        is_in_union_type: bool,
+    ) -> Option<NodeId> {
+        if !self.is_start_of_function_type_or_constructor_type() {
+            return None;
+        }
+        let r#type = self.parse_function_or_constructor_type();
+        let message: &'static DiagnosticMessage = if self.arena.node(r#type).kind
+            == SyntaxKind::FunctionType
+        {
+            if is_in_union_type {
+                &gen::Function_type_notation_must_be_parenthesized_when_used_in_a_union_type
+            } else {
+                &gen::Function_type_notation_must_be_parenthesized_when_used_in_an_intersection_type
+            }
+        } else if is_in_union_type {
+            &gen::Constructor_type_notation_must_be_parenthesized_when_used_in_a_union_type
+        } else {
+            &gen::Constructor_type_notation_must_be_parenthesized_when_used_in_an_intersection_type
+        };
+        let node = self.arena.node(r#type);
+        let (start, length) = (node.pos as usize, (node.end - node.pos) as usize);
+        self.parse_error_at_position(start, length, message, &[]);
+        Some(r#type)
+    }
+
+    fn parse_union_or_intersection_type(
+        &mut self,
+        operator: SyntaxKind,
+        parse_constituent_type: fn(&mut Self) -> NodeId,
+        create_type_node: fn(crate::NodeArrayId) -> NodeData,
+    ) -> NodeId {
+        let pos = self.node_pos();
+        let is_union_type = operator == SyntaxKind::BarToken;
+        let has_leading_operator = self.parse_optional(operator);
+        let mut r#type = if has_leading_operator {
+            self.parse_function_or_constructor_type_to_error(is_union_type)
+                .unwrap_or_else(|| parse_constituent_type(self))
+        } else {
+            parse_constituent_type(self)
+        };
+        if self.token() == operator || has_leading_operator {
+            let mut types = vec![r#type];
+            while self.parse_optional(operator) {
+                let next = self
+                    .parse_function_or_constructor_type_to_error(is_union_type)
+                    .unwrap_or_else(|| parse_constituent_type(self));
+                types.push(next);
+            }
+            let array = self.arena.alloc_array(types, pos, self.node_pos(), false);
+            r#type = self.finish_node_data(create_type_node(array), pos);
+        }
+        r#type
+    }
+
+    fn parse_intersection_type_or_higher(&mut self) -> NodeId {
+        self.parse_union_or_intersection_type(
+            SyntaxKind::AmpersandToken,
+            Self::parse_type_operator_or_higher,
+            |types| NodeData::IntersectionType(IntersectionTypeData { types: Some(types) }),
+        )
+    }
+
+    fn parse_union_type_or_higher(&mut self) -> NodeId {
+        self.parse_union_or_intersection_type(
+            SyntaxKind::BarToken,
+            Self::parse_intersection_type_or_higher,
+            |types| NodeData::UnionType(UnionTypeData { types: Some(types) }),
+        )
+    }
+
+    fn next_token_is_new_keyword(&mut self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::NewKeyword
+    }
+
+    fn is_start_of_function_type_or_constructor_type(&mut self) -> bool {
+        if self.token() == SyntaxKind::LessThanToken {
+            return true;
+        }
+        if self.token() == SyntaxKind::OpenParenToken
+            && self.look_ahead(|parser| parser.is_unambiguously_start_of_function_type())
+        {
+            return true;
+        }
+        self.token() == SyntaxKind::NewKeyword
+            || self.token() == SyntaxKind::AbstractKeyword
+                && self.look_ahead(|parser| parser.next_token_is_new_keyword())
+    }
+
+    fn skip_parameter_start(&mut self) -> bool {
+        if self.is_modifier_kind(self.token()) {
+            self.parse_modifiers(false, false, false);
+        }
+        if self.is_identifier() || self.token() == SyntaxKind::ThisKeyword {
+            self.next_token();
+            return true;
+        }
+        if matches!(
+            self.token(),
+            SyntaxKind::OpenBracketToken | SyntaxKind::OpenBraceToken
+        ) {
+            let previous_error_count = self.parse_diagnostics.len();
+            self.parse_identifier_or_pattern();
+            return previous_error_count == self.parse_diagnostics.len();
+        }
+        false
+    }
+
+    fn is_unambiguously_start_of_function_type(&mut self) -> bool {
+        self.next_token();
+        if matches!(
+            self.token(),
+            SyntaxKind::CloseParenToken | SyntaxKind::DotDotDotToken
+        ) {
+            return true;
+        }
+        if self.skip_parameter_start() {
+            if matches!(
+                self.token(),
+                SyntaxKind::ColonToken
+                    | SyntaxKind::CommaToken
+                    | SyntaxKind::QuestionToken
+                    | SyntaxKind::EqualsToken
+            ) {
+                return true;
+            }
+            if self.token() == SyntaxKind::CloseParenToken {
+                self.next_token();
+                if self.token() == SyntaxKind::EqualsGreaterThanToken {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn parse_type_or_type_predicate(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let type_predicate_variable = if self.is_identifier() {
+            self.try_parse(|parser| parser.parse_type_predicate_prefix())
+        } else {
+            None
+        };
+        let r#type = self.parse_type();
+        if let Some(parameter_name) = type_predicate_variable {
+            self.finish_node_data(
+                NodeData::TypePredicate(TypePredicateData {
+                    asserts_modifier: None,
+                    parameter_name: Some(parameter_name),
+                    r#type: Some(r#type),
+                }),
+                pos,
+            )
+        } else {
+            r#type
+        }
+    }
+
+    fn parse_type_predicate_prefix(&mut self) -> Option<NodeId> {
+        let id = self.parse_identifier();
+        if self.token() == SyntaxKind::IsKeyword && !self.scanner.has_preceding_line_break() {
+            self.next_token();
+            Some(id)
+        } else {
+            None
+        }
+    }
+
+    fn parse_asserts_type_predicate(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let asserts_modifier = self.parse_expected_token(SyntaxKind::AssertsKeyword);
+        let parameter_name = if self.token() == SyntaxKind::ThisKeyword {
+            self.parse_this_type_node()
+        } else {
+            self.parse_identifier_or_missing()
+        };
+        let r#type = if self.parse_optional(SyntaxKind::IsKeyword) {
+            Some(self.parse_type())
+        } else {
+            None
+        };
+        self.finish_node_data(
+            NodeData::TypePredicate(TypePredicateData {
+                asserts_modifier: Some(asserts_modifier),
+                parameter_name: Some(parameter_name),
+                r#type,
+            }),
+            pos,
+        )
+    }
+
+    fn parse_type(&mut self) -> NodeId {
+        if self.context_flags.bits() & NodeFlags::TYPE_EXCLUDES_FLAGS.bits() != 0 {
+            return self.do_in_context(NodeFlags::NONE, NodeFlags::TYPE_EXCLUDES_FLAGS, |parser| {
+                parser.parse_type()
+            });
+        }
+        if self.is_start_of_function_type_or_constructor_type() {
+            return self.parse_function_or_constructor_type();
+        }
+        let pos = self.node_pos();
+        let r#type = self.parse_union_type_or_higher();
+        if !self.in_disallow_conditional_types_context()
+            && !self.scanner.has_preceding_line_break()
+            && self.parse_optional(SyntaxKind::ExtendsKeyword)
+        {
+            // The extends type is never itself conditional; its branches are.
+            let extends_type = self.disallow_conditional_types_and(|parser| parser.parse_type());
+            self.parse_expected(SyntaxKind::QuestionToken, None);
+            let true_type = self.allow_conditional_types_and(|parser| parser.parse_type());
+            self.parse_expected(SyntaxKind::ColonToken, None);
+            let false_type = self.allow_conditional_types_and(|parser| parser.parse_type());
+            return self.finish_node_data(
+                NodeData::ConditionalType(ConditionalTypeData {
+                    check_type: Some(r#type),
+                    extends_type: Some(extends_type),
+                    true_type: Some(true_type),
+                    false_type: Some(false_type),
+                }),
+                pos,
+            );
+        }
+        r#type
+    }
+
+    fn allow_conditional_types_and<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        self.do_in_context(
+            NodeFlags::NONE,
+            NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT,
+            f,
+        )
+    }
+
+    fn disallow_conditional_types_and<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        self.do_in_context(
+            NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT,
+            NodeFlags::NONE,
+            f,
+        )
+    }
+
+    fn in_disallow_conditional_types_context(&self) -> bool {
+        self.context_flags.bits() & NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT.bits() != 0
     }
 
     fn parse_initializer(&mut self) -> Option<NodeId> {
@@ -4288,7 +6070,11 @@ mod tests {
             None,
         );
 
-        assert!(source.parse_diagnostics.is_empty());
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
     }
 
     #[test]
@@ -4840,8 +6626,14 @@ mod tests {
         assert!(source.parse_diagnostics.is_empty());
         let expressions = expression_statements(&source);
         assert_eq!(expressions.len(), 2);
-        assert_eq!(source.arena.node(expressions[0]).kind, SyntaxKind::Identifier);
-        assert_eq!(source.arena.node(expressions[1]).kind, SyntaxKind::Identifier);
+        assert_eq!(
+            source.arena.node(expressions[0]).kind,
+            SyntaxKind::Identifier
+        );
+        assert_eq!(
+            source.arena.node(expressions[1]).kind,
+            SyntaxKind::Identifier
+        );
     }
 
     #[test]
@@ -4883,10 +6675,7 @@ mod tests {
         assert_eq!(inner_equals, SyntaxKind::EqualsToken);
 
         let (_, shift_assign, _) = binary_parts(&source, expressions[1]);
-        assert_eq!(
-            shift_assign,
-            SyntaxKind::GreaterThanGreaterThanEqualsToken
-        );
+        assert_eq!(shift_assign, SyntaxKind::GreaterThanGreaterThanEqualsToken);
     }
 
     #[test]
@@ -5068,7 +6857,10 @@ mod tests {
             assert!(arrow.modifiers.is_some());
         }
 
-        assert_eq!(source.arena.node(expressions[2]).kind, SyntaxKind::Identifier);
+        assert_eq!(
+            source.arena.node(expressions[2]).kind,
+            SyntaxKind::Identifier
+        );
         assert_eq!(
             source.arena.node(expressions[3]).kind,
             SyntaxKind::ArrowFunction
@@ -5297,5 +7089,524 @@ mod tests {
         assert_eq!(parser.token(), SyntaxKind::EndOfFileToken);
         assert_eq!(parser.parse_diagnostics.len(), 1);
         assert_eq!(parser.parse_diagnostics[0].code(), 1130);
+    }
+
+    fn variable_types(source: &SourceFile) -> Vec<NodeId> {
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+        statements
+            .nodes
+            .iter()
+            .map(|&statement| {
+                let NodeData::VariableStatement(data) = &source.arena.node(statement).data else {
+                    panic!("expected variable statement");
+                };
+                let list = source
+                    .arena
+                    .node(data.declaration_list.expect("declaration list"))
+                    .data
+                    .as_variable_declaration_list()
+                    .expect("variable declaration list");
+                let declarations = source
+                    .arena
+                    .node_array(list.declarations.expect("declarations"));
+                source
+                    .arena
+                    .node(declarations.nodes[0])
+                    .data
+                    .as_variable_declaration()
+                    .expect("variable declaration")
+                    .r#type
+                    .expect("type annotation")
+            })
+            .collect()
+    }
+
+    #[test]
+    fn parse_type_reference_and_postfix_shapes() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "let a: string; let b: Array<number>; let c: ns.Entity<string>[]; let d: A[\"k\"]; let e: string!; let f: ?string;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let types = variable_types(&source);
+        assert_eq!(source.arena.node(types[0]).kind, SyntaxKind::StringKeyword);
+
+        let NodeData::TypeReference(array_ref) = &source.arena.node(types[1]).data else {
+            panic!("expected type reference");
+        };
+        assert!(array_ref.type_arguments.is_some());
+
+        let NodeData::ArrayType(array) = &source.arena.node(types[2]).data else {
+            panic!("expected array type");
+        };
+        let NodeData::TypeReference(qualified) =
+            &source.arena.node(array.element_type.expect("element")).data
+        else {
+            panic!("expected type reference element");
+        };
+        assert_eq!(
+            source
+                .arena
+                .node(qualified.type_name.expect("type name"))
+                .kind,
+            SyntaxKind::QualifiedName
+        );
+
+        assert_eq!(
+            source.arena.node(types[3]).kind,
+            SyntaxKind::IndexedAccessType
+        );
+        assert_eq!(
+            source.arena.node(types[4]).kind,
+            SyntaxKind::JSDocNonNullableType
+        );
+        assert_eq!(
+            source.arena.node(types[5]).kind,
+            SyntaxKind::JSDocNullableType
+        );
+    }
+
+    #[test]
+    fn parse_union_intersection_and_type_operators() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "let a: A | B & C; let b: keyof A; let c: readonly string[]; let d: unique symbol;"
+                .to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let types = variable_types(&source);
+        let NodeData::UnionType(union) = &source.arena.node(types[0]).data else {
+            panic!("expected union type");
+        };
+        let members = source.arena.node_array(union.types.expect("types"));
+        assert_eq!(members.nodes.len(), 2);
+        assert_eq!(
+            source.arena.node(members.nodes[1]).kind,
+            SyntaxKind::IntersectionType
+        );
+        assert_eq!(source.arena.node(types[1]).kind, SyntaxKind::TypeOperator);
+        let NodeData::TypeOperator(readonly_array) = &source.arena.node(types[2]).data else {
+            panic!("expected type operator");
+        };
+        assert_eq!(
+            source
+                .arena
+                .node(readonly_array.r#type.expect("operand"))
+                .kind,
+            SyntaxKind::ArrayType
+        );
+        assert_eq!(source.arena.node(types[3]).kind, SyntaxKind::TypeOperator);
+    }
+
+    #[test]
+    fn parse_object_type_member_shapes() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "let o: { a: string; readonly b?: number, m<T>(x: T): T; (x: number): void; new (): any; [k: string]: any; get p(): number; set p(v); };".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let types = variable_types(&source);
+        let NodeData::TypeLiteral(literal) = &source.arena.node(types[0]).data else {
+            panic!("expected type literal");
+        };
+        let members = source.arena.node_array(literal.members.expect("members"));
+        let kinds: Vec<SyntaxKind> = members
+            .nodes
+            .iter()
+            .map(|&member| source.arena.node(member).kind)
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                SyntaxKind::PropertySignature,
+                SyntaxKind::PropertySignature,
+                SyntaxKind::MethodSignature,
+                SyntaxKind::CallSignature,
+                SyntaxKind::ConstructSignature,
+                SyntaxKind::IndexSignature,
+                SyntaxKind::GetAccessor,
+                SyntaxKind::SetAccessor,
+            ]
+        );
+        let NodeData::PropertySignature(readonly_property) =
+            &source.arena.node(members.nodes[1]).data
+        else {
+            panic!("expected property signature");
+        };
+        assert!(readonly_property.modifiers.is_some());
+        assert!(readonly_property.question_token.is_some());
+    }
+
+    #[test]
+    fn parse_tuple_function_and_constructor_types() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "let t: [string, number?, ...boolean[], name: string]; let f: (a: string) => void; let g: new () => any; let h: abstract new () => any;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let types = variable_types(&source);
+        let NodeData::TupleType(tuple) = &source.arena.node(types[0]).data else {
+            panic!("expected tuple type");
+        };
+        let elements = source.arena.node_array(tuple.elements.expect("elements"));
+        let kinds: Vec<SyntaxKind> = elements
+            .nodes
+            .iter()
+            .map(|&element| source.arena.node(element).kind)
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                SyntaxKind::StringKeyword,
+                SyntaxKind::OptionalType,
+                SyntaxKind::RestType,
+                SyntaxKind::NamedTupleMember,
+            ]
+        );
+        assert_eq!(source.arena.node(types[1]).kind, SyntaxKind::FunctionType);
+        assert_eq!(
+            source.arena.node(types[2]).kind,
+            SyntaxKind::ConstructorType
+        );
+        let NodeData::ConstructorType(abstract_ctor) = &source.arena.node(types[3]).data else {
+            panic!("expected constructor type");
+        };
+        assert!(abstract_ctor.modifiers.is_some());
+    }
+
+    #[test]
+    fn parse_conditional_infer_typeof_and_import_types() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "let a: T extends U ? V : W; let b: T extends infer U extends X ? U : never; let c: typeof ns.entity; let d: import(\"m\").T<U>; let e: typeof import(\"m\");".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let types = variable_types(&source);
+        assert_eq!(
+            source.arena.node(types[0]).kind,
+            SyntaxKind::ConditionalType
+        );
+        let NodeData::ConditionalType(conditional) = &source.arena.node(types[1]).data else {
+            panic!("expected conditional type");
+        };
+        let NodeData::InferType(infer) = &source
+            .arena
+            .node(conditional.extends_type.expect("extends type"))
+            .data
+        else {
+            panic!("expected infer type");
+        };
+        let NodeData::TypeParameter(infer_parameter) = &source
+            .arena
+            .node(infer.type_parameter.expect("type parameter"))
+            .data
+        else {
+            panic!("expected type parameter");
+        };
+        assert!(infer_parameter.constraint.is_some());
+
+        let NodeData::TypeQuery(query) = &source.arena.node(types[2]).data else {
+            panic!("expected type query");
+        };
+        assert_eq!(
+            source.arena.node(query.expr_name.expect("expr name")).kind,
+            SyntaxKind::QualifiedName
+        );
+
+        let NodeData::ImportType(import_type) = &source.arena.node(types[3]).data else {
+            panic!("expected import type");
+        };
+        assert!(import_type.qualifier.is_some());
+        assert!(import_type.type_arguments.is_some());
+        assert_eq!(source.arena.node(types[4]).kind, SyntaxKind::ImportType);
+    }
+
+    #[test]
+    fn parse_mapped_and_template_literal_types() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "let m: { readonly [K in keyof T as `get${K}`]?: T[K]; }; let t: `a${T}b`;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let types = variable_types(&source);
+        let NodeData::MappedType(mapped) = &source.arena.node(types[0]).data else {
+            panic!("expected mapped type");
+        };
+        assert!(mapped.readonly_token.is_some());
+        assert!(mapped.name_type.is_some());
+        assert!(mapped.question_token.is_some());
+        assert_eq!(
+            source.arena.node(mapped.r#type.expect("type")).kind,
+            SyntaxKind::IndexedAccessType
+        );
+
+        let NodeData::TemplateLiteralType(template) = &source.arena.node(types[1]).data else {
+            panic!("expected template literal type");
+        };
+        let spans = source
+            .arena
+            .node_array(template.template_spans.expect("spans"));
+        assert_eq!(spans.nodes.len(), 1);
+        assert_eq!(
+            source.arena.node(spans.nodes[0]).kind,
+            SyntaxKind::TemplateLiteralTypeSpan
+        );
+    }
+
+    #[test]
+    fn parse_type_predicates_in_return_types() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "const f = function (x): x is string { return true; }; const g = function (x): asserts x is string {}; let h: { isC(): this is C; };".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+
+        let function_return_type = |statement: NodeId| {
+            let NodeData::VariableStatement(data) = &source.arena.node(statement).data else {
+                panic!("expected variable statement");
+            };
+            let list = source
+                .arena
+                .node(data.declaration_list.expect("list"))
+                .data
+                .as_variable_declaration_list()
+                .expect("declaration list");
+            let declarations = source
+                .arena
+                .node_array(list.declarations.expect("declarations"));
+            let declaration = source
+                .arena
+                .node(declarations.nodes[0])
+                .data
+                .as_variable_declaration()
+                .expect("variable declaration");
+            let NodeData::FunctionExpression(function) = &source
+                .arena
+                .node(declaration.initializer.expect("initializer"))
+                .data
+            else {
+                panic!("expected function expression");
+            };
+            function.r#type.expect("return type")
+        };
+
+        let predicate = function_return_type(statements.nodes[0]);
+        let NodeData::TypePredicate(data) = &source.arena.node(predicate).data else {
+            panic!("expected type predicate");
+        };
+        assert!(data.asserts_modifier.is_none());
+
+        let asserts_predicate = function_return_type(statements.nodes[1]);
+        let NodeData::TypePredicate(asserts_data) = &source.arena.node(asserts_predicate).data
+        else {
+            panic!("expected asserts predicate");
+        };
+        assert!(asserts_data.asserts_modifier.is_some());
+
+        let NodeData::VariableStatement(h_statement) = &source.arena.node(statements.nodes[2]).data
+        else {
+            panic!("expected variable statement");
+        };
+        let h_list = source
+            .arena
+            .node(h_statement.declaration_list.expect("list"))
+            .data
+            .as_variable_declaration_list()
+            .expect("declaration list");
+        let h_declarations = source
+            .arena
+            .node_array(h_list.declarations.expect("declarations"));
+        let h_type = source
+            .arena
+            .node(h_declarations.nodes[0])
+            .data
+            .as_variable_declaration()
+            .expect("variable declaration")
+            .r#type
+            .expect("type annotation");
+        let NodeData::TypeLiteral(literal) = &source.arena.node(h_type).data else {
+            panic!("expected type literal");
+        };
+        let members = source.arena.node_array(literal.members.expect("members"));
+        let NodeData::MethodSignature(method) = &source.arena.node(members.nodes[0]).data else {
+            panic!("expected method signature");
+        };
+        let NodeData::TypePredicate(this_predicate) =
+            &source.arena.node(method.r#type.expect("return type")).data
+        else {
+            panic!("expected this predicate");
+        };
+        assert_eq!(
+            source
+                .arena
+                .node(this_predicate.parameter_name.expect("parameter name"))
+                .kind,
+            SyntaxKind::ThisType
+        );
+    }
+
+    #[test]
+    fn parse_generic_arrow_type_assertion_and_object_accessors() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "const f = <T>(x: T): T => x; const v = <Foo<string>>bar; const o = { get x() { return 1; }, set x(v) {}, async m<T>(a: T) { return a; } };".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        assert!(source.parse_diagnostics.is_empty());
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+
+        let initializer = |statement: NodeId| {
+            let NodeData::VariableStatement(data) = &source.arena.node(statement).data else {
+                panic!("expected variable statement");
+            };
+            let list = source
+                .arena
+                .node(data.declaration_list.expect("list"))
+                .data
+                .as_variable_declaration_list()
+                .expect("declaration list");
+            let declarations = source
+                .arena
+                .node_array(list.declarations.expect("declarations"));
+            source
+                .arena
+                .node(declarations.nodes[0])
+                .data
+                .as_variable_declaration()
+                .expect("variable declaration")
+                .initializer
+                .expect("initializer")
+        };
+
+        let NodeData::ArrowFunction(arrow) =
+            &source.arena.node(initializer(statements.nodes[0])).data
+        else {
+            panic!("expected arrow function");
+        };
+        assert!(arrow.type_parameters.is_some());
+        assert!(arrow.r#type.is_some());
+
+        let NodeData::TypeAssertionExpression(assertion) =
+            &source.arena.node(initializer(statements.nodes[1])).data
+        else {
+            panic!("expected type assertion");
+        };
+        let NodeData::TypeReference(assertion_type) = &source
+            .arena
+            .node(assertion.r#type.expect("assertion type"))
+            .data
+        else {
+            panic!("expected type reference");
+        };
+        assert!(assertion_type.type_arguments.is_some());
+
+        let NodeData::ObjectLiteralExpression(object) =
+            &source.arena.node(initializer(statements.nodes[2])).data
+        else {
+            panic!("expected object literal");
+        };
+        let properties = source
+            .arena
+            .node_array(object.properties.expect("properties"));
+        let kinds: Vec<SyntaxKind> = properties
+            .nodes
+            .iter()
+            .map(|&property| source.arena.node(property).kind)
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                SyntaxKind::GetAccessor,
+                SyntaxKind::SetAccessor,
+                SyntaxKind::MethodDeclaration,
+            ]
+        );
+        let NodeData::MethodDeclaration(method) = &source.arena.node(properties.nodes[2]).data
+        else {
+            panic!("expected method declaration");
+        };
+        assert!(method.modifiers.is_some());
+        assert!(method.type_parameters.is_some());
+    }
+
+    #[test]
+    fn union_function_type_error_and_type_expected_recovery() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "let x: A | () => void; let y: ;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+
+        let codes: Vec<u32> = source
+            .parse_diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect();
+        assert_eq!(
+            codes,
+            vec![
+                gen::Function_type_notation_must_be_parenthesized_when_used_in_a_union_type.code,
+                gen::Type_expected.code,
+            ]
+        );
+
+        let types = variable_types(&source);
+        let NodeData::UnionType(union) = &source.arena.node(types[0]).data else {
+            panic!("expected union type");
+        };
+        let members = source.arena.node_array(union.types.expect("types"));
+        assert_eq!(
+            source.arena.node(members.nodes[1]).kind,
+            SyntaxKind::FunctionType
+        );
     }
 }

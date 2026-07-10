@@ -1043,6 +1043,32 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    /// tsc reScanAsteriskEqualsToken: `*=` becomes `*` (consumed by the
+    /// caller as a JSDoc all-type) with the scanner repositioned on the `=`.
+    pub(crate) fn re_scan_asterisk_equals_token(&mut self) -> SyntaxKind {
+        debug_assert_eq!(
+            self.token,
+            SyntaxKind::AsteriskEqualsToken,
+            "'re_scan_asterisk_equals_token' should only be called on a '*='"
+        );
+        self.pos = self.token_start + 1;
+        self.token = SyntaxKind::EqualsToken;
+        self.token
+    }
+
+    /// tsc reScanQuestionToken: `??` split so the first `?` can head a
+    /// JSDoc unknown/nullable type.
+    pub(crate) fn re_scan_question_token(&mut self) -> SyntaxKind {
+        debug_assert_eq!(
+            self.token,
+            SyntaxKind::QuestionQuestionToken,
+            "'re_scan_question_token' should only be called on a '??'"
+        );
+        self.pos = self.token_start + 1;
+        self.token = SyntaxKind::QuestionToken;
+        self.token
+    }
+
     #[allow(dead_code)]
     fn re_scan_hash_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::PrivateIdentifier {
