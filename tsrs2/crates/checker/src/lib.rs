@@ -3,7 +3,10 @@
 use tsrs2_diags::DiagnosticList;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct CompilerOptions {}
+pub struct CompilerOptions {
+    /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs.
+    pub allow_js: bool,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputFile {
@@ -18,23 +21,23 @@ pub struct CheckResult {
     pub syntactic_diagnostics: DiagnosticList,
 }
 
-fn is_supported_source_file_name(name: &str) -> bool {
-    [
-        ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".json",
-    ]
-    .iter()
-    .any(|extension| name.ends_with(extension))
+/// tsc getSupportedExtensions: JS roots only join the program with allowJs.
+fn is_supported_source_file_name(name: &str, allow_js: bool) -> bool {
+    let ts_like = [".ts", ".tsx", ".mts", ".cts", ".json"];
+    let js_like = [".js", ".jsx", ".mjs", ".cjs"];
+    ts_like.iter().any(|extension| name.ends_with(extension))
+        || (allow_js && js_like.iter().any(|extension| name.ends_with(extension)))
 }
 
-pub fn check_program(files: &[InputFile], _options: &CompilerOptions) -> CheckResult {
+pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckResult {
     let mut diagnostics = Vec::new();
     let mut syntactic_diagnostics = Vec::new();
 
     for file in files {
         // tsc createProgram only loads roots with supported extensions;
-        // anything else (.txt, extensionless) never yields syntactic
-        // diagnostics.
-        if !is_supported_source_file_name(&file.name) {
+        // anything else (.txt, extensionless, .js without allowJs) never
+        // yields syntactic diagnostics.
+        if !is_supported_source_file_name(&file.name, options.allow_js) {
             continue;
         }
         // tsc ensureScriptKind: .json programs parse as JSON values.

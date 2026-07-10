@@ -342,6 +342,9 @@ impl<'text> Scanner<'text> {
                     if let Some(kind) = self.scan_identifier_escape_start() {
                         return kind;
                     }
+                    // tsc: error(Invalid_character) with no explicit span —
+                    // at the backslash, length 0.
+                    self.error_at(self.pos, 0, &gen::Invalid_character);
                 }
                 '#' => return self.scan_private_identifier(),
                 '\u{fffd}' => {
@@ -353,6 +356,7 @@ impl<'text> Scanner<'text> {
                     if chars::is_identifier_start(ch) {
                         return self.scan_identifier();
                     }
+                    self.error_at(self.pos, ch.len_utf8(), &gen::Invalid_character);
                 }
             }
 

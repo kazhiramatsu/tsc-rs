@@ -471,7 +471,7 @@ fn current_tsrs_diagnostics(
         });
     }
 
-    let result = check_program(&files, &CompilerOptions::default());
+    let result = check_program(&files, &compiler_options_from_program(program));
     let diagnostics = match band {
         DiagnosticBand::Syntactic => &result.syntactic_diagnostics,
         _ => &result.diagnostics,
@@ -480,6 +480,26 @@ fn current_tsrs_diagnostics(
         .iter()
         .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
         .collect())
+}
+
+/// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs. Fixture directive
+/// keys are matched case-insensitively like the harness does.
+fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> CompilerOptions {
+    let bool_option = |name: &str| {
+        program.options.iter().find_map(|(key, value)| {
+            if key.eq_ignore_ascii_case(name) {
+                match value {
+                    tsrs2_harness::OptionValue::Bool(value) => Some(*value),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        })
+    };
+    CompilerOptions {
+        allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
+    }
 }
 
 fn file_texts_for_program(
@@ -521,6 +541,9 @@ fn line_col_for_tsrs(
     let Some(file_name) = &diag.file_name else {
         return (None, None);
     };
+    // Diagnostic.start is already UTF-16 (the parser converts when pushing);
+    // converting again through byte_to_utf16 shifted columns on files with
+    // non-ASCII text.
     let Some(start) = diag.start else {
         return (None, None);
     };
@@ -528,12 +551,7 @@ fn line_col_for_tsrs(
         return (None, None);
     };
     let map = compute_line_map(text);
-    let position = map
-        .byte_to_utf16
-        .get(start as usize)
-        .copied()
-        .unwrap_or(start);
-    let line_col = get_line_and_character_of_position(&map.line_starts, position);
+    let line_col = get_line_and_character_of_position(&map.line_starts, start);
     (Some(line_col.line), Some(line_col.character))
 }
 
