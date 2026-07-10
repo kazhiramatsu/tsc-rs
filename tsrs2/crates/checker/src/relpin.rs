@@ -16,7 +16,7 @@
 //! engine core lands (stages 4.4-4.5).
 
 use tsrs2_syntax::{NodeData, NodeId, SourceFile};
-use tsrs2_types::CompilerOptions;
+use tsrs2_types::{CompilerOptions, TypeId};
 
 use crate::state::CheckerState;
 
@@ -123,16 +123,51 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
             }
         }
     };
-    let _ = (
-        source_type,
-        target_type,
-        query.source_is_fresh,
-        query.relation,
-    );
+    // expr pins: the fixture assigns a literal EXPRESSION, so the
+    // engine must see the checkExpression-shaped FRESH type — fresh
+    // literal variants for freshable literals, FreshLiteral|
+    // ObjectLiteral object flags for object literals (excess-property
+    // checking keys on them; the real fresh types arrive with M6
+    // expression checking).
+    let source_type = if query.source_is_fresh {
+        mark_fresh_probe_source(&mut state, source_type)
+    } else {
+        source_type
+    };
 
-    RelpinVerdict::Unsupported {
-        reason: "relation engine not implemented (M3 stages 4.4+)".to_owned(),
+    let related = match query.relation {
+        RelpinRelation::Assignable => state.is_type_assignable_to(source_type, target_type),
+        // The comparable fixture is an as-assertion: its legality is
+        // checkAssertionDeferred's two-step comparable formula, not a
+        // single isTypeComparableTo call.
+        RelpinRelation::Comparable => state.is_assertion_legal(source_type, target_type),
+    };
+    match related {
+        Ok(true) => RelpinVerdict::Related,
+        Ok(false) => RelpinVerdict::NotRelated,
+        Err(err) => RelpinVerdict::Unsupported { reason: err.reason },
     }
+}
+
+/// checkExpression's freshness for the probe's expression pins.
+fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
+    use tsrs2_types::{ObjectFlags, TypeFlags};
+    if state.tables.flags_of(ty).intersects(TypeFlags::FRESHABLE) {
+        return state.tables.get_fresh_type_of_literal_type(ty);
+    }
+    if state.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
+        && state
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::ANONYMOUS)
+    {
+        let flags = state.tables.object_flags_of(ty).bits()
+            | ObjectFlags::OBJECT_LITERAL.bits()
+            | ObjectFlags::FRESH_LITERAL.bits();
+        state.tables.type_mut(ty).object_flags = tsrs2_types::ObjectFlags::from_bits(flags);
+        state.tables.type_mut(ty).fresh_type = Some(ty);
+    }
+    ty
 }
 
 /// The scratch program is generated above: find the declared probe

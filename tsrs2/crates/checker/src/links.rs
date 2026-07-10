@@ -63,6 +63,16 @@ pub struct SymbolLinks {
 #[derive(Clone, Debug, Default)]
 pub struct TypeLinks {
     pub resolved_members: LinkSlot<crate::state::MembersId>,
+    /// tsc unionType.keyPropertyName/constituentMap (getKeyPropertyName
+    /// 69612): None name = the "" no-key-property sentinel.
+    pub union_key_property: LinkSlot<UnionKeyProperty>,
+}
+
+/// The getKeyPropertyName cache payload.
+#[derive(Clone, Debug, Default)]
+pub struct UnionKeyProperty {
+    pub name: Option<String>,
+    pub constituent_map: Option<std::collections::HashMap<TypeId, TypeId>>,
 }
 
 #[derive(Debug, Default)]
@@ -142,6 +152,19 @@ impl LinksTables {
         Self::write_slot(
             &mut self.symbol.entry(id).or_default().type_of_symbol,
             value,
+        );
+    }
+
+    pub fn set_type_union_key_property(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: UnionKeyProperty,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().union_key_property,
+            LinkSlot::Resolved(value),
         );
     }
 
