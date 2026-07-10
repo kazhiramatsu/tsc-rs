@@ -2,11 +2,17 @@
 
 Companion to m2-binder-steps.md. Module: `crates/binder/src/`
 (`symbols.rs`, `declare.rs`, `containers.rs`, `bind.rs`, `flow.rs`).
-Phase 3 also lands the FIRST 2XXX emissions: the duplicate-
-declaration family (2300 Duplicate identifier, 2451 block-scope
-redeclare, 2440/2661 import conflicts, 2567 enum-merge, 2528/2323
-default/export duplicates) comes out of `declareSymbol`'s conflict
-branch — build the pin fixtures for them in stage 3.2.
+Phase 3 also lands the FIRST 2XXX emissions from `declareSymbol`'s
+conflict branch: 2300 Duplicate identifier, 2451 block-scope
+redeclare, 2567 enum-merge, 2528 multiple default exports (with the
+Another_export_default_is_here / and_here /
+The_first_export_default_is_here related chains and the
+`Did_you_mean_0` "export type { X }" suggestion related), plus 2668
+export-modifier-on-ambient-module from `bindModuleDeclaration`.
+Build the pin fixtures for them in stage 3.2/3.3. (2440/2661 import
+conflicts are CHECKER emissions, not binder — corrected 2026-07-10
+against the vendored source: the binder region emits no import
+conflict messages.)
 
 ## [COPY] Symbol model (stage 3.1)
 
@@ -43,8 +49,8 @@ pub fn unescape_leading_underscores(name: &str) -> &str {
 
 `InternalSymbolName` constants (`__call`, `__constructor`, `__new`,
 `__index`, `__export`, `__global`, `__missing`, `__type`, `__object`,
-`__computed`, `default`, `__function`, `export=`, `this`) come from
-M0 codegen.
+`__jsxAttributes`, `__computed`, `default`, `__function`, `export=`,
+`this`) come from M0 codegen.
 
 ## [COPY] declareSymbol (stage 3.2) — `_tsc.js` 42602
 
@@ -218,6 +224,18 @@ the bind*Statement family: transcribe with the loop-label pattern
 from syntax-and-binder §3.3; the logical-operator edges come from
 binding the sub-expressions under true/false target labels
 (`doWithConditionalBranches`), NOT from extra condition nodes.
+
+Two source facts the skeletons above do not show (audit 2026-07-10):
+
+- `createFlowCondition`/`createFlowMutation`/`createFlowCall` first
+  consult the narrowing predicates (`isNarrowingExpression` et al,
+  42977–43076) and return the antecedent unchanged when the
+  expression cannot narrow — port the predicates BEFORE the
+  constructors or every flow shape gains spurious nodes.
+- `createBindBinaryExpressionFlow` (43540) is a non-recursive
+  work-stack state machine (onEnter/onLeft/onOperator/onRight/
+  onExit); transcribe the trampoline, not a recursive equivalent —
+  deep binary chains in the corpus overflow a recursive binder.
 
 ## [PORT TABLE] binder, in port order
 
