@@ -146,6 +146,10 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    pub(crate) fn text(&self) -> &'text str {
+        self.text
+    }
+
     pub(crate) fn scan(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
@@ -1758,6 +1762,55 @@ pub fn scan_tokens(text: &str, variant: LanguageVariant) -> Vec<TokenRecord> {
     }
 
     tokens
+}
+
+/// tsc skipTrivia over the trivia forms this scanner produces (shebang,
+/// whitespace, line breaks, single/multi-line comments).
+pub(crate) fn skip_trivia(text: &str, start: usize) -> usize {
+    let mut pos = start;
+    loop {
+        if pos == 0 && text.starts_with("#!") {
+            while let Some(ch) = text[pos..].chars().next() {
+                if is_line_break(ch) {
+                    break;
+                }
+                pos += ch.len_utf8();
+            }
+            continue;
+        }
+        let Some(ch) = text[pos..].chars().next() else {
+            return pos;
+        };
+        if is_whitespace_like(ch) {
+            pos += ch.len_utf8();
+            continue;
+        }
+        if text[pos..].starts_with("//") {
+            pos += 2;
+            while let Some(ch) = text[pos..].chars().next() {
+                if is_line_break(ch) {
+                    break;
+                }
+                pos += ch.len_utf8();
+            }
+            continue;
+        }
+        if text[pos..].starts_with("/*") {
+            pos += 2;
+            loop {
+                if text[pos..].starts_with("*/") {
+                    pos += 2;
+                    break;
+                }
+                let Some(ch) = text[pos..].chars().next() else {
+                    return pos;
+                };
+                pos += ch.len_utf8();
+            }
+            continue;
+        }
+        return pos;
+    }
 }
 
 fn is_line_break(ch: char) -> bool {
