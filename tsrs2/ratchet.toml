@@ -9,3 +9,7 @@ allowed_regression = 0.0
 [t0-2xxx]
 rate = 0.0
 allowed_regression = 0.0
+
+[t0-syntactic]
+rate = 0.0
+allowed_regression = 0.0

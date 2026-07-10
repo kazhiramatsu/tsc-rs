@@ -17,6 +17,9 @@ pub type ConformanceResult<T> = Result<T, Box<dyn Error>>;
 pub enum DiagnosticBand {
     All,
     TwoXxx,
+    /// The M1 gate band: oracle side restricted to getSyntacticDiagnostics
+    /// (pass provenance in schema-2 goldens), tsrs side to parse diagnostics.
+    Syntactic,
 }
 
 impl DiagnosticBand {
@@ -24,13 +27,21 @@ impl DiagnosticBand {
         match self {
             Self::All => "all",
             Self::TwoXxx => "2xxx",
+            Self::Syntactic => "syntactic",
         }
     }
 
     fn contains(self, code: u32) -> bool {
         match self {
-            Self::All => true,
+            Self::All | Self::Syntactic => true,
             Self::TwoXxx => (2000..3000).contains(&code),
+        }
+    }
+
+    fn matches_oracle(self, diag: &GoldenDiag) -> bool {
+        match self {
+            Self::Syntactic => diag.pass.as_deref() == Some("syntactic"),
+            _ => self.contains(diag.code),
         }
     }
 
@@ -38,6 +49,7 @@ impl DiagnosticBand {
         match self {
             Self::All => "t0",
             Self::TwoXxx => "t0-2xxx",
+            Self::Syntactic => "t0-syntactic",
         }
     }
 }
@@ -66,6 +78,10 @@ pub struct GoldenDiag {
     pub line: Option<u32>,
     pub col: Option<u32>,
     pub code: u32,
+    /// Oracle pass provenance ("syntactic" | "semantic" | "suggestion");
+    /// None on schema-1 goldens and on tsrs-side diagnostics.
+    #[serde(default)]
+    pub pass: Option<String>,
     pub category: String,
     pub chain: GoldenMessageChain,
     #[serde(default)]
@@ -216,7 +232,7 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
         }
 
         let golden = GoldenFile {
-            schema: 1,
+            schema: 2,
             fixture: fixture_key,
             cases,
         };
@@ -256,6 +272,14 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     for fixture in &fixtures {
         let fixture_key = fixture_key(&options.workspace, fixture)?;
         let golden = read_golden(&goldens_root, &fixture_key)?;
+        if options.band == DiagnosticBand::Syntactic && golden.schema < 2 {
+            return Err(format!(
+                "golden {fixture_key} has schema {} without pass provenance; \
+                 run `cargo xtask oracle-refresh` before --syntactic-only",
+                golden.schema
+            )
+            .into());
+        }
         let golden_by_matrix = golden
             .cases
             .iter()
@@ -269,7 +293,7 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
                 .ok_or_else(|| {
                     format!("missing golden case {fixture_key} [{}]", program.matrix_key)
                 })?;
-            let current = current_tsrs_diagnostics(&program, &vendor_lib_dir)?;
+            let current = current_tsrs_diagnostics(&program, &vendor_lib_dir, options.band)?;
             let actual = t0_set(
                 current
                     .iter()
@@ -279,7 +303,7 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
                 golden_case
                     .oracle
                     .iter()
-                    .filter(|diag| options.band.contains(diag.code)),
+                    .filter(|diag| options.band.matches_oracle(diag)),
             );
 
             let fp = actual.difference(&expected).cloned().collect::<Vec<_>>();
@@ -369,6 +393,7 @@ impl GoldenDiag {
             line,
             col,
             code: diag.code,
+            pass: diag.pass.clone(),
             category: diag.category.clone(),
             chain: GoldenMessageChain::from_oracle(&diag.chain),
             related: diag
@@ -398,6 +423,7 @@ impl GoldenDiag {
             line,
             col,
             code: diag.code(),
+            pass: None,
             category: diag.category().name().to_owned(),
             chain: GoldenMessageChain::from_tsrs(&diag.message),
             related: Vec::new(),
@@ -431,6 +457,7 @@ impl GoldenMessageChain {
 fn current_tsrs_diagnostics(
     program: &tsrs2_harness::ProgramJson,
     _vendor_lib_dir: &Path,
+    band: DiagnosticBand,
 ) -> ConformanceResult<Vec<GoldenDiag>> {
     let mut files = Vec::new();
     let mut file_texts = BTreeMap::new();
@@ -445,8 +472,11 @@ fn current_tsrs_diagnostics(
     }
 
     let result = check_program(&files, &CompilerOptions::default());
-    Ok(result
-        .diagnostics
+    let diagnostics = match band {
+        DiagnosticBand::Syntactic => &result.syntactic_diagnostics,
+        _ => &result.diagnostics,
+    };
+    Ok(diagnostics
         .iter()
         .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
         .collect())

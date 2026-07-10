@@ -14,10 +14,13 @@ pub struct InputFile {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CheckResult {
     pub diagnostics: DiagnosticList,
+    /// tsc getSyntacticDiagnostics: the per-file parse diagnostics alone.
+    pub syntactic_diagnostics: DiagnosticList,
 }
 
 pub fn check_program(files: &[InputFile], _options: &CompilerOptions) -> CheckResult {
     let mut diagnostics = Vec::new();
+    let mut syntactic_diagnostics = Vec::new();
 
     for file in files {
         // tsc getLanguageVariant, restricted to the extensions this engine
@@ -33,6 +36,7 @@ pub fn check_program(files: &[InputFile], _options: &CompilerOptions) -> CheckRe
             tsrs2_syntax::ParseOptions { language_variant },
             None,
         );
+        syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
         diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
         diagnostics.append(&mut tsrs2_binder::bind_source_file(&source_file));
     }
@@ -40,7 +44,10 @@ pub fn check_program(files: &[InputFile], _options: &CompilerOptions) -> CheckRe
     debug_assert!(tsrs2_binder::is_scaffolded());
     debug_assert!(tsrs2_types::is_scaffolded());
 
-    CheckResult { diagnostics }
+    CheckResult {
+        diagnostics,
+        syntactic_diagnostics,
+    }
 }
 
 #[cfg(test)]

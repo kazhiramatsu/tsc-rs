@@ -54,9 +54,9 @@ pub struct ArrayTypeData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ArrowFunctionData {
     pub modifiers: Option<NodeArrayId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
     pub equals_greater_than_token: Option<NodeId>,
     pub body: Option<NodeId>,
 }
@@ -112,9 +112,9 @@ pub struct CallExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CallSignatureData {
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -187,27 +187,27 @@ pub struct ConditionalTypeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConstructSignatureData {
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConstructorData {
     pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
     pub body: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConstructorTypeData {
     pub modifiers: Option<NodeArrayId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -326,9 +326,9 @@ pub struct FunctionDeclarationData {
     pub modifiers: Option<NodeArrayId>,
     pub asterisk_token: Option<NodeId>,
     pub name: Option<NodeId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
     pub body: Option<NodeId>,
 }
 
@@ -337,27 +337,27 @@ pub struct FunctionExpressionData {
     pub modifiers: Option<NodeArrayId>,
     pub asterisk_token: Option<NodeId>,
     pub name: Option<NodeId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
     pub body: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionTypeData {
     pub modifiers: Option<NodeArrayId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GetAccessorData {
     pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
     pub body: Option<NodeId>,
 }
 
@@ -433,9 +433,9 @@ pub struct ImportTypeAssertionContainerData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct IndexSignatureData {
     pub modifiers: Option<NodeArrayId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -795,9 +795,9 @@ pub struct LiteralTypeData {
 pub struct MappedTypeData {
     pub readonly_token: Option<NodeId>,
     pub type_parameter: Option<NodeId>,
-    pub r#type: Option<NodeId>,
     pub name_type: Option<NodeId>,
     pub question_token: Option<NodeId>,
+    pub r#type: Option<NodeId>,
     pub members: Option<NodeArrayId>,
 }
 
@@ -813,9 +813,9 @@ pub struct MethodDeclarationData {
     pub name: Option<NodeId>,
     pub question_token: Option<NodeId>,
     pub exclamation_token: Option<NodeId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
     pub body: Option<NodeId>,
 }
 
@@ -824,9 +824,9 @@ pub struct MethodSignatureData {
     pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub question_token: Option<NodeId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1028,9 +1028,9 @@ pub struct SatisfiesExpressionData {
 pub struct SetAccessorData {
     pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
     pub body: Option<NodeId>,
 }
 
@@ -1158,8 +1158,8 @@ pub struct TupleTypeData {
 pub struct TypeAliasDeclarationData {
     pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
-    pub r#type: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
+    pub r#type: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1663,9 +1663,9 @@ impl NodeData {
             SyntaxKind::ArrayType => Self::ArrayType(ArrayTypeData { element_type: None }),
             SyntaxKind::ArrowFunction => Self::ArrowFunction(ArrowFunctionData {
                 modifiers: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
                 equals_greater_than_token: None,
                 body: None,
             }),
@@ -1699,9 +1699,9 @@ impl NodeData {
                 arguments: None,
             }),
             SyntaxKind::CallSignature => Self::CallSignature(CallSignatureData {
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
             }),
             SyntaxKind::CaseBlock => Self::CaseBlock(CaseBlockData { clauses: None }),
             SyntaxKind::CaseClause => Self::CaseClause(CaseClauseData {
@@ -1754,23 +1754,23 @@ impl NodeData {
                 false_type: None,
             }),
             SyntaxKind::ConstructSignature => Self::ConstructSignature(ConstructSignatureData {
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
             }),
             SyntaxKind::Constructor => Self::Constructor(ConstructorData {
                 modifiers: None,
                 name: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
                 body: None,
             }),
             SyntaxKind::ConstructorType => Self::ConstructorType(ConstructorTypeData {
                 modifiers: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
             }),
             SyntaxKind::ContinueStatement => {
                 Self::ContinueStatement(ContinueStatementData { label: None })
@@ -1851,32 +1851,32 @@ impl NodeData {
                 modifiers: None,
                 asterisk_token: None,
                 name: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
                 body: None,
             }),
             SyntaxKind::FunctionExpression => Self::FunctionExpression(FunctionExpressionData {
                 modifiers: None,
                 asterisk_token: None,
                 name: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
                 body: None,
             }),
             SyntaxKind::FunctionType => Self::FunctionType(FunctionTypeData {
                 modifiers: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
             }),
             SyntaxKind::GetAccessor => Self::GetAccessor(GetAccessorData {
                 modifiers: None,
                 name: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
                 body: None,
             }),
             SyntaxKind::HeritageClause => Self::HeritageClause(HeritageClauseData { types: None }),
@@ -1930,9 +1930,9 @@ impl NodeData {
             }
             SyntaxKind::IndexSignature => Self::IndexSignature(IndexSignatureData {
                 modifiers: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
             }),
             SyntaxKind::IndexedAccessType => Self::IndexedAccessType(IndexedAccessTypeData {
                 object_type: None,
@@ -2172,9 +2172,9 @@ impl NodeData {
             SyntaxKind::MappedType => Self::MappedType(MappedTypeData {
                 readonly_token: None,
                 type_parameter: None,
-                r#type: None,
                 name_type: None,
                 question_token: None,
+                r#type: None,
                 members: None,
             }),
             SyntaxKind::MetaProperty => Self::MetaProperty(MetaPropertyData { name: None }),
@@ -2184,18 +2184,18 @@ impl NodeData {
                 name: None,
                 question_token: None,
                 exclamation_token: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
                 body: None,
             }),
             SyntaxKind::MethodSignature => Self::MethodSignature(MethodSignatureData {
                 modifiers: None,
                 name: None,
                 question_token: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
             }),
             SyntaxKind::MissingDeclaration => {
                 Self::MissingDeclaration(MissingDeclarationData { modifiers: None })
@@ -2329,9 +2329,9 @@ impl NodeData {
             SyntaxKind::SetAccessor => Self::SetAccessor(SetAccessorData {
                 modifiers: None,
                 name: None,
-                r#type: None,
                 type_parameters: None,
                 parameters: None,
+                r#type: None,
                 body: None,
             }),
             SyntaxKind::ShorthandPropertyAssignment => {
@@ -2426,8 +2426,8 @@ impl NodeData {
                 Self::TypeAliasDeclaration(TypeAliasDeclarationData {
                     modifiers: None,
                     name: None,
-                    r#type: None,
                     type_parameters: None,
+                    r#type: None,
                 })
             }
             SyntaxKind::TypeAssertionExpression => {

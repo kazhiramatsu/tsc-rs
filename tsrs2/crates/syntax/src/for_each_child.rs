@@ -35,13 +35,13 @@ where
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_node(data.equals_greater_than_token, &mut cb) {
@@ -123,13 +123,13 @@ where
             None
         }
         NodeData::CallSignature(data) => {
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
@@ -249,13 +249,13 @@ where
             None
         }
         NodeData::ConstructSignature(data) => {
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
@@ -267,13 +267,13 @@ where
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_node(data.body, &mut cb) {
@@ -285,13 +285,13 @@ where
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
@@ -470,13 +470,13 @@ where
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_node(data.body, &mut cb) {
@@ -494,13 +494,13 @@ where
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_node(data.body, &mut cb) {
@@ -512,13 +512,13 @@ where
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
@@ -530,13 +530,13 @@ where
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_node(data.body, &mut cb) {
@@ -648,13 +648,13 @@ where
             if let Some(result) = visit_optional_nodes(lookup, data.modifiers, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
@@ -1196,13 +1196,13 @@ where
             if let Some(result) = visit_optional_node(data.type_parameter, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_node(data.name_type, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_node(data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.members, &mut cb) {
@@ -1232,13 +1232,13 @@ where
             if let Some(result) = visit_optional_node(data.exclamation_token, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_node(data.body, &mut cb) {
@@ -1256,13 +1256,13 @@ where
             if let Some(result) = visit_optional_node(data.question_token, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None
@@ -1540,13 +1540,13 @@ where
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
-                return Some(result);
-            }
             if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             if let Some(result) = visit_optional_node(data.body, &mut cb) {
@@ -1692,10 +1692,10 @@ where
             if let Some(result) = visit_optional_node(data.name, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
+            if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
                 return Some(result);
             }
-            if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
+            if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
             None

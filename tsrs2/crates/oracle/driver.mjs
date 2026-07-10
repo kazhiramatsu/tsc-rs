@@ -122,9 +122,16 @@ function collectDiagnostics(programJsonPath) {
   for (const file of programJson.files ?? []) {
     const sourceFile = program.getSourceFile(absoluteProgramFileName(file.name, cwd));
     if (!sourceFile) continue;
-    diagnostics.push(...program.getSyntacticDiagnostics(sourceFile));
-    diagnostics.push(...program.getSemanticDiagnostics(sourceFile));
-    diagnostics.push(...program.getSuggestionDiagnostics(sourceFile));
+    for (const [pass, passDiagnostics] of [
+      ["syntactic", program.getSyntacticDiagnostics(sourceFile)],
+      ["semantic", program.getSemanticDiagnostics(sourceFile)],
+      ["suggestion", program.getSuggestionDiagnostics(sourceFile)],
+    ]) {
+      for (const diagnostic of passDiagnostics) {
+        diagnostic.tsrsPass ??= pass;
+        diagnostics.push(diagnostic);
+      }
+    }
   }
 
   return ts.sortAndDeduplicateDiagnostics(diagnostics).map((diagnostic) =>
@@ -138,6 +145,7 @@ function serializeDiagnostic(diagnostic, publicNames) {
     start: diagnostic.start ?? null,
     length: diagnostic.length ?? null,
     code: diagnostic.code,
+    pass: diagnostic.tsrsPass ?? null,
     category: categoryNames[diagnostic.category] ?? "message",
     chain: serializeMessageText(diagnostic.messageText, diagnostic.code, diagnostic.category),
     related: (diagnostic.relatedInformation ?? []).map((related) =>

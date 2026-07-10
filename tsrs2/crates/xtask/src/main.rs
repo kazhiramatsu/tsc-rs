@@ -23,6 +23,8 @@ fn main() {
         Some("expand") => run_or_exit(expand_fixture(args)),
         Some("tokens") => run_or_exit(tokens(args)),
         Some("token-diff") => run_or_exit(token_diff(args)),
+        Some("ast-dump") => run_or_exit(ast_dump(args)),
+        Some("ast-diff") => run_or_exit(ast_diff(args)),
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("conformance") => run_or_exit(conformance(args)),
@@ -249,6 +251,264 @@ struct TokenDumpResponse {
     error: Option<String>,
 }
 
+fn ast_dump(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let path = parse_single_path_arg("ast-dump", args)?;
+    let text = fs::read_to_string(&path)?;
+    let (dump, parse_errors) = rust_ast_dump_text(&path.to_string_lossy(), &text);
+    print!("{dump}");
+    if parse_errors > 0 {
+        eprintln!("parse errors: {parse_errors}");
+    }
+    Ok(())
+}
+
+/// impl-nodes.md §5: the (kind, pos-utf16, end-utf16) indented pre-order tree
+/// via the generated for_each_child, plus the parse-error count that gates
+/// tree comparison.
+fn rust_ast_dump_text(file_name: &str, text: &str) -> (String, usize) {
+    let variant = language_variant_for_path(Path::new(file_name));
+    let source = tsrs2_syntax::parse_source_file(
+        file_name,
+        text,
+        tsrs2_syntax::ParseOptions {
+            language_variant: variant,
+        },
+        None,
+    );
+    let map = tsrs2_diags::compute_line_map(text);
+    let to_utf16 =
+        |pos: u32| -> u32 { map.byte_to_utf16.get(pos as usize).copied().unwrap_or(pos) };
+
+    let mut out = String::new();
+    let mut stack = vec![(source.root, 0usize)];
+    while let Some((id, depth)) = stack.pop() {
+        let node = source.arena.node(id);
+        let _ = writeln!(
+            out,
+            "{}{} {} {}",
+            "  ".repeat(depth),
+            node.kind as u16,
+            to_utf16(node.pos),
+            to_utf16(node.end)
+        );
+        let mut children = Vec::new();
+        tsrs2_syntax::for_each_child(&source.arena, node, |child| {
+            children.push(child);
+            false
+        });
+        for child in children.into_iter().rev() {
+            stack.push((child, depth + 1));
+        }
+    }
+    (out, source.parse_diagnostics.len())
+}
+
+fn ast_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let args = parse_token_diff_args(args)?;
+    let workspace = find_tsrs2_root()?;
+    let mut files = if args.corpus {
+        collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?
+    } else {
+        args.files
+    };
+    if files.is_empty() {
+        return Err("ast-diff requires --corpus, --files, or a file path".into());
+    }
+    files.sort();
+    if let Some(limit) = args.limit {
+        files.truncate(limit);
+    }
+
+    let mut oracle = AstDumpOracle::spawn(&workspace)?;
+    let mut compared = 0usize;
+    let mut excluded = 0usize;
+    let mut differing = 0usize;
+    let mut failures = String::new();
+    for file in &files {
+        let text = fs::read_to_string(file)?;
+        let file_name = file.to_string_lossy();
+        let (rust_dump, rust_parse_errors) = rust_ast_dump_text(&file_name, &text);
+        let oracle_result = oracle.ast_dump(file, &text, &file_name)?;
+        // Error-recovery trees may legitimately differ in Missing-node
+        // placement; error fixtures are covered by the diagnostic gate.
+        if rust_parse_errors > 0 || oracle_result.parse_errors > 0 {
+            excluded += 1;
+            continue;
+        }
+        compared += 1;
+        if rust_dump != oracle_result.dump {
+            differing += 1;
+            let (line, left, right) = first_diff(&rust_dump, &oracle_result.dump);
+            let entry = format!(
+                "diff {} line {}:\n  tsrs:   {}\n  oracle: {}",
+                file.display(),
+                line,
+                left.unwrap_or("<missing>"),
+                right.unwrap_or("<missing>")
+            );
+            if differing <= 10 {
+                println!("{entry}");
+            }
+            failures.push_str(&entry);
+            failures.push('\n');
+        }
+    }
+
+    let failures_path = workspace.join("target/ast-diff-failures.txt");
+    if let Some(parent) = failures_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&failures_path, &failures)?;
+
+    println!(
+        "ast diff: files={} compared={} excluded={} differing={}",
+        files.len(),
+        compared,
+        excluded,
+        differing
+    );
+    println!("failures: {}", failures_path.display());
+    if differing > 0 {
+        return Err(
+            format!("ast diff failed: {differing}/{compared} compared files differ").into(),
+        );
+    }
+    Ok(())
+}
+
+struct AstDumpOracle {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+    next_id: u64,
+}
+
+impl AstDumpOracle {
+    fn spawn(workspace: &Path) -> Result<Self, Box<dyn Error>> {
+        let mut child = Command::new("node")
+            .arg(workspace.join("crates/oracle/ast-dump.mjs"))
+            .arg("--server-jsonl")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or("ast dump oracle stdin unavailable")?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or("ast dump oracle stdout unavailable")?;
+
+        Ok(Self {
+            child,
+            stdin,
+            stdout: BufReader::new(stdout),
+            next_id: 1,
+        })
+    }
+
+    fn ast_dump(
+        &mut self,
+        path: &Path,
+        text: &str,
+        file_name: &str,
+    ) -> Result<AstDumpResult, Box<dyn Error>> {
+        let id = self.next_id;
+        self.next_id += 1;
+        let text_base64 = BASE64.encode(text);
+        let request = serde_json::to_string(&AstDumpRequest {
+            id,
+            payload: AstDumpPayload {
+                text_base64: &text_base64,
+                file_name,
+            },
+        })?;
+        writeln!(self.stdin, "{request}")?;
+        self.stdin.flush()?;
+
+        let mut line = String::new();
+        let read = self.stdout.read_line(&mut line)?;
+        if read == 0 {
+            return Err(format!(
+                "oracle ast dump worker exited without a response for {}",
+                path.display()
+            )
+            .into());
+        }
+
+        let response: AstDumpResponse = serde_json::from_str(&line)?;
+        if response.id != Some(id) {
+            return Err(format!(
+                "oracle ast dump response id mismatch for {}: expected {id}, got {}{}",
+                path.display(),
+                response
+                    .id
+                    .map(|id| id.to_string())
+                    .unwrap_or_else(|| "null".to_owned()),
+                response
+                    .error
+                    .as_deref()
+                    .map(|error| format!(": {error}"))
+                    .unwrap_or_default()
+            )
+            .into());
+        }
+        if !response.ok {
+            return Err(format!(
+                "oracle ast dump failed for {}: {}",
+                path.display(),
+                response.error.unwrap_or_else(|| "unknown error".to_owned())
+            )
+            .into());
+        }
+        response.result.ok_or_else(|| {
+            format!(
+                "oracle ast dump response missing result for {}",
+                path.display()
+            )
+            .into()
+        })
+    }
+}
+
+impl Drop for AstDumpOracle {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct AstDumpRequest<'text> {
+    id: u64,
+    payload: AstDumpPayload<'text>,
+}
+
+#[derive(Debug, Serialize)]
+struct AstDumpPayload<'text> {
+    #[serde(rename = "textBase64")]
+    text_base64: &'text str,
+    #[serde(rename = "fileName")]
+    file_name: &'text str,
+}
+
+#[derive(Debug, Deserialize)]
+struct AstDumpResponse {
+    id: Option<u64>,
+    ok: bool,
+    result: Option<AstDumpResult>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AstDumpResult {
+    dump: String,
+    #[serde(rename = "parseErrors")]
+    parse_errors: usize,
+}
+
 struct TokenDumpOracle {
     child: Child,
     stdin: ChildStdin,
@@ -468,9 +728,11 @@ fn parse_conformance_args(
                 band = match value.as_str() {
                     "all" => tsrs2_conformance::DiagnosticBand::All,
                     "2xxx" => tsrs2_conformance::DiagnosticBand::TwoXxx,
+                    "syntactic" => tsrs2_conformance::DiagnosticBand::Syntactic,
                     _ => return Err(format!("unknown conformance band: {value}").into()),
                 };
             }
+            "--syntactic-only" => band = tsrs2_conformance::DiagnosticBand::Syntactic,
             _ => return Err(format!("unexpected conformance argument: {arg}").into()),
         }
     }
@@ -2682,12 +2944,25 @@ fn extract_visits(text: &str) -> Vec<ChildVisit> {
         }
     }
 
-    visits.sort_by_key(|visit| {
-        text.find(&format!("node.{}", visit.name))
-            .unwrap_or(usize::MAX)
-    });
+    // Whole-identifier occurrence position: a bare `find` would match
+    // `node.type` inside `node.typeParameters` and scramble the visit order.
+    visits.sort_by_key(|visit| field_occurrence_position(text, &visit.name));
     visits.dedup();
     visits
+}
+
+fn field_occurrence_position(text: &str, name: &str) -> usize {
+    let needle = format!("node.{name}");
+    let mut from = 0usize;
+    while let Some(pos) = text[from..].find(&needle) {
+        let abs = from + pos;
+        let after = text[abs + needle.len()..].chars().next();
+        if !matches!(after, Some(ch) if ch.is_ascii_alphanumeric() || ch == '_') {
+            return abs;
+        }
+        from = abs + needle.len();
+    }
+    usize::MAX
 }
 
 fn parse_dts_interfaces(dts: &str) -> Result<BTreeMap<String, InterfaceDecl>, Box<dyn Error>> {
@@ -3156,6 +3431,8 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     writeln!(out, "    pub pos: u32,")?;
     writeln!(out, "    pub end: u32,")?;
     writeln!(out, "    pub has_trailing_comma: bool,")?;
+    writeln!(out, "    /// tsc createMissingList's isMissingList marker.")?;
+    writeln!(out, "    pub is_missing_list: bool,")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
     writeln!(out, "#[derive(Clone, Debug, PartialEq)]")?;

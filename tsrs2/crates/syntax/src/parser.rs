@@ -4653,8 +4653,31 @@ impl<'text> Parser<'text> {
 
     fn parse_left_hand_side_expression_or_higher(&mut self) -> NodeId {
         let pos = self.node_pos();
-        let expression = self.parse_member_expression_or_higher();
+        let expression = if self.token() == SyntaxKind::ImportKeyword {
+            if self.look_ahead(|parser| parser.next_token_is_open_paren_or_less_than()) {
+                // tsc sets PossiblyContainsDynamicImport (no sourceFlags slot).
+                self.parse_token_node()
+            } else if self.look_ahead(|parser| parser.next_token_is_dot()) {
+                // tsc createMetaProperty(ImportKeyword, ...); the keywordToken
+                // and the defer/ImportMeta sourceFlags have no slots.
+                self.next_token();
+                self.next_token();
+                let name = self.parse_identifier_name(None);
+                self.finish_node_data(
+                    NodeData::MetaProperty(MetaPropertyData { name: Some(name) }),
+                    pos,
+                )
+            } else {
+                self.parse_member_expression_or_higher()
+            }
+        } else {
+            self.parse_member_expression_or_higher()
+        };
         self.parse_call_expression_rest(pos, expression)
+    }
+
+    fn next_token_is_dot(&mut self) -> bool {
+        self.next_token() == SyntaxKind::DotToken
     }
 
     fn parse_member_expression_or_higher(&mut self) -> NodeId {
@@ -4678,7 +4701,7 @@ impl<'text> Parser<'text> {
             SyntaxKind::NoSubstitutionTemplateLiteral => {
                 self.parse_no_substitution_template_literal()
             }
-            SyntaxKind::FunctionKeyword => self.parse_function_expression_stub(None, false),
+            SyntaxKind::FunctionKeyword => self.parse_function_expression(),
             SyntaxKind::ClassKeyword => self.parse_class_expression(),
             SyntaxKind::NewKeyword => self.parse_new_expression_stub(),
             SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken => {
@@ -4704,9 +4727,7 @@ impl<'text> Parser<'text> {
                         && !parser.scanner.has_preceding_line_break()
                 }) =>
             {
-                let pos = self.node_pos();
-                self.next_token();
-                self.parse_function_expression_stub(Some(pos), true)
+                self.parse_function_expression()
             }
             kind if token_is_identifier_or_keyword(kind) => self.parse_identifier(),
             _ => self.create_missing_node(
@@ -5587,27 +5608,41 @@ impl<'text> Parser<'text> {
         block
     }
 
-    fn parse_function_expression_stub(
-        &mut self,
-        forced_pos: Option<usize>,
-        is_async: bool,
-    ) -> NodeId {
-        let pos = forced_pos.unwrap_or_else(|| self.node_pos());
+    /// tsc parseFunctionExpression.
+    fn parse_function_expression(&mut self) -> NodeId {
+        let saved_decorator_context = self.in_decorator_context();
+        self.set_decorator_context(false);
+        let pos = self.node_pos();
+        let modifiers = self.parse_modifiers(false, false, false);
         self.parse_expected(SyntaxKind::FunctionKeyword, None);
         let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
         let is_generator = asterisk_token.is_some();
-        let name = if self.is_binding_identifier() {
-            Some(self.parse_binding_identifier())
+        let is_async = self.modifiers_contain(modifiers, SyntaxKind::AsyncKeyword);
+        let name = if is_generator && is_async {
+            self.do_in_context(
+                NodeFlags::YIELD_CONTEXT | NodeFlags::AWAIT_CONTEXT,
+                NodeFlags::NONE,
+                |parser| parser.parse_optional_binding_identifier(),
+            )
+        } else if is_generator {
+            self.do_in_context(NodeFlags::YIELD_CONTEXT, NodeFlags::NONE, |parser| {
+                parser.parse_optional_binding_identifier()
+            })
+        } else if is_async {
+            self.do_in_context(NodeFlags::AWAIT_CONTEXT, NodeFlags::NONE, |parser| {
+                parser.parse_optional_binding_identifier()
+            })
         } else {
-            None
+            self.parse_optional_binding_identifier()
         };
         let type_parameters = self.parse_type_parameters();
         let parameters = self.parse_parameters(is_generator, is_async);
         let r#type = self.parse_return_type(SyntaxKind::ColonToken, false);
         let body = Some(self.parse_function_block(is_generator, is_async, false, None));
+        self.set_decorator_context(saved_decorator_context);
         self.finish_node_data(
             NodeData::FunctionExpression(FunctionExpressionData {
-                modifiers: None,
+                modifiers,
                 asterisk_token,
                 name,
                 r#type,
@@ -5617,6 +5652,15 @@ impl<'text> Parser<'text> {
             }),
             pos,
         )
+    }
+
+    /// tsc parseOptionalBindingIdentifier.
+    fn parse_optional_binding_identifier(&mut self) -> Option<NodeId> {
+        if self.is_binding_identifier() {
+            Some(self.parse_binding_identifier())
+        } else {
+            None
+        }
     }
 
     fn parse_template_expression(&mut self, is_tagged_template: bool) -> NodeId {
@@ -7488,12 +7532,21 @@ impl<'text> Parser<'text> {
         self.context_flags.contains(NodeFlags::YIELD_CONTEXT)
     }
 
+    /// The tsc parseForOrForInOrForOfStatement initializer condition: keyword
+    /// declarations, `using` with the disallow-of lookahead, `await using`.
     fn is_variable_statement_start(&mut self) -> bool {
         matches!(
             self.token(),
             SyntaxKind::VarKeyword | SyntaxKind::LetKeyword | SyntaxKind::ConstKeyword
-        ) || self.is_using_declaration()
-            || self.is_await_using_declaration()
+        ) || (self.token() == SyntaxKind::UsingKeyword
+            && self.look_ahead(|parser| {
+                parser.next_token_is_binding_identifier_or_start_of_destructuring_on_same_line(true)
+            }))
+            || (self.token() == SyntaxKind::AwaitKeyword
+                && self.look_ahead(|parser| {
+                    parser
+                        .next_token_is_using_keyword_then_binding_identifier_or_start_of_object_destructuring_on_same_line(false)
+                }))
     }
 
     fn is_let_declaration(&mut self) -> bool {
@@ -7503,28 +7556,53 @@ impl<'text> Parser<'text> {
         })
     }
 
+    /// tsc nextTokenIsBindingIdentifierOrStartOfDestructuringOnSameLine.
+    fn next_token_is_binding_identifier_or_start_of_destructuring_on_same_line(
+        &mut self,
+        disallow_of: bool,
+    ) -> bool {
+        self.next_token();
+        if disallow_of && self.token() == SyntaxKind::OfKeyword {
+            return self
+                .look_ahead(|parser| parser.next_token_is_equals_or_semicolon_or_colon_token());
+        }
+        (self.is_binding_identifier() || self.token() == SyntaxKind::OpenBraceToken)
+            && !self.scanner.has_preceding_line_break()
+    }
+
+    fn next_token_is_equals_or_semicolon_or_colon_token(&mut self) -> bool {
+        self.next_token();
+        matches!(
+            self.token(),
+            SyntaxKind::EqualsToken | SyntaxKind::SemicolonToken | SyntaxKind::ColonToken
+        )
+    }
+
+    /// tsc nextTokenIsUsingKeywordThenBindingIdentifierOrStartOfObjectDestructuringOnSameLine.
+    fn next_token_is_using_keyword_then_binding_identifier_or_start_of_object_destructuring_on_same_line(
+        &mut self,
+        disallow_of: bool,
+    ) -> bool {
+        if self.next_token() == SyntaxKind::UsingKeyword {
+            return self.next_token_is_binding_identifier_or_start_of_destructuring_on_same_line(
+                disallow_of,
+            );
+        }
+        false
+    }
+
+    /// tsc isUsingDeclaration; callers guard on token() == UsingKeyword.
     fn is_using_declaration(&mut self) -> bool {
         self.look_ahead(|parser| {
-            parser.next_token();
-            !parser.scanner.has_preceding_line_break()
-                && (parser.is_binding_identifier()
-                    || matches!(
-                        parser.token(),
-                        SyntaxKind::OpenBraceToken | SyntaxKind::OpenBracketToken
-                    ))
+            parser.next_token_is_binding_identifier_or_start_of_destructuring_on_same_line(false)
         })
     }
 
+    /// tsc isAwaitUsingDeclaration; callers guard on token() == AwaitKeyword.
     fn is_await_using_declaration(&mut self) -> bool {
         self.look_ahead(|parser| {
-            parser.next_token() == SyntaxKind::UsingKeyword
-                && !parser.scanner.has_preceding_line_break()
-                && {
-                    parser.next_token();
-                    !parser.scanner.has_preceding_line_break()
-                        && (parser.is_binding_identifier()
-                            || matches!(parser.token(), SyntaxKind::OpenBraceToken))
-                }
+            parser
+                .next_token_is_using_keyword_then_binding_identifier_or_start_of_object_destructuring_on_same_line(false)
         })
     }
 
@@ -8324,6 +8402,91 @@ mod tests {
         assert_eq!(
             diagnostic_pins(&source),
             [(17008, Some(11), Some(3)), (1005, Some(15), Some(0))]
+        );
+    }
+
+    #[test]
+    fn for_of_expression_initializer_stays_an_expression() {
+        // tsc: `for (x of a)` initializer is an Identifier, not a
+        // VariableDeclarationList (the using-declaration lookahead must not
+        // fire on `x of`).
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "declare var x: string, a: string[]; for (x of a) { }".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+        let for_of = source
+            .arena
+            .node(statements.nodes[1])
+            .data
+            .as_for_of_statement()
+            .expect("for-of statement");
+        assert_eq!(
+            source
+                .arena
+                .node(for_of.initializer.expect("initializer"))
+                .kind,
+            SyntaxKind::Identifier
+        );
+    }
+
+    #[test]
+    fn using_with_bracket_is_an_expression_statement() {
+        // tsc: `using [a] = null` is element-access assignment, not a using
+        // declaration (the lookahead accepts identifiers and `{` only).
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "declare var using: any[], a: number; function f() { using [a] = null; }".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+        let function = source
+            .arena
+            .node(statements.nodes[1])
+            .data
+            .as_function_declaration()
+            .expect("function declaration");
+        let body = source
+            .arena
+            .node(function.body.expect("body"))
+            .data
+            .as_block()
+            .expect("function body");
+        let body_statements = source
+            .arena
+            .node_array(body.statements.expect("body statements"));
+        assert_eq!(
+            source.arena.node(body_statements.nodes[0]).kind,
+            SyntaxKind::ExpressionStatement
         );
     }
 

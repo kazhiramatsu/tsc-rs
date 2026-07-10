@@ -36,17 +36,17 @@
       "dataName": "ArrowFunctionData",
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "equalsGreaterThanToken", "rustName": "equals_greater_than_token", "type": "Node", "optional": true, "child": true},
         {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
         {"name": "parameters", "array": true},
+        {"name": "type", "array": false},
         {"name": "equalsGreaterThanToken", "array": false},
         {"name": "body", "array": false}
       ]
@@ -152,14 +152,14 @@
       "kindName": "CallSignature",
       "dataName": "CallSignatureData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
-        {"name": "parameters", "array": true}
+        {"name": "parameters", "array": true},
+        {"name": "type", "array": false}
       ]
     },
     {
@@ -302,14 +302,14 @@
       "kindName": "ConstructSignature",
       "dataName": "ConstructSignatureData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
-        {"name": "parameters", "array": true}
+        {"name": "parameters", "array": true},
+        {"name": "type", "array": false}
       ]
     },
     {
@@ -318,17 +318,17 @@
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
         {"name": "name", "array": false},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
         {"name": "parameters", "array": true},
+        {"name": "type", "array": false},
         {"name": "body", "array": false}
       ]
     },
@@ -337,15 +337,15 @@
       "dataName": "ConstructorTypeData",
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
-        {"name": "parameters", "array": true}
+        {"name": "parameters", "array": true},
+        {"name": "type", "array": false}
       ]
     },
     {
@@ -581,18 +581,18 @@
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
         {"name": "asteriskToken", "array": false},
         {"name": "name", "array": false},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
         {"name": "parameters", "array": true},
+        {"name": "type", "array": false},
         {"name": "body", "array": false}
       ]
     },
@@ -603,18 +603,18 @@
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
         {"name": "asteriskToken", "array": false},
         {"name": "name", "array": false},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
         {"name": "parameters", "array": true},
+        {"name": "type", "array": false},
         {"name": "body", "array": false}
       ]
     },
@@ -623,15 +623,15 @@
       "dataName": "FunctionTypeData",
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
-        {"name": "parameters", "array": true}
+        {"name": "parameters", "array": true},
+        {"name": "type", "array": false}
       ]
     },
     {
@@ -640,17 +640,17 @@
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
         {"name": "name", "array": false},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
         {"name": "parameters", "array": true},
+        {"name": "type", "array": false},
         {"name": "body", "array": false}
       ]
     },
@@ -795,15 +795,15 @@
       "dataName": "IndexSignatureData",
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
-        {"name": "parameters", "array": true}
+        {"name": "parameters", "array": true},
+        {"name": "type", "array": false}
       ]
     },
     {
@@ -1512,17 +1512,17 @@
       "fields": [
         {"name": "readonlyToken", "rustName": "readonly_token", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameter", "rustName": "type_parameter", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "nameType", "rustName": "name_type", "type": "Node", "optional": true, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "readonlyToken", "array": false},
         {"name": "typeParameter", "array": false},
-        {"name": "type", "array": false},
         {"name": "nameType", "array": false},
         {"name": "questionToken", "array": false},
+        {"name": "type", "array": false},
         {"name": "members", "array": true}
       ]
     },
@@ -1545,9 +1545,9 @@
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
         {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -1556,9 +1556,9 @@
         {"name": "name", "array": false},
         {"name": "questionToken", "array": false},
         {"name": "exclamationToken", "array": false},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
         {"name": "parameters", "array": true},
+        {"name": "type", "array": false},
         {"name": "body", "array": false}
       ]
     },
@@ -1569,17 +1569,17 @@
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
         {"name": "name", "array": false},
         {"name": "questionToken", "array": false},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
-        {"name": "parameters", "array": true}
+        {"name": "parameters", "array": true},
+        {"name": "type", "array": false}
       ]
     },
     {
@@ -1975,17 +1975,17 @@
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
         {"name": "name", "array": false},
-        {"name": "type", "array": false},
         {"name": "typeParameters", "array": true},
         {"name": "parameters", "array": true},
+        {"name": "type", "array": false},
         {"name": "body", "array": false}
       ]
     },
@@ -2216,14 +2216,14 @@
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
         {"name": "name", "array": false},
-        {"name": "type", "array": false},
-        {"name": "typeParameters", "array": true}
+        {"name": "typeParameters", "array": true},
+        {"name": "type", "array": false}
       ]
     },
     {

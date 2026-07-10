@@ -42,6 +42,10 @@ pub struct OracleDiag {
     pub start: Option<u32>,
     pub length: Option<u32>,
     pub code: u32,
+    /// Which tsc pass produced the diagnostic: "syntactic" | "semantic" |
+    /// "suggestion". The --syntactic-only band keys off this.
+    #[serde(default)]
+    pub pass: Option<String>,
     pub category: String,
     pub chain: OracleMessageChain,
     #[serde(default)]
