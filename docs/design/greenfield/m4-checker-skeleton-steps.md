@@ -32,8 +32,35 @@ live.
   (target, kind) cycle stack per checker-foundations §1.2, with the
   circularity reporting pattern (2502/7022 family) at each consumer.
 - `error_at`-family helpers taking `&'static DiagnosticMessage` only.
+- GLOBAL-TYPE BOOTSTRAP (no other stage owns it; the resolvers are
+  LAZY, so the mechanism lands here and each global starts resolving
+  the moment 5.1's declared types exist — keeping 5.1's array arm and
+  5.3's apparent chain unblocked instead of inverting their
+  dependency): the initializeTypeChecker slice (88732) that binds
+  globals — `globalArrayType` (88788),
+  `globalObjectType`/`globalFunctionType`/...,
+  `globalReadonlyArrayType` (88863 — note the `|| globalArrayType`
+  fallback) — over `getGlobalType` (60663) / `getGlobalTypeSymbol`
+  (60635) / `getGlobalSymbol` (60650, a locationless resolveName) /
+  `getGlobalTypeOrUndefined` (60898), plus the deferredGlobal* memo
+  resolvers (pattern at 60679). Also materialize the init-block types
+  M3 skipped: `emptyGenericType` (47170) and `anyFunctionType` (47179
+  — intersect.rs's vacuous exclusion becomes real). noLib semantics
+  STAY the default: conformance runs WITHOUT lib files today, so
+  globals resolve only when the fixture declares them, and an
+  undeclared global falls back per `getTypeOfGlobalSymbol` (60604):
+  program-level 2318 + emptyGenericType (arity > 0) /
+  emptyObjectType. The M3 probe-world rule (apparent(primitive) =
+  emptyObjectType under noLib) is thereby the CORRECT M4 behavior,
+  not a shortcut; it changes only if/when lib loading exists.
+  Consumers this un-blocks: array `T[]` type nodes (5.1's annotate.rs
+  arm), `"x".length` (5.3's apparent chain), the excess-property
+  check's globalObjectType arm, the single-rest tuple collapse
+  `[...T[]]` → Array<T> (getTupleTargetType 61146-61148 — a live
+  M4Dependency escape in tables.rs), and the array-source relation
+  arms (66432-66438).
 
-Commit: `m4 5.0: checker state + resolution stack`.
+Commit: `m4 5.0: checker state + resolution stack + global bootstrap`.
 
 ## Stage 5.1: name resolution + symbol typing [M]
 
@@ -134,29 +161,9 @@ Commit: `m4 5.2: instantiateType + TypeMapper`.
 
 ## Stage 5.3: member resolution [M]
 
-FIRST ITEM — global-type bootstrap (nothing below resolves without
-it; no other stage owns it): the initializeTypeChecker slice (88732)
-that binds globals — `globalArrayType` (88788),
-`globalObjectType`/`globalFunctionType`/..., `globalReadonlyArrayType`
-(88863 — note the `|| globalArrayType` fallback) — over
-`getGlobalType` (60663) / `getGlobalTypeSymbol` (60635) /
-`getGlobalSymbol` (60650, a locationless resolveName) /
-`getGlobalTypeOrUndefined` (60898), plus the deferredGlobal* memo
-resolvers (pattern at 60679). Also materialize the init-block types
-M3 skipped: `emptyGenericType` (47170) and `anyFunctionType` (47179 —
-intersect.rs's vacuous exclusion becomes real). noLib semantics STAY
-the default: conformance runs WITHOUT lib files today, so globals
-resolve only when the fixture declares them, and an undeclared global
-falls back per `getTypeOfGlobalSymbol` (60604): program-level 2318 +
-emptyGenericType (arity > 0) / emptyObjectType. The M3 probe-world
-rule (apparent(primitive) = emptyObjectType under noLib) is thereby
-the CORRECT M4 behavior, not a shortcut; it changes only if/when lib
-loading exists. Consumers this un-blocks: array `T[]` type nodes
-(5.1's annotate.rs arm), `"x".length` (this stage's apparent chain),
-the excess-property check's globalObjectType arm, the single-rest
-tuple collapse `[...T[]]` → Array<T> (getTupleTargetType 61146-61148
-— a live M4Dependency escape in tables.rs), and the array-source
-relation arms (66432-66438).
+Prereq: the 5.0 global-type bootstrap — this stage's apparent chain
+(`globalStringType` for `"x".length` etc.) reads globals that 5.0's
+lazy resolvers bind.
 
 Per checker-foundations §7: `getApparentType` (59093) full chain
 (primitives → wrapper interfaces is how `"x".length` works),
@@ -227,7 +234,7 @@ getRecursionIdentity finally fire), variance-driven reference pairs
 (in/out modifier cases included), enums (un-stub
 `isEnumTypeRelatedTo` + the `enumRelation` symbol-pair map here) —
 PLUS the five other categories the pin-file header defers
-(pins/relations.toml): arrays `T[]` (5.3 bootstrap + 5.1 array arm),
+(pins/relations.toml): arrays `T[]` (5.0 bootstrap + 5.1 array arm),
 StringMapping (5.2), primitives vs objects-with-required-members
 (5.3 apparent types), tuple-to-object (5.3 tuple member synthesis),
 rest-parameter signatures (5.1's getSignatureFromDeclaration). Each

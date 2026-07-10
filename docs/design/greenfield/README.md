@@ -75,6 +75,15 @@ oracle binary is the ground truth:
 4. Every ported function gets a ledger comment at port time
    (greenfield §8): `tsc-port` name, `tsc-span`, `tsc-hash`. This is
    not optional cleanup; `xtask ledger check` (M0) enforces it.
+5. A ledger or code comment claiming an arm is unreachable/DEAD in
+   the current milestone must carry a constructibility argument (why
+   no in-scope input can reach it) or a pin that would catch the arm
+   going live. Proof this rule is load-bearing: the M3 review
+   (2026-07-11) traced four wrong verdicts to false unreachability
+   claims ("Instantiable is unconstructible" — template literals are
+   Instantiable; "non-unit source properties never discriminate" —
+   fresh literal members do), each silently converting a
+   should-be-Unsupported into a wrong verdict.
 
 ## Milestones and their steps docs
 
