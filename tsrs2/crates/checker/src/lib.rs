@@ -4,6 +4,7 @@ pub mod annotate;
 pub mod intersect;
 mod js_grammar;
 pub mod links;
+pub mod relate;
 pub mod relpin;
 pub mod state;
 

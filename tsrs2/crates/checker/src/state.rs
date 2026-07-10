@@ -12,6 +12,7 @@ use tsrs2_types::{
 };
 
 use crate::links::{LinkSlot, LinksTables};
+use crate::relate::RelationCaches;
 
 /// A query the M3 slice cannot answer yet; carries the blocking
 /// machinery's name so relpin failures read as scoping facts, not bugs.
@@ -82,6 +83,8 @@ pub struct CheckerState<'a> {
     pub links: LinksTables,
     pub signatures: Vec<Signature>,
     pub members: Vec<ResolvedMembers>,
+    /// checker-key §1.5: five per-relation caches + enumRelation.
+    pub relations: RelationCaches,
     /// greenfield §4.3: all links writes assert this is zero.
     pub speculation_depth: u32,
     /// createAnonymousType(undefined, emptySymbols, ...) (_tsc.js 47132).
@@ -103,6 +106,7 @@ impl<'a> CheckerState<'a> {
             links: LinksTables::default(),
             signatures: Vec::new(),
             members: Vec::new(),
+            relations: RelationCaches::default(),
             speculation_depth: 0,
             empty_object_type: TypeId(0),
             empty_type_literal_type: TypeId(0),
