@@ -382,11 +382,19 @@ caveat.
 
 ```
 xtask invariants --suite all
-  prefix-determinism   # check(file[..k]) prefix-agrees with check(file)
+  prefix-determinism   # scan(file[..k]) token-prefix-agrees with scan(file);
+                       # the diagnostic-level form is unsatisfiable for a
+                       # tsc-faithful parser (docs/NOTES-m1.md) — recovery
+                       # attributes errors before the cut based on later text
   idempotence          # same program twice in-process, byte-identical
   jobs-independence    # jobs 1..16 byte-identical
   encodings            # BOM/no-BOM, CRLF/LF agree modulo spans
   matrix-independence  # matrix points don't leak state across programs
+
+xtask invariants --suite prefix-conformance   # opt-in: needs the node oracle
+  # check(file[..k]) T0-syntactic-agrees with ORACLE(file[..k]) — diagnostic
+  # fidelity on truncated inputs, the strong replacement for the original
+  # diagnostic-level prefix-determinism
 ```
 
 Run on a 200-fixture rotating sample per PR; full corpus nightly.

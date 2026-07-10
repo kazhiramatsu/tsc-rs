@@ -40,7 +40,17 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
     let mut diagnostics = Vec::new();
     let mut syntactic_diagnostics = Vec::new();
 
-    for file in files {
+    // tsc host semantics: files are a name-keyed map, so a later file with
+    // the same name shadows an earlier one entirely.
+    let mut last_index_by_name = std::collections::BTreeMap::new();
+    for (index, file) in files.iter().enumerate() {
+        last_index_by_name.insert(file.name.as_str(), index);
+    }
+
+    for (index, file) in files.iter().enumerate() {
+        if last_index_by_name.get(file.name.as_str()) != Some(&index) {
+            continue;
+        }
         // tsc createProgram only loads roots with supported extensions;
         // anything else (.txt, extensionless, .js without allowJs) never
         // yields syntactic diagnostics.

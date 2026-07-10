@@ -179,6 +179,182 @@ pub fn run_empty_engine_smoke() -> usize {
         .len()
 }
 
+#[derive(Clone, Debug)]
+pub struct PrefixConformanceOptions {
+    pub workspace: PathBuf,
+    pub limit: Option<usize>,
+    pub files: Vec<PathBuf>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PrefixConformanceSummary {
+    pub fixtures: usize,
+    pub cases: usize,
+    pub mismatched_cases: usize,
+    pub mismatches: Vec<PrefixMismatch>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PrefixMismatch {
+    pub fixture: String,
+    pub matrix_key: String,
+    pub file: String,
+    pub cut: usize,
+    pub false_positive: Vec<T0Key>,
+    pub false_negative: Vec<T0Key>,
+}
+
+/// greenfield §7.6 prefix-determinism, reformulated as oracle fidelity on
+/// truncated inputs: our syntactic diagnostics for `file[..k]` must equal
+/// the tsc oracle's getSyntacticDiagnostics on the SAME truncated program.
+/// (Internal prefix-stability of diagnostics is unsatisfiable for a
+/// tsc-faithful parser; see docs/NOTES-m1.md.)
+pub fn run_prefix_conformance(
+    options: &PrefixConformanceOptions,
+) -> ConformanceResult<PrefixConformanceSummary> {
+    let fixtures = select_fixtures(&RefreshOptions {
+        workspace: options.workspace.clone(),
+        limit: options.limit,
+        files: options.files.clone(),
+    })?;
+    let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
+    let temp_root = temp_root("tsrs2-prefix-conformance");
+    if temp_root.exists() {
+        fs::remove_dir_all(&temp_root)?;
+    }
+    fs::create_dir_all(&temp_root)?;
+
+    let pool = OraclePool::new(OraclePool::default_size())?;
+    let mut cases = 0usize;
+    let mut mismatches = Vec::new();
+
+    for (fixture_index, fixture) in fixtures.iter().enumerate() {
+        let fixture_key = fixture_key(&options.workspace, fixture)?;
+        if fixture_index > 0 && fixture_index % 50 == 0 {
+            eprintln!(
+                "prefix-conformance progress: {}/{} fixtures",
+                fixture_index,
+                fixtures.len()
+            );
+        }
+        let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        for (program_index, program) in programs.iter().enumerate() {
+            for file_index in 0..program.files.len() {
+                // package.json validation diags come from tsc's module
+                // resolution (unported program machinery), so truncated
+                // .json files cannot be compared faithfully yet.
+                if program.files[file_index].name.ends_with(".json") {
+                    continue;
+                }
+                let text = base64_decode_to_string(&program.files[file_index].text_b64)?;
+                let cut = midpoint_char_boundary(&text);
+                let mut truncated = program.clone();
+                truncated.files[file_index].text_b64 = base64_encode(&text.as_bytes()[..cut]);
+
+                let out_dir = temp_root
+                    .join(fixture_index.to_string())
+                    .join(program_index.to_string())
+                    .join(file_index.to_string());
+                let paths =
+                    tsrs2_harness::write_program_jsons(std::slice::from_ref(&truncated), &out_dir)?;
+                let oracle = pool.diagnostics(&paths[0]).map_err(|err| {
+                    format!(
+                        "oracle failed for {fixture_key} [{}] prefix of {}: {err}",
+                        program.matrix_key, program.files[file_index].name
+                    )
+                })?;
+
+                let file_texts = file_texts_for_program(&truncated, &vendor_lib_dir)?;
+                let expected = t0_set(
+                    oracle
+                        .iter()
+                        .filter(|diag| diag.pass.as_deref() == Some("syntactic"))
+                        .map(|diag| GoldenDiag::from_oracle(diag, &file_texts))
+                        .collect::<Vec<_>>()
+                        .iter(),
+                );
+
+                let input_files = truncated
+                    .files
+                    .iter()
+                    .map(|file| {
+                        Ok(InputFile {
+                            name: file.name.clone(),
+                            text: base64_decode_to_string(&file.text_b64)?,
+                        })
+                    })
+                    .collect::<ConformanceResult<Vec<_>>>()?;
+                let result =
+                    check_program(&input_files, &compiler_options_from_program(&truncated));
+                let actual = t0_set(
+                    result
+                        .syntactic_diagnostics
+                        .iter()
+                        .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+                        .collect::<Vec<_>>()
+                        .iter(),
+                );
+
+                cases += 1;
+                let false_positive: Vec<T0Key> = actual.difference(&expected).cloned().collect();
+                let false_negative: Vec<T0Key> = expected.difference(&actual).cloned().collect();
+                if !false_positive.is_empty() || !false_negative.is_empty() {
+                    mismatches.push(PrefixMismatch {
+                        fixture: fixture_key.clone(),
+                        matrix_key: program.matrix_key.clone(),
+                        file: program.files[file_index].name.clone(),
+                        cut,
+                        false_positive,
+                        false_negative,
+                    });
+                }
+            }
+        }
+    }
+
+    fs::remove_dir_all(&temp_root)?;
+    Ok(PrefixConformanceSummary {
+        fixtures: fixtures.len(),
+        cases,
+        mismatched_cases: mismatches.len(),
+        mismatches,
+    })
+}
+
+/// tsc's midpoint cut rule, shared with the xtask invariants runner.
+fn midpoint_char_boundary(text: &str) -> usize {
+    let midpoint = text.len() / 2;
+    text.char_indices()
+        .map(|(index, _)| index)
+        .take_while(|index| *index <= midpoint)
+        .last()
+        .unwrap_or(0)
+}
+
+fn base64_encode(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = chunk.get(1).copied().unwrap_or(0) as u32;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as u32;
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+        out.push(ALPHABET[(triple >> 18) as usize & 0x3f] as char);
+        out.push(ALPHABET[(triple >> 12) as usize & 0x3f] as char);
+        out.push(if chunk.len() > 1 {
+            ALPHABET[(triple >> 6) as usize & 0x3f] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            ALPHABET[triple as usize & 0x3f] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
 pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<RefreshSummary> {
     let fixtures = select_fixtures(options)?;
     let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");

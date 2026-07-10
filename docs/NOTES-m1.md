@@ -47,22 +47,40 @@ slots, reparseTopLevelAwait, optional chains, 1260, JavaScriptFile
 gates, private-name messages, 1010 position — lives in the
 `m1 gate burndown 1..10` commit messages.)
 
-## prefix-determinism invariant: unsatisfiable as formulated
+## prefix-determinism invariant: reformulated (2026-07-10)
 
-`cargo xtask invariants --suite prefix-determinism` fails on
-ambient/ambientDeclarationsPatterns_merging3.ts (types.ts truncated at
-its midpoint). The invariant requires diagnostics strictly before the
-cut to be unchanged by truncation. Counterexample against tsc 6.0.3
-itself:
+The original diagnostic-level formulation (diagnostics strictly before
+a cut unchanged by truncation) is unsatisfiable for a tsc-faithful
+parser. Counterexample against tsc 6.0.3 itself:
 
 - full text `declare module "*.foo" {\r\n  export interface OhNo ... }`
   → no diagnostics before offset 36;
 - prefix `declare module "*.foo" {\r\n  export i` →
   tsc reports 1128 at 28..34 (`export`), i.e. BEFORE the cut.
 
-Recovery attributes errors to earlier tokens depending on later text,
-so a tsc-faithful parser cannot satisfy statement-level
-prefix-determinism. The scanner-level property (M1a token dumps) does
-hold. Decision needed: reformulate the invariant (e.g. token-level
-only, or compare prefix parses against the oracle's prefix parse)
-rather than weakening the parser to pass it.
+Recovery attributes errors to earlier tokens depending on later text.
+The invariant was therefore split into the two properties that DO
+hold (greenfield §7.6 updated):
+
+- **prefix-determinism** (redefined, stays in `--suite all`):
+  token-level — `scan_tokens(file[..k])` agrees with
+  `scan_tokens(file)` for tokens strictly before the cut. Pure Rust,
+  catches scanner statefulness bugs, GREEN on the standard sample.
+- **prefix-conformance** (new, opt-in — needs the node oracle):
+  our syntactic T0 diagnostics for `file[..k]` must equal the tsc
+  oracle's getSyntacticDiagnostics on the same truncated program —
+  diagnostic fidelity on truncated inputs, which is the strongest
+  honest version of the original intent. GREEN on 200-fixture
+  (299 cases) and 1000-fixture (1858 cases) samples at the M1 gate.
+  Truncated .json files are excluded: tsc's module resolution injects
+  package.json validation diagnostics (e.g. 1328 for a malformed
+  typesVersions) into parseDiagnostics — unported program machinery.
+
+The suite immediately earned its keep: the 1000-fixture run exposed
+that fixtures redefining the same @filename produce programs where
+tsc's name-keyed host map keeps only the LAST file while we checked
+all of them; check_program now applies the same later-shadows-earlier
+rule.
+
+With this, every M1 final-gate line is green except the classified
+1453 pragma residual above.
