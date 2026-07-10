@@ -71,6 +71,30 @@ intersections; `createUnionOrIntersectionProperty` (59100) incl.
 
 Commit(s): `m4 5.3a-b: apparent type + member resolution`.
 
+## Stage 5.3b: variance measurement (moved from M3 4.7) [M]
+
+Now that instantiation (5.2) + declared types (5.1) + the resolution
+stack (5.0) exist: `getVariances`/`getVariancesWorker` (67306/67312)
+for references and aliases, `createMarkerType` (67360) with the
+marker type parameters, the unmeasurable/unreliable out-of-band
+marker propagation into RelationComparisonResult, and un-stubbing the
+two M3 ledgered stubs: `relateVariances` (66488, the stage-4.6 stub)
+and recursiveTypeRelatedTo's cache-hit variance-replay branch
+(65744-65750). Prereq: add `VarianceFlags` to the M0 codegen
+`SourceEnum` seed (const enum inlined in `_tsc.js`, Ternary
+precedent) — it is not yet in types/src/flags.rs.
+
+EXTEND pins/relations.toml with the M3-deferred rows: generic
+references (mutually recursive `interface A<T> { next: B<T> }`
+pairs), deeply-expanding generics (the depth limiter +
+getRecursionIdentity finally fire), variance-driven reference pairs
+(in/out modifier cases included), enums (un-stub
+`isEnumTypeRelatedTo` + the `enumRelation` symbol-pair map here).
+`cargo xtask relpin run` green over the widened suite is part of this
+stage's exit, and stays green through the M4 gate.
+
+Commit(s): `m4 5.3b: variance + M3-deferred relation pins`.
+
 ## Stage 5.4: the check driver [M]
 
 `checkSourceFileWorker` (87003) per checker-foundations §2: the
@@ -174,6 +198,7 @@ Commit(s): `m4 5.8a-d: statements + declaration checks (+rate)`.
 
 ```sh
 cargo xtask conformance          # expect: T0 ≥ 35%
+cargo xtask relpin run           # widened suite (incl. 5.3b rows) still 0
 cargo xtask invariants --suite idempotence
 cargo xtask ledger check         # M6-stub entries are the ONLY allowed stubs
 ```

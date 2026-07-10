@@ -226,13 +226,16 @@ pub enum RelationKind { Identity, Subtype, StrictSubtype, Assignable, Comparable
 pub enum Ternary { False = 0, Unknown = 1, Maybe = 3, True = -1i8 as isize } // tsc values
 
 pub struct RelationCaches { per_relation: [HashMap<RelationKey, RelationResult>; 5] }
-// RelationKey = tsc getRelationKey: source/target ids + alias context +
-// intersection-state; RelationResult = Succeeded|Failed|…Reported flags
+// RelationKey = tsc getRelationKey (67423): source/target ids +
+// intersection-state + the generic-reference '*'-prefixed form — NO alias
+// context (alias ids key unionOfUnionTypes, not relation caches);
+// RelationResult = Succeeded|Failed|…Reported flags
 ```
 
 `check_type_related_to` ported with: maybe-stack (`maybeKeys`,
 re-check on Maybe), expanding-type depth limits
-(`isDeeplyNestedType`, recursion identity, depth 5 per side),
+(`isDeeplyNestedType` maxDepth 3 per recursion identity, hard
+recursion cut at depth 100 per side),
 `IntersectionState`, error-chain capture (§6). Public bool API wraps
 it. All five relations exist from day 1 even if Subtype call sites
 arrive later — the engine cost is identical and the retrofit cost in

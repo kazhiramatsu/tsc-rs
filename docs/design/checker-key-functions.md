@@ -89,7 +89,9 @@ Invariants:
   matters: two distinct `{}` literals are `!=` here and fall through to
   structural comparison — exactly tsc.
 - The comparable-relation reversed-simple rule appears in THREE places
-  (here, `isRelatedTo`, and `unionOrIntersectionRelatedTo`); the current
+  (here at 64773, and TWICE inside `isRelatedTo` — the entry check on
+  the ORIGINAL types at 65150 and the post-normalization check at
+  65197; none in `unionOrIntersectionRelatedTo`); the current
   tsrs has it in `related()` — keep all three when porting.
 
 ### 1.2 recursiveTypeRelatedTo — the maybe-stack — tsc 65725
