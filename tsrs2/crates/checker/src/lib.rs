@@ -1,11 +1,14 @@
 #![forbid(unsafe_code)]
 
+mod js_grammar;
+
 use tsrs2_diags::DiagnosticList;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CompilerOptions {
     /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs.
     pub allow_js: bool,
+    pub experimental_decorators: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -24,9 +27,13 @@ pub struct CheckResult {
 /// tsc getSupportedExtensions: JS roots only join the program with allowJs.
 fn is_supported_source_file_name(name: &str, allow_js: bool) -> bool {
     let ts_like = [".ts", ".tsx", ".mts", ".cts", ".json"];
-    let js_like = [".js", ".jsx", ".mjs", ".cjs"];
-    ts_like.iter().any(|extension| name.ends_with(extension))
-        || (allow_js && js_like.iter().any(|extension| name.ends_with(extension)))
+    ts_like.iter().any(|extension| name.ends_with(extension)) || (allow_js && is_js_file_name(name))
+}
+
+fn is_js_file_name(name: &str) -> bool {
+    [".js", ".jsx", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| name.ends_with(extension))
 }
 
 pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckResult {
@@ -60,6 +67,16 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
             tsrs2_syntax::ParseOptions { language_variant },
             None,
         );
+        // tsc getSyntacticDiagnosticsForFile: JS files prepend the
+        // TypeScript-only-syntax walker output to their parse diagnostics.
+        if is_js_file_name(&file.name) {
+            let js_diagnostics = js_grammar::get_js_syntactic_diagnostics(
+                &source_file,
+                options.experimental_decorators,
+            );
+            syntactic_diagnostics.extend(js_diagnostics.iter().cloned());
+            diagnostics.extend(js_diagnostics);
+        }
         syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
         diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
         diagnostics.append(&mut tsrs2_binder::bind_source_file(&source_file));
@@ -82,6 +99,36 @@ mod tests {
     fn empty_engine_returns_no_diagnostics() {
         let result = check_program(&[], &CompilerOptions::default());
         assert!(result.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn js_files_report_typescript_only_syntax() {
+        // Pins from tsc program.getSyntacticDiagnostics on an allowJs program.
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "function f(x: number): string { return \"\"; }\ninterface I { a: string }\nenum E { A }\nvar x!;\nimport eq = require(\"m\");\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                ..CompilerOptions::default()
+            },
+        );
+        let pins: Vec<(u32, u32, u32)> = result
+            .syntactic_diagnostics
+            .iter()
+            .map(|d| (d.code(), d.start.unwrap_or(0), d.length.unwrap_or(0)))
+            .collect();
+        assert_eq!(
+            pins,
+            [
+                (8010, 14, 6),
+                (8010, 23, 6),
+                (8006, 55, 1),
+                (8006, 76, 1),
+                (8002, 92, 25),
+            ]
+        );
     }
 
     #[test]

@@ -16,7 +16,7 @@ pub use for_each_child::{for_each_child, NodeLookup};
 pub use kind::SyntaxKind;
 pub use nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData};
 pub use parser::{ParseOptions, SyntaxCursor};
-pub use scanner::{scan_tokens, LanguageVariant, TokenRecord};
+pub use scanner::{scan_tokens, skip_trivia, LanguageVariant, TokenRecord};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {

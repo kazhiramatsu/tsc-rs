@@ -1807,7 +1807,7 @@ pub fn scan_tokens(text: &str, variant: LanguageVariant) -> Vec<TokenRecord> {
 
 /// tsc skipTrivia over the trivia forms this scanner produces (shebang,
 /// whitespace, line breaks, single/multi-line comments).
-pub(crate) fn skip_trivia(text: &str, start: usize) -> usize {
+pub fn skip_trivia(text: &str, start: usize) -> usize {
     let mut pos = start;
     loop {
         if pos == 0 && text.starts_with("#!") {

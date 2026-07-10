@@ -499,6 +499,7 @@ fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Compil
     };
     CompilerOptions {
         allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
+        experimental_decorators: bool_option("experimentalDecorators").unwrap_or(false),
     }
 }
 
