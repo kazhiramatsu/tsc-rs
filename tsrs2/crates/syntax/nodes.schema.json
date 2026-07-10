@@ -2269,6 +2269,7 @@
       "kindName": "TypeOperator",
       "dataName": "TypeOperatorData",
       "fields": [
+        {"name": "operator", "rustName": "operator", "type": "SyntaxKind", "optional": false, "child": false},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [

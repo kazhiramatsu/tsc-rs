@@ -3785,6 +3785,18 @@ fn seed_grammar_flag_fields(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
             optional: false,
         });
     }
+    // tsc TypeOperatorNode.operator: KeyOfKeyword | UniqueKeyword |
+    // ReadonlyKeyword — a SyntaxKind payload, not a child node. The
+    // checker consumes it (isReadonlyTypeOperator 61138 for readonly
+    // array/tuple targets, getTypeFromTypeOperatorNode dispatch).
+    nodes
+        .entry("TypeOperator".to_owned())
+        .or_default()
+        .push(DtsField {
+            name: "operator".to_owned(),
+            type_text: "SyntaxKind".to_owned(),
+            optional: false,
+        });
 }
 
 fn collect_interface_fields(

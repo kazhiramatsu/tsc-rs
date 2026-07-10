@@ -6,10 +6,10 @@ use tsrs2_syntax::NodeId;
 use tsrs2_types::SymbolFlags;
 
 pub use tsrs2_types::InternalSymbolName;
-
-/// Symbol allocation identity within one binder run.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct SymbolId(pub u32);
+/// Symbol allocation identity. Defined in tsrs2-types (ty.rs) so
+/// Type.symbol can reference symbols without a dependency cycle; the
+/// binder owns the arena and the id space.
+pub use tsrs2_types::SymbolId;
 
 /// tsc SymbolTable: ORDERED name → symbol map. Iteration order is
 /// observable (member synthesis and display order downstream), so this

@@ -1,7 +1,10 @@
 #![forbid(unsafe_code)]
 
+pub mod annotate;
 mod js_grammar;
+pub mod links;
 pub mod relpin;
+pub mod state;
 
 use tsrs2_diags::DiagnosticList;
 

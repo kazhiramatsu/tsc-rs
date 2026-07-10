@@ -1187,6 +1187,7 @@ pub struct TypeOfExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeOperatorData {
+    pub operator: SyntaxKind,
     pub r#type: Option<NodeId>,
 }
 
@@ -2458,7 +2459,10 @@ impl NodeData {
             SyntaxKind::TypeOfExpression => {
                 Self::TypeOfExpression(TypeOfExpressionData { expression: None })
             }
-            SyntaxKind::TypeOperator => Self::TypeOperator(TypeOperatorData { r#type: None }),
+            SyntaxKind::TypeOperator => Self::TypeOperator(TypeOperatorData {
+                operator: SyntaxKind::TypeOperator,
+                r#type: None,
+            }),
             SyntaxKind::TypeParameter => Self::TypeParameter(TypeParameterData {
                 modifiers: None,
                 name: None,

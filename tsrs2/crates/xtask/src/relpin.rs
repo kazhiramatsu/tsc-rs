@@ -567,11 +567,13 @@ fn parse_pins(text: &str) -> Result<Vec<Pin>, Box<dyn Error>> {
                 builder.relation = Some(match single_line_string(&value, "relation")?.as_str() {
                     "assignable" => Relation::Assignable,
                     "comparable" => Relation::Comparable,
-                    other => return Err(format!(
+                    other => {
+                        return Err(format!(
                         "line {}: relation must be \"assignable\" or \"comparable\", got {other:?}",
                         index + 1
                     )
-                    .into()),
+                        .into())
+                    }
                 });
             }
             "expect" => {

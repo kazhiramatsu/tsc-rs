@@ -17,6 +17,9 @@ pub struct CompilerOptions {
     /// through strict_option_value like tsc getStrictOptionValue.
     pub strict_null_checks: Option<bool>,
     pub strict_function_types: Option<bool>,
+    /// Selects missingType for optional properties (undefinedOrMissingType,
+    /// _tsc.js 47041).
+    pub exact_optional_property_types: Option<bool>,
     /// Consumed by bindCaseBlock (clause.fallthroughFlowNode).
     pub no_fallthrough_cases_in_switch: Option<bool>,
 }

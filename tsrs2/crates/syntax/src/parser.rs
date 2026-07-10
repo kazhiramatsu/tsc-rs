@@ -7264,15 +7264,13 @@ impl<'text> Parser<'text> {
         self.is_start_of_type(false)
     }
 
-    /// The operator token kind is recoverable from the source range; the
-    /// node data only stores the operand (same convention as
-    /// PrefixUnaryExpression).
     fn parse_type_operator(&mut self, operator: SyntaxKind) -> NodeId {
         let pos = self.node_pos();
         self.parse_expected(operator, None);
         let r#type = self.parse_type_operator_or_higher();
         self.finish_node_data(
             NodeData::TypeOperator(TypeOperatorData {
+                operator,
                 r#type: Some(r#type),
             }),
             pos,
