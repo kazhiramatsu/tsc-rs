@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod annotate;
+pub mod intersect;
 mod js_grammar;
 pub mod links;
 pub mod relpin;

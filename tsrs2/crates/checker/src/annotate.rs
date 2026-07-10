@@ -7,8 +7,8 @@
 use tsrs2_binder::{InternalSymbolName, SymbolId};
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    ElementFlags, M4Dependency, ObjectFlags, PseudoBigInt, SignatureFlags, SymbolFlags, TypeData,
-    TypeFlags, TypeId, UnionReduction,
+    ElementFlags, IntersectionFlags, M4Dependency, ObjectFlags, PseudoBigInt, SignatureFlags,
+    SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::links::LinkSlot;
@@ -249,9 +249,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3253ede7a3b7ff3f66b870ca76d327633426b9b6b5e6ca1b4b7747499cf6c744
     /// tsc-span: _tsc.js:61909-61920
     ///
-    /// The emptyTypeLiteralType/noSupertypeReduction flag computation
-    /// (61913-61916) lands with the full getIntersectionType port
-    /// (stage 4.3), which replaces the interim constructor.
+    /// Alias symbols are M4. The noSupertypeReduction flag fires for a
+    /// 2-member `{} & T` where T is string/number/bigint-flavored or a
+    /// pattern template literal (the NonNullable-style trick).
     fn get_type_from_intersection_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
@@ -264,7 +264,32 @@ impl<'a> CheckerState<'a> {
         for element in elements {
             types.push(self.get_type_from_type_node(element)?);
         }
-        let intersection = self.tables.get_intersection_type_interim(&types);
+        let empty_index = if types.len() == 2 {
+            types
+                .iter()
+                .position(|&t| t == self.empty_type_literal_type)
+        } else {
+            None
+        };
+        let t = match empty_index {
+            Some(index) => types[1 - index],
+            None => self.tables.intrinsics.unknown,
+        };
+        let no_supertype_reduction = self.tables.flags_of(t).intersects(TypeFlags::from_bits(
+            TypeFlags::STRING.bits() | TypeFlags::NUMBER.bits() | TypeFlags::BIG_INT.bits(),
+        )) || (self
+            .tables
+            .flags_of(t)
+            .intersects(TypeFlags::TEMPLATE_LITERAL)
+            && self.tables.is_pattern_literal_type(t));
+        let intersection = self.get_intersection_type(
+            &types,
+            if no_supertype_reduction {
+                IntersectionFlags::NO_SUPERTYPE_REDUCTION
+            } else {
+                IntersectionFlags::NONE
+            },
+        )?;
         self.links.set_node_resolved_type(
             self.speculation_depth,
             node,
@@ -1529,6 +1554,87 @@ mod tests {
                     .intersects(TypeFlags::TEMPLATE_LITERAL));
                 let b = annotation_type(state, "b");
                 assert_eq!(b, state.tables.get_string_literal_type("abc"));
+            },
+        );
+    }
+
+    #[test]
+    fn intersection_normalization_matches_tsc() {
+        with_state(
+            concat!(
+                "declare var a: string & number;\n",
+                "declare var b: 1 & 2;\n",
+                "declare var c: \"a\" & string;\n",
+                "declare var d: string & {};\n",
+                "declare var e: unknown & string;\n",
+                "declare var f: (\"a\" | \"b\") & string;\n",
+                "declare var g: (string | undefined) & (number | undefined);\n",
+                "declare var h: boolean & true;\n",
+                "declare var i: null & number;\n",
+            ),
+            |state| {
+                let never = state.tables.intrinsics.never;
+                // DisjointDomains: string & number = never (step 2).
+                assert_eq!(annotation_type(state, "a"), never);
+                // Unit ∧ Unit quirk: 1 & 2 = never.
+                assert_eq!(annotation_type(state, "b"), never);
+                // Supertype reduction: "a" & string = "a".
+                let c = annotation_type(state, "c");
+                assert_eq!(c, state.tables.get_string_literal_type("a"));
+                // string & {} keeps both members (noSupertypeReduction).
+                let d = annotation_type(state, "d");
+                let TypeData::Intersection { types } = &state.tables.type_of(d).data else {
+                    panic!("string & {{}} stays an intersection");
+                };
+                assert_eq!(types.len(), 2);
+                // unknown vanishes from intersections.
+                assert_eq!(annotation_type(state, "e"), state.tables.intrinsics.string);
+                // Union distribution: ("a"|"b") & string = "a" | "b".
+                let f = annotation_type(state, "f");
+                let a_lit = state.tables.get_string_literal_type("a");
+                let b_lit = state.tables.get_string_literal_type("b");
+                let expected = state
+                    .tables
+                    .get_union_type(&[a_lit, b_lit], tsrs2_types::UnionReduction::Literal);
+                assert_eq!(f, expected);
+                // The undefined pull-out: (string|undefined) & (number|undefined)
+                // = (string & number) | undefined = undefined.
+                assert_eq!(
+                    annotation_type(state, "g"),
+                    state.tables.intrinsics.undefined
+                );
+                // Cross product over the boolean primitive union.
+                assert_eq!(
+                    annotation_type(state, "h"),
+                    state.tables.intrinsics.true_regular
+                );
+                // strictNullChecks default-on: null & number is never
+                // via the nullable∧NumberLike disjoint check.
+                assert_eq!(annotation_type(state, "i"), never);
+            },
+        );
+    }
+
+    #[test]
+    fn intersections_are_insertion_order_sensitive_and_never_structural() {
+        with_state(
+            concat!(
+                "declare var a: { x: number } & { y: string };\n",
+                "declare var b: { y: string } & { x: number };\n",
+                "declare var c: { x: number } & { x: number };\n",
+            ),
+            |state| {
+                // Member order is identity: A & B differs from B & A.
+                assert_ne!(annotation_type(state, "a"), annotation_type(state, "b"));
+                // Structurally identical anonymous literals never dedup:
+                // both members survive (the typeMembershipMap is
+                // identity-keyed — the steps-doc 4.3 pin).
+                let c = annotation_type(state, "c");
+                let TypeData::Intersection { types } = &state.tables.type_of(c).data else {
+                    panic!("distinct {{x}} literals stay an intersection");
+                };
+                assert_eq!(types.len(), 2);
+                assert_ne!(types[0], types[1]);
             },
         );
     }

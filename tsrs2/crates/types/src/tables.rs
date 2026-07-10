@@ -81,6 +81,21 @@ pub enum UnionReduction {
     Subtype,
 }
 
+/// tsc IntersectionFlags (None=0, NoSupertypeReduction=1,
+/// NoConstraintReduction=2) — bit flags on getIntersectionType.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct IntersectionFlags(pub i32);
+
+impl IntersectionFlags {
+    pub const NONE: Self = Self(0);
+    pub const NO_SUPERTYPE_REDUCTION: Self = Self(1);
+    pub const NO_CONSTRAINT_REDUCTION: Self = Self(2);
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
 pub struct TypeTables {
     types: Vec<Type>,
     pub strict_null_checks: bool,
@@ -524,6 +539,18 @@ impl TypeTables {
     /// aliases; getAliasId is the empty string until then, so the
     /// unionOfUnionTypes fast-path key is `{smallerId}{infix}{largerId}`.
     pub fn get_union_type(&mut self, types: &[TypeId], reduction: UnionReduction) -> TypeId {
+        self.get_union_type_with_origin(types, reduction, None)
+    }
+
+    /// The origin-carrying getUnionType entry (the `origin` parameter
+    /// at 61505); intersection cross-product distribution passes a
+    /// denormalized intersection origin through here.
+    pub fn get_union_type_with_origin(
+        &mut self,
+        types: &[TypeId],
+        reduction: UnionReduction,
+        origin: Option<TypeId>,
+    ) -> TypeId {
         if types.is_empty() {
             return self.intrinsics.never;
         }
@@ -531,6 +558,7 @@ impl TypeTables {
             return types[0];
         }
         if types.len() == 2
+            && origin.is_none()
             && (self.flags_of(types[0]).intersects(TypeFlags::UNION)
                 || self.flags_of(types[1]).intersects(TypeFlags::UNION))
         {
@@ -548,7 +576,7 @@ impl TypeTables {
             self.union_of_union_types.insert(key, id);
             return id;
         }
-        self.get_union_type_worker(types, reduction, None)
+        self.get_union_type_worker(types, reduction, origin)
     }
 
     /// tsc-port: getUnionTypeWorker @6.0.3
@@ -879,7 +907,7 @@ impl TypeTables {
     /// typeCount); here they draw arena ids like every type — origins
     /// are never keyed by id, only by their member list, so the
     /// divergence is unobservable.
-    fn create_origin_union_or_intersection_type(
+    pub fn create_origin_union_or_intersection_type(
         &mut self,
         flags: TypeFlags,
         types: Vec<TypeId>,
@@ -1013,31 +1041,269 @@ impl TypeTables {
         }
     }
 
-    // ---- interim intersections (full getIntersectionType is 4.3) ----
+    // ---- intersections (storage + the pure 4.3 helpers; the
+    // getIntersectionType body lives in the checker because
+    // isEmptyAnonymousObjectType reads binder symbol tables) ----
 
-    /// INTERIM (stage 4.1): identity interning by member list only —
-    /// the eight-step getIntersectionType normalization (61789:
-    /// flatten/never/any absorption/DisjointDomains/supertype
-    /// reduction/union distribution) is stage 4.3. Until then the
-    /// annotation arm constructs the raw member list.
-    pub fn get_intersection_type_interim(&mut self, types: &[TypeId]) -> TypeId {
-        if types.len() == 1 {
-            return types[0];
-        }
-        let key = self.get_type_list_id(types);
-        if let Some(&id) = self.intersection_types.get(&key) {
-            return id;
-        }
+    /// tsc-port: createIntersectionType @6.0.3
+    /// tsc-hash: 56af6a3c920b516675671661232426c3194fd7375a2ef9d35d0e51997cc016ac
+    /// tsc-span: _tsc.js:61777-61788
+    ///
+    /// Alias fields are M4; intersections keep INSERTION order (the
+    /// typeMembershipMap is identity-keyed and order-preserving, so
+    /// `A & B` and `B & A` are distinct types, unlike unions).
+    pub fn create_intersection_type(
+        &mut self,
+        types: Vec<TypeId>,
+        object_flags: ObjectFlags,
+    ) -> TypeId {
+        let propagating = self.get_propagating_flags_of_types(&types, TypeFlags::NULLABLE);
         let id = self.create_type(
             TypeFlags::INTERSECTION,
             TypeData::Intersection {
-                types: types.to_vec().into_boxed_slice(),
+                types: types.into_boxed_slice(),
             },
         );
-        let object_flags = self.get_propagating_flags_of_types(types, TypeFlags::NULLABLE);
-        self.type_mut(id).object_flags = object_flags;
-        self.intersection_types.insert(key, id);
+        self.type_mut(id).object_flags =
+            ObjectFlags::from_bits(object_flags.bits() | propagating.bits());
         id
+    }
+
+    /// intersectionTypes map access for the checker-side
+    /// getIntersectionType (the map itself is tsc's 46991).
+    pub fn intersection_types_get(&self, key: &str) -> Option<TypeId> {
+        self.intersection_types.get(key).copied()
+    }
+
+    pub fn intersection_types_insert(&mut self, key: String, id: TypeId) {
+        self.intersection_types.insert(key, id);
+    }
+
+    /// tsc-port: eachUnionContains @6.0.3
+    /// tsc-hash: dd8bbe6c4f8b46240e483f5e92565e69ef3d3f801012640f7468c767851bcb05
+    /// tsc-span: _tsc.js:61697-61713
+    fn each_union_contains(&self, union_types: &[TypeId], ty: TypeId) -> bool {
+        for &union in union_types {
+            let TypeData::Union { types: members, .. } = &self.type_of(union).data else {
+                unreachable!("primitive unions are unions");
+            };
+            if contains_type(members, ty) {
+                continue;
+            }
+            if ty == self.intrinsics.missing {
+                return contains_type(members, self.intrinsics.undefined);
+            }
+            if ty == self.intrinsics.undefined {
+                return contains_type(members, self.intrinsics.missing);
+            }
+            let flags = self.flags_of(ty);
+            let primitive = if flags.intersects(TypeFlags::STRING_LITERAL) {
+                Some(self.intrinsics.string)
+            } else if flags.intersects(TypeFlags::from_bits(
+                TypeFlags::ENUM.bits() | TypeFlags::NUMBER_LITERAL.bits(),
+            )) {
+                Some(self.intrinsics.number)
+            } else if flags.intersects(TypeFlags::BIG_INT_LITERAL) {
+                Some(self.intrinsics.bigint)
+            } else if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
+                Some(self.intrinsics.es_symbol)
+            } else {
+                None
+            };
+            match primitive {
+                Some(primitive) if contains_type(members, primitive) => {}
+                _ => return false,
+            }
+        }
+        true
+    }
+
+    /// tsc-port: intersectUnionsOfPrimitiveTypes @6.0.3
+    /// tsc-hash: 3a0d9554ee46b79147e66ba642df88c96207d15f0df796034c3dbab9e17c4ccf
+    /// tsc-span: _tsc.js:61737-61776
+    pub fn intersect_unions_of_primitive_types(&mut self, types: &mut Vec<TypeId>) -> bool {
+        let Some(index) = types.iter().position(|&t| {
+            self.object_flags_of(t)
+                .intersects(ObjectFlags::PRIMITIVE_UNION)
+        }) else {
+            return false;
+        };
+        let mut union_types: Vec<TypeId> = Vec::new();
+        let mut i = index + 1;
+        while i < types.len() {
+            let t = types[i];
+            if self
+                .object_flags_of(t)
+                .intersects(ObjectFlags::PRIMITIVE_UNION)
+            {
+                if union_types.is_empty() {
+                    union_types.push(types[index]);
+                }
+                union_types.push(t);
+                types.remove(i);
+            } else {
+                i += 1;
+            }
+        }
+        if union_types.is_empty() {
+            return false;
+        }
+        let mut checked: Vec<TypeId> = Vec::new();
+        let mut result: Vec<TypeId> = Vec::new();
+        let all_members: Vec<TypeId> = union_types
+            .iter()
+            .flat_map(|&u| {
+                let TypeData::Union { types: members, .. } = &self.type_of(u).data else {
+                    unreachable!("primitive unions are unions");
+                };
+                members.to_vec()
+            })
+            .collect();
+        for t in all_members {
+            if insert_type(&mut checked, t) && self.each_union_contains(&union_types, t) {
+                if t == self.intrinsics.undefined
+                    && result.first() == Some(&self.intrinsics.missing)
+                {
+                    continue;
+                }
+                if t == self.intrinsics.missing
+                    && result.first() == Some(&self.intrinsics.undefined)
+                {
+                    result[0] = self.intrinsics.missing;
+                    continue;
+                }
+                insert_type(&mut result, t);
+            }
+        }
+        types[index] =
+            self.get_union_type_from_sorted_list(result, ObjectFlags::PRIMITIVE_UNION, None);
+        true
+    }
+
+    /// tsc-port: containsMissingType @6.0.3
+    /// tsc-hash: 7e0d6e0ae9e6bc78feeacabc1f160a8e8020b593453d55d682dd1df22ab6b6fb
+    /// tsc-span: _tsc.js:67886-67888
+    pub fn contains_missing_type(&self, ty: TypeId) -> bool {
+        if ty == self.intrinsics.missing {
+            return true;
+        }
+        if !self.flags_of(ty).intersects(TypeFlags::UNION) {
+            return false;
+        }
+        let TypeData::Union { types, .. } = &self.type_of(ty).data else {
+            unreachable!("union flag implies union data");
+        };
+        types.first() == Some(&self.intrinsics.missing)
+    }
+
+    /// tsc-port: everyType @6.0.3
+    /// tsc-hash: c4dd71e9f3d68c0f125a76cc961b9eafb0217706e0cfa0c096d2df786cc22253
+    /// tsc-span: _tsc.js:69985-69987
+    pub fn every_type(&self, ty: TypeId, f: impl Fn(&Self, TypeId) -> bool) -> bool {
+        if self.flags_of(ty).intersects(TypeFlags::UNION) {
+            let TypeData::Union { types, .. } = &self.type_of(ty).data else {
+                unreachable!("union flag implies union data");
+            };
+            types.iter().all(|&t| f(self, t))
+        } else {
+            f(self, ty)
+        }
+    }
+
+    /// tsc-port: filterType @6.0.3
+    /// tsc-hash: acc1fb95f1d693ec174389f71c5609dca06afa6c24c05435dfab03b4dae827f4
+    /// tsc-span: _tsc.js:69991-70021
+    pub fn filter_type(&mut self, ty: TypeId, f: impl Fn(&Self, TypeId) -> bool) -> TypeId {
+        if self.flags_of(ty).intersects(TypeFlags::UNION) {
+            let TypeData::Union { types, origin } = self.type_of(ty).data.clone() else {
+                unreachable!("union flag implies union data");
+            };
+            let filtered: Vec<TypeId> = types.iter().copied().filter(|&t| f(self, t)).collect();
+            if filtered.len() == types.len() {
+                return ty;
+            }
+            let mut new_origin = None;
+            if let Some(origin) = origin {
+                if self.flags_of(origin).intersects(TypeFlags::UNION) {
+                    let TypeData::Union {
+                        types: origin_types,
+                        ..
+                    } = self.type_of(origin).data.clone()
+                    else {
+                        unreachable!("union origin with union flag has union data");
+                    };
+                    let origin_filtered: Vec<TypeId> = origin_types
+                        .iter()
+                        .copied()
+                        .filter(|&t| self.flags_of(t).intersects(TypeFlags::UNION) || f(self, t))
+                        .collect();
+                    if origin_types.len() - origin_filtered.len() == types.len() - filtered.len() {
+                        if origin_filtered.len() == 1 {
+                            return origin_filtered[0];
+                        }
+                        new_origin = Some(self.create_origin_union_or_intersection_type(
+                            TypeFlags::UNION,
+                            origin_filtered,
+                        ));
+                    }
+                }
+            }
+            let object_flags = ObjectFlags::from_bits(
+                self.object_flags_of(ty).bits()
+                    & (ObjectFlags::PRIMITIVE_UNION.bits()
+                        | ObjectFlags::CONTAINS_INTERSECTIONS.bits()),
+            );
+            return self.get_union_type_from_sorted_list(filtered, object_flags, new_origin);
+        }
+        if self.flags_of(ty).intersects(TypeFlags::NEVER) || f(self, ty) {
+            ty
+        } else {
+            self.intrinsics.never
+        }
+    }
+
+    /// tsc-port: removeFromEach @6.0.3
+    /// tsc-hash: ad294a4d1ee7064aac25b0e83ddceca1d8b633837436f1dad73006e6d47c664e
+    /// tsc-span: _tsc.js:61732-61736
+    pub fn remove_from_each(&mut self, types: &mut [TypeId], flag: TypeFlags) {
+        for slot in types.iter_mut() {
+            *slot = self.filter_type(*slot, |tables, t| !tables.flags_of(t).intersects(flag));
+        }
+    }
+
+    /// tsc-port: getConstituentCount @6.0.3
+    /// tsc-hash: a54c64b0add33c0e6883bba90b310d201745020bff8dfced0f04954d8ba10173
+    /// tsc-span: _tsc.js:61903-61905
+    ///
+    /// tsc-port: getConstituentCountOfTypes @6.0.3
+    /// tsc-hash: eaad3a531103f2cdc19e9e6a682df9bb69d718812ee0315221c3adfbfe475f35
+    /// tsc-span: _tsc.js:61906-61908
+    pub fn get_constituent_count(&self, ty: TypeId) -> usize {
+        let flags = self.flags_of(ty);
+        if !flags.intersects(TypeFlags::UNION_OR_INTERSECTION)
+            || self.type_of(ty).alias_symbol.is_some()
+        {
+            return 1;
+        }
+        if flags.intersects(TypeFlags::UNION) {
+            if let TypeData::Union {
+                origin: Some(origin),
+                ..
+            } = &self.type_of(ty).data
+            {
+                return self.get_constituent_count(*origin);
+            }
+        }
+        let (TypeData::Union { types, .. } | TypeData::Intersection { types }) =
+            &self.type_of(ty).data
+        else {
+            unreachable!("union/intersection flag implies member data");
+        };
+        self.get_constituent_count_of_types(types)
+    }
+
+    pub fn get_constituent_count_of_types(&self, types: &[TypeId]) -> usize {
+        types.iter().map(|&t| self.get_constituent_count(t)).sum()
     }
 
     // ---- references ----
