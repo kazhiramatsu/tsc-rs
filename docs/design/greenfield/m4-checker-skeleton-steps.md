@@ -1,8 +1,8 @@
 # M4: checker skeleton — expressions + statements, declared types — steps
 
-Parent design: checker-foundations.md §1-§7 (this milestone IS that
-doc, sequenced); checker-key-functions.md §3 (resolveCall, ported here
-with inference stubbed). Prerequisite: M3 gate green.
+Parent design: ../checker-foundations.md §1-§7 (this milestone IS
+that doc, sequenced); ../checker-key-functions.md §3 (resolveCall,
+ported here with inference stubbed). Prerequisite: M3 gate green.
 
 Scope rule (greenfield §12): everything EXCEPT flow narrowing (M5)
 and type-argument inference (M6). An identifier's type is its
@@ -14,11 +14,20 @@ From this milestone on, run `cargo xtask conformance` after EVERY
 stage and record the rate in the commit body; the ratchet activates
 at the first stage that produces diagnostics.
 
+Ledger rule (M3 review lesson — four wrong verdicts traced to false
+unreachability claims): any ledger comment declaring an arm
+unreachable/DEAD in the current milestone must cite a
+constructibility argument or a pin that would catch the arm going
+live.
+
 ## Stage 5.0: checker state + the resolution spine [M]
 
-- Checker struct: files, options, binder output, type tables, links
-  tables, diags sink, and `speculation_depth` (greenfield §4.3 — all
-  links writes assert it is 0 or route through a transaction).
+- EXTEND the existing `CheckerState` (checker/src/state.rs — M3
+  built it; it already carries binder/options/tables/links/relations/
+  `speculation_depth`; do NOT create a second struct): add files, the
+  diags sink, and the resolution machinery below (greenfield §4.3 —
+  all links writes assert speculation_depth is 0 or route through a
+  transaction).
 - `pushTypeResolution`/`popTypeResolution` (55728) + the
   (target, kind) cycle stack per checker-foundations §1.2, with the
   circularity reporting pattern (2502/7022 family) at each consumer.
@@ -52,6 +61,34 @@ Commit: `m4 5.0: checker state + resolution stack`.
   but prefer porting them now if the corpus rate demands.
   Template-literal types are NOT in that stub list: M3 4.1 already
   builds them (relation arms + pins are live).
+- `resolveEntityName` (49292) for qualified type names — the M3
+  annotation slice takes plain identifiers only; its qualified-name
+  arm is a live Unsupported in annotate.rs.
+- Generic type-ALIAS instantiation: `getTypeAliasInstantiation`
+  (60261) on the type-reference path (consumes 5.2's instantiateType
+  — same forward-dependency discipline as the note below). The
+  "(M4 5.1)" markers in annotate.rs/structural.rs/unions.rs point
+  here, and M6 7.2's string-mapping arm assumes it exists.
+- REST-PARAMETER SIGNATURES: the full `getSignatureFromDeclaration`
+  (59569) port, superseding the M3 annotation-only slice — rest
+  params are signature construction, not relation work; landing this
+  retires the five live Unsupported arms in the arity-helper family
+  (getTypeAtPosition/getParameterCount/getMinArgumentCount/
+  hasEffectiveRestParameter, 78233-78341).
+- Type parameters become CONSTRUCTIBLE here, so in the SAME commit:
+  un-stub the union-side `removeConstrainedTypeVariables` (61450,
+  called from getUnionTypeWorker at 61551) AND getIntersectionType's
+  step-6 type-variable collapse (61821-61839, checker-foundations
+  §4.2 step 6 — the intersect.rs arm returns Unsupported today), and
+  remove the twin `unreachable!()` guards (unions.rs + the tables
+  twin) that panic the moment a constrained type variable reaches
+  union construction. Neither is scheduled anywhere else.
+- TWIN RULE (invariant from here on): ALL checker-side union
+  construction routes through the checker twin `get_union_type_ex`
+  (unions.rs), NEVER `tables.get_union_type` — only the checker twin
+  runs the relation-dependent reductions
+  (`removeStringLiteralsMatchedByTemplateLiterals` 61434, subtype
+  reduction).
 
 FORWARD-DEPENDENCY NOTE (the compile-order reality): 5.1's bodies
 call machinery from later stages — initializer typing → checkExpression
@@ -85,9 +122,41 @@ member tables and 5.7's explicit type arguments consume them.
 checkExpression, checkSourceElement, checkDeferredNode (wired in
 stages 5.4 + 5.5).
 
+StringMapping goes LIVE here: `getStringMappingType` (62119) +
+`getStringMappingTypeForGenericType` (62154). `Uppercase<...>` etc.
+are intrinsic ALIAS references (5.1's getTypeAliasInstantiation
+routes them); landing these flips the M3-DEAD StringMapping relation
+arms live (the "(M4 5.2)" Unsupported markers in structural.rs and
+unions.rs, plus tables.rs isPatternLiteralType's dead arm). Pin rows
+land in 5.3b.
+
 Commit: `m4 5.2: instantiateType + TypeMapper`.
 
 ## Stage 5.3: member resolution [M]
+
+FIRST ITEM — global-type bootstrap (nothing below resolves without
+it; no other stage owns it): the initializeTypeChecker slice (88732)
+that binds globals — `globalArrayType` (88788),
+`globalObjectType`/`globalFunctionType`/..., `globalReadonlyArrayType`
+(88863 — note the `|| globalArrayType` fallback) — over
+`getGlobalType` (60663) / `getGlobalTypeSymbol` (60635) /
+`getGlobalSymbol` (60650, a locationless resolveName) /
+`getGlobalTypeOrUndefined` (60898), plus the deferredGlobal* memo
+resolvers (pattern at 60679). Also materialize the init-block types
+M3 skipped: `emptyGenericType` (47170) and `anyFunctionType` (47179 —
+intersect.rs's vacuous exclusion becomes real). noLib semantics STAY
+the default: conformance runs WITHOUT lib files today, so globals
+resolve only when the fixture declares them, and an undeclared global
+falls back per `getTypeOfGlobalSymbol` (60604): program-level 2318 +
+emptyGenericType (arity > 0) / emptyObjectType. The M3 probe-world
+rule (apparent(primitive) = emptyObjectType under noLib) is thereby
+the CORRECT M4 behavior, not a shortcut; it changes only if/when lib
+loading exists. Consumers this un-blocks: array `T[]` type nodes
+(5.1's annotate.rs arm), `"x".length` (this stage's apparent chain),
+the excess-property check's globalObjectType arm, the single-rest
+tuple collapse `[...T[]]` → Array<T> (getTupleTargetType 61146-61148
+— a live M4Dependency escape in tables.rs), and the array-source
+relation arms (66432-66438).
 
 Per checker-foundations §7: `getApparentType` (59093) full chain
 (primitives → wrapper interfaces is how `"x".length` works),
@@ -101,6 +170,22 @@ intersections; `createUnionOrIntersectionProperty` (59101) incl.
 `getTargetSymbol` identity for nominal private/protected;
 `getPropertyOfType`, index-info lookup, `getReducedApparentType`
 (59098, checker-foundations §4.3).
+
+Union MEMBER synthesis is this stage's work too:
+`resolveUnionTypeMembers` (58224) with `getUnionSignatures` (58055) +
+`getUnionIndexInfos` (58210) — retires structural.rs's two live
+"(M4)" Unsupported arms (union signature / union index-info
+resolution). So is TUPLE member synthesis: the per-index/`length`
+property synthesis (61160-61185) that M3's createTupleTargetType port
+elided, and `createNormalizedTupleType`'s (61213) M4Dependency
+escapes in tables.rs — union/never variadic distribution, array-like
+variadic elements, variadic-in-rest-window, and the 2799/2800
+tuple-too-large diag site (61240-61246). Late-bound computed-name
+members: `lateBindMember` (57662) /
+`getResolvedMembersOrExportsOfSymbol` (57712) + the late-bindable
+index-signature arm (60018-60049; annotate.rs and engine.rs carry
+live Unsupported arms) — port here, or re-mark those arms
+`/// M7-stub` explicitly if the corpus rate doesn't demand them.
 
 UN-STUB the M3 normalization stubs here (they were ledgered against
 this stage): `getReducedType` (59287, real discriminant reduction),
@@ -116,11 +201,17 @@ Now that instantiation (5.2) + declared types (5.1) + the resolution
 stack (5.0) exist: `getVariances`/`getVariancesWorker` (67306/67312)
 for references and aliases, `createMarkerType` (67360) with the
 marker type parameters, the unmeasurable/unreliable out-of-band
-marker propagation into RelationComparisonResult, and un-stubbing the
-two M3 ledgered stubs: `relateVariances` (66488, the stage-4.6 stub)
-and recursiveTypeRelatedTo's cache-hit variance-replay branch
-(65744-65750). Prereq: add `VarianceFlags` to the M0 codegen
-`SourceEnum` seed (const enum inlined in `_tsc.js`, Ternary
+marker propagation into RelationComparisonResult. AS-LANDED
+CORRECTION (supersedes "un-stub the two M3 ledgered stubs"): M3 left
+NO relateVariances stub — the whole reference arm (66420-66431) is
+comment-elided in structural.rs, so port `relateVariances` (66488)
+and its call-site arm FRESH. And the cache-hit variance-replay branch
+(65738-65750) needs more than un-stubbing: EXTEND the relation-cache
+entry format to persist the ReportsUnmeasurable/ReportsUnreliable
+bits — the M3 engine's cache writes store SUCCEEDED/FAILED only,
+while tsc accumulates `propagatingVarianceFlags` (65804-65808) into
+every write (65853, 65865). Prereq: add `VarianceFlags` to the M0
+codegen `SourceEnum` seed (const enum inlined in `_tsc.js`, Ternary
 precedent) — it is not yet in types/src/flags.rs. Add the OTHER
 inlined const enums M4 consumes in the same codegen commit, none of
 which are in flags.rs today: `TypeSystemPropertyName` (5.0
@@ -134,9 +225,16 @@ references (mutually recursive `interface A<T> { next: B<T> }`
 pairs), deeply-expanding generics (the depth limiter +
 getRecursionIdentity finally fire), variance-driven reference pairs
 (in/out modifier cases included), enums (un-stub
-`isEnumTypeRelatedTo` + the `enumRelation` symbol-pair map here).
-`cargo xtask relpin run` green over the widened suite is part of this
-stage's exit, and stays green through the M4 gate.
+`isEnumTypeRelatedTo` + the `enumRelation` symbol-pair map here) —
+PLUS the five other categories the pin-file header defers
+(pins/relations.toml): arrays `T[]` (5.3 bootstrap + 5.1 array arm),
+StringMapping (5.2), primitives vs objects-with-required-members
+(5.3 apparent types), tuple-to-object (5.3 tuple member synthesis),
+rest-parameter signatures (5.1's getSignatureFromDeclaration). Each
+row lands with the stage that makes it constructible; ALL are green
+by this stage's exit. `cargo xtask relpin run` green over the widened
+suite is part of this stage's exit, and stays green through the M4
+gate.
 
 Commit(s): `m4 5.3b: variance + M3-deferred relation pins`.
 
@@ -176,7 +274,8 @@ when strictNullChecks is off) → assertions/as/satisfies →
 template expressions → unary/binary operators (the operator table:
 arithmetic 2362/2363, comparison via comparable relation, equality,
 in/instanceof, logical, assignment incl. 2322 reporting +
-`getRegularTypeOfObjectLiteral` at assignment positions). BINARY
+`getRegularTypeOfObjectLiteral` at assignment positions — 5.6 owns
+that port, this stage only calls it). BINARY
 EXPRESSIONS ARE A STATE MACHINE: tsc checks them with an explicit
 work-stack trampoline (`createCheckBinaryExpression` 79810, wired as
 `var checkBinaryExpression = ...` at 46480) precisely for deep
@@ -270,16 +369,41 @@ relation, 2717).
 
 Commit(s): `m4 5.8a-d: statements + declaration checks (+rate)`.
 
+## Unsupported channel in M4
+
+The CheckResult2/Unsupported channel STAYS through M4 — it is the
+probe/conformance escape valve; retiring it is not an M4 goal. The
+gate rule: every arm currently marked plain "(M4)" is either
+implemented by its owning stage or re-marked with an explicit
+M5/M6/M7/M8-stub class by gate time. The previously-unowned arms and
+their owners (details in the owning stages):
+
+- rest-parameter signatures (five Unsupported arms in structural.rs's
+  arity-helper family, 78233-78341) → 5.1
+  (`getSignatureFromDeclaration` 59569).
+- union signature synthesis + union index-info synthesis
+  (structural.rs) → 5.3 (`resolveUnionTypeMembers` 58224).
+- late-bound computed-name members (annotate.rs/engine.rs) → 5.3, or
+  an explicit M7-stub marker (stage 5.3's item decides).
+- qualified type names (annotate.rs) → 5.1 (`resolveEntityName`
+  49292).
+
 ## Final gate
 
 ```sh
 cargo xtask conformance          # expect: T0 ≥ 35%
 cargo xtask relpin run           # widened suite (incl. 5.3b rows) still 0
 cargo xtask invariants --suite idempotence
-cargo xtask ledger check         # allowed residual stubs, by class:
+cargo xtask ledger check         # span/hash freshness only — it has
+                                 # NO stub-class support
+grep -rn "M[5-8]-stub" crates/   # the stub audit is MANUAL (optional
+                                 # xtask work: a `ledger check --stubs`
+                                 # mode). Allowed residual classes:
                                  #   M5-stub  (flow: get_flow_type_of_reference_stub,
                                  #             non-null TypeFacts identity filter)
                                  #   M6-stub  (inference surfaces per 5.7)
+                                 #   M7-stub  (late-bound members, only if 5.3
+                                 #             took that option)
                                  #   M8-stub  (conditional/mapped type nodes per 5.1)
                                  # nothing else — M3's normalization stubs
                                  # must be GONE (un-stubbed in 5.3)

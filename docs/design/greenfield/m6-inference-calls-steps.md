@@ -159,7 +159,13 @@ tuple/array element inference in literals, generic
 constructor/`new` inference, tagged templates, JSX element type
 resolution's call path, `satisfies` interplay, and the
 2769 failure-path candidate choice (getCandidateForOverloadFailure
-with real instantiated candidates). Re-probe the M4 NOTES top-10
+with real instantiated candidates). Also owned here (the M3 code
+markers say M6; no other milestone schedules them): full-radix
+`parsePseudoBigInt` (18909 — M3 ported the decimal slice only,
+annotate.rs) and `isValidBigIntString` (18973) for bigint
+template-literal placeholders
+(isValidTypeForTemplateLiteralPlaceholder's bigint arm is a live
+Unsupported in structural.rs). Re-probe the M4 NOTES top-10
 list; retire entries this milestone fixed.
 
 Commit: `m6 7.5: inference consumers (+rate)`.
