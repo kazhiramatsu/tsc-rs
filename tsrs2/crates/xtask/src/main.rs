@@ -14,6 +14,8 @@ use sha2::{Digest, Sha256};
 use tsrs2_checker::{CompilerOptions, InputFile};
 use tsrs2_diags::DiagnosticList;
 
+mod symbol_audit;
+
 fn main() {
     let mut args = std::env::args().skip(1);
     let command = args.next();
@@ -25,6 +27,7 @@ fn main() {
         Some("token-diff") => run_or_exit(token_diff(args)),
         Some("ast-dump") => run_or_exit(ast_dump(args)),
         Some("ast-diff") => run_or_exit(ast_diff(args)),
+        Some("symbol-diff") => run_or_exit(symbol_diff(args)),
         Some("parse-diags") => run_or_exit(parse_diags(args)),
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
@@ -540,6 +543,343 @@ struct AstDumpResult {
     dump: String,
     #[serde(rename = "parseErrors")]
     parse_errors: usize,
+}
+
+/// m2-binder-steps.md stage 3.0: compare the Rust symbol audit against
+/// oracle symbol-dump.mjs, program.json by program.json. The audit is a
+/// TS-only SPOT check: .js/.jsx/.json program files are skipped (the JS
+/// special-assignment symbol bodies land in stage 3.4), and files with
+/// parse errors on either side are excluded like ast-diff.
+fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut fixtures: Vec<PathBuf> = Vec::new();
+    let mut sample: Option<usize> = None;
+    let mut limit: Option<usize> = None;
+    let mut positions_only = false;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--sample" => {
+                let value = args.next().ok_or("missing value after --sample")?;
+                sample = Some(value.parse()?);
+            }
+            "--limit" => {
+                let value = args.next().ok_or("missing value after --limit")?;
+                limit = Some(value.parse()?);
+            }
+            // Walk-parity mode: compare only the pos/end columns, so the
+            // audit WALK mirror is verifiable before the binder exists.
+            "--positions-only" => positions_only = true,
+            _ => fixtures.push(PathBuf::from(arg)),
+        }
+    }
+
+    let workspace = find_tsrs2_root()?;
+    let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+    if let Some(sample) = sample {
+        if !fixtures.is_empty() {
+            return Err("--sample and explicit fixture paths are mutually exclusive".into());
+        }
+        let mut corpus =
+            collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?;
+        corpus.sort();
+        // Deterministic stride sample across the sorted corpus.
+        let count = sample.min(corpus.len());
+        for index in 0..count {
+            fixtures.push(corpus[index * corpus.len() / count].clone());
+        }
+    }
+    if fixtures.is_empty() {
+        return Err("symbol-diff requires fixture paths or --sample N".into());
+    }
+    fixtures.sort();
+    if let Some(limit) = limit {
+        fixtures.truncate(limit);
+    }
+
+    let temp_root = std::env::temp_dir().join(format!("tsrs2-symbol-diff-{}", std::process::id()));
+    if temp_root.exists() {
+        fs::remove_dir_all(&temp_root)?;
+    }
+    fs::create_dir_all(&temp_root)?;
+
+    let mut oracle = SymbolDumpOracle::spawn(&workspace)?;
+    let mut programs = 0usize;
+    let mut compared = 0usize;
+    let mut excluded = 0usize;
+    let mut skipped_non_ts = 0usize;
+    let mut differing = 0usize;
+    let mut failures = String::new();
+
+    for (fixture_index, fixture) in fixtures.iter().enumerate() {
+        let expanded = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let out_dir = temp_root.join(fixture_index.to_string());
+        let paths = tsrs2_harness::write_program_jsons(&expanded, &out_dir)?;
+        for (program, path) in expanded.iter().zip(&paths) {
+            programs += 1;
+            let oracle_files = oracle.symbol_dump(path)?;
+            let rust_files = rust_symbol_dump(program)?;
+            if oracle_files.len() != rust_files.len() {
+                return Err(format!(
+                    "symbol dump file-count mismatch for {}: oracle {} vs tsrs {}",
+                    path.display(),
+                    oracle_files.len(),
+                    rust_files.len()
+                )
+                .into());
+            }
+            for (oracle_file, rust_file) in oracle_files.iter().zip(&rust_files) {
+                let Some(rust_file) = rust_file else {
+                    skipped_non_ts += 1;
+                    continue;
+                };
+                if oracle_file.parse_errors > 0 || rust_file.parse_errors > 0 {
+                    excluded += 1;
+                    continue;
+                }
+                compared += 1;
+                let project = |lines: &[String]| -> String {
+                    if positions_only {
+                        lines
+                            .iter()
+                            .map(|line| {
+                                line.splitn(3, '\t').take(2).collect::<Vec<_>>().join("\t")
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    } else {
+                        lines.join("\n")
+                    }
+                };
+                let oracle_dump = project(&oracle_file.lines);
+                let rust_dump = project(&rust_file.lines);
+                if !oracle_file.in_program || oracle_dump != rust_dump {
+                    differing += 1;
+                    let (line, left, right) = first_diff(&rust_dump, &oracle_dump);
+                    let entry = format!(
+                        "diff {} [{}] {} line {}:\n  tsrs:   {}\n  oracle: {}",
+                        fixture.display(),
+                        program.matrix_key,
+                        rust_file.name,
+                        line,
+                        left.unwrap_or("<missing>"),
+                        if oracle_file.in_program {
+                            right.unwrap_or("<missing>")
+                        } else {
+                            "<file not in oracle program>"
+                        }
+                    );
+                    if differing <= 10 {
+                        println!("{entry}");
+                    }
+                    failures.push_str(&entry);
+                    failures.push('\n');
+                }
+            }
+        }
+    }
+
+    fs::remove_dir_all(&temp_root)?;
+    let failures_path = workspace.join("target/symbol-diff-failures.txt");
+    if let Some(parent) = failures_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&failures_path, &failures)?;
+
+    println!(
+        "symbol diff: fixtures={} programs={} compared={} excluded={} skipped-non-ts={} differing={}",
+        fixtures.len(),
+        programs,
+        compared,
+        excluded,
+        skipped_non_ts,
+        differing
+    );
+    println!("failures: {}", failures_path.display());
+    if differing > 0 {
+        return Err(
+            format!("symbol diff failed: {differing}/{compared} compared files differ").into(),
+        );
+    }
+    Ok(())
+}
+
+fn rust_symbol_dump(
+    program: &tsrs2_harness::ProgramJson,
+) -> Result<Vec<Option<symbol_audit::FileAudit>>, Box<dyn Error>> {
+    // tsc host semantics: files are a name-keyed map, so a later file with
+    // the same name shadows an earlier one entirely.
+    let mut last_text_b64: BTreeMap<&str, &str> = BTreeMap::new();
+    for file in &program.files {
+        last_text_b64.insert(file.name.as_str(), file.text_b64.as_str());
+    }
+
+    let mut out = Vec::with_capacity(program.files.len());
+    for file in &program.files {
+        if !is_ts_like_file_name(&file.name) {
+            out.push(None);
+            continue;
+        }
+        let bytes = BASE64.decode(last_text_b64[file.name.as_str()])?;
+        let text = String::from_utf8(bytes)?;
+        let language_variant = if file.name.ends_with(".tsx") {
+            tsrs2_syntax::LanguageVariant::Jsx
+        } else {
+            tsrs2_syntax::LanguageVariant::Standard
+        };
+        let source = tsrs2_syntax::parse_source_file(
+            file.name.clone(),
+            text,
+            tsrs2_syntax::ParseOptions {
+                language_variant,
+                javascript_file: false,
+            },
+            None,
+        );
+        out.push(Some(symbol_audit::FileAudit {
+            name: file.name.clone(),
+            parse_errors: source.parse_diagnostics.len(),
+            lines: symbol_audit::audit_source_file(&source),
+        }));
+    }
+    Ok(out)
+}
+
+/// TS-only audit carve-out (m2-binder-steps.md stage 3.4): .js and .json
+/// program files stay out of the audit until the JS special-assignment
+/// symbol bodies land.
+fn is_ts_like_file_name(name: &str) -> bool {
+    [".ts", ".tsx", ".mts", ".cts"]
+        .iter()
+        .any(|extension| name.ends_with(extension))
+}
+
+struct SymbolDumpOracle {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+    next_id: u64,
+}
+
+impl SymbolDumpOracle {
+    fn spawn(workspace: &Path) -> Result<Self, Box<dyn Error>> {
+        let mut child = Command::new("node")
+            .arg(workspace.join("crates/oracle/symbol-dump.mjs"))
+            .arg("--server-jsonl")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or("symbol dump oracle stdin unavailable")?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or("symbol dump oracle stdout unavailable")?;
+
+        Ok(Self {
+            child,
+            stdin,
+            stdout: BufReader::new(stdout),
+            next_id: 1,
+        })
+    }
+
+    fn symbol_dump(
+        &mut self,
+        program_json: &Path,
+    ) -> Result<Vec<OracleFileAudit>, Box<dyn Error>> {
+        let id = self.next_id;
+        self.next_id += 1;
+        let request = serde_json::to_string(&SymbolDumpRequest {
+            id,
+            program_json_path: &program_json.display().to_string(),
+        })?;
+        writeln!(self.stdin, "{request}")?;
+        self.stdin.flush()?;
+
+        let mut line = String::new();
+        let read = self.stdout.read_line(&mut line)?;
+        if read == 0 {
+            return Err(format!(
+                "oracle symbol dump worker exited without a response for {}",
+                program_json.display()
+            )
+            .into());
+        }
+
+        let response: SymbolDumpResponse = serde_json::from_str(&line)?;
+        if response.id != Some(id) {
+            return Err(format!(
+                "oracle symbol dump response id mismatch for {}: expected {id}, got {}{}",
+                program_json.display(),
+                response
+                    .id
+                    .map(|id| id.to_string())
+                    .unwrap_or_else(|| "null".to_owned()),
+                response
+                    .error
+                    .as_deref()
+                    .map(|error| format!(": {error}"))
+                    .unwrap_or_default()
+            )
+            .into());
+        }
+        if !response.ok {
+            return Err(format!(
+                "oracle symbol dump failed for {}: {}",
+                program_json.display(),
+                response.error.unwrap_or_else(|| "unknown error".to_owned())
+            )
+            .into());
+        }
+        let result = response.result.ok_or_else(|| {
+            format!(
+                "oracle symbol dump response missing result for {}",
+                program_json.display()
+            )
+        })?;
+        Ok(result.files)
+    }
+}
+
+impl Drop for SymbolDumpOracle {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct SymbolDumpRequest<'path> {
+    id: u64,
+    #[serde(rename = "programJsonPath")]
+    program_json_path: &'path str,
+}
+
+#[derive(Debug, Deserialize)]
+struct SymbolDumpResponse {
+    id: Option<u64>,
+    ok: bool,
+    result: Option<SymbolDumpResult>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SymbolDumpResult {
+    files: Vec<OracleFileAudit>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OracleFileAudit {
+    #[allow(dead_code)]
+    name: String,
+    #[serde(rename = "inProgram")]
+    in_program: bool,
+    #[serde(rename = "parseErrors")]
+    parse_errors: usize,
+    lines: Vec<String>,
 }
 
 struct TokenDumpOracle {

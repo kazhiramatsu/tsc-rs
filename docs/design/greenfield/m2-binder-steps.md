@@ -25,6 +25,18 @@ symbol summary the Rust side can reproduce —
 check (top-level + one nesting level), not full parity — full parity
 is what the conformance metric measures indirectly from M4 on.
 
+Landed shape (2026-07-10): the walk contract lives in
+`crates/oracle/symbol-dump.mjs` + `crates/xtask/src/symbol_audit.rs`
+(mirrored, documented in both headers); line format
+`pos \t end \t escapedName \t flags \t decls \t members \t exports`
+with pos/end in UTF-16. `--sample N` stride-samples the corpus,
+`--positions-only` compares just the pos/end columns so the WALK
+mirror is gate-able before the binder exists — green at 300
+fixtures/743 files. Files with parse errors on either side are
+excluded (ast-diff convention); .js/.json program files are skipped
+(the stage-3.4 TS-only carve-out). driver.mjs's program host moved to
+the shared `program-host.mjs` for reuse.
+
 Commit: `m2 3.0: symbol audit harness`.
 
 ## Stage 3.1: Symbol model + name escaping [M]
