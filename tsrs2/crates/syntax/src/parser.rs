@@ -270,7 +270,24 @@ impl<'text> Parser<'text> {
         self.scanner.token()
     }
 
+    /// tsc nextToken: a keyword consumed in keyword position may not contain
+    /// escapes; identifier consumption (createIdentifier) bypasses the check
+    /// via next_token_without_check.
     fn next_token(&mut self) -> SyntaxKind {
+        if is_keyword(self.token())
+            && (self.scanner.has_unicode_escape() || self.scanner.has_extended_unicode_escape())
+        {
+            self.parse_error_at(
+                self.scanner.token_start(),
+                self.scanner.pos(),
+                &gen::Keywords_cannot_contain_escape_characters,
+                &[],
+            );
+        }
+        self.next_token_without_check()
+    }
+
+    fn next_token_without_check(&mut self) -> SyntaxKind {
         let token = self.scanner.scan();
         self.drain_scanner_errors();
         token
@@ -3106,7 +3123,7 @@ impl<'text> Parser<'text> {
             end,
             NodeFlags::NONE,
         );
-        self.next_token();
+        self.next_token_without_check();
         self.finish_node_at(id, pos, end)
     }
 
@@ -3123,7 +3140,7 @@ impl<'text> Parser<'text> {
             end,
             NodeFlags::NONE,
         );
-        self.next_token();
+        self.next_token_without_check();
         self.finish_node_at(id, pos, end)
     }
 
@@ -4899,7 +4916,9 @@ impl<'text> Parser<'text> {
                 && self.is_start_of_optional_property_or_element_access_chain()
             {
                 question_dot_token = self.parse_optional_token(SyntaxKind::QuestionDotToken);
-                self.is_identifier()
+                // tsc: `?.` followed by identifier, keyword, or private name.
+                token_is_identifier_or_keyword(self.token())
+                    || self.token() == SyntaxKind::PrivateIdentifier
             } else {
                 self.parse_optional(SyntaxKind::DotToken)
             };
@@ -4989,7 +5008,9 @@ impl<'text> Parser<'text> {
                     (expression, None)
                 };
                 let arguments = self.parse_argument_list();
-                expression = self.finish_node_data(
+                let is_optional_chain =
+                    question_dot_token.is_some() || self.try_reparse_optional_chain(callee);
+                expression = self.finish_node_with_flags(
                     NodeData::CallExpression(CallExpressionData {
                         expression: Some(callee),
                         question_dot_token,
@@ -4997,6 +5018,7 @@ impl<'text> Parser<'text> {
                         arguments: Some(arguments),
                     }),
                     pos,
+                    Self::optional_chain_flags(is_optional_chain),
                 );
                 continue;
             }
@@ -5008,13 +5030,14 @@ impl<'text> Parser<'text> {
                     Some(&gen::Identifier_expected),
                     &[],
                 );
-                expression = self.finish_node_data(
+                expression = self.finish_node_with_flags(
                     NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
                         expression: Some(expression),
                         question_dot_token: Some(question_dot_token),
                         name: Some(name),
                     }),
                     pos,
+                    NodeFlags::OPTIONAL_CHAIN,
                 );
             }
 
@@ -5024,6 +5047,53 @@ impl<'text> Parser<'text> {
         expression
     }
 
+    /// tsc tryReparseOptionalChain: non-null wrappers over a chain become
+    /// chain links retroactively.
+    fn try_reparse_optional_chain(&mut self, node: NodeId) -> bool {
+        if NodeFlags::from_bits(self.arena.node(node).flags).contains(NodeFlags::OPTIONAL_CHAIN) {
+            return true;
+        }
+        if self.arena.node(node).kind == SyntaxKind::NonNullExpression {
+            let inner_expression = |parser: &Self, id: NodeId| match &parser.arena.node(id).data {
+                NodeData::NonNullExpression(data) => data.expression,
+                _ => None,
+            };
+            let mut expression = inner_expression(self, node);
+            while let Some(current) = expression {
+                if self.arena.node(current).kind != SyntaxKind::NonNullExpression
+                    || NodeFlags::from_bits(self.arena.node(current).flags)
+                        .contains(NodeFlags::OPTIONAL_CHAIN)
+                {
+                    break;
+                }
+                expression = inner_expression(self, current);
+            }
+            if expression.is_some_and(|current| {
+                NodeFlags::from_bits(self.arena.node(current).flags)
+                    .contains(NodeFlags::OPTIONAL_CHAIN)
+            }) {
+                let mut current = node;
+                while self.arena.node(current).kind == SyntaxKind::NonNullExpression {
+                    self.arena.node_mut(current).flags |= NodeFlags::OPTIONAL_CHAIN.bits();
+                    let Some(next) = inner_expression(self, current) else {
+                        break;
+                    };
+                    current = next;
+                }
+                return true;
+            }
+        }
+        false
+    }
+
+    fn optional_chain_flags(is_optional_chain: bool) -> NodeFlags {
+        if is_optional_chain {
+            NodeFlags::OPTIONAL_CHAIN
+        } else {
+            NodeFlags::NONE
+        }
+    }
+
     fn parse_property_access_expression_rest(
         &mut self,
         pos: usize,
@@ -5031,13 +5101,40 @@ impl<'text> Parser<'text> {
         question_dot_token: Option<NodeId>,
     ) -> NodeId {
         let name = self.parse_right_side_of_dot(true, true, true);
-        self.finish_node_data(
+        let is_optional_chain =
+            question_dot_token.is_some() || self.try_reparse_optional_chain(expression);
+        if is_optional_chain && self.arena.node(name).kind == SyntaxKind::PrivateIdentifier {
+            self.parse_error_at_range(
+                name,
+                &gen::An_optional_chain_cannot_contain_private_identifiers,
+                &[],
+            );
+        }
+        if self.arena.node(expression).kind == SyntaxKind::ExpressionWithTypeArguments {
+            let type_arguments = match &self.arena.node(expression).data {
+                NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
+                _ => None,
+            };
+            if let Some(type_arguments) = type_arguments {
+                let array = self.arena.node_array(type_arguments);
+                let start = (array.pos as usize).saturating_sub(1);
+                let end = crate::scanner::skip_trivia(self.scanner.text(), array.end as usize) + 1;
+                self.parse_error_at(
+                    start,
+                    end,
+                    &gen::An_instantiation_expression_cannot_be_followed_by_a_property_access,
+                    &[],
+                );
+            }
+        }
+        self.finish_node_with_flags(
             NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
                 expression: Some(expression),
                 question_dot_token,
                 name: Some(name),
             }),
             pos,
+            Self::optional_chain_flags(is_optional_chain),
         )
     }
 
@@ -5058,13 +5155,16 @@ impl<'text> Parser<'text> {
             self.allow_in(|parser| parser.parse_expression())
         };
         self.parse_expected(SyntaxKind::CloseBracketToken, None);
-        self.finish_node_data(
+        let is_optional_chain =
+            question_dot_token.is_some() || self.try_reparse_optional_chain(expression);
+        self.finish_node_with_flags(
             NodeData::ElementAccessExpression(ElementAccessExpressionData {
                 expression: Some(expression),
                 question_dot_token,
                 argument_expression: Some(argument_expression),
             }),
             pos,
+            Self::optional_chain_flags(is_optional_chain),
         )
     }
 
@@ -5082,7 +5182,10 @@ impl<'text> Parser<'text> {
         } else {
             self.parse_template_expression(true)
         };
-        self.finish_node_data(
+        // tsc: the tagged template joins the chain when the tag is a link.
+        let is_optional_chain = question_dot_token.is_some()
+            || NodeFlags::from_bits(self.arena.node(tag).flags).contains(NodeFlags::OPTIONAL_CHAIN);
+        self.finish_node_with_flags(
             NodeData::TaggedTemplateExpression(TaggedTemplateExpressionData {
                 tag: Some(tag),
                 question_dot_token,
@@ -5090,6 +5193,7 @@ impl<'text> Parser<'text> {
                 template: Some(template),
             }),
             pos,
+            Self::optional_chain_flags(is_optional_chain),
         )
     }
 
@@ -5148,7 +5252,8 @@ impl<'text> Parser<'text> {
         self.token() == SyntaxKind::QuestionDotToken
             && self.look_ahead(|parser| {
                 parser.next_token();
-                parser.is_identifier()
+                // tsc tokenIsIdentifierOrKeyword: includes private names.
+                token_is_identifier_or_keyword(parser.token())
                     || parser.token() == SyntaxKind::OpenBracketToken
                     || parser.is_template_start_of_tagged_template()
             })
