@@ -14,16 +14,18 @@ one-line classification here. Nothing is silenced.
   are excluded from the tree gate (covered by the diagnostic gate);
   full per-file first-diffs land in target/ast-diff-failures.txt.
 
-## ast-diff status (2026-07-10)
+## ast-diff status (2026-07-10, after burndown 8)
 
-`files=5908 compared=5242 excluded=666 differing=1`
+`files=5908 compared=5344 excluded=564 differing=0` — CLEAN.
 
-The 666 exclusions are error fixtures (parse errors on at least one
-side), per impl-nodes.md §5.
-
-| file | classification |
-|---|---|
-| externalModules/topLevelAwait.1.ts | unported production: reparseTopLevelAwait (module files re-parse possible-top-level-await statements in AwaitContext; needs ContainsPossibleTopLevelAwait aggregation + externalModuleIndicator). `await [x]` parses as ElementAccess instead of AwaitExpression. |
+The 564 exclusions are error fixtures (parse errors on at least one
+side), per impl-nodes.md §5. reparseTopLevelAwait is ported (module
+files re-parse possible-top-level-await statement runs in the Await
+context; ContainsPossibleTopLevelAwait is simulated by a subtree scan
+whose only source is an identifier spelled `await`, with the factory
+strip/clear boundaries), together with
+SourceFile.externalModuleIndicator (isFileProbablyExternalModule
+incl. the import.meta tree walk).
 
 ## syntactic-diagnostic gate status (2026-07-10)
 

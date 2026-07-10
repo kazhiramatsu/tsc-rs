@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::arena::NodeArena;
+use crate::for_each_child::for_each_child;
 use crate::nodes::{
     ArrayBindingPatternData, ArrayLiteralExpressionData, ArrayTypeData, ArrowFunctionData,
     AsExpressionData, AwaitExpressionData, BigIntLiteralData, BinaryExpressionData,
@@ -7862,6 +7863,241 @@ impl<'text> Parser<'text> {
         }
     }
 
+    /// tsc isFileProbablyExternalModule: the first statement that is an
+    /// import/export form or carries an export modifier, else import.meta.
+    fn is_file_probably_external_module(&self, statements: crate::NodeArrayId) -> Option<NodeId> {
+        let statements = &self.arena.node_array(statements).nodes;
+        statements
+            .iter()
+            .copied()
+            .find(|statement| self.is_an_external_module_indicator_node(*statement))
+            .or_else(|| {
+                statements
+                    .iter()
+                    .copied()
+                    .find_map(|statement| self.walk_tree_for_import_meta(statement))
+            })
+    }
+
+    fn is_an_external_module_indicator_node(&self, id: NodeId) -> bool {
+        let node = self.arena.node(id);
+        match &node.data {
+            NodeData::ImportEqualsDeclaration(data) => {
+                data.module_reference.is_some_and(|reference| {
+                    self.arena.node(reference).kind == SyntaxKind::ExternalModuleReference
+                })
+            }
+            NodeData::ImportDeclaration(_)
+            | NodeData::ExportAssignment(_)
+            | NodeData::ExportDeclaration(_) => true,
+            _ => self.statement_modifiers(id).is_some_and(|modifiers| {
+                self.arena
+                    .node_array(modifiers)
+                    .nodes
+                    .iter()
+                    .any(|modifier| self.arena.node(*modifier).kind == SyntaxKind::ExportKeyword)
+            }),
+        }
+    }
+
+    fn statement_modifiers(&self, id: NodeId) -> Option<crate::NodeArrayId> {
+        match &self.arena.node(id).data {
+            NodeData::FunctionDeclaration(data) => data.modifiers,
+            NodeData::ClassDeclaration(data) => data.modifiers,
+            NodeData::VariableStatement(data) => data.modifiers,
+            NodeData::InterfaceDeclaration(data) => data.modifiers,
+            NodeData::TypeAliasDeclaration(data) => data.modifiers,
+            NodeData::EnumDeclaration(data) => data.modifiers,
+            NodeData::ModuleDeclaration(data) => data.modifiers,
+            NodeData::ImportEqualsDeclaration(data) => data.modifiers,
+            NodeData::MissingDeclaration(data) => data.modifiers,
+            NodeData::NamespaceExportDeclaration(data) => data.modifiers,
+            _ => None,
+        }
+    }
+
+    /// tsc walkTreeForImportMeta / isImportMeta. MetaProperty carries no
+    /// keywordToken slot, so the leading source token disambiguates
+    /// `import.meta` from `new.target`.
+    fn walk_tree_for_import_meta(&self, id: NodeId) -> Option<NodeId> {
+        let node = self.arena.node(id);
+        if node.kind == SyntaxKind::MetaProperty {
+            let token_start = crate::scanner::skip_trivia(self.scanner.text(), node.pos as usize);
+            let is_import = self.scanner.text()[token_start..].starts_with("import");
+            let is_meta = match &node.data {
+                NodeData::MetaProperty(data) => data.name.is_some_and(|name| {
+                    matches!(&self.arena.node(name).data, NodeData::Identifier(data) if data.escaped_text == "meta")
+                }),
+                _ => false,
+            };
+            if is_import && is_meta {
+                return Some(id);
+            }
+        }
+        let mut children = Vec::new();
+        for_each_child(&self.arena, node, |child| {
+            children.push(child);
+            false
+        });
+        children
+            .into_iter()
+            .find_map(|child| self.walk_tree_for_import_meta(child))
+    }
+
+    /// The tsc sourceFile.transformFlags & ContainsPossibleTopLevelAwait
+    /// guard: a statement contributes unless its own kind strips the flag on
+    /// outward propagation (FunctionExcludes).
+    fn statements_possibly_contain_top_level_await(&self, statements: crate::NodeArrayId) -> bool {
+        self.arena
+            .node_array(statements)
+            .nodes
+            .iter()
+            .any(|statement| {
+                self.arena.node(*statement).kind != SyntaxKind::FunctionDeclaration
+                    && self.statement_contains_possible_top_level_await(*statement)
+            })
+    }
+
+    /// tsc containsPossibleTopLevelAwait (statement-level).
+    fn statement_contains_possible_top_level_await(&self, id: NodeId) -> bool {
+        !NodeFlags::from_bits(self.arena.node(id).flags).contains(NodeFlags::AWAIT_CONTEXT)
+            && self.subtree_contains_possible_top_level_await(id)
+    }
+
+    /// Simulates TransformFlags.ContainsPossibleTopLevelAwait: the only
+    /// source is an identifier spelled `await` (factory createIdentifier);
+    /// function-like factories strip the flag from their BODY propagation;
+    /// enum/module/import= factories clear it on the whole node.
+    fn subtree_contains_possible_top_level_await(&self, id: NodeId) -> bool {
+        let node = self.arena.node(id);
+        let body = match &node.data {
+            NodeData::Identifier(data) => return data.escaped_text == "await",
+            NodeData::EnumDeclaration(_)
+            | NodeData::ModuleDeclaration(_)
+            | NodeData::ImportEqualsDeclaration(_)
+            | NodeData::ImportDeclaration(_)
+            | NodeData::ImportClause(_)
+            | NodeData::NamespaceImport(_)
+            | NodeData::NamespaceExport(_)
+            | NodeData::NamedImports(_)
+            | NodeData::ImportSpecifier(_)
+            | NodeData::ExportAssignment(_)
+            | NodeData::ExportDeclaration(_)
+            | NodeData::NamedExports(_)
+            | NodeData::ExportSpecifier(_)
+            | NodeData::ExternalModuleReference(_) => return false,
+            NodeData::MethodDeclaration(data) => data.body,
+            NodeData::Constructor(data) => data.body,
+            NodeData::GetAccessor(data) => data.body,
+            NodeData::SetAccessor(data) => data.body,
+            NodeData::FunctionExpression(data) => data.body,
+            NodeData::ArrowFunction(data) => data.body,
+            NodeData::FunctionDeclaration(data) => data.body,
+            _ => None,
+        };
+        let mut children = Vec::new();
+        for_each_child(&self.arena, node, |child| {
+            children.push(child);
+            false
+        });
+        children
+            .into_iter()
+            .filter(|child| Some(*child) != body)
+            .any(|child| self.subtree_contains_possible_top_level_await(child))
+    }
+
+    /// tsc reparseTopLevelAwait: maximal runs of possible-await statements
+    /// re-parse from their start in the Await context; parse diagnostics in
+    /// the re-parsed ranges are replaced by the re-parse output.
+    fn reparse_top_level_await(&mut self, statements_id: crate::NodeArrayId) -> crate::NodeArrayId {
+        let (old_statements, array_pos, array_end) = {
+            let array = self.arena.node_array(statements_id);
+            (array.nodes.clone(), array.pos as usize, array.end as usize)
+        };
+        let saved_diagnostics = std::mem::take(&mut self.parse_diagnostics);
+        let mut statements: Vec<NodeId> = Vec::new();
+
+        let mut pos: Option<usize> = Some(0);
+        let mut start = self.find_statement_with_await(&old_statements, 0);
+        while let Some(run_start) = start {
+            let keep_from = pos.expect("a run exists only while the cursor does");
+            statements.extend_from_slice(&old_statements[keep_from..run_start]);
+            pos = self.find_statement_without_await(&old_statements, run_start);
+
+            // Keep the diagnostics of the untouched range.
+            let prev_pos = self.to_utf16(self.arena.node(old_statements[keep_from]).pos as usize);
+            let next_pos = self.to_utf16(self.arena.node(old_statements[run_start]).pos as usize);
+            if let Some(diag_start) = saved_diagnostics
+                .iter()
+                .position(|diagnostic| diagnostic.start.is_some_and(|start| start >= prev_pos))
+            {
+                let diag_end = saved_diagnostics[diag_start..]
+                    .iter()
+                    .position(|diagnostic| diagnostic.start.is_some_and(|start| start >= next_pos))
+                    .map(|offset| diag_start + offset)
+                    .unwrap_or(saved_diagnostics.len());
+                self.parse_diagnostics
+                    .extend_from_slice(&saved_diagnostics[diag_start..diag_end]);
+            }
+
+            // Re-parse in the Await context (tsc SpeculationKind.Reparse:
+            // diagnostics kept, scanner state restored afterwards).
+            let scanner_state = self.scanner.save();
+            let saved_context_flags = self.context_flags;
+            self.context_flags =
+                NodeFlags::from_bits(self.context_flags.bits() | NodeFlags::AWAIT_CONTEXT.bits());
+            self.scanner
+                .reset_token_state(self.arena.node(old_statements[run_start]).pos as usize);
+            self.next_token();
+            while self.token() != SyntaxKind::EndOfFileToken {
+                let start_pos = self.scanner.full_start_pos();
+                let statement = self.parse_statement();
+                statements.push(statement);
+                if start_pos == self.scanner.full_start_pos() {
+                    self.next_token();
+                }
+                if let Some(cursor) = pos {
+                    let non_await_pos = self.arena.node(old_statements[cursor]).pos;
+                    let statement_end = self.arena.node(statement).end;
+                    if statement_end == non_await_pos {
+                        break;
+                    }
+                    if statement_end > non_await_pos {
+                        pos = self.find_statement_without_await(&old_statements, cursor + 1);
+                    }
+                }
+            }
+            self.context_flags = saved_context_flags;
+            self.scanner.restore(scanner_state);
+
+            start = pos.and_then(|cursor| self.find_statement_with_await(&old_statements, cursor));
+        }
+        if let Some(keep_from) = pos {
+            statements.extend_from_slice(&old_statements[keep_from..]);
+            let prev_pos = self.to_utf16(self.arena.node(old_statements[keep_from]).pos as usize);
+            if let Some(diag_start) = saved_diagnostics
+                .iter()
+                .position(|diagnostic| diagnostic.start.is_some_and(|start| start >= prev_pos))
+            {
+                self.parse_diagnostics
+                    .extend_from_slice(&saved_diagnostics[diag_start..]);
+            }
+        }
+
+        self.arena
+            .alloc_array(statements, array_pos, array_end, false)
+    }
+
+    fn find_statement_with_await(&self, statements: &[NodeId], from: usize) -> Option<usize> {
+        (from..statements.len())
+            .find(|index| self.statement_contains_possible_top_level_await(statements[*index]))
+    }
+
+    fn find_statement_without_await(&self, statements: &[NodeId], from: usize) -> Option<usize> {
+        (from..statements.len())
+            .find(|index| !self.statement_contains_possible_top_level_await(statements[*index]))
+    }
+
     fn finish_node_data(&mut self, data: NodeData, pos: usize) -> NodeId {
         self.finish_node_with_flags(data, pos, NodeFlags::NONE)
     }
@@ -7959,11 +8195,24 @@ pub fn parse_source_file(
 ) -> SourceFile {
     let mut parser = Parser::new(file_name, &text, options.language_variant);
     parser.next_token();
-    let statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
+    let mut statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
         Some(parser.parse_statement())
     });
     debug_assert_eq!(parser.token(), SyntaxKind::EndOfFileToken);
     let end_of_file_token = parser.parse_token_node();
+
+    // tsc createSourceFile2: a module whose statements possibly contain
+    // top-level await re-parses those statements in the Await context.
+    if !parser.is_declaration_file
+        && parser
+            .is_file_probably_external_module(statements)
+            .is_some()
+        && parser.statements_possibly_contain_top_level_await(statements)
+    {
+        statements = parser.reparse_top_level_await(statements);
+    }
+    let external_module_indicator = parser.is_file_probably_external_module(statements);
+
     let finished = parser.finish(statements, end_of_file_token);
     SourceFile {
         file_name: finished.file_name,
@@ -7973,7 +8222,7 @@ pub fn parse_source_file(
         line_map: finished.line_map,
         arena: finished.arena,
         root: finished.root,
-        external_module_indicator: None,
+        external_module_indicator,
         parse_diagnostics: finished.parse_diagnostics,
     }
 }

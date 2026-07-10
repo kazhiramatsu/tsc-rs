@@ -1076,6 +1076,16 @@ impl<'text> Scanner<'text> {
     }
 
     #[allow(dead_code)]
+    /// tsc resetTokenState: reposition for a fresh scan (reparse paths).
+    pub(crate) fn reset_token_state(&mut self, pos: usize) {
+        self.pos = pos;
+        self.full_start_pos = pos;
+        self.token_start = pos;
+        self.token = SyntaxKind::Unknown;
+        self.token_value.clear();
+        self.token_flags = TokenFlags::empty();
+    }
+
     pub(crate) fn re_scan_less_than_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::LessThanLessThanToken {
             self.pos = self.token_start + 1;
