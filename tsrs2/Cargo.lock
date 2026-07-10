@@ -342,6 +342,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tsrs2-binder",
  "tsrs2-checker",
  "tsrs2-conformance",
  "tsrs2-diags",

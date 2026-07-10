@@ -4,12 +4,7 @@ mod js_grammar;
 
 use tsrs2_diags::DiagnosticList;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct CompilerOptions {
-    /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs.
-    pub allow_js: bool,
-    pub experimental_decorators: bool,
-}
+pub use tsrs2_types::CompilerOptions;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputFile {
@@ -34,6 +29,99 @@ fn is_js_file_name(name: &str) -> bool {
     [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
         .any(|extension| name.ends_with(extension))
+}
+
+/// tsc scanner commentDirectiveRegExSingleLine (8202) +
+/// getDiagnosticsWithPrecedingDirectives / markPrecedingCommentDirectiveLine
+/// (123756): a `// @ts-ignore` / `// @ts-expect-error` comment
+/// suppresses bind/check diagnostics on the following line (walking up
+/// over blank and comment-only lines). INTERIM SCOPE: only directives
+/// on comment-only lines are detected (the scanner-side directive
+/// collection lands with real comment ranges); multi-line-comment
+/// directives are not handled.
+fn filter_by_comment_directives(
+    text: &str,
+    line_map: &tsrs2_diags::LineMap,
+    diagnostics: impl Iterator<Item = tsrs2_diags::Diagnostic>,
+) -> Vec<tsrs2_diags::Diagnostic> {
+    // LineMap.line_starts are UTF-16 offsets; build BYTE line starts
+    // with the same break set (\r\n, \r, \n, U+2028, U+2029) for text
+    // slicing.
+    let byte_line_starts = compute_byte_line_starts(text);
+    let line_text = |line: usize| -> &str {
+        let start = byte_line_starts[line];
+        let end = byte_line_starts
+            .get(line + 1)
+            .copied()
+            .unwrap_or(text.len());
+        &text[start..end]
+    };
+    let line_starts = &line_map.line_starts;
+    let is_directive_line = |line: usize| -> bool {
+        let trimmed = line_text(line).trim_start();
+        let Some(comment) = trimmed.strip_prefix("//") else {
+            return false;
+        };
+        // regex ^///?\s*@(ts-expect-error|ts-ignore) applied at the
+        // comment start.
+        let comment = comment.strip_prefix('/').unwrap_or(comment);
+        let comment = comment.trim_start();
+        comment.starts_with("@ts-expect-error") || comment.starts_with("@ts-ignore")
+    };
+    let directive_lines: Vec<usize> = (0..byte_line_starts.len())
+        .filter(|&line| is_directive_line(line))
+        .collect();
+    if directive_lines.is_empty() {
+        return diagnostics.collect();
+    }
+    // Diagnostic.start is UTF-16, matching line_starts' units.
+    let utf16_line_starts: &[u32] = line_starts;
+    diagnostics
+        .filter(|diagnostic| {
+            let Some(start) = diagnostic.start else {
+                return true;
+            };
+            let diagnostic_line = match utf16_line_starts.binary_search(&start) {
+                Ok(line) => line,
+                Err(insert) => insert.saturating_sub(1),
+            };
+            let mut line = diagnostic_line;
+            while line > 0 {
+                line -= 1;
+                if directive_lines.contains(&line) {
+                    return false; // suppressed
+                }
+                let trimmed = line_text(line).trim();
+                if !trimmed.is_empty() && !trimmed.starts_with("//") {
+                    return true;
+                }
+            }
+            true
+        })
+        .collect()
+}
+
+/// Byte-offset line starts with tsc's line-break set (\r\n, \r, \n,
+/// U+2028, U+2029) — index-compatible with LineMap.line_starts.
+fn compute_byte_line_starts(text: &str) -> Vec<usize> {
+    let mut starts = vec![0usize];
+    let mut chars = text.char_indices().peekable();
+    while let Some((byte, ch)) = chars.next() {
+        match ch {
+            '\r' => {
+                let mut next_start = byte + 1;
+                if let Some(&(next_byte, '\n')) = chars.peek() {
+                    chars.next();
+                    next_start = next_byte + 1;
+                }
+                starts.push(next_start);
+            }
+            '\n' => starts.push(byte + 1),
+            '\u{2028}' | '\u{2029}' => starts.push(byte + ch.len_utf8()),
+            _ => {}
+        }
+    }
+    starts
 }
 
 pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckResult {
@@ -92,7 +180,20 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
         }
         syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
         diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
-        diagnostics.append(&mut tsrs2_binder::bind_source_file(&source_file));
+        let binder = tsrs2_binder::bind_source_file(&source_file, options);
+        // tsc getBindAndCheckDiagnosticsForFileNoCache: plain JS files
+        // (no checkJs) filter bind diagnostics to the plainJSErrors
+        // allowlist — none of which the binder emits yet (stage 3.4c);
+        // and comment directives (@ts-ignore/@ts-expect-error) suppress
+        // preceded diagnostics. Unused @ts-expect-error reporting (2578)
+        // waits for the checker (M4) — the partialCheck path.
+        if !javascript_file {
+            diagnostics.extend(filter_by_comment_directives(
+                &source_file.text,
+                &source_file.line_map,
+                binder.bind_diagnostics.iter().cloned(),
+            ));
+        }
     }
 
     debug_assert!(tsrs2_binder::is_scaffolded());

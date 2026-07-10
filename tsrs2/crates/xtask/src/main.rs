@@ -650,8 +650,40 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                         lines.join("\n")
                     }
                 };
-                let oracle_dump = project(&oracle_file.lines);
-                let rust_dump = project(&rust_file.lines);
+                // Documented audit normalizations (per-file binder vs a
+                // whole-program checker):
+                //  - lines whose ORACLE symbol carries the Transient bit
+                //    (33554432) are checker-MERGED symbols (lib/global
+                //    interface merging, M4 territory) — dropped in pairs;
+                //  - `__#N@` private-name ids embed tsc's program-global
+                //    getSymbolId counter (libs advance it) — the counter
+                //    digits are wildcarded, keeping the structure check.
+                let (oracle_lines, rust_lines) = if oracle_file.lines.len()
+                    == rust_file.lines.len()
+                    && !positions_only
+                {
+                    let mut oracle_lines = Vec::new();
+                    let mut rust_lines = Vec::new();
+                    for (oracle_line, rust_line) in
+                        oracle_file.lines.iter().zip(&rust_file.lines)
+                    {
+                        let oracle_flags: i64 = oracle_line
+                            .split('\t')
+                            .nth(3)
+                            .and_then(|flags| flags.parse().ok())
+                            .unwrap_or(0);
+                        if oracle_flags & 33554432 != 0 {
+                            continue;
+                        }
+                        oracle_lines.push(wildcard_private_name_ids(oracle_line));
+                        rust_lines.push(wildcard_private_name_ids(rust_line));
+                    }
+                    (oracle_lines, rust_lines)
+                } else {
+                    (oracle_file.lines.clone(), rust_file.lines.clone())
+                };
+                let oracle_dump = project(&oracle_lines);
+                let rust_dump = project(&rust_lines);
                 if !oracle_file.in_program || oracle_dump != rust_dump {
                     differing += 1;
                     let (line, left, right) = first_diff(&rust_dump, &oracle_dump);
@@ -713,6 +745,7 @@ fn rust_symbol_dump(
         last_text_b64.insert(file.name.as_str(), file.text_b64.as_str());
     }
 
+    let options = tsrs2_conformance::compiler_options_from_program(program);
     let mut out = Vec::with_capacity(program.files.len());
     for file in &program.files {
         if !is_ts_like_file_name(&file.name) {
@@ -735,13 +768,33 @@ fn rust_symbol_dump(
             },
             None,
         );
+        let binder = tsrs2_binder::bind_source_file(&source, &options);
+        let lines = symbol_audit::audit_source_file(&source, &binder);
         out.push(Some(symbol_audit::FileAudit {
             name: file.name.clone(),
             parse_errors: source.parse_diagnostics.len(),
-            lines: symbol_audit::audit_source_file(&source),
+            lines,
         }));
     }
     Ok(out)
+}
+
+/// tsc getSymbolNameForPrivateIdentifier embeds the program-global
+/// getSymbolId counter: `__#57@#name`. Wildcard the digits.
+fn wildcard_private_name_ids(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(index) = rest.find("__#") {
+        out.push_str(&rest[..index + 3]);
+        rest = &rest[index + 3..];
+        let digits = rest.chars().take_while(char::is_ascii_digit).count();
+        if digits > 0 && rest[digits..].starts_with('@') {
+            out.push('*');
+            rest = &rest[digits..];
+        }
+    }
+    out.push_str(rest);
+    out
 }
 
 /// TS-only audit carve-out (m2-binder-steps.md stage 3.4): .js and .json

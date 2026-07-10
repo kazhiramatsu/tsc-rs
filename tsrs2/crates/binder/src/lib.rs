@@ -7,8 +7,8 @@ pub mod flow;
 pub mod node_util;
 pub mod symbols;
 
-use tsrs2_diags::DiagnosticList;
 use tsrs2_syntax::SourceFile;
+use tsrs2_types::CompilerOptions;
 
 pub use declare::{Binder, TableRef};
 pub use symbols::{
@@ -16,8 +16,16 @@ pub use symbols::{
     SymbolArena, SymbolId, SymbolTable,
 };
 
-pub fn bind_source_file(_source_file: &SourceFile) -> DiagnosticList {
-    Vec::new()
+/// tsc bindSourceFile (42408): runs the binder over one parsed file and
+/// returns it with its symbol tables, node links, flow graph, and bind
+/// diagnostics.
+pub fn bind_source_file<'a>(
+    source_file: &'a SourceFile,
+    options: &'a CompilerOptions,
+) -> Binder<'a> {
+    let mut binder = Binder::new(source_file, options);
+    binder.bind_source_file();
+    binder
 }
 
 pub fn is_scaffolded() -> bool {

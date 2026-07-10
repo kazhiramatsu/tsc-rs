@@ -27,7 +27,7 @@ pub struct FileAudit {
     pub lines: Vec<String>,
 }
 
-pub fn audit_source_file(source: &SourceFile) -> Vec<String> {
+pub fn audit_source_file(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>) -> Vec<String> {
     let mut names = Vec::new();
     if let Some(data) = source.arena.node(source.root).data.as_source_file() {
         if let Some(statements) = data.statements {
@@ -42,9 +42,33 @@ pub fn audit_source_file(source: &SourceFile) -> Vec<String> {
         .iter()
         .map(|&name| {
             let node = source.arena.node(name);
-            // Symbol lookups arrive with the binder (stages 3.1+); until
-            // then every audited name reports <no-symbol>.
-            format!("{}\t{}\t<no-symbol>", to_utf16(node.pos), to_utf16(node.end))
+            let (pos, end) = (to_utf16(node.pos), to_utf16(node.end));
+            // Mirror of checker.getSymbolAtLocation on a declaration
+            // name: the parent declaration's symbol.
+            let symbol = node
+                .parent
+                .and_then(|parent| binder.node_symbol.get(&parent))
+                .copied();
+            match symbol {
+                None => format!("{pos}\t{end}\t<no-symbol>"),
+                Some(symbol) => {
+                    let sym = binder.symbols.symbol(symbol);
+                    let sorted_keys = |table: &tsrs2_binder::SymbolTable| {
+                        let mut keys: Vec<&str> =
+                            table.keys().map(String::as_str).collect();
+                        keys.sort_unstable();
+                        keys.join(",")
+                    };
+                    format!(
+                        "{pos}\t{end}\t{}\t{}\t{}\t{}\t{}",
+                        sym.escaped_name,
+                        sym.flags.bits(),
+                        sym.declarations.len(),
+                        sorted_keys(&sym.members),
+                        sorted_keys(&sym.exports),
+                    )
+                }
+            }
         })
         .collect()
 }

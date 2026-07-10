@@ -207,7 +207,13 @@ impl<'text> Parser<'text> {
             javascript_file,
             is_declaration_file,
             line_map: compute_line_map(text),
-            context_flags: NodeFlags::NONE,
+            // tsc parseSourceFileWorker: declaration files parse with
+            // the Ambient context flag on every node.
+            context_flags: if is_declaration_file {
+                NodeFlags::AMBIENT
+            } else {
+                NodeFlags::NONE
+            },
             parse_diagnostics: Vec::new(),
             parse_error_before_next_finished_node: false,
             parsing_context: 0,
@@ -412,7 +418,9 @@ impl<'text> Parser<'text> {
             self.parse_error_at_current_token(message, args);
         }
 
-        let pos = self.scanner.token_start();
+        // tsc createMissingNode: pos = getNodePos() — the token FULL
+        // start (before trivia), observable in binder error spans.
+        let pos = self.scanner.full_start_pos();
         let id = self.arena.alloc_missing(kind, pos);
         self.finish_node_at(id, pos, pos)
     }

@@ -59,6 +59,12 @@ pub fn parse_json_text(file_name: impl Into<String>, text: impl Into<String>) ->
     parser::parse_json_text(file_name.into(), text.into())
 }
 
+/// tsc stringToToken for keyword lookup (identifierToKeywordKind path):
+/// Some only for keyword kinds.
+pub fn keyword_kind(text: &str) -> Option<SyntaxKind> {
+    keywords::keyword_kind(text)
+}
+
 /// tsc-port: escapeLeadingUnderscores @6.0.3
 /// tsc-hash: 86d7f97e898c96c6de2e47109d4583e4446ba8a518842f34d0d3cd4aa1b0b3c4
 /// tsc-span: _tsc.js:11438-11440

@@ -233,6 +233,35 @@ Bookkeeping the arms rely on: `seenThisKeyword` (ThisType),
 `inAssignmentPattern` (destructuring targets), `file.symbolCount` and
 `file.classifiableNames` (services-facing — populate, cheap).
 
+FP-gate findings (2026-07-10, from the first full-band conformance
+with binder diagnostics): (1) TS 6.0.3 is STRICT BY DEFAULT —
+`_computedOptions.alwaysStrict.computeValue` is `alwaysStrict !==
+false` and does NOT consult `strict`; every plain script binds in
+strict mode (oracle: `var private` alone yields 1212). (2) tsc
+program machinery filters bind diagnostics: plain-JS files keep only
+the plainJSErrors allowlist (none binder-emitted yet — bind diags
+suppressed for JS files until 3.4c), and `// @ts-ignore` /
+`@ts-expect-error` comment directives suppress following-line
+diagnostics (ported as an interim comment-only-line filter in
+check_program; unused-expect-error 2578 waits for M4 = tsc's
+partialCheck path).
+
+Landed shape 3.4a (2026-07-10): full bindWorker switch (TS arms) +
+bind* family + strict-mode/contextual check family + bindSourceFile
+entry; CompilerOptions moved to tsrs2-types (checker re-exports) and
+grew target/alwaysStrict/strict (target default is ES2025
+LatestStandard in TS 6.0.3, NOT ES5 — ES3 counts as unset);
+conformance parses the target string map. getAssignmentDeclarationKind
+dispatch + bindable-static predicates ported; JS symbol bodies and the
+TS expando (function-parent Property assignment) body are 3.4c.
+Parser fidelity fix surfaced: .d.ts files now parse with the Ambient
+context flag on every node (parseSourceFileWorker) — ExportContext
+binding inside ambient namespaces was wrong otherwise. Audit
+normalizations (comparator-side, documented in xtask): oracle lines
+with the Transient bit are checker-MERGED symbols (dropped in pairs);
+`__#N@` private-name ids wildcard the program-global counter digits.
+symbol-diff --sample 200: differing=0 (343 files compared).
+
 Commit(s): `m2 3.4a..c: bindWorker arms (+audit results)`.
 
 ## Stage 3.5: flow-graph construction [M]

@@ -33,6 +33,8 @@ pub struct Symbol {
     pub value_declaration: Option<NodeId>,
     pub members: SymbolTable,
     pub exports: SymbolTable,
+    /// tsc Symbol.globalExports (bindNamespaceExportDeclaration).
+    pub global_exports: SymbolTable,
     pub parent: Option<SymbolId>,
     /// local ↔ export link installed by declareModuleMember.
     pub export_symbol: Option<SymbolId>,
@@ -51,6 +53,7 @@ impl Symbol {
             value_declaration: None,
             members: SymbolTable::default(),
             exports: SymbolTable::default(),
+            global_exports: SymbolTable::default(),
             parent: None,
             export_symbol: None,
             merged_into: None,

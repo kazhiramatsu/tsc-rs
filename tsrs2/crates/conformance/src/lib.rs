@@ -660,7 +660,7 @@ fn current_tsrs_diagnostics(
 
 /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs. Fixture directive
 /// keys are matched case-insensitively like the harness does.
-fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> CompilerOptions {
+pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> CompilerOptions {
     let bool_option = |name: &str| {
         program.options.iter().find_map(|(key, value)| {
             if key.eq_ignore_ascii_case(name) {
@@ -673,10 +673,47 @@ fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Compil
             }
         })
     };
+    let target = program.options.iter().find_map(|(key, value)| {
+        if key.eq_ignore_ascii_case("target") {
+            match value {
+                tsrs2_harness::OptionValue::String(value) => target_option_value(value),
+                tsrs2_harness::OptionValue::Number(value) => Some(*value),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    });
     CompilerOptions {
         allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
         experimental_decorators: bool_option("experimentalDecorators").unwrap_or(false),
+        target,
+        always_strict: bool_option("alwaysStrict"),
+        strict: bool_option("strict"),
+        no_fallthrough_cases_in_switch: bool_option("noFallthroughCasesInSwitch"),
     }
+}
+
+/// tsc targetOptionDeclaration.type — the target option's string→value
+/// map, mirrored from the vendored source.
+fn target_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "es3" => 0,
+        "es5" => 1,
+        "es6" | "es2015" => 2,
+        "es2016" => 3,
+        "es2017" => 4,
+        "es2018" => 5,
+        "es2019" => 6,
+        "es2020" => 7,
+        "es2021" => 8,
+        "es2022" => 9,
+        "es2023" => 10,
+        "es2024" => 11,
+        "es2025" => 12,
+        "esnext" => 99,
+        _ => return None,
+    })
 }
 
 fn file_texts_for_program(

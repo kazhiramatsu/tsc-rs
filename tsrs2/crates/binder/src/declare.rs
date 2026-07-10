@@ -29,12 +29,20 @@ pub enum TableRef {
     Locals(NodeId),
     Members(SymbolId),
     Exports(SymbolId),
+    /// tsc file.symbol.globalExports (bindNamespaceExportDeclaration).
+    GlobalExports(SymbolId),
 }
 
 /// The binder for one source file. Grows container/flow state in
 /// stages 3.3–3.5; stage 3.2 carries the symbol side only.
 pub struct Binder<'a> {
     pub source: &'a SourceFile,
+    pub options: &'a tsrs2_types::CompilerOptions,
+    /// tsc languageVersion = getEmitScriptTarget(options).
+    pub language_version: i32,
+    /// tsc file.commonJsModuleIndicator (JS-only; set by
+    /// setCommonJsModuleIndicator in stage 3.4c).
+    pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
     /// tsc node.symbol (set by addDeclarationToSymbol).
     pub node_symbol: HashMap<NodeId, SymbolId>,
@@ -80,6 +88,16 @@ pub struct Binder<'a> {
     pub node_flow: HashMap<NodeId, crate::flow::FlowId>,
     pub node_end_flow: HashMap<NodeId, crate::flow::FlowId>,
     pub node_return_flow: HashMap<NodeId, crate::flow::FlowId>,
+    /// tsc ConditionalExpression flowNodeWhenTrue/WhenFalse (stamped in
+    /// return position, consumed by the checker M5).
+    pub node_flow_when_true: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_flow_when_false: HashMap<NodeId, crate::flow::FlowId>,
+    /// tsc SwitchStatement.possiblyExhaustive.
+    pub possibly_exhaustive: HashMap<NodeId, bool>,
+    /// tsc clause.fallthroughFlowNode (noFallthroughCasesInSwitch).
+    pub node_fallthrough_flow: HashMap<NodeId, crate::flow::FlowId>,
+    /// tsc activeLabelList (a stack; tsc uses a linked list).
+    pub active_label_list: Vec<crate::flow::ActiveLabel>,
 
     // ---- walk state ----
     pub in_strict_mode: bool,
@@ -93,11 +111,15 @@ pub struct Binder<'a> {
 }
 
 impl<'a> Binder<'a> {
-    pub fn new(source: &'a SourceFile) -> Self {
-        Self::with_symbol_id_seed(source, 1)
+    pub fn new(source: &'a SourceFile, options: &'a tsrs2_types::CompilerOptions) -> Self {
+        Self::with_symbol_id_seed(source, options, 1)
     }
 
-    pub fn with_symbol_id_seed(source: &'a SourceFile, next_symbol_id: u32) -> Self {
+    pub fn with_symbol_id_seed(
+        source: &'a SourceFile,
+        options: &'a tsrs2_types::CompilerOptions,
+        next_symbol_id: u32,
+    ) -> Self {
         let mut flow = crate::flow::FlowArena::default();
         // tsc createBinder: unreachableFlow is allocated once up front.
         let unreachable_flow = flow.create_flow_node(
@@ -107,6 +129,9 @@ impl<'a> Binder<'a> {
         );
         Self {
             source,
+            options,
+            language_version: options.emit_script_target().bits(),
+            common_js_module_indicator: None,
             symbols: SymbolArena::default(),
             node_symbol: HashMap::new(),
             node_local_symbol: HashMap::new(),
@@ -135,6 +160,11 @@ impl<'a> Binder<'a> {
             node_flow: HashMap::new(),
             node_end_flow: HashMap::new(),
             node_return_flow: HashMap::new(),
+            node_flow_when_true: HashMap::new(),
+            node_flow_when_false: HashMap::new(),
+            possibly_exhaustive: HashMap::new(),
+            node_fallthrough_flow: HashMap::new(),
+            active_label_list: Vec::new(),
             in_strict_mode: false,
             seen_this_keyword: false,
             in_assignment_pattern: false,
@@ -163,6 +193,7 @@ impl<'a> Binder<'a> {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
             TableRef::Members(symbol) => &self.symbols.symbol(symbol).members,
             TableRef::Exports(symbol) => &self.symbols.symbol(symbol).exports,
+            TableRef::GlobalExports(symbol) => &self.symbols.symbol(symbol).global_exports,
         }
     }
 
@@ -171,6 +202,9 @@ impl<'a> Binder<'a> {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
             TableRef::Members(symbol) => &mut self.symbols.symbol_mut(symbol).members,
             TableRef::Exports(symbol) => &mut self.symbols.symbol_mut(symbol).exports,
+            TableRef::GlobalExports(symbol) => {
+                &mut self.symbols.symbol_mut(symbol).global_exports
+            }
         }
     }
 
@@ -331,7 +365,7 @@ impl<'a> Binder<'a> {
     /// tsc-port: setValueDeclaration @6.0.3
     /// tsc-hash: a59d9538fb29e56c3a8225e23c78e2a2c0e3570f1bbc442be1dcc2ed93436dac
     /// tsc-span: _tsc.js:15190-15195
-    fn set_value_declaration(&mut self, symbol: SymbolId, node: NodeId) {
+    pub(crate) fn set_value_declaration(&mut self, symbol: SymbolId, node: NodeId) {
         let value_declaration = self.symbols.symbol(symbol).value_declaration;
         let replace = match value_declaration {
             None => true,
@@ -746,7 +780,9 @@ mod tests {
     #[test]
     fn function_overloads_merge() {
         let source = parse("function f(a: string): void;\nfunction f(a: number): void {}\n");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(symbols[0], symbols[1]);
         let symbol = binder.symbols.symbol(symbols[0]);
@@ -762,7 +798,9 @@ mod tests {
     #[test]
     fn namespace_merges_into_function() {
         let source = parse("function f() {}\nnamespace f { export const x = 1; }\n");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(symbols[0], symbols[1]);
         assert!(binder.bind_diagnostics.is_empty());
@@ -771,7 +809,9 @@ mod tests {
     #[test]
     fn interface_merges_into_class() {
         let source = parse("class D {}\ninterface D {}\n");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(symbols[0], symbols[1]);
         let symbol = binder.symbols.symbol(symbols[0]);
@@ -785,7 +825,9 @@ mod tests {
     fn block_scoped_redeclaration_reports_2451_and_detaches_fresh_symbol() {
         // Pins from tsc sf.bindDiagnostics on "let x = 1;\nlet x = 2;".
         let source = parse("let x = 1;\nlet x = 2;");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(diag_pins(&binder), [(2451, 4, 1), (2451, 15, 1)]);
         // The fresh conflict symbol is DETACHED: the table keeps the
@@ -800,7 +842,9 @@ mod tests {
     fn triple_let_conflicts_against_the_original_symbol() {
         // Pins from tsc: "let y = 1;\nlet y = 2;\nlet y = 3;".
         let source = parse("let y = 1;\nlet y = 2;\nlet y = 3;");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(
             diag_pins(&binder),
@@ -814,7 +858,9 @@ mod tests {
         // because bindEachFunctionsFirst binds the function BEFORE the
         // var (stage 3.4); source-order declaration flips it.
         let source = parse("var f: any;\nfunction f() {}");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(diag_pins(&binder), [(2300, 4, 1), (2300, 21, 1)]);
     }
@@ -823,7 +869,9 @@ mod tests {
     fn enum_cannot_merge_with_class_reports_2567() {
         // Pins from tsc: "class C {}\nenum C {}".
         let source = parse("class C {}\nenum C {}");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(diag_pins(&binder), [(2567, 6, 1), (2567, 16, 1)]);
         // messageNeedsName = false: the 2567 text carries no name.
@@ -835,7 +883,9 @@ mod tests {
         // Pins from tsc: "export default class C {}\nexport default class D {}"
         //   2528@(21,1) related 2753@(47,1); 2528@(47,1) related 2752@(21,1).
         let source = parse("export default class C {}\nexport default class D {}");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         let container = binder.symbols.alloc(SymbolFlags::NONE, "container".to_owned());
         declare_all(&mut binder, TableRef::Exports(container), Some(container));
         assert_eq!(diag_pins(&binder), [(2528, 21, 1), (2528, 47, 1)]);
@@ -862,7 +912,9 @@ mod tests {
         // Pins from tsc: "export default 1;\nexport default 2;"
         //   2528@(0,17) related 2753@(18,17); 2528@(18,17) related 2752@(0,17).
         let source = parse("export default 1;\nexport default 2;");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         let container = binder.symbols.alloc(SymbolFlags::NONE, "container".to_owned());
         declare_all(&mut binder, TableRef::Exports(container), Some(container));
         assert_eq!(diag_pins(&binder), [(2528, 0, 17), (2528, 18, 17)]);
@@ -880,7 +932,9 @@ mod tests {
     #[test]
     fn escaped_names_key_the_table() {
         let source = parse("let __proto__ = 1;");
-        let mut binder = Binder::new(&source);
+        let options: &'static tsrs2_types::CompilerOptions =
+            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let mut binder = Binder::new(&source, options);
         declare_all(&mut binder, TableRef::Locals(source.root), None);
         let table = binder.locals.get(&source.root).expect("locals");
         assert!(table.contains_key("___proto__"));

@@ -649,10 +649,14 @@ fn get_error_span_for_arrow_function(
     if let Some(body) = body {
         if kind_of(source, body) == SyntaxKind::Block {
             let body_node = source.arena.node(body);
-            let start_line = line_of(source, body_node.pos as usize);
-            let end_line = line_of(source, body_node.end as usize);
+            let starts = byte_line_starts(&source.text);
+            let start_line = line_of_bytes(&starts, body_node.pos as usize);
+            let end_line = line_of_bytes(&starts, body_node.end as usize);
             if start_line < end_line {
-                return (pos, get_end_line_position(source, start_line) + 1);
+                return (
+                    pos,
+                    get_end_line_position(&source.text, &starts, start_line) + 1,
+                );
             }
         }
     }
@@ -845,26 +849,1051 @@ pub fn try_parse_pattern(pattern: &str) -> Option<ParsedPattern> {
     }
 }
 
-fn line_of(source: &SourceFile, pos: usize) -> usize {
-    let starts = &source.line_map.line_starts;
-    match starts.binary_search(&(pos as u32)) {
+/// tsc getRootDeclaration (15990).
+pub fn get_root_declaration(source: &SourceFile, mut node: NodeId) -> NodeId {
+    while kind_of(source, node) == SyntaxKind::BindingElement {
+        match parent_of(source, node).and_then(|pattern| parent_of(source, pattern)) {
+            Some(grand) => node = grand,
+            None => break,
+        }
+    }
+    node
+}
+
+/// tsc getCombinedNodeFlags via getCombinedFlags (11322).
+pub fn get_combined_node_flags(source: &SourceFile, id: NodeId) -> NodeFlags {
+    let mut node = Some(id);
+    if kind_of(source, id) == SyntaxKind::BindingElement {
+        node = walk_up_binding_elements_and_patterns(source, id);
+    }
+    let Some(mut current) = node else {
+        return NodeFlags::NONE;
+    };
+    let mut flags = node_flags(source, current);
+    if kind_of(source, current) == SyntaxKind::VariableDeclaration {
+        match parent_of(source, current) {
+            Some(parent) => current = parent,
+            None => return flags,
+        }
+    }
+    if kind_of(source, current) == SyntaxKind::VariableDeclarationList {
+        flags = NodeFlags::from_bits(flags.bits() | node_flags(source, current).bits());
+        match parent_of(source, current) {
+            Some(parent) => current = parent,
+            None => return flags,
+        }
+    }
+    if kind_of(source, current) == SyntaxKind::VariableStatement {
+        flags = NodeFlags::from_bits(flags.bits() | node_flags(source, current).bits());
+    }
+    flags
+}
+
+/// tsc isBlockOrCatchScoped (13706).
+pub fn is_block_or_catch_scoped(source: &SourceFile, declaration: NodeId) -> bool {
+    get_combined_node_flags(source, declaration).intersects(NodeFlags::BLOCK_SCOPED)
+        || is_catch_clause_variable_declaration_or_binding_element(source, declaration)
+}
+
+/// tsc isCatchClauseVariableDeclarationOrBindingElement (13709).
+pub fn is_catch_clause_variable_declaration_or_binding_element(
+    source: &SourceFile,
+    declaration: NodeId,
+) -> bool {
+    let root = get_root_declaration(source, declaration);
+    kind_of(source, root) == SyntaxKind::VariableDeclaration
+        && parent_of(source, root)
+            .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::CatchClause)
+}
+
+/// tsc isPartOfParameterDeclaration (15986).
+pub fn is_part_of_parameter_declaration(source: &SourceFile, node: NodeId) -> bool {
+    kind_of(source, get_root_declaration(source, node)) == SyntaxKind::Parameter
+}
+
+/// tsc isParameterPropertyDeclaration (11312).
+pub fn is_parameter_property_declaration(
+    source: &SourceFile,
+    node: NodeId,
+    parent: NodeId,
+) -> bool {
+    kind_of(source, node) == SyntaxKind::Parameter
+        && has_syntactic_modifier(source, node, ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+        && kind_of(source, parent) == SyntaxKind::Constructor
+}
+
+/// tsc isAsyncFunction (15834).
+pub fn is_async_function(source: &SourceFile, node: NodeId) -> bool {
+    if matches!(
+        kind_of(source, node),
+        SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::MethodDeclaration
+    ) {
+        return body_of(source, node).is_some()
+            && asterisk_token_of(source, node).is_none()
+            && has_syntactic_modifier(source, node, ModifierFlags::ASYNC);
+    }
+    false
+}
+
+/// tsc isObjectLiteralMethod (14407).
+pub fn is_object_literal_method(source: &SourceFile, node: NodeId) -> bool {
+    kind_of(source, node) == SyntaxKind::MethodDeclaration
+        && parent_of(source, node)
+            .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::ObjectLiteralExpression)
+}
+
+/// tsc isAutoAccessorPropertyDeclaration (12046).
+pub fn is_auto_accessor_property_declaration(source: &SourceFile, node: NodeId) -> bool {
+    kind_of(source, node) == SyntaxKind::PropertyDeclaration
+        && has_syntactic_modifier(source, node, ModifierFlags::ACCESSOR)
+}
+
+/// tsc isBindingPattern.
+pub fn is_binding_pattern(source: &SourceFile, node: NodeId) -> bool {
+    matches!(
+        kind_of(source, node),
+        SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+    )
+}
+
+/// tsc isAssignmentOperator (17090): FirstAssignment..LastAssignment.
+pub fn is_assignment_operator(token: SyntaxKind) -> bool {
+    let token = token as u16;
+    token >= SyntaxKind::EqualsToken as u16 && token <= SyntaxKind::CaretEqualsToken as u16
+}
+
+/// tsc isLeftHandSideExpressionKind (12210); PartiallyEmittedExpression
+/// never appears in parse trees, so no unwrapping is needed.
+pub fn is_left_hand_side_expression(source: &SourceFile, node: NodeId) -> bool {
+    matches!(
+        kind_of(source, node),
+        SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::NewExpression
+            | SyntaxKind::CallExpression
+            | SyntaxKind::JsxElement
+            | SyntaxKind::JsxSelfClosingElement
+            | SyntaxKind::JsxFragment
+            | SyntaxKind::TaggedTemplateExpression
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::Identifier
+            | SyntaxKind::PrivateIdentifier
+            | SyntaxKind::RegularExpressionLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateExpression
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::ThisKeyword
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::ExpressionWithTypeArguments
+            | SyntaxKind::MetaProperty
+            | SyntaxKind::ImportKeyword
+            | SyntaxKind::MissingDeclaration
+    )
+}
+
+/// tsc isEntityNameExpression (17128).
+pub fn is_entity_name_expression(source: &SourceFile, node: NodeId) -> bool {
+    kind_of(source, node) == SyntaxKind::Identifier
+        || is_property_access_entity_name_expression(source, node)
+}
+
+/// tsc isPropertyAccessEntityNameExpression (17150).
+pub fn is_property_access_entity_name_expression(source: &SourceFile, node: NodeId) -> bool {
+    match &source.arena.node(node).data {
+        NodeData::PropertyAccessExpression(data) => {
+            data.name
+                .is_some_and(|name| kind_of(source, name) == SyntaxKind::Identifier)
+                && data
+                    .expression
+                    .is_some_and(|expression| is_entity_name_expression(source, expression))
+        }
+        _ => false,
+    }
+}
+
+/// tsc isPartOfTypeQuery (14858).
+pub fn is_part_of_type_query(source: &SourceFile, mut node: NodeId) -> bool {
+    while matches!(
+        kind_of(source, node),
+        SyntaxKind::QualifiedName | SyntaxKind::Identifier
+    ) {
+        match parent_of(source, node) {
+            Some(parent) => node = parent,
+            None => return false,
+        }
+    }
+    kind_of(source, node) == SyntaxKind::TypeQuery
+}
+
+/// tsc isNarrowableReference (part of the 42977 predicate family; the
+/// rest lands in stage 3.5). Consulted by bindWorker's access-
+/// expression flowNode stamping.
+pub fn is_narrowable_reference(source: &SourceFile, expr: NodeId) -> bool {
+    match &source.arena.node(expr).data {
+        NodeData::PropertyAccessExpression(data) => data
+            .expression
+            .is_some_and(|expression| is_narrowable_reference(source, expression)),
+        NodeData::ParenthesizedExpression(data) => data
+            .expression
+            .is_some_and(|expression| is_narrowable_reference(source, expression)),
+        NodeData::NonNullExpression(data) => data
+            .expression
+            .is_some_and(|expression| is_narrowable_reference(source, expression)),
+        NodeData::ElementAccessExpression(data) => {
+            data.argument_expression.is_some_and(|argument| {
+                is_string_or_numeric_literal_like(source, argument)
+                    || is_entity_name_expression(source, argument)
+            }) && data
+                .expression
+                .is_some_and(|expression| is_narrowable_reference(source, expression))
+        }
+        NodeData::BinaryExpression(data) => {
+            let operator = data
+                .operator_token
+                .map(|token| kind_of(source, token))
+                .unwrap_or(SyntaxKind::Unknown);
+            operator == SyntaxKind::CommaToken
+                && data
+                    .right
+                    .is_some_and(|right| is_narrowable_reference(source, right))
+                || is_assignment_operator(operator)
+                    && data
+                        .left
+                        .is_some_and(|left| is_left_hand_side_expression(source, left))
+        }
+        _ => matches!(
+            kind_of(source, expr),
+            SyntaxKind::Identifier
+                | SyntaxKind::ThisKeyword
+                | SyntaxKind::SuperKeyword
+                | SyntaxKind::MetaProperty
+        ),
+    }
+}
+
+/// tsc getThisContainer (14476-region): nearest `this`-scoping
+/// container above the node.
+pub fn get_this_container(
+    source: &SourceFile,
+    mut node: NodeId,
+    include_arrow_functions: bool,
+) -> Option<NodeId> {
+    loop {
+        node = parent_of(source, node)?;
+        match kind_of(source, node) {
+            SyntaxKind::ComputedPropertyName => {
+                node = parent_of(source, node).and_then(|parent| parent_of(source, parent))?;
+            }
+            SyntaxKind::Decorator => {
+                if let Some(parent) = parent_of(source, node) {
+                    if kind_of(source, parent) == SyntaxKind::Parameter {
+                        if let Some(grand) = parent_of(source, parent) {
+                            if is_class_element_kind(kind_of(source, grand)) {
+                                node = grand;
+                            }
+                        }
+                    } else if is_class_element_kind(kind_of(source, parent)) {
+                        node = parent;
+                    }
+                }
+            }
+            SyntaxKind::ArrowFunction if !include_arrow_functions => {}
+            SyntaxKind::ArrowFunction
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::Constructor
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::CallSignature
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::SourceFile => return Some(node),
+            _ => {}
+        }
+    }
+}
+
+fn is_class_element_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Constructor
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::SemicolonClassElement
+    )
+}
+
+/// tsc isInTopLevelContext (14528).
+pub fn is_in_top_level_context(source: &SourceFile, mut node: NodeId) -> bool {
+    if kind_of(source, node) == SyntaxKind::Identifier {
+        if let Some(parent) = parent_of(source, node) {
+            if matches!(
+                kind_of(source, parent),
+                SyntaxKind::ClassDeclaration | SyntaxKind::FunctionDeclaration
+            ) && name_field_of(source, parent) == Some(node)
+            {
+                node = parent;
+            }
+        }
+    }
+    match get_this_container(source, node, true) {
+        Some(container) => kind_of(source, container) == SyntaxKind::SourceFile,
+        None => false,
+    }
+}
+
+/// tsc isIdentifierName (15685): true when the identifier is a NAME
+/// position rather than a reference.
+pub fn is_identifier_name(source: &SourceFile, node: NodeId) -> bool {
+    let Some(parent) = parent_of(source, node) else {
+        return false;
+    };
+    match &source.arena.node(parent).data {
+        NodeData::PropertyDeclaration(data) => data.name == Some(node),
+        NodeData::PropertySignature(data) => data.name == Some(node),
+        NodeData::MethodDeclaration(data) => data.name == Some(node),
+        NodeData::MethodSignature(data) => data.name == Some(node),
+        NodeData::GetAccessor(data) => data.name == Some(node),
+        NodeData::SetAccessor(data) => data.name == Some(node),
+        NodeData::EnumMember(data) => data.name == Some(node),
+        NodeData::PropertyAssignment(data) => data.name == Some(node),
+        NodeData::PropertyAccessExpression(data) => data.name == Some(node),
+        NodeData::QualifiedName(data) => data.right == Some(node),
+        NodeData::BindingElement(data) => data.property_name == Some(node),
+        NodeData::ImportSpecifier(data) => data.property_name == Some(node),
+        NodeData::ExportSpecifier(_)
+        | NodeData::JsxAttribute(_)
+        | NodeData::JsxSelfClosingElement(_)
+        | NodeData::JsxOpeningElement(_)
+        | NodeData::JsxClosingElement(_) => true,
+        _ => false,
+    }
+}
+
+/// tsc isExpressionNode (14739). JSDoc link/member-name arms await
+/// JSDoc parsing.
+pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
+    match kind_of(source, node) {
+        SyntaxKind::SuperKeyword
+        | SyntaxKind::NullKeyword
+        | SyntaxKind::TrueKeyword
+        | SyntaxKind::FalseKeyword
+        | SyntaxKind::RegularExpressionLiteral
+        | SyntaxKind::ArrayLiteralExpression
+        | SyntaxKind::ObjectLiteralExpression
+        | SyntaxKind::PropertyAccessExpression
+        | SyntaxKind::ElementAccessExpression
+        | SyntaxKind::CallExpression
+        | SyntaxKind::NewExpression
+        | SyntaxKind::TaggedTemplateExpression
+        | SyntaxKind::AsExpression
+        | SyntaxKind::TypeAssertionExpression
+        | SyntaxKind::SatisfiesExpression
+        | SyntaxKind::NonNullExpression
+        | SyntaxKind::ParenthesizedExpression
+        | SyntaxKind::FunctionExpression
+        | SyntaxKind::ClassExpression
+        | SyntaxKind::ArrowFunction
+        | SyntaxKind::VoidExpression
+        | SyntaxKind::DeleteExpression
+        | SyntaxKind::TypeOfExpression
+        | SyntaxKind::PrefixUnaryExpression
+        | SyntaxKind::PostfixUnaryExpression
+        | SyntaxKind::BinaryExpression
+        | SyntaxKind::ConditionalExpression
+        | SyntaxKind::SpreadElement
+        | SyntaxKind::TemplateExpression
+        | SyntaxKind::OmittedExpression
+        | SyntaxKind::JsxElement
+        | SyntaxKind::JsxSelfClosingElement
+        | SyntaxKind::JsxFragment
+        | SyntaxKind::YieldExpression
+        | SyntaxKind::AwaitExpression => true,
+        SyntaxKind::MetaProperty => {
+            // !isImportCall(parent) || parent.expression !== node —
+            // import() call expressions never have MetaProperty as their
+            // expression in parse trees; keep true.
+            true
+        }
+        SyntaxKind::ExpressionWithTypeArguments => parent_of(source, node)
+            .is_some_and(|parent| kind_of(source, parent) != SyntaxKind::HeritageClause),
+        SyntaxKind::QualifiedName => {
+            let mut current = node;
+            while let Some(parent) = parent_of(source, current) {
+                if kind_of(source, parent) == SyntaxKind::QualifiedName {
+                    current = parent;
+                } else {
+                    break;
+                }
+            }
+            parent_of(source, current)
+                .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::TypeQuery)
+                || is_jsx_tag_name(source, current)
+        }
+        SyntaxKind::PrivateIdentifier => {
+            let Some(parent) = parent_of(source, node) else {
+                return false;
+            };
+            match &source.arena.node(parent).data {
+                NodeData::BinaryExpression(data) => {
+                    data.left == Some(node)
+                        && data.operator_token.is_some_and(|token| {
+                            kind_of(source, token) == SyntaxKind::InKeyword
+                        })
+                }
+                _ => false,
+            }
+        }
+        SyntaxKind::Identifier => {
+            if parent_of(source, node)
+                .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::TypeQuery)
+                || is_jsx_tag_name(source, node)
+            {
+                return true;
+            }
+            is_in_expression_context(source, node)
+        }
+        SyntaxKind::NumericLiteral
+        | SyntaxKind::BigIntLiteral
+        | SyntaxKind::StringLiteral
+        | SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::ThisKeyword => is_in_expression_context(source, node),
+        _ => false,
+    }
+}
+
+/// tsc isJSXTagName.
+fn is_jsx_tag_name(source: &SourceFile, node: NodeId) -> bool {
+    let Some(parent) = parent_of(source, node) else {
+        return false;
+    };
+    match &source.arena.node(parent).data {
+        NodeData::JsxOpeningElement(data) => data.tag_name == Some(node),
+        NodeData::JsxSelfClosingElement(data) => data.tag_name == Some(node),
+        NodeData::JsxClosingElement(data) => data.tag_name == Some(node),
+        _ => false,
+    }
+}
+
+/// tsc isInExpressionContext (14806-region).
+pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
+    let Some(parent) = parent_of(source, node) else {
+        return false;
+    };
+    match &source.arena.node(parent).data {
+        NodeData::VariableDeclaration(data) => data.initializer == Some(node),
+        NodeData::Parameter(data) => data.initializer == Some(node),
+        NodeData::PropertyDeclaration(data) => data.initializer == Some(node),
+        NodeData::PropertySignature(data) => data.initializer == Some(node),
+        NodeData::EnumMember(data) => data.initializer == Some(node),
+        NodeData::PropertyAssignment(data) => data.initializer == Some(node),
+        NodeData::BindingElement(data) => data.initializer == Some(node),
+        NodeData::ExpressionStatement(data) => data.expression == Some(node),
+        NodeData::IfStatement(data) => data.expression == Some(node),
+        NodeData::DoStatement(data) => data.expression == Some(node),
+        NodeData::WhileStatement(data) => data.expression == Some(node),
+        NodeData::ReturnStatement(data) => data.expression == Some(node),
+        NodeData::WithStatement(data) => data.expression == Some(node),
+        NodeData::SwitchStatement(data) => data.expression == Some(node),
+        NodeData::CaseClause(data) => data.expression == Some(node),
+        NodeData::ThrowStatement(data) => data.expression == Some(node),
+        NodeData::ForStatement(data) => {
+            data.initializer == Some(node)
+                && kind_of(source, node) != SyntaxKind::VariableDeclarationList
+                || data.condition == Some(node)
+                || data.incrementor == Some(node)
+        }
+        NodeData::ForInStatement(data) => {
+            data.initializer == Some(node)
+                && kind_of(source, node) != SyntaxKind::VariableDeclarationList
+                || data.expression == Some(node)
+        }
+        NodeData::ForOfStatement(data) => {
+            data.initializer == Some(node)
+                && kind_of(source, node) != SyntaxKind::VariableDeclarationList
+                || data.expression == Some(node)
+        }
+        NodeData::TypeAssertionExpression(data) => data.expression == Some(node),
+        NodeData::AsExpression(data) => data.expression == Some(node),
+        NodeData::TemplateSpan(data) => data.expression == Some(node),
+        NodeData::ComputedPropertyName(data) => data.expression == Some(node),
+        NodeData::Decorator(_)
+        | NodeData::JsxExpression(_)
+        | NodeData::JsxSpreadAttribute(_)
+        | NodeData::SpreadAssignment(_) => true,
+        NodeData::ExpressionWithTypeArguments(data) => {
+            // !isPartOfTypeNode(parent): heritage clauses are the only
+            // parse-tree position for this kind outside expressions.
+            data.expression == Some(node)
+                && parent_of(source, parent).is_some_and(|grand| {
+                    kind_of(source, grand) != SyntaxKind::HeritageClause
+                })
+        }
+        NodeData::ShorthandPropertyAssignment(data) => {
+            data.object_assignment_initializer == Some(node)
+        }
+        NodeData::SatisfiesExpression(data) => data.expression == Some(node),
+        _ => is_expression_node(source, parent),
+    }
+}
+
+// ---- the narrowing predicate family (_tsc.js 42977-43076) — these
+// GATE flow-node creation: a non-narrowing condition just returns its
+// antecedent. ----
+
+/// tsc-port: isNarrowingExpression @6.0.3
+/// tsc-hash: dc515ab05fc84edb32f842d53b4a216db3d3dbbe042fb02eb8174aa4d6950d82
+/// tsc-span: _tsc.js:42977-43002
+///
+/// JS-only: the JSDocTypeAssertion parenthesized-expression carve-out
+/// awaits JSDoc parsing (always false here).
+pub fn is_narrowing_expression(source: &SourceFile, expr: NodeId) -> bool {
+    match &source.arena.node(expr).data {
+        NodeData::Identifier(_) => true,
+        NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+            contains_narrowable_reference(source, expr)
+        }
+        NodeData::CallExpression(_) => has_narrowable_argument(source, expr),
+        NodeData::ParenthesizedExpression(data) => data
+            .expression
+            .is_some_and(|expression| is_narrowing_expression(source, expression)),
+        NodeData::NonNullExpression(data) => data
+            .expression
+            .is_some_and(|expression| is_narrowing_expression(source, expression)),
+        NodeData::BinaryExpression(_) => is_narrowing_binary_expression(source, expr),
+        NodeData::PrefixUnaryExpression(data) => {
+            data.operator == SyntaxKind::ExclamationToken
+                && data
+                    .operand
+                    .is_some_and(|operand| is_narrowing_expression(source, operand))
+        }
+        NodeData::TypeOfExpression(data) => data
+            .expression
+            .is_some_and(|expression| is_narrowing_expression(source, expression)),
+        _ => kind_of(source, expr) == SyntaxKind::ThisKeyword,
+    }
+}
+
+/// tsc containsNarrowableReference (43021).
+pub fn contains_narrowable_reference(source: &SourceFile, expr: NodeId) -> bool {
+    if is_narrowable_reference(source, expr) {
+        return true;
+    }
+    if is_optional_chain(source, expr) {
+        if let Some(expression) = expression_of(source, expr) {
+            return contains_narrowable_reference(source, expression);
+        }
+    }
+    false
+}
+
+/// tsc hasNarrowableArgument (43024).
+fn has_narrowable_argument(source: &SourceFile, expr: NodeId) -> bool {
+    let NodeData::CallExpression(data) = &source.arena.node(expr).data else {
+        return false;
+    };
+    if let Some(arguments) = data.arguments {
+        for &argument in &source.arena.node_array(arguments).nodes {
+            if contains_narrowable_reference(source, argument) {
+                return true;
+            }
+        }
+    }
+    if let Some(expression) = data.expression {
+        if kind_of(source, expression) == SyntaxKind::PropertyAccessExpression {
+            if let Some(target) = expression_of(source, expression) {
+                if contains_narrowable_reference(source, target) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// tsc isNarrowingTypeofOperands (43037): `typeof x` against a
+/// string-literal-like operand (StringLiteral or
+/// NoSubstitutionTemplateLiteral).
+fn is_narrowing_typeof_operands(source: &SourceFile, expr1: NodeId, expr2: NodeId) -> bool {
+    matches!(
+        &source.arena.node(expr1).data,
+        NodeData::TypeOfExpression(data)
+            if data.expression.is_some_and(|e| is_narrowable_operand(source, e))
+    ) && matches!(
+        kind_of(source, expr2),
+        SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+    )
+}
+
+/// tsc isNarrowingBinaryExpression (43040).
+fn is_narrowing_binary_expression(source: &SourceFile, expr: NodeId) -> bool {
+    let NodeData::BinaryExpression(data) = &source.arena.node(expr).data else {
+        return false;
+    };
+    let operator = data
+        .operator_token
+        .map(|token| kind_of(source, token))
+        .unwrap_or(SyntaxKind::Unknown);
+    let (Some(left), Some(right)) = (data.left, data.right) else {
+        return false;
+    };
+    match operator {
+        SyntaxKind::EqualsToken
+        | SyntaxKind::BarBarEqualsToken
+        | SyntaxKind::AmpersandAmpersandEqualsToken
+        | SyntaxKind::QuestionQuestionEqualsToken => {
+            contains_narrowable_reference(source, left)
+        }
+        SyntaxKind::EqualsEqualsToken
+        | SyntaxKind::ExclamationEqualsToken
+        | SyntaxKind::EqualsEqualsEqualsToken
+        | SyntaxKind::ExclamationEqualsEqualsToken => {
+            let left = skip_parentheses_pub(source, left);
+            let right = skip_parentheses_pub(source, right);
+            is_narrowable_operand(source, left)
+                || is_narrowable_operand(source, right)
+                || is_narrowing_typeof_operands(source, right, left)
+                || is_narrowing_typeof_operands(source, left, right)
+                || (is_boolean_literal(source, right) && is_narrowing_expression(source, left)
+                    || is_boolean_literal(source, left)
+                        && is_narrowing_expression(source, right))
+        }
+        SyntaxKind::InstanceOfKeyword => is_narrowable_operand(source, left),
+        SyntaxKind::InKeyword | SyntaxKind::CommaToken => {
+            is_narrowing_expression(source, right)
+        }
+        _ => false,
+    }
+}
+
+/// tsc isNarrowableOperand (43066).
+pub fn is_narrowable_operand(source: &SourceFile, expr: NodeId) -> bool {
+    match &source.arena.node(expr).data {
+        NodeData::ParenthesizedExpression(data) => data
+            .expression
+            .is_some_and(|expression| is_narrowable_operand(source, expression)),
+        NodeData::BinaryExpression(data) => {
+            let operator = data
+                .operator_token
+                .map(|token| kind_of(source, token))
+                .unwrap_or(SyntaxKind::Unknown);
+            match operator {
+                SyntaxKind::EqualsToken => data
+                    .left
+                    .is_some_and(|left| is_narrowable_operand(source, left)),
+                SyntaxKind::CommaToken => data
+                    .right
+                    .is_some_and(|right| is_narrowable_operand(source, right)),
+                _ => contains_narrowable_reference(source, expr),
+            }
+        }
+        _ => contains_narrowable_reference(source, expr),
+    }
+}
+
+/// tsc isBooleanLiteral (12001).
+pub fn is_boolean_literal(source: &SourceFile, node: NodeId) -> bool {
+    matches!(
+        kind_of(source, node),
+        SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword
+    )
+}
+
+/// The `.expression` of expression-carrying kinds used in the flow walk.
+pub fn expression_of(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    match &source.arena.node(node).data {
+        NodeData::PropertyAccessExpression(data) => data.expression,
+        NodeData::ElementAccessExpression(data) => data.expression,
+        NodeData::CallExpression(data) => data.expression,
+        NodeData::NonNullExpression(data) => data.expression,
+        NodeData::ParenthesizedExpression(data) => data.expression,
+        NodeData::ExpressionStatement(data) => data.expression,
+        NodeData::TypeOfExpression(data) => data.expression,
+        NodeData::DeleteExpression(data) => data.expression,
+        NodeData::SpreadElement(data) => data.expression,
+        NodeData::SpreadAssignment(data) => data.expression,
+        _ => None,
+    }
+}
+
+pub fn skip_parentheses_pub(source: &SourceFile, mut id: NodeId) -> NodeId {
+    while let NodeData::ParenthesizedExpression(data) = &source.arena.node(id).data {
+        match data.expression {
+            Some(expression) => id = expression,
+            None => break,
+        }
+    }
+    id
+}
+
+// ---- optional-chain predicates (_tsc.js 11832-11847) ----
+
+/// tsc isOptionalChain (11832).
+pub fn is_optional_chain(source: &SourceFile, node: NodeId) -> bool {
+    node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN)
+        && matches!(
+            kind_of(source, node),
+            SyntaxKind::PropertyAccessExpression
+                | SyntaxKind::ElementAccessExpression
+                | SyntaxKind::CallExpression
+                | SyntaxKind::NonNullExpression
+        )
+}
+
+/// tsc isOptionalChainRoot (11836): an optional chain (excluding
+/// non-null) with its own `?.` token.
+pub fn is_optional_chain_root(source: &SourceFile, node: NodeId) -> bool {
+    if !is_optional_chain(source, node)
+        || kind_of(source, node) == SyntaxKind::NonNullExpression
+    {
+        return false;
+    }
+    match &source.arena.node(node).data {
+        NodeData::PropertyAccessExpression(data) => data.question_dot_token.is_some(),
+        NodeData::ElementAccessExpression(data) => data.question_dot_token.is_some(),
+        NodeData::CallExpression(data) => data.question_dot_token.is_some(),
+        _ => false,
+    }
+}
+
+/// tsc isExpressionOfOptionalChainRoot (11839).
+pub fn is_expression_of_optional_chain_root(source: &SourceFile, node: NodeId) -> bool {
+    parent_of(source, node).is_some_and(|parent| {
+        is_optional_chain_root(source, parent) && expression_of(source, parent) == Some(node)
+    })
+}
+
+/// tsc isOutermostOptionalChain (11842).
+pub fn is_outermost_optional_chain(source: &SourceFile, node: NodeId) -> bool {
+    let Some(parent) = parent_of(source, node) else {
+        return true;
+    };
+    !is_optional_chain(source, parent)
+        || is_optional_chain_root(source, parent)
+        || Some(node) != expression_of(source, parent)
+}
+
+/// tsc isNullishCoalesce (11845).
+pub fn is_nullish_coalesce(source: &SourceFile, node: NodeId) -> bool {
+    matches!(
+        &source.arena.node(node).data,
+        NodeData::BinaryExpression(data)
+            if data.operator_token.is_some_and(|token| {
+                kind_of(source, token) == SyntaxKind::QuestionQuestionToken
+            })
+    )
+}
+
+// ---- assignment-target + logical-operator predicates ----
+
+/// tsc isBinaryLogicalOperator (17077) + isLogicalOrCoalescingBinaryOperator (17084).
+pub fn is_logical_or_coalescing_binary_operator(token: SyntaxKind) -> bool {
+    matches!(
+        token,
+        SyntaxKind::BarBarToken
+            | SyntaxKind::AmpersandAmpersandToken
+            | SyntaxKind::QuestionQuestionToken
+    )
+}
+
+/// tsc isLogicalOrCoalescingBinaryExpression (17087).
+pub fn is_logical_or_coalescing_binary_expression(source: &SourceFile, expr: NodeId) -> bool {
+    matches!(
+        &source.arena.node(expr).data,
+        NodeData::BinaryExpression(data)
+            if data.operator_token.is_some_and(|token| {
+                is_logical_or_coalescing_binary_operator(kind_of(source, token))
+            })
+    )
+}
+
+/// tsc isLogicalOrCoalescingAssignmentOperator (17098-region).
+pub fn is_logical_or_coalescing_assignment_operator(token: SyntaxKind) -> bool {
+    matches!(
+        token,
+        SyntaxKind::BarBarEqualsToken
+            | SyntaxKind::AmpersandAmpersandEqualsToken
+            | SyntaxKind::QuestionQuestionEqualsToken
+    )
+}
+
+/// tsc isLogicalOrCoalescingAssignmentExpression.
+pub fn is_logical_or_coalescing_assignment_expression(
+    source: &SourceFile,
+    expr: NodeId,
+) -> bool {
+    matches!(
+        &source.arena.node(expr).data,
+        NodeData::BinaryExpression(data)
+            if data.operator_token.is_some_and(|token| {
+                is_logical_or_coalescing_assignment_operator(kind_of(source, token))
+            })
+    )
+}
+
+/// tsc isAssignmentExpression(node, excludeCompoundAssignment=true).
+pub fn is_assignment_expression_simple(source: &SourceFile, node: NodeId) -> bool {
+    matches!(
+        &source.arena.node(node).data,
+        NodeData::BinaryExpression(data)
+            if data.operator_token.is_some_and(|token| {
+                kind_of(source, token) == SyntaxKind::EqualsToken
+            }) && data.left.is_some_and(|left| {
+                is_left_hand_side_expression(source, left)
+            })
+    )
+}
+
+/// tsc isDestructuringAssignment (17114).
+pub fn is_destructuring_assignment(source: &SourceFile, node: NodeId) -> bool {
+    if !is_assignment_expression_simple(source, node) {
+        return false;
+    }
+    let NodeData::BinaryExpression(data) = &source.arena.node(node).data else {
+        return false;
+    };
+    data.left.is_some_and(|left| {
+        matches!(
+            kind_of(source, left),
+            SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
+        )
+    })
+}
+
+/// tsc-port: getAssignmentTarget @6.0.3
+/// tsc-hash: 75e46b99fd92e3e44e166d65e2e2922f5a567bf35563b3e1884012240bc34a92
+/// tsc-span: _tsc.js:15536-15579
+pub fn is_assignment_target(source: &SourceFile, node: NodeId) -> bool {
+    let mut node = node;
+    let mut parent = match parent_of(source, node) {
+        Some(parent) => parent,
+        None => return false,
+    };
+    loop {
+        match &source.arena.node(parent).data {
+            NodeData::BinaryExpression(data) => {
+                let operator = data
+                    .operator_token
+                    .map(|token| kind_of(source, token))
+                    .unwrap_or(SyntaxKind::Unknown);
+                return is_assignment_operator(operator) && data.left == Some(node);
+            }
+            NodeData::PrefixUnaryExpression(data) => {
+                return matches!(
+                    data.operator,
+                    SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+                );
+            }
+            NodeData::PostfixUnaryExpression(data) => {
+                return matches!(
+                    data.operator,
+                    SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+                );
+            }
+            NodeData::ForInStatement(data) => return data.initializer == Some(node),
+            NodeData::ForOfStatement(data) => return data.initializer == Some(node),
+            NodeData::ParenthesizedExpression(_)
+            | NodeData::ArrayLiteralExpression(_)
+            | NodeData::SpreadElement(_)
+            | NodeData::NonNullExpression(_) => {
+                node = parent;
+            }
+            NodeData::SpreadAssignment(_) => {
+                node = match parent_of(source, parent) {
+                    Some(grand) => grand,
+                    None => return false,
+                };
+            }
+            NodeData::ShorthandPropertyAssignment(data) => {
+                if data.name != Some(node) {
+                    return false;
+                }
+                node = match parent_of(source, parent) {
+                    Some(grand) => grand,
+                    None => return false,
+                };
+            }
+            NodeData::PropertyAssignment(data) => {
+                if data.name == Some(node) {
+                    return false;
+                }
+                node = match parent_of(source, parent) {
+                    Some(grand) => grand,
+                    None => return false,
+                };
+            }
+            _ => return false,
+        }
+        parent = match parent_of(source, node) {
+            Some(parent) => parent,
+            None => return false,
+        };
+    }
+}
+
+/// tsc isDottedName (17147).
+pub fn is_dotted_name(source: &SourceFile, node: NodeId) -> bool {
+    match &source.arena.node(node).data {
+        NodeData::PropertyAccessExpression(data) => data
+            .expression
+            .is_some_and(|expression| is_dotted_name(source, expression)),
+        NodeData::ParenthesizedExpression(data) => data
+            .expression
+            .is_some_and(|expression| is_dotted_name(source, expression)),
+        _ => matches!(
+            kind_of(source, node),
+            SyntaxKind::Identifier
+                | SyntaxKind::ThisKeyword
+                | SyntaxKind::SuperKeyword
+                | SyntaxKind::MetaProperty
+        ),
+    }
+}
+
+/// tsc isPushOrUnshiftIdentifier (15983).
+pub fn is_push_or_unshift_identifier(source: &SourceFile, node: NodeId) -> bool {
+    matches!(
+        &source.arena.node(node).data,
+        NodeData::Identifier(data)
+            if data.escaped_text == "push" || data.escaped_text == "unshift"
+    )
+}
+
+/// tsc canHaveFlowNode (15333).
+pub fn can_have_flow_node(source: &SourceFile, node: NodeId) -> bool {
+    let kind = kind_of(source, node);
+    if kind as u16 >= SyntaxKind::FirstStatement as u16
+        && kind as u16 <= SyntaxKind::LastStatement as u16
+    {
+        return true;
+    }
+    matches!(
+        kind,
+        SyntaxKind::Identifier
+            | SyntaxKind::ThisKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::QualifiedName
+            | SyntaxKind::MetaProperty
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::BindingElement
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+    )
+}
+
+/// tsc-port: isPotentiallyExecutableNode @6.0.3
+/// tsc-hash: b81957d1ca763bf201e860e37f3a0179784246e97cc03654486f850282e3e745
+/// tsc-span: _tsc.js:20196-20209
+pub fn is_potentially_executable_node(source: &SourceFile, node: NodeId) -> bool {
+    let kind = kind_of(source, node);
+    if kind as u16 >= SyntaxKind::FirstStatement as u16
+        && kind as u16 <= SyntaxKind::LastStatement as u16
+    {
+        if let NodeData::VariableStatement(data) = &source.arena.node(node).data {
+            let Some(list) = data.declaration_list else {
+                return true;
+            };
+            if get_combined_node_flags(source, list).intersects(NodeFlags::BLOCK_SCOPED) {
+                return true;
+            }
+            let NodeData::VariableDeclarationList(list_data) = &source.arena.node(list).data
+            else {
+                return true;
+            };
+            let Some(declarations) = list_data.declarations else {
+                return true;
+            };
+            return source
+                .arena
+                .node_array(declarations)
+                .nodes
+                .iter()
+                .any(|&declaration| {
+                    matches!(
+                        &source.arena.node(declaration).data,
+                        NodeData::VariableDeclaration(data) if data.initializer.is_some()
+                    )
+                });
+        }
+        return true;
+    }
+    matches!(
+        kind,
+        SyntaxKind::ClassDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::ModuleDeclaration
+    )
+}
+
+/// Byte-offset line starts (LineMap.line_starts are UTF-16 units; the
+/// error-span math below needs bytes).
+fn byte_line_starts(text: &str) -> Vec<usize> {
+    let mut starts = vec![0usize];
+    let mut chars = text.char_indices().peekable();
+    while let Some((byte, ch)) = chars.next() {
+        match ch {
+            '\r' => {
+                let mut next_start = byte + 1;
+                if let Some(&(next_byte, '\n')) = chars.peek() {
+                    chars.next();
+                    next_start = next_byte + 1;
+                }
+                starts.push(next_start);
+            }
+            '\n' => starts.push(byte + 1),
+            '\u{2028}' | '\u{2029}' => starts.push(byte + ch.len_utf8()),
+            _ => {}
+        }
+    }
+    starts
+}
+
+fn line_of_bytes(starts: &[usize], pos: usize) -> usize {
+    match starts.binary_search(&pos) {
         Ok(line) => line,
         Err(insert) => insert.saturating_sub(1),
     }
 }
 
 /// tsc getEndLinePosition (_tsc.js 12890): the last non-line-break
-/// position on `line`.
-fn get_end_line_position(source: &SourceFile, line: usize) -> usize {
-    let starts = &source.line_map.line_starts;
+/// position on `line`, in bytes.
+fn get_end_line_position(text: &str, starts: &[usize], line: usize) -> usize {
     if line + 1 == starts.len() {
-        return source.text.len().saturating_sub(1);
+        return text.len().saturating_sub(1);
     }
-    let start = starts[line] as usize;
-    let mut pos = (starts[line + 1] as usize).saturating_sub(1);
+    let start = starts[line];
+    let mut pos = starts[line + 1].saturating_sub(1);
     while pos >= start {
-        if source.text.is_char_boundary(pos) {
-            let ch = source.text[pos..].chars().next();
+        if text.is_char_boundary(pos) {
+            let ch = text[pos..].chars().next();
             match ch {
                 Some('\n') | Some('\r') | Some('\u{2028}') | Some('\u{2029}') => {}
                 _ => break,
