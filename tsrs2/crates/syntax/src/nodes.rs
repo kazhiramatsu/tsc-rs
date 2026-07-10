@@ -953,11 +953,13 @@ pub struct PartiallyEmittedExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PostfixUnaryExpressionData {
+    pub operator: SyntaxKind,
     pub operand: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PrefixUnaryExpressionData {
+    pub operator: SyntaxKind,
     pub operand: Option<NodeId>,
 }
 
@@ -2281,10 +2283,16 @@ impl NodeData {
                 })
             }
             SyntaxKind::PostfixUnaryExpression => {
-                Self::PostfixUnaryExpression(PostfixUnaryExpressionData { operand: None })
+                Self::PostfixUnaryExpression(PostfixUnaryExpressionData {
+                    operator: SyntaxKind::PostfixUnaryExpression,
+                    operand: None,
+                })
             }
             SyntaxKind::PrefixUnaryExpression => {
-                Self::PrefixUnaryExpression(PrefixUnaryExpressionData { operand: None })
+                Self::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                    operator: SyntaxKind::PrefixUnaryExpression,
+                    operand: None,
+                })
             }
             SyntaxKind::PrivateIdentifier => Self::PrivateIdentifier(PrivateIdentifierData {
                 escaped_text: String::new(),

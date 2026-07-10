@@ -3633,6 +3633,17 @@ fn seed_grammar_flag_fields(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
             type_text: "boolean".to_owned(),
             optional: true,
         });
+    // tsc PrefixUnaryExpression.operator / PostfixUnaryExpression.operator:
+    // a SyntaxKind payload, not a child node. The binder consumes it
+    // (getDeclarationName signed-numeric computed names, strict-mode
+    // ++/-- checks, createFlowMutation).
+    for kind in ["PrefixUnaryExpression", "PostfixUnaryExpression"] {
+        nodes.entry(kind.to_owned()).or_default().push(DtsField {
+            name: "operator".to_owned(),
+            type_text: "SyntaxKind".to_owned(),
+            optional: false,
+        });
+    }
 }
 
 fn collect_interface_fields(

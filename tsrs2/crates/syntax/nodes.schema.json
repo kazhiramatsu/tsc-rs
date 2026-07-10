@@ -1825,6 +1825,7 @@
       "kindName": "PostfixUnaryExpression",
       "dataName": "PostfixUnaryExpressionData",
       "fields": [
+        {"name": "operator", "rustName": "operator", "type": "SyntaxKind", "optional": false, "child": false},
         {"name": "operand", "rustName": "operand", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -1835,6 +1836,7 @@
       "kindName": "PrefixUnaryExpression",
       "dataName": "PrefixUnaryExpressionData",
       "fields": [
+        {"name": "operator", "rustName": "operator", "type": "SyntaxKind", "optional": false, "child": false},
         {"name": "operand", "rustName": "operand", "type": "Node", "optional": true, "child": true}
       ],
       "children": [

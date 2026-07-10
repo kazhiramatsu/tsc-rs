@@ -90,36 +90,9 @@ impl SymbolArena {
     }
 }
 
-/// tsc-port: escapeLeadingUnderscores @6.0.3
-/// tsc-hash: 86d7f97e898c96c6de2e47109d4583e4446ba8a518842f34d0d3cd4aa1b0b3c4
-/// tsc-span: _tsc.js:11438-11440
-///
-/// A name beginning with two underscores gains ONE more, so user
-/// `__proto__` cannot collide with internal names (`__call` etc. are
-/// stored unescaped). The charCodeAt checks are byte checks: `_` is
-/// ASCII, so a multi-byte first char never matches.
-pub fn escape_leading_underscores(name: &str) -> String {
-    let bytes = name.as_bytes();
-    if bytes.len() >= 2 && bytes[0] == b'_' && bytes[1] == b'_' {
-        format!("_{name}")
-    } else {
-        name.to_owned()
-    }
-}
-
-/// tsc-port: unescapeLeadingUnderscores @6.0.3
-/// tsc-hash: e8294a1e4ef10b8ca2bcce06045e22adab6689e46b655acf51bacc3810ef5271
-/// tsc-span: _tsc.js:11441-11444
-///
-/// Display-time inverse: exactly three leading underscores drop one.
-pub fn unescape_leading_underscores(name: &str) -> &str {
-    let bytes = name.as_bytes();
-    if bytes.len() >= 3 && bytes[0] == b'_' && bytes[1] == b'_' && bytes[2] == b'_' {
-        &name[1..]
-    } else {
-        name
-    }
-}
+// The escape lives in tsrs2-syntax (the parser factory applies it to
+// every Identifier escapedText); re-exported here for binder callers.
+pub use tsrs2_syntax::{escape_leading_underscores, unescape_leading_underscores};
 
 #[cfg(test)]
 mod tests {

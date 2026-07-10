@@ -66,8 +66,12 @@ syntax-and-binder §3.1, with its supporting pieces:
 - On conflict: the duplicate-identifier report family
   (Duplicate_identifier, block-scope redeclaration, enum-merge and
   multiple-default special messages) with relatedInformation pointing
-  at every prior declaration, then a FRESH symbol replaces the table
-  entry so the error reports once.
+  at every prior declaration, then a FRESH symbol takes the new
+  declaration. SOURCE CORRECTION (2026-07-10, 42602 body): the fresh
+  symbol is DETACHED — the table KEEPS the original symbol (only the
+  isReplaceableByMethod branch replaces the entry), so every later
+  duplicate re-conflicts against the ORIGINAL and reports again
+  (oracle-pinned: triple `let y` yields 2451 ×4, two per conflict).
 - `getDeclarationName` (computed names → `__computed`; default
   exports → `default`; missing → `__missing`; plus the tail cases:
   `export * from` declarations → `__export`, SourceFile and
@@ -79,6 +83,23 @@ namespace+function (merge), namespace+class (merge), enum+enum
 (merge), interface+class (merge), var+var (merge), let+let
 (conflict), var+function (conflict), default+default (special
 message) — expected diagnostics oracle-probed; symbol-diff on each.
+
+Landed shape (2026-07-10): declare.rs (Binder + TableRef +
+declareSymbol/addDeclarationToSymbol/setValueDeclaration/
+getDeclarationName/report family), node_util.rs (modifier flags,
+getNameOfDeclaration, dynamic-name predicates, getErrorSpanForNode —
+each with tsc-port ledger entries; JS-only arms carved out with
+comments). Oracle-pinned unit tests: 2451/2300/2567/2528(+2752/2753
+relateds) with exact UTF-16 spans. Notable oracle finds: default
+function + default class MERGE silently (ClassExcludes excludes
+Function via the JS constructor-function pattern) — the 2528 pin
+needs class+class or export-assignment pairs; `var f`+`function f`
+end-to-end diagnostic ORDER proves bindEachFunctionsFirst. Prereq
+fixes landed here: Identifier/PrivateIdentifier escapedText now
+factory-escaped in the parser (createIdentifier 21609 — table keys
+were unescaped otherwise), and PrefixUnary/PostfixUnaryExpression
+gained the `operator: SyntaxKind` payload via codegen seed (needed by
+signed-numeric declaration names, strict-mode ++/--, flow mutation).
 
 Commit: `m2 3.2: declareSymbol merge engine`.
 

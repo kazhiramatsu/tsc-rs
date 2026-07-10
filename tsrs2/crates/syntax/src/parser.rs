@@ -3142,9 +3142,11 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
+        // tsc factory createIdentifier (21609): escapedText is the
+        // ESCAPED form; `text` (idText) stays raw.
         let id = self.arena.alloc_node(
             NodeData::Identifier(IdentifierData {
-                escaped_text: text.clone(),
+                escaped_text: crate::escape_leading_underscores(&text),
                 text,
             }),
             pos,
@@ -3159,9 +3161,10 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
+        // tsc factory createPrivateIdentifier: escapedText is escaped.
         let id = self.arena.alloc_node(
             NodeData::PrivateIdentifier(PrivateIdentifierData {
-                escaped_text: text.clone(),
+                escaped_text: crate::escape_leading_underscores(&text),
                 text,
             }),
             pos,
@@ -4043,10 +4046,12 @@ impl<'text> Parser<'text> {
 
     fn parse_prefix_unary_expression(&mut self) -> NodeId {
         let pos = self.node_pos();
+        let operator = self.token();
         self.next_token();
         let operand = self.parse_simple_unary_expression();
         self.finish_node_data(
             NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                operator,
                 operand: Some(operand),
             }),
             pos,
@@ -4107,10 +4112,12 @@ impl<'text> Parser<'text> {
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) {
             let pos = self.node_pos();
+            let operator = self.token();
             self.next_token();
             let operand = self.parse_left_hand_side_expression_or_higher();
             return self.finish_node_data(
                 NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                    operator,
                     operand: Some(operand),
                 }),
                 pos,
@@ -4130,9 +4137,11 @@ impl<'text> Parser<'text> {
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) && !self.scanner.has_preceding_line_break()
         {
+            let operator = self.token();
             self.next_token();
             return self.finish_node_data(
                 NodeData::PostfixUnaryExpression(PostfixUnaryExpressionData {
+                    operator,
                     operand: Some(expression),
                 }),
                 self.arena.node(expression).pos as usize,
@@ -6993,6 +7002,7 @@ impl<'text> Parser<'text> {
         if negative {
             expression = self.finish_node_data(
                 NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                    operator: SyntaxKind::MinusToken,
                     operand: Some(expression),
                 }),
                 pos,
