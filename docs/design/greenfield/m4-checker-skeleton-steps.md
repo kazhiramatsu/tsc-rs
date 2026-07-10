@@ -33,28 +33,57 @@ Commit: `m4 5.0: checker state + resolution stack`.
   (2304-family with spelling suggestions DEFERRED to M8 — emit the
   plain form tsc uses when no suggestion is found; note it in the
   ledger as a partial port).
-- `getTypeOfSymbol` dispatch (near 56911) per checker-foundations
+- `getTypeOfSymbol` dispatch (56945) per checker-foundations
   §1.1, with the workers: variable/parameter/property (annotation →
   `getTypeFromTypeNode`; initializer → checkExpression + widening),
   function/class/enum/module, enum member, accessors, alias.
 - `getTypeFromTypeNode` (63196) for the annotation grammar: keyword
-  types, references (arity check 2314 lives here), unions/
-  intersections, literals, arrays/tuples, functions/constructors,
-  typeof queries, indexed access, keyof, parenthesized. Conditional/
-  mapped/template-literal TYPES may return stubs THAT ARE LEDGERED
-  as such and error-free (checked in M8's long tail) — but prefer
-  porting them now if the corpus rate demands.
+  types, references (arity check 2314 lives here; the type-parameter
+  DEFAULTS path `fillMissingTypeArguments` 59545 calls instantiateType
+  — completes at 5.2), unions/intersections, literals, arrays/tuples,
+  functions/constructors, typeof queries, indexed access, keyof,
+  parenthesized, PLUS the arms the worker (63199) actually has:
+  this-type, type predicates (trivial: asserts→void else boolean),
+  ExpressionWithTypeArguments (→ type reference; 5.3 heritage needs
+  it), import types, TypeOperator's unique/readonly,
+  optional/rest/named-tuple members, infer-type (goes with the
+  conditional stub). Conditional/mapped TYPES may return stubs THAT
+  ARE LEDGERED as such and error-free (checked in M8's long tail) —
+  but prefer porting them now if the corpus rate demands.
+  Template-literal types are NOT in that stub list: M3 4.1 already
+  builds them (relation arms + pins are live).
+
+FORWARD-DEPENDENCY NOTE (the compile-order reality): 5.1's bodies
+call machinery from later stages — initializer typing → checkExpression
+(5.5); `getWidenedTypeForVariableLikeDeclaration` (56552) →
+getWidenedType + reportImplicitAny (5.6); typeof queries
+(getTypeFromTypeQueryNode 60596) → checkExpressionWithTypeArguments
+(77963, 5.5) + getWidenedType (5.6); keyof → getIndexType (62016) →
+getPropertiesOfType (5.3); indexed access → getIndexedAccessType
+(62552) → getReducedApparentType (59098, 5.3). Laziness makes the
+RUNTIME order safe (nothing drives these until the 5.4 driver), but
+each call site is wired to a ledgered temporary stub at 5.1 and
+un-stubbed by its owning stage — same discipline as every other stub
+in this plan.
 
 Commit(s): `m4 5.1a-c: symbol typing + type-from-annotation`.
 
 ## Stage 5.2: instantiation [M]
 
-`instantiateType` (near 63315) per checker-foundations §6:
-`TypeMapper` as the CLOSED enum of five mapper kinds (never a
-HashMap), `couldContainTypeVariables` memoized fast path, depth-100/
-count-5M guards emitting the real 2589, instantiation caches on
-links, `instantiation_count` reset per deferred node (wired in stage
-5.4).
+`instantiateType` (63675 — NOT 63315, which is the `instantiateTypes`
+list helper) per checker-foundations §6: `TypeMapper` as the CLOSED
+enum of SIX mapper kinds (Simple/Array/Deferred/Function/Composite/
+Merged — flags.rs TypeMapKind; never a HashMap),
+`couldContainTypeVariables` memoized fast path, depth-100/count-5M
+guards emitting the real 2589, instantiation caches on links.
+Port the whole instantiation FAMILY here, not just the type walker:
+`instantiateTypes` (63315), `instantiateSignature` (63411),
+`instantiateSymbol` (63436), `instantiateIndexInfo` (63829),
+`getSignatureInstantiation` (59886) — 5.3's instantiated-reference
+member tables and 5.7's explicit type arguments consume them.
+`instantiation_count` resets at tsc's THREE entry points:
+checkExpression, checkSourceElement, checkDeferredNode (wired in
+stages 5.4 + 5.5).
 
 Commit: `m4 5.2: instantiateType + TypeMapper`.
 
@@ -63,11 +92,21 @@ Commit: `m4 5.2: instantiateType + TypeMapper`.
 Per checker-foundations §7: `getApparentType` (59093) full chain
 (primitives → wrapper interfaces is how `"x".length` works),
 `resolveStructuredTypeMembers` (58679) for interfaces (declaration
-merge + heritage), anonymous types, instantiated references, unions/
-intersections; `createUnionOrIntersectionProperty` (59100) incl.
+merge + heritage — that means the base-type resolvers land HERE:
+`getBaseTypes` 57218, `resolveBaseTypesOfClass` 57252,
+`resolveBaseTypesOfInterface` 57319; 5.8's 2415/2417 and M3's
+deferred `getSingleBaseForNonAugmentingSubtype` depend on them),
+anonymous types, instantiated references, unions/
+intersections; `createUnionOrIntersectionProperty` (59101) incl.
 `getTargetSymbol` identity for nominal private/protected;
 `getPropertyOfType`, index-info lookup, `getReducedApparentType`
-(checker-foundations §4.3).
+(59098, checker-foundations §4.3).
+
+UN-STUB the M3 normalization stubs here (they were ledgered against
+this stage): `getReducedType` (59287, real discriminant reduction),
+`getSingleBaseForNonAugmentingSubtype` (needs getBaseTypes),
+`getSimplifiedType` (62455 — resolveStructuredTypeMembers itself
+calls it, and the 5.1 indexed-access arm needs it real).
 
 Commit(s): `m4 5.3a-b: apparent type + member resolution`.
 
@@ -82,7 +121,13 @@ two M3 ledgered stubs: `relateVariances` (66488, the stage-4.6 stub)
 and recursiveTypeRelatedTo's cache-hit variance-replay branch
 (65744-65750). Prereq: add `VarianceFlags` to the M0 codegen
 `SourceEnum` seed (const enum inlined in `_tsc.js`, Ternary
-precedent) — it is not yet in types/src/flags.rs.
+precedent) — it is not yet in types/src/flags.rs. Add the OTHER
+inlined const enums M4 consumes in the same codegen commit, none of
+which are in flags.rs today: `TypeSystemPropertyName` (5.0
+pushTypeResolution), `IndexFlags` (5.1 keyof), `SignatureKind`
+(5.3/5.7 getSignaturesOfType), `WideningKind` (5.6 reportImplicitAny),
+`IterationUse`/`IterationTypeKind` (5.8 iteration protocol),
+`MemberOverrideStatus` (5.8 overrides).
 
 EXTEND pins/relations.toml with the M3-deferred rows: generic
 references (mutually recursive `interface A<T> { next: B<T> }`
@@ -123,23 +168,47 @@ declared path) → object literals (fresh object types,
 excess-property checking via the relation's fresh handling, computed
 names, spread via `getSpreadType`) → property/element access
 (checkPropertyAccessExpression 75069: 2339-family reporting,
-optional chaining, private names) → assertions/as/satisfies →
+optional chaining, private names; `checkNonNullExpression` 74990 and
+the 2531/2532/2533 + 18047/18048/18049 families live here — but its
+TypeFacts filter (`getTypeWithFacts`/`getAdjustedTypeWithFacts`) is
+M5-owned: stub it as identity, ledgered M5-stub; identical behavior
+when strictNullChecks is off) → assertions/as/satisfies →
 template expressions → unary/binary operators (the operator table:
 arithmetic 2362/2363, comparison via comparable relation, equality,
 in/instanceof, logical, assignment incl. 2322 reporting +
-`getRegularTypeOfObjectLiteral` at assignment positions) →
+`getRegularTypeOfObjectLiteral` at assignment positions). BINARY
+EXPRESSIONS ARE A STATE MACHINE: tsc checks them with an explicit
+work-stack trampoline (`createCheckBinaryExpression` 79810, wired as
+`var checkBinaryExpression = ...` at 46480) precisely for deep
+chains — port that shape, NOT a recursive checkBinaryExpression
+(this repo's 50k-term-chain constraint is tested; M1/M2 already paid
+this debt once) →
 conditional `?:` (union of branches; no narrowing yet) →
 await/yield (impl-checker-2xxx §5 rows 12-13: `getAwaitedType`,
-async return checking) → JSX for .tsx (impl-checker-2xxx §5b) →
-arrow/function expressions (signature from annotation via
+async return checking) → JSX for .tsx (impl-checker-2xxx §5b —
+ATTRIBUTE-table checking only in this stage; JSX element/component
+CALL resolution routes through resolveCall and lands with/after
+5.7) → arrow/function expressions (signature from annotation via
 `getContextualSignature`; body checking DEFERRED; return-type
 inference from body for un-annotated functions —
 `getReturnTypeFromBody`, un-narrowed).
 
+COMPLETENESS CHECKLIST: the dispatch switch at 81011
+(checkExpressionWorker) is the arm inventory — the prose above is
+not exhaustive. Arms it adds that need explicit dispositions:
+ClassExpression (mandatory — 5.4's deferred-kind list includes
+checkClassExpressionDeferred), NonNullExpression (77960),
+ExpressionWithTypeArguments (77963), MetaProperty, SpreadElement,
+PrivateIdentifier, QualifiedName, regex/paren/typeof/delete/void/
+omitted; CallExpression's import-call split (checkImportCallExpression)
+and TaggedTemplateExpression route to 5.7.
+
 Contextual typing arrives WITH this stage per checker-foundations §3:
 `getContextualType` (73471) parent-walk + the pushed-context stack +
 `ContextFlags`, because object/array literals and function
-expressions consume it immediately.
+expressions consume it immediately. EXCEPTION: its
+CallExpression-parent arm (getContextualTypeForArgumentAtIndex) needs
+getResolvedSignature — return undefined there until 5.7 activates it.
 
 Commit(s): `m4 5.5a-e: expression arms (+rate per commit)`.
 
@@ -167,8 +236,15 @@ checking (2344 via constraint checks), `getSignatureApplicabilityError`
 codes only; chain shaping is T2).
 
 THE STUB: `infer_type_arguments` returns each type parameter's
-default if present, else its constraint, else `unknown` — one
-function, marked `/// M6-stub` in the ledger. The subtype overload
+default if present, else its constraint, else `unknown` — marked
+`/// M6-stub` in the ledger (NOTE: tsc's real no-inference fallback
+is default → unknown; the constraint step is an M4-only enrichment —
+say so in the ledger so M6's swap doesn't accidentally preserve it).
+The stub SURFACE is inference-context construction at BOTH call
+sites, not one function: chooseOverload's `createInferenceContext`
+(68238) + `inferenceContext.inferredTypeParameters` reads, AND the
+overload-failure path (getCandidateForOverloadFailure 76871 →
+inferSignatureInstantiationForOverloadFailure). The subtype overload
 pass RUNS (the relation exists since M3); context-sensitive re-run
 plumbing (CheckMode bits) is ported but inert until M6 fills
 inference.
@@ -200,7 +276,13 @@ Commit(s): `m4 5.8a-d: statements + declaration checks (+rate)`.
 cargo xtask conformance          # expect: T0 ≥ 35%
 cargo xtask relpin run           # widened suite (incl. 5.3b rows) still 0
 cargo xtask invariants --suite idempotence
-cargo xtask ledger check         # M6-stub entries are the ONLY allowed stubs
+cargo xtask ledger check         # allowed residual stubs, by class:
+                                 #   M5-stub  (flow: get_flow_type_of_reference_stub,
+                                 #             non-null TypeFacts identity filter)
+                                 #   M6-stub  (inference surfaces per 5.7)
+                                 #   M8-stub  (conditional/mapped type nodes per 5.1)
+                                 # nothing else — M3's normalization stubs
+                                 # must be GONE (un-stubbed in 5.3)
 ```
 
 Then write `docs/NOTES-m4.md`: top 10 one-sided codes with owner

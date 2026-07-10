@@ -295,7 +295,7 @@ fn get_covariant_inference(&mut self, inf: &InferenceInfo, sig: SignatureId) -> 
 }
 ```
 
-- `has_primitive_constraint` (69241): constraint (or a conditional's
+- `has_primitive_constraint` (69240): constraint (or a conditional's
   default constraint) is Primitive | Index | TemplateLiteral |
   StringMapping. The StringMapping arm is why greenfield makes
   StringMapping a first-class kind (architectural-debt.md §2).
@@ -336,7 +336,7 @@ fn get_inferred_type(&mut self, ctx: &mut InferenceContext, i: usize) -> T {
         inferred = Some(self.get_type_from_inference(inf));
     }
     let mut result = inferred.unwrap_or_else(|| self.default_type_argument_type(ctx.flags.contains(ANY_DEFAULT)));
-    // CONSTRAINT CLAMP (tsc 69293): if the inference violates the constraint,
+    // CONSTRAINT CLAMP (tsc 69295): if the inference violates the constraint,
     // ReturnType-priority inferences FILTER to the compatible part, others → never→fallback→constraint
     if let Some(constraint) = self.constraint_of_type_parameter(inf.type_parameter) {
         let inst = self.instantiate_type(constraint, ctx.non_fixing_mapper);
@@ -371,9 +371,14 @@ archive/workstreams/relation-core-2-steps.md STAGE I).
 ### 2.3 inferTypeArguments — contextual return inference — tsc 75938
 
 The per-call driver. Two phases the current tsrs `infer_type_arguments`
-approximates: (a) infer the type parameters from the CONTEXTUAL return
-type first (`inferTypes(..., inferenceTargetType, ReturnType priority)`)
-when the call site has a contextual type, producing a `returnMapper`;
+approximates: (a) contextual-return pre-inference — TWO passes in the
+source (75944-75961), not one: (a1) `inferTypes(...,
+inferenceTargetType, ReturnType priority)` against the contextual
+type under the outer context's NoDefault clone; (a2) a FRESH
+`returnContext = createInferenceContext(...)` (75957) doing
+priority-None inference under `createOuterReturnMapper(outerContext)`
+— the `returnMapper` comes from cloneInferredPartOfContext of THAT
+context (75960), NOT from the ReturnType-priority pass;
 (b) then infer from arguments position by position
 (`getTypeAtPosition` + `checkExpressionWithContextualType`), rest via
 `getSpreadArgumentType` (76002). Port (a) — tsrs lacks the
@@ -406,7 +411,7 @@ fn resolve_call(&mut self, node: NodeId, signatures: &[SignatureId],
     // …
     let mut candidates = /* candidates_out or new */;
     self.reorder_candidates(signatures, &mut candidates, chain_flags);
-    if candidates.is_empty() { /* 2657 no signatures */ return self.resolve_error_call(node); }
+    if candidates.is_empty() { /* 2346 Call_target_does_not_contain_any_signatures */ return self.resolve_error_call(node); }
 
     let args = self.effective_call_arguments(node);
     let single_non_generic = candidates.len() == 1 && self.sig(candidates[0]).type_params.is_empty();
@@ -541,7 +546,7 @@ getFlowTypeOfReference (70394)
       ├ getTypeAtFlowBranchLabel (70653)  JOIN (union of antecedents)
       ├ getTypeAtFlowLoopLabel (70694)    JOIN + incomplete-type fixpoint
       └ getTypeAtFlowArrayMutation (70588)  evolving arrays
-isReachableFlowNode (70240)   separate reachability walk (7027/2367/...)
+isReachableFlowNode (70240)   separate reachability walk (7027/exhaustiveness/7029/...)
 ```
 
 ### 4.1 The FlowType wrapper and the "incomplete" bit — THE key mechanism
@@ -563,6 +568,9 @@ fn type_from_flow_type(ft: FlowType) -> T { match ft { FlowType::Type(t)|FlowTyp
 
 ```rust
 fn get_type_at_flow_node(&mut self, mut flow: FlowId) -> FlowType {
+    // NB: in tsc 6.0.3 flowDepth is a LOCAL of getFlowTypeOfReference
+    // (70397), reset per reference query — not checker-global state;
+    // sharedFlowNodes/Types ARE globals trimmed via sharedFlowStart.
     if self.flow_depth == 2000 { self.flow_analysis_disabled = true; /* report + errorType */ }
     self.flow_depth += 1;
     let mut shared: Option<FlowId> = None;
@@ -664,7 +672,7 @@ fn get_type_at_flow_branch_label(&mut self, flow: FlowId) -> FlowType {
 }
 ```
 
-- `getUnionOrEvolvingArrayType` (70759) does the union AND
+- `getUnionOrEvolvingArrayType` (70756) does the union AND
   `recombineUnknownType` (re-joins a decomposed `{}|null|undefined` back
   to `unknown` — tsrs learned this in Stage-1, keep it) and returns the
   IDENTICAL `declaredType` object when the union equals it (identity
@@ -803,7 +811,10 @@ demands (each gap is a narrowing FN).
 ### 4.7 isReachableFlowNode — reachability — tsc 70240
 
 Separate from type resolution: a boolean backward walk used for 7027
-(unreachable code), 2367-family exhaustiveness, 2534/2355/2366 return
+(unreachable code), switch exhaustiveness
+(isExhaustiveSwitchStatement/computeExhaustiveSwitchStatement
+78920/78933 — NOT "2367", which is checkBinary's unintentional-
+comparison elaboration at 80408), 2534/2355/2366 return
 checks, 7029. The current tsrs `reachable_walk` (Stage-3) mirrors this.
 
 ```rust
@@ -849,7 +860,7 @@ and `finishFlowLabel`. `bindCondition` (43193) splits into true/false
 targets via `doWithConditionalBranches` (this is where `&&`/`||`/`??`/
 optional-chain edges come from — bindCondition does NOT add plain
 Cond nodes for logical/optional-chain expressions; the sub-expression
-binding already created the edges). `bindWhileStatement` (43217) shows
+binding already created the edges). `bindWhileStatement` (43218) shows
 the loop-label pattern: pre-loop LoopLabel, body BranchLabel, post
 BranchLabel, back-edge added after the body. tsrs's `flow_graph.rs`
 already implements this family (Tier-2, byte-identical-gated). For a

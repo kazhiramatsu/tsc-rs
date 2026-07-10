@@ -243,8 +243,9 @@ the current repo is a whole stall-playbook section.
 
 ### 4.8 Instantiation
 
-`TypeMapper` as tsc's closed set of mapper kinds (simple, array,
-deferred, merged, composite) with an arena and `MapperId`;
+`TypeMapper` as tsc's closed set of SIX mapper kinds (simple, array,
+deferred, function, composite, merged — TypeMapKind) with an arena
+and `MapperId`;
 `instantiate_type` ported including `instantiationDepth`/`Count`
 guards and the instantiation caches on SymbolLinks/Signature. No
 ad-hoc `HashMap<SymbolId, TypeId>` mappers (the current repo's Mapper)

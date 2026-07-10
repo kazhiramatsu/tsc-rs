@@ -7,39 +7,75 @@ M4 stub (`infer_type_arguments`) and activates the CheckMode plumbing
 M4 ported inert.
 
 Gate: T0 ≥ 58%. Inference moves 2345/2322/2769/2339 together — run
-the full gate per stage, not just call fixtures (checker-key §2 note).
+the full gate per stage, not just call fixtures.
 
 ## Stage 7.0: canaries [P]
 
-Snapshot 40 fixtures: typeInference/**, typeArgumentInference/**,
-contextualTyping/**, overload-heavy (taggedTemplates, functionCalls).
-Same dump procedure as M5 6.0.
+Snapshot 40 fixtures — actual corpus paths:
+types/typeRelationships/typeInference/**,
+expressions/functionCalls/typeArgumentInference*.ts,
+expressions/contextualTyping/**, overload-heavy
+(es6/templates/taggedTemplate*, expressions/functionCalls/**).
+Same snapshot procedure as M5 6.0.
 
 Commit: `m6 7.0: inference canary list`.
 
 ## Stage 7.1: inference data model [M]
 
-`InferenceInfo` / `InferenceContext` VERBATIM from core-interfaces §6
-— including `top_level`, `is_fixed`, `implied_arity`,
-`contra_candidates`, the `InferencePriority` bit set (generated), the
-fixing/non-fixing mapper pair, and `compare_types`. Context creation
-(`createInferenceContext`, cloneInferenceContext for the re-run).
+`InferenceInfo` / `InferenceContext` from core-interfaces §6 PLUS
+three fields §6 omits (fixed there too, this list is authoritative):
+`intra_expression_inference_sites` (68286/68290 — populated by
+object/array-literal/JSX checking, DRAINED inside the fixing mapper
+before is_fixed is set, cleared by checkExpressionWithContextualType
+80557), `inferred_type_parameters` (80804 — consumed by
+chooseOverload via getSignatureInstantiation, stage 7.4), and the
+`outer_return_mapper` cache slot (createOuterReturnMapper 63385).
+Also: `top_level`, `is_fixed` (SET exclusively inside
+makeFixingMapperForContext 68258 when the fixing mapper resolves a
+type parameter on demand — it is mapper machinery, not an
+inferFromTypes arm), `implied_arity`, `contra_candidates`, the
+`InferencePriority` bit set (generated), the fixing/non-fixing
+mapper pair (both Deferred mappers), and `compare_types`. Context
+creation: `createInferenceContext` (68238);
+`cloneInferenceContext` (68241) serves the OUTER-context NoDefault
+mapper inside inferTypeArguments (75951) and createOuterReturnMapper
+— the chooseOverload RE-RUN reuses the SAME context (76842-76844;
+cloning there would discard fixed inferences — the failure-modes
+row 2 is the correct statement).
 
 Commit: `m6 7.1: InferenceInfo/InferenceContext`.
 
 ## Stage 7.2: inferTypes / inferFromTypes [M]
 
 The candidate collector (68637/68646), ported arm by arm in tsc
-order, priorities attached exactly as the source sets them: identical
+order, priorities attached exactly as the source sets them: the
+NoInfer gate FIRST (`isNoInferType` 60427 — Substitution type with
+Unknown constraint aborts all inference; the NoInfer intrinsic→
+Substitution mapping must exist for it to fire), identical
 types, unions/intersections both sides (the naked-type-variable
-ordering), literals, template literals + string mappings,
-index/keyof, conditional types, mapped-type homomorphic inference
-(ReverseMapped), object/signature structural inference
+ordering), literals, template literals + string mappings
+(inferTypesFromTemplateLiteralType 68575), index/keyof, conditional
+types (inferToConditionalType 69011), mapped-type homomorphic
+inference (inferToMappedType 68972; ReverseMapped needs
+createReverseMappedType 68398 + getTypeOfReverseMappedSymbol +
+inferReverseMappedType 68441 + the mapped-type accessors),
+object/signature structural inference
 (`inferFromProperties`, `inferFromSignatures` with bivariance rules),
 array/tuple element inference, contra-candidate collection at
-contravariant positions, `top_level` clearing on descent, fixing
-(`is_fixed`) when a candidate is consumed by a dependent inference,
+contravariant positions, `top_level` cleared at CANDIDATE-RECORD
+time via `isTypeParameterAtTopLevel(originalTarget, …)` (68732 — not
+a flag threaded down the descent; threading one diverges),
 priority comparison (LOWER wins; equal priorities accumulate).
+
+ARM DISPOSITIONS (same discipline as M3 4.6): the conditional-type
+and mapped/ReverseMapped arms are DORMANT for as long as M4 5.1 left
+those type kinds as M8-ledgered stubs — port the arms against
+source, ledger them dormant, and pin them when the constructors go
+live (M8 at the latest; earlier if M4 chose to port them). The
+template-literal arm is LIVE (M3 builds the type kind); the
+string-mapping arm goes live with M4 5.1/5.2 (`Uppercase<...>` is an
+intrinsic ALIAS reference — needs generic alias instantiation, which
+M3's annotation path lacks).
 
 Verify per commit against canaries; expect 2345-family movement only
 after 7.4 wires results in.
@@ -53,30 +89,66 @@ Commit(s): `m6 7.2a-d: inferFromTypes arms`.
   `isTypeParameterAtTopLevelInReturnType`, and the
   PriorityImpliesCombination union-vs-common-supertype split
   (Subtype relation from M3 4.8 feeds getCommonSupertype).
-- `getContravariantInference` (intersection-vs-common-subtype split).
+- `getContravariantInference` (69260, intersection-vs-common-subtype
+  split — `getCommonSubtype` 67662 is scheduled nowhere earlier; port
+  it here alongside M3's getCommonSupertype).
 - `getInferredType` (69271) — the constraint clamp EXACTLY as the
   checker-key §2.2 skeleton: ReturnType-priority inferences FILTER to
   the compatible part; others go never → fallback → instantiated
-  constraint. Defaults instantiate with the backreference mapper;
-  NoDefault/AnyDefault flags honored.
+  constraint. Defaults instantiate with the backreference mapper
+  (63381) merged with the nonFixingMapper;
+  NoDefault/AnyDefault flags honored (NoDefault → silentNeverType,
+  which carries NonInferrableType so it can never become a candidate).
+- CACHE WIRING + INVALIDATION (the milestone table's "generics
+  instantiation caches" — otherwise unscheduled):
+  `signature.instantiations` keyed by getTypeListId (59902-59910);
+  getInferredType calls `clearActiveMapperCaches()` (73624, at 69310)
+  to invalidate M4 5.2's active-mapper instantiation caches;
+  `reverseHomomorphicMappedCache` (68387); `clearCachedInferences`
+  (68279) on every candidate/topLevel mutation. Stale
+  non-fixing-mapper instantiations across candidate accumulation are
+  a silent-wrong-type source — port the invalidation discipline, not
+  just the caches.
 
 Commit: `m6 7.3: covariant/contravariant inference + clamp`.
 
 ## Stage 7.4: inferTypeArguments + the re-run [M]
 
-- `inferTypeArguments` (75938): PHASE (a) contextual-return
-  pre-inference producing the returnMapper (checker-key §2.3 — the
-  piece most first-implementation quality gaps traced to), then PHASE
-  (b) per-argument inference via
-  `checkExpressionWithContextualType` + `getTypeAtPosition`, rest
-  args via `getSpreadArgumentType` (76002).
+- `inferTypeArguments` (75938): the contextual-return pre-inference
+  is TWO passes, not one (75944-75961 — the piece most
+  first-implementation quality gaps traced to; checker-key §2.3 had
+  them conflated, corrected there): (a1) ReturnType-priority
+  inference against the contextual type instantiated through
+  `cloneInferenceContext(outerContext, NoDefault)`'s mapper, skipped
+  when isFromBindingPattern, generic contextual signatures routed
+  through getSignatureInstantiationWithoutFillingInTypeArguments;
+  (a2) a FRESH `returnContext = createInferenceContext(...)` (75957)
+  doing priority-None inference from the contextual type under
+  `createOuterReturnMapper(outerContext)` (63385) — `context.
+  returnMapper` comes from cloneInferredPartOfContext of THAT
+  context (75960), NOT from the ReturnType-priority pass. Outer
+  context comes from `getInferenceContext` (73599) walking the
+  inference-context NODE STACK — push/pop it alongside M4 5.5's
+  contextual-type stack. Then PHASE (b) per-argument inference via
+  `checkExpressionWithContextualType` (80557) + `getTypeAtPosition`,
+  rest args via `getSpreadArgumentType` (76002).
 - DELETE the M4 stub; `chooseOverload`'s inference path now runs the
   real thing, INCLUDING the SkipContextSensitive /
   SkipGenericFunctions first pass and the NORMAL-mode RE-RUN before
-  committing a candidate (checker-key §3.2 — the plumbing M4 laid).
-- Context-sensitive argument detection (`isContextSensitive`) and the
-  deferred body interaction (M4's driver already defers bodies; the
-  re-run is what types their parameters).
+  committing a candidate (checker-key §3.2 — the plumbing M4 laid;
+  the re-run reuses the SAME InferenceContext, stage 7.1).
+- The SkipGenericFunctions CONSUMER side (scheduled nowhere else —
+  without it higher-order generic inference degrades silently):
+  `skippedGenericFunction` (80816, sets SkippedGenericFunction on the
+  context), checkExpression's higher-order path (80760-80815:
+  getUniqueTypeParameters 80843, hasOverlappingInferences,
+  mergeInferences, `context.inferredTypeParameters = ...` 80804,
+  instantiateSignatureInContextOf 75910), and chooseOverload's
+  consumption via `getSignatureInstantiation(candidate, ...,
+  inferenceContext.inferredTypeParameters)` (76844).
+- Context-sensitive argument detection (`isContextSensitive` 63832)
+  and the deferred body interaction (M4's driver already defers
+  bodies; the re-run is what types their parameters).
 
 Commit: `m6 7.4: inferTypeArguments + chooseOverload re-run`.
 

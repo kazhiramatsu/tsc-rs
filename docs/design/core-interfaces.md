@@ -297,6 +297,10 @@ struct InferenceContext {
     mapper: MapperId, non_fixing_mapper: MapperId,
     return_mapper: Option<MapperId>,
     compare_types: RelationFn,        // subtype/assignable comparator used during inference
+    // tsc 6.0.3 fields the first draft omitted (m6-inference-calls 7.1 is authoritative):
+    intra_expression_inference_sites: Vec<(NodeId, TypeId)>, // 68286; drained by the FIXING mapper before is_fixed is set
+    inferred_type_parameters: Vec<TypeId>, // 80804; consumed by chooseOverload via getSignatureInstantiation
+    outer_return_mapper: Option<MapperId>, // createOuterReturnMapper cache (63385)
 }
 ```
 

@@ -174,6 +174,13 @@ Port in this order, each against its cited source:
    incl. `typeRelatedToDiscriminatedType` 66523 for discriminated
    union targets) with the skip-caching small-union rule (<4
    constituents bypass recursiveTypeRelatedTo, 65237).
+   typeRelatedToSomeType's fast path calls
+   `getMatchingUnionConstituentForType` (69630, used at 65495) →
+   the union key-property machinery (`getKeyPropertyName` 69612 /
+   `getConstituentTypeForKeyType` 69625 / `mapTypesByKeyProperty`
+   69587, ≥10-constituent threshold) — port it with this stage (M5's
+   discriminant narrowing reuses it; if stubbed instead, ledger
+   against M5 6.4 item 5).
    NORMALIZATION DEPENDENCY DISPOSITIONS (`getNormalizedType` 64807):
    fresh→regular = stage 4.1; `getNormalizedTupleType`/
    `createNormalizedTupleType` = PORT (tuple pins with rest elements
@@ -221,8 +228,11 @@ pin rows:
 - Index (keyof) / IndexedAccess / Conditional / Substitution / Mapped
   arms (`mappedTypeRelatedTo` 66508, `getApparentMappedTypeKeys`
   65930) — DEAD; port arm ORDER now so the dispatch is pinned.
-- TemplateLiteral + StringMapping target arms — LIVE (template
-  literal pins).
+- TemplateLiteral target arm — LIVE (template literal pins).
+  StringMapping arm — DEAD until M4: `Uppercase<...>` is an intrinsic
+  ALIAS reference, unconstructible without generic alias
+  instantiation (M4 5.1/5.2); port the arm, ledger it, pin rows land
+  with M4 5.3b.
 - `propertiesRelatedTo` (66766) — LIVE; includes the TUPLE arm
   (target-tuple arity/rest/readonly ElementFlags logic, 66771+) that
   tuple pins exercise. NOTE: the excess-property and weak-type checks
