@@ -9,8 +9,10 @@ name = "tsrs2_binder"
 path = "src/lib.rs"
 
 [dependencies]
+indexmap = "2"
 tsrs2-diags = { path = "../diags" }
 tsrs2-syntax = { path = "../syntax" }
+tsrs2-types = { path = "../types" }
 
 [lints]
 workspace = true
