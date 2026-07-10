@@ -136,6 +136,19 @@ Commit: `m2 3.2: declareSymbol merge engine`.
   2668 export-modifier-on-ambient-module — the latter belongs in the
   first-2xxx pin set), and NodeFlags.ExportContext stamping.
 
+Landed shape (2026-07-10): containers.rs (ContainerFlags +
+getContainerFlags table pins, bindContainer with flow-Start/IIFE/
+returnTarget tails, declareSymbolAndAddToSymbolTable routing family,
+bindModuleDeclaration + getModuleInstanceState family + 5061/2668
+oracle pins, pattern_ambient_modules), flow.rs (FlowArena +
+createFlowNode/labels/addAntecedent/finishFlowLabel — SOURCE FACT:
+setFlowNodeReferenced is called by the CALLERS of createFlowNode, not
+inside it; the impl-binder sketch was wrong), bind.rs (bind spine +
+bindEachFunctionsFirst; bindWorker stub for 3.4, flow-aware
+bindChildren arms for 3.5). Binder grew container/flow state, a
+node_flags_mut view (tsc mutates node.flags; parse-time readers keep
+the arena), and flowNode/endFlowNode/returnFlowNode side tables.
+
 Commit: `m2 3.3: container classification + scope tree`.
 
 ## Stage 3.4: bindWorker — per-kind symbol creation [M]

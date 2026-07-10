@@ -49,6 +49,47 @@ pub struct Binder<'a> {
     /// is program-wide in tsc, so it is seedable for multi-file binds.
     assigned_symbol_ids: HashMap<SymbolId, u32>,
     next_symbol_id: u32,
+
+    // ---- container state (stage 3.3, bindContainer 42734) ----
+    pub container: Option<NodeId>,
+    pub this_parent_container: Option<NodeId>,
+    pub block_scope_container: Option<NodeId>,
+    pub last_container: Option<NodeId>,
+    /// tsc container.nextContainer chain (addToContainerChain).
+    pub next_container: HashMap<NodeId, NodeId>,
+    /// tsc mutates node.flags during binding (HasImplicitReturn,
+    /// ContainsThis, ExportContext, Unreachable, emit flags); this is
+    /// the binder's mutable view, seeded from the parse-time flags.
+    /// Parse-time-only readers (node_util) keep reading the arena.
+    pub node_flags_mut: Vec<i32>,
+    /// tsc file.patternAmbientModules (bindModuleDeclaration).
+    pub pattern_ambient_modules: Vec<(String, String, SymbolId)>,
+
+    // ---- flow state (stage 3.3 scaffolding, stage 3.5 fills) ----
+    pub flow: crate::flow::FlowArena,
+    pub unreachable_flow: crate::flow::FlowId,
+    pub current_flow: Option<crate::flow::FlowId>,
+    pub current_break_target: Option<crate::flow::FlowId>,
+    pub current_continue_target: Option<crate::flow::FlowId>,
+    pub current_return_target: Option<crate::flow::FlowId>,
+    pub current_true_target: Option<crate::flow::FlowId>,
+    pub current_false_target: Option<crate::flow::FlowId>,
+    pub current_exception_target: Option<crate::flow::FlowId>,
+    pub pre_switch_case_flow: Option<crate::flow::FlowId>,
+    /// tsc node.flowNode / endFlowNode / returnFlowNode side tables.
+    pub node_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_end_flow: HashMap<NodeId, crate::flow::FlowId>,
+    pub node_return_flow: HashMap<NodeId, crate::flow::FlowId>,
+
+    // ---- walk state ----
+    pub in_strict_mode: bool,
+    pub seen_this_keyword: bool,
+    pub in_assignment_pattern: bool,
+    pub has_explicit_return: bool,
+    pub in_return_position: bool,
+    pub has_flow_effects: bool,
+    /// tsc emitFlags (NodeFlags bits accumulated onto the SourceFile).
+    pub emit_flags: i32,
 }
 
 impl<'a> Binder<'a> {
@@ -57,6 +98,13 @@ impl<'a> Binder<'a> {
     }
 
     pub fn with_symbol_id_seed(source: &'a SourceFile, next_symbol_id: u32) -> Self {
+        let mut flow = crate::flow::FlowArena::default();
+        // tsc createBinder: unreachableFlow is allocated once up front.
+        let unreachable_flow = flow.create_flow_node(
+            tsrs2_types::FlowFlags::UNREACHABLE,
+            crate::flow::FlowPayload::None,
+            None,
+        );
         Self {
             source,
             symbols: SymbolArena::default(),
@@ -67,7 +115,43 @@ impl<'a> Binder<'a> {
             classifiable_names: IndexSet::new(),
             assigned_symbol_ids: HashMap::new(),
             next_symbol_id,
+            container: None,
+            this_parent_container: None,
+            block_scope_container: None,
+            last_container: None,
+            next_container: HashMap::new(),
+            node_flags_mut: source.arena.nodes().iter().map(|node| node.flags).collect(),
+            pattern_ambient_modules: Vec::new(),
+            flow,
+            unreachable_flow,
+            current_flow: None,
+            current_break_target: None,
+            current_continue_target: None,
+            current_return_target: None,
+            current_true_target: None,
+            current_false_target: None,
+            current_exception_target: None,
+            pre_switch_case_flow: None,
+            node_flow: HashMap::new(),
+            node_end_flow: HashMap::new(),
+            node_return_flow: HashMap::new(),
+            in_strict_mode: false,
+            seen_this_keyword: false,
+            in_assignment_pattern: false,
+            has_explicit_return: false,
+            in_return_position: false,
+            has_flow_effects: false,
+            emit_flags: 0,
         }
+    }
+
+    /// The binder's mutable view of tsc node.flags.
+    pub fn flags_of(&self, node: NodeId) -> tsrs2_types::NodeFlags {
+        tsrs2_types::NodeFlags::from_bits(self.node_flags_mut[node.0 as usize])
+    }
+
+    pub fn set_flags_of(&mut self, node: NodeId, flags: tsrs2_types::NodeFlags) {
+        self.node_flags_mut[node.0 as usize] = flags.bits();
     }
 
     pub fn next_symbol_id(&self) -> u32 {

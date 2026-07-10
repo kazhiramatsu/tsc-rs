@@ -659,6 +659,192 @@ fn get_error_span_for_arrow_function(
     (pos, node.end as usize)
 }
 
+/// tsc isFunctionLikeKind (_tsc.js 12018) + isFunctionLikeDeclarationKind.
+pub fn is_function_like_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::MethodSignature
+            | SyntaxKind::CallSignature
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::FunctionType
+            | SyntaxKind::ConstructorType
+    ) || is_function_like_declaration_kind(kind)
+}
+
+/// tsc isFunctionLikeDeclarationKind (_tsc.js 12004).
+pub fn is_function_like_declaration_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::FunctionDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::Constructor
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+    )
+}
+
+/// tsc-port: isObjectLiteralOrClassExpressionMethodOrAccessor @6.0.3
+/// tsc-hash: 7770ac43c5e3642345bac7cdb81f934a594f6bdbf4fa5b3729e44cd09d441f42
+/// tsc-span: _tsc.js:14410-14412
+pub fn is_object_literal_or_class_expression_method_or_accessor(
+    source: &SourceFile,
+    id: NodeId,
+) -> bool {
+    matches!(
+        kind_of(source, id),
+        SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+    ) && parent_of(source, id).is_some_and(|parent| {
+        matches!(
+            kind_of(source, parent),
+            SyntaxKind::ObjectLiteralExpression | SyntaxKind::ClassExpression
+        )
+    })
+}
+
+/// tsc-port: getImmediatelyInvokedFunctionExpression @6.0.3
+/// tsc-hash: 376116f5822935a0b930eb122871cf6a305990b92a0e03ce126f83914ed84686
+/// tsc-span: _tsc.js:14595-14607
+pub fn get_immediately_invoked_function_expression(
+    source: &SourceFile,
+    func: NodeId,
+) -> Option<NodeId> {
+    if !matches!(
+        kind_of(source, func),
+        SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+    ) {
+        return None;
+    }
+    let mut prev = func;
+    let mut parent = parent_of(source, func)?;
+    while kind_of(source, parent) == SyntaxKind::ParenthesizedExpression {
+        prev = parent;
+        parent = parent_of(source, parent)?;
+    }
+    match &source.arena.node(parent).data {
+        NodeData::CallExpression(data) if data.expression == Some(prev) => Some(parent),
+        _ => None,
+    }
+}
+
+/// tsc `node.body` dynamic access for the container kinds bindContainer
+/// inspects.
+pub fn body_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
+    match &source.arena.node(id).data {
+        NodeData::FunctionDeclaration(data) => data.body,
+        NodeData::FunctionExpression(data) => data.body,
+        NodeData::ArrowFunction(data) => data.body,
+        NodeData::MethodDeclaration(data) => data.body,
+        NodeData::Constructor(data) => data.body,
+        NodeData::GetAccessor(data) => data.body,
+        NodeData::SetAccessor(data) => data.body,
+        NodeData::ClassStaticBlockDeclaration(data) => data.body,
+        NodeData::ModuleDeclaration(data) => data.body,
+        _ => None,
+    }
+}
+
+/// tsc `node.asteriskToken` access (bindContainer's IIFE test).
+pub fn asterisk_token_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
+    match &source.arena.node(id).data {
+        NodeData::FunctionDeclaration(data) => data.asterisk_token,
+        NodeData::FunctionExpression(data) => data.asterisk_token,
+        NodeData::MethodDeclaration(data) => data.asterisk_token,
+        NodeData::YieldExpression(data) => data.asterisk_token,
+        _ => None,
+    }
+}
+
+/// tsc `.statements` of SourceFile/Block/ModuleBlock.
+pub fn statements_of(source: &SourceFile, id: NodeId) -> Option<NodeArrayId> {
+    match &source.arena.node(id).data {
+        NodeData::SourceFile(data) => data.statements,
+        NodeData::Block(data) => data.statements,
+        NodeData::ModuleBlock(data) => data.statements,
+        _ => None,
+    }
+}
+
+/// tsc-port: nodeHasName @6.0.3
+/// tsc-hash: debb0bab240f8237c96d8122ec3051f641818c1535af8434b059f114f8881fdc
+/// tsc-span: _tsc.js:11502-11510
+pub fn node_has_name(source: &SourceFile, statement: NodeId, name: NodeId) -> bool {
+    let target = id_text(source, name);
+    if let Some(statement_name) = name_field_of(source, statement) {
+        if kind_of(source, statement_name) == SyntaxKind::Identifier
+            && id_text(source, statement_name) == target
+        {
+            return true;
+        }
+    }
+    if let NodeData::VariableStatement(data) = &source.arena.node(statement).data {
+        if let Some(list) = data.declaration_list {
+            if let NodeData::VariableDeclarationList(list) = &source.arena.node(list).data {
+                if let Some(declarations) = list.declarations {
+                    return source
+                        .arena
+                        .node_array(declarations)
+                        .nodes
+                        .iter()
+                        .any(|&declaration| node_has_name(source, declaration, name));
+                }
+            }
+        }
+    }
+    false
+}
+
+/// tsc-port: isModuleAugmentationExternal @6.0.3
+/// tsc-hash: aaba1aaac0a2bbde6e1923580f5a67a0d947ee79784eba560143f321455d79ec
+/// tsc-span: _tsc.js:13740-13748
+pub fn is_module_augmentation_external(source: &SourceFile, node: NodeId) -> bool {
+    let Some(parent) = parent_of(source, node) else {
+        return false;
+    };
+    match kind_of(source, parent) {
+        SyntaxKind::SourceFile => source.external_module_indicator.is_some(),
+        SyntaxKind::ModuleBlock => {
+            let Some(grand) = parent_of(source, parent) else {
+                return false;
+            };
+            is_ambient_module(source, grand)
+                && parent_of(source, grand).is_some_and(|great| {
+                    kind_of(source, great) == SyntaxKind::SourceFile
+                        && source.external_module_indicator.is_none()
+                })
+        }
+        _ => false,
+    }
+}
+
+/// tsc-port: tryParsePattern @6.0.3
+/// tsc-hash: 160377a6950ca7abc1ca3c322c9fc416f93bb49df6d452eba4e70d5703fcd5bc
+/// tsc-span: _tsc.js:18773-18781
+///
+/// None ⇒ more than one `*`; Whole ⇒ no star; Wildcard ⇒ one star.
+pub enum ParsedPattern {
+    Whole(String),
+    Wildcard { prefix: String, suffix: String },
+}
+
+pub fn try_parse_pattern(pattern: &str) -> Option<ParsedPattern> {
+    match pattern.find('*') {
+        None => Some(ParsedPattern::Whole(pattern.to_owned())),
+        Some(index) => {
+            if pattern[index + 1..].contains('*') {
+                None
+            } else {
+                Some(ParsedPattern::Wildcard {
+                    prefix: pattern[..index].to_owned(),
+                    suffix: pattern[index + 1..].to_owned(),
+                })
+            }
+        }
+    }
+}
+
 fn line_of(source: &SourceFile, pos: usize) -> usize {
     let starts = &source.line_map.line_starts;
     match starts.binary_search(&(pos as u32)) {
