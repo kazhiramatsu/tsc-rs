@@ -1196,8 +1196,18 @@ impl<'text> Parser<'text> {
                 | SyntaxKind::YieldKeyword
                 | SyntaxKind::PrivateIdentifier
                 | SyntaxKind::AtToken
-        ) || is_binary_operator(self.token())
+        ) || self.is_binary_operator()
             || self.is_identifier()
+    }
+
+    /// tsc isBinaryOperator: precedence-driven, with the DisallowIn guard —
+    /// NOT the FirstBinaryOperator..LastBinaryOperator kind range, which
+    /// also spans `?`, `:`, `=>`, and `@`.
+    fn is_binary_operator(&self) -> bool {
+        if self.in_disallow_in_context() && self.token() == SyntaxKind::InKeyword {
+            return false;
+        }
+        get_binary_operator_precedence(self.token()) > 0
     }
 
     fn is_start_of_statement(&mut self) -> bool {
@@ -4829,7 +4839,9 @@ impl<'text> Parser<'text> {
                 continue;
             }
 
-            if self.parse_optional(SyntaxKind::OpenBracketToken) {
+            // tsc: in the Decorator context `[` is not element access — it
+            // could start a ComputedPropertyName.
+            if !self.in_decorator_context() && self.parse_optional(SyntaxKind::OpenBracketToken) {
                 expression =
                     self.parse_element_access_expression_rest(pos, expression, question_dot_token);
                 continue;
@@ -5055,7 +5067,7 @@ impl<'text> Parser<'text> {
             | SyntaxKind::MinusToken => false,
             _ => {
                 self.scanner.has_preceding_line_break()
-                    || is_binary_operator(self.token())
+                    || self.is_binary_operator()
                     || !self.is_start_of_expression()
             }
         }
@@ -7987,11 +7999,6 @@ fn token_is_identifier_or_keyword(kind: SyntaxKind) -> bool {
 fn is_keyword(kind: SyntaxKind) -> bool {
     kind.value() >= SyntaxKind::FirstKeyword.value()
         && kind.value() <= SyntaxKind::LastKeyword.value()
-}
-
-fn is_binary_operator(kind: SyntaxKind) -> bool {
-    kind.value() >= SyntaxKind::FirstBinaryOperator.value()
-        && kind.value() <= SyntaxKind::LastBinaryOperator.value()
 }
 
 fn is_assignment_operator(kind: SyntaxKind) -> bool {
