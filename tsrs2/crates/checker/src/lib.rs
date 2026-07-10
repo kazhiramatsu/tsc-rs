@@ -54,9 +54,9 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
             diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
             continue;
         }
-        // tsc getLanguageVariant, restricted to the extensions this engine
-        // accepts (JS inputs are not handled yet).
-        let language_variant = if file.name.ends_with(".tsx") || file.name.ends_with(".jsx") {
+        // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds.
+        let javascript_file = is_js_file_name(&file.name);
+        let language_variant = if file.name.ends_with(".tsx") || javascript_file {
             tsrs2_syntax::LanguageVariant::Jsx
         } else {
             tsrs2_syntax::LanguageVariant::Standard
@@ -64,7 +64,10 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
         let source_file = tsrs2_syntax::parse_source_file(
             file.name.clone(),
             file.text.clone(),
-            tsrs2_syntax::ParseOptions { language_variant },
+            tsrs2_syntax::ParseOptions {
+                language_variant,
+                javascript_file,
+            },
             None,
         );
         // tsc getSyntacticDiagnosticsForFile: JS files prepend the

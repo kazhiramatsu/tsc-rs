@@ -489,7 +489,7 @@ impl<'text> Scanner<'text> {
     }
 
     fn skip_multi_line_comment(&mut self) {
-        let start = self.token_start;
+        let _start = self.token_start;
         self.pos += 2;
 
         while self.pos < self.end {
@@ -507,7 +507,9 @@ impl<'text> Scanner<'text> {
             }
         }
 
-        self.error_at(start, self.end.saturating_sub(start), &gen::expected);
+        // tsc: the unterminated-comment error sits at the scan position
+        // (end of text), zero width.
+        self.error_at(self.pos, 0, &gen::expected);
     }
 
     fn scan_identifier(&mut self) -> SyntaxKind {
@@ -560,26 +562,45 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    /// tsc scan() hash case: `#` heads a private identifier only when an
+    /// identifier (or identifier escape) follows; otherwise it is an
+    /// Invalid_character Unknown token. `#!` past position 0 is 18026.
     fn scan_private_identifier(&mut self) -> SyntaxKind {
+        let hash_pos = self.pos;
+        if hash_pos != 0 && self.byte_at(hash_pos + 1) == Some(b'!') {
+            self.error_at(hash_pos, 2, &gen::can_only_be_used_at_the_start_of_a_file);
+            self.pos += 1;
+            self.token = SyntaxKind::Unknown;
+            return self.token;
+        }
+
         self.pos += 1;
         self.token_value.clear();
         self.token_value.push('#');
 
-        if let Some(ch) = self.current_char() {
-            if chars::is_identifier_start(ch) {
+        match self.current_char() {
+            Some(ch) if chars::is_identifier_start(ch) => {
                 self.token_value.push(ch);
                 self.advance_char();
                 self.scan_identifier_parts();
-            } else if ch == '\\' {
-                let start = self.pos;
-                if let Some(ch) = self.scan_unicode_escape() {
-                    if chars::is_identifier_start(ch) {
+            }
+            Some('\\') => {
+                let escape_start = self.pos;
+                match self.scan_unicode_escape() {
+                    Some(ch) if chars::is_identifier_start(ch) => {
                         self.token_value.push(ch);
                         self.scan_identifier_parts();
-                    } else {
-                        self.pos = start;
+                    }
+                    _ => {
+                        // tsc: a bare `#` still becomes a PrivateIdentifier
+                        // token; only the error is reported.
+                        self.pos = escape_start;
+                        self.error_at(hash_pos, 1, &gen::Invalid_character);
                     }
                 }
+            }
+            _ => {
+                self.error_at(hash_pos, 1, &gen::Invalid_character);
             }
         }
 
@@ -1938,10 +1959,11 @@ mod tests {
 
         assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
 
+        // tsc pins: the error sits at the end of text, zero width.
         assert_eq!(scanner.errors().len(), 1);
         assert_eq!(scanner.errors()[0].message.code, 1010);
-        assert_eq!(scanner.errors()[0].start, 0);
-        assert_eq!(scanner.errors()[0].length, "/* unterminated".len());
+        assert_eq!(scanner.errors()[0].start, "/* unterminated".len());
+        assert_eq!(scanner.errors()[0].length, 0);
     }
 
     #[test]

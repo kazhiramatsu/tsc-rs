@@ -52,12 +52,15 @@ use tsrs2_types::NodeFlags;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParseOptions {
     pub language_variant: LanguageVariant,
+    /// tsc ContextFlags.JavaScriptFile (subset: the parse-steering uses).
+    pub javascript_file: bool,
 }
 
 impl Default for ParseOptions {
     fn default() -> Self {
         Self {
             language_variant: LanguageVariant::Standard,
+            javascript_file: false,
         }
     }
 }
@@ -160,6 +163,7 @@ struct Parser<'text> {
     arena: NodeArena,
     file_name: String,
     language_variant: LanguageVariant,
+    javascript_file: bool,
     is_declaration_file: bool,
     line_map: LineMap,
     context_flags: NodeFlags,
@@ -188,13 +192,19 @@ struct FinishedParse {
 }
 
 impl<'text> Parser<'text> {
-    fn new(file_name: String, text: &'text str, language_variant: LanguageVariant) -> Self {
+    fn new(
+        file_name: String,
+        text: &'text str,
+        language_variant: LanguageVariant,
+        javascript_file: bool,
+    ) -> Self {
         let is_declaration_file = file_name.ends_with(".d.ts");
         Self {
             scanner: Scanner::new(text, language_variant),
             arena: NodeArena::new(),
             file_name,
             language_variant,
+            javascript_file,
             is_declaration_file,
             line_map: compute_line_map(text),
             context_flags: NodeFlags::NONE,
@@ -2693,7 +2703,9 @@ impl<'text> Parser<'text> {
         let label = if self.can_parse_semicolon() {
             None
         } else {
-            Some(self.parse_identifier())
+            // tsc parseIdentifier: reserved words (await in await context)
+            // become missing identifiers with 1003.
+            Some(self.parse_identifier_or_missing())
         };
         self.parse_semicolon();
 
@@ -2986,7 +2998,9 @@ impl<'text> Parser<'text> {
 
     fn parse_variable_declaration(&mut self, allow_exclamation: bool) -> NodeId {
         let pos = self.node_pos();
-        let name = self.parse_identifier_or_pattern();
+        let name = self.parse_identifier_or_pattern(Some(
+            &gen::Private_identifiers_are_not_allowed_in_variable_declarations,
+        ));
         let exclamation_token = if allow_exclamation
             && self.arena.node(name).kind == SyntaxKind::Identifier
             && self.token() == SyntaxKind::ExclamationToken
@@ -3013,11 +3027,14 @@ impl<'text> Parser<'text> {
         )
     }
 
-    fn parse_identifier_or_pattern(&mut self) -> NodeId {
+    fn parse_identifier_or_pattern(
+        &mut self,
+        private_identifier_diagnostic_message: Option<&'static DiagnosticMessage>,
+    ) -> NodeId {
         match self.token() {
             SyntaxKind::OpenBracketToken => self.parse_array_binding_pattern(),
             SyntaxKind::OpenBraceToken => self.parse_object_binding_pattern(),
-            _ => self.parse_binding_identifier(),
+            _ => self.parse_binding_identifier_with_message(private_identifier_diagnostic_message),
         }
     }
 
@@ -3048,7 +3065,7 @@ impl<'text> Parser<'text> {
                 .finish_node_data(NodeData::OmittedExpression(OmittedExpressionData {}), pos);
         }
         let dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
-        let name = self.parse_identifier_or_pattern();
+        let name = self.parse_identifier_or_pattern(None);
         let initializer = self.parse_initializer();
         self.finish_node_data(
             NodeData::BindingElement(BindingElementData {
@@ -3090,7 +3107,7 @@ impl<'text> Parser<'text> {
             property_name.take().expect("property name was just parsed")
         } else {
             self.parse_expected(SyntaxKind::ColonToken, None);
-            self.parse_identifier_or_pattern()
+            self.parse_identifier_or_pattern(None)
         };
         let initializer = self.parse_initializer();
         self.finish_node_data(
@@ -3106,8 +3123,19 @@ impl<'text> Parser<'text> {
 
     /// tsc parseBindingIdentifier.
     fn parse_binding_identifier(&mut self) -> NodeId {
+        self.parse_binding_identifier_with_message(None)
+    }
+
+    fn parse_binding_identifier_with_message(
+        &mut self,
+        private_identifier_diagnostic_message: Option<&'static DiagnosticMessage>,
+    ) -> NodeId {
         let is_binding_identifier = self.is_binding_identifier();
-        self.create_identifier_node(is_binding_identifier, None, None)
+        self.create_identifier_node(
+            is_binding_identifier,
+            None,
+            private_identifier_diagnostic_message,
+        )
     }
 
     fn parse_identifier(&mut self) -> NodeId {
@@ -4400,8 +4428,12 @@ impl<'text> Parser<'text> {
             return self.finish_node(id, pos);
         }
         let tag_name = self.parse_jsx_element_name();
-        // tsc gates on the JavaScriptFile context flag; this port is TS-only.
-        let type_arguments = self.try_parse_type_arguments();
+        // tsc: no type arguments on JSX tags in JavaScript files.
+        let type_arguments = if self.javascript_file {
+            None
+        } else {
+            self.try_parse_type_arguments()
+        };
         let attributes = self.parse_jsx_attributes();
         if self.token() == SyntaxKind::GreaterThanToken {
             self.scan_jsx_text();
@@ -4929,9 +4961,11 @@ impl<'text> Parser<'text> {
                 continue;
             }
 
-            // tsc: in the Decorator context `[` is not element access — it
-            // could start a ComputedPropertyName.
-            if !self.in_decorator_context() && self.parse_optional(SyntaxKind::OpenBracketToken) {
+            // tsc: in the Decorator context a bare `[` is not element access
+            // (it could start a ComputedPropertyName) — but `?.[` is.
+            if (question_dot_token.is_some() || !self.in_decorator_context())
+                && self.parse_optional(SyntaxKind::OpenBracketToken)
+            {
                 expression =
                     self.parse_element_access_expression_rest(pos, expression, question_dot_token);
                 continue;
@@ -5213,6 +5247,10 @@ impl<'text> Parser<'text> {
     }
 
     fn parse_type_arguments_in_expression(&mut self) -> Option<crate::NodeArrayId> {
+        // tsc: type arguments in expressions never parse in JavaScript files.
+        if self.javascript_file {
+            return None;
+        }
         if self.scanner.re_scan_less_than_token() != SyntaxKind::LessThanToken {
             return None;
         }
@@ -5743,7 +5781,9 @@ impl<'text> Parser<'text> {
     }
 
     fn parse_name_of_parameter(&mut self, has_modifiers: bool) -> NodeId {
-        let name = self.parse_identifier_or_pattern();
+        let name = self.parse_identifier_or_pattern(Some(
+            &gen::Private_identifiers_cannot_be_used_as_parameters,
+        ));
         let name_node = self.arena.node(name);
         if name_node.pos == name_node.end && !has_modifiers && self.is_modifier_kind(self.token()) {
             // A modifier alone ("void foo(private)") would loop forever;
@@ -7375,7 +7415,7 @@ impl<'text> Parser<'text> {
             SyntaxKind::OpenBracketToken | SyntaxKind::OpenBraceToken
         ) {
             let previous_error_count = self.parse_diagnostics.len();
-            self.parse_identifier_or_pattern();
+            self.parse_identifier_or_pattern(None);
             return previous_error_count == self.parse_diagnostics.len();
         }
         false
@@ -8298,7 +8338,12 @@ pub fn parse_source_file(
     options: ParseOptions,
     _cursor: Option<&SyntaxCursor>,
 ) -> SourceFile {
-    let mut parser = Parser::new(file_name, &text, options.language_variant);
+    let mut parser = Parser::new(
+        file_name,
+        &text,
+        options.language_variant,
+        options.javascript_file,
+    );
     parser.next_token();
     let mut statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
         Some(parser.parse_statement())
@@ -8335,7 +8380,7 @@ pub fn parse_source_file(
 /// tsc Parser.parseJsonText. The JavaScriptFile/JsonFile context flags are
 /// not stamped (nothing consumes them yet).
 pub fn parse_json_text(file_name: String, text: String) -> SourceFile {
-    let mut parser = Parser::new(file_name, &text, LanguageVariant::Standard);
+    let mut parser = Parser::new(file_name, &text, LanguageVariant::Standard, false);
     parser.next_token();
     let pos = parser.node_pos();
 
@@ -8732,6 +8777,7 @@ mod tests {
             text.to_owned(),
             ParseOptions {
                 language_variant: LanguageVariant::Jsx,
+                javascript_file: false,
             },
             None,
         )
@@ -10232,7 +10278,7 @@ mod tests {
 
     #[test]
     fn same_start_dedup_and_finish_node_error_transfer() {
-        let mut parser = Parser::new("a.ts".to_owned(), "", LanguageVariant::Standard);
+        let mut parser = Parser::new("a.ts".to_owned(), "", LanguageVariant::Standard, false);
         parser.next_token();
 
         parser.parse_error_at_position(0, 0, &gen::Identifier_expected, &[]);
@@ -10249,7 +10295,7 @@ mod tests {
 
     #[test]
     fn parse_token_node_consumes_current_token() {
-        let mut parser = Parser::new("a.ts".to_owned(), ";", LanguageVariant::Standard);
+        let mut parser = Parser::new("a.ts".to_owned(), ";", LanguageVariant::Standard, false);
         parser.next_token();
 
         let token = parser.parse_token_node();
@@ -10260,7 +10306,7 @@ mod tests {
 
     #[test]
     fn expected_optional_context_and_speculation_restore_parser_state() {
-        let mut parser = Parser::new("a.ts".to_owned(), ";x", LanguageVariant::Standard);
+        let mut parser = Parser::new("a.ts".to_owned(), ";x", LanguageVariant::Standard, false);
         parser.next_token();
 
         assert!(parser.parse_optional(SyntaxKind::SemicolonToken));
@@ -10294,7 +10340,7 @@ mod tests {
 
     #[test]
     fn delimited_list_tracks_trailing_comma() {
-        let mut parser = Parser::new("a.ts".to_owned(), "a,)", LanguageVariant::Standard);
+        let mut parser = Parser::new("a.ts".to_owned(), "a,)", LanguageVariant::Standard, false);
         parser.next_token();
 
         let list = parser.parse_delimited_list(
@@ -10311,7 +10357,7 @@ mod tests {
 
     #[test]
     fn delimited_list_reports_missing_commas_and_keeps_progressing() {
-        let mut parser = Parser::new("a.ts".to_owned(), "a b)", LanguageVariant::Standard);
+        let mut parser = Parser::new("a.ts".to_owned(), "a b)", LanguageVariant::Standard, false);
         parser.next_token();
 
         let list = parser.parse_delimited_list(
@@ -10330,7 +10376,7 @@ mod tests {
 
     #[test]
     fn list_recovery_aborts_when_outer_context_can_consume_token() {
-        let mut parser = Parser::new("a.ts".to_owned(), "}", LanguageVariant::Standard);
+        let mut parser = Parser::new("a.ts".to_owned(), "}", LanguageVariant::Standard, false);
         parser.next_token();
         parser.parsing_context |= ParsingContext::BlockStatements.bit();
 
@@ -10348,7 +10394,12 @@ mod tests {
 
     #[test]
     fn parse_list_skips_unrecoverable_tokens() {
-        let mut parser = Parser::new("a.ts".to_owned(), "x case", LanguageVariant::Standard);
+        let mut parser = Parser::new(
+            "a.ts".to_owned(),
+            "x case",
+            LanguageVariant::Standard,
+            false,
+        );
         parser.next_token();
 
         let list = parser.parse_list(ParsingContext::SwitchClauses, |parser| {

@@ -11,5 +11,5 @@ rate = 0.0
 allowed_regression = 0.0
 
 [t0-syntactic]
-rate = 0.0
+rate = 0.998219
 allowed_regression = 0.0

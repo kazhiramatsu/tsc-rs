@@ -27,22 +27,25 @@ strip/clear boundaries), together with
 SourceFile.externalModuleIndicator (isFileProbablyExternalModule
 incl. the import.meta tree walk).
 
-## syntactic-diagnostic gate status (2026-07-10)
+## syntactic-diagnostic gate status (2026-07-10, after burndown 10)
 
-`T0-syntactic 73.33% (1647/2246), exact cases 6959/7691, FP 4275, FN 599`
+**GATE MET**: `T0-syntactic 99.82% (2242/2246), exact cases
+7687/7691, FP 0 (NEW_FP hard gate green), FN 4`. The ratchet
+[t0-syntactic] is locked at 0.998219.
 
-Top FP codes: 1005 (3098), 1128 (333), 1109 (267), 1003 (220),
-1434 (87) — recovery-order differences in statement/declaration error
-attribution; the 1434-vs-1128 case below is a confirmed instance.
-Top FN codes: 8002/8006/8010 (~301 total) — grammar errors tsc emits
-only for JS files; .js inputs are currently parsed as TS (JS handling
-unported), so these are out of M1 scope. 1109/1127/1125/1005 FN —
-recovery-order differences, burn down with the FP list.
+The 4 remaining FN are one fixture:
 
-Known fidelity bug (drives part of 1434/1128 FP): for
-`declare module "m" { export i` (identifier after `export` at EOF)
-tsc emits 1128 "Declaration or statement expected" at `export`;
-we emit 1434 "Unexpected keyword or identifier".
+| fixture | classification |
+|---|---|
+| node/nodeModulesTripleSlashReferenceModeOverrideModeError.ts (×4 matrix) | unported subsystem: comment pragma processing (processCommentPragmas / processPragmasIntoFields). tsc validates `/// <reference types="..." resolution-mode="...">` and emits 1453 for an invalid resolution-mode value; we do not parse triple-slash pragmas yet. |
+
+(The burndown history — parseJsonText, isStartOfStatement, binding
+elements, createMissingNode/createIdentifier, isBinaryOperator,
+allowJs gating, Invalid_character, parseSuperExpression, escape
+flags, template rescan, JS 8xxx walker, isTypeOnly/isExportEquals
+slots, reparseTopLevelAwait, optional chains, 1260, JavaScriptFile
+gates, private-name messages, 1010 position — lives in the
+`m1 gate burndown 1..10` commit messages.)
 
 ## prefix-determinism invariant: unsatisfiable as formulated
 

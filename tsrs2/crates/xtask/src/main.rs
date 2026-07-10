@@ -264,6 +264,8 @@ fn parse_diags(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             text,
             tsrs2_syntax::ParseOptions {
                 language_variant: language_variant_for_path(&path),
+                // ast-dump.mjs uses ScriptKind TS/TSX, never JS.
+                javascript_file: false,
             },
             None,
         )
@@ -301,6 +303,8 @@ fn rust_ast_dump_text(file_name: &str, text: &str) -> (String, usize) {
         text,
         tsrs2_syntax::ParseOptions {
             language_variant: variant,
+            // ast-dump.mjs uses ScriptKind TS/TSX, never JS.
+            javascript_file: false,
         },
         None,
     );
