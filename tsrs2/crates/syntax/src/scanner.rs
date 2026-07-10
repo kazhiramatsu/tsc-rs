@@ -447,6 +447,17 @@ impl<'text> Scanner<'text> {
         self.token_flags.contains(TokenFlags::UNICODE_ESCAPE)
     }
 
+    /// tsc TokenFlags.IsInvalid: Octal | ContainsInvalidEscape |
+    /// ContainsLeadingZero | ContainsInvalidSeparator.
+    pub(crate) fn token_flags_are_invalid(&self) -> bool {
+        self.token_flags.0
+            & (TokenFlags::OCTAL.0
+                | TokenFlags::CONTAINS_INVALID_ESCAPE.0
+                | TokenFlags::CONTAINS_LEADING_ZERO.0
+                | TokenFlags::CONTAINS_INVALID_SEPARATOR.0)
+            != 0
+    }
+
     /// tsc hasExtendedUnicodeEscape.
     pub(crate) fn has_extended_unicode_escape(&self) -> bool {
         self.token_flags
@@ -584,7 +595,7 @@ impl<'text> Scanner<'text> {
         let start = self.pos;
         self.pos += 2;
 
-        let value = if self.starts_with("{") {
+        let (value, escape_flag) = if self.starts_with("{") {
             self.pos += 1;
             let digits_start = self.pos;
             while self.current_char().is_some_and(|ch| ch.is_ascii_hexdigit()) {
@@ -596,7 +607,7 @@ impl<'text> Scanner<'text> {
             }
             let value = u32::from_str_radix(&self.text[digits_start..self.pos], 16).ok()?;
             self.pos += 1;
-            value
+            (value, TokenFlags::EXTENDED_UNICODE_ESCAPE)
         } else {
             if self.pos + 4 > self.end {
                 self.pos = start;
@@ -609,13 +620,24 @@ impl<'text> Scanner<'text> {
                 return None;
             }
             self.pos = end;
-            u32::from_str_radix(digits, 16).ok()?
+            (
+                u32::from_str_radix(digits, 16).ok()?,
+                TokenFlags::UNICODE_ESCAPE,
+            )
         };
 
-        char::from_u32(value).or_else(|| {
-            self.pos = start;
-            None
-        })
+        match char::from_u32(value) {
+            Some(ch) => {
+                // tsc scanIdentifierParts: a consumed identifier escape marks
+                // the token so hasUnicodeEscape/hasExtendedUnicodeEscape work.
+                self.token_flags.insert(escape_flag);
+                Some(ch)
+            }
+            None => {
+                self.pos = start;
+                None
+            }
+        }
     }
 
     fn scan_string_literal(&mut self) -> SyntaxKind {
@@ -1604,6 +1626,14 @@ impl<'text> Scanner<'text> {
     }
 
     fn scan_identifier_part_length(&mut self) -> usize {
+        // Measurement only: keep escape flags from leaking onto the token.
+        let saved_token_flags = self.token_flags;
+        let length = self.scan_identifier_part_length_worker();
+        self.token_flags = saved_token_flags;
+        length
+    }
+
+    fn scan_identifier_part_length_worker(&mut self) -> usize {
         let start = self.pos;
         while let Some(ch) = self.current_char() {
             if chars::is_identifier_part(ch) {

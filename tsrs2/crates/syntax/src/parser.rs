@@ -4709,6 +4709,49 @@ impl<'text> Parser<'text> {
         )
     }
 
+    /// tsc parseSuperExpression.
+    fn parse_super_expression(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let mut expression = self.parse_token_node();
+        if self.token() == SyntaxKind::LessThanToken {
+            let start_pos = self.node_pos();
+            let type_arguments =
+                self.try_parse(|parser| parser.try_parse_type_arguments_in_expression());
+            if let Some(type_arguments) = type_arguments {
+                let end = self.node_pos();
+                self.parse_error_at(start_pos, end, &gen::super_may_not_use_type_arguments, &[]);
+                if !self.is_template_start_of_tagged_template() {
+                    expression = self.finish_node_data(
+                        NodeData::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
+                            expression: Some(expression),
+                            type_arguments: Some(type_arguments),
+                        }),
+                        pos,
+                    );
+                }
+            }
+        }
+        if matches!(
+            self.token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::DotToken | SyntaxKind::OpenBracketToken
+        ) {
+            return expression;
+        }
+        self.parse_expected_token(
+            SyntaxKind::DotToken,
+            Some(&gen::super_must_be_followed_by_an_argument_list_or_member_access),
+        );
+        let name = self.parse_right_side_of_dot(true, true, true);
+        self.finish_node_data(
+            NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                expression: Some(expression),
+                question_dot_token: None,
+                name: Some(name),
+            }),
+            pos,
+        )
+    }
+
     fn parse_left_hand_side_expression_or_higher(&mut self) -> NodeId {
         let pos = self.node_pos();
         let expression = if self.token() == SyntaxKind::ImportKeyword {
@@ -4728,6 +4771,8 @@ impl<'text> Parser<'text> {
             } else {
                 self.parse_member_expression_or_higher()
             }
+        } else if self.token() == SyntaxKind::SuperKeyword {
+            self.parse_super_expression()
         } else {
             self.parse_member_expression_or_higher()
         };
@@ -4757,6 +4802,11 @@ impl<'text> Parser<'text> {
             SyntaxKind::NumericLiteral => self.parse_numeric_literal(),
             SyntaxKind::BigIntLiteral => self.parse_big_int_literal(),
             SyntaxKind::NoSubstitutionTemplateLiteral => {
+                // tsc: an untagged template with invalid parts re-scans WITH
+                // error reporting (the initial backtick scan is silent).
+                if self.scanner.token_flags_are_invalid() {
+                    self.re_scan_template_token(false);
+                }
                 self.parse_no_substitution_template_literal()
             }
             SyntaxKind::FunctionKeyword => self.parse_function_expression(),
@@ -5719,7 +5769,7 @@ impl<'text> Parser<'text> {
 
     fn parse_template_expression(&mut self, is_tagged_template: bool) -> NodeId {
         let pos = self.node_pos();
-        let head = self.parse_template_head();
+        let head = self.parse_template_head(is_tagged_template);
         let spans_pos = self.node_pos();
         let mut spans = Vec::new();
         loop {
@@ -5776,8 +5826,20 @@ impl<'text> Parser<'text> {
         }
     }
 
-    fn parse_template_head(&mut self) -> NodeId {
+    /// tsc parseTemplateHead: an untagged template with invalid parts
+    /// re-scans WITH error reporting (the initial backtick scan is silent).
+    fn parse_template_head(&mut self, is_tagged_template: bool) -> NodeId {
+        if !is_tagged_template && self.scanner.token_flags_are_invalid() {
+            self.re_scan_template_token(false);
+        }
         self.parse_template_fragment(SyntaxKind::TemplateHead)
+    }
+
+    /// tsc parser-side reScanTemplateToken.
+    fn re_scan_template_token(&mut self, is_tagged_template: bool) -> SyntaxKind {
+        let token = self.scanner.re_scan_template_token(is_tagged_template);
+        self.drain_scanner_errors();
+        token
     }
 
     fn parse_template_middle_or_tail(&mut self) -> NodeId {
@@ -5922,7 +5984,7 @@ impl<'text> Parser<'text> {
 
     fn parse_template_type(&mut self) -> NodeId {
         let pos = self.node_pos();
-        let head = self.parse_template_head();
+        let head = self.parse_template_head(false);
         let spans_pos = self.node_pos();
         let mut spans = Vec::new();
         loop {
