@@ -344,6 +344,19 @@ cargo xtask symbol-diff --sample 50 # expect: zero diffs on the audit format
 cargo xtask ledger check
 ```
 
+GATE MET (2026-07-10): bind-corpus 5908 fixtures / 7691 programs /
+11130 files / 148066 symbols / 118547 flow nodes / ZERO panics;
+symbol-diff --sample 50 differing=0 (and sample-200 differing=0);
+ledger 132 entries 0 stale; invariants suite=all ok; conformance
+syntactic band unchanged (T0 99.8219% FP 0) and all band T0 6.0260%
+FP 0 (binder contributes ~685 matched semantic diagnostics — the
+first non-syntactic matches; [t0] ratchet set to 0.0602).
+CARVE-OUTS delivered to M3+: stage 3.4c (JS special-assignment symbol
+bodies + TS expando + plainJSErrors allowlist + .js audit extension),
+JSDoc binding (needs JSDoc parsing), unused @ts-expect-error 2578
+(checker/M4), cross-file symbol merging + program-wide getSymbolId
+counter parity (checker/M4; audit normalizes both).
+
 ## Expected failure modes
 
 | Symptom | Diagnosis | Fix |
