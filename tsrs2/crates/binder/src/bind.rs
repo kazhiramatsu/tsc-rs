@@ -10,14 +10,14 @@ use crate::containers::{get_container_flags, ContainerFlags};
 use crate::declare::{Binder, TableRef};
 use crate::flow::FlowId;
 use crate::node_util::{
-    can_have_flow_node, declaration_name_to_string, get_containing_class,
-    get_error_span_for_node, has_dynamic_name, id_text, is_destructuring_assignment,
-    is_narrowable_operand, is_narrowing_expression, is_potentially_executable_node,
-    is_assignment_operator, is_async_function, is_auto_accessor_property_declaration,
-    is_binding_pattern, is_block_or_catch_scoped, is_entity_name_expression, is_expression_node,
-    is_function_like_kind, is_in_top_level_context, is_identifier_name, is_narrowable_reference,
-    is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
-    is_parameter_property_declaration, is_part_of_parameter_declaration, is_part_of_type_query,
+    can_have_flow_node, declaration_name_to_string, get_containing_class, get_error_span_for_node,
+    has_dynamic_name, id_text, is_assignment_operator, is_async_function,
+    is_auto_accessor_property_declaration, is_binding_pattern, is_block_or_catch_scoped,
+    is_destructuring_assignment, is_entity_name_expression, is_expression_node,
+    is_function_like_kind, is_identifier_name, is_in_top_level_context, is_narrowable_operand,
+    is_narrowable_reference, is_narrowing_expression, is_object_literal_method,
+    is_object_literal_or_class_expression_method_or_accessor, is_parameter_property_declaration,
+    is_part_of_parameter_declaration, is_part_of_type_query, is_potentially_executable_node,
     is_string_or_numeric_literal_like, kind_of, literal_text_of, name_field_of, parent_of,
     statements_of,
 };
@@ -103,8 +103,7 @@ impl<'a> Binder<'a> {
                 if let Some(current_flow) = self.current_flow {
                     let in_expression = is_expression_node(self.source, node)
                         || parent_of(self.source, node).is_some_and(|parent| {
-                            kind_of(self.source, parent)
-                                == SyntaxKind::ShorthandPropertyAssignment
+                            kind_of(self.source, parent) == SyntaxKind::ShorthandPropertyAssignment
                         });
                     if in_expression {
                         self.node_flow.insert(node, current_flow);
@@ -317,9 +316,7 @@ impl<'a> Binder<'a> {
                     SymbolFlags::ALIAS_EXCLUDES,
                 );
             }
-            SyntaxKind::NamespaceExportDeclaration => {
-                self.bind_namespace_export_declaration(node)
-            }
+            SyntaxKind::NamespaceExportDeclaration => self.bind_namespace_export_declaration(node),
             SyntaxKind::ImportClause => self.bind_import_clause(node),
             SyntaxKind::ExportDeclaration => self.bind_export_declaration(node),
             SyntaxKind::ExportAssignment => self.bind_export_assignment(node),
@@ -328,12 +325,10 @@ impl<'a> Binder<'a> {
                 self.bind_source_file_if_external_module();
             }
             SyntaxKind::Block => {
-                let function_like_parent =
-                    parent_of(self.source, node).is_some_and(|parent| {
-                        is_function_like_kind(kind_of(self.source, parent))
-                            || kind_of(self.source, parent)
-                                == SyntaxKind::ClassStaticBlockDeclaration
-                    });
+                let function_like_parent = parent_of(self.source, node).is_some_and(|parent| {
+                    is_function_like_kind(kind_of(self.source, parent))
+                        || kind_of(self.source, parent) == SyntaxKind::ClassStaticBlockDeclaration
+                });
                 if function_like_parent {
                     self.update_strict_mode_statement_list(statements_of(self.source, node));
                 }
@@ -479,17 +474,16 @@ impl<'a> Binder<'a> {
             self.bind_diagnostics.push(diag);
         }
         let parent = parent_of(self.source, node);
-        let message: Option<&'static DiagnosticMessage> = if parent
-            .is_none_or(|parent| kind_of(self.source, parent) != SyntaxKind::SourceFile)
-        {
-            Some(&diagnostics::Global_module_exports_may_only_appear_at_top_level)
-        } else if self.source.external_module_indicator.is_none() {
-            Some(&diagnostics::Global_module_exports_may_only_appear_in_module_files)
-        } else if !self.source.is_declaration_file {
-            Some(&diagnostics::Global_module_exports_may_only_appear_in_declaration_files)
-        } else {
-            None
-        };
+        let message: Option<&'static DiagnosticMessage> =
+            if parent.is_none_or(|parent| kind_of(self.source, parent) != SyntaxKind::SourceFile) {
+                Some(&diagnostics::Global_module_exports_may_only_appear_at_top_level)
+            } else if self.source.external_module_indicator.is_none() {
+                Some(&diagnostics::Global_module_exports_may_only_appear_in_module_files)
+            } else if !self.source.is_declaration_file {
+                Some(&diagnostics::Global_module_exports_may_only_appear_in_declaration_files)
+            } else {
+                None
+            };
         match message {
             Some(message) => {
                 let diag = self.diagnostic_for_node(node, message, &[]);
@@ -539,9 +533,7 @@ impl<'a> Binder<'a> {
                         false,
                     );
                 }
-                Some(clause)
-                    if kind_of(self.source, clause) == SyntaxKind::NamespaceExport =>
-                {
+                Some(clause) if kind_of(self.source, clause) == SyntaxKind::NamespaceExport => {
                     self.declare_symbol(
                         TableRef::Exports(container_symbol),
                         Some(container_symbol),
@@ -585,9 +577,10 @@ impl<'a> Binder<'a> {
             .unwrap_or_else(|| InternalSymbolName::MISSING.to_owned());
         let symbol = self.symbols.alloc(SymbolFlags::SIGNATURE, name.clone());
         self.add_declaration_to_symbol(symbol, node, SymbolFlags::SIGNATURE);
-        let type_literal_symbol = self
-            .symbols
-            .alloc(SymbolFlags::TYPE_LITERAL, InternalSymbolName::TYPE.to_owned());
+        let type_literal_symbol = self.symbols.alloc(
+            SymbolFlags::TYPE_LITERAL,
+            InternalSymbolName::TYPE.to_owned(),
+        );
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TYPE_LITERAL);
         self.symbols
             .symbol_mut(type_literal_symbol)
@@ -1041,9 +1034,9 @@ impl<'a> Binder<'a> {
             return AssignmentDeclarationKind::None;
         }
         let left_expression = access_expression_of(source, left);
-        if left_expression.is_some_and(|expression| {
-            is_bindable_static_name_expression(source, expression, true)
-        }) && get_element_or_property_access_name(source, left).as_deref() == Some("prototype")
+        if left_expression
+            .is_some_and(|expression| is_bindable_static_name_expression(source, expression, true))
+            && get_element_or_property_access_name(source, left).as_deref() == Some("prototype")
             && kind_of(source, get_initializer_of_binary_expression(source, expr))
                 == SyntaxKind::ObjectLiteralExpression
         {
@@ -1116,13 +1109,12 @@ impl<'a> Binder<'a> {
         let Some(expression) = data.expression else {
             return false;
         };
-        let NodeData::PropertyAccessExpression(access) = &source.arena.node(expression).data
-        else {
+        let NodeData::PropertyAccessExpression(access) = &source.arena.node(expression).data else {
             return false;
         };
-        let object_ok = access.expression.is_some_and(|object| {
-            id_text(source, object) == Some("Object")
-        });
+        let object_ok = access
+            .expression
+            .is_some_and(|object| id_text(source, object) == Some("Object"));
         let name_ok = access
             .name
             .is_some_and(|name| id_text(source, name) == Some("defineProperty"));
@@ -1707,9 +1699,7 @@ impl<'a> Binder<'a> {
             SyntaxKind::ExpressionStatement => self.bind_expression_statement(node),
             SyntaxKind::LabeledStatement => self.bind_labeled_statement(node),
             SyntaxKind::PrefixUnaryExpression => self.bind_prefix_unary_expression_flow(node),
-            SyntaxKind::PostfixUnaryExpression => {
-                self.bind_postfix_unary_expression_flow(node)
-            }
+            SyntaxKind::PostfixUnaryExpression => self.bind_postfix_unary_expression_flow(node),
             SyntaxKind::BinaryExpression => {
                 if is_destructuring_assignment(self.source, node) {
                     self.in_assignment_pattern = save_in_assignment_pattern;
@@ -1827,9 +1817,8 @@ impl<'a> Binder<'a> {
     fn set_continue_target(&mut self, mut node: NodeId, target: FlowId) -> FlowId {
         let mut label_index = self.active_label_list.len();
         while label_index > 0
-            && parent_of(self.source, node).is_some_and(|parent| {
-                kind_of(self.source, parent) == SyntaxKind::LabeledStatement
-            })
+            && parent_of(self.source, node)
+                .is_some_and(|parent| kind_of(self.source, parent) == SyntaxKind::LabeledStatement)
         {
             label_index -= 1;
             self.active_label_list[label_index].continue_target = Some(target);
@@ -1988,13 +1977,13 @@ impl<'a> Binder<'a> {
     /// tsc-hash: 2c30dad48c8cea8fc38dcf71dc1540246ea176334ec080e5b11f00bb2506dcf7
     /// tsc-span: _tsc.js:43277-43289
     fn bind_if_statement(&mut self, node: NodeId) {
-        let (expression, then_statement, else_statement) =
-            match &self.source.arena.node(node).data {
-                NodeData::IfStatement(data) => {
-                    (data.expression, data.then_statement, data.else_statement)
-                }
-                _ => (None, None, None),
-            };
+        let (expression, then_statement, else_statement) = match &self.source.arena.node(node).data
+        {
+            NodeData::IfStatement(data) => {
+                (data.expression, data.then_statement, data.else_statement)
+            }
+            _ => (None, None, None),
+        };
         let then_label = self.flow.create_branch_label();
         let else_label = self.flow.create_branch_label();
         let post_if_label = self.flow.create_branch_label();
@@ -2108,9 +2097,7 @@ impl<'a> Binder<'a> {
     /// tsc-span: _tsc.js:43332-43374
     fn bind_try_statement(&mut self, node: NodeId) {
         let (try_block, catch_clause, finally_block) = match &self.source.arena.node(node).data {
-            NodeData::TryStatement(data) => {
-                (data.try_block, data.catch_clause, data.finally_block)
-            }
+            NodeData::TryStatement(data) => (data.try_block, data.catch_clause, data.finally_block),
             _ => (None, None, None),
         };
         let save_return_target = self.current_return_target;
@@ -2171,8 +2158,7 @@ impl<'a> Binder<'a> {
                     }
                 }
                 if let Some(exception_target) = self.current_exception_target {
-                    let exception_antecedents =
-                        self.flow.flow(exception_label).antecedent.clone();
+                    let exception_antecedents = self.flow.flow(exception_label).antecedent.clone();
                     if !exception_antecedents.is_empty() {
                         let reduce = self.flow.create_reduce_label(
                             finally_label,
@@ -2215,21 +2201,22 @@ impl<'a> Binder<'a> {
         self.bind(case_block);
         let current = self.current_flow_id();
         self.flow.add_antecedent(post_switch_label, current);
-        let has_default = case_block.is_some_and(|case_block| {
-            match &self.source.arena.node(case_block).data {
-                NodeData::CaseBlock(data) => data.clauses.is_some_and(|clauses| {
-                    self.source
-                        .arena
-                        .node_array(clauses)
-                        .nodes
-                        .iter()
-                        .any(|&clause| {
-                            kind_of(self.source, clause) == SyntaxKind::DefaultClause
-                        })
-                }),
-                _ => false,
-            }
-        });
+        let has_default =
+            case_block.is_some_and(
+                |case_block| match &self.source.arena.node(case_block).data {
+                    NodeData::CaseBlock(data) => data.clauses.is_some_and(|clauses| {
+                        self.source
+                            .arena
+                            .node_array(clauses)
+                            .nodes
+                            .iter()
+                            .any(|&clause| {
+                                kind_of(self.source, clause) == SyntaxKind::DefaultClause
+                            })
+                    }),
+                    _ => false,
+                },
+            );
         self.possibly_exhaustive.insert(
             node,
             !has_default && self.flow.flow(post_switch_label).antecedent.is_empty(),
@@ -2432,8 +2419,7 @@ impl<'a> Binder<'a> {
             let Some(elements) = elements else { return };
             for &element in &self.source.arena.node_array(elements).nodes.clone() {
                 if kind_of(self.source, element) == SyntaxKind::SpreadElement {
-                    if let Some(expression) =
-                        crate::node_util::expression_of(self.source, element)
+                    if let Some(expression) = crate::node_util::expression_of(self.source, element)
                     {
                         self.bind_assignment_target_flow(expression);
                     }
@@ -2625,9 +2611,7 @@ impl<'a> Binder<'a> {
         while let Some(top) = stack.len().checked_sub(1) {
             let node = stack[top].node;
             let (left, operator_token, right) = match &self.source.arena.node(node).data {
-                NodeData::BinaryExpression(data) => {
-                    (data.left, data.operator_token, data.right)
-                }
+                NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
                 _ => (None, None, None),
             };
             let operator = operator_token
@@ -2642,9 +2626,7 @@ impl<'a> Binder<'a> {
                         self.bind_worker(node);
                     }
                     if crate::node_util::is_logical_or_coalescing_binary_operator(operator)
-                        || crate::node_util::is_logical_or_coalescing_assignment_operator(
-                            operator,
-                        )
+                        || crate::node_util::is_logical_or_coalescing_assignment_operator(operator)
                     {
                         if is_top_level_logical_expression(self.source, node) {
                             let post_expression_label = self.flow.create_branch_label();
@@ -2657,10 +2639,8 @@ impl<'a> Binder<'a> {
                                 post_expression_label,
                             );
                             self.current_flow = Some(if self.has_flow_effects {
-                                self.flow.finish_flow_label(
-                                    post_expression_label,
-                                    self.unreachable_flow,
-                                )
+                                self.flow
+                                    .finish_flow_label(post_expression_label, self.unreachable_flow)
                             } else {
                                 save_current_flow.expect("flow")
                             });
@@ -2740,8 +2720,7 @@ impl<'a> Binder<'a> {
                         if let Some(left) = left {
                             self.bind_assignment_target_flow(left);
                             if operator == SyntaxKind::EqualsToken
-                                && kind_of(self.source, left)
-                                    == SyntaxKind::ElementAccessExpression
+                                && kind_of(self.source, left) == SyntaxKind::ElementAccessExpression
                             {
                                 if let Some(expression) =
                                     crate::node_util::expression_of(self.source, left)
@@ -2806,7 +2785,8 @@ impl<'a> Binder<'a> {
                 .finish_flow_label(true_label, self.unreachable_flow),
         );
         if self.in_return_position {
-            self.node_flow_when_true.insert(node, self.current_flow_id());
+            self.node_flow_when_true
+                .insert(node, self.current_flow_id());
         }
         self.bind(question_token);
         self.bind(when_true);
@@ -2946,7 +2926,10 @@ impl<'a> Binder<'a> {
         let exit_flow = self.flow.create_branch_label();
         self.flow.add_antecedent(exit_flow, entry_flow);
         self.flow.add_antecedent(exit_flow, current);
-        self.current_flow = Some(self.flow.finish_flow_label(exit_flow, self.unreachable_flow));
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(exit_flow, self.unreachable_flow),
+        );
     }
 
     // ---- optional-chain flow binders ----
@@ -3176,11 +3159,7 @@ fn is_logical_expression(source: &tsrs2_syntax::SourceFile, mut node: NodeId) ->
                     None => return false,
                 }
             }
-            _ => {
-                return crate::node_util::is_logical_or_coalescing_binary_expression(
-                    source, node,
-                )
-            }
+            _ => return crate::node_util::is_logical_or_coalescing_binary_expression(source, node),
         }
     }
 }
@@ -3247,8 +3226,8 @@ fn is_declaration_statement_kind(kind: SyntaxKind) -> bool {
 /// extension is removed (.d.ts before .ts).
 fn remove_file_extension(path: &str) -> &str {
     for extension in [
-        ".d.ts", ".d.mts", ".d.cts", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs",
-        ".cjs", ".json",
+        ".d.ts", ".d.mts", ".d.cts", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs",
+        ".json",
     ] {
         if let Some(stripped) = path.strip_suffix(extension) {
             return stripped;
@@ -3258,10 +3237,7 @@ fn remove_file_extension(path: &str) -> &str {
 }
 
 /// The `.expression` of an access expression.
-fn access_expression_of(
-    source: &tsrs2_syntax::SourceFile,
-    node: NodeId,
-) -> Option<NodeId> {
+fn access_expression_of(source: &tsrs2_syntax::SourceFile, node: NodeId) -> Option<NodeId> {
     match &source.arena.node(node).data {
         NodeData::PropertyAccessExpression(data) => data.expression,
         NodeData::ElementAccessExpression(data) => data.expression,
@@ -3278,14 +3254,9 @@ fn is_exports_identifier(source: &tsrs2_syntax::SourceFile, node: NodeId) -> boo
 }
 
 /// tsc isModuleExportsAccessExpression (15052).
-fn is_module_exports_access_expression(
-    source: &tsrs2_syntax::SourceFile,
-    node: NodeId,
-) -> bool {
-    let is_access = matches!(
-        kind_of(source, node),
-        SyntaxKind::PropertyAccessExpression
-    ) || is_literal_like_element_access(source, node);
+fn is_module_exports_access_expression(source: &tsrs2_syntax::SourceFile, node: NodeId) -> bool {
+    let is_access = matches!(kind_of(source, node), SyntaxKind::PropertyAccessExpression)
+        || is_literal_like_element_access(source, node);
     is_access
         && access_expression_of(source, node).is_some_and(|expression| {
             matches!(
@@ -3372,8 +3343,7 @@ fn get_element_or_property_access_name(
         NodeData::ElementAccessExpression(data) => {
             let argument = data.argument_expression?;
             if is_string_or_numeric_literal_like(source, argument) {
-                literal_text_of(source, argument)
-                    .map(crate::symbols::escape_leading_underscores)
+                literal_text_of(source, argument).map(crate::symbols::escape_leading_underscores)
             } else {
                 None
             }
@@ -3430,10 +3400,11 @@ fn get_initializer_of_binary_expression(
             return expr;
         };
         match data.right {
-            Some(right) if matches!(
-                &source.arena.node(right).data,
-                NodeData::BinaryExpression(_)
-            ) =>
+            Some(right)
+                if matches!(
+                    &source.arena.node(right).data,
+                    NodeData::BinaryExpression(_)
+                ) =>
             {
                 expr = right;
             }
@@ -3569,7 +3540,11 @@ mod tests {
             .symbol(class_symbol)
             .exports
             .contains_key("prototype"));
-        assert!(binder.symbols.symbol(class_symbol).members.contains_key("m"));
+        assert!(binder
+            .symbols
+            .symbol(class_symbol)
+            .members
+            .contains_key("m"));
         // Interface members, enum members (exports), namespace exports.
         assert!(binder.symbols.symbol(locals["I"]).members.contains_key("a"));
         let enum_symbol = locals["E"];
@@ -3625,11 +3600,7 @@ mod tests {
         let binder = bind(&source);
         let file_symbol = binder.node_symbol[&source.root];
         assert_eq!(binder.symbols.symbol(file_symbol).escaped_name, "\"main\"");
-        assert!(binder
-            .symbols
-            .symbol(file_symbol)
-            .exports
-            .contains_key("f"));
+        assert!(binder.symbols.symbol(file_symbol).exports.contains_key("f"));
         // Local side of the exported function is linked.
         let locals = binder.locals.get(&source.root).expect("locals");
         let local_f = locals["f"];
@@ -3687,8 +3658,7 @@ mod tests {
         assert_eq!(binder.flow.flow(end).antecedent.len(), 2);
         for &antecedent in &binder.flow.flow(end).antecedent {
             assert!(flow_flags(&binder, antecedent).intersects(
-                tsrs2_types::FlowFlags::TRUE_CONDITION
-                    | tsrs2_types::FlowFlags::FALSE_CONDITION
+                tsrs2_types::FlowFlags::TRUE_CONDITION | tsrs2_types::FlowFlags::FALSE_CONDITION
             ));
         }
     }
@@ -3713,9 +3683,7 @@ mod tests {
         let binder = bind(&source);
         let loop_labels: Vec<_> = (0..binder.flow.len() as u32)
             .map(crate::flow::FlowId)
-            .filter(|&id| {
-                flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::LOOP_LABEL)
-            })
+            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::LOOP_LABEL))
             .collect();
         assert_eq!(loop_labels.len(), 1);
         assert_eq!(binder.flow.flow(loop_labels[0]).antecedent.len(), 2);
@@ -3748,9 +3716,7 @@ mod tests {
         let binder = bind(&source);
         let reduce_count = (0..binder.flow.len() as u32)
             .map(crate::flow::FlowId)
-            .filter(|&id| {
-                flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::REDUCE_LABEL)
-            })
+            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::REDUCE_LABEL))
             .count();
         assert!(reduce_count >= 1, "expected ReduceLabel nodes, got none");
     }
@@ -3767,9 +3733,7 @@ mod tests {
         let switch_statement = find_nodes(&source, SyntaxKind::SwitchStatement)[0];
         let clauses: Vec<_> = (0..binder.flow.len() as u32)
             .map(crate::flow::FlowId)
-            .filter(|&id| {
-                flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::SWITCH_CLAUSE)
-            })
+            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::SWITCH_CLAUSE))
             .collect();
         // 2 case clauses + the implicit default (clauseStart==clauseEnd==0).
         assert_eq!(clauses.len(), 3);
@@ -3784,7 +3748,10 @@ mod tests {
             )
         });
         assert!(implicit_default);
-        assert_eq!(binder.possibly_exhaustive.get(&switch_statement), Some(&false));
+        assert_eq!(
+            binder.possibly_exhaustive.get(&switch_statement),
+            Some(&false)
+        );
     }
 
     #[test]
@@ -3795,9 +3762,7 @@ mod tests {
         let binder = bind(&source);
         let assignments = (0..binder.flow.len() as u32)
             .map(crate::flow::FlowId)
-            .filter(|&id| {
-                flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::ASSIGNMENT)
-            })
+            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::ASSIGNMENT))
             .count();
         assert_eq!(assignments, 1);
         // The trailing reference's flowNode is the Assignment node.
@@ -3838,7 +3803,10 @@ mod tests {
                 )
             })
             .count();
-        assert!(conditions >= 2, "expected chain conditions, got {conditions}");
+        assert!(
+            conditions >= 2,
+            "expected chain conditions, got {conditions}"
+        );
     }
 
     #[test]
@@ -3860,9 +3828,7 @@ mod tests {
         // bindLabeledStatement (43437) + bindBreakOrContinueStatement
         // (43320): a referenced label keeps its flag clear; an
         // unreferenced label is stamped Unreachable.
-        let source = parse(
-            "function f(x: any) { a: { if (x) break a; x; } b: { x; } }\n",
-        );
+        let source = parse("function f(x: any) { a: { if (x) break a; x; } b: { x; } }\n");
         let binder = bind(&source);
         let labels: Vec<_> = find_nodes(&source, SyntaxKind::LabeledStatement)
             .into_iter()

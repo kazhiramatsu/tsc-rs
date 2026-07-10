@@ -121,7 +121,11 @@ impl FlowArena {
     /// tsc addAntecedent (43101): unreachable antecedents and
     /// duplicates are dropped.
     pub fn add_antecedent(&mut self, label: FlowId, antecedent: FlowId) {
-        if self.flow(antecedent).flags.intersects(FlowFlags::UNREACHABLE) {
+        if self
+            .flow(antecedent)
+            .flags
+            .intersects(FlowFlags::UNREACHABLE)
+        {
             return;
         }
         if self.flow(label).antecedent.contains(&antecedent) {
@@ -154,8 +158,8 @@ pub struct ActiveLabel {
 
 use crate::declare::Binder;
 use crate::node_util::{
-    is_expression_of_optional_chain_root, is_narrowing_expression, is_nullish_coalesce,
-    kind_of, parent_of,
+    is_expression_of_optional_chain_root, is_narrowing_expression, is_nullish_coalesce, kind_of,
+    parent_of,
 };
 use tsrs2_syntax::SyntaxKind;
 
@@ -264,8 +268,7 @@ mod tests {
     #[test]
     fn label_lifecycle_collapse_and_share() {
         let mut arena = FlowArena::default();
-        let unreachable =
-            arena.create_flow_node(FlowFlags::UNREACHABLE, FlowPayload::None, None);
+        let unreachable = arena.create_flow_node(FlowFlags::UNREACHABLE, FlowPayload::None, None);
         let start = arena.create_flow_node(FlowFlags::START, FlowPayload::None, None);
 
         // No antecedents ⇒ unreachable.

@@ -289,13 +289,11 @@ fn get_assigned_name(source: &SourceFile, id: NodeId) -> Option<NodeId> {
 /// tsc-hash: 5d3aafbdab871f0fe6f088a4904cd11e6b44e467e0cca8ad0c215b3f899b570b
 /// tsc-span: _tsc.js:11562-11565
 pub fn get_name_of_declaration(source: &SourceFile, id: NodeId) -> Option<NodeId> {
-    get_non_assigned_name_of_declaration(source, id).or_else(|| {
-        match kind_of(source, id) {
-            SyntaxKind::FunctionExpression
-            | SyntaxKind::ArrowFunction
-            | SyntaxKind::ClassExpression => get_assigned_name(source, id),
-            _ => None,
-        }
+    get_non_assigned_name_of_declaration(source, id).or_else(|| match kind_of(source, id) {
+        SyntaxKind::FunctionExpression
+        | SyntaxKind::ArrowFunction
+        | SyntaxKind::ClassExpression => get_assigned_name(source, id),
+        _ => None,
     })
 }
 
@@ -389,9 +387,9 @@ pub fn has_dynamic_name(source: &SourceFile, declaration: NodeId) -> bool {
 pub fn is_dynamic_name(source: &SourceFile, name: NodeId) -> bool {
     let expr = match &source.arena.node(name).data {
         NodeData::ComputedPropertyName(data) => data.expression,
-        NodeData::ElementAccessExpression(data) => {
-            data.argument_expression.map(|argument| skip_parentheses(source, argument))
-        }
+        NodeData::ElementAccessExpression(data) => data
+            .argument_expression
+            .map(|argument| skip_parentheses(source, argument)),
         _ => return false,
     };
     let Some(expr) = expr else { return false };
@@ -426,9 +424,7 @@ pub fn literal_text_of(source: &SourceFile, id: NodeId) -> Option<&str> {
 pub fn id_text(source: &SourceFile, id: NodeId) -> Option<&str> {
     match &source.arena.node(id).data {
         NodeData::Identifier(data) => Some(unescape_leading_underscores(&data.escaped_text)),
-        NodeData::PrivateIdentifier(data) => {
-            Some(unescape_leading_underscores(&data.escaped_text))
-        }
+        NodeData::PrivateIdentifier(data) => Some(unescape_leading_underscores(&data.escaped_text)),
         _ => None,
     }
 }
@@ -445,7 +441,10 @@ pub fn get_text_of_identifier_or_literal(source: &SourceFile, id: NodeId) -> Opt
 }
 
 /// tsc getEscapedTextOfIdentifierOrLiteral (_tsc.js 15902).
-pub fn get_escaped_text_of_identifier_or_literal(source: &SourceFile, id: NodeId) -> Option<String> {
+pub fn get_escaped_text_of_identifier_or_literal(
+    source: &SourceFile,
+    id: NodeId,
+) -> Option<String> {
     match &source.arena.node(id).data {
         NodeData::Identifier(data) => Some(data.escaped_text.clone()),
         NodeData::PrivateIdentifier(data) => Some(data.escaped_text.clone()),
@@ -456,10 +455,7 @@ pub fn get_escaped_text_of_identifier_or_literal(source: &SourceFile, id: NodeId
 
 /// tsc getEscapedTextOfJsxNamespacedName (_tsc.js 19342):
 /// `${namespace.escapedText}:${idText(name)}`.
-pub fn get_escaped_text_of_jsx_namespaced_name(
-    source: &SourceFile,
-    id: NodeId,
-) -> Option<String> {
+pub fn get_escaped_text_of_jsx_namespaced_name(source: &SourceFile, id: NodeId) -> Option<String> {
     let NodeData::JsxNamespacedName(data) = &source.arena.node(id).data else {
         return None;
     };
@@ -572,8 +568,7 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
         }
         NodeData::Constructor(_) => {
             let start = tsrs2_syntax::skip_trivia(&source.text, node.pos as usize);
-            let tokens =
-                tsrs2_syntax::scan_tokens(&source.text[start..], source.language_variant);
+            let tokens = tsrs2_syntax::scan_tokens(&source.text[start..], source.language_variant);
             for token in &tokens {
                 if token.kind == SyntaxKind::ConstructorKeyword {
                     return (start, start + token.end as usize);
@@ -1261,9 +1256,9 @@ pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
             match &source.arena.node(parent).data {
                 NodeData::BinaryExpression(data) => {
                     data.left == Some(node)
-                        && data.operator_token.is_some_and(|token| {
-                            kind_of(source, token) == SyntaxKind::InKeyword
-                        })
+                        && data
+                            .operator_token
+                            .is_some_and(|token| kind_of(source, token) == SyntaxKind::InKeyword)
                 }
                 _ => false,
             }
@@ -1349,9 +1344,8 @@ pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
             // !isPartOfTypeNode(parent): heritage clauses are the only
             // parse-tree position for this kind outside expressions.
             data.expression == Some(node)
-                && parent_of(source, parent).is_some_and(|grand| {
-                    kind_of(source, grand) != SyntaxKind::HeritageClause
-                })
+                && parent_of(source, parent)
+                    .is_some_and(|grand| kind_of(source, grand) != SyntaxKind::HeritageClause)
         }
         NodeData::ShorthandPropertyAssignment(data) => {
             data.object_assignment_initializer == Some(node)
@@ -1465,9 +1459,7 @@ fn is_narrowing_binary_expression(source: &SourceFile, expr: NodeId) -> bool {
         SyntaxKind::EqualsToken
         | SyntaxKind::BarBarEqualsToken
         | SyntaxKind::AmpersandAmpersandEqualsToken
-        | SyntaxKind::QuestionQuestionEqualsToken => {
-            contains_narrowable_reference(source, left)
-        }
+        | SyntaxKind::QuestionQuestionEqualsToken => contains_narrowable_reference(source, left),
         SyntaxKind::EqualsEqualsToken
         | SyntaxKind::ExclamationEqualsToken
         | SyntaxKind::EqualsEqualsEqualsToken
@@ -1479,13 +1471,10 @@ fn is_narrowing_binary_expression(source: &SourceFile, expr: NodeId) -> bool {
                 || is_narrowing_typeof_operands(source, right, left)
                 || is_narrowing_typeof_operands(source, left, right)
                 || (is_boolean_literal(source, right) && is_narrowing_expression(source, left)
-                    || is_boolean_literal(source, left)
-                        && is_narrowing_expression(source, right))
+                    || is_boolean_literal(source, left) && is_narrowing_expression(source, right))
         }
         SyntaxKind::InstanceOfKeyword => is_narrowable_operand(source, left),
-        SyntaxKind::InKeyword | SyntaxKind::CommaToken => {
-            is_narrowing_expression(source, right)
-        }
+        SyntaxKind::InKeyword | SyntaxKind::CommaToken => is_narrowing_expression(source, right),
         _ => false,
     }
 }
@@ -1567,9 +1556,7 @@ pub fn is_optional_chain(source: &SourceFile, node: NodeId) -> bool {
 /// tsc isOptionalChainRoot (11836): an optional chain (excluding
 /// non-null) with its own `?.` token.
 pub fn is_optional_chain_root(source: &SourceFile, node: NodeId) -> bool {
-    if !is_optional_chain(source, node)
-        || kind_of(source, node) == SyntaxKind::NonNullExpression
-    {
+    if !is_optional_chain(source, node) || kind_of(source, node) == SyntaxKind::NonNullExpression {
         return false;
     }
     match &source.arena.node(node).data {
@@ -1642,10 +1629,7 @@ pub fn is_logical_or_coalescing_assignment_operator(token: SyntaxKind) -> bool {
 }
 
 /// tsc isLogicalOrCoalescingAssignmentExpression.
-pub fn is_logical_or_coalescing_assignment_expression(
-    source: &SourceFile,
-    expr: NodeId,
-) -> bool {
+pub fn is_logical_or_coalescing_assignment_expression(source: &SourceFile, expr: NodeId) -> bool {
     matches!(
         &source.arena.node(expr).data,
         NodeData::BinaryExpression(data)
@@ -1824,8 +1808,7 @@ pub fn is_potentially_executable_node(source: &SourceFile, node: NodeId) -> bool
             if get_combined_node_flags(source, list).intersects(NodeFlags::BLOCK_SCOPED) {
                 return true;
             }
-            let NodeData::VariableDeclarationList(list_data) = &source.arena.node(list).data
-            else {
+            let NodeData::VariableDeclarationList(list_data) = &source.arena.node(list).data else {
                 return true;
             };
             let Some(declarations) = list_data.declarations else {
@@ -1847,9 +1830,7 @@ pub fn is_potentially_executable_node(source: &SourceFile, node: NodeId) -> bool
     }
     matches!(
         kind,
-        SyntaxKind::ClassDeclaration
-            | SyntaxKind::EnumDeclaration
-            | SyntaxKind::ModuleDeclaration
+        SyntaxKind::ClassDeclaration | SyntaxKind::EnumDeclaration | SyntaxKind::ModuleDeclaration
     )
 }
 

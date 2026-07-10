@@ -54,8 +54,7 @@ pub fn audit_source_file(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>)
                 Some(symbol) => {
                     let sym = binder.symbols.symbol(symbol);
                     let sorted_keys = |table: &tsrs2_binder::SymbolTable| {
-                        let mut keys: Vec<&str> =
-                            table.keys().map(String::as_str).collect();
+                        let mut keys: Vec<&str> = table.keys().map(String::as_str).collect();
                         keys.sort_unstable();
                         keys.join(",")
                     };
@@ -108,7 +107,11 @@ fn push_binding_names(source: &SourceFile, name: Option<NodeId>, out: &mut Vec<N
     }
 }
 
-fn push_binding_elements(source: &SourceFile, elements: Option<NodeArrayId>, out: &mut Vec<NodeId>) {
+fn push_binding_elements(
+    source: &SourceFile,
+    elements: Option<NodeArrayId>,
+    out: &mut Vec<NodeId>,
+) {
     let Some(elements) = elements else { return };
     for &element in &source.arena.node_array(elements).nodes {
         if let NodeData::BindingElement(data) = &source.arena.node(element).data {
@@ -183,11 +186,15 @@ fn visit_statement(source: &SourceFile, statement: NodeId, depth: u32, out: &mut
             }
         }
         NodeData::VariableStatement(data) => {
-            let Some(list) = data.declaration_list else { return };
+            let Some(list) = data.declaration_list else {
+                return;
+            };
             let NodeData::VariableDeclarationList(list) = &source.arena.node(list).data else {
                 return;
             };
-            let Some(declarations) = list.declarations else { return };
+            let Some(declarations) = list.declarations else {
+                return;
+            };
             for &declaration in &source.arena.node_array(declarations).nodes {
                 if let NodeData::VariableDeclaration(data) = &source.arena.node(declaration).data {
                     push_binding_names(source, data.name, out);
@@ -196,16 +203,22 @@ fn visit_statement(source: &SourceFile, statement: NodeId, depth: u32, out: &mut
         }
         NodeData::ImportEqualsDeclaration(data) => push_name(source, data.name, out),
         NodeData::ImportDeclaration(data) => {
-            let Some(clause) = data.import_clause else { return };
+            let Some(clause) = data.import_clause else {
+                return;
+            };
             let NodeData::ImportClause(clause) = &source.arena.node(clause).data else {
                 return;
             };
             push_name(source, clause.name, out);
-            let Some(bindings) = clause.named_bindings else { return };
+            let Some(bindings) = clause.named_bindings else {
+                return;
+            };
             match &source.arena.node(bindings).data {
                 NodeData::NamespaceImport(data) => push_name(source, data.name, out),
                 NodeData::NamedImports(data) => {
-                    let Some(elements) = data.elements else { return };
+                    let Some(elements) = data.elements else {
+                        return;
+                    };
                     for &element in &source.arena.node_array(elements).nodes {
                         if let NodeData::ImportSpecifier(data) = &source.arena.node(element).data {
                             push_name(source, data.name, out);
@@ -216,11 +229,15 @@ fn visit_statement(source: &SourceFile, statement: NodeId, depth: u32, out: &mut
             }
         }
         NodeData::ExportDeclaration(data) => {
-            let Some(clause) = data.export_clause else { return };
+            let Some(clause) = data.export_clause else {
+                return;
+            };
             match &source.arena.node(clause).data {
                 NodeData::NamespaceExport(data) => push_name(source, data.name, out),
                 NodeData::NamedExports(data) => {
-                    let Some(elements) = data.elements else { return };
+                    let Some(elements) = data.elements else {
+                        return;
+                    };
                     for &element in &source.arena.node_array(elements).nodes {
                         if let NodeData::ExportSpecifier(data) = &source.arena.node(element).data {
                             push_name(source, data.name, out);

@@ -17,7 +17,9 @@ use crate::symbols::{
     SymbolId, SymbolTable,
 };
 use indexmap::IndexSet;
-use tsrs2_diags::{gen as diagnostics, Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain, RelatedInfo};
+use tsrs2_diags::{
+    gen as diagnostics, Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain, RelatedInfo,
+};
 use tsrs2_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 use tsrs2_types::{ModifierFlags, SymbolFlags};
 
@@ -202,9 +204,7 @@ impl<'a> Binder<'a> {
             TableRef::Locals(node) => self.locals.entry(node).or_default(),
             TableRef::Members(symbol) => &mut self.symbols.symbol_mut(symbol).members,
             TableRef::Exports(symbol) => &mut self.symbols.symbol_mut(symbol).exports,
-            TableRef::GlobalExports(symbol) => {
-                &mut self.symbols.symbol_mut(symbol).global_exports
-            }
+            TableRef::GlobalExports(symbol) => &mut self.symbols.symbol_mut(symbol).global_exports,
         }
     }
 
@@ -277,9 +277,7 @@ impl<'a> Binder<'a> {
                         // do NOT add this declaration.
                         return existing;
                     }
-                    Some(existing)
-                        if self.symbols.symbol(existing).flags.intersects(excludes) =>
-                    {
+                    Some(existing) if self.symbols.symbol(existing).flags.intersects(excludes) => {
                         if self.symbols.symbol(existing).is_replaceable_by_method {
                             let symbol = self.create_symbol(SymbolFlags::NONE, name.clone());
                             self.table_mut(table).insert(name, symbol);
@@ -351,9 +349,9 @@ impl<'a> Binder<'a> {
         }
         let sym = self.symbols.symbol_mut(symbol);
         if sym.const_enum_only_module == Some(true)
-            && sym.flags.intersects(
-                SymbolFlags::FUNCTION | SymbolFlags::CLASS | SymbolFlags::REGULAR_ENUM,
-            )
+            && sym
+                .flags
+                .intersects(SymbolFlags::FUNCTION | SymbolFlags::CLASS | SymbolFlags::REGULAR_ENUM)
         {
             sym.const_enum_only_module = Some(false);
         }
@@ -548,9 +546,8 @@ impl<'a> Binder<'a> {
             };
             if node_is_missing(self.source, type_node)
                 && has_syntactic_modifier(self.source, node, ModifierFlags::EXPORT)
-                && existing_flags.intersects(
-                    SymbolFlags::ALIAS | SymbolFlags::TYPE | SymbolFlags::NAMESPACE,
-                )
+                && existing_flags
+                    .intersects(SymbolFlags::ALIAS | SymbolFlags::TYPE | SymbolFlags::NAMESPACE)
             {
                 let escaped = alias_name
                     .and_then(|name| match &self.source.arena.node(name).data {
@@ -558,16 +555,19 @@ impl<'a> Binder<'a> {
                         _ => None,
                     })
                     .unwrap_or_default();
-                let suggestion =
-                    format!("export type {{ {} }}", unescape_leading_underscores(&escaped));
-                related_information.push(
-                    self.related_for_node(node, &diagnostics::Did_you_mean_0, &[&suggestion]),
+                let suggestion = format!(
+                    "export type {{ {} }}",
+                    unescape_leading_underscores(&escaped)
                 );
+                related_information.push(self.related_for_node(
+                    node,
+                    &diagnostics::Did_you_mean_0,
+                    &[&suggestion],
+                ));
             }
         }
 
-        let declaration_name_node =
-            get_name_of_declaration(self.source, node).unwrap_or(node);
+        let declaration_name_node = get_name_of_declaration(self.source, node).unwrap_or(node);
         let prior_declarations = self.symbols.symbol(existing).declarations.clone();
         for (index, &declaration) in prior_declarations.iter().enumerate() {
             let decl = get_name_of_declaration(self.source, declaration).unwrap_or(declaration);
@@ -725,9 +725,7 @@ mod tests {
                 SymbolFlags::TYPE_ALIAS,
                 SymbolFlags::TYPE_ALIAS_EXCLUDES,
             ),
-            NodeData::ExportAssignment(_) => {
-                (statement, SymbolFlags::PROPERTY, SymbolFlags::ALL)
-            }
+            NodeData::ExportAssignment(_) => (statement, SymbolFlags::PROPERTY, SymbolFlags::ALL),
             NodeData::VariableStatement(data) => {
                 let list = data.declaration_list.expect("list");
                 let declarations = match &source.arena.node(list).data {
@@ -758,7 +756,11 @@ mod tests {
 
     /// Declare every top-level statement into one locals table (a mini
     /// stand-in for bindWorker's routing), returning the symbols.
-    fn declare_all(binder: &mut Binder<'_>, table: TableRef, parent: Option<SymbolId>) -> Vec<SymbolId> {
+    fn declare_all(
+        binder: &mut Binder<'_>,
+        table: TableRef,
+        parent: Option<SymbolId>,
+    ) -> Vec<SymbolId> {
         let statements = statements(binder.source);
         statements
             .iter()
@@ -886,7 +888,9 @@ mod tests {
         let options: &'static tsrs2_types::CompilerOptions =
             Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
-        let container = binder.symbols.alloc(SymbolFlags::NONE, "container".to_owned());
+        let container = binder
+            .symbols
+            .alloc(SymbolFlags::NONE, "container".to_owned());
         declare_all(&mut binder, TableRef::Exports(container), Some(container));
         assert_eq!(diag_pins(&binder), [(2528, 21, 1), (2528, 47, 1)]);
         let first = &binder.bind_diagnostics[0];
@@ -915,7 +919,9 @@ mod tests {
         let options: &'static tsrs2_types::CompilerOptions =
             Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
-        let container = binder.symbols.alloc(SymbolFlags::NONE, "container".to_owned());
+        let container = binder
+            .symbols
+            .alloc(SymbolFlags::NONE, "container".to_owned());
         declare_all(&mut binder, TableRef::Exports(container), Some(container));
         assert_eq!(diag_pins(&binder), [(2528, 0, 17), (2528, 18, 17)]);
         let first = &binder.bind_diagnostics[0];

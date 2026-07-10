@@ -6,11 +6,11 @@
 use crate::declare::{Binder, TableRef};
 use crate::flow::FlowPayload;
 use crate::node_util::{
-    asterisk_token_of, body_of, get_combined_modifier_flags, get_immediately_invoked_function_expression,
-    get_syntactic_modifier_flags, has_syntactic_modifier, is_ambient_module,
-    is_function_like_kind, is_module_augmentation_external,
-    is_object_literal_or_class_expression_method_or_accessor, kind_of, node_is_missing,
-    parent_of, statements_of, try_parse_pattern, ParsedPattern,
+    asterisk_token_of, body_of, get_combined_modifier_flags,
+    get_immediately_invoked_function_expression, get_syntactic_modifier_flags,
+    has_syntactic_modifier, is_ambient_module, is_function_like_kind,
+    is_module_augmentation_external, is_object_literal_or_class_expression_method_or_accessor,
+    kind_of, node_is_missing, parent_of, statements_of, try_parse_pattern, ParsedPattern,
 };
 use crate::symbols::{SymbolId, SymbolTable};
 use std::collections::HashMap;
@@ -83,9 +83,7 @@ pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags 
         SyntaxKind::ModuleDeclaration
         | SyntaxKind::TypeAliasDeclaration
         | SyntaxKind::MappedType
-        | SyntaxKind::IndexSignature => {
-            ContainerFlags::IS_CONTAINER | ContainerFlags::HAS_LOCALS
-        }
+        | SyntaxKind::IndexSignature => ContainerFlags::IS_CONTAINER | ContainerFlags::HAS_LOCALS,
         SyntaxKind::SourceFile => {
             ContainerFlags::IS_CONTAINER
                 | ContainerFlags::IS_CONTROL_FLOW_CONTAINER
@@ -335,13 +333,12 @@ impl<'a> Binder<'a> {
             self.current_return_target = save_return_target;
             self.current_exception_target = save_exception_target;
             self.has_explicit_return = save_has_explicit_return;
-            self.seen_this_keyword = if container_flags
-                .intersects(ContainerFlags::PROPAGATES_THIS_KEYWORD)
-            {
-                save_seen_this_keyword || self.seen_this_keyword
-            } else {
-                save_seen_this_keyword
-            };
+            self.seen_this_keyword =
+                if container_flags.intersects(ContainerFlags::PROPAGATES_THIS_KEYWORD) {
+                    save_seen_this_keyword || self.seen_this_keyword
+                } else {
+                    save_seen_this_keyword
+                };
         } else if container_flags.intersects(ContainerFlags::IS_INTERFACE) {
             let save_seen_this_keyword = self.seen_this_keyword;
             self.seen_this_keyword = false;
@@ -510,8 +507,8 @@ impl<'a> Binder<'a> {
         symbol_excludes: SymbolFlags,
     ) -> SymbolId {
         let container = self.container.expect("module member outside container");
-        let has_export_modifier = get_combined_modifier_flags(self.source, node)
-            .intersects(ModifierFlags::EXPORT);
+        let has_export_modifier =
+            get_combined_modifier_flags(self.source, node).intersects(ModifierFlags::EXPORT);
         if symbol_flags.intersects(SymbolFlags::ALIAS) {
             if kind_of(self.source, node) == SyntaxKind::ExportSpecifier
                 || kind_of(self.source, node) == SyntaxKind::ImportEqualsDeclaration
@@ -655,8 +652,7 @@ impl<'a> Binder<'a> {
         let (start, end) = crate::node_util::get_span_of_token_at_position(self.source, pos);
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
         let map = &self.source.line_map.byte_to_utf16;
-        let to_utf16 =
-            |byte: usize| -> u32 { map.get(byte).copied().unwrap_or(byte as u32) };
+        let to_utf16 = |byte: usize| -> u32 { map.get(byte).copied().unwrap_or(byte as u32) };
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
         self.bind_diagnostics.push(tsrs2_diags::Diagnostic::new(
@@ -721,8 +717,7 @@ impl<'a> Binder<'a> {
                         SymbolFlags::FUNCTION | SymbolFlags::CLASS | SymbolFlags::REGULAR_ENUM,
                     ) && state == ModuleInstanceState::ConstEnumOnly
                         && self.symbols.symbol(symbol).const_enum_only_module != Some(false);
-                    self.symbols.symbol_mut(symbol).const_enum_only_module =
-                        Some(const_enum_only);
+                    self.symbols.symbol_mut(symbol).const_enum_only_module = Some(const_enum_only);
                 }
             }
         }
@@ -858,9 +853,7 @@ fn get_module_instance_state_worker(
         NodeData::Identifier(_) => {
             // JS-only: IdentifierIsInJSDocNamespace (bit 4096 on an
             // Identifier) — never set while JSDoc parsing is unported.
-            if crate::node_util::node_flags(source, node)
-                .intersects(NodeFlags::from_bits(4096))
-            {
+            if crate::node_util::node_flags(source, node).intersects(NodeFlags::from_bits(4096)) {
                 return ModuleInstanceState::NonInstantiated;
             }
         }
