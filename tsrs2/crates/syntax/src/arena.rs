@@ -125,27 +125,46 @@ impl NodeArena {
         id
     }
 
-    fn finalize_node(&mut self, id: NodeId, parent: Option<NodeId>, seen: &mut [bool]) -> bool {
-        let index = self.node_index(id);
-        assert!(!seen[index], "node has more than one parent: {id:?}");
-        seen[index] = true;
-        self.nodes[index].parent = parent;
-
-        let children = self.children(id);
-        let mut contains_error =
-            NodeFlags::from_bits(self.nodes[index].flags).contains(NodeFlags::THIS_NODE_HAS_ERROR);
-
-        for child in children {
-            if self.finalize_node(child, Some(id), seen) {
-                contains_error = true;
+    /// Explicit two-phase stack: deep trees (left-leaning binary
+    /// chains) overflow a recursive walk.
+    fn finalize_node(&mut self, root: NodeId, parent: Option<NodeId>, seen: &mut [bool]) -> bool {
+        enum Phase {
+            Enter,
+            Exit,
+        }
+        let mut error_flags = vec![false; self.nodes.len()];
+        let mut stack = vec![(root, parent, Phase::Enter)];
+        while let Some((id, parent, phase)) = stack.pop() {
+            let index = self.node_index(id);
+            match phase {
+                Phase::Enter => {
+                    assert!(!seen[index], "node has more than one parent: {id:?}");
+                    seen[index] = true;
+                    self.nodes[index].parent = parent;
+                    error_flags[index] = NodeFlags::from_bits(self.nodes[index].flags)
+                        .contains(NodeFlags::THIS_NODE_HAS_ERROR);
+                    stack.push((id, parent, Phase::Exit));
+                    let children = self.children(id);
+                    for child in children.into_iter().rev() {
+                        stack.push((child, Some(id), Phase::Enter));
+                    }
+                }
+                Phase::Exit => {
+                    let mut contains_error = error_flags[index];
+                    for child in self.children(id) {
+                        if error_flags[self.node_index(child)] {
+                            contains_error = true;
+                        }
+                    }
+                    if contains_error {
+                        self.nodes[index].flags |=
+                            NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR.bits();
+                        error_flags[index] = true;
+                    }
+                }
             }
         }
-
-        if contains_error {
-            self.nodes[index].flags |= NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR.bits();
-        }
-
-        contains_error
+        error_flags[self.node_index(root)]
     }
 
     fn children(&self, id: NodeId) -> Vec<NodeId> {

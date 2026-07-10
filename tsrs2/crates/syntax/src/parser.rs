@@ -8083,28 +8083,34 @@ impl<'text> Parser<'text> {
     /// keywordToken slot, so the leading source token disambiguates
     /// `import.meta` from `new.target`.
     fn walk_tree_for_import_meta(&self, id: NodeId) -> Option<NodeId> {
-        let node = self.arena.node(id);
-        if node.kind == SyntaxKind::MetaProperty {
-            let token_start = crate::scanner::skip_trivia(self.scanner.text(), node.pos as usize);
-            let is_import = self.scanner.text()[token_start..].starts_with("import");
-            let is_meta = match &node.data {
-                NodeData::MetaProperty(data) => data.name.is_some_and(|name| {
-                    matches!(&self.arena.node(name).data, NodeData::Identifier(data) if data.escaped_text == "meta")
-                }),
-                _ => false,
-            };
-            if is_import && is_meta {
-                return Some(id);
+        // Explicit stack: deep trees overflow a recursive walk.
+        let mut stack = vec![id];
+        while let Some(id) = stack.pop() {
+            let node = self.arena.node(id);
+            if node.kind == SyntaxKind::MetaProperty {
+                let token_start =
+                    crate::scanner::skip_trivia(self.scanner.text(), node.pos as usize);
+                let is_import = self.scanner.text()[token_start..].starts_with("import");
+                let is_meta = match &node.data {
+                    NodeData::MetaProperty(data) => data.name.is_some_and(|name| {
+                        matches!(&self.arena.node(name).data, NodeData::Identifier(data) if data.escaped_text == "meta")
+                    }),
+                    _ => false,
+                };
+                if is_import && is_meta {
+                    return Some(id);
+                }
+            }
+            let mut children = Vec::new();
+            for_each_child(&self.arena, node, |child| {
+                children.push(child);
+                false
+            });
+            for child in children.into_iter().rev() {
+                stack.push(child);
             }
         }
-        let mut children = Vec::new();
-        for_each_child(&self.arena, node, |child| {
-            children.push(child);
-            false
-        });
-        children
-            .into_iter()
-            .find_map(|child| self.walk_tree_for_import_meta(child))
+        None
     }
 
     /// The tsc sourceFile.transformFlags & ContainsPossibleTopLevelAwait
@@ -8131,42 +8137,53 @@ impl<'text> Parser<'text> {
     /// source is an identifier spelled `await` (factory createIdentifier);
     /// function-like factories strip the flag from their BODY propagation;
     /// enum/module/import= factories clear it on the whole node.
-    fn subtree_contains_possible_top_level_await(&self, id: NodeId) -> bool {
-        let node = self.arena.node(id);
-        let body = match &node.data {
-            NodeData::Identifier(data) => return data.escaped_text == "await",
-            NodeData::EnumDeclaration(_)
-            | NodeData::ModuleDeclaration(_)
-            | NodeData::ImportEqualsDeclaration(_)
-            | NodeData::ImportDeclaration(_)
-            | NodeData::ImportClause(_)
-            | NodeData::NamespaceImport(_)
-            | NodeData::NamespaceExport(_)
-            | NodeData::NamedImports(_)
-            | NodeData::ImportSpecifier(_)
-            | NodeData::ExportAssignment(_)
-            | NodeData::ExportDeclaration(_)
-            | NodeData::NamedExports(_)
-            | NodeData::ExportSpecifier(_)
-            | NodeData::ExternalModuleReference(_) => return false,
-            NodeData::MethodDeclaration(data) => data.body,
-            NodeData::Constructor(data) => data.body,
-            NodeData::GetAccessor(data) => data.body,
-            NodeData::SetAccessor(data) => data.body,
-            NodeData::FunctionExpression(data) => data.body,
-            NodeData::ArrowFunction(data) => data.body,
-            NodeData::FunctionDeclaration(data) => data.body,
-            _ => None,
-        };
-        let mut children = Vec::new();
-        for_each_child(&self.arena, node, |child| {
-            children.push(child);
-            false
-        });
-        children
-            .into_iter()
-            .filter(|child| Some(*child) != body)
-            .any(|child| self.subtree_contains_possible_top_level_await(child))
+    fn subtree_contains_possible_top_level_await(&self, root: NodeId) -> bool {
+        // Explicit stack: deep trees overflow a recursive walk.
+        let mut stack = vec![root];
+        while let Some(id) = stack.pop() {
+            let node = self.arena.node(id);
+            let body = match &node.data {
+                NodeData::Identifier(data) => {
+                    if data.escaped_text == "await" {
+                        return true;
+                    }
+                    continue;
+                }
+                NodeData::EnumDeclaration(_)
+                | NodeData::ModuleDeclaration(_)
+                | NodeData::ImportEqualsDeclaration(_)
+                | NodeData::ImportDeclaration(_)
+                | NodeData::ImportClause(_)
+                | NodeData::NamespaceImport(_)
+                | NodeData::NamespaceExport(_)
+                | NodeData::NamedImports(_)
+                | NodeData::ImportSpecifier(_)
+                | NodeData::ExportAssignment(_)
+                | NodeData::ExportDeclaration(_)
+                | NodeData::NamedExports(_)
+                | NodeData::ExportSpecifier(_)
+                | NodeData::ExternalModuleReference(_) => continue,
+                NodeData::MethodDeclaration(data) => data.body,
+                NodeData::Constructor(data) => data.body,
+                NodeData::GetAccessor(data) => data.body,
+                NodeData::SetAccessor(data) => data.body,
+                NodeData::FunctionExpression(data) => data.body,
+                NodeData::ArrowFunction(data) => data.body,
+                NodeData::FunctionDeclaration(data) => data.body,
+                _ => None,
+            };
+            let mut children = Vec::new();
+            for_each_child(&self.arena, node, |child| {
+                children.push(child);
+                false
+            });
+            for child in children.into_iter().rev() {
+                if Some(child) != body {
+                    stack.push(child);
+                }
+            }
+        }
+        false
     }
 
     /// tsc reparseTopLevelAwait: maximal runs of possible-await statements

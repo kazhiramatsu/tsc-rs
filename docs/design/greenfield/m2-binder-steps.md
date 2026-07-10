@@ -311,6 +311,29 @@ Verify: a flow-dump unit format (node id, flags, antecedent ids) over
 reading the cited tsc — record each as a unit pin with the tsc
 function named in the test comment.
 
+Landed shape (2026-07-10): narrowing predicates + optional-chain/
+assignment-target/logical predicate families in node_util.rs; flow
+constructors (createFlowCondition/SwitchClause/Mutation/Call) as
+Binder methods in flow.rs; the full bindChildren dispatch
+(unreachable stamping via isPotentiallyExecutableNode/canHaveFlowNode,
+statement flowNode stamps) + every statement/expression flow binder in
+bind.rs; createBindBinaryExpressionFlow as an explicit
+Enter/Left/Operator/Right/Exit work-stack machine. ActiveLabel is a
+stack (tsc linked list); ConditionalExpression
+flowNodeWhenTrue/WhenFalse, SwitchStatement.possiblyExhaustive and
+clause fallthroughFlowNode live in side tables;
+noFallthroughCasesInSwitch joined CompilerOptions. Flow-shape unit
+pins (11): if-join antecedents, non-narrowing-condition collapse,
+loop back edges, post-return unreachability, try/finally ReduceLabel,
+narrowing-switch SwitchClause set incl. implicit default,
+assignment mutation + reference stamps, logical/optional-chain
+condition shapes, label reference/unreachable stamping, 50k-term
+chain. RECURSION DEBT FIXED en route (all pre-existing M1 walkers,
+exposed by the 50k chain): arena finalize_node, parser
+walk_tree_for_import_meta and subtree_contains_possible_top_level_await
+are now explicit-stack iterative. bind-corpus full: 11130 files,
+148066 symbols, 118547 flow nodes, zero panics.
+
 Commit: `m2 3.5: flow graph construction`.
 
 ## Final gate

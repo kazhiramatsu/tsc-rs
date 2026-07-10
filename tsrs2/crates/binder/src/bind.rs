@@ -8,9 +8,11 @@
 
 use crate::containers::{get_container_flags, ContainerFlags};
 use crate::declare::{Binder, TableRef};
+use crate::flow::FlowId;
 use crate::node_util::{
-    declaration_name_to_string, get_containing_class,
-    get_error_span_for_node, has_dynamic_name, id_text,
+    can_have_flow_node, declaration_name_to_string, get_containing_class,
+    get_error_span_for_node, has_dynamic_name, id_text, is_destructuring_assignment,
+    is_narrowable_operand, is_narrowing_expression, is_potentially_executable_node,
     is_assignment_operator, is_async_function, is_auto_accessor_property_declaration,
     is_binding_pattern, is_block_or_catch_scoped, is_entity_name_expression, is_expression_node,
     is_function_like_kind, is_in_top_level_context, is_identifier_name, is_narrowable_reference,
@@ -22,7 +24,7 @@ use crate::node_util::{
 use crate::symbols::{InternalSymbolName, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
+use tsrs2_types::{FlowFlags, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
 
 /// tsc AssignmentDeclarationKind.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1648,14 +1650,82 @@ impl<'a> Binder<'a> {
         }
     }
 
-    /// bindChildren (42843): stage 3.3/3.4 carries the structural
-    /// dispatch (functions-first statement lists, inAssignmentPattern
-    /// save/restore); the flow-aware statement/expression arms and the
-    /// unreachable stamping are stage 3.5.
+    /// tsc-port: bindChildren @6.0.3
+    /// tsc-hash: 69e5dfbb76220dae84ed056c90a443fd58a7edfda6ac555da31683f2567d41c1
+    /// tsc-span: _tsc.js:42843-42976
+    ///
+    /// JSDoc arms (typedef/callback/enum tags, import tag, bindJSDoc)
+    /// await JSDoc parsing.
     pub(crate) fn bind_children(&mut self, node: NodeId) {
         let save_in_assignment_pattern = self.in_assignment_pattern;
         self.in_assignment_pattern = false;
-        match kind_of(self.source, node) {
+        if is_potentially_executable_node(self.source, node) {
+            let flags = self.flags_of(node);
+            self.set_flags_of(
+                node,
+                NodeFlags::from_bits(flags.bits() & !NodeFlags::UNREACHABLE.bits()),
+            );
+        }
+        let current_flow = self.current_flow.expect("bindChildren runs under a flow");
+        if current_flow == self.unreachable_flow {
+            if can_have_flow_node(self.source, node) {
+                self.node_flow.remove(&node);
+            }
+            if is_potentially_executable_node(self.source, node) {
+                let flags = self.flags_of(node);
+                self.set_flags_of(node, flags | NodeFlags::UNREACHABLE);
+            }
+            self.bind_each_child(node);
+            self.in_assignment_pattern = save_in_assignment_pattern;
+            return;
+        }
+        let kind = kind_of(self.source, node);
+        if kind as u16 >= SyntaxKind::FirstStatement as u16
+            && kind as u16 <= SyntaxKind::LastStatement as u16
+            && can_have_flow_node(self.source, node)
+        {
+            self.node_flow.insert(node, current_flow);
+        }
+        match kind {
+            SyntaxKind::WhileStatement => self.bind_while_statement(node),
+            SyntaxKind::DoStatement => self.bind_do_statement(node),
+            SyntaxKind::ForStatement => self.bind_for_statement(node),
+            SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement => {
+                self.bind_for_in_or_for_of_statement(node)
+            }
+            SyntaxKind::IfStatement => self.bind_if_statement(node),
+            SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement => {
+                self.bind_return_or_throw(node)
+            }
+            SyntaxKind::BreakStatement | SyntaxKind::ContinueStatement => {
+                self.bind_break_or_continue_statement(node)
+            }
+            SyntaxKind::TryStatement => self.bind_try_statement(node),
+            SyntaxKind::SwitchStatement => self.bind_switch_statement(node),
+            SyntaxKind::CaseBlock => self.bind_case_block(node),
+            SyntaxKind::CaseClause => self.bind_case_clause(node),
+            SyntaxKind::ExpressionStatement => self.bind_expression_statement(node),
+            SyntaxKind::LabeledStatement => self.bind_labeled_statement(node),
+            SyntaxKind::PrefixUnaryExpression => self.bind_prefix_unary_expression_flow(node),
+            SyntaxKind::PostfixUnaryExpression => {
+                self.bind_postfix_unary_expression_flow(node)
+            }
+            SyntaxKind::BinaryExpression => {
+                if is_destructuring_assignment(self.source, node) {
+                    self.in_assignment_pattern = save_in_assignment_pattern;
+                    self.bind_destructuring_assignment_flow(node);
+                    return;
+                }
+                self.bind_binary_expression_flow(node);
+            }
+            SyntaxKind::DeleteExpression => self.bind_delete_expression_flow(node),
+            SyntaxKind::ConditionalExpression => self.bind_conditional_expression_flow(node),
+            SyntaxKind::VariableDeclaration => self.bind_variable_declaration_flow(node),
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                self.bind_access_expression_flow(node)
+            }
+            SyntaxKind::CallExpression => self.bind_call_expression_flow(node),
+            SyntaxKind::NonNullExpression => self.bind_non_null_expression_flow(node),
             SyntaxKind::SourceFile => {
                 let (statements, end_of_file_token) = match &self.source.arena.node(node).data {
                     NodeData::SourceFile(data) => (data.statements, data.end_of_file_token),
@@ -1667,6 +1737,8 @@ impl<'a> Binder<'a> {
             SyntaxKind::Block | SyntaxKind::ModuleBlock => {
                 self.bind_each_functions_first(statements_of(self.source, node));
             }
+            SyntaxKind::BindingElement => self.bind_binding_element_flow(node),
+            SyntaxKind::Parameter => self.bind_parameter_flow(node),
             SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::ArrayLiteralExpression
             | SyntaxKind::PropertyAssignment
@@ -1679,6 +1751,1476 @@ impl<'a> Binder<'a> {
             }
         }
         self.in_assignment_pattern = save_in_assignment_pattern;
+    }
+
+    // ---- stage 3.5: the flow-aware statement binders ----
+
+    fn current_flow_id(&self) -> FlowId {
+        self.current_flow.expect("flow binder runs under a flow")
+    }
+
+    /// tsc doWithConditionalBranches (43184).
+    fn do_with_conditional_branches<F>(
+        &mut self,
+        action: F,
+        value: Option<NodeId>,
+        true_target: FlowId,
+        false_target: FlowId,
+    ) where
+        F: FnOnce(&mut Self, Option<NodeId>),
+    {
+        let saved_true_target = self.current_true_target;
+        let saved_false_target = self.current_false_target;
+        self.current_true_target = Some(true_target);
+        self.current_false_target = Some(false_target);
+        action(self, value);
+        self.current_true_target = saved_true_target;
+        self.current_false_target = saved_false_target;
+    }
+
+    /// tsc-port: bindCondition @6.0.3
+    /// tsc-hash: 38b592763838cdc8d6c70e67e0ad00e3a3ddd511ee49454ded711ee5a7cc7cfd
+    /// tsc-span: _tsc.js:43193-43199
+    fn bind_condition(&mut self, node: Option<NodeId>, true_target: FlowId, false_target: FlowId) {
+        self.do_with_conditional_branches(
+            |binder, value| binder.bind(value),
+            node,
+            true_target,
+            false_target,
+        );
+        let logical_like = node.is_some_and(|node| {
+            crate::node_util::is_logical_or_coalescing_assignment_expression(self.source, node)
+                || is_logical_expression(self.source, node)
+                || crate::node_util::is_optional_chain(self.source, node)
+                    && crate::node_util::is_outermost_optional_chain(self.source, node)
+        });
+        if !logical_like {
+            let current = self.current_flow_id();
+            let true_condition =
+                self.create_flow_condition(FlowFlags::TRUE_CONDITION, current, node);
+            self.flow.add_antecedent(true_target, true_condition);
+            let false_condition =
+                self.create_flow_condition(FlowFlags::FALSE_CONDITION, current, node);
+            self.flow.add_antecedent(false_target, false_condition);
+        }
+    }
+
+    /// tsc bindIterativeStatement (43200).
+    fn bind_iterative_statement(
+        &mut self,
+        node: Option<NodeId>,
+        break_target: FlowId,
+        continue_target: FlowId,
+    ) {
+        let save_break_target = self.current_break_target;
+        let save_continue_target = self.current_continue_target;
+        self.current_break_target = Some(break_target);
+        self.current_continue_target = Some(continue_target);
+        self.bind(node);
+        self.current_break_target = save_break_target;
+        self.current_continue_target = save_continue_target;
+    }
+
+    /// tsc-port: setContinueTarget @6.0.3
+    /// tsc-hash: 5cf6caaae1c8407e3697dc739875bf7245ffe23e5cce3f0488bd3d544f93b1d3
+    /// tsc-span: _tsc.js:43209-43217
+    fn set_continue_target(&mut self, mut node: NodeId, target: FlowId) -> FlowId {
+        let mut label_index = self.active_label_list.len();
+        while label_index > 0
+            && parent_of(self.source, node).is_some_and(|parent| {
+                kind_of(self.source, parent) == SyntaxKind::LabeledStatement
+            })
+        {
+            label_index -= 1;
+            self.active_label_list[label_index].continue_target = Some(target);
+            node = parent_of(self.source, node).unwrap();
+        }
+        target
+    }
+
+    /// tsc-port: bindWhileStatement @6.0.3
+    /// tsc-hash: 9502783d5fee9d39b7c22c38d0c2168ce81a14afdefe39bbc301bacde7070863
+    /// tsc-span: _tsc.js:43218-43229
+    fn bind_while_statement(&mut self, node: NodeId) {
+        let (expression, statement) = match &self.source.arena.node(node).data {
+            NodeData::WhileStatement(data) => (data.expression, data.statement),
+            _ => (None, None),
+        };
+        let loop_label = self.flow.create_loop_label();
+        let pre_while_label = self.set_continue_target(node, loop_label);
+        let pre_body_label = self.flow.create_branch_label();
+        let post_while_label = self.flow.create_branch_label();
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(pre_while_label, current);
+        self.current_flow = Some(pre_while_label);
+        self.bind_condition(expression, pre_body_label, post_while_label);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(pre_body_label, self.unreachable_flow),
+        );
+        self.bind_iterative_statement(statement, post_while_label, pre_while_label);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(pre_while_label, current);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(post_while_label, self.unreachable_flow),
+        );
+    }
+
+    /// tsc-port: bindDoStatement @6.0.3
+    /// tsc-hash: 70fbd4032fe8fe8209fbc80b5f0ba0b5baeac97dfb6d2b600268edf78ea42512
+    /// tsc-span: _tsc.js:43230-43241
+    fn bind_do_statement(&mut self, node: NodeId) {
+        let (expression, statement) = match &self.source.arena.node(node).data {
+            NodeData::DoStatement(data) => (data.expression, data.statement),
+            _ => (None, None),
+        };
+        let pre_do_label = self.flow.create_loop_label();
+        let branch = self.flow.create_branch_label();
+        let pre_condition_label = self.set_continue_target(node, branch);
+        let post_do_label = self.flow.create_branch_label();
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(pre_do_label, current);
+        self.current_flow = Some(pre_do_label);
+        self.bind_iterative_statement(statement, post_do_label, pre_condition_label);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(pre_condition_label, current);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(pre_condition_label, self.unreachable_flow),
+        );
+        self.bind_condition(expression, pre_do_label, post_do_label);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(post_do_label, self.unreachable_flow),
+        );
+    }
+
+    /// tsc-port: bindForStatement @6.0.3
+    /// tsc-hash: 33154d21bb57ca621342024056e1f05dc01206e8e3ab4d0986a83536c292fd12
+    /// tsc-span: _tsc.js:43242-43258
+    fn bind_for_statement(&mut self, node: NodeId) {
+        let (initializer, condition, incrementor, statement) =
+            match &self.source.arena.node(node).data {
+                NodeData::ForStatement(data) => (
+                    data.initializer,
+                    data.condition,
+                    data.incrementor,
+                    data.statement,
+                ),
+                _ => (None, None, None, None),
+            };
+        let loop_label = self.flow.create_loop_label();
+        let pre_loop_label = self.set_continue_target(node, loop_label);
+        let pre_body_label = self.flow.create_branch_label();
+        let pre_incrementor_label = self.flow.create_branch_label();
+        let post_loop_label = self.flow.create_branch_label();
+        self.bind(initializer);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(pre_loop_label, current);
+        self.current_flow = Some(pre_loop_label);
+        self.bind_condition(condition, pre_body_label, post_loop_label);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(pre_body_label, self.unreachable_flow),
+        );
+        self.bind_iterative_statement(statement, post_loop_label, pre_incrementor_label);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(pre_incrementor_label, current);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(pre_incrementor_label, self.unreachable_flow),
+        );
+        self.bind(incrementor);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(pre_loop_label, current);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(post_loop_label, self.unreachable_flow),
+        );
+    }
+
+    /// tsc-port: bindForInOrForOfStatement @6.0.3
+    /// tsc-hash: cc766c2bf078174e8f5786cc99b1e4a742df64fa97bb78ee482a76a969b7a683
+    /// tsc-span: _tsc.js:43259-43276
+    fn bind_for_in_or_for_of_statement(&mut self, node: NodeId) {
+        let (expression, initializer, statement, await_modifier) =
+            match &self.source.arena.node(node).data {
+                NodeData::ForInStatement(data) => {
+                    (data.expression, data.initializer, data.statement, None)
+                }
+                NodeData::ForOfStatement(data) => (
+                    data.expression,
+                    data.initializer,
+                    data.statement,
+                    data.await_modifier,
+                ),
+                _ => (None, None, None, None),
+            };
+        let loop_label = self.flow.create_loop_label();
+        let pre_loop_label = self.set_continue_target(node, loop_label);
+        let post_loop_label = self.flow.create_branch_label();
+        self.bind(expression);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(pre_loop_label, current);
+        self.current_flow = Some(pre_loop_label);
+        if kind_of(self.source, node) == SyntaxKind::ForOfStatement {
+            self.bind(await_modifier);
+        }
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(post_loop_label, current);
+        self.bind(initializer);
+        if let Some(initializer) = initializer {
+            if kind_of(self.source, initializer) != SyntaxKind::VariableDeclarationList {
+                self.bind_assignment_target_flow(initializer);
+            }
+        }
+        self.bind_iterative_statement(statement, post_loop_label, pre_loop_label);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(pre_loop_label, current);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(post_loop_label, self.unreachable_flow),
+        );
+    }
+
+    /// tsc-port: bindIfStatement @6.0.3
+    /// tsc-hash: 2c30dad48c8cea8fc38dcf71dc1540246ea176334ec080e5b11f00bb2506dcf7
+    /// tsc-span: _tsc.js:43277-43289
+    fn bind_if_statement(&mut self, node: NodeId) {
+        let (expression, then_statement, else_statement) =
+            match &self.source.arena.node(node).data {
+                NodeData::IfStatement(data) => {
+                    (data.expression, data.then_statement, data.else_statement)
+                }
+                _ => (None, None, None),
+            };
+        let then_label = self.flow.create_branch_label();
+        let else_label = self.flow.create_branch_label();
+        let post_if_label = self.flow.create_branch_label();
+        self.bind_condition(expression, then_label, else_label);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(then_label, self.unreachable_flow),
+        );
+        self.bind(then_statement);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(post_if_label, current);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(else_label, self.unreachable_flow),
+        );
+        self.bind(else_statement);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(post_if_label, current);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(post_if_label, self.unreachable_flow),
+        );
+    }
+
+    /// tsc-port: bindReturnOrThrow @6.0.3
+    /// tsc-hash: 0d74669036bab103742a58d7497ed102c16393074edc7a911ca0a5e86369327d
+    /// tsc-span: _tsc.js:43290-43303
+    fn bind_return_or_throw(&mut self, node: NodeId) {
+        let expression = match &self.source.arena.node(node).data {
+            NodeData::ReturnStatement(data) => data.expression,
+            NodeData::ThrowStatement(data) => data.expression,
+            _ => None,
+        };
+        let saved_in_return_position = self.in_return_position;
+        self.in_return_position = true;
+        self.bind(expression);
+        self.in_return_position = saved_in_return_position;
+        if kind_of(self.source, node) == SyntaxKind::ReturnStatement {
+            self.has_explicit_return = true;
+            if let Some(return_target) = self.current_return_target {
+                let current = self.current_flow_id();
+                self.flow.add_antecedent(return_target, current);
+            }
+        }
+        self.current_flow = Some(self.unreachable_flow);
+        self.has_flow_effects = true;
+    }
+
+    /// tsc-port: bindBreakOrContinueStatement @6.0.3
+    /// tsc-hash: e28e187b38fa438f170acb5ab7ffcd119b5c320398e7f55783d452e1e075363c
+    /// tsc-span: _tsc.js:43320-43331
+    fn bind_break_or_continue_statement(&mut self, node: NodeId) {
+        let label = match &self.source.arena.node(node).data {
+            NodeData::BreakStatement(data) => data.label,
+            NodeData::ContinueStatement(data) => data.label,
+            _ => None,
+        };
+        self.bind(label);
+        match label {
+            Some(label) => {
+                let escaped = match &self.source.arena.node(label).data {
+                    NodeData::Identifier(data) => data.escaped_text.clone(),
+                    _ => return,
+                };
+                // tsc findActiveLabel (43304): innermost first.
+                if let Some(index) = self
+                    .active_label_list
+                    .iter()
+                    .rposition(|active| active.name == escaped)
+                {
+                    self.active_label_list[index].referenced = true;
+                    let break_target = self.active_label_list[index].break_target;
+                    let continue_target = self.active_label_list[index].continue_target;
+                    self.bind_break_or_continue_flow(node, Some(break_target), continue_target);
+                }
+            }
+            None => {
+                self.bind_break_or_continue_flow(
+                    node,
+                    self.current_break_target,
+                    self.current_continue_target,
+                );
+            }
+        }
+    }
+
+    /// tsc-port: bindBreakOrContinueFlow @6.0.3
+    /// tsc-hash: 99fe8f25f7a54117a93de4d3fda393524e8d08aedcc434245101e96facbbb0c3
+    /// tsc-span: _tsc.js:43312-43319
+    fn bind_break_or_continue_flow(
+        &mut self,
+        node: NodeId,
+        break_target: Option<FlowId>,
+        continue_target: Option<FlowId>,
+    ) {
+        let flow_label = if kind_of(self.source, node) == SyntaxKind::BreakStatement {
+            break_target
+        } else {
+            continue_target
+        };
+        if let Some(flow_label) = flow_label {
+            let current = self.current_flow_id();
+            self.flow.add_antecedent(flow_label, current);
+            self.current_flow = Some(self.unreachable_flow);
+            self.has_flow_effects = true;
+        }
+    }
+
+    /// tsc-port: bindTryStatement @6.0.3
+    /// tsc-hash: 27e30684473d6f50b0b0522497a94c9e39bb2ff8f908d3fb43110f7dda8bfd67
+    /// tsc-span: _tsc.js:43332-43374
+    fn bind_try_statement(&mut self, node: NodeId) {
+        let (try_block, catch_clause, finally_block) = match &self.source.arena.node(node).data {
+            NodeData::TryStatement(data) => {
+                (data.try_block, data.catch_clause, data.finally_block)
+            }
+            _ => (None, None, None),
+        };
+        let save_return_target = self.current_return_target;
+        let save_exception_target = self.current_exception_target;
+        let normal_exit_label = self.flow.create_branch_label();
+        let return_label = self.flow.create_branch_label();
+        let mut exception_label = self.flow.create_branch_label();
+        if finally_block.is_some() {
+            self.current_return_target = Some(return_label);
+        }
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(exception_label, current);
+        self.current_exception_target = Some(exception_label);
+        self.bind(try_block);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(normal_exit_label, current);
+        if catch_clause.is_some() {
+            self.current_flow = Some(
+                self.flow
+                    .finish_flow_label(exception_label, self.unreachable_flow),
+            );
+            exception_label = self.flow.create_branch_label();
+            let current = self.current_flow_id();
+            self.flow.add_antecedent(exception_label, current);
+            self.current_exception_target = Some(exception_label);
+            self.bind(catch_clause);
+            let current = self.current_flow_id();
+            self.flow.add_antecedent(normal_exit_label, current);
+        }
+        self.current_return_target = save_return_target;
+        self.current_exception_target = save_exception_target;
+        if finally_block.is_some() {
+            let finally_label = self.flow.create_branch_label();
+            let mut antecedents = self.flow.flow(normal_exit_label).antecedent.clone();
+            antecedents.extend_from_slice(&self.flow.flow(exception_label).antecedent);
+            antecedents.extend_from_slice(&self.flow.flow(return_label).antecedent);
+            self.flow.flow_mut(finally_label).antecedent = antecedents;
+            self.current_flow = Some(finally_label);
+            self.bind(finally_block);
+            let current = self.current_flow_id();
+            if self
+                .flow
+                .flow(current)
+                .flags
+                .intersects(FlowFlags::UNREACHABLE)
+            {
+                self.current_flow = Some(self.unreachable_flow);
+            } else {
+                if let Some(return_target) = self.current_return_target {
+                    let return_antecedents = self.flow.flow(return_label).antecedent.clone();
+                    if !return_antecedents.is_empty() {
+                        let reduce = self.flow.create_reduce_label(
+                            finally_label,
+                            return_antecedents,
+                            current,
+                        );
+                        self.flow.add_antecedent(return_target, reduce);
+                    }
+                }
+                if let Some(exception_target) = self.current_exception_target {
+                    let exception_antecedents =
+                        self.flow.flow(exception_label).antecedent.clone();
+                    if !exception_antecedents.is_empty() {
+                        let reduce = self.flow.create_reduce_label(
+                            finally_label,
+                            exception_antecedents,
+                            current,
+                        );
+                        self.flow.add_antecedent(exception_target, reduce);
+                    }
+                }
+                let normal_antecedents = self.flow.flow(normal_exit_label).antecedent.clone();
+                self.current_flow = Some(if normal_antecedents.is_empty() {
+                    self.unreachable_flow
+                } else {
+                    self.flow
+                        .create_reduce_label(finally_label, normal_antecedents, current)
+                });
+            }
+        } else {
+            self.current_flow = Some(
+                self.flow
+                    .finish_flow_label(normal_exit_label, self.unreachable_flow),
+            );
+        }
+    }
+
+    /// tsc-port: bindSwitchStatement @6.0.3
+    /// tsc-hash: 92b2f46ea4a5ce9af156abe3d6a00b47a3059978d1217d24aedf349581f24c9f
+    /// tsc-span: _tsc.js:43375-43392
+    fn bind_switch_statement(&mut self, node: NodeId) {
+        let (expression, case_block) = match &self.source.arena.node(node).data {
+            NodeData::SwitchStatement(data) => (data.expression, data.case_block),
+            _ => (None, None),
+        };
+        let post_switch_label = self.flow.create_branch_label();
+        self.bind(expression);
+        let save_break_target = self.current_break_target;
+        let save_pre_switch_case_flow = self.pre_switch_case_flow;
+        self.current_break_target = Some(post_switch_label);
+        self.pre_switch_case_flow = self.current_flow;
+        self.bind(case_block);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(post_switch_label, current);
+        let has_default = case_block.is_some_and(|case_block| {
+            match &self.source.arena.node(case_block).data {
+                NodeData::CaseBlock(data) => data.clauses.is_some_and(|clauses| {
+                    self.source
+                        .arena
+                        .node_array(clauses)
+                        .nodes
+                        .iter()
+                        .any(|&clause| {
+                            kind_of(self.source, clause) == SyntaxKind::DefaultClause
+                        })
+                }),
+                _ => false,
+            }
+        });
+        self.possibly_exhaustive.insert(
+            node,
+            !has_default && self.flow.flow(post_switch_label).antecedent.is_empty(),
+        );
+        if !has_default {
+            let pre = self.pre_switch_case_flow.expect("switch flow");
+            let clause = self.create_flow_switch_clause(pre, node, 0, 0);
+            self.flow.add_antecedent(post_switch_label, clause);
+        }
+        self.current_break_target = save_break_target;
+        self.pre_switch_case_flow = save_pre_switch_case_flow;
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(post_switch_label, self.unreachable_flow),
+        );
+    }
+
+    /// tsc-port: bindCaseBlock @6.0.3
+    /// tsc-hash: bd1cf1fbddf3aeec7e66acf5515b3ca553645c4e477d4e96664c6d0194e7efeb
+    /// tsc-span: _tsc.js:43393-43417
+    fn bind_case_block(&mut self, node: NodeId) {
+        let clauses = match &self.source.arena.node(node).data {
+            NodeData::CaseBlock(data) => data.clauses,
+            _ => None,
+        };
+        let Some(clauses) = clauses else { return };
+        let clauses = self.source.arena.node_array(clauses).nodes.clone();
+        let switch_statement = parent_of(self.source, node).expect("case block parent");
+        let switch_expression = match &self.source.arena.node(switch_statement).data {
+            NodeData::SwitchStatement(data) => data.expression,
+            _ => None,
+        };
+        let is_narrowing_switch = switch_expression.is_some_and(|expression| {
+            kind_of(self.source, expression) == SyntaxKind::TrueKeyword
+                || is_narrowing_expression(self.source, expression)
+        });
+        let mut fallthrough_flow = self.unreachable_flow;
+        let mut i = 0usize;
+        while i < clauses.len() {
+            let clause_start = i;
+            while clause_statements_empty(self.source, clauses[i]) && i + 1 < clauses.len() {
+                if fallthrough_flow == self.unreachable_flow {
+                    self.current_flow = self.pre_switch_case_flow;
+                }
+                self.bind(Some(clauses[i]));
+                i += 1;
+            }
+            let pre_case_label = self.flow.create_branch_label();
+            let antecedent = if is_narrowing_switch {
+                let pre = self.pre_switch_case_flow.expect("switch flow");
+                self.create_flow_switch_clause(
+                    pre,
+                    switch_statement,
+                    clause_start as u32,
+                    (i + 1) as u32,
+                )
+            } else {
+                self.pre_switch_case_flow.expect("switch flow")
+            };
+            self.flow.add_antecedent(pre_case_label, antecedent);
+            self.flow.add_antecedent(pre_case_label, fallthrough_flow);
+            self.current_flow = Some(
+                self.flow
+                    .finish_flow_label(pre_case_label, self.unreachable_flow),
+            );
+            let clause = clauses[i];
+            self.bind(Some(clause));
+            fallthrough_flow = self.current_flow_id();
+            let current = self.current_flow_id();
+            if !self
+                .flow
+                .flow(current)
+                .flags
+                .intersects(FlowFlags::UNREACHABLE)
+                && i != clauses.len() - 1
+                && self.options.no_fallthrough_cases_in_switch == Some(true)
+            {
+                self.node_fallthrough_flow.insert(clause, current);
+            }
+            i += 1;
+        }
+    }
+
+    /// tsc-port: bindCaseClause @6.0.3
+    /// tsc-hash: babfa2aba74aff33e0f550fb1b59d6a3a52472b8412209bc37561c01b7507076
+    /// tsc-span: _tsc.js:43418-43424
+    fn bind_case_clause(&mut self, node: NodeId) {
+        let (expression, statements) = match &self.source.arena.node(node).data {
+            NodeData::CaseClause(data) => (data.expression, data.statements),
+            _ => (None, None),
+        };
+        let save_current_flow = self.current_flow;
+        self.current_flow = self.pre_switch_case_flow;
+        self.bind(expression);
+        self.current_flow = save_current_flow;
+        self.bind_each(statements);
+    }
+
+    /// tsc-port: bindExpressionStatement @6.0.3
+    /// tsc-hash: ecc460eac354017bf8eb09bd872917b739db3a55c1047174100aa7212b22818e
+    /// tsc-span: _tsc.js:43425-43428
+    fn bind_expression_statement(&mut self, node: NodeId) {
+        let expression = match &self.source.arena.node(node).data {
+            NodeData::ExpressionStatement(data) => data.expression,
+            _ => None,
+        };
+        self.bind(expression);
+        if let Some(expression) = expression {
+            self.maybe_bind_expression_flow_if_call(expression);
+        }
+    }
+
+    /// tsc-port: maybeBindExpressionFlowIfCall @6.0.3
+    /// tsc-hash: e63aedaf525ec80be365b3176f72d498a0186fa44337f126ef781ac3ea3fec05
+    /// tsc-span: _tsc.js:43429-43436
+    fn maybe_bind_expression_flow_if_call(&mut self, node: NodeId) {
+        if let NodeData::CallExpression(data) = &self.source.arena.node(node).data {
+            if let Some(expression) = data.expression {
+                if kind_of(self.source, expression) != SyntaxKind::SuperKeyword
+                    && crate::node_util::is_dotted_name(self.source, expression)
+                {
+                    let current = self.current_flow_id();
+                    self.current_flow = Some(self.create_flow_call(current, node));
+                }
+            }
+        }
+    }
+
+    /// tsc-port: bindLabeledStatement @6.0.3
+    /// tsc-hash: c1caa33a967160b6944fdc88e26a45551b32980a05b7acf5b14eb2246851c828
+    /// tsc-span: _tsc.js:43437-43454
+    fn bind_labeled_statement(&mut self, node: NodeId) {
+        let (label, statement) = match &self.source.arena.node(node).data {
+            NodeData::LabeledStatement(data) => (data.label, data.statement),
+            _ => (None, None),
+        };
+        let post_statement_label = self.flow.create_branch_label();
+        let name = label
+            .and_then(|label| match &self.source.arena.node(label).data {
+                NodeData::Identifier(data) => Some(data.escaped_text.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        self.active_label_list.push(crate::flow::ActiveLabel {
+            name,
+            break_target: post_statement_label,
+            continue_target: None,
+            referenced: false,
+        });
+        self.bind(label);
+        self.bind(statement);
+        let active = self.active_label_list.pop().expect("active label");
+        if !active.referenced {
+            if let Some(label) = label {
+                let flags = self.flags_of(label);
+                self.set_flags_of(label, flags | NodeFlags::UNREACHABLE);
+            }
+        }
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(post_statement_label, current);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(post_statement_label, self.unreachable_flow),
+        );
+    }
+
+    /// tsc-port: bindDestructuringTargetFlow @6.0.3
+    /// tsc-hash: 4bbc1240b69e059e2e26beb081750843d9b27e52a8b7b5f7d6e97ae44f56b834
+    /// tsc-span: _tsc.js:43455-43461
+    fn bind_destructuring_target_flow(&mut self, node: NodeId) {
+        let assignment_left = match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data)
+                if data.operator_token.is_some_and(|token| {
+                    kind_of(self.source, token) == SyntaxKind::EqualsToken
+                }) =>
+            {
+                data.left
+            }
+            _ => None,
+        };
+        match assignment_left {
+            Some(left) => self.bind_assignment_target_flow(left),
+            None => self.bind_assignment_target_flow(node),
+        }
+    }
+
+    /// tsc-port: bindAssignmentTargetFlow @6.0.3
+    /// tsc-hash: e2bc7e620c720971a769b61333e5bc975415031d9d0bc18c8adabbae1ba24b7d
+    /// tsc-span: _tsc.js:43462-43484
+    fn bind_assignment_target_flow(&mut self, node: NodeId) {
+        if is_narrowable_reference(self.source, node) {
+            let current = self.current_flow_id();
+            self.current_flow =
+                Some(self.create_flow_mutation(FlowFlags::ASSIGNMENT, current, node));
+        } else if kind_of(self.source, node) == SyntaxKind::ArrayLiteralExpression {
+            let elements = match &self.source.arena.node(node).data {
+                NodeData::ArrayLiteralExpression(data) => data.elements,
+                _ => None,
+            };
+            let Some(elements) = elements else { return };
+            for &element in &self.source.arena.node_array(elements).nodes.clone() {
+                if kind_of(self.source, element) == SyntaxKind::SpreadElement {
+                    if let Some(expression) =
+                        crate::node_util::expression_of(self.source, element)
+                    {
+                        self.bind_assignment_target_flow(expression);
+                    }
+                } else {
+                    self.bind_destructuring_target_flow(element);
+                }
+            }
+        } else if kind_of(self.source, node) == SyntaxKind::ObjectLiteralExpression {
+            let properties = match &self.source.arena.node(node).data {
+                NodeData::ObjectLiteralExpression(data) => data.properties,
+                _ => None,
+            };
+            let Some(properties) = properties else { return };
+            for &property in &self.source.arena.node_array(properties).nodes.clone() {
+                match &self.source.arena.node(property).data {
+                    NodeData::PropertyAssignment(data) => {
+                        if let Some(initializer) = data.initializer {
+                            self.bind_destructuring_target_flow(initializer);
+                        }
+                    }
+                    NodeData::ShorthandPropertyAssignment(data) => {
+                        if let Some(name) = data.name {
+                            self.bind_assignment_target_flow(name);
+                        }
+                    }
+                    NodeData::SpreadAssignment(data) => {
+                        if let Some(expression) = data.expression {
+                            self.bind_assignment_target_flow(expression);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    /// tsc-port: bindLogicalLikeExpression @6.0.3
+    /// tsc-hash: 17687f6038c4afe0a3f4cc4635f82ecd6d567a6ec83cdc780f76f2052de7f8dd
+    /// tsc-span: _tsc.js:43485-43502
+    fn bind_logical_like_expression(
+        &mut self,
+        node: NodeId,
+        true_target: FlowId,
+        false_target: FlowId,
+    ) {
+        let (left, operator_token, right) = match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
+            _ => (None, None, None),
+        };
+        let operator = operator_token
+            .map(|token| kind_of(self.source, token))
+            .unwrap_or(SyntaxKind::Unknown);
+        let pre_right_label = self.flow.create_branch_label();
+        if matches!(
+            operator,
+            SyntaxKind::AmpersandAmpersandToken | SyntaxKind::AmpersandAmpersandEqualsToken
+        ) {
+            self.bind_condition(left, pre_right_label, false_target);
+        } else {
+            self.bind_condition(left, true_target, pre_right_label);
+        }
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(pre_right_label, self.unreachable_flow),
+        );
+        self.bind(operator_token);
+        if crate::node_util::is_logical_or_coalescing_assignment_operator(operator) {
+            self.do_with_conditional_branches(
+                |binder, value| binder.bind(value),
+                right,
+                true_target,
+                false_target,
+            );
+            if let Some(left) = left {
+                self.bind_assignment_target_flow(left);
+            }
+            let current = self.current_flow_id();
+            let true_condition =
+                self.create_flow_condition(FlowFlags::TRUE_CONDITION, current, Some(node));
+            self.flow.add_antecedent(true_target, true_condition);
+            let false_condition =
+                self.create_flow_condition(FlowFlags::FALSE_CONDITION, current, Some(node));
+            self.flow.add_antecedent(false_target, false_condition);
+        } else {
+            self.bind_condition(right, true_target, false_target);
+        }
+    }
+
+    /// tsc-port: bindPrefixUnaryExpressionFlow @6.0.3
+    /// tsc-hash: 10090c29ecfd2fc2ceab949352b6390644f5f511de68bdcffca952227ea231df
+    /// tsc-span: _tsc.js:43503-43517
+    fn bind_prefix_unary_expression_flow(&mut self, node: NodeId) {
+        let (operator, operand) = match &self.source.arena.node(node).data {
+            NodeData::PrefixUnaryExpression(data) => (data.operator, data.operand),
+            _ => (SyntaxKind::Unknown, None),
+        };
+        if operator == SyntaxKind::ExclamationToken {
+            let save_true_target = self.current_true_target;
+            self.current_true_target = self.current_false_target;
+            self.current_false_target = save_true_target;
+            self.bind_each_child(node);
+            self.current_false_target = self.current_true_target;
+            self.current_true_target = save_true_target;
+        } else {
+            self.bind_each_child(node);
+            if matches!(
+                operator,
+                SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+            ) {
+                if let Some(operand) = operand {
+                    self.bind_assignment_target_flow(operand);
+                }
+            }
+        }
+    }
+
+    /// tsc-port: bindPostfixUnaryExpressionFlow @6.0.3
+    /// tsc-hash: 15652bcbf955f7a2cf0a4f04eb33326f8f1cb5501e70edb9be966ab11578f25a
+    /// tsc-span: _tsc.js:43518-43523
+    fn bind_postfix_unary_expression_flow(&mut self, node: NodeId) {
+        let (operator, operand) = match &self.source.arena.node(node).data {
+            NodeData::PostfixUnaryExpression(data) => (data.operator, data.operand),
+            _ => (SyntaxKind::Unknown, None),
+        };
+        self.bind_each_child(node);
+        if matches!(
+            operator,
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) {
+            if let Some(operand) = operand {
+                self.bind_assignment_target_flow(operand);
+            }
+        }
+    }
+
+    /// tsc-port: bindDestructuringAssignmentFlow @6.0.3
+    /// tsc-hash: e9031917fa13ae8fa0b0b28ea8904624e1a167012673309191025b1f5173809b
+    /// tsc-span: _tsc.js:43524-43539
+    fn bind_destructuring_assignment_flow(&mut self, node: NodeId) {
+        let (left, operator_token, right) = match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
+            _ => (None, None, None),
+        };
+        if self.in_assignment_pattern {
+            self.in_assignment_pattern = false;
+            self.bind(operator_token);
+            self.bind(right);
+            self.in_assignment_pattern = true;
+            self.bind(left);
+        } else {
+            self.in_assignment_pattern = true;
+            self.bind(left);
+            self.in_assignment_pattern = false;
+            self.bind(operator_token);
+            self.bind(right);
+        }
+        if let Some(left) = left {
+            self.bind_assignment_target_flow(left);
+        }
+    }
+
+    /// tsc-port: createBindBinaryExpressionFlow @6.0.3
+    /// tsc-hash: e217a0674ed7e6f9c345973be05caca095c1eac5ed6c0b2640667767fc233787
+    /// tsc-span: _tsc.js:43540-43639
+    ///
+    /// NON-RECURSIVE work-stack state machine (deep binary chains in
+    /// the corpus overflow a recursive binder).
+    fn bind_binary_expression_flow(&mut self, root: NodeId) {
+        #[derive(Clone, Copy)]
+        enum Stage {
+            Enter,
+            Left,
+            Operator,
+            Right,
+            Exit,
+        }
+        struct Frame {
+            node: NodeId,
+            stage: Stage,
+            skip: bool,
+            saved_in_strict_mode: Option<bool>,
+        }
+        let mut stack = vec![Frame {
+            node: root,
+            stage: Stage::Enter,
+            skip: false,
+            saved_in_strict_mode: None,
+        }];
+        while let Some(top) = stack.len().checked_sub(1) {
+            let node = stack[top].node;
+            let (left, operator_token, right) = match &self.source.arena.node(node).data {
+                NodeData::BinaryExpression(data) => {
+                    (data.left, data.operator_token, data.right)
+                }
+                _ => (None, None, None),
+            };
+            let operator = operator_token
+                .map(|token| kind_of(self.source, token))
+                .unwrap_or(SyntaxKind::Unknown);
+            match stack[top].stage {
+                Stage::Enter => {
+                    // Non-root frames re-run bindWorker with strict-mode
+                    // save/restore (the trampoline's onEnter with state).
+                    if top > 0 {
+                        stack[top].saved_in_strict_mode = Some(self.in_strict_mode);
+                        self.bind_worker(node);
+                    }
+                    if crate::node_util::is_logical_or_coalescing_binary_operator(operator)
+                        || crate::node_util::is_logical_or_coalescing_assignment_operator(
+                            operator,
+                        )
+                    {
+                        if is_top_level_logical_expression(self.source, node) {
+                            let post_expression_label = self.flow.create_branch_label();
+                            let save_current_flow = self.current_flow;
+                            let save_has_flow_effects = self.has_flow_effects;
+                            self.has_flow_effects = false;
+                            self.bind_logical_like_expression(
+                                node,
+                                post_expression_label,
+                                post_expression_label,
+                            );
+                            self.current_flow = Some(if self.has_flow_effects {
+                                self.flow.finish_flow_label(
+                                    post_expression_label,
+                                    self.unreachable_flow,
+                                )
+                            } else {
+                                save_current_flow.expect("flow")
+                            });
+                            if !self.has_flow_effects {
+                                self.has_flow_effects = save_has_flow_effects;
+                            }
+                        } else {
+                            let true_target =
+                                self.current_true_target.expect("conditional targets");
+                            let false_target =
+                                self.current_false_target.expect("conditional targets");
+                            self.bind_logical_like_expression(node, true_target, false_target);
+                        }
+                        stack[top].skip = true;
+                    }
+                    stack[top].stage = Stage::Left;
+                }
+                Stage::Left => {
+                    stack[top].stage = Stage::Operator;
+                    if !stack[top].skip {
+                        if let Some(left) = left {
+                            if matches!(
+                                &self.source.arena.node(left).data,
+                                NodeData::BinaryExpression(_)
+                            ) && !is_destructuring_assignment(self.source, left)
+                            {
+                                stack.push(Frame {
+                                    node: left,
+                                    stage: Stage::Enter,
+                                    skip: false,
+                                    saved_in_strict_mode: None,
+                                });
+                            } else {
+                                self.bind(Some(left));
+                                if operator == SyntaxKind::CommaToken {
+                                    self.maybe_bind_expression_flow_if_call(left);
+                                }
+                            }
+                        }
+                    }
+                }
+                Stage::Operator => {
+                    stack[top].stage = Stage::Right;
+                    if !stack[top].skip {
+                        self.bind(operator_token);
+                    }
+                }
+                Stage::Right => {
+                    stack[top].stage = Stage::Exit;
+                    if !stack[top].skip {
+                        if let Some(right) = right {
+                            if matches!(
+                                &self.source.arena.node(right).data,
+                                NodeData::BinaryExpression(_)
+                            ) && !is_destructuring_assignment(self.source, right)
+                            {
+                                stack.push(Frame {
+                                    node: right,
+                                    stage: Stage::Enter,
+                                    skip: false,
+                                    saved_in_strict_mode: None,
+                                });
+                            } else {
+                                self.bind(Some(right));
+                                if operator == SyntaxKind::CommaToken {
+                                    self.maybe_bind_expression_flow_if_call(right);
+                                }
+                            }
+                        }
+                    }
+                }
+                Stage::Exit => {
+                    if !stack[top].skip
+                        && is_assignment_operator(operator)
+                        && !crate::node_util::is_assignment_target(self.source, node)
+                    {
+                        if let Some(left) = left {
+                            self.bind_assignment_target_flow(left);
+                            if operator == SyntaxKind::EqualsToken
+                                && kind_of(self.source, left)
+                                    == SyntaxKind::ElementAccessExpression
+                            {
+                                if let Some(expression) =
+                                    crate::node_util::expression_of(self.source, left)
+                                {
+                                    if is_narrowable_operand(self.source, expression) {
+                                        let current = self.current_flow_id();
+                                        self.current_flow = Some(self.create_flow_mutation(
+                                            FlowFlags::ARRAY_MUTATION,
+                                            current,
+                                            node,
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if let Some(saved) = stack[top].saved_in_strict_mode {
+                        self.in_strict_mode = saved;
+                    }
+                    stack.pop();
+                }
+            }
+        }
+    }
+
+    /// tsc-port: bindDeleteExpressionFlow @6.0.3
+    /// tsc-hash: 0a96e50bd7680b1e86bc2427535f9ccb8b0df1a00d3968ffa95abfefd50f9339
+    /// tsc-span: _tsc.js:43640-43645
+    fn bind_delete_expression_flow(&mut self, node: NodeId) {
+        self.bind_each_child(node);
+        if let Some(expression) = crate::node_util::expression_of(self.source, node) {
+            if kind_of(self.source, expression) == SyntaxKind::PropertyAccessExpression {
+                self.bind_assignment_target_flow(expression);
+            }
+        }
+    }
+
+    /// tsc-port: bindConditionalExpressionFlow @6.0.3
+    /// tsc-hash: 57da403f84a7baf092a640a2e491aa37119d7ddb6ac7a97bef43d64cd7d249bc
+    /// tsc-span: _tsc.js:43646-43670
+    fn bind_conditional_expression_flow(&mut self, node: NodeId) {
+        let (condition, question_token, when_true, colon_token, when_false) =
+            match &self.source.arena.node(node).data {
+                NodeData::ConditionalExpression(data) => (
+                    data.condition,
+                    data.question_token,
+                    data.when_true,
+                    data.colon_token,
+                    data.when_false,
+                ),
+                _ => (None, None, None, None, None),
+            };
+        let true_label = self.flow.create_branch_label();
+        let false_label = self.flow.create_branch_label();
+        let post_expression_label = self.flow.create_branch_label();
+        let save_current_flow = self.current_flow;
+        let save_has_flow_effects = self.has_flow_effects;
+        self.has_flow_effects = false;
+        self.bind_condition(condition, true_label, false_label);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(true_label, self.unreachable_flow),
+        );
+        if self.in_return_position {
+            self.node_flow_when_true.insert(node, self.current_flow_id());
+        }
+        self.bind(question_token);
+        self.bind(when_true);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(post_expression_label, current);
+        self.current_flow = Some(
+            self.flow
+                .finish_flow_label(false_label, self.unreachable_flow),
+        );
+        if self.in_return_position {
+            self.node_flow_when_false
+                .insert(node, self.current_flow_id());
+        }
+        self.bind(colon_token);
+        self.bind(when_false);
+        let current = self.current_flow_id();
+        self.flow.add_antecedent(post_expression_label, current);
+        self.current_flow = Some(if self.has_flow_effects {
+            self.flow
+                .finish_flow_label(post_expression_label, self.unreachable_flow)
+        } else {
+            save_current_flow.expect("flow")
+        });
+        if !self.has_flow_effects {
+            self.has_flow_effects = save_has_flow_effects;
+        }
+    }
+
+    /// tsc-port: bindInitializedVariableFlow @6.0.3
+    /// tsc-hash: e9c164569b121158d5f60d39b927cd18f698f4fc16a6f75e6005313c69080950
+    /// tsc-span: _tsc.js:43671-43680
+    fn bind_initialized_variable_flow(&mut self, node: NodeId) {
+        let name = if kind_of(self.source, node) == SyntaxKind::OmittedExpression {
+            None
+        } else {
+            name_field_of(self.source, node)
+        };
+        if let Some(name) = name {
+            if is_binding_pattern(self.source, name) {
+                let elements = match &self.source.arena.node(name).data {
+                    NodeData::ObjectBindingPattern(data) => data.elements,
+                    NodeData::ArrayBindingPattern(data) => data.elements,
+                    _ => None,
+                };
+                if let Some(elements) = elements {
+                    for &child in &self.source.arena.node_array(elements).nodes.clone() {
+                        self.bind_initialized_variable_flow(child);
+                    }
+                }
+                return;
+            }
+        }
+        let current = self.current_flow_id();
+        self.current_flow = Some(self.create_flow_mutation(FlowFlags::ASSIGNMENT, current, node));
+    }
+
+    /// tsc-port: bindVariableDeclarationFlow @6.0.3
+    /// tsc-hash: 1b30e73478c8185ef0b6e2bb36c779b0945d773d6b8637893275fac3d51bd00e
+    /// tsc-span: _tsc.js:43681-43686
+    fn bind_variable_declaration_flow(&mut self, node: NodeId) {
+        self.bind_each_child(node);
+        let has_initializer = matches!(
+            &self.source.arena.node(node).data,
+            NodeData::VariableDeclaration(data) if data.initializer.is_some()
+        );
+        let in_for_in_or_of = parent_of(self.source, node)
+            .and_then(|parent| parent_of(self.source, parent))
+            .is_some_and(|grand| {
+                matches!(
+                    kind_of(self.source, grand),
+                    SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
+                )
+            });
+        if has_initializer || in_for_in_or_of {
+            self.bind_initialized_variable_flow(node);
+        }
+    }
+
+    /// tsc-port: bindBindingElementFlow @6.0.3
+    /// tsc-hash: a350373b131651a09ae1ed6ce8b980cf704ae1398f868ec861cdaf089af6b0c9
+    /// tsc-span: _tsc.js:43687-43692
+    fn bind_binding_element_flow(&mut self, node: NodeId) {
+        let (dot_dot_dot_token, property_name, name, initializer) =
+            match &self.source.arena.node(node).data {
+                NodeData::BindingElement(data) => (
+                    data.dot_dot_dot_token,
+                    data.property_name,
+                    data.name,
+                    data.initializer,
+                ),
+                _ => (None, None, None, None),
+            };
+        self.bind(dot_dot_dot_token);
+        self.bind(property_name);
+        self.bind_initializer_flow(initializer);
+        self.bind(name);
+    }
+
+    /// tsc-port: bindParameterFlow @6.0.3
+    /// tsc-hash: 79804688366a59b30a203f52894bd834b1fbb753478a5d56736e2cd2144ffe0a
+    /// tsc-span: _tsc.js:43693-43700
+    fn bind_parameter_flow(&mut self, node: NodeId) {
+        let (modifiers, dot_dot_dot_token, question_token, parameter_type, initializer, name) =
+            match &self.source.arena.node(node).data {
+                NodeData::Parameter(data) => (
+                    data.modifiers,
+                    data.dot_dot_dot_token,
+                    data.question_token,
+                    data.r#type,
+                    data.initializer,
+                    data.name,
+                ),
+                _ => (None, None, None, None, None, None),
+            };
+        self.bind_each(modifiers);
+        self.bind(dot_dot_dot_token);
+        self.bind(question_token);
+        self.bind(parameter_type);
+        self.bind_initializer_flow(initializer);
+        self.bind(name);
+    }
+
+    /// tsc-port: bindInitializer @6.0.3
+    /// tsc-hash: 4a1239769d7cef557f1ed5146caaa60cfa28d5564ac3676be8ad3aa301fedd88
+    /// tsc-span: _tsc.js:43701-43714
+    ///
+    /// An initializer's flow merges the pre-initializer flow (the
+    /// initializer may not run).
+    fn bind_initializer_flow(&mut self, node: Option<NodeId>) {
+        let Some(node) = node else { return };
+        let entry_flow = self.current_flow_id();
+        self.bind(Some(node));
+        let current = self.current_flow_id();
+        if entry_flow == self.unreachable_flow || entry_flow == current {
+            return;
+        }
+        let exit_flow = self.flow.create_branch_label();
+        self.flow.add_antecedent(exit_flow, entry_flow);
+        self.flow.add_antecedent(exit_flow, current);
+        self.current_flow = Some(self.flow.finish_flow_label(exit_flow, self.unreachable_flow));
+    }
+
+    // ---- optional-chain flow binders ----
+
+    /// tsc-port: bindOptionalExpression @6.0.3
+    /// tsc-hash: 9d2aea548efddd8a4126bba700e6d29e6ef214690726bf076c97daf8e2904541
+    /// tsc-span: _tsc.js:43744-43750
+    fn bind_optional_expression(
+        &mut self,
+        node: NodeId,
+        true_target: FlowId,
+        false_target: FlowId,
+    ) {
+        self.do_with_conditional_branches(
+            |binder, value| binder.bind(value),
+            Some(node),
+            true_target,
+            false_target,
+        );
+        if !crate::node_util::is_optional_chain(self.source, node)
+            || crate::node_util::is_outermost_optional_chain(self.source, node)
+        {
+            let current = self.current_flow_id();
+            let true_condition =
+                self.create_flow_condition(FlowFlags::TRUE_CONDITION, current, Some(node));
+            self.flow.add_antecedent(true_target, true_condition);
+            let false_condition =
+                self.create_flow_condition(FlowFlags::FALSE_CONDITION, current, Some(node));
+            self.flow.add_antecedent(false_target, false_condition);
+        }
+    }
+
+    /// tsc-port: bindOptionalChainRest @6.0.3
+    /// tsc-hash: f06ce5b13af97ecb0dcf462fb0eba0b14547d67e28ad2f965b1a6bf290d08976
+    /// tsc-span: _tsc.js:43751-43767
+    fn bind_optional_chain_rest(&mut self, node: NodeId) {
+        match &self.source.arena.node(node).data {
+            NodeData::PropertyAccessExpression(data) => {
+                let (question_dot_token, name) = (data.question_dot_token, data.name);
+                self.bind(question_dot_token);
+                self.bind(name);
+            }
+            NodeData::ElementAccessExpression(data) => {
+                let (question_dot_token, argument) =
+                    (data.question_dot_token, data.argument_expression);
+                self.bind(question_dot_token);
+                self.bind(argument);
+            }
+            NodeData::CallExpression(data) => {
+                let (question_dot_token, type_arguments, arguments) =
+                    (data.question_dot_token, data.type_arguments, data.arguments);
+                self.bind(question_dot_token);
+                self.bind_each(type_arguments);
+                self.bind_each(arguments);
+            }
+            _ => {}
+        }
+    }
+
+    /// tsc-port: bindOptionalChain @6.0.3
+    /// tsc-hash: 33e2cda303a0227dc386f343bb42fda092922bc3bc892940864e68ba4af86053
+    /// tsc-span: _tsc.js:43768-43779
+    fn bind_optional_chain(&mut self, node: NodeId, true_target: FlowId, false_target: FlowId) {
+        let pre_chain_label = if crate::node_util::is_optional_chain_root(self.source, node) {
+            Some(self.flow.create_branch_label())
+        } else {
+            None
+        };
+        if let Some(expression) = crate::node_util::expression_of(self.source, node) {
+            self.bind_optional_expression(
+                expression,
+                pre_chain_label.unwrap_or(true_target),
+                false_target,
+            );
+        }
+        if let Some(pre_chain_label) = pre_chain_label {
+            self.current_flow = Some(
+                self.flow
+                    .finish_flow_label(pre_chain_label, self.unreachable_flow),
+            );
+        }
+        let saved_true_target = self.current_true_target;
+        let saved_false_target = self.current_false_target;
+        self.current_true_target = Some(true_target);
+        self.current_false_target = Some(false_target);
+        self.bind_optional_chain_rest(node);
+        self.current_true_target = saved_true_target;
+        self.current_false_target = saved_false_target;
+        if crate::node_util::is_outermost_optional_chain(self.source, node) {
+            let current = self.current_flow_id();
+            let true_condition =
+                self.create_flow_condition(FlowFlags::TRUE_CONDITION, current, Some(node));
+            self.flow.add_antecedent(true_target, true_condition);
+            let false_condition =
+                self.create_flow_condition(FlowFlags::FALSE_CONDITION, current, Some(node));
+            self.flow.add_antecedent(false_target, false_condition);
+        }
+    }
+
+    /// tsc-port: bindOptionalChainFlow @6.0.3
+    /// tsc-hash: e3ef4218ed25f7f8630734686541cb50cb14a5086d9ca4e6c81b121b2a44ca41
+    /// tsc-span: _tsc.js:43780-43791
+    fn bind_optional_chain_flow(&mut self, node: NodeId) {
+        if is_top_level_logical_expression(self.source, node) {
+            let post_expression_label = self.flow.create_branch_label();
+            let save_current_flow = self.current_flow;
+            let save_has_flow_effects = self.has_flow_effects;
+            self.bind_optional_chain(node, post_expression_label, post_expression_label);
+            self.current_flow = Some(if self.has_flow_effects {
+                self.flow
+                    .finish_flow_label(post_expression_label, self.unreachable_flow)
+            } else {
+                save_current_flow.expect("flow")
+            });
+            if !self.has_flow_effects {
+                self.has_flow_effects = save_has_flow_effects;
+            }
+        } else {
+            let true_target = self.current_true_target.expect("conditional targets");
+            let false_target = self.current_false_target.expect("conditional targets");
+            self.bind_optional_chain(node, true_target, false_target);
+        }
+    }
+
+    /// tsc-port: bindNonNullExpressionFlow @6.0.3
+    /// tsc-hash: ea50c237a4523892f9a86705b03d494899d7dbbdb7726f388754773df73d805e
+    /// tsc-span: _tsc.js:43792-43798
+    fn bind_non_null_expression_flow(&mut self, node: NodeId) {
+        if crate::node_util::is_optional_chain(self.source, node) {
+            self.bind_optional_chain_flow(node);
+        } else {
+            self.bind_each_child(node);
+        }
+    }
+
+    /// tsc-port: bindAccessExpressionFlow @6.0.3
+    /// tsc-hash: 49bbf8df49c9119ead92e3dbaf3c06abd5a41e01ae20ff59cd7735b03eac9709
+    /// tsc-span: _tsc.js:43799-43805
+    fn bind_access_expression_flow(&mut self, node: NodeId) {
+        if crate::node_util::is_optional_chain(self.source, node) {
+            self.bind_optional_chain_flow(node);
+        } else {
+            self.bind_each_child(node);
+        }
+    }
+
+    /// tsc-port: bindCallExpressionFlow @6.0.3
+    /// tsc-hash: 6c23347d48d9e4dfd8f7d6459b2db901236604f0202d523359292aebd4e9f24b
+    /// tsc-span: _tsc.js:43806-43828
+    fn bind_call_expression_flow(&mut self, node: NodeId) {
+        let (expression, type_arguments, arguments) = match &self.source.arena.node(node).data {
+            NodeData::CallExpression(data) => {
+                (data.expression, data.type_arguments, data.arguments)
+            }
+            _ => (None, None, None),
+        };
+        if crate::node_util::is_optional_chain(self.source, node) {
+            self.bind_optional_chain_flow(node);
+        } else if let Some(expression) = expression {
+            let expr = crate::node_util::skip_parentheses_pub(self.source, expression);
+            if matches!(
+                kind_of(self.source, expr),
+                SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+            ) {
+                self.bind_each(type_arguments);
+                self.bind_each(arguments);
+                self.bind(Some(expression));
+            } else {
+                self.bind_each_child(node);
+                if kind_of(self.source, expression) == SyntaxKind::SuperKeyword {
+                    let current = self.current_flow_id();
+                    self.current_flow = Some(self.create_flow_call(current, node));
+                }
+            }
+        }
+        if let Some(expression) = expression {
+            if let NodeData::PropertyAccessExpression(data) =
+                &self.source.arena.node(expression).data
+            {
+                let (name, target) = (data.name, data.expression);
+                if let (Some(name), Some(target)) = (name, target) {
+                    if kind_of(self.source, name) == SyntaxKind::Identifier
+                        && is_narrowable_operand(self.source, target)
+                        && crate::node_util::is_push_or_unshift_identifier(self.source, name)
+                    {
+                        let current = self.current_flow_id();
+                        self.current_flow = Some(self.create_flow_mutation(
+                            FlowFlags::ARRAY_MUTATION,
+                            current,
+                            node,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// tsc isStatementCondition (43151).
+fn is_statement_condition(source: &tsrs2_syntax::SourceFile, node: NodeId) -> bool {
+    let Some(parent) = parent_of(source, node) else {
+        return false;
+    };
+    match &source.arena.node(parent).data {
+        NodeData::IfStatement(data) => data.expression == Some(node),
+        NodeData::WhileStatement(data) => data.expression == Some(node),
+        NodeData::DoStatement(data) => data.expression == Some(node),
+        NodeData::ForStatement(data) => data.condition == Some(node),
+        NodeData::ConditionalExpression(data) => data.condition == Some(node),
+        _ => false,
+    }
+}
+
+/// tsc isLogicalExpression (43164): unwraps parens and `!`.
+fn is_logical_expression(source: &tsrs2_syntax::SourceFile, mut node: NodeId) -> bool {
+    loop {
+        match &source.arena.node(node).data {
+            NodeData::ParenthesizedExpression(data) => match data.expression {
+                Some(expression) => node = expression,
+                None => return false,
+            },
+            NodeData::PrefixUnaryExpression(data)
+                if data.operator == SyntaxKind::ExclamationToken =>
+            {
+                match data.operand {
+                    Some(operand) => node = operand,
+                    None => return false,
+                }
+            }
+            _ => {
+                return crate::node_util::is_logical_or_coalescing_binary_expression(
+                    source, node,
+                )
+            }
+        }
+    }
+}
+
+/// tsc isTopLevelLogicalExpression (43178).
+fn is_top_level_logical_expression(source: &tsrs2_syntax::SourceFile, mut node: NodeId) -> bool {
+    while let Some(parent) = parent_of(source, node) {
+        let is_wrapper = kind_of(source, parent) == SyntaxKind::ParenthesizedExpression
+            || matches!(
+                &source.arena.node(parent).data,
+                NodeData::PrefixUnaryExpression(data)
+                    if data.operator == SyntaxKind::ExclamationToken
+            );
+        if !is_wrapper {
+            break;
+        }
+        node = parent;
+    }
+    let Some(parent) = parent_of(source, node) else {
+        return true;
+    };
+    !is_statement_condition(source, node)
+        && !is_logical_expression(source, parent)
+        && !(crate::node_util::is_optional_chain(source, parent)
+            && crate::node_util::expression_of(source, parent) == Some(node))
+}
+
+/// tsc: a case/default clause with no statements (bindCaseBlock's
+/// fallthrough grouping).
+fn clause_statements_empty(source: &tsrs2_syntax::SourceFile, clause: NodeId) -> bool {
+    match &source.arena.node(clause).data {
+        NodeData::CaseClause(data) => data
+            .statements
+            .map(|statements| source.arena.node_array(statements).nodes.is_empty())
+            .unwrap_or(true),
+        NodeData::DefaultClause(data) => data
+            .statements
+            .map(|statements| source.arena.node_array(statements).nodes.is_empty())
+            .unwrap_or(true),
+        _ => true,
     }
 }
 
@@ -2123,6 +3665,218 @@ mod tests {
         assert!(binder.bind_diagnostics.is_empty());
         assert_eq!(binder.pattern_ambient_modules.len(), 1);
         assert_eq!(binder.pattern_ambient_modules[0].0, "good");
+    }
+
+    // ---- stage 3.5 flow-shape pins (each names its tsc anchor) ----
+
+    fn flow_flags(binder: &Binder<'_>, id: crate::flow::FlowId) -> tsrs2_types::FlowFlags {
+        binder.flow.flow(id).flags
+    }
+
+    #[test]
+    fn if_statement_join_has_two_antecedents_and_condition_nodes() {
+        // bindIfStatement (43277) + createFlowCondition (43107): a
+        // narrowable condition creates True/FalseCondition nodes; the
+        // post-if label joins both branches.
+        let source = parse("function f(x: any) { if (x) { x; } else { x; } x; }\n");
+        let binder = bind(&source);
+        let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+        let end = binder.node_end_flow[&f];
+        let end_flags = flow_flags(&binder, end);
+        assert!(end_flags.intersects(tsrs2_types::FlowFlags::BRANCH_LABEL));
+        assert_eq!(binder.flow.flow(end).antecedent.len(), 2);
+        for &antecedent in &binder.flow.flow(end).antecedent {
+            assert!(flow_flags(&binder, antecedent).intersects(
+                tsrs2_types::FlowFlags::TRUE_CONDITION
+                    | tsrs2_types::FlowFlags::FALSE_CONDITION
+            ));
+        }
+    }
+
+    #[test]
+    fn non_narrowing_condition_creates_no_flow_nodes() {
+        // createFlowCondition returns its antecedent for non-narrowing
+        // expressions: both branches join the SAME node and the label
+        // collapses back to Start.
+        let source = parse("function f() { if (1) { } else { } }\n");
+        let binder = bind(&source);
+        let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+        let end = binder.node_end_flow[&f];
+        assert!(flow_flags(&binder, end).intersects(tsrs2_types::FlowFlags::START));
+    }
+
+    #[test]
+    fn while_loop_label_gets_entry_and_back_edge() {
+        // bindWhileStatement (43218): preWhileLabel is a LoopLabel with
+        // the entry edge and the loop-body back edge.
+        let source = parse("function f(x: any) { while (x) { x; } }\n");
+        let binder = bind(&source);
+        let loop_labels: Vec<_> = (0..binder.flow.len() as u32)
+            .map(crate::flow::FlowId)
+            .filter(|&id| {
+                flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::LOOP_LABEL)
+            })
+            .collect();
+        assert_eq!(loop_labels.len(), 1);
+        assert_eq!(binder.flow.flow(loop_labels[0]).antecedent.len(), 2);
+    }
+
+    #[test]
+    fn code_after_return_is_unreachable() {
+        // bindReturnOrThrow (43290) sets currentFlow = unreachableFlow;
+        // bindChildren stamps the Unreachable node flag.
+        let source = parse("function f() { return; f(); }\n");
+        let binder = bind(&source);
+        let statements = find_nodes(&source, SyntaxKind::ExpressionStatement);
+        assert!(binder
+            .flags_of(statements[0])
+            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+        assert!(!binder.node_flow.contains_key(&statements[0]));
+        // The function has an explicit return and NO implicit return.
+        let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+        assert!(!binder
+            .flags_of(f)
+            .intersects(tsrs2_types::NodeFlags::HAS_IMPLICIT_RETURN));
+    }
+
+    #[test]
+    fn try_finally_produces_reduce_labels() {
+        // bindTryStatement (43332): finally wiring reduces through
+        // ReduceLabel nodes.
+        let source =
+            parse("function f(x: any) { try { x(); } catch (e) { x; } finally { x; } x; }\n");
+        let binder = bind(&source);
+        let reduce_count = (0..binder.flow.len() as u32)
+            .map(crate::flow::FlowId)
+            .filter(|&id| {
+                flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::REDUCE_LABEL)
+            })
+            .count();
+        assert!(reduce_count >= 1, "expected ReduceLabel nodes, got none");
+    }
+
+    #[test]
+    fn narrowing_switch_creates_switch_clause_nodes() {
+        // bindCaseBlock (43393) + createFlowSwitchClause (43123): a
+        // narrowing switch expression yields per-clause SwitchClause
+        // nodes plus the implicit-default clause (bindSwitchStatement).
+        let source = parse(
+            "function f(x: string | number) { switch (typeof x) { case \"string\": x; break; case \"number\": x; break; } x; }\n",
+        );
+        let binder = bind(&source);
+        let switch_statement = find_nodes(&source, SyntaxKind::SwitchStatement)[0];
+        let clauses: Vec<_> = (0..binder.flow.len() as u32)
+            .map(crate::flow::FlowId)
+            .filter(|&id| {
+                flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::SWITCH_CLAUSE)
+            })
+            .collect();
+        // 2 case clauses + the implicit default (clauseStart==clauseEnd==0).
+        assert_eq!(clauses.len(), 3);
+        let implicit_default = clauses.iter().any(|&id| {
+            matches!(
+                binder.flow.flow(id).payload,
+                crate::flow::FlowPayload::SwitchClause {
+                    switch_statement: s,
+                    clause_start: 0,
+                    clause_end: 0,
+                } if s == switch_statement
+            )
+        });
+        assert!(implicit_default);
+        assert_eq!(binder.possibly_exhaustive.get(&switch_statement), Some(&false));
+    }
+
+    #[test]
+    fn assignment_creates_flow_mutation_and_stamps_references() {
+        // bindAssignmentTargetFlow (43462) + the Identifier flowNode
+        // stamp in bindWorker.
+        let source = parse("function f(x: any) { x = 1; x; }\n");
+        let binder = bind(&source);
+        let assignments = (0..binder.flow.len() as u32)
+            .map(crate::flow::FlowId)
+            .filter(|&id| {
+                flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::ASSIGNMENT)
+            })
+            .count();
+        assert_eq!(assignments, 1);
+        // The trailing reference's flowNode is the Assignment node.
+        let identifiers = find_nodes(&source, SyntaxKind::Identifier);
+        let last_x = *identifiers.last().unwrap();
+        let flow = binder.node_flow[&last_x];
+        assert!(flow_flags(&binder, flow).intersects(tsrs2_types::FlowFlags::ASSIGNMENT));
+    }
+
+    #[test]
+    fn logical_expression_in_condition_adds_no_top_level_condition_nodes() {
+        // bindCondition (43193): logical operators create their edges
+        // during sub-expression binding — the a && b condition itself
+        // adds no extra nodes on top.
+        let source = parse("function f(a: any, b: any) { if (a && b) { a; } }\n");
+        let binder = bind(&source);
+        // Conditions come from `a` and from `b`, joined by the then/
+        // else labels: the then-branch flow has 2 antecedents (a-true
+        // via preRight collapse and b-true).
+        let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+        let end = binder.node_end_flow[&f];
+        // post-if joins then-branch and else-label.
+        assert!(flow_flags(&binder, end).intersects(tsrs2_types::FlowFlags::BRANCH_LABEL));
+    }
+
+    #[test]
+    fn optional_chain_creates_outermost_conditions() {
+        // bindOptionalChain (43768): the outermost chain contributes
+        // True/FalseCondition nodes.
+        let source = parse("function f(a: any) { if (a?.b) { a; } }\n");
+        let binder = bind(&source);
+        let conditions = (0..binder.flow.len() as u32)
+            .map(crate::flow::FlowId)
+            .filter(|&id| {
+                flow_flags(&binder, id).intersects(
+                    tsrs2_types::FlowFlags::TRUE_CONDITION
+                        | tsrs2_types::FlowFlags::FALSE_CONDITION,
+                )
+            })
+            .count();
+        assert!(conditions >= 2, "expected chain conditions, got {conditions}");
+    }
+
+    #[test]
+    fn deep_binary_chain_binds_without_overflow() {
+        // createBindBinaryExpressionFlow (43540) is a non-recursive
+        // work-stack machine; a deep chain must not overflow.
+        let mut text = String::from("const x = 1");
+        for _ in 0..50_000 {
+            text.push_str(" + 1");
+        }
+        text.push_str(";\n");
+        let source = parse(&text);
+        let binder = bind(&source);
+        assert!(binder.symbols.len() >= 1);
+    }
+
+    #[test]
+    fn labeled_statement_break_references_label() {
+        // bindLabeledStatement (43437) + bindBreakOrContinueStatement
+        // (43320): a referenced label keeps its flag clear; an
+        // unreferenced label is stamped Unreachable.
+        let source = parse(
+            "function f(x: any) { a: { if (x) break a; x; } b: { x; } }\n",
+        );
+        let binder = bind(&source);
+        let labels: Vec<_> = find_nodes(&source, SyntaxKind::LabeledStatement)
+            .into_iter()
+            .filter_map(|statement| match &source.arena.node(statement).data {
+                NodeData::LabeledStatement(data) => data.label,
+                _ => None,
+            })
+            .collect();
+        assert!(!binder
+            .flags_of(labels[0])
+            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+        assert!(binder
+            .flags_of(labels[1])
+            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
     }
 
     #[test]

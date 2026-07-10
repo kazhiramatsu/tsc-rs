@@ -28,6 +28,7 @@ fn main() {
         Some("ast-dump") => run_or_exit(ast_dump(args)),
         Some("ast-diff") => run_or_exit(ast_diff(args)),
         Some("symbol-diff") => run_or_exit(symbol_diff(args)),
+        Some("bind-corpus") => run_or_exit(bind_corpus(args)),
         Some("parse-diags") => run_or_exit(parse_diags(args)),
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
@@ -732,6 +733,89 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             format!("symbol diff failed: {differing}/{compared} compared files differ").into(),
         );
     }
+    Ok(())
+}
+
+/// m2-binder-steps.md final gate: bind every corpus fixture; expect
+/// zero panics. JS files bind too (crash-free is the gate; their
+/// symbol bodies are stage 3.4c).
+fn bind_corpus(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut limit: Option<usize> = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--limit" => {
+                let value = args.next().ok_or("missing value after --limit")?;
+                limit = Some(value.parse()?);
+            }
+            other => return Err(format!("unexpected bind-corpus argument: {other}").into()),
+        }
+    }
+    let workspace = find_tsrs2_root()?;
+    let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+    let mut fixtures =
+        collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?;
+    fixtures.sort();
+    if let Some(limit) = limit {
+        fixtures.truncate(limit);
+    }
+
+    let mut programs = 0usize;
+    let mut files_bound = 0usize;
+    let mut flow_nodes = 0usize;
+    let mut symbols = 0usize;
+    for fixture in &fixtures {
+        let expanded = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        for program in &expanded {
+            programs += 1;
+            let options = tsrs2_conformance::compiler_options_from_program(program);
+            let mut last_text_b64: BTreeMap<&str, &str> = BTreeMap::new();
+            for file in &program.files {
+                last_text_b64.insert(file.name.as_str(), file.text_b64.as_str());
+            }
+            for file in &program.files {
+                if file.name.ends_with(".json") {
+                    continue;
+                }
+                let is_js = [".js", ".jsx", ".mjs", ".cjs"]
+                    .iter()
+                    .any(|extension| file.name.ends_with(extension));
+                if is_js && !options.allow_js {
+                    continue;
+                }
+                let bytes = BASE64.decode(last_text_b64[file.name.as_str()])?;
+                let Ok(text) = String::from_utf8(bytes) else {
+                    continue;
+                };
+                let language_variant = if file.name.ends_with(".tsx") || is_js {
+                    tsrs2_syntax::LanguageVariant::Jsx
+                } else {
+                    tsrs2_syntax::LanguageVariant::Standard
+                };
+                let source = tsrs2_syntax::parse_source_file(
+                    file.name.clone(),
+                    text,
+                    tsrs2_syntax::ParseOptions {
+                        language_variant,
+                        javascript_file: is_js,
+                    },
+                    None,
+                );
+                let binder = tsrs2_binder::bind_source_file(&source, &options);
+                files_bound += 1;
+                flow_nodes += binder.flow.len();
+                symbols += binder.symbols.len();
+            }
+        }
+    }
+    println!(
+        "bind corpus: fixtures={} programs={} files_bound={} symbols={} flow_nodes={} panics=0",
+        fixtures.len(),
+        programs,
+        files_bound,
+        symbols,
+        flow_nodes
+    );
     Ok(())
 }
 
