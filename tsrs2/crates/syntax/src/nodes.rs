@@ -264,12 +264,14 @@ pub struct EnumMemberData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExportAssignmentData {
+    pub is_export_equals: Option<bool>,
     pub modifiers: Option<NodeArrayId>,
     pub expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExportDeclarationData {
+    pub is_type_only: bool,
     pub modifiers: Option<NodeArrayId>,
     pub export_clause: Option<NodeId>,
     pub module_specifier: Option<NodeId>,
@@ -278,6 +280,7 @@ pub struct ExportDeclarationData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExportSpecifierData {
+    pub is_type_only: bool,
     pub property_name: Option<NodeId>,
     pub name: Option<NodeId>,
 }
@@ -392,6 +395,7 @@ pub struct ImportAttributesData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportClauseData {
+    pub is_type_only: bool,
     pub name: Option<NodeId>,
     pub named_bindings: Option<NodeId>,
 }
@@ -413,6 +417,7 @@ pub struct ImportEqualsDeclarationData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportSpecifierData {
+    pub is_type_only: bool,
     pub property_name: Option<NodeId>,
     pub name: Option<NodeId>,
 }
@@ -1805,16 +1810,19 @@ impl NodeData {
                 initializer: None,
             }),
             SyntaxKind::ExportAssignment => Self::ExportAssignment(ExportAssignmentData {
+                is_export_equals: None,
                 modifiers: None,
                 expression: None,
             }),
             SyntaxKind::ExportDeclaration => Self::ExportDeclaration(ExportDeclarationData {
+                is_type_only: false,
                 modifiers: None,
                 export_clause: None,
                 module_specifier: None,
                 attributes: None,
             }),
             SyntaxKind::ExportSpecifier => Self::ExportSpecifier(ExportSpecifierData {
+                is_type_only: false,
                 property_name: None,
                 name: None,
             }),
@@ -1897,6 +1905,7 @@ impl NodeData {
                 Self::ImportAttributes(ImportAttributesData { elements: None })
             }
             SyntaxKind::ImportClause => Self::ImportClause(ImportClauseData {
+                is_type_only: false,
                 name: None,
                 named_bindings: None,
             }),
@@ -1914,6 +1923,7 @@ impl NodeData {
                 })
             }
             SyntaxKind::ImportSpecifier => Self::ImportSpecifier(ImportSpecifierData {
+                is_type_only: false,
                 property_name: None,
                 name: None,
             }),

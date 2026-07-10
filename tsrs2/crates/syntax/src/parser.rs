@@ -2054,6 +2054,7 @@ impl<'text> Parser<'text> {
         } else {
             None
         };
+        let mut is_type_only = false;
         let mut is_defer_phase = false;
         if self.identifier_text_is(identifier, "type")
             && (self.token() != SyntaxKind::FromKeyword
@@ -2063,6 +2064,7 @@ impl<'text> Parser<'text> {
             && (self.is_identifier()
                 || self.token_after_import_definitely_produces_import_declaration())
         {
+            is_type_only = true;
             identifier = if self.is_identifier() {
                 Some(self.parse_identifier())
             } else {
@@ -2089,7 +2091,8 @@ impl<'text> Parser<'text> {
                 return self.parse_import_equals_declaration(pos, modifiers, identifier);
             }
         }
-        let import_clause = self.try_parse_import_clause(identifier, after_import_pos);
+        let import_clause =
+            self.try_parse_import_clause(identifier, after_import_pos, is_type_only);
         let module_specifier = self.parse_module_specifier();
         let attributes = self.try_parse_import_attributes();
         self.parse_semicolon();
@@ -2134,6 +2137,7 @@ impl<'text> Parser<'text> {
         &mut self,
         identifier: Option<NodeId>,
         pos: usize,
+        is_type_only: bool,
     ) -> Option<NodeId> {
         if identifier.is_some()
             || matches!(
@@ -2141,7 +2145,7 @@ impl<'text> Parser<'text> {
                 SyntaxKind::AsteriskToken | SyntaxKind::OpenBraceToken
             )
         {
-            let import_clause = self.parse_import_clause(identifier, pos);
+            let import_clause = self.parse_import_clause(identifier, pos, is_type_only);
             self.parse_expected(SyntaxKind::FromKeyword, None);
             Some(import_clause)
         } else {
@@ -2149,7 +2153,12 @@ impl<'text> Parser<'text> {
         }
     }
 
-    fn parse_import_clause(&mut self, identifier: Option<NodeId>, pos: usize) -> NodeId {
+    fn parse_import_clause(
+        &mut self,
+        identifier: Option<NodeId>,
+        pos: usize,
+        is_type_only: bool,
+    ) -> NodeId {
         let named_bindings = if identifier.is_none() || self.parse_optional(SyntaxKind::CommaToken)
         {
             Some(if self.token() == SyntaxKind::AsteriskToken {
@@ -2162,6 +2171,7 @@ impl<'text> Parser<'text> {
         };
         self.finish_node_data(
             NodeData::ImportClause(ImportClauseData {
+                is_type_only,
                 name: identifier,
                 named_bindings,
             }),
@@ -2277,13 +2287,13 @@ impl<'text> Parser<'text> {
         self.finish_node_data(data, pos)
     }
 
-    /// tsc parseImportOrExportSpecifier (isTypeOnly steers the grammar but
-    /// has no node-data slot).
+    /// tsc parseImportOrExportSpecifier.
     fn parse_import_or_export_specifier(&mut self, is_import_specifier: bool) -> NodeId {
         let pos = self.node_pos();
         let mut check_identifier_is_keyword = is_keyword(self.token()) && !self.is_identifier();
         let mut check_identifier_start = self.scanner.token_start();
         let mut check_identifier_end = self.scanner.pos();
+        let mut is_type_only = false;
         let mut property_name: Option<NodeId> = None;
         let mut can_parse_as_keyword = true;
         let mut name = self.parse_module_export_name_plain();
@@ -2297,6 +2307,7 @@ impl<'text> Parser<'text> {
                 if self.token() == SyntaxKind::AsKeyword {
                     let second_as = self.parse_identifier_name(None);
                     if self.can_parse_module_export_name() {
+                        is_type_only = true;
                         property_name = Some(first_as);
                         name = self.parse_module_export_name_checked(
                             &mut check_identifier_is_keyword,
@@ -2318,9 +2329,11 @@ impl<'text> Parser<'text> {
                         &mut check_identifier_end,
                     );
                 } else {
+                    is_type_only = true;
                     name = first_as;
                 }
             } else if self.can_parse_module_export_name() {
+                is_type_only = true;
                 name = self.parse_module_export_name_checked(
                     &mut check_identifier_is_keyword,
                     &mut check_identifier_start,
@@ -2364,11 +2377,13 @@ impl<'text> Parser<'text> {
         }
         let data = if is_import_specifier {
             NodeData::ImportSpecifier(ImportSpecifierData {
+                is_type_only,
                 property_name,
                 name: Some(name),
             })
         } else {
             NodeData::ExportSpecifier(ExportSpecifierData {
+                is_type_only,
                 property_name,
                 name: Some(name),
             })
@@ -2395,7 +2410,7 @@ impl<'text> Parser<'text> {
         let mut export_clause = None;
         let mut module_specifier = None;
         let mut attributes = None;
-        self.parse_optional(SyntaxKind::TypeKeyword);
+        let is_type_only = self.parse_optional(SyntaxKind::TypeKeyword);
         let namespace_export_pos = self.node_pos();
         if self.parse_optional(SyntaxKind::AsteriskToken) {
             if self.parse_optional(SyntaxKind::AsKeyword) {
@@ -2426,6 +2441,7 @@ impl<'text> Parser<'text> {
         self.set_await_context(saved_await_context);
         self.finish_node_data(
             NodeData::ExportDeclaration(ExportDeclarationData {
+                is_type_only,
                 modifiers,
                 export_clause,
                 module_specifier,
@@ -2435,7 +2451,7 @@ impl<'text> Parser<'text> {
         )
     }
 
-    /// tsc parseExportAssignment (isExportEquals has no node-data slot).
+    /// tsc parseExportAssignment.
     fn parse_export_assignment(
         &mut self,
         pos: usize,
@@ -2443,14 +2459,18 @@ impl<'text> Parser<'text> {
     ) -> NodeId {
         let saved_await_context = self.in_await_context();
         self.set_await_context(true);
-        if !self.parse_optional(SyntaxKind::EqualsToken) {
+        let is_export_equals = if self.parse_optional(SyntaxKind::EqualsToken) {
+            Some(true)
+        } else {
             self.parse_expected(SyntaxKind::DefaultKeyword, None);
-        }
+            None
+        };
         let expression = self.parse_assignment_expression_or_higher(true);
         self.parse_semicolon();
         self.set_await_context(saved_await_context);
         self.finish_node_data(
             NodeData::ExportAssignment(ExportAssignmentData {
+                is_export_equals,
                 modifiers,
                 expression: Some(expression),
             }),

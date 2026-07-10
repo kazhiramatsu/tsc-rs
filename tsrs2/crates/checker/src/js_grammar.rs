@@ -483,8 +483,67 @@ impl<'a> JsGrammarWalker<'a> {
 
     /// The tsc walk() node switch.
     fn check_node(&mut self, id: NodeId, parent: NodeId) -> Visit {
-        let _ = parent; // parent-keyed isTypeOnly reporting lands with the field
         match self.kind(id) {
+            SyntaxKind::ImportClause => {
+                if let NodeData::ImportClause(data) = &self.source.arena.node(id).data {
+                    if data.is_type_only {
+                        // tsc reports at the parent ImportDeclaration.
+                        self.push_for_node(
+                            parent,
+                            &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                            &["import type"],
+                        );
+                        return Visit::Skip;
+                    }
+                }
+                Visit::Descend
+            }
+            SyntaxKind::ExportDeclaration => {
+                if let NodeData::ExportDeclaration(data) = &self.source.arena.node(id).data {
+                    if data.is_type_only {
+                        self.push_for_node(
+                            id,
+                            &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                            &["export type"],
+                        );
+                        return Visit::Skip;
+                    }
+                }
+                Visit::Descend
+            }
+            SyntaxKind::ImportSpecifier | SyntaxKind::ExportSpecifier => {
+                let (is_type_only, is_import) = match &self.source.arena.node(id).data {
+                    NodeData::ImportSpecifier(data) => (data.is_type_only, true),
+                    NodeData::ExportSpecifier(data) => (data.is_type_only, false),
+                    _ => (false, false),
+                };
+                if is_type_only {
+                    self.push_for_node(
+                        id,
+                        &gen::_0_declarations_can_only_be_used_in_TypeScript_files,
+                        &[if is_import {
+                            "import...type"
+                        } else {
+                            "export...type"
+                        }],
+                    );
+                    return Visit::Skip;
+                }
+                Visit::Descend
+            }
+            SyntaxKind::ExportAssignment => {
+                if let NodeData::ExportAssignment(data) = &self.source.arena.node(id).data {
+                    if data.is_export_equals == Some(true) {
+                        self.push_for_node(
+                            id,
+                            &gen::export_can_only_be_used_in_TypeScript_files,
+                            &[],
+                        );
+                        return Visit::Skip;
+                    }
+                }
+                Visit::Descend
+            }
             SyntaxKind::ImportEqualsDeclaration => {
                 self.push_for_node(id, &gen::import_can_only_be_used_in_TypeScript_files, &[]);
                 Visit::Skip

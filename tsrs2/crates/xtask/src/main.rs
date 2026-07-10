@@ -2811,6 +2811,7 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
     let mut dts_nodes = collect_dts_nodes(&interfaces)?;
     seed_token_payload_nodes(&mut dts_nodes);
     seed_fieldless_nodes(&mut dts_nodes);
+    seed_grammar_flag_fields(&mut dts_nodes);
     let schemas = merge_node_schema(child_table, dts_nodes);
 
     let nodes_rs = rustfmt_text(&render_nodes_rs(&schemas)?)?;
@@ -3244,6 +3245,32 @@ fn seed_fieldless_nodes(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
     for kind in ["DebuggerStatement", "EmptyStatement", "OmittedExpression"] {
         nodes.entry(kind.to_owned()).or_default();
     }
+}
+
+/// isTypeOnly/isExportEquals: grammar bits the JS-file walker (and later
+/// import elision) reads; seeded explicitly because the dts payload
+/// extraction does not surface them.
+fn seed_grammar_flag_fields(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
+    for kind in [
+        "ImportClause",
+        "ExportDeclaration",
+        "ImportSpecifier",
+        "ExportSpecifier",
+    ] {
+        nodes.entry(kind.to_owned()).or_default().push(DtsField {
+            name: "isTypeOnly".to_owned(),
+            type_text: "boolean".to_owned(),
+            optional: false,
+        });
+    }
+    nodes
+        .entry("ExportAssignment".to_owned())
+        .or_default()
+        .push(DtsField {
+            name: "isExportEquals".to_owned(),
+            type_text: "boolean".to_owned(),
+            optional: true,
+        });
 }
 
 fn collect_interface_fields(

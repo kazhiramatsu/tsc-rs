@@ -132,6 +132,29 @@ mod tests {
     }
 
     #[test]
+    fn js_files_report_type_only_imports_and_export_equals() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "import type { A } from \"m\";\nimport { type B } from \"m\";\nexport type { C };\nexport = 5;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                ..CompilerOptions::default()
+            },
+        );
+        let pins: Vec<(u32, u32, u32)> = result
+            .syntactic_diagnostics
+            .iter()
+            .map(|d| (d.code(), d.start.unwrap_or(0), d.length.unwrap_or(0)))
+            .collect();
+        assert_eq!(
+            pins,
+            [(8006, 0, 27), (8006, 37, 6), (8006, 56, 18), (8003, 75, 11)]
+        );
+    }
+
+    #[test]
     fn check_program_includes_parse_diagnostics() {
         let result = check_program(
             &[InputFile {

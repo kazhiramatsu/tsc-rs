@@ -460,6 +460,7 @@
       "kindName": "ExportAssignment",
       "dataName": "ExportAssignmentData",
       "fields": [
+        {"name": "isExportEquals", "rustName": "is_export_equals", "type": "Bool", "optional": true, "child": false},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
       ],
@@ -472,6 +473,7 @@
       "kindName": "ExportDeclaration",
       "dataName": "ExportDeclarationData",
       "fields": [
+        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "exportClause", "rustName": "export_clause", "type": "Node", "optional": true, "child": true},
         {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": true, "child": true},
@@ -488,6 +490,7 @@
       "kindName": "ExportSpecifier",
       "dataName": "ExportSpecifierData",
       "fields": [
+        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
         {"name": "propertyName", "rustName": "property_name", "type": "Node", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
       ],
@@ -714,6 +717,7 @@
       "kindName": "ImportClause",
       "dataName": "ImportClauseData",
       "fields": [
+        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "namedBindings", "rustName": "named_bindings", "type": "Node", "optional": true, "child": true}
       ],
@@ -756,6 +760,7 @@
       "kindName": "ImportSpecifier",
       "dataName": "ImportSpecifierData",
       "fields": [
+        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
         {"name": "propertyName", "rustName": "property_name", "type": "Node", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
       ],
