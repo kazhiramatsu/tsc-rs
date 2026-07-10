@@ -438,6 +438,17 @@ impl<'text> Scanner<'text> {
         self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
+    /// tsc hasUnicodeEscape.
+    pub(crate) fn has_unicode_escape(&self) -> bool {
+        self.token_flags.contains(TokenFlags::UNICODE_ESCAPE)
+    }
+
+    /// tsc hasExtendedUnicodeEscape.
+    pub(crate) fn has_extended_unicode_escape(&self) -> bool {
+        self.token_flags
+            .contains(TokenFlags::EXTENDED_UNICODE_ESCAPE)
+    }
+
     #[allow(dead_code)]
     fn errors(&self) -> &[ScanError] {
         &self.errors
@@ -1082,8 +1093,7 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    #[allow(dead_code)]
-    fn scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
+    pub(crate) fn scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
         self.full_start_pos = self.pos;
         self.token_start = self.pos;
 
@@ -1139,15 +1149,13 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    #[allow(dead_code)]
-    fn re_scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
+    pub(crate) fn re_scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) -> SyntaxKind {
         self.pos = self.full_start_pos;
         self.token_start = self.full_start_pos;
         self.scan_jsx_token(allow_multiline_jsx_text)
     }
 
-    #[allow(dead_code)]
-    fn scan_jsx_identifier(&mut self) -> SyntaxKind {
+    pub(crate) fn scan_jsx_identifier(&mut self) -> SyntaxKind {
         if !token_is_identifier_or_keyword(self.token) {
             return self.token;
         }
@@ -1169,8 +1177,7 @@ impl<'text> Scanner<'text> {
         self.finish_identifier_token()
     }
 
-    #[allow(dead_code)]
-    fn scan_jsx_attribute_value(&mut self) -> SyntaxKind {
+    pub(crate) fn scan_jsx_attribute_value(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
         match self.current_char() {
             Some('"' | '\'') => self.scan_jsx_attribute_string(),

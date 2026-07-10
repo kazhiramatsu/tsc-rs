@@ -19,10 +19,12 @@ use crate::nodes::{
     ImportTypeData, IndexSignatureData, IndexedAccessTypeData, InferTypeData,
     InterfaceDeclarationData, IntersectionTypeData, JSDocFunctionTypeData,
     JSDocNonNullableTypeData, JSDocNullableTypeData, JSDocOptionalTypeData, JSDocVariadicTypeData,
-    LabeledStatementData, LiteralTypeData, MappedTypeData, MetaPropertyData, MethodDeclarationData,
-    MethodSignatureData, ModuleBlockData, ModuleDeclarationData,
-    NamedExportsData, NamedImportsData, NamedTupleMemberData, NamespaceExportData,
-    NamespaceExportDeclarationData, NamespaceImportData, NewExpressionData,
+    JsxAttributeData, JsxAttributesData, JsxClosingElementData, JsxElementData, JsxExpressionData,
+    JsxFragmentData, JsxNamespacedNameData, JsxOpeningElementData, JsxSelfClosingElementData,
+    JsxSpreadAttributeData, JsxTextData, LabeledStatementData, LiteralTypeData, MappedTypeData,
+    MetaPropertyData, MethodDeclarationData, MethodSignatureData, ModuleBlockData,
+    ModuleDeclarationData, NamedExportsData, NamedImportsData, NamedTupleMemberData,
+    NamespaceExportData, NamespaceExportDeclarationData, NamespaceImportData, NewExpressionData,
     NoSubstitutionTemplateLiteralData, NodeData, NodeId, NodePayload, NonNullExpressionData,
     NumericLiteralData, ObjectBindingPatternData, ObjectLiteralExpressionData,
     OmittedExpressionData, OptionalTypeData, ParameterData, ParenthesizedExpressionData,
@@ -223,6 +225,39 @@ impl<'text> Parser<'text> {
         );
     }
 
+    /// tsc parseErrorAt.
+    fn parse_error_at(
+        &mut self,
+        start: usize,
+        end: usize,
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+    ) {
+        self.parse_error_at_position(start, end.saturating_sub(start), message, args);
+    }
+
+    /// tsc parseErrorAtRange.
+    fn parse_error_at_range(
+        &mut self,
+        node: NodeId,
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+    ) {
+        let (pos, end) = {
+            let node = self.arena.node(node);
+            (node.pos as usize, node.end as usize)
+        };
+        self.parse_error_at(pos, end, message, args);
+    }
+
+    /// tsc getTextOfNodeFromSourceText (includeTrivia=false).
+    fn text_of_node(&self, node: NodeId) -> String {
+        let node = self.arena.node(node);
+        let end = node.end as usize;
+        let start = crate::scanner::skip_trivia(self.scanner.text(), node.pos as usize).min(end);
+        self.scanner.text()[start..end].to_owned()
+    }
+
     fn drain_scanner_errors(&mut self) {
         for error in self.scanner.take_errors() {
             self.push_parse_diagnostic(error.start, error.length, error.message, error.args);
@@ -236,6 +271,34 @@ impl<'text> Parser<'text> {
 
     fn next_token(&mut self) -> SyntaxKind {
         let token = self.scanner.scan();
+        self.drain_scanner_errors();
+        token
+    }
+
+    /// tsc scanJsxText.
+    fn scan_jsx_text(&mut self) -> SyntaxKind {
+        let token = self.scanner.scan_jsx_token(true);
+        self.drain_scanner_errors();
+        token
+    }
+
+    /// tsc parser-side reScanJsxToken (allowMultilineJsxText=true).
+    fn re_scan_jsx_token(&mut self) -> SyntaxKind {
+        let token = self.scanner.re_scan_jsx_token(true);
+        self.drain_scanner_errors();
+        token
+    }
+
+    /// tsc scanJsxIdentifier.
+    fn scan_jsx_identifier(&mut self) -> SyntaxKind {
+        let token = self.scanner.scan_jsx_identifier();
+        self.drain_scanner_errors();
+        token
+    }
+
+    /// tsc scanJsxAttributeValue.
+    fn scan_jsx_attribute_value(&mut self) -> SyntaxKind {
+        let token = self.scanner.scan_jsx_attribute_value();
         self.drain_scanner_errors();
         token
     }
@@ -255,6 +318,25 @@ impl<'text> Parser<'text> {
     ) -> bool {
         if self.token() == kind {
             self.next_token();
+            return true;
+        }
+
+        if let Some(message) = message {
+            self.parse_error_at_current_token(message, &[]);
+        } else {
+            self.parse_error_at_current_token(&gen::_0_expected, &[&token_to_string(kind)]);
+        }
+        false
+    }
+
+    /// tsc parseExpected with shouldAdvance=false: the JSX productions check
+    /// the token and report, then pick the follow-up scan mode themselves.
+    fn parse_expected_without_advancing(
+        &mut self,
+        kind: SyntaxKind,
+        message: Option<&'static DiagnosticMessage>,
+    ) -> bool {
+        if self.token() == kind {
             return true;
         }
 
@@ -3806,7 +3888,12 @@ impl<'text> Parser<'text> {
             SyntaxKind::DeleteKeyword => self.parse_delete_expression(),
             SyntaxKind::TypeOfKeyword => self.parse_type_of_expression(),
             SyntaxKind::VoidKeyword => self.parse_void_expression(),
-            SyntaxKind::LessThanToken if self.language_variant != LanguageVariant::Jsx => {
+            SyntaxKind::LessThanToken => {
+                if self.language_variant == LanguageVariant::Jsx {
+                    return self.parse_jsx_element_or_self_closing_element_or_fragment(
+                        true, None, None, true,
+                    );
+                }
                 self.parse_type_assertion()
             }
             SyntaxKind::AwaitKeyword if self.is_await_expression() => self.parse_await_expression(),
@@ -3904,6 +3991,13 @@ impl<'text> Parser<'text> {
                 }),
                 pos,
             );
+        } else if self.language_variant == LanguageVariant::Jsx
+            && self.token() == SyntaxKind::LessThanToken
+            && self
+                .look_ahead(|parser| parser.next_token_is_identifier_or_keyword_or_greater_than())
+        {
+            return self
+                .parse_jsx_element_or_self_closing_element_or_fragment(true, None, None, false);
         }
 
         let expression = self.parse_left_hand_side_expression_or_higher();
@@ -3921,6 +4015,599 @@ impl<'text> Parser<'text> {
             );
         }
         expression
+    }
+
+    /// tsc parseJsxElementOrSelfClosingElementOrFragment.
+    fn parse_jsx_element_or_self_closing_element_or_fragment(
+        &mut self,
+        in_expression_context: bool,
+        top_invalid_node_position: Option<usize>,
+        opening_tag: Option<NodeId>,
+        must_be_unary: bool,
+    ) -> NodeId {
+        let pos = self.node_pos();
+        let opening = self
+            .parse_jsx_opening_or_self_closing_element_or_opening_fragment(in_expression_context);
+        let result = match self.arena.node(opening).kind {
+            SyntaxKind::JsxOpeningElement => {
+                let opening_tag_name = self.jsx_opening_element_tag_name(opening);
+                let mut children = self.parse_jsx_children(opening);
+                let closing_element;
+
+                // The last child owns a closing tag that actually matches OUR
+                // opening tag: give the child a synthetic empty closing element
+                // and adopt its closing element as ours.
+                let last_child = self.arena.node_array(children).nodes.last().copied();
+                let rebalance = last_child.and_then(|last| {
+                    let (last_opening, last_children, last_closing) = {
+                        let data = self.arena.node(last).data.as_jsx_element()?;
+                        (data.opening_element?, data.children?, data.closing_element?)
+                    };
+                    let last_open_tag = self.jsx_opening_element_tag_name(last_opening);
+                    let last_close_tag = self.jsx_closing_element_tag_name(last_closing);
+                    if !self.tag_names_are_equivalent(last_open_tag, last_close_tag)
+                        && self.tag_names_are_equivalent(opening_tag_name, last_close_tag)
+                    {
+                        Some((last_opening, last_children, last_closing))
+                    } else {
+                        None
+                    }
+                });
+                if let Some((last_opening, last_children, last_closing)) = rebalance {
+                    let end = self.arena.node_array(last_children).end as usize;
+                    let empty_identifier = self.arena.alloc_node(
+                        NodeData::Identifier(IdentifierData {
+                            escaped_text: String::new(),
+                            text: String::new(),
+                        }),
+                        end,
+                        end,
+                        NodeFlags::NONE,
+                    );
+                    let empty_identifier = self.finish_node_at(empty_identifier, end, end);
+                    let synthetic_closing = self.arena.alloc_node(
+                        NodeData::JsxClosingElement(JsxClosingElementData {
+                            tag_name: Some(empty_identifier),
+                        }),
+                        end,
+                        end,
+                        NodeFlags::NONE,
+                    );
+                    let synthetic_closing = self.finish_node_at(synthetic_closing, end, end);
+                    let new_last_pos = self.arena.node(last_opening).pos as usize;
+                    let new_last = self.arena.alloc_node(
+                        NodeData::JsxElement(JsxElementData {
+                            opening_element: Some(last_opening),
+                            children: Some(last_children),
+                            closing_element: Some(synthetic_closing),
+                        }),
+                        new_last_pos,
+                        end,
+                        NodeFlags::NONE,
+                    );
+                    let new_last = self.finish_node_at(new_last, new_last_pos, end);
+
+                    let (mut nodes, children_pos) = {
+                        let array = self.arena.node_array(children);
+                        (array.nodes.clone(), array.pos as usize)
+                    };
+                    *nodes
+                        .last_mut()
+                        .expect("rebalance only fires on a non-empty child list") = new_last;
+                    children = self.arena.alloc_array(nodes, children_pos, end, false);
+                    closing_element = last_closing;
+                } else {
+                    closing_element =
+                        self.parse_jsx_closing_element(opening, in_expression_context);
+                    let closing_tag_name = self.jsx_closing_element_tag_name(closing_element);
+                    if !self.tag_names_are_equivalent(opening_tag_name, closing_tag_name) {
+                        let outer_tag_matches = opening_tag.is_some_and(|outer| {
+                            self.arena.node(outer).kind == SyntaxKind::JsxOpeningElement
+                                && self.tag_names_are_equivalent(
+                                    closing_tag_name,
+                                    self.jsx_opening_element_tag_name(outer),
+                                )
+                        });
+                        if let Some(opening_tag_name) = opening_tag_name {
+                            let opening_tag_text = self.text_of_node(opening_tag_name);
+                            if outer_tag_matches {
+                                self.parse_error_at_range(
+                                    opening_tag_name,
+                                    &gen::JSX_element_0_has_no_corresponding_closing_tag,
+                                    &[&opening_tag_text],
+                                );
+                            } else if let Some(closing_tag_name) = closing_tag_name {
+                                self.parse_error_at_range(
+                                    closing_tag_name,
+                                    &gen::Expected_corresponding_JSX_closing_tag_for_0,
+                                    &[&opening_tag_text],
+                                );
+                            }
+                        }
+                    }
+                }
+                self.finish_node_data(
+                    NodeData::JsxElement(JsxElementData {
+                        opening_element: Some(opening),
+                        children: Some(children),
+                        closing_element: Some(closing_element),
+                    }),
+                    pos,
+                )
+            }
+            SyntaxKind::JsxOpeningFragment => {
+                let children = self.parse_jsx_children(opening);
+                let closing_fragment = self.parse_jsx_closing_fragment(in_expression_context);
+                self.finish_node_data(
+                    NodeData::JsxFragment(JsxFragmentData {
+                        opening_fragment: Some(opening),
+                        children: Some(children),
+                        closing_fragment: Some(closing_fragment),
+                    }),
+                    pos,
+                )
+            }
+            _ => {
+                debug_assert_eq!(
+                    self.arena.node(opening).kind,
+                    SyntaxKind::JsxSelfClosingElement
+                );
+                opening
+            }
+        };
+        // A sibling element at the top level: parse it and glue both together
+        // with a synthetic comma so only one error is reported.
+        if !must_be_unary && in_expression_context && self.token() == SyntaxKind::LessThanToken {
+            let top_bad_pos =
+                top_invalid_node_position.unwrap_or(self.arena.node(result).pos as usize);
+            let invalid_element = self.try_parse(|parser| {
+                Some(
+                    parser.parse_jsx_element_or_self_closing_element_or_fragment(
+                        true,
+                        Some(top_bad_pos),
+                        None,
+                        false,
+                    ),
+                )
+            });
+            if let Some(invalid_element) = invalid_element {
+                let operator_token =
+                    self.create_missing_node(SyntaxKind::CommaToken, false, None, &[]);
+                let invalid_pos = self.arena.node(invalid_element).pos;
+                let invalid_end = self.arena.node(invalid_element).end as usize;
+                {
+                    let operator = self.arena.node_mut(operator_token);
+                    operator.pos = invalid_pos;
+                    operator.end = invalid_pos;
+                }
+                let start = crate::scanner::skip_trivia(self.scanner.text(), top_bad_pos);
+                self.parse_error_at(
+                    start,
+                    invalid_end,
+                    &gen::JSX_expressions_must_have_one_parent_element,
+                    &[],
+                );
+                return self.make_binary_expression(result, operator_token, invalid_element, pos);
+            }
+        }
+        result
+    }
+
+    /// tsc parseJsxText. The containsOnlyTriviaWhiteSpaces flag has no slot;
+    /// the JsxText/JsxTextAllWhiteSpaces distinction is parse-and-drop.
+    fn parse_jsx_text(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let text = self.scanner.token_value().to_owned();
+        self.scan_jsx_text();
+        self.finish_node_data(NodeData::JsxText(JsxTextData { text }), pos)
+    }
+
+    /// tsc parseJsxChild.
+    fn parse_jsx_child(&mut self, opening_tag: NodeId, token: SyntaxKind) -> Option<NodeId> {
+        match token {
+            SyntaxKind::EndOfFileToken => {
+                if self.arena.node(opening_tag).kind == SyntaxKind::JsxOpeningFragment {
+                    self.parse_error_at_range(
+                        opening_tag,
+                        &gen::JSX_fragment_has_no_corresponding_closing_tag,
+                        &[],
+                    );
+                } else if let Some(tag) = self.jsx_opening_element_tag_name(opening_tag) {
+                    let (tag_pos, tag_end) = {
+                        let node = self.arena.node(tag);
+                        (node.pos as usize, node.end as usize)
+                    };
+                    let start =
+                        crate::scanner::skip_trivia(self.scanner.text(), tag_pos).min(tag_end);
+                    let tag_text = self.text_of_node(tag);
+                    self.parse_error_at(
+                        start,
+                        tag_end,
+                        &gen::JSX_element_0_has_no_corresponding_closing_tag,
+                        &[&tag_text],
+                    );
+                }
+                None
+            }
+            SyntaxKind::LessThanSlashToken | SyntaxKind::ConflictMarkerTrivia => None,
+            SyntaxKind::JsxText | SyntaxKind::JsxTextAllWhiteSpaces => Some(self.parse_jsx_text()),
+            SyntaxKind::OpenBraceToken => self.parse_jsx_expression(false),
+            SyntaxKind::LessThanToken => {
+                Some(self.parse_jsx_element_or_self_closing_element_or_fragment(
+                    false,
+                    None,
+                    Some(opening_tag),
+                    false,
+                ))
+            }
+            _ => unreachable!("parseJsxChild: unexpected token {token:?}"),
+        }
+    }
+
+    /// tsc parseJsxChildren.
+    fn parse_jsx_children(&mut self, opening_tag: NodeId) -> crate::NodeArrayId {
+        let mut list = Vec::new();
+        let list_pos = self.node_pos();
+        let save_parsing_context = self.parsing_context;
+        self.parsing_context |= ParsingContext::JsxChildren.bit();
+        loop {
+            let token = self.re_scan_jsx_token();
+            let Some(child) = self.parse_jsx_child(opening_tag, token) else {
+                break;
+            };
+            list.push(child);
+            if self.arena.node(opening_tag).kind == SyntaxKind::JsxOpeningElement {
+                if let Some((child_open_tag, child_close_tag)) = self.jsx_element_tag_names(child) {
+                    let opening_tag_name = self.jsx_opening_element_tag_name(opening_tag);
+                    if !self.tag_names_are_equivalent(child_open_tag, child_close_tag)
+                        && self.tag_names_are_equivalent(opening_tag_name, child_close_tag)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        self.parsing_context = save_parsing_context;
+        self.arena
+            .alloc_array(list, list_pos, self.node_pos(), false)
+    }
+
+    /// tsc parseJsxAttributes.
+    fn parse_jsx_attributes(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let properties = self.parse_list(ParsingContext::JsxAttributes, |parser| {
+            Some(parser.parse_jsx_attribute())
+        });
+        self.finish_node_data(
+            NodeData::JsxAttributes(JsxAttributesData {
+                properties: Some(properties),
+            }),
+            pos,
+        )
+    }
+
+    /// tsc parseJsxOpeningOrSelfClosingElementOrOpeningFragment.
+    fn parse_jsx_opening_or_self_closing_element_or_opening_fragment(
+        &mut self,
+        in_expression_context: bool,
+    ) -> NodeId {
+        let pos = self.node_pos();
+        self.parse_expected(SyntaxKind::LessThanToken, None);
+        if self.token() == SyntaxKind::GreaterThanToken {
+            self.scan_jsx_text();
+            let id = self.arena.alloc_token(
+                SyntaxKind::JsxOpeningFragment,
+                pos,
+                self.scanner.full_start_pos(),
+                NodeFlags::NONE,
+            );
+            return self.finish_node(id, pos);
+        }
+        let tag_name = self.parse_jsx_element_name();
+        // tsc gates on the JavaScriptFile context flag; this port is TS-only.
+        let type_arguments = self.try_parse_type_arguments();
+        let attributes = self.parse_jsx_attributes();
+        if self.token() == SyntaxKind::GreaterThanToken {
+            self.scan_jsx_text();
+            self.finish_node_data(
+                NodeData::JsxOpeningElement(JsxOpeningElementData {
+                    tag_name: Some(tag_name),
+                    type_arguments,
+                    attributes: Some(attributes),
+                }),
+                pos,
+            )
+        } else {
+            self.parse_expected(SyntaxKind::SlashToken, None);
+            if self.parse_expected_without_advancing(SyntaxKind::GreaterThanToken, None) {
+                if in_expression_context {
+                    self.next_token();
+                } else {
+                    self.scan_jsx_text();
+                }
+            }
+            self.finish_node_data(
+                NodeData::JsxSelfClosingElement(JsxSelfClosingElementData {
+                    tag_name: Some(tag_name),
+                    type_arguments,
+                    attributes: Some(attributes),
+                }),
+                pos,
+            )
+        }
+    }
+
+    /// tsc parseJsxElementName.
+    fn parse_jsx_element_name(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let initial = self.parse_jsx_tag_name();
+        if self.arena.node(initial).kind == SyntaxKind::JsxNamespacedName {
+            return initial;
+        }
+        let mut expression = initial;
+        while self.parse_optional(SyntaxKind::DotToken) {
+            let name = self.parse_right_side_of_dot(true, false, false);
+            expression = self.finish_node_data(
+                NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                    expression: Some(expression),
+                    question_dot_token: None,
+                    name: Some(name),
+                }),
+                pos,
+            );
+        }
+        expression
+    }
+
+    /// tsc parseJsxTagName.
+    fn parse_jsx_tag_name(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.scan_jsx_identifier();
+        let is_this = self.token() == SyntaxKind::ThisKeyword;
+        let tag_name = self.parse_identifier_name_error_on_unicode_escape_sequence();
+        if self.parse_optional(SyntaxKind::ColonToken) {
+            self.scan_jsx_identifier();
+            let name = self.parse_identifier_name_error_on_unicode_escape_sequence();
+            return self.finish_node_data(
+                NodeData::JsxNamespacedName(JsxNamespacedNameData {
+                    namespace: Some(tag_name),
+                    name: Some(name),
+                }),
+                pos,
+            );
+        }
+        if is_this {
+            let id = self.arena.alloc_token(
+                SyntaxKind::ThisKeyword,
+                pos,
+                self.scanner.full_start_pos(),
+                NodeFlags::NONE,
+            );
+            self.finish_node(id, pos)
+        } else {
+            tag_name
+        }
+    }
+
+    /// tsc parseJsxExpression.
+    fn parse_jsx_expression(&mut self, in_expression_context: bool) -> Option<NodeId> {
+        let pos = self.node_pos();
+        if !self.parse_expected(SyntaxKind::OpenBraceToken, None) {
+            return None;
+        }
+        let mut dot_dot_dot_token = None;
+        let mut expression = None;
+        if self.token() != SyntaxKind::CloseBraceToken {
+            if !in_expression_context {
+                dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
+            }
+            expression = Some(self.parse_expression());
+        }
+        if in_expression_context {
+            self.parse_expected(SyntaxKind::CloseBraceToken, None);
+        } else if self.parse_expected_without_advancing(SyntaxKind::CloseBraceToken, None) {
+            self.scan_jsx_text();
+        }
+        Some(self.finish_node_data(
+            NodeData::JsxExpression(JsxExpressionData {
+                dot_dot_dot_token,
+                expression,
+            }),
+            pos,
+        ))
+    }
+
+    /// tsc parseJsxAttribute.
+    fn parse_jsx_attribute(&mut self) -> NodeId {
+        if self.token() == SyntaxKind::OpenBraceToken {
+            return self.parse_jsx_spread_attribute();
+        }
+        let pos = self.node_pos();
+        let name = self.parse_jsx_attribute_name();
+        let initializer = self.parse_jsx_attribute_value();
+        self.finish_node_data(
+            NodeData::JsxAttribute(JsxAttributeData {
+                name: Some(name),
+                initializer,
+            }),
+            pos,
+        )
+    }
+
+    /// tsc parseJsxAttributeValue.
+    fn parse_jsx_attribute_value(&mut self) -> Option<NodeId> {
+        if self.token() == SyntaxKind::EqualsToken {
+            if self.scan_jsx_attribute_value() == SyntaxKind::StringLiteral {
+                return Some(self.parse_string_literal());
+            }
+            if self.token() == SyntaxKind::OpenBraceToken {
+                return self.parse_jsx_expression(true);
+            }
+            if self.token() == SyntaxKind::LessThanToken {
+                return Some(self.parse_jsx_element_or_self_closing_element_or_fragment(
+                    true, None, None, false,
+                ));
+            }
+            self.parse_error_at_current_token(&gen::or_JSX_element_expected, &[]);
+        }
+        None
+    }
+
+    /// tsc parseJsxAttributeName.
+    fn parse_jsx_attribute_name(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.scan_jsx_identifier();
+        let attr_name = self.parse_identifier_name_error_on_unicode_escape_sequence();
+        if self.parse_optional(SyntaxKind::ColonToken) {
+            self.scan_jsx_identifier();
+            let name = self.parse_identifier_name_error_on_unicode_escape_sequence();
+            return self.finish_node_data(
+                NodeData::JsxNamespacedName(JsxNamespacedNameData {
+                    namespace: Some(attr_name),
+                    name: Some(name),
+                }),
+                pos,
+            );
+        }
+        attr_name
+    }
+
+    /// tsc parseJsxSpreadAttribute.
+    fn parse_jsx_spread_attribute(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        self.parse_expected(SyntaxKind::OpenBraceToken, None);
+        self.parse_expected(SyntaxKind::DotDotDotToken, None);
+        let expression = self.parse_expression();
+        self.parse_expected(SyntaxKind::CloseBraceToken, None);
+        self.finish_node_data(
+            NodeData::JsxSpreadAttribute(JsxSpreadAttributeData {
+                expression: Some(expression),
+            }),
+            pos,
+        )
+    }
+
+    /// tsc parseJsxClosingElement.
+    fn parse_jsx_closing_element(&mut self, open: NodeId, in_expression_context: bool) -> NodeId {
+        let pos = self.node_pos();
+        self.parse_expected(SyntaxKind::LessThanSlashToken, None);
+        let tag_name = self.parse_jsx_element_name();
+        if self.parse_expected_without_advancing(SyntaxKind::GreaterThanToken, None) {
+            let open_tag_name = self.jsx_opening_element_tag_name(open);
+            if in_expression_context
+                || !self.tag_names_are_equivalent(open_tag_name, Some(tag_name))
+            {
+                self.next_token();
+            } else {
+                self.scan_jsx_text();
+            }
+        }
+        self.finish_node_data(
+            NodeData::JsxClosingElement(JsxClosingElementData {
+                tag_name: Some(tag_name),
+            }),
+            pos,
+        )
+    }
+
+    /// tsc parseJsxClosingFragment.
+    fn parse_jsx_closing_fragment(&mut self, in_expression_context: bool) -> NodeId {
+        let pos = self.node_pos();
+        self.parse_expected(SyntaxKind::LessThanSlashToken, None);
+        if self.parse_expected_without_advancing(
+            SyntaxKind::GreaterThanToken,
+            Some(&gen::Expected_corresponding_closing_tag_for_JSX_fragment),
+        ) {
+            if in_expression_context {
+                self.next_token();
+            } else {
+                self.scan_jsx_text();
+            }
+        }
+        let id = self.arena.alloc_token(
+            SyntaxKind::JsxClosingFragment,
+            pos,
+            self.scanner.full_start_pos(),
+            NodeFlags::NONE,
+        );
+        self.finish_node(id, pos)
+    }
+
+    /// tsc parseIdentifierNameErrorOnUnicodeEscapeSequence.
+    fn parse_identifier_name_error_on_unicode_escape_sequence(&mut self) -> NodeId {
+        if self.scanner.has_unicode_escape() || self.scanner.has_extended_unicode_escape() {
+            self.parse_error_at_current_token(
+                &gen::Unicode_escape_sequence_cannot_appear_here,
+                &[],
+            );
+        }
+        self.parse_identifier_name(None)
+    }
+
+    /// tsc tagNamesAreEquivalent.
+    fn tag_names_are_equivalent(&self, lhs: Option<NodeId>, rhs: Option<NodeId>) -> bool {
+        let (Some(lhs), Some(rhs)) = (lhs, rhs) else {
+            return false;
+        };
+        let lhs_node = self.arena.node(lhs);
+        let rhs_node = self.arena.node(rhs);
+        if lhs_node.kind != rhs_node.kind {
+            return false;
+        }
+        if lhs_node.kind == SyntaxKind::ThisKeyword {
+            return true;
+        }
+        match (&lhs_node.data, &rhs_node.data) {
+            (NodeData::Identifier(lhs), NodeData::Identifier(rhs)) => {
+                lhs.escaped_text == rhs.escaped_text
+            }
+            (NodeData::JsxNamespacedName(lhs), NodeData::JsxNamespacedName(rhs)) => {
+                self.identifier_escaped_text(lhs.namespace)
+                    == self.identifier_escaped_text(rhs.namespace)
+                    && self.identifier_escaped_text(lhs.name)
+                        == self.identifier_escaped_text(rhs.name)
+            }
+            (NodeData::PropertyAccessExpression(lhs), NodeData::PropertyAccessExpression(rhs)) => {
+                self.identifier_escaped_text(lhs.name) == self.identifier_escaped_text(rhs.name)
+                    && self.tag_names_are_equivalent(lhs.expression, rhs.expression)
+            }
+            _ => false,
+        }
+    }
+
+    fn identifier_escaped_text(&self, id: Option<NodeId>) -> Option<&str> {
+        match &self.arena.node(id?).data {
+            NodeData::Identifier(data) => Some(&data.escaped_text),
+            _ => None,
+        }
+    }
+
+    fn jsx_opening_element_tag_name(&self, node: NodeId) -> Option<NodeId> {
+        match &self.arena.node(node).data {
+            NodeData::JsxOpeningElement(data) => data.tag_name,
+            NodeData::JsxSelfClosingElement(data) => data.tag_name,
+            _ => None,
+        }
+    }
+
+    fn jsx_closing_element_tag_name(&self, node: NodeId) -> Option<NodeId> {
+        self.arena
+            .node(node)
+            .data
+            .as_jsx_closing_element()
+            .and_then(|data| data.tag_name)
+    }
+
+    /// (openingElement.tagName, closingElement.tagName) when `node` is a JsxElement.
+    fn jsx_element_tag_names(&self, node: NodeId) -> Option<(Option<NodeId>, Option<NodeId>)> {
+        let data = self.arena.node(node).data.as_jsx_element()?;
+        let open_tag = data
+            .opening_element
+            .and_then(|open| self.jsx_opening_element_tag_name(open));
+        let close_tag = data
+            .closing_element
+            .and_then(|close| self.jsx_closing_element_tag_name(close));
+        Some((open_tag, close_tag))
     }
 
     fn is_await_expression(&mut self) -> bool {
@@ -4172,7 +4859,7 @@ impl<'text> Parser<'text> {
         expression: NodeId,
         question_dot_token: Option<NodeId>,
     ) -> NodeId {
-        let name = self.parse_right_side_of_dot(true, true);
+        let name = self.parse_right_side_of_dot(true, true, true);
         self.finish_node_data(
             NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
                 expression: Some(expression),
@@ -4303,12 +4990,12 @@ impl<'text> Parser<'text> {
         )
     }
 
-    /// tsc parseRightSideOfDot; the allowUnicodeEscapeSequenceInIdentifierName
-    /// error is not ported (scanner does not surface escape flags yet).
+    /// tsc parseRightSideOfDot.
     fn parse_right_side_of_dot(
         &mut self,
         allow_identifier_names: bool,
         allow_private_identifiers: bool,
+        allow_unicode_escape_sequence_in_identifier_name: bool,
     ) -> NodeId {
         // A keyword on a fresh line followed by another identifier likely
         // starts the next construct; give the dot a missing name instead.
@@ -4338,7 +5025,11 @@ impl<'text> Parser<'text> {
             };
         }
         if allow_identifier_names {
-            return self.parse_identifier_name(None);
+            return if allow_unicode_escape_sequence_in_identifier_name {
+                self.parse_identifier_name(None)
+            } else {
+                self.parse_identifier_name_error_on_unicode_escape_sequence()
+            };
         }
         self.parse_identifier_or_missing()
     }
@@ -4396,7 +5087,7 @@ impl<'text> Parser<'text> {
                 // (parseTypeReference et al.) picks them up.
                 break;
             }
-            let right = self.parse_right_side_of_dot(allow_reserved_words, false);
+            let right = self.parse_right_side_of_dot(allow_reserved_words, false, true);
             entity = self.finish_node_data(
                 NodeData::QualifiedName(QualifiedNameData {
                     left: Some(entity),
@@ -4415,6 +5106,11 @@ impl<'text> Parser<'text> {
     fn next_token_is_identifier_or_keyword_on_same_line(&mut self) -> bool {
         self.next_token();
         token_is_identifier_or_keyword(self.token()) && !self.scanner.has_preceding_line_break()
+    }
+
+    fn next_token_is_identifier_or_keyword_or_greater_than(&mut self) -> bool {
+        self.next_token();
+        token_is_identifier_or_keyword(self.token()) || self.token() == SyntaxKind::GreaterThanToken
     }
 
     fn expression_with_type_arguments_parts(
@@ -7366,6 +8062,285 @@ fn context_flags_for_function_body(is_generator: bool, is_async: bool) -> (NodeF
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn parse_tsx(text: &str) -> SourceFile {
+        parse_source_file(
+            "a.tsx".to_owned(),
+            text.to_owned(),
+            ParseOptions {
+                language_variant: LanguageVariant::Jsx,
+            },
+            None,
+        )
+    }
+
+    fn first_initializer(source: &SourceFile) -> NodeId {
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file root");
+        let statements = source
+            .arena
+            .node_array(root.statements.expect("statements"));
+        let statement = source
+            .arena
+            .node(statements.nodes[0])
+            .data
+            .as_variable_statement()
+            .expect("variable statement");
+        let list = source
+            .arena
+            .node(statement.declaration_list.expect("declaration list"))
+            .data
+            .as_variable_declaration_list()
+            .expect("declaration list data")
+            .declarations
+            .expect("declarations");
+        let declaration = source
+            .arena
+            .node(source.arena.node_array(list).nodes[0])
+            .data
+            .as_variable_declaration()
+            .expect("variable declaration");
+        declaration.initializer.expect("initializer")
+    }
+
+    fn diagnostic_pins(source: &SourceFile) -> Vec<(u32, Option<u32>, Option<u32>)> {
+        source
+            .parse_diagnostics
+            .iter()
+            .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+            .collect()
+    }
+
+    #[test]
+    fn jsx_element_attributes_and_children_oracle_pins() {
+        let source = parse_tsx("const a = <div className=\"x\" {...props}>hello{world}</div>;");
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+
+        let element = source
+            .arena
+            .node(first_initializer(&source))
+            .data
+            .as_jsx_element()
+            .expect("jsx element");
+        let opening = source
+            .arena
+            .node(element.opening_element.expect("opening"))
+            .data
+            .as_jsx_opening_element()
+            .expect("opening element");
+        let attributes = source
+            .arena
+            .node(opening.attributes.expect("attributes"))
+            .data
+            .as_jsx_attributes()
+            .expect("attributes data")
+            .properties
+            .expect("properties");
+        let attribute_kinds: Vec<_> = source
+            .arena
+            .node_array(attributes)
+            .nodes
+            .iter()
+            .map(|id| source.arena.node(*id).kind)
+            .collect();
+        assert_eq!(
+            attribute_kinds,
+            [SyntaxKind::JsxAttribute, SyntaxKind::JsxSpreadAttribute]
+        );
+
+        let child_kinds: Vec<_> = source
+            .arena
+            .node_array(element.children.expect("children"))
+            .nodes
+            .iter()
+            .map(|id| source.arena.node(*id).kind)
+            .collect();
+        assert_eq!(
+            child_kinds,
+            [SyntaxKind::JsxText, SyntaxKind::JsxExpression]
+        );
+    }
+
+    #[test]
+    fn jsx_fragment_oracle_pins() {
+        let source = parse_tsx("const b = <>text{1}<br/></>;");
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+
+        let fragment = source
+            .arena
+            .node(first_initializer(&source))
+            .data
+            .as_jsx_fragment()
+            .expect("jsx fragment");
+        assert_eq!(
+            source
+                .arena
+                .node(fragment.opening_fragment.expect("opening fragment"))
+                .kind,
+            SyntaxKind::JsxOpeningFragment
+        );
+        assert_eq!(
+            source
+                .arena
+                .node(fragment.closing_fragment.expect("closing fragment"))
+                .kind,
+            SyntaxKind::JsxClosingFragment
+        );
+        let child_kinds: Vec<_> = source
+            .arena
+            .node_array(fragment.children.expect("children"))
+            .nodes
+            .iter()
+            .map(|id| source.arena.node(*id).kind)
+            .collect();
+        assert_eq!(
+            child_kinds,
+            [
+                SyntaxKind::JsxText,
+                SyntaxKind::JsxExpression,
+                SyntaxKind::JsxSelfClosingElement
+            ]
+        );
+    }
+
+    #[test]
+    fn jsx_tag_and_attribute_name_shapes() {
+        let source = parse_tsx("const c = <Foo.Bar a:b=\"1\" this-prop={2} />;");
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+
+        let element = source
+            .arena
+            .node(first_initializer(&source))
+            .data
+            .as_jsx_self_closing_element()
+            .expect("self-closing element");
+        assert_eq!(
+            source.arena.node(element.tag_name.expect("tag name")).kind,
+            SyntaxKind::PropertyAccessExpression
+        );
+        let attributes = source
+            .arena
+            .node(element.attributes.expect("attributes"))
+            .data
+            .as_jsx_attributes()
+            .expect("attributes data")
+            .properties
+            .expect("properties");
+        let attribute_nodes = &source.arena.node_array(attributes).nodes;
+        let namespaced = source
+            .arena
+            .node(attribute_nodes[0])
+            .data
+            .as_jsx_attribute()
+            .expect("first attribute");
+        assert_eq!(
+            source.arena.node(namespaced.name.expect("name")).kind,
+            SyntaxKind::JsxNamespacedName
+        );
+        let dashed = source
+            .arena
+            .node(attribute_nodes[1])
+            .data
+            .as_jsx_attribute()
+            .expect("second attribute");
+        let dashed_name = source
+            .arena
+            .node(dashed.name.expect("name"))
+            .data
+            .as_identifier()
+            .expect("identifier name");
+        assert_eq!(dashed_name.escaped_text, "this-prop");
+    }
+
+    #[test]
+    fn jsx_this_tag_name() {
+        let source = parse_tsx("function g() { return <this.Component />; }");
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+    }
+
+    #[test]
+    fn jsx_closing_tag_mismatch_oracle_pins() {
+        let source = parse_tsx("const d = <div></span>;");
+        assert_eq!(diagnostic_pins(&source), [(17002, Some(17), Some(4))]);
+    }
+
+    #[test]
+    fn jsx_sibling_elements_glued_with_synthetic_comma() {
+        let source = parse_tsx("const e = <div/><span/>;");
+        assert_eq!(diagnostic_pins(&source), [(2657, Some(10), Some(13))]);
+        assert_eq!(
+            source.arena.node(first_initializer(&source)).kind,
+            SyntaxKind::BinaryExpression
+        );
+    }
+
+    #[test]
+    fn jsx_rebalances_closing_tag_owned_by_outer_element() {
+        let source = parse_tsx("const f = <div><b>text</div>;");
+        assert_eq!(diagnostic_pins(&source), [(17008, Some(16), Some(1))]);
+
+        let outer = source
+            .arena
+            .node(first_initializer(&source))
+            .data
+            .as_jsx_element()
+            .expect("outer element");
+        let children = source.arena.node_array(outer.children.expect("children"));
+        let inner = source
+            .arena
+            .node(*children.nodes.last().expect("inner child"))
+            .data
+            .as_jsx_element()
+            .expect("inner element");
+        let synthetic_closing = source
+            .arena
+            .node(inner.closing_element.expect("synthetic closing"));
+        assert_eq!(synthetic_closing.pos, synthetic_closing.end);
+    }
+
+    #[test]
+    fn jsx_unclosed_element_at_eof_oracle_pins() {
+        let source = parse_tsx("const h = <div>");
+        assert_eq!(
+            diagnostic_pins(&source),
+            [(17008, Some(11), Some(3)), (1005, Some(15), Some(0))]
+        );
+    }
+
+    #[test]
+    fn type_assertion_still_parses_in_standard_variant() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "const e = <string>x;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+    }
 
     #[test]
     fn parse_source_file_drains_scanner_errors() {

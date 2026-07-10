@@ -20,10 +20,17 @@ pub fn check_program(files: &[InputFile], _options: &CompilerOptions) -> CheckRe
     let mut diagnostics = Vec::new();
 
     for file in files {
+        // tsc getLanguageVariant, restricted to the extensions this engine
+        // accepts (JS inputs are not handled yet).
+        let language_variant = if file.name.ends_with(".tsx") || file.name.ends_with(".jsx") {
+            tsrs2_syntax::LanguageVariant::Jsx
+        } else {
+            tsrs2_syntax::LanguageVariant::Standard
+        };
         let source_file = tsrs2_syntax::parse_source_file(
             file.name.clone(),
             file.text.clone(),
-            tsrs2_syntax::ParseOptions::default(),
+            tsrs2_syntax::ParseOptions { language_variant },
             None,
         );
         diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
