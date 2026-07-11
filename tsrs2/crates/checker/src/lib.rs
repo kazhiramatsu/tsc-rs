@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod annotate;
+pub mod constraints;
 pub mod engine;
 pub mod globals;
 pub mod intersect;

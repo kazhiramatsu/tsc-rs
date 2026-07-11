@@ -8,7 +8,7 @@
 
 use tsrs2_types::{IntersectionFlags, ObjectFlags, TypeData, TypeFlags, TypeId, UnionReduction};
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: isEmptyAnonymousObjectType @6.0.3
@@ -19,8 +19,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5fc6c0aedd7943649ee13f65800363b3d537bbf465e929a68d26562fb217af60
     /// tsc-span: _tsc.js:64644-64646
     ///
-    /// The `t !== anyFunctionType` exclusion is vacuous until M4 builds
-    /// anyFunctionType (checker init block, 47180+).
+    /// The `t !== anyFunctionType` exclusion is live since M4 5.0
+    /// built anyFunctionType (checker init block, 47179).
     pub fn is_empty_anonymous_object_type(&self, ty: TypeId) -> bool {
         if !self
             .tables
@@ -33,7 +33,8 @@ impl<'a> CheckerState<'a> {
         // resolved members without forcing resolution.
         if let Some(members) = self.links.ty(ty).resolved_members.resolved() {
             let resolved = self.members_of(members);
-            return resolved.properties.is_empty()
+            return ty != self.any_function_type
+                && resolved.properties.is_empty()
                 && resolved.call_signatures.is_empty()
                 && resolved.construct_signatures.is_empty()
                 && resolved.index_infos.is_empty();
@@ -157,13 +158,12 @@ impl<'a> CheckerState<'a> {
     /// - extractRedundantTemplateLiterals (61800-61802) needs
     ///   isTypeSubtypeOf — Unsupported until the 4.6 template relation
     ///   arm provides the matcher.
-    /// - The 2-member type-variable constraint collapse (61821-61845,
-    ///   checker-foundations §4.2 step 6) needs
-    ///   getBaseConstraintOfType + strict-subtype checks — type
-    ///   variables are unconstructible before M4, so the guard reports
-    ///   Unsupported if it ever fires.
-    /// - Alias parameters are M4; the intern key alias segment is
-    ///   empty, `*` for NoConstraintReduction as in tsc.
+    /// - The 2-member type-variable constraint collapse
+    ///   (checker-foundations §4.2 step 6) runs live since M4 5.1c —
+    ///   getBaseConstraintOfType + strict-subtype over declared type
+    ///   parameters.
+    /// - Alias parameters are M4 5.1b rows; the intern key alias
+    ///   segment is empty, `*` for NoConstraintReduction as in tsc.
     pub fn get_intersection_type(
         &mut self,
         types: &[TypeId],
@@ -260,6 +260,12 @@ impl<'a> CheckerState<'a> {
         if type_set.len() == 1 {
             return Ok(type_set[0]);
         }
+        // Step 6 (61821-61840): the 2-member type-variable constraint
+        // collapse — `T & string` where T's base constraint covers the
+        // primitive collapses to T (or never), else the intersection
+        // interns with IsConstrainedTypeVariable so union construction
+        // can run removeConstrainedTypeVariables over it.
+        let mut object_flags = object_flags;
         if type_set.len() == 2 && !flags.intersects(IntersectionFlags::NO_CONSTRAINT_REDUCTION) {
             let type_var_index = usize::from(
                 !self
@@ -268,14 +274,57 @@ impl<'a> CheckerState<'a> {
                     .intersects(TypeFlags::TYPE_VARIABLE),
             );
             let type_variable = type_set[type_var_index];
+            let primitive_type = type_set[1 - type_var_index];
             if self
                 .tables
                 .flags_of(type_variable)
                 .intersects(TypeFlags::TYPE_VARIABLE)
+                && ((self
+                    .tables
+                    .flags_of(primitive_type)
+                    .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE)
+                    && !self.is_generic_string_like_type(primitive_type))
+                    || includes & TypeFlags::INCLUDES_EMPTY_OBJECT.bits() != 0)
             {
-                return Err(Unsupported::new(
-                    "type-variable constraint collapse (M4, checker-foundations §4.2 step 6)",
-                ));
+                if let Some(constraint) = self.get_base_constraint_of_type(type_variable)? {
+                    let all_primitive_like = {
+                        let members = self.union_members_or_self(constraint);
+                        members.iter().all(|&member| {
+                            self.tables
+                                .flags_of(member)
+                                .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE)
+                                || self.is_empty_anonymous_object_type(member)
+                        })
+                    };
+                    if all_primitive_like {
+                        if self.is_type_strict_subtype_of(constraint, primitive_type)? {
+                            return Ok(type_variable);
+                        }
+                        let union_member_subtype = if self
+                            .tables
+                            .flags_of(constraint)
+                            .intersects(TypeFlags::UNION)
+                        {
+                            let members = self.union_members_or_self(constraint);
+                            let mut any = false;
+                            for member in members {
+                                if self.is_type_strict_subtype_of(member, primitive_type)? {
+                                    any = true;
+                                    break;
+                                }
+                            }
+                            any
+                        } else {
+                            false
+                        };
+                        if !union_member_subtype
+                            && !self.is_type_strict_subtype_of(primitive_type, constraint)?
+                        {
+                            return Ok(self.tables.intrinsics.never);
+                        }
+                        object_flags = ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
+                    }
+                }
             }
         }
         let key = format!(

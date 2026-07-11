@@ -689,12 +689,14 @@ impl TypeTables {
                 // removeStringLiteralsMatchedByTemplateLiterals stub —
                 // see the worker doc comment (4.6 hook).
             }
-            if includes & TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE.bits() != 0 {
-                unreachable!(
-                    "IsConstrainedTypeVariable intersections are unconstructible before M4 \
-                     (getIntersectionType step 6)"
-                );
-            }
+            // removeConstrainedTypeVariables (61550-61552) is a
+            // relation-dependent reduction: only the CHECKER twin runs
+            // it (unions.rs — twin rule). A constrained intersection
+            // reaching a tables-INTERNAL union (template distribution,
+            // tuple rest-window, e.g. `[...(T & string)[]]` elements)
+            // interns unreduced — same ledgered identity-divergence
+            // class as the removeStringLiterals skip above, until those
+            // constructors move checker-side (M4 5.3).
             if type_set.is_empty() {
                 return if includes & TypeFlags::NULL.bits() != 0 {
                     if includes & TypeFlags::INCLUDES_NON_WIDENING_TYPE.bits() != 0 {
@@ -2004,14 +2006,14 @@ impl TypeTables {
 ///
 /// stableTypeOrdering off: binary search keyed by type id over an
 /// id-sorted list.
-fn contains_type(types: &[TypeId], ty: TypeId) -> bool {
+pub fn contains_type(types: &[TypeId], ty: TypeId) -> bool {
     types.binary_search(&ty).is_ok()
 }
 
 /// tsc-port: insertType @6.0.3
 /// tsc-hash: d8d7b81478222333611e89cdb9821b7f8219f29a999e05ff0a6ddb912f9cbb9b
 /// tsc-span: _tsc.js:61330-61337
-fn insert_type(types: &mut Vec<TypeId>, ty: TypeId) -> bool {
+pub fn insert_type(types: &mut Vec<TypeId>, ty: TypeId) -> bool {
     if let Err(index) = types.binary_search(&ty) {
         types.insert(index, ty);
         return true;

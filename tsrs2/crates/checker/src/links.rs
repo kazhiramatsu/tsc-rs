@@ -80,6 +80,15 @@ pub struct TypeLinks {
     /// tsc unionType.resolvedReducedType (getReducedType 59289 +
     /// getReducedUnionType's self-stamp 59305).
     pub resolved_reduced_type: LinkSlot<TypeId>,
+    /// tsc TypeParameter.constraint (getConstraintFromTypeParameter
+    /// 60103) — Resolved(noConstraintType sentinel) = computed, none.
+    pub type_parameter_constraint: LinkSlot<TypeId>,
+    /// tsc type.resolvedBaseConstraint (getResolvedBaseConstraint
+    /// 58916-58920).
+    pub resolved_base_constraint: LinkSlot<TypeId>,
+    /// tsc type.immediateBaseConstraint (getImmediateBaseConstraint
+    /// 58921-58951; the ImmediateBaseConstraint resolution property).
+    pub immediate_base_constraint: LinkSlot<TypeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -242,6 +251,45 @@ impl LinksTables {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.entry(id).or_default().union_key_property,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    pub fn set_type_parameter_constraint(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().type_parameter_constraint,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    pub fn set_type_resolved_base_constraint(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().resolved_base_constraint,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    pub fn set_type_immediate_base_constraint(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().immediate_base_constraint,
             LinkSlot::Resolved(value),
         );
     }

@@ -397,7 +397,7 @@ impl<'a> CheckerState<'a> {
     /// include Variadic — normalization at construction leaves these
     /// only when variadic elements stay generic (M4), but the guard is
     /// ported so getNormalizedType reads as tsc does.
-    fn is_generic_tuple_type(&self, ty: TypeId) -> bool {
+    pub(crate) fn is_generic_tuple_type(&self, ty: TypeId) -> bool {
         if !self.tables.is_tuple_type(ty) {
             return false;
         }
@@ -1967,7 +1967,7 @@ impl<'a> CheckerState<'a> {
     /// tsc's identity is a node/symbol/type object; here it is a
     /// discriminated key. Deferred-reference nodes, class anonymous
     /// exceptions, IndexedAccess/Conditional arms are M4 rows.
-    fn get_recursion_identity(&self, ty: TypeId) -> RecursionIdentity {
+    pub(crate) fn get_recursion_identity(&self, ty: TypeId) -> RecursionIdentity {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) && !self.is_object_or_array_literal_type(ty) {
             if let Some(symbol) = self.tables.type_of(ty).symbol {
@@ -2072,7 +2072,7 @@ impl<'a> CheckerState<'a> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum RecursionIdentity {
+pub(crate) enum RecursionIdentity {
     Symbol(tsrs2_binder::SymbolId),
     Type(TypeId),
 }

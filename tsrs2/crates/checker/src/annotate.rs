@@ -647,7 +647,13 @@ impl<'a> CheckerState<'a> {
             ));
         };
         let flags = self.symbol_flags(symbol);
-        let resolved = if flags.intersects(SymbolFlags::INTERFACE) {
+        let resolved = if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+            // getTypeReferenceType → getDeclaredTypeOfSymbol's type-
+            // parameter arm; a type-argument list on a type-parameter
+            // reference is the 2315 family (M4 5.1 grammar row —
+            // type_arguments already escaped above).
+            self.get_declared_type_of_type_parameter(symbol)
+        } else if flags.intersects(SymbolFlags::INTERFACE) {
             self.get_declared_type_of_class_or_interface(symbol)?
         } else if flags.intersects(SymbolFlags::CLASS) {
             return Err(Unsupported::new("class declared types (M4 5.3)"));

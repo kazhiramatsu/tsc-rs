@@ -51,7 +51,8 @@ impl<'a> CheckerState<'a> {
     /// removeSubtypes (61553-61558; None on overflow → errorType) and
     /// the string-literal ∪ template mix runs
     /// removeStringLiteralsMatchedByTemplateLiterals (61547-61549).
-    /// removeConstrainedTypeVariables stays unreachable until M4.
+    /// removeConstrainedTypeVariables (61550-61552) runs live since
+    /// M4 5.1c (constrained type variables are constructible).
     pub fn get_union_type_ex(
         &mut self,
         types: &[TypeId],
@@ -150,9 +151,7 @@ impl<'a> CheckerState<'a> {
                 self.remove_string_literals_matched_by_template_literals(&mut type_set)?;
             }
             if includes & TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE.bits() != 0 {
-                unreachable!(
-                    "IsConstrainedTypeVariable intersections are unconstructible before M4"
-                );
+                self.remove_constrained_type_variables(&mut type_set)?;
             }
             if reduction == UnionReduction::Subtype {
                 let Some(reduced) =
@@ -194,6 +193,79 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:61447-61449
     ///
     /// The StringMapping arm is dead until M4 intrinsic aliases.
+    /// tsc-port: removeConstrainedTypeVariables @6.0.3
+    /// tsc-hash: c64cdc1ff09776e89bf48dbb3369491276221fc2c4f63bdbdee72e6c7c46e2ae
+    /// tsc-span: _tsc.js:61450-61484
+    ///
+    /// `(T & A) | (T & B) | ...` collapses to `T` when the
+    /// IsConstrainedTypeVariable intersections' primitive sides cover
+    /// T's base constraint.
+    fn remove_constrained_type_variables(&mut self, types: &mut Vec<TypeId>) -> CheckResult2<()> {
+        let constrained_members = |state: &Self, t: TypeId| -> Option<(TypeId, TypeId)> {
+            if !state.tables.flags_of(t).intersects(TypeFlags::INTERSECTION)
+                || !state
+                    .tables
+                    .object_flags_of(t)
+                    .intersects(tsrs2_types::ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
+            {
+                return None;
+            }
+            let TypeData::Intersection { types: members } = &state.tables.type_of(t).data else {
+                unreachable!("intersection flag implies intersection data");
+            };
+            let index = usize::from(
+                !state
+                    .tables
+                    .flags_of(members[0])
+                    .intersects(TypeFlags::TYPE_VARIABLE),
+            );
+            Some((members[index], members[1 - index]))
+        };
+        let mut type_variables: Vec<TypeId> = Vec::new();
+        for &t in types.iter() {
+            if let Some((type_variable, _)) = constrained_members(self, t) {
+                if !type_variables.contains(&type_variable) {
+                    type_variables.push(type_variable);
+                }
+            }
+        }
+        for type_variable in type_variables {
+            let mut primitives: Vec<TypeId> = Vec::new();
+            for &t in types.iter() {
+                if let Some((candidate, primitive)) = constrained_members(self, t) {
+                    if candidate == type_variable {
+                        tsrs2_types::tables::insert_type(&mut primitives, primitive);
+                    }
+                }
+            }
+            // The intersections were BORN with IsConstrainedTypeVariable
+            // in getIntersectionType step 6, which requires a present
+            // base constraint (intersect.rs) — tsc dereferences it
+            // unconditionally here.
+            let constraint = self
+                .get_base_constraint_of_type(type_variable)?
+                .expect("IsConstrainedTypeVariable implies a base constraint");
+            if self.every_type(constraint, |_, t| {
+                tsrs2_types::tables::contains_type(&primitives, t)
+            }) {
+                let mut i = types.len();
+                while i > 0 {
+                    i -= 1;
+                    let t = types[i];
+                    if let Some((candidate, primitive)) = constrained_members(self, t) {
+                        if candidate == type_variable
+                            && tsrs2_types::tables::contains_type(&primitives, primitive)
+                        {
+                            types.remove(i);
+                        }
+                    }
+                }
+                tsrs2_types::tables::insert_type(types, type_variable);
+            }
+        }
+        Ok(())
+    }
+
     fn remove_string_literals_matched_by_template_literals(
         &mut self,
         types: &mut Vec<TypeId>,

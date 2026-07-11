@@ -116,6 +116,12 @@ pub struct CheckerState<'a> {
     /// createAnonymousType + NonInferrableType (47179) — the vacuous-
     /// exclusion type in isEmptyAnonymousObjectType, live from 5.0.
     pub any_function_type: TypeId,
+    /// tsc noConstraintType (47188): "constraint computed, none"
+    /// sentinel in TypeParameter.constraint slots — never exposed.
+    pub no_constraint_type: TypeId,
+    /// tsc circularConstraintType (47196): the circular-constraint
+    /// sentinel from getImmediateBaseConstraint — never exposed.
+    pub circular_constraint_type: TypeId,
 
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
@@ -203,6 +209,8 @@ impl<'a> CheckerState<'a> {
             empty_type_literal_type: TypeId(0),
             empty_generic_type: TypeId(0),
             any_function_type: TypeId(0),
+            no_constraint_type: TypeId(0),
+            circular_constraint_type: TypeId(0),
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
@@ -253,6 +261,11 @@ impl<'a> CheckerState<'a> {
         let any_function_flags = state.tables.object_flags_of(state.any_function_type)
             | ObjectFlags::NON_INFERRABLE_TYPE;
         state.tables.type_mut(state.any_function_type).object_flags = any_function_flags;
+        // tsc-port: noConstraintType + circularConstraintType @6.0.3
+        // tsc-hash: 06e5cd556cafd99a8a477e291385d1cb488f4d28676756e76a7ef6135c9d198b
+        // tsc-span: _tsc.js:47188-47203
+        state.no_constraint_type = state.create_resolved_empty_anonymous_type(None);
+        state.circular_constraint_type = state.create_resolved_empty_anonymous_type(None);
 
         // initializeTypeChecker slice (88732-88906): globals merge +
         // symbol-type seeds + amalgamated-duplicate flush.
@@ -412,10 +425,19 @@ impl<'a> CheckerState<'a> {
                     .resolved()
                     .is_some()
             }
+            TypeSystemPropertyName::IMMEDIATE_BASE_CONSTRAINT => {
+                let ResolutionTarget::Type(ty) = target else {
+                    unreachable!("ImmediateBaseConstraint resolution targets are types");
+                };
+                self.links
+                    .ty(ty)
+                    .immediate_base_constraint
+                    .resolved()
+                    .is_some()
+            }
             // No call site pushes these yet: ResolvedBaseConstructorType/
             // ResolvedBaseTypes land with 5.3's base-type resolvers,
             // ResolvedTypeArguments with 5.3's reference members,
-            // ImmediateBaseConstraint with 5.2's constraint machinery,
             // WriteType with 5.1's accessor typing,
             // ParameterInitializerContainsUndefined with 5.8.
             _ => unreachable!(
