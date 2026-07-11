@@ -330,6 +330,42 @@ unreachable-code slice (86763) is elided whole to M5
 
 Commit: `m4 5.4: check driver (eager/deferred)`.
 
+## LIB-LOADING DECISION POINT (raised by 5.4's FP burn-down) [!]
+
+5.4 exposed the structural tension the 5.0 noLib decision deferred:
+the conformance oracle checks every program WITH its target's default
+libs (harness resolve_program_libs feeds programJson.libs; the oracle
+host loads them), while this engine binds none — so every new wave of
+checker-driven FORCING mints diagnostics tsc's world never shows.
+5.4's wave (name resolution: 2304/2583 on Date/Promise/Partial/...)
+was absorbed by honest failure-band gates (lib_globals.rs + the
+re-probe/augmentation gates), at FN cost. The 5.5 wave will NOT be
+gateable the same way: expression checking forces PROPERTY access on
+lib-typed values (`"x".length`, array methods, Promise members), and
+under noLib the apparent-type chain falls back to emptyObjectType —
+the 2339-family failures are property-level, not name-level, and
+suppressing them means gating the heart of the 2xxx band. The M4 exit
+gate (T0 >= 35%) is unlikely to be reachable under noLib.
+
+The architecture already leaves the door open:
+- Lib files are the program PREFIX, so for a fixed lib set the
+  node/array/symbol id bases of every lib file are IDENTICAL across
+  programs — parse+bind ONCE per lib set and share the immutable
+  SourceFiles/Binders (the id-base design makes the cache exact, not
+  approximate). Fixture files then bind on top with the usual bases.
+- Goldens collect diagnostics for FIXTURE files only (driver.mjs
+  iterates programJson.files, not libs), so lib files never need
+  CHECKING — only resolvability. skipLibCheck semantics are moot;
+  laziness bounds typing cost to what fixtures actually force.
+- Unsupported holes (mapped types in Partial, conditionals in
+  ReturnType) stay honest FN escapes when forced — no FP exposure.
+
+Retires on landing: lib_globals.rs whole, the 2583-dead-branch note,
+most of the failure-band FN cost, and the per-wave gate treadmill.
+Decide BEFORE starting 5.5; the recommendation as of 5.4 is to land
+lib loading first (it is program plumbing, not checker semantics, and
+every later stage's rate reads become honest against it).
+
 ## Stage 5.5: expression checking, non-call arms [M]
 
 `checkExpression` (80960) dispatch, porting arms in tsc order, each
@@ -429,6 +465,24 @@ inference.
 Commit: `m4 5.7: resolveCall/chooseOverload (inference stubbed)`.
 
 ## Stage 5.8: statements + declarations [M]
+
+RE-ENTRANCY TRAP (from 5.4): node resolvedType caches are write-once
+(panic on rewrite) everywhere EXCEPT the TypeReference arm, whose tail
+became tsc's unguarded overwrite at 5.4
+(links.overwrite_type_reference_resolution) because the
+type-parameter-default recursion (getResolvedTypeParameterDefault
+59043) re-enters the node mid-computation. Any type-node check* arm
+landing here that FORCES ITS OWN node (getTypeFromTypeNode(node)
+before/around child recursion, the checkTypeReferenceNode shape)
+inherits the same requirement the moment the node can sit in a
+type-parameter default subtree — `interface P<T = Q[]>` variants
+re-enter through the inner reference today, but a self-forcing
+checkArrayType/checkUnionOrIntersectionType/checkTypeOperator arm
+moves the double-write onto ITS node kind. At each arm's landing:
+either route its cache write through overwrite semantics (tsc's
+shape) or prove the arm's nodes unreachable from default subtrees.
+The write-once panic is the tripwire — it fails loud, not wrong.
+
 
 `checkVariableDeclaration` (83600) family (annotation-vs-initializer
 2322, destructuring declarations), control statements (if/while/for
