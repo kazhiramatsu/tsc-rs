@@ -1707,3 +1707,68 @@ setup = "interface A { self: this; a: number }\ninterface J extends A { }"
 source = "A"
 target = "J"
 expect = "yes"
+
+# ---- M4 5.3c tuple members + rest-parameter arity ----
+
+[[pair]]
+setup = "type A = [string, number];"
+source = "A[1]"
+target = "number"
+expect = "yes"
+
+[[pair]]
+setup = "type A = [string, number];"
+source = "A[0]"
+target = "number"
+expect = "no"
+
+# The synthesized length property: a fixed tuple's length is a literal.
+[[pair]]
+source = "[number, number]"
+target = "{ length: 2 }"
+expect = "yes"
+
+[[pair]]
+source = "[number, number]"
+target = "{ length: 3 }"
+expect = "no"
+
+# Labels never affect assignability.
+[[pair]]
+source = "[x: number, y: string]"
+target = "[number, string]"
+expect = "yes"
+
+[[pair]]
+source = "[number, string]"
+target = "[x: number, y: string]"
+expect = "yes"
+
+# Rest-parameter signatures (the pin-file header's deferred category):
+# tuple rests expand through the arity machinery.
+[[pair]]
+source = "(...args: [number, string?]) => void"
+target = "(a: number, b?: string) => void"
+expect = "yes"
+
+[[pair]]
+source = "(a: number, b?: string) => void"
+target = "(...args: [number, string?]) => void"
+expect = "yes"
+
+[[pair]]
+source = "(...args: [number]) => void"
+target = "() => void"
+expect = "no"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "(...args: [number, ...string[]]) => void"
+target = "(a: number, b: string, c: string) => void"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "(...args: string[]) => void"
+target = "(a: string) => void"
+expect = "yes"

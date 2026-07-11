@@ -1543,12 +1543,11 @@ impl TypeTables {
     /// tsc-hash: 180d4131d4865f2a4bb2c6da0d56e1fa6dfd835ca8f37214d9cdc6e3f10f7359
     /// tsc-span: _tsc.js:61145-61155
     ///
-    /// The labeled-member key segment (getNodeId-keyed, 61149) is
-    /// deferred with labeled tuple elements (ty.rs TupleTargetData).
     pub fn get_tuple_target_type(
         &mut self,
         element_flags: &[ElementFlags],
         readonly: bool,
+        named_member_declarations: Option<&[Option<u32>]>,
     ) -> Result<TypeId, M4Dependency> {
         if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::REST) {
             // `[...T[]]` collapses to (readonly) Array<T> (61146-61148).
@@ -1574,10 +1573,26 @@ impl TypeTables {
         if readonly {
             key.push('R');
         }
+        // The labeled-member key segment (getNodeId-keyed, 61149).
+        let named = named_member_declarations
+            .filter(|declarations| declarations.iter().any(Option::is_some));
+        if let Some(declarations) = named {
+            key.push(',');
+            key.push_str(
+                &declarations
+                    .iter()
+                    .map(|declaration| match declaration {
+                        Some(id) => id.to_string(),
+                        None => "_".to_owned(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
+        }
         if let Some(&id) = self.tuple_types.get(&key) {
             return Ok(id);
         }
-        let id = self.create_tuple_target_type(element_flags, readonly);
+        let id = self.create_tuple_target_type(element_flags, readonly, named);
         self.tuple_types.insert(key, id);
         Ok(id)
     }
@@ -1594,6 +1609,7 @@ impl TypeTables {
         &mut self,
         element_flags: &[ElementFlags],
         readonly: bool,
+        named_member_declarations: Option<&[Option<u32>]>,
     ) -> TypeId {
         let arity = element_flags.len();
         let min_length = element_flags
@@ -1628,6 +1644,8 @@ impl TypeTables {
                 has_rest_element,
                 combined_flags,
                 readonly,
+                labeled_element_declarations: named_member_declarations
+                    .map(|declarations| declarations.to_vec().into_boxed_slice()),
             }),
         );
         self.type_mut(target).object_flags =
@@ -1664,6 +1682,7 @@ impl TypeTables {
         element_types: &[TypeId],
         element_flags: Option<&[ElementFlags]>,
         readonly: bool,
+        named_member_declarations: Option<&[Option<u32>]>,
     ) -> Result<TypeId, M4Dependency> {
         let default_flags;
         let element_flags = match element_flags {
@@ -1673,7 +1692,8 @@ impl TypeTables {
                 &default_flags
             }
         };
-        let target = self.get_tuple_target_type(element_flags, readonly)?;
+        let target =
+            self.get_tuple_target_type(element_flags, readonly, named_member_declarations)?;
         if element_types.is_empty() {
             return Ok(target);
         }
@@ -1732,6 +1752,14 @@ impl TypeTables {
         }
         let mut expanded_types: Vec<TypeId> = Vec::new();
         let mut expanded_flags: Vec<ElementFlags> = Vec::new();
+        let mut expanded_declarations: Vec<Option<u32>> = Vec::new();
+        let outer_labels = data.labeled_element_declarations.clone();
+        let outer_declaration = move |i: usize| -> Option<u32> {
+            outer_labels
+                .as_ref()
+                .and_then(|declarations| declarations.get(i).copied())
+                .flatten()
+        };
         let mut last_required_index: isize = -1;
         let mut first_rest_index: isize = -1;
         let mut last_optional_or_rest_index: isize = -1;
@@ -1739,8 +1767,10 @@ impl TypeTables {
             let mut add_element = |tables: &mut Self,
                                    expanded_types: &mut Vec<TypeId>,
                                    expanded_flags: &mut Vec<ElementFlags>,
+                                   expanded_declarations: &mut Vec<Option<u32>>,
                                    ty: TypeId,
-                                   flags: ElementFlags| {
+                                   flags: ElementFlags,
+                                   declaration: Option<u32>| {
                 if flags.intersects(ElementFlags::REQUIRED) {
                     last_required_index = expanded_flags.len() as isize;
                 }
@@ -1759,6 +1789,7 @@ impl TypeTables {
                 };
                 expanded_types.push(pushed);
                 expanded_flags.push(flags);
+                expanded_declarations.push(declaration);
             };
 
             for (i, &element_type) in element_types.iter().enumerate() {
@@ -1769,8 +1800,10 @@ impl TypeTables {
                             self,
                             &mut expanded_types,
                             &mut expanded_flags,
+                            &mut expanded_declarations,
                             element_type,
                             ElementFlags::REST,
+                            outer_declaration(i),
                         );
                     } else if self
                         .flags_of(element_type)
@@ -1780,8 +1813,10 @@ impl TypeTables {
                             self,
                             &mut expanded_types,
                             &mut expanded_flags,
+                            &mut expanded_declarations,
                             element_type,
                             ElementFlags::VARIADIC,
+                            outer_declaration(i),
                         );
                     } else if self.is_tuple_type(element_type) {
                         let inner_target = self.reference_target(element_type);
@@ -1806,12 +1841,19 @@ impl TypeTables {
                             return Err(M4Dependency("tuple too large to represent (2799 family)"));
                         }
                         for (n, &inner_type) in inner_args.iter().enumerate() {
+                            let inner_declaration = inner
+                                .labeled_element_declarations
+                                .as_ref()
+                                .and_then(|declarations| declarations.get(n).copied())
+                                .flatten();
                             add_element(
                                 self,
                                 &mut expanded_types,
                                 &mut expanded_flags,
+                                &mut expanded_declarations,
                                 inner_type,
                                 inner.element_flags[n],
+                                inner_declaration,
                             );
                         }
                     } else {
@@ -1824,8 +1866,10 @@ impl TypeTables {
                         self,
                         &mut expanded_types,
                         &mut expanded_flags,
+                        &mut expanded_declarations,
                         element_type,
                         flags,
+                        outer_declaration(i),
                     );
                 }
             }
@@ -1858,8 +1902,13 @@ impl TypeTables {
             expanded_types[first] = self.get_union_type(&window, UnionReduction::Literal);
             expanded_types.drain(first + 1..=last);
             expanded_flags.drain(first + 1..=last);
+            expanded_declarations.drain(first + 1..=last);
         }
-        let tuple_target = self.get_tuple_target_type(&expanded_flags, data.readonly)?;
+        let named = expanded_declarations
+            .iter()
+            .any(Option::is_some)
+            .then_some(expanded_declarations.as_slice());
+        let tuple_target = self.get_tuple_target_type(&expanded_flags, data.readonly, named)?;
         if expanded_flags.is_empty() {
             Ok(tuple_target)
         } else {
@@ -2691,9 +2740,9 @@ mod tests {
     fn tuple_targets_intern_by_flags_and_readonly() {
         let mut t = tables();
         let req = [ElementFlags::REQUIRED, ElementFlags::OPTIONAL];
-        let a = t.get_tuple_target_type(&req, false).expect("target");
-        let b = t.get_tuple_target_type(&req, false).expect("target");
-        let readonly = t.get_tuple_target_type(&req, true).expect("target");
+        let a = t.get_tuple_target_type(&req, false, None).expect("target");
+        let b = t.get_tuple_target_type(&req, false, None).expect("target");
+        let readonly = t.get_tuple_target_type(&req, true, None).expect("target");
         assert_eq!(a, b);
         assert_ne!(a, readonly);
         let TypeData::TupleTarget(data) = &t.type_of(a).data else {
@@ -2704,7 +2753,7 @@ mod tests {
         assert!(!data.has_rest_element);
 
         let rest = [ElementFlags::REQUIRED, ElementFlags::REST];
-        let with_rest = t.get_tuple_target_type(&rest, false).expect("target");
+        let with_rest = t.get_tuple_target_type(&rest, false, None).expect("target");
         let TypeData::TupleTarget(data) = &t.type_of(with_rest).data else {
             panic!("tuple target expected");
         };
@@ -2721,18 +2770,18 @@ mod tests {
         let boolean = t.intrinsics.boolean;
         // [string, boolean]
         let inner = t
-            .create_tuple_type(&[string, boolean], None, false)
+            .create_tuple_type(&[string, boolean], None, false, None)
             .expect("inner tuple");
         // [number, ...[string, boolean]] normalizes to [number, string, boolean].
         let outer_flags = [ElementFlags::REQUIRED, ElementFlags::VARIADIC];
         let outer_target = t
-            .get_tuple_target_type(&outer_flags, false)
+            .get_tuple_target_type(&outer_flags, false, None)
             .expect("target");
         let outer = t
             .create_normalized_tuple_type(outer_target, &[number, inner])
             .expect("normalized");
         let direct = t
-            .create_tuple_type(&[number, string, boolean], None, false)
+            .create_tuple_type(&[number, string, boolean], None, false, None)
             .expect("direct tuple");
         assert_eq!(outer, direct);
     }

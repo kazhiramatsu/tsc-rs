@@ -2810,19 +2810,82 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2deef363c847c3d8dd816c49efdf631572c8bd5cd017402e80809d986d917197
     /// tsc-span: _tsc.js:64479-64486
     ///
-    /// Rest parameters never construct in M3 (array annotations are
-    /// M4), so signatureHasRestParameter is false and the answer is
-    /// always false — ported for the 4.8 Subtype activation.
     pub fn is_top_signature(&mut self, signature: SignatureId) -> CheckResult2<bool> {
-        let signature_data = self.signature_of(signature);
-        if signature_data.parameters.len() == 1
+        let signature_data = self.signature_of(signature).clone();
+        let this_is_any = match signature_data.this_parameter {
+            None => true,
+            Some(this_parameter) => {
+                let this_type = self.get_type_of_parameter(this_parameter)?;
+                self.tables.flags_of(this_type).intersects(TypeFlags::ANY)
+            }
+        };
+        if signature_data.type_parameters.is_none()
+            && this_is_any
+            && signature_data.parameters.len() == 1
             && signature_data
                 .flags
                 .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
         {
-            return Err(Unsupported::new("rest-parameter signatures (M4)"));
+            let parameter_type = self.get_type_of_parameter(signature_data.parameters[0])?;
+            let rest_type = if self.is_array_type(parameter_type)? {
+                self.get_type_arguments(parameter_type)?[0]
+            } else {
+                parameter_type
+            };
+            let return_type = self.get_return_type_of_signature(signature)?;
+            return Ok(self
+                .tables
+                .flags_of(rest_type)
+                .intersects(TypeFlags::ANY | TypeFlags::NEVER)
+                && self
+                    .tables
+                    .flags_of(return_type)
+                    .intersects(TypeFlags::ANY_OR_UNKNOWN));
         }
         Ok(false)
+    }
+
+    /// tsc-port: isArrayType @6.0.3
+    /// tsc-hash: 880f484023ae500fd17675daebbc00e72462411283bf49135001973ca042cf9f
+    /// tsc-span: _tsc.js:67665-67667
+    pub(crate) fn is_array_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            return Ok(false);
+        }
+        let target = self.tables.reference_target(ty);
+        Ok(target == self.global_array_type()? || target == self.global_readonly_array_type()?)
+    }
+
+    /// The rest-parameter tuple target, when the last parameter's type
+    /// is a tuple reference.
+    fn rest_tuple_target_data(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<Option<(TypeId, tsrs2_types::TupleTargetData)>> {
+        let signature_data = self.signature_of(signature);
+        if !signature_data
+            .flags
+            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
+        {
+            return Ok(None);
+        }
+        let rest_parameter = *signature_data
+            .parameters
+            .last()
+            .expect("rest-parameter signatures have parameters");
+        let rest_type = self.get_type_of_symbol(rest_parameter)?;
+        if !self.tables.is_tuple_type(rest_type) {
+            return Ok(None);
+        }
+        let target = self.tables.reference_target(rest_type);
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+            unreachable!("tuple type targets a tuple target");
+        };
+        Ok(Some((rest_type, data)))
     }
 
     // ---- arity helpers (78233-78341) ----
@@ -2831,13 +2894,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 88e24efd3edb09e7c4c597f52541cb2cc8bb745ffdfb9ddd606c00c0e7ecb9b7
     /// tsc-span: _tsc.js:78277-78286
     pub fn get_parameter_count(&mut self, signature: SignatureId) -> CheckResult2<usize> {
-        let signature_data = self.signature_of(signature);
-        let length = signature_data.parameters.len();
-        if signature_data
-            .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
-        {
-            return Err(Unsupported::new("rest-parameter signatures (M4)"));
+        let length = self.signature_of(signature).parameters.len();
+        if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
+            return Ok(
+                length + data.fixed_length
+                    - usize::from(!data.combined_flags.intersects(ElementFlags::VARIABLE)),
+            );
         }
         Ok(length)
     }
@@ -2846,17 +2908,27 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7e615bfc72d73516124a8fd89a208b2ca2036519bbaf5b7cad73d2010b1ef3b8
     /// tsc-span: _tsc.js:78287-78321
     ///
-    /// The tuple-rest branch is M4; the void-trimming loop lowers the
-    /// syntactic count when trailing parameters accept void.
+    /// The (StrongArityForUntypedJS|VoidIsNonOptional) flags parameter
+    /// is elided — every ported caller passes none, so the
+    /// resolvedMinArgumentCount cache reduces to recomputation; the
+    /// void-trimming loop lowers the syntactic count when trailing
+    /// parameters accept void.
     pub fn get_min_argument_count(&mut self, signature: SignatureId) -> CheckResult2<usize> {
-        let signature_data = self.signature_of(signature);
-        if signature_data
-            .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
-        {
-            return Err(Unsupported::new("rest-parameter signatures (M4)"));
+        let mut computed: Option<usize> = None;
+        if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
+            let first_optional_index = data
+                .element_flags
+                .iter()
+                .position(|flags| !flags.intersects(ElementFlags::REQUIRED));
+            let required_count = first_optional_index.unwrap_or(data.fixed_length);
+            if required_count > 0 {
+                computed =
+                    Some(self.signature_of(signature).parameters.len() - 1 + required_count);
+            }
         }
-        let mut min_argument_count = signature_data.min_argument_count as usize;
+        let signature_data = self.signature_of(signature);
+        let mut min_argument_count =
+            computed.unwrap_or(signature_data.min_argument_count as usize);
         let mut i = min_argument_count;
         while i > 0 {
             i -= 1;
@@ -2877,14 +2949,133 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4545af73ef96a3c83fa4e089d6a10737e822c04c947fb002fbfa5e24fe93959f
     /// tsc-span: _tsc.js:78322-78328
     pub fn has_effective_rest_parameter(&mut self, signature: SignatureId) -> CheckResult2<bool> {
-        if self
+        if !self
             .signature_of(signature)
             .flags
             .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
         {
-            return Err(Unsupported::new("rest-parameter signatures (M4)"));
+            return Ok(false);
         }
-        Ok(false)
+        match self.rest_tuple_target_data(signature)? {
+            None => Ok(true),
+            Some((_, data)) => Ok(data.combined_flags.intersects(ElementFlags::VARIABLE)),
+        }
+    }
+
+    /// tsc-port: getEffectiveRestType @6.0.3
+    /// tsc-hash: dc61427d195fae1b21b9d693d06a386da7077ed2559c33e243ae2b4cd472f37a
+    /// tsc-span: _tsc.js:78329-78341
+    pub fn get_effective_rest_type(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let signature_data = self.signature_of(signature);
+        if !signature_data
+            .flags
+            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
+        {
+            return Ok(None);
+        }
+        let rest_parameter = *signature_data
+            .parameters
+            .last()
+            .expect("rest-parameter signatures have parameters");
+        let rest_type = self.get_type_of_symbol(rest_parameter)?;
+        if !self.tables.is_tuple_type(rest_type) {
+            return Ok(Some(
+                if self.tables.flags_of(rest_type).intersects(TypeFlags::ANY) {
+                    self.any_array_type()?
+                } else {
+                    rest_type
+                },
+            ));
+        }
+        let target = self.tables.reference_target(rest_type);
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+            unreachable!("tuple type targets a tuple target");
+        };
+        if data.combined_flags.intersects(ElementFlags::VARIABLE) {
+            return Ok(Some(self.slice_tuple_type(rest_type, data.fixed_length, 0)?));
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: sliceTupleType @6.0.3
+    /// tsc-hash: f3e74aeb0c72e2b0ddb886f625669eeb36d0c954405b64b394783b09cf1519b2
+    /// tsc-span: _tsc.js:61288-61299
+    pub(crate) fn slice_tuple_type(
+        &mut self,
+        ty: TypeId,
+        index: usize,
+        end_skip_count: usize,
+    ) -> CheckResult2<TypeId> {
+        let target = self.tables.reference_target(ty);
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+            unreachable!("tuple type targets a tuple target");
+        };
+        let end_index = data.type_parameters.len() - end_skip_count;
+        if index > data.fixed_length {
+            let rest_array = self.get_rest_array_type_of_tuple_type(ty)?;
+            return match rest_array {
+                Some(array) => Ok(array),
+                None => self
+                    .tables
+                    .create_tuple_type(&[], None, false, None)
+                    .map_err(Self::unsupported_m4),
+            };
+        }
+        let arguments = self.get_type_arguments(ty)?;
+        let labels = data
+            .labeled_element_declarations
+            .as_ref()
+            .map(|declarations| declarations[index..end_index].to_vec());
+        self.create_tuple_type_forced(
+            &arguments[index..end_index],
+            Some(&data.element_flags[index..end_index]),
+            /*readonly*/ false,
+            labels.as_deref(),
+        )
+    }
+
+    /// tsc-port: getRestArrayTypeOfTupleType @6.0.3
+    /// tsc-hash: 0e78932a17539cec04a5456647111329efdaf8c6f3cfd7ed49ccb870d6431d6c
+    /// tsc-span: _tsc.js:67816-67819
+    pub(crate) fn get_rest_array_type_of_tuple_type(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let rest_type = self.get_rest_type_of_tuple_type(ty)?;
+        match rest_type {
+            Some(rest_type) => Ok(Some(self.create_array_type(rest_type, false)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// createTupleType through the checker's variadic pre-force wrapper
+    /// (tables cannot force deferred element arguments).
+    pub(crate) fn create_tuple_type_forced(
+        &mut self,
+        element_types: &[TypeId],
+        element_flags: Option<&[ElementFlags]>,
+        readonly: bool,
+        named_member_declarations: Option<&[Option<u32>]>,
+    ) -> CheckResult2<TypeId> {
+        let default_flags;
+        let flags = match element_flags {
+            Some(flags) => flags,
+            None => {
+                default_flags = vec![ElementFlags::REQUIRED; element_types.len()];
+                &default_flags
+            }
+        };
+        let target = self
+            .tables
+            .get_tuple_target_type(flags, readonly, named_member_declarations)
+            .map_err(Self::unsupported_m4)?;
+        if element_types.is_empty() {
+            return Ok(target);
+        }
+        self.create_normalized_type_reference_forced(target, element_types)
     }
 
     /// tsc-port: getTypeAtPosition @6.0.3
@@ -2909,15 +3100,40 @@ impl<'a> CheckerState<'a> {
         pos: usize,
     ) -> CheckResult2<Option<TypeId>> {
         let signature_data = self.signature_of(signature);
-        if signature_data
-            .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
-        {
-            return Err(Unsupported::new("rest-parameter signatures (M4)"));
-        }
         let parameters = signature_data.parameters.clone();
-        if pos < parameters.len() {
+        let has_rest = signature_data
+            .flags
+            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER);
+        let parameter_count = parameters.len() - usize::from(has_rest);
+        if pos < parameter_count {
             return Ok(Some(self.get_type_of_parameter(parameters[pos])?));
+        }
+        if has_rest {
+            let rest_type = self.get_type_of_symbol(parameters[parameter_count])?;
+            let index = pos - parameter_count;
+            let tuple_gate = if self.tables.is_tuple_type(rest_type) {
+                let target = self.tables.reference_target(rest_type);
+                match &self.tables.type_of(target).data {
+                    TypeData::TupleTarget(data) => {
+                        data.combined_flags.intersects(ElementFlags::VARIABLE)
+                            || index < data.fixed_length
+                    }
+                    _ => unreachable!("tuple type targets a tuple target"),
+                }
+            } else {
+                true
+            };
+            if tuple_gate {
+                let literal = self.tables.get_number_literal_type(index as f64);
+                return Ok(Some(self.get_indexed_access_type(
+                    rest_type,
+                    literal,
+                    tsrs2_types::AccessFlags::NONE,
+                    None,
+                    None,
+                    None,
+                )?));
+            }
         }
         Ok(None)
     }

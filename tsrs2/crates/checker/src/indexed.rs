@@ -1189,21 +1189,27 @@ mod tests {
     }
 
     #[test]
-    fn tuple_indexed_access_escapes_to_tuple_member_synthesis() {
+    fn tuple_indexed_access_reads_the_synthesized_members() {
         with_program_state(
-            &[("a.ts", "declare var v: [string, number][1];\n")],
+            &[(
+                "a.ts",
+                // Array<T> feeds getTupleBaseType (the tuple target's
+                // base) during member resolution.
+                "interface Array<T> { length: number }\n\
+                 declare var v: [string, number][1];\ndeclare var w: [string, number][\"length\"];\n",
+            )],
             &CompilerOptions::default(),
             |state| {
-                // The property lookup consults the tuple reference's
-                // synthesized members — 5.3 tuple member synthesis;
-                // getTupleElementTypeOutOfStartCount unblocks with it.
-                let annotation = find_probe_annotation(state.binder.source(0), "v")
-                    .expect("var with annotation");
-                let reason = state
-                    .get_type_from_type_node(annotation)
-                    .expect_err("tuple member reads are a 5.3 row")
-                    .reason;
-                assert!(reason.contains("M4 5.3"), "{reason}");
+                // 5.3c: the property lookup consults the tuple
+                // reference's synthesized per-index/length members.
+                assert_eq!(annotation_type(state, "v"), state.tables.intrinsics.number);
+                let length = annotation_type(state, "w");
+                // Fixed [string, number]: length is the literal 2.
+                assert!(state
+                    .tables
+                    .flags_of(length)
+                    .intersects(TypeFlags::NUMBER_LITERAL));
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
             },
         );
     }

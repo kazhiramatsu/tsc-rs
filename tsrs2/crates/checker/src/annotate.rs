@@ -476,20 +476,19 @@ impl<'a> CheckerState<'a> {
             unreachable!("non-array node here is a tuple");
         };
         let elements = self.nodes_of(data.elements);
-        if elements
-            .iter()
-            .any(|&element| self.is_named_tuple_member(element))
-        {
-            return Err(Unsupported::new(
-                "labeled tuple elements (deferred with tuple property synthesis)",
-            ));
-        }
         let element_flags: Vec<ElementFlags> = elements
             .iter()
             .map(|&element| self.get_tuple_element_flags(element))
             .collect();
+        // 61063: named member declarations — per-element
+        // NamedTupleMember nodes (raw ids; the tables key + target data
+        // are NodeId-free).
+        let named: Vec<Option<u32>> = elements
+            .iter()
+            .map(|&element| self.is_named_tuple_member(element).then(|| element.0))
+            .collect();
         self.tables
-            .get_tuple_target_type(&element_flags, readonly)
+            .get_tuple_target_type(&element_flags, readonly, Some(&named))
             .map_err(Self::unsupported_m4)
     }
 
@@ -2104,10 +2103,84 @@ impl<'a> CheckerState<'a> {
         if let Some(declared) = self.links.ty(target).declared_members.resolved() {
             return Ok(declared);
         }
-        if matches!(self.tables.type_of(target).data, TypeData::TupleTarget(_)) {
-            return Err(Unsupported::new(
-                "tuple declared member synthesis (M4 5.3c)",
-            ));
+        if let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() {
+            // createTupleTargetType's property synthesis (61160-61185),
+            // deferred from creation to first read: per-index props for
+            // positions before the first Variable element (links.type =
+            // the marker parameter), then the length property (number
+            // with a rest element, else the minLength..=arity literal
+            // union). Call/construct/index lists are empty (61198-61200).
+            let mut properties: Vec<SymbolId> = Vec::new();
+            let mut combined = ElementFlags::from_bits(0);
+            for (i, &type_parameter) in data.type_parameters.iter().enumerate() {
+                let flags = data.element_flags[i];
+                combined |= flags;
+                if !combined.intersects(ElementFlags::VARIABLE) {
+                    let mut symbol_flags = SymbolFlags::PROPERTY;
+                    if flags.intersects(ElementFlags::OPTIONAL) {
+                        symbol_flags |= SymbolFlags::OPTIONAL;
+                    }
+                    let property = self.binder.create_symbol(symbol_flags, i.to_string());
+                    if data.readonly {
+                        self.links.set_symbol_check_flags(
+                            self.speculation_depth,
+                            property,
+                            CheckFlags::READONLY,
+                        );
+                    }
+                    let label = data
+                        .labeled_element_declarations
+                        .as_ref()
+                        .and_then(|declarations| declarations.get(i).copied())
+                        .flatten();
+                    if let Some(label) = label {
+                        self.links.set_symbol_tuple_label_declaration(
+                            self.speculation_depth,
+                            property,
+                            NodeId(label),
+                        );
+                    }
+                    self.links.set_symbol_type(
+                        self.speculation_depth,
+                        property,
+                        LinkSlot::Resolved(type_parameter),
+                    );
+                    properties.push(property);
+                }
+            }
+            let length_symbol = self
+                .binder
+                .create_symbol(SymbolFlags::PROPERTY, "length".to_owned());
+            if data.readonly {
+                self.links.set_symbol_check_flags(
+                    self.speculation_depth,
+                    length_symbol,
+                    CheckFlags::READONLY,
+                );
+            }
+            let length_type = if combined.intersects(ElementFlags::VARIABLE) {
+                self.tables.intrinsics.number
+            } else {
+                let literals: Vec<TypeId> = (data.min_length..=data.type_parameters.len())
+                    .map(|length| self.tables.get_number_literal_type(length as f64))
+                    .collect();
+                self.get_union_type_ex(&literals, UnionReduction::Literal)?
+            };
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                length_symbol,
+                LinkSlot::Resolved(length_type),
+            );
+            properties.push(length_symbol);
+            let members = self.symbol_list_to_table(&properties);
+            let id = self.alloc_members(ResolvedMembers {
+                members,
+                properties,
+                ..ResolvedMembers::default()
+            });
+            self.links
+                .set_type_declared_members(self.speculation_depth, target, id);
+            return Ok(id);
         }
         let symbol = self
             .tables
@@ -4946,6 +5019,102 @@ mod generic_reference_tests {
                     .get_normalized_type(j, /*writing*/ false)
                     .expect("normalizes");
                 assert_eq!(normalized, j);
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn circular_tuple_type_arguments_report_4110() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface Array<T> { length: number }\ntype A = [A[0]];\ndeclare var v: A;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let deferred = state.get_type_from_type_node(v).expect("tuple RHS defers");
+                // Forcing the arguments resolves A[0], whose property
+                // lookup re-enters getTypeArguments on the same
+                // reference — the pop-failure arm fills errorType and
+                // reports 4110 at the tuple node (oracle-pinned).
+                let arguments = state.get_type_arguments(deferred).expect("forcible");
+                assert_eq!(arguments, [state.tables.intrinsics.error]);
+                let codes: Vec<u32> = state
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostic| diagnostic.code())
+                    .collect();
+                assert_eq!(codes, [4110], "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn circular_interface_type_arguments_report_4109() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface I<T> { a: T }\ntype B = I<B[\"a\"]>;\ndeclare var w: B;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let w = annotation_of(state, "w");
+                let deferred = state.get_type_from_type_node(w).expect("alias RHS defers");
+                let arguments = state.get_type_arguments(deferred).expect("forcible");
+                assert_eq!(arguments, [state.tables.intrinsics.error]);
+                let codes: Vec<u32> = state
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostic| diagnostic.code())
+                    .collect();
+                assert_eq!(codes, [4109], "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn labeled_tuples_synthesize_named_index_members() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface Array<T> { length: number }\n\
+                 type P = [x: number, y?: string];\ndeclare var v: P[0];\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                // Labeled tuple targets intern with the node-id key
+                // segment and carry tupleLabelDeclaration on the
+                // synthesized properties.
+                let v = annotation_of(state, "v");
+                let resolved = state.get_type_from_type_node(v).expect("P[0]");
+                assert_eq!(resolved, state.tables.intrinsics.number);
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn rest_parameter_arity_reads_tuple_rest_types() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface Array<T> { length: number }\n\
+                 declare var f: (...args: [number, string?]) => void;\n\
+                 declare var g: (a: number, b?: string) => void;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                // Tuple rest parameters expand for arity: f accepts
+                // (number, string?) exactly like g — assignable both
+                // ways through the signature arity machinery.
+                let f_node = annotation_of(state, "f");
+                let f = state.get_type_from_type_node(f_node).expect("f resolves");
+                let g_node = annotation_of(state, "g");
+                let g = state.get_type_from_type_node(g_node).expect("g resolves");
+                assert_eq!(state.is_type_assignable_to(f, g), Ok(true));
+                assert_eq!(state.is_type_assignable_to(g, f), Ok(true));
                 assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
             },
         );

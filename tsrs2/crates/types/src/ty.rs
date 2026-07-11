@@ -76,6 +76,10 @@ pub struct TupleTargetData {
     pub has_rest_element: bool,
     pub combined_flags: ElementFlags,
     pub readonly: bool,
+    /// tsc labeledElementDeclarations (61207): per-element
+    /// NamedTupleMember/Parameter node ids as raw u32s (the types
+    /// crate is NodeId-free); None when no element is labeled.
+    pub labeled_element_declarations: Option<Box<[Option<u32>]>>,
 }
 
 /// Per-kind payload (greenfield §4.2 TypeData). M3 carries the kinds

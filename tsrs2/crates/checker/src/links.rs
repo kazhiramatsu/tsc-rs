@@ -86,6 +86,10 @@ pub struct SymbolLinks {
     /// container; equal to `symbol.members` while no late-bindable
     /// member exists (the pre-5.5 slice).
     pub resolved_members: LinkSlot<tsrs2_binder::SymbolTable>,
+    /// tsc links.tupleLabelDeclaration (createTupleTargetType 61170):
+    /// the NamedTupleMember/Parameter node behind a synthesized tuple
+    /// index property.
+    pub tuple_label_declaration: Option<NodeId>,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -492,6 +496,22 @@ impl LinksTables {
     pub fn set_type_base_types_resolved(&mut self, speculation_depth: u32, id: TypeId) {
         Self::assert_writable(speculation_depth);
         self.ty.entry(id).or_default().base_types_resolved = true;
+    }
+
+    /// createTupleTargetType's tupleLabelDeclaration stamp (61170).
+    pub fn set_symbol_tuple_label_declaration(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        declaration: NodeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        assert!(
+            links.tuple_label_declaration.is_none(),
+            "tuple label written twice for {id:?}"
+        );
+        links.tuple_label_declaration = Some(declaration);
     }
 
     /// getSingleBaseForNonAugmentingSubtype's cachedEquivalentBaseType
