@@ -366,6 +366,16 @@ Decide BEFORE starting 5.5; the recommendation as of 5.4 is to land
 lib loading first (it is program plumbing, not checker semantics, and
 every later stage's rate reads become honest against it).
 
+DECIDED (2026-07-12): executed as its own staged insert —
+m4-lib-loading-steps.md (L1 lib corpus gate → L2 plumbing → L3
+per-lib-set cache → L4 measurement + lib_globals retirement). The
+oracle contract turned out SIMPLER than feared: the oracle host runs
+noLib:true with the harness-expanded libs as ordinary prepended ROOTS,
+so <reference lib> is inert program-wide, tsc's default-lib bucket
+ordering is unreachable, and getSourceFiles order == ProgramJson.libs
+order ++ fixtures (empirically pinned) — the engine consumes the libs
+list as given.
+
 ## Stage 5.5: expression checking, non-call arms [M]
 
 `checkExpression` (80960) dispatch, porting arms in tsc order, each
