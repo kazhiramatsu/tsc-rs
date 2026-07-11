@@ -118,7 +118,7 @@ impl<'a> CheckerState<'a> {
                 Err(Unsupported::new("this types (M4 5.3)"))
             }
             SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
-            SyntaxKind::IndexedAccessType => Err(Unsupported::new("indexed access types (M4 5.2)")),
+            SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
             SyntaxKind::MappedType => Err(Unsupported::new("mapped types (M4 5.2)")),
             SyntaxKind::ConditionalType => Err(Unsupported::new("conditional types (M4 5.2)")),
             SyntaxKind::InferType => Err(Unsupported::new("infer types (M4 5.2)")),
@@ -583,7 +583,10 @@ impl<'a> CheckerState<'a> {
             // The readonly-ness itself was consumed by
             // getArrayOrTupleTargetType through the parent check.
             SyntaxKind::ReadonlyKeyword => self.get_type_from_type_node(inner),
-            SyntaxKind::KeyOfKeyword => Err(Unsupported::new("keyof types (M4 5.2)")),
+            SyntaxKind::KeyOfKeyword => {
+                let operand = self.get_type_from_type_node(inner)?;
+                self.get_index_type(operand, tsrs2_types::IndexFlags::NONE)
+            }
             SyntaxKind::UniqueKeyword => Err(Unsupported::new("unique symbol types (M4)")),
             other => Err(Unsupported::new(format!(
                 "type operator {other:?} outside the M3 slice"
@@ -803,6 +806,42 @@ impl<'a> CheckerState<'a> {
         } else {
             self.tables.intrinsics.error
         })
+    }
+
+    /// tsc-port: getTypeFromIndexedAccessTypeNode @6.0.3
+    /// tsc-hash: bfdb8d46e15236842742a4ae54bf26a85b7605b13304de4118efae469dfbed94
+    /// tsc-span: _tsc.js:62612-62621
+    fn get_type_from_indexed_access_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+            return Ok(cached);
+        }
+        let NodeData::IndexedAccessType(data) = self.data_of(node) else {
+            unreachable!("IndexedAccessType kind implies payload");
+        };
+        let object_node = data
+            .object_type
+            .ok_or_else(|| Unsupported::new("indexed access with missing object type"))?;
+        let index_node = data
+            .index_type
+            .ok_or_else(|| Unsupported::new("indexed access with missing index type"))?;
+        let object_type = self.get_type_from_type_node(object_node)?;
+        let index_type = self.get_type_from_type_node(index_node)?;
+        let potential_alias = self.get_alias_symbol_for_type_node(node);
+        let alias_type_arguments = self.get_type_arguments_for_alias_symbol(potential_alias);
+        let resolved = self.get_indexed_access_type(
+            object_type,
+            index_type,
+            tsrs2_types::AccessFlags::NONE,
+            Some(node),
+            potential_alias,
+            alias_type_arguments.as_deref(),
+        )?;
+        self.links.set_node_resolved_type(
+            self.speculation_depth,
+            node,
+            LinkSlot::Resolved(resolved),
+        );
+        Ok(resolved)
     }
 
     /// tsc-port: getTypeArgumentsForAliasSymbol @6.0.3
@@ -2433,7 +2472,7 @@ fn is_m3_signature_declaration_kind(kind: SyntaxKind) -> bool {
 
 /// The scanner already normalized numeric literal text to its value
 /// form (tsc node.text = token value); this parses that value string.
-fn parse_numeric_literal_text(text: &str) -> CheckResult2<f64> {
+pub(crate) fn parse_numeric_literal_text(text: &str) -> CheckResult2<f64> {
     text.parse::<f64>()
         .map_err(|_| Unsupported::new(format!("unparsable numeric literal text {text:?}")))
 }
@@ -2780,11 +2819,11 @@ mod tests {
     #[test]
     fn m4_shapes_report_unsupported_not_wrong_types() {
         with_state(
-            "declare var a: number[];\ndeclare var b: keyof { x: 1 };\ndeclare var c: Missing;\n",
+            "declare var a: number[];\ndeclare var b: number extends string ? 1 : 2;\ndeclare var c: Missing;\n",
             |state| {
                 for (name, needle) in [
                     ("a", "globalArrayType"),
-                    ("b", "keyof"),
+                    ("b", "conditional"),
                     ("c", "unresolved type name"),
                 ] {
                     let annotation =

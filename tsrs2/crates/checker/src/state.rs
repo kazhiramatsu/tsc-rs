@@ -146,6 +146,8 @@ pub struct CheckerState<'a> {
     pub(crate) restrictive_mapper: crate::instantiate::MapperId,
     /// tsc permissiveMapper (47104).
     pub(crate) permissive_mapper: crate::instantiate::MapperId,
+    /// tsc uniqueLiteralMapper (47112).
+    pub(crate) unique_literal_mapper: crate::instantiate::MapperId,
     /// tsc activeTypeMappers/activeTypeMappersCaches/activeTypeMappersCount
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
@@ -259,6 +261,7 @@ impl<'a> CheckerState<'a> {
             mappers: Vec::new(),
             restrictive_mapper: crate::instantiate::MapperId(0),
             permissive_mapper: crate::instantiate::MapperId(0),
+            unique_literal_mapper: crate::instantiate::MapperId(0),
             active_type_mappers: Vec::new(),
             active_type_mappers_caches: Vec::new(),
             instantiation_depth: 0,
@@ -301,6 +304,10 @@ impl<'a> CheckerState<'a> {
         ));
         state.permissive_mapper = state.alloc_mapper(crate::instantiate::TypeMapper::Function(
             crate::instantiate::FunctionMapper::Permissive,
+        ));
+        // tsc uniqueLiteralMapper (47112).
+        state.unique_literal_mapper = state.alloc_mapper(crate::instantiate::TypeMapper::Function(
+            crate::instantiate::FunctionMapper::UniqueLiteral,
         ));
 
         // The empty anonymous types from the checker init block

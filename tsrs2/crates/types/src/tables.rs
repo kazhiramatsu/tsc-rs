@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use crate::flags::{ElementFlags, ObjectFlags, TypeFlags};
+use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::ty::{LiteralValue, PseudoBigInt, SymbolId, TupleTargetData, Type, TypeData, TypeId};
 
 /// The named intrinsic/derived types created at checker construction,
@@ -127,6 +127,10 @@ pub struct TypeTables {
     /// stringMappingTypes (46998), keyed `${symbolId},${typeId}`
     /// (getStringMappingTypeForGenericType 62154).
     string_mapping_types: HashMap<(SymbolId, TypeId), TypeId>,
+    /// indexedAccessTypes (46996), keyed
+    /// `${objectId},${indexId},${persistentFlags}${aliasId}`
+    /// (getIndexedAccessTypeOrUndefined 62580).
+    indexed_access_types: HashMap<String, TypeId>,
     /// Per-target `type.instantiations` maps (createTypeReference
     /// 60170-60174 AND getObjectTypeInstantiation 63489-63492 — one map
     /// per target in tsc), flattened to one table keyed (target, id).
@@ -187,6 +191,7 @@ impl TypeTables {
             tuple_types: HashMap::new(),
             template_literal_types: HashMap::new(),
             string_mapping_types: HashMap::new(),
+            indexed_access_types: HashMap::new(),
             instantiations: HashMap::new(),
         };
         tables.create_initial_types();
@@ -1057,20 +1062,22 @@ impl TypeTables {
         }
         let type_key = match origin {
             None => self.get_type_list_id(&types),
-            Some(origin) => {
-                let origin_flags = self.flags_of(origin);
-                let (TypeData::Union { types: members, .. }
-                | TypeData::Intersection { types: members }) = &self.type_of(origin).data
-                else {
-                    unreachable!("non-union/intersection origins arrive with M4 index types");
-                };
-                let members = members.clone();
-                if origin_flags.intersects(TypeFlags::UNION) {
+            Some(origin) => match &self.type_of(origin).data {
+                TypeData::Union { types: members, .. } => {
+                    let members = members.clone();
                     format!("|{}", self.get_type_list_id(&members))
-                } else {
+                }
+                TypeData::Intersection { types: members } => {
+                    let members = members.clone();
                     format!("&{}", self.get_type_list_id(&members))
                 }
-            }
+                // 61619: the `#` form for keyof origins (origin index
+                // types, createOriginIndexType).
+                TypeData::Index { ty, .. } => {
+                    format!("#{}|{}", ty.0, self.get_type_list_id(&types))
+                }
+                _ => unreachable!("union origins are unions/intersections/index types"),
+            },
         };
         let key = format!(
             "{type_key}{}",
@@ -2089,6 +2096,44 @@ impl TypeTables {
         self.flags_of(id).intersects(TypeFlags::from_bits(
             TypeFlags::TEMPLATE_LITERAL.bits() | TypeFlags::STRING_MAPPING.bits(),
         )) && !self.is_pattern_literal_type(id)
+    }
+
+    /// The indexedAccessTypes interning slice of
+    /// getIndexedAccessTypeOrUndefined (62580-62585) +
+    /// createIndexedAccessType (62168-62175).
+    pub fn get_indexed_access_type_interned(
+        &mut self,
+        object_type: TypeId,
+        index_type: TypeId,
+        persistent_access_flags: AccessFlags,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> TypeId {
+        let key = format!(
+            "{},{},{}{}",
+            object_type.0,
+            index_type.0,
+            persistent_access_flags.bits(),
+            self.get_alias_id(alias_symbol, alias_type_arguments)
+        );
+        if let Some(&id) = self.indexed_access_types.get(&key) {
+            return id;
+        }
+        let id = self.create_type(
+            TypeFlags::INDEXED_ACCESS,
+            TypeData::IndexedAccess {
+                object_type,
+                index_type,
+                access_flags: persistent_access_flags,
+            },
+        );
+        let ty = self.type_mut(id);
+        ty.alias_symbol = alias_symbol;
+        ty.alias_type_arguments = alias_type_arguments
+            .map(<[TypeId]>::to_vec)
+            .map(Vec::into_boxed_slice);
+        self.indexed_access_types.insert(key, id);
+        id
     }
 
     /// tsc-port: getStringMappingTypeForGenericType @6.0.3

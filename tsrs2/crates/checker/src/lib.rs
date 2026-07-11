@@ -4,6 +4,7 @@ pub mod annotate;
 pub mod constraints;
 pub mod engine;
 pub mod globals;
+pub mod indexed;
 pub mod instantiate;
 pub mod intersect;
 mod js_grammar;

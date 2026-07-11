@@ -55,6 +55,9 @@ pub enum FunctionMapper {
     /// 47103: `t => t.flags & TypeParameter ?
     /// getRestrictiveTypeParameter(t) : t`.
     Restrictive,
+    /// 47112: `t => t.flags & TypeParameter ? uniqueLiteralType : t`
+    /// (isReducibleIntersection's probe mapper).
+    UniqueLiteral,
 }
 
 /// tsc TypeMapper — the six TypeMapKind shapes.
@@ -227,6 +230,7 @@ impl<'a> CheckerState<'a> {
                     Ok(match kind {
                         FunctionMapper::Permissive => self.tables.intrinsics.wildcard,
                         FunctionMapper::Restrictive => self.get_restrictive_type_parameter(ty),
+                        FunctionMapper::UniqueLiteral => self.tables.intrinsics.unique_literal,
                     })
                 } else {
                     Ok(ty)
@@ -1131,9 +1135,13 @@ impl<'a> CheckerState<'a> {
             };
         }
         if flags.intersects(TypeFlags::INDEX) {
-            return Err(Unsupported::new(
-                "keyof instantiation (getIndexType, M4 5.2 follow-up)",
-            ));
+            // 63749: the StringsOnly bit deliberately drops on
+            // instantiation (getIndexType default flags).
+            let TypeData::Index { ty: inner, .. } = self.tables.type_of(ty).data else {
+                unreachable!("index flag implies index data");
+            };
+            let new_inner = self.instantiate_type(inner, Some(mapper))?;
+            return self.get_index_type(new_inner, tsrs2_types::IndexFlags::NONE);
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
@@ -1156,9 +1164,33 @@ impl<'a> CheckerState<'a> {
             return self.get_string_mapping_type(symbol, new_inner);
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
-            return Err(Unsupported::new(
-                "indexed-access instantiation (getIndexedAccessType, M4 5.2 follow-up)",
-            ));
+            let new_alias_symbol = alias_symbol.or(self.tables.type_of(ty).alias_symbol);
+            let new_alias_type_arguments = if alias_symbol.is_some() {
+                alias_type_arguments.map(<[TypeId]>::to_vec)
+            } else {
+                match self.tables.type_of(ty).alias_type_arguments.clone() {
+                    Some(arguments) => Some(self.instantiate_types(&arguments, mapper)?),
+                    None => None,
+                }
+            };
+            let TypeData::IndexedAccess {
+                object_type,
+                index_type,
+                access_flags,
+            } = self.tables.type_of(ty).data
+            else {
+                unreachable!("indexed-access flag implies indexed-access data");
+            };
+            let new_object = self.instantiate_type(object_type, Some(mapper))?;
+            let new_index = self.instantiate_type(index_type, Some(mapper))?;
+            return self.get_indexed_access_type(
+                new_object,
+                new_index,
+                access_flags,
+                /*access_node*/ None,
+                new_alias_symbol,
+                new_alias_type_arguments.as_deref(),
+            );
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
             return Err(Unsupported::new(

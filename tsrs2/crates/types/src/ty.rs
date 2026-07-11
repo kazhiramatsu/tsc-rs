@@ -6,7 +6,7 @@
 //! (tables.rs) — two structurally identical anonymous object types are
 //! DISTINCT types.
 
-use crate::flags::{ElementFlags, ObjectFlags, TypeFlags};
+use crate::flags::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, TypeFlags};
 
 /// tsc Type.id (createType 50098-50099). Arena index; ids are
 /// program-run-local and never serialized.
@@ -131,6 +131,20 @@ pub enum TypeData {
     /// operand — Type::symbol names the intrinsic alias.
     StringMapping {
         ty: TypeId,
+    },
+    /// createIndexType (61921): `keyof T` over a deferred operand.
+    /// Origin index types (createOriginIndexType 61927, the union
+    /// display denormalization) share the shape with IndexFlags::NONE.
+    Index {
+        ty: TypeId,
+        index_flags: IndexFlags,
+    },
+    /// createIndexedAccessType (62168): `T[K]` over a generic pair;
+    /// alias fields live on Type.
+    IndexedAccess {
+        object_type: TypeId,
+        index_type: TypeId,
+        access_flags: AccessFlags,
     },
     /// tsc GenericType (InterfaceType & TypeReference): the declared
     /// type of a class, a generic interface, or a this-ful interface

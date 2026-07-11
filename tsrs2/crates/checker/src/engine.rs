@@ -1971,6 +1971,23 @@ impl<'a> CheckerState<'a> {
             // through to type identity.
             return RecursionIdentity::Type(ty);
         }
+        if flags.intersects(TypeFlags::INDEXED_ACCESS) {
+            // 67522-67527: chase the objectType chain.
+            let mut current = ty;
+            while self
+                .tables
+                .flags_of(current)
+                .intersects(TypeFlags::INDEXED_ACCESS)
+            {
+                let TypeData::IndexedAccess { object_type, .. } =
+                    self.tables.type_of(current).data
+                else {
+                    unreachable!("indexed-access flag implies indexed-access data");
+                };
+                current = object_type;
+            }
+            return RecursionIdentity::Type(current);
+        }
         RecursionIdentity::Type(ty)
     }
 

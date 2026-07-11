@@ -1731,7 +1731,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.st.get_properties_of_object_type_owned(source)?
         };
         for prop in props {
-            let name_type = self.st.get_literal_type_from_property(prop)?;
+            // 66968: include StringOrNumberLiteralOrUnique, non-public
+            // members included.
+            let name_type = self.st.get_literal_type_from_property(
+                prop,
+                TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                /*include_non_public*/ true,
+            )?;
             if !self.st.is_applicable_index_type(name_type, key_type)? {
                 continue;
             }
@@ -2632,25 +2638,6 @@ impl<'a> CheckerState<'a> {
             self.tables.filter_type(ty, |_, t| t != missing)
         } else {
             ty
-        }
-    }
-
-    /// tsc-port: getLiteralTypeFromProperty @6.0.3
-    /// tsc-hash: 789ec525d221d2848d1644592f7255c3b47cbefe77618e96a7dc2212972d8a3c
-    /// tsc-span: _tsc.js:61983-61995
-    ///
-    /// M3 slice: member names are identifier/literal names (late-bound
-    /// and unique-symbol names are M4); the nameType is the numeric or
-    /// string literal type of the name.
-    pub fn get_literal_type_from_property(&mut self, prop: SymbolId) -> CheckResult2<TypeId> {
-        let name = self.binder.symbol(prop).escaped_name.clone();
-        if is_numeric_name(&name) {
-            let value: f64 = name
-                .parse()
-                .map_err(|_| Unsupported::new("unparsable numeric member name"))?;
-            Ok(self.tables.get_number_literal_type(value))
-        } else {
-            Ok(self.tables.get_string_literal_type(&name))
         }
     }
 

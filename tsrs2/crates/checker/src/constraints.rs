@@ -398,13 +398,41 @@ impl<'a> CheckerState<'a> {
                 _ => self.tables.intrinsics.string,
             }));
         }
-        if flags.intersects(
-            TypeFlags::INDEXED_ACCESS | TypeFlags::CONDITIONAL | TypeFlags::SUBSTITUTION,
-        ) {
+        if flags.intersects(TypeFlags::INDEXED_ACCESS) {
+            // 59000-59008: base constraints of both sides re-access;
+            // isMappedTypeGenericIndexedAccess is constant false
+            // (mapped types unconstructible before M8).
+            let TypeData::IndexedAccess {
+                object_type,
+                index_type,
+                access_flags,
+            } = self.tables.type_of(t).data
+            else {
+                unreachable!("indexed-access flag implies indexed-access data");
+            };
+            let base_object = self.get_base_constraint_inner(object_type, stack)?;
+            let base_index = self.get_base_constraint_inner(index_type, stack)?;
+            let base_indexed_access = match (base_object, base_index) {
+                (Some(base_object), Some(base_index)) => self
+                    .get_indexed_access_type_or_undefined(
+                        base_object,
+                        base_index,
+                        access_flags,
+                        None,
+                        None,
+                        None,
+                    )?,
+                _ => None,
+            };
+            return match base_indexed_access {
+                Some(base) => self.get_base_constraint_inner(base, stack),
+                None => Ok(None),
+            };
+        }
+        if flags.intersects(TypeFlags::CONDITIONAL | TypeFlags::SUBSTITUTION) {
             return Err(Unsupported::new(
-                "computeBaseConstraint for IndexedAccess/Conditional/Substitution \
-                 (M4 5.2 follow-up/M8 — those TypeFlags are unconstructible before their \
-                 type nodes land)",
+                "computeBaseConstraint for Conditional/Substitution (M8 — those \
+                 TypeFlags are unconstructible before their type nodes land)",
             ));
         }
         if self.is_generic_tuple_type(t) {

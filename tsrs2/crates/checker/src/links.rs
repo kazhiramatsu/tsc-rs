@@ -124,6 +124,13 @@ pub struct TypeLinks {
     /// resolvingDefaultType in-flight sentinel is the checker's
     /// in-progress set, so Err unwinds stay re-queryable.
     pub type_parameter_default: LinkSlot<TypeId>,
+    /// tsc type.resolvedIndexType / resolvedStringIndexType
+    /// (getIndexTypeForGenericType 61932).
+    pub resolved_index_type: LinkSlot<TypeId>,
+    pub resolved_string_index_type: LinkSlot<TypeId>,
+    /// tsc type.uniqueLiteralFilledInstantiation (isReducibleIntersection
+    /// 59322).
+    pub unique_literal_filled_instantiation: LinkSlot<TypeId>,
     /// tsc type.permissiveInstantiation (getPermissiveInstantiation
     /// 63815).
     pub permissive_instantiation: LinkSlot<TypeId>,
@@ -455,6 +462,44 @@ impl LinksTables {
             "alias type parameters written twice for {id:?}"
         );
         links.type_parameters = Some(type_parameters);
+    }
+
+    pub fn set_type_resolved_index_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().resolved_index_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    pub fn set_type_resolved_string_index_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().resolved_string_index_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    pub fn set_type_unique_literal_filled_instantiation(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self
+                .ty
+                .entry(id)
+                .or_default()
+                .unique_literal_filled_instantiation,
+            LinkSlot::Resolved(value),
+        );
     }
 
     pub fn set_type_permissive_instantiation(
