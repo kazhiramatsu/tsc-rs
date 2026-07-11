@@ -17,6 +17,9 @@ pub struct CompilerOptions {
     /// through strict_option_value like tsc getStrictOptionValue.
     pub strict_null_checks: Option<bool>,
     pub strict_function_types: Option<bool>,
+    /// Selects CallableFunction/NewableFunction over Function in the
+    /// global bootstrap (initializeTypeChecker 88809-88822).
+    pub strict_bind_call_apply: Option<bool>,
     /// Selects missingType for optional properties (undefinedOrMissingType,
     /// _tsc.js 47041).
     pub exact_optional_property_types: Option<bool>,

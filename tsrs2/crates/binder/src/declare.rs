@@ -122,6 +122,18 @@ impl<'a> Binder<'a> {
         options: &'a tsrs2_types::CompilerOptions,
         next_symbol_id: u32,
     ) -> Self {
+        Self::with_bases(source, options, next_symbol_id, 0)
+    }
+
+    /// Program bind (M4 5.0): file N's symbols allocate from
+    /// `symbol_base` so SymbolIds are program-unique, mirroring the
+    /// parse-side NodeId bases (ParseOptions::node_id_base).
+    pub fn with_bases(
+        source: &'a SourceFile,
+        options: &'a tsrs2_types::CompilerOptions,
+        next_symbol_id: u32,
+        symbol_base: u32,
+    ) -> Self {
         let mut flow = crate::flow::FlowArena::default();
         // tsc createBinder: unreachableFlow is allocated once up front.
         let unreachable_flow = flow.create_flow_node(
@@ -134,7 +146,7 @@ impl<'a> Binder<'a> {
             options,
             language_version: options.emit_script_target().bits(),
             common_js_module_indicator: None,
-            symbols: SymbolArena::default(),
+            symbols: SymbolArena::with_base(symbol_base),
             node_symbol: HashMap::new(),
             node_local_symbol: HashMap::new(),
             locals: HashMap::new(),
@@ -177,13 +189,17 @@ impl<'a> Binder<'a> {
         }
     }
 
-    /// The binder's mutable view of tsc node.flags.
+    /// The binder's mutable view of tsc node.flags. `node_flags_mut` is
+    /// indexed by the file-local node index (program binds parse each
+    /// file with a NodeId base — see ParseOptions::node_id_base).
     pub fn flags_of(&self, node: NodeId) -> tsrs2_types::NodeFlags {
-        tsrs2_types::NodeFlags::from_bits(self.node_flags_mut[node.0 as usize])
+        let index = (node.0 - self.source.arena.node_base()) as usize;
+        tsrs2_types::NodeFlags::from_bits(self.node_flags_mut[index])
     }
 
     pub fn set_flags_of(&mut self, node: NodeId, flags: tsrs2_types::NodeFlags) {
-        self.node_flags_mut[node.0 as usize] = flags.bits();
+        let index = (node.0 - self.source.arena.node_base()) as usize;
+        self.node_flags_mut[index] = flags.bits();
     }
 
     pub fn next_symbol_id(&self) -> u32 {
@@ -654,7 +670,7 @@ impl<'a> Binder<'a> {
 }
 
 /// tsc isAssignmentDeclaration (_tsc.js 14964).
-fn is_assignment_declaration(source: &SourceFile, id: NodeId) -> bool {
+pub fn is_assignment_declaration(source: &SourceFile, id: NodeId) -> bool {
     matches!(
         kind_of(source, id),
         SyntaxKind::BinaryExpression
@@ -666,7 +682,7 @@ fn is_assignment_declaration(source: &SourceFile, id: NodeId) -> bool {
 }
 
 /// tsc isEffectiveModuleDeclaration (_tsc.js 13722).
-fn is_effective_module_declaration(source: &SourceFile, id: NodeId) -> bool {
+pub fn is_effective_module_declaration(source: &SourceFile, id: NodeId) -> bool {
     matches!(
         kind_of(source, id),
         SyntaxKind::ModuleDeclaration | SyntaxKind::Identifier

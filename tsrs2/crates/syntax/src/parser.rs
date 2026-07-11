@@ -54,6 +54,12 @@ pub struct ParseOptions {
     pub language_variant: LanguageVariant,
     /// tsc ContextFlags.JavaScriptFile (subset: the parse-steering uses).
     pub javascript_file: bool,
+    /// Program-wide id bases (M4 5.0): the multi-file checker parses
+    /// file N with bases continuing where file N-1 ended, so NodeId/
+    /// NodeArrayId are program-unique (tsc's object-identity property).
+    /// Single-file callers keep the 0 defaults.
+    pub node_id_base: u32,
+    pub node_array_id_base: u32,
 }
 
 impl Default for ParseOptions {
@@ -61,6 +67,8 @@ impl Default for ParseOptions {
         Self {
             language_variant: LanguageVariant::Standard,
             javascript_file: false,
+            node_id_base: 0,
+            node_array_id_base: 0,
         }
     }
 }
@@ -8381,6 +8389,10 @@ pub fn parse_source_file(
         options.language_variant,
         options.javascript_file,
     );
+    if options.node_id_base != 0 || options.node_array_id_base != 0 {
+        debug_assert!(parser.arena.is_empty());
+        parser.arena = NodeArena::with_bases(options.node_id_base, options.node_array_id_base);
+    }
     parser.next_token();
     let mut statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
         Some(parser.parse_statement())
@@ -8815,6 +8827,7 @@ mod tests {
             ParseOptions {
                 language_variant: LanguageVariant::Jsx,
                 javascript_file: false,
+                ..ParseOptions::default()
             },
             None,
         )

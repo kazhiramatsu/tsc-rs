@@ -7,11 +7,53 @@ use tsrs2_types::NodeFlags;
 pub struct NodeArena {
     nodes: Vec<Node>,
     arrays: Vec<NodeArray>,
+    /// Program-wide id bases (M4 5.0): tsc nodes are heap objects with
+    /// program-unique identity; per-file arenas get the same property
+    /// by allocating NodeId/NodeArrayId from a per-file base so a
+    /// multi-file checker never sees two nodes share an id. Single-file
+    /// paths (relpin, ast-diff, tests) keep base 0 and are unchanged.
+    node_base: u32,
+    array_base: u32,
 }
 
 impl NodeArena {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_bases(node_base: u32, array_base: u32) -> Self {
+        Self {
+            node_base,
+            array_base,
+            ..Self::default()
+        }
+    }
+
+    pub fn node_base(&self) -> u32 {
+        self.node_base
+    }
+
+    pub fn array_base(&self) -> u32 {
+        self.array_base
+    }
+
+    /// One past the last allocated NodeId — the next file's node base.
+    pub fn node_end(&self) -> u32 {
+        self.node_base + self.nodes.len() as u32
+    }
+
+    /// One past the last allocated NodeArrayId.
+    pub fn array_end(&self) -> u32 {
+        self.array_base + self.arrays.len() as u32
+    }
+
+    pub fn contains_node(&self, id: NodeId) -> bool {
+        id.0 >= self.node_base && id.0 < self.node_end()
+    }
+
+    /// All NodeIds of this arena, in allocation order.
+    pub fn node_ids(&self) -> impl Iterator<Item = NodeId> + '_ {
+        (self.node_base..self.node_end()).map(NodeId)
     }
 
     pub fn alloc_node(
@@ -48,7 +90,7 @@ impl NodeArena {
         end: usize,
         has_trailing_comma: bool,
     ) -> NodeArrayId {
-        let id = NodeArrayId(self.arrays.len() as u32);
+        let id = NodeArrayId(self.array_base + self.arrays.len() as u32);
         self.arrays.push(NodeArray {
             nodes,
             pos: pos as u32,
@@ -67,7 +109,8 @@ impl NodeArena {
     /// (typeHasArrowFunctionBlockingParseError) can distinguish it from `()`.
     pub fn missing_array(&mut self, pos: usize) -> NodeArrayId {
         let id = self.empty_array(pos);
-        self.arrays[id.0 as usize].is_missing_list = true;
+        let index = self.array_index(id);
+        self.arrays[index].is_missing_list = true;
         id
     }
 
@@ -113,7 +156,7 @@ impl NodeArena {
         end: usize,
         flags: NodeFlags,
     ) -> NodeId {
-        let id = NodeId(self.nodes.len() as u32);
+        let id = NodeId(self.node_base + self.nodes.len() as u32);
         self.nodes.push(Node {
             kind,
             flags: flags.bits(),
@@ -177,13 +220,23 @@ impl NodeArena {
     }
 
     fn node_index(&self, id: NodeId) -> usize {
-        let index = id.0 as usize;
+        assert!(
+            id.0 >= self.node_base,
+            "NodeId below arena base: {id:?} (base {})",
+            self.node_base
+        );
+        let index = (id.0 - self.node_base) as usize;
         assert!(index < self.nodes.len(), "invalid NodeId: {id:?}");
         index
     }
 
     fn array_index(&self, id: NodeArrayId) -> usize {
-        let index = id.0 as usize;
+        assert!(
+            id.0 >= self.array_base,
+            "NodeArrayId below arena base: {id:?} (base {})",
+            self.array_base
+        );
+        let index = (id.0 - self.array_base) as usize;
         assert!(index < self.arrays.len(), "invalid NodeArrayId: {id:?}");
         index
     }

@@ -64,24 +64,61 @@ impl Symbol {
 }
 
 /// All symbols created while binding one source file.
+///
+/// Program-wide id base (M4 5.0): tsc symbols are heap objects with
+/// program-unique identity; per-file arenas get the same property by
+/// allocating SymbolId from a per-file base (the checker binds file N
+/// with the base continuing where file N-1 ended, then allocates its
+/// own transient symbols above all files). Single-file paths keep 0.
 #[derive(Debug, Default)]
 pub struct SymbolArena {
     symbols: Vec<Symbol>,
+    base: u32,
 }
 
 impl SymbolArena {
+    pub fn with_base(base: u32) -> Self {
+        Self {
+            symbols: Vec::new(),
+            base,
+        }
+    }
+
+    pub fn base(&self) -> u32 {
+        self.base
+    }
+
+    /// One past the last allocated SymbolId — the next arena's base.
+    pub fn next_id(&self) -> SymbolId {
+        SymbolId(self.base + self.symbols.len() as u32)
+    }
+
+    pub fn contains(&self, id: SymbolId) -> bool {
+        id.0 >= self.base && id.0 < self.base + self.symbols.len() as u32
+    }
+
     pub fn alloc(&mut self, flags: SymbolFlags, escaped_name: String) -> SymbolId {
-        let id = SymbolId(self.symbols.len() as u32);
+        let id = self.next_id();
         self.symbols.push(Symbol::new(flags, escaped_name));
         id
     }
 
+    fn index(&self, id: SymbolId) -> usize {
+        assert!(
+            id.0 >= self.base,
+            "SymbolId below arena base: {id:?} (base {})",
+            self.base
+        );
+        (id.0 - self.base) as usize
+    }
+
     pub fn symbol(&self, id: SymbolId) -> &Symbol {
-        &self.symbols[id.0 as usize]
+        &self.symbols[self.index(id)]
     }
 
     pub fn symbol_mut(&mut self, id: SymbolId) -> &mut Symbol {
-        &mut self.symbols[id.0 as usize]
+        let index = self.index(id);
+        &mut self.symbols[index]
     }
 
     pub fn len(&self) -> usize {

@@ -301,7 +301,7 @@ impl<'a> CheckerState<'a> {
                     for prop in self.get_properties_of_type(source)? {
                         let prop_type = self.get_type_of_symbol(prop)?;
                         if self.is_unit_type(prop_type) {
-                            let name = self.binder.symbols.symbol(prop).escaped_name.clone();
+                            let name = self.binder.symbol(prop).escaped_name.clone();
                             let regular = self.tables.get_regular_type_of_literal_type(prop_type);
                             found = Some((name, regular));
                             break;
@@ -548,6 +548,7 @@ mod tests {
             ParseOptions {
                 language_variant: LanguageVariant::Standard,
                 javascript_file: false,
+                ..ParseOptions::default()
             },
             None,
         );
@@ -558,7 +559,7 @@ mod tests {
     }
 
     fn annotation(state: &mut CheckerState, name: &str) -> tsrs2_types::TypeId {
-        let node = find_probe_annotation(state.source, name).expect("annotation");
+        let node = find_probe_annotation(state.binder.source(0), name).expect("annotation");
         state.get_type_from_type_node(node).expect("resolves")
     }
 

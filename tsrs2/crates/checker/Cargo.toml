@@ -9,6 +9,7 @@ name = "tsrs2_checker"
 path = "src/lib.rs"
 
 [dependencies]
+indexmap = "2"
 tsrs2-binder = { path = "../binder" }
 tsrs2-diags = { path = "../diags" }
 tsrs2-syntax = { path = "../syntax" }

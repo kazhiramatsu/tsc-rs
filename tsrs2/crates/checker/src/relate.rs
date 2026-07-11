@@ -266,6 +266,7 @@ mod tests {
             ParseOptions {
                 language_variant: LanguageVariant::Standard,
                 javascript_file: false,
+                ..ParseOptions::default()
             },
             None,
         );

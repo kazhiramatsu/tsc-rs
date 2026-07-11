@@ -463,14 +463,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     vec![source_property_type]
                 },
             );
-            excluded_properties.insert(
-                self.st
-                    .binder
-                    .symbols
-                    .symbol(source_property)
-                    .escaped_name
-                    .clone(),
-            );
+            excluded_properties.insert(self.st.binder.symbol(source_property).escaped_name.clone());
         }
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
         let mut matching_types: Vec<TypeId> = Vec::new();
@@ -479,13 +472,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let mut has_match = false;
             'outer: for &ty in &target_types {
                 for (i, &source_property) in source_properties_filtered.iter().enumerate() {
-                    let name = self
-                        .st
-                        .binder
-                        .symbols
-                        .symbol(source_property)
-                        .escaped_name
-                        .clone();
+                    let name = self.st.binder.symbol(source_property).escaped_name.clone();
                     let Some(target_property) = self.st.get_property_of_type_full(ty, &name)?
                     else {
                         continue 'outer;
@@ -606,7 +593,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             });
         }
         for &prop in discriminators {
-            let property_name = self.st.binder.symbols.symbol(prop).escaped_name.clone();
+            let property_name = self.st.binder.symbol(prop).escaped_name.clone();
             let discriminating_type = self.st.get_type_of_symbol(prop)?;
             let mut matched = false;
             for i in 0..types.len() {
@@ -755,8 +742,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if source_prop_flags.intersects(ModifierFlags::PRIVATE)
             || target_prop_flags.intersects(ModifierFlags::PRIVATE)
         {
-            let source_declaration = self.st.binder.symbols.symbol(source_prop).value_declaration;
-            let target_declaration = self.st.binder.symbols.symbol(target_prop).value_declaration;
+            let source_declaration = self.st.binder.symbol(source_prop).value_declaration;
+            let target_declaration = self.st.binder.symbol(target_prop).value_declaration;
             if source_declaration != target_declaration {
                 return Ok(Ternary::FALSE);
             }
@@ -811,7 +798,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         };
         properties
             .into_iter()
-            .filter(|&p| !excluded.contains(&self.st.binder.symbols.symbol(p).escaped_name))
+            .filter(|&p| !excluded.contains(&self.st.binder.symbol(p).escaped_name))
             .collect()
     }
 
@@ -980,13 +967,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if self.st.is_object_literal_type(target) {
             let source_props = self.st.get_properties_of_type(source)?;
             for source_prop in self.exclude_properties(source_props, excluded_properties) {
-                let name = self
-                    .st
-                    .binder
-                    .symbols
-                    .symbol(source_prop)
-                    .escaped_name
-                    .clone();
+                let name = self.st.binder.symbol(source_prop).escaped_name.clone();
                 if self
                     .st
                     .get_property_of_object_type(target, &name)?
@@ -1000,13 +981,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let numeric_names_only =
             self.st.tables.is_tuple_type(source) && self.st.tables.is_tuple_type(target);
         for target_prop in self.exclude_properties(properties, excluded_properties) {
-            let name = self
-                .st
-                .binder
-                .symbols
-                .symbol(target_prop)
-                .escaped_name
-                .clone();
+            let name = self.st.binder.symbol(target_prop).escaped_name.clone();
             let target_symbol_flags = self.st.symbol_flags(target_prop);
             if !target_symbol_flags.intersects(SymbolFlags::PROTOTYPE)
                 && (!numeric_names_only || is_numeric_name(&name) || name == "length")
@@ -1063,13 +1038,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         .get_check_flags(target_prop)
                         .intersects(CheckFlags::PARTIAL))
             {
-                let name = self
-                    .st
-                    .binder
-                    .symbols
-                    .symbol(target_prop)
-                    .escaped_name
-                    .clone();
+                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
                 if self.st.get_property_of_type_full(source, &name)?.is_none() {
                     return Ok(Some(target_prop));
                 }
@@ -1101,13 +1070,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         let mut result = Ternary::TRUE;
         for source_prop in source_properties {
-            let name = self
-                .st
-                .binder
-                .symbols
-                .symbol(source_prop)
-                .escaped_name
-                .clone();
+            let name = self.st.binder.symbol(source_prop).escaped_name.clone();
             let Some(target_prop) = self.st.get_property_of_object_type(target, &name)? else {
                 return Ok(Ternary::FALSE);
             };
@@ -1427,7 +1390,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let target_rest_type: Option<TypeId> = None;
         let target_kind = {
             let declaration = self.st.signature_of(target).declaration;
-            self.st.source.arena.node(declaration).kind
+            self.st.kind_of(declaration)
         };
         let strict_variance = check_mode & check_mode::CALLBACK == 0
             && self.st.strict_function_types
@@ -1953,7 +1916,7 @@ impl<'a> CheckerState<'a> {
         let mut result: Vec<SymbolId> = Vec::new();
         for current in members {
             for prop in self.get_properties_of_type_full(current)? {
-                let name = self.binder.symbols.symbol(prop).escaped_name.clone();
+                let name = self.binder.symbol(prop).escaped_name.clone();
                 if !seen.contains(&name) {
                     seen.push(name.clone());
                     if let Some(combined) = self.get_property_of_union_or_intersection_type(
@@ -2168,7 +2131,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b85fdb88b67c0b34d28d407511d88581db1c95deddc8b1ff1251ebca97fe2704
     /// tsc-span: _tsc.js:59315-59317
     fn is_conflicting_private_property(&self, prop: SymbolId) -> bool {
-        self.binder.symbols.symbol(prop).value_declaration.is_none()
+        self.binder.symbol(prop).value_declaration.is_none()
             && self
                 .get_check_flags(prop)
                 .intersects(CheckFlags::CONTAINS_PRIVATE)
@@ -2331,7 +2294,7 @@ impl<'a> CheckerState<'a> {
         let mut first_value_declaration: Option<tsrs2_syntax::NodeId> = None;
         let mut has_non_uniform_value_declaration = false;
         for &prop in &props {
-            let value_declaration = self.binder.symbols.symbol(prop).value_declaration;
+            let value_declaration = self.binder.symbol(prop).value_declaration;
             match (first_value_declaration, value_declaration) {
                 (None, Some(declaration)) => first_value_declaration = Some(declaration),
                 (Some(first), Some(declaration)) if declaration != first => {
@@ -2339,14 +2302,7 @@ impl<'a> CheckerState<'a> {
                 }
                 _ => {}
             }
-            declarations.extend(
-                self.binder
-                    .symbols
-                    .symbol(prop)
-                    .declarations
-                    .iter()
-                    .copied(),
-            );
+            declarations.extend(self.binder.symbol(prop).declarations.iter().copied());
             let ty = self.get_type_of_symbol(prop)?;
             if first_type.is_none() {
                 first_type = Some(ty);
@@ -2368,9 +2324,9 @@ impl<'a> CheckerState<'a> {
         let flags = SymbolFlags::from_bits(
             SymbolFlags::PROPERTY.bits() | optional_flag.map(|f| f.bits()).unwrap_or(0),
         );
-        let result = self.binder.symbols.alloc(flags, name.to_owned());
+        let result = self.binder.create_symbol(flags, name.to_owned());
         {
-            let symbol = self.binder.symbols.symbol_mut(result);
+            let symbol = self.binder.symbol_mut(result);
             symbol.declarations = declarations;
             if !has_non_uniform_value_declaration {
                 symbol.value_declaration = first_value_declaration;
@@ -2436,10 +2392,16 @@ impl<'a> CheckerState<'a> {
         if !self.symbol_flags(symbol).intersects(SymbolFlags::PROPERTY) {
             return false;
         }
-        let Some(declaration) = self.binder.symbols.symbol(symbol).value_declaration else {
+        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
             return false;
         };
-        let modifiers = match &self.source.arena.node(declaration).data {
+        let modifiers = match &self
+            .binder
+            .source_of_node(declaration)
+            .arena
+            .node(declaration)
+            .data
+        {
             NodeData::PropertySignature(data) => data.modifiers,
             NodeData::Parameter(data) => data.modifiers,
             _ => None,
@@ -2447,25 +2409,18 @@ impl<'a> CheckerState<'a> {
         let Some(modifiers) = modifiers else {
             return false;
         };
-        self.source
-            .arena
+        self.binder
             .node_array(modifiers)
             .nodes
             .iter()
-            .any(|&m| self.source.arena.node(m).kind == SyntaxKind::ReadonlyKeyword)
+            .any(|&m| self.kind_of(m) == SyntaxKind::ReadonlyKeyword)
     }
 
     /// getDeclarationModifierFlagsFromSymbol (17436), M3 slice: type
     /// members carry no accessibility/static modifiers; synthetics
     /// read the Contains* check flags.
     pub fn get_declaration_modifier_flags_from_symbol(&self, symbol: SymbolId) -> ModifierFlags {
-        if self
-            .binder
-            .symbols
-            .symbol(symbol)
-            .value_declaration
-            .is_some()
-        {
+        if self.binder.symbol(symbol).value_declaration.is_some() {
             return ModifierFlags::from_bits(0);
         }
         let check_flags = self.get_check_flags(symbol);
@@ -2517,12 +2472,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<Vec<SymbolId>>> {
         let mut result: Option<Vec<SymbolId>> = None;
         for &source_property in source_properties {
-            let name = self
-                .binder
-                .symbols
-                .symbol(source_property)
-                .escaped_name
-                .clone();
+            let name = self.binder.symbol(source_property).escaped_name.clone();
             if self.is_discriminant_property(target, &name)? {
                 result.get_or_insert_with(Vec::new).push(source_property);
             }
@@ -2559,7 +2509,7 @@ impl<'a> CheckerState<'a> {
     /// and unique-symbol names are M4); the nameType is the numeric or
     /// string literal type of the name.
     pub fn get_literal_type_from_property(&mut self, prop: SymbolId) -> CheckResult2<TypeId> {
-        let name = self.binder.symbols.symbol(prop).escaped_name.clone();
+        let name = self.binder.symbol(prop).escaped_name.clone();
         if is_numeric_name(&name) {
             let value: f64 = name
                 .parse()
@@ -2667,7 +2617,13 @@ impl<'a> CheckerState<'a> {
     /// of comparing as plain booleans.
     pub fn get_type_predicate_of_signature(&mut self, signature: SignatureId) -> CheckResult2<()> {
         let declaration = self.signature_of(signature).declaration;
-        let annotation = match &self.source.arena.node(declaration).data {
+        let annotation = match &self
+            .binder
+            .source_of_node(declaration)
+            .arena
+            .node(declaration)
+            .data
+        {
             NodeData::FunctionType(data) => data.r#type,
             NodeData::ConstructorType(data) => data.r#type,
             NodeData::CallSignature(data) => data.r#type,
@@ -2675,9 +2631,7 @@ impl<'a> CheckerState<'a> {
             NodeData::MethodSignature(data) => data.r#type,
             _ => None,
         };
-        if annotation
-            .is_some_and(|node| self.source.arena.node(node).kind == SyntaxKind::TypePredicate)
-        {
+        if annotation.is_some_and(|node| self.kind_of(node) == SyntaxKind::TypePredicate) {
             return Err(Unsupported::new("type predicates (M5 narrowing)"));
         }
         Ok(())
@@ -3451,6 +3405,7 @@ mod tests {
             ParseOptions {
                 language_variant: LanguageVariant::Standard,
                 javascript_file: false,
+                ..ParseOptions::default()
             },
             None,
         );

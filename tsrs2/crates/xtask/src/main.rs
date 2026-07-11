@@ -283,6 +283,7 @@ fn parse_diags(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                 language_variant: language_variant_for_path(&path),
                 // ast-dump.mjs uses ScriptKind TS/TSX, never JS.
                 javascript_file: false,
+                ..tsrs2_syntax::ParseOptions::default()
             },
             None,
         )
@@ -322,6 +323,7 @@ fn rust_ast_dump_text(file_name: &str, text: &str) -> (String, usize) {
             language_variant: variant,
             // ast-dump.mjs uses ScriptKind TS/TSX, never JS.
             javascript_file: false,
+            ..tsrs2_syntax::ParseOptions::default()
         },
         None,
     );
@@ -805,6 +807,7 @@ fn bind_corpus(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                     tsrs2_syntax::ParseOptions {
                         language_variant,
                         javascript_file: is_js,
+                        ..tsrs2_syntax::ParseOptions::default()
                     },
                     None,
                 );
@@ -856,6 +859,7 @@ fn rust_symbol_dump(
             tsrs2_syntax::ParseOptions {
                 language_variant,
                 javascript_file: false,
+                ..tsrs2_syntax::ParseOptions::default()
             },
             None,
         );

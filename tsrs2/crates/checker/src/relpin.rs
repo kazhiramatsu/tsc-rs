@@ -82,6 +82,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
         tsrs2_syntax::ParseOptions {
             language_variant: tsrs2_syntax::LanguageVariant::Standard,
             javascript_file: false,
+            ..tsrs2_syntax::ParseOptions::default()
         },
         None,
     );
@@ -175,7 +176,7 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
         // type-literal node as one; own members' parents already
         // match.
         if let Some(symbol) = state.tables.type_of(ty).symbol {
-            let symbol_data = state.binder.symbols.symbol_mut(symbol);
+            let symbol_data = state.binder.symbol_mut(symbol);
             if symbol_data.value_declaration.is_none() {
                 symbol_data.value_declaration = symbol_data.declarations.first().copied();
             }

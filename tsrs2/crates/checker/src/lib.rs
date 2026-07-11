@@ -2,9 +2,12 @@
 
 pub mod annotate;
 pub mod engine;
+pub mod globals;
 pub mod intersect;
 mod js_grammar;
 pub mod links;
+pub mod merge;
+pub mod program;
 pub mod relate;
 pub mod relpin;
 pub mod state;
@@ -144,6 +147,12 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
         last_index_by_name.insert(file.name.as_str(), index);
     }
 
+    // Program-file parse pass (M4 5.0): files parse in program order
+    // with contiguous NodeId/NodeArrayId bases so the checker sees
+    // tsc's one-heap identity space; .json inputs parse as JSON values
+    // outside the bind program (semantic .json checking is a later
+    // stage — ledger note).
+    let mut program_sources: Vec<tsrs2_syntax::SourceFile> = Vec::new();
     for (index, file) in files.iter().enumerate() {
         if last_index_by_name.get(file.name.as_str()) != Some(&index) {
             continue;
@@ -168,12 +177,18 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
         } else {
             tsrs2_syntax::LanguageVariant::Standard
         };
+        let (node_id_base, node_array_id_base) = match program_sources.last() {
+            Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
+            None => (0, 0),
+        };
         let source_file = tsrs2_syntax::parse_source_file(
             file.name.clone(),
             file.text.clone(),
             tsrs2_syntax::ParseOptions {
                 language_variant,
                 javascript_file,
+                node_id_base,
+                node_array_id_base,
             },
             None,
         );
@@ -189,19 +204,69 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
         }
         syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
         diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
-        let binder = tsrs2_binder::bind_source_file(&source_file, options);
+        program_sources.push(source_file);
+    }
+
+    // Bind pass: per-file binders with contiguous SymbolId bases and a
+    // program-wide assigned-symbol-id counter (tsc bindSourceFile per
+    // file over one heap).
+    let mut binders: Vec<tsrs2_binder::Binder<'_>> = Vec::new();
+    for source_file in &program_sources {
+        let (symbol_id_seed, symbol_base) = match binders.last() {
+            Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
+            None => (1, 0),
+        };
+        let mut binder =
+            tsrs2_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
+        binder.bind_source_file();
         // tsc getBindAndCheckDiagnosticsForFileNoCache: plain JS files
         // (no checkJs) filter bind diagnostics to the plainJSErrors
         // allowlist — none of which the binder emits yet (stage 3.4c);
         // and comment directives (@ts-ignore/@ts-expect-error) suppress
         // preceded diagnostics. Unused @ts-expect-error reporting (2578)
-        // waits for the checker (M4) — the partialCheck path.
-        if !javascript_file {
+        // waits for the checker driver (M4 5.4) — the partialCheck path.
+        if !is_js_file_name(&source_file.file_name) {
             diagnostics.extend(filter_by_comment_directives(
                 &source_file.text,
                 &source_file.line_map,
                 binder.bind_diagnostics.iter().cloned(),
             ));
+        }
+        binders.push(binder);
+    }
+
+    // Checker-state construction (M4 5.0): the initializeTypeChecker
+    // slice runs here (globals merge across non-module files + the
+    // cross-file duplicate reporting). The statement-level check
+    // driver is stage 5.4.
+    if !binders.is_empty() {
+        let state = state::CheckerState::from_program(binders, options);
+        let by_name: std::collections::HashMap<&str, &tsrs2_syntax::SourceFile> = program_sources
+            .iter()
+            .map(|source| (source.file_name.as_str(), source))
+            .collect();
+        // Comment directives filter bind AND check diagnostics per
+        // file (getMergedBindAndCheckDiagnostics); file-less
+        // program-level diagnostics pass through.
+        let mut checker_diagnostics_by_file: std::collections::BTreeMap<
+            Option<String>,
+            Vec<tsrs2_diags::Diagnostic>,
+        > = std::collections::BTreeMap::new();
+        for diagnostic in state.diagnostics.iter().cloned() {
+            checker_diagnostics_by_file
+                .entry(diagnostic.file_name.clone())
+                .or_default()
+                .push(diagnostic);
+        }
+        for (file_name, file_diagnostics) in checker_diagnostics_by_file {
+            match file_name.as_deref().and_then(|name| by_name.get(name)) {
+                Some(source) => diagnostics.extend(filter_by_comment_directives(
+                    &source.text,
+                    &source.line_map,
+                    file_diagnostics.into_iter(),
+                )),
+                None => diagnostics.extend(file_diagnostics),
+            }
         }
     }
 

@@ -195,6 +195,18 @@ impl LinksTables {
         self.symbol.entry(id).or_default().is_discriminant_property = Some(value);
     }
 
+    /// tsc createSymbol's checkFlags seed (47656) for transient symbols
+    /// created outside the synthetic-property path.
+    pub fn set_symbol_check_flags(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        check_flags: tsrs2_types::CheckFlags,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().check_flags = check_flags;
+    }
+
     pub fn set_type_resolved_properties(
         &mut self,
         speculation_depth: u32,

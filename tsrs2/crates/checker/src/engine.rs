@@ -748,7 +748,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let source_symbol = self.st.tables.type_of(source).symbol;
         for prop in self.st.get_properties_of_type(source)? {
             if self.should_check_as_excess_property(prop, source_symbol) {
-                let name = self.st.binder.symbols.symbol(prop).escaped_name.clone();
+                let name = self.st.binder.symbol(prop).escaped_name.clone();
                 if !self.st.is_known_property(reduced_target, &name)? {
                     return Ok(true);
                 }
@@ -779,11 +779,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let Some(container) = container else {
             return false;
         };
-        let prop_declaration = self.st.binder.symbols.symbol(prop).value_declaration;
-        let container_declaration = self.st.binder.symbols.symbol(container).value_declaration;
+        let prop_declaration = self.st.binder.symbol(prop).value_declaration;
+        let container_declaration = self.st.binder.symbol(container).value_declaration;
         match (prop_declaration, container_declaration) {
             (Some(prop_declaration), Some(container_declaration)) => {
-                self.st.source.arena.node(prop_declaration).parent == Some(container_declaration)
+                self.st
+                    .binder
+                    .source_of_node(prop_declaration)
+                    .arena
+                    .node(prop_declaration)
+                    .parent
+                    == Some(container_declaration)
             }
             _ => false,
         }
@@ -1383,7 +1389,6 @@ impl<'a> CheckerState<'a> {
                 && !resolved.properties.is_empty()
                 && resolved.properties.iter().all(|&p| {
                     self.binder
-                        .symbols
                         .symbol(p)
                         .flags
                         .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
@@ -1408,7 +1413,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67298-67305
     pub fn has_common_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
         for prop in self.get_properties_of_type(source)? {
-            let name = self.binder.symbols.symbol(prop).escaped_name.clone();
+            let name = self.binder.symbol(prop).escaped_name.clone();
             if self.is_known_property(target, &name)? {
                 return Ok(true);
             }
@@ -1444,7 +1449,6 @@ impl<'a> CheckerState<'a> {
         };
         if !self
             .binder
-            .symbols
             .symbol(symbol)
             .flags
             .intersects(tsrs2_types::SymbolFlags::VALUE)
@@ -1532,7 +1536,6 @@ impl<'a> CheckerState<'a> {
             let resolved = self.members_of(members);
             let has_property = resolved.members.get(name).copied().is_some_and(|symbol| {
                 self.binder
-                    .symbols
                     .symbol(symbol)
                     .flags
                     .intersects(tsrs2_types::SymbolFlags::VALUE)
@@ -1781,8 +1784,7 @@ impl<'a> CheckerState<'a> {
                 for prop in self.get_properties_of_type(t)? {
                     let prop_type = self.get_type_of_symbol(prop)?;
                     if self.is_unit_type(prop_type) {
-                        key_property_name =
-                            Some(self.binder.symbols.symbol(prop).escaped_name.clone());
+                        key_property_name = Some(self.binder.symbol(prop).escaped_name.clone());
                         break 'outer;
                     }
                 }

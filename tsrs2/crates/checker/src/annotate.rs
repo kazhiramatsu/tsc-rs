@@ -20,21 +20,21 @@ use crate::state::{
 impl<'a> CheckerState<'a> {
     // ---- node helpers ----
 
-    fn kind_of(&self, node: NodeId) -> SyntaxKind {
-        self.source.arena.node(node).kind
+    pub(crate) fn kind_of(&self, node: NodeId) -> SyntaxKind {
+        self.binder.source_of_node(node).arena.node(node).kind
     }
 
-    fn data_of(&self, node: NodeId) -> &NodeData {
-        &self.source.arena.node(node).data
+    fn data_of(&self, node: NodeId) -> &'a NodeData {
+        &self.binder.source_of_node(node).arena.node(node).data
     }
 
     fn parent_of(&self, node: NodeId) -> Option<NodeId> {
-        self.source.arena.node(node).parent
+        self.binder.source_of_node(node).arena.node(node).parent
     }
 
     fn nodes_of(&self, array: Option<NodeArrayId>) -> Vec<NodeId> {
         match array {
-            Some(array) => self.source.arena.node_array(array).nodes.clone(),
+            Some(array) => self.binder.node_array(array).nodes.clone(),
             None => Vec::new(),
         }
     }
@@ -672,14 +672,14 @@ impl<'a> CheckerState<'a> {
     /// thisType/typeParameters). Everything that makes the 57383 guard
     /// true (type parameters, classes, `this` usage, heritage — per
     /// isThislessInterface 57346-57374) is an M4 row.
-    fn get_declared_type_of_class_or_interface(
+    pub(crate) fn get_declared_type_of_class_or_interface(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).declared_type.resolved() {
             return Ok(cached);
         }
-        let declarations = self.binder.symbols.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declarations.clone();
         for declaration in &declarations {
             if self.kind_of(*declaration) != SyntaxKind::InterfaceDeclaration {
                 continue;
@@ -689,13 +689,13 @@ impl<'a> CheckerState<'a> {
             };
             if data
                 .type_parameters
-                .is_some_and(|list| !self.source.arena.node_array(list).nodes.is_empty())
+                .is_some_and(|list| !self.binder.node_array(list).nodes.is_empty())
             {
                 return Err(Unsupported::new("generic interfaces (M4 5.1)"));
             }
             if data
                 .heritage_clauses
-                .is_some_and(|list| !self.source.arena.node_array(list).nodes.is_empty())
+                .is_some_and(|list| !self.binder.node_array(list).nodes.is_empty())
             {
                 return Err(Unsupported::new("interface heritage/base types (M4 5.3)"));
             }
@@ -890,12 +890,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         index_symbol: SymbolId,
     ) -> CheckResult2<Vec<IndexInfo>> {
-        let declarations = self
-            .binder
-            .symbols
-            .symbol(index_symbol)
-            .declarations
-            .clone();
+        let declarations = self.binder.symbol(index_symbol).declarations.clone();
         let mut index_infos: Vec<IndexInfo> = Vec::new();
         for declaration in declarations {
             let NodeData::IndexSignature(data) = self.data_of(declaration).clone() else {
@@ -1023,7 +1018,7 @@ impl<'a> CheckerState<'a> {
         }
         self.links
             .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolving);
-        let declaration = self.binder.symbols.symbol(symbol).value_declaration;
+        let declaration = self.binder.symbol(symbol).value_declaration;
         let resolved = match declaration {
             Some(declaration) => {
                 let (annotation, is_property, is_optional) =
@@ -1098,7 +1093,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:78111-78120
     pub fn get_type_of_parameter(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         let declared = self.get_type_of_symbol(symbol)?;
-        let declaration = self.binder.symbols.symbol(symbol).value_declaration;
+        let declaration = self.binder.symbol(symbol).value_declaration;
         let is_optional = declaration.is_some_and(|declaration| {
             matches!(
                 self.data_of(declaration),
@@ -1127,7 +1122,7 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = symbol else {
             return Ok(Vec::new());
         };
-        let declarations = self.binder.symbols.symbol(symbol).declarations.clone();
+        let declarations = self.binder.symbol(symbol).declarations.clone();
         let mut result = Vec::new();
         for declaration in declarations {
             if !is_m3_signature_declaration_kind(self.kind_of(declaration)) {
@@ -1174,8 +1169,7 @@ impl<'a> CheckerState<'a> {
                 )))
             }
         };
-        if type_parameters.is_some_and(|list| !self.source.arena.node_array(list).nodes.is_empty())
-        {
+        if type_parameters.is_some_and(|list| !self.binder.node_array(list).nodes.is_empty()) {
             return Err(Unsupported::new("generic signatures (M4 5.1)"));
         }
         let mut flags = SignatureFlags::from_bits(0);
@@ -1355,6 +1349,7 @@ mod tests {
             ParseOptions {
                 language_variant: LanguageVariant::Standard,
                 javascript_file: false,
+                ..ParseOptions::default()
             },
             None,
         );
@@ -1367,8 +1362,8 @@ mod tests {
     }
 
     fn annotation_type(state: &mut CheckerState, name: &str) -> TypeId {
-        let annotation =
-            find_probe_annotation(state.source, name).expect("declared var with annotation");
+        let annotation = find_probe_annotation(state.binder.source(0), name)
+            .expect("declared var with annotation");
         state
             .get_type_from_type_node(annotation)
             .expect("annotation resolves in the M3 slice")
@@ -1667,7 +1662,8 @@ mod tests {
                     ("b", "keyof"),
                     ("c", "unresolved type name"),
                 ] {
-                    let annotation = find_probe_annotation(state.source, name).expect("annotation");
+                    let annotation =
+                        find_probe_annotation(state.binder.source(0), name).expect("annotation");
                     let err = state
                         .get_type_from_type_node(annotation)
                         .expect_err("out-of-slice shape must be Unsupported");

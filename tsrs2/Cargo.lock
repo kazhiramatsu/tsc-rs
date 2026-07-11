@@ -256,6 +256,7 @@ dependencies = [
 name = "tsrs2-checker"
 version = "0.1.0"
 dependencies = [
+ "indexmap",
  "tsrs2-binder",
  "tsrs2-diags",
  "tsrs2-syntax",
