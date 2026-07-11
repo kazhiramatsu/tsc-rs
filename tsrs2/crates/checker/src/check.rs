@@ -1010,6 +1010,27 @@ impl<'a> CheckerState<'a> {
                 None => Ok("?".to_owned()),
             };
         }
+        // Named object types (interface/class/enum declared shapes)
+        // print their symbol name — the nodeBuilder's symbol reference
+        // without qualification (lib types like Date flow into 2344
+        // args; anonymous __type shapes stay out of slice).
+        if flags.intersects(TypeFlags::OBJECT | TypeFlags::ENUM) {
+            if let Some(symbol) = self.tables.type_of(ty).symbol {
+                let symbol_flags = self.binder.symbol(symbol).flags;
+                if symbol_flags.intersects(
+                    tsrs2_types::SymbolFlags::CLASS
+                        | tsrs2_types::SymbolFlags::INTERFACE
+                        | tsrs2_types::SymbolFlags::REGULAR_ENUM
+                        | tsrs2_types::SymbolFlags::CONST_ENUM,
+                ) && !self
+                    .tables
+                    .object_flags_of(ty)
+                    .intersects(ObjectFlags::REFERENCE)
+                {
+                    return Ok(self.symbol_display_name(symbol));
+                }
+            }
+        }
         match &self.tables.type_of(ty).data {
             TypeData::Intrinsic { name, .. } => Ok((*name).to_owned()),
             TypeData::Literal { value } => match value {
@@ -1376,18 +1397,19 @@ mod tests {
     }
 
     #[test]
-    fn default_lib_names_are_gated_to_false_negatives() {
-        // tsc-with-default-libs RESOLVES Map/console (the conformance
-        // oracle's world), so the noLib failure band skips them —
-        // emitting 2583/2584 here would be an architecture artifact
-        // (crate::lib_globals gate). The suggested-lib branch in
-        // on_failed_to_resolve_symbol goes live when lib modeling
-        // narrows this gate.
-        assert_eq!(checked_diags("interface I<T extends Map> { x: T }\n"), []);
-        assert_eq!(
-            checked_diags("interface I<T extends console> { x: T }\n"),
-            []
-        );
+    fn libless_missing_lib_names_report_the_2583_family() {
+        // With lib loading landed (conformance programs always carry
+        // their lib set), the 5.4-era lib_globals gate is retired: a
+        // LIBLESS program reports missing default-lib names exactly
+        // like tsc under noLib (oracle-pinned), with the suggested-lib
+        // argument from the static feature table.
+        let diags = checked_diags("interface I<T extends Map> { x: T }\n");
+        assert_eq!(diags.len(), 1, "{diags:?}");
+        assert_eq!((diags[0].0, diags[0].1, diags[0].2), (2583, 22, 3));
+        assert!(diags[0].3.ends_with("'es2015' or later."), "{}", diags[0].3);
+        let diags = checked_diags("interface I<T extends console> { x: T }\n");
+        assert_eq!(diags.len(), 1, "{diags:?}");
+        assert_eq!((diags[0].0, diags[0].1, diags[0].2), (2584, 22, 7));
     }
 
     #[test]

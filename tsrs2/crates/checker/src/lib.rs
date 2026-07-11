@@ -10,7 +10,6 @@ pub mod indexed;
 pub mod instantiate;
 pub mod intersect;
 mod js_grammar;
-pub mod lib_globals;
 pub mod links;
 pub mod merge;
 mod plain_js_errors;
@@ -324,7 +323,6 @@ pub fn check_program_with_libs(
     if !binder_refs.is_empty() {
         let lib_count = lib_binders.len();
         let mut state = state::CheckerState::from_program(binder_refs, options);
-        state.program_has_lib_files = lib_count > 0;
         for index in lib_count..state.binder.file_count() {
             state.check_source_file(index);
         }
@@ -656,6 +654,23 @@ interface Wrap<out T> { xs: T[] }
             lib_backed_diags("interface Wrap<out T> { xs: ReadonlyArray<T> }
 "),
             []
+        );
+    }
+
+    #[test]
+    fn lib_types_render_in_constraint_failure_args() {
+        // Named object types print their symbol name in the 2344 args
+        // (type_to_string_slice's named-object arm; oracle-pinned).
+        let diags =
+            lib_backed_diags("interface Foo<T extends number> { x: T }\ntype X = Foo<Date>;\n");
+        assert_eq!(
+            diags,
+            [(
+                2344,
+                54,
+                4,
+                "Type 'Date' does not satisfy the constraint 'number'.".to_owned()
+            )]
         );
     }
 

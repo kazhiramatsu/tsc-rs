@@ -170,7 +170,12 @@ impl<'a> CheckerState<'a> {
                         // falls out of the switch (globals handled at
                         // the walk's end).
                     } else {
-                        let module_symbol = self.binder.node_symbol(loc);
+                        // getSymbolOfDeclaration (19586): merged
+                        // namespaces expose the UNION exports table.
+                        let module_symbol = self
+                            .binder
+                            .node_symbol(loc)
+                            .map(|s| self.get_merged_symbol(s));
                         let module_exports: SymbolTable = module_symbol
                             .map(|s| self.binder.symbol(s).exports.clone())
                             .unwrap_or_default();
@@ -250,9 +255,11 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 SyntaxKind::EnumDeclaration => {
+                    // getSymbolOfDeclaration (19609).
                     let exports: SymbolTable = self
                         .binder
                         .node_symbol(loc)
+                        .map(|s| self.get_merged_symbol(s))
                         .map(|s| self.binder.symbol(s).exports.clone())
                         .unwrap_or_default();
                     if let Some(found) =
@@ -287,9 +294,13 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::ClassDeclaration
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
+                    // getSymbolOfDeclaration (19636): merged interface
+                    // declarations see type parameters/members from
+                    // EVERY declaration (lib interfaces merge).
                     let members: SymbolTable = self
                         .binder
                         .node_symbol(loc)
+                        .map(|s| self.get_merged_symbol(s))
                         .map(|s| self.binder.symbol(s).members.clone())
                         .unwrap_or_default();
                     if let Some(found) =
@@ -346,6 +357,8 @@ impl<'a> CheckerState<'a> {
                                 let members: SymbolTable = self
                                     .binder
                                     .node_symbol(container)
+                                    // getSymbolOfDeclaration (19660).
+                                    .map(|s| self.get_merged_symbol(s))
                                     .map(|s| self.binder.symbol(s).members.clone())
                                     .unwrap_or_default();
                                 if self
@@ -383,6 +396,8 @@ impl<'a> CheckerState<'a> {
                             let members: SymbolTable = self
                                 .binder
                                 .node_symbol(grandparent)
+                                // getSymbolOfDeclaration (19679).
+                                .map(|s| self.get_merged_symbol(s))
                                 .map(|s| self.binder.symbol(s).members.clone())
                                 .unwrap_or_default();
                             if self
@@ -864,19 +879,11 @@ impl<'a> CheckerState<'a> {
     ) {
         // Failure-band gates, each an honest FN escape (no emission)
         // for a case where the plain form would be an un-tsc-like
-        // diagnostic:
-        // 1. LIBLESS PROGRAMS ONLY (unit probes, CLI without libs):
-        //    default-lib names resolve in the oracle's lib-loaded
-        //    world (crate::lib_globals — noLib architecture artifact).
-        //    A lib-loaded program either resolves these or misses them
-        //    GENUINELY (restricted @lib) — where tsc reports too, so
-        //    the emission proceeds.
-        if !self.program_has_lib_files
-            && crate::lib_globals::is_default_lib_global_name(name)
-        {
-            return;
-        }
-        // 2. tsc's checkAndReportErrorFor* alternates (value-as-type,
+        // diagnostic (the third 5.4-era gate — the lib_globals name
+        // table — RETIRED with lib loading: conformance programs carry
+        // their lib set, so a default-lib name either resolves or is
+        // genuinely missing, where tsc reports too):
+        // 1. tsc's checkAndReportErrorFor* alternates (value-as-type,
         //    type-as-value, namespace-as-type, 2749/2693/2503-family)
         //    and the alias-resolving meaning criteria both key on a
         //    symbol EXISTING under a different meaning; those arms are
@@ -889,7 +896,7 @@ impl<'a> CheckerState<'a> {
         {
             return;
         }
-        // 3. `declare global` blocks can inject arbitrary names into
+        // 2. `declare global` blocks can inject arbitrary names into
         //    the global scope; global-augmentation binding is
         //    unported (M2 3.4c-adjacent / 5.8), so failures in such
         //    programs are undecidable.

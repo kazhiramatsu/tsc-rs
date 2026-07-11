@@ -842,6 +842,8 @@ impl<'a> CheckerState<'a> {
                     let symbol = self
                         .node_symbol(parent)
                         .expect("class/interface declarations bind symbols");
+                    // getSymbolOfDeclaration (getThisType's parent read).
+                    let symbol = self.get_merged_symbol(symbol);
                     let declared = self.get_declared_type_of_class_or_interface(symbol)?;
                     return match &self.tables.type_of(declared).data {
                         TypeData::GenericType { this_type, .. } => Ok(*this_type),
@@ -1478,7 +1480,8 @@ impl<'a> CheckerState<'a> {
             host = self.parent_of(host)?;
         }
         if self.kind_of(host) == SyntaxKind::TypeAliasDeclaration {
-            self.node_symbol(host)
+            // getSymbolOfDeclaration (62913).
+            self.node_symbol(host).map(|s| self.get_merged_symbol(s))
         } else {
             None
         }
@@ -4398,6 +4401,8 @@ impl<'a> CheckerState<'a> {
                 let member_symbol = self
                     .node_symbol(member)
                     .expect("bound enum members carry symbols");
+                // getSymbolOfDeclaration (57448).
+                let member_symbol = self.get_merged_symbol(member_symbol);
                 let value = self.get_enum_member_value(member)?.value;
                 let base = match value {
                     Some(EvalValue::Str(text)) => self.tables.get_enum_literal_type(

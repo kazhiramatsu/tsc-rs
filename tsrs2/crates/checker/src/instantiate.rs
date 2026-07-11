@@ -1587,6 +1587,8 @@ impl<'a> CheckerState<'a> {
                         let symbol = self.node_symbol(type_parameter).ok_or_else(|| {
                             Unsupported::new("unbound mapped-type type parameter")
                         })?;
+                        // getSymbolOfDeclaration (57051).
+                        let symbol = self.get_merged_symbol(symbol);
                         let declared = self.get_declared_type_of_type_parameter(symbol);
                         let mut result = outer;
                         result.push(declared);
@@ -1614,6 +1616,9 @@ impl<'a> CheckerState<'a> {
                         let symbol = self.node_symbol(node).ok_or_else(|| {
                             Unsupported::new("unbound class/interface declaration")
                         })?;
+                        // getSymbolOfDeclaration (57065): the MERGED
+                        // symbol owns the one true declared type.
+                        let symbol = self.get_merged_symbol(symbol);
                         let declared = self.get_declared_type_of_class_or_interface(symbol)?;
                         if let TypeData::GenericType { this_type, .. } =
                             self.tables.type_of(declared).data

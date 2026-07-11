@@ -193,6 +193,37 @@ Gate: FP=0 all bands, ratchets bumped, tests/relpin/ledger/invariants
 green.
 Commit: `m4 lib-loading L4: measurement + lib_globals retirement`.
 
+AS-LANDED NOTES (2026-07-12, L1-L4):
+- L1 @b4813c3: lib-gate green FIRST RUN — 108 lib files, parse and
+  bind byte-exact (dom.d.ts included), 39 distinct corpus lib sets,
+  order contract holds for all. M1/M2 needed zero fixes.
+- L2 @e43073c: one REAL bug — tsc's getSymbolOfDeclaration is
+  getMergedSymbol(node.symbol) (49936); raw node_symbol reads broke
+  merged lib interfaces (appendTypeParameters minted `Promise<T, T>`
+  → spurious 2314 on every Promise reference).
+- L3 @418f3f5: the borrowed-binder tripwire (symbol_mut refusing
+  file-owned ids) caught BOTH remaining post-bind mutations at
+  compile/test time: recordMergedSymbol's merged_into stamp on SOURCE
+  symbols (moved to a per-checker mergedSymbols map — tsc's own shape;
+  the binder Symbol field was the deviation and is gone) and relpin's
+  probe shim (now clones into a transient twin). A/B cache-off vs on:
+  identical. Full run 260s / 3.59GB RSS.
+- L4: the merged-chase audit found TEN raw-read sites; the eight
+  where tsc chases (resolveNameHelper's module-exports 19586 / enum
+  19609 / interface-members 19636 / container 19660 / grandparent
+  19679, getOuterTypeParameters' mapped-tp + thisType arms, getThisType
+  parent, alias host 62913, enum members 57448) now chase; the raw
+  ones (fn/class-expression self-names 19652/19710, infer-arm
+  typeParameter.symbol, signature param.symbol) stay raw like tsc.
+  type_to_string_slice gained the named-object arm (lib types in 2344
+  args). lib_globals.rs retired; the libless failure band now emits
+  the 2583/2584 family exactly like tsc-under-noLib (test flipped to
+  live pins). The predicted merge-band duplicate FP wave DID NOT
+  MATERIALIZE — FP=0 held through the whole insert; rates moved only
+  modestly at the 5.4 emission surface (all 6.2483→6.2566%, 2xxx
+  2.1083→2.1276%) because the surface is still type-parameter-band —
+  the payoff lands with 5.5's expression forcing.
+
 ## Expected failure modes
 
 | Symptom | Diagnosis | Fix |
