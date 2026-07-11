@@ -2200,9 +2200,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5dd5f4c5474933718e431fe1de3bb7f541e50391206aae67eb4f97fc1b7d036a
     /// tsc-span: _tsc.js:57852-57867
     ///
-    /// M3 slice: annotation-only signatures. IIFE/JS/JSDoc branches and
-    /// accessor this-borrowing are dead here; generic signatures
-    /// (typeParameters, 59628-59630) are M4 rows.
+    /// M3 slice + 5.2e generics: annotation-only signatures with
+    /// typeParameters (getTypeParametersFromDeclaration, 59630).
+    /// IIFE/JS/JSDoc branches and accessor this-borrowing are dead
+    /// here; the Constructor classType arm rides on class members
+    /// (5.3, kinds gate below).
     pub fn get_signature_from_declaration(
         &mut self,
         declaration: NodeId,
@@ -2225,9 +2227,12 @@ impl<'a> CheckerState<'a> {
                 )))
             }
         };
-        if type_parameters.is_some_and(|list| !self.binder.node_array(list).nodes.is_empty()) {
-            return Err(Unsupported::new("generic signatures (M4 5.1)"));
-        }
+        let type_parameters = {
+            let _ = type_parameters;
+            let declarations = self.type_parameter_declarations_of(declaration);
+            let parameters = self.append_type_parameters(Vec::new(), &declarations);
+            (!parameters.is_empty()).then_some(parameters)
+        };
         let mut flags = SignatureFlags::from_bits(0);
         let mut parameters: Vec<SymbolId> = Vec::new();
         let mut this_parameter = None;
@@ -2284,7 +2289,7 @@ impl<'a> CheckerState<'a> {
         let signature = Signature {
             declaration,
             flags,
-            type_parameters: None,
+            type_parameters,
             parameters,
             this_parameter,
             min_argument_count,
@@ -3539,6 +3544,65 @@ mod alias_instantiation_tests {
                 let again = state.get_type_from_type_node(w).expect("Box<string>");
                 assert_eq!(again, instantiated, "instantiation interning");
                 assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+}
+
+#[cfg(test)]
+mod generic_signature_tests {
+    use tsrs2_types::CompilerOptions;
+
+    use crate::relpin::find_probe_annotation;
+    use crate::state::test_support::with_program_state;
+
+    #[test]
+    fn function_type_annotations_construct_generic_signatures() {
+        with_program_state(
+            &[("a.ts", "declare var v: <T extends string>(x: T) => T;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation = find_probe_annotation(state.binder.source(0), "v")
+                    .expect("var with annotation");
+                let signature = state
+                    .get_signature_from_declaration(annotation)
+                    .expect("generic signature");
+                let type_parameters = state
+                    .signature_of(signature)
+                    .type_parameters
+                    .clone()
+                    .expect("typeParameters");
+                assert_eq!(type_parameters.len(), 1);
+                let constraint = state
+                    .get_constraint_from_type_parameter(type_parameters[0])
+                    .expect("constraint");
+                assert_eq!(constraint, Some(state.tables.intrinsics.string));
+                // Erasure maps the parameter and return to any.
+                let erased = state.get_erased_signature(signature).expect("erased");
+                let erased_return = state
+                    .get_return_type_of_signature(erased)
+                    .expect("erased return");
+                assert_eq!(erased_return, state.tables.intrinsics.any);
+            },
+        );
+    }
+
+    #[test]
+    fn generic_signature_relations_escape_to_inference() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare var v: <T>(x: T) => T;\ndeclare var w: <U>(x: U) => U;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = find_probe_annotation(state.binder.source(0), "v").expect("v");
+                let w = find_probe_annotation(state.binder.source(0), "w").expect("w");
+                let source = state.get_type_from_type_node(v).expect("v type");
+                let target = state.get_type_from_type_node(w).expect("w type");
+                let related = state.is_type_assignable_to(source, target);
+                let reason = related.expect_err("generic relations are M6").reason;
+                assert!(reason.contains("instantiateSignatureInContextOf"), "{reason}");
             },
         );
     }

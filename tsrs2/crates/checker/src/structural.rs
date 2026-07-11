@@ -1332,11 +1332,85 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: SignatureId,
         target: SignatureId,
     ) -> CheckResult2<Ternary> {
+        let mut source = source;
         if source == target {
             return Ok(Ternary::TRUE);
         }
         if !self.is_matching_signature(source, target)? {
             return Ok(Ternary::FALSE);
+        }
+        // 67581-67595: pairwise type-parameter identity — constraints
+        // and defaults compare through the source→target mapper.
+        let source_type_parameters = self
+            .st
+            .signature_of(source)
+            .type_parameters
+            .clone()
+            .unwrap_or_default();
+        let target_type_parameters = self
+            .st
+            .signature_of(target)
+            .type_parameters
+            .clone()
+            .unwrap_or_default();
+        if source_type_parameters.len() != target_type_parameters.len() {
+            return Ok(Ternary::FALSE);
+        }
+        if !target_type_parameters.is_empty() {
+            let mapper = self.st.create_type_mapper(
+                source_type_parameters.clone(),
+                Some(target_type_parameters.clone()),
+            );
+            for (i, &t) in target_type_parameters.iter().enumerate() {
+                let s = source_type_parameters[i];
+                if s == t {
+                    continue;
+                }
+                let unknown = self.st.tables.intrinsics.unknown;
+                let source_constraint = self.st.get_constraint_from_type_parameter(s)?;
+                let source_constraint = match source_constraint {
+                    Some(constraint) => self.st.instantiate_type(constraint, Some(mapper))?,
+                    None => unknown,
+                };
+                let target_constraint = self
+                    .st
+                    .get_constraint_from_type_parameter(t)?
+                    .unwrap_or(unknown);
+                let related = self.is_related_to(
+                    source_constraint,
+                    target_constraint,
+                    RecursionFlags::BOTH,
+                    /*report_errors*/ false,
+                    IntersectionState::NONE,
+                )?;
+                if !is_true(related) {
+                    return Ok(Ternary::FALSE);
+                }
+                let source_default = self.st.get_default_from_type_parameter(s)?;
+                let source_default = match source_default {
+                    Some(default) => self.st.instantiate_type(default, Some(mapper))?,
+                    None => unknown,
+                };
+                let target_default = self
+                    .st
+                    .get_default_from_type_parameter(t)?
+                    .unwrap_or(unknown);
+                let related = self.is_related_to(
+                    source_default,
+                    target_default,
+                    RecursionFlags::BOTH,
+                    /*report_errors*/ false,
+                    IntersectionState::NONE,
+                )?;
+                if !is_true(related) {
+                    return Ok(Ternary::FALSE);
+                }
+            }
+            // 67593-67598: the remaining comparison runs on the source
+            // instantiated into the target's parameter space.
+            source = self
+                .st
+                .instantiate_signature(source, mapper, /*erase_type_parameters*/ true)?;
         }
         let mut result = Ternary::TRUE;
         let source_this = self.st.get_this_type_of_signature(source)?;
@@ -1406,6 +1480,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     ) -> CheckResult2<Ternary> {
         if source == target {
             return Ok(Ternary::TRUE);
+        }
+        // 66727-66730: a generic source instantiates in the context of
+        // the target (getCanonicalSignature + instantiateSignatureInContextOf
+        // = M6 inference machinery). Signatures with typeParameters are
+        // constructible since 5.2e; value-equal parameter lists only
+        // arise from the interned same-signature case handled above.
+        if self.st.signature_of(source).type_parameters.is_some()
+            && self.st.signature_of(source).type_parameters
+                != self.st.signature_of(target).type_parameters
+        {
+            return Err(Unsupported::new(
+                "generic-signature relation (instantiateSignatureInContextOf, M6)",
+            ));
         }
         if !(check_mode & check_mode::STRICT_TOP_SIGNATURE != 0
             && self.st.is_top_signature(source)?)
