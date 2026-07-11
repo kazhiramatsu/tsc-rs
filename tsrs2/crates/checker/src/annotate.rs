@@ -117,7 +117,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ThisType | SyntaxKind::ThisKeyword => {
                 Err(Unsupported::new("this types (M4 5.3)"))
             }
-            SyntaxKind::TypeQuery => Err(Unsupported::new("typeof types (M4 5.1)")),
+            SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
             SyntaxKind::IndexedAccessType => Err(Unsupported::new("indexed access types (M4 5.2)")),
             SyntaxKind::MappedType => Err(Unsupported::new("mapped types (M4 5.2)")),
             SyntaxKind::ConditionalType => Err(Unsupported::new("conditional types (M4 5.2)")),
@@ -658,7 +658,28 @@ impl<'a> CheckerState<'a> {
         } else if flags.intersects(SymbolFlags::CLASS) {
             return Err(Unsupported::new("class declared types (M4 5.3)"));
         } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
-            return Err(Unsupported::new("type aliases (M4 5.1)"));
+            // Generic aliases need getTypeAliasInstantiation (5.2) at
+            // the REFERENCE; non-generic aliases resolve now.
+            let is_generic = self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .any(|&declaration| {
+                    matches!(
+                        self.data_of(declaration),
+                        NodeData::TypeAliasDeclaration(data)
+                            if data.type_parameters.is_some_and(|list| {
+                                !self.binder.node_array(list).nodes.is_empty()
+                            })
+                    )
+                });
+            if is_generic {
+                return Err(Unsupported::new(
+                    "generic type aliases (getTypeAliasInstantiation, M4 5.2)",
+                ));
+            }
+            self.get_declared_type_of_type_alias(symbol)?
         } else if flags.intersects(SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM) {
             return Err(Unsupported::new("enum declared types (M4 5.3b)"));
         } else {
@@ -672,6 +693,132 @@ impl<'a> CheckerState<'a> {
             LinkSlot::Resolved(resolved),
         );
         Ok(resolved)
+    }
+
+    /// tsc-port: getTypeFromTypeQueryNode @6.0.3
+    /// tsc-hash: d8e9b4a2ea79ce1b11bdaebf9b475b2b7175e9b653c0e8c0f87925ab8908f7c6
+    /// tsc-span: _tsc.js:60596-60603
+    ///
+    /// Slice: entity-name exprName over resolveEntityName +
+    /// getTypeOfSymbol — the checkExpressionWithTypeArguments route
+    /// (77963) with checkExpression's identifier/qualified-name arms
+    /// collapses to exactly this while identifiers carry their
+    /// declared types (flow narrowing is M5; type arguments on typeof
+    /// are `typeof f<...>` instantiation expressions, 5.2/M6).
+    /// getWidenedType (5.6) is identity here: annotation-derived
+    /// symbol types never carry fresh literals or widening-context
+    /// object literals (initializer typing, their source, is 5.5 —
+    /// symbols typed from initializers unwind as Unsupported first).
+    fn get_type_from_type_query_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+            return Ok(cached);
+        }
+        let NodeData::TypeQuery(data) = self.data_of(node) else {
+            unreachable!("TypeQuery kind implies payload");
+        };
+        if data.type_arguments.is_some() {
+            return Err(Unsupported::new(
+                "typeof with type arguments (instantiation expressions, M4 5.2/M6)",
+            ));
+        }
+        let expr_name = data
+            .expr_name
+            .ok_or_else(|| Unsupported::new("typeof with missing entity name"))?;
+        let Some(symbol) = self.resolve_entity_name(
+            expr_name,
+            SymbolFlags::VALUE,
+            /*ignore_errors*/ false,
+            None,
+        ) else {
+            return Err(Unsupported::new(
+                "unresolved typeof entity name (unknownSymbol -> errorType, observable at 5.4)",
+            ));
+        };
+        let ty = self.get_type_of_symbol(symbol)?;
+        let resolved = self.tables.get_regular_type_of_literal_type(ty);
+        self.links.set_node_resolved_type(
+            self.speculation_depth,
+            node,
+            LinkSlot::Resolved(resolved),
+        );
+        Ok(resolved)
+    }
+
+    /// tsc-port: getDeclaredTypeOfTypeAlias @6.0.3
+    /// tsc-hash: 65be838227a2b645257234d352a6b1a615000a261692235cd9be50c2672cb6d6
+    /// tsc-span: _tsc.js:57404-57435
+    ///
+    /// Slice notes: the links.typeParameters/instantiations
+    /// bookkeeping is 5.2's (generic alias REFERENCES are Unsupported
+    /// at the reference arm, so skipping it is verdict-neutral); the
+    /// JSDoc type-alias arms are elided; the BuiltinIteratorReturn
+    /// intrinsic-marker swap needs iterator globals (5.8 iteration
+    /// protocol) and unwinds as Unsupported.
+    pub(crate) fn get_declared_type_of_type_alias(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.symbol(symbol).declared_type.resolved() {
+            return Ok(cached);
+        }
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Symbol(symbol),
+            tsrs2_types::TypeSystemPropertyName::DECLARED_TYPE,
+        ) {
+            return Ok(self.tables.intrinsics.error);
+        }
+        let declaration = self
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
+        let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
+            let Some(declaration) = declaration else {
+                return Err(Unsupported::new(
+                    "type alias symbol without a TypeAliasDeclaration (JSDoc aliases unmodeled)",
+                ));
+            };
+            let NodeData::TypeAliasDeclaration(data) = state.data_of(declaration) else {
+                unreachable!("TypeAliasDeclaration kind implies payload");
+            };
+            match data.r#type {
+                Some(type_node) => state.get_type_from_type_node(type_node),
+                None => Ok(state.tables.intrinsics.error),
+            }
+        })(self);
+        let ty = match computed {
+            Ok(ty) => ty,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
+            }
+        };
+        let ty = if self.pop_type_resolution() {
+            if ty == self.tables.intrinsics.intrinsic_marker
+                && self.binder.symbol(symbol).escaped_name == "BuiltinIteratorReturn"
+            {
+                return Err(Unsupported::new(
+                    "BuiltinIteratorReturn intrinsic alias (iterator globals, M4 5.8)",
+                ));
+            }
+            ty
+        } else {
+            // 57426-57432: the cycle came from a deeper frame.
+            let error_node = declaration
+                .and_then(|declaration| self.name_of_node(declaration).or(Some(declaration)));
+            let name = self.symbol_display_name(symbol);
+            self.error_at(
+                error_node,
+                &diagnostics::Type_alias_0_circularly_references_itself,
+                &[&name],
+            );
+            self.tables.intrinsics.error
+        };
+        self.links
+            .set_symbol_declared_type(self.speculation_depth, symbol, LinkSlot::Resolved(ty));
+        Ok(ty)
     }
 
     /// tsc-port: getDeclaredTypeOfClassOrInterface @6.0.3
@@ -1807,5 +1954,95 @@ mod tests {
             state.speculation_depth = 1;
             let _ = annotation_type(state, "a");
         });
+    }
+}
+
+#[cfg(test)]
+mod alias_and_typeof_tests {
+    use tsrs2_types::{CompilerOptions, TypeFlags};
+
+    use crate::relpin::find_probe_annotation;
+    use crate::state::test_support::with_program_state;
+
+    #[test]
+    fn non_generic_type_alias_resolves_to_aliased_type() {
+        with_program_state(
+            &[("a.ts", "type A = string | number;\ndeclare var v: A;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), "v").expect("annotation");
+                let resolved = state
+                    .get_type_from_type_node(annotation)
+                    .expect("alias resolves");
+                assert!(state.tables.flags_of(resolved).intersects(TypeFlags::UNION));
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn circular_type_alias_reports_2456_and_yields_error_type() {
+        with_program_state(
+            &[("a.ts", "type A = A;\ndeclare var v: A;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), "v").expect("annotation");
+                let resolved = state
+                    .get_type_from_type_node(annotation)
+                    .expect("circular alias resolves to errorType");
+                assert!(state.tables.is_error_type(resolved));
+                let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
+                assert_eq!(codes, [2456]);
+            },
+        );
+    }
+
+    #[test]
+    fn typeof_annotated_var_resolves_to_declared_type() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare var w: \"lit\";\ndeclare var v: typeof w;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), "v").expect("annotation");
+                let resolved = state
+                    .get_type_from_type_node(annotation)
+                    .expect("typeof resolves");
+                // Regular (non-fresh) literal type, like tsc's
+                // getRegularTypeOfLiteralType tail.
+                assert!(state
+                    .tables
+                    .flags_of(resolved)
+                    .intersects(TypeFlags::STRING_LITERAL));
+                assert_eq!(
+                    state.tables.get_regular_type_of_literal_type(resolved),
+                    resolved
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn typeof_namespace_member_resolves_through_exports() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "namespace N { export const K: number = 1; }\ndeclare var v: typeof N.K;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), "v").expect("annotation");
+                let resolved = state
+                    .get_type_from_type_node(annotation)
+                    .expect("qualified typeof resolves");
+                assert_eq!(resolved, state.tables.intrinsics.number);
+            },
+        );
     }
 }

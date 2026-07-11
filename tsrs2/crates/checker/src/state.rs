@@ -699,19 +699,22 @@ mod resolution_unwind_tests {
 
     #[test]
     fn err_unwind_leaves_stack_balanced_and_slot_requeryable() {
-        // An annotation the slice cannot type (typeof query) unwinds as
-        // Unsupported: the resolution stack must be balanced and a
-        // SECOND query must fail identically instead of fabricating a
-        // cached type (M3-review Resolving-dangling fix).
+        // An annotation the slice cannot type (conditional type, 5.2)
+        // unwinds as Unsupported: the resolution stack must be balanced
+        // and a SECOND query must fail identically instead of
+        // fabricating a cached type (M3-review Resolving-dangling fix).
         with_program_state(
-            &[("a.ts", "declare var w: number;\ndeclare var v: typeof w;\n")],
+            &[(
+                "a.ts",
+                "declare var v: number extends string ? number : string;\n",
+            )],
             &CompilerOptions::default(),
             |state| {
                 let symbol = state
                     .resolve_file_scope_name("v", SymbolFlags::VALUE)
                     .expect("v resolves");
                 let first = state.get_type_of_symbol(symbol);
-                assert!(first.is_err(), "typeof annotations are out of slice");
+                assert!(first.is_err(), "conditional annotations are out of slice");
                 assert_eq!(state.resolution_targets.len(), 0);
                 let second = state.get_type_of_symbol(symbol);
                 assert_eq!(
