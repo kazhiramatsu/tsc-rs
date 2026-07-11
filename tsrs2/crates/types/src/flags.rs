@@ -791,6 +791,62 @@ impl std::ops::BitOrAssign for FlowFlags {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct IndexFlags(i32);
+
+impl IndexFlags {
+    /// tsc IndexFlags.None
+    pub const NONE: Self = Self(0);
+    /// tsc IndexFlags.StringsOnly
+    pub const STRINGS_ONLY: Self = Self(1);
+    /// tsc IndexFlags.NoIndexSignatures
+    pub const NO_INDEX_SIGNATURES: Self = Self(2);
+    /// tsc IndexFlags.NoReducibleCheck
+    pub const NO_REDUCIBLE_CHECK: Self = Self(4);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for IndexFlags {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for IndexFlags {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for IndexFlags {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct InferenceFlags(i32);
 
 impl InferenceFlags {
@@ -1016,6 +1072,196 @@ impl std::ops::BitAnd for IntersectionState {
 }
 
 impl std::ops::BitOrAssign for IntersectionState {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct IterationTypeKind(i32);
+
+impl IterationTypeKind {
+    /// tsc IterationTypeKind.Yield
+    pub const YIELD: Self = Self(0);
+    /// tsc IterationTypeKind.Return
+    pub const RETURN: Self = Self(1);
+    /// tsc IterationTypeKind.Next
+    pub const NEXT: Self = Self(2);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for IterationTypeKind {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for IterationTypeKind {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for IterationTypeKind {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct IterationUse(i32);
+
+impl IterationUse {
+    /// tsc IterationUse.AllowsSyncIterablesFlag
+    pub const ALLOWS_SYNC_ITERABLES_FLAG: Self = Self(1);
+    /// tsc IterationUse.AllowsAsyncIterablesFlag
+    pub const ALLOWS_ASYNC_ITERABLES_FLAG: Self = Self(2);
+    /// tsc IterationUse.AllowsStringInputFlag
+    pub const ALLOWS_STRING_INPUT_FLAG: Self = Self(4);
+    /// tsc IterationUse.ForOfFlag
+    pub const FOR_OF_FLAG: Self = Self(8);
+    /// tsc IterationUse.YieldStarFlag
+    pub const YIELD_STAR_FLAG: Self = Self(16);
+    /// tsc IterationUse.SpreadFlag
+    pub const SPREAD_FLAG: Self = Self(32);
+    /// tsc IterationUse.DestructuringFlag
+    pub const DESTRUCTURING_FLAG: Self = Self(64);
+    /// tsc IterationUse.PossiblyOutOfBounds
+    pub const POSSIBLY_OUT_OF_BOUNDS: Self = Self(128);
+    /// tsc IterationUse.Element
+    pub const ELEMENT: Self = Self(1);
+    /// tsc IterationUse.Spread
+    pub const SPREAD: Self = Self(33);
+    /// tsc IterationUse.Destructuring
+    pub const DESTRUCTURING: Self = Self(65);
+    /// tsc IterationUse.ForOf
+    pub const FOR_OF: Self = Self(13);
+    /// tsc IterationUse.ForAwaitOf
+    pub const FOR_AWAIT_OF: Self = Self(15);
+    /// tsc IterationUse.YieldStar
+    pub const YIELD_STAR: Self = Self(17);
+    /// tsc IterationUse.AsyncYieldStar
+    pub const ASYNC_YIELD_STAR: Self = Self(19);
+    /// tsc IterationUse.GeneratorReturnType
+    pub const GENERATOR_RETURN_TYPE: Self = Self(1);
+    /// tsc IterationUse.AsyncGeneratorReturnType
+    pub const ASYNC_GENERATOR_RETURN_TYPE: Self = Self(2);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for IterationUse {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for IterationUse {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for IterationUse {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct MemberOverrideStatus(i32);
+
+impl MemberOverrideStatus {
+    /// tsc MemberOverrideStatus.Ok
+    pub const OK: Self = Self(0);
+    /// tsc MemberOverrideStatus.NeedsOverride
+    pub const NEEDS_OVERRIDE: Self = Self(1);
+    /// tsc MemberOverrideStatus.HasInvalidOverride
+    pub const HAS_INVALID_OVERRIDE: Self = Self(2);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for MemberOverrideStatus {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for MemberOverrideStatus {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for MemberOverrideStatus {
     fn bitor_assign(&mut self, rhs: Self) {
         self.0 |= rhs.0;
     }
@@ -1866,6 +2112,58 @@ impl std::ops::BitOrAssign for SignatureFlags {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct SignatureKind(i32);
+
+impl SignatureKind {
+    /// tsc SignatureKind.Call
+    pub const CALL: Self = Self(0);
+    /// tsc SignatureKind.Construct
+    pub const CONSTRUCT: Self = Self(1);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for SignatureKind {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for SignatureKind {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for SignatureKind {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct SymbolFlags(i32);
 
 impl SymbolFlags {
@@ -2646,6 +2944,72 @@ impl std::ops::BitOrAssign for TypeMapKind {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct TypeSystemPropertyName(i32);
+
+impl TypeSystemPropertyName {
+    /// tsc TypeSystemPropertyName.Type
+    pub const TYPE: Self = Self(0);
+    /// tsc TypeSystemPropertyName.ResolvedBaseConstructorType
+    pub const RESOLVED_BASE_CONSTRUCTOR_TYPE: Self = Self(1);
+    /// tsc TypeSystemPropertyName.DeclaredType
+    pub const DECLARED_TYPE: Self = Self(2);
+    /// tsc TypeSystemPropertyName.ResolvedReturnType
+    pub const RESOLVED_RETURN_TYPE: Self = Self(3);
+    /// tsc TypeSystemPropertyName.ImmediateBaseConstraint
+    pub const IMMEDIATE_BASE_CONSTRAINT: Self = Self(4);
+    /// tsc TypeSystemPropertyName.ResolvedTypeArguments
+    pub const RESOLVED_TYPE_ARGUMENTS: Self = Self(5);
+    /// tsc TypeSystemPropertyName.ResolvedBaseTypes
+    pub const RESOLVED_BASE_TYPES: Self = Self(6);
+    /// tsc TypeSystemPropertyName.WriteType
+    pub const WRITE_TYPE: Self = Self(7);
+    /// tsc TypeSystemPropertyName.ParameterInitializerContainsUndefined
+    pub const PARAMETER_INITIALIZER_CONTAINS_UNDEFINED: Self = Self(8);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for TypeSystemPropertyName {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for TypeSystemPropertyName {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for TypeSystemPropertyName {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct UnionReduction(i32);
 
 impl UnionReduction {
@@ -2694,6 +3058,128 @@ impl std::ops::BitAnd for UnionReduction {
 }
 
 impl std::ops::BitOrAssign for UnionReduction {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct VarianceFlags(i32);
+
+impl VarianceFlags {
+    /// tsc VarianceFlags.Invariant
+    pub const INVARIANT: Self = Self(0);
+    /// tsc VarianceFlags.Covariant
+    pub const COVARIANT: Self = Self(1);
+    /// tsc VarianceFlags.Contravariant
+    pub const CONTRAVARIANT: Self = Self(2);
+    /// tsc VarianceFlags.Bivariant
+    pub const BIVARIANT: Self = Self(3);
+    /// tsc VarianceFlags.Independent
+    pub const INDEPENDENT: Self = Self(4);
+    /// tsc VarianceFlags.VarianceMask
+    pub const VARIANCE_MASK: Self = Self(7);
+    /// tsc VarianceFlags.Unmeasurable
+    pub const UNMEASURABLE: Self = Self(8);
+    /// tsc VarianceFlags.Unreliable
+    pub const UNRELIABLE: Self = Self(16);
+    /// tsc VarianceFlags.AllowsStructuralFallback
+    pub const ALLOWS_STRUCTURAL_FALLBACK: Self = Self(24);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for VarianceFlags {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for VarianceFlags {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for VarianceFlags {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct WideningKind(i32);
+
+impl WideningKind {
+    /// tsc WideningKind.Normal
+    pub const NORMAL: Self = Self(0);
+    /// tsc WideningKind.FunctionReturn
+    pub const FUNCTION_RETURN: Self = Self(1);
+    /// tsc WideningKind.GeneratorNext
+    pub const GENERATOR_NEXT: Self = Self(2);
+    /// tsc WideningKind.GeneratorYield
+    pub const GENERATOR_YIELD: Self = Self(3);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for WideningKind {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for WideningKind {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for WideningKind {
     fn bitor_assign(&mut self, rhs: Self) {
         self.0 |= rhs.0;
     }

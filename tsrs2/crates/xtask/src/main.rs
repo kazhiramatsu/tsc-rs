@@ -2279,6 +2279,38 @@ const CONST_ENUMS: &[SourceEnum] = &[
         file: "types.ts",
     },
     SourceEnum {
+        name: "VarianceFlags",
+        file: "types.ts",
+    },
+    SourceEnum {
+        name: "IndexFlags",
+        file: "types.ts",
+    },
+    SourceEnum {
+        name: "SignatureKind",
+        file: "types.ts",
+    },
+    SourceEnum {
+        name: "MemberOverrideStatus",
+        file: "types.ts",
+    },
+    SourceEnum {
+        name: "TypeSystemPropertyName",
+        file: "checker.ts",
+    },
+    SourceEnum {
+        name: "WideningKind",
+        file: "checker.ts",
+    },
+    SourceEnum {
+        name: "IterationUse",
+        file: "checker.ts",
+    },
+    SourceEnum {
+        name: "IterationTypeKind",
+        file: "checker.ts",
+    },
+    SourceEnum {
         name: "IntersectionState",
         file: "checker.ts",
     },
