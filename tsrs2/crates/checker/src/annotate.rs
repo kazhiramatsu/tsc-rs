@@ -4,13 +4,15 @@
 //! Unsupported by construction; M4 5.1 replaces this module's dispatch
 //! with the full getTypeFromTypeNode port.
 
-use tsrs2_binder::{InternalSymbolName, SymbolId};
+use tsrs2_binder::{node_util, InternalSymbolName, SymbolId};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, ElementFlags, IntersectionFlags, M4Dependency, ObjectFlags, PseudoBigInt,
-    SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    CheckFlags, ElementFlags, IntersectionFlags, LiteralValue, M4Dependency, ObjectFlags,
+    PseudoBigInt, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
+
+use crate::evaluate::EvalValue;
 
 use crate::links::LinkSlot;
 use crate::state::{
@@ -753,7 +755,22 @@ impl<'a> CheckerState<'a> {
         } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
             self.get_type_from_type_alias_reference(node, symbol)?
         } else if flags.intersects(SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM) {
-            return Err(Unsupported::new("enum declared types (M4 5.3b)"));
+            // tryGetDeclaredTypeOfSymbol arm (60391-60394): enums flow
+            // through the same checkNoTypeArguments +
+            // getRegularTypeOfLiteralType tail as type parameters.
+            let declared = self.get_declared_type_of_enum(symbol)?;
+            if !self.check_no_type_arguments(node, Some(symbol)) {
+                self.tables.intrinsics.error
+            } else {
+                self.tables.get_regular_type_of_literal_type(declared)
+            }
+        } else if flags.intersects(SymbolFlags::ENUM_MEMBER) {
+            let declared = self.get_declared_type_of_enum_member(symbol)?;
+            if !self.check_no_type_arguments(node, Some(symbol)) {
+                self.tables.intrinsics.error
+            } else {
+                self.tables.get_regular_type_of_literal_type(declared)
+            }
         } else {
             return Err(Unsupported::new(format!(
                 "type reference to symbol flags {flags:?} (M4)"
@@ -2000,7 +2017,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isEntityNameExpression @6.0.3
     /// tsc-hash: 2e7694f05260a41567e84db34bfbfd9ec77c27e3c37116b2a9cf88f0ddccfeee
     /// tsc-span: _tsc.js:17128-17130
-    fn is_entity_name_expression(&self, node: NodeId) -> bool {
+    pub(crate) fn is_entity_name_expression(&self, node: NodeId) -> bool {
         match self.data_of(node) {
             NodeData::Identifier(_) => true,
             NodeData::PropertyAccessExpression(data) => {
@@ -4115,14 +4132,16 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY) {
             return self.get_type_of_variable_or_parameter_or_property(symbol);
         }
-        if flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD | SymbolFlags::CLASS)
-        {
+        if flags.intersects(
+            SymbolFlags::FUNCTION | SymbolFlags::METHOD | SymbolFlags::CLASS | SymbolFlags::ENUM,
+        ) {
             return self.get_type_of_func_class_enum_module(symbol);
         }
-        if flags.intersects(SymbolFlags::ENUM | SymbolFlags::VALUE_MODULE) {
-            return Err(Unsupported::new(
-                "enum/module value types (M4 5.3b-doc/5.8)",
-            ));
+        if flags.intersects(SymbolFlags::VALUE_MODULE) {
+            return Err(Unsupported::new("module value types (M4 5.8)"));
+        }
+        if flags.intersects(SymbolFlags::ENUM_MEMBER) {
+            return self.get_type_of_enum_member(symbol);
         }
         if flags.intersects(SymbolFlags::ACCESSOR) {
             return self.get_type_of_accessors(symbol);
@@ -4340,6 +4359,153 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
+    // ---- enum declared types (M4 5.3b) ----
+
+    /// tsc-port: getDeclaredTypeOfEnum @6.0.3
+    /// tsc-hash: f77e4529a1ec2fd69a2d6f2ff3749a16327d69ef9d535ff814989aadd98d6f1e
+    /// tsc-span: _tsc.js:57439-57474
+    ///
+    /// hasBindableName (57448) splits into the engine's late-binding
+    /// shape: late-bindable AST names escape (5.5), other dynamic
+    /// names are skipped. tsc's unconditional member-links write is a
+    /// vacant-guarded write here (LinkSlot discipline): merged enums
+    /// that redeclare a member would make tsc's LAST write win where
+    /// ours keeps the FIRST — those fixtures are 2300-family errors.
+    pub(crate) fn get_declared_type_of_enum(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        if let Some(declared) = self.links.symbol(symbol).declared_type.resolved() {
+            return Ok(declared);
+        }
+        let mut member_type_list: Vec<TypeId> = Vec::new();
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        for declaration in declarations {
+            let NodeData::EnumDeclaration(data) = self.data_of(declaration) else {
+                continue;
+            };
+            for member in self.nodes_of(data.members) {
+                if self.has_late_bindable_ast_name(member) {
+                    return Err(Unsupported::new("late-bound enum member name (M4 5.5)"));
+                }
+                if node_util::has_dynamic_name(self.binder.source_of_node(member), member) {
+                    continue;
+                }
+                let member_symbol = self
+                    .node_symbol(member)
+                    .expect("bound enum members carry symbols");
+                let value = self.get_enum_member_value(member)?.value;
+                let base = match value {
+                    Some(EvalValue::Str(text)) => self.tables.get_enum_literal_type(
+                        LiteralValue::String(text),
+                        symbol,
+                        member_symbol,
+                    ),
+                    Some(EvalValue::Num(number)) => self.tables.get_enum_literal_type(
+                        LiteralValue::Number(number),
+                        symbol,
+                        member_symbol,
+                    ),
+                    None => self.tables.create_computed_enum_type(member_symbol),
+                };
+                let member_type = self.tables.get_fresh_type_of_literal_type(base);
+                if self
+                    .links
+                    .symbol(member_symbol)
+                    .declared_type
+                    .resolved()
+                    .is_none()
+                {
+                    self.links.set_symbol_declared_type(
+                        self.speculation_depth,
+                        member_symbol,
+                        LinkSlot::Resolved(member_type),
+                    );
+                }
+                member_type_list.push(self.tables.get_regular_type_of_literal_type(member_type));
+            }
+        }
+        let enum_type = if !member_type_list.is_empty() {
+            let union = self.get_union_type_ex_with_origin(
+                &member_type_list,
+                UnionReduction::Literal,
+                Some(symbol),
+                /*alias_type_arguments*/ None,
+                /*origin*/ None,
+            )?;
+            if self.tables.flags_of(union).intersects(TypeFlags::UNION) {
+                // 57466-57469: the enum union is stamped EnumLiteral and
+                // takes the enum symbol; the intern key already carries
+                // the enum symbol as alias id, so the mutation cannot
+                // leak into structurally identical bare unions.
+                let ty = self.tables.type_mut(union);
+                ty.flags =
+                    TypeFlags::from_bits(ty.flags.bits() | TypeFlags::ENUM_LITERAL.bits());
+                ty.symbol = Some(symbol);
+            }
+            union
+        } else {
+            self.tables.create_computed_enum_type(symbol)
+        };
+        if let Some(declared) = self.links.symbol(symbol).declared_type.resolved() {
+            return Ok(declared);
+        }
+        self.links.set_symbol_declared_type(
+            self.speculation_depth,
+            symbol,
+            LinkSlot::Resolved(enum_type),
+        );
+        Ok(enum_type)
+    }
+
+    /// tsc-port: getDeclaredTypeOfEnumMember @6.0.3
+    /// tsc-hash: 55c65eb5da7d98f13bba95bf12368b43ce3d2ed59a2e04edafe5ac1777f90fef
+    /// tsc-span: _tsc.js:57484-57493
+    ///
+    /// The inner re-check is load-bearing: forcing the parent enum
+    /// fills bindable members' slots as a side effect, and only the
+    /// leftovers (non-bindable members) take the whole-enum type.
+    pub(crate) fn get_declared_type_of_enum_member(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<TypeId> {
+        if let Some(declared) = self.links.symbol(symbol).declared_type.resolved() {
+            return Ok(declared);
+        }
+        let parent = self
+            .get_parent_of_symbol(symbol)
+            .expect("enum member symbols have enum parents");
+        let enum_type = self.get_declared_type_of_enum(parent)?;
+        if let Some(declared) = self.links.symbol(symbol).declared_type.resolved() {
+            return Ok(declared);
+        }
+        self.links.set_symbol_declared_type(
+            self.speculation_depth,
+            symbol,
+            LinkSlot::Resolved(enum_type),
+        );
+        Ok(enum_type)
+    }
+
+    /// tsc-port: getTypeOfEnumMember @6.0.3
+    /// tsc-hash: 192449a6e0e94c96d5c45accd89b12ed9f2f371748ec65e920acd099eecace29
+    /// tsc-span: _tsc.js:56860-56863
+    fn get_type_of_enum_member(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(cached);
+        }
+        let declared = self.get_declared_type_of_enum_member(symbol)?;
+        self.links
+            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(declared));
+        Ok(declared)
+    }
+
+    /// tsc-port: getParentOfSymbol @6.0.3
+    /// tsc-hash: 780aba46e2063ad2b64047a5d9ae0fc705fedf00e2d63d633c4fb8fc8e53a088
+    /// tsc-span: _tsc.js:49942-49944
+    ///
+    /// getLateBoundSymbol is the identity until 5.5 late binding.
+    pub(crate) fn get_parent_of_symbol(&self, symbol: SymbolId) -> Option<SymbolId> {
+        let parent = self.binder.symbol(symbol).parent?;
+        Some(self.get_merged_symbol(parent))
+    }
 
     /// tsc-port: getTypeOfParameter @6.0.3
     /// tsc-hash: 94d4e1585e05140cd7efeea51c3ce5d865e1405c5c3e290d5d6fec5cc3af1171
@@ -6500,6 +6666,209 @@ mod generic_signature_tests {
                 let related = state.is_type_assignable_to(source, target);
                 let reason = related.expect_err("generic relations are M6").reason;
                 assert!(reason.contains("instantiateSignatureInContextOf"), "{reason}");
+            },
+        );
+    }
+
+}
+
+// ---- enum declared types + values (M4 5.3b) ----
+#[cfg(test)]
+mod enum_tests {
+    use tsrs2_syntax::NodeId;
+    use tsrs2_types::{CompilerOptions, TypeData, TypeFlags, TypeId};
+
+    use crate::relpin::find_probe_annotation;
+    use crate::state::test_support::with_program_state;
+    use crate::state::CheckerState;
+
+    fn with_state<R>(text: &str, run: impl FnOnce(&mut CheckerState) -> R) -> R {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), run)
+    }
+
+    fn annotation_type(state: &mut CheckerState, name: &str) -> TypeId {
+        let annotation: NodeId = find_probe_annotation(state.binder.source(0), name)
+            .expect("declared var with annotation");
+        state
+            .get_type_from_type_node(annotation)
+            .expect("annotation resolves")
+    }
+
+    fn literal_number(state: &CheckerState, ty: TypeId) -> f64 {
+        match &state.tables.type_of(ty).data {
+            TypeData::Literal {
+                value: tsrs2_types::LiteralValue::Number(value),
+            } => *value,
+            other => panic!("expected number literal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn enum_declared_type_is_a_stamped_literal_union() {
+        with_state(
+            "enum E { A, B }\ndeclare var e: E;\ndeclare var a: E.A;\n",
+            |state| {
+                let e = annotation_type(state, "e");
+                let flags = state.tables.flags_of(e);
+                // 57466-57469: the member union takes EnumLiteral and
+                // the enum symbol.
+                assert!(flags.intersects(TypeFlags::UNION));
+                assert!(flags.intersects(TypeFlags::ENUM_LITERAL));
+                assert!(state.tables.type_of(e).symbol.is_some());
+                let TypeData::Union { types, .. } = &state.tables.type_of(e).data else {
+                    panic!("two-member enums declare unions");
+                };
+                let members: Vec<TypeId> = types.to_vec();
+                assert_eq!(members.len(), 2);
+                assert_eq!(literal_number(state, members[0]), 0.0);
+                assert_eq!(literal_number(state, members[1]), 1.0);
+                // E.A resolves to the member's REGULAR literal type.
+                let a = annotation_type(state, "a");
+                assert_eq!(a, members[0]);
+                assert!(state
+                    .tables
+                    .flags_of(a)
+                    .intersects(TypeFlags::ENUM_LITERAL));
+            },
+        );
+    }
+
+    #[test]
+    fn enum_values_evaluate_auto_and_constant_expressions() {
+        with_state(
+            "enum E { A = 3, B, C = (A | B) * 2, D = \"x\" + \"y\", E2 = `a${\"b\"}c` }\n\
+             declare var c: E.C;\ndeclare var d: E.D;\n",
+            |state| {
+                let c = annotation_type(state, "c");
+                // A|B = 3|4 = 7, *2 = 14.
+                assert_eq!(literal_number(state, c), 14.0);
+                let d = annotation_type(state, "d");
+                match &state.tables.type_of(d).data {
+                    TypeData::Literal {
+                        value: tsrs2_types::LiteralValue::String(text),
+                    } => assert_eq!(text, "xy"),
+                    other => panic!("expected string literal, got {other:?}"),
+                }
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn single_member_enum_declares_the_literal_itself() {
+        with_state("enum One { A }\ndeclare var v: One;\n", |state| {
+            let one = annotation_type(state, "v");
+            let flags = state.tables.flags_of(one);
+            // getUnionType over one literal returns the literal — no
+            // union to stamp, so the symbol stays the MEMBER's.
+            assert!(!flags.intersects(TypeFlags::UNION));
+            assert!(flags.intersects(TypeFlags::NUMBER_LITERAL));
+            assert!(flags.intersects(TypeFlags::ENUM_LITERAL));
+            assert_eq!(literal_number(state, one), 0.0);
+        });
+    }
+
+    #[test]
+    fn ambient_uninitialized_members_get_computed_enum_types() {
+        with_state("declare enum A { X }\ndeclare var v: A;\n", |state| {
+            let a = annotation_type(state, "v");
+            let flags = state.tables.flags_of(a);
+            assert!(flags.intersects(TypeFlags::ENUM), "{flags:?}");
+            assert!(!flags.intersects(TypeFlags::UNION));
+            assert!(matches!(state.tables.type_of(a).data, TypeData::Enum));
+        });
+    }
+
+    #[test]
+    fn enum_forward_reference_reports_2651_and_yields_zero() {
+        with_state(
+            "enum E { A = B, B = 1 }\ndeclare var a: E.A;\n",
+            |state| {
+                let a = annotation_type(state, "a");
+                assert_eq!(literal_number(state, a), 0.0);
+                let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
+                assert_eq!(codes, vec![2651]);
+            },
+        );
+    }
+
+    #[test]
+    fn enum_self_reference_reports_2565_then_escapes_to_expression_checking() {
+        with_state("enum E { A = A }\ndeclare var a: E.A;\n", |state| {
+            let annotation = find_probe_annotation(state.binder.source(0), "a")
+                .expect("declared var with annotation");
+            // The self-reference evaluates to no value, so tsc falls
+            // into checkExpression + checkTypeAssignableTo (85654) —
+            // an honest 5.5 escape here. The 2565 emitted BEFORE the
+            // escape stays (and dedupes on recompute).
+            let reason = state
+                .get_type_from_type_node(annotation)
+                .expect_err("non-constant initializers escape to 5.5")
+                .reason;
+            assert!(reason.contains("non-constant enum member initializer"), "{reason}");
+            let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
+            assert_eq!(codes, vec![2565]);
+            // The once-flag reverted: a second force retries and lands
+            // the SAME way (idempotent, one deduped 2565).
+            let again = state
+                .get_type_from_type_node(annotation)
+                .expect_err("still escapes")
+                .reason;
+            assert!(again.contains("non-constant enum member initializer"), "{again}");
+            let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
+            assert_eq!(codes, vec![2565]);
+        });
+    }
+
+    #[test]
+    fn enum_member_referencing_earlier_const_evaluates() {
+        with_state(
+            "const x = 3;\nenum E { A = x, B = First.A + 1 }\nenum First { A = 1 }\n\
+             declare var a: E.A;\ndeclare var b: E.B;\n",
+            |state| {
+                let a = annotation_type(state, "a");
+                assert_eq!(literal_number(state, a), 3.0);
+                // Cross-enum references force the OTHER enum's values;
+                // First is declared after E, which 2651 only forbids
+                // for members, not whole enums declared later? No —
+                // 2651 covers members declared after the referencing
+                // initializer INCLUDING other enums' members, so B
+                // reports and evaluates to 0.
+                let b = annotation_type(state, "b");
+                assert_eq!(literal_number(state, b), 1.0);
+                let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
+                assert_eq!(codes, vec![2651]);
+            },
+        );
+    }
+
+    #[test]
+    fn enum_relations_route_through_the_enum_relation_cache() {
+        with_state(
+            "enum E { A, B }\nenum F { A, B }\nconst enum C { A }\n\
+             declare var e: E;\ndeclare var f: F;\ndeclare var ea: E.A;\n\
+             declare var n: number;\ndeclare var c: C;\n",
+            |state| {
+                let e = annotation_type(state, "e");
+                let f = annotation_type(state, "f");
+                let ea = annotation_type(state, "ea");
+                let n = annotation_type(state, "n");
+                let c = annotation_type(state, "c");
+                // Different enums never relate (names differ).
+                assert!(!state.is_type_assignable_to(e, f).expect("e->f"));
+                assert!(!state.is_type_assignable_to(f, e).expect("f->e"));
+                // Members relate to their own enum and to number.
+                assert!(state.is_type_assignable_to(ea, e).expect("ea->e"));
+                assert!(state.is_type_assignable_to(ea, n).expect("ea->n"));
+                assert!(!state.is_type_assignable_to(e, ea).expect("e->ea"));
+                // number → numeric enum under assignable (64754-64755).
+                assert!(state.is_type_assignable_to(n, e).expect("n->e"));
+                assert!(state.is_type_assignable_to(n, ea).expect("n->ea"));
+                // const enums still take numbers (Enum flag rules, not
+                // RegularEnum): single member C.A is a numeric enum
+                // literal.
+                assert!(state.is_type_assignable_to(n, c).expect("n->c"));
+                assert!(!state.is_type_assignable_to(c, e).expect("c->e"));
             },
         );
     }

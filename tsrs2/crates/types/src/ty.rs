@@ -100,6 +100,11 @@ pub enum TypeData {
     Literal {
         value: LiteralValue,
     },
+    /// Computed enum types (createComputedEnumType 57475): a freshable
+    /// TypeFlags::Enum pair carrying the enum (or member) symbol —
+    /// minted for enums whose member list is empty or whose members
+    /// have no compile-time value; never interned.
+    Enum,
     Union {
         types: Box<[TypeId]>,
         /// Denormalized origin union/intersection (4.2+).

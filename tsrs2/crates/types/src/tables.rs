@@ -113,6 +113,11 @@ pub struct TypeTables {
     number_literal_types: HashMap<u64, TypeId>,
     /// bigIntLiteralTypes (46994), keyed by pseudoBigIntToString.
     bigint_literal_types: HashMap<String, TypeId>,
+    /// enumLiteralTypes (46995), keyed
+    /// `${enumId}${string ? "@" : "#"}${value}` (getEnumLiteralType
+    /// 63096) — the string interpolation collapses -0/+0 and every
+    /// NaN, which EnumLiteralKey reproduces bitwise.
+    enum_literal_types: HashMap<(SymbolId, EnumLiteralKey), TypeId>,
     /// unionTypes (46989), keyed by getTypeListId (+ alias id, M4).
     union_types: HashMap<String, TypeId>,
     /// unionOfUnionTypes (46990) — the 2-union getUnionType fast path,
@@ -185,6 +190,7 @@ impl TypeTables {
             string_literal_types: HashMap::new(),
             number_literal_types: HashMap::new(),
             bigint_literal_types: HashMap::new(),
+            enum_literal_types: HashMap::new(),
             union_types: HashMap::new(),
             union_of_union_types: HashMap::new(),
             intersection_types: HashMap::new(),
@@ -417,6 +423,11 @@ impl TypeTables {
                 };
                 let flags = self.flags_of(id);
                 let fresh = self.create_literal_type(flags, value, Some(id));
+                // 63069: createLiteralType(type.flags, type.value,
+                // type.symbol, type) — the fresh twin keeps the symbol
+                // (enum literals carry their member symbol).
+                let symbol = self.type_of(id).symbol;
+                self.type_mut(fresh).symbol = symbol;
                 self.type_mut(fresh).fresh_type = Some(fresh);
                 self.type_mut(id).fresh_type = Some(fresh);
             }
@@ -447,7 +458,15 @@ impl TypeTables {
                 .iter()
                 .map(|&member| self.get_regular_type_of_literal_type(member))
                 .collect();
-            let regular = self.get_union_type(&mapped, UnionReduction::Literal);
+            // mapType's no-change identity (70050): an all-regular
+            // union — an enum declared type in particular — is its own
+            // regular twin; re-interning would drop the alias-keyed
+            // EnumLiteral stamp.
+            let regular = if mapped.iter().zip(types.iter()).all(|(a, b)| a == b) {
+                id
+            } else {
+                self.get_union_type(&mapped, UnionReduction::Literal)
+            };
             self.type_mut(id).regular_type = Some(regular);
             return regular;
         }
@@ -507,6 +526,64 @@ impl TypeTables {
         );
         self.bigint_literal_types.insert(key, id);
         id
+    }
+
+    /// tsc-port: getEnumLiteralType @6.0.3
+    /// tsc-hash: c8e9cdc61226148788803c9ca77210091f4d7a34f246486b01f6d38bc582069c
+    /// tsc-span: _tsc.js:63096-63101
+    ///
+    /// The cache key carries the ENUM symbol id; the member `symbol`
+    /// only lands on the first-created type, so duplicate member
+    /// values inside one enum share the first member's literal type
+    /// (tsc's map behaves identically).
+    pub fn get_enum_literal_type(
+        &mut self,
+        value: LiteralValue,
+        enum_id: SymbolId,
+        symbol: SymbolId,
+    ) -> TypeId {
+        let (key, flags) = match &value {
+            LiteralValue::String(text) => (
+                EnumLiteralKey::String(text.clone()),
+                TypeFlags::from_bits(
+                    TypeFlags::ENUM_LITERAL.bits() | TypeFlags::STRING_LITERAL.bits(),
+                ),
+            ),
+            LiteralValue::Number(number) => (
+                EnumLiteralKey::Number(enum_literal_number_key(*number)),
+                TypeFlags::from_bits(
+                    TypeFlags::ENUM_LITERAL.bits() | TypeFlags::NUMBER_LITERAL.bits(),
+                ),
+            ),
+            LiteralValue::BigInt(_) => unreachable!(
+                "enum member values are string | number (EvaluatorResult never holds bigints)"
+            ),
+        };
+        if let Some(&id) = self.enum_literal_types.get(&(enum_id, key.clone())) {
+            return id;
+        }
+        let id = self.create_literal_type(flags, value, None);
+        self.type_mut(id).symbol = Some(symbol);
+        self.enum_literal_types.insert((enum_id, key), id);
+        id
+    }
+
+    /// tsc-port: createComputedEnumType @6.0.3
+    /// tsc-hash: 4ffe57fd4f2cdca71e2991992b3bfba4253dfe4fa5a38838e6acb53e894fa4f1
+    /// tsc-span: _tsc.js:57475-57483
+    ///
+    /// Returns the REGULAR twin (tsc returns `regularType`); the fresh
+    /// twin hangs off Type::fresh_type like the boolean quadruple.
+    pub fn create_computed_enum_type(&mut self, symbol: SymbolId) -> TypeId {
+        let regular = self.create_type(TypeFlags::ENUM, TypeData::Enum);
+        self.type_mut(regular).symbol = Some(symbol);
+        let fresh = self.create_type(TypeFlags::ENUM, TypeData::Enum);
+        self.type_mut(fresh).symbol = Some(symbol);
+        self.type_mut(regular).regular_type = Some(regular);
+        self.type_mut(regular).fresh_type = Some(fresh);
+        self.type_mut(fresh).regular_type = Some(regular);
+        self.type_mut(fresh).fresh_type = Some(fresh);
+        regular
     }
 
     // ---- list ids & propagating flags ----
@@ -2374,6 +2451,24 @@ fn number_map_key(value: f64) -> u64 {
         0f64.to_bits()
     } else {
         value.to_bits()
+    }
+}
+
+/// getEnumLiteralType's cache key mixes the value into a STRING
+/// (`${enumId}#${value}`), so `${-0}` = `${0}` = "0" and every NaN
+/// prints "NaN" — evaluator results CAN be -0 or NaN (`A = 0 * -1`,
+/// `A = 0 / 0` in non-const enums).
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum EnumLiteralKey {
+    String(String),
+    Number(u64),
+}
+
+fn enum_literal_number_key(value: f64) -> u64 {
+    if value.is_nan() {
+        f64::NAN.to_bits()
+    } else {
+        number_map_key(value)
     }
 }
 

@@ -141,9 +141,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 364b4fccbfeccb19bc4a4e11466fd7343a2e454b11f86fd9ef244dc4f26ba72b
     /// tsc-span: _tsc.js:64733-64761
     ///
-    /// The enum arms call the isEnumTypeRelatedTo stub (relate.rs) —
-    /// enum types are unconstructible in M3, so those arms only fire
-    /// when M4 lands enum declared types.
+    /// The enum arms route through isEnumTypeRelatedTo (relate.rs)
+    /// with its enumRelation symbol-pair cache (M4 5.3b).
     pub fn is_simple_type_related_to(
         &mut self,
         source: TypeId,
@@ -198,10 +197,47 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if s & TypeFlags::ENUM.bits() != 0 && t & TypeFlags::ENUM.bits() != 0 {
-            return Err(Unsupported::new("enum compatibility (M4 5.3b)"));
+            let source_symbol = self
+                .tables
+                .type_of(source)
+                .symbol
+                .expect("enum types carry their symbol");
+            let target_symbol = self
+                .tables
+                .type_of(target)
+                .symbol
+                .expect("enum types carry their symbol");
+            if self.binder.symbol(source_symbol).escaped_name
+                == self.binder.symbol(target_symbol).escaped_name
+                && self.is_enum_type_related_to(source_symbol, target_symbol)?
+            {
+                return Ok(true);
+            }
         }
         if s & TypeFlags::ENUM_LITERAL.bits() != 0 && t & TypeFlags::ENUM_LITERAL.bits() != 0 {
-            return Err(Unsupported::new("enum literal compatibility (M4 5.3b)"));
+            let source_symbol = self
+                .tables
+                .type_of(source)
+                .symbol
+                .expect("enum literal types carry their symbol");
+            let target_symbol = self
+                .tables
+                .type_of(target)
+                .symbol
+                .expect("enum literal types carry their symbol");
+            if s & TypeFlags::UNION.bits() != 0
+                && t & TypeFlags::UNION.bits() != 0
+                && self.is_enum_type_related_to(source_symbol, target_symbol)?
+            {
+                return Ok(true);
+            }
+            if s & TypeFlags::LITERAL.bits() != 0
+                && t & TypeFlags::LITERAL.bits() != 0
+                && self.literal_values_equal(source, target)
+                && self.is_enum_type_related_to(source_symbol, target_symbol)?
+            {
+                return Ok(true);
+            }
         }
         if s & TypeFlags::UNDEFINED.bits() != 0
             && ((!self.tables.strict_null_checks
@@ -232,12 +268,21 @@ impl<'a> CheckerState<'a> {
             if s & TypeFlags::ANY.bits() != 0 {
                 return Ok(true);
             }
-            // The number/numberLiteral-to-enum arms depend on enum
-            // types (M4); enum flags cannot appear on M3 types.
-            if s & (TypeFlags::NUMBER.bits() | TypeFlags::NUMBER_LITERAL.bits()) != 0
-                && t & TypeFlags::ENUM.bits() != 0
+            if s & TypeFlags::NUMBER.bits() != 0
+                && (t & TypeFlags::ENUM.bits() != 0
+                    || (t & TypeFlags::NUMBER_LITERAL.bits() != 0
+                        && t & TypeFlags::ENUM_LITERAL.bits() != 0))
             {
-                return Err(Unsupported::new("enum targets (M4 5.3b)"));
+                return Ok(true);
+            }
+            if s & TypeFlags::NUMBER_LITERAL.bits() != 0
+                && s & TypeFlags::ENUM_LITERAL.bits() == 0
+                && (t & TypeFlags::ENUM.bits() != 0
+                    || (t & TypeFlags::NUMBER_LITERAL.bits() != 0
+                        && t & TypeFlags::ENUM_LITERAL.bits() != 0
+                        && self.literal_values_equal(source, target)))
+            {
+                return Ok(true);
             }
             if self.is_unknown_like_union_type(target)? {
                 return Ok(true);
@@ -2143,13 +2188,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c16f94f06e54359337919a8bc85571e3f9f6017fc573396231819c88a0d6de60
     /// tsc-span: _tsc.js:67755-67757
     ///
-    /// The EnumLike arm is an M4 row; the union arm maps members
-    /// (tsc's `B{id}` cachedTypes entry is a perf cache, not
-    /// semantics).
+    /// The union arm maps members (tsc's `B{id}` cachedTypes entry is
+    /// a perf cache, not semantics).
     pub fn get_base_type_of_literal_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::ENUM_LIKE) {
-            return Err(Unsupported::new("enum literal base types (M4 5.3b)"));
+            return self.get_base_type_of_enum_like_type(ty);
         }
         if flags.intersects(TypeFlags::from_bits(
             TypeFlags::STRING_LITERAL.bits()
@@ -2182,6 +2226,30 @@ impl<'a> CheckerState<'a> {
                 return Ok(ty);
             }
             return self.get_union_type_ex(&mapped, UnionReduction::Literal);
+        }
+        Ok(ty)
+    }
+
+    /// tsc-port: getBaseTypeOfEnumLikeType @6.0.3
+    /// tsc-hash: 858147aecede12f638a65d11df4e363261107bd21691b950f2d9b966c18bbe9d
+    /// tsc-span: _tsc.js:57436-57438
+    fn get_base_type_of_enum_like_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        if self.tables.flags_of(ty).intersects(TypeFlags::ENUM_LIKE) {
+            if let Some(symbol) = self.tables.type_of(ty).symbol {
+                if self
+                    .binder
+                    .symbol(symbol)
+                    .flags
+                    .intersects(tsrs2_types::SymbolFlags::ENUM_MEMBER)
+                {
+                    let parent = self
+                        .get_parent_of_symbol(symbol)
+                        .expect("enum member symbols have enum parents");
+                    // getDeclaredTypeOfSymbol reduces to the enum arm:
+                    // an enum member's parent is always an enum.
+                    return self.get_declared_type_of_enum(parent);
+                }
+            }
         }
         Ok(ty)
     }

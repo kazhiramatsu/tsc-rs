@@ -53,6 +53,13 @@ pub struct NodeLinks {
     /// tsc links.resolvedSymbol (getResolvedSymbol 69389) — the
     /// unknownSymbol failure sentinel is cached like tsc's.
     pub resolved_symbol: LinkSlot<SymbolId>,
+    /// tsc links.enumMemberValue (computeEnumMemberValues 85587) on
+    /// EnumMember nodes.
+    pub enum_member_value: Option<crate::evaluate::EvaluatorResult>,
+    /// tsc NodeLinks.flags & EnumValuesComputed (85582) on
+    /// EnumDeclaration nodes. Unlike tsc this REVERTS on Unsupported
+    /// unwind so a later query recomputes the tail of the member list.
+    pub enum_values_computed: bool,
 }
 
 /// tsc SymbolLinks — the per-symbol subset M3 consumes.
@@ -258,6 +265,31 @@ impl LinksTables {
             &mut self.node.entry(id).or_default().resolved_signature,
             value,
         );
+    }
+
+    pub fn set_node_enum_member_value(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: crate::evaluate::EvaluatorResult,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let slot = &mut self.node.entry(id).or_default().enum_member_value;
+        assert!(slot.is_none(), "enum member value rewritten");
+        *slot = Some(value);
+    }
+
+    pub fn set_node_enum_values_computed(&mut self, speculation_depth: u32, id: NodeId) {
+        Self::assert_writable(speculation_depth);
+        self.node.entry(id).or_default().enum_values_computed = true;
+    }
+
+    /// Unsupported-unwind twin of set_node_enum_values_computed — the
+    /// once-flag must not stay observable after a failed compute
+    /// (member value slots that DID fill are correct facts and stay).
+    pub fn revert_node_enum_values_computed(&mut self, speculation_depth: u32, id: NodeId) {
+        Self::assert_writable(speculation_depth);
+        self.node.entry(id).or_default().enum_values_computed = false;
     }
 
     pub fn set_symbol_declared_type(

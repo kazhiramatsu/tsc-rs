@@ -1917,3 +1917,139 @@ setup = "declare class B { protected x: number }"
 source = "B"
 target = "{ x: number }"
 expect = "no"
+
+# ---- enums (M4 5.3b: enum declared types, values, isEnumTypeRelatedTo) ----
+
+[[pair]]
+setup = "enum E { A, B }"
+source = "E"
+target = "number"
+expect = "yes"
+
+[[pair]]
+setup = "enum E { A, B }"
+source = "number"
+target = "E"
+expect = "yes"
+
+[[pair]]
+setup = "enum E { A, B }"
+source = "E.A"
+target = "E"
+expect = "yes"
+
+[[pair]]
+setup = "enum E { A, B }"
+source = "E"
+target = "E.A"
+expect = "no"
+
+[[pair]]
+setup = "enum E { A, B }"
+source = "E.A"
+target = "number"
+expect = "yes"
+
+[[pair]]
+setup = "enum E { A, B }"
+source = "number"
+target = "E.A"
+expect = "yes"
+
+[[pair]]
+setup = "enum E { A, B }"
+source = "string"
+target = "E"
+expect = "no"
+
+[[pair]]
+setup = "enum E { A, B }\nenum F { A, B }"
+source = "E"
+target = "F"
+expect = "no"
+
+[[pair]]
+setup = "enum E { A, B }\nenum F { A, B }"
+source = "F.A"
+target = "E"
+expect = "no"
+
+[[pair]]
+setup = "const enum C { A }"
+source = "C"
+target = "number"
+expect = "yes"
+
+[[pair]]
+setup = "const enum C { A }"
+source = "number"
+target = "C"
+expect = "yes"
+
+[[pair]]
+setup = "const enum C { A }\nenum E { A, B }"
+source = "C"
+target = "E"
+expect = "no"
+
+[[pair]]
+setup = "enum S { X = \"x\", Y = \"y\" }"
+source = "S"
+target = "string"
+expect = "yes"
+
+[[pair]]
+setup = "enum S { X = \"x\", Y = \"y\" }"
+source = "string"
+target = "S"
+expect = "no"
+
+[[pair]]
+setup = "enum S { X = \"x\", Y = \"y\" }"
+source = "S.X"
+target = "\"x\""
+expect = "yes"
+
+[[pair]]
+setup = "enum S { X = \"x\", Y = \"y\" }"
+source = "\"x\""
+target = "S.X"
+expect = "no"
+
+[[pair]]
+setup = "declare enum A { X }"
+source = "A"
+target = "number"
+expect = "yes"
+
+[[pair]]
+setup = "declare enum A { X }"
+source = "number"
+target = "A"
+expect = "yes"
+
+[[pair]]
+setup = "enum E { A = 3, B, C = (A | B) * 2 }"
+source = "E.C"
+target = "14"
+expect = "yes"
+
+[[pair]]
+setup = "enum E { A, B }"
+source = "E"
+target = "E.A"
+relation = "comparable"
+expect = "yes"
+
+[[pair]]
+setup = "enum E { A, B }\nenum F { A, B }"
+source = "E"
+target = "F"
+relation = "comparable"
+expect = "no"
+
+[[pair]]
+setup = "const x = 3\nenum E { A = x, B }"
+source = "E.B"
+target = "4"
+expect = "yes"

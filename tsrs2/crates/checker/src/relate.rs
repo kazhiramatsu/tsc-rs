@@ -14,10 +14,13 @@
 
 use std::collections::HashMap;
 
+use tsrs2_syntax::SyntaxKind;
 use tsrs2_types::{
-    IntersectionState, ObjectFlags, RelationComparisonResult, TypeData, TypeFlags, TypeId,
+    IntersectionState, ObjectFlags, RelationComparisonResult, SymbolFlags, TypeData, TypeFlags,
+    TypeId,
 };
 
+use crate::evaluate::EvalValue;
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 
 /// checker-key §1.5: the five relations (tsc's five checker-scope
@@ -235,19 +238,112 @@ impl<'a> CheckerState<'a> {
         format!("{},{}{post_fix}", source.0, target.0)
     }
 
-    /// isEnumTypeRelatedTo (64673) — STUB until M4 5.3b: enum declared
-    /// types (getTypeOfSymbol for enums, getEnumMemberValue) are
-    /// unconstructible in M3, so the isSimpleTypeRelatedTo enum arms
-    /// can never produce symbols to compare. The enumRelation cache
-    /// (RelationCaches::enum_relation, keyed
-    /// `getSymbolId(source),getSymbolId(target)`) is ready for the
-    /// port; enum pins arrive with M4.
+    /// tsc-port: isEnumTypeRelatedTo @6.0.3
+    /// tsc-hash: 253c223b70908f75bb9e3be5803ad582f0412432e034ab00e01cae4a891a9dce
+    /// tsc-span: _tsc.js:64673-64732
+    ///
+    /// errorReporter is never supplied (the engine is reportErrors=
+    /// false throughout): the Failed-entry re-run guard (64684) is
+    /// dead and the message emissions inside the walk are skipped —
+    /// the enumRelation verdict writes are unconditional in tsc and
+    /// stay so here.
     pub fn is_enum_type_related_to(
         &mut self,
-        _source: tsrs2_binder::SymbolId,
-        _target: tsrs2_binder::SymbolId,
+        source: tsrs2_binder::SymbolId,
+        target: tsrs2_binder::SymbolId,
     ) -> CheckResult2<bool> {
-        Err(Unsupported::new("enum compatibility (M4 5.3b)"))
+        let source_symbol = if self
+            .binder
+            .symbol(source)
+            .flags
+            .intersects(SymbolFlags::ENUM_MEMBER)
+        {
+            self.get_parent_of_symbol(source)
+                .expect("enum member symbols have enum parents")
+        } else {
+            source
+        };
+        let target_symbol = if self
+            .binder
+            .symbol(target)
+            .flags
+            .intersects(SymbolFlags::ENUM_MEMBER)
+        {
+            self.get_parent_of_symbol(target)
+                .expect("enum member symbols have enum parents")
+        } else {
+            target
+        };
+        if source_symbol == target_symbol {
+            return Ok(true);
+        }
+        {
+            let source_data = self.binder.symbol(source_symbol);
+            let target_data = self.binder.symbol(target_symbol);
+            if source_data.escaped_name != target_data.escaped_name
+                || !source_data.flags.intersects(SymbolFlags::REGULAR_ENUM)
+                || !target_data.flags.intersects(SymbolFlags::REGULAR_ENUM)
+            {
+                return Ok(false);
+            }
+        }
+        let id = format!("{},{}", source_symbol.0, target_symbol.0);
+        if let Some(&entry) = self.relations.enum_relation.get(&id) {
+            return Ok(entry.intersects(RelationComparisonResult::SUCCEEDED));
+        }
+        let target_enum_type = self.get_type_of_symbol(target_symbol)?;
+        let source_enum_type = self.get_type_of_symbol(source_symbol)?;
+        let source_properties = self.get_properties_of_type_full(source_enum_type)?;
+        for source_property in source_properties {
+            if !self
+                .binder
+                .symbol(source_property)
+                .flags
+                .intersects(SymbolFlags::ENUM_MEMBER)
+            {
+                continue;
+            }
+            let name = self.binder.symbol(source_property).escaped_name.clone();
+            let target_property = self
+                .get_property_of_type_full(target_enum_type, &name)?
+                .filter(|&property| {
+                    self.binder
+                        .symbol(property)
+                        .flags
+                        .intersects(SymbolFlags::ENUM_MEMBER)
+                });
+            let Some(target_property) = target_property else {
+                self.relations
+                    .enum_relation
+                    .insert(id, RelationComparisonResult::FAILED);
+                return Ok(false);
+            };
+            let source_declaration = self
+                .get_declaration_of_kind(source_property, SyntaxKind::EnumMember)
+                .ok_or_else(|| Unsupported::new("enum member property without declaration"))?;
+            let target_declaration = self
+                .get_declaration_of_kind(target_property, SyntaxKind::EnumMember)
+                .ok_or_else(|| Unsupported::new("enum member property without declaration"))?;
+            let source_value = self.get_enum_member_value(source_declaration)?.value;
+            let target_value = self.get_enum_member_value(target_declaration)?.value;
+            if source_value != target_value {
+                let source_is_string = matches!(source_value, Some(EvalValue::Str(_)));
+                let target_is_string = matches!(target_value, Some(EvalValue::Str(_)));
+                if (source_value.is_some() && target_value.is_some())
+                    || source_is_string
+                    || target_is_string
+                {
+                    self.relations
+                        .enum_relation
+                        .insert(id, RelationComparisonResult::FAILED);
+                    return Ok(false);
+                }
+            }
+        }
+        self.relations
+            .enum_relation
+            .insert(id, RelationComparisonResult::SUCCEEDED);
+        Ok(true)
     }
 }
 
@@ -370,13 +466,14 @@ mod tests {
     }
 
     #[test]
-    fn enum_relation_is_a_stubbed_sixth_map() {
+    fn enum_relation_short_circuits_on_symbol_identity() {
+        // 64676-64678: identical symbols relate before any flag or
+        // name test — even a symbol that is not an enum at all.
         with_state(|state| {
             let symbol = tsrs2_binder::SymbolId(0);
-            let err = state
+            assert!(state
                 .is_enum_type_related_to(symbol, symbol)
-                .expect_err("enum compatibility is an M4 row");
-            assert!(err.reason.contains("M4"));
+                .expect("identity path never escapes"));
         });
     }
 }
