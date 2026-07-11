@@ -2053,3 +2053,325 @@ setup = "const x = 3\nenum E { A = x, B }"
 source = "E.B"
 target = "4"
 expect = "yes"
+
+# ---- variance-driven reference pairs (M4 5.3b: getVariances + relateVariances) ----
+
+[[pair]]
+setup = "interface Box<T> { x: T }"
+source = "Box<\"a\">"
+target = "Box<string>"
+expect = "yes"
+
+[[pair]]
+setup = "interface Box<T> { x: T }"
+source = "Box<string>"
+target = "Box<\"a\">"
+expect = "no"
+
+[[pair]]
+setup = "interface Sink<T> { f: (x: T) => void }"
+source = "Sink<string>"
+target = "Sink<\"a\">"
+expect = "yes"
+
+[[pair]]
+setup = "interface Sink<T> { f: (x: T) => void }"
+source = "Sink<\"a\">"
+target = "Sink<string>"
+expect = "no"
+
+[[pair]]
+setup = "interface Cell<T> { f: (x: T) => T }"
+source = "Cell<\"a\">"
+target = "Cell<string>"
+expect = "no"
+
+[[pair]]
+setup = "interface Cell<T> { f: (x: T) => T }"
+source = "Cell<string>"
+target = "Cell<\"a\">"
+expect = "no"
+
+[[pair]]
+setup = "interface Meth<T> { f(x: T): void }"
+source = "Meth<string>"
+target = "Meth<\"a\">"
+expect = "yes"
+
+[[pair]]
+setup = "interface Meth<T> { f(x: T): void }"
+source = "Meth<\"a\">"
+target = "Meth<string>"
+expect = "yes"
+
+[[pair]]
+setup = "interface Unused<T> { x: number }"
+source = "Unused<\"a\">"
+target = "Unused<string>"
+expect = "yes"
+
+[[pair]]
+setup = "interface O2<out T> { x: T }"
+source = "O2<\"a\">"
+target = "O2<string>"
+expect = "yes"
+
+[[pair]]
+setup = "interface I2<in T> { f: (x: T) => void }"
+source = "I2<string>"
+target = "I2<\"a\">"
+expect = "yes"
+
+[[pair]]
+setup = "interface IO2<in out T> { x: T }"
+source = "IO2<\"a\">"
+target = "IO2<string>"
+expect = "no"
+
+[[pair]]
+setup = "interface OutOnly<out T> { f: (x: T) => void }"
+source = "OutOnly<string>"
+target = "OutOnly<\"a\">"
+expect = "no"
+
+[[pair]]
+setup = "interface CoVoid<T> { x: T }"
+source = "CoVoid<{ a: string }>"
+target = "CoVoid<void>"
+expect = "no"
+
+[[pair]]
+setup = "type AliasBox<T> = { x: T }"
+source = "AliasBox<\"a\">"
+target = "AliasBox<string>"
+expect = "yes"
+
+[[pair]]
+setup = "type AliasBox<T> = { x: T }"
+source = "AliasBox<string>"
+target = "AliasBox<\"a\">"
+expect = "no"
+
+[[pair]]
+setup = "type AliasSink<T> = { f: (x: T) => void }"
+source = "AliasSink<string>"
+target = "AliasSink<\"a\">"
+expect = "yes"
+
+# ---- generic references: mutually recursive pairs ----
+
+[[pair]]
+setup = "interface A2<T> { next: B2<T> }\ninterface B2<T> { next: A2<T> }"
+source = "A2<string>"
+target = "B2<string>"
+expect = "yes"
+
+[[pair]]
+setup = "interface A2<T> { next: B2<T> }\ninterface B2<T> { next: A2<T> }"
+source = "A2<string>"
+target = "B2<number>"
+expect = "yes"
+
+[[pair]]
+setup = "interface Rec<T> { next: Rec<T> }"
+source = "Rec<string>"
+target = "Rec<number>"
+expect = "yes"
+
+# ---- deeply-expanding generics (depth limiter + getRecursionIdentity) ----
+
+[[pair]]
+setup = "interface Deep<T> { next: Deep<Deep<T>> }"
+source = "Deep<string>"
+target = "Deep<number>"
+expect = "yes"
+
+[[pair]]
+setup = "interface Deep<T> { next: Deep<Deep<T>> }\ninterface Deep2<T> { next: Deep2<Deep2<T>> }"
+source = "Deep<string>"
+target = "Deep2<string>"
+expect = "yes"
+
+# ---- arrays T[] ----
+
+[[pair]]
+setup = "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }"
+source = "string[]"
+target = "string[]"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }"
+source = "\"a\"[]"
+target = "string[]"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }"
+source = "string[]"
+target = "number[]"
+expect = "no"
+
+[[pair]]
+setup = "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }"
+source = "string[]"
+target = "readonly string[]"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }"
+source = "readonly string[]"
+target = "string[]"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }"
+source = "[string, string]"
+target = "string[]"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }"
+source = "[string, number]"
+target = "readonly string[]"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }"
+source = "string[]"
+target = "[string]"
+expect = "no"
+
+# ---- StringMapping ----
+
+[[pair]]
+setup = "type Uppercase<S extends string> = intrinsic"
+source = "Uppercase<\"abc\">"
+target = "\"ABC\""
+expect = "yes"
+
+[[pair]]
+setup = "type Uppercase<S extends string> = intrinsic\ntype S2 = string"
+source = "Uppercase<S2>"
+target = "string"
+expect = "yes"
+
+[[pair]]
+setup = "type Uppercase<S extends string> = intrinsic"
+source = "string"
+target = "Uppercase<string>"
+expect = "no"
+
+[[pair]]
+setup = "type Uppercase<S extends string> = intrinsic"
+source = "\"ABC\""
+target = "Uppercase<string>"
+expect = "yes"
+
+[[pair]]
+setup = "type Uppercase<S extends string> = intrinsic"
+source = "\"abc\""
+target = "Uppercase<string>"
+expect = "no"
+
+[[pair]]
+setup = "type Uppercase<S extends string> = intrinsic\ntype Lowercase<S extends string> = intrinsic"
+source = "Uppercase<string>"
+target = "Lowercase<string>"
+expect = "no"
+
+# ---- primitives vs objects with required members (apparent types) ----
+
+[[pair]]
+setup = "interface String { length: number }"
+source = "string"
+target = "{ length: number }"
+expect = "yes"
+
+[[pair]]
+setup = "interface String { length: number }"
+source = "string"
+target = "{ length: number, missing: boolean }"
+expect = "no"
+
+[[pair]]
+setup = "interface Number { toFixed(digits: number): string }"
+source = "number"
+target = "{ toFixed(digits: number): string }"
+expect = "yes"
+
+[[pair]]
+setup = "interface Boolean { valueOf(): boolean }"
+source = "boolean"
+target = "{ valueOf(): boolean }"
+expect = "yes"
+
+# ---- tuple-to-object (tuple member synthesis) ----
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "[string, number]"
+target = "{ 0: string, 1: number }"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "[string, number]"
+target = "{ 0: string, 1: boolean }"
+expect = "no"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "[string, number]"
+target = "{ length: 2 }"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "[string, number]"
+target = "{ length: 3 }"
+expect = "no"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "{ 0: string, 1: number, length: 2 }"
+target = "[string, number]"
+expect = "yes"
+
+# ---- rest-parameter signatures ----
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "(...args: string[]) => void"
+target = "(a: string, b: string) => void"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "(a: string, b: string) => void"
+target = "(...args: string[]) => void"
+expect = "no"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "(...args: [string, ...number[]]) => void"
+target = "(a: string, ...rest: number[]) => void"
+expect = "no"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "(a: string, ...rest: number[]) => void"
+target = "(...args: [string, ...number[]]) => void"
+expect = "yes"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "(...args: [string, number]) => void"
+target = "(a: string, b: string) => void"
+expect = "no"
+
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "(...args: [a: string, b: number]) => void"
+target = "(x: string, y: number) => void"
+expect = "yes"

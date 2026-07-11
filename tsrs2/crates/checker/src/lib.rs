@@ -18,6 +18,7 @@ pub mod resolve;
 pub mod state;
 pub mod structural;
 pub mod unions;
+pub mod variance;
 
 use tsrs2_diags::DiagnosticList;
 

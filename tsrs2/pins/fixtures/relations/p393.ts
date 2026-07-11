@@ -1,0 +1,6 @@
+// @noLib: true
+
+// relpin p393: assignable source="[string, number]" target="{ 0: string, 1: number }"
+interface Array<T> { length: number }
+declare var s: [string, number];
+var t: { 0: string, 1: number } = s;

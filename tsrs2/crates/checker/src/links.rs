@@ -104,6 +104,13 @@ pub struct SymbolLinks {
     /// 57712, the static resolutionKind) — equal to `symbol.exports`
     /// while no late-bindable static member exists.
     pub resolved_exports: LinkSlot<tsrs2_binder::SymbolTable>,
+    /// tsc links.variances (getVariancesWorker 67315): Vacant =
+    /// undefined, Resolving = the in-progress emptyArray sentinel
+    /// (getVariances call sites answer Ternary.Unknown), Resolved =
+    /// the measured list — possibly genuinely empty for zero-parameter
+    /// alias symbols, which is DISTINCT from the sentinel exactly as
+    /// tsc's fresh `[]` differs from the shared emptyArray.
+    pub variances: LinkSlot<Box<[tsrs2_types::VarianceFlags]>>,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -265,6 +272,28 @@ impl LinksTables {
             &mut self.node.entry(id).or_default().resolved_signature,
             value,
         );
+    }
+
+    pub fn set_symbol_variances(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: LinkSlot<Box<[tsrs2_types::VarianceFlags]>>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(&mut self.symbol.entry(id).or_default().variances, value);
+    }
+
+    /// Err-unwind twin for the variances slot: tsc cannot fail inside
+    /// getVariancesWorker, so a measurement cut short by Unsupported
+    /// must leave the slot re-queryable — Resolving reverts to Vacant.
+    pub fn revert_symbol_variances(&mut self, id: SymbolId) {
+        let slot = &mut self.symbol.entry(id).or_default().variances;
+        assert!(
+            matches!(slot, LinkSlot::Resolving),
+            "variances revert without an in-progress measurement for {id:?}"
+        );
+        *slot = LinkSlot::Vacant;
     }
 
     pub fn set_node_enum_member_value(

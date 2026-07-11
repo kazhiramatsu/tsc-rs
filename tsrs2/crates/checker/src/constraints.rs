@@ -165,6 +165,27 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: getConstraintOfType @6.0.3
+    /// tsc-hash: 777f460fb1f80fa7dca265a22f81147c4d585c4afe7985df22dece9922edba03
+    /// tsc-span: _tsc.js:58784-58786
+    ///
+    /// The IndexedAccess arm escapes with the keyof/indexed relation
+    /// arms (getConstraintOfIndexedAccess needs the simplified-type
+    /// machinery); Conditional types are unconstructible until M8.
+    pub fn get_constraint_of_type(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::TYPE_PARAMETER) {
+            return self.get_constraint_of_type_parameter(ty);
+        }
+        if flags.intersects(TypeFlags::INDEXED_ACCESS) {
+            return Err(Unsupported::new(
+                "indexed-access source constraints (getConstraintOfIndexedAccess — \
+                 keyof/indexed relation arms follow-up)",
+            ));
+        }
+        self.get_base_constraint_of_type(ty)
+    }
+
     /// tsc-port: getBaseConstraintOfType @6.0.3
     /// tsc-hash: 47e7f23df7e41ce015ff767e755075856f1d6369debf1ce324188f18bf818d10
     /// tsc-span: _tsc.js:58902-58908

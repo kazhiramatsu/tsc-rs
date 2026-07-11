@@ -37,6 +37,24 @@ impl Unsupported {
 
 pub type CheckResult2<T> = Result<T, Unsupported>;
 
+/// One frame of the outofbandVarianceMarkerHandler save/replace chain
+/// (47113): getVariancesWorker's per-parameter closure is a Base,
+/// recursiveTypeRelatedTo's wrapper is a Propagating accumulator that
+/// chains to whatever was below it.
+#[derive(Clone, Copy, Debug)]
+pub enum VarianceHandlerFrame {
+    /// getVariancesWorker 67331-67332: `onlyUnreliable ? unreliable =
+    /// true : unmeasurable = true` — does NOT chain further down.
+    Base {
+        unmeasurable: bool,
+        unreliable: bool,
+    },
+    /// recursiveTypeRelatedTo 65805-65809: accumulates
+    /// ReportsUnreliable/ReportsUnmeasurable bits AND calls the
+    /// original handler.
+    Propagating(tsrs2_types::RelationComparisonResult),
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct SignatureId(pub u32);
 
@@ -157,6 +175,32 @@ pub struct CheckerState<'a> {
     pub(crate) permissive_mapper: crate::instantiate::MapperId,
     /// tsc uniqueLiteralMapper (47112).
     pub(crate) unique_literal_mapper: crate::instantiate::MapperId,
+    /// tsc reportUnreliableMapper (47114).
+    pub(crate) report_unreliable_mapper: crate::instantiate::MapperId,
+    /// tsc reportUnmeasurableMapper (47123).
+    pub(crate) report_unmeasurable_mapper: crate::instantiate::MapperId,
+
+    // ---- M4 5.3b: variance measurement state ----
+    /// tsc markerSuperType/markerSubType/markerOtherType (47212-47215):
+    /// the symbol-less measurement probes; markerSubType's inline
+    /// constraint is markerSuperType. The ForCheck pair (47216-47218)
+    /// waits for 5.4's checkTypeParameterDeferred (2636) and
+    /// reportRelationError's marker guard (65075).
+    pub(crate) marker_super_type: TypeId,
+    pub(crate) marker_sub_type: TypeId,
+    pub(crate) marker_other_type: TypeId,
+    /// tsc markerTypes (47005): ids of createMarkerType results.
+    pub(crate) marker_types: std::collections::HashSet<TypeId>,
+    /// tsc inVarianceComputation (47422).
+    pub(crate) in_variance_computation: bool,
+    /// tsc outofbandVarianceMarkerHandler (47113) — the save/replace
+    /// closure chain as an explicit stack: getVariancesWorker pushes a
+    /// Base per measured parameter, recursiveTypeRelatedTo pushes a
+    /// Propagating wrapper (only when a handler already exists, like
+    /// tsc's `if (outofbandVarianceMarkerHandler)` gate); a marker
+    /// firing accumulates into Propagating frames down to the nearest
+    /// Base — exactly the reach of tsc's chained closures.
+    pub(crate) variance_handler_stack: Vec<VarianceHandlerFrame>,
     /// tsc activeTypeMappers/activeTypeMappersCaches/activeTypeMappersCount
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
@@ -271,6 +315,14 @@ impl<'a> CheckerState<'a> {
             restrictive_mapper: crate::instantiate::MapperId(0),
             permissive_mapper: crate::instantiate::MapperId(0),
             unique_literal_mapper: crate::instantiate::MapperId(0),
+            report_unreliable_mapper: crate::instantiate::MapperId(0),
+            report_unmeasurable_mapper: crate::instantiate::MapperId(0),
+            marker_super_type: TypeId(0),
+            marker_sub_type: TypeId(0),
+            marker_other_type: TypeId(0),
+            marker_types: std::collections::HashSet::new(),
+            in_variance_computation: false,
+            variance_handler_stack: Vec::new(),
             active_type_mappers: Vec::new(),
             active_type_mappers_caches: Vec::new(),
             instantiation_depth: 0,
@@ -318,6 +370,19 @@ impl<'a> CheckerState<'a> {
         state.unique_literal_mapper = state.alloc_mapper(crate::instantiate::TypeMapper::Function(
             crate::instantiate::FunctionMapper::UniqueLiteral,
         ));
+        // tsc-port: reportUnreliableMapper + reportUnmeasurableMapper @6.0.3
+        // tsc-hash: 23800396495e1d0c1eba42745b023673852d55da0f6a4b92c2f9704b086d044e
+        // tsc-span: _tsc.js:47113-47131
+        state.report_unreliable_mapper = state.alloc_mapper(
+            crate::instantiate::TypeMapper::Function(
+                crate::instantiate::FunctionMapper::ReportsUnreliable,
+            ),
+        );
+        state.report_unmeasurable_mapper = state.alloc_mapper(
+            crate::instantiate::TypeMapper::Function(
+                crate::instantiate::FunctionMapper::ReportsUnmeasurable,
+            ),
+        );
 
         // The empty anonymous types from the checker init block
         // (47132/47160/47170/47179): resolved-empty from birth.
@@ -346,6 +411,14 @@ impl<'a> CheckerState<'a> {
         // tsc-span: _tsc.js:47188-47203
         state.no_constraint_type = state.create_resolved_empty_anonymous_type(None);
         state.circular_constraint_type = state.create_resolved_empty_anonymous_type(None);
+        // tsc-port: markerSuperType + markerSubType + markerOtherType @6.0.3
+        // tsc-hash: b01ebfcde068d7826bd3c12f41c9869047b7a25af2c00e6dd66cca614c1d8f38
+        // tsc-span: _tsc.js:47212-47215
+        state.marker_super_type = state.tables.create_synthesized_type_parameter(None);
+        state.marker_sub_type = state
+            .tables
+            .create_synthesized_type_parameter(Some(state.marker_super_type));
+        state.marker_other_type = state.tables.create_synthesized_type_parameter(None);
 
         // initializeTypeChecker slice (88732-88906): globals merge +
         // symbol-type seeds + amalgamated-duplicate flush.
@@ -615,6 +688,50 @@ impl<'a> CheckerState<'a> {
     ///
     /// No location ⇒ createCompilerDiagnostic: a file-less,
     /// program-level diagnostic.
+    // ---- out-of-band variance marker handler (M4 5.3b) ----
+
+    /// The reporter-mapper closures' `t === markerSuperType || ...`
+    /// gate (47115/47124) followed by the handler call.
+    pub(crate) fn fire_variance_marker_if_marker(&mut self, ty: TypeId, only_unreliable: bool) {
+        if ty == self.marker_super_type
+            || ty == self.marker_sub_type
+            || ty == self.marker_other_type
+        {
+            self.fire_outofband_variance_marker(only_unreliable);
+        }
+    }
+
+    /// Invoke the current handler chain: every Propagating wrapper
+    /// accumulates and forwards; the nearest Base records and stops
+    /// (its closure never chains to the handler it displaced).
+    fn fire_outofband_variance_marker(&mut self, only_unreliable: bool) {
+        for frame in self.variance_handler_stack.iter_mut().rev() {
+            match frame {
+                VarianceHandlerFrame::Propagating(flags) => {
+                    let bit = if only_unreliable {
+                        tsrs2_types::RelationComparisonResult::REPORTS_UNRELIABLE
+                    } else {
+                        tsrs2_types::RelationComparisonResult::REPORTS_UNMEASURABLE
+                    };
+                    *flags = tsrs2_types::RelationComparisonResult::from_bits(
+                        flags.bits() | bit.bits(),
+                    );
+                }
+                VarianceHandlerFrame::Base {
+                    unmeasurable,
+                    unreliable,
+                } => {
+                    if only_unreliable {
+                        *unreliable = true;
+                    } else {
+                        *unmeasurable = true;
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
     pub fn create_error(
         &self,
         location: Option<NodeId>,

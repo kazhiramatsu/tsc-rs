@@ -38,6 +38,10 @@ pub(crate) fn ternary_and(left: Ternary, right: Ternary) -> Ternary {
     Ternary::from_bits(left.bits() & right.bits())
 }
 
+pub(crate) fn is_false(result: Ternary) -> bool {
+    result == Ternary::FALSE
+}
+
 pub(crate) fn is_true(result: Ternary) -> bool {
     result.bits() != 0
 }
@@ -51,6 +55,23 @@ impl<'a> CheckerState<'a> {
 
     pub fn is_type_comparable_to(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
         self.is_type_related_to(source, target, RelationKind::Comparable)
+    }
+
+    /// tsc-port: compareTypesIdentical @6.0.3
+    /// tsc-hash: 7c4196c179ced7ce413c377112393d84081a4e6835ec31db3da27e82a5222567
+    /// tsc-span: _tsc.js:63904-63906
+    pub(crate) fn compare_types_identical(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<Ternary> {
+        Ok(
+            if self.is_type_related_to(source, target, RelationKind::Identity)? {
+                Ternary::TRUE
+            } else {
+                Ternary::FALSE
+            },
+        )
     }
 
     /// tsc-port: isTypeRelatedTo @6.0.3
@@ -1341,6 +1362,125 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// is the propagatingVarianceFlags accumulation (outofband handler
     /// is never installed in M3). An Unsupported unwinds the stacks
     /// exactly like a False WITHOUT caching anything.
+    /// tsc-port: typeArgumentsRelatedTo @6.0.3
+    /// tsc-hash: 48c9af2e688dd0f7f130ca540d0bd3d9202216800c1de96f5c3f5cacdf2be4e3
+    /// tsc-span: _tsc.js:65630-65724
+    pub(crate) fn type_arguments_related_to(
+        &mut self,
+        sources: &[TypeId],
+        targets: &[TypeId],
+        variances: &[tsrs2_types::VarianceFlags],
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> CheckResult2<Ternary> {
+        use tsrs2_types::VarianceFlags;
+        if sources.len() != targets.len() && self.relation == RelationKind::Identity {
+            return Ok(Ternary::FALSE);
+        }
+        let length = sources.len().min(targets.len());
+        let mut result = Ternary::TRUE;
+        for i in 0..length {
+            let variance_flags = if i < variances.len() {
+                variances[i]
+            } else {
+                VarianceFlags::COVARIANT
+            };
+            let variance = variance_flags.bits() & VarianceFlags::VARIANCE_MASK.bits();
+            if variance == VarianceFlags::INDEPENDENT.bits() {
+                continue;
+            }
+            let s = sources[i];
+            let t = targets[i];
+            let related;
+            if variance_flags.intersects(VarianceFlags::UNMEASURABLE) {
+                // Unmeasurable arguments compare identically (or as
+                // mutually related under the identity relation).
+                related = if self.relation == RelationKind::Identity {
+                    self.is_related_to(
+                        s,
+                        t,
+                        RecursionFlags::BOTH,
+                        /*report_errors*/ false,
+                        IntersectionState::NONE,
+                    )?
+                } else {
+                    self.st.compare_types_identical(s, t)?
+                };
+            } else {
+                if self.st.in_variance_computation
+                    && variance_flags.intersects(VarianceFlags::UNRELIABLE)
+                {
+                    let mapper = self.st.report_unreliable_mapper;
+                    self.st.instantiate_type(s, Some(mapper))?;
+                }
+                if variance == VarianceFlags::COVARIANT.bits() {
+                    related = self.is_related_to(
+                        s,
+                        t,
+                        RecursionFlags::BOTH,
+                        report_errors,
+                        intersection_state,
+                    )?;
+                } else if variance == VarianceFlags::CONTRAVARIANT.bits() {
+                    related = self.is_related_to(
+                        t,
+                        s,
+                        RecursionFlags::BOTH,
+                        report_errors,
+                        intersection_state,
+                    )?;
+                } else if variance == VarianceFlags::BIVARIANT.bits() {
+                    let backwards = self.is_related_to(
+                        t,
+                        s,
+                        RecursionFlags::BOTH,
+                        /*report_errors*/ false,
+                        IntersectionState::NONE,
+                    )?;
+                    related = if !is_false(backwards) {
+                        backwards
+                    } else {
+                        self.is_related_to(
+                            s,
+                            t,
+                            RecursionFlags::BOTH,
+                            report_errors,
+                            intersection_state,
+                        )?
+                    };
+                } else {
+                    // Invariant: related in both directions.
+                    let forward = self.is_related_to(
+                        s,
+                        t,
+                        RecursionFlags::BOTH,
+                        report_errors,
+                        intersection_state,
+                    )?;
+                    related = if !is_false(forward) {
+                        ternary_and(
+                            forward,
+                            self.is_related_to(
+                                t,
+                                s,
+                                RecursionFlags::BOTH,
+                                report_errors,
+                                intersection_state,
+                            )?,
+                        )
+                    } else {
+                        forward
+                    };
+                }
+            }
+            if is_false(related) {
+                return Ok(Ternary::FALSE);
+            }
+            result = ternary_and(result, related);
+        }
+        Ok(result)
+    }
+
     pub(crate) fn recursive_type_related_to(
         &mut self,
         source: TypeId,
@@ -1360,6 +1500,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             /*ignore_constraints*/ false,
         );
         if let Some(&entry) = self.st.relations.cache(self.relation).get(&id) {
+            // The reportErrors && Failed && !Overflow recompute
+            // (65740) and the overflow error emission (65751-65755)
+            // are reportErrors-only — dead in the reportErrors=false
+            // engine.
+            if !self.st.variance_handler_stack.is_empty() {
+                // 65742-65750: replay the entry's Reports* bits into
+                // the active handler via the reporter mappers.
+                let saved = entry.bits() & RelationComparisonResult::REPORTS_MASK.bits();
+                if saved & RelationComparisonResult::REPORTS_UNMEASURABLE.bits() != 0 {
+                    let mapper = self.st.report_unmeasurable_mapper;
+                    self.st.instantiate_type(source, Some(mapper))?;
+                }
+                if saved & RelationComparisonResult::REPORTS_UNRELIABLE.bits() != 0 {
+                    let mapper = self.st.report_unreliable_mapper;
+                    self.st.instantiate_type(source, Some(mapper))?;
+                }
+            }
             return Ok(if entry.intersects(RelationComparisonResult::SUCCEEDED) {
                 Ternary::TRUE
             } else {
@@ -1434,10 +1591,32 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 );
             }
         }
+        // 65803-65810: wrap the active handler with a propagating
+        // accumulator — only when a handler exists, like tsc's
+        // `if (outofbandVarianceMarkerHandler)` gate.
+        let pushed_handler = if !self.st.variance_handler_stack.is_empty() {
+            self.st
+                .variance_handler_stack
+                .push(crate::state::VarianceHandlerFrame::Propagating(
+                    RelationComparisonResult::NONE,
+                ));
+            true
+        } else {
+            false
+        };
         let outcome = if self.expanding_flags == ExpandingFlags::BOTH {
             Ok(Ternary::MAYBE)
         } else {
             self.structured_type_related_to(source, target, report_errors, intersection_state)
+        };
+        // 65828-65830: restore the handler — on the Err unwind too.
+        let propagating_variance_flags = if pushed_handler {
+            match self.st.variance_handler_stack.pop() {
+                Some(crate::state::VarianceHandlerFrame::Propagating(flags)) => flags,
+                _ => unreachable!("the propagating frame pushed above is still on top"),
+            }
+        } else {
+            RelationComparisonResult::NONE
         };
         if recursion_flags.intersects(RecursionFlags::SOURCE) {
             self.source_depth -= 1;
@@ -1451,38 +1630,64 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             Err(err) => {
                 // Unsupported: unwind this frame's maybe entries
                 // without caching any verdict.
-                self.reset_maybe_stack(maybe_start, /*mark_all_as_succeeded*/ false);
+                self.reset_maybe_stack(
+                    maybe_start,
+                    /*mark_all_as_succeeded*/ false,
+                    propagating_variance_flags,
+                );
                 return Err(err);
             }
         };
         if is_true(result) || result == Ternary::MAYBE {
             if result == Ternary::TRUE || (self.source_depth == 0 && self.target_depth == 0) {
                 if result == Ternary::TRUE || result == Ternary::MAYBE {
-                    self.reset_maybe_stack(maybe_start, /*mark_all_as_succeeded*/ true);
+                    self.reset_maybe_stack(
+                        maybe_start,
+                        /*mark_all_as_succeeded*/ true,
+                        propagating_variance_flags,
+                    );
                 } else {
-                    self.reset_maybe_stack(maybe_start, /*mark_all_as_succeeded*/ false);
+                    self.reset_maybe_stack(
+                        maybe_start,
+                        /*mark_all_as_succeeded*/ false,
+                        propagating_variance_flags,
+                    );
                 }
             }
         } else {
-            self.st
-                .relations
-                .cache_mut(self.relation)
-                .insert(id, RelationComparisonResult::FAILED);
+            self.st.relations.cache_mut(self.relation).insert(
+                id,
+                RelationComparisonResult::from_bits(
+                    RelationComparisonResult::FAILED.bits() | propagating_variance_flags.bits(),
+                ),
+            );
             self.relation_count -= 1;
-            self.reset_maybe_stack(maybe_start, /*mark_all_as_succeeded*/ false);
+            self.reset_maybe_stack(
+                maybe_start,
+                /*mark_all_as_succeeded*/ false,
+                propagating_variance_flags,
+            );
         }
         Ok(result)
     }
 
-    fn reset_maybe_stack(&mut self, maybe_start: usize, mark_all_as_succeeded: bool) {
+    fn reset_maybe_stack(
+        &mut self,
+        maybe_start: usize,
+        mark_all_as_succeeded: bool,
+        propagating_variance_flags: RelationComparisonResult,
+    ) {
         for i in maybe_start..self.maybe_count {
             let key = self.maybe_keys[i].clone();
             self.maybe_keys_set.remove(&key);
             if mark_all_as_succeeded {
-                self.st
-                    .relations
-                    .cache_mut(self.relation)
-                    .insert(key, RelationComparisonResult::SUCCEEDED);
+                self.st.relations.cache_mut(self.relation).insert(
+                    key,
+                    RelationComparisonResult::from_bits(
+                        RelationComparisonResult::SUCCEEDED.bits()
+                            | propagating_variance_flags.bits(),
+                    ),
+                );
                 self.relation_count -= 1;
             }
         }

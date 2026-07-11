@@ -243,7 +243,35 @@ by this stage's exit. `cargo xtask relpin run` green over the widened
 suite is part of this stage's exit, and stays green through the M4
 gate.
 
-Commit(s): `m4 5.3b: variance + M3-deferred relation pins`.
+AS-LANDED NOTES (2026-07-11): the stage split into two commits —
+`m4 5.3b-i` (enums: declared types + the shared constant evaluator +
+isEnumTypeRelatedTo; latent fixes: tables regular-of-union gained
+mapType's no-change identity, fresh literal twins copy the symbol,
+isConstantVariable reads COMBINED node flags) and `m4 5.3b` (variance
+proper). Marker measurement RELIES on bare type-parameter relations,
+so the structural source-TypeVariable arm (66291, constraint chase)
+and target-TypeParameter comparable loop (66098) un-escaped here as
+prerequisites, together with the adjacent same-block arms: alias
+variance fast path (66081), single-element generic tuples (66095),
+readonly-array/array targets (66432), generic-tuple constraint
+(66439), array-source tuple walks in propertiesRelatedTo (66772).
+The rest-parameter pin category forced the getNonArrayRestType family
+(getRestTypeAtPosition/getRestOrAnyTypeAtPosition/
+getNameableDeclarationAtPosition) and compareSignaturesRelated's
+reportUnreliableMarkers parameter; the single-rest tuple collapse to
+(readonly) Array lives in the checker's createTupleType wrapper (the
+tables twin keeps its escape for normalization-internal callers).
+SymbolLinks.variances maps tsc's undefined/emptyArray/array tri-state
+onto LinkSlot Vacant/Resolving/Resolved; the handler chain is an
+explicit Base/Propagating frame stack on CheckerState. ReportsUnmeasurable
+has NO live producer until M6/M8 (reportUnmeasurableMapper's callers
+are mappedTypeRelatedTo and inference) — the bits persist and replay,
+only Unreliable fires today (template arm 66279, rest-parameter probe
+64519, measurement-mode typeArgumentsRelatedTo). The ForCheck marker
+pair (47216-47218) waits for 5.4's checkTypeParameterDeferred.
+
+Commit(s): `m4 5.3b-i: enums — declared types, the constant evaluator,
+isEnumTypeRelatedTo` + `m4 5.3b: variance + M3-deferred relation pins`.
 
 ## Stage 5.4: the check driver [M]
 

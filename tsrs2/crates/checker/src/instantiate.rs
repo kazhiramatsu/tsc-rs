@@ -45,9 +45,8 @@ pub enum DeferredMapperTargets {}
 /// tsc-span: _tsc.js:63365-63367
 ///
 /// tsc's function mappers are a closed set of checker singletons; the
-/// enum names them instead of storing closures. ReportsUnmeasurable/
-/// ReportsUnreliable land with 5.3b variance, the inference fixing
-/// mappers with M6.
+/// enum names them instead of storing closures. The inference fixing
+/// mappers land with M6.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FunctionMapper {
     /// 47104: `t => t.flags & TypeParameter ? wildcardType : t`.
@@ -58,6 +57,13 @@ pub enum FunctionMapper {
     /// 47112: `t => t.flags & TypeParameter ? uniqueLiteralType : t`
     /// (isReducibleIntersection's probe mapper).
     UniqueLiteral,
+    /// 47123-47131: fires the out-of-band variance handler with
+    /// onlyUnreliable=false when t is one of the three marker type
+    /// parameters; identity otherwise (M4 5.3b).
+    ReportsUnmeasurable,
+    /// 47114-47122: fires the handler with onlyUnreliable=true on the
+    /// markers; identity otherwise.
+    ReportsUnreliable,
 }
 
 /// tsc TypeMapper — the six TypeMapKind shapes.
@@ -231,6 +237,14 @@ impl<'a> CheckerState<'a> {
                         FunctionMapper::Permissive => self.tables.intrinsics.wildcard,
                         FunctionMapper::Restrictive => self.get_restrictive_type_parameter(ty),
                         FunctionMapper::UniqueLiteral => self.tables.intrinsics.unique_literal,
+                        FunctionMapper::ReportsUnmeasurable => {
+                            self.fire_variance_marker_if_marker(ty, /*only_unreliable*/ false);
+                            ty
+                        }
+                        FunctionMapper::ReportsUnreliable => {
+                            self.fire_variance_marker_if_marker(ty, /*only_unreliable*/ true);
+                            ty
+                        }
                     })
                 } else {
                     Ok(ty)

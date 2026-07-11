@@ -1751,6 +1751,12 @@ impl TypeTables {
         )
     }
 
+    /// createTypeParameter for the checker's symbol-less marker
+    /// parameters (47212-47215) — inline constraint, no thisType.
+    pub fn create_synthesized_type_parameter(&mut self, constraint: Option<TypeId>) -> TypeId {
+        self.create_type_parameter(/*is_this_type*/ false, constraint)
+    }
+
     /// tsc-port: createTupleType @6.0.3
     /// tsc-hash: b2054126131f4beb527c2fc7b6ccacc23a1a2c0fecb62b02e76f01b77f1468f6
     /// tsc-span: _tsc.js:61141-61144

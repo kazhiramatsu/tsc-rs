@@ -16,13 +16,13 @@
 //! fast path and take the propertiesRelatedTo tuple arm).
 
 use tsrs2_binder::SymbolId;
-use tsrs2_syntax::{NodeData, SyntaxKind};
+use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckFlags, ElementFlags, IntersectionState, ModifierFlags, ObjectFlags, RecursionFlags,
     SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
-use crate::engine::{is_true, ternary_and, RelationChecker};
+use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
 use crate::relate::RelationKind;
 use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, Unsupported};
 
@@ -44,6 +44,63 @@ pub enum SignatureKind {
 }
 
 impl<'r, 'a> RelationChecker<'r, 'a> {
+    /// `type.target.readonly` for tuple references (the fast-path
+    /// guards at 66095-66097).
+    fn tuple_target_readonly(&self, ty: TypeId) -> bool {
+        let target = self.st.tables.reference_target(ty);
+        match &self.st.tables.type_of(target).data {
+            TypeData::TupleTarget(data) => data.readonly,
+            _ => unreachable!("tuple references target tuple targets"),
+        }
+    }
+
+    /// tsc-port: relateVariances @6.0.3
+    /// tsc-hash: 916b6e76908a21c730b24b7d5624ff5e318879f740e4b2be422b1491e906a2d2
+    /// tsc-span: _tsc.js:66488-66507
+    ///
+    /// `Some(result)` is a definite verdict; `None` falls through to
+    /// the structural arms. reportErrors=false collapses the tail:
+    /// the AllowsStructuralFallback and covariant-void paths reach the
+    /// structural fallback with varianceCheckFailed=false, and the
+    /// remaining path — `varianceCheckFailed && !(reportErrors2 &&
+    /// some invariant)` — always returns False, so varianceCheckFailed
+    /// can never be true at a structural fallback and the errorInfo
+    /// juggling (originalErrorInfo/resetErrorInfo, 66468-66471) stays
+    /// elided with the error machinery. The `variances !== emptyArray`
+    /// conjunct is always true here: both call sites pre-answer the
+    /// in-progress sentinel with Ternary.Unknown.
+    fn relate_variances(
+        &mut self,
+        source_type_arguments: &[TypeId],
+        target_type_arguments: &[TypeId],
+        variances: &[tsrs2_types::VarianceFlags],
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> CheckResult2<Option<Ternary>> {
+        let result = self.type_arguments_related_to(
+            source_type_arguments,
+            target_type_arguments,
+            variances,
+            report_errors,
+            intersection_state,
+        )?;
+        if !is_false(result) {
+            return Ok(Some(result));
+        }
+        if variances.iter().any(|v| {
+            v.intersects(tsrs2_types::VarianceFlags::ALLOWS_STRUCTURAL_FALLBACK)
+        }) {
+            return Ok(None);
+        }
+        let allow_structural_fallback =
+            self.st
+                .has_covariant_void_argument(target_type_arguments, variances);
+        if !allow_structural_fallback {
+            return Ok(Some(Ternary::FALSE));
+        }
+        Ok(None)
+    }
+
     /// tsc-port: structuredTypeRelatedTo @6.0.3
     /// tsc-hash: bccafd822efb034656afe7f2bc249a4f735cb74edadd3218be0428f5000a973c
     /// tsc-span: _tsc.js:65872-65929
@@ -236,11 +293,139 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(Ternary::FALSE);
             }
         }
-        // Alias-variance block (66087-66101): alias symbols are M4.
-        // Single-element generic tuple fast paths (66102-66104):
-        // generic tuples are M4.
+        // 66081-66094: the same-alias variance fast path.
+        if source_flags.intersects(TypeFlags::from_bits(
+            TypeFlags::OBJECT.bits() | TypeFlags::CONDITIONAL.bits(),
+        )) {
+            let source_alias = self.st.tables.type_of(source).alias_symbol;
+            let source_alias_arguments =
+                self.st.tables.type_of(source).alias_type_arguments.clone();
+            let target_alias = self.st.tables.type_of(target).alias_symbol;
+            if let (Some(alias_symbol), Some(source_arguments)) =
+                (source_alias, source_alias_arguments)
+            {
+                if Some(alias_symbol) == target_alias
+                    && !(self.st.is_marker_type(source) || self.st.is_marker_type(target))
+                {
+                    match self.st.get_alias_variances(alias_symbol)? {
+                        crate::variance::VariancesResult::InProgress => {
+                            return Ok(Ternary::UNKNOWN);
+                        }
+                        crate::variance::VariancesResult::Known(variances) => {
+                            let target_arguments = self
+                                .st
+                                .tables
+                                .type_of(target)
+                                .alias_type_arguments
+                                .clone()
+                                .expect("same-alias pairs both carry alias arguments");
+                            let params =
+                                self.st.links.symbol(alias_symbol).type_parameters.clone();
+                            let min_arguments =
+                                self.st.get_min_type_argument_count(params.as_deref());
+                            let source_types = self
+                                .st
+                                .fill_missing_type_arguments(
+                                    Some(&source_arguments),
+                                    params.as_deref(),
+                                    min_arguments,
+                                    /*is_javascript_implicit_any*/ false,
+                                )?
+                                .unwrap_or_default();
+                            let target_types = self
+                                .st
+                                .fill_missing_type_arguments(
+                                    Some(&target_arguments),
+                                    params.as_deref(),
+                                    min_arguments,
+                                    /*is_javascript_implicit_any*/ false,
+                                )?
+                                .unwrap_or_default();
+                            if let Some(variance_result) = self.relate_variances(
+                                &source_types,
+                                &target_types,
+                                &variances,
+                                report_errors,
+                                intersection_state,
+                            )? {
+                                return Ok(variance_result);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 66095-66097: single-element generic tuple fast paths.
+        if self.st.is_single_element_generic_tuple_type(source)
+            && !self.tuple_target_readonly(source)
+        {
+            let element = self.st.get_type_arguments(source)?[0];
+            let result = self.is_related_to(
+                element,
+                target,
+                RecursionFlags::SOURCE,
+                /*report_errors*/ false,
+                IntersectionState::NONE,
+            )?;
+            if !is_false(result) {
+                return Ok(result);
+            }
+        }
+        if self.st.is_single_element_generic_tuple_type(target) {
+            let readonly = self.tuple_target_readonly(target);
+            let gate = if readonly {
+                true
+            } else {
+                let constraint = self.st.get_base_constraint_or_type(source)?;
+                self.st.is_mutable_array_or_tuple(constraint)?
+            };
+            if gate {
+                let element = self.st.get_type_arguments(target)?[0];
+                let result = self.is_related_to(
+                    source,
+                    element,
+                    RecursionFlags::TARGET,
+                    /*report_errors*/ false,
+                    IntersectionState::NONE,
+                )?;
+                if !is_false(result) {
+                    return Ok(result);
+                }
+            }
+        }
         if target_flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            return Err(Unsupported::new("type-parameter targets (M4 5.1)"));
+            // 66098-66107: the mapped-source index-signature sub-arm
+            // is dead — mapped types are unconstructible until M8
+            // (getObjectFlags(source) & Mapped never set).
+            if self.relation == RelationKind::Comparable
+                && source_flags.intersects(TypeFlags::TYPE_PARAMETER)
+            {
+                // 66108-66120: chase the source constraint while it
+                // still mentions type parameters.
+                let mut constraint = self.st.get_constraint_of_type_parameter(source)?;
+                while let Some(current) = constraint {
+                    if !self
+                        .st
+                        .some_type(current, |st, c| {
+                            st.tables.flags_of(c).intersects(TypeFlags::TYPE_PARAMETER)
+                        })
+                    {
+                        break;
+                    }
+                    let result = self.is_related_to(
+                        current,
+                        target,
+                        RecursionFlags::SOURCE,
+                        /*report_errors*/ false,
+                        IntersectionState::NONE,
+                    )?;
+                    if !is_false(result) {
+                        return Ok(result);
+                    }
+                    constraint = self.st.get_constraint_of_type_parameter(current)?;
+                }
+                return Ok(Ternary::FALSE);
+            }
         }
         if target_flags.intersects(TypeFlags::INDEX) {
             return Err(Unsupported::new("keyof targets (M4 5.2)"));
@@ -268,8 +453,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         },
                     );
                 }
-                // instantiateType(source, reportUnreliableMapper):
-                // variance-marker propagation, dead until M4 5.3b.
+                // 66279: template-vs-template outside comparable
+                // reports unreliable variance through the marker
+                // walk.
+                let mapper = self.st.report_unreliable_mapper;
+                self.st.instantiate_type(source, Some(mapper))?;
             }
             if self
                 .st
@@ -288,7 +476,47 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if source_flags.intersects(TypeFlags::TYPE_VARIABLE) {
-            return Err(Unsupported::new("type-variable sources (M4 5.1)"));
+            // 66292: both-indexed-access pairs skip the constraint
+            // chase (they compared componentwise above — the
+            // indexed-access arms are the keyof follow-up).
+            if !(source_flags.intersects(TypeFlags::INDEXED_ACCESS)
+                && target_flags.intersects(TypeFlags::INDEXED_ACCESS))
+            {
+                let constraint = match self.st.get_constraint_of_type(source)? {
+                    Some(constraint) => constraint,
+                    None => self.st.tables.intrinsics.unknown,
+                };
+                let result = self.is_related_to(
+                    constraint,
+                    target,
+                    RecursionFlags::SOURCE,
+                    /*report_errors*/ false,
+                    intersection_state,
+                )?;
+                if !is_false(result) {
+                    return Ok(result);
+                }
+                // 66306-66313: retry with the source as this-argument;
+                // the reportErrors expression is error machinery.
+                let this_constraint = self.st.get_type_with_this_argument(
+                    constraint,
+                    Some(source),
+                    /*need_apparent_type*/ false,
+                )?;
+                let result = self.is_related_to(
+                    this_constraint,
+                    target,
+                    RecursionFlags::SOURCE,
+                    /*report_errors*/ false,
+                    intersection_state,
+                )?;
+                if !is_false(result) {
+                    return Ok(result);
+                }
+                // isMappedTypeGenericIndexedAccess (66314): mapped
+                // types are unconstructible until M8, the guard is
+                // vacuously false.
+            }
         }
         if source_flags.intersects(TypeFlags::INDEX) {
             return Err(Unsupported::new("keyof sources (M4 5.2)"));
@@ -369,14 +597,127 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 source = self.st.get_apparent_type(source)?;
                 source_flags = self.flags(source);
             }
-            // Reference variance fast path (66418-66431): tuples are
-            // excluded (!isTupleType) and no other same-target
-            // references are constructible before M4. Readonly-array/
-            // array target arms (66432-66438): global array types are
-            // M4. Generic-tuple constraint arm (66439-66443): M4.
-            // Subtype fresh-empty-target arm (66444-66446): Subtype
-            // activates in 4.8, but the guard is ported faithfully.
-            if (self.relation == RelationKind::Subtype
+            // 66420-66431: the same-target reference variance fast
+            // path.
+            let source_object_flags = self.st.tables.object_flags_of(source);
+            let target_object_flags = self.st.tables.object_flags_of(target);
+            if source_object_flags.intersects(ObjectFlags::REFERENCE)
+                && target_object_flags.intersects(ObjectFlags::REFERENCE)
+                && self.st.tables.reference_target(source)
+                    == self.st.tables.reference_target(target)
+                && !self.st.tables.is_tuple_type(source)
+                && !(self.st.is_marker_type(source) || self.st.is_marker_type(target))
+            {
+                if self.st.is_empty_array_literal_type(source)? {
+                    return Ok(Ternary::TRUE);
+                }
+                let reference_target = self.st.tables.reference_target(source);
+                match self.st.get_variances(reference_target)? {
+                    crate::variance::VariancesResult::InProgress => {
+                        return Ok(Ternary::UNKNOWN);
+                    }
+                    crate::variance::VariancesResult::Known(variances) => {
+                        let source_arguments = self.st.get_type_arguments(source)?;
+                        let target_arguments = self.st.get_type_arguments(target)?;
+                        if let Some(variance_result) = self.relate_variances(
+                            &source_arguments,
+                            &target_arguments,
+                            &variances,
+                            report_errors,
+                            intersection_state,
+                        )? {
+                            return Ok(variance_result);
+                        }
+                    }
+                }
+            } else if {
+                // 66432: `isReadonlyArrayType(target) ? everyType(
+                // source, isArrayOrTupleType) : isArrayType(target) &&
+                // everyType(source, t => isTupleType(t) &&
+                // !t.target.readonly)` — the global array targets
+                // resolve once up front so the everyType closures stay
+                // read-only.
+                let global_array = self.st.global_array_type()?;
+                let global_readonly = self.st.global_readonly_array_type()?;
+                let is_array = |st: &crate::state::CheckerState, t: TypeId| {
+                    st.tables.object_flags_of(t).intersects(ObjectFlags::REFERENCE) && {
+                        let target = st.tables.reference_target(t);
+                        target == global_array || target == global_readonly
+                    }
+                };
+                let target_is_readonly_array = self
+                    .st
+                    .tables
+                    .object_flags_of(target)
+                    .intersects(ObjectFlags::REFERENCE)
+                    && self.st.tables.reference_target(target) == global_readonly;
+                if target_is_readonly_array {
+                    self.st.every_type(source, |st, t| {
+                        is_array(st, t) || st.tables.is_tuple_type(t)
+                    })
+                } else {
+                    let target_is_array = self
+                        .st
+                        .tables
+                        .object_flags_of(target)
+                        .intersects(ObjectFlags::REFERENCE)
+                        && self.st.tables.reference_target(target) == global_array;
+                    target_is_array
+                        && self.st.every_type(source, |st, t| {
+                            st.tables.is_tuple_type(t) && {
+                                let tuple_target = st.tables.reference_target(t);
+                                match &st.tables.type_of(tuple_target).data {
+                                    TypeData::TupleTarget(data) => !data.readonly,
+                                    _ => false,
+                                }
+                            }
+                        })
+                }
+            } {
+                // 66432-66438: (readonly) array targets relate through
+                // the number index types.
+                if self.relation != RelationKind::Identity {
+                    let source_index = self
+                        .st
+                        .get_index_type_of_type(source, self.st.tables.intrinsics.number)?
+                        .unwrap_or(self.st.tables.intrinsics.any);
+                    let target_index = self
+                        .st
+                        .get_index_type_of_type(target, self.st.tables.intrinsics.number)?
+                        .unwrap_or(self.st.tables.intrinsics.any);
+                    return self.is_related_to(
+                        source_index,
+                        target_index,
+                        RecursionFlags::BOTH,
+                        report_errors,
+                        IntersectionState::NONE,
+                    );
+                } else {
+                    return Ok(Ternary::FALSE);
+                }
+            } else if self.st.is_generic_tuple_type(source)
+                && self.st.tables.is_tuple_type(target)
+                && !self.st.is_generic_tuple_type(target)
+            {
+                // 66439-66443: generic tuple sources relate through
+                // their base constraint.
+                let constraint = self.st.get_base_constraint_or_type(source)?;
+                if constraint != source {
+                    return self.is_related_to(
+                        constraint,
+                        target,
+                        RecursionFlags::SOURCE,
+                        report_errors,
+                        IntersectionState::NONE,
+                    );
+                }
+            }
+            // Subtype fresh-empty-target arm (66444-66446): the LAST
+            // link of the 66420 else-if chain — an entered-but-fallen-
+            // through reference or generic-tuple arm skips it, exactly
+            // like tsc. Subtype activates in 4.8; the guard is ported
+            // faithfully.
+            else if (self.relation == RelationKind::Subtype
                 || self.relation == RelationKind::StrictSubtype)
                 && self
                     .st
@@ -875,29 +1216,48 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         let mut result = Ternary::TRUE;
         if self.st.tables.is_tuple_type(target) {
-            if self.st.tables.is_tuple_type(source) {
-                let source_target = self.st.tables.reference_target(source);
-                let target_target = self.st.tables.reference_target(target);
-                let TypeData::TupleTarget(source_data) =
-                    self.st.tables.type_of(source_target).data.clone()
-                else {
-                    unreachable!("tuple type targets a tuple target");
+            let source_is_tuple = self.st.tables.is_tuple_type(source);
+            // isArrayOrTupleType(source) (66772): array sources walk
+            // the same element loop with arity 1, a Rest element and
+            // minLength 0.
+            if source_is_tuple || self.st.is_array_type(source)? {
+                let source_data = if source_is_tuple {
+                    let source_target = self.st.tables.reference_target(source);
+                    let TypeData::TupleTarget(data) =
+                        self.st.tables.type_of(source_target).data.clone()
+                    else {
+                        unreachable!("tuple type targets a tuple target");
+                    };
+                    Some(data)
+                } else {
+                    None
                 };
+                let target_target = self.st.tables.reference_target(target);
                 let TypeData::TupleTarget(target_data) =
                     self.st.tables.type_of(target_target).data.clone()
                 else {
                     unreachable!("tuple type targets a tuple target");
                 };
-                if !target_data.readonly && source_data.readonly {
+                let source_readonly = match &source_data {
+                    Some(data) => data.readonly,
+                    None => self.st.is_readonly_array_type(source)?,
+                };
+                if !target_data.readonly && source_readonly {
                     return Ok(Ternary::FALSE);
                 }
-                let source_arity = source_data.type_parameters.len();
+                let source_arity = match &source_data {
+                    Some(data) => data.type_parameters.len(),
+                    None => 1,
+                };
                 let target_arity = target_data.type_parameters.len();
-                let source_rest_flag = source_data.combined_flags.intersects(ElementFlags::REST);
+                let source_rest_flag = match &source_data {
+                    Some(data) => data.combined_flags.intersects(ElementFlags::REST),
+                    None => true,
+                };
                 let target_has_rest_element = target_data
                     .combined_flags
                     .intersects(ElementFlags::VARIABLE);
-                let source_min_length = source_data.min_length;
+                let source_min_length = source_data.as_ref().map_or(0, |data| data.min_length);
                 let target_min_length = target_data.min_length;
                 if !source_rest_flag && source_arity < target_min_length {
                     return Ok(Ternary::FALSE);
@@ -918,7 +1278,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     end_element_count(&target_data.element_flags, ElementFlags::NON_REST);
                 let mut can_exclude_discriminants = excluded_properties.is_some();
                 for source_position in 0..source_arity {
-                    let source_flags = source_data.element_flags[source_position];
+                    // 66809: array sources read as Rest at every
+                    // position.
+                    let source_flags = match &source_data {
+                        Some(data) => data.element_flags[source_position],
+                        None => ElementFlags::REST,
+                    };
                     let source_position_from_end = source_arity - 1 - source_position;
                     let target_position =
                         if target_has_rest_element && source_position >= target_start_count {
@@ -1279,7 +1644,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             _ => check_mode::NONE,
         };
-        self.compare_signatures_related(source, target, check_mode, intersection_state)
+        // 67069: signatureRelatedTo passes reportUnreliableMapper.
+        let report_unreliable_markers = Some(self.st.report_unreliable_mapper);
+        self.compare_signatures_related(
+            source,
+            target,
+            check_mode,
+            intersection_state,
+            report_unreliable_markers,
+        )
     }
 
     /// tsc-port: signaturesIdenticalTo @6.0.3
@@ -1513,6 +1886,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: SignatureId,
         check_mode: i32,
         intersection_state: IntersectionState,
+        report_unreliable_markers: Option<crate::instantiate::MapperId>,
     ) -> CheckResult2<Ternary> {
         if source == target {
             return Ok(Ternary::TRUE);
@@ -1554,10 +1928,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::FALSE);
         }
         let source_count = self.st.get_parameter_count(source)?;
-        // getNonArrayRestType: rest parameters are unconstructible in
-        // M3 (their array annotations are M4), so both are None.
-        let source_rest_type: Option<TypeId> = None;
-        let target_rest_type: Option<TypeId> = None;
+        let source_rest_type = self.st.get_non_array_rest_type(source)?;
+        let target_rest_type = self.st.get_non_array_rest_type(target)?;
+        if let Some(probe) = source_rest_type.or(target_rest_type) {
+            // 64518-64520: `void instantiateType(sourceRestType ||
+            // targetRestType, reportUnreliableMarkers)`; a None mapper
+            // is tsc's undefined — instantiateType is the identity and
+            // no marker fires.
+            if let Some(mapper) = report_unreliable_markers {
+                self.st.instantiate_type(probe, Some(mapper))?;
+            }
+        }
         let target_kind = self
             .st
             .signature_of(target)
@@ -1607,9 +1988,24 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else {
             source_count.max(target_count)
         };
+        let rest_index: isize = if source_rest_type.is_some() || target_rest_type.is_some() {
+            param_count as isize - 1
+        } else {
+            -1
+        };
         for i in 0..param_count {
-            let source_type = self.st.try_get_type_at_position(source, i)?;
-            let target_type = self.st.try_get_type_at_position(target, i)?;
+            // 64546-64547: the rest position reads through
+            // getRestOrAnyTypeAtPosition on both sides.
+            let source_type = if i as isize == rest_index {
+                Some(self.st.get_rest_or_any_type_at_position(source, i)?)
+            } else {
+                self.st.try_get_type_at_position(source, i)?
+            };
+            let target_type = if i as isize == rest_index {
+                Some(self.st.get_rest_or_any_type_at_position(target, i)?)
+            } else {
+                self.st.try_get_type_at_position(target, i)?
+            };
             let (Some(source_type), Some(target_type)) = (source_type, target_type) else {
                 continue;
             };
@@ -1646,6 +2042,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 check_mode::BIVARIANT_CALLBACK
                             },
                         intersection_state,
+                        report_unreliable_markers,
                     )?
                 } else {
                     let bivariant = if check_mode & check_mode::CALLBACK == 0 && !strict_variance {
@@ -3936,6 +4333,84 @@ impl<'a> CheckerState<'a> {
         Ok(target == self.global_array_type()? || target == self.global_readonly_array_type()?)
     }
 
+    /// tsc-port: isReadonlyArrayType @6.0.3
+    /// tsc-hash: c05b7ec4ec075d5ce9de1fb736daea7e32901f0c533d10374b40b053b5f8e1a7
+    /// tsc-span: _tsc.js:67668-67670
+    pub(crate) fn is_readonly_array_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            return Ok(false);
+        }
+        let target = self.tables.reference_target(ty);
+        Ok(target == self.global_readonly_array_type()?)
+    }
+
+    /// tsc-port: isMutableArrayOrTuple @6.0.3
+    /// tsc-hash: 1c01574a02619fe0324ab8bc6ea0624ded960d83d92345f690176ad88468bd76
+    /// tsc-span: _tsc.js:67674-67676
+    pub(crate) fn is_mutable_array_or_tuple(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if self.is_array_type(ty)? && !self.is_readonly_array_type(ty)? {
+            return Ok(true);
+        }
+        if self.tables.is_tuple_type(ty) {
+            let target = self.tables.reference_target(ty);
+            if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
+                return Ok(!data.readonly);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: isSingleElementGenericTupleType @6.0.3
+    /// tsc-hash: bf39e70f94342a30b638fb1d87052e8833f356e4fc252650dec22dbd34f9e960
+    /// tsc-span: _tsc.js:67797-67799
+    pub(crate) fn is_single_element_generic_tuple_type(&self, ty: TypeId) -> bool {
+        if !self.is_generic_tuple_type(ty) {
+            return false;
+        }
+        let target = self.tables.reference_target(ty);
+        match &self.tables.type_of(target).data {
+            TypeData::TupleTarget(data) => data.element_flags.len() == 1,
+            _ => false,
+        }
+    }
+
+    /// tsc-port: getIndexTypeOfType @6.0.3
+    /// tsc-hash: dda9f758a99a41508806273859c03a0821806a963e7f12bc4ffae06e24f51af3
+    /// tsc-span: _tsc.js:59469-59472
+    pub(crate) fn get_index_type_of_type(
+        &mut self,
+        ty: TypeId,
+        key_type: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        Ok(self.get_index_info_of_type(ty, key_type)?.map(|info| info.value_type))
+    }
+
+    /// tsc-port: isEmptyLiteralType @6.0.3
+    /// tsc-hash: 458c64127035db67ab875dccd517872b294a42d0b24239a86045b48e14372723
+    /// tsc-span: _tsc.js:67715-67717
+    ///
+    /// Both sentinels come from empty-array-literal widening (M6
+    /// expression checking), so annotation-built types never match.
+    fn is_empty_literal_type(&self, ty: TypeId) -> bool {
+        if self.tables.strict_null_checks {
+            ty == self.tables.intrinsics.implicit_never
+        } else {
+            ty == self.tables.intrinsics.undefined_widening
+        }
+    }
+
+    /// tsc-port: isEmptyArrayLiteralType @6.0.3
+    /// tsc-hash: 36ea5d535a8ac1fbf15562bd839a466e062940623a642f6ffee087f07b521744
+    /// tsc-span: _tsc.js:67718-67721
+    pub(crate) fn is_empty_array_literal_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        let element = self.get_element_type_of_array_type(ty)?;
+        Ok(element.is_some_and(|element| self.is_empty_literal_type(element)))
+    }
+
     /// The rest-parameter tuple target, when the last parameter's type
     /// is a tuple reference.
     fn rest_tuple_target_data(
@@ -4041,6 +4516,150 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getEffectiveRestType @6.0.3
     /// tsc-hash: dc61427d195fae1b21b9d693d06a386da7077ed2559c33e243ae2b4cd472f37a
     /// tsc-span: _tsc.js:78329-78341
+    /// tsc-port: getNonArrayRestType @6.0.3
+    /// tsc-hash: 9b7b44144d29b9ab97451facaeed6458f2e907a6b8b5654bcb117b89940886a7
+    /// tsc-span: _tsc.js:78341-78344
+    pub(crate) fn get_non_array_rest_type(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let Some(rest_type) = self.get_effective_rest_type(signature)? else {
+            return Ok(None);
+        };
+        if self.is_array_type(rest_type)?
+            || self.tables.flags_of(rest_type).intersects(TypeFlags::ANY)
+        {
+            return Ok(None);
+        }
+        Ok(Some(rest_type))
+    }
+
+    /// tsc-port: getRestTypeAtPosition @6.0.3
+    /// tsc-hash: a5d5888b5bc281ebdd937e74c846f59b9dff97d96920cadc248e41b69bec1c8f
+    /// tsc-span: _tsc.js:78250-78271
+    pub(crate) fn get_rest_type_at_position(
+        &mut self,
+        source: SignatureId,
+        pos: usize,
+        readonly: bool,
+    ) -> CheckResult2<TypeId> {
+        let parameter_count = self.get_parameter_count(source)?;
+        let min_argument_count = self.get_min_argument_count(source)?;
+        let rest_type = self.get_effective_rest_type(source)?;
+        if let Some(rest_type) = rest_type {
+            if pos + 1 >= parameter_count {
+                return if pos + 1 == parameter_count {
+                    Ok(rest_type)
+                } else {
+                    let indexed = self.get_indexed_access_type(
+                        rest_type,
+                        self.tables.intrinsics.number,
+                        tsrs2_types::AccessFlags::NONE,
+                        /*access_node*/ None,
+                        /*alias_symbol*/ None,
+                        /*alias_type_arguments*/ None,
+                    )?;
+                    self.create_array_type(indexed, /*readonly*/ false)
+                };
+            }
+        }
+        let mut types = Vec::new();
+        let mut flags = Vec::new();
+        let mut names: Vec<Option<u32>> = Vec::new();
+        for i in pos..parameter_count {
+            if rest_type.is_none() || i + 1 < parameter_count {
+                types.push(self.get_type_at_position(source, i)?);
+                flags.push(if i < min_argument_count {
+                    ElementFlags::REQUIRED
+                } else {
+                    ElementFlags::OPTIONAL
+                });
+            } else {
+                types.push(rest_type.expect("the else branch requires a rest type"));
+                flags.push(ElementFlags::VARIADIC);
+            }
+            names.push(self.get_nameable_declaration_at_position(source, i)?);
+        }
+        self.create_tuple_type_forced(&types, Some(&flags), readonly, Some(&names))
+    }
+
+    /// tsc-port: getRestOrAnyTypeAtPosition @6.0.3
+    /// tsc-hash: 6b4afd149f3e9a4b43324695fef12c0eef9f0cc98aae4159ab7b9889317b5512
+    /// tsc-span: _tsc.js:78272-78275
+    pub(crate) fn get_rest_or_any_type_at_position(
+        &mut self,
+        source: SignatureId,
+        pos: usize,
+    ) -> CheckResult2<TypeId> {
+        let rest_type = self.get_rest_type_at_position(source, pos, /*readonly*/ false)?;
+        let element = self.get_element_type_of_array_type(rest_type)?;
+        Ok(match element {
+            Some(element)
+                if self.tables.flags_of(element).intersects(TypeFlags::ANY) =>
+            {
+                self.tables.intrinsics.any
+            }
+            _ => rest_type,
+        })
+    }
+
+    /// tsc-port: getNameableDeclarationAtPosition @6.0.3
+    /// tsc-hash: 7d2fc2e1055b65d5f61afe23ce96fa7aa716b28b4a336a0e23c7ebb3e60e3e28
+    /// tsc-span: _tsc.js:78218-78233
+    fn get_nameable_declaration_at_position(
+        &mut self,
+        signature: SignatureId,
+        pos: usize,
+    ) -> CheckResult2<Option<u32>> {
+        let data = self.signature_of(signature);
+        let has_rest = data
+            .flags
+            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER);
+        let parameters = data.parameters.clone();
+        let param_count = parameters.len() - usize::from(has_rest);
+        if pos < param_count {
+            let declaration = self.binder.symbol(parameters[pos]).value_declaration;
+            return Ok(declaration
+                .filter(|&declaration| self.is_valid_declaration_for_tuple_label(declaration))
+                .map(|declaration| declaration.0));
+        }
+        // tsc falls back to unknownSymbol when the rest slot is out of
+        // range — no value declaration either way.
+        let Some(&rest_parameter) = parameters.get(param_count) else {
+            return Ok(None);
+        };
+        let rest_type = self.get_type_of_symbol(rest_parameter)?;
+        if self.tables.is_tuple_type(rest_type) {
+            let target = self.tables.reference_target(rest_type);
+            if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
+                let index = pos - param_count;
+                return Ok(data
+                    .labeled_element_declarations
+                    .as_ref()
+                    .and_then(|names| names.get(index).copied())
+                    .flatten());
+            }
+        }
+        let declaration = self.binder.symbol(rest_parameter).value_declaration;
+        Ok(declaration
+            .filter(|&declaration| self.is_valid_declaration_for_tuple_label(declaration))
+            .map(|declaration| declaration.0))
+    }
+
+    /// tsc-port: isValidDeclarationForTupleLabel @6.0.3
+    /// tsc-hash: f6a5a8962e35ef3a5f93de0263059acbb1f767864d8efd2ea7da9d48d8a61dae
+    /// tsc-span: _tsc.js:78215-78217
+    fn is_valid_declaration_for_tuple_label(&self, declaration: NodeId) -> bool {
+        if self.kind_of(declaration) == SyntaxKind::NamedTupleMember {
+            return true;
+        }
+        matches!(
+            self.data_of(declaration),
+            NodeData::Parameter(data)
+                if data.name.is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
+        )
+    }
+
     pub fn get_effective_rest_type(
         &mut self,
         signature: SignatureId,
@@ -4144,6 +4763,13 @@ impl<'a> CheckerState<'a> {
                 &default_flags
             }
         };
+        // getTupleTargetType 61146-61148: `[...E[]]` IS (readonly)
+        // E[] — the checker owns the global array targets, so the
+        // collapse lives here; the tables twin keeps its honest
+        // escape for tables-internal normalization callers.
+        if flags.len() == 1 && flags[0].intersects(ElementFlags::REST) {
+            return self.create_array_type(element_types[0], readonly);
+        }
         let target = self
             .tables
             .get_tuple_target_type(flags, readonly, named_member_declarations)

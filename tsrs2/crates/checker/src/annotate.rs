@@ -6186,7 +6186,14 @@ mod generic_reference_tests {
         with_program_state(
             &[(
                 "a.ts",
-                "type F = (() => number) | (() => string);\ndeclare var v: F;\n\
+                // The Array interface stands in for the lib global:
+                // the 5.3b array-target relation arm probes
+                // global(Readonly)ArrayType on object-object pairs,
+                // and the no-lib one-shot 2318 would dirty the
+                // asserted-empty diagnostics.
+                "interface Array<T> { length: number }\n\
+                 interface ReadonlyArray<T> { length: number }\n\
+                 type F = (() => number) | (() => string);\ndeclare var v: F;\n\
                  declare var w: () => number | string;\n",
             )],
             &CompilerOptions::default(),
@@ -6211,7 +6218,9 @@ mod generic_reference_tests {
         with_program_state(
             &[(
                 "a.ts",
-                "type U = { [k: string]: number } | { [k: string]: string };\n\
+                "interface Array<T> { length: number }\n\
+                 interface ReadonlyArray<T> { length: number }\n\
+                 type U = { [k: string]: number } | { [k: string]: string };\n\
                  declare var v: U;\ndeclare var w: { [k: string]: number | string };\n",
             )],
             &CompilerOptions::default(),
