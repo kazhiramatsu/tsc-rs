@@ -189,6 +189,15 @@ pub struct CheckerState<'a> {
     pub(crate) marker_super_type: TypeId,
     pub(crate) marker_sub_type: TypeId,
     pub(crate) marker_other_type: TypeId,
+    /// tsc markerSuperTypeForCheck/markerSubTypeForCheck (47216-47218):
+    /// the checkTypeParameterDeferred (2636) probe pair; sub's inline
+    /// constraint is super, like the measurement pair.
+    pub(crate) marker_super_type_for_check: TypeId,
+    pub(crate) marker_sub_type_for_check: TypeId,
+    /// tsc varianceTypeParameter (47423): set around the 2636
+    /// assignability check; the typeToString type-parameter arm (51535)
+    /// renders the ForCheck markers as `super-T`/`sub-T` from it.
+    pub(crate) variance_type_parameter: Option<TypeId>,
     /// tsc markerTypes (47005): ids of createMarkerType results.
     pub(crate) marker_types: std::collections::HashSet<TypeId>,
     /// tsc inVarianceComputation (47422).
@@ -222,6 +231,24 @@ pub struct CheckerState<'a> {
     /// resolvingDefaultType sentinel (getResolvedTypeParameterDefault
     /// 59049), as a set so Err unwinds leave the links slot Vacant.
     pub(crate) type_parameter_defaults_in_progress: Vec<TypeId>,
+
+    // ---- M4 5.4: check-driver state ----
+    /// Any program file with a top-level `declare global` block
+    /// (NodeFlags::GLOBAL_AUGMENTATION module declaration). Computed at
+    /// construction; the resolver's failure band treats such programs
+    /// as undecidable for missing names until augmentation binding
+    /// lands (5.8).
+    pub(crate) has_global_augmentation: bool,
+    /// tsc currentNode (46448): the element/deferred-node the driver is
+    /// inside — related-info anchor for depth-limiter diagnostics
+    /// (instantiateTypeWithAlias's 2589).
+    pub(crate) current_node: Option<NodeId>,
+    /// tsc NodeLinks.deferredNodes, keyed by the owning file's root
+    /// node. Driver state, not memoization (like the resolution stack),
+    /// so it lives here instead of the clone-on-read NodeLinks; the JS
+    /// Set's visit-inserts-during-forEach semantics are reproduced by
+    /// index iteration over the IndexSet.
+    pub(crate) deferred_nodes: std::collections::HashMap<NodeId, indexmap::IndexSet<NodeId>>,
 
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
@@ -320,6 +347,9 @@ impl<'a> CheckerState<'a> {
             marker_super_type: TypeId(0),
             marker_sub_type: TypeId(0),
             marker_other_type: TypeId(0),
+            marker_super_type_for_check: TypeId(0),
+            marker_sub_type_for_check: TypeId(0),
+            variance_type_parameter: None,
             marker_types: std::collections::HashSet::new(),
             in_variance_computation: false,
             variance_handler_stack: Vec::new(),
@@ -330,6 +360,9 @@ impl<'a> CheckerState<'a> {
             total_instantiation_count: 0,
             class_interface_declared_in_progress: Vec::new(),
             type_parameter_defaults_in_progress: Vec::new(),
+            current_node: None,
+            deferred_nodes: std::collections::HashMap::new(),
+            has_global_augmentation: false,
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
@@ -419,10 +452,34 @@ impl<'a> CheckerState<'a> {
             .tables
             .create_synthesized_type_parameter(Some(state.marker_super_type));
         state.marker_other_type = state.tables.create_synthesized_type_parameter(None);
+        // tsc-port: markerSuperTypeForCheck + markerSubTypeForCheck @6.0.3
+        // tsc-hash: 119485aecd36a63821c1191c69eb9b05cf44460f4dca261f773403ea54131d2b
+        // tsc-span: _tsc.js:47216-47218
+        state.marker_super_type_for_check = state.tables.create_synthesized_type_parameter(None);
+        state.marker_sub_type_for_check = state
+            .tables
+            .create_synthesized_type_parameter(Some(state.marker_super_type_for_check));
 
         // initializeTypeChecker slice (88732-88906): globals merge +
         // symbol-type seeds + amalgamated-duplicate flush.
         state.initialize_program_globals();
+        state.has_global_augmentation = (0..state.binder.file_count()).any(|index| {
+            let source = state.binder.source(index);
+            let tsrs2_syntax::NodeData::SourceFile(data) = &source.arena.node(source.root).data
+            else {
+                return false;
+            };
+            data.statements.is_some_and(|statements| {
+                source
+                    .arena
+                    .node_array(statements)
+                    .nodes
+                    .iter()
+                    .any(|&statement| {
+                        tsrs2_binder::node_util::is_global_scope_augmentation(source, statement)
+                    })
+            })
+        });
         state
     }
 
@@ -494,6 +551,10 @@ impl<'a> CheckerState<'a> {
         let symbol = self.get_merged_symbol(symbol);
         let flags = self.binder.symbol(symbol).flags;
         flags.intersects(meaning).then_some(symbol)
+    }
+
+    pub(crate) fn program_has_global_augmentation(&self) -> bool {
+        self.has_global_augmentation
     }
 
     pub fn symbol_flags(&self, symbol: SymbolId) -> SymbolFlags {

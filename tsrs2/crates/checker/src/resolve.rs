@@ -862,11 +862,56 @@ impl<'a> CheckerState<'a> {
         name: &str,
         message: &'static DiagnosticMessage,
     ) {
-        self.error_at(
-            error_location,
-            message,
-            &[tsrs2_binder::unescape_leading_underscores(name)],
-        );
+        // Failure-band gates, each an honest FN escape (no emission)
+        // for a case where the plain form would be an un-tsc-like
+        // diagnostic:
+        // 1. Default-lib names resolve in the oracle's lib-loaded
+        //    world (crate::lib_globals — noLib architecture artifact).
+        if crate::lib_globals::is_default_lib_global_name(name) {
+            return;
+        }
+        // 2. tsc's checkAndReportErrorFor* alternates (value-as-type,
+        //    type-as-value, namespace-as-type, 2749/2693/2503-family)
+        //    and the alias-resolving meaning criteria both key on a
+        //    symbol EXISTING under a different meaning; those arms are
+        //    unported (alias resolution 5.8, alternates M8), so a
+        //    quiet all-meanings re-probe finding anything means the
+        //    plain form would be the wrong code.
+        if self
+            .resolve_name(error_location, name, SymbolFlags::ALL, None, false, false)
+            .is_some()
+        {
+            return;
+        }
+        // 3. `declare global` blocks can inject arbitrary names into
+        //    the global scope; global-augmentation binding is
+        //    unported (M2 3.4c-adjacent / 5.8), so failures in such
+        //    programs are undecidable.
+        if self.program_has_global_augmentation() {
+            return;
+        }
+        // getSuggestedLibForNonExistentName is static lib metadata, so
+        // the 2583/2584-family lib arm is exact; only the SPELLING
+        // suggestion branch (getSuggestedSymbolForNonexistentSymbol,
+        // 2552-family) stays an M8 row — extra args on plain templates
+        // are ignored like tsc's formatStringFromArgs.
+        let suggested_lib = get_suggested_lib_for_non_existent_name(name);
+        match suggested_lib {
+            Some(lib) => {
+                self.error_at(
+                    error_location,
+                    message,
+                    &[tsrs2_binder::unescape_leading_underscores(name), lib],
+                );
+            }
+            None => {
+                self.error_at(
+                    error_location,
+                    message,
+                    &[tsrs2_binder::unescape_leading_underscores(name)],
+                );
+            }
+        }
     }
 
     /// tsc-port: onSuccessfullyResolvedSymbol @6.0.3 (STUB)
@@ -947,7 +992,14 @@ impl<'a> CheckerState<'a> {
                     return Some(namespace);
                 }
                 let right_text = self.identifier_text_of(right)?.to_owned();
-                let exports = self.binder.symbol(namespace).exports.clone();
+                // getExportsOfSymbol's globalThis special case (47710):
+                // globalThisSymbol's exports ARE the merged globals
+                // table (initializeTypeChecker 46492 aliases them).
+                let exports = if namespace == self.global_this_symbol {
+                    self.globals.clone()
+                } else {
+                    self.binder.symbol(namespace).exports.clone()
+                };
                 let symbol = self
                     .get_symbol_in_table(&exports, &right_text, meaning)
                     .map(|s| self.get_merged_symbol(s));
@@ -1497,4 +1549,80 @@ mod tests {
             },
         );
     }
+}
+
+/// tsc-port: getScriptTargetFeatures @6.0.3 (keys-only slice)
+/// tsc-hash: 4caf0dbfd5f82ff6f32731df602469bcbc345272d4a232aef289c77293d3f659
+/// tsc-span: _tsc.js:13062-13646
+///
+/// getSuggestedLibForNonExistentName consumes only each type entry's
+/// FIRST lib key (firstIterator(typeFeatures.keys())); the per-lib
+/// member lists feed getSuggestedLibForNonExistentProperty (2550-family,
+/// 5.5) and stay unported until then. Pairs extracted mechanically from
+/// the table in source order.
+static SCRIPT_TARGET_FEATURE_FIRST_LIB: &[(&str, &str)] = &[
+    ("Array", "es2015"),
+    ("Iterator", "es2015"),
+    ("AsyncIterator", "es2015"),
+    ("ArrayBuffer", "es2024"),
+    ("Atomics", "es2017"),
+    ("SharedArrayBuffer", "es2017"),
+    ("AsyncIterable", "es2018"),
+    ("AsyncIterableIterator", "es2018"),
+    ("AsyncGenerator", "es2018"),
+    ("AsyncGeneratorFunction", "es2018"),
+    ("RegExp", "es2015"),
+    ("RegExpConstructor", "es2025"),
+    ("Reflect", "es2015"),
+    ("ArrayConstructor", "es2015"),
+    ("ObjectConstructor", "es2015"),
+    ("NumberConstructor", "es2015"),
+    ("Math", "es2015"),
+    ("Map", "es2015"),
+    ("MapConstructor", "es2024"),
+    ("Set", "es2015"),
+    ("PromiseConstructor", "es2015"),
+    ("Symbol", "es2015"),
+    ("WeakMap", "es2015"),
+    ("WeakSet", "es2015"),
+    ("String", "es2015"),
+    ("StringConstructor", "es2015"),
+    ("DateTimeFormat", "es2017"),
+    ("Promise", "es2015"),
+    ("RegExpMatchArray", "es2018"),
+    ("RegExpExecArray", "es2018"),
+    ("Intl", "es2018"),
+    ("NumberFormat", "es2018"),
+    ("SymbolConstructor", "es2020"),
+    ("DataView", "es2020"),
+    ("BigInt", "es2020"),
+    ("RelativeTimeFormat", "es2020"),
+    ("Int8Array", "es2022"),
+    ("Uint8Array", "es2022"),
+    ("Uint8ClampedArray", "es2022"),
+    ("Int16Array", "es2022"),
+    ("Uint16Array", "es2022"),
+    ("Int32Array", "es2022"),
+    ("Uint32Array", "es2022"),
+    ("Float16Array", "es2025"),
+    ("Float32Array", "es2022"),
+    ("Float64Array", "es2022"),
+    ("BigInt64Array", "es2020"),
+    ("BigUint64Array", "es2020"),
+    ("Error", "es2022"),
+    ("ErrorConstructor", "esnext"),
+    ("Uint8ArrayConstructor", "esnext"),
+    ("Date", "esnext"),
+    ("DisposableStack", "esnext"),
+    ("AsyncDisposableStack", "esnext"),
+];
+
+/// tsc-port: getSuggestedLibForNonExistentName @6.0.3
+/// tsc-hash: b60265e4566246083d64e6d4fc258cac9ecc7c3e156ac3218c439b565375f46b
+/// tsc-span: _tsc.js:75476-75481
+pub(crate) fn get_suggested_lib_for_non_existent_name(name: &str) -> Option<&'static str> {
+    SCRIPT_TARGET_FEATURE_FIRST_LIB
+        .iter()
+        .find(|(type_name, _)| *type_name == name)
+        .map(|(_, lib)| *lib)
 }

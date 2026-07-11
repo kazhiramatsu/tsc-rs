@@ -28,6 +28,11 @@ pub struct CompilerOptions {
     pub exact_optional_property_types: Option<bool>,
     /// Consumed by bindCaseBlock (clause.fallthroughFlowNode).
     pub no_fallthrough_cases_in_switch: Option<bool>,
+    /// tsc checkJs: an EXPLICIT false turns bind/check diagnostics off
+    /// for JS files entirely (canIncludeBindAndCheckDiagnostics —
+    /// isPlainJsFile requires checkJs === undefined); true is the
+    /// checkJs band (JS checking semantics largely unported).
+    pub check_js: Option<bool>,
 }
 
 impl CompilerOptions {

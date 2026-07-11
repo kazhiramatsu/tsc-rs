@@ -1047,10 +1047,12 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         if self.instantiation_depth == 100 || self.instantiation_count >= 5_000_000 {
-            // error(currentNode, 2589): currentNode is 5.4 driver
-            // state — a file-less program diagnostic until it lands.
+            // error(currentNode, 2589): currentNode is the driver's
+            // element cursor (5.4); queries outside the driver (probe
+            // entries, relpin) still emit file-less.
+            let current_node = self.current_node;
             self.error_at(
-                None,
+                current_node,
                 &diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
                 &[],
             );
@@ -1892,7 +1894,7 @@ impl<'a> CheckerState<'a> {
     /// links slot (permanently, like tsc), the outer frame keeps a
     /// re-entry stamp over its own result, and an Err unwind leaves the
     /// slot Vacant (re-queryable).
-    fn get_resolved_type_parameter_default(&mut self, tp: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_resolved_type_parameter_default(&mut self, tp: TypeId) -> CheckResult2<TypeId> {
         if let Some(resolved) = self.links.ty(tp).type_parameter_default.resolved() {
             return Ok(resolved);
         }

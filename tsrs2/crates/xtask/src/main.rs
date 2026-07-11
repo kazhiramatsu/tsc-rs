@@ -2299,6 +2299,10 @@ const CONST_ENUMS: &[SourceEnum] = &[
         file: "types.ts",
     },
     SourceEnum {
+        name: "NodeCheckFlags",
+        file: "types.ts",
+    },
+    SourceEnum {
         name: "TypeSystemPropertyName",
         file: "checker.ts",
     },

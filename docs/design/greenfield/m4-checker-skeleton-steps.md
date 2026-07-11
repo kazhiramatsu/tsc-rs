@@ -285,6 +285,49 @@ Program-level: options diagnostics gate semantics
 (core-interfaces §8), files check in program order, final
 `compareDiagnostics` sort + dedup (M0's diags crate).
 
+AS-LANDED NOTES (2026-07-12): checker/src/check.rs. The dispatch
+landed with the FULL kind list; besides the driver spine, the live
+arms are checkBlock (statement recursion), the three declaration arms'
+checkTypeParameters slices (interface/alias/class), checkTypeParameter
+(2716/2344/2368 + the checkNodeDeferred registration),
+checkTypeParameters' inline-lazy closures (2744/2706/2300),
+checkTypeReferenceNode + checkTypeArgumentConstraints (explicit
+type-argument 2344), and checkTypeParameterDeferred (2636/2637 over
+the ForCheck marker pair). All other arms are no-op escapes named
+after their tsc worker and owner stage (grep source_element_stub);
+deferred-node arms other than TypeParameter are unreachable!() until
+5.5/5.7 land their checkNodeDeferred registrations. Discovered facts:
+(1) the 2716-lands-on-the-second-parameter ordering REQUIRES the
+checkTypeReferenceNode forcing pass (checkSourceElement(node.default)
+runs before hasNonCircularTypeParameterDefault) — and that recursion
+re-enters the SAME reference node, so getTypeFromTypeReference's tail
+links write is tsc-unguarded OVERWRITE semantics (the one sanctioned
+write-twice site, links.overwrite_type_reference_resolution). (2)
+checkTypeAssignableTo landed as a HEAD-message slice (code/span/args
+exact, chain tail elided as T2) over a fallible typeToString slice
+(markers render super-/sub- + varianceTypeParameter per 51535;
+display failure drops the diagnostic rather than mis-printing). (3)
+The FP=0 gate forced three honest failure-band gates in
+onFailedToResolveSymbol: default-lib names (lib_globals.rs — the
+oracle checks WITH libs, we bind none, so lib-name misses are
+architecture artifacts, not observables), an all-meanings re-probe
+(alias resolution/alternate-code arms unported), and
+declare-global-bearing programs (augmentation binding unported); plus
+getSuggestedLibForNonExistentName's static table (2583/2584 args) and
+the getExportsOfSymbol globalThis special case (real bug found by the
+2694 FP). (4) File-less diagnostics are EXCLUDED from per-file output:
+tsc's init-band 2318s precede the getDiagnosticsWorker global
+snapshot, so per-file semantics never surface them — our lazy-global
+architecture would otherwise leak them as FPs. (5) plainJSErrors
+(program layer) + checkJs:false skip-all landed with the driver;
+aggregate output is sortAndDeduplicateDiagnostics'd like
+getPreEmitDiagnostics. addLazyDiagnostic runs callbacks inline — the
+eager identity (checkSourceFileWithEagerDiagnostics 87104) is this
+program's only mode. NodeCheckFlags joined the codegen seeds;
+currentNode landed as driver state (2589 now node-anchored). The
+unreachable-code slice (86763) is elided whole to M5
+(suggestion-band by default + isReachableFlowNode).
+
 Commit: `m4 5.4: check driver (eager/deferred)`.
 
 ## Stage 5.5: expression checking, non-call arms [M]

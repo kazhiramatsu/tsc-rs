@@ -1468,6 +1468,130 @@ impl std::ops::BitOrAssign for ModuleKind {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct NodeCheckFlags(i32);
+
+impl NodeCheckFlags {
+    /// tsc NodeCheckFlags.None
+    pub const NONE: Self = Self(0);
+    /// tsc NodeCheckFlags.TypeChecked
+    pub const TYPE_CHECKED: Self = Self(1);
+    /// tsc NodeCheckFlags.LexicalThis
+    pub const LEXICAL_THIS: Self = Self(2);
+    /// tsc NodeCheckFlags.CaptureThis
+    pub const CAPTURE_THIS: Self = Self(4);
+    /// tsc NodeCheckFlags.CaptureNewTarget
+    pub const CAPTURE_NEW_TARGET: Self = Self(8);
+    /// tsc NodeCheckFlags.SuperInstance
+    pub const SUPER_INSTANCE: Self = Self(16);
+    /// tsc NodeCheckFlags.SuperStatic
+    pub const SUPER_STATIC: Self = Self(32);
+    /// tsc NodeCheckFlags.ContextChecked
+    pub const CONTEXT_CHECKED: Self = Self(64);
+    /// tsc NodeCheckFlags.MethodWithSuperPropertyAccessInAsync
+    pub const METHOD_WITH_SUPER_PROPERTY_ACCESS_IN_ASYNC: Self = Self(128);
+    /// tsc NodeCheckFlags.MethodWithSuperPropertyAssignmentInAsync
+    pub const METHOD_WITH_SUPER_PROPERTY_ASSIGNMENT_IN_ASYNC: Self = Self(256);
+    /// tsc NodeCheckFlags.CaptureArguments
+    pub const CAPTURE_ARGUMENTS: Self = Self(512);
+    /// tsc NodeCheckFlags.EnumValuesComputed
+    pub const ENUM_VALUES_COMPUTED: Self = Self(1024);
+    /// tsc NodeCheckFlags.LexicalModuleMergesWithClass
+    pub const LEXICAL_MODULE_MERGES_WITH_CLASS: Self = Self(2048);
+    /// tsc NodeCheckFlags.LoopWithCapturedBlockScopedBinding
+    pub const LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING: Self = Self(4096);
+    /// tsc NodeCheckFlags.ContainsCapturedBlockScopeBinding
+    pub const CONTAINS_CAPTURED_BLOCK_SCOPE_BINDING: Self = Self(8192);
+    /// tsc NodeCheckFlags.CapturedBlockScopedBinding
+    pub const CAPTURED_BLOCK_SCOPED_BINDING: Self = Self(16384);
+    /// tsc NodeCheckFlags.BlockScopedBindingInLoop
+    pub const BLOCK_SCOPED_BINDING_IN_LOOP: Self = Self(32768);
+    /// tsc NodeCheckFlags.NeedsLoopOutParameter
+    pub const NEEDS_LOOP_OUT_PARAMETER: Self = Self(65536);
+    /// tsc NodeCheckFlags.AssignmentsMarked
+    pub const ASSIGNMENTS_MARKED: Self = Self(131072);
+    /// tsc NodeCheckFlags.ContainsConstructorReference
+    pub const CONTAINS_CONSTRUCTOR_REFERENCE: Self = Self(262144);
+    /// tsc NodeCheckFlags.ConstructorReference
+    pub const CONSTRUCTOR_REFERENCE: Self = Self(536870912);
+    /// tsc NodeCheckFlags.ContainsClassWithPrivateIdentifiers
+    pub const CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS: Self = Self(1048576);
+    /// tsc NodeCheckFlags.ContainsSuperPropertyInStaticInitializer
+    pub const CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER: Self = Self(2097152);
+    /// tsc NodeCheckFlags.InCheckIdentifier
+    pub const IN_CHECK_IDENTIFIER: Self = Self(4194304);
+    /// tsc NodeCheckFlags.PartiallyTypeChecked
+    pub const PARTIALLY_TYPE_CHECKED: Self = Self(8388608);
+    /// tsc NodeCheckFlags.LazyFlags
+    pub const LAZY_FLAGS: Self = Self(16);
+    /// tsc NodeCheckFlags.| SuperStatic
+    pub const SUPER_STATIC_2: Self = Self(17);
+    /// tsc NodeCheckFlags.| MethodWithSuperPropertyAccessInAsync
+    pub const METHOD_WITH_SUPER_PROPERTY_ACCESS_IN_ASYNC_2: Self = Self(18);
+    /// tsc NodeCheckFlags.| MethodWithSuperPropertyAssignmentInAsync
+    pub const METHOD_WITH_SUPER_PROPERTY_ASSIGNMENT_IN_ASYNC_2: Self = Self(19);
+    /// tsc NodeCheckFlags.| ContainsSuperPropertyInStaticInitializer
+    pub const CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER_2: Self = Self(20);
+    /// tsc NodeCheckFlags.| CaptureArguments
+    pub const CAPTURE_ARGUMENTS_2: Self = Self(21);
+    /// tsc NodeCheckFlags.| ContainsCapturedBlockScopeBinding
+    pub const CONTAINS_CAPTURED_BLOCK_SCOPE_BINDING_2: Self = Self(22);
+    /// tsc NodeCheckFlags.| NeedsLoopOutParameter
+    pub const NEEDS_LOOP_OUT_PARAMETER_2: Self = Self(23);
+    /// tsc NodeCheckFlags.| ContainsConstructorReference
+    pub const CONTAINS_CONSTRUCTOR_REFERENCE_2: Self = Self(24);
+    /// tsc NodeCheckFlags.| ConstructorReference
+    pub const CONSTRUCTOR_REFERENCE_2: Self = Self(25);
+    /// tsc NodeCheckFlags.| CapturedBlockScopedBinding
+    pub const CAPTURED_BLOCK_SCOPED_BINDING_2: Self = Self(26);
+    /// tsc NodeCheckFlags.| BlockScopedBindingInLoop
+    pub const BLOCK_SCOPED_BINDING_IN_LOOP_2: Self = Self(27);
+    /// tsc NodeCheckFlags.| LoopWithCapturedBlockScopedBinding
+    pub const LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING_2: Self = Self(28);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for NodeCheckFlags {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for NodeCheckFlags {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for NodeCheckFlags {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct NodeFlags(i32);
 
 impl NodeFlags {

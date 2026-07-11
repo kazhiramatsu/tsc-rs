@@ -201,7 +201,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createMarkerType @6.0.3
     /// tsc-hash: 417c67e9d5d3bf13a2b68381267251412fbf6fb9a4b780fcc65f34c5c4df6261
     /// tsc-span: _tsc.js:67360-67369
-    fn create_marker_type(
+    pub(crate) fn create_marker_type(
         &mut self,
         symbol: SymbolId,
         source_tp: TypeId,
@@ -249,7 +249,7 @@ impl<'a> CheckerState<'a> {
 
     /// getDeclaredTypeOfSymbol's variance slice: getVariancesWorker
     /// only measures class/interface targets and alias symbols.
-    fn get_declared_type_of_symbol_for_variance(
+    pub(crate) fn get_declared_type_of_symbol_for_variance(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult2<TypeId> {
@@ -280,7 +280,7 @@ impl<'a> CheckerState<'a> {
     /// getEffectiveModifierFlags reduces to the syntactic flags in TS
     /// files (JSDoc modifiers never parse). Marker parameters are
     /// symbol-less and answer None.
-    fn get_type_parameter_modifiers(&self, tp: TypeId) -> ModifierFlags {
+    pub(crate) fn get_type_parameter_modifiers(&self, tp: TypeId) -> ModifierFlags {
         let Some(symbol) = self.tables.type_of(tp).symbol else {
             return ModifierFlags::NONE;
         };

@@ -696,6 +696,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         no_implicit_any: bool_option("noImplicitAny"),
         exact_optional_property_types: bool_option("exactOptionalPropertyTypes"),
         no_fallthrough_cases_in_switch: bool_option("noFallthroughCasesInSwitch"),
+        check_js: bool_option("checkJs"),
     }
 }
 

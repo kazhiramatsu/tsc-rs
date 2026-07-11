@@ -60,6 +60,10 @@ pub struct NodeLinks {
     /// EnumDeclaration nodes. Unlike tsc this REVERTS on Unsupported
     /// unwind so a later query recomputes the tail of the member list.
     pub enum_values_computed: bool,
+    /// tsc NodeLinks.flags (getNodeCheckFlags) — the driver's
+    /// TypeChecked bit lands with M4 5.4; later stages OR in their own
+    /// bits (a flags word accumulates, unlike the write-once slots).
+    pub check_flags: tsrs2_types::NodeCheckFlags,
 }
 
 /// tsc SymbolLinks — the per-symbol subset M3 consumes.
@@ -261,6 +265,27 @@ impl LinksTables {
         Self::write_slot(&mut self.node.entry(id).or_default().resolved_type, value);
     }
 
+    /// getTypeFromTypeReference's tail assignments (60587-60588) are
+    /// UNGUARDED in tsc: the resolvingDefaultType recursion
+    /// (getResolvedTypeParameterDefault 59043) can re-enter the SAME
+    /// reference node mid-computation, so the inner call caches first
+    /// and the outer assignment overwrites it — the node's final
+    /// resolved type/symbol is the OUTER result. This is the only
+    /// write-twice site the memo discipline sanctions; both slots move
+    /// together.
+    pub fn overwrite_type_reference_resolution(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        symbol: SymbolId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.node.entry(id).or_default();
+        links.resolved_symbol = LinkSlot::Resolved(symbol);
+        links.resolved_type = LinkSlot::Resolved(value);
+    }
+
     pub fn set_node_resolved_signature(
         &mut self,
         speculation_depth: u32,
@@ -294,6 +319,21 @@ impl LinksTables {
             "variances revert without an in-progress measurement for {id:?}"
         );
         *slot = LinkSlot::Vacant;
+    }
+
+    /// `nodeLinks.flags |= bits` — the NodeCheckFlags word accumulates
+    /// (checkSourceFileWorker 87057 `links.flags |= NodeCheckFlags.TypeChecked`
+    /// is the first writer).
+    pub fn or_node_check_flags(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        bits: tsrs2_types::NodeCheckFlags,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.node.entry(id).or_default();
+        links.check_flags =
+            tsrs2_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
     }
 
     pub fn set_node_enum_member_value(

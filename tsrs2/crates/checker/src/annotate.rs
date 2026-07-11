@@ -712,8 +712,9 @@ impl<'a> CheckerState<'a> {
     /// name is tsc's unknownSymbol → errorType; the probe keeps the
     /// Unsupported channel until the 5.4 driver makes errorType
     /// observable through diagnostics. The links.resolvedSymbol write
-    /// (60587) is skipped — nothing reads it on reference nodes yet.
-    fn get_type_from_type_reference(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    /// (60587) lands with the 5.4 driver (checkTypeReferenceOrImport
+    /// reads it for type-argument constraint checking).
+    pub(crate) fn get_type_from_type_reference(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
@@ -776,10 +777,16 @@ impl<'a> CheckerState<'a> {
                 "type reference to symbol flags {flags:?} (M4)"
             )));
         };
-        self.links.set_node_resolved_type(
+        // links.resolvedSymbol + links.resolvedType (60587-60588):
+        // written together, and deliberately OVERWRITE-capable — the
+        // type-parameter-default recursion can complete an inner
+        // computation of this same node first (see
+        // overwrite_type_reference_resolution).
+        self.links.overwrite_type_reference_resolution(
             self.speculation_depth,
             node,
-            LinkSlot::Resolved(resolved),
+            symbol,
+            resolved,
         );
         Ok(resolved)
     }
@@ -1039,7 +1046,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getEffectiveTypeArguments @6.0.3
     /// tsc-hash: 6c12eff78b7503813dedde829e82b7ada2fbdded78d792dcc7da0591fe9498a2
     /// tsc-span: _tsc.js:81679-81681
-    fn get_effective_type_arguments(
+    pub(crate) fn get_effective_type_arguments(
         &mut self,
         node: NodeId,
         type_parameters: &[TypeId],

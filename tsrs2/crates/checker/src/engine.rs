@@ -1717,7 +1717,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isLiteralType @6.0.3
     /// tsc-hash: 9be296b7217cffdc581f6f6d9a2af5c9e29b1ab668b6a135bc64ab5b2906f774
     /// tsc-span: _tsc.js:67752-67754
-    fn is_literal_type(&self, ty: TypeId) -> bool {
+    pub(crate) fn is_literal_type(&self, ty: TypeId) -> bool {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::BOOLEAN) {
             return true;

@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod annotate;
+pub mod check;
 pub mod constraints;
 pub mod engine;
 pub mod evaluate;
@@ -9,8 +10,10 @@ pub mod indexed;
 pub mod instantiate;
 pub mod intersect;
 mod js_grammar;
+pub mod lib_globals;
 pub mod links;
 pub mod merge;
+mod plain_js_errors;
 pub mod program;
 pub mod relate;
 pub mod relpin;
@@ -225,13 +228,31 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
         let mut binder =
             tsrs2_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
         binder.bind_source_file();
-        // tsc getBindAndCheckDiagnosticsForFileNoCache: plain JS files
-        // (no checkJs) filter bind diagnostics to the plainJSErrors
-        // allowlist — none of which the binder emits yet (stage 3.4c);
-        // and comment directives (@ts-ignore/@ts-expect-error) suppress
-        // preceded diagnostics. Unused @ts-expect-error reporting (2578)
-        // waits for the checker driver (M4 5.4) — the partialCheck path.
-        if !is_js_file_name(&source_file.file_name) {
+        // tsc getBindAndCheckDiagnosticsForFileNoCache (123717): plain
+        // JS files (checkJs unmodeled, so every JS file is plain)
+        // filter bind diagnostics to the plainJSErrors allowlist and
+        // SKIP the comment-directive merge
+        // (includeBindAndCheckDiagnostics = !isPlainJs); TS files get
+        // the directive filter (@ts-ignore/@ts-expect-error). Unused
+        // @ts-expect-error reporting (2578) stays a deliberate FN: it
+        // requires knowing a directive suppressed NOTHING, and the
+        // checker's diagnostic surface is still FN-heavy — emitting it
+        // now would fabricate 2578s wherever we under-report (FP).
+        if is_js_file_name(&source_file.file_name) {
+            // canIncludeBindAndCheckDiagnostics: an EXPLICIT checkJs:
+            // false fails isPlainJsFile (checkJs must be undefined)
+            // AND isCheckJs — the file skips bind/check diagnostics
+            // entirely.
+            if options.check_js != Some(false) {
+                diagnostics.extend(
+                    binder
+                        .bind_diagnostics
+                        .iter()
+                        .filter(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()))
+                        .cloned(),
+                );
+            }
+        } else {
             diagnostics.extend(filter_by_comment_directives(
                 &source_file.text,
                 &source_file.line_map,
@@ -241,18 +262,26 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
         binders.push(binder);
     }
 
-    // Checker-state construction (M4 5.0): the initializeTypeChecker
-    // slice runs here (globals merge across non-module files + the
-    // cross-file duplicate reporting). The statement-level check
-    // driver is stage 5.4.
+    // Checker-state construction (M4 5.0) + the check driver (M4 5.4):
+    // the initializeTypeChecker slice runs in from_program (globals
+    // merge across non-module files + cross-file duplicate reporting),
+    // then files check IN PROGRAM ORDER (tsc getSemanticDiagnostics
+    // per file over one checker). Options diagnostics (bad option
+    // combos, core-interfaces §8) would gate ahead of this block —
+    // none are modeled yet, so the gate is vacuously open.
     if !binders.is_empty() {
-        let state = state::CheckerState::from_program(binders, options);
+        let mut state = state::CheckerState::from_program(binders, options);
+        for index in 0..state.binder.file_count() {
+            state.check_source_file(index);
+        }
         let by_name: std::collections::HashMap<&str, &tsrs2_syntax::SourceFile> = program_sources
             .iter()
             .map(|source| (source.file_name.as_str(), source))
             .collect();
-        // Comment directives filter bind AND check diagnostics per
-        // file (getMergedBindAndCheckDiagnostics); file-less
+        // Per-file assembly (getBindAndCheckDiagnosticsForFileNoCache
+        // 123717): plain JS files filter check diagnostics to the
+        // plainJSErrors allowlist and skip the directive merge; TS
+        // files run the comment-directive filter; file-less
         // program-level diagnostics pass through.
         let mut checker_diagnostics_by_file: std::collections::BTreeMap<
             Option<String>,
@@ -265,15 +294,46 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
                 .push(diagnostic);
         }
         for (file_name, file_diagnostics) in checker_diagnostics_by_file {
+            let javascript_file = file_name.as_deref().is_some_and(is_js_file_name);
+            if javascript_file {
+                if options.check_js != Some(false) {
+                    diagnostics.extend(
+                        file_diagnostics
+                            .into_iter()
+                            .filter(|diagnostic| {
+                                plain_js_errors::is_plain_js_error(diagnostic.code())
+                            }),
+                    );
+                }
+                continue;
+            }
             match file_name.as_deref().and_then(|name| by_name.get(name)) {
                 Some(source) => diagnostics.extend(filter_by_comment_directives(
                     &source.text,
                     &source.line_map,
                     file_diagnostics.into_iter(),
                 )),
-                None => diagnostics.extend(file_diagnostics),
+                // File-less (program-level) diagnostics do not join the
+                // per-file output. In tsc the only such emitters today
+                // (the missing-global 2318/2317 family) fire inside
+                // initializeTypeChecker BEFORE getDiagnosticsWorker's
+                // previousGlobalDiagnostics snapshot, so per-file
+                // getSemanticDiagnostics never surfaces them; our 5.0
+                // lazy-global architecture raises them mid-check, which
+                // would surface a diagnostic tsc keeps invisible. tsc's
+                // genuinely-visible mid-check globals are the deferred
+                // wrapper lookups, and our 5.3b port passes
+                // reportErrors=false there — nothing observable is
+                // dropped. Revisit when getGlobalDiagnostics grows a
+                // consumer (program-level API, M8).
+                None => {}
             }
         }
+        // The aggregate pass is sorted + deduplicated like tsc's
+        // getPreEmitDiagnostics / the oracle driver's
+        // ts.sortAndDeduplicateDiagnostics; getSyntacticDiagnostics
+        // stays per-file unsorted concatenation, matching tsc.
+        tsrs2_diags::sort_and_dedupe_diagnostics(&mut diagnostics);
     }
 
     debug_assert!(tsrs2_binder::is_scaffolded());
