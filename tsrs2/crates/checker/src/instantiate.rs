@@ -1372,7 +1372,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: appendTypeParameters @6.0.3
     /// tsc-hash: d3bbd01ed1f4fccff64ff602130783b4b417f479b4f8fde6fe37604eb6c092f6
     /// tsc-span: _tsc.js:57008-57013
-    fn append_type_parameters(
+    pub(crate) fn append_type_parameters(
         &mut self,
         mut type_parameters: Vec<TypeId>,
         declarations: &[NodeId],
@@ -1391,7 +1391,7 @@ impl<'a> CheckerState<'a> {
 
     /// getEffectiveTypeParameterDeclarations, TS-declaration slice
     /// (JSDoc template tags are elided project-wide).
-    fn type_parameter_declarations_of(&self, node: NodeId) -> Vec<NodeId> {
+    pub(crate) fn type_parameter_declarations_of(&self, node: NodeId) -> Vec<NodeId> {
         let list = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.type_parameters,
             NodeData::ClassExpression(data) => data.type_parameters,
@@ -1487,7 +1487,7 @@ impl<'a> CheckerState<'a> {
                         return Ok(Some(result));
                     }
                     let declarations = self.type_parameter_declarations_of(node);
-                    let outer_and_own = self.append_type_parameters(outer, &declarations);
+                    let mut outer_and_own = self.append_type_parameters(outer, &declarations);
                     if include_this_types
                         && matches!(
                             kind,
@@ -1496,26 +1496,18 @@ impl<'a> CheckerState<'a> {
                                 | SyntaxKind::InterfaceDeclaration
                         )
                     {
-                        if matches!(
-                            kind,
-                            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-                        ) {
-                            // Classes always carry a thisType in tsc
-                            // (getDeclaredTypeOfClassOrInterface mints a
-                            // GenericType for kind Class) — 5.2 follow-up.
-                            return Err(Unsupported::new(
-                                "class thisType (getDeclaredTypeOfClassOrInterface \
-                                 GenericType, M4 5.2 follow-up)",
-                            ));
-                        }
+                        // 57063-57066: append the declared type's
+                        // thisType (GenericType shapes only — plain
+                        // thisless interfaces carry none).
                         let symbol = self.node_symbol(node).ok_or_else(|| {
-                            Unsupported::new("unbound interface declaration")
+                            Unsupported::new("unbound class/interface declaration")
                         })?;
-                        // The declared-type slice admits exactly the
-                        // thisType-less interfaces (thisless, non-
-                        // generic, heritage-free) and unwinds otherwise
-                        // — after `?`, thisType is provably absent.
-                        self.get_declared_type_of_class_or_interface(symbol)?;
+                        let declared = self.get_declared_type_of_class_or_interface(symbol)?;
+                        if let TypeData::GenericType { this_type, .. } =
+                            self.tables.type_of(declared).data
+                        {
+                            outer_and_own.push(this_type);
+                        }
                     }
                     return Ok(Some(outer_and_own));
                 }
@@ -2657,6 +2649,77 @@ mod tests {
                     .get_constraint_from_type_parameter(fresh)
                     .expect("constraint in slice");
                 assert_eq!(constraint, Some(state.tables.intrinsics.string));
+            },
+        );
+    }
+}
+
+#[cfg(test)]
+mod class_container_tests {
+    use tsrs2_types::{CompilerOptions, ObjectFlags, SymbolFlags, TypeData};
+
+    use crate::state::test_support::with_program_state;
+
+    #[test]
+    fn type_literals_inside_class_bodies_instantiate_with_this_type_filtered() {
+        with_program_state(
+            &[("a.ts", "class C<T> { p: { a: T } }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let source = state.binder.source(0);
+                let literal_node = source
+                    .arena
+                    .node_ids()
+                    .find(|&id| {
+                        source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::TypeLiteral
+                    })
+                    .expect("type literal");
+                let anonymous = state
+                    .get_type_from_type_node(literal_node)
+                    .expect("type literal type");
+                let t = {
+                    let symbol = state
+                        .resolve_name(
+                            Some(literal_node),
+                            "T",
+                            SymbolFlags::TYPE_PARAMETER,
+                            None,
+                            false,
+                            false,
+                        )
+                        .expect("T resolves");
+                    state.get_declared_type_of_type_parameter(symbol)
+                };
+                let string = state.tables.intrinsics.string;
+                let mapper = state.create_type_mapper(vec![t], Some(vec![string]));
+                // The walk crosses the ClassDeclaration container: its
+                // thisType joins the outer parameters and containsReference
+                // filters it back out (no `this` in the literal).
+                let shell = state
+                    .instantiate_type(anonymous, Some(mapper))
+                    .expect("instantiation crosses class containers since the GenericType port");
+                assert_ne!(shell, anonymous);
+                assert!(state
+                    .tables
+                    .object_flags_of(shell)
+                    .intersects(ObjectFlags::INSTANTIATED));
+                // The class declared type itself instantiates through the
+                // reference arm.
+                let c = state
+                    .resolve_file_scope_name("C", SymbolFlags::CLASS)
+                    .expect("C resolves");
+                let declared = state
+                    .get_declared_type_of_class_or_interface(c)
+                    .expect("C declared");
+                let mapper = state.create_type_mapper(vec![t], Some(vec![string]));
+                let instantiated = state
+                    .instantiate_type(declared, Some(mapper))
+                    .expect("declared-type instantiation");
+                assert_ne!(instantiated, declared);
+                assert!(matches!(
+                    state.tables.type_of(instantiated).data,
+                    TypeData::Reference { target, .. } if target == declared
+                ));
             },
         );
     }

@@ -1428,19 +1428,21 @@ impl TypeTables {
     }
 
     /// The reference target: a plain Reference's target, or the type
-    /// itself for tuple targets (tsc `type.target = type`, 61192).
+    /// itself for tuple targets (tsc `type.target = type`, 61192) and
+    /// class/interface GenericType targets (57398).
     pub fn reference_target(&self, id: TypeId) -> TypeId {
         match &self.type_of(id).data {
             TypeData::Reference { target, .. } => *target,
-            TypeData::TupleTarget(_) => id,
+            TypeData::TupleTarget(_) | TypeData::GenericType { .. } => id,
             _ => id,
         }
     }
 
     /// getTypeArguments for instantiation-free references (60202-60222:
     /// plain references have resolvedTypeArguments eagerly; the lazy
-    /// node-reading branch belongs to M4 deferred references). A tuple
-    /// target aliases its own typeParameters (61193).
+    /// node-reading branch belongs to M4 deferred references). Tuple
+    /// and class/interface targets alias their own typeParameters
+    /// (61193 / 57399).
     pub fn type_arguments(&self, id: TypeId) -> &[TypeId] {
         match &self.type_of(id).data {
             TypeData::Reference {
@@ -1448,6 +1450,9 @@ impl TypeTables {
                 ..
             } => resolved_type_arguments,
             TypeData::TupleTarget(data) => &data.type_parameters,
+            TypeData::GenericType {
+                type_parameters, ..
+            } => type_parameters,
             _ => &[],
         }
     }

@@ -654,7 +654,27 @@ impl<'a> CheckerState<'a> {
             // type_arguments already escaped above).
             self.get_declared_type_of_type_parameter(symbol)
         } else if flags.intersects(SymbolFlags::INTERFACE) {
-            self.get_declared_type_of_class_or_interface(symbol)?
+            let declared = self.get_declared_type_of_class_or_interface(symbol)?;
+            // getTypeFromClassOrInterfaceReference (60226): references
+            // to interfaces WITH localTypeParameters run the 2314-family
+            // arity check + fillMissingTypeArguments — the reference
+            // commit; outer-only/this-ful generics return the declared
+            // type itself (checkNoTypeArguments, no type-argument list
+            // parses here — escaped above).
+            if let TypeData::GenericType {
+                type_parameters,
+                outer_type_parameter_count,
+                ..
+            } = &self.tables.type_of(declared).data
+            {
+                if type_parameters.len() > *outer_type_parameter_count {
+                    return Err(Unsupported::new(
+                        "generic interface references \
+                         (getTypeFromClassOrInterfaceReference, M4 5.2 follow-up)",
+                    ));
+                }
+            }
+            declared
         } else if flags.intersects(SymbolFlags::CLASS) {
             return Err(Unsupported::new("class declared types (M4 5.3)"));
         } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
@@ -825,11 +845,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b159a970fade450a929f147df283c2d536e3a3459c66ac6b6e9b9675173ef57c
     /// tsc-span: _tsc.js:57375-57403
     ///
-    /// M3 slice: the pure non-generic THISLESS interface branch — a
-    /// plain InterfaceType (ObjectFlags::Interface, no Reference/
-    /// thisType/typeParameters). Everything that makes the 57383 guard
-    /// true (type parameters, classes, `this` usage, heritage — per
-    /// isThislessInterface 57346-57374) is an M4 row.
+    /// The JS merge arm (mergeJSSymbols + getAssignedClassSymbol,
+    /// 57380-57384) is elided with JS Assignment binding (M2 3.4c
+    /// residual). tsc writes the shell into the links BEFORE computing
+    /// type parameters and thisless-ness, so cyclic heritage reads a
+    /// thisType-less shell mid-computation; here the slot is written on
+    /// success only (Err unwinds stay re-queryable) and the in-progress
+    /// set reproduces the same mid-cycle observable for the ONLY
+    /// mid-cycle reader, isThislessInterface's base walk.
     pub(crate) fn get_declared_type_of_class_or_interface(
         &mut self,
         symbol: SymbolId,
@@ -837,40 +860,226 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.links.symbol(symbol).declared_type.resolved() {
             return Ok(cached);
         }
-        let declarations = self.binder.symbol(symbol).declarations.clone();
-        for declaration in &declarations {
-            if self.kind_of(*declaration) != SyntaxKind::InterfaceDeclaration {
-                continue;
-            }
-            let NodeData::InterfaceDeclaration(data) = self.data_of(*declaration) else {
-                unreachable!("InterfaceDeclaration kind implies payload");
-            };
-            if data
-                .type_parameters
-                .is_some_and(|list| !self.binder.node_array(list).nodes.is_empty())
-            {
-                return Err(Unsupported::new("generic interfaces (M4 5.1)"));
-            }
-            if data
-                .heritage_clauses
-                .is_some_and(|list| !self.binder.node_array(list).nodes.is_empty())
-            {
-                return Err(Unsupported::new("interface heritage/base types (M4 5.3)"));
-            }
-            // isThislessInterface: any declaration with ContainsThis
-            // makes the interface a GenericType with a thisType.
-            if self.node_flags(*declaration) & tsrs2_types::NodeFlags::CONTAINS_THIS.bits() != 0 {
-                return Err(Unsupported::new(
-                    "interfaces referencing `this` (M4 5.3 thisType)",
-                ));
-            }
-        }
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
-        self.tables.type_mut(id).object_flags = ObjectFlags::INTERFACE;
-        self.tables.type_mut(id).symbol = Some(symbol);
+        assert!(
+            !self.class_interface_declared_in_progress.contains(&symbol),
+            "re-entrant declared-type computation must route through the in-progress set"
+        );
+        self.class_interface_declared_in_progress.push(symbol);
+        let computed = self.compute_declared_type_of_class_or_interface(symbol);
+        self.class_interface_declared_in_progress.pop();
+        let id = computed?;
         self.links
             .set_symbol_declared_type(self.speculation_depth, symbol, LinkSlot::Resolved(id));
         Ok(id)
+    }
+
+    fn compute_declared_type_of_class_or_interface(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<TypeId> {
+        let is_class = self.symbol_flags(symbol).intersects(SymbolFlags::CLASS);
+        let kind = if is_class {
+            ObjectFlags::CLASS
+        } else {
+            ObjectFlags::INTERFACE
+        };
+        let outer_type_parameters = self
+            .get_outer_type_parameters_of_class_or_interface(symbol)?
+            .unwrap_or_default();
+        let local_type_parameters =
+            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+        let generic = !outer_type_parameters.is_empty()
+            || !local_type_parameters.is_empty()
+            || is_class
+            || !self.is_thisless_interface(symbol)?;
+        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        self.tables.type_mut(id).object_flags = kind;
+        self.tables.type_mut(id).symbol = Some(symbol);
+        if generic {
+            let outer_count = outer_type_parameters.len();
+            let mut type_parameters = outer_type_parameters;
+            type_parameters.extend(local_type_parameters);
+            // 57392-57393: the instantiations map is seeded with the
+            // target under its own type-parameter list id (the shared
+            // tables map that createTypeReference consults).
+            let list_id = self.tables.get_type_list_id(&type_parameters);
+            self.tables.instantiation_insert(id, list_id, id);
+            // 57400-57402: thisType — isThisType, constraint = target
+            // (the inline constraint slot, like tuple this types).
+            let this_type = self.tables.create_type(
+                TypeFlags::TYPE_PARAMETER,
+                TypeData::TypeParameter {
+                    is_this_type: true,
+                    constraint: Some(id),
+                },
+            );
+            self.tables.type_mut(this_type).symbol = Some(symbol);
+            let generic_type = self.tables.type_mut(id);
+            generic_type.object_flags = ObjectFlags::from_bits(
+                kind.bits() | ObjectFlags::REFERENCE.bits(),
+            );
+            generic_type.data = TypeData::GenericType {
+                type_parameters: type_parameters.into_boxed_slice(),
+                outer_type_parameter_count: outer_count,
+                this_type,
+            };
+        }
+        Ok(id)
+    }
+
+    /// tsc-port: getOuterTypeParametersOfClassOrInterface @6.0.3
+    /// tsc-hash: d96d0807f547cc2abbdc6f299657709def45973f5656cbb5629f9235ca88be6b
+    /// tsc-span: _tsc.js:57080-57094
+    ///
+    /// The variable-declaration-with-function-initializer arm is the JS
+    /// constructor pattern — elided with JS binding. The single-argument
+    /// getOuterTypeParameters call means includeThisTypes = false.
+    fn get_outer_type_parameters_of_class_or_interface(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<Option<Vec<TypeId>>> {
+        let flags = self.symbol_flags(symbol);
+        let declaration = if flags.intersects(SymbolFlags::CLASS | SymbolFlags::FUNCTION) {
+            self.binder.symbol(symbol).value_declaration
+        } else {
+            self.binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .copied()
+                .find(|&declaration| {
+                    self.kind_of(declaration) == SyntaxKind::InterfaceDeclaration
+                })
+        };
+        let declaration = declaration.expect(
+            "Class was missing valueDeclaration -OR- non-class had no interface declarations",
+        );
+        self.get_outer_type_parameters(declaration, /*include_this_types*/ false)
+    }
+
+    /// tsc-port: getLocalTypeParametersOfClassOrInterfaceOrTypeAlias @6.0.3
+    /// tsc-hash: de3a9b63c89901776c9fc681db222f2b987853ff368fa18a8735bf1a83867f9c
+    /// tsc-span: _tsc.js:57095-57107
+    ///
+    /// isJSConstructor and the JSDoc typedef/callback alias kinds are
+    /// elided project-wide.
+    pub(crate) fn get_local_type_parameters_of_class_or_interface_or_type_alias(
+        &mut self,
+        symbol: SymbolId,
+    ) -> Vec<TypeId> {
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let mut result: Vec<TypeId> = Vec::new();
+        for node in declarations {
+            if matches!(
+                self.kind_of(node),
+                SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::ClassExpression
+                    | SyntaxKind::TypeAliasDeclaration
+            ) {
+                let parameter_declarations = self.type_parameter_declarations_of(node);
+                result = self.append_type_parameters(result, &parameter_declarations);
+            }
+        }
+        result
+    }
+
+    /// tsc-port: isThislessInterface @6.0.3
+    /// tsc-hash: e55eea0f7b249c2868dbb9574c61319f21bc708bb79efac5e44adbe8cf2a3221
+    /// tsc-span: _tsc.js:57346-57374
+    ///
+    /// An in-progress base (cyclic heritage) reads as tsc's eagerly
+    /// written shell: no thisType yet — the check passes.
+    fn is_thisless_interface(&mut self, symbol: SymbolId) -> CheckResult2<bool> {
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        for declaration in declarations {
+            if self.kind_of(declaration) != SyntaxKind::InterfaceDeclaration {
+                continue;
+            }
+            if self.node_flags(declaration) & tsrs2_types::NodeFlags::CONTAINS_THIS.bits() != 0 {
+                return Ok(false);
+            }
+            for base_node in self.interface_base_type_nodes(declaration) {
+                let NodeData::ExpressionWithTypeArguments(data) = self.data_of(base_node) else {
+                    continue;
+                };
+                let Some(expression) = data.expression else {
+                    continue;
+                };
+                if !self.is_entity_name_expression(expression) {
+                    continue;
+                }
+                let base_symbol = self.resolve_entity_name(
+                    expression,
+                    SymbolFlags::TYPE,
+                    /*ignore_errors*/ true,
+                    None,
+                );
+                let Some(base_symbol) = base_symbol else {
+                    return Ok(false);
+                };
+                if !self
+                    .symbol_flags(base_symbol)
+                    .intersects(SymbolFlags::INTERFACE)
+                {
+                    return Ok(false);
+                }
+                if self
+                    .class_interface_declared_in_progress
+                    .contains(&base_symbol)
+                {
+                    // Mid-cycle: the base's (eager) shell carries no
+                    // thisType yet.
+                    continue;
+                }
+                let base_declared = self.get_declared_type_of_class_or_interface(base_symbol)?;
+                if matches!(
+                    self.tables.type_of(base_declared).data,
+                    TypeData::GenericType { .. }
+                ) {
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: getInterfaceBaseTypeNodes @6.0.3
+    /// tsc-hash: 452f64003ee12e280cae2b3c6c074e8a3b46f3d7f75c107eb8a7de1a126836d4
+    /// tsc-span: _tsc.js:15764-15767
+    ///
+    /// The extends heritage clause's types (token recovered from source
+    /// text, like every heritage read).
+    fn interface_base_type_nodes(&self, declaration: NodeId) -> Vec<NodeId> {
+        let NodeData::InterfaceDeclaration(data) = self.data_of(declaration) else {
+            return Vec::new();
+        };
+        for clause in self.nodes_of(data.heritage_clauses) {
+            if self.heritage_clause_is_extends(clause) {
+                let NodeData::HeritageClause(clause_data) = self.data_of(clause) else {
+                    continue;
+                };
+                return self.nodes_of(clause_data.types);
+            }
+        }
+        Vec::new()
+    }
+
+    /// tsc-port: isEntityNameExpression @6.0.3
+    /// tsc-hash: 2e7694f05260a41567e84db34bfbfd9ec77c27e3c37116b2a9cf88f0ddccfeee
+    /// tsc-span: _tsc.js:17128-17130
+    fn is_entity_name_expression(&self, node: NodeId) -> bool {
+        match self.data_of(node) {
+            NodeData::Identifier(_) => true,
+            NodeData::PropertyAccessExpression(data) => {
+                data.name
+                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
+                    && data
+                        .expression
+                        .is_some_and(|expression| self.is_entity_name_expression(expression))
+            }
+            _ => false,
+        }
     }
 
     // ---- structured member resolution ----
@@ -928,6 +1137,23 @@ impl<'a> CheckerState<'a> {
             .type_of(ty)
             .symbol
             .expect("interface types carry their declaring symbol");
+        // Interfaces with base types resolve through getBaseTypes +
+        // heritage merge (resolveInterfaceMembers 58305, M4 5.3); the
+        // M3 slice reads own members only — thisless interfaces WITH
+        // heritage reach here since the declared-type worker stopped
+        // escaping them (5.2 follow-up).
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        for declaration in declarations {
+            let heritage = match self.data_of(declaration) {
+                NodeData::InterfaceDeclaration(data) => data.heritage_clauses,
+                NodeData::ClassDeclaration(data) => data.heritage_clauses,
+                NodeData::ClassExpression(data) => data.heritage_clauses,
+                _ => None,
+            };
+            if heritage.is_some_and(|list| !self.binder.node_array(list).nodes.is_empty()) {
+                return Err(Unsupported::new("interface heritage/base types (M4 5.3)"));
+            }
+        }
         let members = self.symbol_members(symbol).clone();
         let properties = self.get_named_members(&members);
         let call_signatures =
@@ -2114,6 +2340,207 @@ mod alias_and_typeof_tests {
                     .get_type_from_type_node(annotation)
                     .expect("qualified typeof resolves");
                 assert_eq!(resolved, state.tables.intrinsics.number);
+            },
+        );
+    }
+}
+
+#[cfg(test)]
+mod generic_declared_type_tests {
+    use tsrs2_types::{CompilerOptions, ObjectFlags, SymbolFlags, TypeData, TypeFlags};
+
+    use crate::relpin::find_probe_annotation;
+    use crate::state::test_support::with_program_state;
+
+    #[test]
+    fn generic_interface_declared_type_is_a_generic_type_target() {
+        with_program_state(
+            &[("a.ts", "interface I<T> { a: T }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let symbol = state
+                    .resolve_file_scope_name("I", SymbolFlags::INTERFACE)
+                    .expect("I resolves");
+                let declared = state
+                    .get_declared_type_of_class_or_interface(symbol)
+                    .expect("declared type in slice");
+                let TypeData::GenericType {
+                    type_parameters,
+                    outer_type_parameter_count,
+                    this_type,
+                } = state.tables.type_of(declared).data.clone()
+                else {
+                    panic!("generic interfaces declare GenericType targets");
+                };
+                assert_eq!(type_parameters.len(), 1);
+                assert_eq!(outer_type_parameter_count, 0);
+                assert!(state
+                    .tables
+                    .object_flags_of(declared)
+                    .intersects(ObjectFlags::REFERENCE));
+                assert!(matches!(
+                    state.tables.type_of(this_type).data,
+                    TypeData::TypeParameter {
+                        is_this_type: true,
+                        constraint: Some(constraint),
+                    } if constraint == declared
+                ));
+                // The instantiations map is seeded with the target:
+                // referencing it with its own parameters IS the target.
+                let reference = state
+                    .tables
+                    .create_type_reference(declared, &type_parameters);
+                assert_eq!(reference, declared);
+                assert!(state.could_contain_type_variables(declared));
+            },
+        );
+    }
+
+    #[test]
+    fn thisful_interface_declares_a_generic_type_without_parameters() {
+        with_program_state(
+            &[("a.ts", "interface I { m(): this }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let symbol = state
+                    .resolve_file_scope_name("I", SymbolFlags::INTERFACE)
+                    .expect("I resolves");
+                let declared = state
+                    .get_declared_type_of_class_or_interface(symbol)
+                    .expect("declared type in slice");
+                assert!(matches!(
+                    state.tables.type_of(declared).data,
+                    TypeData::GenericType {
+                        ref type_parameters,
+                        ..
+                    } if type_parameters.is_empty()
+                ));
+                assert!(
+                    !state.could_contain_type_variables(declared),
+                    "no type arguments to contain variables"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn thisless_heritage_interface_stays_plain_but_members_escape() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface A { a: string }\ninterface B extends A { b: string }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let symbol = state
+                    .resolve_file_scope_name("B", SymbolFlags::INTERFACE)
+                    .expect("B resolves");
+                let declared = state
+                    .get_declared_type_of_class_or_interface(symbol)
+                    .expect("declared type in slice");
+                assert!(
+                    matches!(state.tables.type_of(declared).data, TypeData::Object),
+                    "thisless heritage interfaces stay plain InterfaceTypes"
+                );
+                let members = state.resolve_structured_type_members(declared);
+                let reason = members.expect_err("heritage members escape to 5.3").reason;
+                assert!(reason.contains("M4 5.3"), "{reason}");
+            },
+        );
+    }
+
+    #[test]
+    fn cyclic_heritage_reads_the_thisless_shell() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface A extends B { }\ninterface B extends A { }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let a = state
+                    .resolve_file_scope_name("A", SymbolFlags::INTERFACE)
+                    .expect("A resolves");
+                let b = state
+                    .resolve_file_scope_name("B", SymbolFlags::INTERFACE)
+                    .expect("B resolves");
+                let declared_a = state
+                    .get_declared_type_of_class_or_interface(a)
+                    .expect("A declared");
+                let declared_b = state
+                    .get_declared_type_of_class_or_interface(b)
+                    .expect("B declared");
+                // tsc's eagerly written shells observe "no thisType yet"
+                // mid-cycle: both stay thisless.
+                assert!(matches!(
+                    state.tables.type_of(declared_a).data,
+                    TypeData::Object
+                ));
+                assert!(matches!(
+                    state.tables.type_of(declared_b).data,
+                    TypeData::Object
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn bare_reference_to_generic_interface_escapes_until_arity_lands() {
+        with_program_state(
+            &[("a.ts", "interface I<T> { a: T }\ndeclare var v: I;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation = find_probe_annotation(state.binder.source(0), "v")
+                    .expect("var with annotation");
+                let resolved = state.get_type_from_type_node(annotation);
+                let reason = resolved
+                    .expect_err("generic references escape until 2314 lands")
+                    .reason;
+                assert!(
+                    reason.contains("getTypeFromClassOrInterfaceReference"),
+                    "{reason}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn class_declared_types_are_generic_type_targets() {
+        with_program_state(
+            &[("a.ts", "class C<T> { }\nclass D { }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let c = state
+                    .resolve_file_scope_name("C", SymbolFlags::CLASS)
+                    .expect("C resolves");
+                let d = state
+                    .resolve_file_scope_name("D", SymbolFlags::CLASS)
+                    .expect("D resolves");
+                let declared_c = state
+                    .get_declared_type_of_class_or_interface(c)
+                    .expect("C declared");
+                let declared_d = state
+                    .get_declared_type_of_class_or_interface(d)
+                    .expect("D declared");
+                assert!(matches!(
+                    state.tables.type_of(declared_c).data,
+                    TypeData::GenericType { ref type_parameters, .. } if type_parameters.len() == 1
+                ));
+                assert!(state
+                    .tables
+                    .object_flags_of(declared_c)
+                    .intersects(ObjectFlags::CLASS | ObjectFlags::REFERENCE));
+                // kind === Class forces the GenericType shape even with
+                // no parameters (57387).
+                assert!(matches!(
+                    state.tables.type_of(declared_d).data,
+                    TypeData::GenericType { ref type_parameters, .. } if type_parameters.is_empty()
+                ));
+                assert!(!state.could_contain_type_variables(declared_d));
+                assert!(state
+                    .tables
+                    .flags_of(declared_c)
+                    .intersects(TypeFlags::OBJECT));
             },
         );
     }

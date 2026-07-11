@@ -132,6 +132,22 @@ pub enum TypeData {
     StringMapping {
         ty: TypeId,
     },
+    /// tsc GenericType (InterfaceType & TypeReference): the declared
+    /// type of a class, a generic interface, or a this-ful interface
+    /// (getDeclaredTypeOfClassOrInterface 57387-57400). The target
+    /// doubles as a reference to itself — `type.target = type;
+    /// type.resolvedTypeArguments = type.typeParameters` — encoded by
+    /// TypeTables::reference_target / ::type_arguments like tuple
+    /// targets.
+    GenericType {
+        /// outerTypeParameters ++ localTypeParameters (may be empty:
+        /// non-generic classes and this-ful interfaces).
+        type_parameters: Box<[TypeId]>,
+        /// Length of the outerTypeParameters prefix.
+        outer_type_parameter_count: usize,
+        /// Synthesized thisType (isThisType, constraint = this target).
+        this_type: TypeId,
+    },
 }
 
 /// tsc Type (core-interfaces §3). `symbol` is None for intrinsics

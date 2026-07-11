@@ -157,6 +157,12 @@ pub struct CheckerState<'a> {
     pub(crate) instantiation_count: u64,
     /// tsc totalInstantiationCount (46450).
     pub total_instantiation_count: u64,
+    /// Symbols whose class/interface declared type is mid-computation.
+    /// tsc writes the shell into the links eagerly (57387) so cyclic
+    /// heritage observes "no thisType yet"; the success-only slot write
+    /// keeps Err unwinds re-queryable, and this set reproduces the
+    /// mid-cycle observable for isThislessInterface's base walk.
+    pub(crate) class_interface_declared_in_progress: Vec<SymbolId>,
 
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
@@ -254,6 +260,7 @@ impl<'a> CheckerState<'a> {
             instantiation_depth: 0,
             instantiation_count: 0,
             total_instantiation_count: 0,
+            class_interface_declared_in_progress: Vec::new(),
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
