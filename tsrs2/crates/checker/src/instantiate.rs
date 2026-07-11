@@ -84,7 +84,7 @@ pub enum TypeMapper {
 
 /// tsc intrinsicTypeKinds (46408-46414).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum IntrinsicTypeKind {
+pub(crate) enum IntrinsicTypeKind {
     Uppercase,
     Lowercase,
     Capitalize,
@@ -92,7 +92,7 @@ enum IntrinsicTypeKind {
     NoInfer,
 }
 
-fn intrinsic_type_kind(name: &str) -> Option<IntrinsicTypeKind> {
+pub(crate) fn intrinsic_type_kind(name: &str) -> Option<IntrinsicTypeKind> {
     match name {
         "Uppercase" => Some(IntrinsicTypeKind::Uppercase),
         "Lowercase" => Some(IntrinsicTypeKind::Lowercase),
@@ -1108,26 +1108,26 @@ impl<'a> CheckerState<'a> {
                     None => None,
                 }
             };
-            if new_alias_symbol.is_some() {
-                // The union/intersection constructors do not thread
-                // alias symbols yet — alias-carrying unions become
-                // constructible with getTypeAliasInstantiation (5.2
-                // follow-up), which owns this plumbing.
-                return Err(Unsupported::new(
-                    "alias-carrying union/intersection instantiation \
-                     (M4 5.2 follow-up: getTypeAliasInstantiation)",
-                ));
-            }
-            let _ = new_alias_type_arguments;
             let origin_is_intersection = origin.is_some_and(|origin| {
                 self.tables
                     .flags_of(origin)
                     .intersects(TypeFlags::INTERSECTION)
             });
             return if flags.intersects(TypeFlags::INTERSECTION) || origin_is_intersection {
-                self.get_intersection_type(&new_types, IntersectionFlags::NONE)
+                self.get_intersection_type_ex(
+                    &new_types,
+                    IntersectionFlags::NONE,
+                    new_alias_symbol,
+                    new_alias_type_arguments.as_deref(),
+                )
             } else {
-                self.get_union_type_ex(&new_types, UnionReduction::Literal)
+                self.get_union_type_ex_with_origin(
+                    &new_types,
+                    UnionReduction::Literal,
+                    new_alias_symbol,
+                    new_alias_type_arguments.as_deref(),
+                    None,
+                )
             };
         }
         if flags.intersects(TypeFlags::INDEX) {

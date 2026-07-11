@@ -237,12 +237,20 @@ impl<'a> CheckerState<'a> {
         let NodeData::UnionType(data) = self.data_of(node) else {
             unreachable!("UnionType kind implies payload");
         };
+        let alias_symbol = self.get_alias_symbol_for_type_node(node);
         let elements = self.nodes_of(data.types);
         let mut types = Vec::with_capacity(elements.len());
         for element in elements {
             types.push(self.get_type_from_type_node(element)?);
         }
-        let union = self.get_union_type_ex(&types, UnionReduction::Literal)?;
+        let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
+        let union = self.get_union_type_ex_with_origin(
+            &types,
+            UnionReduction::Literal,
+            alias_symbol,
+            alias_type_arguments.as_deref(),
+            None,
+        )?;
         self.links
             .set_node_resolved_type(self.speculation_depth, node, LinkSlot::Resolved(union));
         Ok(union)
@@ -262,6 +270,7 @@ impl<'a> CheckerState<'a> {
         let NodeData::IntersectionType(data) = self.data_of(node) else {
             unreachable!("IntersectionType kind implies payload");
         };
+        let alias_symbol = self.get_alias_symbol_for_type_node(node);
         let elements = self.nodes_of(data.types);
         let mut types = Vec::with_capacity(elements.len());
         for element in elements {
@@ -285,13 +294,16 @@ impl<'a> CheckerState<'a> {
             .flags_of(t)
             .intersects(TypeFlags::TEMPLATE_LITERAL)
             && self.tables.is_pattern_literal_type(t));
-        let intersection = self.get_intersection_type(
+        let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
+        let intersection = self.get_intersection_type_ex(
             &types,
             if no_supertype_reduction {
                 IntersectionFlags::NO_SUPERTYPE_REDUCTION
             } else {
                 IntersectionFlags::NONE
             },
+            alias_symbol,
+            alias_type_arguments.as_deref(),
         )?;
         self.links.set_node_resolved_type(
             self.speculation_depth,
@@ -592,13 +604,23 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let symbol = self.node_symbol(node);
+        let alias_symbol = self.get_alias_symbol_for_type_node(node);
         let resolved = match symbol {
             None => self.empty_type_literal_type,
-            Some(symbol) if self.symbol_members(symbol).is_empty() => self.empty_type_literal_type,
+            Some(symbol)
+                if self.symbol_members(symbol).is_empty() && alias_symbol.is_none() =>
+            {
+                self.empty_type_literal_type
+            }
             Some(symbol) => {
                 let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
-                self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
-                self.tables.type_mut(id).symbol = Some(symbol);
+                let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
+                let ty = self.tables.type_mut(id);
+                ty.object_flags = ObjectFlags::ANONYMOUS;
+                ty.symbol = Some(symbol);
+                ty.alias_symbol = alias_symbol;
+                ty.alias_type_arguments =
+                    alias_type_arguments.map(Vec::into_boxed_slice);
                 id
             }
         };
@@ -665,35 +687,7 @@ impl<'a> CheckerState<'a> {
             }
             self.get_type_from_class_or_interface_reference(node, symbol)?
         } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
-            // Generic aliases need getTypeAliasInstantiation at the
-            // REFERENCE (next commit); non-generic aliases resolve now,
-            // with checkNoTypeArguments's 2315 for stray argument
-            // lists (getTypeFromTypeAliasReference 60295-60300).
-            let is_generic = self
-                .binder
-                .symbol(symbol)
-                .declarations
-                .iter()
-                .any(|&declaration| {
-                    matches!(
-                        self.data_of(declaration),
-                        NodeData::TypeAliasDeclaration(data)
-                            if data.type_parameters.is_some_and(|list| {
-                                !self.binder.node_array(list).nodes.is_empty()
-                            })
-                    )
-                });
-            if is_generic {
-                return Err(Unsupported::new(
-                    "generic type aliases (getTypeAliasInstantiation, M4 5.2 follow-up)",
-                ));
-            }
-            let declared = self.get_declared_type_of_type_alias(symbol)?;
-            if !self.check_no_type_arguments(node, Some(symbol)) {
-                self.tables.intrinsics.error
-            } else {
-                declared
-            }
+            self.get_type_from_type_alias_reference(node, symbol)?
         } else if flags.intersects(SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM) {
             return Err(Unsupported::new("enum declared types (M4 5.3b)"));
         } else {
@@ -808,6 +802,185 @@ impl<'a> CheckerState<'a> {
             ty
         } else {
             self.tables.intrinsics.error
+        })
+    }
+
+    /// tsc-port: getTypeArgumentsForAliasSymbol @6.0.3
+    /// tsc-hash: 3515d46635004f0f184c6e32860b51099bc66259e42e5af8f1777adc0f086061
+    /// tsc-span: _tsc.js:62915-62917
+    fn get_type_arguments_for_alias_symbol(
+        &mut self,
+        symbol: Option<SymbolId>,
+    ) -> Option<Vec<TypeId>> {
+        let symbol = symbol?;
+        let type_parameters =
+            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+        (!type_parameters.is_empty()).then_some(type_parameters)
+    }
+
+    /// tsc-port: getTypeFromTypeAliasReference @6.0.3
+    /// tsc-hash: 4117b012190268bec69ab226d5b25d0561d7bd3630fae40819022c04e2b1f3dc
+    /// tsc-span: _tsc.js:60278-60335
+    ///
+    /// Elisions, each owned by a later stage: the Unresolved-check-flag
+    /// error-alias arm (60279-60296 — unresolvedSymbols are
+    /// unconstructible while unresolved names escape at resolution) and
+    /// the import-alias re-resolution arm (60313-60329, resolveAlias =
+    /// 5.8) — an alias REFERENCED THROUGH an import keeps aliasSymbol
+    /// None, an alias-identity FN only.
+    fn get_type_from_type_alias_reference(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+    ) -> CheckResult2<TypeId> {
+        let ty = self.get_declared_type_of_type_alias(symbol)?;
+        let type_parameters = self.links.symbol(symbol).type_parameters.clone();
+        if let Some(type_parameters) = type_parameters {
+            let node_type_arguments = match self.data_of(node) {
+                NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
+                _ => Vec::new(),
+            };
+            let num_type_arguments = node_type_arguments.len();
+            let min_type_argument_count =
+                self.get_min_type_argument_count(Some(&type_parameters));
+            if num_type_arguments < min_type_argument_count
+                || num_type_arguments > type_parameters.len()
+            {
+                // Alias arity errors display the PLAIN symbol name
+                // (symbolToString), unlike the class/interface
+                // typeToString form — oracle-pinned.
+                let display = self.symbol_display_name(symbol);
+                if min_type_argument_count == type_parameters.len() {
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Generic_type_0_requires_1_type_argument_s,
+                        &[&display, &min_type_argument_count.to_string()],
+                    );
+                } else {
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Generic_type_0_requires_between_1_and_2_type_arguments,
+                        &[
+                            &display,
+                            &min_type_argument_count.to_string(),
+                            &type_parameters.len().to_string(),
+                        ],
+                    );
+                }
+                return Ok(self.tables.intrinsics.error);
+            }
+            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let new_alias_symbol = alias_symbol.filter(|&alias| {
+                self.is_local_type_alias(symbol) || !self.is_local_type_alias(alias)
+            });
+            let alias_type_arguments = self.get_type_arguments_for_alias_symbol(new_alias_symbol);
+            let mut resolved_arguments: Vec<TypeId> =
+                Vec::with_capacity(node_type_arguments.len());
+            for argument in node_type_arguments {
+                resolved_arguments.push(self.get_type_from_type_node(argument)?);
+            }
+            let type_arguments = (num_type_arguments > 0).then_some(resolved_arguments);
+            return self.get_type_alias_instantiation(
+                symbol,
+                type_arguments.as_deref(),
+                new_alias_symbol,
+                alias_type_arguments.as_deref(),
+            );
+        }
+        Ok(if self.check_no_type_arguments(node, Some(symbol)) {
+            ty
+        } else {
+            self.tables.intrinsics.error
+        })
+    }
+
+    /// tsc-port: getTypeAliasInstantiation @6.0.3
+    /// tsc-hash: 8aafbc240586103fe0d9771544e0eea8d9057c8726f39b56fe9f613add9aeb45
+    /// tsc-span: _tsc.js:60263-60277
+    ///
+    /// The NoInfer intrinsic escapes (getNoInferType mints Substitution
+    /// types, M8); Uppercase/Lowercase/Capitalize/Uncapitalize route to
+    /// getStringMappingType.
+    pub(crate) fn get_type_alias_instantiation(
+        &mut self,
+        symbol: SymbolId,
+        type_arguments: Option<&[TypeId]>,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult2<TypeId> {
+        let ty = self.get_declared_type_of_type_alias(symbol)?;
+        if ty == self.tables.intrinsics.intrinsic_marker {
+            let name = self.binder.symbol(symbol).escaped_name.clone();
+            if let Some(kind) = crate::instantiate::intrinsic_type_kind(&name) {
+                if let Some(arguments) = type_arguments {
+                    if arguments.len() == 1 {
+                        return if kind == crate::instantiate::IntrinsicTypeKind::NoInfer {
+                            Err(Unsupported::new(
+                                "NoInfer intrinsic (getNoInferType — Substitution types, M8)",
+                            ))
+                        } else {
+                            self.get_string_mapping_type(symbol, arguments[0])
+                        };
+                    }
+                }
+            }
+        }
+        let type_parameters = self
+            .links
+            .symbol(symbol)
+            .type_parameters
+            .clone()
+            .expect("getTypeAliasInstantiation callers gate on typeParameters");
+        let id_key = format!(
+            "{}{}",
+            self.tables.get_type_list_id(type_arguments.unwrap_or(&[])),
+            self.tables.get_alias_id(alias_symbol, alias_type_arguments)
+        );
+        if let Some(&instantiation) = self.links.alias_instantiations.get(&(symbol, id_key.clone()))
+        {
+            return Ok(instantiation);
+        }
+        let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
+        let is_js = self
+            .binder
+            .symbol(symbol)
+            .value_declaration
+            .is_some_and(|declaration| self.is_in_js_file(declaration));
+        let filled = self.fill_missing_type_arguments(
+            type_arguments,
+            Some(&type_parameters),
+            min_type_argument_count,
+            is_js,
+        )?;
+        let mapper = self.create_type_mapper(type_parameters, filled);
+        let instantiation =
+            self.instantiate_type_with_alias(ty, mapper, alias_symbol, alias_type_arguments)?;
+        self.links
+            .alias_instantiations
+            .insert((symbol, id_key), instantiation);
+        Ok(instantiation)
+    }
+
+    /// tsc-port: isLocalTypeAlias @6.0.3
+    /// tsc-hash: db92e7ec2cc0c83423b0931394ac73aabadd9028b9f2a3a8a98024bcaef6f4f7
+    /// tsc-span: _tsc.js:60336-60340
+    fn is_local_type_alias(&self, symbol: SymbolId) -> bool {
+        let declaration = self
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
+        declaration.is_some_and(|declaration| {
+            let mut current = self.parent_of(declaration);
+            while let Some(node) = current {
+                if tsrs2_binder::node_util::is_function_like_kind(self.kind_of(node)) {
+                    return true;
+                }
+                current = self.parent_of(node);
+            }
+            false
         })
     }
 
@@ -1181,6 +1354,20 @@ impl<'a> CheckerState<'a> {
             }
         };
         let ty = if self.pop_type_resolution() {
+            // 57415-57419: generic aliases stamp their local type
+            // parameters + seed the instantiations map with the
+            // uninstantiated declared type.
+            let type_parameters =
+                self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+            if !type_parameters.is_empty() {
+                let list_id = self.tables.get_type_list_id(&type_parameters);
+                self.links.set_symbol_type_parameters(
+                    self.speculation_depth,
+                    symbol,
+                    type_parameters,
+                );
+                self.links.alias_instantiations.insert((symbol, list_id), ty);
+            }
             if ty == self.tables.intrinsics.intrinsic_marker
                 && self.binder.symbol(symbol).escaped_name == "BuiltinIteratorReturn"
             {
@@ -3152,6 +3339,206 @@ mod generic_reference_tests {
                     .tables
                     .flags_of(narrow)
                     .intersects(TypeFlags::OBJECT));
+            },
+        );
+    }
+}
+
+#[cfg(test)]
+mod alias_instantiation_tests {
+    use tsrs2_types::{CompilerOptions, TypeData, TypeFlags};
+
+    use crate::relpin::find_probe_annotation;
+    use crate::state::test_support::with_program_state;
+    use crate::state::CheckerState;
+
+    fn annotation_of(state: &CheckerState, name: &str) -> tsrs2_syntax::NodeId {
+        find_probe_annotation(state.binder.source(0), name).expect("var with annotation")
+    }
+
+    #[test]
+    fn generic_alias_instantiates_with_alias_stamping_and_interning() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type A<T> = T | null;\ndeclare var v: A<string>;\ndeclare var w: A<string>;\ndeclare var u: string | null;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let a = state
+                    .resolve_file_scope_name("A", tsrs2_types::SymbolFlags::TYPE_ALIAS)
+                    .expect("A resolves");
+                let v = annotation_of(state, "v");
+                let instantiated = state.get_type_from_type_node(v).expect("A<string>");
+                assert!(state
+                    .tables
+                    .flags_of(instantiated)
+                    .intersects(TypeFlags::UNION));
+                assert_eq!(state.tables.type_of(instantiated).alias_symbol, Some(a));
+                assert_eq!(
+                    state.tables.type_of(instantiated).alias_type_arguments.as_deref(),
+                    Some(&[state.tables.intrinsics.string][..])
+                );
+                let w = annotation_of(state, "w");
+                let again = state.get_type_from_type_node(w).expect("A<string>");
+                assert_eq!(again, instantiated, "alias instantiations intern");
+                // The alias id participates in the union intern key: the
+                // bare structural twin is a DISTINCT type, like tsc.
+                let u = annotation_of(state, "u");
+                let bare = state.get_type_from_type_node(u).expect("string | null");
+                assert_ne!(bare, instantiated);
+                // ...but relations see them as the same shape.
+                assert_eq!(state.is_type_assignable_to(bare, instantiated), Ok(true));
+                assert_eq!(state.is_type_assignable_to(instantiated, bare), Ok(true));
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn alias_of_alias_restamps_the_outer_alias() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type A<T> = T | null;\ntype B = A<string>;\ndeclare var v: B;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let b = state
+                    .resolve_file_scope_name("B", tsrs2_types::SymbolFlags::TYPE_ALIAS)
+                    .expect("B resolves");
+                let v = annotation_of(state, "v");
+                let declared = state.get_type_from_type_node(v).expect("B resolves");
+                assert!(state.tables.flags_of(declared).intersects(TypeFlags::UNION));
+                assert_eq!(
+                    state.tables.type_of(declared).alias_symbol,
+                    Some(b),
+                    "the outer alias reference stamps ITS symbol on the instantiation"
+                );
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn declared_alias_union_carries_the_alias_with_parameter_arguments() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f() { type L<T> = T | null; var v: L<string>; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                // No alias host on the annotation: the instantiation
+                // inherits the DECLARED union's alias (L with its own
+                // parameters) and instantiates the alias arguments.
+                let v = annotation_of(state, "v");
+                let instantiated = state.get_type_from_type_node(v).expect("L<string>");
+                let alias = state
+                    .tables
+                    .type_of(instantiated)
+                    .alias_symbol
+                    .expect("inherited alias symbol");
+                assert_eq!(state.binder.symbol(alias).escaped_name, "L");
+                assert_eq!(
+                    state.tables.type_of(instantiated).alias_type_arguments.as_deref(),
+                    Some(&[state.tables.intrinsics.string][..])
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn bare_generic_alias_reference_reports_2314_with_plain_display() {
+        with_program_state(
+            &[("a.ts", "type A<T> = T;\ndeclare var v: A;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let resolved = state.get_type_from_type_node(v).expect("errorType flows");
+                assert!(state.tables.is_error_type(resolved));
+                let rendered: Vec<(u32, String)> = state
+                    .diagnostics
+                    .iter()
+                    .map(|d| (d.code(), d.message_text().to_owned()))
+                    .collect();
+                assert_eq!(
+                    rendered,
+                    [(
+                        2314,
+                        "Generic type 'A' requires 1 type argument(s).".to_owned()
+                    )],
+                    "alias arity errors use the plain symbol display"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn intrinsic_string_mapping_aliases_route_to_get_string_mapping_type() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type Uppercase<S extends string> = intrinsic;\ndeclare var v: Uppercase<\"abc\">;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let mapped = state.get_type_from_type_node(v).expect("Uppercase<\"abc\">");
+                assert_eq!(mapped, state.tables.get_string_literal_type("ABC"));
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn self_referential_generic_alias_reports_2456() {
+        with_program_state(
+            &[("a.ts", "type A<T> = A<T>;\ndeclare var v: A<string>;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let resolved = state.get_type_from_type_node(v).expect("errorType flows");
+                assert!(state.tables.is_error_type(resolved));
+                // Oracle-pinned: tsc emits 2456 at the declaration
+                // plus 2315 at BOTH references (the mid-cycle declared
+                // type is errorType with no typeParameters, so each
+                // argument list trips checkNoTypeArguments).
+                let mut codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
+                codes.sort_unstable();
+                assert_eq!(codes, [2315, 2315, 2456]);
+            },
+        );
+    }
+
+    #[test]
+    fn generic_alias_of_type_literal_stamps_the_anonymous_type() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type Box<T> = { value: T };\ndeclare var v: Box<string>;\ndeclare var w: Box<string>;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let box_symbol = state
+                    .resolve_file_scope_name("Box", tsrs2_types::SymbolFlags::TYPE_ALIAS)
+                    .expect("Box resolves");
+                let v = annotation_of(state, "v");
+                let instantiated = state.get_type_from_type_node(v).expect("Box<string>");
+                // The RHS type literal becomes an instantiated anonymous
+                // shell carrying the alias.
+                assert!(matches!(
+                    state.tables.type_of(instantiated).data,
+                    TypeData::Object
+                ));
+                assert_eq!(
+                    state.tables.type_of(instantiated).alias_symbol,
+                    Some(box_symbol)
+                );
+                let w = annotation_of(state, "w");
+                let again = state.get_type_from_type_node(w).expect("Box<string>");
+                assert_eq!(again, instantiated, "instantiation interning");
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
             },
         );
     }

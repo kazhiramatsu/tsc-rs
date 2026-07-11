@@ -169,6 +169,18 @@ impl<'a> CheckerState<'a> {
         types: &[TypeId],
         flags: IntersectionFlags,
     ) -> CheckResult2<TypeId> {
+        self.get_intersection_type_ex(types, flags, None, None)
+    }
+
+    /// The alias-carrying entry (tsc's optional aliasSymbol/
+    /// aliasTypeArguments parameters at 61789).
+    pub fn get_intersection_type_ex(
+        &mut self,
+        types: &[TypeId],
+        flags: IntersectionFlags,
+        alias_symbol: Option<tsrs2_binder::SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult2<TypeId> {
         let mut type_set: Vec<TypeId> = Vec::new();
         let includes = self.add_types_to_intersection(&mut type_set, 0, types);
         // objectFlags picks up IsConstrainedTypeVariable only in the
@@ -331,19 +343,29 @@ impl<'a> CheckerState<'a> {
             "{}{}",
             self.tables.get_type_list_id(&type_set),
             if flags.intersects(IntersectionFlags::NO_CONSTRAINT_REDUCTION) {
-                "*"
+                "*".to_owned()
             } else {
-                // getAliasId — empty until M4 aliases.
-                ""
+                self.tables.get_alias_id(alias_symbol, alias_type_arguments)
             }
         );
         if let Some(result) = self.tables.intersection_types_get(&key) {
             return Ok(result);
         }
         let result = if includes & TypeFlags::UNION.bits() != 0 {
-            self.distribute_intersection_over_unions(&mut type_set, flags, types.len())?
+            self.distribute_intersection_over_unions(
+                &mut type_set,
+                flags,
+                alias_symbol,
+                alias_type_arguments,
+                types.len(),
+            )?
         } else {
-            self.tables.create_intersection_type(type_set, object_flags)
+            self.tables.create_intersection_type(
+                type_set,
+                object_flags,
+                alias_symbol,
+                alias_type_arguments,
+            )
         };
         self.tables.intersection_types_insert(key, result);
         Ok(result)
@@ -356,10 +378,17 @@ impl<'a> CheckerState<'a> {
         &mut self,
         type_set: &mut Vec<TypeId>,
         flags: IntersectionFlags,
+        alias_symbol: Option<tsrs2_binder::SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
         original_arity: usize,
     ) -> CheckResult2<TypeId> {
         if self.tables.intersect_unions_of_primitive_types(type_set) {
-            return self.get_intersection_type(&type_set.clone(), flags);
+            return self.get_intersection_type_ex(
+                &type_set.clone(),
+                flags,
+                alias_symbol,
+                alias_type_arguments,
+            );
         }
         let undefined = self.tables.intrinsics.undefined;
         let all_first_undefined = type_set.iter().all(|&t| {
@@ -382,9 +411,13 @@ impl<'a> CheckerState<'a> {
             };
             self.tables.remove_from_each(type_set, TypeFlags::UNDEFINED);
             let inner = self.get_intersection_type(&type_set.clone(), flags)?;
-            return Ok(self
-                .tables
-                .get_union_type(&[inner, contained], UnionReduction::Literal));
+            return self.get_union_type_ex_with_origin(
+                &[inner, contained],
+                UnionReduction::Literal,
+                alias_symbol,
+                alias_type_arguments,
+                None,
+            );
         }
         let all_contain_null = type_set.iter().all(|&t| {
             self.tables.flags_of(t).intersects(TypeFlags::UNION)
@@ -404,15 +437,24 @@ impl<'a> CheckerState<'a> {
             let null = self.tables.intrinsics.null;
             self.tables.remove_from_each(type_set, TypeFlags::NULL);
             let inner = self.get_intersection_type(&type_set.clone(), flags)?;
-            return Ok(self
-                .tables
-                .get_union_type(&[inner, null], UnionReduction::Literal));
+            return self.get_union_type_ex_with_origin(
+                &[inner, null],
+                UnionReduction::Literal,
+                alias_symbol,
+                alias_type_arguments,
+                None,
+            );
         }
         if type_set.len() >= 3 && original_arity > 2 {
             let middle = type_set.len() / 2;
             let left = self.get_intersection_type(&type_set[..middle], flags)?;
             let right = self.get_intersection_type(&type_set[middle..], flags)?;
-            return self.get_intersection_type(&[left, right], flags);
+            return self.get_intersection_type_ex(
+                &[left, right],
+                flags,
+                alias_symbol,
+                alias_type_arguments,
+            );
         }
         if !self.check_cross_product_union_guard(type_set) {
             return Ok(self.tables.intrinsics.error);
@@ -432,7 +474,13 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
-        self.get_union_type_ex_with_origin(&constituents, UnionReduction::Literal, origin)
+        self.get_union_type_ex_with_origin(
+            &constituents,
+            UnionReduction::Literal,
+            alias_symbol,
+            alias_type_arguments,
+            origin,
+        )
     }
 
     /// tsc-port: getCrossProductIntersections @6.0.3

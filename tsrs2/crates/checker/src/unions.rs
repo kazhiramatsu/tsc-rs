@@ -58,7 +58,7 @@ impl<'a> CheckerState<'a> {
         types: &[TypeId],
         reduction: UnionReduction,
     ) -> CheckResult2<TypeId> {
-        self.get_union_type_ex_with_origin(types, reduction, None)
+        self.get_union_type_ex_with_origin(types, reduction, None, None, None)
     }
 
     /// The origin-carrying entry (the `origin` parameter at 61505);
@@ -68,6 +68,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         reduction: UnionReduction,
+        alias_symbol: Option<tsrs2_binder::SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> CheckResult2<TypeId> {
         if types.is_empty() {
@@ -87,21 +89,34 @@ impl<'a> CheckerState<'a> {
                 UnionReduction::Literal => "L",
             };
             let index = usize::from(types[0].0 >= types[1].0);
-            let key = format!("{}{infix}{}", types[index].0, types[1 - index].0);
+            let key = format!(
+                "{}{infix}{}{}",
+                types[index].0,
+                types[1 - index].0,
+                self.tables.get_alias_id(alias_symbol, alias_type_arguments)
+            );
             if let Some(id) = self.tables.union_of_union_types_get(&key) {
                 return Ok(id);
             }
-            let id = self.get_union_type_ex_worker(types, reduction, None)?;
+            let id = self.get_union_type_ex_worker(
+                types,
+                reduction,
+                alias_symbol,
+                alias_type_arguments,
+                None,
+            )?;
             self.tables.union_of_union_types_insert(key, id);
             return Ok(id);
         }
-        self.get_union_type_ex_worker(types, reduction, origin)
+        self.get_union_type_ex_worker(types, reduction, alias_symbol, alias_type_arguments, origin)
     }
 
     fn get_union_type_ex_worker(
         &mut self,
         types: &[TypeId],
         reduction: UnionReduction,
+        alias_symbol: Option<tsrs2_binder::SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> CheckResult2<TypeId> {
         let mut type_set: Vec<TypeId> = Vec::new();
@@ -179,9 +194,14 @@ impl<'a> CheckerState<'a> {
                 });
             }
         }
-        Ok(self
-            .tables
-            .finish_union_type_set(type_set, includes, types, origin))
+        Ok(self.tables.finish_union_type_set(
+            type_set,
+            includes,
+            types,
+            alias_symbol,
+            alias_type_arguments,
+            origin,
+        ))
     }
 
     /// tsc-port: removeStringLiteralsMatchedByTemplateLiterals @6.0.3

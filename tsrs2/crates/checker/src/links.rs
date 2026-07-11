@@ -78,6 +78,9 @@ pub struct SymbolLinks {
     /// tsc links.nameType — written by late-bound member binding (5.3);
     /// carried through instantiateSymbol's copy (63460).
     pub name_type: Option<TypeId>,
+    /// tsc links.typeParameters for generic type-alias symbols
+    /// (getDeclaredTypeOfTypeAlias 57416).
+    pub type_parameters: Option<Vec<TypeId>>,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -145,6 +148,10 @@ pub struct LinksTables {
     /// (getUnionOrIntersectionProperty 59246) — a monotone cache, not a
     /// one-write slot; only successful synthesis is cached, like tsc.
     pub union_property_cache: HashMap<(TypeId, String, bool), SymbolId>,
+    /// tsc type-alias links.instantiations (getDeclaredTypeOfTypeAlias
+    /// 57417 seed + getTypeAliasInstantiation 60271), keyed by
+    /// getTypeListId + getAliasId — a monotone cache like tsc's map.
+    pub alias_instantiations: HashMap<(SymbolId, String), TypeId>,
 }
 
 impl LinksTables {
@@ -431,6 +438,23 @@ impl LinksTables {
             "type parameter mapper written twice for {id:?}"
         );
         links.type_parameter_mapper = Some(mapper);
+    }
+
+    /// getDeclaredTypeOfTypeAlias's typeParameters stamp (57416),
+    /// written once when a generic alias's declared type resolves.
+    pub fn set_symbol_type_parameters(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        type_parameters: Vec<TypeId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        assert!(
+            links.type_parameters.is_none(),
+            "alias type parameters written twice for {id:?}"
+        );
+        links.type_parameters = Some(type_parameters);
     }
 
     pub fn set_type_permissive_instantiation(

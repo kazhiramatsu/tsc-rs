@@ -752,10 +752,10 @@ impl TypeTables {
                 };
             }
         }
-        self.finish_union_type_set(type_set, includes, types, origin)
+        self.finish_union_type_set(type_set, includes, types, None, None, origin)
     }
 
-    /// The getUnionTypeWorker TAIL (61586-61612): named-union origin
+    /// The getUnionTypeWorker TAIL (61558-61585): named-union origin
     /// denormalization + objectFlags computation + interning. Shared
     /// with the checker-side Subtype-capable twin (stage 4.8).
     pub fn finish_union_type_set(
@@ -763,6 +763,8 @@ impl TypeTables {
         type_set: Vec<TypeId>,
         includes: i32,
         types: &[TypeId],
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> TypeId {
         let mut origin = origin;
@@ -781,8 +783,7 @@ impl TypeTables {
                     reduced_types.push(t);
                 }
             }
-            // !aliasSymbol is vacuously true until M4 aliases.
-            if named_unions.len() == 1 && reduced_types.is_empty() {
+            if alias_symbol.is_none() && named_unions.len() == 1 && reduced_types.is_empty() {
                 return named_unions[0];
             }
             let named_types_count: usize = named_unions
@@ -814,7 +815,13 @@ impl TypeTables {
                 0
             }),
         );
-        self.get_union_type_from_sorted_list(type_set, object_flags, origin)
+        self.get_union_type_from_sorted_list(
+            type_set,
+            object_flags,
+            alias_symbol,
+            alias_type_arguments,
+            origin,
+        )
     }
 
     /// tsc-port: addTypeToUnion @6.0.3
@@ -1029,15 +1036,17 @@ impl TypeTables {
     /// tsc-hash: 1e98366b81464c049f6729b888516648a16e01e90f6b6e8264bf775700f93e6b
     /// tsc-span: _tsc.js:61613-61641
     ///
-    /// getAliasId is empty until M4 aliases; the `#`-prefixed origin
-    /// key form covers non-union/intersection origins (M4 index types)
-    /// and is unreachable here. The 61634-61637 boolean special case
-    /// sets flags |= Boolean (the union's "boolean" intrinsicName is
-    /// display-only and lands with T2 display work).
+    /// The `#`-prefixed origin key form covers non-union/intersection
+    /// origins (M4 index types) and is unreachable here. The
+    /// 61634-61637 boolean special case sets flags |= Boolean (the
+    /// union's "boolean" intrinsicName is display-only and lands with
+    /// T2 display work).
     pub fn get_union_type_from_sorted_list(
         &mut self,
         types: Vec<TypeId>,
         precomputed_object_flags: ObjectFlags,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> TypeId {
         if types.is_empty() {
@@ -1046,7 +1055,7 @@ impl TypeTables {
         if types.len() == 1 {
             return types[0];
         }
-        let key = match origin {
+        let type_key = match origin {
             None => self.get_type_list_id(&types),
             Some(origin) => {
                 let origin_flags = self.flags_of(origin);
@@ -1063,6 +1072,10 @@ impl TypeTables {
                 }
             }
         };
+        let key = format!(
+            "{type_key}{}",
+            self.get_alias_id(alias_symbol, alias_type_arguments)
+        );
         if let Some(&id) = self.union_types.get(&key) {
             return id;
         }
@@ -1090,7 +1103,10 @@ impl TypeTables {
                 origin,
             },
         );
-        self.type_mut(id).object_flags = object_flags;
+        let union = self.type_mut(id);
+        union.object_flags = object_flags;
+        union.alias_symbol = alias_symbol;
+        union.alias_type_arguments = alias_type_arguments.map(<[TypeId]>::to_vec).map(Vec::into_boxed_slice);
         self.union_types.insert(key, id);
         id
     }
@@ -1147,6 +1163,8 @@ impl TypeTables {
         &mut self,
         types: Vec<TypeId>,
         object_flags: ObjectFlags,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
     ) -> TypeId {
         let propagating = self.get_propagating_flags_of_types(&types, TypeFlags::NULLABLE);
         let id = self.create_type(
@@ -1155,8 +1173,13 @@ impl TypeTables {
                 types: types.into_boxed_slice(),
             },
         );
-        self.type_mut(id).object_flags =
+        let intersection = self.type_mut(id);
+        intersection.object_flags =
             ObjectFlags::from_bits(object_flags.bits() | propagating.bits());
+        intersection.alias_symbol = alias_symbol;
+        intersection.alias_type_arguments = alias_type_arguments
+            .map(<[TypeId]>::to_vec)
+            .map(Vec::into_boxed_slice);
         id
     }
 
@@ -1267,7 +1290,7 @@ impl TypeTables {
             }
         }
         types[index] =
-            self.get_union_type_from_sorted_list(result, ObjectFlags::PRIMITIVE_UNION, None);
+            self.get_union_type_from_sorted_list(result, ObjectFlags::PRIMITIVE_UNION, None, None, None);
         true
     }
 
@@ -1344,7 +1367,7 @@ impl TypeTables {
                     & (ObjectFlags::PRIMITIVE_UNION.bits()
                         | ObjectFlags::CONTAINS_INTERSECTIONS.bits()),
             );
-            return self.get_union_type_from_sorted_list(filtered, object_flags, new_origin);
+            return self.get_union_type_from_sorted_list(filtered, object_flags, None, None, new_origin);
         }
         if self.flags_of(ty).intersects(TypeFlags::NEVER) || f(self, ty) {
             ty
