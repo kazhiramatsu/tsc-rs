@@ -125,9 +125,15 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(fallback);
         }
-        // length(type.typeParameters) — the 5.0 slice constructs only
-        // non-generic interface declared types (see doc above).
-        let type_parameter_count = 0usize;
+        // length(type.typeParameters): GenericType declared types
+        // carry their parameters since 5.2b; plain Object declared
+        // types are the non-generic (undefined -> 0) case.
+        let type_parameter_count = match &self.tables.type_of(declared).data {
+            tsrs2_types::TypeData::GenericType {
+                type_parameters, ..
+            } => type_parameters.len(),
+            _ => 0,
+        };
         if type_parameter_count != arity {
             let name = self.symbol_display_name(symbol);
             let declaration = self.global_type_declaration(symbol);

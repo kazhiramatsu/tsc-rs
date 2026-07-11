@@ -1442,7 +1442,7 @@ impl TypeTables {
             TypeFlags::OBJECT,
             TypeData::Reference {
                 target,
-                resolved_type_arguments: type_arguments.to_vec().into_boxed_slice(),
+                resolved_type_arguments: Some(type_arguments.to_vec().into_boxed_slice()),
             },
         );
         let object_flags = ObjectFlags::from_bits(
@@ -1457,6 +1457,43 @@ impl TypeTables {
         id
     }
 
+    /// The type-object slice of createDeferredTypeReference (60188-
+    /// 60201): a Reference shell with NO resolved type arguments and NO
+    /// propagating flags (the arguments are unknown until the checker's
+    /// lazy getTypeArguments reads the node). NOT interned — tsc creates
+    /// a fresh object per call; identity comes from the caller's caches
+    /// (node links / target.instantiations). The node, mapper and alias
+    /// fields live checker-side (TypeLinks / Type alias fields).
+    pub fn create_deferred_reference_shell(&mut self, target: TypeId) -> TypeId {
+        let symbol = self.type_of(target).symbol;
+        let id = self.create_type(
+            TypeFlags::OBJECT,
+            TypeData::Reference {
+                target,
+                resolved_type_arguments: None,
+            },
+        );
+        self.type_mut(id).object_flags = ObjectFlags::REFERENCE;
+        self.type_mut(id).symbol = symbol;
+        id
+    }
+
+    /// The `type.resolvedTypeArguments ??= ...` writes in getTypeArguments
+    /// (60211/60213): only fills a still-vacant slot, so a value that
+    /// appeared during the recursive resolution wins.
+    pub fn set_resolved_type_arguments_if_vacant(&mut self, id: TypeId, arguments: Vec<TypeId>) {
+        let TypeData::Reference {
+            resolved_type_arguments,
+            ..
+        } = &mut self.type_mut(id).data
+        else {
+            unreachable!("resolved type arguments live on Reference types");
+        };
+        if resolved_type_arguments.is_none() {
+            *resolved_type_arguments = Some(arguments.into_boxed_slice());
+        }
+    }
+
     /// The reference target: a plain Reference's target, or the type
     /// itself for tuple targets (tsc `type.target = type`, 61192) and
     /// class/interface GenericType targets (57398).
@@ -1468,22 +1505,35 @@ impl TypeTables {
         }
     }
 
-    /// getTypeArguments for instantiation-free references (60202-60222:
-    /// plain references have resolvedTypeArguments eagerly; the lazy
-    /// node-reading branch belongs to M4 deferred references). Tuple
-    /// and class/interface targets alias their own typeParameters
-    /// (61193 / 57399).
+    /// getTypeArguments for references whose arguments are already
+    /// resolved (60202: the `type.resolvedTypeArguments` fast path).
+    /// Tuple and class/interface targets alias their own typeParameters
+    /// (61193 / 57399). Deferred references that have not been forced
+    /// yet are a CALLER BUG here — route through the checker's lazy
+    /// CheckerState::get_type_arguments (60202-60225) instead.
     pub fn type_arguments(&self, id: TypeId) -> &[TypeId] {
+        self.try_type_arguments(id).unwrap_or_else(|| {
+            unreachable!(
+                "deferred reference type arguments read before resolution — \
+                 route through CheckerState::get_type_arguments"
+            )
+        })
+    }
+
+    /// `type_arguments` that reports unresolved deferred references as
+    /// `None` instead of panicking (non-Reference types keep the empty
+    /// slice they had under the infallible accessor).
+    pub fn try_type_arguments(&self, id: TypeId) -> Option<&[TypeId]> {
         match &self.type_of(id).data {
             TypeData::Reference {
                 resolved_type_arguments,
                 ..
-            } => resolved_type_arguments,
-            TypeData::TupleTarget(data) => &data.type_parameters,
+            } => resolved_type_arguments.as_deref(),
+            TypeData::TupleTarget(data) => Some(&data.type_parameters),
             TypeData::GenericType {
                 type_parameters, ..
-            } => type_parameters,
-            _ => &[],
+            } => Some(type_parameters),
+            _ => Some(&[]),
         }
     }
 
@@ -1739,7 +1789,19 @@ impl TypeTables {
                         else {
                             unreachable!("tuple type targets a tuple target");
                         };
-                        let inner_args: Vec<TypeId> = self.type_arguments(element_type).to_vec();
+                        // tsc forces the arguments lazily here
+                        // (getTypeArguments 61240); tables cannot reach
+                        // the checker, so checker callers pre-force
+                        // variadic tuple elements and this guard keeps
+                        // any missed path an honest escape.
+                        let Some(inner_args) =
+                            self.try_type_arguments(element_type).map(<[TypeId]>::to_vec)
+                        else {
+                            return Err(M4Dependency(
+                                "unforced deferred tuple arguments in variadic expansion \
+                                 (pre-force via CheckerState::get_type_arguments)",
+                            ));
+                        };
                         if inner_args.len() + expanded_types.len() >= 10_000 {
                             return Err(M4Dependency("tuple too large to represent (2799 family)"));
                         }

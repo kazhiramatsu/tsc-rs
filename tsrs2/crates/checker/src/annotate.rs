@@ -366,30 +366,51 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeFromArrayOrTupleTypeNode @6.0.3
     /// tsc-hash: fbfa13c985f4372427e82b3bcb4fbdcc8bba690945422a60571d8ca75d8e5301
     /// tsc-span: _tsc.js:61118-61137
-    ///
-    /// isDeferredTypeReferenceNode (61068) is constant-false in M3 —
-    /// deferral requires type aliases — so only the eager branch is
-    /// live; the deferred branch returns with M4 5.1.
     fn get_type_from_array_or_tuple_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
         let target = self.get_array_or_tuple_target_type(node)?;
+        let is_tuple = self.kind_of(node) == SyntaxKind::TupleType;
         let elements = match self.data_of(node) {
             NodeData::TupleType(data) => self.nodes_of(data.elements),
-            NodeData::ArrayType(_) => {
-                unreachable!("array types resolve to the global Array target (M4)")
-            }
+            NodeData::ArrayType(_) => Vec::new(),
             _ => unreachable!("array/tuple kind implies payload"),
         };
-        let mut element_types = Vec::with_capacity(elements.len());
-        for element in elements {
-            element_types.push(self.get_type_from_type_node(element)?);
-        }
-        let resolved = self
-            .tables
-            .create_normalized_type_reference(target, &element_types)
-            .map_err(Self::unsupported_m4)?;
+        let resolved = if target == self.empty_generic_type {
+            // A failed global Array/ReadonlyArray lookup (61122).
+            self.empty_object_type
+        } else {
+            let has_variadic_element = is_tuple
+                && elements.iter().any(|&element| {
+                    self.get_tuple_element_flags(element)
+                        .intersects(ElementFlags::VARIADIC)
+                });
+            if !has_variadic_element && self.is_deferred_type_reference_node(node, false)? {
+                if is_tuple && elements.is_empty() {
+                    target
+                } else {
+                    self.create_deferred_type_reference(target, node, None, None, None)?
+                }
+            } else {
+                let element_types = if is_tuple {
+                    let mut element_types = Vec::with_capacity(elements.len());
+                    for element in &elements {
+                        element_types.push(self.get_type_from_type_node(*element)?);
+                    }
+                    element_types
+                } else {
+                    let NodeData::ArrayType(data) = self.data_of(node) else {
+                        unreachable!("non-tuple node here is an array");
+                    };
+                    let element = data.element_type.ok_or_else(|| {
+                        Unsupported::new("array type with missing element type")
+                    })?;
+                    vec![self.get_type_from_type_node(element)?]
+                };
+                self.create_normalized_type_reference_forced(target, &element_types)?
+            }
+        };
         self.links.set_node_resolved_type(
             self.speculation_depth,
             node,
@@ -398,17 +419,57 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
+    /// createNormalizedTypeReference forces variadic tuple elements'
+    /// type arguments lazily THROUGH getTypeArguments (61240 inside
+    /// createNormalizedTupleType); tables cannot reach the checker, so
+    /// checker callers pre-force here — element order matches tsc's
+    /// left-to-right expansion, and the forced resolution has no other
+    /// observable effects.
+    pub(crate) fn create_normalized_type_reference_forced(
+        &mut self,
+        target: TypeId,
+        type_arguments: &[TypeId],
+    ) -> CheckResult2<TypeId> {
+        if self
+            .tables
+            .object_flags_of(target)
+            .intersects(ObjectFlags::TUPLE)
+        {
+            let element_flags = match &self.tables.type_of(target).data {
+                TypeData::TupleTarget(data) => data.element_flags.to_vec(),
+                _ => unreachable!("TUPLE object flag implies a tuple target"),
+            };
+            for (index, &argument) in type_arguments.iter().enumerate() {
+                if element_flags[index].intersects(ElementFlags::VARIADIC)
+                    && self.tables.is_tuple_type(argument)
+                {
+                    self.get_type_arguments(argument)?;
+                }
+            }
+        }
+        self.tables
+            .create_normalized_type_reference(target, type_arguments)
+            .map_err(Self::unsupported_m4)
+    }
+
     /// tsc-port: getArrayOrTupleTargetType @6.0.3
     /// tsc-hash: 4cf2f8c3a8e8ac36305166ae9a3424a26f2d685e453bd521e3f32be9bf76892e
     /// tsc-span: _tsc.js:61056-61064
+    ///
+    /// The single-rest tuple `[...T[]]` reaches the Array target
+    /// through getArrayElementTypeNode's unwrap — the tables
+    /// get_tuple_target_type collapse escape stays for synthesized
+    /// createTupleType callers only.
     fn get_array_or_tuple_target_type(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let readonly = self
             .parent_of(node)
             .is_some_and(|parent| self.is_readonly_type_operator(parent));
         if self.get_array_element_type_node(node).is_some() {
-            return Err(Unsupported::new(
-                "globalArrayType/globalReadonlyArrayType targets (M4 5.3)",
-            ));
+            return if readonly {
+                self.global_readonly_array_type()
+            } else {
+                self.global_array_type()
+            };
         }
         let NodeData::TupleType(data) = self.data_of(node) else {
             unreachable!("non-array node here is a tuple");
@@ -706,14 +767,218 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
+    // ---- deferred references ----
+
+    /// tsc-port: createDeferredTypeReference @6.0.3
+    /// tsc-hash: e141b08db3abcdba6f098fdfaaedcad4db64d3d3b4ddd116208aa03ddb8cf97c
+    /// tsc-span: _tsc.js:60188-60201
+    ///
+    /// Returns a FRESH type per call (no interning): identity comes
+    /// from the callers' caches — node links.resolvedType for the
+    /// canonical reference, target.instantiations for mapper-carrying
+    /// instances (getObjectTypeInstantiation 63499).
+    pub(crate) fn create_deferred_type_reference(
+        &mut self,
+        target: TypeId,
+        node: NodeId,
+        mapper: Option<crate::instantiate::MapperId>,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult2<TypeId> {
+        let (alias_symbol, alias_type_arguments) = if alias_symbol.is_none() {
+            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let local_alias_type_arguments =
+                self.get_type_arguments_for_alias_symbol(alias_symbol);
+            let alias_type_arguments = match (mapper, local_alias_type_arguments) {
+                (Some(mapper), Some(local)) => Some(self.instantiate_types(&local, mapper)?),
+                (_, local) => local,
+            };
+            (alias_symbol, alias_type_arguments)
+        } else {
+            (alias_symbol, alias_type_arguments.map(<[TypeId]>::to_vec))
+        };
+        let ty = self.tables.create_deferred_reference_shell(target);
+        self.links
+            .set_type_deferred_reference_links(self.speculation_depth, ty, node, mapper);
+        let type_object = self.tables.type_mut(ty);
+        type_object.alias_symbol = alias_symbol;
+        type_object.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
+        Ok(ty)
+    }
+
+    /// tsc-port: getTypeArguments @6.0.3
+    /// tsc-hash: 3b8ca1bff64a4f4d6f3cc3397e58af16e5a44427df7f4bf4a9cf4937b366ac1d
+    /// tsc-span: _tsc.js:60202-60222
+    ///
+    /// The lazy branch is reachable only through deferred references,
+    /// whose node is ever-present — the `type.node || currentNode`
+    /// error location is always the node. An Err unwind pops the
+    /// resolution stack and leaves the slot vacant, so a later query
+    /// re-resolves (the 5.1b unwind discipline). The pop-failure 4109/
+    /// 4110 arms need an argument-forcing consumer INSIDE argument
+    /// resolution — every such forcer pre-5.3 (indexed access over
+    /// tuples, member access) escapes, so the arms sit unexercised
+    /// until 5.3 (pin then).
+    pub(crate) fn get_type_arguments(&mut self, ty: TypeId) -> CheckResult2<Vec<TypeId>> {
+        if let Some(resolved) = self.tables.try_type_arguments(ty) {
+            return Ok(resolved.to_vec());
+        }
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Type(ty),
+            tsrs2_types::TypeSystemPropertyName::RESOLVED_TYPE_ARGUMENTS,
+        ) {
+            // Mid-cycle read: errorType-filled arguments WITHOUT
+            // caching (60206) — the outermost frame reports.
+            return Ok(self.error_filled_type_arguments(ty));
+        }
+        let node = self
+            .links
+            .ty(ty)
+            .deferred_node
+            .expect("unresolved references are deferred (node-carrying)");
+        let computed = (|state: &mut Self| -> CheckResult2<Vec<TypeId>> {
+            match state.data_of(node) {
+                NodeData::TypeReference(_) => {
+                    let target = state.tables.reference_target(ty);
+                    let TypeData::GenericType {
+                        type_parameters,
+                        outer_type_parameter_count,
+                        ..
+                    } = &state.tables.type_of(target).data
+                    else {
+                        unreachable!("TypeReference-node deferrals target class/interface types");
+                    };
+                    let outer_count = *outer_type_parameter_count;
+                    let type_parameters = type_parameters.to_vec();
+                    let effective = state
+                        .get_effective_type_arguments(node, &type_parameters[outer_count..])?;
+                    let mut arguments = type_parameters[..outer_count].to_vec();
+                    arguments.extend(effective);
+                    Ok(arguments)
+                }
+                NodeData::ArrayType(data) => {
+                    let element = data.element_type.ok_or_else(|| {
+                        Unsupported::new("array type with missing element type")
+                    })?;
+                    Ok(vec![state.get_type_from_type_node(element)?])
+                }
+                NodeData::TupleType(data) => {
+                    let elements = state.nodes_of(data.elements);
+                    let mut arguments = Vec::with_capacity(elements.len());
+                    for element in elements {
+                        arguments.push(state.get_type_from_type_node(element)?);
+                    }
+                    Ok(arguments)
+                }
+                _ => unreachable!(
+                    "deferred references carry TypeReference/ArrayType/TupleType nodes"
+                ),
+            }
+        })(self);
+        let type_arguments = match computed {
+            Ok(arguments) => arguments,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
+            }
+        };
+        if self.pop_type_resolution() {
+            // `??=` short-circuits: a slot filled during the recursive
+            // resolution skips the mapper application entirely (60211).
+            if self.tables.try_type_arguments(ty).is_none() {
+                let resolved = match self.links.ty(ty).deferred_mapper {
+                    // An Err below unwinds with the slot still vacant —
+                    // nothing cached, re-queryable.
+                    Some(mapper) => self.instantiate_types(&type_arguments, mapper)?,
+                    None => type_arguments,
+                };
+                self.tables.set_resolved_type_arguments_if_vacant(ty, resolved);
+            }
+        } else {
+            let fallback = self.error_filled_type_arguments(ty);
+            self.tables.set_resolved_type_arguments_if_vacant(ty, fallback);
+            let target = self.tables.reference_target(ty);
+            match self.tables.type_of(target).symbol {
+                Some(symbol) => {
+                    let name = self.symbol_display_name(symbol);
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Type_arguments_for_0_circularly_reference_themselves,
+                        &[&name],
+                    );
+                }
+                None => {
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Tuple_type_arguments_circularly_reference_themselves,
+                        &[],
+                    );
+                }
+            }
+        }
+        Ok(self.tables.type_arguments(ty).to_vec())
+    }
+
+    /// The push/pop-failure filler (60206/60213): outer type parameters
+    /// stay themselves, local ones become errorType —
+    /// `concatenate(outerTypeParameters, localTypeParameters?.map(() =>
+    /// errorType)) || emptyArray`. Tuple targets treat every parameter
+    /// as local (createTupleTargetType 61186-61188).
+    fn error_filled_type_arguments(&self, ty: TypeId) -> Vec<TypeId> {
+        let target = self.tables.reference_target(ty);
+        let error = self.tables.intrinsics.error;
+        match &self.tables.type_of(target).data {
+            TypeData::GenericType {
+                type_parameters,
+                outer_type_parameter_count,
+                ..
+            } => {
+                let mut arguments: Vec<TypeId> =
+                    type_parameters[..*outer_type_parameter_count].to_vec();
+                arguments.extend(
+                    std::iter::repeat(error)
+                        .take(type_parameters.len() - outer_type_parameter_count),
+                );
+                arguments
+            }
+            TypeData::TupleTarget(data) => vec![error; data.type_parameters.len()],
+            _ => Vec::new(),
+        }
+    }
+
+    /// tsc-port: getEffectiveTypeArguments @6.0.3
+    /// tsc-hash: 6c12eff78b7503813dedde829e82b7ada2fbdded78d792dcc7da0591fe9498a2
+    /// tsc-span: _tsc.js:81679-81681
+    fn get_effective_type_arguments(
+        &mut self,
+        node: NodeId,
+        type_parameters: &[TypeId],
+    ) -> CheckResult2<Vec<TypeId>> {
+        let argument_nodes = match self.data_of(node) {
+            NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
+            _ => unreachable!("getEffectiveTypeArguments reads TypeReference nodes here"),
+        };
+        let mut resolved = Vec::with_capacity(argument_nodes.len());
+        for argument in argument_nodes {
+            resolved.push(self.get_type_from_type_node(argument)?);
+        }
+        let min_type_argument_count = self.get_min_type_argument_count(Some(type_parameters));
+        let is_js = self.is_in_js_file(node);
+        Ok(self
+            .fill_missing_type_arguments(
+                Some(&resolved),
+                Some(type_parameters),
+                min_type_argument_count,
+                is_js,
+            )?
+            .unwrap_or_default())
+    }
+
     /// tsc-port: getTypeFromClassOrInterfaceReference @6.0.3
     /// tsc-hash: f342ce01f970d999b75075be7cad3c36a4b6defd82cd81b155a1ae78498d449b
     /// tsc-span: _tsc.js:60226-60262
     ///
-    /// The missingAugmentsTag message variants are JSDoc-only (elided);
-    /// deferred reference nodes (isDeferredTypeReferenceNode — alias
-    /// RHS hosts) escape until createDeferredTypeReference lands with
-    /// the alias commit.
+    /// The missingAugmentsTag message variants are JSDoc-only (elided).
     fn get_type_from_class_or_interface_reference(
         &mut self,
         node: NodeId,
@@ -775,10 +1040,7 @@ impl<'a> CheckerState<'a> {
                     num_type_arguments != local_type_parameters.len(),
                 )?
             {
-                return Err(Unsupported::new(
-                    "deferred type references (createDeferredTypeReference, \
-                     M4 5.2 follow-up: alias instantiation)",
-                ));
+                return self.create_deferred_type_reference(ty, node, None, None, None);
             }
             let mut resolved_arguments: Vec<TypeId> =
                 Vec::with_capacity(node_type_arguments.len());
@@ -2819,10 +3081,9 @@ mod tests {
     #[test]
     fn m4_shapes_report_unsupported_not_wrong_types() {
         with_state(
-            "declare var a: number[];\ndeclare var b: number extends string ? 1 : 2;\ndeclare var c: Missing;\n",
+            "declare var b: number extends string ? 1 : 2;\ndeclare var c: Missing;\n",
             |state| {
                 for (name, needle) in [
-                    ("a", "globalArrayType"),
                     ("b", "conditional"),
                     ("c", "unresolved type name"),
                 ] {
@@ -3343,7 +3604,7 @@ mod generic_reference_tests {
     }
 
     #[test]
-    fn alias_hosted_generic_references_escape_as_deferred() {
+    fn alias_hosted_generic_references_defer_and_resolve_lazily() {
         with_program_state(
             &[(
                 "a.ts",
@@ -3352,11 +3613,181 @@ mod generic_reference_tests {
             &CompilerOptions::default(),
             |state| {
                 let v = annotation_of(state, "v");
-                let reason = state
+                let deferred = state.get_type_from_type_node(v).expect("alias RHS defers");
+                // The deferred shell: Reference object flags, a node,
+                // the alias stamp, and NO resolved arguments yet.
+                assert!(matches!(
+                    state.tables.type_of(deferred).data,
+                    TypeData::Reference {
+                        resolved_type_arguments: None,
+                        ..
+                    }
+                ));
+                assert!(state.links.ty(deferred).deferred_node.is_some());
+                assert!(state.tables.type_of(deferred).alias_symbol.is_some());
+                // Forcing reads the node lazily.
+                let arguments = state.get_type_arguments(deferred).expect("forcible");
+                assert_eq!(arguments, [state.tables.intrinsics.number]);
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn self_referential_deferred_aliases_resolve_without_circularity() {
+        with_program_state(
+            &[("a.ts", "type A = [A];\ndeclare var v: A;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let deferred = state.get_type_from_type_node(v).expect("tuple RHS defers");
+                // `type A = [A]` is LEGAL through deferral (the eager
+                // path would 2456): the argument list is the deferred
+                // reference itself.
+                let arguments = state.get_type_arguments(deferred).expect("forcible");
+                assert_eq!(arguments, [deferred]);
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn alias_hosted_array_nodes_defer_over_the_global_array_target() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface Array<T> { length: number }\ntype A = string[];\ndeclare var v: A;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let deferred = state.get_type_from_type_node(v).expect("array RHS defers");
+                assert!(state.links.ty(deferred).deferred_node.is_some());
+                let target = state.tables.reference_target(deferred);
+                assert!(matches!(
+                    state.tables.type_of(target).data,
+                    TypeData::GenericType { .. }
+                ));
+                let arguments = state.get_type_arguments(deferred).expect("forcible");
+                assert_eq!(arguments, [state.tables.intrinsics.string]);
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn plain_array_annotations_resolve_eagerly_against_the_array_global() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface Array<T> { length: number }\ndeclare var v: number[];\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let reference = state.get_type_from_type_node(v).expect("arrays construct");
+                // No alias host, no alias-resolvable elements: the
+                // eager arm builds a plain resolved reference.
+                assert!(state.links.ty(reference).deferred_node.is_none());
+                assert_eq!(
+                    state.tables.type_arguments(reference),
+                    [state.tables.intrinsics.number]
+                );
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn missing_array_global_reports_2318_and_empty_object_type() {
+        with_program_state(
+            &[("a.ts", "declare var v: number[];\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let resolved = state.get_type_from_type_node(v).expect("fallback resolves");
+                // getArrayOrTupleTargetType finds emptyGenericType (the
+                // memoized getGlobalType failure) -> emptyObjectType
+                // (61122-61123), with the one-shot 2318.
+                assert_eq!(resolved, state.empty_object_type);
+                assert_eq!(state.diagnostics.len(), 1, "{:?}", state.diagnostics);
+                assert_eq!(state.diagnostics[0].code(), 2318);
+            },
+        );
+    }
+
+    #[test]
+    fn empty_tuple_aliases_resolve_to_the_tuple_target() {
+        with_program_state(
+            &[("a.ts", "type E = [];\ndeclare var v: E;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let resolved = state.get_type_from_type_node(v).expect("empty tuple");
+                // 61124: zero-element deferrable tuples return the
+                // TARGET itself, not a deferred reference.
+                assert!(matches!(
+                    state.tables.type_of(resolved).data,
+                    TypeData::TupleTarget(_)
+                ));
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn deferred_references_instantiate_through_the_canonical_node_cache() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface I<T> { a: T }\ntype A<U> = I<U>;\n\
+                 declare var v: A<string>;\ndeclare var w: A<string>;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let instance = state
                     .get_type_from_type_node(v)
-                    .expect_err("alias RHS references defer")
-                    .reason;
-                assert!(reason.contains("createDeferredTypeReference"), "{reason}");
+                    .expect("alias instantiation over a deferred RHS");
+                // getObjectTypeInstantiation minted a fresh deferred
+                // reference carrying the U->string mapper.
+                assert!(state.links.ty(instance).deferred_node.is_some());
+                assert!(state.links.ty(instance).deferred_mapper.is_some());
+                let arguments = state.get_type_arguments(instance).expect("forcible");
+                assert_eq!(arguments, [state.tables.intrinsics.string]);
+                // The canonical node reference hosts the instantiations
+                // map: the same argument list reuses the instance.
+                let w = annotation_of(state, "w");
+                let again = state.get_type_from_type_node(w).expect("cached");
+                assert_eq!(again, instance);
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn variadic_expansion_pre_forces_deferred_tuple_elements() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type B = [number];\ntype A = [...B, string];\ndeclare var v: A;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                // A has a variadic element, so it resolves EAGERLY; the
+                // spread forces B's (deferred) arguments through the
+                // pre-force wrapper.
+                let resolved = state.get_type_from_type_node(v).expect("variadic expands");
+                assert!(state.links.ty(resolved).deferred_node.is_none());
+                assert_eq!(
+                    state.tables.type_arguments(resolved),
+                    [
+                        state.tables.intrinsics.number,
+                        state.tables.intrinsics.string
+                    ]
+                );
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
             },
         );
     }

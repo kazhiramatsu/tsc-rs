@@ -958,7 +958,9 @@ impl<'a> CheckerState<'a> {
         writing: bool,
         no_reductions: bool,
     ) -> CheckResult2<Option<TypeId>> {
-        let type_arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
+        // getTypeArguments (67826) — deferred tuple references force
+        // their arguments lazily here.
+        let type_arguments: Vec<TypeId> = self.get_type_arguments(ty)?;
         let target = self.tables.reference_target(ty);
         let element_flags: Vec<tsrs2_types::ElementFlags> =
             match &self.tables.type_of(target).data {

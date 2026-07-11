@@ -501,13 +501,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fb17fb2693f1b9664336314c08f11b85b999e573f3a4b070da39a7b35e99a791
     /// tsc-span: _tsc.js:63463-63517
     ///
-    /// The Reference/InstantiationExpressionType `type.node`
-    /// declaration reads (63464-63466) are dead — node-carrying
-    /// references (createDeferredTypeReference) and instantiation-
-    /// expression types are unconstructible before M8/M6 — so the
-    /// declaration is always `symbol.declarations[0]`. The JS-
-    /// constructor template-tag parameters (63474-63477) ride on JSDoc
-    /// binding and are elided with it (project-wide).
+    /// The Reference arms are live (deferred references, 5.2g); the
+    /// InstantiationExpressionType `type.node` read stays dead until
+    /// M6 instantiation expressions. The JS-constructor template-tag
+    /// parameters (63474-63477) ride on JSDoc binding and are elided
+    /// with it (project-wide).
     fn get_object_type_instantiation(
         &mut self,
         ty: TypeId,
@@ -516,18 +514,36 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult2<TypeId> {
         let object_flags = self.tables.object_flags_of(ty);
-        let symbol = self
-            .tables
-            .type_of(ty)
-            .symbol
-            .expect("anonymous type instantiation requires a symbol");
-        let declaration = *self
-            .binder
-            .symbol(symbol)
-            .declarations
-            .first()
-            .expect("couldContainTypeVariables demands declarations");
-        let target = if object_flags.intersects(ObjectFlags::INSTANTIATED) {
+        let is_reference = object_flags.intersects(ObjectFlags::REFERENCE);
+        let declaration = if is_reference {
+            // 63464: deferred references carry their node; the
+            // InstantiationExpressionType node arm is M6.
+            self.links
+                .ty(ty)
+                .deferred_node
+                .expect("References here are deferred (worker !node gate)")
+        } else {
+            let symbol = self
+                .tables
+                .type_of(ty)
+                .symbol
+                .expect("anonymous type instantiation requires a symbol");
+            *self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .first()
+                .expect("couldContainTypeVariables demands declarations")
+        };
+        let target = if is_reference {
+            // 63466: the canonical deferred reference cached on the
+            // node hosts the instantiations map.
+            self.links
+                .node(declaration)
+                .resolved_type
+                .resolved()
+                .expect("deferred references are node-cached before instantiation")
+        } else if object_flags.intersects(ObjectFlags::INSTANTIATED) {
             self.links
                 .ty(ty)
                 .instantiated_target
@@ -542,27 +558,38 @@ impl<'a> CheckerState<'a> {
                 let outer = self
                     .get_outer_type_parameters(declaration, /*include_this_types*/ true)?
                     .unwrap_or_default();
-                let target_symbol = self
-                    .tables
-                    .type_of(target)
-                    .symbol
-                    .expect("instantiation targets carry their symbol");
+                // 63481: `target.objectFlags & (Reference |
+                // InstantiationExpressionType) || target.symbol.flags &
+                // Method || ... & TypeLiteral` — the symbol read is
+                // short-circuited away for references (tuple-target
+                // deferred references have no symbol).
                 let filter_applies = (self
                     .tables
                     .object_flags_of(target)
                     .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
-                    || self
-                        .symbol_flags(target_symbol)
-                        .intersects(SymbolFlags::METHOD)
-                    || self
-                        .symbol_flags(target_symbol)
-                        .intersects(SymbolFlags::TYPE_LITERAL))
+                    || {
+                        let target_symbol = self
+                            .tables
+                            .type_of(target)
+                            .symbol
+                            .expect("non-reference instantiation targets carry their symbol");
+                        self.symbol_flags(target_symbol)
+                            .intersects(SymbolFlags::METHOD)
+                            || self
+                                .symbol_flags(target_symbol)
+                                .intersects(SymbolFlags::TYPE_LITERAL)
+                    })
                     && self.tables.type_of(target).alias_type_arguments.is_none();
                 let all_declarations: Vec<NodeId> = if object_flags
                     .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
                 {
                     vec![declaration]
                 } else {
+                    let symbol = self
+                        .tables
+                        .type_of(ty)
+                        .symbol
+                        .expect("anonymous type instantiation requires a symbol");
                     self.binder.symbol(symbol).declarations.clone()
                 };
                 let filtered = if filter_applies {
@@ -594,7 +621,13 @@ impl<'a> CheckerState<'a> {
         if type_parameters.is_empty() {
             return Ok(ty);
         }
-        let type_mapper = self.links.ty(ty).instantiated_mapper;
+        // `type.mapper` (63485): the deferred-reference mapper for
+        // references, the instantiation mapper for anonymous shells.
+        let type_mapper = if is_reference {
+            self.links.ty(ty).deferred_mapper
+        } else {
+            self.links.ty(ty).instantiated_mapper
+        };
         let combined_mapper = self.combine_type_mappers(type_mapper, mapper);
         let mut type_arguments: Vec<TypeId> = Vec::with_capacity(type_parameters.len());
         for &tp in &type_parameters {
@@ -644,20 +677,28 @@ impl<'a> CheckerState<'a> {
         );
         let _ = &mut new_mapper;
         let target_object_flags = self.tables.object_flags_of(target);
-        if target_object_flags.intersects(ObjectFlags::REFERENCE) {
-            return Err(Unsupported::new(
-                "deferred type references (createDeferredTypeReference, M8)",
-            ));
-        }
-        if target_object_flags.intersects(ObjectFlags::MAPPED) {
+        let result = if target_object_flags.intersects(ObjectFlags::REFERENCE) {
+            // 63499: a fresh deferred reference over the SAME node with
+            // the instantiation mapper — `type.target`/`type.node`, not
+            // the canonical target's.
+            let reference_target = self.tables.reference_target(ty);
+            self.create_deferred_type_reference(
+                reference_target,
+                declaration,
+                Some(new_mapper),
+                new_alias_symbol,
+                new_alias_type_arguments.as_deref(),
+            )?
+        } else if target_object_flags.intersects(ObjectFlags::MAPPED) {
             return Err(Unsupported::new("mapped type instantiation (M8)"));
-        }
-        let result = self.instantiate_anonymous_type(
-            target,
-            new_mapper,
-            new_alias_symbol,
-            new_alias_type_arguments.as_deref(),
-        )?;
+        } else {
+            self.instantiate_anonymous_type(
+                target,
+                new_mapper,
+                new_alias_symbol,
+                new_alias_type_arguments.as_deref(),
+            )?
+        };
         self.tables.instantiation_insert(target, id_key, result);
         // 63503-63514: propagate couldContainTypeVariables over the
         // type arguments onto the result's memo bits.
@@ -1044,17 +1085,17 @@ impl<'a> CheckerState<'a> {
             if object_flags
                 .intersects(ObjectFlags::REFERENCE | ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
             {
-                if object_flags.intersects(ObjectFlags::REFERENCE) {
-                    // References carry no deferred `node` before
-                    // createDeferredTypeReference (M8): the !type.node
-                    // branch is always taken.
+                if object_flags.intersects(ObjectFlags::REFERENCE)
+                    && self.links.ty(ty).deferred_node.is_none()
+                {
+                    // The !type.node fast path (63725-63729); deferred
+                    // (node-carrying) references fall through to
+                    // getObjectTypeInstantiation.
                     let target = self.tables.reference_target(ty);
                     let resolved: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
                     let new_type_arguments = self.instantiate_types(&resolved, mapper)?;
                     return if new_type_arguments != resolved {
-                        self.tables
-                            .create_normalized_type_reference(target, &new_type_arguments)
-                            .map_err(Self::unsupported_m4)
+                        self.create_normalized_type_reference_forced(target, &new_type_arguments)
                     } else {
                         Ok(ty)
                     };
@@ -1327,10 +1368,15 @@ impl<'a> CheckerState<'a> {
             || (flags.intersects(TypeFlags::OBJECT)
                 && !self.is_non_generic_top_level_type(ty)
                 && ((object_flags.intersects(ObjectFlags::REFERENCE) && {
-                    let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
-                    arguments
-                        .into_iter()
-                        .any(|argument| self.could_contain_type_variables(argument))
+                    // `type.node || some(getTypeArguments(type), ...)`
+                    // (68336): node-carrying references short-circuit
+                    // true without forcing their arguments.
+                    self.links.ty(ty).deferred_node.is_some() || {
+                        let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
+                        arguments
+                            .into_iter()
+                            .any(|argument| self.could_contain_type_variables(argument))
+                    }
                 }) || (object_flags.intersects(ObjectFlags::ANONYMOUS)
                     && self.tables.type_of(ty).symbol.is_some_and(|symbol| {
                         self.binder.symbol(symbol).flags.intersects(

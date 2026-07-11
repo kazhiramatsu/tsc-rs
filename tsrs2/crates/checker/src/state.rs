@@ -506,9 +506,17 @@ impl<'a> CheckerState<'a> {
                     .resolved()
                     .is_some()
             }
+            TypeSystemPropertyName::RESOLVED_TYPE_ARGUMENTS => {
+                let ResolutionTarget::Type(ty) = target else {
+                    unreachable!("ResolvedTypeArguments resolution targets are types");
+                };
+                // `!!type.resolvedTypeArguments` (55771) — only deferred
+                // references are pushed under this property, and their
+                // slot fills through getTypeArguments.
+                self.tables.try_type_arguments(ty).is_some()
+            }
             // No call site pushes these yet: ResolvedBaseConstructorType/
             // ResolvedBaseTypes land with 5.3's base-type resolvers,
-            // ResolvedTypeArguments with 5.3's reference members,
             // WriteType with 5.1's accessor typing,
             // ParameterInitializerContainsUndefined with 5.8.
             _ => unreachable!(

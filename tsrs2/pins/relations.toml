@@ -1530,3 +1530,64 @@ source = "{ p: `é${string}` }"
 target = "{ p: `e${string}` }"
 relation = "comparable"
 expect = "no"
+
+# ---- M4 5.2g deferred type references (createDeferredTypeReference) ----
+# Alias-hosted tuple RHS nodes defer; relating them forces the
+# arguments through the lazy getTypeArguments (66804-66805).
+
+[[pair]]
+setup = "type A = [number];"
+source = "A"
+target = "[number]"
+expect = "yes"
+
+[[pair]]
+setup = "type A = [string];"
+source = "A"
+target = "[number]"
+expect = "no"
+
+# Self-referential deferred tuple: legal through deferral (the eager
+# path would report 2456), related via the recursion identity of the
+# shared node.
+[[pair]]
+setup = "type A = [A];"
+source = "A"
+target = "[A]"
+expect = "yes"
+
+# Structurally identical recursive tuple aliases: distinct deferred
+# nodes, verdict decided by the expansion-depth machinery.
+[[pair]]
+setup = "type A = [number, A];\ntype B = [number, B];"
+source = "A"
+target = "B"
+expect = "yes"
+
+[[pair]]
+setup = "type A = [number, A];\ntype B = [string, B];"
+source = "A"
+target = "B"
+expect = "no"
+
+# Variadic spread of a deferred tuple alias: the eager arm pre-forces
+# the spread element's arguments before normalization.
+[[pair]]
+setup = "type B = [number];\ntype A = [...B, string];"
+source = "A"
+target = "[number, string]"
+expect = "yes"
+
+[[pair]]
+setup = "type B = [number];\ntype A = [...B, string];"
+source = "[number, string]"
+target = "A"
+expect = "yes"
+
+# Optional-element tuple alias, deferred on both ends of the arity
+# window.
+[[pair]]
+setup = "type A = [number?];"
+source = "[]"
+target = "A"
+expect = "yes"

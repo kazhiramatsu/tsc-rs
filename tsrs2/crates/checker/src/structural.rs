@@ -905,8 +905,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 if !target_has_rest_element && (source_rest_flag || target_arity < source_arity) {
                     return Ok(Ternary::FALSE);
                 }
-                let source_type_arguments = self.st.tables.type_arguments(source).to_vec();
-                let target_type_arguments = self.st.tables.type_arguments(target).to_vec();
+                // getTypeArguments (66804-66805): deferred tuple
+                // references force their arguments lazily here.
+                let source_type_arguments = self.st.get_type_arguments(source)?;
+                let target_type_arguments = self.st.get_type_arguments(target)?;
                 let target_start_count =
                     start_element_count(&target_data.element_flags, ElementFlags::NON_REST);
                 let target_end_count =

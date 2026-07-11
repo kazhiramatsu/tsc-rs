@@ -23,6 +23,8 @@ use tsrs2_types::{
     Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
+use tsrs2_syntax::NodeId;
+
 use crate::relate::RelationKind;
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 
@@ -408,10 +410,11 @@ impl<'a> CheckerState<'a> {
     /// createNormalizedTupleType re-expansion.
     fn get_normalized_tuple_type(&mut self, ty: TypeId, _writing: bool) -> CheckResult2<TypeId> {
         let target = self.tables.reference_target(ty);
-        let elements = self.tables.type_arguments(ty).to_vec();
-        self.tables
-            .create_normalized_tuple_type(target, &elements)
-            .map_err(|err| Unsupported::new(err.0))
+        // getTypeArguments (64838) — deferred tuple references force
+        // lazily; the wrapper pre-forces variadic elements for the
+        // tables re-expansion.
+        let elements = self.get_type_arguments(ty)?;
+        self.create_normalized_type_reference_forced(target, &elements)
     }
 
     /// tsc-port: checkTypeRelatedTo @6.0.3
@@ -1959,6 +1962,15 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_recursion_identity(&self, ty: TypeId) -> RecursionIdentity {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) && !self.is_object_or_array_literal_type(ty) {
+            if self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::REFERENCE)
+            {
+                if let Some(node) = self.links.ty(ty).deferred_node {
+                    return RecursionIdentity::Node(node);
+                }
+            }
             if let Some(symbol) = self.tables.type_of(ty).symbol {
                 return RecursionIdentity::Symbol(symbol);
             }
@@ -2081,6 +2093,10 @@ impl<'a> CheckerState<'a> {
 pub(crate) enum RecursionIdentity {
     Symbol(tsrs2_binder::SymbolId),
     Type(TypeId),
+    /// Deferred references key on their node (67509-67511): every
+    /// mapper-carrying instance over the same annotation shares one
+    /// identity, distinct nodes over the same interface do not.
+    Node(NodeId),
 }
 
 /// tsc isNumericLiteralName (19205): the name round-trips through

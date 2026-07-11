@@ -96,12 +96,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: cb8bb666c09074ed8ab2209f7e57402afb6f429e949578ab03331acfede9277a
     /// tsc-span: _tsc.js:67388-67390
     ///
-    /// Deferred references (type.node) arrive with M4 aliases; every
-    /// M3 reference is node-free.
+    /// `!type.node` — a deferred reference stays "deferred" here even
+    /// after its arguments resolve (the node marker never clears), so
+    /// the resolved-arguments read below it never sees a vacant slot.
     fn is_non_deferred_type_reference(&self, ty: TypeId) -> bool {
         self.tables
             .object_flags_of(ty)
             .intersects(ObjectFlags::REFERENCE)
+            && self.links.ty(ty).deferred_node.is_none()
     }
 
     /// tsc-port: isTypeReferenceWithGenericArguments @6.0.3

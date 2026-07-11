@@ -137,6 +137,16 @@ pub struct TypeLinks {
     /// tsc type.restrictiveInstantiation (getRestrictiveInstantiation
     /// 63818; the result self-stamp makes the second write idempotent).
     pub restrictive_instantiation: LinkSlot<TypeId>,
+    /// tsc TypeReference.node for DEFERRED references
+    /// (createDeferredTypeReference 60196): the TypeReference/ArrayType/
+    /// TupleType node the lazy getTypeArguments reads. `Some` IS the
+    /// deferred-ness test (isNonDeferredTypeReference 67388 checks
+    /// !type.node) — it stays `Some` after the arguments resolve.
+    pub deferred_node: Option<NodeId>,
+    /// tsc TypeReference.mapper (60197): applied to the node-read
+    /// arguments in getTypeArguments (60211); set by
+    /// getObjectTypeInstantiation's deferred-reference result arm.
+    pub deferred_mapper: Option<MapperId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -410,6 +420,25 @@ impl LinksTables {
         );
         links.instantiated_target = Some(target);
         links.instantiated_mapper = Some(mapper);
+    }
+
+    /// createDeferredTypeReference's node/mapper stamp (60196-60197),
+    /// written once when the deferred reference shell is created.
+    pub fn set_type_deferred_reference_links(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        node: NodeId,
+        mapper: Option<MapperId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.deferred_node.is_none() && links.deferred_mapper.is_none(),
+            "deferred reference links written twice for {id:?}"
+        );
+        links.deferred_node = Some(node);
+        links.deferred_mapper = mapper;
     }
 
     /// cloneTypeParameter/getRestrictiveTypeParameter target stamp.

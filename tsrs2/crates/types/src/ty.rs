@@ -110,9 +110,13 @@ pub enum TypeData {
     Object,
     /// createTypeReference (60169): an instantiation-free reference —
     /// tuple values like `[number, string]` point at a TupleTarget.
+    /// `resolved_type_arguments` is `Some` from creation for plain
+    /// references; DEFERRED references (createDeferredTypeReference
+    /// 60188, node/mapper in checker TypeLinks) start `None` and are
+    /// filled by the checker's lazy getTypeArguments (60202).
     Reference {
         target: TypeId,
-        resolved_type_arguments: Box<[TypeId]>,
+        resolved_type_arguments: Option<Box<[TypeId]>>,
     },
     /// The synthesized generic tuple TARGET (objectFlags Tuple|Reference).
     TupleTarget(TupleTargetData),
