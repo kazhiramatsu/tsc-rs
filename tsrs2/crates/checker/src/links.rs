@@ -90,6 +90,13 @@ pub struct SymbolLinks {
     /// the NamedTupleMember/Parameter node behind a synthesized tuple
     /// index property.
     pub tuple_label_declaration: Option<NodeId>,
+    /// tsc links.writeType (getWriteTypeOfAccessors 56787) — the
+    /// setter-side type; the WriteType resolution property.
+    pub write_type: LinkSlot<TypeId>,
+    /// tsc links.resolvedExports (getResolvedMembersOrExportsOfSymbol
+    /// 57712, the static resolutionKind) — equal to `symbol.exports`
+    /// while no late-bindable static member exists.
+    pub resolved_exports: LinkSlot<tsrs2_binder::SymbolTable>,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -174,6 +181,11 @@ pub struct TypeLinks {
     /// (getSingleBaseForNonAugmentingSubtype 67713), guarded by the
     /// IdenticalBaseTypeCalculated/Exists object flags.
     pub cached_equivalent_base_type: Option<TypeId>,
+    /// tsc InterfaceType.resolvedBaseConstructorType
+    /// (getBaseConstructorTypeOfClass 57146) — the checked extends
+    /// expression type; the ResolvedBaseConstructorType resolution
+    /// property.
+    pub resolved_base_constructor_type: LinkSlot<TypeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -496,6 +508,44 @@ impl LinksTables {
     pub fn set_type_base_types_resolved(&mut self, speculation_depth: u32, id: TypeId) {
         Self::assert_writable(speculation_depth);
         self.ty.entry(id).or_default().base_types_resolved = true;
+    }
+
+    /// getWriteTypeOfAccessors' links.writeType stamp (56800).
+    pub fn set_symbol_write_type(&mut self, speculation_depth: u32, id: SymbolId, value: TypeId) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.symbol.entry(id).or_default().write_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// getResolvedMembersOrExportsOfSymbol's static-side cache (57763).
+    pub fn set_symbol_resolved_exports(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: tsrs2_binder::SymbolTable,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.symbol.entry(id).or_default().resolved_exports,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// getBaseConstructorTypeOfClass's resolvedBaseConstructorType
+    /// stamp (57154/57186 — the ??= writes).
+    pub fn set_type_resolved_base_constructor_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().resolved_base_constructor_type,
+            LinkSlot::Resolved(value),
+        );
     }
 
     /// createTupleTargetType's tupleLabelDeclaration stamp (61170).

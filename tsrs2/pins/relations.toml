@@ -1824,3 +1824,96 @@ setup = "interface Array<T> { length: number }"
 source = "((...args: number[]) => void) | ((a: number) => void)"
 target = "(a: number) => void"
 expect = "yes"
+
+# ---- M4 5.3e class members ----
+
+[[pair]]
+setup = "declare class B { b: string }\ndeclare class C extends B { c: number }"
+source = "C"
+target = "{ b: string, c: number }"
+expect = "yes"
+
+[[pair]]
+setup = "declare class B { b: string }\ndeclare class C extends B { c: number }"
+source = "{ b: string, c: number }"
+target = "C"
+expect = "yes"
+
+[[pair]]
+setup = "declare class B { b: string }\ndeclare class C extends B { c: number }"
+source = "C"
+target = "B"
+expect = "yes"
+
+[[pair]]
+setup = "declare class B { b: string }\ndeclare class C extends B { c: number }"
+source = "B"
+target = "C"
+expect = "no"
+
+# Generic class instances relate structurally through instantiated
+# members.
+[[pair]]
+setup = "declare class Box<T> { value: T }"
+source = "Box<\"x\">"
+target = "Box<string>"
+expect = "yes"
+
+[[pair]]
+setup = "declare class Box<T> { value: T }"
+source = "Box<string>"
+target = "Box<\"x\">"
+expect = "no"
+
+# Class instances vs interfaces: structural both ways.
+[[pair]]
+setup = "declare class C { x: number }\ninterface I { x: number }"
+source = "C"
+target = "I"
+expect = "yes"
+
+# Private members make classes nominal.
+[[pair]]
+setup = "declare class C { private x: number }\ndeclare class D { private x: number }"
+source = "C"
+target = "D"
+expect = "no"
+
+# Accessor-typed properties relate through the getter type.
+[[pair]]
+setup = "declare class A { get x(): number; set x(value: number); }"
+source = "A"
+target = "{ x: number }"
+expect = "yes"
+
+# Generic class heritage instantiates the base chain.
+[[pair]]
+setup = "declare class B<T> { b: T }\ndeclare class C<U> extends B<U> { c: U }"
+source = "C<number>"
+target = "{ b: number, c: number }"
+expect = "yes"
+
+# Protected members: valid overrides relate, unrelated classes do not.
+[[pair]]
+setup = "declare class B { protected x: number }\ndeclare class C extends B { }"
+source = "C"
+target = "B"
+expect = "yes"
+
+[[pair]]
+setup = "declare class B { protected x: number }\ndeclare class D { protected x: number }"
+source = "D"
+target = "B"
+expect = "no"
+
+[[pair]]
+setup = "declare class B { protected x: number }"
+source = "{ x: number }"
+target = "B"
+expect = "no"
+
+[[pair]]
+setup = "declare class B { protected x: number }"
+source = "B"
+target = "{ x: number }"
+expect = "no"

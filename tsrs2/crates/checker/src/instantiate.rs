@@ -447,12 +447,20 @@ impl<'a> CheckerState<'a> {
         let mut mapper = mapper;
         let links = self.links.symbol(symbol);
         if let Some(cached_type) = links.type_of_symbol.resolved() {
-            if !self.could_contain_type_variables(cached_type)
-                && !self
+            if !self.could_contain_type_variables(cached_type) {
+                if !self
                     .symbol_flags(symbol)
                     .intersects(SymbolFlags::SET_ACCESSOR)
-            {
-                return symbol;
+                {
+                    return symbol;
+                }
+                // 63442-63444: set accessors also need a var-free
+                // writeType before the fast path applies.
+                if let Some(write_type) = self.links.symbol(symbol).write_type.resolved() {
+                    if !self.could_contain_type_variables(write_type) {
+                        return symbol;
+                    }
+                }
             }
         }
         let links = self.links.symbol(symbol);
@@ -1687,7 +1695,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createSignatureInstantiation @6.0.3
     /// tsc-hash: 30a64ba4b8cfa38a06629dff2b93e973e1665a3893b75df6827460068e5a6685
     /// tsc-span: _tsc.js:59912-59919
-    fn create_signature_instantiation(
+    pub(crate) fn create_signature_instantiation(
         &mut self,
         signature: SignatureId,
         type_arguments: Option<&[TypeId]>,

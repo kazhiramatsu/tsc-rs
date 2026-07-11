@@ -395,10 +395,30 @@ impl<'a> CheckerState<'a> {
             .symbol
             .is_some_and(|symbol| self.symbol_flags(symbol).intersects(SymbolFlags::CLASS))
         {
-            // 67695-67700: entity-name extends gates — class bases are
-            // 5.3e; classes cannot construct references yet, so the
-            // node walk is unreachable.
-            return Err(Unsupported::new("class single-base collapse (M4 5.3e)"));
+            // 67695-67700: the collapse only applies when the extends
+            // expression is a plain identifier/property access.
+            if let Some(base_type_node) = self.get_base_type_node_of_class(target) {
+                let expression = match &self
+                    .binder
+                    .source_of_node(base_type_node)
+                    .arena
+                    .node(base_type_node)
+                    .data
+                {
+                    tsrs2_syntax::NodeData::ExpressionWithTypeArguments(data) => data.expression,
+                    _ => None,
+                };
+                let is_simple = expression.is_some_and(|expression| {
+                    matches!(
+                        self.kind_of(expression),
+                        tsrs2_syntax::SyntaxKind::Identifier
+                            | tsrs2_syntax::SyntaxKind::PropertyAccessExpression
+                    )
+                });
+                if !is_simple {
+                    return Ok(None);
+                }
+            }
         }
         let bases = self.get_base_types(target)?;
         if bases.len() != 1 {

@@ -794,10 +794,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if source_declaration != target_declaration {
                 return Ok(Ternary::FALSE);
             }
-        } else if target_prop_flags.intersects(ModifierFlags::PROTECTED)
-            || source_prop_flags.intersects(ModifierFlags::PROTECTED)
-        {
-            return Err(Unsupported::new("protected class members (M4 5.3)"));
+        } else if target_prop_flags.intersects(ModifierFlags::PROTECTED) {
+            if !self.st.is_valid_override_of(source_prop, target_prop)? {
+                return Ok(Ternary::FALSE);
+            }
+        } else if source_prop_flags.intersects(ModifierFlags::PROTECTED) {
+            // 66686-66692: protected source vs public target.
+            return Ok(Ternary::FALSE);
         }
         if self.relation == RelationKind::StrictSubtype
             && self.st.is_readonly_symbol(source_prop)
@@ -1157,7 +1160,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::FALSE);
         }
         if source_accessibility != 0 {
-            return Err(Unsupported::new("private/protected members (M4 5.3)"));
+            // 67546: nominal identity through getTargetSymbol.
+            if self.st.get_target_symbol(source_prop) != self.st.get_target_symbol(target_prop) {
+                return Ok(Ternary::FALSE);
+            }
         }
         if self
             .st
@@ -1552,15 +1558,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         // M3 (their array annotations are M4), so both are None.
         let source_rest_type: Option<TypeId> = None;
         let target_rest_type: Option<TypeId> = None;
-        let target_kind = {
-            let declaration = self.st.signature_of(target).declaration;
-            self.st.kind_of(declaration)
-        };
+        let target_kind = self
+            .st
+            .signature_of(target)
+            .declaration
+            .map(|declaration| self.st.kind_of(declaration));
         let strict_variance = check_mode & check_mode::CALLBACK == 0
             && self.st.strict_function_types
-            && target_kind != SyntaxKind::MethodDeclaration
-            && target_kind != SyntaxKind::MethodSignature
-            && target_kind != SyntaxKind::Constructor;
+            && target_kind != Some(SyntaxKind::MethodDeclaration)
+            && target_kind != Some(SyntaxKind::MethodSignature)
+            && target_kind != Some(SyntaxKind::Constructor);
         let mut result = Ternary::TRUE;
         let source_this_type = self.st.get_this_type_of_signature(source)?;
         if let Some(source_this_type) = source_this_type {
@@ -2635,9 +2642,60 @@ impl<'a> CheckerState<'a> {
     /// getDeclarationModifierFlagsFromSymbol (17436), M3 slice: type
     /// members carry no accessibility/static modifiers; synthetics
     /// read the Contains* check flags.
+    /// tsc getTargetSymbol (85309-85311): instantiated symbols compare
+    /// by their target.
+    pub(crate) fn get_target_symbol(&self, symbol: SymbolId) -> SymbolId {
+        if self
+            .get_check_flags(symbol)
+            .intersects(CheckFlags::INSTANTIATED)
+        {
+            self.links
+                .symbol(symbol)
+                .target
+                .expect("Instantiated check flag implies links.target")
+        } else {
+            symbol
+        }
+    }
+
     pub fn get_declaration_modifier_flags_from_symbol(&self, symbol: SymbolId) -> ModifierFlags {
-        if self.binder.symbol(symbol).value_declaration.is_some() {
-            return ModifierFlags::from_bits(0);
+        if let Some(value_declaration) = self.binder.symbol(symbol).value_declaration {
+            // 17438-17441: get accessors report through their getter
+            // declaration; the isWrite setter selection rides on
+            // write-position relations (5.5).
+            let declaration = if self
+                .symbol_flags(symbol)
+                .intersects(SymbolFlags::GET_ACCESSOR)
+            {
+                self.binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .copied()
+                    .find(|&declaration| {
+                        self.kind_of(declaration) == tsrs2_syntax::SyntaxKind::GetAccessor
+                    })
+                    .unwrap_or(value_declaration)
+            } else {
+                value_declaration
+            };
+            let flags = tsrs2_binder::node_util::get_combined_modifier_flags(
+                self.binder.source_of_node(declaration),
+                declaration,
+            );
+            let parent_is_class = self.binder.symbol(symbol).parent.is_some_and(|parent| {
+                self.binder
+                    .symbol(parent)
+                    .flags
+                    .intersects(SymbolFlags::CLASS)
+            });
+            return if parent_is_class {
+                flags
+            } else {
+                ModifierFlags::from_bits(
+                    flags.bits() & !ModifierFlags::ACCESSIBILITY_MODIFIER.bits(),
+                )
+            };
         }
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::SYNTHETIC) {
@@ -2742,6 +2800,110 @@ impl<'a> CheckerState<'a> {
             SymbolFlags::OBJECT_LITERAL.bits() | SymbolFlags::TYPE_LITERAL.bits(),
         )) && !flags.intersects(SymbolFlags::CLASS)
             && !self.type_has_call_or_construct_signatures(ty)?)
+    }
+
+    // ---- protected-member override checks (5.3e) ----
+
+    /// tsc-port: forEachProperty @6.0.3
+    /// tsc-hash: d79d83ae9df34acfafd28e2c8d2a868eab9c57fcb6c534180868cd553d452b16
+    /// tsc-span: _tsc.js:67432-67444
+    ///
+    /// Rust face: collects the leaf (non-synthetic) property fan-out
+    /// instead of threading a callback.
+    fn for_each_property_leaf(
+        &mut self,
+        prop: SymbolId,
+        out: &mut Vec<SymbolId>,
+    ) -> CheckResult2<()> {
+        if self
+            .get_check_flags(prop)
+            .intersects(CheckFlags::SYNTHETIC)
+        {
+            let containing = self
+                .links
+                .symbol(prop)
+                .containing_type
+                .expect("synthetic properties carry their containing type");
+            let name = self.binder.symbol(prop).escaped_name.clone();
+            let types = match &self.tables.type_of(containing).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                    types.to_vec()
+                }
+                _ => unreachable!("containing types are unions or intersections"),
+            };
+            for t in types {
+                if let Some(p) = self.get_property_of_type_full(t, &name)? {
+                    self.for_each_property_leaf(p, out)?;
+                }
+            }
+            return Ok(());
+        }
+        out.push(prop);
+        Ok(())
+    }
+
+    /// tsc-port: getDeclaringClass @6.0.3
+    /// tsc-hash: 049f21cf11685ae294ad5a29441b2addc02e7c766ab94220928627f0c3d993da
+    /// tsc-span: _tsc.js:67445-67447
+    fn get_declaring_class(&mut self, prop: SymbolId) -> CheckResult2<Option<TypeId>> {
+        let Some(parent) = self.binder.symbol(prop).parent else {
+            return Ok(None);
+        };
+        if !self
+            .binder
+            .symbol(parent)
+            .flags
+            .intersects(SymbolFlags::CLASS)
+        {
+            return Ok(None);
+        }
+        Ok(Some(self.get_declared_type_of_class_or_interface(parent)?))
+    }
+
+    /// tsc-port: isPropertyInClassDerivedFrom @6.0.3
+    /// tsc-hash: 5c9e6781d9e73cdfd2454e0d78e186892726bf5afa91b5df88bc5ae0568c6184
+    /// tsc-span: _tsc.js:67453-67458
+    fn is_property_in_class_derived_from(
+        &mut self,
+        prop: SymbolId,
+        base_class: Option<TypeId>,
+    ) -> CheckResult2<bool> {
+        let mut leaves = Vec::new();
+        self.for_each_property_leaf(prop, &mut leaves)?;
+        for leaf in leaves {
+            if let Some(source_class) = self.get_declaring_class(leaf)? {
+                if let Some(base_class) = base_class {
+                    if self.has_base_type(source_class, base_class)? {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: isValidOverrideOf @6.0.3
+    /// tsc-hash: a8192507b3a538f6c9fb2f21d5b73f220e58da15b182b6e219e773674c485a60
+    /// tsc-span: _tsc.js:67459-67464
+    pub(crate) fn is_valid_override_of(
+        &mut self,
+        source_prop: SymbolId,
+        target_prop: SymbolId,
+    ) -> CheckResult2<bool> {
+        let mut leaves = Vec::new();
+        self.for_each_property_leaf(target_prop, &mut leaves)?;
+        for tp in leaves {
+            if self
+                .get_declaration_modifier_flags_from_symbol(tp)
+                .intersects(ModifierFlags::PROTECTED)
+            {
+                let declaring = self.get_declaring_class(tp)?;
+                if !self.is_property_in_class_derived_from(source_prop, declaring)? {
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(true)
     }
 
     // ---- union/intersection member synthesis (5.3d) ----
@@ -3530,7 +3692,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isMixinConstructorType @6.0.3
     /// tsc-hash: 9c41ff6b53e42fcee67b664ff474e516746ab4eff3dfb1ab3a9eb8175a1f7fbf
     /// tsc-span: _tsc.js:57111-57121
-    fn is_mixin_constructor_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_mixin_constructor_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         let signatures = self.get_signatures_of_type(ty, SignatureKind::Construct)?;
         if signatures.len() != 1 {
             return Ok(false);
@@ -3695,7 +3857,11 @@ impl<'a> CheckerState<'a> {
     /// machinery; signatures carrying them report Unsupported instead
     /// of comparing as plain booleans.
     pub fn get_type_predicate_of_signature(&mut self, signature: SignatureId) -> CheckResult2<()> {
-        let declaration = self.signature_of(signature).declaration;
+        let Some(declaration) = self.signature_of(signature).declaration else {
+            // Synthesized signatures (default constructors) carry no
+            // predicate.
+            return Ok(());
+        };
         let annotation = match &self
             .binder
             .source_of_node(declaration)

@@ -48,7 +48,9 @@ pub struct MembersId(pub u32);
 /// erased caches); composite signatures arrive with 5.3 union members.
 #[derive(Clone, Debug)]
 pub struct Signature {
-    pub declaration: NodeId,
+    /// None for synthesized signatures (getDefaultConstructSignatures'
+    /// base-less arm 57967, tsc unknownSignature).
+    pub declaration: Option<NodeId>,
     pub flags: SignatureFlags,
     /// tsc signature.typeParameters — generic signature construction
     /// from declarations lands with the 5.2 follow-up; instantiateSignature
@@ -541,10 +543,23 @@ impl<'a> CheckerState<'a> {
                 // `!!type.baseTypesResolved` (55772).
                 self.links.ty(ty).base_types_resolved
             }
-            // No call site pushes these yet: ResolvedBaseConstructorType
-            // lands with 5.3e's class base resolvers, WriteType with
-            // 5.3e accessor typing, ParameterInitializerContainsUndefined
-            // with 5.8.
+            TypeSystemPropertyName::RESOLVED_BASE_CONSTRUCTOR_TYPE => {
+                let ResolutionTarget::Type(ty) = target else {
+                    unreachable!("ResolvedBaseConstructorType resolution targets are types");
+                };
+                self.links
+                    .ty(ty)
+                    .resolved_base_constructor_type
+                    .resolved()
+                    .is_some()
+            }
+            TypeSystemPropertyName::WRITE_TYPE => {
+                let ResolutionTarget::Symbol(symbol) = target else {
+                    unreachable!("WriteType resolution targets are symbols");
+                };
+                self.links.symbol(symbol).write_type.resolved().is_some()
+            }
+            // ParameterInitializerContainsUndefined lands with 5.8.
             _ => unreachable!(
                 "no pushTypeResolution call site passes {property_name:?} yet (owning stage per M4 doc)"
             ),

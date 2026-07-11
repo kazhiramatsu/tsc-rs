@@ -749,12 +749,6 @@ impl<'a> CheckerState<'a> {
                 self.tables.get_regular_type_of_literal_type(declared)
             }
         } else if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
-            if flags.intersects(SymbolFlags::CLASS) {
-                // Class references escape until class MEMBERS resolve
-                // (5.3) — the declared types exist since 5.2b, but
-                // every relation against them would dead-end.
-                return Err(Unsupported::new("class declared types (M4 5.3)"));
-            }
             self.get_type_from_class_or_interface_reference(node, symbol)?
         } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
             self.get_type_from_type_alias_reference(node, symbol)?
@@ -2446,6 +2440,50 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
+    /// The static `resolvedExports` kind of
+    /// getResolvedMembersOrExportsOfSymbol (57712) — getExportsOfSymbol's
+    /// late-binding-container route. Module symbols need
+    /// getExportsOfModuleWorker's export-star walk (5.8).
+    fn get_exports_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<tsrs2_binder::SymbolTable> {
+        if self
+            .symbol_flags(symbol)
+            .intersects(SymbolFlags::MODULE)
+        {
+            return Err(Unsupported::new(
+                "module exports (getExportsOfModuleWorker export-star, M4 5.8)",
+            ));
+        }
+        if !self
+            .symbol_flags(symbol)
+            .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
+        {
+            return Ok(self.binder.symbol(symbol).exports.clone());
+        }
+        if let Some(resolved) = self.links.symbol(symbol).resolved_exports.resolved() {
+            return Ok(resolved);
+        }
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        for declaration in declarations {
+            for member in self.members_of_declaration(declaration) {
+                if !self.has_static_modifier(member) {
+                    continue;
+                }
+                if self.has_late_bindable_ast_name(member) {
+                    return Err(Unsupported::new(
+                        "late-bound static members (checkComputedPropertyName, M4 5.5/M7)",
+                    ));
+                }
+            }
+        }
+        let resolved = self.binder.symbol(symbol).exports.clone();
+        self.links.set_symbol_resolved_exports(
+            self.speculation_depth,
+            symbol,
+            resolved.clone(),
+        );
+        Ok(resolved)
+    }
+
     /// getMembersOfDeclaration (19010-ish): the member lists a
     /// late-binding container declaration carries.
     fn members_of_declaration(&self, declaration: NodeId) -> Vec<NodeId> {
@@ -2539,15 +2577,15 @@ impl<'a> CheckerState<'a> {
                             .expect("type must be class or interface");
                         let flags = state.symbol_flags(symbol);
                         if flags.intersects(SymbolFlags::CLASS) {
-                            return Err(Unsupported::new(
-                                "class base types (resolveBaseTypesOfClass, M4 5.3e)",
-                            ));
+                            state.resolve_base_types_of_class(ty)?;
+                        }
+                        if flags.intersects(SymbolFlags::INTERFACE) {
+                            state.resolve_base_types_of_interface(ty, symbol)?;
                         }
                         assert!(
-                            flags.intersects(SymbolFlags::INTERFACE),
+                            flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE),
                             "type must be class or interface"
                         );
-                        state.resolve_base_types_of_interface(ty, symbol)?;
                     }
                     Ok(())
                 })(self);
@@ -2689,7 +2727,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasBaseType @6.0.3
     /// tsc-hash: 4be36907403570c20f53afc9305703585ad832eac42b2d7bba4f94d43f95c211
     /// tsc-span: _tsc.js:56996-57007
-    fn has_base_type(&mut self, ty: TypeId, check_base: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn has_base_type(&mut self, ty: TypeId, check_base: TypeId) -> CheckResult2<bool> {
         if self
             .tables
             .object_flags_of(ty)
@@ -2805,6 +2843,727 @@ impl<'a> CheckerState<'a> {
         }
         Ok(ty)
     }
+
+    // ---- class bases (5.3e) ----
+
+    /// tsc-port: getBaseTypeNodeOfClass @6.0.3
+    /// tsc-hash: e309e0dd7cc0f96feefd2940dc8f124c609d09c48e1bd4cef7b477d4ded13004
+    /// tsc-span: _tsc.js:57132-57135
+    pub(crate) fn get_base_type_node_of_class(&mut self, ty: TypeId) -> Option<NodeId> {
+        let symbol = self.tables.type_of(ty).symbol?;
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        for declaration in declarations {
+            let heritage = match self.data_of(declaration) {
+                NodeData::ClassDeclaration(data) => data.heritage_clauses,
+                NodeData::ClassExpression(data) => data.heritage_clauses,
+                _ => continue,
+            };
+            for clause in self.nodes_of(heritage) {
+                if self.heritage_clause_is_extends(clause) {
+                    let NodeData::HeritageClause(clause_data) = self.data_of(clause) else {
+                        continue;
+                    };
+                    return self.nodes_of(clause_data.types).first().copied();
+                }
+            }
+        }
+        None
+    }
+
+    /// The checkExpression slice for extends clauses: entity-name
+    /// expressions resolve through the VALUE meaning and
+    /// getTypeOfSymbol — exactly what checkIdentifier/
+    /// checkPropertyAccessExpression compute for flow-free ambient
+    /// references. Anything else (mixin factory calls etc.) is 5.5.
+    fn check_base_type_expression(&mut self, expression: NodeId) -> CheckResult2<TypeId> {
+        if !self.is_entity_name_expression(expression) {
+            return Err(Unsupported::new(
+                "non-entity-name extends expressions (checkExpression, M4 5.5)",
+            ));
+        }
+        let Some(symbol) = self.resolve_entity_name(
+            expression,
+            SymbolFlags::VALUE,
+            /*ignore_errors*/ false,
+            None,
+        ) else {
+            return Err(Unsupported::new(
+                "unresolved extends expression (unknownSymbol -> errorType, observable at M4 5.4)",
+            ));
+        };
+        self.get_type_of_symbol(symbol)
+    }
+
+    /// tsc-port: getBaseConstructorTypeOfClass @6.0.3
+    /// tsc-hash: c549cc3f19bfdfe04b2ffb3048bfcd3bb3009d45bda972944127fd55a2dcb800
+    /// tsc-span: _tsc.js:57146-57190
+    ///
+    /// The JSDoc extended-tag double-check (57160-57163) is elided;
+    /// the 2507 not-a-constructor error renders the base type through
+    /// typeToString — that arm unwinds as Unsupported (display T2/M8).
+    pub(crate) fn get_base_constructor_type_of_class(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if let Some(resolved) = self.links.ty(ty).resolved_base_constructor_type.resolved() {
+            return Ok(resolved);
+        }
+        let Some(base_type_node) = self.get_base_type_node_of_class(ty) else {
+            let undefined = self.tables.intrinsics.undefined;
+            self.links.set_type_resolved_base_constructor_type(
+                self.speculation_depth,
+                ty,
+                undefined,
+            );
+            return Ok(undefined);
+        };
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Type(ty),
+            tsrs2_types::TypeSystemPropertyName::RESOLVED_BASE_CONSTRUCTOR_TYPE,
+        ) {
+            return Ok(self.tables.intrinsics.error);
+        }
+        let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
+            let NodeData::ExpressionWithTypeArguments(data) = state.data_of(base_type_node)
+            else {
+                unreachable!("heritage clause types are ExpressionWithTypeArguments");
+            };
+            let expression = data
+                .expression
+                .ok_or_else(|| Unsupported::new("extends clause with missing expression"))?;
+            let base_constructor_type = state.check_base_type_expression(expression)?;
+            if state
+                .tables
+                .flags_of(base_constructor_type)
+                .intersects(TypeFlags::OBJECT | TypeFlags::INTERSECTION)
+            {
+                state.resolve_structured_type_members(base_constructor_type)?;
+            }
+            Ok(base_constructor_type)
+        })(self);
+        let base_constructor_type = match computed {
+            Ok(resolved) => resolved,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
+            }
+        };
+        if !self.pop_type_resolution() {
+            let symbol = self
+                .tables
+                .type_of(ty)
+                .symbol
+                .expect("class types carry their symbol");
+            let declaration = self.binder.symbol(symbol).value_declaration;
+            let name = self.symbol_display_name(symbol);
+            self.error_at(
+                declaration,
+                &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_base_expression,
+                &[&name],
+            );
+            let error = self.tables.intrinsics.error;
+            if self
+                .links
+                .ty(ty)
+                .resolved_base_constructor_type
+                .resolved()
+                .is_none()
+            {
+                self.links.set_type_resolved_base_constructor_type(
+                    self.speculation_depth,
+                    ty,
+                    error,
+                );
+            }
+            return Ok(self
+                .links
+                .ty(ty)
+                .resolved_base_constructor_type
+                .resolved()
+                .expect("just filled"));
+        }
+        let null_widening = self.tables.intrinsics.null;
+        if !self
+            .tables
+            .flags_of(base_constructor_type)
+            .intersects(TypeFlags::ANY)
+            && base_constructor_type != null_widening
+            && !self.is_constructor_type(base_constructor_type)?
+        {
+            // 57170-57185: 2507 + the type-parameter constraint
+            // elaboration — both render through typeToString.
+            return Err(Unsupported::new(
+                "Type_0_is_not_a_constructor_function_type display (2507, T2/M8)",
+            ));
+        }
+        if self
+            .links
+            .ty(ty)
+            .resolved_base_constructor_type
+            .resolved()
+            .is_none()
+        {
+            self.links.set_type_resolved_base_constructor_type(
+                self.speculation_depth,
+                ty,
+                base_constructor_type,
+            );
+        }
+        Ok(self
+            .links
+            .ty(ty)
+            .resolved_base_constructor_type
+            .resolved()
+            .expect("just filled"))
+    }
+
+    /// tsc-port: isConstructorType @6.0.3
+    /// tsc-hash: 246d9586e6eb03f6969ff17e449006f018091ef62e8ff4ca713648fd174be9e5
+    /// tsc-span: _tsc.js:57122-57131
+    fn is_constructor_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if !self
+            .get_signatures_of_type(ty, crate::structural::SignatureKind::Construct)?
+            .is_empty()
+        {
+            return Ok(true);
+        }
+        if self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::TYPE_VARIABLE)
+        {
+            if let Some(constraint) = self.get_base_constraint_of_type(ty)? {
+                return self.is_mixin_constructor_type(constraint);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: resolveBaseTypesOfClass @6.0.3
+    /// tsc-hash: 0b5de636d21d6bcdd2c80a6df7db47bcd7cfcf5407d6c0911d32bda948ee0fe7
+    /// tsc-span: _tsc.js:57252-57291
+    ///
+    /// The resolvingEmptyArray sentinel is the entry write; the
+    /// members reset at the tail (57297-57298) retracts a members
+    /// table that resolved mid-flight against the empty sentinel. The
+    /// 2508 no-base-constructor-type-arguments and 2509 invalid-base
+    /// errors render through typeToString — those arms unwind as
+    /// Unsupported.
+    fn resolve_base_types_of_class(&mut self, ty: TypeId) -> CheckResult2<()> {
+        self.links
+            .set_type_resolved_base_types(self.speculation_depth, ty, Vec::new());
+        let raw_base_constructor = self.get_base_constructor_type_of_class(ty)?;
+        let base_constructor_type = self.get_apparent_type(raw_base_constructor)?;
+        if !self
+            .tables
+            .flags_of(base_constructor_type)
+            .intersects(TypeFlags::OBJECT | TypeFlags::INTERSECTION | TypeFlags::ANY)
+        {
+            return Ok(());
+        }
+        let base_type_node = self
+            .get_base_type_node_of_class(ty)
+            .expect("a base constructor implies an extends clause");
+        let original_base_type = match self.tables.type_of(base_constructor_type).symbol {
+            Some(symbol) => Some(self.get_declared_type_of_symbol_slice(symbol)?),
+            None => None,
+        };
+        let base_type;
+        let base_symbol = self.tables.type_of(base_constructor_type).symbol;
+        let base_is_applied_class = match (base_symbol, original_base_type) {
+            (Some(symbol), Some(original))
+                if self.symbol_flags(symbol).intersects(SymbolFlags::CLASS) =>
+            {
+                self.are_all_outer_type_parameters_applied(original)?
+            }
+            _ => false,
+        };
+        if base_is_applied_class {
+            base_type = self.get_type_from_class_or_interface_reference(
+                base_type_node,
+                base_symbol.expect("checked above"),
+            )?;
+        } else if self
+            .tables
+            .flags_of(base_constructor_type)
+            .intersects(TypeFlags::ANY)
+        {
+            base_type = base_constructor_type;
+        } else {
+            // 57266-57272: constructor-signature selection by type
+            // argument count.
+            let constructors = self.get_instantiated_constructors_for_type_arguments(
+                base_constructor_type,
+                base_type_node,
+            )?;
+            if constructors.is_empty() {
+                self.error_at(
+                    Some(base_type_node),
+                    &diagnostics::No_base_constructor_has_the_specified_number_of_type_arguments,
+                    &[],
+                );
+                return Ok(());
+            }
+            base_type = self.get_return_type_of_signature(constructors[0])?;
+        }
+        if base_type == self.tables.intrinsics.error {
+            return Ok(());
+        }
+        let reduced_base_type = self.get_reduced_type(base_type)?;
+        if !self.is_valid_base_type(reduced_base_type)? {
+            return Err(Unsupported::new(
+                "Base_constructor_return_type_0_is_not_an_object_type display (2509, T2/M8)",
+            ));
+        }
+        if ty == reduced_base_type || self.has_base_type(reduced_base_type, ty)? {
+            let symbol = self
+                .tables
+                .type_of(ty)
+                .symbol
+                .expect("class types carry their symbol");
+            let declaration = self.binder.symbol(symbol).value_declaration;
+            let display = self.generic_type_display(ty);
+            self.error_at(
+                declaration,
+                &diagnostics::Type_0_recursively_references_itself_as_a_base_type,
+                &[&display],
+            );
+            return Ok(());
+        }
+        // 57297-57298: members resolved against the mid-flight empty
+        // sentinel recompute with the base in place.
+        if self.links.ty(ty).resolved_members.resolved().is_some() {
+            self.links.retract_type_members(ty);
+        }
+        self.links
+            .set_type_resolved_base_types(self.speculation_depth, ty, vec![reduced_base_type]);
+        Ok(())
+    }
+
+    /// getDeclaredTypeOfSymbol's class/interface slice for base
+    /// resolution (the full dispatch is getDeclaredTypeOfSymbol 57376).
+    fn get_declared_type_of_symbol_slice(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        if self
+            .symbol_flags(symbol)
+            .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
+        {
+            return self.get_declared_type_of_class_or_interface(symbol);
+        }
+        Err(Unsupported::new(format!(
+            "getDeclaredTypeOfSymbol for symbol flags {:?} in base position (M4)",
+            self.symbol_flags(symbol)
+        )))
+    }
+
+    /// tsc-port: areAllOuterTypeParametersApplied @6.0.3
+    /// tsc-hash: ff7b7190a50dfe9f5f4476721e4151a40231bc66f2e503f4e687f7d1d030eda4
+    /// tsc-span: _tsc.js:57292-57299
+    fn are_all_outer_type_parameters_applied(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        let (outer_count, type_parameters) = match &self.tables.type_of(ty).data {
+            TypeData::GenericType {
+                type_parameters,
+                outer_type_parameter_count,
+                ..
+            } => (*outer_type_parameter_count, type_parameters.to_vec()),
+            _ => return Ok(true),
+        };
+        if outer_count == 0 {
+            return Ok(true);
+        }
+        let last = outer_count - 1;
+        let type_arguments = self.get_type_arguments(ty)?;
+        Ok(self.tables.type_of(type_parameters[last]).symbol
+            != self.tables.type_of(type_arguments[last]).symbol)
+    }
+
+    /// tsc-port: getConstructorsForTypeArguments @6.0.3
+    /// tsc-hash: 60d15d3dba29ddf3da5216985843e8d47fffa7f5dd580c60a999eb48a8f00ccc
+    /// tsc-span: _tsc.js:57136-57140
+    ///
+    /// tsc-port: getInstantiatedConstructorsForTypeArguments @6.0.3
+    /// tsc-hash: 459642b770f0c17bad05b48f8b92b89e167d4cb27c16608acdcdf8f8cdddb358
+    /// tsc-span: _tsc.js:57141-57145
+    fn get_instantiated_constructors_for_type_arguments(
+        &mut self,
+        ty: TypeId,
+        node: NodeId,
+    ) -> CheckResult2<Vec<SignatureId>> {
+        let argument_nodes = match self.data_of(node) {
+            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
+            _ => Vec::new(),
+        };
+        let type_arg_count = argument_nodes.len();
+        let all = self.get_signatures_of_type(ty, crate::structural::SignatureKind::Construct)?;
+        let mut signatures = Vec::new();
+        for signature in all {
+            let type_parameters = self.signature_of(signature).type_parameters.clone();
+            let min = self.get_min_type_argument_count(type_parameters.as_deref());
+            let max = type_parameters.as_ref().map_or(0, Vec::len);
+            if type_arg_count >= min && type_arg_count <= max {
+                signatures.push(signature);
+            }
+        }
+        let mut type_arguments = Vec::with_capacity(argument_nodes.len());
+        for argument in argument_nodes {
+            type_arguments.push(self.get_type_from_type_node(argument)?);
+        }
+        let mut result = Vec::with_capacity(signatures.len());
+        for signature in signatures {
+            let is_generic = self
+                .signature_of(signature)
+                .type_parameters
+                .as_ref()
+                .is_some_and(|params| !params.is_empty());
+            result.push(if is_generic {
+                self.get_signature_instantiation(
+                    signature,
+                    Some(&type_arguments),
+                    /*is_javascript*/ false,
+                    None,
+                )?
+            } else {
+                signature
+            });
+        }
+        Ok(result)
+    }
+
+    /// tsc-port: getDefaultConstructSignatures @6.0.3
+    /// tsc-hash: bc0610c29c6b19cb9c38f77780b74b34dc555c7696df12c218a82eaf3ba5ea06
+    /// tsc-span: _tsc.js:57961-57998
+    fn get_default_construct_signatures(
+        &mut self,
+        class_type: TypeId,
+    ) -> CheckResult2<Vec<SignatureId>> {
+        let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
+        let base_signatures = self.get_signatures_of_type(
+            base_constructor_type,
+            crate::structural::SignatureKind::Construct,
+        )?;
+        let symbol = self
+            .tables
+            .type_of(class_type)
+            .symbol
+            .expect("class types carry their symbol");
+        let declaration = self.class_like_declaration_of_symbol(symbol);
+        let is_abstract = declaration.is_some_and(|declaration| {
+            let modifiers = match self.data_of(declaration) {
+                NodeData::ClassDeclaration(data) => data.modifiers,
+                NodeData::ClassExpression(data) => data.modifiers,
+                _ => None,
+            };
+            self.nodes_of(modifiers)
+                .iter()
+                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
+        });
+        let local_type_parameters: Option<Vec<TypeId>> =
+            match &self.tables.type_of(class_type).data {
+                TypeData::GenericType {
+                    type_parameters,
+                    outer_type_parameter_count,
+                    ..
+                } if type_parameters.len() > *outer_type_parameter_count => {
+                    Some(type_parameters[*outer_type_parameter_count..].to_vec())
+                }
+                _ => None,
+            };
+        if base_signatures.is_empty() {
+            let signature = Signature {
+                declaration: None,
+                flags: if is_abstract {
+                    tsrs2_types::SignatureFlags::ABSTRACT
+                } else {
+                    tsrs2_types::SignatureFlags::from_bits(0)
+                },
+                type_parameters: local_type_parameters,
+                parameters: Vec::new(),
+                this_parameter: None,
+                min_argument_count: 0,
+                resolved_return_type: LinkSlot::Resolved(class_type),
+                from_method: false,
+                target: None,
+                mapper: None,
+                instantiations: std::collections::HashMap::new(),
+                erased_signature_cache: None,
+                composite_kind: None,
+                composite_signatures: None,
+            };
+            return Ok(vec![self.alloc_signature(signature)]);
+        }
+        let base_type_node = self
+            .get_base_type_node_of_class(class_type)
+            .expect("base signatures imply an extends clause");
+        let argument_nodes = match self.data_of(base_type_node) {
+            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            _ => Vec::new(),
+        };
+        let mut type_arguments = Vec::with_capacity(argument_nodes.len());
+        for argument in argument_nodes {
+            type_arguments.push(self.get_type_from_type_node(argument)?);
+        }
+        let type_arg_count = type_arguments.len();
+        let mut result = Vec::new();
+        for base_signature in base_signatures {
+            let base_type_parameters = self.signature_of(base_signature).type_parameters.clone();
+            let min = self.get_min_type_argument_count(base_type_parameters.as_deref());
+            let max = base_type_parameters.as_ref().map_or(0, Vec::len);
+            if type_arg_count < min || type_arg_count > max {
+                continue;
+            }
+            let signature = if max > 0 {
+                let filled = self
+                    .fill_missing_type_arguments(
+                        Some(&type_arguments),
+                        base_type_parameters.as_deref(),
+                        min,
+                        /*is_javascript*/ false,
+                    )?
+                    .unwrap_or_default();
+                self.create_signature_instantiation(base_signature, Some(&filled))?
+            } else {
+                self.clone_signature(base_signature)
+            };
+            let data = self.signature_mut(signature);
+            data.type_parameters = local_type_parameters.clone();
+            data.resolved_return_type = LinkSlot::Resolved(class_type);
+            data.flags = if is_abstract {
+                tsrs2_types::SignatureFlags::from_bits(
+                    data.flags.bits() | tsrs2_types::SignatureFlags::ABSTRACT.bits(),
+                )
+            } else {
+                tsrs2_types::SignatureFlags::from_bits(
+                    data.flags.bits() & !tsrs2_types::SignatureFlags::ABSTRACT.bits(),
+                )
+            };
+            result.push(signature);
+        }
+        Ok(result)
+    }
+
+    /// getClassLikeDeclarationOfSymbol (14400-region).
+    fn class_like_declaration_of_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| {
+                matches!(
+                    self.kind_of(declaration),
+                    SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                )
+            })
+    }
+
+    /// tsc-port: getBaseTypeVariableOfClass @6.0.3
+    /// tsc-hash: 4c17d2c29383954876ca8e8b980b1f4ea472d166adcbde14083b75ccfab8bca3
+    /// tsc-span: _tsc.js:56804-56807
+    fn get_base_type_variable_of_class(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let class_type = self.get_declared_type_of_class_or_interface(symbol)?;
+        let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
+        let flags = self.tables.flags_of(base_constructor_type);
+        if flags.intersects(TypeFlags::TYPE_VARIABLE) {
+            return Ok(Some(base_constructor_type));
+        }
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            let TypeData::Intersection { types } =
+                self.tables.type_of(base_constructor_type).data.clone()
+            else {
+                unreachable!("intersection flag implies intersection data");
+            };
+            return Ok(types
+                .iter()
+                .copied()
+                .find(|&t| self.tables.flags_of(t).intersects(TypeFlags::TYPE_VARIABLE)));
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: getTypeOfAccessors @6.0.3
+    /// tsc-hash: 02e993d3e444bf2bef90e03977fbd24eb389b56578fb5a170fa8ae14660ba119
+    /// tsc-span: _tsc.js:56746-56786
+    ///
+    /// Un-annotated getter bodies need getReturnTypeFromBody (5.5) and
+    /// auto-accessor property declarations ride the `accessor` modifier
+    /// (M7 class checking) — both escape; the annotated slice plus the
+    /// noImplicitAny arms are live.
+    fn get_type_of_accessors(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(cached);
+        }
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Symbol(symbol),
+            tsrs2_types::TypeSystemPropertyName::TYPE,
+        ) {
+            return Ok(self.tables.intrinsics.error);
+        }
+        let getter = self.declaration_of_kind(symbol, SyntaxKind::GetAccessor);
+        let setter = self.declaration_of_kind(symbol, SyntaxKind::SetAccessor);
+        let computed = (|state: &mut Self| -> CheckResult2<Option<TypeId>> {
+            let getter_annotation = state.annotated_accessor_type_node(getter);
+            let setter_annotation = state.annotated_accessor_type_node(setter);
+            if let Some(annotation) = getter_annotation.or(setter_annotation) {
+                return Ok(Some(state.get_type_from_type_node(annotation)?));
+            }
+            if let Some(getter) = getter {
+                let body = match state.data_of(getter) {
+                    NodeData::GetAccessor(data) => data.body,
+                    _ => None,
+                };
+                if body.is_some() {
+                    return Err(Unsupported::new(
+                        "getter body inference (getReturnTypeFromBody, M4 5.5)",
+                    ));
+                }
+            }
+            Ok(None)
+        })(self);
+        let ty = match computed {
+            Ok(ty) => ty,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
+            }
+        };
+        let ty = match ty {
+            Some(ty) => ty,
+            None => {
+                // 56761-56769: the noImplicitAny suggestions.
+                if self
+                    .options
+                    .strict_option_value(self.options.no_implicit_any)
+                {
+                    let name = self.symbol_display_name(symbol);
+                    if let Some(setter) = setter {
+                        self.error_at(
+                            Some(setter),
+                            &diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
+                            &[&name],
+                        );
+                    } else if let Some(getter) = getter {
+                        self.error_at(
+                            Some(getter),
+                            &diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation,
+                            &[&name],
+                        );
+                    }
+                }
+                self.tables.intrinsics.any
+            }
+        };
+        let resolved = if self.pop_type_resolution() {
+            ty
+        } else {
+            // 56771-56783: circular accessor annotations.
+            let name = self.symbol_display_name(symbol);
+            let location = self
+                .annotated_accessor_type_node(getter)
+                .map(|_| getter.expect("annotated getter"))
+                .or_else(|| {
+                    self.annotated_accessor_type_node(setter)
+                        .map(|_| setter.expect("annotated setter"))
+                });
+            if let Some(location) = location {
+                self.error_at(
+                    Some(location),
+                    &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
+                    &[&name],
+                );
+            }
+            self.tables.intrinsics.any
+        };
+        if self.links.symbol(symbol).type_of_symbol.resolved().is_none() {
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                symbol,
+                LinkSlot::Resolved(resolved),
+            );
+        }
+        Ok(self
+            .links
+            .symbol(symbol)
+            .type_of_symbol
+            .resolved()
+            .expect("just filled"))
+    }
+
+    /// tsc-port: getWriteTypeOfAccessors @6.0.3
+    /// tsc-hash: e244812d509db78f1218b344fc0737b9f010d62f752928c7740aaa30990c8a88
+    /// tsc-span: _tsc.js:56787-56803
+    pub(crate) fn get_write_type_of_accessors(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.symbol(symbol).write_type.resolved() {
+            return Ok(cached);
+        }
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Symbol(symbol),
+            tsrs2_types::TypeSystemPropertyName::WRITE_TYPE,
+        ) {
+            return Ok(self.tables.intrinsics.error);
+        }
+        let setter = self.declaration_of_kind(symbol, SyntaxKind::SetAccessor);
+        let annotation = self.annotated_accessor_type_node(setter);
+        let computed = match annotation {
+            Some(annotation) => self.get_type_from_type_node(annotation).map(Some),
+            None => Ok(None),
+        };
+        let write_type = match computed {
+            Ok(write_type) => write_type,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
+            }
+        };
+        let write_type = if self.pop_type_resolution() {
+            match write_type {
+                Some(write_type) => write_type,
+                None => self.get_type_of_accessors(symbol)?,
+            }
+        } else {
+            if annotation.is_some() {
+                let name = self.symbol_display_name(symbol);
+                self.error_at(
+                    setter,
+                    &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
+                    &[&name],
+                );
+            }
+            self.tables.intrinsics.any
+        };
+        if self.links.symbol(symbol).write_type.resolved().is_none() {
+            self.links
+                .set_symbol_write_type(self.speculation_depth, symbol, write_type);
+        }
+        Ok(self
+            .links
+            .symbol(symbol)
+            .write_type
+            .resolved()
+            .expect("just filled"))
+    }
+
+    /// tsc getAnnotatedAccessorTypeNode (56718-56734): getter return
+    /// annotation / setter first-parameter annotation (the
+    /// auto-accessor PropertyDeclaration arm is M7).
+    fn annotated_accessor_type_node(&self, accessor: Option<NodeId>) -> Option<NodeId> {
+        let accessor = accessor?;
+        match self.data_of(accessor) {
+            NodeData::GetAccessor(data) => data.r#type,
+            NodeData::SetAccessor(data) => {
+                let parameters = self.nodes_of(data.parameters);
+                let parameter = parameters.first().copied()?;
+                match self.data_of(parameter) {
+                    NodeData::Parameter(data) => data.r#type,
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
 
     // ---- member instantiation ----
 
@@ -3088,20 +3847,96 @@ impl<'a> CheckerState<'a> {
                     index_infos,
                 });
             }
-            if flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD) {
-                if !state.binder.symbol(symbol).exports.is_empty() {
-                    return Err(Unsupported::new(
-                        "function value types with exports (namespace merge, M4 5.3e)",
-                    ));
+            if flags
+                .intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD | SymbolFlags::CLASS)
+            {
+                // 58341-58407: the value-side tail — exports as
+                // members, static base inheritance for classes,
+                // call/construct signatures.
+                let mut members = state.get_exports_of_symbol(symbol)?;
+                let mut base_constructor_index_info: Option<IndexInfo> = None;
+                if flags.intersects(SymbolFlags::CLASS) {
+                    let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
+                    let base_constructor_type =
+                        state.get_base_constructor_type_of_class(class_type)?;
+                    if state.tables.flags_of(base_constructor_type).intersects(
+                        TypeFlags::OBJECT | TypeFlags::INTERSECTION | TypeFlags::TYPE_VARIABLE,
+                    ) {
+                        // 58359-58360: copy named+index members, then
+                        // inherit the base's STATIC side.
+                        let named = state.get_named_members(&members);
+                        let mut table = state.symbol_list_to_table(&named);
+                        if let Some(index_symbol) =
+                            members.get(InternalSymbolName::INDEX).copied()
+                        {
+                            table.insert(InternalSymbolName::INDEX.to_owned(), index_symbol);
+                        }
+                        members = table;
+                        let base_properties =
+                            state.get_properties_of_type_full(base_constructor_type)?;
+                        state.add_inherited_members(&mut members, &base_properties);
+                    } else if state
+                        .tables
+                        .flags_of(base_constructor_type)
+                        .intersects(TypeFlags::ANY)
+                    {
+                        base_constructor_index_info = Some(IndexInfo {
+                            key_type: state.tables.intrinsics.string,
+                            value_type: state.tables.intrinsics.any,
+                            is_readonly: false,
+                            declaration: None,
+                        });
+                    }
                 }
-                let call_signatures = state.get_signatures_of_symbol(Some(symbol))?;
+                let index_symbol = members.get(InternalSymbolName::INDEX).copied();
+                let mut index_infos = match index_symbol {
+                    Some(index_symbol) => {
+                        state.get_index_infos_of_index_symbol(index_symbol)?
+                    }
+                    None => match base_constructor_index_info {
+                        Some(info) => vec![info],
+                        // The enum number-index arm (58372-58374) rides
+                        // on enum declared types (5.3b-doc stage);
+                        // enums do not take this path yet.
+                        None => Vec::new(),
+                    },
+                };
+                if index_symbol.is_some() {
+                    // tsc computes infos from the index symbol only;
+                    // the base fallback is the None arm above.
+                    let _ = &mut index_infos;
+                }
+                let call_signatures =
+                    if flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD) {
+                        state.get_signatures_of_symbol(Some(symbol))?
+                    } else {
+                        Vec::new()
+                    };
+                let mut construct_signatures = Vec::new();
+                if flags.intersects(SymbolFlags::CLASS) {
+                    let constructor = state
+                        .symbol_members(symbol)
+                        .get(InternalSymbolName::CONSTRUCTOR)
+                        .copied();
+                    construct_signatures = state.get_signatures_of_symbol(constructor)?;
+                    if construct_signatures.is_empty() {
+                        let class_type =
+                            state.get_declared_type_of_class_or_interface(symbol)?;
+                        construct_signatures =
+                            state.get_default_construct_signatures(class_type)?;
+                    }
+                }
+                let properties = state.get_named_members(&members);
                 return Ok(ResolvedMembers {
+                    members,
+                    properties,
                     call_signatures,
-                    ..ResolvedMembers::default()
+                    construct_signatures,
+                    index_infos,
                 });
             }
             Err(Unsupported::new(format!(
-                "anonymous members for symbol flags {flags:?} (M4 5.3e)"
+                "anonymous members for symbol flags {flags:?} (M4 5.3e/5.8)"
             )))
         })(self);
         match resolved {
@@ -3280,8 +4115,17 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY) {
             return self.get_type_of_variable_or_parameter_or_property(symbol);
         }
-        if flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD) {
+        if flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD | SymbolFlags::CLASS)
+        {
             return self.get_type_of_func_class_enum_module(symbol);
+        }
+        if flags.intersects(SymbolFlags::ENUM | SymbolFlags::VALUE_MODULE) {
+            return Err(Unsupported::new(
+                "enum/module value types (M4 5.3b-doc/5.8)",
+            ));
+        }
+        if flags.intersects(SymbolFlags::ACCESSOR) {
+            return self.get_type_of_accessors(symbol);
         }
         Err(Unsupported::new(format!(
             "getTypeOfSymbol for symbol flags {flags:?} (M4)"
@@ -3441,6 +4285,11 @@ impl<'a> CheckerState<'a> {
                 /*is_property*/ true,
                 data.question_token.is_some(),
             )),
+            NodeData::PropertyDeclaration(data) => Ok((
+                data.r#type,
+                /*is_property*/ true,
+                data.question_token.is_some(),
+            )),
             NodeData::Parameter(data) => Ok((
                 data.r#type,
                 /*is_property*/ false,
@@ -3464,13 +4313,33 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
         }
+        // getTypeOfFuncClassEnumModuleWorker (56828-56860): the JS
+        // assignment/expando and commonJS arms are elided project-wide;
+        // shorthand-ambient-module anyType is 5.8.
         let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = Some(symbol);
+        let resolved = if self.symbol_flags(symbol).intersects(SymbolFlags::CLASS) {
+            // 56849-56852: mixin-extending classes intersect with the
+            // base type variable.
+            match self.get_base_type_variable_of_class(symbol)? {
+                Some(base_type_variable) => self.get_intersection_type(
+                    &[id, base_type_variable],
+                    IntersectionFlags::NONE,
+                )?,
+                None => id,
+            }
+        } else {
+            // The optional-symbol getOptionalType arm (56854-56858) is
+            // property machinery — value module/function symbols are
+            // never OPTIONAL here.
+            id
+        };
         self.links
-            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(id));
-        Ok(id)
+            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(resolved));
+        Ok(resolved)
     }
+
 
     /// tsc-port: getTypeOfParameter @6.0.3
     /// tsc-hash: 94d4e1585e05140cd7efeea51c3ce5d865e1405c5c3e290d5d6fec5cc3af1171
@@ -3615,7 +4484,7 @@ impl<'a> CheckerState<'a> {
             flags |= SignatureFlags::ABSTRACT;
         }
         let signature = Signature {
-            declaration,
+            declaration: Some(declaration),
             flags,
             type_parameters,
             parameters,
@@ -3665,14 +4534,14 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         let declaration = self.signature_of(id).declaration;
-        let annotation = match self.data_of(declaration) {
+        let annotation = declaration.and_then(|declaration| match self.data_of(declaration) {
             NodeData::FunctionType(data) => data.r#type,
             NodeData::ConstructorType(data) => data.r#type,
             NodeData::CallSignature(data) => data.r#type,
             NodeData::ConstructSignature(data) => data.r#type,
             NodeData::MethodSignature(data) => data.r#type,
             _ => None,
-        };
+        });
         let target = self.signature_of(id).target;
         let composite = self.signature_of(id).composite_signatures.clone();
         let computed = match (target, composite) {
@@ -3728,11 +4597,12 @@ impl<'a> CheckerState<'a> {
                 .options
                 .strict_option_value(self.options.no_implicit_any)
             {
-                let name = self.name_of_node(declaration);
+                let name = declaration.and_then(|declaration| self.name_of_node(declaration));
                 match name {
                     Some(name) => {
                         let display = tsrs2_binder::node_util::declaration_name_to_string(
-                            self.binder.source_of_node(declaration),
+                            self.binder
+                                .source_of_node(declaration.expect("named implies declared")),
                             Some(name),
                         );
                         self.error_at(
@@ -3743,7 +4613,7 @@ impl<'a> CheckerState<'a> {
                     }
                     None => {
                         self.error_at(
-                            Some(declaration),
+                            declaration,
                             &diagnostics::Function_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
                             &[],
                         );
@@ -5190,6 +6060,104 @@ mod generic_reference_tests {
                 let expected = state.get_type_from_type_node(w).expect("w resolves");
                 assert_eq!(state.is_type_assignable_to(u, expected), Ok(true));
                 assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn class_instance_members_resolve_with_heritage() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare class B { b: string }\ndeclare class C extends B { c: number }\n\
+                 declare var v: C;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let c = state.get_type_from_type_node(v).expect("C resolves");
+                for (name, expected) in [("c", state.tables.intrinsics.number), ("b", state.tables.intrinsics.string)] {
+                    let property = state
+                        .get_property_of_type_full(c, name)
+                        .expect("class members resolve")
+                        .expect("property present");
+                    let property_type = state
+                        .get_type_of_symbol(property)
+                        .expect("property type");
+                    assert_eq!(property_type, expected, "{name}");
+                }
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn generic_class_references_instantiate_members() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare class Box<T> { value: T }\ndeclare var v: Box<string>;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let boxed = state.get_type_from_type_node(v).expect("Box<string>");
+                let value = state
+                    .get_property_of_type_full(boxed, "value")
+                    .expect("members resolve")
+                    .expect("value property");
+                let value_type = state.get_type_of_symbol(value).expect("value type");
+                assert_eq!(value_type, state.tables.intrinsics.string);
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn accessor_properties_read_getter_and_setter_annotations() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare class A { get x(): number; set x(value: number); }\n\
+                 declare var v: A;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let a = state.get_type_from_type_node(v).expect("A resolves");
+                let x = state
+                    .get_property_of_type_full(a, "x")
+                    .expect("members resolve")
+                    .expect("x property");
+                let x_type = state.get_type_of_symbol(x).expect("accessor type");
+                assert_eq!(x_type, state.tables.intrinsics.number);
+                let write_type = state
+                    .get_write_type_of_accessors(x)
+                    .expect("setter write type");
+                assert_eq!(write_type, state.tables.intrinsics.number);
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn own_base_expression_circularity_reports_2506() {
+        with_program_state(
+            &[("a.ts", "declare class C extends C { }\ndeclare var v: C;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let c = state.get_type_from_type_node(v).expect("C resolves");
+                let members = state
+                    .resolve_structured_type_members(c)
+                    .expect("cycle-cut members resolve");
+                assert!(state.members_of(members).properties.is_empty());
+                let codes: Vec<u32> = state
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostic| diagnostic.code())
+                    .collect();
+                assert_eq!(codes, [2506], "{:?}", state.diagnostics);
             },
         );
     }
