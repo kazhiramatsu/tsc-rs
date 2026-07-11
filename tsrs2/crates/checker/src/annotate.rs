@@ -2034,9 +2034,13 @@ impl<'a> CheckerState<'a> {
         }
         let flags = self.tables.flags_of(ty);
         if !flags.intersects(TypeFlags::OBJECT) {
-            return Err(Unsupported::new(
-                "union/intersection member synthesis (M4 5.3d)",
-            ));
+            if flags.intersects(TypeFlags::UNION) {
+                return self.resolve_union_type_members(ty);
+            }
+            if flags.intersects(TypeFlags::INTERSECTION) {
+                return self.resolve_intersection_type_members(ty);
+            }
+            unreachable!("resolveStructuredTypeMembers takes structured types");
         }
         let object_flags = self.tables.object_flags_of(ty);
         if object_flags.intersects(ObjectFlags::REFERENCE) {
@@ -3623,6 +3627,8 @@ impl<'a> CheckerState<'a> {
             mapper: None,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            composite_kind: None,
+            composite_signatures: None,
         };
         let id = self.alloc_signature(signature);
         self.links.set_node_resolved_signature(
@@ -3668,15 +3674,34 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         let target = self.signature_of(id).target;
-        let computed = match target {
+        let composite = self.signature_of(id).composite_signatures.clone();
+        let computed = match (target, composite) {
             // 59815: signature.target → instantiate the target's
             // return type through signature.mapper.
-            Some(target) => {
+            (Some(target), _) => {
                 let mapper = self.signature_of(id).mapper;
                 self.get_return_type_of_signature(target)
                     .and_then(|target_return| self.instantiate_type(target_return, mapper))
             }
-            None => match annotation {
+            // 59815: composite signatures — the union/intersection of
+            // the member returns (Subtype reduction on the union arm),
+            // instantiated through signature.mapper.
+            (None, Some(composite)) => (|state: &mut Self| {
+                let kind = state.signature_of(id).composite_kind;
+                let mut returns = Vec::with_capacity(composite.len());
+                for &member in &composite {
+                    returns.push(state.get_return_type_of_signature(member)?);
+                }
+                let combined =
+                    if kind.is_some_and(|kind| kind.intersects(TypeFlags::INTERSECTION)) {
+                        state.get_intersection_type(&returns, IntersectionFlags::NONE)?
+                    } else {
+                        state.get_union_type_ex(&returns, UnionReduction::Subtype)?
+                    };
+                let mapper = state.signature_of(id).mapper;
+                state.instantiate_type(combined, mapper)
+            })(self),
+            (None, None) => match annotation {
                 Some(annotation) => self.get_type_from_type_node(annotation),
                 // Annotation-context signatures are bodyless: anyType.
                 None => Ok(self.tables.intrinsics.any),
@@ -5115,6 +5140,55 @@ mod generic_reference_tests {
                 let g = state.get_type_from_type_node(g_node).expect("g resolves");
                 assert_eq!(state.is_type_assignable_to(f, g), Ok(true));
                 assert_eq!(state.is_type_assignable_to(g, f), Ok(true));
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn union_members_synthesize_combined_call_signatures() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type F = (() => number) | (() => string);\ndeclare var v: F;\n\
+                 declare var w: () => number | string;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let f = state.get_type_from_type_node(v).expect("F resolves");
+                let signatures = state
+                    .get_signatures_of_type(f, crate::structural::SignatureKind::Call)
+                    .expect("union call signatures synthesize");
+                assert_eq!(signatures.len(), 1, "matching arities combine to one");
+                // The composite return is the Subtype-reduced union.
+                let w = annotation_of(state, "w");
+                let expected = state.get_type_from_type_node(w).expect("w resolves");
+                assert_eq!(state.is_type_assignable_to(f, expected), Ok(true));
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn union_index_infos_intersect_across_constituents() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type U = { [k: string]: number } | { [k: string]: string };\n\
+                 declare var v: U;\ndeclare var w: { [k: string]: number | string };\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let u = state.get_type_from_type_node(v).expect("U resolves");
+                let infos = state
+                    .get_index_infos_of_type(u)
+                    .expect("union index infos synthesize");
+                assert_eq!(infos.len(), 1);
+                let w = annotation_of(state, "w");
+                let expected = state.get_type_from_type_node(w).expect("w resolves");
+                assert_eq!(state.is_type_assignable_to(u, expected), Ok(true));
                 assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
             },
         );

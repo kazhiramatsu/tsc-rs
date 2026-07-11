@@ -73,6 +73,12 @@ pub struct Signature {
     pub instantiations: std::collections::HashMap<String, SignatureId>,
     /// tsc signature.erasedSignatureCache (getErasedSignature 59927).
     pub erased_signature_cache: Option<SignatureId>,
+    /// tsc signature.compositeKind (createUnionSignature 57890 /
+    /// combineSignaturesOfUnionMembers 58205 / intersection mixin
+    /// clones): TypeFlags::UNION or ::INTERSECTION.
+    pub composite_kind: Option<TypeFlags>,
+    /// tsc signature.compositeSignatures (58206).
+    pub composite_signatures: Option<Vec<SignatureId>>,
 }
 
 /// tsc IndexInfo (createIndexInfo 59989).
@@ -383,6 +389,10 @@ impl<'a> CheckerState<'a> {
         let id = SignatureId(self.signatures.len() as u32);
         self.signatures.push(signature);
         id
+    }
+
+    pub fn signature_mut(&mut self, id: SignatureId) -> &mut Signature {
+        &mut self.signatures[id.0 as usize]
     }
 
     pub fn signature_of(&self, id: SignatureId) -> &Signature {

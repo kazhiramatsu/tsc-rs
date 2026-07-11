@@ -1306,11 +1306,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: 964a6e7fc177bdf2129511936257ac777ad3265d51e6fb91770ff9e7b9f46486
     /// tsc-span: _tsc.js:67559-67573
     ///
-    /// partialMatch is false on the identity path.
+    /// partialMatch accepts arity-compatible sources (58057-path).
     fn is_matching_signature(
         &mut self,
         source: SignatureId,
         target: SignatureId,
+        partial_match: bool,
     ) -> CheckResult2<bool> {
         let source_parameter_count = self.st.get_parameter_count(source)?;
         let target_parameter_count = self.st.get_parameter_count(target)?;
@@ -1318,9 +1319,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let target_min = self.st.get_min_argument_count(target)?;
         let source_rest = self.st.has_effective_rest_parameter(source)?;
         let target_rest = self.st.has_effective_rest_parameter(target)?;
-        Ok(source_parameter_count == target_parameter_count
+        if source_parameter_count == target_parameter_count
             && source_min == target_min
-            && source_rest == target_rest)
+            && source_rest == target_rest
+        {
+            return Ok(true);
+        }
+        // 67570-67571: a partial match accepts a source that requires
+        // no more than the target.
+        Ok(partial_match && source_min <= target_min)
     }
 
     /// tsc-port: compareSignaturesIdentical @6.0.3
@@ -1334,11 +1341,25 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: SignatureId,
         target: SignatureId,
     ) -> CheckResult2<Ternary> {
+        self.compare_signatures_identical_ex(source, target, false, false, false)
+    }
+
+    /// The parametrized face (partialMatch / ignoreThisTypes /
+    /// ignoreReturnTypes) used by the union-signature machinery; the
+    /// ambient relation supplies the compareTypes callback.
+    pub(crate) fn compare_signatures_identical_ex(
+        &mut self,
+        source: SignatureId,
+        target: SignatureId,
+        partial_match: bool,
+        ignore_this_types: bool,
+        ignore_return_types: bool,
+    ) -> CheckResult2<Ternary> {
         let mut source = source;
         if source == target {
             return Ok(Ternary::TRUE);
         }
-        if !self.is_matching_signature(source, target)? {
+        if !self.is_matching_signature(source, target, partial_match)? {
             return Ok(Ternary::FALSE);
         }
         // 67581-67595: pairwise type-parameter identity — constraints
@@ -1415,7 +1436,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .instantiate_signature(source, mapper, /*erase_type_parameters*/ true)?;
         }
         let mut result = Ternary::TRUE;
-        let source_this = self.st.get_this_type_of_signature(source)?;
+        let source_this = if ignore_this_types {
+            None
+        } else {
+            self.st.get_this_type_of_signature(source)?
+        };
         if let Some(source_this) = source_this {
             if let Some(target_this) = self.st.get_this_type_of_signature(target)? {
                 let related = self.is_related_to(
@@ -1449,6 +1474,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         self.st.get_type_predicate_of_signature(source)?;
         self.st.get_type_predicate_of_signature(target)?;
+        if ignore_return_types {
+            return Ok(result);
+        }
         let source_return = self.st.get_return_type_of_signature(source)?;
         let target_return = self.st.get_return_type_of_signature(target)?;
         let related = self.is_related_to(
@@ -2716,6 +2744,907 @@ impl<'a> CheckerState<'a> {
             && !self.type_has_call_or_construct_signatures(ty)?)
     }
 
+    // ---- union/intersection member synthesis (5.3d) ----
+
+    /// tsc-port: cloneSignature @6.0.3
+    /// tsc-hash: 854d0bdd7888a4d1c0d177652aa9715c0f7f9c92a2dabd703825f16449fa6adf
+    /// tsc-span: _tsc.js:57868-57886
+    pub(crate) fn clone_signature(&mut self, signature: SignatureId) -> SignatureId {
+        let source = self.signature_of(signature).clone();
+        let result = crate::state::Signature {
+            declaration: source.declaration,
+            flags: tsrs2_types::SignatureFlags::from_bits(
+                source.flags.bits() & tsrs2_types::SignatureFlags::PROPAGATING_FLAGS.bits(),
+            ),
+            type_parameters: source.type_parameters.clone(),
+            parameters: source.parameters.clone(),
+            this_parameter: source.this_parameter,
+            min_argument_count: source.min_argument_count,
+            resolved_return_type: crate::links::LinkSlot::Vacant,
+            from_method: source.from_method,
+            target: source.target,
+            mapper: source.mapper,
+            instantiations: std::collections::HashMap::new(),
+            erased_signature_cache: None,
+            composite_kind: source.composite_kind,
+            composite_signatures: source.composite_signatures.clone(),
+        };
+        self.alloc_signature(result)
+    }
+
+    /// tsc-port: createUnionSignature @6.0.3
+    /// tsc-hash: f2066c8b50870ca26e149fa2dfbc9f6fafda42661ec859fe0d414384c23a04c0
+    /// tsc-span: _tsc.js:57887-57894
+    fn create_union_signature(
+        &mut self,
+        signature: SignatureId,
+        union_signatures: Vec<SignatureId>,
+    ) -> SignatureId {
+        let result = self.clone_signature(signature);
+        let data = self.signature_mut(result);
+        data.composite_signatures = Some(union_signatures);
+        data.composite_kind = Some(TypeFlags::UNION);
+        data.target = None;
+        data.mapper = None;
+        result
+    }
+
+    /// tsc-port: createSymbolWithType @6.0.3
+    /// tsc-hash: 6f9c4ebd31cbdba03af7db5474a8867a0d798e87df6e7dd8c7268f7acc6d7c0d
+    /// tsc-span: _tsc.js:67899-67913
+    fn create_symbol_with_type(&mut self, source: SymbolId, ty: TypeId) -> SymbolId {
+        let source_flags = self.symbol_flags(source);
+        let name = self.binder.symbol(source).escaped_name.clone();
+        let symbol = self.binder.create_symbol(source_flags, name);
+        let readonly = tsrs2_types::CheckFlags::from_bits(
+            self.get_check_flags(source).bits() & tsrs2_types::CheckFlags::READONLY.bits(),
+        );
+        self.links
+            .set_symbol_check_flags(self.speculation_depth, symbol, readonly);
+        self.links
+            .set_symbol_type(self.speculation_depth, symbol, crate::links::LinkSlot::Resolved(ty));
+        // declarations/parent/valueDeclaration copies and the nameType
+        // carry-over ride on binder-side symbol mutation — the created
+        // transient reads through links only.
+        symbol
+    }
+
+    /// The compareTypes parameter of compareSignaturesIdentical:
+    /// partialMatch selects compareTypesSubtypeOf, else
+    /// compareTypesIdentical (findMatchingSignature 58001).
+    pub(crate) fn compare_signatures_identical_at(
+        &mut self,
+        source: SignatureId,
+        target: SignatureId,
+        partial_match: bool,
+        ignore_this_types: bool,
+        ignore_return_types: bool,
+    ) -> CheckResult2<bool> {
+        let relation = if partial_match {
+            RelationKind::Subtype
+        } else {
+            RelationKind::Identity
+        };
+        let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+        let mut checker = RelationChecker {
+            st: self,
+            relation,
+            maybe_keys: Vec::new(),
+            maybe_keys_set: std::collections::HashSet::new(),
+            source_stack: Vec::new(),
+            target_stack: Vec::new(),
+            maybe_count: 0,
+            source_depth: 0,
+            target_depth: 0,
+            expanding_flags: tsrs2_types::ExpandingFlags::NONE,
+            overflow: false,
+            relation_count,
+        };
+        let related = checker.compare_signatures_identical_ex(
+            source,
+            target,
+            partial_match,
+            ignore_this_types,
+            ignore_return_types,
+        )?;
+        Ok(is_true(related))
+    }
+
+    /// tsc-port: findMatchingSignature @6.0.3
+    /// tsc-hash: 0e0e437a5d2be21392feb70dc62cce7bf2afecac3a0ac6acbe0cdad41627008c
+    /// tsc-span: _tsc.js:57999-58005
+    fn find_matching_signature(
+        &mut self,
+        signature_list: &[SignatureId],
+        signature: SignatureId,
+        partial_match: bool,
+        ignore_this_types: bool,
+        ignore_return_types: bool,
+    ) -> CheckResult2<Option<SignatureId>> {
+        for &s in signature_list {
+            if self.compare_signatures_identical_at(
+                s,
+                signature,
+                partial_match,
+                ignore_this_types,
+                ignore_return_types,
+            )? {
+                return Ok(Some(s));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: findMatchingSignatures @6.0.3
+    /// tsc-hash: b691b1412bfb3d9ce37229a1d649d14ab90df1ff159ed4c1d0ac624630792ed6
+    /// tsc-span: _tsc.js:58006-58054
+    fn find_matching_signatures(
+        &mut self,
+        signature_lists: &[Vec<SignatureId>],
+        signature: SignatureId,
+        list_index: usize,
+    ) -> CheckResult2<Option<Vec<SignatureId>>> {
+        if self.signature_of(signature).type_parameters.is_some() {
+            // 58008-58023: generic signatures match in the FIRST list
+            // only, and only via exact matches everywhere.
+            if list_index > 0 {
+                return Ok(None);
+            }
+            for list in &signature_lists[1..] {
+                if self
+                    .find_matching_signature(list, signature, false, false, false)?
+                    .is_none()
+                {
+                    return Ok(None);
+                }
+            }
+            return Ok(Some(vec![signature]));
+        }
+        let mut result: Vec<SignatureId> = Vec::new();
+        for (i, list) in signature_lists.iter().enumerate() {
+            let matched = if i == list_index {
+                Some(signature)
+            } else {
+                match self.find_matching_signature(list, signature, false, false, true)? {
+                    Some(matched) => Some(matched),
+                    None => self.find_matching_signature(list, signature, true, false, true)?,
+                }
+            };
+            let Some(matched) = matched else {
+                return Ok(None);
+            };
+            if !result.contains(&matched) {
+                result.push(matched);
+            }
+        }
+        Ok(Some(result))
+    }
+
+    /// tsc-port: getUnionSignatures @6.0.3
+    /// tsc-hash: de365ba44bdfdca52811439ffebf59ebc19fb1b100954118cea2daaafb974edd
+    /// tsc-span: _tsc.js:58055-58108
+    fn get_union_signatures(
+        &mut self,
+        signature_lists: &[Vec<SignatureId>],
+    ) -> CheckResult2<Vec<SignatureId>> {
+        let mut result: Vec<SignatureId> = Vec::new();
+        let mut index_with_length_over_one: Option<isize> = None;
+        for (i, list) in signature_lists.iter().enumerate() {
+            if list.is_empty() {
+                return Ok(Vec::new());
+            }
+            if list.len() > 1 {
+                index_with_length_over_one = match index_with_length_over_one {
+                    None => Some(i as isize),
+                    Some(_) => Some(-1),
+                };
+            }
+            for &signature in list {
+                if self
+                    .find_matching_signature(&result, signature, false, false, true)?
+                    .is_some()
+                {
+                    continue;
+                }
+                let Some(union_signatures) =
+                    self.find_matching_signatures(signature_lists, signature, i)?
+                else {
+                    continue;
+                };
+                let mut s = signature;
+                if union_signatures.len() > 1 {
+                    let mut this_parameter = self.signature_of(signature).this_parameter;
+                    let first_this = union_signatures
+                        .iter()
+                        .find_map(|&sig| self.signature_of(sig).this_parameter);
+                    if let Some(first_this) = first_this {
+                        let mut this_types = Vec::new();
+                        for &sig in &union_signatures {
+                            if let Some(this_param) = self.signature_of(sig).this_parameter {
+                                this_types.push(self.get_type_of_symbol(this_param)?);
+                            }
+                        }
+                        let this_type =
+                            self.get_intersection_type(&this_types, tsrs2_types::IntersectionFlags::NONE)?;
+                        this_parameter = Some(self.create_symbol_with_type(first_this, this_type));
+                    }
+                    s = self.create_union_signature(signature, union_signatures);
+                    self.signature_mut(s).this_parameter = this_parameter;
+                }
+                result.push(s);
+            }
+        }
+        if result.is_empty() && index_with_length_over_one != Some(-1) {
+            // 58091-58106: no common signatures — combine the master
+            // list pairwise across the union members.
+            let master_index = index_with_length_over_one.unwrap_or(0) as usize;
+            let master_list = &signature_lists[master_index];
+            let mut results: Option<Vec<SignatureId>> = Some(master_list.clone());
+            for list in signature_lists {
+                if std::ptr::eq(list.as_slice(), master_list.as_slice()) {
+                    continue;
+                }
+                let signature = list[0];
+                let incompatible_generics = self.signature_of(signature).type_parameters.is_some()
+                    && results.as_ref().is_some_and(|results| {
+                        results.iter().any(|&s| {
+                            self.signatures[s.0 as usize].type_parameters.is_some()
+                                && !self
+                                    .compare_type_parameters_identical_ok(signature, s)
+                        })
+                    });
+                if incompatible_generics {
+                    results = None;
+                } else if let Some(current) = results {
+                    let mut combined = Vec::with_capacity(current.len());
+                    for sig in current {
+                        combined.push(self.combine_signatures_of_union_members(sig, signature)?);
+                    }
+                    results = Some(combined);
+                }
+                if results.is_none() {
+                    break;
+                }
+            }
+            result = results.unwrap_or_default();
+        }
+        Ok(result)
+    }
+
+    /// compareTypeParametersIdentical's boolean face for the closure
+    /// position above (Err collapses to "not identical" would be
+    /// dishonest — so this helper is infallible-by-construction and the
+    /// fallible body lives in compare_type_parameters_identical).
+    fn compare_type_parameters_identical_ok(
+        &mut self,
+        source: SignatureId,
+        target: SignatureId,
+    ) -> bool {
+        matches!(
+            self.compare_type_parameters_identical(source, target),
+            Ok(true)
+        )
+    }
+
+    /// tsc-port: compareTypeParametersIdentical @6.0.3
+    /// tsc-hash: 065a593f6bc93d374499bf9cf35327921820333c8042b23a45c6208a4c59833a
+    /// tsc-span: _tsc.js:58109-58124
+    fn compare_type_parameters_identical(
+        &mut self,
+        source: SignatureId,
+        target: SignatureId,
+    ) -> CheckResult2<bool> {
+        let source_params = self
+            .signature_of(source)
+            .type_parameters
+            .clone()
+            .unwrap_or_default();
+        let target_params = self
+            .signature_of(target)
+            .type_parameters
+            .clone()
+            .unwrap_or_default();
+        if source_params.len() != target_params.len() {
+            return Ok(false);
+        }
+        if source_params.is_empty() || target_params.is_empty() {
+            return Ok(true);
+        }
+        let mapper = self.create_type_mapper(target_params.clone(), Some(source_params.clone()));
+        let unknown = self.tables.intrinsics.unknown;
+        for i in 0..source_params.len() {
+            let s = source_params[i];
+            let t = target_params[i];
+            if s == t {
+                continue;
+            }
+            let source_constraint = self
+                .get_constraint_from_type_parameter(s)?
+                .unwrap_or(unknown);
+            let target_constraint = match self.get_constraint_from_type_parameter(t)? {
+                Some(constraint) => self.instantiate_type(constraint, Some(mapper))?,
+                None => unknown,
+            };
+            if !self.is_type_identical_to(source_constraint, target_constraint)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    pub(crate) fn is_type_identical_to(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<bool> {
+        self.is_type_related_to(source, target, RelationKind::Identity)
+    }
+
+    /// tsc-port: combineUnionThisParam @6.0.3
+    /// tsc-hash: c9896f07d74bd49a7292d7a74d1fae3913a232660cf3ac8a9275ca76f9c118a0
+    /// tsc-span: _tsc.js:58125-58131
+    fn combine_union_this_param(
+        &mut self,
+        left: Option<SymbolId>,
+        right: Option<SymbolId>,
+        mapper: Option<crate::instantiate::MapperId>,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let (left, right) = match (left, right) {
+            (Some(left), Some(right)) => (left, right),
+            (left, right) => return Ok(left.or(right)),
+        };
+        let left_type = self.get_type_of_symbol(left)?;
+        let right_type = self.get_type_of_symbol(right)?;
+        let right_type = self.instantiate_type(right_type, mapper)?;
+        let this_type =
+            self.get_intersection_type(&[left_type, right_type], tsrs2_types::IntersectionFlags::NONE)?;
+        Ok(Some(self.create_symbol_with_type(left, this_type)))
+    }
+
+    /// tsc-port: combineUnionParameters @6.0.3
+    /// tsc-hash: 2396ab002984b923e2a91738a38c9d36cad7626e1dd56b17c1c534df3f62c88f
+    /// tsc-span: _tsc.js:58132-58173
+    ///
+    /// getParameterNameAtPosition's tuple-label arm reads the labeled
+    /// declaration's name text; positions past both lists fall back to
+    /// `arg{i}` exactly like tsc.
+    fn combine_union_parameters(
+        &mut self,
+        left: SignatureId,
+        right: SignatureId,
+        mapper: Option<crate::instantiate::MapperId>,
+    ) -> CheckResult2<Vec<SymbolId>> {
+        let left_count = self.get_parameter_count(left)?;
+        let right_count = self.get_parameter_count(right)?;
+        let (longest, shorter) = if left_count >= right_count {
+            (left, right)
+        } else {
+            (right, left)
+        };
+        let longest_count = if longest == left {
+            left_count
+        } else {
+            right_count
+        };
+        let either_has_effective_rest = self.has_effective_rest_parameter(left)?
+            || self.has_effective_rest_parameter(right)?;
+        let needs_extra_rest_element =
+            either_has_effective_rest && !self.has_effective_rest_parameter(longest)?;
+        let mut params: Vec<SymbolId> =
+            Vec::with_capacity(longest_count + usize::from(needs_extra_rest_element));
+        let longest_min = self.get_min_argument_count(longest)?;
+        let shorter_min = self.get_min_argument_count(shorter)?;
+        for i in 0..longest_count {
+            let mut longest_param_type = self
+                .try_get_type_at_position(longest, i)?
+                .expect("positions below the longest count have types");
+            if longest == right {
+                longest_param_type = self.instantiate_type(longest_param_type, mapper)?;
+            }
+            let mut shorter_param_type = self
+                .try_get_type_at_position(shorter, i)?
+                .unwrap_or(self.tables.intrinsics.unknown);
+            if shorter == right {
+                shorter_param_type = self.instantiate_type(shorter_param_type, mapper)?;
+            }
+            let union_param_type = self.get_intersection_type(
+                &[longest_param_type, shorter_param_type],
+                tsrs2_types::IntersectionFlags::NONE,
+            )?;
+            let is_rest_param =
+                either_has_effective_rest && !needs_extra_rest_element && i == longest_count - 1;
+            let is_optional = i >= longest_min && i >= shorter_min;
+            let left_name = if i >= left_count {
+                None
+            } else {
+                self.get_parameter_name_at_position(left, i)?
+            };
+            let right_name = if i >= right_count {
+                None
+            } else {
+                self.get_parameter_name_at_position(right, i)?
+            };
+            let param_name = if left_name == right_name {
+                left_name
+            } else if left_name.is_none() {
+                right_name
+            } else if right_name.is_none() {
+                left_name
+            } else {
+                None
+            };
+            let mut symbol_flags = SymbolFlags::FUNCTION_SCOPED_VARIABLE;
+            if is_optional && !is_rest_param {
+                symbol_flags |= SymbolFlags::OPTIONAL;
+            }
+            let param_symbol = self.binder.create_symbol(
+                symbol_flags,
+                param_name.unwrap_or_else(|| format!("arg{i}")),
+            );
+            let check_flags = if is_rest_param {
+                CheckFlags::REST_PARAMETER
+            } else if is_optional {
+                CheckFlags::OPTIONAL_PARAMETER
+            } else {
+                CheckFlags::from_bits(0)
+            };
+            self.links
+                .set_symbol_check_flags(self.speculation_depth, param_symbol, check_flags);
+            let param_type = if is_rest_param {
+                self.create_array_type(union_param_type, false)?
+            } else {
+                union_param_type
+            };
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                param_symbol,
+                crate::links::LinkSlot::Resolved(param_type),
+            );
+            params.push(param_symbol);
+        }
+        if needs_extra_rest_element {
+            let rest_symbol = self
+                .binder
+                .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "args".to_owned());
+            self.links.set_symbol_check_flags(
+                self.speculation_depth,
+                rest_symbol,
+                CheckFlags::REST_PARAMETER,
+            );
+            let shorter_at = self.get_type_at_position(shorter, longest_count)?;
+            let mut rest_type = self.create_array_type(shorter_at, false)?;
+            if shorter == right {
+                rest_type = self.instantiate_type(rest_type, mapper)?;
+            }
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                rest_symbol,
+                crate::links::LinkSlot::Resolved(rest_type),
+            );
+            params.push(rest_symbol);
+        }
+        Ok(params)
+    }
+
+    /// getParameterNameAtPosition (78218-78232 slice): declared
+    /// positions read the parameter symbol's name; tuple-rest expanded
+    /// positions read the label declaration's name text when present.
+    fn get_parameter_name_at_position(
+        &mut self,
+        signature: SignatureId,
+        pos: usize,
+    ) -> CheckResult2<Option<String>> {
+        let signature_data = self.signature_of(signature);
+        let has_rest = signature_data
+            .flags
+            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER);
+        let param_count = signature_data.parameters.len() - usize::from(has_rest);
+        if pos < param_count {
+            return Ok(Some(
+                self.binder
+                    .symbol(signature_data.parameters[pos])
+                    .escaped_name
+                    .clone(),
+            ));
+        }
+        let Some(&rest_parameter) = self.signature_of(signature).parameters.last() else {
+            return Ok(None);
+        };
+        Ok(Some(
+            self.binder.symbol(rest_parameter).escaped_name.clone(),
+        ))
+    }
+
+    /// tsc-port: combineSignaturesOfUnionMembers @6.0.3
+    /// tsc-hash: 9804b081625944a8195a29bc8b837167d0185d298eb8a128d453fbdf740cdfbf
+    /// tsc-span: _tsc.js:58174-58209
+    fn combine_signatures_of_union_members(
+        &mut self,
+        left: SignatureId,
+        right: SignatureId,
+    ) -> CheckResult2<SignatureId> {
+        let left_data = self.signature_of(left).clone();
+        let right_data = self.signature_of(right).clone();
+        let type_params = left_data
+            .type_parameters
+            .clone()
+            .or_else(|| right_data.type_parameters.clone());
+        let param_mapper = match (&left_data.type_parameters, &right_data.type_parameters) {
+            (Some(left_params), Some(right_params)) => Some(self.create_type_mapper(
+                right_params.clone(),
+                Some(left_params.clone()),
+            )),
+            _ => None,
+        };
+        let mut flags = tsrs2_types::SignatureFlags::from_bits(
+            (left_data.flags.bits() | right_data.flags.bits())
+                & (tsrs2_types::SignatureFlags::PROPAGATING_FLAGS.bits()
+                    & !tsrs2_types::SignatureFlags::HAS_REST_PARAMETER.bits()),
+        );
+        let params = self.combine_union_parameters(left, right, param_mapper)?;
+        if let Some(&last_param) = params.last() {
+            if self
+                .get_check_flags(last_param)
+                .intersects(CheckFlags::REST_PARAMETER)
+            {
+                flags = tsrs2_types::SignatureFlags::from_bits(
+                    flags.bits() | tsrs2_types::SignatureFlags::HAS_REST_PARAMETER.bits(),
+                );
+            }
+        }
+        let this_param = self.combine_union_this_param(
+            left_data.this_parameter,
+            right_data.this_parameter,
+            param_mapper,
+        )?;
+        let min_arg_count = left_data.min_argument_count.max(right_data.min_argument_count);
+        let mut composite_signatures = match (
+            left_data.composite_kind,
+            left_data.composite_signatures.clone(),
+        ) {
+            (Some(kind), Some(signatures)) if !kind.intersects(TypeFlags::INTERSECTION) => {
+                signatures
+            }
+            _ => vec![left],
+        };
+        composite_signatures.push(right);
+        let mapper = if param_mapper.is_some() {
+            match (
+                left_data.composite_kind,
+                left_data.mapper,
+                &left_data.composite_signatures,
+            ) {
+                (Some(kind), Some(left_mapper), Some(_))
+                    if !kind.intersects(TypeFlags::INTERSECTION) =>
+                {
+                    Some(self.combine_type_mappers(Some(left_mapper), param_mapper.expect("checked")))
+                }
+                _ => param_mapper,
+            }
+        } else {
+            match (
+                left_data.composite_kind,
+                left_data.mapper,
+                &left_data.composite_signatures,
+            ) {
+                (Some(kind), Some(left_mapper), Some(_))
+                    if !kind.intersects(TypeFlags::INTERSECTION) =>
+                {
+                    Some(left_mapper)
+                }
+                _ => None,
+            }
+        };
+        let result = crate::state::Signature {
+            declaration: left_data.declaration,
+            flags,
+            type_parameters: type_params,
+            parameters: params,
+            this_parameter: this_param,
+            min_argument_count: min_arg_count,
+            resolved_return_type: crate::links::LinkSlot::Vacant,
+            from_method: left_data.from_method,
+            target: None,
+            mapper,
+            instantiations: std::collections::HashMap::new(),
+            erased_signature_cache: None,
+            composite_kind: Some(TypeFlags::UNION),
+            composite_signatures: Some(composite_signatures),
+        };
+        Ok(self.alloc_signature(result))
+    }
+
+    /// tsc-port: getUnionIndexInfos @6.0.3
+    /// tsc-hash: 722b15b0268f26a28505f37b9d187c7d568785aa74d9cbf3adf015693e35fc9f
+    /// tsc-span: _tsc.js:58210-58223
+    fn get_union_index_infos(&mut self, types: &[TypeId]) -> CheckResult2<Vec<IndexInfo>> {
+        let source_infos = self.get_index_infos_of_type(types[0])?;
+        let mut result = Vec::new();
+        'infos: for info in source_infos {
+            let key_type = info.key_type;
+            let mut value_types = Vec::with_capacity(types.len());
+            let mut is_readonly = false;
+            for &t in types {
+                let candidate = self.get_index_info_of_type(t, key_type)?;
+                let Some(candidate) = candidate else {
+                    continue 'infos;
+                };
+                value_types.push(candidate.value_type);
+                is_readonly |= candidate.is_readonly;
+            }
+            let value = self.get_union_type_ex(&value_types, UnionReduction::Literal)?;
+            result.push(IndexInfo {
+                key_type,
+                value_type: value,
+                is_readonly,
+                declaration: None,
+            });
+        }
+        Ok(result)
+    }
+
+    /// tsc getIndexInfoOfType (59466-59468) — findIndexInfo over the
+    /// type's infos.
+    pub(crate) fn get_index_info_of_type(
+        &mut self,
+        ty: TypeId,
+        key_type: TypeId,
+    ) -> CheckResult2<Option<IndexInfo>> {
+        let infos = self.get_index_infos_of_type(ty)?;
+        Ok(infos.into_iter().find(|info| info.key_type == key_type))
+    }
+
+    /// tsc-port: resolveUnionTypeMembers @6.0.3
+    /// tsc-hash: b79146b727edab18aa3474c4ab6d0ef5d15302b2264ec1ca853d395372867afb
+    /// tsc-span: _tsc.js:58224-58229
+    ///
+    /// The globalFunctionType→[unknownSignature] substitution needs a
+    /// declaration-less signature — escapes until Signature.declaration
+    /// goes optional (5.3e/M6 surface).
+    pub(crate) fn resolve_union_type_members(&mut self, ty: TypeId) -> CheckResult2<crate::state::MembersId> {
+        let TypeData::Union { types, .. } = self.tables.type_of(ty).data.clone() else {
+            unreachable!("union flag implies union data");
+        };
+        let mut call_lists = Vec::with_capacity(types.len());
+        let mut construct_lists = Vec::with_capacity(types.len());
+        for &t in types.iter() {
+            if self.is_global_function_type(t)? {
+                return Err(Unsupported::new(
+                    "unknownSignature for globalFunctionType union members (5.3e)",
+                ));
+            }
+            call_lists.push(self.get_signatures_of_type(t, SignatureKind::Call)?);
+            construct_lists.push(self.get_signatures_of_type(t, SignatureKind::Construct)?);
+        }
+        let call_signatures = self.get_union_signatures(&call_lists)?;
+        let construct_signatures = self.get_union_signatures(&construct_lists)?;
+        let index_infos = self.get_union_index_infos(&types)?;
+        let id = self.alloc_members(crate::state::ResolvedMembers {
+            call_signatures,
+            construct_signatures,
+            index_infos,
+            ..crate::state::ResolvedMembers::default()
+        });
+        self.links
+            .set_type_members(self.speculation_depth, ty, crate::links::LinkSlot::Resolved(id));
+        Ok(id)
+    }
+
+    fn is_global_function_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        // globalFunctionType is lazily bound; comparing against an
+        // unbound global must not force a lookup that reports 2318 —
+        // probe the memo path only when the type is a plain interface.
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::CLASS_OR_INTERFACE)
+        {
+            return Ok(false);
+        }
+        let Some(symbol) = self.tables.type_of(ty).symbol else {
+            return Ok(false);
+        };
+        Ok(self.binder.symbol(symbol).escaped_name == "Function"
+            && self.symbol_flags(symbol).intersects(SymbolFlags::INTERFACE)
+            && self.global_function_type()? == ty)
+    }
+
+    /// tsc-port: resolveIntersectionTypeMembers @6.0.3
+    /// tsc-hash: 9f5e810872d62327c70570c799ea9204577d8336dea93c08f47a50bd1b432d91
+    /// tsc-span: _tsc.js:58256-58285
+    pub(crate) fn resolve_intersection_type_members(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<crate::state::MembersId> {
+        let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
+            unreachable!("intersection flag implies intersection data");
+        };
+        let mixin_flags = self.find_mixins(&types)?;
+        let mixin_count = mixin_flags.iter().filter(|&&b| b).count();
+        let mut call_signatures: Vec<SignatureId> = Vec::new();
+        let mut construct_signatures: Vec<SignatureId> = Vec::new();
+        let mut index_infos: Vec<IndexInfo> = Vec::new();
+        for (i, &t) in types.iter().enumerate() {
+            if !mixin_flags[i] {
+                let mut signatures = self.get_signatures_of_type(t, SignatureKind::Construct)?;
+                if !signatures.is_empty() && mixin_count > 0 {
+                    let mut mapped = Vec::with_capacity(signatures.len());
+                    for &s in &signatures {
+                        let clone = self.clone_signature(s);
+                        let return_type = self.get_return_type_of_signature(s)?;
+                        let mixed =
+                            self.include_mixin_type(return_type, &types, &mixin_flags, i)?;
+                        self.signature_mut(clone).resolved_return_type =
+                            crate::links::LinkSlot::Resolved(mixed);
+                        mapped.push(clone);
+                    }
+                    signatures = mapped;
+                }
+                self.append_signatures(&mut construct_signatures, &signatures)?;
+            }
+            let calls = self.get_signatures_of_type(t, SignatureKind::Call)?;
+            self.append_signatures(&mut call_signatures, &calls)?;
+            for info in self.get_index_infos_of_type(t)? {
+                self.append_index_info(&mut index_infos, info, /*union*/ false)?;
+            }
+        }
+        let id = self.alloc_members(crate::state::ResolvedMembers {
+            call_signatures,
+            construct_signatures,
+            index_infos,
+            ..crate::state::ResolvedMembers::default()
+        });
+        self.links
+            .set_type_members(self.speculation_depth, ty, crate::links::LinkSlot::Resolved(id));
+        Ok(id)
+    }
+
+    /// tsc-port: findMixins @6.0.3
+    /// tsc-hash: 842e131d8b6c0647002c0dc233b86d0e4caf1ccaa10126ad25c0881f10fab8a4
+    /// tsc-span: _tsc.js:58233-58244
+    fn find_mixins(&mut self, types: &[TypeId]) -> CheckResult2<Vec<bool>> {
+        let mut constructor_type_count = 0usize;
+        for &t in types {
+            if !self
+                .get_signatures_of_type(t, SignatureKind::Construct)?
+                .is_empty()
+            {
+                constructor_type_count += 1;
+            }
+        }
+        let mut mixin_flags = Vec::with_capacity(types.len());
+        for &t in types {
+            mixin_flags.push(self.is_mixin_constructor_type(t)?);
+        }
+        let mixin_true_count = mixin_flags.iter().filter(|&&b| b).count();
+        if constructor_type_count > 0 && constructor_type_count == mixin_true_count {
+            let first = mixin_flags
+                .iter()
+                .position(|&b| b)
+                .expect("count > 0 implies a true entry");
+            mixin_flags[first] = false;
+        }
+        Ok(mixin_flags)
+    }
+
+    /// tsc-port: isMixinConstructorType @6.0.3
+    /// tsc-hash: 9c41ff6b53e42fcee67b664ff474e516746ab4eff3dfb1ab3a9eb8175a1f7fbf
+    /// tsc-span: _tsc.js:57111-57121
+    fn is_mixin_constructor_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        let signatures = self.get_signatures_of_type(ty, SignatureKind::Construct)?;
+        if signatures.len() != 1 {
+            return Ok(false);
+        }
+        let s = self.signature_of(signatures[0]).clone();
+        if s.type_parameters.is_none()
+            && s.parameters.len() == 1
+            && s.flags
+                .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
+        {
+            let param_type = self.get_type_of_parameter(s.parameters[0])?;
+            if self.tables.flags_of(param_type).intersects(TypeFlags::ANY) {
+                return Ok(true);
+            }
+            let element = self.get_element_type_of_array_type(param_type)?;
+            return Ok(element == Some(self.tables.intrinsics.any));
+        }
+        Ok(false)
+    }
+
+    /// tsc getElementTypeOfArrayType (67677-67679).
+    pub(crate) fn get_element_type_of_array_type(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if self.is_array_type(ty)? {
+            return Ok(Some(self.get_type_arguments(ty)?[0]));
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: includeMixinType @6.0.3
+    /// tsc-hash: ea32a308425c179ed929ea3ce58409f3d0b31991146c76fe6ac9539262ab93de
+    /// tsc-span: _tsc.js:58245-58255
+    fn include_mixin_type(
+        &mut self,
+        ty: TypeId,
+        types: &[TypeId],
+        mixin_flags: &[bool],
+        index: usize,
+    ) -> CheckResult2<TypeId> {
+        let mut mixed_types = Vec::new();
+        for (i, &t) in types.iter().enumerate() {
+            if i == index {
+                mixed_types.push(ty);
+            } else if mixin_flags[i] {
+                let construct = self.get_signatures_of_type(t, SignatureKind::Construct)?[0];
+                mixed_types.push(self.get_return_type_of_signature(construct)?);
+            }
+        }
+        self.get_intersection_type(&mixed_types, tsrs2_types::IntersectionFlags::NONE)
+    }
+
+    /// tsc-port: appendSignatures @6.0.3
+    /// tsc-hash: ce220df79982e0892294026f9da6e75bc6dce320d3f578b6acebce0faf4830da
+    /// tsc-span: _tsc.js:58286-58303
+    fn append_signatures(
+        &mut self,
+        signatures: &mut Vec<SignatureId>,
+        new_signatures: &[SignatureId],
+    ) -> CheckResult2<()> {
+        'outer: for &sig in new_signatures {
+            if !signatures.is_empty() {
+                for &s in signatures.iter() {
+                    if self.compare_signatures_identical_at(s, sig, false, false, false)? {
+                        continue 'outer;
+                    }
+                }
+            }
+            signatures.push(sig);
+        }
+        Ok(())
+    }
+
+    /// tsc-port: appendIndexInfo @6.0.3
+    /// tsc-hash: 261bc2d3946da7a99f772ef4313e7e6aaaf97a8a814919c7272cc52947c0a5ef
+    /// tsc-span: _tsc.js:58304-58317
+    fn append_index_info(
+        &mut self,
+        index_infos: &mut Vec<IndexInfo>,
+        new_info: IndexInfo,
+        union: bool,
+    ) -> CheckResult2<()> {
+        for info in index_infos.iter_mut() {
+            if info.key_type == new_info.key_type {
+                let value = if union {
+                    self.get_union_type_ex(
+                        &[info.value_type, new_info.value_type],
+                        UnionReduction::Literal,
+                    )?
+                } else {
+                    self.get_intersection_type(
+                        &[info.value_type, new_info.value_type],
+                        tsrs2_types::IntersectionFlags::NONE,
+                    )?
+                };
+                let is_readonly = if union {
+                    info.is_readonly || new_info.is_readonly
+                } else {
+                    info.is_readonly && new_info.is_readonly
+                };
+                *info = IndexInfo {
+                    key_type: info.key_type,
+                    value_type: value,
+                    is_readonly,
+                    declaration: None,
+                };
+                return Ok(());
+            }
+        }
+        index_infos.push(new_info);
+        Ok(())
+    }
+
     // ---- signature access ----
 
     /// tsc-port: getSignaturesOfStructuredType @6.0.3
@@ -2731,32 +3660,13 @@ impl<'a> CheckerState<'a> {
         kind: SignatureKind,
     ) -> CheckResult2<Vec<SignatureId>> {
         let reduced = self.get_reduced_apparent_type(ty)?;
-        // Tuple references have no signatures by construction
-        // (createTupleTargetType 61198-61199: declaredCall/Construct
-        // = emptyArray); resolving their members is M4 instantiation.
-        if self.tables.is_tuple_type(reduced) {
-            return Ok(Vec::new());
-        }
-        if self
+        // getSignaturesOfStructuredType: unions and intersections
+        // resolve through their member synthesis (5.3d) like objects.
+        if !self
             .tables
             .flags_of(reduced)
-            .intersects(TypeFlags::INTERSECTION)
+            .intersects(TypeFlags::STRUCTURED_TYPE)
         {
-            // resolveIntersectionTypeMembers concatenates constituent
-            // signatures (58408+); the union-this-type mixing is M4.
-            let TypeData::Intersection { types } = self.tables.type_of(reduced).data.clone() else {
-                unreachable!("intersection flag implies intersection data");
-            };
-            let mut result = Vec::new();
-            for t in types.iter() {
-                result.extend(self.get_signatures_of_type(*t, kind)?);
-            }
-            return Ok(result);
-        }
-        if self.tables.flags_of(reduced).intersects(TypeFlags::UNION) {
-            return Err(Unsupported::new("union signature resolution (M4)"));
-        }
-        if !self.tables.flags_of(reduced).intersects(TypeFlags::OBJECT) {
             return Ok(Vec::new());
         }
         let members = self.resolve_structured_type_members(reduced)?;
@@ -3148,45 +4058,13 @@ impl<'a> CheckerState<'a> {
     /// kinds — M4 rows.
     pub fn get_index_infos_of_type(&mut self, ty: TypeId) -> CheckResult2<Vec<IndexInfo>> {
         let reduced = self.get_reduced_apparent_type(ty)?;
-        // Tuple references carry no index infos by construction
-        // (createTupleTargetType 61200).
-        if self.tables.is_tuple_type(reduced) {
-            return Ok(Vec::new());
-        }
-        if self
+        // getIndexInfosOfStructuredType: unions and intersections
+        // resolve through their member synthesis (5.3d) like objects.
+        if !self
             .tables
             .flags_of(reduced)
-            .intersects(TypeFlags::INTERSECTION)
+            .intersects(TypeFlags::STRUCTURED_TYPE)
         {
-            // resolveIntersectionTypeMembers: same-key infos combine
-            // by intersecting value types (appendIndexInfo).
-            let TypeData::Intersection { types } = self.tables.type_of(reduced).data.clone() else {
-                unreachable!("intersection flag implies intersection data");
-            };
-            let mut combined: Vec<IndexInfo> = Vec::new();
-            for t in types.iter() {
-                for info in self.get_index_infos_of_type(*t)? {
-                    if let Some(existing) = combined
-                        .iter_mut()
-                        .find(|existing| existing.key_type == info.key_type)
-                    {
-                        let value = self.get_intersection_type(
-                            &[existing.value_type, info.value_type],
-                            tsrs2_types::IntersectionFlags::NONE,
-                        )?;
-                        existing.value_type = value;
-                        existing.is_readonly = existing.is_readonly && info.is_readonly;
-                    } else {
-                        combined.push(info);
-                    }
-                }
-            }
-            return Ok(combined);
-        }
-        if self.tables.flags_of(reduced).intersects(TypeFlags::UNION) {
-            return Err(Unsupported::new("union index info resolution (M4)"));
-        }
-        if !self.tables.flags_of(reduced).intersects(TypeFlags::OBJECT) {
             return Ok(Vec::new());
         }
         let members = self.resolve_structured_type_members(reduced)?;

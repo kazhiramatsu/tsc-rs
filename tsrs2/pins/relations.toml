@@ -1772,3 +1772,55 @@ setup = "interface Array<T> { length: number }"
 source = "(...args: string[]) => void"
 target = "(a: string) => void"
 expect = "yes"
+
+# ---- M4 5.3d union/intersection member synthesis ----
+
+[[pair]]
+source = "(() => number) | (() => string)"
+target = "() => number | string"
+expect = "yes"
+
+[[pair]]
+source = "(() => number) | (() => string)"
+target = "() => number"
+expect = "no"
+
+# Mismatched-parameter union members combine through the second pass
+# (combineSignaturesOfUnionMembers: parameter intersections).
+[[pair]]
+source = "((a: string) => void) | ((a: number) => void)"
+target = "(a: string & number) => void"
+expect = "yes"
+
+[[pair]]
+source = "((a: string) => void) | ((a: number) => void)"
+target = "(a: string) => void"
+expect = "no"
+
+[[pair]]
+source = "{ [k: string]: number } | { [k: string]: string }"
+target = "{ [k: string]: number | string }"
+expect = "yes"
+
+[[pair]]
+source = "{ [k: string]: number } | { [k: number]: number }"
+target = "{ [k: string]: number }"
+expect = "yes"
+
+# Intersection members concatenate signatures like overloads.
+[[pair]]
+source = "((a: number) => void) & ((a: string) => void)"
+target = "(a: string) => void"
+expect = "yes"
+
+[[pair]]
+source = "(a: string) => void"
+target = "((a: number) => void) & ((a: string) => void)"
+expect = "no"
+
+# Rest-vs-fixed union combining exercises the extra-rest-element arm.
+[[pair]]
+setup = "interface Array<T> { length: number }"
+source = "((...args: number[]) => void) | ((a: number) => void)"
+target = "(a: number) => void"
+expect = "yes"

@@ -427,6 +427,8 @@ impl<'a> CheckerState<'a> {
             mapper: Some(mapper),
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            composite_kind: None,
+            composite_signatures: None,
         };
         Ok(self.alloc_signature(result))
     }
