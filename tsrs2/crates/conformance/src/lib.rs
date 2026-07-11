@@ -693,6 +693,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         strict_null_checks: bool_option("strictNullChecks"),
         strict_function_types: bool_option("strictFunctionTypes"),
         strict_bind_call_apply: bool_option("strictBindCallApply"),
+        no_implicit_any: bool_option("noImplicitAny"),
         exact_optional_property_types: bool_option("exactOptionalPropertyTypes"),
         no_fallthrough_cases_in_switch: bool_option("noFallthroughCasesInSwitch"),
     }

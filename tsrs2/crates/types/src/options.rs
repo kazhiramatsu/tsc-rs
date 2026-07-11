@@ -17,6 +17,9 @@ pub struct CompilerOptions {
     /// through strict_option_value like tsc getStrictOptionValue.
     pub strict_null_checks: Option<bool>,
     pub strict_function_types: Option<bool>,
+    /// Gates the 7022/7023-family implicit-any circularity reports
+    /// (reportCircularityError 56893, getReturnTypeOfSignature 59826).
+    pub no_implicit_any: Option<bool>,
     /// Selects CallableFunction/NewableFunction over Function in the
     /// global bootstrap (initializeTypeChecker 88809-88822).
     pub strict_bind_call_apply: Option<bool>,

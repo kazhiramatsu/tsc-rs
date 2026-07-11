@@ -5,6 +5,7 @@
 //! with the full getTypeFromTypeNode port.
 
 use tsrs2_binder::{InternalSymbolName, SymbolId};
+use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     ElementFlags, IntersectionFlags, M4Dependency, ObjectFlags, PseudoBigInt, SignatureFlags,
@@ -1015,36 +1016,100 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
         }
-        if self.links.symbol(symbol).type_of_symbol.is_resolving() {
-            // tsc reportCircularityError → anyType; unreachable through
-            // M3 annotations but the sentinel keeps the contract.
-            return Ok(self.tables.intrinsics.any);
+        // The (target, kind) cycle detector (56673); an Err unwind pops
+        // the stack and leaves the slot Vacant, so a later query
+        // re-resolves instead of fabricating a type (M3-review
+        // Resolving-dangling fix — the Resolving slot state is retired
+        // for this site).
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Symbol(symbol),
+            tsrs2_types::TypeSystemPropertyName::TYPE,
+        ) {
+            let resolved = self.report_circularity_error(symbol);
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                symbol,
+                LinkSlot::Resolved(resolved),
+            );
+            return Ok(resolved);
         }
-        self.links
-            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolving);
         let declaration = self.binder.symbol(symbol).value_declaration;
-        let resolved = match declaration {
-            Some(declaration) => {
-                let (annotation, is_property, is_optional) =
-                    self.variable_like_annotation(declaration)?;
-                match annotation {
-                    Some(annotation) => {
-                        let declared = self.get_type_from_type_node(annotation)?;
-                        self.tables
-                            .add_optionality(declared, is_property, is_optional)
-                    }
-                    None => self.tables.intrinsics.any,
+        let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
+            let declaration = declaration.ok_or_else(|| {
+                Unsupported::new("symbol without value declaration (M4 synthesis)")
+            })?;
+            let (annotation, is_property, is_optional) =
+                state.variable_like_annotation(declaration)?;
+            match annotation {
+                Some(annotation) => {
+                    let declared = state.get_type_from_type_node(annotation)?;
+                    Ok(state
+                        .tables
+                        .add_optionality(declared, is_property, is_optional))
                 }
+                None => Ok(state.tables.intrinsics.any),
             }
-            None => {
-                return Err(Unsupported::new(
-                    "symbol without value declaration (M4 synthesis)",
-                ))
+        })(self);
+        let resolved = match computed {
+            Ok(resolved) => resolved,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
             }
+        };
+        let resolved = if self.pop_type_resolution() {
+            resolved
+        } else {
+            // A deeper frame flagged the cycle: the computed type is
+            // garbage (56710-56715; the ValueModule arm is dead —
+            // module symbols do not take this worker in the slice).
+            self.report_circularity_error(symbol)
         };
         self.links
             .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(resolved));
         Ok(resolved)
+    }
+
+    /// tsc-port: reportCircularityError @6.0.3
+    /// tsc-hash: adf5723b96f6db25f0049b2c3df010cc591925e84ed5d87252a8da4b4ef5cffa
+    /// tsc-span: _tsc.js:56893-56910
+    ///
+    /// The Alias arm (Circular_definition_of_import_alias_0) waits on
+    /// alias declarations (M4 5.8).
+    fn report_circularity_error(&mut self, symbol: SymbolId) -> TypeId {
+        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
+            return self.tables.intrinsics.any;
+        };
+        let annotation = self
+            .variable_like_annotation(declaration)
+            .ok()
+            .and_then(|(annotation, _, _)| annotation);
+        let name = self.symbol_display_name(symbol);
+        if annotation.is_some() {
+            self.error_at(
+                Some(declaration),
+                &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
+                &[&name],
+            );
+            return self.tables.intrinsics.error;
+        }
+        let no_implicit_any = self
+            .options
+            .strict_option_value(self.options.no_implicit_any);
+        let has_initializer = matches!(
+            self.data_of(declaration),
+            NodeData::Parameter(data) if data.initializer.is_some()
+        );
+        if no_implicit_any
+            && (self.kind_of(declaration) != SyntaxKind::Parameter || has_initializer)
+        {
+            self.error_at(
+                Some(declaration),
+                &diagnostics::_0_implicitly_has_type_any_because_it_does_not_have_a_type_annotation_and_is_referenced_directly_or_indirectly_in_its_own_initializer,
+                &[&name],
+            );
+        }
+        self.tables.intrinsics.any
     }
 
     /// The declaration shapes the M3 slice can type: property
@@ -1255,19 +1320,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 59a361ad1f8c3e47696f66ca558f78d32f511ea571477db96df219a130d55c5a
     /// tsc-span: _tsc.js:59842-59871
     ///
-    /// M3 slice: the annotation branch + the bodyless anyType fallback
+    /// Slice: the annotation branch + the bodyless anyType fallback
     /// (59815: nodeIsMissing(body) → anyType). Instantiation targets,
-    /// composites, call-chain optionality and body inference are M4/M6.
-    /// The Resolving sentinel mirrors pushTypeResolution's
-    /// ResolvedReturnType cycle → errorType (59812).
+    /// composites, call-chain optionality and body inference are
+    /// 5.2/5.5/M6. Cycles run on the resolution stack (59812/59821);
+    /// an Err unwind pops the stack and leaves the slot Vacant
+    /// (M3-review Resolving-dangling fix).
     pub fn get_return_type_of_signature(&mut self, id: SignatureId) -> CheckResult2<TypeId> {
         if let Some(resolved) = self.signature_of(id).resolved_return_type.resolved() {
             return Ok(resolved);
         }
-        if self.signature_of(id).resolved_return_type.is_resolving() {
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Signature(id),
+            tsrs2_types::TypeSystemPropertyName::RESOLVED_RETURN_TYPE,
+        ) {
             return Ok(self.tables.intrinsics.error);
         }
-        self.signatures[id.0 as usize].resolved_return_type = LinkSlot::Resolving;
         let declaration = self.signature_of(id).declaration;
         let annotation = match self.data_of(declaration) {
             NodeData::FunctionType(data) => data.r#type,
@@ -1277,10 +1345,55 @@ impl<'a> CheckerState<'a> {
             NodeData::MethodSignature(data) => data.r#type,
             _ => None,
         };
-        let resolved = match annotation {
-            Some(annotation) => self.get_type_from_type_node(annotation)?,
+        let computed = match annotation {
+            Some(annotation) => self.get_type_from_type_node(annotation),
             // Annotation-context signatures are bodyless: anyType.
-            None => self.tables.intrinsics.any,
+            None => Ok(self.tables.intrinsics.any),
+        };
+        let resolved = match computed {
+            Ok(resolved) => resolved,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
+            }
+        };
+        let resolved = if self.pop_type_resolution() {
+            resolved
+        } else {
+            // 59821-59836: a deeper frame flagged the cycle.
+            if let Some(type_node) = annotation {
+                self.error_at(
+                    Some(type_node),
+                    &diagnostics::Return_type_annotation_circularly_references_itself,
+                    &[],
+                );
+            } else if self
+                .options
+                .strict_option_value(self.options.no_implicit_any)
+            {
+                let name = self.name_of_node(declaration);
+                match name {
+                    Some(name) => {
+                        let display = tsrs2_binder::node_util::declaration_name_to_string(
+                            self.binder.source_of_node(declaration),
+                            Some(name),
+                        );
+                        self.error_at(
+                            Some(name),
+                            &diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
+                            &[&display],
+                        );
+                    }
+                    None => {
+                        self.error_at(
+                            Some(declaration),
+                            &diagnostics::Function_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
+                            &[],
+                        );
+                    }
+                }
+            }
+            self.tables.intrinsics.any
         };
         self.signatures[id.0 as usize].resolved_return_type = LinkSlot::Resolved(resolved);
         Ok(resolved)
