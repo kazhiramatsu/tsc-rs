@@ -7,7 +7,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use tsrs2_checker::{check_program, CompilerOptions, InputFile};
+use tsrs2_checker::{check_program, check_program_with_libs, CompilerOptions, InputFile};
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
@@ -284,8 +284,12 @@ pub fn run_prefix_conformance(
                         })
                     })
                     .collect::<ConformanceResult<Vec<_>>>()?;
-                let result =
-                    check_program(&input_files, &compiler_options_from_program(&truncated));
+                let libs = read_lib_inputs(&truncated.libs, &vendor_lib_dir)?;
+                let result = check_program_with_libs(
+                    &libs,
+                    &input_files,
+                    &compiler_options_from_program(&truncated),
+                );
                 let actual = t0_set(
                     result
                         .syntactic_diagnostics
@@ -630,9 +634,24 @@ impl GoldenMessageChain {
     }
 }
 
+/// The lib texts for a program, read from the vendored lib directory
+/// (the same files the oracle host loads for programJson.libs).
+fn read_lib_inputs(libs: &[String], vendor_lib_dir: &Path) -> ConformanceResult<Vec<InputFile>> {
+    libs.iter()
+        .map(|name| {
+            let text = fs::read_to_string(vendor_lib_dir.join(name))
+                .map_err(|err| format!("failed to read lib {name}: {err}"))?;
+            Ok(InputFile {
+                name: name.clone(),
+                text,
+            })
+        })
+        .collect()
+}
+
 fn current_tsrs_diagnostics(
     program: &tsrs2_harness::ProgramJson,
-    _vendor_lib_dir: &Path,
+    vendor_lib_dir: &Path,
     band: DiagnosticBand,
 ) -> ConformanceResult<Vec<GoldenDiag>> {
     let mut files = Vec::new();
@@ -647,7 +666,8 @@ fn current_tsrs_diagnostics(
         });
     }
 
-    let result = check_program(&files, &compiler_options_from_program(program));
+    let libs = read_lib_inputs(&program.libs, vendor_lib_dir)?;
+    let result = check_program_with_libs(&libs, &files, &compiler_options_from_program(program));
     let diagnostics = match band {
         DiagnosticBand::Syntactic => &result.syntactic_diagnostics,
         _ => &result.diagnostics,

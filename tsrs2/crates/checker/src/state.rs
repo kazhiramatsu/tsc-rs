@@ -233,6 +233,11 @@ pub struct CheckerState<'a> {
     pub(crate) type_parameter_defaults_in_progress: Vec<TypeId>,
 
     // ---- M4 5.4: check-driver state ----
+    /// Whether the program was built with lib files
+    /// (check_program_with_libs). Gates the lib_globals failure-band
+    /// escape: with libs loaded, a default-lib name either resolves or
+    /// is GENUINELY missing (restricted @lib) — where tsc reports too.
+    pub program_has_lib_files: bool,
     /// Any program file with a top-level `declare global` block
     /// (NodeFlags::GLOBAL_AUGMENTATION module declaration). Computed at
     /// construction; the resolver's failure band treats such programs
@@ -362,6 +367,7 @@ impl<'a> CheckerState<'a> {
             type_parameter_defaults_in_progress: Vec::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
+            program_has_lib_files: false,
             has_global_augmentation: false,
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),

@@ -963,12 +963,14 @@ impl<'a> CheckerState<'a> {
         Ok(default != self.circular_constraint_type)
     }
 
-    /// getSymbolOfDeclaration — the binder's node.symbol (JS aliasing
-    /// arms elided with the JS residual).
+    /// getSymbolOfDeclaration (49936) — the binder's node.symbol
+    /// through the getMergedSymbol chase (getLateBoundSymbol elided
+    /// with late binding; JS aliasing arms with the JS residual).
     fn get_symbol_of_declaration(&self, node: NodeId) -> CheckResult2<SymbolId> {
-        self.node_symbol(node).ok_or_else(|| {
+        let symbol = self.node_symbol(node).ok_or_else(|| {
             Unsupported::new("declaration without a bound symbol (parse-recovery tree)")
-        })
+        })?;
+        Ok(self.get_merged_symbol(symbol))
     }
 
     // ---- typeToString (the 5.4 display slice) ----

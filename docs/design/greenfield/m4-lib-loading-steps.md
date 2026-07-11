@@ -163,6 +163,13 @@ Commit: `m4 lib-loading L3: per-lib-set parse/bind cache`.
 
 ## 6. Stage L4: full measurement + gate retirement [M]
 
+- MERGED-SYMBOL CHASE AUDIT (from the L2 find): tsc's
+  getSymbolOfDeclaration (49936) is getMergedSymbol(node.symbol) — two
+  of our ports read the raw binder symbol and broke the moment lib
+  interfaces merged (appendTypeParameters minted `Promise<T, T>`).
+  Audit every `node_symbol(` consumer in the checker crate for
+  declaration-identity reads that must chase the merge, fixing each
+  with a pin.
 - Full conformance across all three bands; burn FPs to zero. Expected
   classes, in likely order: merge-band duplicates (fixture top-level
   names vs lib `declare var`s — tsc emits these too, so the work is

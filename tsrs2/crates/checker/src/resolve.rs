@@ -865,9 +865,15 @@ impl<'a> CheckerState<'a> {
         // Failure-band gates, each an honest FN escape (no emission)
         // for a case where the plain form would be an un-tsc-like
         // diagnostic:
-        // 1. Default-lib names resolve in the oracle's lib-loaded
+        // 1. LIBLESS PROGRAMS ONLY (unit probes, CLI without libs):
+        //    default-lib names resolve in the oracle's lib-loaded
         //    world (crate::lib_globals — noLib architecture artifact).
-        if crate::lib_globals::is_default_lib_global_name(name) {
+        //    A lib-loaded program either resolves these or misses them
+        //    GENUINELY (restricted @lib) — where tsc reports too, so
+        //    the emission proceeds.
+        if !self.program_has_lib_files
+            && crate::lib_globals::is_default_lib_global_name(name)
+        {
             return;
         }
         // 2. tsc's checkAndReportErrorFor* alternates (value-as-type,

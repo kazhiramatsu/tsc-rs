@@ -1485,6 +1485,14 @@ impl<'a> CheckerState<'a> {
             let Some(symbol) = self.node_symbol(declaration) else {
                 continue;
             };
+            // getSymbolOfDeclaration (49936) chases getMergedSymbol:
+            // same-named type parameters of MERGED interface
+            // declarations (lib Promise across es2015.promise +
+            // symbol.wellknown) are one merged symbol — without the
+            // chase each declaration minted its own parameter type and
+            // `Promise<T, T>` mis-reported arity 2 (lib-loading L2
+            // find; getLateBoundSymbol stays elided with late binding).
+            let symbol = self.get_merged_symbol(symbol);
             let declared = self.get_declared_type_of_type_parameter(symbol);
             if !type_parameters.contains(&declared) {
                 type_parameters.push(declared);

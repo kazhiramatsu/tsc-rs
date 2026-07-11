@@ -146,13 +146,40 @@ fn compute_byte_line_starts(text: &str) -> Vec<usize> {
 }
 
 pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckResult {
+    check_program_with_libs(&[], files, options)
+}
+
+/// Program construction under the oracle contract
+/// (m4-lib-loading-steps.md §1): `libs` are ORDINARY files prepended
+/// to the program in the order given (the harness's priority-sorted
+/// expansion; the oracle host runs noLib:true with the same list as
+/// prepended roots, so `<reference lib>` is inert and getSourceFiles
+/// order == libs ++ files). They ride the same parse/bind/globals-
+/// merge pipeline, but they are never CHECKED and no diagnostic band
+/// of theirs surfaces — tsc checks files lazily per
+/// getDiagnostics(file) call and the oracle driver only ever asks for
+/// fixture files, so a lib file's checkSourceFileWorker never runs
+/// and diagnostics FILED under a lib file are never collected.
+pub fn check_program_with_libs(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+) -> CheckResult {
     let mut diagnostics = Vec::new();
     let mut syntactic_diagnostics = Vec::new();
 
-    // tsc host semantics: files are a name-keyed map, so a later file with
-    // the same name shadows an earlier one entirely.
+    // One combined root list, libs first (the oracle host's rootNames
+    // shape). tsc host semantics: files are a name-keyed map, so a
+    // later file with the same name shadows an earlier one entirely
+    // (a fixture colliding with a lib name would shadow it — no
+    // corpus fixture does).
+    let inputs: Vec<(&InputFile, bool)> = libs
+        .iter()
+        .map(|file| (file, true))
+        .chain(files.iter().map(|file| (file, false)))
+        .collect();
     let mut last_index_by_name = std::collections::BTreeMap::new();
-    for (index, file) in files.iter().enumerate() {
+    for (index, (file, _)) in inputs.iter().enumerate() {
         last_index_by_name.insert(file.name.as_str(), index);
     }
 
@@ -162,7 +189,9 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
     // outside the bind program (semantic .json checking is a later
     // stage — ledger note).
     let mut program_sources: Vec<tsrs2_syntax::SourceFile> = Vec::new();
-    for (index, file) in files.iter().enumerate() {
+    // Parallel to program_sources: which parsed entries are lib files.
+    let mut source_is_lib: Vec<bool> = Vec::new();
+    for (index, (file, is_lib)) in inputs.iter().copied().enumerate() {
         if last_index_by_name.get(file.name.as_str()) != Some(&index) {
             continue;
         }
@@ -211,16 +240,21 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
             syntactic_diagnostics.extend(js_diagnostics.iter().cloned());
             diagnostics.extend(js_diagnostics);
         }
-        syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
-        diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
+        // Lib files contribute no syntactic band (never collected in
+        // the oracle world; the L1 lib-gate proves they parse clean).
+        if !is_lib {
+            syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
+            diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
+        }
         program_sources.push(source_file);
+        source_is_lib.push(is_lib);
     }
 
     // Bind pass: per-file binders with contiguous SymbolId bases and a
     // program-wide assigned-symbol-id counter (tsc bindSourceFile per
     // file over one heap).
     let mut binders: Vec<tsrs2_binder::Binder<'_>> = Vec::new();
-    for source_file in &program_sources {
+    for (source_file, &is_lib) in program_sources.iter().zip(&source_is_lib) {
         let (symbol_id_seed, symbol_base) = match binders.last() {
             Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
             None => (1, 0),
@@ -238,7 +272,9 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
         // requires knowing a directive suppressed NOTHING, and the
         // checker's diagnostic surface is still FN-heavy — emitting it
         // now would fabricate 2578s wherever we under-report (FP).
-        if is_js_file_name(&source_file.file_name) {
+        if is_lib {
+            // Lib bind diagnostics never surface (oracle contract).
+        } else if is_js_file_name(&source_file.file_name) {
             // canIncludeBindAndCheckDiagnostics: an EXPLICIT checkJs:
             // false fails isPlainJsFile (checkJs must be undefined)
             // AND isCheckJs — the file skips bind/check diagnostics
@@ -271,9 +307,22 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
     // none are modeled yet, so the gate is vacuously open.
     if !binders.is_empty() {
         let mut state = state::CheckerState::from_program(binders, options);
+        state.program_has_lib_files = source_is_lib.iter().any(|&is_lib| is_lib);
+        // The driver runs over FIXTURE files only: tsc checks lazily
+        // per getDiagnostics(file) call and lib files are never asked
+        // for (oracle contract) — their declarations still resolve on
+        // demand through the lazy machinery.
         for index in 0..state.binder.file_count() {
-            state.check_source_file(index);
+            if !source_is_lib[index] {
+                state.check_source_file(index);
+            }
         }
+        let lib_names: std::collections::HashSet<&str> = program_sources
+            .iter()
+            .zip(&source_is_lib)
+            .filter(|(_, &is_lib)| is_lib)
+            .map(|(source, _)| source.file_name.as_str())
+            .collect();
         let by_name: std::collections::HashMap<&str, &tsrs2_syntax::SourceFile> = program_sources
             .iter()
             .map(|source| (source.file_name.as_str(), source))
@@ -294,6 +343,17 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
                 .push(diagnostic);
         }
         for (file_name, file_diagnostics) in checker_diagnostics_by_file {
+            // Diagnostics ANCHORED in a lib file (the lib-side span of
+            // a duplicate pair, a lazily-forced lib-internal error)
+            // are filed under that lib file and never collected in
+            // the oracle world — same exclusion shape as the
+            // file-less arm below.
+            if file_name
+                .as_deref()
+                .is_some_and(|name| lib_names.contains(name))
+            {
+                continue;
+            }
             let javascript_file = file_name.as_deref().is_some_and(is_js_file_name);
             if javascript_file {
                 if options.check_js != Some(false) {
@@ -408,6 +468,113 @@ mod tests {
         );
     }
 
+    // ---- lib-loading L2: lib-backed programs (oracle-pinned) ----
+
+    fn es5_lib() -> InputFile {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+        );
+        InputFile {
+            name: "lib.es5.d.ts".to_owned(),
+            text: std::fs::read_to_string(path).expect("vendored lib.es5.d.ts"),
+        }
+    }
+
+    fn lib_backed_diags(text: &str) -> Vec<(u32, u32, u32, String)> {
+        let result = check_program_with_libs(
+            &[es5_lib()],
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: text.to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        result
+            .diagnostics
+            .iter()
+            .map(|d| {
+                (
+                    d.code(),
+                    d.start.unwrap_or(u32::MAX),
+                    d.length.unwrap_or(u32::MAX),
+                    d.message_text().to_owned(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn lib_names_resolve_through_the_loaded_lib() {
+        assert_eq!(lib_backed_diags("interface I<T extends Date> { x: T }
+"), []);
+    }
+
+    #[test]
+    fn restricted_lib_set_reports_2583_with_the_lib_argument() {
+        // Map is not in es5: the failure is GENUINE under this lib set
+        // (the lib_globals gate stands down for lib-loaded programs)
+        // and the suggested-lib arm supplies tsc's exact argument.
+        let diags = lib_backed_diags("interface I<T extends Map> { x: T }
+");
+        assert_eq!(
+            diags,
+            [(
+                2583,
+                22,
+                3,
+                "Cannot find name 'Map'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2015' or later."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn lib_array_members_drive_variance_measurement() {
+        // Mutable method parameters are bivariant, so es5 Array
+        // measures covariant and `out` holds (oracle-pinned clean)...
+        assert_eq!(lib_backed_diags("interface Wrap<out T> { xs: T[] }
+"), []);
+        // ...including when a fixture declaration MERGES into the lib
+        // interface (both member sets resolve; oracle-pinned clean).
+        assert_eq!(
+            lib_backed_diags(
+                "interface Array<T> { fixtureExtra: T }
+interface Wrap<out T> { xs: T[] }
+"
+            ),
+            []
+        );
+        assert_eq!(
+            lib_backed_diags(
+                "interface Array<T> { sink: (x: T) => void }
+interface Wrap<out T> { xs: T[] }
+"
+            ),
+            []
+        );
+        assert_eq!(
+            lib_backed_diags("interface Wrap<out T> { xs: ReadonlyArray<T> }
+"),
+            []
+        );
+    }
+
+    #[test]
+    fn lib_array_in_parameter_position_reports_2636() {
+        let diags = lib_backed_diags("interface Wrap<out T> { f: (xs: T[]) => void }
+");
+        assert_eq!(diags.len(), 1, "{diags:?}");
+        assert_eq!((diags[0].0, diags[0].1, diags[0].2), (2636, 15, 5));
+        assert!(
+            diags[0].3.starts_with(
+                "Type 'Wrap<sub-T>' is not assignable to type 'Wrap<super-T>'"
+            ),
+            "{}",
+            diags[0].3
+        );
+    }
+
     #[test]
     fn check_program_includes_parse_diagnostics() {
         let result = check_program(
@@ -420,5 +587,36 @@ mod tests {
 
         assert_eq!(result.diagnostics.len(), 1);
         assert_eq!(result.diagnostics[0].code(), 1002);
+    }
+
+    /// Promise<T> is declared in BOTH es2015.promise and
+    /// es2015.symbol.wellknown; the merged symbol must expose ONE T
+    /// (getSymbolOfDeclaration's getMergedSymbol chase inside
+    /// appendTypeParameters) — without the chase the declared type
+    /// read `Promise<T, T>` and every `Promise<X>` reference tripped
+    /// a spurious 2314 (lib-loading L2 find: the async-fixture FPs).
+    #[test]
+    fn merged_lib_interface_type_parameters_unify() {
+        let vendor = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../vendor/typescript-6.0.3/lib/"
+        );
+        let lib = |name: &str| InputFile {
+            name: name.to_owned(),
+            text: std::fs::read_to_string(format!("{vendor}{name}")).expect("vendored lib"),
+        };
+        let result = check_program_with_libs(
+            &[
+                lib("lib.es5.d.ts"),
+                lib("lib.es2015.promise.d.ts"),
+                lib("lib.es2015.symbol.wellknown.d.ts"),
+            ],
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "type X = Promise<number>;\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(result.diagnostics, []);
     }
 }
