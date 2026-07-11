@@ -81,7 +81,8 @@ pub struct IndexInfo {
     pub key_type: TypeId,
     pub value_type: TypeId,
     pub is_readonly: bool,
-    pub declaration: NodeId,
+    /// None for synthesized infos (anyBaseTypeIndexInfo 47282).
+    pub declaration: Option<NodeId>,
 }
 
 /// tsc resolved structured-type members (setStructuredTypeMembers
@@ -370,6 +371,14 @@ impl<'a> CheckerState<'a> {
         &self.members[id.0 as usize]
     }
 
+    /// In-place mutation for tsc's repeated setStructuredTypeMembers
+    /// over the SAME ResolvedType object (resolveObjectTypeMembers
+    /// 57829/57840: the early write makes partial members observable
+    /// to mid-cycle readers, then inheritance mutates the table).
+    pub fn members_mut(&mut self, id: MembersId) -> &mut ResolvedMembers {
+        &mut self.members[id.0 as usize]
+    }
+
     pub fn alloc_signature(&mut self, signature: Signature) -> SignatureId {
         let id = SignatureId(self.signatures.len() as u32);
         self.signatures.push(signature);
@@ -515,10 +524,17 @@ impl<'a> CheckerState<'a> {
                 // slot fills through getTypeArguments.
                 self.tables.try_type_arguments(ty).is_some()
             }
-            // No call site pushes these yet: ResolvedBaseConstructorType/
-            // ResolvedBaseTypes land with 5.3's base-type resolvers,
-            // WriteType with 5.1's accessor typing,
-            // ParameterInitializerContainsUndefined with 5.8.
+            TypeSystemPropertyName::RESOLVED_BASE_TYPES => {
+                let ResolutionTarget::Type(ty) = target else {
+                    unreachable!("ResolvedBaseTypes resolution targets are types");
+                };
+                // `!!type.baseTypesResolved` (55772).
+                self.links.ty(ty).base_types_resolved
+            }
+            // No call site pushes these yet: ResolvedBaseConstructorType
+            // lands with 5.3e's class base resolvers, WriteType with
+            // 5.3e accessor typing, ParameterInitializerContainsUndefined
+            // with 5.8.
             _ => unreachable!(
                 "no pushTypeResolution call site passes {property_name:?} yet (owning stage per M4 doc)"
             ),
@@ -592,6 +608,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: error @6.0.3
     /// tsc-hash: be9cd419909a0ad4fd544342a9a6c97f837da3819b2844e45c7be96b438439c9
     /// tsc-span: _tsc.js:47583-47587
+    ///
+    /// diagnostics.add (createDiagnosticCollection 16229-16246) drops
+    /// EXACT duplicates via insertSorted's equality comparer — first
+    /// live emitter of duplicates is the circular-base-type pair of
+    /// report sites (getBaseTypes pop-failure + hasBaseType arm), which
+    /// tsc collapses to one 2310 per declaration.
     pub fn error_at(
         &mut self,
         location: Option<NodeId>,
@@ -599,6 +621,13 @@ impl<'a> CheckerState<'a> {
         args: &[&str],
     ) -> usize {
         let diagnostic = self.create_error(location, message, args);
+        if let Some(existing) = self
+            .diagnostics
+            .iter()
+            .position(|existing| *existing == diagnostic)
+        {
+            return existing;
+        }
         self.diagnostics.push(diagnostic);
         self.diagnostics.len() - 1
     }

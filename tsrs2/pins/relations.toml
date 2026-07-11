@@ -1591,3 +1591,69 @@ setup = "type A = [number?];"
 source = "[]"
 target = "A"
 expect = "yes"
+
+# ---- M4 5.3a member resolution (heritage + instantiated references) ----
+
+[[pair]]
+setup = "interface I<T> { a: T }"
+source = "I<\"x\">"
+target = "I<string>"
+expect = "yes"
+
+[[pair]]
+setup = "interface I<T> { a: T }"
+source = "I<string>"
+target = "I<\"x\">"
+expect = "no"
+
+[[pair]]
+setup = "interface A { a: string }\ninterface B extends A { b: number }"
+source = "B"
+target = "A"
+expect = "yes"
+
+[[pair]]
+setup = "interface A { a: string }\ninterface B extends A { b: number }"
+source = "A"
+target = "B"
+expect = "no"
+
+[[pair]]
+setup = "interface A<T> { a: T }\ninterface B<U> extends A<U> { b: U }"
+source = "B<number>"
+target = "A<number>"
+expect = "yes"
+
+[[pair]]
+setup = "interface A<T> { a: T }\ninterface B<U> extends A<U> { b: U }"
+source = "B<number>"
+target = "A<string>"
+expect = "no"
+
+# Deferred alias-hosted reference on both sides.
+[[pair]]
+setup = "interface Box<T> { value: T }\ntype A = Box<number>;"
+source = "A"
+target = "Box<number>"
+expect = "yes"
+
+# Mutually recursive generic pair: expansion depth + recursion
+# identity over instantiated reference members.
+[[pair]]
+setup = "interface A<T> { next: B<T> }\ninterface B<T> { next: A<T> }"
+source = "A<string>"
+target = "B<string>"
+expect = "yes"
+
+[[pair]]
+setup = "interface A<T> { next: B<T> }\ninterface B<T> { next: A<T> }"
+source = "A<string>"
+target = "B<number>"
+expect = "yes"
+
+# this-typed property: the this-argument substitution feeds relations.
+[[pair]]
+setup = "interface C { self: this; tag: string }"
+source = "C"
+target = "{ self: C, tag: string }"
+expect = "yes"

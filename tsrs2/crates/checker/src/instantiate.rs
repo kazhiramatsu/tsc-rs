@@ -2184,7 +2184,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isNodeDescendantOf @6.0.3
     /// tsc-hash: 4fecae1da46379a5f34e9780afd471333c5b1f528f936788b1b0e19b4c85b026
     /// tsc-span: _tsc.js:15672-15678
-    fn is_node_descendant_of(&self, node: NodeId, ancestor: NodeId) -> bool {
+    pub(crate) fn is_node_descendant_of(&self, node: NodeId, ancestor: NodeId) -> bool {
         let mut current = Some(node);
         while let Some(node) = current {
             if node == ancestor {
@@ -2545,11 +2545,18 @@ mod tests {
                     .expect("instantiation in slice");
                 assert_ne!(u_shell, anonymous);
                 assert_ne!(u_shell, shell);
-                // Member resolution of the shell is 5.3 work and must
-                // escape, not read the unmapped symbol table.
-                let members = state.resolve_structured_type_members(shell);
-                let reason = members.expect_err("instantiated members escape").reason;
-                assert!(reason.contains("M4 5.3"), "{reason}");
+                // Member resolution of the shell reads the target's
+                // properties through the mapper (5.3a): `a: T` lands as
+                // `a: string`.
+                let members = state
+                    .resolve_structured_type_members(shell)
+                    .expect("instantiated members resolve");
+                let properties = state.members_of(members).properties.clone();
+                assert_eq!(properties.len(), 1);
+                let property_type = state
+                    .get_type_of_symbol(properties[0])
+                    .expect("instantiated property type");
+                assert_eq!(property_type, string);
             },
         );
     }

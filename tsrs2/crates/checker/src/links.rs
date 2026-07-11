@@ -81,6 +81,11 @@ pub struct SymbolLinks {
     /// tsc links.typeParameters for generic type-alias symbols
     /// (getDeclaredTypeOfTypeAlias 57416).
     pub type_parameters: Option<Vec<TypeId>>,
+    /// tsc links.resolvedMembers (getResolvedMembersOrExportsOfSymbol
+    /// 57712) — the early⊕late member table of a late-binding
+    /// container; equal to `symbol.members` while no late-bindable
+    /// member exists (the pre-5.5 slice).
+    pub resolved_members: LinkSlot<tsrs2_binder::SymbolTable>,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -147,6 +152,20 @@ pub struct TypeLinks {
     /// arguments in getTypeArguments (60211); set by
     /// getObjectTypeInstantiation's deferred-reference result arm.
     pub deferred_mapper: Option<MapperId>,
+    /// tsc InterfaceTypeWithDeclaredMembers.declaredProperties/
+    /// declaredCallSignatures/declaredConstructSignatures/
+    /// declaredIndexInfos (resolveDeclaredMembers 57602) — one
+    /// ResolvedMembers holding the OWN members, distinct from
+    /// resolved_members (which merges heritage).
+    pub declared_members: LinkSlot<crate::state::MembersId>,
+    /// tsc InterfaceType.resolvedBaseTypes (getBaseTypes 57218).
+    /// MUTABLE like tsc's field: interfaces initialize to [] and push
+    /// per base; a mid-cycle reader observes the partial list.
+    pub resolved_base_types: Option<Vec<TypeId>>,
+    /// tsc InterfaceType.baseTypesResolved (57224/57244) — set true
+    /// even when the resolution stack flags a cycle, freezing whatever
+    /// resolvedBaseTypes holds.
+    pub base_types_resolved: bool,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -420,6 +439,69 @@ impl LinksTables {
         );
         links.instantiated_target = Some(target);
         links.instantiated_mapper = Some(mapper);
+    }
+
+    /// getResolvedMembersOrExportsOfSymbol's links[resolutionKind]
+    /// cache (57717/57763).
+    pub fn set_symbol_resolved_members(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: tsrs2_binder::SymbolTable,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.symbol.entry(id).or_default().resolved_members,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// resolveDeclaredMembers' declared-members stamp (57604-57613),
+    /// written once per class/interface/tuple target.
+    pub fn set_type_declared_members(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: crate::state::MembersId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().declared_members,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// The tsc-mutable `type.resolvedBaseTypes` assignment (57225,
+    /// 57253, 57320-57332): interfaces re-assign and push, so this
+    /// setter deliberately allows overwrite.
+    pub fn set_type_resolved_base_types(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: Vec<TypeId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.ty.entry(id).or_default().resolved_base_types = Some(value);
+    }
+
+    /// `type.baseTypesResolved = true` (57244).
+    pub fn set_type_base_types_resolved(&mut self, speculation_depth: u32, id: TypeId) {
+        Self::assert_writable(speculation_depth);
+        self.ty.entry(id).or_default().base_types_resolved = true;
+    }
+
+    /// The Err-unwind retraction for the members slot: tsc has no
+    /// failure mode here (setStructuredTypeMembers always completes),
+    /// so a partially-populated table left by an Unsupported unwind
+    /// must not be observable — the slot reverts to Vacant and a later
+    /// query re-resolves.
+    pub fn retract_type_members(&mut self, id: TypeId) {
+        let slot = &mut self.ty.entry(id).or_default().resolved_members;
+        assert!(
+            matches!(slot, LinkSlot::Resolved(_)),
+            "retract without a members write for {id:?}"
+        );
+        *slot = LinkSlot::Vacant;
     }
 
     /// createDeferredTypeReference's node/mapper stamp (60196-60197),
