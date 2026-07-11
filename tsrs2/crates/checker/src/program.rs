@@ -165,4 +165,11 @@ impl<'a> ProgramBinder<'a> {
     pub fn flags_of(&self, node: NodeId) -> tsrs2_types::NodeFlags {
         self.binder_of_node(node).flags_of(node)
     }
+
+    /// tsc isExternalOrCommonJsModule for the file owning `node`.
+    pub fn is_external_or_common_js_module_of_node(&self, node: NodeId) -> bool {
+        let binder = self.binder_of_node(node);
+        binder.source.external_module_indicator.is_some()
+            || binder.common_js_module_indicator.is_some()
+    }
 }

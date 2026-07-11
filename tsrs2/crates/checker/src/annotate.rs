@@ -24,15 +24,15 @@ impl<'a> CheckerState<'a> {
         self.binder.source_of_node(node).arena.node(node).kind
     }
 
-    fn data_of(&self, node: NodeId) -> &'a NodeData {
+    pub(crate) fn data_of(&self, node: NodeId) -> &'a NodeData {
         &self.binder.source_of_node(node).arena.node(node).data
     }
 
-    fn parent_of(&self, node: NodeId) -> Option<NodeId> {
+    pub(crate) fn parent_of(&self, node: NodeId) -> Option<NodeId> {
         self.binder.source_of_node(node).arena.node(node).parent
     }
 
-    fn nodes_of(&self, array: Option<NodeArrayId>) -> Vec<NodeId> {
+    pub(crate) fn nodes_of(&self, array: Option<NodeArrayId>) -> Vec<NodeId> {
         match array {
             Some(array) => self.binder.node_array(array).nodes.clone(),
             None => Vec::new(),
@@ -615,11 +615,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d850bffcaf58ba26258dd2c696ae5f925b00c2314d7d08f0ac4c33f9a22d753a
     /// tsc-span: _tsc.js:60557-60592
     ///
-    /// Combined with the M3 slices of resolveTypeReferenceName
-    /// (60372-60379) and getTypeReferenceType (60380-60405): plain
-    /// identifier names, file-scope resolution, non-generic
-    /// class/interface dispatch only. Type aliases, enums, qualified
-    /// names and type arguments are M4 rows.
+    /// Combined with the slices of resolveTypeReferenceName
+    /// (60372-60379, the real resolveEntityName from M4 5.1a) and
+    /// getTypeReferenceType (60380-60405): non-generic class/interface
+    /// dispatch only. Type aliases, enums and type arguments are M4
+    /// 5.1b/5.3b rows. An unresolved name is tsc's unknownSymbol →
+    /// errorType; the probe keeps the Unsupported channel until the
+    /// 5.4 driver makes errorType observable through diagnostics.
     fn get_type_from_type_reference(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
@@ -633,13 +635,15 @@ impl<'a> CheckerState<'a> {
         let type_name = data
             .type_name
             .ok_or_else(|| Unsupported::new("type reference with missing name"))?;
-        let Some(name) = self.identifier_text(type_name).map(str::to_owned) else {
-            return Err(Unsupported::new("qualified type names (M4)"));
-        };
-        let Some(symbol) = self.resolve_file_scope_name(&name, SymbolFlags::TYPE) else {
-            return Err(Unsupported::new(format!(
-                "unresolved type name '{name}' (file-scope resolveEntityName slice)"
-            )));
+        let Some(symbol) = self.resolve_entity_name(
+            type_name,
+            SymbolFlags::TYPE,
+            /*ignore_errors*/ false,
+            None,
+        ) else {
+            return Err(Unsupported::new(
+                "unresolved type name (unknownSymbol -> errorType, observable at M4 5.4)",
+            ));
         };
         let flags = self.symbol_flags(symbol);
         let resolved = if flags.intersects(SymbolFlags::INTERFACE) {

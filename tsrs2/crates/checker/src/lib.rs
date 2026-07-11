@@ -10,6 +10,7 @@ pub mod merge;
 pub mod program;
 pub mod relate;
 pub mod relpin;
+pub mod resolve;
 pub mod state;
 pub mod structural;
 pub mod unions;
