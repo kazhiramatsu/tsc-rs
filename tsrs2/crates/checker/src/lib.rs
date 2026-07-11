@@ -155,8 +155,11 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
 /// expansion; the oracle host runs noLib:true with the same list as
 /// prepended roots, so `<reference lib>` is inert and getSourceFiles
 /// order == libs ++ files). They ride the same parse/bind/globals-
-/// merge pipeline, but they are never CHECKED and no diagnostic band
-/// of theirs surfaces — tsc checks files lazily per
+/// merge pipeline through a per-lib-set CACHED prefix (LibBundle:
+/// same-key programs share one parsed+bound copy — exact, because
+/// libs are the program prefix and their id bases are therefore
+/// identical across programs). Lib files are never CHECKED and no
+/// diagnostic band of theirs surfaces — tsc checks files lazily per
 /// getDiagnostics(file) call and the oracle driver only ever asks for
 /// fixture files, so a lib file's checkSourceFileWorker never runs
 /// and diagnostics FILED under a lib file are never collected.
@@ -168,30 +171,41 @@ pub fn check_program_with_libs(
     let mut diagnostics = Vec::new();
     let mut syntactic_diagnostics = Vec::new();
 
-    // One combined root list, libs first (the oracle host's rootNames
-    // shape). tsc host semantics: files are a name-keyed map, so a
-    // later file with the same name shadows an earlier one entirely
-    // (a fixture colliding with a lib name would shadow it — no
-    // corpus fixture does).
-    let inputs: Vec<(&InputFile, bool)> = libs
+    // tsc host semantics: files are a name-keyed map, so a fixture
+    // file sharing a lib's name provides the TEXT everywhere. The
+    // cached prefix cannot honor per-program shadowing, so a shadowed
+    // lib simply drops from the prefix (the fixture supplies the
+    // content at its own position; position drifts from tsc's only in
+    // this case, which no corpus fixture produces).
+    let fixture_names: std::collections::HashSet<&str> =
+        files.iter().map(|file| file.name.as_str()).collect();
+    let effective_libs: Vec<&InputFile> = libs
         .iter()
-        .map(|file| (file, true))
-        .chain(files.iter().map(|file| (file, false)))
+        .filter(|lib| !fixture_names.contains(lib.name.as_str()))
         .collect();
+    let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
+    let (lib_sources, lib_binders): (
+        &[tsrs2_syntax::SourceFile],
+        &[tsrs2_binder::Binder<'_>],
+    ) = match bundle {
+        Some(bundle) => (bundle.sources, bundle.binders),
+        None => (&[], &[]),
+    };
+
+    // Fixture-file shadowing (unchanged from the libless world): a
+    // later file with the same name shadows an earlier one entirely.
     let mut last_index_by_name = std::collections::BTreeMap::new();
-    for (index, (file, _)) in inputs.iter().enumerate() {
+    for (index, file) in files.iter().enumerate() {
         last_index_by_name.insert(file.name.as_str(), index);
     }
 
-    // Program-file parse pass (M4 5.0): files parse in program order
-    // with contiguous NodeId/NodeArrayId bases so the checker sees
-    // tsc's one-heap identity space; .json inputs parse as JSON values
-    // outside the bind program (semantic .json checking is a later
-    // stage — ledger note).
+    // Fixture parse pass (M4 5.0): files parse in program order with
+    // contiguous NodeId/NodeArrayId bases CONTINUING FROM THE LIB
+    // PREFIX so the checker sees tsc's one-heap identity space; .json
+    // inputs parse as JSON values outside the bind program (semantic
+    // .json checking is a later stage — ledger note).
     let mut program_sources: Vec<tsrs2_syntax::SourceFile> = Vec::new();
-    // Parallel to program_sources: which parsed entries are lib files.
-    let mut source_is_lib: Vec<bool> = Vec::new();
-    for (index, (file, is_lib)) in inputs.iter().copied().enumerate() {
+    for (index, file) in files.iter().enumerate() {
         if last_index_by_name.get(file.name.as_str()) != Some(&index) {
             continue;
         }
@@ -217,7 +231,10 @@ pub fn check_program_with_libs(
         };
         let (node_id_base, node_array_id_base) = match program_sources.last() {
             Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
-            None => (0, 0),
+            None => lib_sources
+                .last()
+                .map(|previous| (previous.arena.node_end(), previous.arena.array_end()))
+                .unwrap_or((0, 0)),
         };
         let source_file = tsrs2_syntax::parse_source_file(
             file.name.clone(),
@@ -240,30 +257,28 @@ pub fn check_program_with_libs(
             syntactic_diagnostics.extend(js_diagnostics.iter().cloned());
             diagnostics.extend(js_diagnostics);
         }
-        // Lib files contribute no syntactic band (never collected in
-        // the oracle world; the L1 lib-gate proves they parse clean).
-        if !is_lib {
-            syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
-            diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
-        }
+        syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
+        diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
         program_sources.push(source_file);
-        source_is_lib.push(is_lib);
     }
 
-    // Bind pass: per-file binders with contiguous SymbolId bases and a
-    // program-wide assigned-symbol-id counter (tsc bindSourceFile per
+    // Fixture bind pass: per-file binders with contiguous SymbolId
+    // bases continuing from the lib prefix (tsc bindSourceFile per
     // file over one heap).
     let mut binders: Vec<tsrs2_binder::Binder<'_>> = Vec::new();
-    for (source_file, &is_lib) in program_sources.iter().zip(&source_is_lib) {
+    for source_file in &program_sources {
         let (symbol_id_seed, symbol_base) = match binders.last() {
             Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
-            None => (1, 0),
+            None => lib_binders
+                .last()
+                .map(|previous| (previous.next_symbol_id(), previous.symbols.next_id().0))
+                .unwrap_or((1, 0)),
         };
         let mut binder =
             tsrs2_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
         binder.bind_source_file();
         // tsc getBindAndCheckDiagnosticsForFileNoCache (123717): plain
-        // JS files (checkJs unmodeled, so every JS file is plain)
+        // JS files (checkJs unmodeled beyond the explicit-false skip)
         // filter bind diagnostics to the plainJSErrors allowlist and
         // SKIP the comment-directive merge
         // (includeBindAndCheckDiagnostics = !isPlainJs); TS files get
@@ -272,9 +287,7 @@ pub fn check_program_with_libs(
         // requires knowing a directive suppressed NOTHING, and the
         // checker's diagnostic surface is still FN-heavy — emitting it
         // now would fabricate 2578s wherever we under-report (FP).
-        if is_lib {
-            // Lib bind diagnostics never surface (oracle contract).
-        } else if is_js_file_name(&source_file.file_name) {
+        if is_js_file_name(&source_file.file_name) {
             // canIncludeBindAndCheckDiagnostics: an EXPLICIT checkJs:
             // false fails isPlainJsFile (checkJs must be undefined)
             // AND isCheckJs — the file skips bind/check diagnostics
@@ -300,28 +313,24 @@ pub fn check_program_with_libs(
 
     // Checker-state construction (M4 5.0) + the check driver (M4 5.4):
     // the initializeTypeChecker slice runs in from_program (globals
-    // merge across non-module files + cross-file duplicate reporting),
-    // then files check IN PROGRAM ORDER (tsc getSemanticDiagnostics
-    // per file over one checker). Options diagnostics (bad option
-    // combos, core-interfaces §8) would gate ahead of this block —
-    // none are modeled yet, so the gate is vacuously open.
-    if !binders.is_empty() {
-        let mut state = state::CheckerState::from_program(binders, options);
-        state.program_has_lib_files = source_is_lib.iter().any(|&is_lib| is_lib);
-        // The driver runs over FIXTURE files only: tsc checks lazily
-        // per getDiagnostics(file) call and lib files are never asked
-        // for (oracle contract) — their declarations still resolve on
-        // demand through the lazy machinery.
-        for index in 0..state.binder.file_count() {
-            if !source_is_lib[index] {
-                state.check_source_file(index);
-            }
+    // merge across non-module files — lib prefix first — plus the
+    // cross-file duplicate reporting), then FIXTURE files check IN
+    // PROGRAM ORDER (tsc getSemanticDiagnostics per file over one
+    // checker; lib files are never asked for). Options diagnostics
+    // (bad option combos, core-interfaces §8) would gate ahead of this
+    // block — none are modeled yet, so the gate is vacuously open.
+    let binder_refs: Vec<&tsrs2_binder::Binder<'_>> =
+        lib_binders.iter().chain(binders.iter()).collect();
+    if !binder_refs.is_empty() {
+        let lib_count = lib_binders.len();
+        let mut state = state::CheckerState::from_program(binder_refs, options);
+        state.program_has_lib_files = lib_count > 0;
+        for index in lib_count..state.binder.file_count() {
+            state.check_source_file(index);
         }
-        let lib_names: std::collections::HashSet<&str> = program_sources
+        let lib_names: std::collections::HashSet<&str> = lib_sources
             .iter()
-            .zip(&source_is_lib)
-            .filter(|(_, &is_lib)| is_lib)
-            .map(|(source, _)| source.file_name.as_str())
+            .map(|source| source.file_name.as_str())
             .collect();
         let by_name: std::collections::HashMap<&str, &tsrs2_syntax::SourceFile> = program_sources
             .iter()
@@ -357,13 +366,9 @@ pub fn check_program_with_libs(
             let javascript_file = file_name.as_deref().is_some_and(is_js_file_name);
             if javascript_file {
                 if options.check_js != Some(false) {
-                    diagnostics.extend(
-                        file_diagnostics
-                            .into_iter()
-                            .filter(|diagnostic| {
-                                plain_js_errors::is_plain_js_error(diagnostic.code())
-                            }),
-                    );
+                    diagnostics.extend(file_diagnostics.into_iter().filter(|diagnostic| {
+                        plain_js_errors::is_plain_js_error(diagnostic.code())
+                    }));
                 }
                 continue;
             }
@@ -403,6 +408,100 @@ pub fn check_program_with_libs(
         diagnostics,
         syntactic_diagnostics,
     }
+}
+
+/// A parsed+bound lib-set prefix, shared across programs.
+///
+/// EXACTNESS (m4-lib-loading-steps.md D3): libs are the program
+/// PREFIX, so for a fixed lib list every lib file's
+/// NodeId/NodeArrayId/SymbolId bases are identical across programs —
+/// the cached arenas ARE the arenas an uncached run would build. The
+/// bundle is deliberately leaked (process-lifetime; bounded by the
+/// distinct lib-set count, 39 across the conformance corpus), which
+/// resolves the sources↔binders self-reference without unsafe.
+/// Read-only-after-bind is structural: ProgramBinder holds shared
+/// references and its symbol_mut refuses file-owned ids.
+struct LibBundle {
+    sources: &'static [tsrs2_syntax::SourceFile],
+    binders: &'static [tsrs2_binder::Binder<'static>],
+}
+
+/// The per-lib-set bundle cache. Keyed by the ordered (name, text)
+/// list plus the FULL CompilerOptions (the binder reads options; the
+/// whole struct is small and Eq/Hash — narrow to the proven-read
+/// subset only if the option matrix measurably multiplies entries).
+/// `TSRS_LIB_BUNDLE_CACHE=0` bypasses the map (fresh build+leak per
+/// call) — the L3 A/B lever proving reuse changes nothing.
+fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
+    use std::collections::HashMap;
+    use std::hash::{Hash, Hasher};
+    use std::sync::{Mutex, OnceLock};
+
+    type Key = (Vec<(String, u64)>, CompilerOptions);
+    static CACHE: OnceLock<Mutex<HashMap<Key, &'static LibBundle>>> = OnceLock::new();
+
+    let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE")
+        .map_or(true, |value| value != "0");
+    let key: Key = (
+        libs.iter()
+            .map(|lib| {
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                lib.text.hash(&mut hasher);
+                (lib.name.clone(), hasher.finish())
+            })
+            .collect(),
+        options.clone(),
+    );
+    if cache_enabled {
+        let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+        if let Some(bundle) = cache.lock().expect("lib bundle cache").get(&key) {
+            return bundle;
+        }
+    }
+    let bundle = build_lib_bundle(libs, options);
+    if cache_enabled {
+        let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+        cache.lock().expect("lib bundle cache").insert(key, bundle);
+    }
+    bundle
+}
+
+fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
+    // Binder borrows its CompilerOptions for the bundle's lifetime.
+    let options: &'static CompilerOptions = Box::leak(Box::new(options.clone()));
+    let mut sources: Vec<tsrs2_syntax::SourceFile> = Vec::new();
+    for lib in libs {
+        let (node_id_base, node_array_id_base) = match sources.last() {
+            Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
+            None => (0, 0),
+        };
+        sources.push(tsrs2_syntax::parse_source_file(
+            lib.name.clone(),
+            lib.text.clone(),
+            tsrs2_syntax::ParseOptions {
+                language_variant: tsrs2_syntax::LanguageVariant::Standard,
+                javascript_file: false,
+                node_id_base,
+                node_array_id_base,
+            },
+            None,
+        ));
+    }
+    let sources: &'static [tsrs2_syntax::SourceFile] = Box::leak(sources.into_boxed_slice());
+    let mut binders: Vec<tsrs2_binder::Binder<'static>> = Vec::new();
+    for source in sources {
+        let (symbol_id_seed, symbol_base) = match binders.last() {
+            Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
+            None => (1, 0),
+        };
+        let mut binder =
+            tsrs2_binder::Binder::with_bases(source, options, symbol_id_seed, symbol_base);
+        binder.bind_source_file();
+        binders.push(binder);
+    }
+    let binders: &'static [tsrs2_binder::Binder<'static>] =
+        Box::leak(binders.into_boxed_slice());
+    Box::leak(Box::new(LibBundle { sources, binders }))
 }
 
 #[cfg(test)]

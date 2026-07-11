@@ -92,14 +92,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d38909f3d76db468de6e0df4d57914bb34e5d0049669cfa184e092e62378ddf5
     /// tsc-span: _tsc.js:49932-49935
     pub fn get_merged_symbol(&self, symbol: SymbolId) -> SymbolId {
-        self.binder.symbol(symbol).merged_into.unwrap_or(symbol)
+        self.merged_symbols.get(&symbol).copied().unwrap_or(symbol)
     }
 
     /// tsc-port: recordMergedSymbol @6.0.3
     /// tsc-hash: 3d180845d677f642074afc2950c818459a777cf6c61eb91f477e0a105248c98e
     /// tsc-span: _tsc.js:47689-47695
+    /// tsc stamps source.mergeId and keys the per-checker
+    /// mergedSymbols map with it; the map IS per-program state, so it
+    /// lives on CheckerState — the source symbol (possibly a shared
+    /// lib-binder symbol) is never mutated (lib-loading L3 invariant:
+    /// file binders are read-only after bind).
     fn record_merged_symbol(&mut self, target: SymbolId, source: SymbolId) {
-        self.binder.symbol_mut(source).merged_into = Some(target);
+        self.merged_symbols.insert(source, target);
     }
 
     /// tsc-port: cloneSymbol @6.0.3

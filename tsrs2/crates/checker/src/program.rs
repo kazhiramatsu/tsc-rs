@@ -14,8 +14,12 @@ use tsrs2_syntax::{NodeArray, NodeArrayId, NodeId, SourceFile};
 use tsrs2_types::SymbolFlags;
 
 pub struct ProgramBinder<'a> {
-    /// Per-file binder runs in program order.
-    file_binders: Vec<Binder<'a>>,
+    /// Per-file binder runs in program order — BORROWED so cached lib
+    /// binders (leaked, 'static) and per-program fixture binders can
+    /// share one program view; binders are read-only after
+    /// bind_source_file (M2 design), which the shared reference now
+    /// enforces structurally.
+    file_binders: Vec<&'a Binder<'a>>,
     /// Cached per-file node-id bases (ascending) for owner lookup.
     node_bases: Vec<u32>,
     /// Cached per-file node-array-id bases (ascending).
@@ -27,7 +31,7 @@ pub struct ProgramBinder<'a> {
 }
 
 impl<'a> ProgramBinder<'a> {
-    pub fn new(file_binders: Vec<Binder<'a>>) -> Self {
+    pub fn new(file_binders: Vec<&'a Binder<'a>>) -> Self {
         assert!(
             !file_binders.is_empty(),
             "a program has at least one source file"
@@ -72,12 +76,12 @@ impl<'a> ProgramBinder<'a> {
         self.file_binders.len()
     }
 
-    pub fn files(&self) -> impl Iterator<Item = &Binder<'a>> {
-        self.file_binders.iter()
+    pub fn files(&self) -> impl Iterator<Item = &'a Binder<'a>> + '_ {
+        self.file_binders.iter().copied()
     }
 
-    pub fn file(&self, index: usize) -> &Binder<'a> {
-        &self.file_binders[index]
+    pub fn file(&self, index: usize) -> &'a Binder<'a> {
+        self.file_binders[index]
     }
 
     pub fn source(&self, index: usize) -> &'a SourceFile {
@@ -101,8 +105,8 @@ impl<'a> ProgramBinder<'a> {
         source
     }
 
-    fn binder_of_node(&self, node: NodeId) -> &Binder<'a> {
-        &self.file_binders[self.file_index_of_node(node)]
+    fn binder_of_node(&self, node: NodeId) -> &'a Binder<'a> {
+        self.file_binders[self.file_index_of_node(node)]
     }
 
     /// Owning file's arena lookup for a node-array id (arrays allocate
@@ -132,9 +136,15 @@ impl<'a> ProgramBinder<'a> {
         }
     }
 
+    /// TRANSIENT symbols only: file binders are read-only after bind
+    /// (shared lib binders make this structural — merge writes go to
+    /// transient clones, and the merged-symbol mapping lives on
+    /// CheckerState).
     pub fn symbol_mut(&mut self, id: SymbolId) -> &mut Symbol {
         match self.owner_of_symbol(id) {
-            Ok(file) => self.file_binders[file].symbols.symbol_mut(id),
+            Ok(file) => unreachable!(
+                "file-binder symbol {id:?} (file {file}) mutated post-bind —                  mergeSymbol clones non-transient targets and the mergedSymbols                  map lives on CheckerState"
+            ),
             Err(()) => self.transient.symbol_mut(id),
         }
     }

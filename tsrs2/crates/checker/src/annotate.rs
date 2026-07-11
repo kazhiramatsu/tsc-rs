@@ -4890,7 +4890,7 @@ mod tests {
         let options = CompilerOptions::default();
         let source = parse(text);
         let binder = bind_source_file(&source, &options);
-        let mut state = CheckerState::new(&source, binder, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
         run(&mut state)
     }
 

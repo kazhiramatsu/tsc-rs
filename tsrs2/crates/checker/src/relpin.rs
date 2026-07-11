@@ -95,7 +95,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
         };
     }
     let binder = tsrs2_binder::bind_source_file(&source_file, query.options);
-    let mut state = CheckerState::new(&source_file, binder, query.options);
+    let mut state = CheckerState::new(&source_file, &binder, query.options);
 
     let Some(source_annotation) = find_probe_annotation(&source_file, "__relpin_source") else {
         return RelpinVerdict::Unsupported {
@@ -176,9 +176,26 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
         // type-literal node as one; own members' parents already
         // match.
         if let Some(symbol) = state.tables.type_of(ty).symbol {
-            let symbol_data = state.binder.symbol_mut(symbol);
-            if symbol_data.value_declaration.is_none() {
-                symbol_data.value_declaration = symbol_data.declarations.first().copied();
+            let original = state.binder.symbol(symbol);
+            if original.value_declaration.is_none() {
+                // File binders are read-only post-bind (shared lib
+                // bundles enforce it structurally), so the shim clones
+                // the __type symbol into a TRANSIENT twin carrying the
+                // value declaration and re-points the probe type at
+                // it; member symbols stay the originals, whose
+                // declaration parents already match the literal node.
+                let flags = original.flags;
+                let escaped_name = original.escaped_name.clone();
+                let declarations = original.declarations.clone();
+                let parent = original.parent;
+                let members = original.members.clone();
+                let clone = state.binder.create_symbol(flags, escaped_name);
+                let clone_data = state.binder.symbol_mut(clone);
+                clone_data.value_declaration = declarations.first().copied();
+                clone_data.declarations = declarations;
+                clone_data.parent = parent;
+                clone_data.members = members;
+                state.tables.type_mut(ty).symbol = Some(clone);
             }
         }
     }

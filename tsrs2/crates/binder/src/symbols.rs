@@ -38,8 +38,6 @@ pub struct Symbol {
     pub parent: Option<SymbolId>,
     /// local ↔ export link installed by declareModuleMember.
     pub export_symbol: Option<SymbolId>,
-    /// getMergedSymbol chases this (checker-side merging, M4).
-    pub merged_into: Option<SymbolId>,
     pub const_enum_only_module: Option<bool>,
     pub is_replaceable_by_method: bool,
 }
@@ -56,7 +54,6 @@ impl Symbol {
             global_exports: SymbolTable::default(),
             parent: None,
             export_symbol: None,
-            merged_into: None,
             const_enum_only_module: None,
             is_replaceable_by_method: false,
         }

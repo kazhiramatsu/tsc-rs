@@ -633,7 +633,7 @@ mod tests {
         );
         assert!(source.parse_diagnostics.is_empty());
         let binder = bind_source_file(&source, &options);
-        let mut state = CheckerState::new(&source, binder, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
         run(&mut state)
     }
 

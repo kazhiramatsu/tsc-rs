@@ -292,6 +292,12 @@ pub struct CheckerState<'a> {
     /// leak across them (checker-foundations §1.2).
     pub resolution_start: usize,
 
+    // ---- M4 5.0: merge bookkeeping ----
+    /// tsc mergedSymbols (recordMergedSymbol 47689): source →
+    /// merge-target, per checker. A side map — NOT a symbol field —
+    /// so shared (cached) lib binders stay immutable across programs.
+    pub(crate) merged_symbols: std::collections::HashMap<SymbolId, SymbolId>,
+
     // ---- M4 5.0: cross-file duplicate grouping ----
     /// tsc amalgamatedDuplicates (initializeTypeChecker 88736; flushed
     /// at 88882-88905). Keyed by the ordered file-name pair.
@@ -302,7 +308,11 @@ pub struct CheckerState<'a> {
 impl<'a> CheckerState<'a> {
     /// Single-file construction — the M3 signature, kept for the
     /// relpin probe and unit tests. `source` must be the binder's file.
-    pub fn new(source: &'a SourceFile, binder: Binder<'a>, options: &'a CompilerOptions) -> Self {
+    pub fn new(
+        source: &'a SourceFile,
+        binder: &'a Binder<'a>,
+        options: &'a CompilerOptions,
+    ) -> Self {
         assert!(std::ptr::eq(binder.source, source));
         Self::from_program(vec![binder], options)
     }
@@ -311,7 +321,7 @@ impl<'a> CheckerState<'a> {
     /// bound with contiguous id bases. Runs the initializeTypeChecker
     /// slice (globals merge + intrinsic symbol seeds + duplicate
     /// flush); merge diagnostics land in `self.diagnostics`.
-    pub fn from_program(binders: Vec<Binder<'a>>, options: &'a CompilerOptions) -> Self {
+    pub fn from_program(binders: Vec<&'a Binder<'a>>, options: &'a CompilerOptions) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
         let strict_function_types = options.strict_option_value(options.strict_function_types);
         let exact_optional = options.exact_optional_property_types.unwrap_or(false);
@@ -382,6 +392,7 @@ impl<'a> CheckerState<'a> {
             resolution_results: Vec::new(),
             resolution_property_names: Vec::new(),
             resolution_start: 0,
+            merged_symbols: std::collections::HashMap::new(),
             amalgamated_duplicates: indexmap::IndexMap::new(),
         };
         // undefinedSymbol.declarations = [] (46490); globalThisSymbol
@@ -930,7 +941,8 @@ pub(crate) mod test_support {
             binder.bind_source_file();
             binders.push(binder);
         }
-        let mut state = CheckerState::from_program(binders, options);
+        let binder_refs: Vec<&Binder<'_>> = binders.iter().collect();
+        let mut state = CheckerState::from_program(binder_refs, options);
         run(&mut state)
     }
 }
