@@ -29,6 +29,7 @@ fn main() {
         Some("ast-dump") => run_or_exit(ast_dump(args)),
         Some("ast-diff") => run_or_exit(ast_diff(args)),
         Some("symbol-diff") => run_or_exit(symbol_diff(args)),
+        Some("lib-gate") => run_or_exit(lib_gate(args)),
         Some("bind-corpus") => run_or_exit(bind_corpus(args)),
         Some("parse-diags") => run_or_exit(parse_diags(args)),
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
@@ -675,21 +676,7 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                 let (oracle_lines, rust_lines) = if oracle_file.lines.len() == rust_file.lines.len()
                     && !positions_only
                 {
-                    let mut oracle_lines = Vec::new();
-                    let mut rust_lines = Vec::new();
-                    for (oracle_line, rust_line) in oracle_file.lines.iter().zip(&rust_file.lines) {
-                        let oracle_flags: i64 = oracle_line
-                            .split('\t')
-                            .nth(3)
-                            .and_then(|flags| flags.parse().ok())
-                            .unwrap_or(0);
-                        if oracle_flags & 33554432 != 0 {
-                            continue;
-                        }
-                        oracle_lines.push(wildcard_private_name_ids(oracle_line));
-                        rust_lines.push(wildcard_private_name_ids(rust_line));
-                    }
-                    (oracle_lines, rust_lines)
+                    normalized_symbol_audit_lines(&oracle_file.lines, &rust_file.lines)
                 } else {
                     (oracle_file.lines.clone(), rust_file.lines.clone())
                 };
@@ -4747,4 +4734,237 @@ impl<'a> JsonReader<'a> {
         }
         Ok(())
     }
+}
+
+/// Documented audit normalizations shared by symbol-diff and lib-gate
+/// (per-file binder vs a whole-program checker): lines whose ORACLE
+/// symbol carries the Transient bit (33554432) are checker-MERGED
+/// symbols (lib/global interface merging) — dropped in pairs; `__#N@`
+/// private-name ids embed tsc's program-global getSymbolId counter —
+/// the digits are wildcarded, keeping the structure check.
+fn normalized_symbol_audit_lines(
+    oracle_lines: &[String],
+    rust_lines: &[String],
+) -> (Vec<String>, Vec<String>) {
+    let mut normalized_oracle = Vec::new();
+    let mut normalized_rust = Vec::new();
+    for (oracle_line, rust_line) in oracle_lines.iter().zip(rust_lines) {
+        let oracle_flags: i64 = oracle_line
+            .split('\t')
+            .nth(3)
+            .and_then(|flags| flags.parse().ok())
+            .unwrap_or(0);
+        if oracle_flags & 33554432 != 0 {
+            continue;
+        }
+        normalized_oracle.push(wildcard_private_name_ids(oracle_line));
+        normalized_rust.push(wildcard_private_name_ids(rust_line));
+    }
+    (normalized_oracle, normalized_rust)
+}
+
+/// The lib-loading L1 gate (m4-lib-loading-steps.md §3): prove
+/// parse+bind exactness over the vendored default-library files and
+/// pin the program-order contract for every distinct lib set the
+/// conformance corpus produces.
+///
+/// Phase 1 (parse): ast-diff over every vendor lib.*.d.ts — zero
+/// parse errors on both sides, zero dump diffs.
+/// Phase 2 (bind): per lib file, a single-file program whose FILES
+/// list is the lib content (libs = [], so the oracle host does not
+/// double-load it) — symbol dumps must match under the shared
+/// normalizations.
+/// Phase 3 (order): for each distinct ProgramJson.libs list across
+/// the corpus, the oracle's getSourceFiles() order must equal
+/// libs ++ files (the engine consumes the list as given).
+fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut skip_order = false;
+    for arg in args {
+        match arg.as_str() {
+            "--skip-order" => skip_order = true,
+            _ => return Err(format!("unexpected lib-gate argument: {arg}").into()),
+        }
+    }
+
+    let workspace = find_tsrs2_root()?;
+    let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+    let mut lib_files: Vec<PathBuf> = fs::read_dir(&vendor_lib_dir)?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("lib.") && name.ends_with(".d.ts"))
+        })
+        .collect();
+    lib_files.sort();
+
+    // Phase 1: parse gate.
+    let mut ast_oracle = AstDumpOracle::spawn(&workspace)?;
+    let mut parse_failures = 0usize;
+    for file in &lib_files {
+        let text = fs::read_to_string(file)?;
+        let file_name = file
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("lib file names are UTF-8")
+            .to_owned();
+        let (rust_dump, rust_parse_errors) = rust_ast_dump_text(&file_name, &text);
+        let oracle_result = ast_oracle.ast_dump(file, &text, &file_name)?;
+        if rust_parse_errors > 0 || oracle_result.parse_errors > 0 {
+            parse_failures += 1;
+            println!(
+                "lib-gate parse errors in {file_name}: tsrs={rust_parse_errors} oracle={}",
+                oracle_result.parse_errors
+            );
+            continue;
+        }
+        if rust_dump != oracle_result.dump {
+            parse_failures += 1;
+            let (line, left, right) = first_diff(&rust_dump, &oracle_result.dump);
+            println!(
+                "lib-gate ast diff {file_name} line {line}:\n  tsrs:   {}\n  oracle: {}",
+                left.unwrap_or("<missing>"),
+                right.unwrap_or("<missing>")
+            );
+        }
+    }
+
+    // Phase 2: bind gate.
+    let temp_root =
+        std::env::temp_dir().join(format!("tsrs2-lib-gate-{}", std::process::id()));
+    if temp_root.exists() {
+        fs::remove_dir_all(&temp_root)?;
+    }
+    fs::create_dir_all(&temp_root)?;
+    let mut symbol_oracle = SymbolDumpOracle::spawn(&workspace)?;
+    let mut bind_failures = 0usize;
+    for (index, file) in lib_files.iter().enumerate() {
+        let text = fs::read_to_string(file)?;
+        let file_name = file
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("lib file names are UTF-8")
+            .to_owned();
+        let program = tsrs2_harness::ProgramJson {
+            schema: 1,
+            cwd: "/".to_owned(),
+            options: BTreeMap::new(),
+            libs: Vec::new(),
+            files: vec![tsrs2_harness::ProgramFile {
+                name: file_name.clone(),
+                text_b64: BASE64.encode(text.as_bytes()),
+            }],
+            matrix_key: String::new(),
+        };
+        let out_dir = temp_root.join(format!("bind-{index}"));
+        let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(&program), &out_dir)?;
+        let oracle_files = symbol_oracle.symbol_dump(&paths[0])?;
+        let rust_files = rust_symbol_dump(&program)?;
+        let (Some(oracle_file), Some(Some(rust_file))) =
+            (oracle_files.first(), rust_files.first())
+        else {
+            return Err(format!("lib-gate bind dump missing for {file_name}").into());
+        };
+        if oracle_file.parse_errors > 0 || rust_file.parse_errors > 0 {
+            bind_failures += 1;
+            println!("lib-gate bind parse errors in {file_name}");
+            continue;
+        }
+        let (oracle_lines, rust_lines) = if oracle_file.lines.len() == rust_file.lines.len() {
+            normalized_symbol_audit_lines(&oracle_file.lines, &rust_file.lines)
+        } else {
+            (oracle_file.lines.clone(), rust_file.lines.clone())
+        };
+        let oracle_dump = oracle_lines.join("\n");
+        let rust_dump = rust_lines.join("\n");
+        if !oracle_file.in_program || oracle_dump != rust_dump {
+            bind_failures += 1;
+            let (line, left, right) = first_diff(&rust_dump, &oracle_dump);
+            println!(
+                "lib-gate symbol diff {file_name} line {line}:\n  tsrs:   {}\n  oracle: {}",
+                left.unwrap_or("<missing>"),
+                right.unwrap_or("<missing>")
+            );
+        }
+    }
+
+    // Phase 3: order probe per distinct corpus lib set.
+    let mut order_failures = 0usize;
+    let mut lib_sets: std::collections::BTreeSet<Vec<String>> = std::collections::BTreeSet::new();
+    if !skip_order {
+        let fixtures = collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?;
+        for fixture in &fixtures {
+            let programs = match tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir) {
+                Ok(programs) => programs,
+                // Fixtures the harness cannot expand are outside every
+                // suite (conformance skips them the same way).
+                Err(_) => continue,
+            };
+            for program in programs {
+                lib_sets.insert(program.libs);
+            }
+        }
+        let mut probe_paths = Vec::new();
+        let mut expected: Vec<Vec<String>> = Vec::new();
+        for (index, libs) in lib_sets.iter().enumerate() {
+            let program = tsrs2_harness::ProgramJson {
+                schema: 1,
+                cwd: "/".to_owned(),
+                options: BTreeMap::new(),
+                libs: libs.clone(),
+                files: vec![tsrs2_harness::ProgramFile {
+                    name: "a.ts".to_owned(),
+                    text_b64: BASE64.encode(b""),
+                }],
+                matrix_key: String::new(),
+            };
+            let out_dir = temp_root.join(format!("order-{index}"));
+            let paths =
+                tsrs2_harness::write_program_jsons(std::slice::from_ref(&program), &out_dir)?;
+            probe_paths.push(paths[0].clone());
+            let mut order = libs.clone();
+            order.push("a.ts".to_owned());
+            expected.push(order);
+        }
+        let output = std::process::Command::new("node")
+            .arg(workspace.join("crates/oracle/files-dump.mjs"))
+            .args(&probe_paths)
+            .output()?;
+        if !output.status.success() {
+            return Err(format!(
+                "files-dump probe failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+            .into());
+        }
+        let probes: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout)?;
+        for (index, probe) in probes.iter().enumerate() {
+            let observed: Vec<String> = probe["files"]
+                .as_array()
+                .map(|files| {
+                    files
+                        .iter()
+                        .filter_map(|value| value.as_str().map(str::to_owned))
+                        .collect()
+                })
+                .unwrap_or_default();
+            if observed != expected[index] {
+                order_failures += 1;
+                println!(
+                    "lib-gate order mismatch for set #{index}:\n  expected: {:?}\n  observed: {observed:?}",
+                    expected[index]
+                );
+            }
+        }
+    }
+
+    println!(
+        "lib-gate: files={} parse_failures={parse_failures} bind_failures={bind_failures} lib_sets={} order_failures={order_failures}",
+        lib_files.len(),
+        lib_sets.len(),
+    );
+    if parse_failures + bind_failures + order_failures > 0 {
+        return Err("lib-gate failed".into());
+    }
+    Ok(())
 }
