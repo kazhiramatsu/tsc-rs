@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 
 use crate::flags::{ElementFlags, ObjectFlags, TypeFlags};
-use crate::ty::{LiteralValue, PseudoBigInt, TupleTargetData, Type, TypeData, TypeId};
+use crate::ty::{LiteralValue, PseudoBigInt, SymbolId, TupleTargetData, Type, TypeData, TypeId};
 
 /// The named intrinsic/derived types created at checker construction,
 /// in tsc's exact allocation order (_tsc.js 47011-47111). Conditional
@@ -124,8 +124,12 @@ pub struct TypeTables {
     tuple_types: HashMap<String, TypeId>,
     /// templateLiteralTypes (46997), keyed per getTemplateLiteralType 62083.
     template_literal_types: HashMap<String, TypeId>,
+    /// stringMappingTypes (46998), keyed `${symbolId},${typeId}`
+    /// (getStringMappingTypeForGenericType 62154).
+    string_mapping_types: HashMap<(SymbolId, TypeId), TypeId>,
     /// Per-target `type.instantiations` maps (createTypeReference
-    /// 60170-60174), flattened to one table keyed (target, list id).
+    /// 60170-60174 AND getObjectTypeInstantiation 63489-63492 — one map
+    /// per target in tsc), flattened to one table keyed (target, id).
     instantiations: HashMap<(TypeId, String), TypeId>,
 }
 
@@ -182,6 +186,7 @@ impl TypeTables {
             intersection_types: HashMap::new(),
             tuple_types: HashMap::new(),
             template_literal_types: HashMap::new(),
+            string_mapping_types: HashMap::new(),
             instantiations: HashMap::new(),
         };
         tables.create_initial_types();
@@ -527,10 +532,42 @@ impl TypeTables {
         result
     }
 
+    /// tsc-port: getAliasId @6.0.3
+    /// tsc-hash: 39a787bbf937e6b559ce913d2244295fd711853991752904a3b4f649be60db54
+    /// tsc-span: _tsc.js:60151-60153
+    pub fn get_alias_id(
+        &self,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> String {
+        match alias_symbol {
+            None => String::new(),
+            Some(symbol) => match alias_type_arguments {
+                None => format!("@{}", symbol.0),
+                Some(arguments) => {
+                    format!("@{}:{}", symbol.0, self.get_type_list_id(arguments))
+                }
+            },
+        }
+    }
+
+    /// The per-target instantiations map (`type.instantiations`) —
+    /// createTypeReference keys by list id; getObjectTypeInstantiation
+    /// keys by list id + alias id over the SAME map.
+    pub fn instantiation_get(&self, target: TypeId, key: &str) -> Option<TypeId> {
+        self.instantiations
+            .get(&(target, key.to_owned()))
+            .copied()
+    }
+
+    pub fn instantiation_insert(&mut self, target: TypeId, key: String, value: TypeId) {
+        self.instantiations.insert((target, key), value);
+    }
+
     /// tsc-port: getPropagatingFlagsOfTypes @6.0.3
     /// tsc-hash: 57ecf71d451f3f1480dbe807fb4e5d6c52f01b6d265bc22484e5b186307ff685
     /// tsc-span: _tsc.js:60154-60162
-    fn get_propagating_flags_of_types(
+    pub fn get_propagating_flags_of_types(
         &self,
         types: &[TypeId],
         exclude_kinds: TypeFlags,
@@ -1906,8 +1943,7 @@ impl TypeTables {
                     return false;
                 }
                 text.push_str(&texts[i + 1]);
-            } else if self.is_generic_index_type_placeholder(t)
-                || self.is_pattern_literal_placeholder_type(t)
+            } else if self.is_generic_index_type(t) || self.is_pattern_literal_placeholder_type(t)
             {
                 new_types.push(t);
                 new_texts.push(std::mem::take(text));
@@ -1919,11 +1955,133 @@ impl TypeTables {
         true
     }
 
-    /// tsc isGenericIndexType (62437) — true only for instantiable
-    /// index-ish types, none of which are constructible in M3; the
-    /// pattern-placeholder check below carries all M3 traffic.
-    fn is_generic_index_type_placeholder(&self, _id: TypeId) -> bool {
-        false
+    /// tsc-port: isGenericType @6.0.3
+    /// tsc-hash: 24d5fea9e8bd61b2e658f4c5d9423ee7926ff364e97370617a604cd6e4b0f5c0
+    /// tsc-span: _tsc.js:62431-62433
+    pub fn is_generic_type(&mut self, id: TypeId) -> bool {
+        !self.get_generic_object_flags(id).is_empty()
+    }
+
+    /// tsc-port: isGenericObjectType @6.0.3
+    /// tsc-hash: 4d244e3f861e1e795557d5b8d2b382f4b38e29d03abebf3ca45c053d7d362d78
+    /// tsc-span: _tsc.js:62434-62436
+    pub fn is_generic_object_type(&mut self, id: TypeId) -> bool {
+        self.get_generic_object_flags(id)
+            .intersects(ObjectFlags::IS_GENERIC_OBJECT_TYPE)
+    }
+
+    /// tsc-port: isGenericIndexType @6.0.3
+    /// tsc-hash: 5c0f99fb189bd26062582025df8d17cef96a72ac19f530aa2753ed2c40e1bf7e
+    /// tsc-span: _tsc.js:62437-62439
+    pub fn is_generic_index_type(&mut self, id: TypeId) -> bool {
+        self.get_generic_object_flags(id)
+            .intersects(ObjectFlags::IS_GENERIC_INDEX_TYPE)
+    }
+
+    /// tsc-port: getGenericObjectFlags @6.0.3
+    /// tsc-hash: f3a4b640057f3aa5519de7fd4c29d117ae33ec29fb1c7618f8e4456782af7b02
+    /// tsc-span: _tsc.js:62440-62455
+    ///
+    /// The Substitution arm is unreachable (that TypeFlag is
+    /// unconstructible before conditional types, M8); isGenericMappedType
+    /// is constant false the same way (no Mapped ObjectFlags are ever
+    /// created before M8) — both guarded, not silently elided.
+    fn get_generic_object_flags(&mut self, id: TypeId) -> ObjectFlags {
+        let flags = self.flags_of(id);
+        if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+            if !self
+                .object_flags_of(id)
+                .intersects(ObjectFlags::IS_GENERIC_TYPE_COMPUTED)
+            {
+                let members: Vec<TypeId> = match &self.type_of(id).data {
+                    TypeData::Union { types, .. } => types.to_vec(),
+                    TypeData::Intersection { types } => types.to_vec(),
+                    _ => unreachable!("union/intersection flag implies member data"),
+                };
+                let mut combined = 0i32;
+                for member in members {
+                    combined |= self.get_generic_object_flags(member).bits();
+                }
+                let updated = self.object_flags_of(id).bits()
+                    | ObjectFlags::IS_GENERIC_TYPE_COMPUTED.bits()
+                    | combined;
+                self.type_mut(id).object_flags = ObjectFlags::from_bits(updated);
+            }
+            return ObjectFlags::from_bits(
+                self.object_flags_of(id).bits() & ObjectFlags::IS_GENERIC_TYPE.bits(),
+            );
+        }
+        if flags.intersects(TypeFlags::SUBSTITUTION) {
+            unreachable!("substitution types are unconstructible before conditional types (M8)");
+        }
+        assert!(
+            !self.object_flags_of(id).intersects(ObjectFlags::MAPPED),
+            "mapped types are unconstructible before M8 (isGenericMappedType)"
+        );
+        let object = if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
+            || self.is_generic_tuple_type(id)
+        {
+            ObjectFlags::IS_GENERIC_OBJECT_TYPE.bits()
+        } else {
+            0
+        };
+        let index = if flags
+            .intersects(TypeFlags::from_bits(
+                TypeFlags::INSTANTIABLE_NON_PRIMITIVE.bits() | TypeFlags::INDEX.bits(),
+            ))
+            || self.is_generic_string_like_type(id)
+        {
+            ObjectFlags::IS_GENERIC_INDEX_TYPE.bits()
+        } else {
+            0
+        };
+        ObjectFlags::from_bits(object | index)
+    }
+
+    /// tsc-port: isGenericTupleType @6.0.3
+    /// tsc-hash: f741808e027436939d394e907796a4f2e0d4af5699ad71f6efa223032506de8b
+    /// tsc-span: _tsc.js:67794-67796
+    pub fn is_generic_tuple_type(&self, id: TypeId) -> bool {
+        if !self.is_tuple_type(id) {
+            return false;
+        }
+        let target = self.reference_target(id);
+        match &self.type_of(target).data {
+            TypeData::TupleTarget(data) => {
+                data.combined_flags.intersects(ElementFlags::VARIADIC)
+            }
+            _ => false,
+        }
+    }
+
+    /// tsc-port: isGenericStringLikeType @6.0.3
+    /// tsc-hash: bab14bed10f5a2ddbf5b7c73efdb4a5897ad9d2e48b2d79734b4deaa3f525617
+    /// tsc-span: _tsc.js:62428-62430
+    pub fn is_generic_string_like_type(&self, id: TypeId) -> bool {
+        self.flags_of(id).intersects(TypeFlags::from_bits(
+            TypeFlags::TEMPLATE_LITERAL.bits() | TypeFlags::STRING_MAPPING.bits(),
+        )) && !self.is_pattern_literal_type(id)
+    }
+
+    /// tsc-port: getStringMappingTypeForGenericType @6.0.3
+    /// tsc-hash: 13f62a7fd92dfaef3f9aa4f498ae4fbe312414346a27b6a1d13bbedbfeb2830f
+    /// tsc-span: _tsc.js:62154-62161
+    ///
+    /// tsc-port: createStringMappingType @6.0.3
+    /// tsc-hash: 6d59ad0c176bb2fa63221db0e827ffe78a7d62ffc3924cf6ef7b159e95bcd129
+    /// tsc-span: _tsc.js:62162-62167
+    pub fn get_string_mapping_type_for_generic_type(
+        &mut self,
+        symbol: SymbolId,
+        ty: TypeId,
+    ) -> TypeId {
+        if let Some(&id) = self.string_mapping_types.get(&(symbol, ty)) {
+            return id;
+        }
+        let id = self.create_type(TypeFlags::STRING_MAPPING, TypeData::StringMapping { ty });
+        self.type_mut(id).symbol = Some(symbol);
+        self.string_mapping_types.insert((symbol, ty), id);
+        id
     }
 
     /// tsc-port: isPatternLiteralPlaceholderType @6.0.3
@@ -1960,19 +2118,23 @@ impl TypeTables {
     /// tsc-port: isPatternLiteralType @6.0.3
     /// tsc-hash: e0410a951bc5d53936ee7030a6f63b1937313b20ed7ca58f6d9802d990bdcf75
     /// tsc-span: _tsc.js:62425-62427
-    ///
-    /// The StringMapping arm is dead until M4 (StringMapping types are
-    /// unconstructible before intrinsic alias instantiation).
     pub fn is_pattern_literal_type(&self, id: TypeId) -> bool {
-        if !self.flags_of(id).intersects(TypeFlags::TEMPLATE_LITERAL) {
-            return false;
+        let flags = self.flags_of(id);
+        if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
+            let TypeData::TemplateLiteral { types, .. } = &self.type_of(id).data else {
+                unreachable!("template flag implies template data");
+            };
+            return types
+                .iter()
+                .all(|&t| self.is_pattern_literal_placeholder_type(t));
         }
-        let TypeData::TemplateLiteral { types, .. } = &self.type_of(id).data else {
-            unreachable!("template flag implies template data");
-        };
-        types
-            .iter()
-            .all(|&t| self.is_pattern_literal_placeholder_type(t))
+        if flags.intersects(TypeFlags::STRING_MAPPING) {
+            let TypeData::StringMapping { ty } = self.type_of(id).data else {
+                unreachable!("string-mapping flag implies string-mapping data");
+            };
+            return self.is_pattern_literal_placeholder_type(ty);
+        }
+        false
     }
 
     /// tsc-port: checkCrossProductUnion @6.0.3

@@ -79,8 +79,9 @@ pub struct TupleTargetData {
 }
 
 /// Per-kind payload (greenfield §4.2 TypeData). M3 carries the kinds
-/// the relation pins can construct; IndexedAccess/Conditional/Mapped/
-/// StringMapping/Substitution arrive with M4.
+/// the relation pins can construct; StringMapping landed with M4 5.2;
+/// IndexedAccess/Conditional/Mapped/Substitution arrive with the
+/// keyof/indexed-access follow-up and M8.
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeData {
     /// any/unknown/string/... incl. error/silentNever/wildcard/missing
@@ -125,6 +126,11 @@ pub enum TypeData {
     TemplateLiteral {
         texts: Box<[String]>,
         types: Box<[TypeId]>,
+    },
+    /// createStringMappingType (62163): `Uppercase<T>` over a generic
+    /// operand — Type::symbol names the intrinsic alias.
+    StringMapping {
+        ty: TypeId,
     },
 }
 

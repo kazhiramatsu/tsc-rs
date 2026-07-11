@@ -291,14 +291,7 @@ impl<'a> CheckerState<'a> {
             }
             let mut matched = false;
             for &template in &templates {
-                if self
-                    .tables
-                    .flags_of(template)
-                    .intersects(TypeFlags::STRING_MAPPING)
-                {
-                    return Err(Unsupported::new("string-mapping members (M4 5.2)"));
-                }
-                if self.is_type_matched_by_template_literal_type(t, template)? {
+                if self.is_type_matched_by_template_literal_or_string_mapping(t, template)? {
                     matched = true;
                     break;
                 }
@@ -556,8 +549,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:61714-61731
     ///
     /// Returns true when the intersection collapses to never (a
-    /// pattern-literal template with no matching string literal). The
-    /// StringMapping arm is dead until M4.
+    /// pattern-literal template with no matching string literal).
+    /// StringMapping members flow through the same subtype/pattern
+    /// tests since 5.2.
     pub fn extract_redundant_template_literals(
         &mut self,
         types: &mut Vec<TypeId>,
@@ -579,13 +573,6 @@ impl<'a> CheckerState<'a> {
                 TypeFlags::TEMPLATE_LITERAL.bits() | TypeFlags::STRING_MAPPING.bits(),
             )) {
                 continue;
-            }
-            if self
-                .tables
-                .flags_of(t)
-                .intersects(TypeFlags::STRING_MAPPING)
-            {
-                return Err(Unsupported::new("string-mapping members (M4 5.2)"));
             }
             for &literal in &literals {
                 if self.is_type_subtype_of(literal, t)? {

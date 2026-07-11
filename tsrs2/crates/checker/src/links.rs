@@ -14,6 +14,7 @@ use tsrs2_binder::SymbolId;
 use tsrs2_syntax::NodeId;
 use tsrs2_types::TypeId;
 
+use crate::instantiate::MapperId;
 use crate::state::SignatureId;
 
 /// One memo slot: Vacant → Resolving → Resolved, one transition each.
@@ -46,6 +47,12 @@ pub struct NodeLinks {
     pub resolved_type: LinkSlot<TypeId>,
     /// tsc links.resolvedSignature (getSignatureFromDeclaration 59570).
     pub resolved_signature: LinkSlot<SignatureId>,
+    /// tsc links.outerTypeParameters (getObjectTypeInstantiation 63466)
+    /// on the instantiated type's declaration node.
+    pub outer_type_parameters: LinkSlot<Box<[TypeId]>>,
+    /// tsc links.resolvedSymbol (getResolvedSymbol 69389) — the
+    /// unknownSymbol failure sentinel is cached like tsc's.
+    pub resolved_symbol: LinkSlot<SymbolId>,
 }
 
 /// tsc SymbolLinks — the per-symbol subset M3 consumes.
@@ -63,6 +70,14 @@ pub struct SymbolLinks {
     /// tsc links.isDiscriminantProperty cache (isDiscriminantProperty
     /// 69562).
     pub is_discriminant_property: Option<bool>,
+    /// tsc links.target for CheckFlags::INSTANTIATED symbols
+    /// (instantiateSymbol 63455).
+    pub target: Option<SymbolId>,
+    /// tsc links.mapper for CheckFlags::INSTANTIATED symbols (63456).
+    pub mapper: Option<MapperId>,
+    /// tsc links.nameType — written by late-bound member binding (5.3);
+    /// carried through instantiateSymbol's copy (63460).
+    pub name_type: Option<TypeId>,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -89,6 +104,23 @@ pub struct TypeLinks {
     /// tsc type.immediateBaseConstraint (getImmediateBaseConstraint
     /// 58921-58951; the ImmediateBaseConstraint resolution property).
     pub immediate_base_constraint: LinkSlot<TypeId>,
+    /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
+    /// (instantiateAnonymousType 63658).
+    pub instantiated_target: Option<TypeId>,
+    /// tsc type.mapper for ObjectFlags::INSTANTIATED anonymous types
+    /// (63659).
+    pub instantiated_mapper: Option<MapperId>,
+    /// tsc TypeParameter.target (cloneTypeParameter 63403 /
+    /// getRestrictiveTypeParameter 63400).
+    pub type_parameter_target: Option<TypeId>,
+    /// tsc TypeParameter.mapper (instantiateSignature 63418).
+    pub type_parameter_mapper: Option<MapperId>,
+    /// tsc type.permissiveInstantiation (getPermissiveInstantiation
+    /// 63815).
+    pub permissive_instantiation: LinkSlot<TypeId>,
+    /// tsc type.restrictiveInstantiation (getRestrictiveInstantiation
+    /// 63818; the result self-stamp makes the second write idempotent).
+    pub restrictive_instantiation: LinkSlot<TypeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -292,6 +324,123 @@ impl LinksTables {
             &mut self.ty.entry(id).or_default().immediate_base_constraint,
             LinkSlot::Resolved(value),
         );
+    }
+
+    pub fn set_node_resolved_symbol(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: SymbolId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.node.entry(id).or_default().resolved_symbol,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    pub fn set_node_outer_type_parameters(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: Box<[TypeId]>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.node.entry(id).or_default().outer_type_parameters,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// instantiateSymbol's transient-links seed (63455-63461): target +
+    /// mapper (+ the nameType copy) written once at creation.
+    pub fn set_symbol_instantiation_links(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        target: SymbolId,
+        mapper: MapperId,
+        name_type: Option<TypeId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        assert!(
+            links.target.is_none() && links.mapper.is_none(),
+            "instantiation links written twice for {id:?}"
+        );
+        links.target = Some(target);
+        links.mapper = Some(mapper);
+        links.name_type = name_type;
+    }
+
+    /// instantiateAnonymousType's target/mapper seed (63658-63659),
+    /// written once at creation of the instantiated shell.
+    pub fn set_type_instantiation_links(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        target: TypeId,
+        mapper: MapperId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.instantiated_target.is_none() && links.instantiated_mapper.is_none(),
+            "type instantiation links written twice for {id:?}"
+        );
+        links.instantiated_target = Some(target);
+        links.instantiated_mapper = Some(mapper);
+    }
+
+    /// cloneTypeParameter/getRestrictiveTypeParameter target stamp.
+    pub fn set_type_parameter_target(&mut self, speculation_depth: u32, id: TypeId, target: TypeId) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.type_parameter_target.is_none(),
+            "type parameter target written twice for {id:?}"
+        );
+        links.type_parameter_target = Some(target);
+    }
+
+    /// instantiateSignature's fresh-parameter mapper stamp (63418).
+    pub fn set_type_parameter_mapper(&mut self, speculation_depth: u32, id: TypeId, mapper: MapperId) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.type_parameter_mapper.is_none(),
+            "type parameter mapper written twice for {id:?}"
+        );
+        links.type_parameter_mapper = Some(mapper);
+    }
+
+    pub fn set_type_permissive_instantiation(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().permissive_instantiation,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// getRestrictiveInstantiation self-stamps its result (63825-63826),
+    /// so a second write with the SAME value is tolerated.
+    pub fn set_type_restrictive_instantiation(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let slot = &mut self.ty.entry(id).or_default().restrictive_instantiation;
+        match &*slot {
+            LinkSlot::Resolved(existing) if *existing == value => {}
+            _ => Self::write_slot(slot, LinkSlot::Resolved(value)),
+        }
     }
 
     pub fn set_type_members(

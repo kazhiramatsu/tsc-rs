@@ -8,8 +8,8 @@ use tsrs2_binder::{InternalSymbolName, SymbolId};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    ElementFlags, IntersectionFlags, M4Dependency, ObjectFlags, PseudoBigInt, SignatureFlags,
-    SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    CheckFlags, ElementFlags, IntersectionFlags, M4Dependency, ObjectFlags, PseudoBigInt,
+    SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::links::LinkSlot;
@@ -47,7 +47,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn unsupported_m4(err: M4Dependency) -> Unsupported {
+    pub(crate) fn unsupported_m4(err: M4Dependency) -> Unsupported {
         Unsupported::new(err.0)
     }
 
@@ -956,6 +956,20 @@ impl<'a> CheckerState<'a> {
     /// signatures from the symbol's declarations). Instantiated
     /// targets, classes, enums, modules and globalThis are M4.
     fn resolve_anonymous_type_members(&mut self, ty: TypeId) -> CheckResult2<MembersId> {
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::INSTANTIATED)
+        {
+            // 58317-58321: instantiated shells resolve through the
+            // target's members under type.mapper — 5.3's instantiated-
+            // reference member tables; without them the symbol-table
+            // read below would surface UNMAPPED member types.
+            return Err(Unsupported::new(
+                "instantiated anonymous type members (resolveAnonymousTypeMembers \
+                 target/mapper, M4 5.3)",
+            ));
+        }
         let symbol = self
             .tables
             .type_of(ty)
@@ -1133,10 +1147,29 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 36123c37428ab9dcfb6c89ba1c42dbf1a5461becdfdade097ed545e21b50bfd7
     /// tsc-span: _tsc.js:56945-56975
     ///
-    /// M3 dispatch: variable/property symbols (annotation-typed) and
-    /// function/method symbols. CheckFlags-dispatched transients,
-    /// accessors, classes, enums, modules and aliases are M4.
+    /// Dispatch slice: the Instantiated check-flag arm (5.2),
+    /// variable/property symbols (annotation-typed) and function/method
+    /// symbols. DeferredType transients are M6 machinery,
+    /// Mapped/ReverseMapped M8; accessors, classes, enums, modules and
+    /// aliases keep their owning-stage escapes.
     pub fn get_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        let check_flags = self.links.symbol(symbol).check_flags;
+        if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
+            return Err(Unsupported::new(
+                "DeferredType symbols (getTypeOfSymbolWithDeferredType, M6)",
+            ));
+        }
+        if check_flags.intersects(CheckFlags::INSTANTIATED) {
+            return self.get_type_of_instantiated_symbol(symbol);
+        }
+        if check_flags.intersects(CheckFlags::MAPPED) {
+            return Err(Unsupported::new("mapped symbols (getTypeOfMappedSymbol, M8)"));
+        }
+        if check_flags.intersects(CheckFlags::REVERSE_MAPPED) {
+            return Err(Unsupported::new(
+                "reverse-mapped symbols (getTypeOfReverseMappedSymbol, M8)",
+            ));
+        }
         let flags = self.symbol_flags(symbol);
         if flags.intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY) {
             return self.get_type_of_variable_or_parameter_or_property(symbol);
@@ -1147,6 +1180,29 @@ impl<'a> CheckerState<'a> {
         Err(Unsupported::new(format!(
             "getTypeOfSymbol for symbol flags {flags:?} (M4)"
         )))
+    }
+
+    /// tsc-port: getTypeOfInstantiatedSymbol @6.0.3
+    /// tsc-hash: 00fcbdb7ebbb16d38d4a3e87f4221eaba62ee68a83e3d1f842b1340d457bb476
+    /// tsc-span: _tsc.js:56885-56888
+    fn get_type_of_instantiated_symbol(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(cached);
+        }
+        let target = self
+            .links
+            .symbol(symbol)
+            .target
+            .expect("Instantiated check flag implies links.target");
+        let mapper = self.links.symbol(symbol).mapper;
+        let target_type = self.get_type_of_symbol(target)?;
+        let instantiated = self.instantiate_type(target_type, mapper)?;
+        self.links.set_symbol_type(
+            self.speculation_depth,
+            symbol,
+            LinkSlot::Resolved(instantiated),
+        );
+        Ok(instantiated)
     }
 
     /// tsc-port: getTypeOfVariableOrParameterOrProperty @6.0.3
@@ -1450,11 +1506,16 @@ impl<'a> CheckerState<'a> {
         let signature = Signature {
             declaration,
             flags,
+            type_parameters: None,
             parameters,
             this_parameter,
             min_argument_count,
             resolved_return_type: LinkSlot::Vacant,
             from_method: self.kind_of(declaration) == SyntaxKind::MethodSignature,
+            target: None,
+            mapper: None,
+            instantiations: std::collections::HashMap::new(),
+            erased_signature_cache: None,
         };
         let id = self.alloc_signature(signature);
         self.links.set_node_resolved_signature(
@@ -1473,12 +1534,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 59a361ad1f8c3e47696f66ca558f78d32f511ea571477db96df219a130d55c5a
     /// tsc-span: _tsc.js:59842-59871
     ///
-    /// Slice: the annotation branch + the bodyless anyType fallback
-    /// (59815: nodeIsMissing(body) → anyType). Instantiation targets,
-    /// composites, call-chain optionality and body inference are
-    /// 5.2/5.5/M6. Cycles run on the resolution stack (59812/59821);
-    /// an Err unwind pops the stack and leaves the slot Vacant
-    /// (M3-review Resolving-dangling fix).
+    /// Slice: the instantiation-target arm (5.2) + the annotation
+    /// branch + the bodyless anyType fallback (59815: nodeIsMissing(body)
+    /// → anyType). Composite signatures ride on 5.3 union members,
+    /// call-chain optionality and body inference on 5.5/M6. Cycles run
+    /// on the resolution stack (59812/59821); an Err unwind pops the
+    /// stack and leaves the slot Vacant (M3-review Resolving-dangling
+    /// fix).
     pub fn get_return_type_of_signature(&mut self, id: SignatureId) -> CheckResult2<TypeId> {
         if let Some(resolved) = self.signature_of(id).resolved_return_type.resolved() {
             return Ok(resolved);
@@ -1498,10 +1560,20 @@ impl<'a> CheckerState<'a> {
             NodeData::MethodSignature(data) => data.r#type,
             _ => None,
         };
-        let computed = match annotation {
-            Some(annotation) => self.get_type_from_type_node(annotation),
-            // Annotation-context signatures are bodyless: anyType.
-            None => Ok(self.tables.intrinsics.any),
+        let target = self.signature_of(id).target;
+        let computed = match target {
+            // 59815: signature.target → instantiate the target's
+            // return type through signature.mapper.
+            Some(target) => {
+                let mapper = self.signature_of(id).mapper;
+                self.get_return_type_of_signature(target)
+                    .and_then(|target_return| self.instantiate_type(target_return, mapper))
+            }
+            None => match annotation {
+                Some(annotation) => self.get_type_from_type_node(annotation),
+                // Annotation-context signatures are bodyless: anyType.
+                None => Ok(self.tables.intrinsics.any),
+            },
         };
         let resolved = match computed {
             Ok(resolved) => resolved,

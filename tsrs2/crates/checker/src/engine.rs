@@ -393,21 +393,10 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    /// tsc isGenericTupleType (67794): tuple whose target combinedFlags
-    /// include Variadic — normalization at construction leaves these
-    /// only when variadic elements stay generic (M4), but the guard is
-    /// ported so getNormalizedType reads as tsc does.
+    /// tsc isGenericTupleType (67794) — the tables twin holds the body
+    /// (getGenericObjectFlags reads it there since M4 5.2).
     pub(crate) fn is_generic_tuple_type(&self, ty: TypeId) -> bool {
-        if !self.tables.is_tuple_type(ty) {
-            return false;
-        }
-        let target = self.tables.reference_target(ty);
-        match &self.tables.type_of(target).data {
-            TypeData::TupleTarget(data) => data
-                .combined_flags
-                .intersects(tsrs2_types::ElementFlags::VARIADIC),
-            _ => false,
-        }
+        self.tables.is_generic_tuple_type(ty)
     }
 
     /// tsc-port: getNormalizedTupleType @6.0.3

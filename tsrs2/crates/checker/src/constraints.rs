@@ -47,7 +47,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:60056-60058
     ///
     /// getEffectiveConstraintOfTypeParameter's JSDoc arm elided.
-    fn get_constraint_declaration(&self, ty: TypeId) -> Option<NodeId> {
+    pub(crate) fn get_constraint_declaration(&self, ty: TypeId) -> Option<NodeId> {
         let symbol = self.tables.type_of(ty).symbol?;
         self.binder
             .symbol(symbol)
@@ -68,9 +68,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fa1aac56612d0c8da18fd3ea66665ae49d75136dbfdd70073388dadd59e1f4d8
     /// tsc-span: _tsc.js:60103-60122
     ///
-    /// The instantiated-parameter arm (typeParameter.target → 5.2's
-    /// mapper) is dead: instantiation does not construct type
-    /// parameters yet. The inferred-constraint arm
+    /// The instantiated-parameter arm (typeParameter.target, 60105-60107)
+    /// is live since 5.2 (cloneTypeParameter constructs targeted
+    /// parameters). The inferred-constraint arm
     /// (getInferredTypeParameterConstraint — infer-declared parameters)
     /// unwinds as Unsupported: infer type parameters ARE resolvable by
     /// name (resolveName's InferType arm), but their constraints need
@@ -90,6 +90,17 @@ impl<'a> CheckerState<'a> {
         } = self.tables.type_of(ty).data
         {
             return Ok(Some(inline));
+        }
+        if let Some(target) = self.links.ty(ty).type_parameter_target {
+            let target_constraint = self.get_constraint_of_type_parameter(target)?;
+            let mapper = self.links.ty(ty).type_parameter_mapper;
+            let constraint = match target_constraint {
+                Some(target_constraint) => self.instantiate_type(target_constraint, mapper)?,
+                None => self.no_constraint_type,
+            };
+            self.links
+                .set_type_parameter_constraint(self.speculation_depth, ty, constraint);
+            return Ok((constraint != self.no_constraint_type).then_some(constraint));
         }
         let constraint = match self.get_constraint_declaration(ty) {
             None => {
@@ -196,12 +207,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:58915-59025
     ///
     /// computeBaseConstraint arms present: TypeParameter,
-    /// Union/Intersection, TemplateLiteral, generic tuple, and the
-    /// default identity. Unsupported escapes (each names its owner):
-    /// StringMapping (5.2), Index/IndexedAccess/Conditional/
+    /// Union/Intersection, TemplateLiteral, StringMapping (live since
+    /// 5.2), generic tuple, and the default identity. Unsupported
+    /// escapes (each names its owner): IndexedAccess/Conditional/
     /// Substitution (those TypeFlags are unconstructible before
-    /// 5.1/5.2 land their type nodes — the escape fires if they ever
-    /// appear rather than mis-computing). getSimplifiedType is the M3
+    /// their type nodes land — the escape fires if they ever appear
+    /// rather than mis-computing). getSimplifiedType is the M3
     /// identity stub (un-stubbed at 5.3). The circular-constraint
     /// related-info (currentNode) is driver state — 5.4.
     pub fn get_resolved_base_constraint(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
@@ -368,15 +379,32 @@ impl<'a> CheckerState<'a> {
                 self.tables.intrinsics.string
             }));
         }
+        if flags.intersects(TypeFlags::STRING_MAPPING) {
+            // 58996-58999: the operand's base constraint, re-mapped —
+            // or stringType when the operand has none.
+            let TypeData::StringMapping { ty: inner } = self.tables.type_of(t).data else {
+                unreachable!("string-mapping flag implies string-mapping data");
+            };
+            let constraint = self.get_base_constraint_inner(inner, stack)?;
+            return Ok(Some(match constraint {
+                Some(constraint) if constraint != inner => {
+                    let symbol = self
+                        .tables
+                        .type_of(t)
+                        .symbol
+                        .expect("string-mapping types carry the intrinsic symbol");
+                    self.get_string_mapping_type(symbol, constraint)?
+                }
+                _ => self.tables.intrinsics.string,
+            }));
+        }
         if flags.intersects(
-            TypeFlags::STRING_MAPPING
-                | TypeFlags::INDEXED_ACCESS
-                | TypeFlags::CONDITIONAL
-                | TypeFlags::SUBSTITUTION,
+            TypeFlags::INDEXED_ACCESS | TypeFlags::CONDITIONAL | TypeFlags::SUBSTITUTION,
         ) {
             return Err(Unsupported::new(
-                "computeBaseConstraint for StringMapping/IndexedAccess/Conditional/Substitution \
-                 (M4 5.2/M8 — those TypeFlags are unconstructible before their type nodes land)",
+                "computeBaseConstraint for IndexedAccess/Conditional/Substitution \
+                 (M4 5.2 follow-up/M8 — those TypeFlags are unconstructible before their \
+                 type nodes land)",
             ));
         }
         if self.is_generic_tuple_type(t) {

@@ -278,7 +278,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(Ternary::TRUE);
             }
         } else if target_flags.intersects(TypeFlags::STRING_MAPPING) {
-            return Err(Unsupported::new("string-mapping targets (M4 5.2)"));
+            // 66284-66290: non-mapping sources relate through
+            // isMemberOfStringMapping; mapping-vs-mapping falls through
+            // to the source arm below.
+            if !source_flags.intersects(TypeFlags::STRING_MAPPING)
+                && self.st.is_member_of_string_mapping(source, target)?
+            {
+                return Ok(Ternary::TRUE);
+            }
         }
         if source_flags.intersects(TypeFlags::TYPE_VARIABLE) {
             return Err(Unsupported::new("type-variable sources (M4 5.1)"));
@@ -308,7 +315,47 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         } else if source_flags.intersects(TypeFlags::STRING_MAPPING) {
-            return Err(Unsupported::new("string-mapping sources (M4 5.2)"));
+            // 66345-66358.
+            if target_flags.intersects(TypeFlags::STRING_MAPPING) {
+                if self.st.tables.type_of(source).symbol != self.st.tables.type_of(target).symbol
+                {
+                    return Ok(Ternary::FALSE);
+                }
+                let TypeData::StringMapping { ty: source_inner } =
+                    self.st.tables.type_of(source).data
+                else {
+                    unreachable!("string-mapping flag implies string-mapping data");
+                };
+                let TypeData::StringMapping { ty: target_inner } =
+                    self.st.tables.type_of(target).data
+                else {
+                    unreachable!("string-mapping flag implies string-mapping data");
+                };
+                let related = self.is_related_to(
+                    source_inner,
+                    target_inner,
+                    RecursionFlags::BOTH,
+                    report_errors,
+                    IntersectionState::NONE,
+                )?;
+                if is_true(related) {
+                    return Ok(related);
+                }
+            } else {
+                let constraint = self.st.get_base_constraint_of_type(source)?;
+                if let Some(constraint) = constraint {
+                    let related = self.is_related_to(
+                        constraint,
+                        target,
+                        RecursionFlags::SOURCE,
+                        report_errors,
+                        IntersectionState::NONE,
+                    )?;
+                    if is_true(related) {
+                        return Ok(related);
+                    }
+                }
+            }
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
             return Err(Unsupported::new("conditional sources (M4 5.2)"));
         } else if !(source_flags.intersects(TypeFlags::TEMPLATE_LITERAL)
@@ -3149,6 +3196,9 @@ impl<'a> CheckerState<'a> {
                 if let TypeData::Intrinsic { name, .. } = &self.tables.type_of(target).data {
                     return Ok(value == *name);
                 }
+            }
+            if target_flags.intersects(TypeFlags::STRING_MAPPING) {
+                return self.is_member_of_string_mapping(source, target);
             }
             if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
                 return self.is_type_matched_by_template_literal_type(source, target);

@@ -1092,11 +1092,43 @@ impl<'a> CheckerState<'a> {
         node_util::name_field_of(self.binder.source_of_node(node), node)
     }
 
-    fn identifier_text_of(&self, node: NodeId) -> Option<&'a str> {
+    pub(crate) fn identifier_text_of(&self, node: NodeId) -> Option<&'a str> {
         match self.data_of(node) {
             NodeData::Identifier(data) => Some(&data.escaped_text),
             _ => None,
         }
+    }
+
+    /// tsc-port: getResolvedSymbol @6.0.3
+    /// tsc-hash: a2e483d12e4f94f17a890574405568a03060cad9c38b5df18836ef794ae69532
+    /// tsc-span: _tsc.js:69389-69403
+    ///
+    /// isWriteOnlyAccess is 5.5 expression machinery; every consumer
+    /// today sits in type positions, which are reads — isUse = true.
+    /// Failure caches unknownSymbol (returned as None here) after the
+    /// resolveName error path has fired, exactly once per node.
+    pub(crate) fn get_resolved_symbol(&mut self, node: NodeId) -> Option<SymbolId> {
+        if let Some(cached) = self.links.node(node).resolved_symbol.resolved() {
+            return (cached != self.unknown_symbol).then_some(cached);
+        }
+        let resolved = if node_util::node_is_missing(self.binder.source_of_node(node), Some(node))
+        {
+            None
+        } else {
+            let name = self.identifier_text_of(node).unwrap_or_default().to_owned();
+            let message = self.cannot_find_name_diagnostic_for_name(node);
+            self.resolve_name(
+                Some(node),
+                &name,
+                SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE,
+                Some(message),
+                /*is_use*/ true,
+                /*exclude_globals*/ false,
+            )
+        };
+        let cached = resolved.unwrap_or(self.unknown_symbol);
+        self.links.set_node_resolved_symbol(self.speculation_depth, node, cached);
+        resolved
     }
 
     fn is_static_node(&self, node: NodeId) -> bool {
@@ -1120,7 +1152,7 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    fn heritage_clause_is_extends(&self, clause: NodeId) -> bool {
+    pub(crate) fn heritage_clause_is_extends(&self, clause: NodeId) -> bool {
         if self.kind_of(clause) != SyntaxKind::HeritageClause {
             return false;
         }
@@ -1160,7 +1192,7 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    fn type_annotation_of(&self, node: NodeId) -> Option<NodeId> {
+    pub(crate) fn type_annotation_of(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => data.r#type,
             NodeData::FunctionExpression(data) => data.r#type,
@@ -1174,6 +1206,12 @@ impl<'a> CheckerState<'a> {
             NodeData::FunctionType(data) => data.r#type,
             NodeData::ConstructorType(data) => data.r#type,
             NodeData::Constructor(data) => data.r#type,
+            NodeData::PropertyDeclaration(data) => data.r#type,
+            NodeData::PropertySignature(data) => data.r#type,
+            NodeData::Parameter(data) => data.r#type,
+            NodeData::VariableDeclaration(data) => data.r#type,
+            NodeData::IndexSignature(data) => data.r#type,
+            NodeData::TypeAssertionExpression(data) => data.r#type,
             _ => None,
         }
     }

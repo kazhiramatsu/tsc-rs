@@ -15,6 +15,7 @@ use tsrs2_types::{
     TypeId, TypeSystemPropertyName, TypeTables,
 };
 
+use crate::instantiate::MapperId;
 use crate::links::{LinkSlot, LinksTables};
 use crate::program::ProgramBinder;
 use crate::relate::RelationCaches;
@@ -42,12 +43,17 @@ pub struct SignatureId(pub u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct MembersId(pub u32);
 
-/// tsc Signature (core-interfaces §4) — the M3 subset: annotation-only
-/// signatures, no type parameters, no instantiation target/mapper.
+/// tsc Signature (core-interfaces §4). M4 5.2 adds the instantiation
+/// surface (typeParameters/target/mapper + the instantiations and
+/// erased caches); composite signatures arrive with 5.3 union members.
 #[derive(Clone, Debug)]
 pub struct Signature {
     pub declaration: NodeId,
     pub flags: SignatureFlags,
+    /// tsc signature.typeParameters — generic signature construction
+    /// from declarations lands with the 5.2 follow-up; instantiateSignature
+    /// writes the fresh clones here (63413-63419).
+    pub type_parameters: Option<Vec<TypeId>>,
     /// Parameter symbols in declaration order, `this` excluded.
     pub parameters: Vec<SymbolId>,
     pub this_parameter: Option<SymbolId>,
@@ -58,6 +64,15 @@ pub struct Signature {
     /// strictFunctionTypes variance keys on the DECLARATION kind
     /// (method bivariance — core-interfaces §4 from_method).
     pub from_method: bool,
+    /// tsc signature.target (instantiateSignature 63433).
+    pub target: Option<SignatureId>,
+    /// tsc signature.mapper (63434).
+    pub mapper: Option<MapperId>,
+    /// tsc signature.instantiations (getSignatureInstantiationWithout
+    /// FillingInTypeArguments 59903), keyed by getTypeListId.
+    pub instantiations: std::collections::HashMap<String, SignatureId>,
+    /// tsc signature.erasedSignatureCache (getErasedSignature 59927).
+    pub erased_signature_cache: Option<SignatureId>,
 }
 
 /// tsc IndexInfo (createIndexInfo 59989).
@@ -122,6 +137,26 @@ pub struct CheckerState<'a> {
     /// tsc circularConstraintType (47196): the circular-constraint
     /// sentinel from getImmediateBaseConstraint — never exposed.
     pub circular_constraint_type: TypeId,
+
+    // ---- M4 5.2: instantiation state ----
+    /// The TypeMapper arena — MapperId equality IS tsc's mapper object
+    /// identity (findActiveMapper 73616 compares `===`).
+    pub(crate) mappers: Vec<crate::instantiate::TypeMapper>,
+    /// tsc restrictiveMapper (47103).
+    pub(crate) restrictive_mapper: crate::instantiate::MapperId,
+    /// tsc permissiveMapper (47104).
+    pub(crate) permissive_mapper: crate::instantiate::MapperId,
+    /// tsc activeTypeMappers/activeTypeMappersCaches/activeTypeMappersCount
+    /// (47412-47414): the instantiation cache stack.
+    pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
+    pub(crate) active_type_mappers_caches: Vec<std::collections::HashMap<String, TypeId>>,
+    /// tsc instantiationDepth/instantiationCount (46451-46452); the
+    /// count resets at tsc's three entry points — checkExpression,
+    /// checkSourceElement, checkDeferredNode (wired at 5.4/5.5).
+    pub(crate) instantiation_depth: u32,
+    pub(crate) instantiation_count: u64,
+    /// tsc totalInstantiationCount (46450).
+    pub total_instantiation_count: u64,
 
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
@@ -211,6 +246,14 @@ impl<'a> CheckerState<'a> {
             any_function_type: TypeId(0),
             no_constraint_type: TypeId(0),
             circular_constraint_type: TypeId(0),
+            mappers: Vec::new(),
+            restrictive_mapper: crate::instantiate::MapperId(0),
+            permissive_mapper: crate::instantiate::MapperId(0),
+            active_type_mappers: Vec::new(),
+            active_type_mappers_caches: Vec::new(),
+            instantiation_depth: 0,
+            instantiation_count: 0,
+            total_instantiation_count: 0,
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
@@ -238,6 +281,15 @@ impl<'a> CheckerState<'a> {
         state
             .globals
             .insert("globalThis".to_owned(), global_this_symbol);
+
+        // tsc restrictiveMapper/permissiveMapper (47103-47104): the two
+        // function-mapper singletons.
+        state.restrictive_mapper = state.alloc_mapper(crate::instantiate::TypeMapper::Function(
+            crate::instantiate::FunctionMapper::Restrictive,
+        ));
+        state.permissive_mapper = state.alloc_mapper(crate::instantiate::TypeMapper::Function(
+            crate::instantiate::FunctionMapper::Permissive,
+        ));
 
         // The empty anonymous types from the checker init block
         // (47132/47160/47170/47179): resolved-empty from birth.
