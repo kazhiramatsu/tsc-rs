@@ -166,6 +166,10 @@ pub struct TypeLinks {
     /// even when the resolution stack flags a cycle, freezing whatever
     /// resolvedBaseTypes holds.
     pub base_types_resolved: bool,
+    /// tsc TypeReference.cachedEquivalentBaseType
+    /// (getSingleBaseForNonAugmentingSubtype 67713), guarded by the
+    /// IdenticalBaseTypeCalculated/Exists object flags.
+    pub cached_equivalent_base_type: Option<TypeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -488,6 +492,17 @@ impl LinksTables {
     pub fn set_type_base_types_resolved(&mut self, speculation_depth: u32, id: TypeId) {
         Self::assert_writable(speculation_depth);
         self.ty.entry(id).or_default().base_types_resolved = true;
+    }
+
+    /// getSingleBaseForNonAugmentingSubtype's cachedEquivalentBaseType
+    /// stamp (67713), guarded by IdenticalBaseTypeCalculated.
+    pub fn ty_mut_cached_equivalent_base_type(&mut self, id: TypeId, value: TypeId) {
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.cached_equivalent_base_type.is_none(),
+            "equivalent base type written twice for {id:?}"
+        );
+        links.cached_equivalent_base_type = Some(value);
     }
 
     /// The Err-unwind retraction for the members slot: tsc has no

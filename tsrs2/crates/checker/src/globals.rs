@@ -33,6 +33,10 @@ pub(crate) struct GlobalTypeMemos {
     number: Option<TypeId>,
     boolean: Option<TypeId>,
     regexp: Option<TypeId>,
+    /// deferredGlobalESSymbolType / deferredGlobalBigIntType — filled
+    /// only on SUCCESS (reportErrors=false lookups retry per call).
+    es_symbol: Option<TypeId>,
+    big_int: Option<TypeId>,
     readonly_array: Option<TypeId>,
     this_type: Option<Option<TypeId>>,
     any_array: Option<TypeId>,
@@ -326,6 +330,39 @@ impl<'a> CheckerState<'a> {
             .expect("reportErrors");
         self.global_type_memos.boolean = Some(resolved);
         Ok(resolved)
+    }
+
+    /// tsc-port: getGlobalESSymbolType @6.0.3
+    /// tsc-hash: 9d3cd071de9b48c23ee3704a3db67475970b93443e481bc6a6cc3f65bf1c97ef
+    /// tsc-span: _tsc.js:60741-60749
+    ///
+    /// reportErrors=false — a failed lookup falls back to
+    /// emptyObjectType WITHOUT memoizing (tsc retries per call).
+    pub fn global_es_symbol_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.es_symbol {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("Symbol", 0, false)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.es_symbol = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_object_type)
+    }
+
+    /// tsc-port: getGlobalBigIntType @6.0.3
+    /// tsc-hash: 53c9b2ec3484063b340bd5a57b78efd29aff564b303c1e92c64c71c602450d69
+    /// tsc-span: _tsc.js:60936-60944
+    pub fn global_big_int_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.big_int {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("BigInt", 0, false)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.big_int = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_object_type)
     }
 
     /// initializeTypeChecker 88844-88850.

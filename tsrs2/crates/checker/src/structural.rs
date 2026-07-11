@@ -107,7 +107,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 && self.flags(source).intersects(TypeFlags::INTERSECTION)
                 && self
                     .st
-                    .get_apparent_type_m3(source)
+                    .get_apparent_type(source)
                     .map(|apparent| self.flags(apparent).intersects(TypeFlags::STRUCTURED_TYPE))
                     .unwrap_or(false)
                 && !self.union_members(source).iter().any(|&t| {
@@ -366,7 +366,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // mapped sources/targets handled above.
             let source_is_primitive = source_flags.intersects(TypeFlags::PRIMITIVE);
             if self.relation != RelationKind::Identity {
-                source = self.st.get_apparent_type_m3(source)?;
+                source = self.st.get_apparent_type(source)?;
                 source_flags = self.flags(source);
             }
             // Reference variance fast path (66418-66431): tuples are
@@ -1952,43 +1952,89 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 619ac2a1ef46eed57fbe781a4e1aaf381e2d5e02401d1f26609ce218ae2beedb
     /// tsc-span: _tsc.js:59093-59097
     ///
-    /// tsc-port: getReducedApparentType @6.0.3
-    /// tsc-hash: b1cf0cc54d00b7b1594d9b40a29bcf06e62f81238c47afb524d6e6f82a8f9ec3
-    /// tsc-span: _tsc.js:59098-59100
+    /// tsc-port: getApparentType @6.0.3
+    /// tsc-hash: 619ac2a1ef46eed57fbe781a4e1aaf381e2d5e02401d1f26609ce218ae2beedb
+    /// tsc-span: _tsc.js:59093-59097
     ///
-    /// M3 slice: instantiable constraints are M4; primitive apparent
-    /// types resolve through missing globals in the noLib world the
-    /// probe shares with the oracle, i.e. the empty object type
-    /// (getGlobalType failure → emptyObjectType; the 2318 diagnostics
-    /// are program-level and invisible to fixture files). NonPrimitive
-    /// → emptyObjectType is real tsc behavior. getReducedType is the
-    /// ledgered identity stub (M4 5.3).
-    pub fn get_apparent_type_m3(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
-        let flags = self.tables.flags_of(ty);
-        if flags.intersects(TypeFlags::INSTANTIABLE) {
-            return Err(Unsupported::new("instantiable apparent types (M4 5.3)"));
+    /// getApparentTypeOfMappedType is M8 (Mapped is unconstructible).
+    /// Wrapper globals resolve through the lazy 5.0 accessors — in the
+    /// noLib world getGlobalType's failure fallback is emptyObjectType
+    /// with the file-less one-shot 2318, invisible to fixture files.
+    pub fn get_apparent_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        let t = if self.tables.flags_of(ty).intersects(TypeFlags::INSTANTIABLE) {
+            self.get_base_constraint_of_type(ty)?
+                .unwrap_or(self.tables.intrinsics.unknown)
+        } else {
+            ty
+        };
+        let object_flags = self.tables.object_flags_of(t);
+        if object_flags.intersects(ObjectFlags::MAPPED) {
+            return Err(Unsupported::new("mapped type apparent types (M8)"));
         }
-        if flags.intersects(TypeFlags::from_bits(
-            TypeFlags::STRING_LIKE.bits()
-                | TypeFlags::NUMBER_LIKE.bits()
-                | TypeFlags::BIG_INT_LIKE.bits()
-                | TypeFlags::BOOLEAN_LIKE.bits()
-                | TypeFlags::ES_SYMBOL_LIKE.bits()
-                | TypeFlags::NON_PRIMITIVE.bits(),
-        )) {
+        if object_flags.intersects(ObjectFlags::REFERENCE) && t != ty {
+            return self.get_type_with_this_argument(t, Some(ty), /*need_apparent_type*/ false);
+        }
+        let flags = self.tables.flags_of(t);
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            return self.get_apparent_type_of_intersection_type(t, ty);
+        }
+        if flags.intersects(TypeFlags::STRING_LIKE) {
+            return self.global_string_type();
+        }
+        if flags.intersects(TypeFlags::NUMBER_LIKE) {
+            return self.global_number_type();
+        }
+        if flags.intersects(TypeFlags::BIG_INT_LIKE) {
+            return self.global_big_int_type();
+        }
+        if flags.intersects(TypeFlags::BOOLEAN_LIKE) {
+            return self.global_boolean_type();
+        }
+        if flags.intersects(TypeFlags::ES_SYMBOL_LIKE) {
+            return self.global_es_symbol_type();
+        }
+        if flags.intersects(TypeFlags::NON_PRIMITIVE) {
             return Ok(self.empty_object_type);
+        }
+        if flags.intersects(TypeFlags::INDEX) {
+            return Ok(self.tables.intrinsics.string_number_symbol);
         }
         if flags.intersects(TypeFlags::UNKNOWN) && !self.tables.strict_null_checks {
             return Ok(self.empty_object_type);
         }
-        Ok(ty)
+        Ok(t)
+    }
+
+    /// tsc-port: getApparentTypeOfIntersectionType @6.0.3
+    /// tsc-hash: b1bd165210931aa78c769674782d148e3fe51b01f793974e32e98f590b4f7def
+    /// tsc-span: _tsc.js:59026-59043
+    ///
+    /// tsc's resolvedApparentType slot and the `I{id},{id}` cachedTypes
+    /// entry are pure caches over the deterministic, interning
+    /// getTypeWithThisArgument — elided (recomputation returns the
+    /// identical type ids).
+    fn get_apparent_type_of_intersection_type(
+        &mut self,
+        ty: TypeId,
+        this_argument: TypeId,
+    ) -> CheckResult2<TypeId> {
+        self.get_type_with_this_argument(ty, Some(this_argument), /*need_apparent_type*/ true)
+    }
+
+    /// tsc-port: getReducedApparentType @6.0.3
+    /// tsc-hash: b1cf0cc54d00b7b1594d9b40a29bcf06e62f81238c47afb524d6e6f82a8f9ec3
+    /// tsc-span: _tsc.js:59098-59100
+    pub fn get_reduced_apparent_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        let reduced = self.get_reduced_type(ty)?;
+        let apparent = self.get_apparent_type(reduced)?;
+        self.get_reduced_type(apparent)
     }
 
     /// tsc-port: getPropertiesOfType @6.0.3
     /// tsc-hash: 24909f78d7ea360522b5188e5af3c7b09613e4dc2e455ea321c4ec054b4d7576
     /// tsc-span: _tsc.js:58745-58748
     pub fn get_properties_of_type_full(&mut self, ty: TypeId) -> CheckResult2<Vec<SymbolId>> {
-        let reduced = self.get_apparent_type_m3(ty)?;
+        let reduced = self.get_reduced_apparent_type(ty)?;
         if self
             .tables
             .flags_of(reduced)
@@ -2092,7 +2138,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<SymbolId>> {
-        let reduced = self.get_apparent_type_m3(ty)?;
+        let reduced = self.get_reduced_apparent_type(ty)?;
         let flags = self.tables.flags_of(reduced);
         if flags.intersects(TypeFlags::OBJECT) {
             return self.get_property_of_object_type(reduced, name);
@@ -2335,7 +2381,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut syntactic_flag = CheckFlags::SYNTHETIC_METHOD;
         for current in members {
-            let ty = self.get_apparent_type_m3(current)?;
+            let ty = self.get_apparent_type(current)?;
             if self.tables.is_error_type(ty)
                 || self.tables.flags_of(ty).intersects(TypeFlags::NEVER)
             {
@@ -2684,7 +2730,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         kind: SignatureKind,
     ) -> CheckResult2<Vec<SignatureId>> {
-        let reduced = self.get_apparent_type_m3(ty)?;
+        let reduced = self.get_reduced_apparent_type(ty)?;
         // Tuple references have no signatures by construction
         // (createTupleTargetType 61198-61199: declaredCall/Construct
         // = emptyArray); resolving their members is M4 instantiation.
@@ -2885,7 +2931,7 @@ impl<'a> CheckerState<'a> {
     /// Union/intersection index infos need member resolution for those
     /// kinds — M4 rows.
     pub fn get_index_infos_of_type(&mut self, ty: TypeId) -> CheckResult2<Vec<IndexInfo>> {
-        let reduced = self.get_apparent_type_m3(ty)?;
+        let reduced = self.get_reduced_apparent_type(ty)?;
         // Tuple references carry no index infos by construction
         // (createTupleTargetType 61200).
         if self.tables.is_tuple_type(reduced) {

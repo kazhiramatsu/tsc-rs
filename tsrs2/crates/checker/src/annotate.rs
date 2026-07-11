@@ -2316,7 +2316,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getMembersOfSymbol @6.0.3
     /// tsc-hash: 0f11dedba730036e86b603fd44caf3e18114365b5b104823548dd7fb97466631
     /// tsc-span: _tsc.js:57767-57769
-    fn get_members_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<tsrs2_binder::SymbolTable> {
+    pub(crate) fn get_members_of_symbol(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<tsrs2_binder::SymbolTable> {
         if self
             .symbol_flags(symbol)
             .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
@@ -2668,8 +2671,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 71e6ed1bfe5ec5f0a9375446ad398c7047d86c374968622e3df5deeefcbc123e
     /// tsc-span: _tsc.js:57785-57795
     ///
-    /// needApparentType=true needs the full getApparentType chain
-    /// (5.3b) — no 5.3a caller passes it.
+    /// needApparentType=true routes non-reference constituents through
+    /// the full getApparentType chain (the intersection-apparent path).
     pub(crate) fn get_type_with_this_argument(
         &mut self,
         ty: TypeId,
@@ -2721,9 +2724,7 @@ impl<'a> CheckerState<'a> {
             };
         }
         if need_apparent_type {
-            return Err(Unsupported::new(
-                "getTypeWithThisArgument apparent-type arm (M4 5.3b)",
-            ));
+            return self.get_apparent_type(ty);
         }
         Ok(ty)
     }
@@ -4842,6 +4843,109 @@ mod generic_reference_tests {
                         .intersects(tsrs2_types::CheckFlags::INSTANTIATED),
                     "thisless member symbols pass through uninstantiated"
                 );
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn primitive_apparent_types_read_the_wrapper_globals() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface String { length: number }\ndeclare var v: \"abc\";\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let literal = state.get_type_from_type_node(v).expect("literal type");
+                let length = state
+                    .get_property_of_type_full(literal, "length")
+                    .expect("apparent members resolve")
+                    .expect("length property via globalStringType");
+                let length_type = state.get_type_of_symbol(length).expect("length type");
+                assert_eq!(length_type, state.tables.intrinsics.number);
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn intersection_apparent_substitutes_this_across_constituents() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface C { self: this }\ntype X = C & { x: number };\ndeclare var v: X;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let x = state.get_type_from_type_node(v).expect("X resolves");
+                // getApparentTypeOfIntersectionType: this maps to the
+                // WHOLE intersection before the property lookup.
+                let self_property = state
+                    .get_property_of_type_full(x, "self")
+                    .expect("intersection apparent resolves")
+                    .expect("self property");
+                let self_type = state
+                    .get_type_of_symbol(self_property)
+                    .expect("self type");
+                assert_eq!(self_type, x, "this-argument = the intersection");
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn empty_subinterfaces_normalize_to_their_single_base() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface A { self: this; a: number }\ninterface J extends A { }\n\
+                 declare var v: J;\ndeclare var w: A;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                // A is this-ful, so the empty J is this-ful too — both
+                // are GenericType references, the shape getSingleBase
+                // requires.
+                let v = annotation_of(state, "v");
+                let j = state.get_type_from_type_node(v).expect("J resolves");
+                let w = annotation_of(state, "w");
+                let a = state.get_type_from_type_node(w).expect("A resolves");
+                let normalized = state
+                    .get_normalized_type(j, /*writing*/ false)
+                    .expect("single-base collapse");
+                assert_eq!(normalized, a, "empty J collapses to its single base A");
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn generic_subinterfaces_do_not_collapse_their_single_base() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface I<T> { a: T }\ninterface J<T> extends I<T> { }\n\
+                 declare var v: J<number>;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                // The type parameter T lives in J's symbol MEMBERS
+                // (binder parity with tsc), so the non-augmenting
+                // collapse's `getMembersOfSymbol(symbol).size` gate
+                // rejects generic subinterfaces.
+                let v = annotation_of(state, "v");
+                let j = state.get_type_from_type_node(v).expect("J<number>");
+                let single = state
+                    .get_single_base_for_non_augmenting_subtype(j)
+                    .expect("computes");
+                assert_eq!(single, None);
+                let normalized = state
+                    .get_normalized_type(j, /*writing*/ false)
+                    .expect("normalizes");
+                assert_eq!(normalized, j);
                 assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
             },
         );

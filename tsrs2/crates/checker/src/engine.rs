@@ -20,7 +20,7 @@ use std::collections::HashSet;
 
 use tsrs2_types::{
     ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags, RelationComparisonResult,
-    Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
+    SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use tsrs2_syntax::NodeId;
@@ -302,11 +302,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 15b1858f4522bdb103fa55510c586405f260560a3545e142a6a032ea8ac0b792
     /// tsc-span: _tsc.js:64807-64813
     ///
-    /// Dispositions (steps doc 4.5 item 3): fresh→regular live;
-    /// getNormalizedTupleType PORTED; deferred references (type.node)
-    /// M4; getSingleBaseForNonAugmentingSubtype STUB (base types M4);
-    /// Substitution M4; getSimplifiedType STUB (Simplifiable kinds are
-    /// unconstructible — indexed access/conditional are M4).
+    /// Deferred (node-carrying) references normalize to their eager
+    /// twin (createNormalizedTypeReference over the forced arguments);
+    /// Substitution is M8; getSimplifiedType stays the identity stub
+    /// (the IndexedAccess simplification lands with its 5.3c
+    /// consumers — Simplifiable relation inputs escape before this).
     pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult2<TypeId> {
         loop {
             let flags = self.tables.flags_of(ty);
@@ -323,9 +323,14 @@ impl<'a> CheckerState<'a> {
                 .intersects(ObjectFlags::REFERENCE)
                 && !matches!(self.tables.type_of(ty).data, TypeData::TupleTarget(_))
             {
-                // getSingleBaseForNonAugmentingSubtype: STUB returning
-                // the input (single-base subtypes need M4 base types).
-                ty
+                if self.links.ty(ty).deferred_node.is_some() {
+                    let target = self.tables.reference_target(ty);
+                    let arguments = self.get_type_arguments(ty)?;
+                    self.create_normalized_type_reference_forced(target, &arguments)?
+                } else {
+                    self.get_single_base_for_non_augmenting_subtype(ty)?
+                        .unwrap_or(ty)
+                }
             } else if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
                 self.get_normalized_union_or_intersection_type(ty, writing)?
             } else {
@@ -336,6 +341,107 @@ impl<'a> CheckerState<'a> {
             }
             ty = t;
         }
+    }
+
+    /// tsc-port: getSingleBaseForNonAugmentingSubtype @6.0.3
+    /// tsc-hash: 587ed64c85dc88067b489e77dd0d80526ba1e2da68c3476319f36cb8f840205e
+    /// tsc-span: _tsc.js:67686-67714
+    ///
+    /// The class base-type-node kind gate (67695-67700) sits before
+    /// class bases exist — class members are 5.3e, but the gate is
+    /// syntax-only and ports now.
+    pub(crate) fn get_single_base_for_non_augmenting_subtype(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            return Ok(None);
+        }
+        let target = self.tables.reference_target(ty);
+        if !self
+            .tables
+            .object_flags_of(target)
+            .intersects(ObjectFlags::CLASS_OR_INTERFACE)
+        {
+            return Ok(None);
+        }
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::IDENTICAL_BASE_TYPE_CALCULATED)
+        {
+            return Ok(
+                if self
+                    .tables
+                    .object_flags_of(ty)
+                    .intersects(ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS)
+                {
+                    self.links.ty(ty).cached_equivalent_base_type
+                } else {
+                    None
+                },
+            );
+        }
+        let with_calculated = self.tables.object_flags_of(ty).bits()
+            | ObjectFlags::IDENTICAL_BASE_TYPE_CALCULATED.bits();
+        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_calculated);
+        if self
+            .tables
+            .type_of(target)
+            .symbol
+            .is_some_and(|symbol| self.symbol_flags(symbol).intersects(SymbolFlags::CLASS))
+        {
+            // 67695-67700: entity-name extends gates — class bases are
+            // 5.3e; classes cannot construct references yet, so the
+            // node walk is unreachable.
+            return Err(Unsupported::new("class single-base collapse (M4 5.3e)"));
+        }
+        let bases = self.get_base_types(target)?;
+        if bases.len() != 1 {
+            return Ok(None);
+        }
+        let target_symbol = self
+            .tables
+            .type_of(target)
+            .symbol
+            .expect("class/interface targets carry their symbol");
+        if !self.get_members_of_symbol(target_symbol)?.is_empty() {
+            return Ok(None);
+        }
+        let target_parameters: Vec<TypeId> = match &self.tables.type_of(target).data {
+            TypeData::GenericType {
+                type_parameters, ..
+            } => type_parameters.to_vec(),
+            _ => Vec::new(),
+        };
+        let mut instantiated_base = if target_parameters.is_empty() {
+            bases[0]
+        } else {
+            let arguments = self.get_type_arguments(ty)?;
+            let mapper = self.create_type_mapper(
+                target_parameters.clone(),
+                Some(arguments[..target_parameters.len()].to_vec()),
+            );
+            self.instantiate_type(bases[0], Some(mapper))?
+        };
+        let arguments = self.get_type_arguments(ty)?;
+        if arguments.len() > target_parameters.len() {
+            let last = *arguments.last().expect("nonempty argument list");
+            instantiated_base = self.get_type_with_this_argument(
+                instantiated_base,
+                Some(last),
+                /*need_apparent_type*/ false,
+            )?;
+        }
+        let with_exists = self.tables.object_flags_of(ty).bits()
+            | ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS.bits();
+        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_exists);
+        self.links.ty_mut_cached_equivalent_base_type(ty, instantiated_base);
+        Ok(Some(instantiated_base))
     }
 
     /// tsc-port: getNormalizedUnionOrIntersectionType @6.0.3
@@ -802,7 +908,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     ) -> CheckResult2<TypeId> {
         let mut prop_types = Vec::with_capacity(types.len());
         for ty in types {
-            let apparent = self.st.get_apparent_type_m3(ty)?;
+            let apparent = self.st.get_apparent_type(ty)?;
             let prop = if self
                 .st
                 .tables

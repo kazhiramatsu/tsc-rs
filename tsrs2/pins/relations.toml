@@ -1657,3 +1657,53 @@ setup = "interface C { self: this; tag: string }"
 source = "C"
 target = "{ self: C, tag: string }"
 expect = "yes"
+
+# ---- M4 5.3b apparent types (wrapper globals + intersection this) ----
+# The doc's deferred "primitives vs objects with required members"
+# category: fixture-scoped wrapper interfaces stand in for lib globals
+# on BOTH sides (oracle runs the same no-lib fixture).
+
+[[pair]]
+setup = "interface String { length: number }"
+source = "\"abc\""
+target = "{ length: number }"
+expect = "yes"
+
+[[pair]]
+setup = "interface String { length: number }"
+source = "\"abc\""
+target = "{ length: string }"
+expect = "no"
+
+[[pair]]
+setup = "interface Number { toFixed(digits: number): string }"
+source = "1"
+target = "{ toFixed(digits: number): string }"
+expect = "yes"
+
+# Without a wrapper interface the apparent type of a primitive is the
+# 2318 fallback emptyObjectType — required members are missing.
+[[pair]]
+source = "\"abc\""
+target = "{ length: number }"
+expect = "no"
+
+# Intersection apparent: `this` substitutes to the WHOLE intersection.
+[[pair]]
+setup = "interface C { self: this }"
+source = "C & { x: number }"
+target = "{ self: C, x: number }"
+expect = "yes"
+
+# Single-base collapse feeds normalization: empty this-ful subinterface.
+[[pair]]
+setup = "interface A { self: this; a: number }\ninterface J extends A { }"
+source = "J"
+target = "A"
+expect = "yes"
+
+[[pair]]
+setup = "interface A { self: this; a: number }\ninterface J extends A { }"
+source = "A"
+target = "J"
+expect = "yes"

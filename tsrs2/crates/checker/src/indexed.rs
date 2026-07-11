@@ -558,10 +558,7 @@ impl<'a> CheckerState<'a> {
                 alias_type_arguments,
             )));
         }
-        let apparent_object_type = {
-            let apparent = self.get_apparent_type_m3(object_type)?;
-            self.get_reduced_type(apparent)?
-        };
+        let apparent_object_type = self.get_reduced_apparent_type(object_type)?;
         if self
             .tables
             .flags_of(index_type)
