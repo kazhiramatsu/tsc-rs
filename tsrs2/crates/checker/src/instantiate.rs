@@ -1715,12 +1715,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: fillMissingTypeArguments @6.0.3
     /// tsc-hash: 351c698c8fa3fccd898708b4e8b00822609109bfa95b5dc7f7203adec3c8fe90
     /// tsc-span: _tsc.js:59545-59568
-    ///
-    /// The default-filling loop (59555-59564) unwinds as Unsupported —
-    /// getDefaultFromTypeParameter's lazy default resolution lands with
-    /// generic type references (5.2 follow-up); reaching the loop
-    /// requires a type parameter that declares a default (or the JS
-    /// implicit-any path).
     pub fn fill_missing_type_arguments(
         &mut self,
         type_arguments: Option<&[TypeId]>,
@@ -1737,15 +1731,131 @@ impl<'a> CheckerState<'a> {
             || (num_type_arguments >= min_type_argument_count
                 && num_type_arguments <= num_type_parameters)
         {
-            if num_type_arguments < num_type_parameters {
-                return Err(Unsupported::new(
-                    "type-parameter defaults (getDefaultFromTypeParameter, \
-                     M4 5.2 follow-up: generic type references)",
-                ));
+            let type_parameters = type_parameters.expect("non-zero length implies a list");
+            let mut result: Vec<TypeId> = type_arguments.map(<[_]>::to_vec).unwrap_or_default();
+            result.resize(num_type_parameters, self.tables.intrinsics.error);
+            let base_default_type =
+                self.get_default_type_argument_type(is_javascript_implicit_any);
+            for i in num_type_arguments..num_type_parameters {
+                let mut default_type = self.get_default_from_type_parameter(type_parameters[i])?;
+                if is_javascript_implicit_any {
+                    if let Some(default) = default_type {
+                        let unknown = self.tables.intrinsics.unknown;
+                        let empty_object = self.empty_object_type;
+                        if self.is_type_related_to(
+                            default,
+                            unknown,
+                            crate::relate::RelationKind::Identity,
+                        )? || self.is_type_related_to(
+                            default,
+                            empty_object,
+                            crate::relate::RelationKind::Identity,
+                        )? {
+                            default_type = Some(self.tables.intrinsics.any);
+                        }
+                    }
+                }
+                result[i] = match default_type {
+                    Some(default) => {
+                        let mapper = self
+                            .create_type_mapper(type_parameters.to_vec(), Some(result.clone()));
+                        self.instantiate_type(default, Some(mapper))?
+                    }
+                    None => base_default_type,
+                };
             }
-            return Ok(type_arguments.map(<[TypeId]>::to_vec));
+            result.truncate(num_type_parameters);
+            return Ok(Some(result));
         }
         Ok(type_arguments.map(<[TypeId]>::to_vec))
+    }
+
+    /// tsc-port: getDefaultTypeArgumentType @6.0.3
+    /// tsc-hash: 9fc8c6ef773571fb9228871cebd6ec4a0b7769bc7f6c55dd8ada3443b8d81687
+    /// tsc-span: _tsc.js:69314-69316
+    fn get_default_type_argument_type(&self, is_in_javascript_file: bool) -> TypeId {
+        if is_in_javascript_file {
+            self.tables.intrinsics.any
+        } else {
+            self.tables.intrinsics.unknown
+        }
+    }
+
+    /// tsc-port: getResolvedTypeParameterDefault @6.0.3
+    /// tsc-hash: f4e1b3c6ebb2cf0add27d57636d43c98124be4590317dee655d4cdbcb2811af0
+    /// tsc-span: _tsc.js:59043-59062
+    ///
+    /// tsc's resolvingDefaultType in-flight sentinel is the checker's
+    /// in-progress set: re-entry stamps circularConstraintType into the
+    /// links slot (permanently, like tsc), the outer frame keeps a
+    /// re-entry stamp over its own result, and an Err unwind leaves the
+    /// slot Vacant (re-queryable).
+    fn get_resolved_type_parameter_default(&mut self, tp: TypeId) -> CheckResult2<TypeId> {
+        if let Some(resolved) = self.links.ty(tp).type_parameter_default.resolved() {
+            return Ok(resolved);
+        }
+        if self.type_parameter_defaults_in_progress.contains(&tp) {
+            let circular = self.circular_constraint_type;
+            self.links
+                .set_type_parameter_default(self.speculation_depth, tp, circular);
+            return Ok(circular);
+        }
+        if let Some(target) = self.links.ty(tp).type_parameter_target {
+            let target_default = self.get_resolved_type_parameter_default(target)?;
+            // tsc instantiates the sentinel types too — they carry no
+            // type variables, so this is the identity for them.
+            let mapper = self.links.ty(tp).type_parameter_mapper;
+            let default = self.instantiate_type(target_default, mapper)?;
+            self.links
+                .set_type_parameter_default(self.speculation_depth, tp, default);
+            return Ok(default);
+        }
+        self.type_parameter_defaults_in_progress.push(tp);
+        let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
+            let default_declaration = state.tables.type_of(tp).symbol.and_then(|symbol| {
+                state
+                    .binder
+                    .symbol(symbol)
+                    .declarations
+                    .clone()
+                    .into_iter()
+                    .find_map(|declaration| match state.data_of(declaration) {
+                        NodeData::TypeParameter(data)
+                            if state.kind_of(declaration) == SyntaxKind::TypeParameter =>
+                        {
+                            data.r#default
+                        }
+                        _ => None,
+                    })
+            });
+            match default_declaration {
+                Some(declaration) => state.get_type_from_type_node(declaration),
+                None => Ok(state.no_constraint_type),
+            }
+        })(self);
+        self.type_parameter_defaults_in_progress.pop();
+        let default_type = computed?;
+        // A re-entry may have stamped the circular sentinel while the
+        // default resolved — tsc keeps the stamp (59057-59059).
+        if let Some(stamped) = self.links.ty(tp).type_parameter_default.resolved() {
+            return Ok(stamped);
+        }
+        self.links
+            .set_type_parameter_default(self.speculation_depth, tp, default_type);
+        Ok(default_type)
+    }
+
+    /// tsc-port: getDefaultFromTypeParameter @6.0.3
+    /// tsc-hash: bf3dd4b9c8399461bc5fdc2eb38cf01bedd9d4d55503d48e6a33c378b8f0cbf7
+    /// tsc-span: _tsc.js:59061-59064
+    pub(crate) fn get_default_from_type_parameter(
+        &mut self,
+        tp: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let default_type = self.get_resolved_type_parameter_default(tp)?;
+        Ok((default_type != self.no_constraint_type
+            && default_type != self.circular_constraint_type)
+            .then_some(default_type))
     }
 
     // ---- mapType + string mapping ----

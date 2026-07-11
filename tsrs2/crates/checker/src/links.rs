@@ -115,6 +115,12 @@ pub struct TypeLinks {
     pub type_parameter_target: Option<TypeId>,
     /// tsc TypeParameter.mapper (instantiateSignature 63418).
     pub type_parameter_mapper: Option<MapperId>,
+    /// tsc TypeParameter.default (getResolvedTypeParameterDefault
+    /// 59043) — Resolved(noConstraintType) = computed, none;
+    /// Resolved(circularConstraintType) = the cycle sentinel. The
+    /// resolvingDefaultType in-flight sentinel is the checker's
+    /// in-progress set, so Err unwinds stay re-queryable.
+    pub type_parameter_default: LinkSlot<TypeId>,
     /// tsc type.permissiveInstantiation (getPermissiveInstantiation
     /// 63815).
     pub permissive_instantiation: LinkSlot<TypeId>,
@@ -401,6 +407,19 @@ impl LinksTables {
             "type parameter target written twice for {id:?}"
         );
         links.type_parameter_target = Some(target);
+    }
+
+    pub fn set_type_parameter_default(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().type_parameter_default,
+            LinkSlot::Resolved(value),
+        );
     }
 
     /// instantiateSignature's fresh-parameter mapper stamp (63418).

@@ -163,6 +163,10 @@ pub struct CheckerState<'a> {
     /// keeps Err unwinds re-queryable, and this set reproduces the
     /// mid-cycle observable for isThislessInterface's base walk.
     pub(crate) class_interface_declared_in_progress: Vec<SymbolId>,
+    /// Type parameters whose default is mid-resolution — tsc's
+    /// resolvingDefaultType sentinel (getResolvedTypeParameterDefault
+    /// 59049), as a set so Err unwinds leave the links slot Vacant.
+    pub(crate) type_parameter_defaults_in_progress: Vec<TypeId>,
 
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
@@ -261,6 +265,7 @@ impl<'a> CheckerState<'a> {
             instantiation_count: 0,
             total_instantiation_count: 0,
             class_interface_declared_in_progress: Vec::new(),
+            type_parameter_defaults_in_progress: Vec::new(),
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),
             undefined_symbol,

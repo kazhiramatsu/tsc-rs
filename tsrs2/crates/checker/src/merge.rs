@@ -162,11 +162,8 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn is_in_js_file(&self, node: NodeId) -> bool {
-        let name = &self.binder.source_of_node(node).file_name;
-        [".js", ".jsx", ".mjs", ".cjs"]
-            .iter()
-            .any(|extension| name.ends_with(extension))
+    pub(crate) fn is_in_js_file(&self, node: NodeId) -> bool {
+        crate::is_js_file_name(&self.binder.source_of_node(node).file_name)
     }
 
     /// tsc resolveSymbol (49943) — the merge path's alias hop. Alias

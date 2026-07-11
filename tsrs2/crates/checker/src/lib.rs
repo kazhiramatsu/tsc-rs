@@ -40,7 +40,7 @@ fn is_supported_source_file_name(name: &str, allow_js: bool) -> bool {
     ts_like.iter().any(|extension| name.ends_with(extension)) || (allow_js && is_js_file_name(name))
 }
 
-fn is_js_file_name(name: &str) -> bool {
+pub(crate) fn is_js_file_name(name: &str) -> bool {
     [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
         .any(|extension| name.ends_with(extension))

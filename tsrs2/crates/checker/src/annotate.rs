@@ -618,11 +618,13 @@ impl<'a> CheckerState<'a> {
     ///
     /// Combined with the slices of resolveTypeReferenceName
     /// (60372-60379, the real resolveEntityName from M4 5.1a) and
-    /// getTypeReferenceType (60380-60405): non-generic class/interface
-    /// dispatch only. Type aliases, enums and type arguments are M4
-    /// 5.1b/5.3b rows. An unresolved name is tsc's unknownSymbol →
-    /// errorType; the probe keeps the Unsupported channel until the
-    /// 5.4 driver makes errorType observable through diagnostics.
+    /// getTypeReferenceType (60380-60405). Generic ALIAS references
+    /// ride on getTypeAliasInstantiation (next commit); enums are 5.3b;
+    /// class references wait for class members (5.3). An unresolved
+    /// name is tsc's unknownSymbol → errorType; the probe keeps the
+    /// Unsupported channel until the 5.4 driver makes errorType
+    /// observable through diagnostics. The links.resolvedSymbol write
+    /// (60587) is skipped — nothing reads it on reference nodes yet.
     fn get_type_from_type_reference(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
@@ -630,9 +632,6 @@ impl<'a> CheckerState<'a> {
         let NodeData::TypeReference(data) = self.data_of(node) else {
             unreachable!("TypeReference kind implies payload");
         };
-        if data.type_arguments.is_some() {
-            return Err(Unsupported::new("generic type references (M4 5.1)"));
-        }
         let type_name = data
             .type_name
             .ok_or_else(|| Unsupported::new("type reference with missing name"))?;
@@ -648,38 +647,28 @@ impl<'a> CheckerState<'a> {
         };
         let flags = self.symbol_flags(symbol);
         let resolved = if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
-            // getTypeReferenceType → getDeclaredTypeOfSymbol's type-
-            // parameter arm; a type-argument list on a type-parameter
-            // reference is the 2315 family (M4 5.1 grammar row —
-            // type_arguments already escaped above).
-            self.get_declared_type_of_type_parameter(symbol)
-        } else if flags.intersects(SymbolFlags::INTERFACE) {
-            let declared = self.get_declared_type_of_class_or_interface(symbol)?;
-            // getTypeFromClassOrInterfaceReference (60226): references
-            // to interfaces WITH localTypeParameters run the 2314-family
-            // arity check + fillMissingTypeArguments — the reference
-            // commit; outer-only/this-ful generics return the declared
-            // type itself (checkNoTypeArguments, no type-argument list
-            // parses here — escaped above).
-            if let TypeData::GenericType {
-                type_parameters,
-                outer_type_parameter_count,
-                ..
-            } = &self.tables.type_of(declared).data
-            {
-                if type_parameters.len() > *outer_type_parameter_count {
-                    return Err(Unsupported::new(
-                        "generic interface references \
-                         (getTypeFromClassOrInterfaceReference, M4 5.2 follow-up)",
-                    ));
-                }
+            // getTypeReferenceType's tryGetDeclaredTypeOfSymbol arm
+            // (60400-60403): a type-argument list on a non-generic
+            // reference is the 2315 family via checkNoTypeArguments.
+            let declared = self.get_declared_type_of_type_parameter(symbol);
+            if !self.check_no_type_arguments(node, Some(symbol)) {
+                self.tables.intrinsics.error
+            } else {
+                self.tables.get_regular_type_of_literal_type(declared)
             }
-            declared
-        } else if flags.intersects(SymbolFlags::CLASS) {
-            return Err(Unsupported::new("class declared types (M4 5.3)"));
+        } else if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
+            if flags.intersects(SymbolFlags::CLASS) {
+                // Class references escape until class MEMBERS resolve
+                // (5.3) — the declared types exist since 5.2b, but
+                // every relation against them would dead-end.
+                return Err(Unsupported::new("class declared types (M4 5.3)"));
+            }
+            self.get_type_from_class_or_interface_reference(node, symbol)?
         } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
-            // Generic aliases need getTypeAliasInstantiation (5.2) at
-            // the REFERENCE; non-generic aliases resolve now.
+            // Generic aliases need getTypeAliasInstantiation at the
+            // REFERENCE (next commit); non-generic aliases resolve now,
+            // with checkNoTypeArguments's 2315 for stray argument
+            // lists (getTypeFromTypeAliasReference 60295-60300).
             let is_generic = self
                 .binder
                 .symbol(symbol)
@@ -696,10 +685,15 @@ impl<'a> CheckerState<'a> {
                 });
             if is_generic {
                 return Err(Unsupported::new(
-                    "generic type aliases (getTypeAliasInstantiation, M4 5.2)",
+                    "generic type aliases (getTypeAliasInstantiation, M4 5.2 follow-up)",
                 ));
             }
-            self.get_declared_type_of_type_alias(symbol)?
+            let declared = self.get_declared_type_of_type_alias(symbol)?;
+            if !self.check_no_type_arguments(node, Some(symbol)) {
+                self.tables.intrinsics.error
+            } else {
+                declared
+            }
         } else if flags.intersects(SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM) {
             return Err(Unsupported::new("enum declared types (M4 5.3b)"));
         } else {
@@ -714,6 +708,377 @@ impl<'a> CheckerState<'a> {
         );
         Ok(resolved)
     }
+
+    /// tsc-port: getTypeFromClassOrInterfaceReference @6.0.3
+    /// tsc-hash: f342ce01f970d999b75075be7cad3c36a4b6defd82cd81b155a1ae78498d449b
+    /// tsc-span: _tsc.js:60226-60262
+    ///
+    /// The missingAugmentsTag message variants are JSDoc-only (elided);
+    /// deferred reference nodes (isDeferredTypeReferenceNode — alias
+    /// RHS hosts) escape until createDeferredTypeReference lands with
+    /// the alias commit.
+    fn get_type_from_class_or_interface_reference(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+    ) -> CheckResult2<TypeId> {
+        let merged = self.get_merged_symbol(symbol);
+        let ty = self.get_declared_type_of_class_or_interface(merged)?;
+        let (type_parameters, outer_count) = match &self.tables.type_of(ty).data {
+            TypeData::GenericType {
+                type_parameters,
+                outer_type_parameter_count,
+                ..
+            } => (type_parameters.to_vec(), *outer_type_parameter_count),
+            _ => (Vec::new(), 0),
+        };
+        let local_type_parameters = &type_parameters[outer_count..];
+        if !local_type_parameters.is_empty() {
+            let node_type_arguments = match self.data_of(node) {
+                NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
+                _ => Vec::new(),
+            };
+            let num_type_arguments = node_type_arguments.len();
+            let min_type_argument_count =
+                self.get_min_type_argument_count(Some(local_type_parameters));
+            let is_js = self.is_in_js_file(node);
+            let is_js_implicit_any = !self
+                .options
+                .strict_option_value(self.options.no_implicit_any)
+                && is_js;
+            if !is_js_implicit_any
+                && (num_type_arguments < min_type_argument_count
+                    || num_type_arguments > local_type_parameters.len())
+            {
+                let type_str = self.generic_type_display(ty);
+                if min_type_argument_count == local_type_parameters.len() {
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Generic_type_0_requires_1_type_argument_s,
+                        &[&type_str, &min_type_argument_count.to_string()],
+                    );
+                } else {
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Generic_type_0_requires_between_1_and_2_type_arguments,
+                        &[
+                            &type_str,
+                            &min_type_argument_count.to_string(),
+                            &local_type_parameters.len().to_string(),
+                        ],
+                    );
+                }
+                if !is_js {
+                    return Ok(self.tables.intrinsics.error);
+                }
+            }
+            if self.kind_of(node) == SyntaxKind::TypeReference
+                && self.is_deferred_type_reference_node(
+                    node,
+                    num_type_arguments != local_type_parameters.len(),
+                )?
+            {
+                return Err(Unsupported::new(
+                    "deferred type references (createDeferredTypeReference, \
+                     M4 5.2 follow-up: alias instantiation)",
+                ));
+            }
+            let mut resolved_arguments: Vec<TypeId> =
+                Vec::with_capacity(node_type_arguments.len());
+            for argument in node_type_arguments {
+                resolved_arguments.push(self.get_type_from_type_node(argument)?);
+            }
+            let local_type_parameters = local_type_parameters.to_vec();
+            let filled = self
+                .fill_missing_type_arguments(
+                    Some(&resolved_arguments),
+                    Some(&local_type_parameters),
+                    min_type_argument_count,
+                    is_js,
+                )?
+                .unwrap_or_default();
+            let mut type_arguments: Vec<TypeId> = type_parameters[..outer_count].to_vec();
+            type_arguments.extend(filled);
+            return self
+                .tables
+                .create_normalized_type_reference(ty, &type_arguments)
+                .map_err(Self::unsupported_m4);
+        }
+        Ok(if self.check_no_type_arguments(node, Some(symbol)) {
+            ty
+        } else {
+            self.tables.intrinsics.error
+        })
+    }
+
+    /// tsc-port: checkNoTypeArguments @6.0.3
+    /// tsc-hash: 0468ee396427d4a338fbca17bb95e2f10429f69271d64bb787682f2631661408
+    /// tsc-span: _tsc.js:60486-60492
+    fn check_no_type_arguments(&mut self, node: NodeId, symbol: Option<SymbolId>) -> bool {
+        let type_arguments = match self.data_of(node) {
+            NodeData::TypeReference(data) => data.type_arguments,
+            NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
+            _ => None,
+        };
+        if type_arguments.is_some() {
+            let display = match symbol {
+                Some(symbol) => self.symbol_display_name(symbol),
+                None => match self.data_of(node) {
+                    NodeData::TypeReference(data) => data
+                        .type_name
+                        .map(|name| {
+                            tsrs2_binder::node_util::declaration_name_to_string(
+                                self.binder.source_of_node(name),
+                                Some(name),
+                            )
+                        })
+                        .unwrap_or_else(|| "(anonymous)".to_owned()),
+                    _ => "(anonymous)".to_owned(),
+                },
+            };
+            self.error_at(
+                Some(node),
+                &diagnostics::Type_0_is_not_generic,
+                &[&display],
+            );
+            return false;
+        }
+        true
+    }
+
+    /// typeToString slice for the 2314/2707 family: a class/interface
+    /// GenericType displays as `Name<L1, L2>` over its LOCAL type
+    /// parameters only — the nodeBuilder's typeReferenceToTypeNode
+    /// splits outer parameters into enclosing-declaration
+    /// qualification, which drops without an enclosing declaration
+    /// (oracle-pinned: `I<U>` for a fn-scoped `interface I<U>` with
+    /// outer `T`).
+    fn generic_type_display(&self, ty: TypeId) -> String {
+        let symbol = self
+            .tables
+            .type_of(ty)
+            .symbol
+            .expect("declared types carry their symbol");
+        let name = self.symbol_display_name(symbol);
+        match &self.tables.type_of(ty).data {
+            TypeData::GenericType {
+                type_parameters,
+                outer_type_parameter_count,
+                ..
+            } if type_parameters.len() > *outer_type_parameter_count => {
+                let locals: Vec<String> = type_parameters[*outer_type_parameter_count..]
+                    .iter()
+                    .map(|&parameter| {
+                        self.tables
+                            .type_of(parameter)
+                            .symbol
+                            .map(|s| self.symbol_display_name(s))
+                            .unwrap_or_default()
+                    })
+                    .collect();
+                format!("{name}<{}>", locals.join(", "))
+            }
+            _ => name,
+        }
+    }
+
+    /// tsc-port: getAliasSymbolForTypeNode @6.0.3
+    /// tsc-hash: 210d8f6d63e8913008a038e4878d54e360b1173134393fb2f189b9d1d7e88f97
+    /// tsc-span: _tsc.js:62908-62914
+    ///
+    /// JSDoc type-expression hosts are elided.
+    pub(crate) fn get_alias_symbol_for_type_node(&self, node: NodeId) -> Option<SymbolId> {
+        let mut host = self.parent_of(node)?;
+        loop {
+            let hop = match self.data_of(host) {
+                NodeData::ParenthesizedType(_) => true,
+                NodeData::TypeOperator(data) => data.operator == SyntaxKind::ReadonlyKeyword,
+                _ => false,
+            };
+            if !hop {
+                break;
+            }
+            host = self.parent_of(host)?;
+        }
+        if self.kind_of(host) == SyntaxKind::TypeAliasDeclaration {
+            self.node_symbol(host)
+        } else {
+            None
+        }
+    }
+
+    /// tsc-port: isDeferredTypeReferenceNode @6.0.3
+    /// tsc-hash: 391c3bed6841ebc32f348473977f7496fa9807d15f2929dde920d4c94a758105
+    /// tsc-span: _tsc.js:61068-61072
+    fn is_deferred_type_reference_node(
+        &mut self,
+        node: NodeId,
+        has_default_type_arguments: bool,
+    ) -> CheckResult2<bool> {
+        if self.get_alias_symbol_for_type_node(node).is_some() {
+            return Ok(true);
+        }
+        if !self.is_resolved_by_type_alias(node) {
+            return Ok(false);
+        }
+        match self.data_of(node) {
+            NodeData::ArrayType(data) => match data.element_type {
+                Some(element) => self.may_resolve_type_alias(element),
+                None => Ok(false),
+            },
+            NodeData::TupleType(data) => {
+                for element in self.nodes_of(data.elements) {
+                    if self.may_resolve_type_alias(element)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            _ => {
+                if has_default_type_arguments {
+                    return Ok(true);
+                }
+                let type_arguments = match self.data_of(node) {
+                    NodeData::TypeReference(data) => data.type_arguments,
+                    _ => None,
+                };
+                for argument in self.nodes_of(type_arguments) {
+                    if self.may_resolve_type_alias(argument)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+        }
+    }
+
+    /// tsc-port: isResolvedByTypeAlias @6.0.3
+    /// tsc-hash: 5e91bb14024740ab93e30c8ef652e2c28e784de7229b690ce4ba41e56ebfb452
+    /// tsc-span: _tsc.js:61073-61089
+    fn is_resolved_by_type_alias(&self, node: NodeId) -> bool {
+        let Some(parent) = self.parent_of(node) else {
+            return false;
+        };
+        match self.kind_of(parent) {
+            SyntaxKind::ParenthesizedType
+            | SyntaxKind::NamedTupleMember
+            | SyntaxKind::TypeReference
+            | SyntaxKind::UnionType
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::IndexedAccessType
+            | SyntaxKind::ConditionalType
+            | SyntaxKind::TypeOperator
+            | SyntaxKind::ArrayType
+            | SyntaxKind::TupleType => self.is_resolved_by_type_alias(parent),
+            SyntaxKind::TypeAliasDeclaration => true,
+            _ => false,
+        }
+    }
+
+    /// tsc-port: mayResolveTypeAlias @6.0.3
+    /// tsc-hash: 845e0c512d1edd3015e228151cb17d5e05504158f1d0597577340b3bc79f73bf
+    /// tsc-span: _tsc.js:61090-61114
+    ///
+    /// The TypeReference arm resolves the name with tsc's ERROR-
+    /// emitting resolution (resolveTypeReferenceName without
+    /// ignoreErrors); JSDoc kinds are elided.
+    fn may_resolve_type_alias(&mut self, node: NodeId) -> CheckResult2<bool> {
+        match self.data_of(node) {
+            NodeData::TypeReference(data) => {
+                let Some(type_name) = data.type_name else {
+                    return Ok(false);
+                };
+                let symbol = self.resolve_entity_name(
+                    type_name,
+                    SymbolFlags::TYPE,
+                    /*ignore_errors*/ false,
+                    None,
+                );
+                Ok(symbol.is_some_and(|symbol| {
+                    self.symbol_flags(symbol).intersects(SymbolFlags::TYPE_ALIAS)
+                }))
+            }
+            NodeData::TypeQuery(_) => Ok(true),
+            NodeData::TypeOperator(data) => {
+                if data.operator == SyntaxKind::UniqueKeyword {
+                    return Ok(false);
+                }
+                match data.r#type {
+                    Some(inner) => self.may_resolve_type_alias(inner),
+                    None => Ok(false),
+                }
+            }
+            NodeData::ParenthesizedType(data) => match data.r#type {
+                Some(inner) => self.may_resolve_type_alias(inner),
+                None => Ok(false),
+            },
+            NodeData::OptionalType(data) => match data.r#type {
+                Some(inner) => self.may_resolve_type_alias(inner),
+                None => Ok(false),
+            },
+            NodeData::NamedTupleMember(data) => match data.r#type {
+                Some(inner) => self.may_resolve_type_alias(inner),
+                None => Ok(false),
+            },
+            NodeData::RestType(data) => {
+                let Some(inner) = data.r#type else {
+                    return Ok(false);
+                };
+                match self.data_of(inner) {
+                    NodeData::ArrayType(array) => match array.element_type {
+                        Some(element) => self.may_resolve_type_alias(element),
+                        None => Ok(false),
+                    },
+                    _ => Ok(true),
+                }
+            }
+            NodeData::UnionType(data) => {
+                for member in self.nodes_of(data.types) {
+                    if self.may_resolve_type_alias(member)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            NodeData::IntersectionType(data) => {
+                for member in self.nodes_of(data.types) {
+                    if self.may_resolve_type_alias(member)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            NodeData::IndexedAccessType(data) => {
+                if let Some(object) = data.object_type {
+                    if self.may_resolve_type_alias(object)? {
+                        return Ok(true);
+                    }
+                }
+                match data.index_type {
+                    Some(index) => self.may_resolve_type_alias(index),
+                    None => Ok(false),
+                }
+            }
+            NodeData::ConditionalType(data) => {
+                for part in [
+                    data.check_type,
+                    data.extends_type,
+                    data.true_type,
+                    data.false_type,
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    if self.may_resolve_type_alias(part)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            _ => Ok(false),
+        }
+    }
+
 
     /// tsc-port: getTypeFromTypeQueryNode @6.0.3
     /// tsc-hash: d8e9b4a2ea79ce1b11bdaebf9b475b2b7175e9b653c0e8c0f87925ab8908f7c6
@@ -2485,20 +2850,28 @@ mod generic_declared_type_tests {
     }
 
     #[test]
-    fn bare_reference_to_generic_interface_escapes_until_arity_lands() {
+    fn bare_reference_to_generic_interface_reports_2314() {
         with_program_state(
             &[("a.ts", "interface I<T> { a: T }\ndeclare var v: I;\n")],
             &CompilerOptions::default(),
             |state| {
                 let annotation = find_probe_annotation(state.binder.source(0), "v")
                     .expect("var with annotation");
-                let resolved = state.get_type_from_type_node(annotation);
-                let reason = resolved
-                    .expect_err("generic references escape until 2314 lands")
-                    .reason;
-                assert!(
-                    reason.contains("getTypeFromClassOrInterfaceReference"),
-                    "{reason}"
+                let resolved = state
+                    .get_type_from_type_node(annotation)
+                    .expect("errorType flows");
+                assert!(state.tables.is_error_type(resolved));
+                let rendered: Vec<(u32, String)> = state
+                    .diagnostics
+                    .iter()
+                    .map(|d| (d.code(), d.message_text().to_owned()))
+                    .collect();
+                assert_eq!(
+                    rendered,
+                    [(
+                        2314,
+                        "Generic type 'I<T>' requires 1 type argument(s).".to_owned()
+                    )]
                 );
             },
         );
@@ -2540,6 +2913,244 @@ mod generic_declared_type_tests {
                 assert!(state
                     .tables
                     .flags_of(declared_c)
+                    .intersects(TypeFlags::OBJECT));
+            },
+        );
+    }
+}
+
+#[cfg(test)]
+mod generic_reference_tests {
+    use tsrs2_types::{CompilerOptions, TypeData, TypeFlags};
+
+    use crate::relpin::find_probe_annotation;
+    use crate::state::test_support::with_program_state;
+    use crate::state::CheckerState;
+
+    fn annotation_of(state: &CheckerState, name: &str) -> tsrs2_syntax::NodeId {
+        find_probe_annotation(state.binder.source(0), name).expect("var with annotation")
+    }
+
+    #[test]
+    fn generic_reference_instantiates_and_interns() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface I<T> { a: T }\ndeclare var v: I<string>;\ndeclare var w: I<string>;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let reference = state.get_type_from_type_node(v).expect("I<string>");
+                assert!(matches!(
+                    state.tables.type_of(reference).data,
+                    TypeData::Reference { .. }
+                ));
+                assert_eq!(
+                    state.tables.type_arguments(reference),
+                    &[state.tables.intrinsics.string]
+                );
+                let w = annotation_of(state, "w");
+                let again = state.get_type_from_type_node(w).expect("I<string>");
+                assert_eq!(again, reference, "reference interning by target+list");
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn bare_generic_reference_reports_2314_with_local_parameter_display() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() { interface I<U> { a: [T, U] } var v: I; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let resolved = state.get_type_from_type_node(v).expect("errorType flows");
+                assert!(state.tables.is_error_type(resolved));
+                let rendered: Vec<(u32, String)> = state
+                    .diagnostics
+                    .iter()
+                    .map(|d| (d.code(), d.message_text().to_owned()))
+                    .collect();
+                assert_eq!(
+                    rendered,
+                    [(
+                        2314,
+                        "Generic type 'I<U>' requires 1 type argument(s).".to_owned()
+                    )],
+                    "oracle-pinned local-parameters-only display"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn arity_range_reports_2707() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface K<T, U = string> { }\ndeclare var v: K;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let resolved = state.get_type_from_type_node(v).expect("errorType flows");
+                assert!(state.tables.is_error_type(resolved));
+                let rendered: Vec<(u32, String)> = state
+                    .diagnostics
+                    .iter()
+                    .map(|d| (d.code(), d.message_text().to_owned()))
+                    .collect();
+                assert_eq!(
+                    rendered,
+                    [(
+                        2707,
+                        "Generic type 'K<T, U>' requires between 1 and 2 type arguments."
+                            .to_owned()
+                    )]
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn type_parameter_defaults_fill_missing_arguments() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface K<T, U = string> { }\ninterface L<T, U = T> { }\n\
+                 declare var v: K<number>;\ndeclare var w: L<number>;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let reference = state.get_type_from_type_node(v).expect("K<number>");
+                assert_eq!(
+                    state.tables.type_arguments(reference),
+                    &[
+                        state.tables.intrinsics.number,
+                        state.tables.intrinsics.string
+                    ]
+                );
+                // U = T instantiates the default through the partially
+                // filled argument list.
+                let w = annotation_of(state, "w");
+                let reference = state.get_type_from_type_node(w).expect("L<number>");
+                assert_eq!(
+                    state.tables.type_arguments(reference),
+                    &[
+                        state.tables.intrinsics.number,
+                        state.tables.intrinsics.number
+                    ]
+                );
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
+    fn mutually_circular_defaults_resolve_silently_via_the_sentinel() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface P<T = Q> { }\ninterface Q<U = P> { }\ndeclare var v: P;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let reference = state.get_type_from_type_node(v).expect("P resolves");
+                // P<Q<P<unknown>>>: the re-entrant default stamps the
+                // circular sentinel, which reads as "no default" and
+                // falls back to unknownType (2716 is a 5.8 declaration
+                // check, not a reference-site diagnostic).
+                assert!(matches!(
+                    state.tables.type_of(reference).data,
+                    TypeData::Reference { .. }
+                ));
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+                // The re-entrant stamp survives (tsc keeps the circular
+                // sentinel over the successfully computed default), so
+                // T's default reads as none -> unknownType.
+                let args = state.tables.type_arguments(reference).to_vec();
+                assert_eq!(args, [state.tables.intrinsics.unknown]);
+            },
+        );
+    }
+
+    #[test]
+    fn stray_type_arguments_report_2315() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type A = string;\ndeclare var v: A<number>;\nfunction f<T>() { var w: T<string>; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let resolved = state.get_type_from_type_node(v).expect("errorType flows");
+                assert!(state.tables.is_error_type(resolved));
+                let w = annotation_of(state, "w");
+                let resolved = state.get_type_from_type_node(w).expect("errorType flows");
+                assert!(state.tables.is_error_type(resolved));
+                let rendered: Vec<(u32, String)> = state
+                    .diagnostics
+                    .iter()
+                    .map(|d| (d.code(), d.message_text().to_owned()))
+                    .collect();
+                assert_eq!(
+                    rendered,
+                    [
+                        (2315, "Type 'A' is not generic.".to_owned()),
+                        (2315, "Type 'T' is not generic.".to_owned()),
+                    ]
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn alias_hosted_generic_references_escape_as_deferred() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface I<T> { a: T }\ntype X = I<number>;\ndeclare var v: X;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let reason = state
+                    .get_type_from_type_node(v)
+                    .expect_err("alias RHS references defer")
+                    .reason;
+                assert!(reason.contains("createDeferredTypeReference"), "{reason}");
+            },
+        );
+    }
+
+    #[test]
+    fn generic_reference_relations_flow_through_instantiated_arguments() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface I<T> { a: T }\ndeclare var v: I<\"x\">;\ndeclare var w: I<string>;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let v = annotation_of(state, "v");
+                let narrow = state.get_type_from_type_node(v).expect("I<\"x\">");
+                let w = annotation_of(state, "w");
+                let wide = state.get_type_from_type_node(w).expect("I<string>");
+                assert_ne!(narrow, wide);
+                // Reference MEMBERS resolve at 5.3 — relations between
+                // instantiated references dead-end honestly for now.
+                let related = state.is_type_assignable_to(narrow, wide);
+                assert!(related.is_err(), "reference members are a 5.3 row");
+                assert!(state
+                    .tables
+                    .flags_of(narrow)
                     .intersects(TypeFlags::OBJECT));
             },
         );
