@@ -109,6 +109,11 @@ pub struct IndexInfo {
     pub is_readonly: bool,
     /// None for synthesized infos (anyBaseTypeIndexInfo 47282).
     pub declaration: Option<NodeId>,
+    /// tsc IndexInfo.components (createIndexInfo 5th arg): the
+    /// computed-name member declarations behind an object-literal
+    /// index synthesis (getObjectLiteralIndexInfo 74110-74117).
+    /// Dormant at M4 (index-constraint related spans consume later).
+    pub components: Option<Vec<NodeId>>,
 }
 
 /// tsc resolved structured-type members (setStructuredTypeMembers

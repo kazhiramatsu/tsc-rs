@@ -1,0 +1,342 @@
+//! M4 5.5c: the type-facts core (getTypeFacts family L69690-69783),
+//! pulled FORWARD from the 5.5d access band (extraction doc §0
+//! [FACTS] / §11 risk #4). Rationale: the literals band consumes it —
+//! isValidSpreadType's falsy-strip and getSpreadType's right-optional
+//! merge change VERDICTS on nullable unions (`{ ...maybeNull }` must
+//! spread cleanly), so an identity stub is an FP generator and an
+//! escape would contain every spread statement. Porting the classifier
+//! COMPLETE and verbatim here retires the risk; 5.5d only wires its
+//! remaining consumers (nonnull selection, getAdjustedTypeWithFacts —
+//! which stays unported until then).
+//!
+//! Codegen note: TypeFacts.FunctionFacts was regenerated for this
+//! slice — the enum emitter dropped the `16728e3` exponent (16728 vs
+//! 16728000), a latent wrong-facts bomb for every non-strict Object
+//! classification.
+
+use tsrs2_types::{ObjectFlags, TypeData, TypeFacts, TypeFlags, TypeId};
+
+use crate::state::{CheckResult2, CheckerState};
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: getTypeFacts @6.0.3
+    /// tsc-hash: 9ebc7f3fcc2cc025223d75d01134c416284c42ce877e8934427ca333d8a3cf15
+    /// tsc-span: _tsc.js:69697-69699
+    pub(crate) fn get_type_facts(
+        &mut self,
+        ty: TypeId,
+        mask: TypeFacts,
+    ) -> CheckResult2<TypeFacts> {
+        Ok(TypeFacts::from_bits(
+            self.get_type_facts_worker(ty, mask)?.bits() & mask.bits(),
+        ))
+    }
+
+    /// tsc-port: hasTypeFacts @6.0.3
+    /// tsc-hash: 4f06d60bbba177c53e3a163c6144509e67902619f008771a0d4b16f8f1a423c0
+    /// tsc-span: _tsc.js:69700-69702
+    pub(crate) fn has_type_facts(&mut self, ty: TypeId, mask: TypeFacts) -> CheckResult2<bool> {
+        Ok(!self.get_type_facts(ty, mask)?.is_empty())
+    }
+
+    /// tsc-port: getTypeFactsWorker @6.0.3
+    /// tsc-hash: 6c1e2c95f8abc6a317ecb892a100b67c5d86d9166a1d2a4919ac9f2d695fb241
+    /// tsc-span: _tsc.js:69703-69767
+    fn get_type_facts_worker(
+        &mut self,
+        ty: TypeId,
+        caller_only_needs: TypeFacts,
+    ) -> CheckResult2<TypeFacts> {
+        let mut ty = ty;
+        if self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::INTERSECTION | TypeFlags::INSTANTIABLE)
+        {
+            ty = self
+                .get_base_constraint_of_type(ty)?
+                .unwrap_or(self.tables.intrinsics.unknown);
+        }
+        let strict_null_checks = self
+            .options
+            .strict_option_value(self.options.strict_null_checks);
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::STRING | TypeFlags::STRING_MAPPING) {
+            return Ok(if strict_null_checks {
+                TypeFacts::STRING_STRICT_FACTS
+            } else {
+                TypeFacts::STRING_FACTS
+            });
+        }
+        if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::TEMPLATE_LITERAL) {
+            let is_empty = flags.intersects(TypeFlags::STRING_LITERAL)
+                && matches!(
+                    &self.tables.type_of(ty).data,
+                    TypeData::Literal { value: tsrs2_types::LiteralValue::String(value) } if value.is_empty()
+                );
+            return Ok(match (strict_null_checks, is_empty) {
+                (true, true) => TypeFacts::EMPTY_STRING_STRICT_FACTS,
+                (true, false) => TypeFacts::NON_EMPTY_STRING_STRICT_FACTS,
+                (false, true) => TypeFacts::EMPTY_STRING_FACTS,
+                (false, false) => TypeFacts::NON_EMPTY_STRING_FACTS,
+            });
+        }
+        if flags.intersects(TypeFlags::NUMBER | TypeFlags::ENUM) {
+            return Ok(if strict_null_checks {
+                TypeFacts::NUMBER_STRICT_FACTS
+            } else {
+                TypeFacts::NUMBER_FACTS
+            });
+        }
+        if flags.intersects(TypeFlags::NUMBER_LITERAL) {
+            let is_zero = matches!(
+                &self.tables.type_of(ty).data,
+                TypeData::Literal { value: tsrs2_types::LiteralValue::Number(value) } if *value == 0.0
+            );
+            return Ok(match (strict_null_checks, is_zero) {
+                (true, true) => TypeFacts::ZERO_NUMBER_STRICT_FACTS,
+                (true, false) => TypeFacts::NON_ZERO_NUMBER_STRICT_FACTS,
+                (false, true) => TypeFacts::ZERO_NUMBER_FACTS,
+                (false, false) => TypeFacts::NON_ZERO_NUMBER_FACTS,
+            });
+        }
+        if flags.intersects(TypeFlags::BIG_INT) {
+            return Ok(if strict_null_checks {
+                TypeFacts::BIG_INT_STRICT_FACTS
+            } else {
+                TypeFacts::BIG_INT_FACTS
+            });
+        }
+        if flags.intersects(TypeFlags::BIG_INT_LITERAL) {
+            let is_zero = self.is_zero_big_int(ty);
+            return Ok(match (strict_null_checks, is_zero) {
+                (true, true) => TypeFacts::ZERO_BIG_INT_STRICT_FACTS,
+                (true, false) => TypeFacts::NON_ZERO_BIG_INT_STRICT_FACTS,
+                (false, true) => TypeFacts::ZERO_BIG_INT_FACTS,
+                (false, false) => TypeFacts::NON_ZERO_BIG_INT_FACTS,
+            });
+        }
+        if flags.intersects(TypeFlags::BOOLEAN) {
+            return Ok(if strict_null_checks {
+                TypeFacts::BOOLEAN_STRICT_FACTS
+            } else {
+                TypeFacts::BOOLEAN_FACTS
+            });
+        }
+        if flags.intersects(TypeFlags::BOOLEAN_LIKE) {
+            let is_false = ty == self.tables.intrinsics.false_fresh
+                || ty == self.tables.intrinsics.false_regular;
+            return Ok(match (strict_null_checks, is_false) {
+                (true, true) => TypeFacts::FALSE_STRICT_FACTS,
+                (true, false) => TypeFacts::TRUE_STRICT_FACTS,
+                (false, true) => TypeFacts::FALSE_FACTS,
+                (false, false) => TypeFacts::TRUE_FACTS,
+            });
+        }
+        if flags.intersects(TypeFlags::OBJECT) {
+            let possible_facts = if strict_null_checks {
+                TypeFacts::EMPTY_OBJECT_STRICT_FACTS
+                    | TypeFacts::FUNCTION_STRICT_FACTS
+                    | TypeFacts::OBJECT_STRICT_FACTS
+            } else {
+                TypeFacts::EMPTY_OBJECT_FACTS | TypeFacts::FUNCTION_FACTS | TypeFacts::OBJECT_FACTS
+            };
+            if !caller_only_needs.intersects(possible_facts) {
+                return Ok(TypeFacts::NONE);
+            }
+            let anonymous_empty = self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::ANONYMOUS)
+                && self.is_empty_object_type(ty)?;
+            return Ok(if anonymous_empty {
+                if strict_null_checks {
+                    TypeFacts::EMPTY_OBJECT_STRICT_FACTS
+                } else {
+                    TypeFacts::EMPTY_OBJECT_FACTS
+                }
+            } else if self.is_function_object_type(ty)? {
+                if strict_null_checks {
+                    TypeFacts::FUNCTION_STRICT_FACTS
+                } else {
+                    TypeFacts::FUNCTION_FACTS
+                }
+            } else if strict_null_checks {
+                TypeFacts::OBJECT_STRICT_FACTS
+            } else {
+                TypeFacts::OBJECT_FACTS
+            });
+        }
+        if flags.intersects(TypeFlags::VOID) {
+            return Ok(TypeFacts::VOID_FACTS);
+        }
+        if flags.intersects(TypeFlags::UNDEFINED) {
+            return Ok(TypeFacts::UNDEFINED_FACTS);
+        }
+        if flags.intersects(TypeFlags::NULL) {
+            return Ok(TypeFacts::NULL_FACTS);
+        }
+        if flags.intersects(TypeFlags::ES_SYMBOL_LIKE) {
+            return Ok(if strict_null_checks {
+                TypeFacts::SYMBOL_STRICT_FACTS
+            } else {
+                TypeFacts::SYMBOL_FACTS
+            });
+        }
+        if flags.intersects(TypeFlags::NON_PRIMITIVE) {
+            return Ok(if strict_null_checks {
+                TypeFacts::OBJECT_STRICT_FACTS
+            } else {
+                TypeFacts::OBJECT_FACTS
+            });
+        }
+        if flags.intersects(TypeFlags::NEVER) {
+            return Ok(TypeFacts::NONE);
+        }
+        if flags.intersects(TypeFlags::UNION) {
+            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            };
+            let mut facts = TypeFacts::NONE;
+            for member in members {
+                facts = facts | self.get_type_facts_worker(member, caller_only_needs)?;
+            }
+            return Ok(facts);
+        }
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            return self.get_intersection_type_facts(ty, caller_only_needs);
+        }
+        Ok(TypeFacts::UNKNOWN_FACTS)
+    }
+
+    /// tsc-port: getIntersectionTypeFacts @6.0.3
+    /// tsc-hash: a350d85e286b979ab1fb3010b79a423ab4780a49443d5ad1430682373f0c5204
+    /// tsc-span: _tsc.js:69768-69780
+    fn get_intersection_type_facts(
+        &mut self,
+        ty: TypeId,
+        caller_only_needs: TypeFacts,
+    ) -> CheckResult2<TypeFacts> {
+        let ignore_objects = self.maybe_type_of_kind(ty, TypeFlags::PRIMITIVE);
+        let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
+            TypeData::Intersection { types } => types.to_vec(),
+            _ => unreachable!("intersection flag implies intersection data"),
+        };
+        let mut ored = TypeFacts::NONE;
+        let mut anded = TypeFacts::ALL;
+        for member in members {
+            if !(ignore_objects && self.tables.flags_of(member).intersects(TypeFlags::OBJECT)) {
+                let facts = self.get_type_facts_worker(member, caller_only_needs)?;
+                ored = ored | facts;
+                anded = TypeFacts::from_bits(anded.bits() & facts.bits());
+            }
+        }
+        Ok(TypeFacts::from_bits(
+            (ored.bits() & TypeFacts::OR_FACTS_MASK.bits())
+                | (anded.bits() & TypeFacts::AND_FACTS_MASK.bits()),
+        ))
+    }
+
+    /// tsc-port: isFunctionObjectType @6.0.3
+    /// tsc-hash: bf4a3b7a20ec1aaafa2be264237f9b971856a1239702dc041d8daf662cfb0ebe
+    /// tsc-span: _tsc.js:69690-69696
+    ///
+    /// The EvolvingArray early-out is M5 shape (no producer yet).
+    fn is_function_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::EVOLVING_ARRAY)
+        {
+            return Ok(false);
+        }
+        let resolved = self.resolve_structured_type_members(ty)?;
+        let members = self.members_of(resolved);
+        if !members.call_signatures.is_empty() || !members.construct_signatures.is_empty() {
+            return Ok(true);
+        }
+        let has_bind = members.members.get("bind").is_some();
+        if !has_bind {
+            return Ok(false);
+        }
+        let global_function = self.global_function_type()?;
+        self.is_type_subtype_of(ty, global_function)
+    }
+
+    /// tsc-port: isZeroBigInt @6.0.3
+    /// tsc-hash: 93d3ccbfa0ecb15d0e4b08e3b15ebbca39894c8849ae3e89d9c8143885dd83cd
+    /// tsc-span: _tsc.js:67836-67838
+    fn is_zero_big_int(&self, ty: TypeId) -> bool {
+        matches!(
+            &self.tables.type_of(ty).data,
+            TypeData::Literal { value: tsrs2_types::LiteralValue::BigInt(value) } if value.base10_value == "0"
+        )
+    }
+
+    /// tsc-port: getTypeWithFacts @6.0.3
+    /// tsc-hash: 53e770dd10dd1701ff49e017516753a2a1e305954de0f5b91395bbb0255b6f87
+    /// tsc-span: _tsc.js:69781-69783
+    pub(crate) fn get_type_with_facts(
+        &mut self,
+        ty: TypeId,
+        include: TypeFacts,
+    ) -> CheckResult2<TypeId> {
+        self.filter_type_with(ty, |state, t| state.has_type_facts(t, include))
+    }
+
+    /// tsc-port: removeDefinitelyFalsyTypes @6.0.3
+    /// tsc-hash: 4b35dd27b02e56d454abacaf93da8d180122234771a27ad38f9428a382799575
+    /// tsc-span: _tsc.js:67839-67841
+    pub(crate) fn remove_definitely_falsy_types(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        self.filter_type_with(ty, |state, t| state.has_type_facts(t, TypeFacts::TRUTHY))
+    }
+
+    /// tsc-port: removeMissingOrUndefinedType @6.0.3
+    /// tsc-hash: f50a22dd1cfc61b3a3c81cd42b05113f97189bdd6403db6cbdd3722cdc94538a
+    /// tsc-span: _tsc.js:67889-67891
+    ///
+    /// The exactOptionalPropertyTypes arm inlines tsc removeType
+    /// (filterType with a `t !== missingType` predicate, 69993).
+    pub(crate) fn remove_missing_or_undefined_type(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if self.options.exact_optional_property_types == Some(true) {
+            let missing = self.tables.intrinsics.missing;
+            return Ok(self.tables.filter_type(ty, |_, t| t != missing));
+        }
+        self.get_type_with_facts(ty, TypeFacts::NE_UNDEFINED)
+    }
+
+    /// tsc filterType (69991) with a checker-side predicate: verdicts
+    /// are precomputed per flat member (tsc's `filter` evaluates f on
+    /// every member in list order — no short-circuit to preserve), then
+    /// the tables twin performs the identical union reconstruction
+    /// (origin filtering, PrimitiveUnion/ContainsIntersections carry,
+    /// never tail).
+    fn filter_type_with(
+        &mut self,
+        ty: TypeId,
+        mut predicate: impl FnMut(&mut Self, TypeId) -> CheckResult2<bool>,
+    ) -> CheckResult2<TypeId> {
+        if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
+            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            };
+            let mut keep = std::collections::HashSet::new();
+            for member in members {
+                if predicate(self, member)? {
+                    keep.insert(member);
+                }
+            }
+            return Ok(self.tables.filter_type(ty, |_, t| keep.contains(&t)));
+        }
+        if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) || predicate(self, ty)? {
+            Ok(ty)
+        } else {
+            Ok(self.tables.intrinsics.never)
+        }
+    }
+}

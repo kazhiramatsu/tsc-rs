@@ -2752,7 +2752,7 @@ impl TypeFacts {
     /// tsc TypeFacts.FunctionStrictFacts
     pub const FUNCTION_STRICT_FACTS: Self = Self(7880640);
     /// tsc TypeFacts.FunctionFacts
-    pub const FUNCTION_FACTS: Self = Self(16728);
+    pub const FUNCTION_FACTS: Self = Self(16728000);
     /// tsc TypeFacts.VoidFacts
     pub const VOID_FACTS: Self = Self(9830144);
     /// tsc TypeFacts.UndefinedFacts

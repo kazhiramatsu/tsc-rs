@@ -59,7 +59,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: pushCachedContextualType @6.0.3
     /// tsc-hash: e77fbf48ca2c7b30e00b74c2d48b22b29cfda72963d4f48cb6ed1206cb123020
     /// tsc-span: _tsc.js:73557-73568
-    #[allow(dead_code)] // consumers: the literal checkers (5.5c)
     pub(crate) fn push_cached_contextual_type(&mut self, node: NodeId) -> CheckResult2<()> {
         let ty = self.get_contextual_type(node, ContextFlags::NONE)?;
         self.push_contextual_type(node, ty, true);

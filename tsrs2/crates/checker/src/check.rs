@@ -852,7 +852,14 @@ impl<'a> CheckerState<'a> {
                 "checkFunctionExpressionOrObjectLiteralMethodDeferred registers at 5.5"
             ),
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                unreachable!("checkAccessorDeclaration deferral registers at 5.5/5.8")
+                // checkObjectLiteral defers its accessor members
+                // (74263) since 5.5c; checkAccessorDeclaration itself
+                // is the 5.8 declaration band — a named escape keeps
+                // the drain panic-free (risk #6) and the accessor's
+                // diagnostics FN until then.
+                Err(crate::state::Unsupported::new(
+                    "checkAccessorDeclaration (deferred object-literal accessor, 5.8)",
+                ))
             }
             SyntaxKind::ClassExpression => {
                 unreachable!("checkClassExpressionDeferred registers at 5.5")

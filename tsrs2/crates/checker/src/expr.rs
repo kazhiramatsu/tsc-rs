@@ -285,12 +285,9 @@ impl<'a> CheckerState<'a> {
                 self.check_regular_expression_literal(node)
             }
             SyntaxKind::ArrayLiteralExpression => {
-                let _ = force_tuple;
-                self.expression_stub("checkArrayLiteral", "5.5c")
+                self.check_array_literal(node, check_mode, force_tuple)
             }
-            SyntaxKind::ObjectLiteralExpression => {
-                self.expression_stub("checkObjectLiteral", "5.5c")
-            }
+            SyntaxKind::ObjectLiteralExpression => self.check_object_literal(node, check_mode),
             SyntaxKind::PropertyAccessExpression => {
                 self.expression_stub("checkPropertyAccessExpression", "5.5d")
             }
@@ -1427,7 +1424,7 @@ impl<'a> CheckerState<'a> {
     /// mapType (70036) with a fallible mapper — the no-alias, no-
     /// distribution-over-union-of-unions form checkIdentifier needs
     /// (getBaseConstraintOrType never returns a union-of-unions here).
-    fn map_type_result(
+    pub(crate) fn map_type_result(
         &mut self,
         ty: TypeId,
         mut mapper: impl FnMut(&mut Self, TypeId) -> CheckResult2<TypeId>,
@@ -2907,7 +2904,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasDefaultValue @6.0.3
     /// tsc-hash: 8010e25693bfa7169cbb17e357fcb9dcfee994840774795a344514971afb439c
     /// tsc-span: _tsc.js:73949-73951
-    fn has_default_value(&self, node: NodeId) -> bool {
+    pub(crate) fn has_default_value(&self, node: NodeId) -> bool {
         match self.data_of(node) {
             NodeData::BindingElement(data) => data.initializer.is_some(),
             NodeData::PropertyAssignment(data) => {
@@ -3187,8 +3184,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:80724-80736
     ///
     /// isCommonJsExportedExpression is [JSDOC] (JS-only, constant
-    /// false in TS). Live consumers land at 5.5c (literals band).
-    #[allow(dead_code)]
+    /// false in TS). Live consumers: the 5.5c literals band.
     pub(crate) fn check_expression_for_mutable_location(
         &mut self,
         node: NodeId,
@@ -3205,6 +3201,59 @@ impl<'a> CheckerState<'a> {
         let contextual = self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
         let instantiated = self.instantiate_contextual_type_for_node(contextual, node)?;
         self.get_widened_literal_like_type_for_contextual_type(ty, instantiated)
+    }
+
+    /// tsc-port: checkPropertyAssignment @6.0.3
+    /// tsc-hash: e3a8819d69458527c7bb6cff8a6451b0195b7fc3c63b1c2fae5cb1a41bc7f242
+    /// tsc-span: _tsc.js:80737-80742
+    pub(crate) fn check_property_assignment(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        let (name, initializer) = match self.data_of(node) {
+            NodeData::PropertyAssignment(data) => (data.name, data.initializer),
+            _ => (None, None),
+        };
+        if let Some(name) = name {
+            if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                self.check_computed_property_name(name)?;
+            }
+        }
+        let initializer = initializer.ok_or_else(|| {
+            Unsupported::new("property assignment without initializer (parse recovery)")
+        })?;
+        self.check_expression_for_mutable_location(initializer, check_mode, false)
+    }
+
+    /// tsc-port: checkObjectLiteralMethod @6.0.3
+    /// tsc-hash: 52451fa471d9dde73e875e1db438439f637100b04997f3405fc87170de59b386
+    /// tsc-span: _tsc.js:80743-80750
+    ///
+    /// checkGrammarMethod (89943) is an elided slice; the inner
+    /// checkFunctionExpressionOrObjectLiteralMethod is the 5.5f stub,
+    /// so the method arm escapes (whole-statement containment) until
+    /// the function band lands. instantiateTypeWithSingleGenericCall-
+    /// Signature already rides as the checkExpression wrapper's 5.5a
+    /// gate slice — invoked here directly, matching tsc's explicit
+    /// tail call.
+    pub(crate) fn check_object_literal_method(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        // checkGrammarMethod(node): elided slice.
+        if let Some(name) = match self.data_of(node) {
+            NodeData::MethodDeclaration(data) => data.name,
+            _ => None,
+        } {
+            if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                self.check_computed_property_name(name)?;
+            }
+        }
+        let uninstantiated =
+            self.expression_stub("checkFunctionExpressionOrObjectLiteralMethod", "5.5f")?;
+        self.instantiate_type_with_single_generic_call_signature(node, uninstantiated, check_mode)
     }
 
     /// tsc-port: getReturnTypeOfSingleNonGenericCallSignature @6.0.3

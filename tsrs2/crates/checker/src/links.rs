@@ -127,6 +127,16 @@ pub struct SymbolLinks {
     /// alias symbols, which is DISTINCT from the sentinel exactly as
     /// tsc's fresh `[]` differs from the shared emptyArray.
     pub variances: LinkSlot<Box<[tsrs2_types::VarianceFlags]>>,
+    /// tsc links.leftSpread/rightSpread (getSpreadType 63024-63025):
+    /// the merged-optional-property provenance pair. Dormant stores
+    /// at M4 (read by getSyntheticElementAccess-side tooling later);
+    /// kept for symbol-shape fidelity.
+    pub left_spread: Option<SymbolId>,
+    pub right_spread: Option<SymbolId>,
+    /// tsc links.syntheticOrigin (getSpreadSymbol 63052 /
+    /// getAnonymousPartialType 62955). Dormant store like the pair
+    /// above.
+    pub synthetic_origin: Option<SymbolId>,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -223,6 +233,9 @@ pub struct TypeLinks {
     /// (72946) and the literals band. Checker-side because the types
     /// crate is NodeId-free (like tuple_label_declaration).
     pub pattern: Option<NodeId>,
+    /// tsc TypeReference.literalType (createArrayLiteralType 74039):
+    /// the once-per-reference ArrayLiteral-flagged clone.
+    pub literal_type: Option<TypeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -475,6 +488,60 @@ impl LinksTables {
     ) {
         Self::assert_writable(speculation_depth);
         self.symbol.entry(id).or_default().check_flags = check_flags;
+    }
+
+    /// `links.nameType = ...` on a fresh transient symbol (getSpreadSymbol
+    /// 63054, checkObjectLiteral's late-bound member 74193).
+    pub fn set_symbol_name_type(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        name_type: Option<TypeId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().name_type = name_type;
+    }
+
+    /// `links.target = ...` (checkObjectLiteral 74209 — the object
+    /// literal member's source symbol, not the instantiation target).
+    pub fn set_symbol_target(&mut self, speculation_depth: u32, id: SymbolId, target: SymbolId) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().target = Some(target);
+    }
+
+    /// `links.leftSpread/rightSpread` (getSpreadType 63024-63025).
+    pub fn set_symbol_spread_pair(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        left: SymbolId,
+        right: SymbolId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        links.left_spread = Some(left);
+        links.right_spread = Some(right);
+    }
+
+    /// `links.syntheticOrigin` (getSpreadSymbol 63052 /
+    /// getAnonymousPartialType 62955).
+    pub fn set_symbol_synthetic_origin(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        origin: SymbolId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().synthetic_origin = Some(origin);
+    }
+
+    /// `type.literalType = cloneTypeReference(type)` (createArrayLiteralType
+    /// 74039) — once-per-reference like the tsc field write.
+    pub fn set_type_literal_type(&mut self, speculation_depth: u32, id: TypeId, literal: TypeId) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(links.literal_type.is_none(), "literalType rewritten");
+        links.literal_type = Some(literal);
     }
 
     pub fn set_type_resolved_properties(

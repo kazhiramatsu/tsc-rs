@@ -524,7 +524,7 @@ impl<'a> CheckerState<'a> {
         self.cross_product_union_size(types) < 100_000
     }
 
-    fn cross_product_union_size(&self, types: &[TypeId]) -> usize {
+    pub(crate) fn cross_product_union_size(&self, types: &[TypeId]) -> usize {
         let mut size: usize = 1;
         for &t in types {
             if self.tables.flags_of(t).intersects(TypeFlags::UNION) {

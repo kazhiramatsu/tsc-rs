@@ -485,7 +485,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn related_for_node(
+    pub(crate) fn related_for_node(
         &self,
         node: NodeId,
         message: &'static tsrs2_diags::DiagnosticMessage,

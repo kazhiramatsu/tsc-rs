@@ -1304,6 +1304,7 @@ impl<'a> CheckerState<'a> {
             value_type,
             is_readonly: info.is_readonly,
             declaration: info.declaration,
+            components: None,
         })
     }
 

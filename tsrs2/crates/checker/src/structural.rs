@@ -3928,7 +3928,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getUnionIndexInfos @6.0.3
     /// tsc-hash: 722b15b0268f26a28505f37b9d187c7d568785aa74d9cbf3adf015693e35fc9f
     /// tsc-span: _tsc.js:58210-58223
-    fn get_union_index_infos(&mut self, types: &[TypeId]) -> CheckResult2<Vec<IndexInfo>> {
+    pub(crate) fn get_union_index_infos(&mut self, types: &[TypeId]) -> CheckResult2<Vec<IndexInfo>> {
         let source_infos = self.get_index_infos_of_type(types[0])?;
         let mut result = Vec::new();
         'infos: for info in source_infos {
@@ -3949,6 +3949,7 @@ impl<'a> CheckerState<'a> {
                 value_type: value,
                 is_readonly,
                 declaration: None,
+                components: None,
             });
         }
         Ok(result)
@@ -4208,6 +4209,7 @@ impl<'a> CheckerState<'a> {
                     value_type: value,
                     is_readonly,
                     declaration: None,
+                    components: None,
                 };
                 return Ok(());
             }
@@ -4911,6 +4913,7 @@ impl<'a> CheckerState<'a> {
                 value_type: value,
                 is_readonly,
                 declaration,
+                components: None,
             }));
         }
         if let Some(info) = applicable.into_iter().next() {

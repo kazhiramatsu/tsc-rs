@@ -2706,17 +2706,29 @@ fn parse_runtime_member(line: &str) -> Result<Option<EnumMember>, Box<dyn Error>
         .find('=')
         .ok_or_else(|| format!("runtime enum member has no value: {line}"))?;
     let value_text = after_name[equals + 1..].trim_start();
+    // JS emits large round enum initializers in scientific notation
+    // (TypeFacts.FunctionFacts = 16728e3) — include the exponent in
+    // the value token.
     let value_end = value_text
         .char_indices()
         .find_map(|(idx, ch)| {
-            if (idx == 0 && ch == '-') || ch.is_ascii_digit() {
+            if (idx == 0 && ch == '-') || ch.is_ascii_digit() || ch == 'e' || ch == 'E' {
                 None
             } else {
                 Some(idx)
             }
         })
         .unwrap_or(value_text.len());
-    let value: i32 = value_text[..value_end].parse()?;
+    let raw = &value_text[..value_end];
+    let value: i32 = if raw.contains(['e', 'E']) {
+        let parsed = raw.parse::<f64>()?;
+        if parsed.fract() != 0.0 || parsed < i32::MIN as f64 || parsed > i32::MAX as f64 {
+            return Err(format!("non-integer runtime enum value: {line}").into());
+        }
+        parsed as i32
+    } else {
+        raw.parse()?
+    };
 
     Ok(Some(EnumMember {
         name: name.to_owned(),

@@ -2357,6 +2357,7 @@ impl<'a> CheckerState<'a> {
                                 value_type: state.tables.intrinsics.any,
                                 is_readonly: false,
                                 declaration: None,
+                                components: None,
                             }]
                         };
                     for info in inherited_index_infos {
@@ -3912,6 +3913,7 @@ impl<'a> CheckerState<'a> {
                             value_type: state.tables.intrinsics.any,
                             is_readonly: false,
                             declaration: None,
+                            components: None,
                         });
                     }
                 }
@@ -4074,6 +4076,7 @@ impl<'a> CheckerState<'a> {
                         value_type,
                         is_readonly,
                         declaration: Some(declaration),
+                        components: None,
                     });
                 }
             }
@@ -4956,6 +4959,7 @@ impl<'a> CheckerState<'a> {
                     value_type: self.tables.intrinsics.any,
                     is_readonly: false,
                     declaration: None,
+                    components: None,
                 });
                 continue;
             }
