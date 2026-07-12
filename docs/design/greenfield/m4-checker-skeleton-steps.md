@@ -433,7 +433,14 @@ expressions consume it immediately. EXCEPTION: its
 CallExpression-parent arm (getContextualTypeForArgumentAtIndex) needs
 getResolvedSignature — return undefined there until 5.7 activates it.
 
-Commit(s): `m4 5.5a-e: expression arms (+rate per commit)`.
+Commit(s): `m4 5.5a-f: expression arms (+rate per commit)`.
+
+SEMANTIC EXTRACTION (2026-07-12): m4-55-expression-extraction.md —
+verified line/code map for this whole stage, stub-policy decisions
+(incl. two scope refinements: the TypeFacts classifier ports AT 5.5d,
+superseding the identity-stub note above, and literal-level wideners
+split out of 5.6), the forcing map, the un-stub seam inventory, the
+FP risk register, and the a-f slicing. Implementers start there.
 
 ## Stage 5.6: widening [M]
 
