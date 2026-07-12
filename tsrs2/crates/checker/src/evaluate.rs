@@ -1252,7 +1252,7 @@ impl<'a> CheckerState<'a> {
     /// getDeclarationNodeFlagsFromSymbol = valueDeclaration COMBINED
     /// node flags (Const lives on the VariableDeclarationList);
     /// NodeFlags.Constant = Const | Using.
-    fn is_constant_variable(&self, symbol: SymbolId) -> bool {
+    pub(crate) fn is_constant_variable(&self, symbol: SymbolId) -> bool {
         let data = self.binder.symbol(symbol);
         if !data.flags.intersects(SymbolFlags::VARIABLE) {
             return false;

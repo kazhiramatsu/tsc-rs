@@ -57,6 +57,18 @@ pub struct CompilerOptions {
     /// containerSeemsToBeEmptyDomElement (75471) only asks whether the
     /// option EXISTS without "dom".
     pub lib: Option<Vec<String>>,
+    /// tsc JsxEmit value (None=0/Preserve=1/React=2/ReactNative=3/
+    /// ReactJSX=4/ReactJSXDev=5); None when the option is absent.
+    /// checkJsxPreconditions' 17004 reads `(jsx || 0) === 0`.
+    pub jsx: Option<i32>,
+    /// jsxFactory/jsxFragmentFactory/jsxImportSource/reactNamespace:
+    /// carried so the 5.5f JSX slice can ESCAPE fixtures that
+    /// customize the namespace entity (pragma machinery + entity
+    /// parsing are unported — ledger).
+    pub jsx_factory: Option<String>,
+    pub jsx_fragment_factory: Option<String>,
+    pub jsx_import_source: Option<String>,
+    pub react_namespace: Option<String>,
 }
 
 impl CompilerOptions {

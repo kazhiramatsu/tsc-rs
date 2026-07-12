@@ -312,7 +312,7 @@ impl<'a> CheckerState<'a> {
                 self.expression_stub("checkClassExpression", "5.8")
             }
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
-                self.expression_stub("checkFunctionExpressionOrObjectLiteralMethod", "5.5f")
+                self.check_function_expression_or_object_literal_method(node, check_mode)
             }
             SyntaxKind::TypeOfExpression => self.check_type_of_expression(node),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
@@ -326,7 +326,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::MetaProperty => self.check_meta_property(node),
             SyntaxKind::DeleteExpression => self.check_delete_expression(node),
             SyntaxKind::VoidExpression => self.check_void_expression(node),
-            SyntaxKind::AwaitExpression => self.expression_stub("checkAwaitExpression", "5.5f"),
+            SyntaxKind::AwaitExpression => self.check_await_expression(node),
             SyntaxKind::PrefixUnaryExpression => self.check_prefix_unary_expression(node),
             SyntaxKind::PostfixUnaryExpression => self.check_postfix_unary_expression(node),
             SyntaxKind::BinaryExpression => self.check_binary_expression(node, check_mode),
@@ -337,18 +337,18 @@ impl<'a> CheckerState<'a> {
                 self.expression_stub("checkSpreadExpression ([ITER])", "5.5c")
             }
             SyntaxKind::OmittedExpression => Ok(self.tables.intrinsics.undefined_widening),
-            SyntaxKind::YieldExpression => self.expression_stub("checkYieldExpression", "5.5f"),
+            SyntaxKind::YieldExpression => self.check_yield_expression(node),
             SyntaxKind::SyntheticExpression => unreachable!(
                 "SyntheticExpression is checker-synthesized (5.5e destructuring); \
                  parsed trees never contain one"
             ),
-            SyntaxKind::JsxExpression => self.expression_stub("checkJsxExpression", "5.5f"),
-            SyntaxKind::JsxElement => self.expression_stub("checkJsxElement", "5.5f"),
+            SyntaxKind::JsxExpression => self.check_jsx_expression(node),
+            SyntaxKind::JsxElement => self.check_jsx_element(node),
             SyntaxKind::JsxSelfClosingElement => {
-                self.expression_stub("checkJsxSelfClosingElement", "5.5f")
+                self.check_jsx_self_closing_element(node)
             }
-            SyntaxKind::JsxFragment => self.expression_stub("checkJsxFragment", "5.5f"),
-            SyntaxKind::JsxAttributes => self.expression_stub("checkJsxAttributes", "5.5f"),
+            SyntaxKind::JsxFragment => self.check_jsx_fragment(node),
+            SyntaxKind::JsxAttributes => self.check_jsx_attributes_stub(),
             SyntaxKind::JsxOpeningElement => {
                 unreachable!("Shouldn't ever directly check a JsxOpeningElement")
             }
@@ -495,7 +495,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc hasParseDiagnostics (47555).
-    fn has_parse_diagnostics(&self, node: NodeId) -> bool {
+    pub(crate) fn has_parse_diagnostics(&self, node: NodeId) -> bool {
         !self
             .binder
             .source_of_node(node)
@@ -783,7 +783,7 @@ impl<'a> CheckerState<'a> {
     /// assignment-marking pass (symbol.lastAssignmentPos); with no
     /// marking, lastAssignmentPos is never set and the answer is the
     /// unmarked default.
-    fn is_symbol_assigned_definitely_stub(&self, _symbol: SymbolId) -> bool {
+    pub(crate) fn is_symbol_assigned_definitely_stub(&self, _symbol: SymbolId) -> bool {
         false
     }
 
@@ -2030,7 +2030,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isInParameterInitializerBeforeContainingFunction (73797).
-    fn is_in_parameter_initializer_before_containing_function(&self, node: NodeId) -> bool {
+    pub(crate) fn is_in_parameter_initializer_before_containing_function(&self, node: NodeId) -> bool {
         let mut in_binding_initializer = false;
         let mut current = self.parent_of(node);
         while let Some(n) = current {
@@ -3211,13 +3211,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 52451fa471d9dde73e875e1db438439f637100b04997f3405fc87170de59b386
     /// tsc-span: _tsc.js:80743-80750
     ///
-    /// checkGrammarMethod (89943) is an elided slice; the inner
-    /// checkFunctionExpressionOrObjectLiteralMethod is the 5.5f stub,
-    /// so the method arm escapes (whole-statement containment) until
-    /// the function band lands. instantiateTypeWithSingleGenericCall-
-    /// Signature already rides as the checkExpression wrapper's 5.5a
-    /// gate slice — invoked here directly, matching tsc's explicit
-    /// tail call.
+    /// checkGrammarMethod (89943) is an elided slice (M7 modifier
+    /// band). instantiateTypeWithSingleGenericCallSignature already
+    /// rides as the checkExpression wrapper's 5.5a gate slice —
+    /// invoked here directly, matching tsc's explicit tail call.
     pub(crate) fn check_object_literal_method(
         &mut self,
         node: NodeId,
@@ -3233,7 +3230,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let uninstantiated =
-            self.expression_stub("checkFunctionExpressionOrObjectLiteralMethod", "5.5f")?;
+            self.check_function_expression_or_object_literal_method(node, check_mode)?;
         self.instantiate_type_with_single_generic_call_signature(node, uninstantiated, check_mode)
     }
 

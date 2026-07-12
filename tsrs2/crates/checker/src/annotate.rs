@@ -42,7 +42,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn identifier_text(&self, node: NodeId) -> Option<&str> {
+    pub(crate) fn identifier_text(&self, node: NodeId) -> Option<&str> {
         match self.data_of(node) {
             NodeData::Identifier(data) => Some(&data.escaped_text),
             _ => None,
@@ -3415,10 +3415,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 02e993d3e444bf2bef90e03977fbd24eb389b56578fb5a170fa8ae14660ba119
     /// tsc-span: _tsc.js:56746-56786
     ///
-    /// Un-annotated getter bodies need getReturnTypeFromBody (5.5) and
-    /// auto-accessor property declarations ride the `accessor` modifier
-    /// (M7 class checking) — both escape; the annotated slice plus the
-    /// noImplicitAny arms are live.
+    /// Un-annotated getter bodies infer via getReturnTypeFromBody
+    /// (live since 5.5f); auto-accessor property declarations ride the
+    /// `accessor` modifier (M7 class checking) — that arm escapes; the
+    /// annotated slice plus the noImplicitAny arms are live.
     fn get_type_of_accessors(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
@@ -3443,9 +3443,12 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 if body.is_some() {
-                    return Err(Unsupported::new(
-                        "getter body inference (getReturnTypeFromBody, M4 5.5)",
-                    ));
+                    // 56756: getter && getter.body →
+                    // getReturnTypeFromBody(getter) — live since 5.5f.
+                    return Ok(Some(state.get_return_type_from_body(
+                        getter,
+                        tsrs2_types::CheckMode::NORMAL,
+                    )?));
                 }
             }
             Ok(None)
@@ -4586,12 +4589,26 @@ impl<'a> CheckerState<'a> {
         };
         let declarations = self.binder.symbol(symbol).declarations.clone();
         let mut result = Vec::new();
-        for declaration in declarations {
-            if !is_m3_signature_declaration_kind(self.kind_of(declaration)) {
-                return Err(Unsupported::new(format!(
-                    "signature declaration kind {:?} (M4)",
-                    self.kind_of(declaration)
-                )));
+        for (i, &declaration) in declarations.iter().enumerate() {
+            if !node_util::is_function_like_kind(self.kind_of(declaration)) {
+                continue;
+            }
+            // 59725-59730: an overload IMPLEMENTATION immediately
+            // following its final overload signature contributes no
+            // signature of its own.
+            if i > 0
+                && node_util::body_of(self.binder.source_of_node(declaration), declaration)
+                    .is_some()
+            {
+                let previous = declarations[i - 1];
+                let same_parent = self.parent_of(declaration) == self.parent_of(previous);
+                let same_kind = self.kind_of(declaration) == self.kind_of(previous);
+                let source = self.binder.source_of_node(declaration);
+                let adjacent = source.arena.node(declaration).pos
+                    == self.binder.source_of_node(previous).arena.node(previous).end;
+                if same_parent && same_kind && adjacent {
+                    continue;
+                }
             }
             result.push(self.get_signature_from_declaration(declaration)?);
         }
@@ -4626,9 +4643,18 @@ impl<'a> CheckerState<'a> {
             NodeData::CallSignature(data) => (data.type_parameters, data.parameters, None),
             NodeData::ConstructSignature(data) => (data.type_parameters, data.parameters, None),
             NodeData::MethodSignature(data) => (data.type_parameters, data.parameters, None),
+            // 5.5f: value function-likes (body-carrying kinds). The
+            // Constructor classType/parameter-property arms are 5.8
+            // (class declaration band).
+            NodeData::FunctionDeclaration(data) => (data.type_parameters, data.parameters, None),
+            NodeData::FunctionExpression(data) => (data.type_parameters, data.parameters, None),
+            NodeData::ArrowFunction(data) => (data.type_parameters, data.parameters, None),
+            NodeData::MethodDeclaration(data) => (data.type_parameters, data.parameters, None),
+            NodeData::GetAccessor(data) => (data.type_parameters, data.parameters, None),
+            NodeData::SetAccessor(data) => (data.type_parameters, data.parameters, None),
             _ => {
                 return Err(Unsupported::new(format!(
-                    "signature declaration kind {:?} (M4)",
+                    "signature declaration kind {:?} (M4 5.8)",
                     self.kind_of(declaration)
                 )))
             }
@@ -4641,7 +4667,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut flags = SignatureFlags::from_bits(0);
         let mut parameters: Vec<SymbolId> = Vec::new();
-        let mut this_parameter = None;
+        let mut this_parameter: Option<SymbolId> = None;
         let mut min_argument_count = 0u32;
         for (i, &parameter) in self.nodes_of(parameter_list).iter().enumerate() {
             let NodeData::Parameter(data) = self.data_of(parameter).clone() else {
@@ -4664,12 +4690,74 @@ impl<'a> CheckerState<'a> {
                 flags |= SignatureFlags::HAS_LITERAL_TYPES;
             }
             // minArgumentCount (59613-59616): last non-optional,
-            // non-initialized, non-rest parameter.
+            // non-initialized, non-rest parameter. The IIFE arm
+            // (59614: over-declared parameters of an immediately
+            // invoked function with fewer arguments and no annotation
+            // are optional) rides the node_util walk.
+            let iife_optional = data.r#type.is_none()
+                && node_util::get_immediately_invoked_function_expression(
+                    self.binder.source_of_node(declaration),
+                    declaration,
+                )
+                .is_some_and(|iife| {
+                    let argument_count = match self.data_of(iife) {
+                        NodeData::CallExpression(call) => self.nodes_of(call.arguments).len(),
+                        _ => 0,
+                    };
+                    parameters.len() > argument_count
+                });
             let is_optional_parameter = data.question_token.is_some()
                 || data.initializer.is_some()
-                || data.dot_dot_dot_token.is_some();
+                || data.dot_dot_dot_token.is_some()
+                || iife_optional;
             if !is_optional_parameter {
                 min_argument_count = parameters.len() as u32;
+            }
+        }
+        // 59619-59626: accessors with a bindable name borrow the OTHER
+        // accessor's annotated this-parameter when they lack their own.
+        if matches!(
+            self.kind_of(declaration),
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+        ) && this_parameter.is_none()
+            && !self.has_late_bindable_ast_name(declaration)
+            && !node_util::has_dynamic_name(
+                self.binder.source_of_node(declaration),
+                declaration,
+            )
+        {
+            let other_kind = if self.kind_of(declaration) == SyntaxKind::GetAccessor {
+                SyntaxKind::SetAccessor
+            } else {
+                SyntaxKind::GetAccessor
+            };
+            let symbol = self.get_symbol_of_declaration(declaration)?;
+            let other = self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .copied()
+                .find(|&d| self.kind_of(d) == other_kind);
+            if let Some(other) = other {
+                // getAnnotatedAccessorThisParameter: the other
+                // accessor's `this` parameter symbol, when declared.
+                let other_parameters = match self.data_of(other) {
+                    NodeData::GetAccessor(data) => data.parameters,
+                    NodeData::SetAccessor(data) => data.parameters,
+                    _ => None,
+                };
+                if let Some(&first) = self.nodes_of(other_parameters).first() {
+                    let is_this = matches!(
+                        self.data_of(first),
+                        NodeData::Parameter(data)
+                            if data.name.and_then(|name| self.identifier_text(name))
+                                == Some("this")
+                    );
+                    if is_this {
+                        this_parameter = self.node_symbol(first);
+                    }
+                }
             }
         }
         let last_is_rest = self
@@ -4749,6 +4837,12 @@ impl<'a> CheckerState<'a> {
             NodeData::CallSignature(data) => data.r#type,
             NodeData::ConstructSignature(data) => data.r#type,
             NodeData::MethodSignature(data) => data.r#type,
+            NodeData::FunctionDeclaration(data) => data.r#type,
+            NodeData::FunctionExpression(data) => data.r#type,
+            NodeData::ArrowFunction(data) => data.r#type,
+            NodeData::MethodDeclaration(data) => data.r#type,
+            NodeData::GetAccessor(data) => data.r#type,
+            NodeData::SetAccessor(_) => None,
             _ => None,
         });
         let target = self.signature_of(id).target;
@@ -4779,11 +4873,37 @@ impl<'a> CheckerState<'a> {
                 let mapper = state.signature_of(id).mapper;
                 state.instantiate_type(combined, mapper)
             })(self),
-            (None, None) => match annotation {
-                Some(annotation) => self.get_type_from_type_node(annotation),
-                // Annotation-context signatures are bodyless: anyType.
-                None => Ok(self.tables.intrinsics.any),
-            },
+            // 59815 tail: getReturnTypeFromAnnotation(declaration) ||
+            // (nodeIsMissing(body) ? anyType : getReturnTypeFromBody).
+            // getReturnTypeFromAnnotation also covers the Constructor
+            // class-type arm and the getter's setter-annotation borrow.
+            (None, None) => (|state: &mut Self| {
+                let Some(declaration) = declaration else {
+                    // Synthetic signatures (returnOnly/unknown) carry a
+                    // pre-seeded resolvedReturnType and never get here;
+                    // annotation-context bodyless shapes answer any.
+                    return Ok(state.tables.intrinsics.any);
+                };
+                if let Some(annotated) = state.get_return_type_from_annotation(declaration)? {
+                    return Ok(annotated);
+                }
+                // The annotation-context kinds (FunctionType/
+                // CallSignature/...) sit outside getReturnTypeFrom-
+                // Annotation's declaration match — their typeNode read
+                // is the `annotation` extraction above.
+                if let Some(annotation) = annotation {
+                    return state.get_type_from_type_node(annotation);
+                }
+                let body =
+                    node_util::body_of(state.binder.source_of_node(declaration), declaration);
+                match body {
+                    None => Ok(state.tables.intrinsics.any),
+                    Some(_) => state.get_return_type_from_body(
+                        declaration,
+                        tsrs2_types::CheckMode::NORMAL,
+                    ),
+                }
+            })(self),
         };
         let resolved = match computed {
             Ok(resolved) => resolved,
@@ -4848,6 +4968,7 @@ fn is_reserved_member_name(name: &str) -> bool {
         && bytes.get(2) != Some(&b'#')
 }
 
+#[allow(dead_code)] // retired by the 5.5f isFunctionLike filter
 fn is_m3_signature_declaration_kind(kind: SyntaxKind) -> bool {
     matches!(
         kind,

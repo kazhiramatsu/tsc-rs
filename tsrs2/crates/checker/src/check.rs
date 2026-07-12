@@ -108,7 +108,7 @@ impl<'a> CheckerState<'a> {
     fn check_grammar_source_file(&mut self, _root: NodeId) {}
 
     /// checkGrammarModifiers (89164) — M7-stub grammar hook.
-    fn check_grammar_modifiers(&mut self, _node: NodeId) {}
+    pub(crate) fn check_grammar_modifiers(&mut self, _node: NodeId) {}
 
     /// tsc-port: checkGrammarStatementInAmbientContext @6.0.3
     /// tsc-hash: c3ff8c8e4b3e50b58e8e6424b52b33c91680dae809a10c8901d04c1d586a447e
@@ -848,9 +848,9 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
             | SyntaxKind::MethodDeclaration
-            | SyntaxKind::MethodSignature => unreachable!(
-                "checkFunctionExpressionOrObjectLiteralMethodDeferred registers at 5.5"
-            ),
+            | SyntaxKind::MethodSignature => {
+                self.check_function_expression_or_object_literal_method_deferred(node)
+            }
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                 // checkObjectLiteral defers its accessor members
                 // (74263) since 5.5c; checkAccessorDeclaration itself
@@ -862,12 +862,17 @@ impl<'a> CheckerState<'a> {
                 ))
             }
             SyntaxKind::ClassExpression => {
-                unreachable!("checkClassExpressionDeferred registers at 5.5")
+                // checkClassExpression's EAGER checkClassLikeDeclaration
+                // escapes whole at 5.5 (§8: heritage/member checks are
+                // one unit) — checkNodeDeferred is never reached, so
+                // the deferred arm stays unreachable until 5.8.
+                unreachable!("checkClassExpression's eager arm escapes until 5.8")
             }
             SyntaxKind::TypeParameter => self.check_type_parameter_deferred(node),
-            SyntaxKind::JsxSelfClosingElement | SyntaxKind::JsxElement => {
-                unreachable!("JSX deferral registers at 5.5")
+            SyntaxKind::JsxSelfClosingElement => {
+                self.check_jsx_self_closing_element_deferred(node)
             }
+            SyntaxKind::JsxElement => self.check_jsx_element_deferred(node),
             SyntaxKind::TypeAssertionExpression
             | SyntaxKind::AsExpression
             | SyntaxKind::ParenthesizedExpression => self.check_assertion_deferred(node),

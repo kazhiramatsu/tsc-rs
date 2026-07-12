@@ -2741,11 +2741,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 34400f2efd43255c842416a05dbe9f0b0e3f9f09d13162db7e61e10a0f59541f
     /// tsc-span: _tsc.js:82316-82376
     pub(crate) fn get_promised_type_of_promise(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+        Ok(self.get_promised_type_of_promise_with_this_error(ty, None)?.0)
+    }
+
+    /// The full face: (promised, thisTypeForErrorOut). Error rows
+    /// (1059 no-then / 2684 this-context / 1060 non-callable) fire
+    /// only with an errorNode — the 5.5f awaited family passes None
+    /// and consumes thisTypeForErrorOut; errorNode callers arrive at
+    /// 5.8 (checkAsyncFunctionReturnType, for-await).
+    pub(crate) fn get_promised_type_of_promise_with_this_error(
+        &mut self,
+        ty: TypeId,
+        error_node: Option<NodeId>,
+    ) -> CheckResult2<(Option<TypeId>, Option<TypeId>)> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
-            return Ok(None);
+            return Ok((None, None));
         }
         if let Some(cached) = self.links.ty(ty).promised_type_of_promise {
-            return Ok(Some(cached));
+            return Ok((Some(cached), None));
         }
         let global_promise = self.get_global_type_or_undefined("Promise", 1)?;
         if let Some(global_promise) = global_promise {
@@ -2762,7 +2775,7 @@ impl<'a> CheckerState<'a> {
                         ty,
                         first,
                     );
-                    return Ok(Some(first));
+                    return Ok((Some(first), None));
                 }
             }
         }
@@ -2771,38 +2784,56 @@ impl<'a> CheckerState<'a> {
             base_or_type,
             TypeFlags::PRIMITIVE | TypeFlags::NEVER,
         )? {
-            return Ok(None);
+            return Ok((None, None));
         }
         let then_function = self.get_type_of_property_of_type(ty, "then")?;
-        let Some(then_function) = then_function else {
-            return Ok(None);
+        if then_function.is_some_and(|then_function| {
+            self.tables.flags_of(then_function).intersects(TypeFlags::ANY)
+        }) {
+            return Ok((None, None));
+        }
+        let then_signatures = match then_function {
+            Some(then_function) => self
+                .get_signatures_of_type(then_function, crate::structural::SignatureKind::Call)?,
+            None => Vec::new(),
         };
-        if self
-            .tables
-            .flags_of(then_function)
-            .intersects(TypeFlags::ANY)
-        {
-            return Ok(None);
-        }
-        let then_signatures =
-            self.get_signatures_of_type(then_function, crate::structural::SignatureKind::Call)?;
         if then_signatures.is_empty() {
-            return Ok(None);
+            if let Some(error_node) = error_node {
+                self.error_at(
+                    Some(error_node),
+                    &tsrs2_diags::gen::A_promise_must_have_a_then_method,
+                    &[],
+                );
+            }
+            return Ok((None, None));
         }
+        let mut this_type_for_error: Option<TypeId> = None;
         let mut candidates = Vec::new();
         for &then_signature in &then_signatures {
             let this_type = self.get_this_type_of_signature(then_signature)?;
-            if let Some(this_type) = this_type {
-                if this_type != self.tables.intrinsics.void
-                    && !self.is_type_subtype_of(ty, this_type)?
+            match this_type {
+                Some(this_type)
+                    if this_type != self.tables.intrinsics.void
+                        && !self.is_type_subtype_of(ty, this_type)? =>
                 {
-                    continue;
+                    this_type_for_error = Some(this_type);
                 }
+                _ => candidates.push(then_signature),
             }
-            candidates.push(then_signature);
         }
         if candidates.is_empty() {
-            return Ok(None);
+            let this_type =
+                this_type_for_error.expect("no candidates implies a this-type rejection");
+            if let Some(error_node) = error_node {
+                let type_text = self.type_to_string_slice(ty)?;
+                let this_text = self.type_to_string_slice(this_type)?;
+                self.error_at(
+                    Some(error_node),
+                    &tsrs2_diags::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
+                    &[&type_text, &this_text],
+                );
+            }
+            return Ok((None, Some(this_type)));
         }
         let mut first_param_types = Vec::with_capacity(candidates.len());
         for &candidate in &candidates {
@@ -2815,12 +2846,19 @@ impl<'a> CheckerState<'a> {
             .flags_of(onfulfilled)
             .intersects(TypeFlags::ANY)
         {
-            return Ok(None);
+            return Ok((None, None));
         }
         let onfulfilled_signatures =
             self.get_signatures_of_type(onfulfilled, crate::structural::SignatureKind::Call)?;
         if onfulfilled_signatures.is_empty() {
-            return Ok(None);
+            if let Some(error_node) = error_node {
+                self.error_at(
+                    Some(error_node),
+                    &tsrs2_diags::gen::The_first_parameter_of_the_then_method_of_a_promise_must_be_a_callback,
+                    &[],
+                );
+            }
+            return Ok((None, None));
         }
         let mut value_types = Vec::with_capacity(onfulfilled_signatures.len());
         for &signature in &onfulfilled_signatures {
@@ -2829,7 +2867,7 @@ impl<'a> CheckerState<'a> {
         let promised = self.get_union_type_ex(&value_types, UnionReduction::Subtype)?;
         self.links
             .set_type_promised_type_of_promise(self.speculation_depth, ty, promised);
-        Ok(Some(promised))
+        Ok((Some(promised), None))
     }
 
     /// tsc-port: allTypesAssignableToKind @6.0.3

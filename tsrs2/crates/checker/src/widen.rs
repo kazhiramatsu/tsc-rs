@@ -175,4 +175,78 @@ impl<'a> CheckerState<'a> {
         }
         Ok(Some(self.get_widened_literal_like_type_for_contextual_type(current, None)?))
     }
+    /// tsc-port: getWidenedType @6.0.3
+    /// tsc-hash: 069e9d9013f7a91a2991169dff22caaa5a08c140f3782950300edb0b9f8f5800
+    /// tsc-span: _tsc.js:68013-68052
+    ///
+    /// The 5.5f slice: the any/nullable arm (non-strict `return null`
+    /// getters widen to any — conformance FP find, classPropertyAsPrivate)
+    /// and the union recursion port; the object-literal and
+    /// array/tuple arms are the 5.6 widening machinery proper
+    /// (getWidenedTypeOfObjectLiteral + widening contexts) and ESCAPE
+    /// — containment (FN) rather than an identity that leaks
+    /// unwidened types into renderable relations (FP). The `widened`
+    /// memo rides with 5.6 (every live arm here is cheap).
+    pub(crate) fn get_widened_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        use tsrs2_types::ObjectFlags;
+        const REQUIRES_WIDENING: i32 =
+            ObjectFlags::CONTAINS_WIDENING_TYPE.bits() | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL.bits();
+        if self.tables.object_flags_of(ty).bits() & REQUIRES_WIDENING == 0 {
+            return Ok(ty);
+        }
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::ANY | TypeFlags::NULLABLE) {
+            return Ok(self.tables.intrinsics.any);
+        }
+        if self.is_object_literal_type(ty) {
+            return Err(crate::state::Unsupported::new(
+                "object-literal widening (getWidenedTypeOfObjectLiteral, 5.6)",
+            ));
+        }
+        if flags.intersects(TypeFlags::UNION) {
+            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
+                tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            };
+            let mut widened = Vec::with_capacity(members.len());
+            for member in &members {
+                let next = if self.tables.flags_of(*member).intersects(TypeFlags::NULLABLE) {
+                    *member
+                } else {
+                    self.get_widened_type(*member)?
+                };
+                widened.push(next);
+            }
+            let mut any_empty_object = false;
+            for member in &widened {
+                if self.is_empty_object_type(*member)? {
+                    any_empty_object = true;
+                    break;
+                }
+            }
+            let reduction = if any_empty_object {
+                tsrs2_types::UnionReduction::Subtype
+            } else {
+                tsrs2_types::UnionReduction::Literal
+            };
+            return self.get_union_type_ex(&widened, reduction);
+        }
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
+                tsrs2_types::TypeData::Intersection { types } => types.to_vec(),
+                _ => unreachable!("intersection flag implies intersection data"),
+            };
+            let mut widened = Vec::with_capacity(members.len());
+            for member in members {
+                widened.push(self.get_widened_type(member)?);
+            }
+            return self.get_intersection_type(&widened, tsrs2_types::IntersectionFlags::NONE);
+        }
+        if self.is_array_type(ty)? || self.tables.is_tuple_type(ty) {
+            return Err(crate::state::Unsupported::new(
+                "array/tuple widening (createTypeReference over widened elements, 5.6)",
+            ));
+        }
+        Ok(ty)
+    }
 }

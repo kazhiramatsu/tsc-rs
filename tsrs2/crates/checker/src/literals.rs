@@ -1062,7 +1062,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isValidSpreadType @6.0.3
     /// tsc-hash: 74590af5838441dbda040c02216967ca483c35f1588d4e2e00cae5978bc22c0c
     /// tsc-span: _tsc.js:74300-74303
-    fn is_valid_spread_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_valid_spread_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         let constrained =
             self.map_type_result(ty, |state, t| state.get_base_constraint_or_type(t))?;
         let t = self.remove_definitely_falsy_types(constrained)?;
@@ -1806,10 +1806,12 @@ mod tests {
     }
 
     #[test]
-    fn object_literal_methods_contain_their_statement_until_5_5f() {
-        // Oracle: 2304 inside the body — checkObjectLiteralMethod's
-        // inner checkFunctionExpressionOrObjectLiteralMethod is the
-        // 5.5f stub, so the statement rides per-element containment.
-        assert_eq!(checked_rows("({ m() { return missingName; } });\n"), []);
+    fn object_literal_method_bodies_check_since_5_5f() {
+        // Oracle: 2304 @16+11 — the deferred body pass drives the
+        // method's return expression through checkExpression.
+        assert_eq!(
+            checked_rows("({ m() { return missingName; } });\n"),
+            [(2304, 16, 11)]
+        );
     }
 }

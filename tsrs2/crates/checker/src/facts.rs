@@ -484,7 +484,7 @@ impl<'a> CheckerState<'a> {
     /// the tables twin performs the identical union reconstruction
     /// (origin filtering, PrimitiveUnion/ContainsIntersections carry,
     /// never tail).
-    fn filter_type_with(
+    pub(crate) fn filter_type_with(
         &mut self,
         ty: TypeId,
         mut predicate: impl FnMut(&mut Self, TypeId) -> CheckResult2<bool>,

@@ -2747,7 +2747,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// checkGrammarTypeArguments (89537-89539).
-    fn check_grammar_type_arguments(
+    pub(crate) fn check_grammar_type_arguments(
         &mut self,
         node: NodeId,
         type_arguments: Option<tsrs2_syntax::NodeArrayId>,
@@ -3264,7 +3264,7 @@ impl<'a> CheckerState<'a> {
     /// getFlowTypeOfDestructuring (55892-55895): getFlowTypeOfReference
     /// over a synthetic element access — the [FLOW M5] stub answers
     /// the declared type, so the synthesis collapses to identity.
-    fn get_flow_type_of_destructuring(&self, _node: NodeId, declared_type: TypeId) -> TypeId {
+    pub(crate) fn get_flow_type_of_destructuring(&self, _node: NodeId, declared_type: TypeId) -> TypeId {
         declared_type
     }
 
@@ -3274,7 +3274,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// grammarErrorAtPos(list.end - 1, 1, message), parse-diagnostic
     /// suppressed like every grammar row.
-    fn check_grammar_for_disallowed_trailing_comma(
+    pub(crate) fn check_grammar_for_disallowed_trailing_comma(
         &mut self,
         list: Option<tsrs2_syntax::NodeArrayId>,
         message: &'static tsrs2_diags::DiagnosticMessage,
@@ -3316,7 +3316,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getRestType @6.0.3
     /// tsc-hash: c1ed5a63f503979fe12cc660c82e604821fc5a6abc7ca14c6f6170843b0aa350
     /// tsc-span: _tsc.js:55841-55884
-    fn get_rest_type(
+    pub(crate) fn get_rest_type(
         &mut self,
         source: TypeId,
         properties: &[NodeId],
@@ -4257,14 +4257,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bd45efe2c145824e7c6806099aee1e2eb7286d058912356c61200b090e432a2f
     /// tsc-span: _tsc.js:82435-82497
     ///
-    /// The circularity arms return None; with errorNode = None (every
-    /// 5.5e caller) the 1062-family reporting stays dormant. The
-    /// thenable error tail (errorNode + chain) is a 5.5f arm — a live
-    /// errorNode there escapes so 5.5f can land it faithfully.
+    /// Error paths live since 5.5f: the circularity arms report 1062
+    /// at the caller's errorNode; the thenable tail reports the
+    /// caller's head message (1320/1058-family). tsc chains a 2684
+    /// this-context row plus the head into ONE message chain — the
+    /// chain TAIL is elided with the 5.4 head-only discipline (code
+    /// and span are the head's; only text depth differs, T2).
     pub(crate) fn get_awaited_type_no_alias(
         &mut self,
         ty: TypeId,
-        error_node: Option<NodeId>,
+        error_info: Option<(NodeId, &'static tsrs2_diags::DiagnosticMessage)>,
     ) -> CheckResult2<Option<TypeId>> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
             return Ok(Some(ty));
@@ -4277,17 +4279,19 @@ impl<'a> CheckerState<'a> {
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             if self.awaited_type_stack.contains(&ty) {
-                if error_node.is_some() {
-                    return Err(Unsupported::new(
-                        "awaited-type circularity report (await band, lands at 5.5f)",
-                    ));
+                if let Some((error_node, _)) = error_info {
+                    self.error_at(
+                        Some(error_node),
+                        &tsrs2_diags::gen::Type_is_referenced_directly_or_indirectly_in_the_fulfillment_callback_of_its_own_then_method,
+                        &[],
+                    );
                 }
                 return Ok(None);
             }
             self.awaited_type_stack.push(ty);
             let mapped = self.map_type(
                 ty,
-                &mut |state, t| state.get_awaited_type_no_alias(t, error_node),
+                &mut |state, t| state.get_awaited_type_no_alias(t, error_info),
                 false,
             );
             self.awaited_type_stack.pop();
@@ -4303,18 +4307,21 @@ impl<'a> CheckerState<'a> {
                 .set_type_awaited_type_of_type(self.speculation_depth, ty, ty);
             return Ok(Some(ty));
         }
-        let promised = self.get_promised_type_of_promise(ty)?;
+        let (promised, this_type_for_error) =
+            self.get_promised_type_of_promise_with_this_error(ty, None)?;
         if let Some(promised) = promised {
             if ty == promised || self.awaited_type_stack.contains(&promised) {
-                if error_node.is_some() {
-                    return Err(Unsupported::new(
-                        "awaited-type circularity report (await band, lands at 5.5f)",
-                    ));
+                if let Some((error_node, _)) = error_info {
+                    self.error_at(
+                        Some(error_node),
+                        &tsrs2_diags::gen::Type_is_referenced_directly_or_indirectly_in_the_fulfillment_callback_of_its_own_then_method,
+                        &[],
+                    );
                 }
                 return Ok(None);
             }
             self.awaited_type_stack.push(ty);
-            let awaited = self.get_awaited_type_no_alias(promised, error_node);
+            let awaited = self.get_awaited_type_no_alias(promised, error_info);
             self.awaited_type_stack.pop();
             let awaited = awaited?;
             let Some(awaited) = awaited else {
@@ -4325,10 +4332,13 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(awaited));
         }
         if self.is_thenable_type(ty)? {
-            if error_node.is_some() {
-                return Err(Unsupported::new(
-                    "thenable-without-promise report (await band, lands at 5.5f)",
-                ));
+            if let Some((error_node, message)) = error_info {
+                // chainDiagnosticMessages([2684 this-context?], head):
+                // the head's code+span emit; the chain tail (incl. the
+                // 2684 row when thisTypeForError is set) is elided
+                // with the 5.4 head-only discipline.
+                let _ = this_type_for_error;
+                self.error_at(Some(error_node), message, &[]);
             }
             return Ok(None);
         }
@@ -4378,7 +4388,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: unwrapAwaitedType @6.0.3
     /// tsc-hash: fa90c22f836ab976b33c8e42530722f711f185e19b9d01f759c86b64009a0ab6
     /// tsc-span: _tsc.js:82399-82401
-    fn unwrap_awaited_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn unwrap_awaited_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             let unwrapped = self.map_type(
                 ty,
@@ -4453,6 +4463,39 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(ty)
+    }
+
+    /// tsc-port: getAwaitedType @6.0.3
+    /// tsc-hash: d8eeb1013e9cbe31e08ea52051232be9c5a3e8d5256dcca7824e9aee88fdaf9a
+    /// tsc-span: _tsc.js:82431-82434
+    pub(crate) fn get_awaited_type_with_error(
+        &mut self,
+        ty: TypeId,
+        error_info: Option<(NodeId, &'static tsrs2_diags::DiagnosticMessage)>,
+    ) -> CheckResult2<Option<TypeId>> {
+        let awaited = self.get_awaited_type_no_alias(ty, error_info)?;
+        match awaited {
+            Some(awaited) => Ok(Some(self.create_awaited_type_if_needed(awaited)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// tsc-port: checkAwaitedType @6.0.3
+    /// tsc-hash: 8963cbea36a471c1085379489f08bf1e81995dc88bdaac2bcfbf350bf630b88d
+    /// tsc-span: _tsc.js:82377-82380
+    pub(crate) fn check_awaited_type(
+        &mut self,
+        ty: TypeId,
+        with_alias: bool,
+        error_node: NodeId,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+    ) -> CheckResult2<TypeId> {
+        let awaited = if with_alias {
+            self.get_awaited_type_with_error(ty, Some((error_node, message)))?
+        } else {
+            self.get_awaited_type_no_alias(ty, Some((error_node, message)))?
+        };
+        Ok(awaited.unwrap_or(self.tables.intrinsics.error))
     }
 
     /// tsc-port: getGlobalAwaitedSymbol @6.0.3

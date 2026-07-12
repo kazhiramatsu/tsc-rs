@@ -592,11 +592,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 6656f35e13ca42f182376bea5fca91873448108c174cb259f9fde363dece7113
     /// tsc-span: _tsc.js:72874-72905
     ///
-    /// The generator/async return-type FILTERS escape [ITER]/[ASYNC →
-    /// 5.5f]; the annotation, contextual-signature and IIFE arms are
-    /// live ([CALLS]-lite: the IIFE arm is just getContextualType of
-    /// the call node).
-    fn get_contextual_return_type(
+    /// The async filter is live (5.5f); the generator filter escapes
+    /// [ITER → 5.8]. The annotation, contextual-signature and IIFE
+    /// arms are live ([CALLS]-lite: the IIFE arm is just
+    /// getContextualType of the call node).
+    pub(crate) fn get_contextual_return_type(
         &mut self,
         function_decl: NodeId,
         context_flags: ContextFlags,
@@ -617,9 +617,19 @@ impl<'a> CheckerState<'a> {
                     ));
                 }
                 if function_flags & FUNCTION_FLAGS_ASYNC != 0 {
-                    return Err(Unsupported::new(
-                        "getContextualReturnType async filter (getAwaitedTypeOfPromise, 5.5f)",
-                    ));
+                    // 72894-72898: keep the constituents that are
+                    // any/unknown/void/instantiable or promises.
+                    let filtered = self.filter_type_with(return_type, |state, t| {
+                        if state.tables.flags_of(t).intersects(
+                            TypeFlags::ANY_OR_UNKNOWN
+                                | TypeFlags::VOID
+                                | TypeFlags::INSTANTIABLE_NON_PRIMITIVE,
+                        ) {
+                            return Ok(true);
+                        }
+                        Ok(state.get_awaited_type_of_promise(t)?.is_some())
+                    })?;
+                    return Ok(Some(filtered));
                 }
                 return Ok(Some(return_type));
             }
@@ -1911,7 +1921,7 @@ impl<'a> CheckerState<'a> {
     /// context — the stack only ever holds None until M6, so the
     /// structural port reduces to the identity read
     /// (instantiateInstantiableTypes 73459-73470 rides with M6).
-    fn instantiate_contextual_type(
+    pub(crate) fn instantiate_contextual_type(
         &mut self,
         contextual_type: Option<TypeId>,
         node: NodeId,
@@ -2431,7 +2441,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getContextualSignatureForFunctionLikeDeclaration @6.0.3
     /// tsc-hash: 285e51fbe6399fa87d48553f4a02162ffe635e47bd6a1a60366d98ee5513914f
     /// tsc-span: _tsc.js:73848-73850
-    fn get_contextual_signature_for_function_like_declaration(
+    pub(crate) fn get_contextual_signature_for_function_like_declaration(
         &mut self,
         node: NodeId,
     ) -> CheckResult2<Option<SignatureId>> {
@@ -2595,7 +2605,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasContextSensitiveParameters @6.0.3
     /// tsc-hash: 5e4f4b912d59ce18948174f79c715f7462acbc58aad580616e084403324c3e2a
     /// tsc-span: _tsc.js:19182-19196
-    fn has_context_sensitive_parameters(&self, node: NodeId) -> bool {
+    pub(crate) fn has_context_sensitive_parameters(&self, node: NodeId) -> bool {
         if self.function_type_parameters_of(node).is_some() {
             return false;
         }

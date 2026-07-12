@@ -723,6 +723,23 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         no_property_access_from_index_signature: bool_option("noPropertyAccessFromIndexSignature"),
         strict_property_initialization: bool_option("strictPropertyInitialization"),
         use_define_for_class_fields: bool_option("useDefineForClassFields"),
+        jsx: program.options.iter().find_map(|(key, value)| {
+            if key.eq_ignore_ascii_case("jsx") {
+                match value {
+                    tsrs2_harness::OptionValue::String(value) => {
+                        jsx_option_value(value)
+                    }
+                    tsrs2_harness::OptionValue::Number(value) => Some(*value),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }),
+        jsx_factory: string_option(program, "jsxFactory"),
+        jsx_fragment_factory: string_option(program, "jsxFragmentFactory"),
+        jsx_import_source: string_option(program, "jsxImportSource"),
+        react_namespace: string_option(program, "reactNamespace"),
         lib: program.options.iter().find_map(|(key, value)| {
             if key.eq_ignore_ascii_case("lib") {
                 match value {
@@ -740,6 +757,31 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
             }
         }),
     }
+}
+
+fn string_option(program: &tsrs2_harness::ProgramJson, name: &str) -> Option<String> {
+    program.options.iter().find_map(|(key, value)| {
+        if key.eq_ignore_ascii_case(name) {
+            match value {
+                tsrs2_harness::OptionValue::String(value) => Some(value.clone()),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    })
+}
+
+/// tsc jsxOptionMap — the jsx option's string→JsxEmit map.
+fn jsx_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "preserve" => 1,
+        "react" => 2,
+        "react-native" => 3,
+        "react-jsx" => 4,
+        "react-jsxdev" => 5,
+        _ => return None,
+    })
 }
 
 /// tsc targetOptionDeclaration.type — the target option's string→value

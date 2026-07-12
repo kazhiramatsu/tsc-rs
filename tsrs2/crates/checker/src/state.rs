@@ -170,6 +170,11 @@ pub struct CheckerState<'a> {
     /// createAnonymousType + NonInferrableType (47179) — the vacuous-
     /// exclusion type in isEmptyAnonymousObjectType, live from 5.0.
     pub any_function_type: TypeId,
+    /// deferredGlobalPromiseType (60750) memo — emptyGenericType when
+    /// the reporting probe missed.
+    pub deferred_global_promise_type: Option<TypeId>,
+    /// deferredGlobalPromiseConstructorSymbol (60766) memo.
+    pub deferred_global_promise_constructor_symbol: Option<Option<SymbolId>>,
     /// tsc noConstraintType (47188): "constraint computed, none"
     /// sentinel in TypeParameter.constraint slots — never exposed.
     pub no_constraint_type: TypeId,
@@ -433,6 +438,8 @@ impl<'a> CheckerState<'a> {
             unknown_union_type: TypeId(0),
             empty_generic_type: TypeId(0),
             any_function_type: TypeId(0),
+            deferred_global_promise_type: None,
+            deferred_global_promise_constructor_symbol: None,
             no_constraint_type: TypeId(0),
             circular_constraint_type: TypeId(0),
             mappers: Vec::new(),
@@ -1077,12 +1084,13 @@ pub(crate) mod test_support {
                 Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
                 None => (0, 0),
             };
-            let javascript_file = name.ends_with(".js");
+            let javascript_file = name.ends_with(".js") || name.ends_with(".jsx");
+            let jsx_file = name.ends_with(".tsx") || name.ends_with(".jsx");
             let source = parse_source_file(
                 (*name).to_owned(),
                 (*text).to_owned(),
                 ParseOptions {
-                    language_variant: if javascript_file {
+                    language_variant: if javascript_file || jsx_file {
                         LanguageVariant::Jsx
                     } else {
                         LanguageVariant::Standard

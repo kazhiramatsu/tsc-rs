@@ -9,6 +9,8 @@ pub mod engine;
 pub mod evaluate;
 pub mod expr;
 pub mod facts;
+pub mod functions;
+pub mod jsx;
 pub mod globals;
 pub mod indexed;
 pub mod instantiate;
