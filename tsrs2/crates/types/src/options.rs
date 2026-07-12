@@ -53,6 +53,9 @@ pub struct CompilerOptions {
     /// gate (75378); defaulted from target (>= ES2022) like tsc's
     /// computed option.
     pub use_define_for_class_fields: Option<bool>,
+    /// strict-family; the catch-clause arm of
+    /// getTypeForVariableLikeDeclaration (56055).
+    pub use_unknown_in_catch_variables: Option<bool>,
     /// The RAW `lib` option entries, lowercased (e.g. "es5", "dom") —
     /// containerSeemsToBeEmptyDomElement (75471) only asks whether the
     /// option EXISTS without "dom".

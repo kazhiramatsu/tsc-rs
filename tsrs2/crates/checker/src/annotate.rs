@@ -8,8 +8,9 @@ use tsrs2_binder::{node_util, InternalSymbolName, SymbolId};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, ElementFlags, IntersectionFlags, LiteralValue, M4Dependency, ObjectFlags,
-    PseudoBigInt, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    CheckFlags, CheckMode, ElementFlags, IntersectionFlags, LiteralValue, M4Dependency,
+    ModifierFlags, ObjectFlags, PseudoBigInt, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
+    TypeId, UnionReduction,
 };
 
 use crate::evaluate::EvalValue;
@@ -1670,10 +1671,6 @@ impl<'a> CheckerState<'a> {
     /// collapses to exactly this while identifiers carry their
     /// declared types (flow narrowing is M5; type arguments on typeof
     /// are `typeof f<...>` instantiation expressions, 5.2/M6).
-    /// getWidenedType (5.6) is identity here: annotation-derived
-    /// symbol types never carry fresh literals or widening-context
-    /// object literals (initializer typing, their source, is 5.5 —
-    /// symbols typed from initializers unwind as Unsupported first).
     fn get_type_from_type_query_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
@@ -1700,7 +1697,8 @@ impl<'a> CheckerState<'a> {
             ));
         };
         let ty = self.get_type_of_symbol(symbol)?;
-        let resolved = self.tables.get_regular_type_of_literal_type(ty);
+        let widened = self.get_widened_type(ty)?;
+        let resolved = self.tables.get_regular_type_of_literal_type(widened);
         self.links.set_node_resolved_type(
             self.speculation_depth,
             node,
@@ -4238,38 +4236,77 @@ impl<'a> CheckerState<'a> {
             let declaration = declaration.ok_or_else(|| {
                 Unsupported::new("symbol without value declaration (M4 synthesis)")
             })?;
-            let (annotation, is_property, is_optional) =
-                state.variable_like_annotation(declaration)?;
-            match annotation {
-                Some(annotation) => {
-                    let declared = state.get_type_from_type_node(annotation)?;
-                    Ok(state
-                        .tables
-                        .add_optionality(declared, is_property, is_optional))
+            // getTypeOfVariableOrParameterOrPropertyWorker dispatch
+            // (56680-56711): the Prototype/requireSymbol/ModuleExports
+            // heads and the JSON-source-file arm precede the resolution
+            // stack in tsc; those symbol shapes never take this route
+            // in the slice (modules 5.8, JS [JSDOC]).
+            match state.kind_of(declaration) {
+                SyntaxKind::ExportAssignment => {
+                    Err(Unsupported::new("export= value type (5.8 modules)"))
                 }
-                None => {
-                    // Annotation-less WITH an initializer: tsc types
-                    // from the initializer (checkDeclarationInitializer
-                    // + widening, 5.6/5.8) — an `any` stand-in changes
-                    // which ARM downstream checks take (5.5d FP find:
-                    // an any-degraded receiver took the anyLike private
-                    // arm's 18016 where tsc's C<number> takes 18013).
-                    // Annotation-less WITHOUT initializer is genuinely
-                    // implicit any in tsc — that stand-in is faithful.
-                    let initializer = match state.data_of(declaration) {
-                        NodeData::VariableDeclaration(data) => data.initializer,
-                        NodeData::PropertyDeclaration(data) => data.initializer,
-                        NodeData::BindingElement(data) => data.initializer,
-                        NodeData::PropertyAssignment(data) => data.initializer,
-                        _ => None,
-                    };
-                    if initializer.is_some() {
-                        return Err(Unsupported::new(
-                            "initializer-typed variable (getWidenedTypeForVariableLikeDeclaration, 5.6)",
-                        ));
+                SyntaxKind::BinaryExpression
+                | SyntaxKind::PropertyAccessExpression
+                | SyntaxKind::ElementAccessExpression
+                | SyntaxKind::CallExpression
+                | SyntaxKind::Identifier
+                | SyntaxKind::StringLiteral
+                | SyntaxKind::NumericLiteral
+                | SyntaxKind::SourceFile => Err(Unsupported::new(
+                    "assignment-declaration value type \
+                     (getWidenedTypeForAssignmentDeclaration [JSDOC])",
+                )),
+                SyntaxKind::PropertyAssignment => {
+                    match state.try_get_type_from_effective_type_node(declaration)? {
+                        Some(declared) => Ok(declared),
+                        None => state.check_property_assignment(declaration, CheckMode::NORMAL),
                     }
-                    Ok(state.tables.intrinsics.any)
                 }
+                SyntaxKind::JsxAttribute => {
+                    match state.try_get_type_from_effective_type_node(declaration)? {
+                        Some(declared) => Ok(declared),
+                        None => Err(Unsupported::new("checkJsxAttribute (5.7)")),
+                    }
+                }
+                SyntaxKind::ShorthandPropertyAssignment => {
+                    match state.try_get_type_from_effective_type_node(declaration)? {
+                        Some(declared) => Ok(declared),
+                        None => {
+                            let name = match state.data_of(declaration) {
+                                NodeData::ShorthandPropertyAssignment(data) => data.name,
+                                _ => None,
+                            }
+                            .ok_or_else(|| {
+                                Unsupported::new("shorthand without a name (parse recovery)")
+                            })?;
+                            state.check_expression_for_mutable_location(
+                                name,
+                                CheckMode::NORMAL,
+                                /*force_tuple*/ false,
+                            )
+                        }
+                    }
+                }
+                SyntaxKind::MethodDeclaration => {
+                    match state.try_get_type_from_effective_type_node(declaration)? {
+                        Some(declared) => Ok(declared),
+                        None => {
+                            state.check_object_literal_method(declaration, CheckMode::NORMAL)
+                        }
+                    }
+                }
+                SyntaxKind::Parameter
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::PropertySignature
+                | SyntaxKind::VariableDeclaration
+                | SyntaxKind::BindingElement => state
+                    .get_widened_type_for_variable_like_declaration(
+                        declaration,
+                        /*report_errors*/ true,
+                    ),
+                other => Err(Unsupported::new(format!(
+                    "worker declaration kind {other:?} (M4)"
+                ))),
             }
         })(self);
         let resolved = match computed {
@@ -4332,6 +4369,489 @@ impl<'a> CheckerState<'a> {
             );
         }
         self.tables.intrinsics.any
+    }
+
+    /// tsc-port: getWidenedTypeForVariableLikeDeclaration @6.0.3
+    /// tsc-hash: 825d1f13aef6988c4eedf9b267afb2f03a735450f7a1cf228655fa5820bed83d
+    /// tsc-span: _tsc.js:56552-56559
+    pub(crate) fn get_widened_type_for_variable_like_declaration(
+        &mut self,
+        declaration: NodeId,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        let ty = self.get_type_for_variable_like_declaration(
+            declaration,
+            /*include_optionality*/ true,
+            CheckMode::NORMAL,
+        )?;
+        self.widen_type_for_variable_like_declaration(ty, declaration, report_errors)
+    }
+
+    /// tsc-port: widenTypeForVariableLikeDeclaration @6.0.3
+    /// tsc-hash: 6fde6424a18e58f7812383933306b669f058a47225dc182ab1978618ce527a36
+    /// tsc-span: _tsc.js:56586-56606
+    ///
+    /// The ESSymbol/isGlobalSymbolConstructor arm escapes: an ESSymbol
+    /// initializer type only arrives through Symbol() calls
+    /// (getResolvedSignature, 5.7), so the arm is dormant until then.
+    fn widen_type_for_variable_like_declaration(
+        &mut self,
+        ty: Option<TypeId>,
+        declaration: NodeId,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(mut ty) = ty {
+            if self.tables.flags_of(ty).intersects(TypeFlags::ES_SYMBOL) {
+                // isGlobalSymbolConstructor(declaration.parent): only a
+                // parent whose (merged) symbol IS the global Symbol
+                // constructor takes getESSymbolLikeTypeForNode — a JS
+                // expando/global-augmentation shape. Everything else
+                // (ordinary `: symbol` annotations) falls through.
+                if self.is_in_js_file(declaration) {
+                    return Err(Unsupported::new(
+                        "widenTypeForVariableLikeDeclaration JS ESSymbol arm ([JSDOC])",
+                    ));
+                }
+                let parent_symbol_name = self
+                    .parent_of(declaration)
+                    .and_then(|parent| self.binder.node_symbol(parent))
+                    .map(|symbol| self.binder.symbol(symbol).escaped_name.clone());
+                if matches!(
+                    parent_symbol_name.as_deref(),
+                    Some("Symbol" | "SymbolConstructor")
+                ) {
+                    return Err(Unsupported::new(
+                        "isGlobalSymbolConstructor arm (getESSymbolLikeTypeForNode, 5.7)",
+                    ));
+                }
+            }
+            if report_errors {
+                self.report_errors_from_widening(declaration, ty, /*widening_kind*/ None)?;
+            }
+            if self.tables.flags_of(ty).intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                && (self.kind_of(declaration) == SyntaxKind::BindingElement
+                    || self.effective_type_annotation_node(declaration).is_none())
+            {
+                let declaration_symbol = self.get_symbol_of_declaration(declaration)?;
+                if self.tables.type_of(ty).symbol != Some(declaration_symbol) {
+                    ty = self.tables.intrinsics.es_symbol;
+                }
+            }
+            return self.get_widened_type(ty);
+        }
+        let is_rest_parameter = matches!(
+            self.data_of(declaration),
+            NodeData::Parameter(data) if data.dot_dot_dot_token.is_some()
+        );
+        let ty = if is_rest_parameter {
+            self.any_array_type()?
+        } else {
+            self.tables.intrinsics.any
+        };
+        if report_errors && !self.declaration_belongs_to_private_ambient_member(declaration) {
+            self.report_implicit_any(declaration, ty, /*widening_kind*/ None)?;
+        }
+        Ok(ty)
+    }
+
+    /// tsc-port: declarationBelongsToPrivateAmbientMember @6.0.3
+    /// tsc-hash: 4d59a6942967180c236c14b747702f0260d949bf4fceed6c2fa9903c2de4d9eb
+    /// tsc-span: _tsc.js:56607-56611
+    ///
+    /// isPrivateWithinAmbient (18580-18582): private modifier (or
+    /// #-name) inside an Ambient-flagged subtree.
+    fn declaration_belongs_to_private_ambient_member(&self, declaration: NodeId) -> bool {
+        let source = self.binder.source_of_node(declaration);
+        let root = node_util::get_root_declaration(source, declaration);
+        let member = if self.kind_of(root) == SyntaxKind::Parameter {
+            self.parent_of(root).unwrap_or(root)
+        } else {
+            root
+        };
+        let private = node_util::get_combined_modifier_flags(source, member)
+            .intersects(ModifierFlags::PRIVATE)
+            || self
+                .name_of_node(member)
+                .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier);
+        private
+            && self.node_flags(member) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0
+    }
+
+    /// tsc-port: tryGetTypeFromEffectiveTypeNode @6.0.3
+    /// tsc-hash: 0d815a919b7406dc0fa9e388f2915ef9ddc5c43afa9421c92b7d339ec0e2579d
+    /// tsc-span: _tsc.js:56612-56617
+    pub(crate) fn try_get_type_from_effective_type_node(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        match self.effective_type_annotation_node(declaration) {
+            Some(annotation) => Ok(Some(self.get_type_from_type_node(annotation)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// tsc-port: getTypeForVariableLikeDeclaration @6.0.3
+    /// tsc-hash: 109205c923753ffa4729ddda5d05745808a37dba0474c79e15e7da5a9e0bb8df
+    /// tsc-span: _tsc.js:56032-56144
+    ///
+    /// Escaped arms: for-in/for-of variables (5.8 statements /
+    /// [ITER]), the JSDoc/JS container arms ([JSDOC]), the property-
+    /// declaration constructor/static-block flow arms ([FLOW M5]) and
+    /// its ambient getTypeOfPropertyInBaseClass tail (5.8).
+    ///
+    /// The AUTO ARM ([FLOW M5]): tsc returns autoType/autoArrayType and
+    /// lets control-flow analysis evolve the type. Oracle-pinned
+    /// (2026-07-13): `let x;` / `let x = null;` / `let x = [];` /
+    /// `const x = [];` all check clean at uses under strict — the M4
+    /// stand-in is anyType (falling through to the initializer arm
+    /// would render null/never[] relations tsc never sees: FP), with
+    /// the flow rows (18048/2454/7034) recorded FN until M5.
+    fn get_type_for_variable_like_declaration(
+        &mut self,
+        declaration: NodeId,
+        include_optionality: bool,
+        check_mode: CheckMode,
+    ) -> CheckResult2<Option<TypeId>> {
+        let source = self.binder.source_of_node(declaration);
+        let kind = self.kind_of(declaration);
+        let parent = self.parent_of(declaration);
+        if kind == SyntaxKind::VariableDeclaration {
+            let grand = parent.and_then(|parent| self.parent_of(parent));
+            match grand.map(|grand| self.kind_of(grand)) {
+                Some(SyntaxKind::ForInStatement) => {
+                    return Err(Unsupported::new("for-in variable type (5.8 statements)"));
+                }
+                Some(SyntaxKind::ForOfStatement) => {
+                    return Err(Unsupported::new(
+                        "for-of variable type (checkRightHandSideOfForOf [ITER] 5.8)",
+                    ));
+                }
+                _ => {}
+            }
+        }
+        if parent.is_some_and(|parent| {
+            matches!(
+                self.kind_of(parent),
+                SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+            )
+        }) {
+            return self.get_type_for_binding_element(declaration);
+        }
+        let is_property = (kind == SyntaxKind::PropertyDeclaration
+            && !node_util::has_syntactic_modifier(source, declaration, ModifierFlags::ACCESSOR))
+            || kind == SyntaxKind::PropertySignature;
+        let is_optional = include_optionality && self.is_optional_declaration(declaration);
+        let declared_type = self.try_get_type_from_effective_type_node(declaration)?;
+        if self.is_catch_clause_variable_declaration_or_binding_element(declaration) {
+            if let Some(declared) = declared_type {
+                let flags = self.tables.flags_of(declared);
+                return Ok(Some(
+                    if flags.intersects(TypeFlags::ANY) || declared == self.tables.intrinsics.unknown
+                    {
+                        declared
+                    } else {
+                        self.tables.intrinsics.error
+                    },
+                ));
+            }
+            let use_unknown = self
+                .options
+                .strict_option_value(self.options.use_unknown_in_catch_variables);
+            return Ok(Some(if use_unknown {
+                self.tables.intrinsics.unknown
+            } else {
+                self.tables.intrinsics.any
+            }));
+        }
+        if let Some(declared) = declared_type {
+            return Ok(Some(self.tables.add_optionality(
+                declared,
+                is_property,
+                is_optional,
+            )));
+        }
+        let no_implicit_any = self
+            .options
+            .strict_option_value(self.options.no_implicit_any);
+        if (no_implicit_any || self.is_in_js_file(declaration))
+            && kind == SyntaxKind::VariableDeclaration
+        {
+            let name_is_binding_pattern = self.name_of_node(declaration).is_some_and(|name| {
+                matches!(
+                    self.kind_of(name),
+                    SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                )
+            });
+            let exported = node_util::get_combined_modifier_flags(source, declaration)
+                .intersects(ModifierFlags::EXPORT);
+            let ambient =
+                self.node_flags(declaration) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0;
+            if !name_is_binding_pattern && !exported && !ambient {
+                let constant = node_util::get_combined_node_flags(source, declaration).bits()
+                    & tsrs2_types::NodeFlags::CONSTANT.bits()
+                    != 0;
+                let initializer = self.initializer_of(declaration);
+                let null_or_undefined_initializer = match initializer {
+                    None => true,
+                    Some(initializer) => self.is_null_or_undefined_expr(initializer),
+                };
+                if !constant && null_or_undefined_initializer {
+                    // tsc: autoType ([FLOW M5]) — anyType stand-in.
+                    return Ok(Some(self.tables.intrinsics.any));
+                }
+                if initializer
+                    .is_some_and(|initializer| self.is_empty_array_literal_expr(initializer))
+                {
+                    // tsc: autoArrayType ([FLOW M5]) — anyType stand-in.
+                    return Ok(Some(self.tables.intrinsics.any));
+                }
+            }
+        }
+        if kind == SyntaxKind::Parameter {
+            if self.binder.node_symbol(declaration).is_none() {
+                return Ok(None);
+            }
+            let func = parent.expect("parameter has a parent");
+            if self.kind_of(func) == SyntaxKind::SetAccessor && !self.has_late_bindable_ast_name(func)
+            {
+                let accessor_symbol = self.get_symbol_of_declaration(func)?;
+                let getter =
+                    self.get_declaration_of_kind(accessor_symbol, SyntaxKind::GetAccessor);
+                if let Some(getter) = getter {
+                    let is_this_parameter = matches!(
+                        self.data_of(declaration),
+                        NodeData::Parameter(data)
+                            if data.name.is_some_and(|name| {
+                                self.kind_of(name) == SyntaxKind::Identifier
+                                    && self
+                                        .text_of_node(name)
+                                        .is_ok_and(|text| text == "this")
+                            })
+                    );
+                    if is_this_parameter {
+                        return Err(Unsupported::new(
+                            "accessor this-parameter type (getAccessorThisParameter, 5.8)",
+                        ));
+                    }
+                    let getter_signature = self.get_signature_from_declaration(getter)?;
+                    return Ok(Some(self.get_return_type_of_signature(getter_signature)?));
+                }
+            }
+            // getParameterTypeOfTypeTag: [JSDOC] — no-op outside JS.
+            let symbol = self.binder.node_symbol(declaration);
+            let is_this = symbol
+                .is_some_and(|symbol| self.binder.symbol(symbol).escaped_name == "this");
+            let contextual = if is_this {
+                self.get_contextual_this_parameter_type(func)?
+            } else {
+                self.get_contextually_typed_parameter_type(declaration)?
+            };
+            if let Some(contextual) = contextual {
+                return Ok(Some(self.tables.add_optionality(
+                    contextual,
+                    /*is_property*/ false,
+                    is_optional,
+                )));
+            }
+        }
+        let has_expression_initializer = matches!(
+            kind,
+            SyntaxKind::VariableDeclaration
+                | SyntaxKind::Parameter
+                | SyntaxKind::BindingElement
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::PropertyAssignment
+                | SyntaxKind::EnumMember
+        ) && self.initializer_of(declaration).is_some();
+        if has_expression_initializer {
+            if self.is_in_js_file(declaration) && kind != SyntaxKind::Parameter {
+                return Err(Unsupported::new(
+                    "JS container object type (getJSContainerObjectType [JSDOC])",
+                ));
+            }
+            let initializer_type =
+                self.check_declaration_initializer(declaration, check_mode, None)?;
+            let widened = self.widen_type_inferred_from_initializer(declaration, initializer_type)?;
+            return Ok(Some(self.tables.add_optionality(
+                widened,
+                is_property,
+                is_optional,
+            )));
+        }
+        if kind == SyntaxKind::PropertyDeclaration
+            && (no_implicit_any || self.is_in_js_file(declaration))
+        {
+            let class = parent.expect("property declaration has a parent");
+            let ambient_member = node_util::get_combined_modifier_flags(source, declaration)
+                .intersects(ModifierFlags::AMBIENT);
+            if !self.has_static_modifier(declaration) {
+                if self.find_constructor_declaration(class).is_some() {
+                    return Err(Unsupported::new(
+                        "constructor-assigned property type (getFlowTypeInConstructor [FLOW M5])",
+                    ));
+                }
+                if ambient_member {
+                    return Err(Unsupported::new(
+                        "ambient property base-class type (getTypeOfPropertyInBaseClass, 5.8)",
+                    ));
+                }
+            } else {
+                let has_static_blocks = matches!(
+                    self.data_of(class),
+                    NodeData::ClassDeclaration(data)
+                        if self.nodes_of(data.members).iter().any(|&member| {
+                            self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration
+                        })
+                ) || matches!(
+                    self.data_of(class),
+                    NodeData::ClassExpression(data)
+                        if self.nodes_of(data.members).iter().any(|&member| {
+                            self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration
+                        })
+                );
+                if has_static_blocks {
+                    return Err(Unsupported::new(
+                        "static-block-assigned property type (getFlowTypeInStaticBlocks [FLOW M5])",
+                    ));
+                }
+                if ambient_member {
+                    return Err(Unsupported::new(
+                        "ambient property base-class type (getTypeOfPropertyInBaseClass, 5.8)",
+                    ));
+                }
+            }
+        }
+        if kind == SyntaxKind::JsxAttribute {
+            return Ok(Some(self.tables.intrinsics.true_regular));
+        }
+        if let Some(name) = self.name_of_node(declaration) {
+            if matches!(
+                self.kind_of(name),
+                SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+            ) {
+                return Ok(Some(self.get_type_from_binding_pattern(
+                    name,
+                    /*include_pattern_in_type*/ false,
+                    /*report_errors*/ true,
+                )?));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: getTypeForBindingElement @6.0.3
+    /// tsc-hash: db39bb9df5d65526e7574373b9c37507d764c97897bfeb52630915930f6291ba
+    /// tsc-span: _tsc.js:55942-55951
+    ///
+    /// tsc-port: getTypeForBindingElementParent @6.0.3
+    /// tsc-hash: 08b0e4f2dd355e6594b9f063fb6aa6f72c5b0ce69241893358080cd4e8a01994
+    /// tsc-span: _tsc.js:55824-55840
+    fn get_type_for_binding_element(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let is_rest = matches!(
+            self.data_of(declaration),
+            NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some()
+        );
+        let check_mode = if is_rest {
+            CheckMode::REST_BINDING_ELEMENT
+        } else {
+            CheckMode::NORMAL
+        };
+        let pattern = self
+            .parent_of(declaration)
+            .expect("binding element has a pattern");
+        let parent_declaration = self
+            .parent_of(pattern)
+            .expect("binding pattern has a declaration");
+        let parent_type =
+            self.get_type_for_binding_element_parent(parent_declaration, check_mode)?;
+        match parent_type {
+            Some(parent_type) => Ok(Some(self.get_binding_element_type_from_parent_type(
+                declaration,
+                parent_type,
+                /*no_tuple_bounds_check*/ false,
+            )?)),
+            None => Ok(None),
+        }
+    }
+
+    fn get_type_for_binding_element_parent(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<Option<TypeId>> {
+        if check_mode != CheckMode::NORMAL {
+            return self.get_type_for_variable_like_declaration(
+                node,
+                /*include_optionality*/ false,
+                check_mode,
+            );
+        }
+        let symbol = self.get_symbol_of_declaration(node)?;
+        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(Some(cached));
+        }
+        self.get_type_for_variable_like_declaration(
+            node,
+            /*include_optionality*/ false,
+            check_mode,
+        )
+    }
+
+    /// tsc-port: isNullOrUndefined @6.0.3 (the checker-local
+    /// isNullOrUndefined2)
+    /// tsc-hash: 134b4ea51c0e63244ba9e3640b567e1455ff00b981dee40817ca46e89ef520cd
+    /// tsc-span: _tsc.js:56013-56020
+    fn is_null_or_undefined_expr(&mut self, node: NodeId) -> bool {
+        let expr = self.skip_parentheses(node);
+        match self.kind_of(expr) {
+            SyntaxKind::NullKeyword => true,
+            SyntaxKind::Identifier => {
+                self.get_resolved_symbol(expr) == Some(self.undefined_symbol)
+            }
+            _ => false,
+        }
+    }
+
+    /// tsc-port: isEmptyArrayLiteral @6.0.3 (the checker-local
+    /// isEmptyArrayLiteral2)
+    /// tsc-hash: aec39287153052d13f54374113ffbec58c92de043b2c6f6ff1bad85399baf420
+    /// tsc-span: _tsc.js:56021-56028
+    fn is_empty_array_literal_expr(&self, node: NodeId) -> bool {
+        let expr = self.skip_parentheses(node);
+        matches!(
+            self.data_of(expr),
+            NodeData::ArrayLiteralExpression(data)
+                if self.nodes_of(data.elements).is_empty()
+        )
+    }
+
+    /// tsc-port: isCatchClauseVariableDeclarationOrBindingElement @6.0.3
+    /// tsc-hash: 621724a8fdb0fa42184253babb0c36ecf2e7a3862a4216921af939fec7741262
+    /// tsc-span: _tsc.js:13709-13712
+    fn is_catch_clause_variable_declaration_or_binding_element(
+        &self,
+        declaration: NodeId,
+    ) -> bool {
+        let source = self.binder.source_of_node(declaration);
+        let root = node_util::get_root_declaration(source, declaration);
+        self.kind_of(root) == SyntaxKind::VariableDeclaration
+            && self
+                .parent_of(root)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause)
+    }
+
+    /// isOptionalDeclaration (19304): questionToken presence on
+    /// parameter/property shapes.
+    fn is_optional_declaration(&self, declaration: NodeId) -> bool {
+        match self.data_of(declaration) {
+            NodeData::Parameter(data) => data.question_token.is_some(),
+            NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
+            NodeData::PropertySignature(data) => data.question_token.is_some(),
+            _ => false,
+        }
     }
 
     /// The declaration shapes the M3 slice can type: property
@@ -5012,9 +5532,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5aed861556c2cfa2ed5aa01177ce6375ddaa04f810aeadc7d48c8673cd09d2d9
     /// tsc-span: _tsc.js:56468-56486
     ///
-    /// The reportErrors arm reaches reportImplicitAny ([WIDEN → 5.6]);
-    /// every 5.5b call site passes reportErrors=false, so the arm
-    /// escapes rather than half-porting the 7006 band early.
     pub(crate) fn get_type_from_binding_element(
         &mut self,
         element: NodeId,
@@ -5059,10 +5576,9 @@ impl<'a> CheckerState<'a> {
                 );
             }
         }
-        if report_errors {
-            return Err(Unsupported::new(
-                "getTypeFromBindingElement reportImplicitAny arm (widening, 5.6)",
-            ));
+        if report_errors && !self.declaration_belongs_to_private_ambient_member(element) {
+            let any = self.tables.intrinsics.any;
+            self.report_implicit_any(element, any, /*widening_kind*/ None)?;
         }
         Ok(if include_pattern_in_type {
             self.tables.intrinsics.non_inferrable_any

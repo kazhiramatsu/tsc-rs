@@ -8,8 +8,7 @@
 //! Stage seams live where the extraction doc (§0/§8) puts them:
 //! [FLOW M5] functionHasImplicitReturn → false;
 //! checkAllCodePathsInNonVoidFunctionReturnOrThrow → no-op (FN on
-//! 2355/2366/2534/7030); [WIDEN 5.6] getWidenedType → identity,
-//! reportErrorsFromWidening → no-op; [ITER 5.8] generator bodies and
+//! 2355/2366/2534/7030); [ITER 5.8] generator bodies and
 //! yield aggregation escape Unsupported; [INFER M6] the Inferential
 //! checkMode arms are dead (no producer sets the bit at M4).
 
@@ -27,8 +26,8 @@ use crate::state::{CheckResult2, CheckerState, Unsupported};
 use crate::structural::SignatureKind;
 use tsrs2_diags::gen as diagnostics;
 
-const FUNCTION_FLAGS_GENERATOR: u32 = 1;
-const FUNCTION_FLAGS_ASYNC: u32 = 2;
+pub(crate) const FUNCTION_FLAGS_GENERATOR: u32 = 1;
+pub(crate) const FUNCTION_FLAGS_ASYNC: u32 = 2;
 
 impl<'a> CheckerState<'a> {
     // ---- the trio ----
@@ -412,12 +411,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:78426-78450
     ///
     /// The contextual-less fallback is getWidenedTypeForVariableLike-
-    /// Declaration(declaration, reportErrors=true): the annotated arm
-    /// reduces to the annotation + addOptionality (widening is a
-    /// no-op on declared types); the initializer-inference arm is
-    /// [WIDEN 5.6] and escapes; annotation-less parameters are
-    /// implicit any (the 7006 reportImplicitAny lives with 5.6 —
-    /// recorded FN).
+    /// Declaration(declaration, reportErrors=true) — the full 5.6
+    /// chain: annotation, initializer inference + widening, or the
+    /// implicit-any tail with its 7006-family report.
     fn assign_parameter_type(
         &mut self,
         parameter: SymbolId,
@@ -436,9 +432,10 @@ impl<'a> CheckerState<'a> {
         let base = match contextual_type {
             Some(contextual_type) => contextual_type,
             None => match declaration {
-                Some(declaration) => {
-                    self.widened_type_for_parameter_declaration(declaration)?
-                }
+                Some(declaration) => self.get_widened_type_for_variable_like_declaration(
+                    declaration,
+                    /*report_errors*/ true,
+                )?,
                 None => self.get_type_of_symbol(parameter)?,
             },
         };
@@ -519,26 +516,6 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// The parameter face of getWidenedTypeForVariableLikeDeclaration
-    /// (56146/56032): annotation → declared type (widening is identity
-    /// on declared types); initializer → [WIDEN 5.6] escape; neither →
-    /// implicit anyType (reportImplicitAny 7006 rides 5.6, FN).
-    fn widened_type_for_parameter_declaration(
-        &mut self,
-        declaration: NodeId,
-    ) -> CheckResult2<TypeId> {
-        let annotation = self.effective_type_annotation_node(declaration);
-        if let Some(annotation) = annotation {
-            return self.get_type_from_type_node(annotation);
-        }
-        if self.initializer_of(declaration).is_some() {
-            return Err(Unsupported::new(
-                "initializer-typed parameter (getWidenedTypeForVariableLikeDeclaration, 5.6)",
-            ));
-        }
-        Ok(self.tables.intrinsics.any)
-    }
-
     /// createSymbolWithType's no-type face (78368-78373 half): clone
     /// flags/name/READONLY check-flag, leave the links type vacant for
     /// assignParameterType's once-write.
@@ -561,10 +538,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:78752-78841
     ///
     /// Generator bodies escape whole ([ITER 5.8]: yield aggregation +
-    /// createGeneratorType). The widening tail runs the LITERAL-level
-    /// contextual widening live (widen.rs carve-out) and stubs the
-    /// object-level pieces: reportErrorsFromWidening ×3 → no-op,
-    /// final getWidenedType each → identity ([WIDEN 5.6]).
+    /// createGeneratorType), so of the widening tail only the
+    /// FunctionReturn rows run: reportErrorsFromWidening + the
+    /// literal-level contextual widening + the final getWidenedType.
     pub(crate) fn get_return_type_from_body(
         &mut self,
         func: NodeId,
@@ -638,8 +614,13 @@ impl<'a> CheckerState<'a> {
             return_type = Some(self.get_union_type_ex(&types, UnionReduction::Subtype)?);
         }
         if let Some(current) = return_type {
-            // reportErrorsFromWidening (78807-78809) — [WIDEN 5.6]
-            // no-op (7025/7011-family FN).
+            // reportErrorsFromWidening (78807-78810): generator bodies
+            // escape whole above, so only the FunctionReturn row runs.
+            self.report_errors_from_widening(
+                func,
+                current,
+                Some(tsrs2_types::WideningKind::FUNCTION_RETURN),
+            )?;
             if self.is_unit_type(current) {
                 let contextual_signature =
                     self.get_contextual_signature_for_function_like_declaration(func)?;
@@ -669,9 +650,7 @@ impl<'a> CheckerState<'a> {
                     is_async,
                 )?;
             }
-            // Final getWidenedType (78827-78829): the 5.5f slice —
-            // any/nullable + union arms live, object-literal/array
-            // arms escape ([WIDEN 5.6]).
+            // Final getWidenedType (78827-78829).
             if let Some(current) = return_type {
                 return_type = Some(self.get_widened_type(current)?);
             }
@@ -1613,29 +1592,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fe71fba645cae40dc0d8f96f156ac4f0795719f4d9cbeb9760e31c161f9cea30
     /// tsc-span: _tsc.js:80690-80702
     ///
-    /// tsc-port: getWidenedLiteralTypeForInitializer @6.0.3
-    /// tsc-hash: c9f5c6c4ff4faa5cfff78b116e0f94e15a488c1f99bbe49e75e7026cd72b799e
-    /// tsc-span: _tsc.js:80703-80705
-    ///
-    /// The Constant/readonly guard keeps the literal; parameters are
-    /// neither, so the live face is getWidenedLiteralType (the 5.5b
-    /// literal-level carve-out). isDeclarationReadonly reads readonly
-    /// modifiers — parameters cannot carry one outside constructors
-    /// (5.8). The isInJSFile empty-literal arms are [JSDOC]-dead.
-    fn widen_type_inferred_from_initializer(
+    /// The Constant/readonly guard keeps the literal (5.6: routed
+    /// through getWidenedLiteralTypeForInitializer so isDeclaration-
+    /// Readonly participates). The isInJSFile empty-literal arms
+    /// change the RESULT type (anyType/anyArrayType) even when the
+    /// checkJs report gate is off — escape rather than diverge.
+    pub(crate) fn widen_type_inferred_from_initializer(
         &mut self,
         declaration: NodeId,
         ty: TypeId,
     ) -> CheckResult2<TypeId> {
-        let combined = node_util::get_combined_node_flags(
-            self.binder.source_of_node(declaration),
-            declaration,
-        );
-        const CONSTANT: i32 = 6; // NodeFlags.Const | NodeFlags.Using ("Constant")
-        if combined.bits() & CONSTANT != 0 {
-            return Ok(ty);
+        if self.is_in_js_file(declaration) {
+            return Err(Unsupported::new(
+                "widenTypeInferredFromInitializer JS empty-literal arms ([JSDOC])",
+            ));
         }
-        self.get_widened_literal_type(ty)
+        self.get_widened_literal_type_for_initializer(declaration, ty)
     }
 
     /// The parameter NodeArray of a function-like (for trailing-comma
@@ -1869,7 +1841,7 @@ impl<'a> CheckerState<'a> {
     /// The array-pattern arm needs checkIteratedTypeOrElementType
     /// ([ITER 5.8]) — escapes; object patterns run live.
     /// getFlowTypeOfDestructuring is the 5.5e [FLOW M5] identity stub.
-    fn get_binding_element_type_from_parent_type(
+    pub(crate) fn get_binding_element_type_from_parent_type(
         &mut self,
         declaration: NodeId,
         parent_type: TypeId,

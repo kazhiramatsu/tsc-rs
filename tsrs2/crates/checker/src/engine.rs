@@ -2076,9 +2076,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ba6c91001232662c53f26b817dbbb93bd01295b1301268a1e9906c4d8bd7be24
     /// tsc-span: _tsc.js:67923-67938
     ///
-    /// M3 slice: the fresh probe sources carry annotation-derived
-    /// (already-regular) member types, so transformTypeOfMembers is
-    /// the identity and the regular clone shares the resolved members.
+    /// transformTypeOfMembers (67914-67922) is inlined: property types
+    /// recurse through getRegularTypeOfObjectLiteral, unchanged
+    /// properties keep their symbol (createSymbolWithType only on
+    /// change). Call/construct signatures and index infos carry over
+    /// from the resolved source.
     pub fn get_regular_type_of_object_literal(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         if !(self.is_object_literal_type(ty)
             && self
@@ -2093,7 +2095,29 @@ impl<'a> CheckerState<'a> {
                 return Ok(regular);
             }
         }
-        let members = self.resolve_structured_type_members(ty)?;
+        let resolved = self.resolve_structured_type_members(ty)?;
+        let mut members = tsrs2_binder::SymbolTable::default();
+        let mut properties: Vec<tsrs2_binder::SymbolId> = Vec::new();
+        for property in self.members_of(resolved).properties.clone() {
+            let original = self.get_type_of_symbol(property)?;
+            let updated = self.get_regular_type_of_object_literal(original)?;
+            let member = if updated == original {
+                property
+            } else {
+                self.create_symbol_with_type(property, updated)
+            };
+            let name = self.binder.symbol(member).escaped_name.clone();
+            members.insert(name, member);
+            properties.push(member);
+        }
+        let source_members = self.members_of(resolved);
+        let members_id = self.alloc_members(crate::state::ResolvedMembers {
+            members,
+            properties,
+            call_signatures: source_members.call_signatures.clone(),
+            construct_signatures: source_members.construct_signatures.clone(),
+            index_infos: source_members.index_infos.clone(),
+        });
         let symbol = self.tables.type_of(ty).symbol;
         let regular = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         let object_flags =
@@ -2104,7 +2128,7 @@ impl<'a> CheckerState<'a> {
         self.links.set_type_members(
             self.speculation_depth,
             regular,
-            crate::links::LinkSlot::Resolved(members),
+            crate::links::LinkSlot::Resolved(members_id),
         );
         self.tables.type_mut(ty).regular_type = Some(regular);
         Ok(regular)

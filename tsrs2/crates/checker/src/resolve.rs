@@ -1687,7 +1687,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc findConstructorDeclaration: the constructor WITH a body.
-    fn find_constructor_declaration(&self, class: NodeId) -> Option<NodeId> {
+    pub(crate) fn find_constructor_declaration(&self, class: NodeId) -> Option<NodeId> {
         let members = match self.data_of(class) {
             NodeData::ClassDeclaration(data) => data.members,
             NodeData::ClassExpression(data) => data.members,
@@ -1794,7 +1794,7 @@ impl<'a> CheckerState<'a> {
         children
     }
 
-    fn is_type_node_kind(&self, kind: SyntaxKind) -> bool {
+    pub(crate) fn is_type_node_kind(&self, kind: SyntaxKind) -> bool {
         (kind >= SyntaxKind::TypePredicate && kind <= SyntaxKind::ImportType)
             || matches!(
                 kind,

@@ -1073,7 +1073,7 @@ impl<'a> CheckerState<'a> {
 
     /// getTextOfNode: the source text of the node's span (left trivia
     /// skipped, like getSourceTextOfNodeFromSourceFile).
-    fn text_of_node(&self, node: NodeId) -> CheckResult2<String> {
+    pub(crate) fn text_of_node(&self, node: NodeId) -> CheckResult2<String> {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
         let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
@@ -2248,13 +2248,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d94786f9e7e2377bfb6fa517be200d2b838cbdabd73b17c13ce9985e5b022f34
     /// tsc-span: _tsc.js:77939-77954
     ///
-    /// getWidenedType is the [WIDEN 5.6] identity — RESOLVED SAFE for
-    /// 2352 (risk #2, oracle-proven 2026-07-12): top-level literal
-    /// stripping is getBaseTypeOfLiteralType∘getRegularTypeOfObjectLiteral
-    /// (both live), property-literal widening happened inside
-    /// checkExpression (5.5b contextual), the nullable arms decide on
-    /// RELATION leniency not widening, and the report displays the
-    /// UNWIDENED exprType.
+    /// The 2352 report displays the UNWIDENED exprType (risk #2,
+    /// oracle-proven 2026-07-12); the comparable probe reads the
+    /// widened one.
     pub(crate) fn check_assertion_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
         let (type_node, _) = self.assertion_type_and_expression(node)?;
         let err_node = if self.kind_of(node) == SyntaxKind::ParenthesizedExpression {
@@ -2276,7 +2272,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         // addLazyDiagnostic = eager identity (5.4).
-        let widened = expr_type;
+        let widened = self.get_widened_type(expr_type)?;
         if !self.is_type_comparable_to(target_type, widened)? {
             self.check_type_comparable_to(
                 expr_type,

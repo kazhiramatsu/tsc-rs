@@ -723,6 +723,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         no_property_access_from_index_signature: bool_option("noPropertyAccessFromIndexSignature"),
         strict_property_initialization: bool_option("strictPropertyInitialization"),
         use_define_for_class_fields: bool_option("useDefineForClassFields"),
+        use_unknown_in_catch_variables: bool_option("useUnknownInCatchVariables"),
         jsx: program.options.iter().find_map(|(key, value)| {
             if key.eq_ignore_ascii_case("jsx") {
                 match value {

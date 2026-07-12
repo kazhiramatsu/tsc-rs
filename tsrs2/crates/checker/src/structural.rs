@@ -3498,9 +3498,23 @@ impl<'a> CheckerState<'a> {
             .set_symbol_check_flags(self.speculation_depth, symbol, readonly);
         self.links
             .set_symbol_type(self.speculation_depth, symbol, crate::links::LinkSlot::Resolved(ty));
-        // declarations/parent/valueDeclaration copies and the nameType
-        // carry-over ride on binder-side symbol mutation — the created
-        // transient reads through links only.
+        self.links
+            .set_symbol_target(self.speculation_depth, symbol, source);
+        let declarations = self.binder.symbol(source).declarations.clone();
+        let parent = self.binder.symbol(source).parent;
+        let value_declaration = self.binder.symbol(source).value_declaration;
+        {
+            let clone = self.binder.symbol_mut(symbol);
+            clone.declarations = declarations;
+            clone.parent = parent;
+            if value_declaration.is_some() {
+                clone.value_declaration = value_declaration;
+            }
+        }
+        if let Some(name_type) = self.links.symbol(source).name_type {
+            self.links
+                .set_symbol_name_type(self.speculation_depth, symbol, Some(name_type));
+        }
         symbol
     }
 

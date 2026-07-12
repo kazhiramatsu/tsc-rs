@@ -1193,7 +1193,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// OuterExpressionKinds.Parentheses only — the evaluator never
     /// passes excludeJSDocTypeAssertions.
-    fn skip_parentheses(&self, node: NodeId) -> NodeId {
+    pub(crate) fn skip_parentheses(&self, node: NodeId) -> NodeId {
         let mut node = node;
         while let NodeData::ParenthesizedExpression(data) = self.data_of(node) {
             match data.expression {

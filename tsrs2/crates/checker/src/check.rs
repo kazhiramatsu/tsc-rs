@@ -182,8 +182,13 @@ impl<'a> CheckerState<'a> {
         self.instantiation_count = 0;
         // Unsupported containment boundary: tsc has no failure channel
         // here; an Err abandons this element's remaining checks (FN)
-        // and the caller's loop continues.
-        let _ = self.check_source_element_worker(node);
+        // and the caller's loop continues. TSRS_TRACE_CONTAIN=1 prints
+        // the swallowed reasons (debug aid).
+        if let Err(err) = self.check_source_element_worker(node) {
+            if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
+                eprintln!("contained @{node:?}: {}", err.reason);
+            }
+        }
         self.current_node = save_current_node;
     }
 

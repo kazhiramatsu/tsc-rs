@@ -1438,8 +1438,7 @@ impl<'a> CheckerState<'a> {
         let apparent_source = if assignment_kind != crate::expr::AssignmentKind::None
             || self.is_method_access_for_call(node)
         {
-            // getWidenedType [WIDEN 5.6 identity].
-            left_type
+            self.get_widened_type(left_type)?
         } else {
             left_type
         };
@@ -3493,9 +3492,16 @@ impl<'a> CheckerState<'a> {
         else {
             return Err(Unsupported::new("ElementAccessExpression recovery node"));
         };
-        // getWidenedType [WIDEN 5.6 identity] on assignment/method-call
-        // receivers.
-        let object_type = expr_type;
+        // checkElementAccessExpression receiver widening (75720):
+        // assignment targets and method-call receivers read the
+        // widened type.
+        let object_type = if self.get_assignment_target_kind(node) != crate::expr::AssignmentKind::None
+            || self.is_method_access_for_call(node)
+        {
+            self.get_widened_type(expr_type)?
+        } else {
+            expr_type
+        };
         let index_type = self.check_expression(index_expression, CheckMode::NORMAL)?;
         if object_type == self.tables.intrinsics.error
             || object_type == self.tables.intrinsics.silent_never

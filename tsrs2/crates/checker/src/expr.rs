@@ -2876,7 +2876,10 @@ impl<'a> CheckerState<'a> {
                     self.tables.intrinsics.any
                 });
                 element_flags.push(tsrs2_types::ElementFlags::OPTIONAL);
-                // reportImplicitAny(e, anyType) — [WIDEN → 5.6].
+                if !omitted && !has_default {
+                    let any = self.tables.intrinsics.any;
+                    self.report_implicit_any(e, any, /*widening_kind*/ None)?;
+                }
             }
         }
         self.create_tuple_type_forced(&element_types, Some(&element_flags), readonly, None)

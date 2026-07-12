@@ -256,6 +256,10 @@ pub struct TypeLinks {
     /// tsc PromiseOrAwaitedType.awaitedTypeOfType
     /// (getAwaitedTypeNoAlias 82435) — the memoized awaited unwrap.
     pub awaited_type_of_type: Option<TypeId>,
+    /// tsc type.widened (getWidenedTypeWithContext 68022/68049) —
+    /// the context-free widening memo; context-carrying calls bypass
+    /// it in both directions.
+    pub widened: Option<TypeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -691,6 +695,20 @@ impl LinksTables {
         let links = self.ty.entry(id).or_default();
         assert!(links.pattern.is_none(), "type pattern rewritten");
         links.pattern = Some(pattern);
+    }
+
+    /// `type.widened = result` (getWidenedTypeWithContext 68049) —
+    /// written by the first context-free widening; EQUAL-value
+    /// rewrites are tolerated (tsc overwrites idempotently; the
+    /// resolvedSymbol precedent from 5.5e).
+    pub fn set_type_widened(&mut self, speculation_depth: u32, id: TypeId, widened: TypeId) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.widened.is_none() || links.widened == Some(widened),
+            "type widened memo rewritten with a DIFFERENT value"
+        );
+        links.widened = Some(widened);
     }
 
     pub fn set_type_parameter_constraint(

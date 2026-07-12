@@ -246,8 +246,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 427137868847758711d3501016d73efd44c6a073114c73a77b2cf5296a08eff3
     /// tsc-span: _tsc.js:72642-72686
     ///
-    /// The containing-literal tail (getWidenedType over the contextual
-    /// type) is [WIDEN → 5.6]; the commonJS-indicator arm is [JSDOC].
+    /// The commonJS-indicator arm is [JSDOC].
     pub(crate) fn get_contextual_this_parameter_type(
         &mut self,
         func: NodeId,
@@ -285,9 +284,14 @@ impl<'a> CheckerState<'a> {
                     }
                     return Ok(Some(this_type));
                 }
-                return Err(Unsupported::new(
-                    "getContextualThisParameterType object-literal tail (getWidenedType, 5.6)",
-                ));
+                let base = match contextual_type {
+                    Some(contextual_type) => self.get_non_nullable_type(contextual_type)?,
+                    None => self.check_expression_cached(
+                        containing_literal,
+                        tsrs2_types::CheckMode::NORMAL,
+                    )?,
+                };
+                return Ok(Some(self.get_widened_type(base)?));
             }
             // walkUpParenthesizedExpressions (tsc 14434).
             let mut parent = self.parent_of(func);
@@ -311,10 +315,19 @@ impl<'a> CheckerState<'a> {
                             ) {
                                 // The commonJsModuleIndicator arm is
                                 // [JSDOC] (JS only) — invisible here.
-                                return Err(Unsupported::new(
-                                    "getContextualThisParameterType assignment tail \
-                                     (getWidenedType, 5.6)",
-                                ));
+                                let expression = match self.data_of(target) {
+                                    NodeData::PropertyAccessExpression(data) => data.expression,
+                                    NodeData::ElementAccessExpression(data) => data.expression,
+                                    _ => None,
+                                };
+                                let Some(expression) = expression else {
+                                    return Ok(None);
+                                };
+                                let checked = self.check_expression_cached(
+                                    expression,
+                                    tsrs2_types::CheckMode::NORMAL,
+                                )?;
+                                return Ok(Some(self.get_widened_type(checked)?));
                             }
                         }
                     }
@@ -331,7 +344,7 @@ impl<'a> CheckerState<'a> {
     /// The IIFE arm is [CALLS → 5.7] (getEffectiveCallArguments +
     /// getSpreadArgumentType + the resolvedSignature=anySignature
     /// save/restore); the contextual-signature arm is live.
-    fn get_contextually_typed_parameter_type(
+    pub(crate) fn get_contextually_typed_parameter_type(
         &mut self,
         parameter: NodeId,
     ) -> CheckResult2<Option<TypeId>> {

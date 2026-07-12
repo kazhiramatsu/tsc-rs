@@ -116,6 +116,23 @@ pub struct IndexInfo {
     pub components: Option<Vec<NodeId>>,
 }
 
+/// tsc-port: createWideningContext @6.0.3
+/// tsc-hash: 45090097a709c1c9f72722e2fbd4bc8281837f4b16d6d769e70215a9a94c65c4
+/// tsc-span: _tsc.js:67939-67941
+///
+/// tsc WideningContext: parent chain + property name + the lazily
+/// resolved sibling types/properties (getSiblingsOfContext /
+/// getPropertiesOfContext fill the None slots in place).
+#[derive(Clone, Debug)]
+pub struct WideningContext {
+    pub parent: Option<WideningContextId>,
+    pub property_name: Option<String>,
+    pub siblings: Option<Vec<TypeId>>,
+    pub resolved_properties: Option<Vec<SymbolId>>,
+}
+
+pub type WideningContextId = usize;
+
 /// tsc resolved structured-type members (setStructuredTypeMembers
 /// 50198): members table + named properties + signatures + index infos.
 #[derive(Clone, Debug, Default)]
@@ -297,6 +314,15 @@ pub struct CheckerState<'a> {
     /// tsc deferredGlobalOmitSymbol (60917).
     pub(crate) deferred_global_omit_symbol: Option<Option<SymbolId>>,
 
+    // ---- M4 5.6: widening state ----
+    /// tsc WideningContext objects (createWideningContext 67939) —
+    /// arena-allocated per widening walk; tsc keeps them alive via
+    /// closure captures, here they just accumulate for the session.
+    pub(crate) widening_contexts: Vec<WideningContext>,
+    /// tsc undefinedProperties (47426): the per-checker
+    /// getUndefinedProperty cache keyed by escaped name.
+    pub(crate) undefined_properties: std::collections::HashMap<String, SymbolId>,
+
     // ---- M4 5.5: expression-checking state ----
     /// tsc typeofType (47100): union of the typeofNEFacts key literals
     /// in map-insertion order (stableTypeOrdering is absent from
@@ -472,6 +498,8 @@ impl<'a> CheckerState<'a> {
             deferred_global_awaited_symbol: None,
             awaited_type_stack: Vec::new(),
             deferred_global_omit_symbol: None,
+            widening_contexts: Vec::new(),
+            undefined_properties: std::collections::HashMap::new(),
             typeof_type: TypeId(0),
             contextual_binding_patterns: Vec::new(),
             contextual_type_nodes: Vec::new(),
