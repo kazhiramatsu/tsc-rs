@@ -1200,7 +1200,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isComputedNonLiteralName @6.0.3
     /// tsc-hash: 3d7ec42dcf0260b3223c227752413c3bb90ef31f7e40edbbf523205e2cde53ea
     /// tsc-span: _tsc.js:13860-13862
-    fn is_computed_non_literal_name(&self, name: NodeId) -> bool {
+    pub(crate) fn is_computed_non_literal_name(&self, name: NodeId) -> bool {
         match self.data_of(name) {
             NodeData::ComputedPropertyName(data) => !data.expression.is_some_and(|expression| {
                 node_util::is_string_or_numeric_literal_like(

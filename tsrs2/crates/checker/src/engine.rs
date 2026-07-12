@@ -2123,7 +2123,7 @@ impl<'a> CheckerState<'a> {
     /// The keyPropertyName/constituentMap caches live on TypeLinks
     /// (tsc stores them on the union type object). M5's discriminant
     /// narrowing reuses this machinery.
-    fn get_key_property_name(&mut self, union: TypeId) -> CheckResult2<Option<String>> {
+    pub(crate) fn get_key_property_name(&mut self, union: TypeId) -> CheckResult2<Option<String>> {
         if let Some(cached) = self.links.ty(union).union_key_property.resolved() {
             return Ok(cached.name);
         }
@@ -2255,7 +2255,21 @@ impl<'a> CheckerState<'a> {
         let Some(prop_type) = self.get_type_of_property_of_type(ty, &key_property_name)? else {
             return Ok(None);
         };
-        let key = self.tables.get_regular_type_of_literal_type(prop_type);
+        self.get_constituent_type_for_key_type(union, prop_type)
+    }
+
+    /// tsc-port: getConstituentTypeForKeyType @6.0.3 (shared tail)
+    /// tsc-hash: 4359544adbcb805ecf85f0af3cfc44554a4fb7c49aa520d6af4971018d006671
+    /// tsc-span: _tsc.js:69625-69629
+    ///
+    /// getKeyPropertyName must have populated the constituent map (the
+    /// two callers read it first).
+    pub(crate) fn get_constituent_type_for_key_type(
+        &mut self,
+        union: TypeId,
+        key_type: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let key = self.tables.get_regular_type_of_literal_type(key_type);
         let unknown = self.tables.intrinsics.unknown;
         let result = self
             .links
@@ -2269,6 +2283,13 @@ impl<'a> CheckerState<'a> {
                     .and_then(|m| m.get(&key).copied())
             });
         Ok(result.filter(|&r| r != unknown))
+    }
+
+    /// isGenericMappedType on the checker receiver (the RelationChecker
+    /// twin at structural.rs 810) — mapped types are unconstructible
+    /// until M8, so both answer false.
+    pub(crate) fn is_generic_mapped_type_state(&self, _ty: TypeId) -> bool {
+        false
     }
 
     // ---- recursion depth (checker-key §1.3) ----
@@ -2438,7 +2459,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getBaseTypeOfEnumLikeType @6.0.3
     /// tsc-hash: 858147aecede12f638a65d11df4e363261107bd21691b950f2d9b966c18bbe9d
     /// tsc-span: _tsc.js:57436-57438
-    fn get_base_type_of_enum_like_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_base_type_of_enum_like_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ENUM_LIKE) {
             if let Some(symbol) = self.tables.type_of(ty).symbol {
                 if self

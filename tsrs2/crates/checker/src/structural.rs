@@ -807,7 +807,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
     }
 
-    fn is_generic_mapped_type(&self, _ty: TypeId) -> bool {
+    pub(crate) fn is_generic_mapped_type(&self, _ty: TypeId) -> bool {
         // Mapped types are unconstructible before M4 5.2.
         false
     }
@@ -2346,7 +2346,7 @@ fn start_element_count(element_flags: &[ElementFlags], flags: ElementFlags) -> u
 /// tsc-port: getEndElementCount @6.0.3
 /// tsc-hash: c3739123ad58c1758730f324c93058d5e469afa256e6e8c2c66ce2684192b5d1
 /// tsc-span: _tsc.js:61306-61308
-fn end_element_count(element_flags: &[ElementFlags], flags: ElementFlags) -> usize {
+pub(crate) fn end_element_count(element_flags: &[ElementFlags], flags: ElementFlags) -> usize {
     let last = element_flags.iter().rposition(|f| !f.intersects(flags));
     match last {
         Some(index) => element_flags.len() - index - 1,
@@ -3122,7 +3122,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDiscriminantProperty @6.0.3
     /// tsc-hash: 1b3d6f14be2183682f24b21ec0f57e84975ced1cf03ab31db92b2b62388d6a8a
     /// tsc-span: _tsc.js:69562-69573
-    fn is_discriminant_property(&mut self, ty: TypeId, name: &str) -> CheckResult2<bool> {
+    pub(crate) fn is_discriminant_property(&mut self, ty: TypeId, name: &str) -> CheckResult2<bool> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             return Ok(false);
         }
@@ -3346,7 +3346,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createUnionSignature @6.0.3
     /// tsc-hash: f2066c8b50870ca26e149fa2dfbc9f6fafda42661ec859fe0d414384c23a04c0
     /// tsc-span: _tsc.js:57887-57894
-    fn create_union_signature(
+    pub(crate) fn create_union_signature(
         &mut self,
         signature: SignatureId,
         union_signatures: Vec<SignatureId>,
@@ -3363,7 +3363,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createSymbolWithType @6.0.3
     /// tsc-hash: 6f9c4ebd31cbdba03af7db5474a8867a0d798e87df6e7dd8c7268f7acc6d7c0d
     /// tsc-span: _tsc.js:67899-67913
-    fn create_symbol_with_type(&mut self, source: SymbolId, ty: TypeId) -> SymbolId {
+    pub(crate) fn create_symbol_with_type(&mut self, source: SymbolId, ty: TypeId) -> SymbolId {
         let source_flags = self.symbol_flags(source);
         let name = self.binder.symbol(source).escaped_name.clone();
         let symbol = self.binder.create_symbol(source_flags, name);
@@ -3600,7 +3600,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: compareTypeParametersIdentical @6.0.3
     /// tsc-hash: 065a593f6bc93d374499bf9cf35327921820333c8042b23a45c6208a4c59833a
     /// tsc-span: _tsc.js:58109-58124
-    fn compare_type_parameters_identical(
+    pub(crate) fn compare_type_parameters_identical(
         &mut self,
         source: SignatureId,
         target: SignatureId,
@@ -3800,7 +3800,7 @@ impl<'a> CheckerState<'a> {
     /// getParameterNameAtPosition (78218-78232 slice): declared
     /// positions read the parameter symbol's name; tuple-rest expanded
     /// positions read the label declaration's name text when present.
-    fn get_parameter_name_at_position(
+    pub(crate) fn get_parameter_name_at_position(
         &mut self,
         signature: SignatureId,
         pos: usize,

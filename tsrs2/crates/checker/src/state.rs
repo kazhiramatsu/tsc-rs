@@ -256,10 +256,42 @@ pub struct CheckerState<'a> {
     /// CompilerOptions, so the unsorted arm is the only one).
     pub(crate) typeof_type: TypeId,
     /// tsc contextualBindingPatterns (47408): pushed only by
-    /// getTypeFromBindingPattern under includePatternInType (5.5b) —
-    /// empty until then; checkIdentifier's nonInferrableAnyType
-    /// circularity arm reads it from 5.5a.
+    /// getTypeFromBindingPattern under includePatternInType (5.5b);
+    /// checkIdentifier's nonInferrableAnyType circularity arm reads it.
     pub(crate) contextual_binding_patterns: Vec<NodeId>,
+
+    // ---- M4 5.5b: contextual-typing state ----
+    /// tsc contextualTypeNodes/contextualTypes/contextualIsCache
+    /// (47404-47406): the parallel-array contextual stack —
+    /// contextualTypeCount is the shared Vec length (pushContextualType
+    /// 73569 writes all three at the same index).
+    pub(crate) contextual_type_nodes: Vec<NodeId>,
+    pub(crate) contextual_types: Vec<Option<TypeId>>,
+    pub(crate) contextual_is_cache: Vec<bool>,
+    /// tsc inferenceContextNodes/inferenceContexts (47401-47402) —
+    /// exists-but-empty until M6 ([INFER] §0): every pushed value is
+    /// None until M6 defines the InferenceContext payload, so
+    /// getInferenceContext answers None structurally.
+    pub(crate) inference_context_nodes: Vec<NodeId>,
+    pub(crate) inference_contexts: Vec<Option<crate::contextual::InferenceContextPlaceholder>>,
+    /// tsc cachedTypes (47415): the string-keyed side cache
+    /// (getCachedType/setCachedType 47484-47490) — `B{typeId}` literal-
+    /// base unions, `D{nodeId},{typeId}` object-literal discrimination.
+    pub(crate) cached_types: std::collections::HashMap<String, TypeId>,
+
+    // ---- M5 flow state (shape only — dormant until M5) ----
+    /// tsc flowLoopStart/flowLoopCount (46436-46437): flow-loop stack
+    /// cursor; checkExpressionCached (80580) save-resets it NOW so the
+    /// M5 fixpoint edits land inside an already-correct save/restore.
+    pub(crate) flow_loop_start: u32,
+    pub(crate) flow_loop_count: u32,
+    /// tsc flowTypeCache (46434): getTypeOfExpression's TypeCached
+    /// side table — None until M5's flow analysis bumps
+    /// flowInvocationCount (the cache-write gate at 80906 is
+    /// constant-false until then).
+    pub(crate) flow_type_cache: Option<std::collections::HashMap<NodeId, TypeId>>,
+    /// tsc flowInvocationCount (46433).
+    pub(crate) flow_invocation_count: u32,
 
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
@@ -385,6 +417,16 @@ impl<'a> CheckerState<'a> {
             deferred_nodes: std::collections::HashMap::new(),
             typeof_type: TypeId(0),
             contextual_binding_patterns: Vec::new(),
+            contextual_type_nodes: Vec::new(),
+            contextual_types: Vec::new(),
+            contextual_is_cache: Vec::new(),
+            inference_context_nodes: Vec::new(),
+            inference_contexts: Vec::new(),
+            cached_types: std::collections::HashMap::new(),
+            flow_loop_start: 0,
+            flow_loop_count: 0,
+            flow_type_cache: None,
+            flow_invocation_count: 0,
             has_global_augmentation: false,
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),
@@ -641,7 +683,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: findResolutionCycleStartIndex @6.0.3
     /// tsc-hash: 251a7ddb169a1bcea40755dfb143b2ccc1043fd9860cc5ad3658792bb09ada88
     /// tsc-span: _tsc.js:55745-55755
-    fn find_resolution_cycle_start_index(
+    pub(crate) fn find_resolution_cycle_start_index(
         &self,
         target: ResolutionTarget,
         property_name: TypeSystemPropertyName,

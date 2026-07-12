@@ -43,6 +43,15 @@ pub(crate) struct GlobalTypeMemos {
     auto_array: Option<TypeId>,
     any_readonly_array: Option<TypeId>,
     arguments_type: Option<TypeId>,
+    /// deferredGlobalImportCallOptionsType (60719) — the fallback
+    /// (emptyObjectType) is memoized like tsc's `|| emptyObjectType`
+    /// short-circuit target is NOT: tsc retries the lookup per call
+    /// while the memo stays undefined, so only a SUCCESS memoizes.
+    import_call_options: Option<TypeId>,
+    /// deferredGlobalImportAttributesType (60727).
+    import_attributes: Option<TypeId>,
+    /// deferredGlobalIterableType (60820).
+    iterable: Option<TypeId>,
 }
 
 impl<'a> CheckerState<'a> {
@@ -398,6 +407,68 @@ impl<'a> CheckerState<'a> {
         let resolved = self.get_global_type_or_undefined("ThisType", 1)?;
         self.global_type_memos.this_type = Some(resolved);
         Ok(resolved)
+    }
+
+    /// tsc-port: getGlobalImportCallOptionsType @6.0.3
+    /// tsc-hash: 5f2aba39e62bc9958871cefa6d88a061576effca96d4f9ea914a59381768bbb4
+    /// tsc-span: _tsc.js:60719-60726
+    ///
+    /// reportErrors=false at the 5.5b call site (the import-call
+    /// contextual arm) — a missing global falls back to
+    /// emptyObjectType without memoizing, like tsc.
+    pub(crate) fn get_global_import_call_options_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.import_call_options {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("ImportCallOptions", 0, false)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.import_call_options = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_object_type)
+    }
+
+    /// tsc-port: getGlobalImportAttributesType @6.0.3
+    /// tsc-hash: dda5a08c113a1250008424b3ebc35f67a77158155b296ab688f68c61a2e4cbab
+    /// tsc-span: _tsc.js:60727-60734
+    pub(crate) fn get_global_import_attributes_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.import_attributes {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("ImportAttributes", 0, false)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.import_attributes = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_object_type)
+    }
+
+    /// tsc-port: getGlobalIterableType @6.0.3
+    /// tsc-hash: 33c29440c03323fad8bcacecfad8edb02e4959b2b609e4b72f6d80fa5976a610
+    /// tsc-span: _tsc.js:60820-60827
+    pub(crate) fn get_global_iterable_type(&mut self, report_errors: bool) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.iterable {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("Iterable", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.iterable = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: createIterableType @6.0.3
+    /// tsc-hash: b5802d1aa06aab8cb1671347b5ab610a89231e3bbf120a01b813a1ae4a396ce0
+    /// tsc-span: _tsc.js:61032-61037
+    pub(crate) fn create_iterable_type(&mut self, iterated_type: TypeId) -> CheckResult2<TypeId> {
+        let iterable = self.get_global_iterable_type(true)?;
+        let void_type = self.tables.intrinsics.void;
+        let undefined = self.tables.intrinsics.undefined;
+        Ok(self.create_type_from_generic_global_type(
+            iterable,
+            &[iterated_type, void_type, undefined],
+        ))
     }
 
     /// initializeTypeChecker 88851: anyArrayType = createArrayType(any).

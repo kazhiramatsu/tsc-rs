@@ -321,7 +321,7 @@ impl<'a> CheckerState<'a> {
     /// Numeric names take the literal directly (checkExpression on a
     /// NumericLiteral reduces to it); computed names and expression
     /// names are 5.5 rows.
-    fn get_literal_type_from_property_name(&mut self, name: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_literal_type_from_property_name(&mut self, name: NodeId) -> CheckResult2<TypeId> {
         match self.data_of(name) {
             NodeData::PrivateIdentifier(_) => Ok(self.tables.intrinsics.never),
             NodeData::NumericLiteral(data) => {

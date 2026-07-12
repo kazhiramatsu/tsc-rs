@@ -3,6 +3,7 @@
 pub mod annotate;
 pub mod check;
 pub mod constraints;
+pub mod contextual;
 pub mod engine;
 pub mod evaluate;
 pub mod expr;
@@ -22,6 +23,7 @@ pub mod state;
 pub mod structural;
 pub mod unions;
 pub mod variance;
+pub mod widen;
 
 use tsrs2_diags::DiagnosticList;
 

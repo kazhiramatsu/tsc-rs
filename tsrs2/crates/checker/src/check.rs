@@ -1048,7 +1048,7 @@ impl<'a> CheckerState<'a> {
     /// getSymbolOfDeclaration (49936) — the binder's node.symbol
     /// through the getMergedSymbol chase (getLateBoundSymbol elided
     /// with late binding; JS aliasing arms with the JS residual).
-    fn get_symbol_of_declaration(&self, node: NodeId) -> CheckResult2<SymbolId> {
+    pub(crate) fn get_symbol_of_declaration(&self, node: NodeId) -> CheckResult2<SymbolId> {
         let symbol = self.node_symbol(node).ok_or_else(|| {
             Unsupported::new("declaration without a bound symbol (parse-recovery tree)")
         })?;

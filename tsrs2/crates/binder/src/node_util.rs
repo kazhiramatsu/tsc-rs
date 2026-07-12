@@ -138,7 +138,10 @@ pub fn has_syntactic_modifier(source: &SourceFile, id: NodeId, flags: ModifierFl
 /// tsc-port: walkUpBindingElementsAndPatterns @6.0.3
 /// tsc-hash: 7c894ff81a7f38a64b44750d844db8129770e2a52a31216617f0a1f7b1ef68a2
 /// tsc-span: _tsc.js:11315-11321
-fn walk_up_binding_elements_and_patterns(source: &SourceFile, binding: NodeId) -> Option<NodeId> {
+pub fn walk_up_binding_elements_and_patterns(
+    source: &SourceFile,
+    binding: NodeId,
+) -> Option<NodeId> {
     let mut node = parent_of(source, binding)?;
     while let Some(parent) = parent_of(source, node) {
         if kind_of(source, parent) == SyntaxKind::BindingElement {

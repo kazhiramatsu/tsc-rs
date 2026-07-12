@@ -4853,6 +4853,269 @@ fn parse_pseudo_bigint_text(text: &str, negative: bool) -> CheckResult2<PseudoBi
     })
 }
 
+// ---- M4 5.5b: binding-pattern types (L56468-56552) ----
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: getTypeFromBindingElement @6.0.3
+    /// tsc-hash: 5aed861556c2cfa2ed5aa01177ce6375ddaa04f810aeadc7d48c8673cd09d2d9
+    /// tsc-span: _tsc.js:56468-56486
+    ///
+    /// The reportErrors arm reaches reportImplicitAny ([WIDEN → 5.6]);
+    /// every 5.5b call site passes reportErrors=false, so the arm
+    /// escapes rather than half-porting the 7006 band early.
+    pub(crate) fn get_type_from_binding_element(
+        &mut self,
+        element: NodeId,
+        include_pattern_in_type: bool,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        let NodeData::BindingElement(data) = self.data_of(element) else {
+            return Err(Unsupported::new(
+                "getTypeFromBindingElement over a non-binding-element (parse recovery)",
+            ));
+        };
+        let (initializer, name) = (data.initializer, data.name);
+        let source = self.binder.source_of_node(element);
+        if initializer.is_some() {
+            let contextual_type = match name {
+                Some(name) if node_util::is_binding_pattern(source, name) => self
+                    .get_type_from_binding_pattern(
+                        name,
+                        /*include_pattern_in_type*/ true,
+                        /*report_errors*/ false,
+                    )?,
+                _ => self.tables.intrinsics.unknown,
+            };
+            let initializer_type = self.check_declaration_initializer(
+                element,
+                tsrs2_types::CheckMode::NORMAL,
+                Some(contextual_type),
+            )?;
+            let widened = self.get_widened_literal_type_for_initializer(element, initializer_type)?;
+            return Ok(self.tables.add_optionality(
+                widened,
+                /*is_property*/ false,
+                /*is_optional*/ true,
+            ));
+        }
+        if let Some(name) = name {
+            if node_util::is_binding_pattern(source, name) {
+                return self.get_type_from_binding_pattern(
+                    name,
+                    include_pattern_in_type,
+                    report_errors,
+                );
+            }
+        }
+        if report_errors {
+            return Err(Unsupported::new(
+                "getTypeFromBindingElement reportImplicitAny arm (widening, 5.6)",
+            ));
+        }
+        Ok(if include_pattern_in_type {
+            self.tables.intrinsics.non_inferrable_any
+        } else {
+            self.tables.intrinsics.any
+        })
+    }
+
+    /// tsc-port: getTypeFromObjectBindingPattern @6.0.3
+    /// tsc-hash: 10ec9571c60f25c26106990c44782d1d2407ed3aaaf0bc3e4e5e8a551e844072
+    /// tsc-span: _tsc.js:56487-56527
+    fn get_type_from_object_binding_pattern(
+        &mut self,
+        pattern: NodeId,
+        include_pattern_in_type: bool,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        let elements: Vec<NodeId> = match self.data_of(pattern) {
+            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements),
+            _ => Vec::new(),
+        };
+        let mut members = tsrs2_binder::SymbolTable::default();
+        let mut properties: Vec<SymbolId> = Vec::new();
+        let mut string_index_info: Option<crate::state::IndexInfo> = None;
+        let mut object_flags =
+            ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+        for e in elements {
+            let NodeData::BindingElement(data) = self.data_of(e) else {
+                continue;
+            };
+            let (dot_dot_dot, property_name, element_name, initializer) = (
+                data.dot_dot_dot_token.is_some(),
+                data.property_name,
+                data.name,
+                data.initializer,
+            );
+            let Some(name) = property_name.or(element_name) else {
+                continue;
+            };
+            if dot_dot_dot {
+                string_index_info = Some(crate::state::IndexInfo {
+                    key_type: self.tables.intrinsics.string,
+                    value_type: self.tables.intrinsics.any,
+                    is_readonly: false,
+                    declaration: None,
+                });
+                continue;
+            }
+            let expr_type = self.get_literal_type_from_property_name(name)?;
+            let Some(text) = self.property_name_from_type_usable(expr_type) else {
+                object_flags |= ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES;
+                continue;
+            };
+            let flags = SymbolFlags::PROPERTY
+                | if initializer.is_some() {
+                    SymbolFlags::OPTIONAL
+                } else {
+                    SymbolFlags::from_bits(0)
+                };
+            let symbol = self.binder.create_symbol(flags, text.clone());
+            let element_type =
+                self.get_type_from_binding_element(e, include_pattern_in_type, report_errors)?;
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                symbol,
+                crate::links::LinkSlot::Resolved(element_type),
+            );
+            members.insert(text, symbol);
+            properties.push(symbol);
+        }
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, tsrs2_types::TypeData::Object);
+        self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS | object_flags;
+        let members_id = self.alloc_members(crate::state::ResolvedMembers {
+            members,
+            properties,
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_infos: string_index_info.into_iter().collect(),
+        });
+        self.links.set_type_members(
+            self.speculation_depth,
+            id,
+            crate::links::LinkSlot::Resolved(members_id),
+        );
+        if include_pattern_in_type {
+            self.links.set_type_pattern(self.speculation_depth, id, pattern);
+            // objectFlags |= ContainsObjectOrArrayLiteral (already set).
+        }
+        Ok(id)
+    }
+
+    /// tsc-port: getTypeFromArrayBindingPattern @6.0.3
+    /// tsc-hash: f2e5cfbc78da5b22bdf82cddbae73e99f2e64febd149ed62eaea4623eb01638d
+    /// tsc-span: _tsc.js:56528-56545
+    fn get_type_from_array_binding_pattern(
+        &mut self,
+        pattern: NodeId,
+        include_pattern_in_type: bool,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        let elements: Vec<NodeId> = match self.data_of(pattern) {
+            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements),
+            _ => Vec::new(),
+        };
+        let rest_element = elements.last().copied().filter(|&last| {
+            matches!(
+                self.data_of(last),
+                NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some()
+            )
+        });
+        if elements.is_empty() || (elements.len() == 1 && rest_element.is_some()) {
+            return if self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2015 {
+                self.create_iterable_type(self.tables.intrinsics.any)
+            } else {
+                self.any_array_type()
+            };
+        }
+        let mut element_types: Vec<TypeId> = Vec::with_capacity(elements.len());
+        for &e in &elements {
+            element_types.push(if self.kind_of(e) == SyntaxKind::OmittedExpression {
+                self.tables.intrinsics.any
+            } else {
+                self.get_type_from_binding_element(e, include_pattern_in_type, report_errors)?
+            });
+        }
+        let min_length = elements
+            .iter()
+            .rposition(|&e| {
+                !(Some(e) == rest_element
+                    || self.kind_of(e) == SyntaxKind::OmittedExpression
+                    || self.binding_element_has_default_value(e))
+            })
+            .map_or(0, |index| index + 1);
+        let element_flags: Vec<tsrs2_types::ElementFlags> = elements
+            .iter()
+            .enumerate()
+            .map(|(i, &e)| {
+                if Some(e) == rest_element {
+                    tsrs2_types::ElementFlags::REST
+                } else if i >= min_length {
+                    tsrs2_types::ElementFlags::OPTIONAL
+                } else {
+                    tsrs2_types::ElementFlags::REQUIRED
+                }
+            })
+            .collect();
+        let mut result =
+            self.create_tuple_type_forced(&element_types, Some(&element_flags), false, None)?;
+        if include_pattern_in_type {
+            result = self.tables.clone_type_reference(result);
+            self.links.set_type_pattern(self.speculation_depth, result, pattern);
+            let with_literal_flag = self.tables.object_flags_of(result)
+                | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+            self.tables.type_mut(result).object_flags = with_literal_flag;
+        }
+        Ok(result)
+    }
+
+    /// hasDefaultValue's binding-element half (the expression halves
+    /// live on the driver band).
+    fn binding_element_has_default_value(&self, e: NodeId) -> bool {
+        matches!(
+            self.data_of(e),
+            NodeData::BindingElement(data) if data.initializer.is_some()
+        )
+    }
+
+    /// tsc-port: getTypeFromBindingPattern @6.0.3
+    /// tsc-hash: 494f309ef98ab15a4a03bcd5949aa78ad57237d71845da6aa8ca17cf9374fa4e
+    /// tsc-span: _tsc.js:56546-56552
+    ///
+    /// The includePatternInType push feeds checkIdentifier's
+    /// nonInferrableAnyType circularity arm (contextualBindingPatterns
+    /// membership) — live since 5.5a, populated from here.
+    pub(crate) fn get_type_from_binding_pattern(
+        &mut self,
+        pattern: NodeId,
+        include_pattern_in_type: bool,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if include_pattern_in_type {
+            self.contextual_binding_patterns.push(pattern);
+        }
+        let result = if self.kind_of(pattern) == SyntaxKind::ObjectBindingPattern {
+            self.get_type_from_object_binding_pattern(
+                pattern,
+                include_pattern_in_type,
+                report_errors,
+            )
+        } else {
+            self.get_type_from_array_binding_pattern(
+                pattern,
+                include_pattern_in_type,
+                report_errors,
+            )
+        };
+        if include_pattern_in_type {
+            self.contextual_binding_patterns.pop();
+        }
+        result
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use tsrs2_binder::bind_source_file;

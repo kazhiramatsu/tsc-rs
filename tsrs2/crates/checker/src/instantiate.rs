@@ -1653,14 +1653,6 @@ impl<'a> CheckerState<'a> {
         result
     }
 
-    /// isObjectLiteralMethod (utilities): a MethodDeclaration whose
-    /// parent is an object literal.
-    fn is_object_literal_method(&self, node: NodeId) -> bool {
-        self.kind_of(node) == SyntaxKind::MethodDeclaration
-            && self
-                .parent_of(node)
-                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ObjectLiteralExpression)
-    }
 
     // ---- signature instantiation ----
 
@@ -2242,7 +2234,7 @@ impl<'a> CheckerState<'a> {
     /// tag checks inside isPartOfTypeExpressionWithTypeArguments) are
     /// elided project-wide; the heritage-clause check keeps the
     /// non-extends-expression semantics.
-    fn is_part_of_type_node(&self, node: NodeId) -> bool {
+    pub(crate) fn is_part_of_type_node(&self, node: NodeId) -> bool {
         let kind = self.kind_of(node);
         if SyntaxKind::FirstTypeNode <= kind && kind <= SyntaxKind::LastTypeNode {
             return true;

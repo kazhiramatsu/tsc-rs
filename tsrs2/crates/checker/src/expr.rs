@@ -22,9 +22,9 @@
 //!   [FLOW] stub — getFlowTypeOfReference ignores `initial` — so
 //!   removeOptionalityFromDeclaredType/getOptionalType ride with the
 //!   facts classifier at 5.5d rather than being half-ported here.
-//! - [CONTEXT → 5.5b] getContextualType consumers
+//! - [CONTEXT] the getContextualType consumers
 //!   (hasContextualTypeWithNoGenericTypes, getContextualThisParameterType)
-//!   escape until the contextual stacks land.
+//!   are live since 5.5b (contextual.rs owns the band).
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain, RelatedInfo};
@@ -380,7 +380,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isImportCall (16097): CallExpression whose expression is the
     /// `import` keyword.
-    fn is_import_call(&self, node: NodeId) -> bool {
+    pub(crate) fn is_import_call(&self, node: NodeId) -> bool {
         match self.data_of(node) {
             NodeData::CallExpression(data) => data
                 .expression
@@ -1223,7 +1223,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getContainingFunction (14438): findAncestor(parent,
     /// isFunctionLike).
-    fn get_containing_function(&self, node: NodeId) -> Option<NodeId> {
+    pub(crate) fn get_containing_function(&self, node: NodeId) -> Option<NodeId> {
         self.find_ancestor(self.parent_of(node), |state, n| {
             if node_util::is_function_like_kind(state.kind_of(n)) {
                 Ancestor::Yes
@@ -1312,8 +1312,10 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::NULLABLE | TypeFlags::UNION))
     }
 
-    /// tsc isConstraintPosition (71622).
-    fn is_constraint_position(&mut self, _ty: TypeId, node: NodeId) -> CheckResult2<bool> {
+    /// tsc-port: isConstraintPosition @6.0.3
+    /// tsc-hash: f157bad0ed0eb3a05505b0a87007863fcea00ba1805259d020f9b9563ab0ff9b
+    /// tsc-span: _tsc.js:71622-71625
+    fn is_constraint_position(&mut self, ty: TypeId, node: NodeId) -> CheckResult2<bool> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(false);
         };
@@ -1325,34 +1327,83 @@ impl<'a> CheckerState<'a> {
                 if data.expression != Some(node) {
                     return Ok(false);
                 }
-                // The nullable-constraint × generic-index-type refinement
-                // reads getTypeOfExpression(argumentExpression) — the
-                // quick-type driver helper lands at 5.5b. Unreachable
-                // until 5.5d makes element-access receivers checkable.
-                Err(Unsupported::new(
-                    "isConstraintPosition element-access refinement (getTypeOfExpression, 5.5b)",
-                ))
+                let Some(argument) = data.argument_expression else {
+                    return Ok(true);
+                };
+                let non_nullable_generic = self.some_type_result(ty, |state, t| {
+                    state.is_generic_type_without_nullable_constraint(t)
+                })?;
+                if !non_nullable_generic {
+                    return Ok(true);
+                }
+                let argument_type = self.get_type_of_expression(argument)?;
+                Ok(!self.tables.is_generic_index_type(argument_type))
             }
             _ => Ok(false),
         }
     }
 
-    /// [CONTEXT 5.5b] hasContextualTypeWithNoGenericTypes (71630):
-    /// reads getContextualType — the contextual stacks land at 5.5b.
+    /// tsc-port: isGenericTypeWithoutNullableConstraint @6.0.3
+    /// tsc-hash: 5e9566c70397e3995a0a17e8a59433d2ccc586d686371177dc4dc6279017cb50
+    /// tsc-span: _tsc.js:71629-71631
+    fn is_generic_type_without_nullable_constraint(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            let types = match &self.tables.type_of(ty).data {
+                TypeData::Intersection { types } => types.to_vec(),
+                _ => unreachable!("intersection flag implies payload"),
+            };
+            for t in types {
+                if self.is_generic_type_without_nullable_constraint(t)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+        if !flags.intersects(TypeFlags::INSTANTIABLE) {
+            return Ok(false);
+        }
+        let constraint = self.get_base_constraint_or_type(ty)?;
+        Ok(!self.maybe_type_of_kind(constraint, TypeFlags::NULLABLE))
+    }
+
+    /// tsc-port: hasContextualTypeWithNoGenericTypes @6.0.3
+    /// tsc-hash: 738c9447519370ba32d416ca51dd945895c9b2af11f53fe73d2e215b04dab1f2
+    /// tsc-span: _tsc.js:71632-71641
     fn has_contextual_type_with_no_generic_types(
         &mut self,
         node: NodeId,
-        _check_mode: CheckMode,
+        check_mode: CheckMode,
     ) -> CheckResult2<bool> {
-        let _ = node;
-        Err(Unsupported::new(
-            "hasContextualTypeWithNoGenericTypes (getContextualType, 5.5b)",
-        ))
+        if !matches!(
+            self.kind_of(node),
+            SyntaxKind::Identifier
+                | SyntaxKind::PropertyAccessExpression
+                | SyntaxKind::ElementAccessExpression
+        ) {
+            return Ok(false);
+        }
+        if let Some(parent) = self.parent_of(node) {
+            let tag_name = match self.data_of(parent) {
+                NodeData::JsxOpeningElement(data) => data.tag_name,
+                NodeData::JsxSelfClosingElement(data) => data.tag_name,
+                _ => None,
+            };
+            if tag_name == Some(node) {
+                return Ok(false);
+            }
+        }
+        let contextual_type = if check_mode.intersects(CheckMode::REST_BINDING_ELEMENT) {
+            self.get_contextual_type(node, tsrs2_types::ContextFlags::SKIP_BINDING_PATTERNS)?
+        } else {
+            self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?
+        };
+        Ok(contextual_type.is_some_and(|t| !self.tables.is_generic_type(t)))
     }
 
     /// someType (66550) with a fallible predicate (the constraints.rs
     /// twin takes an infallible one).
-    fn some_type_result(
+    pub(crate) fn some_type_result(
         &mut self,
         ty: TypeId,
         mut predicate: impl FnMut(&mut Self, TypeId) -> CheckResult2<bool>,
@@ -1892,10 +1943,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// Elisions: the JS arms (getTypeForThisExpressionFromJSDoc,
     /// getClassNameFromPrototypeMethod, isJSConstructor, commonjs
-    /// SourceFile arm) per the plain-JS band; getContextualThisParameterType
-    /// is [CONTEXT] 5.5b — until then a function-like container with no
-    /// declared this-type answers None (noImplicitThis fixtures may
-    /// FN-shift, replaced next slice).
+    /// SourceFile arm) per the plain-JS band; the
+    /// getContextualThisParameterType fallback is live (5.5b).
     fn try_get_this_type_at(
         &mut self,
         node: NodeId,
@@ -1906,8 +1955,10 @@ impl<'a> CheckerState<'a> {
             && (!self.is_in_parameter_initializer_before_containing_function(node)
                 || self.get_this_parameter_of_declaration(container).is_some())
         {
-            let this_type = self.get_this_type_of_declaration(container)?;
-            // [CONTEXT 5.5b] getContextualThisParameterType fallback.
+            let this_type = match self.get_this_type_of_declaration(container)? {
+                Some(this_type) => Some(this_type),
+                None => self.get_contextual_this_parameter_type(container)?,
+            };
             if let Some(this_type) = this_type {
                 return Ok(Some(self.get_flow_type_of_reference_stub(
                     node, this_type, this_type, None,
@@ -2542,6 +2593,752 @@ impl<'a> CheckerState<'a> {
         }
         Ok(self.tables.intrinsics.boolean)
     }
+}
+
+// ---- M4 5.5b: the contextual driver band (L80551-80959) ----
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: getContextNode @6.0.3
+    /// tsc-hash: 4e869b910490be7520efcdf5dda6d7de54949d285ad0a09fa342806e5ec5cf7e
+    /// tsc-span: _tsc.js:80551-80556
+    fn get_context_node(&self, node: NodeId) -> NodeId {
+        if self.kind_of(node) == SyntaxKind::JsxAttributes {
+            let parent = self.parent_of(node).expect("attributes have an element");
+            if self.kind_of(parent) != SyntaxKind::JsxSelfClosingElement {
+                return self.parent_of(parent).expect("opening element has a parent");
+            }
+        }
+        node
+    }
+
+    /// tsc-port: checkExpressionWithContextualType @6.0.3
+    /// tsc-hash: ce6d50e4b09ba21d3b8b1caca81f0a8e01957b7acd2195417c37b205adb69cc5
+    /// tsc-span: _tsc.js:80557-80579
+    ///
+    /// 5.5 consumer: checkDeclarationInitializer only (argument
+    /// checking is 5.7). The inference-context parameter is None until
+    /// M6 (the intraExpressionInferenceSites reset rides with it), so
+    /// checkMode never gains Inferential here.
+    pub(crate) fn check_expression_with_contextual_type(
+        &mut self,
+        node: NodeId,
+        contextual_type: TypeId,
+        inference_context: Option<crate::contextual::InferenceContextPlaceholder>,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        let context_node = self.get_context_node(node);
+        self.push_contextual_type(context_node, Some(contextual_type), false);
+        self.push_inference_context(context_node, inference_context);
+        let result = (|state: &mut Self| -> CheckResult2<TypeId> {
+            let ty = state.check_expression(node, check_mode | CheckMode::CONTEXTUAL)?;
+            if state.maybe_type_of_kind(ty, TypeFlags::LITERAL) {
+                let instantiated = state
+                    .instantiate_contextual_type_for_node(Some(contextual_type), node)?;
+                if state.is_literal_of_contextual_type(ty, instantiated)? {
+                    return Ok(state.tables.get_regular_type_of_literal_type(ty));
+                }
+            }
+            Ok(ty)
+        })(self);
+        self.pop_inference_context();
+        self.pop_contextual_type();
+        result
+    }
+
+    /// tsc-port: checkExpressionCached @6.0.3
+    /// tsc-hash: d53b8def69286cea6beb2fdadf985dcd3c6d0dec3ef171f10eda495f50485178
+    /// tsc-span: _tsc.js:80580-80595
+    ///
+    /// The flowLoopStart/flowTypeCache save-reset-restore is the M5
+    /// fixpoint shape, wired now (both fields are dormant until M5).
+    /// Unlike tsc's unconditional `links.resolvedType = ...`, a
+    /// re-entrant inner resolution that already filled the slot wins
+    /// the CACHE while this call still returns its own result — the
+    /// two computations agree while flow state is dormant.
+    pub(crate) fn check_expression_cached(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        if !check_mode.is_empty() {
+            return self.check_expression(node, check_mode);
+        }
+        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+            return Ok(cached);
+        }
+        let save_flow_loop_start = self.flow_loop_start;
+        let save_flow_type_cache = self.flow_type_cache.take();
+        self.flow_loop_start = self.flow_loop_count;
+        let result = self.check_expression(node, check_mode);
+        self.flow_type_cache = save_flow_type_cache;
+        self.flow_loop_start = save_flow_loop_start;
+        let ty = result?;
+        if self.links.node(node).resolved_type.resolved().is_none() {
+            self.links.set_node_resolved_type(
+                self.speculation_depth,
+                node,
+                crate::links::LinkSlot::Resolved(ty),
+            );
+        }
+        Ok(ty)
+    }
+
+    /// tsc-port: isTypeAssertion @6.0.3
+    /// tsc-hash: 666d5c2cff0b5ac6e459a721e3c1251084f05b323b3384bd6d6b2d355d3be53e
+    /// tsc-span: _tsc.js:80596-80603
+    ///
+    /// The JSDoc-type-assertion half is [JSDOC] (invisible — no JSDoc
+    /// parse), so both skipParentheses forms collapse to the plain one.
+    fn is_type_assertion_expr(&self, node: NodeId) -> bool {
+        let source = self.binder.source_of_node(node);
+        let node = node_util::skip_parentheses_pub(source, node);
+        matches!(
+            self.kind_of(node),
+            SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression
+        )
+    }
+
+    /// tsc-port: checkDeclarationInitializer @6.0.3
+    /// tsc-hash: 140897d2a5fd50d78e8cfdcf90087bec70318e099c79f4d2acef4c49302c902d
+    /// tsc-span: _tsc.js:80604-80628
+    ///
+    /// The JSDoc satisfies arm is [JSDOC]; getEffectiveInitializer's
+    /// JS `x || y` unwrapping likewise, so the TS read is the plain
+    /// `.initializer`.
+    pub(crate) fn check_declaration_initializer(
+        &mut self,
+        declaration: NodeId,
+        check_mode: CheckMode,
+        contextual_type: Option<TypeId>,
+    ) -> CheckResult2<TypeId> {
+        let initializer = self
+            .initializer_of(declaration)
+            .expect("checkDeclarationInitializer callers guarantee an initializer");
+        let ty = match self.get_quick_type_of_expression(initializer)? {
+            Some(quick) => quick,
+            None => match contextual_type {
+                Some(contextual_type) => self.check_expression_with_contextual_type(
+                    initializer,
+                    contextual_type,
+                    /*inference_context*/ None,
+                    check_mode,
+                )?,
+                None => self.check_expression_cached(initializer, check_mode)?,
+            },
+        };
+        let source = self.binder.source_of_node(declaration);
+        let walk_target = if self.kind_of(declaration) == SyntaxKind::BindingElement {
+            node_util::walk_up_binding_elements_and_patterns(source, declaration)
+        } else {
+            Some(declaration)
+        };
+        if walk_target.is_some_and(|t| self.kind_of(t) == SyntaxKind::Parameter) {
+            let name = match self.data_of(declaration) {
+                NodeData::Parameter(data) => data.name,
+                NodeData::BindingElement(data) => data.name,
+                NodeData::VariableDeclaration(data) => data.name,
+                _ => None,
+            };
+            if let Some(name) = name {
+                if self.kind_of(name) == SyntaxKind::ObjectBindingPattern
+                    && self.is_object_literal_type(ty)
+                {
+                    return self.pad_object_literal_type(ty, name);
+                }
+                if self.kind_of(name) == SyntaxKind::ArrayBindingPattern
+                    && self.tables.is_tuple_type(ty)
+                {
+                    return self.pad_tuple_type(ty, name);
+                }
+            }
+        }
+        Ok(ty)
+    }
+
+
+    /// tsc-port: padObjectLiteralType @6.0.3
+    /// tsc-hash: 27d1ecfe9de206dd54dee7b938427800afbe679cccfdb1b16ffd99b872488dff
+    /// tsc-span: _tsc.js:80629-80660
+    fn pad_object_literal_type(&mut self, ty: TypeId, pattern: NodeId) -> CheckResult2<TypeId> {
+        let elements = match self.data_of(pattern) {
+            NodeData::ObjectBindingPattern(data) => data.elements,
+            _ => None,
+        };
+        let elements: Vec<NodeId> = self.nodes_of(elements);
+        let mut missing_elements: Vec<NodeId> = Vec::new();
+        for &e in &elements {
+            let has_initializer = matches!(
+                self.data_of(e),
+                NodeData::BindingElement(data) if data.initializer.is_some()
+            );
+            if !has_initializer {
+                continue;
+            }
+            if let Some(name) = self.property_name_from_binding_element(e)? {
+                if self.get_property_of_type_full(ty, &name)?.is_none() {
+                    missing_elements.push(e);
+                }
+            }
+        }
+        if missing_elements.is_empty() {
+            return Ok(ty);
+        }
+        let mut members = tsrs2_binder::SymbolTable::default();
+        let mut properties: Vec<SymbolId> = Vec::new();
+        for prop in self.get_properties_of_object_type_owned(ty)? {
+            let name = self.binder.symbol(prop).escaped_name.clone();
+            members.insert(name, prop);
+            properties.push(prop);
+        }
+        for e in missing_elements {
+            let name = self
+                .property_name_from_binding_element(e)?
+                .expect("filtered above");
+            let symbol = self
+                .binder
+                .create_symbol(SymbolFlags::PROPERTY | SymbolFlags::OPTIONAL, name.clone());
+            let element_type = self.get_type_from_binding_element(
+                e,
+                /*include_pattern_in_type*/ false,
+                /*report_errors*/ false,
+            )?;
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                symbol,
+                crate::links::LinkSlot::Resolved(element_type),
+            );
+            members.insert(name, symbol);
+            properties.push(symbol);
+        }
+        let index_infos = self.get_index_infos_of_type(ty)?;
+        let symbol = self.tables.type_of(ty).symbol;
+        let source_object_flags = self.tables.object_flags_of(ty);
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, tsrs2_types::TypeData::Object);
+        self.tables.type_mut(id).object_flags = source_object_flags;
+        self.tables.type_mut(id).symbol = symbol;
+        let members_id = self.alloc_members(crate::state::ResolvedMembers {
+            members,
+            properties,
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_infos,
+        });
+        self.links.set_type_members(
+            self.speculation_depth,
+            id,
+            crate::links::LinkSlot::Resolved(members_id),
+        );
+        Ok(id)
+    }
+
+    /// tsc-port: getPropertyNameFromBindingElement @6.0.3
+    /// tsc-hash: 0384b54e818653d7ffc1e37a749d326641ed2996e361ac13190e37260ff67a66
+    /// tsc-span: _tsc.js:80661-80664
+    fn property_name_from_binding_element(
+        &mut self,
+        e: NodeId,
+    ) -> CheckResult2<Option<String>> {
+        let NodeData::BindingElement(data) = self.data_of(e) else {
+            return Ok(None);
+        };
+        let Some(name) = data.property_name.or(data.name) else {
+            return Ok(None);
+        };
+        let expr_type = self.get_literal_type_from_property_name(name)?;
+        Ok(self.property_name_from_type_usable(expr_type))
+    }
+
+    /// tsc-port: padTupleType @6.0.3
+    /// tsc-hash: 072c6834957ff8855543ae6c258dae1f0ba439e9587350619e9228b3cab1cd21
+    /// tsc-span: _tsc.js:80665-80689
+    ///
+    /// The reportImplicitAny call on defaultless extra elements is
+    /// [WIDEN → 5.6] — the anyType padding still happens; the 7006-band
+    /// diagnostic is a recorded FN until then.
+    fn pad_tuple_type(&mut self, ty: TypeId, pattern: NodeId) -> CheckResult2<TypeId> {
+        let target = self.tables.reference_target(ty);
+        let (combined_variable, arity, mut element_flags, readonly) =
+            match &self.tables.type_of(target).data {
+                tsrs2_types::TypeData::TupleTarget(data) => (
+                    data.combined_flags
+                        .intersects(tsrs2_types::ElementFlags::VARIABLE),
+                    data.element_flags.len(),
+                    data.element_flags.to_vec(),
+                    data.readonly,
+                ),
+                _ => unreachable!("tuple type has a tuple target"),
+            };
+        let elements = match self.data_of(pattern) {
+            NodeData::ArrayBindingPattern(data) => data.elements,
+            _ => None,
+        };
+        let pattern_elements: Vec<NodeId> = self.nodes_of(elements);
+        if combined_variable || arity >= pattern_elements.len() {
+            return Ok(ty);
+        }
+        let mut element_types = self.get_type_arguments(ty)?;
+        for i in arity..pattern_elements.len() {
+            let e = pattern_elements[i];
+            let is_rest_binding = matches!(
+                self.data_of(e),
+                NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some()
+            );
+            if i < pattern_elements.len() - 1 || !is_rest_binding {
+                let omitted = self.kind_of(e) == SyntaxKind::OmittedExpression;
+                let has_default = !omitted && self.has_default_value(e);
+                element_types.push(if has_default {
+                    self.get_type_from_binding_element(
+                        e,
+                        /*include_pattern_in_type*/ false,
+                        /*report_errors*/ false,
+                    )?
+                } else {
+                    self.tables.intrinsics.any
+                });
+                element_flags.push(tsrs2_types::ElementFlags::OPTIONAL);
+                // reportImplicitAny(e, anyType) — [WIDEN → 5.6].
+            }
+        }
+        self.create_tuple_type_forced(&element_types, Some(&element_flags), readonly, None)
+    }
+
+    /// tsc-port: hasDefaultValue @6.0.3
+    /// tsc-hash: 8010e25693bfa7169cbb17e357fcb9dcfee994840774795a344514971afb439c
+    /// tsc-span: _tsc.js:73949-73951
+    fn has_default_value(&self, node: NodeId) -> bool {
+        match self.data_of(node) {
+            NodeData::BindingElement(data) => data.initializer.is_some(),
+            NodeData::PropertyAssignment(data) => {
+                data.initializer.is_some_and(|i| self.has_default_value(i))
+            }
+            NodeData::ShorthandPropertyAssignment(data) => {
+                data.object_assignment_initializer.is_some()
+            }
+            NodeData::BinaryExpression(data) => data
+                .operator_token
+                .is_some_and(|op| self.kind_of(op) == SyntaxKind::EqualsToken),
+            _ => false,
+        }
+    }
+
+    /// tsc-port: getWidenedLiteralTypeForInitializer @6.0.3
+    /// tsc-hash: c9f5c6c4ff4faa5cfff78b116e0f94e15a488c1f99bbe49e75e7026cd72b799e
+    /// tsc-span: _tsc.js:80703-80705
+    pub(crate) fn get_widened_literal_type_for_initializer(
+        &mut self,
+        declaration: NodeId,
+        ty: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let source = self.binder.source_of_node(declaration);
+        let constant = node_util::get_combined_node_flags(source, declaration).bits()
+            & tsrs2_types::NodeFlags::CONSTANT.bits()
+            != 0;
+        if constant || self.is_declaration_readonly(declaration) {
+            Ok(ty)
+        } else {
+            self.get_widened_literal_type(ty)
+        }
+    }
+
+    /// tsc isDeclarationReadonly (14128-14130): combined readonly
+    /// modifier, excluding parameter properties.
+    fn is_declaration_readonly(&self, declaration: NodeId) -> bool {
+        let source = self.binder.source_of_node(declaration);
+        node_util::has_syntactic_modifier(source, declaration, ModifierFlags::READONLY)
+            && !(self.kind_of(declaration) == SyntaxKind::Parameter
+                && self
+                    .parent_of(declaration)
+                    .is_some_and(|p| self.kind_of(p) == SyntaxKind::Constructor))
+    }
+
+    /// tsc-port: isLiteralOfContextualType @6.0.3
+    /// tsc-hash: 57a645f8ae702bd309c5fcb54f5581f17a7db5cae1a16b366ab92375745ebf4f
+    /// tsc-span: _tsc.js:80706-80719
+    pub(crate) fn is_literal_of_contextual_type(
+        &mut self,
+        candidate_type: TypeId,
+        contextual_type: Option<TypeId>,
+    ) -> CheckResult2<bool> {
+        let Some(contextual_type) = contextual_type else {
+            return Ok(false);
+        };
+        let flags = self.tables.flags_of(contextual_type);
+        if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+            let types = match &self.tables.type_of(contextual_type).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                    types.to_vec()
+                }
+                _ => unreachable!("union/intersection flag implies payload"),
+            };
+            for t in types {
+                if self.is_literal_of_contextual_type(candidate_type, Some(t))? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+        if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE) {
+            let constraint = self
+                .get_base_constraint_of_type(contextual_type)?
+                .unwrap_or(self.tables.intrinsics.unknown);
+            return Ok((self.maybe_type_of_kind(constraint, TypeFlags::STRING)
+                && self.maybe_type_of_kind(candidate_type, TypeFlags::STRING_LITERAL))
+                || (self.maybe_type_of_kind(constraint, TypeFlags::NUMBER)
+                    && self.maybe_type_of_kind(candidate_type, TypeFlags::NUMBER_LITERAL))
+                || (self.maybe_type_of_kind(constraint, TypeFlags::BIG_INT)
+                    && self.maybe_type_of_kind(candidate_type, TypeFlags::BIG_INT_LITERAL))
+                || (self.maybe_type_of_kind(constraint, TypeFlags::ES_SYMBOL)
+                    && self.maybe_type_of_kind(candidate_type, TypeFlags::UNIQUE_ES_SYMBOL))
+                || self.is_literal_of_contextual_type(candidate_type, Some(constraint))?);
+        }
+        Ok((flags.intersects(
+            TypeFlags::STRING_LITERAL
+                | TypeFlags::INDEX
+                | TypeFlags::TEMPLATE_LITERAL
+                | TypeFlags::STRING_MAPPING,
+        ) && self.maybe_type_of_kind(candidate_type, TypeFlags::STRING_LITERAL))
+            || (flags.intersects(TypeFlags::NUMBER_LITERAL)
+                && self.maybe_type_of_kind(candidate_type, TypeFlags::NUMBER_LITERAL))
+            || (flags.intersects(TypeFlags::BIG_INT_LITERAL)
+                && self.maybe_type_of_kind(candidate_type, TypeFlags::BIG_INT_LITERAL))
+            || (flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+                && self.maybe_type_of_kind(candidate_type, TypeFlags::BOOLEAN_LITERAL))
+            || (flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                && self.maybe_type_of_kind(candidate_type, TypeFlags::UNIQUE_ES_SYMBOL)))
+    }
+
+    /// tsc-port: isConstContext @6.0.3
+    /// tsc-hash: ca0d9cc55a6a71da6f654ad57a0669325df6cca1e15082aa35dc2e8cf89db960
+    /// tsc-span: _tsc.js:80720-80723
+    ///
+    /// The JSDoc-type-assertion disjunct is [JSDOC]; the
+    /// isConstTypeVariable disjunct reads the contextual type and so
+    /// only fires once const type parameters are constructible.
+    pub(crate) fn is_const_context(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(false);
+        };
+        let assertion_type = match self.data_of(parent) {
+            NodeData::AsExpression(data) => data.r#type,
+            NodeData::TypeAssertionExpression(data) => data.r#type,
+            _ => None,
+        };
+        if let Some(assertion_type) = assertion_type {
+            if self.is_const_type_reference_node(assertion_type) {
+                return Ok(true);
+            }
+        }
+        if self.is_valid_const_assertion_argument(node)? {
+            let contextual = self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
+            if self.is_const_type_variable(contextual, 0) {
+                return Ok(true);
+            }
+        }
+        match self.kind_of(parent) {
+            SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::SpreadElement => self.is_const_context(parent),
+            SyntaxKind::PropertyAssignment
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::TemplateSpan => {
+                let grandparent = self.parent_of(parent).expect("member has a container");
+                self.is_const_context(grandparent)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// tsc-port: isValidConstAssertionArgument @6.0.3
+    /// tsc-hash: ac9960346501b930bbf39f79520b454dffdd55a38673ecea6208adc031e4fafc
+    /// tsc-span: _tsc.js:77877-77906
+    fn is_valid_const_assertion_argument(&mut self, node: NodeId) -> CheckResult2<bool> {
+        match self.kind_of(node) {
+            SyntaxKind::StringLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::TemplateExpression => Ok(true),
+            SyntaxKind::ParenthesizedExpression => match self.data_of(node) {
+                NodeData::ParenthesizedExpression(data) => match data.expression {
+                    Some(expression) => self.is_valid_const_assertion_argument(expression),
+                    None => Ok(false),
+                },
+                _ => Ok(false),
+            },
+            SyntaxKind::PrefixUnaryExpression => {
+                let NodeData::PrefixUnaryExpression(data) = self.data_of(node) else {
+                    return Ok(false);
+                };
+                let Some(operand) = data.operand else {
+                    return Ok(false);
+                };
+                let operand_kind = self.kind_of(operand);
+                Ok(match data.operator {
+                    SyntaxKind::MinusToken => matches!(
+                        operand_kind,
+                        SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral
+                    ),
+                    SyntaxKind::PlusToken => operand_kind == SyntaxKind::NumericLiteral,
+                    _ => false,
+                })
+            }
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                let expression = match self.data_of(node) {
+                    NodeData::PropertyAccessExpression(data) => data.expression,
+                    NodeData::ElementAccessExpression(data) => data.expression,
+                    _ => None,
+                };
+                let Some(expression) = expression else {
+                    return Ok(false);
+                };
+                let source = self.binder.source_of_node(node);
+                let expr = node_util::skip_parentheses_pub(source, expression);
+                let symbol = if self.is_entity_name_expression(expr) {
+                    self.resolve_entity_name(
+                        expr,
+                        SymbolFlags::VALUE,
+                        /*ignore_errors*/ true,
+                        /*location*/ None,
+                    )
+                } else {
+                    None
+                };
+                Ok(symbol.is_some_and(|s| {
+                    self.symbol_flags(s).intersects(SymbolFlags::ENUM)
+                }))
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// tsc-port: isConstTypeVariable @6.0.3
+    /// tsc-hash: 93aac203ec4e0f4544652a04da816cd276af64c5b68e7b55573d80139bd3f6cc
+    /// tsc-span: _tsc.js:58794-58797
+    ///
+    /// The Conditional/Mapped arms ride M8 (unconstructible); the
+    /// Substitution/IndexedAccess/generic-tuple arms port over the
+    /// existing TypeData kinds.
+    fn is_const_type_variable(&mut self, ty: Option<TypeId>, depth: u32) -> bool {
+        let Some(ty) = ty else {
+            return false;
+        };
+        if depth >= 5 {
+            return false;
+        }
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::TYPE_PARAMETER) {
+            let symbol = self.tables.type_of(ty).symbol;
+            return symbol.is_some_and(|s| {
+                self.binder.symbol(s).declarations.iter().any(|&d| {
+                    node_util::has_syntactic_modifier(
+                        self.binder.source_of_node(d),
+                        d,
+                        ModifierFlags::CONST,
+                    )
+                })
+            });
+        }
+        if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+            let types = match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                    types.to_vec()
+                }
+                _ => return false,
+            };
+            return types
+                .into_iter()
+                .any(|t| self.is_const_type_variable(Some(t), depth));
+        }
+        if flags.intersects(TypeFlags::INDEXED_ACCESS) {
+            let object_type = match &self.tables.type_of(ty).data {
+                TypeData::IndexedAccess { object_type, .. } => Some(*object_type),
+                _ => None,
+            };
+            return self.is_const_type_variable(object_type, depth + 1);
+        }
+        if self.tables.is_tuple_type(ty) {
+            let target = self.tables.reference_target(ty);
+            let element_flags: Vec<tsrs2_types::ElementFlags> =
+                match &self.tables.type_of(target).data {
+                    TypeData::TupleTarget(data) => data.element_flags.to_vec(),
+                    _ => return false,
+                };
+            let Ok(type_arguments) = self.get_type_arguments(ty) else {
+                return false;
+            };
+            return type_arguments.iter().enumerate().any(|(i, &t)| {
+                element_flags
+                    .get(i)
+                    .is_some_and(|f| f.intersects(tsrs2_types::ElementFlags::VARIADIC))
+                    && self.is_const_type_variable(Some(t), depth)
+            });
+        }
+        false
+    }
+
+    /// tsc-port: checkExpressionForMutableLocation @6.0.3
+    /// tsc-hash: d85d9ab8a5bee0dadc479cbc618ddf99398666c7c84f75d18023afe56186d6e3
+    /// tsc-span: _tsc.js:80724-80736
+    ///
+    /// isCommonJsExportedExpression is [JSDOC] (JS-only, constant
+    /// false in TS). Live consumers land at 5.5c (literals band).
+    #[allow(dead_code)]
+    pub(crate) fn check_expression_for_mutable_location(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+        force_tuple: bool,
+    ) -> CheckResult2<TypeId> {
+        let ty = self.check_expression_with_force_tuple(node, check_mode, force_tuple)?;
+        if self.is_const_context(node)? {
+            return Ok(self.tables.get_regular_type_of_literal_type(ty));
+        }
+        if self.is_type_assertion_expr(node) {
+            return Ok(ty);
+        }
+        let contextual = self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
+        let instantiated = self.instantiate_contextual_type_for_node(contextual, node)?;
+        self.get_widened_literal_like_type_for_contextual_type(ty, instantiated)
+    }
+
+    /// tsc-port: getReturnTypeOfSingleNonGenericCallSignature @6.0.3
+    /// tsc-hash: e303b67bb9b2a56c491ea265d4a9dcec19c2fd5a6b9b4a44f5972612ee007e1d
+    /// tsc-span: _tsc.js:80883-80888
+    #[allow(dead_code)] // consumer: getQuickTypeOfExpression's call arm (5.5d/5.7)
+    fn get_return_type_of_single_non_generic_call_signature(
+        &mut self,
+        func_type: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let Some(signature) = self.get_single_call_signature(func_type)? else {
+            return Ok(None);
+        };
+        if self.signature_of(signature).type_parameters.is_some() {
+            return Ok(None);
+        }
+        self.get_return_type_of_signature(signature).map(Some)
+    }
+
+    /// tsc-port: getTypeOfExpression @6.0.3
+    /// tsc-hash: bf5088bf74890be8eef71547b6179bb73d0390c2e8eb1719ba83b7f8af0e027f
+    /// tsc-span: _tsc.js:80895-80914
+    ///
+    /// The TypeCached/flowTypeCache fast path and the
+    /// flowInvocationCount-gated cache write are M5 shape: the counter
+    /// never moves at M4 (no flow analysis), so the write arm is
+    /// grep-ably dormant, and the node-flag half of the fast path is
+    /// elided — the cache map itself already encodes membership.
+    pub(crate) fn get_type_of_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if let Some(quick) = self.get_quick_type_of_expression(node)? {
+            return Ok(quick);
+        }
+        if let Some(cache) = &self.flow_type_cache {
+            if let Some(&cached) = cache.get(&node) {
+                return Ok(cached);
+            }
+        }
+        let start_invocation_count = self.flow_invocation_count;
+        let ty = self.check_expression(node, CheckMode::TYPE_ONLY)?;
+        if self.flow_invocation_count != start_invocation_count {
+            let cache = self.flow_type_cache.get_or_insert_with(Default::default);
+            cache.insert(node, ty);
+        }
+        Ok(ty)
+    }
+
+    /// tsc-port: getQuickTypeOfExpression @6.0.3
+    /// tsc-hash: 12fa64ad550e27bc242ab7af46766acf39032fe3d50d50699bdb2a0a251a5c57
+    /// tsc-span: _tsc.js:80915-80944
+    ///
+    /// The JSDoc-assertion arm is [JSDOC]. The await arm needs
+    /// getAwaitedType ([ASYNC → 5.5f]) and the call arm needs
+    /// checkNonNullExpression ([FACTS → 5.5d]) / the resolved-signature
+    /// machinery — both escape; their fallback (full checkExpression)
+    /// escapes on the same nodes today, so containment is unchanged.
+    pub(crate) fn get_quick_type_of_expression(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let source = self.binder.source_of_node(node);
+        let expr = node_util::skip_parentheses_pub(source, node);
+        match self.kind_of(expr) {
+            SyntaxKind::AwaitExpression => {
+                return Err(Unsupported::new(
+                    "getQuickTypeOfExpression await arm (getAwaitedType, 5.5f)",
+                ));
+            }
+            SyntaxKind::CallExpression => {
+                let callee = match self.data_of(expr) {
+                    NodeData::CallExpression(data) => data.expression,
+                    _ => None,
+                };
+                let super_call =
+                    callee.is_some_and(|c| self.kind_of(c) == SyntaxKind::SuperKeyword);
+                if !super_call {
+                    return Err(Unsupported::new(
+                        "getQuickTypeOfExpression call arm (checkNonNullExpression, 5.5d/5.7)",
+                    ));
+                }
+            }
+            SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
+                let type_node = match self.data_of(expr) {
+                    NodeData::AsExpression(data) => data.r#type,
+                    NodeData::TypeAssertionExpression(data) => data.r#type,
+                    _ => None,
+                };
+                if let Some(type_node) = type_node {
+                    if !self.is_const_type_reference_node(type_node) {
+                        return Ok(Some(self.get_type_from_type_node(type_node)?));
+                    }
+                }
+            }
+            _ => {}
+        }
+        let is_literal_like = matches!(
+            self.kind_of(node),
+            SyntaxKind::NumericLiteral
+                | SyntaxKind::BigIntLiteral
+                | SyntaxKind::StringLiteral
+                | SyntaxKind::RegularExpressionLiteral
+                | SyntaxKind::NoSubstitutionTemplateLiteral
+                | SyntaxKind::TrueKeyword
+                | SyntaxKind::FalseKeyword
+        );
+        if is_literal_like {
+            return self.check_expression(node, CheckMode::NORMAL).map(Some);
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: getContextFreeTypeOfExpression @6.0.3
+    /// tsc-hash: 5748dd239c3dcf528e706cf0dad9a33ba5139a8ff058f9e270bec304bac605a1
+    /// tsc-span: _tsc.js:80945-80959
+    pub(crate) fn get_context_free_type_of_expression(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.node(node).context_free_type.resolved() {
+            return Ok(cached);
+        }
+        self.push_contextual_type(node, Some(self.tables.intrinsics.any), false);
+        let result = self.check_expression(node, CheckMode::SKIP_CONTEXT_SENSITIVE);
+        self.pop_contextual_type();
+        let ty = result?;
+        if self.links.node(node).context_free_type.resolved().is_none() {
+            self.links.set_node_context_free_type(
+                self.speculation_depth,
+                node,
+                crate::links::LinkSlot::Resolved(ty),
+            );
+        }
+        Ok(ty)
+    }
+
 }
 
 /// tsc getThisContainer (14459) with BOTH parameters — the binder's

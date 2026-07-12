@@ -1541,6 +1541,34 @@ impl TypeTables {
     /// a fresh object per call; identity comes from the caller's caches
     /// (node links / target.instantiations). The node, mapper and alias
     /// fields live checker-side (TypeLinks / Type alias fields).
+    /// tsc-port: cloneTypeReference @6.0.3
+    /// tsc-hash: acb47c4c400a97d9673a211f924708dc2b88b81a3c9a26d300e701aca159ddc5
+    /// tsc-span: _tsc.js:60181-60187
+    ///
+    /// A fresh UNINTERNED copy — the caller stamps pattern/alias
+    /// fields on it without leaking into the shared interned
+    /// reference (getTypeFromArrayBindingPattern 56541).
+    pub fn clone_type_reference(&mut self, source: TypeId) -> TypeId {
+        let source_type = self.type_of(source);
+        let (flags, symbol, object_flags) =
+            (source_type.flags, source_type.symbol, source_type.object_flags);
+        let TypeData::Reference {
+            target,
+            resolved_type_arguments,
+        } = &source_type.data
+        else {
+            panic!("cloneTypeReference over a non-reference");
+        };
+        let data = TypeData::Reference {
+            target: *target,
+            resolved_type_arguments: resolved_type_arguments.clone(),
+        };
+        let id = self.create_type(flags, data);
+        self.type_mut(id).object_flags = object_flags;
+        self.type_mut(id).symbol = symbol;
+        id
+    }
+
     pub fn create_deferred_reference_shell(&mut self, target: TypeId) -> TypeId {
         let symbol = self.type_of(target).symbol;
         let id = self.create_type(

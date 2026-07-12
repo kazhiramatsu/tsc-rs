@@ -70,6 +70,12 @@ pub struct NodeLinks {
     /// grammarErrorOnFirstToken is parse-diagnostics-suppressed, like
     /// tsc's `links.x = grammarError(...)` assignment.
     pub has_reported_statement_in_ambient_context: bool,
+    /// tsc links.contextFreeType (getContextFreeTypeOfExpression 80948).
+    pub context_free_type: LinkSlot<TypeId>,
+    /// tsc links.spreadIndices (getContextualType's ArrayLiteral arm
+    /// 73520): (first, last) spread element indices, computed once per
+    /// array literal (getSpreadIndices 73248).
+    pub spread_indices: Option<(Option<u32>, Option<u32>)>,
 }
 
 /// tsc SymbolLinks — the per-symbol subset M3 consumes.
@@ -210,6 +216,13 @@ pub struct TypeLinks {
     /// expression type; the ResolvedBaseConstructorType resolution
     /// property.
     pub resolved_base_constructor_type: LinkSlot<TypeId>,
+    /// tsc Type.pattern (getTypeFromObjectBindingPattern 56522 /
+    /// getTypeFromArrayBindingPattern 56541): the destructuring pattern
+    /// the type was inferred FROM, under includePatternInType only —
+    /// read by getContextualTypeForBinaryOperand's `type.pattern` test
+    /// (72946) and the literals band. Checker-side because the types
+    /// crate is NodeId-free (like tuple_label_declaration).
+    pub pattern: Option<NodeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -290,6 +303,32 @@ impl LinksTables {
         let links = self.node.entry(id).or_default();
         links.resolved_symbol = LinkSlot::Resolved(symbol);
         links.resolved_type = LinkSlot::Resolved(value);
+    }
+
+    pub fn set_node_context_free_type(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: LinkSlot<TypeId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(&mut self.node.entry(id).or_default().context_free_type, value);
+    }
+
+    /// `links.spreadIndices ??= getSpreadIndices(...)` (73520) — a
+    /// compute-once ?? write, not a LinkSlot (both `None` halves are
+    /// meaningful values).
+    pub fn set_node_spread_indices(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: (Option<u32>, Option<u32>),
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.node.entry(id).or_default();
+        if links.spread_indices.is_none() {
+            links.spread_indices = Some(value);
+        }
     }
 
     pub fn set_node_resolved_signature(
@@ -475,6 +514,15 @@ impl LinksTables {
             &mut self.ty.entry(id).or_default().union_key_property,
             LinkSlot::Resolved(value),
         );
+    }
+
+    /// `result.pattern = pattern` (56522/56541) — written once at
+    /// creation on a fresh (or freshly-cloned) type.
+    pub fn set_type_pattern(&mut self, speculation_depth: u32, id: TypeId, pattern: NodeId) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(links.pattern.is_none(), "type pattern rewritten");
+        links.pattern = Some(pattern);
     }
 
     pub fn set_type_parameter_constraint(
