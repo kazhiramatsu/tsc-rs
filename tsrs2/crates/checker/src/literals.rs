@@ -1562,7 +1562,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isNonGenericObjectType (62918-62920).
-    fn is_non_generic_object_type(&self, ty: TypeId) -> bool {
+    pub(crate) fn is_non_generic_object_type(&self, ty: TypeId) -> bool {
         self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
             && !self.is_generic_mapped_type_state(ty)
     }

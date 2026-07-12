@@ -14,7 +14,10 @@
 //! 16728000), a latent wrong-facts bomb for every non-strict Object
 //! classification.
 
-use tsrs2_types::{ObjectFlags, TypeData, TypeFacts, TypeFlags, TypeId};
+use tsrs2_types::{
+    IntersectionFlags, ObjectFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId,
+    UnionReduction,
+};
 
 use crate::state::{CheckResult2, CheckerState};
 
@@ -307,6 +310,172 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.filter_type(ty, |_, t| t != missing));
         }
         self.get_type_with_facts(ty, TypeFacts::NE_UNDEFINED)
+    }
+
+    /// tsc-port: getAdjustedTypeWithFacts @6.0.3
+    /// tsc-hash: 7adc7a7a39ef6d5f3cb3b3a7d5487cb9c601a79570cb1ead9d3c9e18ea152f9c
+    /// tsc-span: _tsc.js:69784-69798
+    ///
+    /// The 5.5d facts consumer: `unknown` filters as its union
+    /// decomposition (unknownUnionType) and recombines on the way out;
+    /// the strictNullChecks switch matches the EXACT facts value, not
+    /// a mask.
+    pub(crate) fn get_adjusted_type_with_facts(
+        &mut self,
+        ty: TypeId,
+        facts: TypeFacts,
+    ) -> CheckResult2<TypeId> {
+        let strict_null_checks = self
+            .options
+            .strict_option_value(self.options.strict_null_checks);
+        let input = if strict_null_checks
+            && self.tables.flags_of(ty).intersects(TypeFlags::UNKNOWN)
+        {
+            self.unknown_union_type
+        } else {
+            ty
+        };
+        let filtered = self.get_type_with_facts(input, facts)?;
+        let reduced = self.recombine_unknown_type(filtered);
+        if strict_null_checks {
+            if facts == TypeFacts::NE_UNDEFINED {
+                let null = self.tables.intrinsics.null;
+                return self.remove_nullable_by_intersection(
+                    reduced,
+                    TypeFacts::EQ_UNDEFINED,
+                    TypeFacts::EQ_NULL,
+                    TypeFacts::IS_NULL,
+                    null,
+                );
+            }
+            if facts == TypeFacts::NE_NULL {
+                let undefined = self.tables.intrinsics.undefined;
+                return self.remove_nullable_by_intersection(
+                    reduced,
+                    TypeFacts::EQ_NULL,
+                    TypeFacts::EQ_UNDEFINED,
+                    TypeFacts::IS_UNDEFINED,
+                    undefined,
+                );
+            }
+            if facts == TypeFacts::NE_UNDEFINED_OR_NULL || facts == TypeFacts::TRUTHY {
+                return Ok(self
+                    .map_type(
+                        reduced,
+                        &mut |state, t| {
+                            if state.has_type_facts(t, TypeFacts::EQ_UNDEFINED_OR_NULL)? {
+                                state.get_global_non_nullable_type_instantiation(t).map(Some)
+                            } else {
+                                Ok(Some(t))
+                            }
+                        },
+                        false,
+                    )?
+                    .expect("mapper is total"));
+            }
+        }
+        Ok(reduced)
+    }
+
+    /// tsc-port: removeNullableByIntersection @6.0.3
+    /// tsc-hash: c97094efb5ff6a39e7f440adb289501ace56fc69192afd72975b3cb37785f085
+    /// tsc-span: _tsc.js:69799-69806
+    fn remove_nullable_by_intersection(
+        &mut self,
+        ty: TypeId,
+        target_facts: TypeFacts,
+        other_facts: TypeFacts,
+        other_includes_facts: TypeFacts,
+        other_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let facts = self.get_type_facts(
+            ty,
+            TypeFacts::EQ_UNDEFINED
+                | TypeFacts::EQ_NULL
+                | TypeFacts::IS_UNDEFINED
+                | TypeFacts::IS_NULL,
+        )?;
+        if !facts.intersects(target_facts) {
+            return Ok(ty);
+        }
+        let empty_object = self.empty_object_type;
+        let empty_and_other_union =
+            self.get_union_type_ex(&[empty_object, other_type], UnionReduction::Literal)?;
+        Ok(self
+            .map_type(
+                ty,
+                &mut |state, t| {
+                    if state.has_type_facts(t, target_facts)? {
+                        let widen = !facts.intersects(other_includes_facts)
+                            && state.has_type_facts(t, other_facts)?;
+                        let second = if widen {
+                            empty_and_other_union
+                        } else {
+                            state.empty_object_type
+                        };
+                        state
+                            .get_intersection_type(&[t, second], IntersectionFlags::NONE)
+                            .map(Some)
+                    } else {
+                        Ok(Some(t))
+                    }
+                },
+                false,
+            )?
+            .expect("mapper is total"))
+    }
+
+    /// tsc-port: recombineUnknownType @6.0.3
+    /// tsc-hash: 183a60fa027c58fd5e71c37f15f0c07e12dbb906b989fa8e8e4405adaa7cc76f
+    /// tsc-span: _tsc.js:69807-69809
+    fn recombine_unknown_type(&self, ty: TypeId) -> TypeId {
+        if ty == self.unknown_union_type {
+            self.tables.intrinsics.unknown
+        } else {
+            ty
+        }
+    }
+
+    /// tsc-port: getNonNullableType @6.0.3
+    /// tsc-hash: e64e3f0d08a085a8b0a5a597fb450e623bdf865ae234a5a8565c24f338871e98
+    /// tsc-span: _tsc.js:67868-67870
+    pub(crate) fn get_non_nullable_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        if self
+            .options
+            .strict_option_value(self.options.strict_null_checks)
+        {
+            self.get_adjusted_type_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)
+        } else {
+            Ok(ty)
+        }
+    }
+
+    /// tsc-port: getGlobalNonNullableTypeInstantiation @6.0.3
+    /// tsc-hash: 914679d3e8905107c24464dbcdcf2e37c870a7974bbcf3e4437860ca9acc285a
+    /// tsc-span: _tsc.js:67855-67867
+    ///
+    /// The lib NonNullable<T> alias when it exists (getGlobalSymbol
+    /// with NO diagnostic — no suggestion-budget interaction); the
+    /// noLib fallback is `T & {}`. The miss memoizes as tsc's
+    /// unknownSymbol sentinel.
+    fn get_global_non_nullable_type_instantiation(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if self.deferred_global_non_nullable_type_alias.is_none() {
+            let symbol = self.get_global_symbol("NonNullable", SymbolFlags::TYPE_ALIAS, None);
+            self.deferred_global_non_nullable_type_alias = Some(symbol);
+        }
+        match self
+            .deferred_global_non_nullable_type_alias
+            .expect("memoized above")
+        {
+            Some(alias) => self.get_type_alias_instantiation(alias, Some(&[ty]), None, None),
+            None => {
+                let empty_object = self.empty_object_type;
+                self.get_intersection_type(&[ty, empty_object], IntersectionFlags::NONE)
+            }
+        }
     }
 
     /// tsc filterType (69991) with a checker-side predicate: verdicts

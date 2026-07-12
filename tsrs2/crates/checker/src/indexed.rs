@@ -16,8 +16,8 @@ use tsrs2_types::{
     TypeId, UnionReduction,
 };
 
-use crate::links::LinkSlot;
 use crate::state::{CheckResult2, CheckerState, Unsupported};
+use tsrs2_diags::gen as diagnostics;
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: getIndexType @6.0.3
@@ -494,12 +494,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 844cc355aa4db18d1b78368c76ff6c5ab181b0c47bded309986ffc1bcb4073cd
     /// tsc-span: _tsc.js:62567-62611
     ///
-    /// Slice notes: noUncheckedIndexedAccess is an unmodeled option and
-    /// ExpressionPosition access is 5.5, so the IncludeUndefined
-    /// promotion line is dead; `access_node` here is always a type-
-    /// position IndexedAccessType node (element access expressions are
-    /// 5.5), so the tuple gate always takes the IndexedAccessType
-    /// branch.
+    /// 5.5d: expression access nodes are live — the ExpressionPosition
+    /// → IncludeUndefined promotion (62575) and the non-type-node
+    /// generic-tuple gate branch transcribe in full.
     pub fn get_indexed_access_type_or_undefined(
         &mut self,
         object_type: TypeId,
@@ -515,6 +512,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(self.tables.intrinsics.wildcard));
         }
         let object_type = self.get_reduced_type(object_type)?;
+        let mut access_flags = access_flags;
         let mut index_type = index_type;
         if self.is_string_index_signature_only_type(object_type)?
             && !self
@@ -529,15 +527,30 @@ impl<'a> CheckerState<'a> {
         {
             index_type = self.tables.intrinsics.string;
         }
+        if self.options.no_unchecked_indexed_access == Some(true)
+            && access_flags.intersects(AccessFlags::EXPRESSION_POSITION)
+        {
+            access_flags = AccessFlags::from_bits(
+                access_flags.bits() | AccessFlags::INCLUDE_UNDEFINED.bits(),
+            );
+        }
+        // 62576 deferral asymmetry: EXPRESSION access nodes defer only
+        // generic TUPLES; type nodes defer any generic object.
         let generic = self.tables.is_generic_index_type(index_type) || {
-            let object_generic = self.tables.is_generic_object_type(object_type);
+            let expression_access = access_node
+                .is_some_and(|node| self.kind_of(node) != SyntaxKind::IndexedAccessType);
             let tuple_fixed_access = self.tables.is_tuple_type(object_type) && {
                 let target = self.tables.reference_target(object_type);
                 let limit = self.get_total_fixed_element_count(target);
                 self.index_type_less_than(index_type, limit)
             };
-            (object_generic && !tuple_fixed_access)
-                || self.is_generic_reducible_type(object_type)?
+            if expression_access {
+                self.tables.is_generic_tuple_type(object_type) && !tuple_fixed_access
+            } else {
+                let object_generic = self.tables.is_generic_object_type(object_type);
+                (object_generic && !tuple_fixed_access)
+                    || self.is_generic_reducible_type(object_type)?
+            }
         };
         if generic {
             if self
@@ -633,42 +646,123 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4014bff2f311f9e1f8746a10a48831bc25867f25d8548e320ea8ead8c5afa786
     /// tsc-span: _tsc.js:62211-62410
     ///
-    /// TYPE-POSITION slice: accessExpression is always None (element
-    /// access is 5.5), so the flow/write/deprecation/referenced-marking
-    /// arms and every accessExpression diagnostic are structurally
-    /// skipped. Error paths that render types through typeToString's
-    /// nodeBuilder (tuple index errors 2493/2339/2537, 2538
-    /// Type_0_cannot_be_used_as_an_index_type) unwind as Unsupported —
-    /// display is T2/M8. The Contextual/AllowMissing arms belong to
-    /// contextual typing (M6).
+    /// Full transcription (5.5d): expression access nodes drive the
+    /// noImplicitAny ladder (2576/7015/2551/7052/7053+7054 — the
+    /// LADDER ORDER is the observable, risk #1), the write rows, and
+    /// the flow tail. Escapes, each named: displays outside the T2
+    /// slice (tuples/anonymous shapes render through nodeBuilder),
+    /// deprecation suggestions (JSDoc band), the Contextual arm's miss
+    /// fallback (anyType — M6 wires the flag), autoType flow ([FLOW
+    /// M5] via the caller's flow tail), unique-symbol index heads
+    /// (unique symbol types unconstructible until their annotate arm).
     fn get_property_type_for_index_type(
         &mut self,
-        _original_object_type: TypeId,
+        original_object_type: TypeId,
         object_type: TypeId,
         index_type: TypeId,
-        _full_index_type: TypeId,
+        full_index_type: TypeId,
         access_node: Option<NodeId>,
         access_flags: AccessFlags,
     ) -> CheckResult2<Option<TypeId>> {
-        if access_flags.intersects(AccessFlags::WRITING) {
-            return Err(Unsupported::new(
-                "write-position indexed access (getWriteTypeOfSymbol, M4 5.5)",
-            ));
-        }
-        let property_name = self.property_name_from_type_usable(index_type);
+        let access_expression = access_node
+            .filter(|&node| self.kind_of(node) == SyntaxKind::ElementAccessExpression);
+        let property_name = if access_node
+            .is_some_and(|node| self.kind_of(node) == SyntaxKind::PrivateIdentifier)
+        {
+            None
+        } else {
+            // getPropertyNameFromIndex: the isPropertyName accessNode
+            // fallback serves computed-name/late-bound positions whose
+            // producers resolve names before reaching here.
+            self.property_name_from_type_usable(index_type)
+        };
         if let Some(property_name) = &property_name {
+            if access_flags.intersects(AccessFlags::CONTEXTUAL) {
+                let contextual =
+                    self.get_type_of_property_of_contextual_type(object_type, property_name, None)?;
+                return Ok(Some(contextual.unwrap_or(self.tables.intrinsics.any)));
+            }
             let property = self.get_property_of_type_full(object_type, property_name)?;
             if let Some(property) = property {
-                // isDeprecatedSymbol suggestions are M7 diagnostics.
-                let property_type = self.get_type_of_symbol(property)?;
-                let missing = access_node.is_some_and(|node| {
-                    self.kind_of(node) == SyntaxKind::IndexedAccessType
-                }) && self.tables.contains_missing_type(property_type);
-                return Ok(Some(if missing {
-                    let undefined = self.tables.intrinsics.undefined;
-                    self.get_union_type_ex(&[property_type, undefined], UnionReduction::Literal)?
+                // ReportDeprecated suggestions elided (JSDoc band).
+                if let Some(access_expression) = access_expression {
+                    let receiver = match self.data_of(access_expression) {
+                        NodeData::ElementAccessExpression(data) => data.expression,
+                        _ => None,
+                    };
+                    let object_symbol = self.tables.type_of(object_type).symbol;
+                    let self_access = match receiver {
+                        Some(receiver) => {
+                            self.is_self_type_access(receiver, object_symbol)?
+                        }
+                        None => false,
+                    };
+                    self.mark_property_as_referenced(
+                        property,
+                        Some(access_expression),
+                        self_access,
+                    );
+                    let assignment_kind = self.get_assignment_target_kind(access_expression);
+                    if self.is_assignment_to_readonly_entity(
+                        access_expression,
+                        property,
+                        assignment_kind,
+                    )? {
+                        let argument = match self.data_of(access_expression) {
+                            NodeData::ElementAccessExpression(data) => data.argument_expression,
+                            _ => None,
+                        };
+                        let display = self.symbol_display_name(property);
+                        self.error_at(
+                            argument.or(Some(access_expression)),
+                            &diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
+                            &[&display],
+                        );
+                        return Ok(None);
+                    }
+                    if access_flags.intersects(AccessFlags::CACHE_SYMBOL) {
+                        self.links.set_node_resolved_symbol(
+                            self.speculation_depth,
+                            access_node.expect("access expression implies node"),
+                            property,
+                        );
+                    }
+                    if self.is_this_property_access_in_constructor(access_expression, property)? {
+                        return Ok(Some(self.tables.intrinsics.auto));
+                    }
+                }
+                let property_type = if access_flags.intersects(AccessFlags::WRITING) {
+                    self.get_write_type_of_symbol(property)?
                 } else {
-                    property_type
+                    self.get_type_of_symbol(property)?
+                };
+                return Ok(Some(match access_expression {
+                    Some(access_expression)
+                        if self.get_assignment_target_kind(access_expression)
+                            != crate::expr::AssignmentKind::Definite =>
+                    {
+                        // getFlowTypeOfReference [FLOW M5 stub].
+                        self.get_flow_type_of_reference_stub(
+                            access_expression,
+                            property_type,
+                            property_type,
+                            None,
+                        )
+                    }
+                    _ => {
+                        let type_node_missing = access_node.is_some_and(|node| {
+                            self.kind_of(node) == SyntaxKind::IndexedAccessType
+                        }) && self.tables.contains_missing_type(property_type);
+                        if type_node_missing {
+                            let undefined = self.tables.intrinsics.undefined;
+                            self.get_union_type_ex(
+                                &[property_type, undefined],
+                                UnionReduction::Literal,
+                            )?
+                        } else {
+                            property_type
+                        }
+                    }
                 }));
             }
             if self.every_type(object_type, |state, t| state.tables.is_tuple_type(t))
@@ -684,20 +778,50 @@ impl<'a> CheckerState<'a> {
                         _ => false,
                     }
                 });
-                if access_node.is_some()
-                    && all_fixed
-                    && !access_flags.intersects(AccessFlags::ALLOW_MISSING)
-                {
-                    // 62243-62256: the out-of-bounds tuple index errors
-                    // (2493/negative/2339) render the tuple through
-                    // typeToString — display is T2/M8.
-                    return Err(Unsupported::new(
-                        "tuple index diagnostics (typeToString display, T2/M8)",
-                    ));
+                if let Some(node) = access_node {
+                    if all_fixed && !access_flags.intersects(AccessFlags::ALLOW_MISSING) {
+                        let index_node = self.get_index_node_for_access_expression(node);
+                        if self.tables.is_tuple_type(object_type) {
+                            if index < 0.0 {
+                                self.error_at(
+                                    Some(index_node),
+                                    &diagnostics::A_tuple_type_cannot_be_indexed_with_a_negative_value,
+                                    &[],
+                                );
+                                return Ok(Some(self.tables.intrinsics.undefined));
+                            }
+                            let tuple_display = self.type_to_string_slice(object_type)?;
+                            let target = self.tables.reference_target(object_type);
+                            let arity = match &self.tables.type_of(target).data {
+                                TypeData::TupleTarget(data) => data.element_flags.len(),
+                                _ => 0,
+                            };
+                            self.error_at(
+                                Some(index_node),
+                                &diagnostics::Tuple_type_0_of_length_1_has_no_element_at_index_2,
+                                &[&tuple_display, &arity.to_string(), property_name],
+                            );
+                        } else {
+                            let object_display = self.type_to_string_slice(object_type)?;
+                            self.error_at(
+                                Some(index_node),
+                                &diagnostics::Property_0_does_not_exist_on_type_1,
+                                &[property_name, &object_display],
+                            );
+                        }
+                    }
                 }
                 if index >= 0.0 {
-                    // errorIfWritingToReadonlyIndex: Writing escapes
-                    // above.
+                    let number = self.tables.intrinsics.number;
+                    let number_info = self
+                        .get_index_infos_of_type(object_type)?
+                        .into_iter()
+                        .find(|info| info.key_type == number);
+                    self.error_if_writing_to_readonly_index(
+                        number_info.as_ref(),
+                        object_type,
+                        access_expression,
+                    )?;
                     return Ok(Some(self.get_tuple_element_type_out_of_start_count(
                         object_type,
                         index as usize,
@@ -732,8 +856,6 @@ impl<'a> CheckerState<'a> {
             let index_info = match self.get_applicable_index_info(object_type, index_type)? {
                 Some(info) => Some(info),
                 None => {
-                    // getIndexInfoOfType(objectType, stringType): the
-                    // exact string-keyed info.
                     let string = self.tables.intrinsics.string;
                     self.get_index_infos_of_type(object_type)?
                         .into_iter()
@@ -744,30 +866,90 @@ impl<'a> CheckerState<'a> {
                 if access_flags.intersects(AccessFlags::NO_INDEX_SIGNATURES)
                     && index_info.key_type != self.tables.intrinsics.number
                 {
-                    // The accessExpression diagnostics (2862/2536) are
-                    // 5.5; without one tsc returns undefined.
+                    if let Some(access_expression) = access_expression {
+                        if access_flags.intersects(AccessFlags::WRITING) {
+                            let display = self.type_to_string_slice(original_object_type)?;
+                            self.error_at(
+                                Some(access_expression),
+                                &diagnostics::Type_0_is_generic_and_can_only_be_indexed_for_reading,
+                                &[&display],
+                            );
+                        } else {
+                            let index_display = self.type_to_string_slice(index_type)?;
+                            let object_display =
+                                self.type_to_string_slice(original_object_type)?;
+                            self.error_at(
+                                Some(access_expression),
+                                &diagnostics::Type_0_cannot_be_used_to_index_type_1,
+                                &[&index_display, &object_display],
+                            );
+                        }
+                    }
                     return Ok(None);
                 }
-                if access_node.is_some() && index_info.key_type == self.tables.intrinsics.string {
-                    let string_or_number = TypeFlags::from_bits(
-                        TypeFlags::STRING.bits() | TypeFlags::NUMBER.bits(),
-                    );
-                    if !self.is_type_assignable_to_kind(
-                        index_type,
-                        string_or_number,
-                        /*strict*/ false,
-                    )? {
-                        // 62278-62281: 2538 renders the index type —
-                        // display is T2/M8.
-                        return Err(Unsupported::new(
-                            "index-type diagnostics (typeToString display, T2/M8)",
+                if let Some(node) = access_node {
+                    if index_info.key_type == self.tables.intrinsics.string
+                        && !self.is_type_assignable_to_kind(
+                            index_type,
+                            TypeFlags::from_bits(
+                                TypeFlags::STRING.bits() | TypeFlags::NUMBER.bits(),
+                            ),
+                            /*strict*/ false,
+                        )?
+                    {
+                        let index_node = self.get_index_node_for_access_expression(node);
+                        let index_display = self.type_to_string_slice(index_type)?;
+                        self.error_at(
+                            Some(index_node),
+                            &diagnostics::Type_0_cannot_be_used_as_an_index_type,
+                            &[&index_display],
+                        );
+                        return Ok(Some(
+                            if access_flags.intersects(AccessFlags::INCLUDE_UNDEFINED) {
+                                let missing = self.tables.intrinsics.missing;
+                                self.get_union_type_ex(
+                                    &[index_info.value_type, missing],
+                                    UnionReduction::Literal,
+                                )?
+                            } else {
+                                index_info.value_type
+                            },
                         ));
                     }
                 }
-                // errorIfWritingToReadonlyIndex: Writing escapes above.
-                // The IncludeUndefined enum-literal exclusion
-                // (62284-62287) is dead: the flag is never set in type
-                // position and enums are unconstructible.
+                self.error_if_writing_to_readonly_index(
+                    Some(&index_info),
+                    object_type,
+                    access_expression,
+                )?;
+                if access_flags.intersects(AccessFlags::INCLUDE_UNDEFINED) {
+                    // The enum-keyed exemption (62284-62287).
+                    let enum_keyed = self
+                        .tables
+                        .type_of(object_type)
+                        .symbol
+                        .is_some_and(|object_symbol| {
+                            self.binder.symbol(object_symbol).flags.intersects(
+                                SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM,
+                            ) && self
+                                .tables
+                                .flags_of(index_type)
+                                .intersects(TypeFlags::ENUM_LITERAL)
+                                && self.tables.type_of(index_type).symbol.is_some_and(
+                                    |index_symbol| {
+                                        self.get_parent_of_symbol(index_symbol)
+                                            == Some(object_symbol)
+                                    },
+                                )
+                        });
+                    if !enum_keyed {
+                        let missing = self.tables.intrinsics.missing;
+                        return Ok(Some(self.get_union_type_ex(
+                            &[index_info.value_type, missing],
+                            UnionReduction::Literal,
+                        )?));
+                    }
+                }
                 return Ok(Some(index_info.value_type));
             }
             if self
@@ -780,31 +962,329 @@ impl<'a> CheckerState<'a> {
             if self.is_js_literal_type(object_type)? {
                 return Ok(Some(self.tables.intrinsics.any));
             }
-            // The accessExpression object-literal/noImplicitAny
-            // diagnostic ladder (62296-62379) is 5.5.
-            if access_node.is_some() {
-                // 62386-62396: the misses render both types — display
-                // is T2/M8.
-                return Err(Unsupported::new(
-                    "indexed-access miss diagnostics (typeToString display, T2/M8)",
-                ));
+            if let Some(access_expression) = access_expression {
+                if !self.is_const_enum_object_type(object_type) {
+                    return self.element_access_error_ladder(
+                        original_object_type,
+                        object_type,
+                        index_type,
+                        full_index_type,
+                        access_expression,
+                        access_flags,
+                        property_name.as_deref(),
+                    );
+                }
             }
         }
-        // AllowMissing object-literal arm is M6 contextual typing.
+        if access_flags.intersects(AccessFlags::ALLOW_MISSING)
+            && self
+                .tables
+                .object_flags_of(object_type)
+                .intersects(ObjectFlags::OBJECT_LITERAL)
+        {
+            return Ok(Some(self.tables.intrinsics.undefined));
+        }
         if self.is_js_literal_type(object_type)? {
             return Ok(Some(self.tables.intrinsics.any));
         }
-        if let Some(_node) = access_node {
-            // 62387-62397 (the final accessNode error ladder) renders
-            // types — display is T2/M8.
-            return Err(Unsupported::new(
-                "indexed-access miss diagnostics (typeToString display, T2/M8)",
-            ));
+        if let Some(node) = access_node {
+            let index_node = self.get_index_node_for_access_expression(node);
+            let index_flags = self.tables.flags_of(index_type);
+            if self.kind_of(index_node) != SyntaxKind::BigIntLiteral
+                && index_flags
+                    .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
+            {
+                let value = self
+                    .property_name_from_type(index_type)
+                    .unwrap_or_default();
+                let object_display = self.type_to_string_slice(object_type)?;
+                self.error_at(
+                    Some(index_node),
+                    &diagnostics::Property_0_does_not_exist_on_type_1,
+                    &[&value, &object_display],
+                );
+            } else if index_flags.intersects(TypeFlags::STRING | TypeFlags::NUMBER) {
+                let object_display = self.type_to_string_slice(object_type)?;
+                let index_display = self.type_to_string_slice(index_type)?;
+                self.error_at(
+                    Some(index_node),
+                    &diagnostics::Type_0_has_no_matching_index_signature_for_type_1,
+                    &[&object_display, &index_display],
+                );
+            } else {
+                let type_string = if self.kind_of(index_node) == SyntaxKind::BigIntLiteral {
+                    "bigint".to_owned()
+                } else {
+                    self.type_to_string_slice(index_type)?
+                };
+                self.error_at(
+                    Some(index_node),
+                    &diagnostics::Type_0_cannot_be_used_as_an_index_type,
+                    &[&type_string],
+                );
+            }
         }
         if self.tables.flags_of(index_type).intersects(TypeFlags::ANY) {
             return Ok(Some(index_type));
         }
         Ok(None)
+    }
+
+    /// The accessExpression noImplicitAny ladder (62296-62379) — the
+    /// order 2339-value → props-union → globalThis → 2576 → 7015 →
+    /// 2551 → 7052 → 7053(+per-kind head) is the risk-#1 observable.
+    #[allow(clippy::too_many_arguments)]
+    fn element_access_error_ladder(
+        &mut self,
+        _original_object_type: TypeId,
+        object_type: TypeId,
+        index_type: TypeId,
+        full_index_type: TypeId,
+        access_expression: NodeId,
+        access_flags: AccessFlags,
+        property_name: Option<&str>,
+    ) -> CheckResult2<Option<TypeId>> {
+        let no_implicit_any = self
+            .options
+            .strict_option_value(self.options.no_implicit_any);
+        let index_flags = self.tables.flags_of(index_type);
+        if self
+            .tables
+            .object_flags_of(object_type)
+            .intersects(ObjectFlags::OBJECT_LITERAL)
+        {
+            if no_implicit_any
+                && index_flags
+                    .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
+            {
+                let value = self
+                    .property_name_from_type(index_type)
+                    .unwrap_or_default();
+                let object_display = self.type_to_string_slice(object_type)?;
+                self.error_at(
+                    Some(access_expression),
+                    &diagnostics::Property_0_does_not_exist_on_type_1,
+                    &[&value, &object_display],
+                );
+                return Ok(Some(self.tables.intrinsics.undefined));
+            }
+            if index_flags.intersects(TypeFlags::NUMBER | TypeFlags::STRING) {
+                let resolved = self.resolve_structured_type_members(object_type)?;
+                let properties: Vec<SymbolId> =
+                    self.members_of(resolved).members.values().copied().collect();
+                let mut types = Vec::with_capacity(properties.len() + 1);
+                for property in properties {
+                    types.push(self.get_type_of_symbol(property)?);
+                }
+                types.push(self.tables.intrinsics.undefined);
+                return Ok(Some(
+                    self.get_union_type_ex(&types, UnionReduction::Literal)?,
+                ));
+            }
+        }
+        let object_symbol = self.tables.type_of(object_type).symbol;
+        let global_this_block_scoped = object_symbol == Some(self.global_this_symbol)
+            && property_name.is_some_and(|name| {
+                self.globals.get(name).copied().is_some_and(|exported| {
+                    self.binder
+                        .symbol(exported)
+                        .flags
+                        .intersects(SymbolFlags::BLOCK_SCOPED)
+                })
+            });
+        if global_this_block_scoped {
+            let display = tsrs2_binder::unescape_leading_underscores(
+                property_name.expect("checked above"),
+            );
+            let object_display = self.type_to_string_slice(object_type)?;
+            self.error_at(
+                Some(access_expression),
+                &diagnostics::Property_0_does_not_exist_on_type_1,
+                &[display, &object_display],
+            );
+        } else if no_implicit_any
+            && !access_flags.intersects(AccessFlags::SUPPRESS_NO_IMPLICIT_ANY_ERROR)
+        {
+            let static_property = match property_name {
+                Some(name) => self.type_has_static_property(name, object_type)?,
+                None => false,
+            };
+            if static_property {
+                let name = property_name.expect("checked above");
+                let type_name = self.type_to_string_slice(object_type)?;
+                let argument = match self.data_of(access_expression) {
+                    NodeData::ElementAccessExpression(data) => data.argument_expression,
+                    _ => None,
+                };
+                let argument_text = match argument {
+                    Some(argument) => {
+                        let source = self.binder.source_of_node(argument);
+                        let raw = source.arena.node(argument);
+                        let start =
+                            tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+                        source.text[start..raw.end as usize].to_owned()
+                    }
+                    None => String::new(),
+                };
+                let suggestion = format!("{type_name}[{argument_text}]");
+                self.error_at(
+                    Some(access_expression),
+                    &diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
+                    &[name, &type_name, &suggestion],
+                );
+            } else {
+                let number = self.tables.intrinsics.number;
+                let has_number_index = self
+                    .get_index_infos_of_type(object_type)?
+                    .iter()
+                    .any(|info| info.key_type == number);
+                let argument = match self.data_of(access_expression) {
+                    NodeData::ElementAccessExpression(data) => data.argument_expression,
+                    _ => None,
+                };
+                if has_number_index {
+                    self.error_at(
+                        argument.or(Some(access_expression)),
+                        &diagnostics::Element_implicitly_has_an_any_type_because_index_expression_is_not_of_type_number,
+                        &[],
+                    );
+                } else {
+                    let suggestion = match property_name {
+                        Some(name) => self.get_suggestion_for_nonexistent_property(
+                            /*name_node*/ None,
+                            name,
+                            object_type,
+                        )?,
+                        None => None,
+                    };
+                    if let Some(suggestion) = suggestion {
+                        // NO related 2728 on the element-access flavor
+                        // (oracle-pinned asymmetry).
+                        let name = property_name.expect("suggestion implies name");
+                        let object_display = self.type_to_string_slice(object_type)?;
+                        self.error_at(
+                            argument.or(Some(access_expression)),
+                            &diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
+                            &[name, &object_display, &suggestion],
+                        );
+                    } else {
+                        let index_suggestion = self
+                            .get_suggestion_for_nonexistent_index_signature(
+                                object_type,
+                                access_expression,
+                                index_type,
+                            )?;
+                        if let Some(index_suggestion) = index_suggestion {
+                            let object_display = self.type_to_string_slice(object_type)?;
+                            self.error_at(
+                                Some(access_expression),
+                                &diagnostics::Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature_Did_you_mean_to_call_1,
+                                &[&object_display, &index_suggestion],
+                            );
+                        } else {
+                            let mut tail: Vec<tsrs2_diags::MessageChain> = Vec::new();
+                            if index_flags.intersects(TypeFlags::ENUM_LITERAL) {
+                                let index_display = self.type_to_string_slice(index_type)?;
+                                let object_display =
+                                    self.type_to_string_slice(object_type)?;
+                                tail.push(tsrs2_diags::MessageChain::new(
+                                    &diagnostics::Property_0_does_not_exist_on_type_1,
+                                    &[format!("[{index_display}]"), object_display],
+                                ));
+                            } else if index_flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
+                                // getFullyQualifiedName over the symbol
+                                // — unique symbol types are
+                                // unconstructible (annotate arm), so
+                                // this head has no producer yet.
+                                return Err(Unsupported::new(
+                                    "unique-symbol index head (unique symbol types, annotate M4)",
+                                ));
+                            } else if index_flags
+                                .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
+                            {
+                                let value = self
+                                    .property_name_from_type(index_type)
+                                    .unwrap_or_default();
+                                let object_display =
+                                    self.type_to_string_slice(object_type)?;
+                                tail.push(tsrs2_diags::MessageChain::new(
+                                    &diagnostics::Property_0_does_not_exist_on_type_1,
+                                    &[value, object_display],
+                                ));
+                            } else if index_flags
+                                .intersects(TypeFlags::NUMBER | TypeFlags::STRING)
+                            {
+                                let index_display = self.type_to_string_slice(index_type)?;
+                                let object_display =
+                                    self.type_to_string_slice(object_type)?;
+                                tail.push(tsrs2_diags::MessageChain::new(
+                                    &diagnostics::No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1,
+                                    &[index_display, object_display],
+                                ));
+                            }
+                            let full_display = self.type_to_string_slice(full_index_type)?;
+                            let object_display = self.type_to_string_slice(object_type)?;
+                            let head = tsrs2_diags::MessageChain::new(
+                                &diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
+                                &[full_display, object_display],
+                            );
+                            let mut diagnostic = self.diagnostic_for_node(
+                                access_expression,
+                                &diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
+                                &[],
+                            );
+                            diagnostic.message = head.with_next(tail);
+                            self.push_error_diagnostic(diagnostic);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: getIndexNodeForAccessExpression @6.0.3
+    /// tsc-hash: ce391770881fc0c1e83445fdbd202d82c932407368884e652b2215e1fd9f6bc3
+    /// tsc-span: _tsc.js:62408-62410
+    fn get_index_node_for_access_expression(&self, access_node: NodeId) -> NodeId {
+        match self.data_of(access_node) {
+            NodeData::ElementAccessExpression(data) => {
+                data.argument_expression.unwrap_or(access_node)
+            }
+            NodeData::IndexedAccessType(data) => data.index_type.unwrap_or(access_node),
+            NodeData::ComputedPropertyName(data) => data.expression.unwrap_or(access_node),
+            _ => access_node,
+        }
+    }
+
+    /// errorIfWritingToReadonlyIndex (62399-62403).
+    fn error_if_writing_to_readonly_index(
+        &mut self,
+        index_info: Option<&crate::state::IndexInfo>,
+        object_type: TypeId,
+        access_expression: Option<NodeId>,
+    ) -> CheckResult2<()> {
+        let Some(index_info) = index_info else {
+            return Ok(());
+        };
+        let Some(access_expression) = access_expression else {
+            return Ok(());
+        };
+        if !index_info.is_readonly {
+            return Ok(());
+        }
+        let source = self.binder.source_of_node(access_expression);
+        if tsrs2_binder::node_util::is_assignment_target(source, access_expression)
+            || self.is_delete_target(access_expression)
+        {
+            let object_display = self.type_to_string_slice(object_type)?;
+            self.error_at(
+                Some(access_expression),
+                &diagnostics::Index_signature_in_type_0_only_permits_reading,
+                &[&object_display],
+            );
+        }
+        Ok(())
     }
 
     /// tsc-port: isJSLiteralType @6.0.3
@@ -813,7 +1293,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// JSLiteral object flags are never produced (JS literal widening
     /// is 5.6), so only the flag-shape is live.
-    fn is_js_literal_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_js_literal_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if self
             .options
             .strict_option_value(self.options.no_implicit_any)

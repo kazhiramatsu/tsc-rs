@@ -2850,7 +2850,7 @@ impl<'a> CheckerState<'a> {
 
     /// getThisParameter's declaration read: the leading `this`
     /// parameter node if present.
-    fn this_parameter_node_of(&self, func: NodeId) -> Option<NodeId> {
+    pub(crate) fn this_parameter_node_of(&self, func: NodeId) -> Option<NodeId> {
         let parameters = self.parameters_of_function(func);
         parameters
             .first()

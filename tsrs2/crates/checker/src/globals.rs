@@ -81,14 +81,88 @@ impl<'a> CheckerState<'a> {
         });
         if found.is_none() {
             if let Some(message) = diagnostic {
+                // A resolveName WITH nameNotFoundMessage runs onFailed on
+                // a miss (19797): locationless, the guard short-circuits
+                // and the tail emits the global diagnostic; the
+                // lib-suggestion probe and the budget-gated spelling
+                // attempt both target the same locationless diagnostic —
+                // never a per-file sink — so only the emission and the
+                // unconditional suggestionCount++ (48152) are observable.
                 self.error_at(
                     None,
                     message,
                     &[tsrs2_binder::unescape_leading_underscores(name)],
                 );
+                self.suggestion_count += 1;
             }
         }
         found
+    }
+
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: 7810a622d40fe41d9333a31267c113caa061cfed59c1823e328e852a7598e466
+    /// tsc-span: _tsc.js:88779-88850
+    ///
+    /// The reportErrors=true getGlobalType calls, SYMBOL-probed eagerly
+    /// in tsc's order. Type materialization stays lazy (the 5.0
+    /// deviation) — but the probes cannot: each noLib failure burns one
+    /// suggestionCount slot, and the burn must precede every file-level
+    /// resolution failure or the name-side 2552/2304 selection diverges
+    /// (risk #1; oracle-pinned via strictBindCallApply:false). The lazy
+    /// getters consume this memo so each name keeps exactly one
+    /// resolveName-with-message, like tsc.
+    pub(crate) fn run_init_global_type_probes(&mut self) {
+        let strict_bind_call_apply = self
+            .options
+            .strict_option_value(self.options.strict_bind_call_apply);
+        let probes: [(&'static str, bool); 10] = [
+            ("IArguments", true),
+            ("Array", true),
+            ("Object", true),
+            ("Function", true),
+            ("CallableFunction", strict_bind_call_apply),
+            ("NewableFunction", strict_bind_call_apply),
+            ("String", true),
+            ("Number", true),
+            ("Boolean", true),
+            ("RegExp", true),
+        ];
+        for (name, live) in probes {
+            if !live {
+                continue;
+            }
+            // Symbol probe + budget consumption ONLY. tsc also emits
+            // the locationless 2318 here; ours stays with the lazy
+            // getter's first demand (pre-5.5d surface) — locationless
+            // diagnostics never reach a per-file sink (lib.rs drops
+            // them), so the timing difference is unobservable, while
+            // the COUNT must happen now (the name-side 2552/2304
+            // selection reads it).
+            let symbol = self.get_global_symbol(name, SymbolFlags::TYPE, None);
+            if symbol.is_none() {
+                self.suggestion_count += 1;
+            }
+            self.init_global_type_probes.insert(name, symbol);
+        }
+    }
+
+    /// The init-probe memo consult: names on the initializeTypeChecker
+    /// list already ran their (counted) probe at init; a memoized MISS
+    /// emits its 2318 on first demand (error_at dedupes repeats)
+    /// without re-consuming budget.
+    fn init_probed_global_type_symbol(&mut self, name: &'static str) -> Option<SymbolId> {
+        match self.init_global_type_probes.get(name) {
+            Some(&Some(symbol)) => Some(symbol),
+            Some(&None) => {
+                self.error_at(
+                    None,
+                    &diagnostics::Cannot_find_global_type_0,
+                    &[tsrs2_binder::unescape_leading_underscores(name)],
+                );
+                None
+            }
+            None => self.get_global_type_symbol(name, /*report_errors*/ true),
+        }
     }
 
     /// tsc-port: getGlobalTypeSymbol @6.0.3
@@ -233,9 +307,8 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.array {
             return Ok(cached);
         }
-        let resolved = self
-            .get_global_type("Array", 1, true)?
-            .expect("reportErrors");
+        let symbol = self.init_probed_global_type_symbol("Array");
+        let resolved = self.get_type_of_global_symbol(symbol, 1)?;
         self.global_type_memos.array = Some(resolved);
         Ok(resolved)
     }
@@ -245,9 +318,8 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.object {
             return Ok(cached);
         }
-        let resolved = self
-            .get_global_type("Object", 0, true)?
-            .expect("reportErrors");
+        let symbol = self.init_probed_global_type_symbol("Object");
+        let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.object = Some(resolved);
         Ok(resolved)
     }
@@ -257,9 +329,8 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.function {
             return Ok(cached);
         }
-        let resolved = self
-            .get_global_type("Function", 0, true)?
-            .expect("reportErrors");
+        let symbol = self.init_probed_global_type_symbol("Function");
+        let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.function = Some(resolved);
         Ok(resolved)
     }
@@ -278,8 +349,10 @@ impl<'a> CheckerState<'a> {
         // always yields a (possibly fallback) type — truthy — so the
         // Function fallback fires only when strictBindCallApply is off.
         let resolved = if strict_bind_call_apply {
-            self.get_global_type("CallableFunction", 0, true)?
-                .expect("reportErrors")
+            {
+            let symbol = self.init_probed_global_type_symbol("CallableFunction");
+            self.get_type_of_global_symbol(symbol, 0)?
+        }
         } else {
             self.global_function_type()?
         };
@@ -296,8 +369,10 @@ impl<'a> CheckerState<'a> {
             .options
             .strict_option_value(self.options.strict_bind_call_apply);
         let resolved = if strict_bind_call_apply {
-            self.get_global_type("NewableFunction", 0, true)?
-                .expect("reportErrors")
+            {
+            let symbol = self.init_probed_global_type_symbol("NewableFunction");
+            self.get_type_of_global_symbol(symbol, 0)?
+        }
         } else {
             self.global_function_type()?
         };
@@ -310,9 +385,8 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.string {
             return Ok(cached);
         }
-        let resolved = self
-            .get_global_type("String", 0, true)?
-            .expect("reportErrors");
+        let symbol = self.init_probed_global_type_symbol("String");
+        let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.string = Some(resolved);
         Ok(resolved)
     }
@@ -322,9 +396,8 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.number {
             return Ok(cached);
         }
-        let resolved = self
-            .get_global_type("Number", 0, true)?
-            .expect("reportErrors");
+        let symbol = self.init_probed_global_type_symbol("Number");
+        let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.number = Some(resolved);
         Ok(resolved)
     }
@@ -334,9 +407,8 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.boolean {
             return Ok(cached);
         }
-        let resolved = self
-            .get_global_type("Boolean", 0, true)?
-            .expect("reportErrors");
+        let symbol = self.init_probed_global_type_symbol("Boolean");
+        let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.boolean = Some(resolved);
         Ok(resolved)
     }
@@ -379,9 +451,8 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.regexp {
             return Ok(cached);
         }
-        let resolved = self
-            .get_global_type("RegExp", 0, true)?
-            .expect("reportErrors");
+        let symbol = self.init_probed_global_type_symbol("RegExp");
+        let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.regexp = Some(resolved);
         Ok(resolved)
     }
@@ -518,9 +589,8 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.arguments_type {
             return Ok(cached);
         }
-        let resolved = self
-            .get_global_type("IArguments", 0, true)?
-            .expect("reportErrors");
+        let symbol = self.init_probed_global_type_symbol("IArguments");
+        let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.arguments_type = Some(resolved);
         Ok(resolved)
     }

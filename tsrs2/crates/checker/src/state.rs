@@ -157,6 +157,13 @@ pub struct CheckerState<'a> {
     pub empty_object_type: TypeId,
     /// createAnonymousType(emptyTypeLiteralSymbol, ...) (47160).
     pub empty_type_literal_type: TypeId,
+    /// tsc unknownEmptyObjectType (47161-47168): the `{}` member of the
+    /// unknown-as-union decomposition.
+    pub unknown_empty_object_type: TypeId,
+    /// tsc unknownUnionType (47169): strictNullChecks ?
+    /// undefined | null | unknownEmptyObjectType : unknownType — the
+    /// getAdjustedTypeWithFacts stand-in for `unknown`.
+    pub unknown_union_type: TypeId,
     /// createAnonymousType + instantiations map (47170) — the fallback
     /// for missing arity>0 globals (getTypeOfGlobalSymbol 60619).
     pub empty_generic_type: TypeId,
@@ -254,6 +261,27 @@ pub struct CheckerState<'a> {
     /// Set's visit-inserts-during-forEach semantics are reproduced by
     /// index iteration over the IndexSet.
     pub(crate) deferred_nodes: std::collections::HashMap<NodeId, indexmap::IndexSet<NodeId>>,
+
+    // ---- M4 5.5d: name-suggestion state ----
+    /// tsc suggestionCount (47423), capped by maximumSuggestionCount
+    /// (47424) = 10: the checker-wide Did-you-mean budget. Every
+    /// resolution failure that passes the onFailed guard chain
+    /// consumes one slot — including lib-suggestion (2583-family) and
+    /// no-suggestion (plain 2304) failures, but NOT guard-arm-handled
+    /// ones (2662/2663/2693). The noLib bootstrap burns all 10 (see
+    /// run_init_global_type_probes); oracle-pinned via
+    /// strictBindCallApply:false (burn 8, budget 2).
+    pub(crate) suggestion_count: u32,
+    /// initializeTypeChecker's reportErrors=true getGlobalType probes
+    /// (88779-88850), resolved EAGERLY at init so their failures burn
+    /// the suggestion budget at tsc's time even though our global TYPE
+    /// materialization stays lazy (the documented 5.0 deviation). The
+    /// lazy getters consult this memo instead of re-probing — one
+    /// resolveName-with-message per name per program, like tsc.
+    pub(crate) init_global_type_probes: std::collections::HashMap<&'static str, Option<SymbolId>>,
+    /// tsc deferredGlobalNonNullableTypeAlias: None = uncomputed,
+    /// Some(None) = miss (unknownSymbol memo), Some(Some(_)) = alias.
+    pub(crate) deferred_global_non_nullable_type_alias: Option<Option<SymbolId>>,
 
     // ---- M4 5.5: expression-checking state ----
     /// tsc typeofType (47100): union of the typeofNEFacts key literals
@@ -392,6 +420,8 @@ impl<'a> CheckerState<'a> {
             speculation_depth: 0,
             empty_object_type: TypeId(0),
             empty_type_literal_type: TypeId(0),
+            unknown_empty_object_type: TypeId(0),
+            unknown_union_type: TypeId(0),
             empty_generic_type: TypeId(0),
             any_function_type: TypeId(0),
             no_constraint_type: TypeId(0),
@@ -420,6 +450,9 @@ impl<'a> CheckerState<'a> {
             type_parameter_defaults_in_progress: Vec::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
+            suggestion_count: 0,
+            init_global_type_probes: std::collections::HashMap::new(),
+            deferred_global_non_nullable_type_alias: None,
             typeof_type: TypeId(0),
             contextual_binding_patterns: Vec::new(),
             contextual_type_nodes: Vec::new(),
@@ -497,6 +530,25 @@ impl<'a> CheckerState<'a> {
         );
         state.empty_type_literal_type =
             state.create_resolved_empty_anonymous_type(Some(empty_type_literal_symbol));
+        // tsc-port: unknownEmptyObjectType + unknownUnionType @6.0.3
+        // tsc-hash: bec4f96b4a16d460fc25fd2ad7063b611a988b7d8ba22c1d10664f9dad0c5042
+        // tsc-span: _tsc.js:47161-47169
+        state.unknown_empty_object_type = state.create_resolved_empty_anonymous_type(None);
+        state.unknown_union_type = if state
+            .options
+            .strict_option_value(state.options.strict_null_checks)
+        {
+            let members = [
+                state.tables.intrinsics.undefined,
+                state.tables.intrinsics.null,
+                state.unknown_empty_object_type,
+            ];
+            state
+                .get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal)
+                .expect("intrinsic unions cannot fail")
+        } else {
+            state.tables.intrinsics.unknown
+        };
         // tsc-port: emptyGenericType @6.0.3
         // tsc-hash: 3f49927f2f7e3c7b65435327e84949b85526b9c0268f890dac1b470a84b51cab
         // tsc-span: _tsc.js:47170-47178
@@ -556,6 +608,7 @@ impl<'a> CheckerState<'a> {
         // initializeTypeChecker slice (88732-88906): globals merge +
         // symbol-type seeds + amalgamated-duplicate flush.
         state.initialize_program_globals();
+        state.run_init_global_type_probes();
         state.has_global_augmentation = (0..state.binder.file_count()).any(|index| {
             let source = state.binder.source(index);
             let tsrs2_syntax::NodeData::SourceFile(data) = &source.arena.node(source.root).data
@@ -931,6 +984,20 @@ impl<'a> CheckerState<'a> {
     /// error + addRelatedInfo in one shot: the related info rides the
     /// dedupe comparison (tsc's insertSorted equality compares related
     /// information too — compare_diagnostics includes it).
+    /// error_at for a PRE-BUILT diagnostic (chained heads, canonical
+    /// heads): same insertSorted exact-duplicate dedupe.
+    pub fn push_error_diagnostic(&mut self, diagnostic: Diagnostic) -> usize {
+        if let Some(existing) = self
+            .diagnostics
+            .iter()
+            .position(|existing| *existing == diagnostic)
+        {
+            return existing;
+        }
+        self.diagnostics.push(diagnostic);
+        self.diagnostics.len() - 1
+    }
+
     pub fn error_at_with_related(
         &mut self,
         location: Option<NodeId>,

@@ -119,6 +119,17 @@ pub struct RelatedInfo {
     pub message: MessageChain,
 }
 
+/// tsc CanonicalDiagnostic (getCanonicalDiagnostic 13977-13982): the
+/// "plain form" a Did-you-mean diagnostic stands in for. Sort and
+/// dedupe compare through it (getDiagnosticCode/getDiagnosticMessage
+/// 17948-17954), so a 2552 with canonicalHead (2304, plain text)
+/// occupies the plain 2304's slot and wins the keep-first dedupe.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CanonicalHead {
+    pub code: u32,
+    pub text: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic {
     pub file_name: Option<String>,
@@ -126,6 +137,7 @@ pub struct Diagnostic {
     pub length: Option<u32>,
     pub message: MessageChain,
     pub related: Vec<RelatedInfo>,
+    pub canonical_head: Option<CanonicalHead>,
 }
 
 impl Diagnostic {
@@ -141,6 +153,7 @@ impl Diagnostic {
             length,
             message,
             related: Vec::new(),
+            canonical_head: None,
         }
     }
 
@@ -154,6 +167,20 @@ impl Diagnostic {
 
     pub fn message_text(&self) -> &str {
         &self.message.text
+    }
+
+    /// tsc getDiagnosticCode (17948-17950): canonicalHead code wins.
+    fn comparison_code(&self) -> u32 {
+        self.canonical_head
+            .as_ref()
+            .map_or_else(|| self.code(), |head| head.code)
+    }
+
+    /// tsc getDiagnosticMessage (17951-17954): canonicalHead text wins.
+    fn comparison_text(&self) -> &str {
+        self.canonical_head
+            .as_ref()
+            .map_or_else(|| self.message_text(), |head| head.text.as_str())
     }
 }
 
@@ -174,8 +201,24 @@ fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Or
         .cmp(&right.file_name)
         .then_with(|| left.start.cmp(&right.start))
         .then_with(|| left.length.cmp(&right.length))
-        .then_with(|| left.code().cmp(&right.code()))
-        .then_with(|| compare_message_text(&left.message, &right.message))
+        .then_with(|| left.comparison_code().cmp(&right.comparison_code()))
+        .then_with(|| compare_diagnostic_message_text(left, right))
+}
+
+/// tsc compareMessageText (17863-17888): head text through the
+/// canonical head, chains from the RAW message, then the
+/// canonical-bearing-sorts-first tiebreaker.
+fn compare_diagnostic_message_text(left: &Diagnostic, right: &Diagnostic) -> Ordering {
+    left.comparison_text()
+        .cmp(right.comparison_text())
+        .then_with(|| compare_message_chain(&left.message.next, &right.message.next))
+        .then_with(
+            || match (left.canonical_head.is_some(), right.canonical_head.is_some()) {
+                (true, false) => Ordering::Less,
+                (false, true) => Ordering::Greater,
+                _ => Ordering::Equal,
+            },
+        )
 }
 
 fn compare_related_information(left: &[RelatedInfo], right: &[RelatedInfo]) -> Ordering {
@@ -240,12 +283,16 @@ fn compare_message_chain_content(left: &[MessageChain], right: &[MessageChain]) 
         .unwrap_or(Ordering::Equal)
 }
 
+/// tsc diagnosticsEqualityComparer (17941-17947): file/span plus code
+/// and HEAD TEXT compared through the canonical head — chains and
+/// related information are ignored, which is what lets a canonical
+/// 2552 swallow its plain 2304 twin.
 fn diagnostics_equal(left: &Diagnostic, right: &Diagnostic) -> bool {
     left.file_name == right.file_name
         && left.start == right.start
         && left.length == right.length
-        && left.code() == right.code()
-        && left.message.text == right.message.text
+        && left.comparison_code() == right.comparison_code()
+        && left.comparison_text() == right.comparison_text()
 }
 
 #[cfg(test)]

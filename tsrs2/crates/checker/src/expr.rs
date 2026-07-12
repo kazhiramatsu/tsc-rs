@@ -147,7 +147,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isConstEnumObjectType @6.0.3
     /// tsc-hash: c84eab899298aa71e2408a793e0d60443b4265951883ed920daf1235d21e5dac
     /// tsc-span: _tsc.js:79540-79542
-    fn is_const_enum_object_type(&self, ty: TypeId) -> bool {
+    pub(crate) fn is_const_enum_object_type(&self, ty: TypeId) -> bool {
         if !self
             .tables
             .object_flags_of(ty)
@@ -238,9 +238,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<TypeId> {
         match self.kind_of(node) {
             SyntaxKind::Identifier => self.check_identifier(node, check_mode),
-            SyntaxKind::PrivateIdentifier => {
-                self.expression_stub("checkPrivateIdentifierExpression", "5.5d")
-            }
+            SyntaxKind::PrivateIdentifier => self.check_private_identifier_expression(node),
             SyntaxKind::ThisKeyword => self.check_this_expression(node),
             SyntaxKind::SuperKeyword => self.check_super_expression(node),
             SyntaxKind::NullKeyword => Ok(self.tables.intrinsics.null_widening),
@@ -289,17 +287,10 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::ObjectLiteralExpression => self.check_object_literal(node, check_mode),
             SyntaxKind::PropertyAccessExpression => {
-                self.expression_stub("checkPropertyAccessExpression", "5.5d")
+                self.check_property_access_expression(node, check_mode, /*write_only*/ false)
             }
-            SyntaxKind::QualifiedName => {
-                // checkQualifiedName (75077) routes through
-                // checkNonNullExpression into the shared property-
-                // access worker — the whole path is the 5.5d band.
-                self.expression_stub("checkQualifiedName", "5.5d")
-            }
-            SyntaxKind::ElementAccessExpression => {
-                self.expression_stub("checkIndexedAccess", "5.5d")
-            }
+            SyntaxKind::QualifiedName => self.check_qualified_name(node, check_mode),
+            SyntaxKind::ElementAccessExpression => self.check_indexed_access(node, check_mode),
             SyntaxKind::CallExpression => {
                 if self.is_import_call(node) {
                     return self.expression_stub("checkImportCallExpression", "5.7");
@@ -327,9 +318,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                 self.expression_stub("checkAssertion", "5.5e")
             }
-            SyntaxKind::NonNullExpression => {
-                self.expression_stub("checkNonNullAssertion", "5.5d")
-            }
+            SyntaxKind::NonNullExpression => self.check_non_null_assertion(node),
             SyntaxKind::ExpressionWithTypeArguments => {
                 self.expression_stub("checkExpressionWithTypeArguments", "5.5e")
             }
@@ -1183,7 +1172,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isInPropertyInitializerOrClassStaticBlock (75388).
-    fn is_in_property_initializer_or_class_static_block(
+    pub(crate) fn is_in_property_initializer_or_class_static_block(
         &self,
         node: NodeId,
         ignore_arrow_functions: bool,
@@ -1267,7 +1256,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// isNoInferType is constant-false (NoInfer substitution types are
     /// unconstructible until M8).
-    fn get_narrowable_type_for_reference(
+    pub(crate) fn get_narrowable_type_for_reference(
         &mut self,
         ty: TypeId,
         reference: NodeId,
@@ -1702,7 +1691,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc containsUndefinedType (64663).
-    fn contains_undefined_type(&self, ty: TypeId) -> bool {
+    pub(crate) fn contains_undefined_type(&self, ty: TypeId) -> bool {
         let candidate = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
                 TypeData::Union { types, .. } => types[0],

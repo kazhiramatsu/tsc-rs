@@ -208,8 +208,9 @@ arms; forceTuple reaches only ArrayLiteral; NonNullExpression arm is
 OptionalChain ? checkNonNullChain(node) :
 getNonNullableType(checkExpression(node.expression))` — note it does
 NOT report (no checkNonNullType): `x!` strips silently via [FACTS]
-getNonNullableType; checkNonNullNonVoidType L75051 is the AWAIT-band
-consumer, not this arm.
+getNonNullableType; checkNonNullNonVoidType L75051's only consumers
+are checkVariableLikeDeclaration L83479/83488 (5.8), not this arm
+(§6 corrected 2026-07-12; earlier "AWAIT-band consumer" was wrong too).
 
 ### Driver-band helpers (L80557-80959) — all port at 5.5
 - checkExpressionCached L80580: checkMode truthy → NO cache; else
@@ -502,7 +503,15 @@ reportObjectPossiblyNullOrUndefinedError L74999 selection: NullKeyword
 → 18050("null"); identifier "undefined" → 18050("undefined");
 entity-name<100 chars → 18049/18048/18047 (undef+null/undef/null);
 else → 2533/2532/2531. checkNonNullNonVoidType L75051 (+Void → 18048/
-18050/2532 flavor) — consumer is checkNonNullAssertion (worker arm 236).
+18050/2532 flavor): CORRECTED 2026-07-12 (oracle+source verified) — its
+ONLY consumers are checkVariableLikeDeclaration L83479/83488 (binding-
+pattern band → ports at 5.8, NOT here). The assertion arm 236 is
+checkNonNullAssertion L77960 = OptionalChain ? checkNonNullChain :
+getNonNullableType(checkExpression(…)) — NO reporting: `x!` strips
+silently (`x!` on void → never, no diagnostic; pinned). Facts quirks
+pinned: getTypeFacts∌void ⇒ void receiver gets plain 2339 "on 'void'"
+(never likewise); `(null).foo` → 2531 (parens defeat both the
+NullKeyword kind test and the entity-name test — no skipParentheses).
 Invoke flavor 2721/2722/2723 = [CALLS] reporter (5.7).
 
 ### checkPropertyAccessExpressionOrQualifiedName L75201-75322
@@ -562,6 +571,50 @@ reject, alias-resolving meaning filter L75579) — ~60 lines self-
 contained; it is the FP boundary (plain-2339 where tsc says 2551 = FP).
 Same core retires the name-side FP-strategy debt (2552/2662 at
 resolve.rs onFailed) — recommend porting name-side in the same commit.
+
+PINNED 2026-07-12 (oracle, session pins55d-findings.md):
+- Spelling-core arithmetic: substitution cost 2 / case-only 0.1 /
+  ins-del 1, max passed = bestDistance−0.1 ⇒ a pure-substitution typo
+  suggests only at name-len ≥ 5 (`abd`→`abc` NO, `worls`→`world` YES,
+  `helo`→`hello` insertion YES); candidate len<3 requires full
+  case-insensitive equality (`ax`↛`ab`, `AB`→`ab`).
+- Element-access 2551 (ladder row) has NO related 2728; property-side
+  2551 HAS it. Element-side 2576 renders `C["s"]`, property-side `C.s`.
+- Property-side suggestions are NOT budget-gated (see below); they fire
+  freely in noLib.
+
+### Name-side suggestionCount budget — DISCOVERED 2026-07-12, PORT AT 5.5d
+onFailedToResolveSymbol L48111: the 2552-family suggestion block is
+gated by checker-wide `suggestionCount < maximumSuggestionCount (10)`;
+`suggestionCount++` sits INSIDE the guard-chain if, after emission —
+so guard-arm-handled failures (2662/2663/2693/…) do NOT consume, while
+no-suggestion failures (plain-2304 tail) and lib-suggestion (2583-
+family) failures DO. Budget is program-wide and ordered (increments at
+lazy-drain time = queue order = our eager program order; the 5.4
+addLazyDiagnostic-eager-identity argument extends to the counter).
+**noLib bootstrap burns exactly 10**: initializeTypeChecker L88732's
+reportErrors=true getGlobalType list — IArguments, Array, Object,
+Function, CallableFunction†, NewableFunction†, String, Number, Boolean,
+RegExp († strictBindCallApply-gated; the rest of init uses
+getGlobalTypeOrUndefined = no burn); errorLocation=undefined
+short-circuits the guard, lib-name probes (Array/String/RegExp →
+"es2015") skip the suggest attempt but still ++. ⇒ noLib pins: 2552
+NEVER fires (near-miss → plain 2304 — pin it); lib-loaded: fires, and
+failure #11+ degrades 2552→2304 (conformance-gated). Verified noLib pin
+set via strictBindCallApply:false (burn=8, budget=2): three near-misses
+→ 2552/2552/2304; 2662-first → non-consuming; xyzzy-first → consuming.
+PORT: suggestion_count on CheckerState; init-slice burn = the 10
+ordered NAME-RESOLUTION probes incl. the suggest attempt (type
+materialization stays lazy — documented extension of the 5.0
+lazy-globals deviation); getSuggestedSymbolForNonexistentSymbol =
+resolve_name lookup-mode twin (Normal | Suggestion; createNameResolver
+L19516 structure) w/ capitalized-primitive synthetic candidates at the
+globals level (L75522); 2552 carries canonicalHead=(2304, plain text) —
+diags comparer needs the canonicalHead arms (sort: canonical-bearing
+first among equal, L17881; equality: compare canonical code+message,
+L17949/17953). getResolvedSymbol meaning = Value|ExportValue, isUse =
+!isWriteOnlyAccess; nameNotFoundMessage per-name table
+getCannotFindNameDiagnosticForName L69324.
 
 ### checkPropertyAccessibility L74871/74875
 Modifier source = getDeclarationModifierFlagsFromSymbol(prop, writing)
@@ -1017,6 +1070,11 @@ nameType (exists), target (exists).
    Mitigation: port spelling core at 5.5d (decision §6) + pin fixtures
    with near-miss property names. Same for element-access 2551/7052/
    7053 ladder — the ladder's ORDER is the observable.
+   PINNED 2026-07-12: matrices verified (§6 "PINNED" block). The risk
+   turned out to have a second half: the NAME-side suggestionCount
+   budget (§6 new section) — 2552-where-we'd-say-2304 AND
+   2304-where-we'd-say-2552 are both live FP shapes; the budget +
+   bootstrap burn must ship in the same commit as the spelling core.
 2. **2352 as-assertion** under [WIDEN]-stubs: getWidenedType/
    getRegularTypeOfObjectLiteral identity may flip comparable verdicts
    on literal assertions. Pin `{a:1} as {a:number}` / `"a" as "b"` /
@@ -1035,6 +1093,16 @@ nameType (exists), target (exists).
    source verbatim + oracle-pin nullable-receiver matrix (null,
    undefined, null|undefined, unknown, optional-chain flavors ×
    entity-name/long-expression).
+   PINNED 2026-07-12: matrix verified (rows in §6 corrected block +
+   session pins55d-findings.md). Surprises locked: facts ∌ void
+   (void/never receivers → plain 2339); 18050 only for LITERAL
+   null/`undefined` expressions (nullable-TYPED idents → 18047/18048);
+   `(null).foo` → 2531; `x?.a` error span includes `?.`, message text
+   doesn't; `x!` never reports (§6 correction). getNonNullableType =
+   getAdjustedTypeWithFacts(NEUndefinedOrNull) L69784 — needs
+   recombineUnknownType + unknownUnionType + removeNullableByIntersection
+   + getGlobalNonNullableTypeInstantiation (noLib fallback
+   ∩ emptyObjectType) — all port with the nonnull core.
 5. **checkMode plumbing**: checkExpressionCached bypasses cache for
    ANY nonzero mode — caching under Contextual would freeze contextual
    results. Transcribe the falsy-gate exactly.

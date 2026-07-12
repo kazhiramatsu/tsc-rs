@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod access;
 pub mod annotate;
 pub mod check;
 pub mod constraints;
@@ -21,6 +22,7 @@ pub mod program;
 pub mod relate;
 pub mod relpin;
 pub mod resolve;
+pub mod spell;
 pub mod state;
 pub mod structural;
 pub mod unions;

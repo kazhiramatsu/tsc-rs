@@ -36,6 +36,23 @@ pub struct CompilerOptions {
     /// isPlainJsFile requires checkJs === undefined); true is the
     /// checkJs band (JS checking semantics largely unported).
     pub check_js: Option<bool>,
+    /// M4 5.5d access band: index-signature reads union in missingType
+    /// (checkPropertyAccessExpressionOrQualifiedName 75301,
+    /// getPropertyTypeForIndexType 62575). NOT strict-family.
+    pub no_unchecked_indexed_access: Option<bool>,
+    /// 4111 (property comes from an index signature) at 75304.
+    pub no_property_access_from_index_signature: Option<bool>,
+    /// strict-family; the assumeUninitialized this-property arm of
+    /// getFlowTypeOfAccessExpression (75352).
+    pub strict_property_initialization: Option<bool>,
+    /// checkPropertyNotUsedBeforeDeclaration's static-method exemption
+    /// gate (75378); defaulted from target (>= ES2022) like tsc's
+    /// computed option.
+    pub use_define_for_class_fields: Option<bool>,
+    /// The RAW `lib` option entries, lowercased (e.g. "es5", "dom") —
+    /// containerSeemsToBeEmptyDomElement (75471) only asks whether the
+    /// option EXISTS without "dom".
+    pub lib: Option<Vec<String>>,
 }
 
 impl CompilerOptions {
@@ -62,6 +79,15 @@ impl CompilerOptions {
         match flag {
             Some(value) => value,
             None => self.strict != Some(false),
+        }
+    }
+
+    /// tsc _computedOptions.useDefineForClassFields.computeValue
+    /// (18251): defaults to target >= ES2022.
+    pub fn use_define_for_class_fields_effective(&self) -> bool {
+        match self.use_define_for_class_fields {
+            Some(value) => value,
+            None => self.emit_script_target() >= ScriptTarget::ES2022,
         }
     }
 }

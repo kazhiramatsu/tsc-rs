@@ -2570,14 +2570,87 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<SymbolId>> {
+        self.get_property_of_type_ex(ty, name, /*skip_object_function_property_augment*/ false)
+    }
+
+    /// The full tsc shape (59348-59389), object/function augment
+    /// included: a member-less object type still reaches
+    /// Object.prototype members through globalObjectType (and callable
+    /// shapes through global(Callable|Newable)FunctionType) — in noLib
+    /// the lazy global getters fall back to empty types so the augment
+    /// is inert, while lib-loaded programs resolve `x.toString` etc.
+    /// like tsc (5.5d conformance FP find: nonPrimitiveStrictNull).
+    /// symbolIsValue's alias chase is elided (5.8) — an alias member
+    /// falls through to the augment like a non-value hit.
+    /// includeTypeOnlyMembers/typeOnlyExportStarMap gate on module
+    /// symbols (5.8) — the map has no producer yet.
+    pub fn get_property_of_type_ex(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+        skip_object_function_property_augment: bool,
+    ) -> CheckResult2<Option<SymbolId>> {
         let reduced = self.get_reduced_apparent_type(ty)?;
         let flags = self.tables.flags_of(reduced);
         if flags.intersects(TypeFlags::OBJECT) {
-            return self.get_property_of_object_type(reduced, name);
+            if let Some(symbol) = self.get_property_of_object_type(reduced, name)? {
+                if self
+                    .binder
+                    .symbol(symbol)
+                    .flags
+                    .intersects(SymbolFlags::VALUE)
+                {
+                    return Ok(Some(symbol));
+                }
+            }
+            if skip_object_function_property_augment {
+                return Ok(None);
+            }
+            let members = self.resolve_structured_type_members(reduced)?;
+            let (has_call, has_construct) = {
+                let resolved = self.members_of(members);
+                (
+                    !resolved.call_signatures.is_empty(),
+                    !resolved.construct_signatures.is_empty(),
+                )
+            };
+            let function_type = if reduced == self.any_function_type {
+                Some(self.global_function_type()?)
+            } else if has_call {
+                Some(self.global_callable_function_type()?)
+            } else if has_construct {
+                Some(self.global_newable_function_type()?)
+            } else {
+                None
+            };
+            if let Some(function_type) = function_type {
+                if let Some(symbol) = self.get_property_of_object_type(function_type, name)? {
+                    return Ok(Some(symbol));
+                }
+            }
+            let global_object = self.global_object_type()?;
+            return self.get_property_of_object_type(global_object, name);
         }
-        if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            if let Some(property) = self.get_property_of_union_or_intersection_type(
+                reduced, name, /*skip_object_function_property_augment*/ true,
+            )? {
+                return Ok(Some(property));
+            }
+            if !skip_object_function_property_augment {
+                return self.get_property_of_union_or_intersection_type(
+                    reduced,
+                    name,
+                    skip_object_function_property_augment,
+                );
+            }
+            return Ok(None);
+        }
+        if flags.intersects(TypeFlags::UNION) {
             return self.get_property_of_union_or_intersection_type(
-                reduced, name, /*skip_object_function_property_augment*/ false,
+                reduced,
+                name,
+                skip_object_function_property_augment,
             );
         }
         Ok(None)
@@ -2750,6 +2823,46 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isConflictingPrivateProperty @6.0.3
     /// tsc-hash: b85fdb88b67c0b34d28d407511d88581db1c95deddc8b1ff1251ebca97fe2704
     /// tsc-span: _tsc.js:59315-59317
+    /// tsc-port: elaborateNeverIntersection @6.0.3 (row builder — the
+    /// caller nests it under its own head like chainDiagnosticMessages)
+    /// tsc-hash: b46805cd4aa6778115885da73d54ce07116c79daa94b08ca60717787e53f011e
+    /// tsc-span: _tsc.js:59325-59347
+    pub(crate) fn elaborate_never_intersection_row(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<tsrs2_diags::MessageChain>> {
+        if !self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION)
+            || !self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::IS_NEVER_INTERSECTION)
+        {
+            return Ok(None);
+        }
+        let properties = self.get_properties_of_union_or_intersection_type(ty)?;
+        for prop in properties.iter().copied() {
+            if self.is_discriminant_with_never_type(prop)? {
+                let type_name = self.type_to_string_slice(ty)?;
+                let prop_name = self.symbol_display_name(prop);
+                return Ok(Some(tsrs2_diags::MessageChain::new(
+                    &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
+                    &[type_name, prop_name],
+                )));
+            }
+        }
+        for prop in properties.iter().copied() {
+            if self.is_conflicting_private_property(prop) {
+                let type_name = self.type_to_string_slice(ty)?;
+                let prop_name = self.symbol_display_name(prop);
+                return Ok(Some(tsrs2_diags::MessageChain::new(
+                    &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
+                    &[type_name, prop_name],
+                )));
+            }
+        }
+        Ok(None)
+    }
+
     fn is_conflicting_private_property(&self, prop: SymbolId) -> bool {
         self.binder.symbol(prop).value_declaration.is_none()
             && self
@@ -3068,26 +3181,37 @@ impl<'a> CheckerState<'a> {
     }
 
     pub fn get_declaration_modifier_flags_from_symbol(&self, symbol: SymbolId) -> ModifierFlags {
+        self.get_declaration_modifier_flags_from_symbol_write(symbol, /*is_write*/ false)
+    }
+
+    /// The full tsc signature (17436): isWrite selects the SETTER
+    /// declaration first — live from 5.5d's write-position accessibility.
+    pub fn get_declaration_modifier_flags_from_symbol_write(
+        &self,
+        symbol: SymbolId,
+        is_write: bool,
+    ) -> ModifierFlags {
         if let Some(value_declaration) = self.binder.symbol(symbol).value_declaration {
-            // 17438-17441: get accessors report through their getter
-            // declaration; the isWrite setter selection rides on
-            // write-position relations (5.5).
-            let declaration = if self
-                .symbol_flags(symbol)
-                .intersects(SymbolFlags::GET_ACCESSOR)
-            {
+            // 17438-17441: `isWrite && find(setter) || GetAccessor &&
+            // find(getter) || valueDeclaration`.
+            let find_accessor = |kind: tsrs2_syntax::SyntaxKind| {
                 self.binder
                     .symbol(symbol)
                     .declarations
                     .iter()
                     .copied()
-                    .find(|&declaration| {
-                        self.kind_of(declaration) == tsrs2_syntax::SyntaxKind::GetAccessor
-                    })
-                    .unwrap_or(value_declaration)
-            } else {
-                value_declaration
+                    .find(|&declaration| self.kind_of(declaration) == kind)
             };
+            let declaration = is_write
+                .then(|| find_accessor(tsrs2_syntax::SyntaxKind::SetAccessor))
+                .flatten()
+                .or_else(|| {
+                    self.symbol_flags(symbol)
+                        .intersects(SymbolFlags::GET_ACCESSOR)
+                        .then(|| find_accessor(tsrs2_syntax::SyntaxKind::GetAccessor))
+                        .flatten()
+                })
+                .unwrap_or(value_declaration);
             let flags = tsrs2_binder::node_util::get_combined_modifier_flags(
                 self.binder.source_of_node(declaration),
                 declaration,
@@ -3254,7 +3378,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getDeclaringClass @6.0.3
     /// tsc-hash: 049f21cf11685ae294ad5a29441b2addc02e7c766ab94220928627f0c3d993da
     /// tsc-span: _tsc.js:67445-67447
-    fn get_declaring_class(&mut self, prop: SymbolId) -> CheckResult2<Option<TypeId>> {
+    pub(crate) fn get_declaring_class(&mut self, prop: SymbolId) -> CheckResult2<Option<TypeId>> {
         let Some(parent) = self.binder.symbol(prop).parent else {
             return Ok(None);
         };
@@ -4956,7 +5080,7 @@ impl<'a> CheckerState<'a> {
 
     /// The applicable index info's shape for union-property synthesis
     /// (getApplicableIndexInfoForName over the property name).
-    fn get_applicable_index_info_for_name_info(
+    pub(crate) fn get_applicable_index_info_for_name_info(
         &mut self,
         ty: TypeId,
         name: &str,

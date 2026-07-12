@@ -19,6 +19,20 @@ use tsrs2_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
 
 use crate::state::CheckerState;
 
+/// tsc maximumSuggestionCount (47424).
+const MAXIMUM_SUGGESTION_COUNT: u32 = 10;
+
+/// lookup_probe's outcome: the suggestion snapshot defers the &mut
+/// spelling pass so binder-borrowed tables drop their borrow first.
+enum LookupProbe {
+    Found(SymbolId),
+    Miss,
+    Suggest {
+        values: Vec<SymbolId>,
+        capitalized_primitives: Vec<&'static str>,
+    },
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: getSymbol @6.0.3 (the createNameResolver `lookup`)
     /// tsc-hash: bd2696712b634b49b85269b6fd5118efb5b99ad3e3986e2b7adc77ed494d4746
@@ -47,6 +61,79 @@ impl<'a> CheckerState<'a> {
         None
     }
 
+    /// The parameterized lookup's probe half (&self): exact match or,
+    /// in suggestion mode, a table snapshot for the spelling pass.
+    /// tsc getSuggestionForSymbolNameLookup (75522-75535) — the
+    /// capitalized-primitive synthetics exist only at the GLOBALS
+    /// level.
+    fn lookup_probe(
+        &self,
+        table: &SymbolTable,
+        name: &str,
+        meaning: SymbolFlags,
+        suggestion: bool,
+        is_globals: bool,
+    ) -> LookupProbe {
+        if let Some(found) = self.get_symbol_in_table(table, name, meaning) {
+            return LookupProbe::Found(found);
+        }
+        if !suggestion {
+            return LookupProbe::Miss;
+        }
+        let capitalized_primitives: Vec<&'static str> = if is_globals {
+            ["string", "number", "boolean", "object", "bigint", "symbol"]
+                .iter()
+                .copied()
+                .filter(|primitive| {
+                    let mut capitalized = String::with_capacity(primitive.len());
+                    capitalized.push(primitive.as_bytes()[0].to_ascii_uppercase() as char);
+                    capitalized.push_str(&primitive[1..]);
+                    table.contains_key(&capitalized)
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        LookupProbe::Suggest {
+            values: table.values().copied().collect(),
+            capitalized_primitives,
+        }
+    }
+
+    /// The suggestion half (&mut self): synthetic lowercase-primitive
+    /// TypeAlias candidates PREPEND (concatenate order), then the
+    /// spelling core over the table values in insertion order.
+    fn finish_lookup(
+        &mut self,
+        probe: LookupProbe,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> Option<SymbolId> {
+        match probe {
+            LookupProbe::Found(found) => Some(found),
+            LookupProbe::Miss => None,
+            LookupProbe::Suggest {
+                values,
+                capitalized_primitives,
+            } => {
+                let mut candidates =
+                    Vec::with_capacity(values.len() + capitalized_primitives.len());
+                for primitive in capitalized_primitives {
+                    candidates.push(
+                        self.binder
+                            .create_symbol(SymbolFlags::TYPE_ALIAS, primitive.to_owned()),
+                    );
+                }
+                candidates.extend(values);
+                self.get_spelling_suggestion_for_name(
+                    tsrs2_binder::unescape_leading_underscores(name),
+                    &candidates,
+                    meaning,
+                )
+            }
+        }
+    }
+
     /// tsc-port: resolveNameHelper @6.0.3
     /// tsc-hash: 2a965808b21b9b6059de120cec14ef8ce90bb976242d6b8d5c29553b09d3de56
     /// tsc-span: _tsc.js:19534-19803
@@ -65,6 +152,53 @@ impl<'a> CheckerState<'a> {
         name_not_found_message: Option<&'static DiagnosticMessage>,
         is_use: bool,
         exclude_globals: bool,
+    ) -> Option<SymbolId> {
+        self.resolve_name_full(
+            location,
+            name,
+            meaning,
+            name_not_found_message,
+            is_use,
+            exclude_globals,
+            /*suggestion*/ false,
+        )
+    }
+
+    /// tsc-port: resolveNameForSymbolSuggestion @6.0.3
+    /// tsc-hash: add6fe8076fd4f769f84d1d9af8a2d1468945c362e2b78486e074e8ae1d5598a
+    /// tsc-span: _tsc.js:75536-75550
+    ///
+    /// createNameResolver with lookup = getSuggestionForSymbolNameLookup
+    /// (75522-75535): the SAME scope walk, each table answering
+    /// exact-match-else-spelling — an inner near-miss legitimately
+    /// shadows an outer exact match, like tsc.
+    pub(crate) fn resolve_name_for_symbol_suggestion(
+        &mut self,
+        location: Option<NodeId>,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> Option<SymbolId> {
+        self.resolve_name_full(
+            location,
+            name,
+            meaning,
+            /*name_not_found_message*/ None,
+            /*is_use*/ false,
+            /*exclude_globals*/ false,
+            /*suggestion*/ true,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_name_full(
+        &mut self,
+        location: Option<NodeId>,
+        name: &str,
+        meaning: SymbolFlags,
+        name_not_found_message: Option<&'static DiagnosticMessage>,
+        is_use: bool,
+        exclude_globals: bool,
+        suggestion: bool,
     ) -> Option<SymbolId> {
         let original_location = location;
         let mut location = location;
@@ -93,7 +227,8 @@ impl<'a> CheckerState<'a> {
                 && !self.binder.is_external_or_common_js_module_of_node(loc);
             if !loc_is_global_source_file {
                 if let Some(locals) = self.binder.locals_of(loc) {
-                    if let Some(found) = self.get_symbol_in_table(locals, name, meaning) {
+                    let probe = self.lookup_probe(locals, name, meaning, suggestion, false);
+                    if let Some(found) = self.finish_lookup(probe, name, meaning) {
                         let mut use_result = true;
                         let result_flags = self.binder.symbol(found).flags;
                         if is_function_like_kind(self.kind_of(loc))
@@ -232,11 +367,10 @@ impl<'a> CheckerState<'a> {
                             }
                         }
                         if name != tsrs2_types::InternalSymbolName::DEFAULT {
-                            if let Some(found) = self.get_symbol_in_table(
-                                &module_exports,
-                                name,
-                                meaning & SymbolFlags::MODULE_MEMBER,
-                            ) {
+                            let masked = meaning & SymbolFlags::MODULE_MEMBER;
+                            let probe =
+                                self.lookup_probe(&module_exports, name, masked, suggestion, false);
+                            if let Some(found) = self.finish_lookup(probe, name, masked) {
                                 // commonJsModuleIndicator + JSDoc type
                                 // alias exception: JSDoc unmodeled, so
                                 // a CJS file's exports never match.
@@ -262,9 +396,9 @@ impl<'a> CheckerState<'a> {
                         .map(|s| self.get_merged_symbol(s))
                         .map(|s| self.binder.symbol(s).exports.clone())
                         .unwrap_or_default();
-                    if let Some(found) =
-                        self.get_symbol_in_table(&exports, name, meaning & SymbolFlags::ENUM_MEMBER)
-                    {
+                    let masked = meaning & SymbolFlags::ENUM_MEMBER;
+                    let probe = self.lookup_probe(&exports, name, masked, suggestion, false);
+                    if let Some(found) = self.finish_lookup(probe, name, masked) {
                         // (isolatedModules cross-file qualification
                         // error elided — option unmodeled.)
                         result = Some(found);
@@ -276,14 +410,10 @@ impl<'a> CheckerState<'a> {
                         if let Some(class) = self.parent_of(loc) {
                             if let Some(ctor) = self.find_constructor_declaration(class) {
                                 if let Some(ctor_locals) = self.binder.locals_of(ctor) {
-                                    if self
-                                        .get_symbol_in_table(
-                                            ctor_locals,
-                                            name,
-                                            meaning & SymbolFlags::VALUE,
-                                        )
-                                        .is_some()
-                                    {
+                                    let masked = meaning & SymbolFlags::VALUE;
+                                    let probe = self
+                                        .lookup_probe(ctor_locals, name, masked, suggestion, false);
+                                    if self.finish_lookup(probe, name, masked).is_some() {
                                         property_with_invalid_initializer = Some(loc);
                                     }
                                 }
@@ -303,9 +433,9 @@ impl<'a> CheckerState<'a> {
                         .map(|s| self.get_merged_symbol(s))
                         .map(|s| self.binder.symbol(s).members.clone())
                         .unwrap_or_default();
-                    if let Some(found) =
-                        self.get_symbol_in_table(&members, name, meaning & SymbolFlags::TYPE)
-                    {
+                    let masked = meaning & SymbolFlags::TYPE;
+                    let probe = self.lookup_probe(&members, name, masked, suggestion, false);
+                    if let Some(found) = self.finish_lookup(probe, name, masked) {
                         if self.is_type_parameter_symbol_declared_in_container(found, loc) {
                             if last_location.is_some_and(|l| self.is_static_node(l)) {
                                 if name_not_found_message.is_some() {
@@ -361,14 +491,10 @@ impl<'a> CheckerState<'a> {
                                     .map(|s| self.get_merged_symbol(s))
                                     .map(|s| self.binder.symbol(s).members.clone())
                                     .unwrap_or_default();
-                                if self
-                                    .get_symbol_in_table(
-                                        &members,
-                                        name,
-                                        meaning & SymbolFlags::TYPE,
-                                    )
-                                    .is_some()
-                                {
+                                let masked = meaning & SymbolFlags::TYPE;
+                                let probe =
+                                    self.lookup_probe(&members, name, masked, suggestion, false);
+                                if self.finish_lookup(probe, name, masked).is_some() {
                                     if name_not_found_message.is_some() {
                                         self.error_at(
                                             original_location,
@@ -400,10 +526,10 @@ impl<'a> CheckerState<'a> {
                                 .map(|s| self.get_merged_symbol(s))
                                 .map(|s| self.binder.symbol(s).members.clone())
                                 .unwrap_or_default();
-                            if self
-                                .get_symbol_in_table(&members, name, meaning & SymbolFlags::TYPE)
-                                .is_some()
-                            {
+                            let masked = meaning & SymbolFlags::TYPE;
+                            let probe =
+                                self.lookup_probe(&members, name, masked, suggestion, false);
+                            if self.finish_lookup(probe, name, masked).is_some() {
                                 if name_not_found_message.is_some() {
                                     self.error_at(
                                         original_location,
@@ -577,7 +703,8 @@ impl<'a> CheckerState<'a> {
             }
             if !exclude_globals {
                 let globals = self.globals.clone();
-                result = self.get_symbol_in_table(&globals, name, meaning);
+                let probe = self.lookup_probe(&globals, name, meaning, suggestion, true);
+                result = self.finish_lookup(probe, name, meaning);
             }
         }
         // (JS `require` fallback elided — requireSymbol, M2 3.4c
@@ -937,25 +1064,85 @@ impl<'a> CheckerState<'a> {
             return;
         }
         // getSuggestedLibForNonExistentName is static lib metadata, so
-        // the 2583/2584-family lib arm is exact; only the SPELLING
-        // suggestion branch (getSuggestedSymbolForNonexistentSymbol,
-        // 2552-family) stays an M8 row — extra args on plain templates
-        // are ignored like tsc's formatStringFromArgs.
+        // the 2583/2584-family lib arm is exact. The SPELLING branch
+        // (48123-48151) is budget-gated: suggestionCount < 10, where
+        // the noLib bootstrap burns all 10 (run_init_global_type_probes)
+        // — oracle-pinned via strictBindCallApply:false. Every failure
+        // reaching this tail consumes one slot, suggestion or not.
+        let display = tsrs2_binder::unescape_leading_underscores(name);
         let suggested_lib = get_suggested_lib_for_non_existent_name(name);
-        match suggested_lib {
-            Some(lib) => {
-                self.error_at(
-                    error_location,
-                    message,
-                    &[tsrs2_binder::unescape_leading_underscores(name), lib],
-                );
+        if let Some(lib) = suggested_lib {
+            self.error_at(error_location, message, &[display, lib]);
+        } else {
+            let mut suggestion: Option<SymbolId> = None;
+            if self.suggestion_count < MAXIMUM_SUGGESTION_COUNT {
+                suggestion =
+                    self.resolve_name_for_symbol_suggestion(error_location, name, meaning);
+                // The isGlobalScopeAugmentationDeclaration filter
+                // (48126-48129) is provably dead here: the
+                // program_has_global_augmentation gate above already
+                // returned for any program that could produce one.
+                if let Some(suggested) = suggestion {
+                    let suggestion_name = self.symbol_display_name(suggested);
+                    // Namespace meaning selects the 2833 flavor; the
+                    // unchecked-JS 2570 flavor is JS-band (TS: 2552).
+                    let did_you_mean = if meaning == SymbolFlags::NAMESPACE {
+                        &diagnostics::Cannot_find_namespace_0_Did_you_mean_1
+                    } else {
+                        &diagnostics::Cannot_find_name_0_Did_you_mean_1
+                    };
+                    let mut diagnostic = self.diagnostic_for_node_or_compiler(
+                        error_location,
+                        did_you_mean,
+                        &[display, &suggestion_name],
+                    );
+                    // getCanonicalDiagnostic(nameNotFoundMessage, name):
+                    // sort/dedupe compare through the PLAIN form.
+                    diagnostic.canonical_head = Some(tsrs2_diags::CanonicalHead {
+                        code: message.code,
+                        text: tsrs2_diags::MessageChain::new(
+                            message,
+                            &[display.to_owned()],
+                        )
+                        .text,
+                    });
+                    if let Some(value_declaration) =
+                        self.binder.symbol(suggested).value_declaration
+                    {
+                        diagnostic.related.push(self.related_info_for_node(
+                            value_declaration,
+                            &diagnostics::_0_is_declared_here,
+                            &[&suggestion_name],
+                        ));
+                    }
+                    self.push_error_diagnostic(diagnostic);
+                }
             }
+            if suggestion.is_none() {
+                self.error_at(error_location, message, &[display]);
+            }
+        }
+        self.suggestion_count += 1;
+    }
+
+    /// createError: node-anchored when a location exists, compiler-
+    /// global otherwise (the locationless bootstrap flavors).
+    fn diagnostic_for_node_or_compiler(
+        &self,
+        location: Option<NodeId>,
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+    ) -> tsrs2_diags::Diagnostic {
+        match location {
+            Some(node) => self.diagnostic_for_node(node, message, args),
             None => {
-                self.error_at(
-                    error_location,
-                    message,
-                    &[tsrs2_binder::unescape_leading_underscores(name)],
-                );
+                let args: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
+                tsrs2_diags::Diagnostic::new(
+                    None,
+                    None,
+                    None,
+                    tsrs2_diags::MessageChain::new(message, &args),
+                )
             }
         }
     }

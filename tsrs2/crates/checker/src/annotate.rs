@@ -2786,7 +2786,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getTargetType (56993-56995).
-    fn get_target_type(&self, ty: TypeId) -> TypeId {
+    pub(crate) fn get_target_type(&self, ty: TypeId) -> TypeId {
         if self
             .tables
             .object_flags_of(ty)
@@ -4159,9 +4159,15 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(SymbolFlags::ACCESSOR) {
             return self.get_type_of_accessors(symbol);
         }
-        Err(Unsupported::new(format!(
-            "getTypeOfSymbol for symbol flags {flags:?} (M4)"
-        )))
+        if flags.intersects(SymbolFlags::ALIAS) {
+            // getTypeOfAlias needs alias resolution (M4 5.8).
+            return Err(Unsupported::new("alias value types (getTypeOfAlias, 5.8)"));
+        }
+        // tsc's tail (56974): symbols with NO value arm — TypeLiteral,
+        // Interface, TypeAlias, TypeParameter shells — are errorType
+        // in tsc too (typeHasStaticProperty probes hit this for
+        // `{ ... }` __type receivers).
+        Ok(self.tables.intrinsics.error)
     }
 
     /// tsc-port: getTypeOfInstantiatedSymbol @6.0.3
@@ -4238,7 +4244,29 @@ impl<'a> CheckerState<'a> {
                         .tables
                         .add_optionality(declared, is_property, is_optional))
                 }
-                None => Ok(state.tables.intrinsics.any),
+                None => {
+                    // Annotation-less WITH an initializer: tsc types
+                    // from the initializer (checkDeclarationInitializer
+                    // + widening, 5.6/5.8) — an `any` stand-in changes
+                    // which ARM downstream checks take (5.5d FP find:
+                    // an any-degraded receiver took the anyLike private
+                    // arm's 18016 where tsc's C<number> takes 18013).
+                    // Annotation-less WITHOUT initializer is genuinely
+                    // implicit any in tsc — that stand-in is faithful.
+                    let initializer = match state.data_of(declaration) {
+                        NodeData::VariableDeclaration(data) => data.initializer,
+                        NodeData::PropertyDeclaration(data) => data.initializer,
+                        NodeData::BindingElement(data) => data.initializer,
+                        NodeData::PropertyAssignment(data) => data.initializer,
+                        _ => None,
+                    };
+                    if initializer.is_some() {
+                        return Err(Unsupported::new(
+                            "initializer-typed variable (getWidenedTypeForVariableLikeDeclaration, 5.6)",
+                        ));
+                    }
+                    Ok(state.tables.intrinsics.any)
+                }
             }
         })(self);
         let resolved = match computed {

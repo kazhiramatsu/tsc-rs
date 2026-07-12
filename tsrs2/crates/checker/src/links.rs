@@ -76,6 +76,10 @@ pub struct NodeLinks {
     /// 73520): (first, last) spread element indices, computed once per
     /// array literal (getSpreadIndices 73248).
     pub spread_indices: Option<(Option<u32>, Option<u32>)>,
+    /// tsc links.nonExistentPropCheckCache (reportNonexistentProperty
+    /// 75417): `{typeId}|{isUncheckedJS}` dedupe keys — a grow-only
+    /// diagnostic-path cache, never speculative.
+    pub non_existent_prop_check_cache: std::collections::HashSet<String>,
 }
 
 /// tsc SymbolLinks — the per-symbol subset M3 consumes.
@@ -93,6 +97,9 @@ pub struct SymbolLinks {
     /// tsc links.isDiscriminantProperty cache (isDiscriminantProperty
     /// 69562).
     pub is_discriminant_property: Option<bool>,
+    /// tsc symbol.isReferenced (markPropertyAsReferenced 75617) — M7
+    /// unused-checks bookkeeping, inert until then.
+    pub is_referenced: bool,
     /// tsc links.target for CheckFlags::INSTANTIATED symbols
     /// (instantiateSymbol 63455).
     pub target: Option<SymbolId>,
@@ -236,6 +243,10 @@ pub struct TypeLinks {
     /// tsc TypeReference.literalType (createArrayLiteralType 74039):
     /// the once-per-reference ArrayLiteral-flagged clone.
     pub literal_type: Option<TypeId>,
+    /// tsc PromiseOrAwaitedType.promisedTypeOfPromise
+    /// (getPromisedTypeOfPromise 82316) — the memoized `then`
+    /// onfulfilled parameter type.
+    pub promised_type_of_promise: Option<TypeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -542,6 +553,43 @@ impl LinksTables {
         let links = self.ty.entry(id).or_default();
         assert!(links.literal_type.is_none(), "literalType rewritten");
         links.literal_type = Some(literal);
+    }
+
+    pub fn set_type_promised_type_of_promise(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        promised: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.promised_type_of_promise.is_none(),
+            "promisedTypeOfPromise rewritten"
+        );
+        links.promised_type_of_promise = Some(promised);
+    }
+
+    /// tsc `symbol.isReferenced = SymbolFlags.All` — freely repeatable.
+    pub fn set_symbol_is_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().is_referenced = true;
+    }
+
+    /// nonExistentPropCheckCache add (75419-75423): returns true when
+    /// the key was NEW (the caller reports), false on a repeat.
+    pub fn insert_node_non_existent_prop_key(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        key: String,
+    ) -> bool {
+        Self::assert_writable(speculation_depth);
+        self.node
+            .entry(id)
+            .or_default()
+            .non_existent_prop_check_cache
+            .insert(key)
     }
 
     pub fn set_type_resolved_properties(
