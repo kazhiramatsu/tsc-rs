@@ -594,9 +594,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
             match result {
-                None => self.on_failed_to_resolve_symbol(original_location, name, message),
+                None => self.on_failed_to_resolve_symbol(original_location, name, meaning, message),
                 Some(found) => self.on_successfully_resolved_symbol(
+                    original_location,
                     found,
+                    meaning,
                     associated_declaration_for_containing_initializer,
                     within_deferred_context,
                 ),
@@ -865,28 +867,59 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 26a00d2e7d55d3d390e91be33ad3fa83b5e644a07fd724974bd352b3133829c5
     /// tsc-span: _tsc.js:48111-48155
     ///
-    /// Plain-form slice per the M4 5.1 doc: the checkAndReportErrorFor*
-    /// alternates and the spelling/lib suggestions are M8 rows —
-    /// fixtures where tsc picks an alternate code or a Did-you-mean
-    /// message will diverge until then (tracked at the 5.4/5.5 FP
-    /// gate). tsc defers via addLazyDiagnostic; emission is eager here
-    /// and the driver's final sort canonicalizes order.
+    /// Plain-form slice per the M4 5.1 doc, widened at 5.5a with the
+    /// two chain members expression forcing made reachable:
+    /// checkAndReportErrorForMissingPrefix (2662/2663, full port) and
+    /// the keyword-based primitive-name arms (2661/2693 + the heritage
+    /// flavors — no symbol exists for `string` et al., so the
+    /// all-meanings re-probe gate below cannot stand in for them). The
+    /// remaining checkAndReportErrorFor* alternates and the spelling
+    /// suggestion stay M8 rows behind the re-probe gate; NB the
+    /// name-side 2552 Did-you-mean arm is oracle-unobserved on plain
+    /// near-miss fixtures (probed 2026-07-12: cet/cat, greeet/greet,
+    /// myVariabel/myVariable all emit plain 2304). tsc defers via
+    /// addLazyDiagnostic; emission is eager here and the driver's
+    /// final sort canonicalizes order.
     fn on_failed_to_resolve_symbol(
         &mut self,
         error_location: Option<NodeId>,
         name: &str,
+        meaning: SymbolFlags,
         message: &'static DiagnosticMessage,
     ) {
+        // checkAndReportErrorForMissingPrefix (48220-48249) runs FIRST
+        // in tsc's chain. An Unsupported unwind inside its member
+        // probes makes the alternate-vs-plain choice undecidable:
+        // suppress the whole report (honest FN).
+        match self.check_and_report_error_for_missing_prefix(error_location, name) {
+            Ok(true) => return,
+            Ok(false) => {}
+            Err(_) => return,
+        }
+        // The primitive-name slice of the chain (isPrimitiveTypeName
+        // 48334): checkAndReportErrorForExportingPrimitiveType (48337)
+        // + checkAndReportErrorForUsingTypeAsValue's keyword arm
+        // (48344-48362). The interleaved ExtendingInterface /
+        // UsingTypeAsNamespace members and UsingTypeAsValue's symbol
+        // arm never fire for these names (nothing resolves under any
+        // meaning), so the slice is exact.
+        if meaning.intersects(SymbolFlags::VALUE) && is_primitive_type_name(name) {
+            if let Some(error_location) = error_location {
+                self.report_primitive_type_name_used_as_value(error_location, name);
+                return;
+            }
+        }
         // Failure-band gates, each an honest FN escape (no emission)
         // for a case where the plain form would be an un-tsc-like
         // diagnostic (the third 5.4-era gate — the lib_globals name
         // table — RETIRED with lib loading: conformance programs carry
         // their lib set, so a default-lib name either resolves or is
         // genuinely missing, where tsc reports too):
-        // 1. tsc's checkAndReportErrorFor* alternates (value-as-type,
-        //    type-as-value, namespace-as-type, 2749/2693/2503-family)
-        //    and the alias-resolving meaning criteria both key on a
-        //    symbol EXISTING under a different meaning; those arms are
+        // 1. tsc's remaining checkAndReportErrorFor* alternates
+        //    (value-as-type, type-as-value symbol arm,
+        //    namespace-as-type, 2749/2693/2503-family) and the
+        //    alias-resolving meaning criteria both key on a symbol
+        //    EXISTING under a different meaning; those arms are
         //    unported (alias resolution 5.8, alternates M8), so a
         //    quiet all-meanings re-probe finding anything means the
         //    plain form would be the wrong code.
@@ -927,21 +960,282 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: onSuccessfullyResolvedSymbol @6.0.3 (STUB)
+    /// tsc-port: checkAndReportErrorForMissingPrefix @6.0.3
+    /// tsc-hash: 25a622a6654f76867484ca5da07f19a0eb74567e557d5a04a62422c98036c732
+    /// tsc-span: _tsc.js:48220-48249
+    ///
+    /// The static probe reads the class VALUE side (5.3e) and the
+    /// instance probe the declared thisType's apparent members (5.3b)
+    /// — both live; nameArg display = unescapeLeadingUnderscores.
+    fn check_and_report_error_for_missing_prefix(
+        &mut self,
+        error_location: Option<NodeId>,
+        name: &str,
+    ) -> crate::state::CheckResult2<bool> {
+        let Some(error_location) = error_location else {
+            return Ok(false);
+        };
+        if self.kind_of(error_location) != SyntaxKind::Identifier
+            || self.identifier_text_of(error_location) != Some(name)
+            || self.is_type_reference_identifier(error_location)
+            || self.is_in_type_query(error_location)
+        {
+            return Ok(false);
+        }
+        let container = tsrs2_binder::node_util::get_this_container(
+            self.binder.source_of_node(error_location),
+            error_location,
+            /*include_arrow_functions*/ false,
+        );
+        let Some(container) = container else {
+            return Ok(false);
+        };
+        let mut location = Some(container);
+        while let Some(current) = location {
+            let parent = self.parent_of(current);
+            if let Some(parent) = parent {
+                if matches!(
+                    self.kind_of(parent),
+                    SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                ) {
+                    let Some(class_symbol) = self.node_symbol(parent) else {
+                        break;
+                    };
+                    let class_symbol = self.get_merged_symbol(class_symbol);
+                    let constructor_type = self.get_type_of_symbol(class_symbol)?;
+                    if self
+                        .get_property_of_type_full(constructor_type, name)?
+                        .is_some()
+                    {
+                        let class_name = self.symbol_display_name(class_symbol);
+                        self.error_at(
+                            Some(error_location),
+                            &diagnostics::Cannot_find_name_0_Did_you_mean_the_static_member_1_0,
+                            &[
+                                tsrs2_binder::unescape_leading_underscores(name),
+                                &class_name,
+                            ],
+                        );
+                        return Ok(true);
+                    }
+                    if current == container && !self.is_static_node(current) {
+                        let declared =
+                            self.get_declared_type_of_class_or_interface(class_symbol)?;
+                        let this_type = match &self.tables.type_of(declared).data {
+                            tsrs2_types::TypeData::GenericType { this_type, .. } => {
+                                Some(*this_type)
+                            }
+                            _ => None,
+                        };
+                        if let Some(this_type) = this_type {
+                            if self.get_property_of_type_full(this_type, name)?.is_some() {
+                                self.error_at(
+                                    Some(error_location),
+                                    &diagnostics::Cannot_find_name_0_Did_you_mean_the_instance_member_this_0,
+                                    &[tsrs2_binder::unescape_leading_underscores(name)],
+                                );
+                                return Ok(true);
+                            }
+                        }
+                    }
+                }
+            }
+            location = parent;
+        }
+        Ok(false)
+    }
+
+    /// tsc isTypeReferenceIdentifier (87218).
+    fn is_type_reference_identifier(&self, node: NodeId) -> bool {
+        let mut node = node;
+        while let Some(parent) = self.parent_of(node) {
+            if self.kind_of(parent) != SyntaxKind::QualifiedName {
+                break;
+            }
+            node = parent;
+        }
+        self.parent_of(node)
+            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::TypeReference)
+    }
+
+    /// The primitive-name arm of checkAndReportErrorForUsingTypeAsValue
+    /// (48344-48362) plus checkAndReportErrorForExportingPrimitiveType
+    /// (48337-48343), which precedes it in the chain.
+    fn report_primitive_type_name_used_as_value(&mut self, error_location: NodeId, name: &str) {
+        let parent = self.parent_of(error_location);
+        if parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ExportSpecifier) {
+            self.error_at(
+                Some(error_location),
+                &diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
+                &[name],
+            );
+            return;
+        }
+        let grandparent = parent.and_then(|parent| self.parent_of(parent));
+        if let Some(grandparent) = grandparent {
+            if let NodeData::HeritageClause(_) = self.data_of(grandparent) {
+                let heritage_is_extends = self.heritage_clause_is_extends(grandparent);
+                let container = self.parent_of(grandparent);
+                let container_kind = container.map(|container| self.kind_of(container));
+                if container_kind == Some(SyntaxKind::InterfaceDeclaration) && heritage_is_extends
+                {
+                    self.error_at(
+                        Some(error_location),
+                        &diagnostics::An_interface_cannot_extend_a_primitive_type_like_0_It_can_only_extend_other_named_object_types,
+                        &[tsrs2_binder::unescape_leading_underscores(name)],
+                    );
+                    return;
+                }
+                let container_is_class_like = matches!(
+                    container_kind,
+                    Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
+                );
+                if container_is_class_like && heritage_is_extends {
+                    self.error_at(
+                        Some(error_location),
+                        &diagnostics::A_class_cannot_extend_a_primitive_type_like_0_Classes_can_only_extend_constructable_values,
+                        &[tsrs2_binder::unescape_leading_underscores(name)],
+                    );
+                    return;
+                }
+                if container_is_class_like && !heritage_is_extends {
+                    // ImplementsKeyword is the only other heritage
+                    // token.
+                    self.error_at(
+                        Some(error_location),
+                        &diagnostics::A_class_cannot_implement_a_primitive_type_like_0_It_can_only_implement_other_named_object_types,
+                        &[tsrs2_binder::unescape_leading_underscores(name)],
+                    );
+                    return;
+                }
+            }
+        }
+        self.error_at(
+            Some(error_location),
+            &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here,
+            &[tsrs2_binder::unescape_leading_underscores(name)],
+        );
+    }
+
+    /// tsc-port: onSuccessfullyResolvedSymbol @6.0.3 (5.5a slice)
     /// tsc-hash: acc9b965f1efc2a1b2b86a42dfcd0415aa683933fb79d87a0a4a9db0c34ec7af
     /// tsc-span: _tsc.js:48156-48205
     ///
-    /// checkResolvedBlockScopedVariable (2448-family), the UMD-global
-    /// module check, parameter self-reference (2372/2373), type-only
-    /// alias use, and the isolatedModules import conflict are M4 5.5 /
-    /// 5.8 rows — each needs machinery those stages own (identifier
-    /// checking, alias resolution). No-op until then.
+    /// Live from 5.5a: the checkResolvedBlockScopedVariable arm (the
+    /// TDZ 2448/2449/2450 band; addLazyDiagnostic = eager identity).
+    /// Still stubbed, each with its owner: the UMD-global module check
+    /// (module resolution, 5.8), parameter self-reference 2372/2373
+    /// (initializer forcing, 5.6), type-only alias use (alias
+    /// resolution, 5.8), and the isolatedModules import conflict
+    /// (option unmodeled).
     fn on_successfully_resolved_symbol(
         &mut self,
-        _result: SymbolId,
+        error_location: Option<NodeId>,
+        result: SymbolId,
+        meaning: SymbolFlags,
         _associated_declaration: Option<NodeId>,
         _within_deferred_context: bool,
     ) {
+        let Some(error_location) = error_location else {
+            return;
+        };
+        if meaning.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE)
+            || (meaning.intersects(SymbolFlags::CLASS | SymbolFlags::ENUM)
+                && meaning.contains(SymbolFlags::VALUE))
+        {
+            let export_or_local = self.get_export_symbol_of_value_symbol_if_exported(result);
+            if self.binder.symbol(export_or_local).flags.intersects(
+                SymbolFlags::BLOCK_SCOPED_VARIABLE | SymbolFlags::CLASS | SymbolFlags::ENUM,
+            ) {
+                // Unsupported unwinds inside the declared-before-use
+                // walk (property/parameter arms 5.5d) drop the TDZ
+                // report for that reference — an honest FN; tsc has no
+                // failure channel here.
+                let _ = self.check_resolved_block_scoped_variable(export_or_local, error_location);
+            }
+        }
+    }
+
+    /// tsc-port: checkResolvedBlockScopedVariable @6.0.3
+    /// tsc-hash: d342f112df1bf209ef6fd3dbd51e9d27223e206563f3a0f0af10153c496fef71
+    /// tsc-span: _tsc.js:48448-48477
+    ///
+    /// The ConstEnum tail is gated on getIsolatedModules — the option
+    /// is absent from CompilerOptions, so const-enum TDZ uses stay
+    /// silent exactly like tsc-without-isolatedModules (no
+    /// diagnosticMessage ⇒ no related info either).
+    fn check_resolved_block_scoped_variable(
+        &mut self,
+        result: SymbolId,
+        error_location: NodeId,
+    ) -> crate::state::CheckResult2<()> {
+        let flags = self.binder.symbol(result).flags;
+        debug_assert!(flags.intersects(
+            SymbolFlags::BLOCK_SCOPED_VARIABLE | SymbolFlags::CLASS | SymbolFlags::ENUM
+        ));
+        if flags.intersects(
+            SymbolFlags::FUNCTION
+                | SymbolFlags::FUNCTION_SCOPED_VARIABLE
+                | SymbolFlags::ASSIGNMENT,
+        ) && flags.intersects(SymbolFlags::CLASS)
+        {
+            return Ok(());
+        }
+        let declarations = self.binder.symbol(result).declarations.clone();
+        let declaration = declarations.into_iter().find(|&declaration| {
+            let source = self.binder.source_of_node(declaration);
+            node_util::is_block_or_catch_scoped(source, declaration)
+                || matches!(
+                    self.kind_of(declaration),
+                    SyntaxKind::ClassDeclaration
+                        | SyntaxKind::ClassExpression
+                        | SyntaxKind::EnumDeclaration
+                )
+        });
+        let declaration = declaration
+            .expect("checkResolvedBlockScopedVariable could not find block-scoped declaration");
+        if self.node_flags(declaration) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0 {
+            return Ok(());
+        }
+        if self.is_block_scoped_name_declared_before_use(declaration, error_location)? {
+            return Ok(());
+        }
+        let declaration_source = self.binder.source_of_node(declaration);
+        let declaration_name = node_util::declaration_name_to_string(
+            declaration_source,
+            node_util::get_name_of_declaration(declaration_source, declaration),
+        );
+        let message = if flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
+            Some(&diagnostics::Block_scoped_variable_0_used_before_its_declaration)
+        } else if flags.intersects(SymbolFlags::CLASS) {
+            Some(&diagnostics::Class_0_used_before_its_declaration)
+        } else if flags.intersects(SymbolFlags::REGULAR_ENUM) {
+            Some(&diagnostics::Enum_0_used_before_its_declaration)
+        } else {
+            debug_assert!(flags.intersects(SymbolFlags::CONST_ENUM));
+            // getIsolatedModules(compilerOptions): option unmodeled ⇒
+            // false ⇒ no message.
+            None
+        };
+        if let Some(message) = message {
+            let related = self.create_error(
+                Some(declaration),
+                &diagnostics::_0_is_declared_here,
+                &[&declaration_name],
+            );
+            self.error_at_with_related(
+                Some(error_location),
+                message,
+                &[&declaration_name],
+                vec![tsrs2_diags::RelatedInfo {
+                    file_name: related.file_name,
+                    start: related.start,
+                    length: related.length,
+                    message: related.message,
+                }],
+            );
+        }
+        Ok(())
     }
 
     // ---- resolveEntityName ----
@@ -1168,10 +1462,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a2e483d12e4f94f17a890574405568a03060cad9c38b5df18836ef794ae69532
     /// tsc-span: _tsc.js:69389-69403
     ///
-    /// isWriteOnlyAccess is 5.5 expression machinery; every consumer
-    /// today sits in type positions, which are reads — isUse = true.
-    /// Failure caches unknownSymbol (returned as None here) after the
-    /// resolveName error path has fired, exactly once per node.
+    /// isUse = !isWriteOnlyAccess(node) (accessKind port, expr.rs —
+    /// live from 5.5a). Failure caches unknownSymbol (returned as None
+    /// here) after the resolveName error path has fired, exactly once
+    /// per node.
     pub(crate) fn get_resolved_symbol(&mut self, node: NodeId) -> Option<SymbolId> {
         if let Some(cached) = self.links.node(node).resolved_symbol.resolved() {
             return (cached != self.unknown_symbol).then_some(cached);
@@ -1182,12 +1476,13 @@ impl<'a> CheckerState<'a> {
         } else {
             let name = self.identifier_text_of(node).unwrap_or_default().to_owned();
             let message = self.cannot_find_name_diagnostic_for_name(node);
+            let is_use = !self.is_write_only_access(node);
             self.resolve_name(
                 Some(node),
                 &name,
                 SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE,
                 Some(message),
-                /*is_use*/ true,
+                is_use,
                 /*exclude_globals*/ false,
             )
         };
@@ -1638,4 +1933,14 @@ pub(crate) fn get_suggested_lib_for_non_existent_name(name: &str) -> Option<&'st
         .iter()
         .find(|(type_name, _)| *type_name == name)
         .map(|(_, lib)| *lib)
+}
+
+/// tsc-port: isPrimitiveTypeName @6.0.3
+/// tsc-hash: bca4359c333883add2e1cf67e043cd84811da2258483f0e2ab470b6b7f9d6bda
+/// tsc-span: _tsc.js:48334-48336
+fn is_primitive_type_name(name: &str) -> bool {
+    matches!(
+        name,
+        "any" | "string" | "number" | "boolean" | "never" | "unknown"
+    )
 }

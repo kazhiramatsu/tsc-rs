@@ -250,6 +250,17 @@ pub struct CheckerState<'a> {
     /// index iteration over the IndexSet.
     pub(crate) deferred_nodes: std::collections::HashMap<NodeId, indexmap::IndexSet<NodeId>>,
 
+    // ---- M4 5.5: expression-checking state ----
+    /// tsc typeofType (47100): union of the typeofNEFacts key literals
+    /// in map-insertion order (stableTypeOrdering is absent from
+    /// CompilerOptions, so the unsorted arm is the only one).
+    pub(crate) typeof_type: TypeId,
+    /// tsc contextualBindingPatterns (47408): pushed only by
+    /// getTypeFromBindingPattern under includePatternInType (5.5b) —
+    /// empty until then; checkIdentifier's nonInferrableAnyType
+    /// circularity arm reads it from 5.5a.
+    pub(crate) contextual_binding_patterns: Vec<NodeId>,
+
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
@@ -372,6 +383,8 @@ impl<'a> CheckerState<'a> {
             type_parameter_defaults_in_progress: Vec::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
+            typeof_type: TypeId(0),
+            contextual_binding_patterns: Vec::new(),
             has_global_augmentation: false,
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),
@@ -470,6 +483,28 @@ impl<'a> CheckerState<'a> {
         state.marker_sub_type_for_check = state
             .tables
             .create_synthesized_type_parameter(Some(state.marker_super_type_for_check));
+        // tsc-port: createTypeofType @6.0.3
+        // tsc-hash: 917b32b2a4664e0000258fed2360fb1d20e0d4d5f6bc9eb52b7369a4d0e21eb4
+        // tsc-span: _tsc.js:50136-50138
+        // (typeofNEFacts insertion order, 46376-46385.)
+        state.typeof_type = {
+            let members: Vec<TypeId> = [
+                "string",
+                "number",
+                "bigint",
+                "boolean",
+                "symbol",
+                "undefined",
+                "object",
+                "function",
+            ]
+            .iter()
+            .map(|name| state.tables.get_string_literal_type(name))
+            .collect();
+            state
+                .get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal)
+                .expect("literal unions cannot fail")
+        };
 
         // initializeTypeChecker slice (88732-88906): globals merge +
         // symbol-type seeds + amalgamated-duplicate flush.
@@ -835,6 +870,29 @@ impl<'a> CheckerState<'a> {
         args: &[&str],
     ) -> usize {
         let diagnostic = self.create_error(location, message, args);
+        if let Some(existing) = self
+            .diagnostics
+            .iter()
+            .position(|existing| *existing == diagnostic)
+        {
+            return existing;
+        }
+        self.diagnostics.push(diagnostic);
+        self.diagnostics.len() - 1
+    }
+
+    /// error + addRelatedInfo in one shot: the related info rides the
+    /// dedupe comparison (tsc's insertSorted equality compares related
+    /// information too — compare_diagnostics includes it).
+    pub fn error_at_with_related(
+        &mut self,
+        location: Option<NodeId>,
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+        related: Vec<tsrs2_diags::RelatedInfo>,
+    ) -> usize {
+        let mut diagnostic = self.create_error(location, message, args);
+        diagnostic.related = related;
         if let Some(existing) = self
             .diagnostics
             .iter()

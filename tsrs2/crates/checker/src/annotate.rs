@@ -2551,7 +2551,7 @@ impl<'a> CheckerState<'a> {
             .is_some_and(|expression| self.is_entity_name_expression(expression))
     }
 
-    fn has_static_modifier(&self, member: NodeId) -> bool {
+    pub(crate) fn has_static_modifier(&self, member: NodeId) -> bool {
         let modifiers = match self.data_of(member) {
             NodeData::PropertyDeclaration(data) => data.modifiers,
             NodeData::MethodDeclaration(data) => data.modifiers,

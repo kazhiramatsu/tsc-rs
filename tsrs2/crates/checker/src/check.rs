@@ -11,9 +11,11 @@
 //! FN) — the driver continues with the next element, so one
 //! out-of-slice construct never silences a whole file.
 //!
-//! Grammar checks (checkGrammarSourceFile, checkGrammarModifiers,
-//! checkGrammarStatementInAmbientContext, grammarErrorOnFirstToken
-//! sites) are M7-stub hooks: the slots exist, they emit nothing.
+//! Grammar checks: checkGrammarStatementInAmbientContext is LIVE from
+//! 5.5a (checkExpressionStatement's head; the EmptyStatement/Debugger
+//! and checkBlock routes share it); checkGrammarSourceFile and
+//! checkGrammarModifiers remain M7-stub hooks (slots exist, emit
+//! nothing).
 //!
 //! The unreachable-code slice (checkSourceElementUnreachable 86763 +
 //! the withinUnreachableCode save/restore) is elided whole: its
@@ -108,10 +110,64 @@ impl<'a> CheckerState<'a> {
     /// checkGrammarModifiers (89164) — M7-stub grammar hook.
     fn check_grammar_modifiers(&mut self, _node: NodeId) {}
 
-    /// checkGrammarStatementInAmbientContext (90341) — M7-stub grammar
-    /// hook (the EmptyStatement/DebuggerStatement arm and checkBlock's
-    /// Block arm route through it).
-    fn check_grammar_statement_in_ambient_context(&mut self, _node: NodeId) {}
+    /// tsc-port: checkGrammarStatementInAmbientContext @6.0.3
+    /// tsc-hash: c3ff8c8e4b3e50b58e8e6424b52b33c91680dae809a10c8901d04c1d586a447e
+    /// tsc-span: _tsc.js:90326-90341
+    ///
+    /// Live from 5.5a (checkExpressionStatement's head); the
+    /// EmptyStatement/DebuggerStatement arm and checkBlock's Block arm
+    /// were already routed here as 5.4 stub hooks.
+    fn check_grammar_statement_in_ambient_context(&mut self, node: NodeId) {
+        if self.node_flags(node) & tsrs2_types::NodeFlags::AMBIENT.bits() == 0 {
+            return;
+        }
+        let parent = self.parent_of(node);
+        let parent_kind = parent.map(|parent| self.kind_of(parent));
+        let parent_is_function_like_or_accessor = parent_kind.is_some_and(|kind| {
+            tsrs2_binder::node_util::is_function_like_kind(kind)
+                || matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor)
+        });
+        if !self
+            .links
+            .node(node)
+            .has_reported_statement_in_ambient_context
+            && parent_is_function_like_or_accessor
+        {
+            if self.grammar_error_on_first_token(
+                node,
+                &diagnostics::An_implementation_cannot_be_declared_in_ambient_contexts,
+                &[],
+            ) {
+                self.links.set_node_has_reported_statement_in_ambient_context(
+                    self.speculation_depth,
+                    node,
+                );
+            }
+            return;
+        }
+        if matches!(
+            parent_kind,
+            Some(SyntaxKind::Block) | Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
+        ) {
+            let parent = parent.expect("kind implies presence");
+            if !self
+                .links
+                .node(parent)
+                .has_reported_statement_in_ambient_context
+            {
+                if self.grammar_error_on_first_token(
+                    node,
+                    &diagnostics::Statements_are_not_allowed_in_ambient_contexts,
+                    &[],
+                ) {
+                    self.links.set_node_has_reported_statement_in_ambient_context(
+                        self.speculation_depth,
+                        parent,
+                    );
+                }
+            }
+        }
+    }
 
     /// tsc-port: checkSourceElement @6.0.3
     /// tsc-hash: c12862a5ae92efd7462578857c33c1ac3e25d6866d53c33c1166571161ecf821
@@ -224,9 +280,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::VariableStatement => {
                 self.source_element_stub("checkVariableStatement", "5.8")
             }
-            SyntaxKind::ExpressionStatement => {
-                self.source_element_stub("checkExpressionStatement", "5.5")
-            }
+            SyntaxKind::ExpressionStatement => self.check_expression_statement(node),
             SyntaxKind::IfStatement => self.source_element_stub("checkIfStatement", "5.8"),
             SyntaxKind::DoStatement => self.source_element_stub("checkDoStatement", "5.8"),
             SyntaxKind::WhileStatement => self.source_element_stub("checkWhileStatement", "5.8"),
@@ -309,6 +363,24 @@ impl<'a> CheckerState<'a> {
         for statement in self.nodes_of(statements) {
             self.check_source_element(Some(statement));
         }
+        Ok(())
+    }
+
+    /// tsc-port: checkExpressionStatement @6.0.3
+    /// tsc-hash: b4829bc7abe698be517a74f5f9fd6c9bf9c80b681ce0429dceee7a0221903beb
+    /// tsc-span: _tsc.js:83622-83625
+    ///
+    /// The 5.5 forcing seam: the ONLY new eager driver arm at 5.5a —
+    /// expression subtrees route through checkExpression from here.
+    fn check_expression_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_statement_in_ambient_context(node);
+        let NodeData::ExpressionStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let Some(expression) = data.expression else {
+            return Ok(());
+        };
+        self.check_expression(expression, tsrs2_types::CheckMode::NORMAL)?;
         Ok(())
     }
 
@@ -795,7 +867,17 @@ impl<'a> CheckerState<'a> {
                 unreachable!("checkAssertionDeferred registers at 5.5")
             }
             SyntaxKind::VoidExpression => {
-                unreachable!("void-expression deferral registers at 5.5")
+                // checkDeferredNode's void arm (86957): checkExpression
+                // of the operand — registration is live from 5.5a
+                // (checkVoidExpression).
+                let NodeData::VoidExpression(data) = self.data_of(node) else {
+                    unreachable!("kind/data agree");
+                };
+                let Some(expression) = data.expression else {
+                    return Ok(());
+                };
+                self.check_expression(expression, tsrs2_types::CheckMode::NORMAL)?;
+                Ok(())
             }
             SyntaxKind::BinaryExpression => {
                 unreachable!("instanceof deferral registers at 5.5/5.7")

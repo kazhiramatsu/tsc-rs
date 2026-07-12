@@ -5,6 +5,7 @@ pub mod check;
 pub mod constraints;
 pub mod engine;
 pub mod evaluate;
+pub mod expr;
 pub mod globals;
 pub mod indexed;
 pub mod instantiate;

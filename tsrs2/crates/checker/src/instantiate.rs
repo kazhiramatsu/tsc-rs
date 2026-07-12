@@ -2215,7 +2215,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isThisIdentifier @6.0.3
     /// tsc-hash: 3ce9be1698a352dc46a5450b942102356b37b37b66e694fb3b39e6eea72302f7
     /// tsc-span: _tsc.js:16698-16700
-    fn is_this_identifier(&self, node: NodeId) -> bool {
+    pub(crate) fn is_this_identifier(&self, node: NodeId) -> bool {
         self.kind_of(node) == SyntaxKind::Identifier
             && self.identifier_text_of(node) == Some("this")
     }

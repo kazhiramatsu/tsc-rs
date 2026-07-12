@@ -20,6 +20,9 @@ pub struct CompilerOptions {
     /// Gates the 7022/7023-family implicit-any circularity reports
     /// (reportCircularityError 56893, getReturnTypeOfSignature 59826).
     pub no_implicit_any: Option<bool>,
+    /// Gates checkThisExpression's 2683/7041-family implicit-this
+    /// reports; strict-family (read through strict_option_value).
+    pub no_implicit_this: Option<bool>,
     /// Selects CallableFunction/NewableFunction over Function in the
     /// global bootstrap (initializeTypeChecker 88809-88822).
     pub strict_bind_call_apply: Option<bool>,

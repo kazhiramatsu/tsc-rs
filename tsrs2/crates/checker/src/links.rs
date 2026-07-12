@@ -64,6 +64,12 @@ pub struct NodeLinks {
     /// TypeChecked bit lands with M4 5.4; later stages OR in their own
     /// bits (a flags word accumulates, unlike the write-once slots).
     pub check_flags: tsrs2_types::NodeCheckFlags,
+    /// tsc links.hasReportedStatementInAmbientContext
+    /// (checkGrammarStatementInAmbientContext 90341): the once-flag on
+    /// the offending statement OR its enclosing block. Stays false when
+    /// grammarErrorOnFirstToken is parse-diagnostics-suppressed, like
+    /// tsc's `links.x = grammarError(...)` assignment.
+    pub has_reported_statement_in_ambient_context: bool,
 }
 
 /// tsc SymbolLinks — the per-symbol subset M3 consumes.
@@ -334,6 +340,20 @@ impl LinksTables {
         let links = self.node.entry(id).or_default();
         links.check_flags =
             tsrs2_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
+    }
+
+    /// checkGrammarStatementInAmbientContext's once-flag (90344/90349):
+    /// set only when the grammar error actually emitted.
+    pub fn set_node_has_reported_statement_in_ambient_context(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.node
+            .entry(id)
+            .or_default()
+            .has_reported_statement_in_ambient_context = true;
     }
 
     pub fn set_node_enum_member_value(

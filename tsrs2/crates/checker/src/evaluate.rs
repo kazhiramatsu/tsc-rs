@@ -5,14 +5,11 @@
 //! here feeds enum declared types (annotate.rs) and enum relations
 //! (relate.rs isEnumTypeRelatedTo).
 //!
-//! Evaluator-unreachable arms of the declared-before-use walk (class,
-//! property, decorator, binding-element declarations) escape with
-//! Unsupported — the only `usage` shapes the evaluator produces are
-//! EnumMember and VariableDeclaration nodes, and the only
-//! `declaration` shapes are EnumMember and VariableDeclaration
-//! (evaluateEntityNameExpression gates the const arm on
-//! isVariableDeclaration). checkExpression-era callers (5.5) un-escape
-//! them.
+//! The declared-before-use walk gained its checkExpression-era arms at
+//! 5.5a (TDZ band: class + binding-element declarations, the IIFE /
+//! property-initializer / decorator usage sub-arms). Still escaped:
+//! property and parameter-property DECLARATIONS plus the static-block
+//! property-initialization probe — the 2729 consumer band (5.5d).
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::gen as diagnostics;
@@ -692,24 +689,45 @@ impl<'a> CheckerState<'a> {
         if declaration_pos <= usage_pos && !self.is_unrealized_this_property_use(declaration, usage)
         {
             return match self.kind_of(declaration) {
-                SyntaxKind::BindingElement => Err(Unsupported::new(
-                    "BindingElement declared-before-use (evaluator-unreachable; 5.5)",
-                )),
+                SyntaxKind::BindingElement => {
+                    // 47949-47955: same-pattern uses compare binding
+                    // elements positionally; other uses recurse on the
+                    // enclosing VariableDeclaration.
+                    let error_binding_element =
+                        self.get_ancestor_of_kind_inclusive(usage, SyntaxKind::BindingElement);
+                    if let Some(error_binding_element) = error_binding_element {
+                        return Ok(error_binding_element != declaration
+                            || self.pos_of(declaration) < self.pos_of(error_binding_element));
+                    }
+                    let variable_declaration = self
+                        .get_ancestor_of_kind_inclusive(
+                            declaration,
+                            SyntaxKind::VariableDeclaration,
+                        )
+                        .ok_or_else(|| {
+                            Unsupported::new(
+                                "binding element outside a variable declaration \
+                                 (parse recovery)",
+                            )
+                        })?;
+                    self.is_block_scoped_name_declared_before_use(variable_declaration, usage)
+                }
                 SyntaxKind::VariableDeclaration => Ok(!self
                     .is_immediately_used_in_initializer_of_block_scoped_variable(
                         declaration,
                         usage,
                     )?),
                 SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
-                    Err(Unsupported::new(
-                        "class declared-before-use (evaluator-unreachable; 5.5)",
-                    ))
+                    // 47957-47968: a same-position-band use is legal
+                    // unless it sits inside the class's own computed
+                    // property names or (standard) decorators.
+                    Ok(self.class_use_before_declaration_is_legal(declaration, usage))
                 }
                 SyntaxKind::PropertyDeclaration => Err(Unsupported::new(
-                    "property declared-before-use (evaluator-unreachable; 5.5)",
+                    "property declared-before-use (2729 band, 5.5d)",
                 )),
                 SyntaxKind::Parameter => Err(Unsupported::new(
-                    "parameter-property declared-before-use (evaluator-unreachable; 5.5)",
+                    "parameter-property declared-before-use (2729 band, 5.5d)",
                 )),
                 _ => Ok(true),
             };
@@ -737,6 +755,92 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         Ok(false)
+    }
+
+    /// The isClassLike arm of isBlockScopedNameDeclaredBeforeUse
+    /// (47957-47968). legacyDecorators == experimentalDecorators, so
+    /// the decorator disjuncts are live under the DEFAULT options.
+    fn class_use_before_declaration_is_legal(&self, declaration: NodeId, usage: NodeId) -> bool {
+        let legacy_decorators = self.options.experimental_decorators;
+        let container = {
+            let mut current = Some(usage);
+            let mut found = None;
+            while let Some(n) = current {
+                if n == declaration {
+                    break;
+                }
+                let hit = if self.kind_of(n) == SyntaxKind::ComputedPropertyName {
+                    self.parent_of(n)
+                        .and_then(|parent| self.parent_of(parent))
+                        .is_some_and(|grand| grand == declaration)
+                } else if !legacy_decorators && self.kind_of(n) == SyntaxKind::Decorator {
+                    self.parent_of(n).is_some_and(|parent| {
+                        if parent == declaration {
+                            return true;
+                        }
+                        let grand = self.parent_of(parent);
+                        match self.kind_of(parent) {
+                            SyntaxKind::MethodDeclaration
+                            | SyntaxKind::GetAccessor
+                            | SyntaxKind::SetAccessor
+                            | SyntaxKind::PropertyDeclaration => {
+                                grand.is_some_and(|grand| grand == declaration)
+                            }
+                            SyntaxKind::Parameter => grand
+                                .and_then(|grand| self.parent_of(grand))
+                                .is_some_and(|great| great == declaration),
+                            _ => false,
+                        }
+                    })
+                } else {
+                    false
+                };
+                if hit {
+                    found = Some(n);
+                    break;
+                }
+                current = self.parent_of(n);
+            }
+            found
+        };
+        let Some(container) = container else {
+            return true;
+        };
+        if !legacy_decorators && self.kind_of(container) == SyntaxKind::Decorator {
+            // Legal only when the use is wrapped in a non-IIFE
+            // function between it and the decorator.
+            let mut current = Some(usage);
+            while let Some(n) = current {
+                if n == container {
+                    return false;
+                }
+                if node_util::is_function_like_kind(self.kind_of(n))
+                    && self.get_immediately_invoked_function_expression(n).is_none()
+                {
+                    return true;
+                }
+                current = self.parent_of(n);
+            }
+            return false;
+        }
+        false
+    }
+
+    /// tsc getContainingClass (14487).
+    fn containing_class_of(&self, node: NodeId) -> Option<NodeId> {
+        node_util::get_containing_class(self.binder.source_of_node(node), node)
+    }
+
+    /// tsc getAncestor (12654) — nearest ancestor OR SELF of `kind`.
+    fn get_ancestor_of_kind_inclusive(&self, node: NodeId, kind: SyntaxKind) -> Option<NodeId> {
+        let mut current = Some(node);
+        while let Some(n) = current {
+            if self.kind_of(n) == kind {
+                return Some(n);
+            }
+            current = self.parent_of(n);
+        }
+        None
     }
 
     /// The 47947 pos-guard tail: `isPropertyDeclaration(declaration) &&
@@ -814,12 +918,14 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
             if node_util::is_function_like_kind(self.kind_of(node)) {
+                // findAncestor callback `!getIIFE(current)`: an IIFE
+                // keeps climbing (its body runs immediately), any other
+                // function-like defers the use — hit.
                 if self.get_immediately_invoked_function_expression(node).is_none() {
                     return Ok(true);
                 }
-                return Err(Unsupported::new(
-                    "IIFE-wrapped use-before-declaration walk (evaluator-unreachable; 5.5)",
-                ));
+                current = self.parent_of(node);
+                continue;
             }
             if self.kind_of(node) == SyntaxKind::ClassStaticBlockDeclaration {
                 // findAncestor callback: `true` stops the walk with a
@@ -833,17 +939,69 @@ impl<'a> CheckerState<'a> {
             if let Some(parent) = self.parent_of(node) {
                 if let NodeData::PropertyDeclaration(data) = self.data_of(parent) {
                     if data.initializer == Some(node) {
-                        return Err(Unsupported::new(
-                            "property-initializer use-before-declaration walk \
-                             (evaluator-unreachable; 5.5)",
-                        ));
+                        if self.has_static_modifier(parent) {
+                            if self.kind_of(declaration) == SyntaxKind::MethodDeclaration {
+                                return Ok(true);
+                            }
+                            if self.kind_of(declaration) == SyntaxKind::PropertyDeclaration
+                                && self.containing_class_of(usage)
+                                    == self.containing_class_of(declaration)
+                            {
+                                // isPropertyInitializedInStaticBlocks
+                                // needs getTypeOfSymbol — the 2729
+                                // consumer band (5.5d); TDZ
+                                // declarations are never properties.
+                                return Err(Unsupported::new(
+                                    "static-block property-initialization probe (2729 band, 5.5d)",
+                                ));
+                            }
+                        } else {
+                            let is_declaration_instance_property = self.kind_of(declaration)
+                                == SyntaxKind::PropertyDeclaration
+                                && !self.has_static_modifier(declaration);
+                            if !is_declaration_instance_property
+                                || self.containing_class_of(usage)
+                                    != self.containing_class_of(declaration)
+                            {
+                                return Ok(true);
+                            }
+                        }
                     }
                 }
                 if let NodeData::Decorator(data) = self.data_of(parent) {
                     if data.expression == Some(node) {
-                        return Err(Unsupported::new(
-                            "decorator use-before-declaration walk (evaluator-unreachable; 5.5)",
-                        ));
+                        // Recursion restarts the worker from the
+                        // decorated declaration's container; a false
+                        // answer QUITS the whole walk (tsc "quit").
+                        if let Some(decorated) = self.parent_of(parent) {
+                            match self.kind_of(decorated) {
+                                SyntaxKind::Parameter => {
+                                    let restart = self
+                                        .parent_of(decorated)
+                                        .and_then(|method| self.parent_of(method));
+                                    return match restart {
+                                        Some(restart) => self
+                                            .is_used_in_function_or_instance_property(
+                                                restart,
+                                                declaration,
+                                            ),
+                                        None => Ok(false),
+                                    };
+                                }
+                                SyntaxKind::MethodDeclaration => {
+                                    let restart = self.parent_of(decorated);
+                                    return match restart {
+                                        Some(restart) => self
+                                            .is_used_in_function_or_instance_property(
+                                                restart,
+                                                declaration,
+                                            ),
+                                        None => Ok(false),
+                                    };
+                                }
+                                _ => {}
+                            }
+                        }
                     }
                 }
             }
@@ -937,7 +1095,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getEnclosingBlockScopeContainer @6.0.3
     /// tsc-hash: 50444054506d87acb188cbcd3ed441a6c57e41352eda843ae6f0840bbbb1cc07
     /// tsc-span: _tsc.js:13844-13846
-    fn get_enclosing_block_scope_container(&self, node: NodeId) -> Option<NodeId> {
+    pub(crate) fn get_enclosing_block_scope_container(&self, node: NodeId) -> Option<NodeId> {
         let mut current = self.parent_of(node);
         while let Some(candidate) = current {
             let parent = self.parent_of(candidate);
@@ -981,7 +1139,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isInTypeQuery @6.0.3
     /// tsc-hash: 8785d47c907901c016e44b54eafcb54081198d3feba0af1af3d51531d273d52d
     /// tsc-span: _tsc.js:16701-16706
-    fn is_in_type_query(&self, node: NodeId) -> bool {
+    pub(crate) fn is_in_type_query(&self, node: NodeId) -> bool {
         let mut current = Some(node);
         while let Some(node) = current {
             match self.kind_of(node) {
@@ -997,7 +1155,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isInAmbientOrTypeNode @6.0.3
     /// tsc-hash: bcea35c9b9ab2de5c35c6aaea990ce25eb0171c7cf514a166a40c0c2675d60b2
     /// tsc-span: _tsc.js:69404-69406
-    fn is_in_ambient_or_type_node(&self, node: NodeId) -> bool {
+    pub(crate) fn is_in_ambient_or_type_node(&self, node: NodeId) -> bool {
         if self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0 {
             return true;
         }
@@ -1018,7 +1176,7 @@ impl<'a> CheckerState<'a> {
 
     // ---- small shared helpers ----
 
-    fn pos_of(&self, node: NodeId) -> u32 {
+    pub(crate) fn pos_of(&self, node: NodeId) -> u32 {
         self.binder.source_of_node(node).arena.node(node).pos
     }
 

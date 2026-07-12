@@ -3000,8 +3000,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f4bb3512724bb23e8f837910378f78347824481f39847034aec8d8fdf8cf6f3b
     /// tsc-span: _tsc.js:79253-79255
     ///
-    /// M3 slice: synthetic Readonly check flags + readonly property
-    /// modifiers; accessors, const variables and enum members are M4.
+    /// Full port (the M3 property-modifier slice widened at 5.5a with
+    /// its checkIdentifier/delete consumers): readonly check flags,
+    /// readonly properties (through the 5.3e modifier-flags reader),
+    /// const/using variables, get-only accessors, enum members.
+    /// isReadonlyAssignmentDeclaration (Object.defineProperty shapes)
+    /// is the JS band — constant-false in TS files.
     pub fn is_readonly_symbol(&self, symbol: SymbolId) -> bool {
         if self
             .get_check_flags(symbol)
@@ -3009,31 +3013,39 @@ impl<'a> CheckerState<'a> {
         {
             return true;
         }
-        if !self.symbol_flags(symbol).intersects(SymbolFlags::PROPERTY) {
-            return false;
-        }
-        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
-            return false;
-        };
-        let modifiers = match &self
-            .binder
-            .source_of_node(declaration)
-            .arena
-            .node(declaration)
-            .data
+        let flags = self.symbol_flags(symbol);
+        if flags.intersects(SymbolFlags::PROPERTY)
+            && self
+                .get_declaration_modifier_flags_from_symbol(symbol)
+                .intersects(ModifierFlags::READONLY)
         {
-            NodeData::PropertySignature(data) => data.modifiers,
-            NodeData::Parameter(data) => data.modifiers,
-            _ => None,
-        };
-        let Some(modifiers) = modifiers else {
-            return false;
-        };
-        self.binder
-            .node_array(modifiers)
-            .nodes
-            .iter()
-            .any(|&m| self.kind_of(m) == SyntaxKind::ReadonlyKeyword)
+            return true;
+        }
+        if flags.intersects(SymbolFlags::VARIABLE)
+            && self.get_declaration_node_flags_from_symbol(symbol)
+                & (tsrs2_types::NodeFlags::CONST.bits() | tsrs2_types::NodeFlags::USING.bits())
+                != 0
+        {
+            return true;
+        }
+        if flags.intersects(SymbolFlags::ACCESSOR) && !flags.intersects(SymbolFlags::SET_ACCESSOR)
+        {
+            return true;
+        }
+        flags.intersects(SymbolFlags::ENUM_MEMBER)
+    }
+
+    /// tsc getDeclarationNodeFlagsFromSymbol (13712): combined node
+    /// flags of the value declaration.
+    fn get_declaration_node_flags_from_symbol(&self, symbol: SymbolId) -> i32 {
+        match self.binder.symbol(symbol).value_declaration {
+            Some(declaration) => tsrs2_binder::node_util::get_combined_node_flags(
+                self.binder.source_of_node(declaration),
+                declaration,
+            )
+            .bits(),
+            None => 0,
+        }
     }
 
     /// getDeclarationModifierFlagsFromSymbol (17436), M3 slice: type
