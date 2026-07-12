@@ -17,6 +17,7 @@ mod js_grammar;
 pub mod links;
 pub mod literals;
 pub mod merge;
+pub mod operators;
 mod plain_js_errors;
 pub mod program;
 pub mod relate;

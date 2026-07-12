@@ -870,9 +870,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::TypeAssertionExpression
             | SyntaxKind::AsExpression
-            | SyntaxKind::ParenthesizedExpression => {
-                unreachable!("checkAssertionDeferred registers at 5.5")
-            }
+            | SyntaxKind::ParenthesizedExpression => self.check_assertion_deferred(node),
             SyntaxKind::VoidExpression => {
                 // checkDeferredNode's void arm (86957): checkExpression
                 // of the operand — registration is live from 5.5a
@@ -983,6 +981,29 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
+                // A failed relation whose SOURCE is the global
+                // Object type selects between a 2696 head (when an
+                // override-flavored deep incompatibility suppressed
+                // the generic head: missing props, method-return
+                // 2201-family) and a 2322 head with 2696 in the
+                // chain TAIL (signature mismatches). The selection
+                // needs the overrideNextErrorInfo tracking (T2 error
+                // machinery) — escape rather than guess (corpus:
+                // parserAutomaticSemicolonInsertion1 wants 2322,
+                // objectTypeHidingMembersOfObjectAssignmentCompat2
+                // wants 2696).
+                if self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
+                    && self.tables.type_of(source).symbol.is_some()
+                    && source == self.global_object_type()?
+                {
+                    return Err(Unsupported::new(
+                        "Object-source relation head selection \
+                         (overrideNextErrorInfo tracking, T2)",
+                    ));
+                }
+                if self.report_unmatched_property_head(source, target, error_node)? {
+                    return Ok(related);
+                }
                 let source_text = self.type_to_string_slice(source)?;
                 let target_text = self.type_to_string_slice(target)?;
                 if source_text == target_text {
@@ -994,6 +1015,155 @@ impl<'a> CheckerState<'a> {
                 // reportRelationError 65068-65072: a literal source
                 // generalizes to its base primitive unless the target
                 // could accept singletons.
+                let source_text = if !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
+                    && self.is_literal_type(source)
+                    && !self.type_could_have_top_level_singleton_types(target)?
+                {
+                    let generalized = self.get_base_type_of_literal_type(source)?;
+                    self.type_to_string_slice(generalized)?
+                } else {
+                    source_text
+                };
+                self.error_at(Some(error_node), head_message, &[&source_text, &target_text]);
+            }
+        }
+        Ok(related)
+    }
+
+    /// tsc-port: reportUnmatchedProperty @6.0.3 (the head-override
+    /// half)
+    /// tsc-hash: 2273740e1e468507c9fe6968bfee394b8d0511c7fcaf96b850f3ea2795413fbd
+    /// tsc-span: _tsc.js:66708-66760
+    ///
+    /// propertiesRelatedTo reports missing REQUIRED properties before
+    /// anything else and overrideNextErrorInfo suppresses the generic
+    /// head: the missing-property message IS the diagnostic code
+    /// (2741 single / 2739 list / 2740 list+more, related 2728 on the
+    /// single property's declaration). The 5.4-slice twin runs it as
+    /// a pre-head selection on failed OBJECT→OBJECT relations — the
+    /// union/intersection and primitive paths never reach the
+    /// properties walk and keep the generic head (oracle: unionDE = c
+    /// stays 2322). tsc stamps canonicalHead (the skipped 2322) on
+    /// these for compare/dedupe; elided here — no corpus observable
+    /// until the T2 error machinery.
+    fn report_unmatched_property_head(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        error_node: NodeId,
+    ) -> CheckResult2<bool> {
+        if !self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
+            || !self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
+        {
+            return Ok(false);
+        }
+        let mut unmatched: Vec<SymbolId> = Vec::new();
+        for target_prop in self.get_properties_of_type(target)? {
+            let flags = self.binder.symbol(target_prop).flags;
+            if flags.intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+                || self
+                    .get_check_flags(target_prop)
+                    .intersects(tsrs2_types::CheckFlags::PARTIAL)
+            {
+                continue;
+            }
+            let name = self.binder.symbol(target_prop).escaped_name.clone();
+            // isStaticPrivateIdentifierProperty skip: private names
+            // never surface in the missing-property head.
+            if name.starts_with("__#") {
+                continue;
+            }
+            if self.get_property_of_type_full(source, &name)?.is_none() {
+                unmatched.push(target_prop);
+            }
+        }
+        if unmatched.is_empty() {
+            return Ok(false);
+        }
+        let source_text = self.type_to_string_slice(source)?;
+        let target_text = self.type_to_string_slice(target)?;
+        if unmatched.len() == 1 {
+            let prop = unmatched[0];
+            let prop_name = tsrs2_binder::unescape_leading_underscores(
+                &self.binder.symbol(prop).escaped_name,
+            )
+            .to_owned();
+            let declaration = self
+                .binder
+                .symbol(prop)
+                .declarations
+                .first()
+                .copied();
+            let related = declaration
+                .map(|declaration| {
+                    self.related_info_for_node(
+                        declaration,
+                        &diagnostics::_0_is_declared_here,
+                        &[&prop_name],
+                    )
+                })
+                .into_iter()
+                .collect();
+            self.error_at_with_related(
+                Some(error_node),
+                &diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2,
+                &[&prop_name, &source_text, &target_text],
+                related,
+            );
+            return Ok(true);
+        }
+        let names: Vec<String> = unmatched
+            .iter()
+            .map(|&prop| {
+                tsrs2_binder::unescape_leading_underscores(
+                    &self.binder.symbol(prop).escaped_name,
+                )
+                .to_owned()
+            })
+            .collect();
+        if unmatched.len() > 5 {
+            let head: Vec<String> = names[..4].to_vec();
+            let more = (unmatched.len() - 4).to_string();
+            self.error_at(
+                Some(error_node),
+                &diagnostics::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
+                &[&source_text, &target_text, &head.join(", "), &more],
+            );
+        } else {
+            self.error_at(
+                Some(error_node),
+                &diagnostics::Type_0_is_missing_the_following_properties_from_type_1_2,
+                &[&source_text, &target_text, &names.join(", ")],
+            );
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: checkTypeComparableTo @6.0.3 (5.4-slice shape)
+    /// tsc-hash: e58eb977753b557ce9b0c944ca7602c6b1b4981cd57f5ce5d3181ab726e31d4d
+    /// tsc-span: _tsc.js:63937-63939
+    ///
+    /// The comparable twin of check_type_assignable_to above: HEAD
+    /// message only, reportRelationError argument shaping (literal
+    /// generalization + identical-name escape), chain tail elided.
+    pub(crate) fn check_type_comparable_to(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        error_node: Option<NodeId>,
+        head_message: &'static DiagnosticMessage,
+    ) -> CheckResult2<bool> {
+        let related = self.is_type_comparable_to(source, target)?;
+        if !related {
+            if let Some(error_node) = error_node {
+                let source_text = self.type_to_string_slice(source)?;
+                let target_text = self.type_to_string_slice(target)?;
+                if source_text == target_text {
+                    return Err(Unsupported::new(
+                        "relation-error display for identically-named types \
+                         (getTypeNameForErrorDisplay UseFullyQualifiedType)",
+                    ));
+                }
                 let source_text = if !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
                     && self.is_literal_type(source)
                     && !self.type_could_have_top_level_singleton_types(target)?

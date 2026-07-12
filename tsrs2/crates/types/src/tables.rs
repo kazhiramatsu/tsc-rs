@@ -1552,16 +1552,26 @@ impl TypeTables {
         let source_type = self.type_of(source);
         let (flags, symbol, object_flags) =
             (source_type.flags, source_type.symbol, source_type.object_flags);
-        let TypeData::Reference {
-            target,
-            resolved_type_arguments,
-        } = &source_type.data
-        else {
-            panic!("cloneTypeReference over a non-reference");
-        };
-        let data = TypeData::Reference {
-            target: *target,
-            resolved_type_arguments: resolved_type_arguments.clone(),
+        let data = match &source_type.data {
+            TypeData::Reference {
+                target,
+                resolved_type_arguments,
+            } => TypeData::Reference {
+                target: *target,
+                resolved_type_arguments: resolved_type_arguments.clone(),
+            },
+            // A zero-arity tuple IS its target (createTupleType 61224
+            // returns the tupleTarget for arity 0); the target
+            // self-aliases (target = self, resolvedTypeArguments =
+            // typeParameters = []), so the clone reads through the
+            // same aliasing tsc's dynamic fields encode.
+            TypeData::TupleTarget(data) if data.element_flags.is_empty() => {
+                TypeData::Reference {
+                    target: source,
+                    resolved_type_arguments: Some(Box::from([])),
+                }
+            }
+            _ => panic!("cloneTypeReference over a non-reference"),
         };
         let id = self.create_type(flags, data);
         self.type_mut(id).object_flags = object_flags;

@@ -1,5 +1,5 @@
 [t0]
-rate = 0.0663
+rate = 0.0822
 allowed_regression = 0.0
 
 [t1]
@@ -7,7 +7,7 @@ rate = 0.0
 allowed_regression = 0.0
 
 [t0-2xxx]
-rate = 0.0293
+rate = 0.0649
 allowed_regression = 0.0
 
 [t0-syntactic]

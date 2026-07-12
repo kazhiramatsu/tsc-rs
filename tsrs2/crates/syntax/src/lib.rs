@@ -8,6 +8,7 @@ pub mod kind;
 pub mod nodes;
 mod parser;
 pub mod scanner;
+pub mod tokens;
 
 use tsrs2_diags::{DiagnosticList, LineMap};
 

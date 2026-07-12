@@ -198,8 +198,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// The isolatedModules string arm (85646-85651, diagnostic 18055)
     /// is elided with the option. The non-constant fallback
-    /// (85654: checkTypeAssignableTo over checkExpression) is
-    /// expression checking — Unsupported until 5.5.
+    /// (85654: checkTypeAssignableTo over checkExpression) is live
+    /// since 5.5e.
     fn compute_constant_enum_member_value(
         &mut self,
         member: NodeId,
@@ -247,10 +247,17 @@ impl<'a> CheckerState<'a> {
                         &[],
                     );
                 } else {
-                    return Err(Unsupported::new(
-                        "non-constant enum member initializer (checkExpression + \
-                         checkTypeAssignableTo, M4 5.5)",
-                    ));
+                    // 85654: checkTypeAssignableTo(checkExpression(
+                    // initializer), numberType, initializer, 2553-head).
+                    let source =
+                        self.check_expression(initializer, tsrs2_types::CheckMode::NORMAL)?;
+                    let number = self.tables.intrinsics.number;
+                    self.check_type_assignable_to(
+                        source,
+                        number,
+                        Some(initializer),
+                        &diagnostics::Type_0_is_not_assignable_to_type_1_as_required_for_computed_enum_member_values,
+                    )?;
                 }
             }
         }
@@ -260,7 +267,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: evaluate @6.0.3
     /// tsc-hash: cf8c7011795daf924318d70c10b46875e0671880a842c17716c1ab33dcfb2a9a
     /// tsc-span: _tsc.js:19383-19475
-    fn evaluate(
+    pub(crate) fn evaluate(
         &mut self,
         expr: NodeId,
         location: Option<NodeId>,

@@ -3170,7 +3170,7 @@ impl<'a> CheckerState<'a> {
 
     /// getDeclaredTypeOfSymbol's class/interface slice for base
     /// resolution (the full dispatch is getDeclaredTypeOfSymbol 57376).
-    fn get_declared_type_of_symbol_slice(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_declared_type_of_symbol_slice(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         if self
             .symbol_flags(symbol)
             .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
@@ -7109,28 +7109,24 @@ mod enum_tests {
     }
 
     #[test]
-    fn enum_self_reference_reports_2565_then_escapes_to_expression_checking() {
+    fn enum_self_reference_reports_2565_then_checks_the_initializer_expression() {
         with_state("enum E { A = A }\ndeclare var a: E.A;\n", |state| {
             let annotation = find_probe_annotation(state.binder.source(0), "a")
                 .expect("declared var with annotation");
             // The self-reference evaluates to no value, so tsc falls
             // into checkExpression + checkTypeAssignableTo (85654) —
-            // an honest 5.5 escape here. The 2565 emitted BEFORE the
-            // escape stays (and dedupes on recompute).
-            let reason = state
+            // live since 5.5e. The member type is number-based, so the
+            // assignable check passes and the oracle total is the one
+            // 2565 (oracle-pinned 2026-07-13).
+            state
                 .get_type_from_type_node(annotation)
-                .expect_err("non-constant initializers escape to 5.5")
-                .reason;
-            assert!(reason.contains("non-constant enum member initializer"), "{reason}");
+                .expect("computed enum member checks its initializer since 5.5e");
             let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
             assert_eq!(codes, vec![2565]);
-            // The once-flag reverted: a second force retries and lands
-            // the SAME way (idempotent, one deduped 2565).
-            let again = state
+            // Recompute is idempotent (the 2565 dedupes).
+            state
                 .get_type_from_type_node(annotation)
-                .expect_err("still escapes")
-                .reason;
-            assert!(again.contains("non-constant enum member initializer"), "{again}");
+                .expect("recompute stays clean");
             let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
             assert_eq!(codes, vec![2565]);
         });

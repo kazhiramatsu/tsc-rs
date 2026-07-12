@@ -6077,7 +6077,10 @@ impl<'text> Parser<'text> {
     fn parse_string_literal(&mut self) -> NodeId {
         let pos = self.node_pos();
         let end = self.scanner.pos();
-        let text = self.current_token_text();
+        // Like parse_template_fragment: the empty cooked text of `""`
+        // is legitimate — current_token_text's missing-token fallback
+        // would turn it into the token NAME.
+        let text = self.scanner.token_value().to_owned();
         let id = self.arena.alloc_node(
             NodeData::StringLiteral(StringLiteralData { text }),
             pos,
@@ -6133,7 +6136,8 @@ impl<'text> Parser<'text> {
     fn parse_no_substitution_template_literal(&mut self) -> NodeId {
         let pos = self.node_pos();
         let end = self.scanner.pos();
-        let text = self.current_token_text();
+        // Empty cooked text (``) is legitimate — see parse_template_fragment.
+        let text = self.scanner.token_value().to_owned();
         let id = self.arena.alloc_node(
             NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData { text }),
             pos,

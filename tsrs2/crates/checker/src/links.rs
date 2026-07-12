@@ -64,6 +64,12 @@ pub struct NodeLinks {
     /// TypeChecked bit lands with M4 5.4; later stages OR in their own
     /// bits (a flags word accumulates, unlike the write-once slots).
     pub check_flags: tsrs2_types::NodeCheckFlags,
+    /// tsc links.assertionExpressionType (checkAssertionWorker 77920):
+    /// the operand type stashed for checkAssertionDeferred.
+    pub assertion_expression_type: Option<TypeId>,
+    /// tsc links.instantiationExpressionTypes (getInstantiationExpressionType
+    /// 77980): exprType.id → instantiated result, STORE-BEFORE-ERROR.
+    pub instantiation_expression_types: Option<std::collections::HashMap<TypeId, TypeId>>,
     /// tsc links.hasReportedStatementInAmbientContext
     /// (checkGrammarStatementInAmbientContext 90341): the once-flag on
     /// the offending statement OR its enclosing block. Stays false when
@@ -247,6 +253,9 @@ pub struct TypeLinks {
     /// (getPromisedTypeOfPromise 82316) — the memoized `then`
     /// onfulfilled parameter type.
     pub promised_type_of_promise: Option<TypeId>,
+    /// tsc PromiseOrAwaitedType.awaitedTypeOfType
+    /// (getAwaitedTypeNoAlias 82435) — the memoized awaited unwrap.
+    pub awaited_type_of_type: Option<TypeId>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -570,6 +579,50 @@ impl LinksTables {
         links.promised_type_of_promise = Some(promised);
     }
 
+    pub fn set_type_awaited_type_of_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        awaited: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.awaited_type_of_type.is_none(),
+            "awaitedTypeOfType rewritten"
+        );
+        links.awaited_type_of_type = Some(awaited);
+    }
+
+    /// checkAssertionWorker's links.assertionExpressionType stamp —
+    /// re-checks overwrite (tsc reassigns freely).
+    pub fn set_node_assertion_expression_type(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        ty: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.node.entry(id).or_default().assertion_expression_type = Some(ty);
+    }
+
+    /// getInstantiationExpressionType's STORE-BEFORE-ERROR map insert.
+    pub fn set_node_instantiation_expression_type(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        expr_type: TypeId,
+        result: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.node
+            .entry(id)
+            .or_default()
+            .instantiation_expression_types
+            .get_or_insert_with(Default::default)
+            .insert(expr_type, result);
+    }
+
     /// tsc `symbol.isReferenced = SymbolFlags.All` — freely repeatable.
     pub fn set_symbol_is_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
         Self::assert_writable(speculation_depth);
@@ -679,6 +732,11 @@ impl LinksTables {
         );
     }
 
+    /// tsc reassigns links.resolvedSymbol unconditionally on every
+    /// checkPropertyAccessExpression run — re-checks (the compound
+    /// assignment writeOnly pass 80311, the condition-walker forcing
+    /// 87443) legitimately rewrite the SAME value. A different value
+    /// would break memo stability and still panics.
     pub fn set_node_resolved_symbol(
         &mut self,
         speculation_depth: u32,
@@ -686,10 +744,14 @@ impl LinksTables {
         value: SymbolId,
     ) {
         Self::assert_writable(speculation_depth);
-        Self::write_slot(
-            &mut self.node.entry(id).or_default().resolved_symbol,
-            LinkSlot::Resolved(value),
-        );
+        let slot = &mut self.node.entry(id).or_default().resolved_symbol;
+        match &*slot {
+            LinkSlot::Resolved(existing) if *existing == value => {}
+            LinkSlot::Resolved(existing) => {
+                panic!("resolvedSymbol rewritten with a DIFFERENT value: {existing:?} -> {value:?}")
+            }
+            _ => *slot = LinkSlot::Resolved(value),
+        }
     }
 
     pub fn set_node_outer_type_parameters(

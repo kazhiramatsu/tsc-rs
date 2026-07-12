@@ -277,7 +277,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TrueKeyword => Ok(self.tables.intrinsics.true_fresh),
             SyntaxKind::FalseKeyword => Ok(self.tables.intrinsics.false_fresh),
             SyntaxKind::TemplateExpression => {
-                self.expression_stub("checkTemplateExpression", "5.5e")
+                self.check_template_expression(node)
             }
             SyntaxKind::RegularExpressionLiteral => {
                 self.check_regular_expression_literal(node)
@@ -316,30 +316,22 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::TypeOfExpression => self.check_type_of_expression(node),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
-                self.expression_stub("checkAssertion", "5.5e")
+                self.check_assertion(node, check_mode)
             }
             SyntaxKind::NonNullExpression => self.check_non_null_assertion(node),
             SyntaxKind::ExpressionWithTypeArguments => {
-                self.expression_stub("checkExpressionWithTypeArguments", "5.5e")
+                self.check_expression_with_type_arguments(node)
             }
-            SyntaxKind::SatisfiesExpression => {
-                self.expression_stub("checkSatisfiesExpression", "5.5e")
-            }
-            SyntaxKind::MetaProperty => self.expression_stub("checkMetaProperty", "5.5e"),
+            SyntaxKind::SatisfiesExpression => self.check_satisfies_expression(node),
+            SyntaxKind::MetaProperty => self.check_meta_property(node),
             SyntaxKind::DeleteExpression => self.check_delete_expression(node),
             SyntaxKind::VoidExpression => self.check_void_expression(node),
             SyntaxKind::AwaitExpression => self.expression_stub("checkAwaitExpression", "5.5f"),
-            SyntaxKind::PrefixUnaryExpression => {
-                self.expression_stub("checkPrefixUnaryExpression", "5.5e")
-            }
-            SyntaxKind::PostfixUnaryExpression => {
-                self.expression_stub("checkPostfixUnaryExpression", "5.5e")
-            }
-            SyntaxKind::BinaryExpression => {
-                self.expression_stub("checkBinaryExpression (trampoline)", "5.5e")
-            }
+            SyntaxKind::PrefixUnaryExpression => self.check_prefix_unary_expression(node),
+            SyntaxKind::PostfixUnaryExpression => self.check_postfix_unary_expression(node),
+            SyntaxKind::BinaryExpression => self.check_binary_expression(node, check_mode),
             SyntaxKind::ConditionalExpression => {
-                self.expression_stub("checkConditionalExpression", "5.5e")
+                self.check_conditional_expression(node, check_mode)
             }
             SyntaxKind::SpreadElement => {
                 self.expression_stub("checkSpreadExpression ([ITER])", "5.5c")
@@ -3039,7 +3031,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isValidConstAssertionArgument @6.0.3
     /// tsc-hash: ac9960346501b930bbf39f79520b454dffdd55a38673ecea6208adc031e4fafc
     /// tsc-span: _tsc.js:77877-77906
-    fn is_valid_const_assertion_argument(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn is_valid_const_assertion_argument(&mut self, node: NodeId) -> CheckResult2<bool> {
         match self.kind_of(node) {
             SyntaxKind::StringLiteral
             | SyntaxKind::NoSubstitutionTemplateLiteral
@@ -3927,12 +3919,13 @@ mod tests {
 
     #[test]
     fn out_of_slice_expressions_abandon_only_their_statement() {
-        // Statement 2 is a binary expression (5.5e stub): its whole
-        // statement is FN — including the 2304 the oracle reports for
-        // its operand. Statement 3 still checks.
+        // Statement 2's binary WORKER arm is a 5.5e stub, but the
+        // trampoline checks both operands first — the operand's 2304
+        // (oracle-exact) lands before the escape contains the rest of
+        // the statement. Statement 3 still checks.
         assert_eq!(
             checked_rows("let a: number = 1;\na + missingName;\nmissingName2;\n"),
-            [(2304, 36, 12)]
+            [(2304, 23, 11), (2304, 36, 12)]
         );
     }
 

@@ -269,7 +269,7 @@ impl<'a> CheckerState<'a> {
     /// unknown verdicts on narrowable receivers therefore CONTAIN
     /// until M5; literal receivers (`null.foo`, `(null).foo`) cannot
     /// be narrowed and report exactly.
-    fn receiver_may_be_flow_narrowed(&self, node: NodeId) -> bool {
+    pub(crate) fn receiver_may_be_flow_narrowed(&self, node: NodeId) -> bool {
         let mut core = node;
         loop {
             match self.data_of(core) {
@@ -729,7 +729,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: forEachEnclosingClass @6.0.3
     /// tsc-hash: 473286bbde1a0ff408905a5d5f0833cd6c37d75ca6ba96c30b069679d9184ced
     /// tsc-span: _tsc.js:87230-87251
-    fn get_containing_class_of(&self, node: NodeId) -> Option<NodeId> {
+    pub(crate) fn get_containing_class_of(&self, node: NodeId) -> Option<NodeId> {
         node_util::get_containing_class(self.binder.source_of_node(node), node)
     }
 
@@ -2515,7 +2515,7 @@ impl<'a> CheckerState<'a> {
     /// The unchecked-JS suggestion flavor (2568) is JS-band; TS always
     /// reports as an error. Element-side callers do NOT come through
     /// here (their 2551 has no related 2728 — oracle-pinned).
-    fn report_nonexistent_property(
+    pub(crate) fn report_nonexistent_property(
         &mut self,
         prop_node: NodeId,
         containing_type: TypeId,
@@ -2740,7 +2740,7 @@ impl<'a> CheckerState<'a> {
     /// consumer slice — errorNode/thisTypeForErrorOut stay 5.5f)
     /// tsc-hash: 34400f2efd43255c842416a05dbe9f0b0e3f9f09d13162db7e61e10a0f59541f
     /// tsc-span: _tsc.js:82316-82376
-    fn get_promised_type_of_promise(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+    pub(crate) fn get_promised_type_of_promise(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
             return Ok(None);
         }
@@ -2835,7 +2835,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: allTypesAssignableToKind @6.0.3
     /// tsc-hash: 25de6c560affc5674fb9d5ffc29722e879ac6d1ce99705bcee879c7b4e389d58
     /// tsc-span: _tsc.js:79537-79539
-    fn all_types_assignable_to_kind(
+    pub(crate) fn all_types_assignable_to_kind(
         &mut self,
         source: TypeId,
         kind: TypeFlags,

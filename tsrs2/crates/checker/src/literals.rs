@@ -1033,7 +1033,7 @@ impl<'a> CheckerState<'a> {
 
     /// createAnonymousType (50208) over already-resolved members —
     /// the literals-band constructor (fresh TypeId per call).
-    fn make_resolved_anonymous_type(
+    pub(crate) fn make_resolved_anonymous_type(
         &mut self,
         symbol: Option<SymbolId>,
         members: SymbolTable,
@@ -1471,7 +1471,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isSpreadableProperty @6.0.3
     /// tsc-hash: 252c8c781a944cd84d471f21fdd7ed2cd01c47b19a28548a94ad017c8dbdb2a1
     /// tsc-span: _tsc.js:63040-63043
-    fn is_spreadable_property(&self, prop: SymbolId) -> bool {
+    pub(crate) fn is_spreadable_property(&self, prop: SymbolId) -> bool {
         let symbol = self.binder.symbol(prop);
         let has_private_identifier = symbol.declarations.iter().any(|&decl| {
             // isPrivateIdentifierClassElementDeclaration (16472):
@@ -1506,7 +1506,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSpreadSymbol @6.0.3
     /// tsc-hash: 081b8438c5ab6cb37771a452a7f336cc67ee020d921994fcd1e6cc09100e97f9
     /// tsc-span: _tsc.js:63044-63056
-    fn get_spread_symbol(&mut self, prop: SymbolId, readonly: bool) -> CheckResult2<SymbolId> {
+    pub(crate) fn get_spread_symbol(&mut self, prop: SymbolId, readonly: bool) -> CheckResult2<SymbolId> {
         let prop_flags = self.binder.symbol(prop).flags;
         let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
             && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);

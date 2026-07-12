@@ -31,6 +31,10 @@ pub struct CompilerOptions {
     pub exact_optional_property_types: Option<bool>,
     /// Consumed by bindCaseBlock (clause.fallthroughFlowNode).
     pub no_fallthrough_cases_in_switch: Option<bool>,
+    /// tsc allowUnreachableCode: undefined = warn-as-suggestion for
+    /// unreachable statements, but the comma-operator 2695 gate reads
+    /// plain falsiness (`!compilerOptions.allowUnreachableCode`).
+    pub allow_unreachable_code: Option<bool>,
     /// tsc checkJs: an EXPLICIT false turns bind/check diagnostics off
     /// for JS files entirely (canIncludeBindAndCheckDiagnostics —
     /// isPlainJsFile requires checkJs === undefined); true is the
