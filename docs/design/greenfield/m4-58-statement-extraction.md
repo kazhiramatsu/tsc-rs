@@ -8,11 +8,10 @@ in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.8
 HERE. This doc's slicing (§15, commits `m4 5.8a-…`) supersedes the
 steps doc's single-commit line.
 
-Status: §§0-7 extracted (driver, late-binding wall, variables,
+Status: §§0-8 extracted (driver, late-binding wall, variables,
 control statements, iteration protocol, member/function
-declarations, class band, interface/typealias/enum-driver notes).
-REMAINING TO EXTRACT (§§8-11 placeholder at the tail): enum drivers
-L85767-85839, module band L85840-86028, alias/import/export
+declarations, class band, interface/typealias/enum, module band).
+REMAINING TO EXTRACT (§§9-11 placeholder at the tail): alias/import/export
 L86029-86504 + resolveAlias L49116 family + checkExternalModule
 Exports consumers, decorators L82580-82783 +
 getDecoratorCallSignature L78699, type-node arms L81838-82023,
@@ -1408,10 +1407,108 @@ name-reserved (Enum_name_cannot_be_0 rides collisions §2),
 computeEnumMemberValues drive, enum-merging rules (2432/2567/2433),
 const-enum member forcing. Anchors recorded.
 
-## §§8-11 EXTRACTION PENDING (anchors + owners recorded in Status)
+## §8 Enum drivers + module band
 
-Enum drivers (L85767-85839 tail),
-module (L85840 checkModuleDeclaration + augmentation elements),
+### checkEnumDeclaration (L85767) — entirely LAZY (worker L85770)
+grammar-modifiers hook; checkCollisionsForDeclarationName (§2 —
+Enum_name_cannot_be_0 rides inside); checkExportsOnMergedDeclarations
+(§5); members forEach checkSourceElement → checkEnumMember;
+erasableSyntaxOnly row (option unmodeled → dead, note);
+computeEnumMemberValues — ALREADY PORTED (evaluate.rs 5.3b; its
+rows go live on this driver path — verify the isolatedModules-gated
+rows inside stay dead w/ the option note); node === FIRST enum
+declaration:
+- >1 declarations: const/non-const mismatch per declaration →
+  Enum_declarations_must_all_be_const_or_non_const AT each offending
+  declaration name;
+- cross-declaration rule: among enum declarations WITH members,
+  every first member lacking an initializer after the first such
+  declaration → In_an_enum_with_multiple_declarations_only_one_
+  declaration_can_omit_an_initializer_for_its_first_enum_element AT
+  that first member's name (declaration order; single-latch bool).
+
+### checkEnumMember (L85810)
+private-identifier name → An_enum_member_cannot_be_named_with_a_
+private_identifier; initializer → checkExpression (idempotent over
+the evaluator's checkExpressionCached demand).
+
+### checkModuleDeclaration (L85840)
+EAGER: body → checkSourceElement(body) (ModuleBlock arm = existing
+check_block; namespace bodies DRIVE from here — the expr.rs 2683
+probe note un-blocks); non-global-augment → M7 register. LAZY:
+- global augment && !ambient → Augmentations_for_the_global_scope_
+  should_have_declare_modifier_unless_they_appear_in_already_
+  ambient_context AT name.
+- checkGrammarModuleElementContext(node, ambient-external ?
+  An_ambient_module_declaration_is_only_allowed_at_the_top_level_
+  in_a_file : A_namespace_declaration_is_only_allowed_at_the_top_
+  level_of_a_namespace_or_module) (L86347 — grammar sweep) → true →
+  RETURN (context errors suppress the rest).
+- grammar-modifiers hook chain: !ambient && string-literal name →
+  Only_ambient_modules_can_use_quoted_names.
+- identifier name → checkCollisionsForDeclarationName; node flags
+  lack Namespace|GlobalAugmentation → A_namespace_declaration_
+  should_not_be_declared_using_the_module_keyword_Please_use_the_
+  namespace_keyword_instead (the TS6 `module X {}` row — requires
+  the parser-set NodeFlags.Namespace bit; VERIFY tsrs2 parser stamps
+  it, else this row FPs on every `namespace`).
+- checkExportsOnMergedDeclarations (§5).
+- ValueModule symbol && !ambient && isInstantiatedModule(node,
+  shouldPreserveConstEnums(options)) (binder getModuleInstanceState
+  — verify exposure):
+  - erasableSyntaxOnly / isolatedModules / verbatimModuleSyntax
+    rows: options unmodeled → dead w/ notes;
+  - >1 declarations: getFirstNonAmbientClassOrFunctionDeclaration
+    (L85818: first non-ambient class or bodied function) → different
+    source file → A_namespace_declaration_cannot_be_in_a_different_
+    file_from_a_class_or_function_with_which_it_is_merged; node.pos
+    < its pos → A_namespace_declaration_cannot_be_located_prior_to_
+    a_class_or_function_with_which_it_is_merged (both AT name);
+    merged class declaration in same lexical scope (L85829) →
+    NodeCheckFlags LexicalModuleMergesWithClass (emit-read flag —
+    port the write).
+- ambient external module: external-module AUGMENTATION →
+  (global-augment || Transient module symbol) && body → per body
+  statement checkModuleAugmentationElement(statement, isGlobal);
+  else parent is global source file: global-augment → Augmentations_
+  for_the_global_scope_can_only_be_directly_nested_in_external_
+  modules_or_ambient_module_declarations; relative module name →
+  Ambient_module_declaration_cannot_specify_relative_module_name;
+  else nested: global-augment → same directly-nested row; else →
+  Ambient_modules_cannot_be_nested_in_other_modules_or_namespaces.
+
+### checkModuleAugmentationElement (L85925)
+VariableStatement → recurse per declaration; ExportAssignment/
+ExportDeclaration → Exports_and_export_assignments_are_not_
+permitted_in_module_augmentations (first token); ImportEquals
+(external only — internal `import A = B.C` allowed) /
+ImportDeclaration → Imports_are_not_permitted_in_module_
+augmentations_Consider_moving_them_to_the_enclosing_external_module;
+binding patterns recurse elements. (The 5.7b-era declare-global
+FP class lands here + §1's lift dependency.)
+
+### checkExternalImportOrExportDeclaration (L85983)
+moduleName missing → false; non-StringLiteral → String_literal_
+expected; parent not SourceFile nor ambient-module block →
+ExportDeclaration ? Export_declarations_are_not_permitted_in_a_
+namespace : Import_declarations_in_a_namespace_cannot_reference_a_
+module; ambient-module + relative specifier (not top-level in an
+external-module augmentation) → Import_or_export_declaration_in_an_
+ambient_module_declaration_cannot_reference_module_through_relative_
+module_name AT node; import attributes (non-ImportEquals):
+non-string attribute values → Import_attribute_values_must_be_
+string_literal_expressions (with-token) / Import_assertion_values_
+must_be_string_literal_expressions (assert-token), return !hasError.
+
+### checkModuleExportName (L86019)
+string-literal export/import name: !allowStringLiteral →
+Identifier_expected; moduleKind ES2015|ES2020 → String_literal_
+import_and_export_names_are_not_supported_when_the_module_flag_is_
+set_to_es2015_or_es2020 (modeled module option read).
+
+## §§9-11 EXTRACTION PENDING (anchors + owners recorded in Status)
+
+
 alias band (checkAliasSymbol L86029 + resolveAlias L49116 +
 import/export declaration checks L86163-86501 +
 checkExternalModuleExports L86505 — §0 lists the drain), decorators
