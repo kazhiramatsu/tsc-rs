@@ -39,15 +39,15 @@ impl<T: Clone> LinkSlot<T> {
     }
 }
 
-/// Debug-only census of OPEN `Resolving` sentinels on this thread.
-/// Every slot writer below reports its transition; the
-/// unsupported-unwind invariant reads the census at element/file
-/// boundaries (check.rs) — a leaked sentinel after an Err unwind is
-/// the "phantom mid-flight state" bug class the Err-revert twins
-/// exist for. Thread-local is sound because one program's check runs
-/// wholly on one thread (the conformance pool parallelizes across
-/// fixtures, never inside one). Release builds compile the census
-/// out and always answer 0.
+// Debug-only census of OPEN `Resolving` sentinels on this thread.
+// Every slot writer below reports its transition; the
+// unsupported-unwind invariant reads the census at element/file
+// boundaries (check.rs) — a leaked sentinel after an Err unwind is
+// the "phantom mid-flight state" bug class the Err-revert twins
+// exist for. Thread-local is sound because one program's check runs
+// wholly on one thread (the conformance pool parallelizes across
+// fixtures, never inside one). Release builds compile the census
+// out and always answer 0.
 #[cfg(debug_assertions)]
 thread_local! {
     static RESOLVING_OPEN: std::cell::Cell<i64> = const { std::cell::Cell::new(0) };

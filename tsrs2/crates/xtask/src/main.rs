@@ -1527,7 +1527,7 @@ fn run_idempotence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
 
 /// The unsupported-unwind sweep: run every sample program once with
 /// the checker's debug unwind guards active (check.rs UnwindSnapshot
-/// + the links.rs Resolving census) — a violated guard panics with
+/// and the links.rs Resolving census) — a violated guard panics with
 /// the offending element. The guards are plain debug_assertions, so
 /// the lib-loaded conformance gate exercises them corpus-wide too;
 /// this suite is the labeled, fast-attribution entry point.
@@ -2137,10 +2137,9 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
                     Some('\\') => out.push('\\'),
                     Some('"') => out.push('"'),
                     other => {
-                        return Err(format!(
-                            "escapes.toml:{line_no}: unsupported escape {other:?}"
+                        return Err(
+                            format!("escapes.toml:{line_no}: unsupported escape {other:?}").into(),
                         )
-                        .into())
                     }
                 }
             } else {
@@ -2152,8 +2151,8 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
 
     let mut entries: Vec<EscapeManifestEntry> = Vec::new();
     let mut current: Option<EscapeManifestEntry> = None;
-    let mut finish = |current: &mut Option<EscapeManifestEntry>,
-                      entries: &mut Vec<EscapeManifestEntry>|
+    let finish = |current: &mut Option<EscapeManifestEntry>,
+                  entries: &mut Vec<EscapeManifestEntry>|
      -> Result<(), Box<dyn Error>> {
         if let Some(entry) = current.take() {
             if entry.file.is_empty() || entry.reason.is_empty() || entry.class.is_empty() {
@@ -2210,9 +2209,11 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
 fn check_escape_manifest(workspace: &Path, sites: &[EscapeSite]) -> Result<(), Box<dyn Error>> {
     let manifest_path = workspace.join("escapes.toml");
     if !manifest_path.exists() {
-        return Err("escapes.toml is missing — run `cargo xtask escapes --write-manifest`, \
+        return Err(
+            "escapes.toml is missing — run `cargo xtask escapes --write-manifest`, \
                     review the generated file, and commit it"
-            .into());
+                .into(),
+        );
     }
     let recorded = parse_escape_manifest(&fs::read_to_string(&manifest_path)?)?;
     let expected = escape_manifest_from_sites(workspace, sites);
