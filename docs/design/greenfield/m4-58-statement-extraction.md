@@ -8,21 +8,16 @@ in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.8
 HERE. This doc's slicing (§15, commits `m4 5.8a-…`) supersedes the
 steps doc's single-commit line.
 
-Status: EXTRACTION COMPLETE (§§0-15; grammar workers transcribe at
-landing per §12's rule). Implementers start at §15's slicing. (driver, late-binding wall,
-variables, control statements, iteration protocol, member/function
-declarations, class band, interface/typealias/enum, module band,
-import/export checks).
-REMAINING TO EXTRACT: resolveAlias L49116 family +
-resolveExternalModuleName workers (2307 un-silencing), decorators L82580-82783 +
-getDecoratorCallSignature L78699, type-node arms L81838-82023,
-checkPotentialUncheckedRenamedBindingElementsInTypes L83180,
-grammar workers for the declaration bands (L88907-90450:
-checkGrammarClassLikeDeclaration/InterfaceDeclaration/Property/
-Method/IndexSignature/FunctionLikeDeclaration/Accessor(read)/
-ConstructorTypeParameters+Annotation/ForGenerator/ComputedProperty
-Name + module/import/export grammar), then §§12-15 (Rust seams,
-state summary, FP=0 risk register, slicing `m4 5.8a-…`).
+Status: EXTRACTION COMPLETE (§§0-15). Implementers start at §15's
+slicing; §12 is the landing-time transcription CHECKLIST (functions
+whose bodies transcribe when their first caller lands — everything
+else in this doc is already implementation-grade). Review round
+2026-07-14 folded in: decorator DUAL-MODE (experimentalDecorators is
+modeled + mapped — §10), the OPTIONS AUDIT (§13: present / add-in-5.8
+/ absent-dead, with fixture counts), ES5 as MANDATORY scope (1267
+fixtures — every languageVersion<ES2015 arm is live 5.8 scope, not
+floor-verify), and the comment-directive gap scoped to the EXISTING
+interim filter (§15 5.8e).
 
 Diagnostic codes: message NAMES are authoritative here (they map 1:1
 onto `tsrs2_diags::gen` statics); numbers are cited where load-bearing
@@ -127,11 +122,11 @@ corpus FPs from three OTHER bands' recorded gaps:
 
 The 5.8 plan — **the lift is a 5.8 sub-slice, sequenced LAST**:
 - (2) and (3) are addressable at 5.8: declare-global/augment merges
-  are §8's module band; comment directives are a small program-layer
-  port (scanner already collects commentDirectives? verify — tsc
-  filters diagnostics whose line matches a directive at
-  getDiagnosticsWithPrecedingDirectives; if the parser doesn't
-  collect them yet, that port is part of the lift slice).
+  are §8's module band; comment directives already have an INTERIM
+  single-line filter (checker/src/lib.rs
+  filter_by_comment_directives) — the lift slice EXTENDS/REPLACES it
+  with scanner-backed collection (multi-line-comment directives are
+  the recorded gap; the 5.7b FP fixtures were directives/multiline).
 - (1) stays M5. The lift slice must re-run the 5.7b experiment
   (delete the INTERFACE escape, full conformance) and triage every
   new FP: FLOW-narrowing shapes get targeted [FLOW M5] containment
@@ -229,10 +224,13 @@ Order matters; every step:
    - propertyName && Identifier name && isPartOfParameterDeclaration
      && containing-fn body MISSING → push
      potentialUnusedRenamedBindingElementsInTypes; **return** (the
-     early return is semantic — the drain
-     checkPotentialUncheckedRenamedBindingElementsInTypes (L83180)
-     goes live per §0; read its body when porting: it reports
-     renamed binding elements in signature-only positions).
+     early return is semantic). Drain (L83180, extracted): per
+     recorded node, symbol NOT isReferenced (risk §14.16) →
+     _0_is_an_unused_renaming_of_1_Did_you_intend_to_use_it_as_a_
+     type_annotation AT node.name (+ when the wrapping parameter
+     declaration is UN-annotated: related FILE diagnostic at
+     wrappingDeclaration.end width 0, We_can_only_write_a_type_for_
+     0_by_adding_a_type_for_the_entire_parameter_here).
    - computed propertyName → checkComputedPropertyName.
    - parentType = getTypeForBindingElementParent(parent.parent,
      dotDotDot ? RestBindingElement : Normal) (5.5b kit, L55824);
@@ -347,12 +345,11 @@ in its §).
 - Promise (L83303): languageVersion ≥ ES2017 → skip; else module file
   with HasAsyncFunctions flag → …_in_top_level_scope_of_a_module_
   containing_async_functions. languageVersion is the mapped @target —
-  LIVE for low-target fixtures (TS6 minimum target: verify the
-  options enum floor at landing; if ES2015 is the floor the
-  `arguments` check below is dead).
+  LIVE for low-target fixtures (ES5 is mapped; 1267 fixtures).
 - checkCollisionWithArgumentsInGeneratedCode (L83229): ES2015+ →
-  skip entirely (dead at any modeled target if the floor is ES2015 —
-  note, keep the hook).
+  skip; **LIVE for the 1267 ES5-target fixtures** (rest-param +
+  `arguments`-named parameter under target<ES2015, non-ambient,
+  bodied).
 - WeakMapSet (L83315): target ≤ ES2021 && name WeakMap/WeakSet →
   record; drain (L83320): enclosing block scope has
   ContainsClassWithPrivateIdentifiers check flag →
@@ -668,9 +665,12 @@ Caches: per-TYPE fields (TypeLinks additions):
 iteration_types_of_{iterable,async_iterable,iterator,async_iterator,
 iterator_result} — 5 slots storing IterationTypes-or-noIterationTypes
 verdicts. getBuiltinIteratorReturnType (L60844):
-strictBuiltinIteratorReturn ? undefinedType : anyType — the option is
-strict-family in TS6 (verify options.rs mapping; annotate.rs's
-BuiltinIteratorReturn intrinsic escape lifts with this).
+strictBuiltinIteratorReturn ? undefinedType : anyType — **VERIFIED
+strict-family in TS6 (bundle L46472: getStrictOptionValue) ⇒
+default-ON under strict-by-default. NOT in CompilerOptions yet:
+5.8b ADDS strict_builtin_iterator_return (read through
+strict_option_value)**; annotate.rs's BuiltinIteratorReturn
+intrinsic escape lifts with this.
 
 ### Entry points
 - checkIteratedTypeOrElementType (L83894): any input → input;
@@ -680,9 +680,12 @@ BuiltinIteratorReturn intrinsic escape lifts with this).
   - never + errorNode → reportTypeNotIterableError → undefined.
   - uplevelIteration = target ≥ ES2015 && globalIterableType
     resolves (≠ emptyGenericType); downlevelIteration = !uplevel &&
-    options.downlevelIteration (mapped option); possibleOutOfBounds =
-    noUncheckedIndexedAccess && (use & 128) (option: verify
-    options.rs; unmodeled → constant false w/ note).
+    options.downlevelIteration — **NOT in CompilerOptions yet: 5.8b
+    ADDS the field + conformance mapping (24 fixtures set
+    @downlevelIteration; without it those select the WRONG
+    diagnostic flavor under low targets = FP)**; possibleOutOfBounds
+    = noUncheckedIndexedAccess && (use & 128) (option PRESENT in
+    options.rs — read directly).
   - (uplevel || downlevel || allowsAsync) → iterationTypes =
     getIterationTypesOfIterable(input, use, uplevel ? errorNode :
     undefined); checkAssignability && iterationTypes: per-use
@@ -917,8 +920,8 @@ Promise_0 (1064) AT the return-type node, arg = typeToString(
 getAwaitedTypeNoAlias(returnType) || voidType); return. Then tail
 for the passing shape: checkAwaitedType(returnType, withAlias=false,
 node, The_return_type_of_an_async_function_must_either_be…) (5.5f
-kit). Target < ES2015 (gated on the modeled @target; TS6 target
-floor to verify): the ES5 promise-constructor entity band
+kit). Target < ES2015 (gated on the modeled @target — MANDATORY
+scope, 1267 ES5 fixtures): the ES5 promise-constructor entity band
 (Type_0_is_not_a_valid_async_function_return_type_in_ES5…,
 An_async_function_or_method_in_ES5_requires_the_Promise_constructor…,
 PromiseConstructorLike relation with headMessage+chain,
@@ -1235,8 +1238,9 @@ checkMembersForOverrideModifier (L85112): per non-ambient member
   (parameter-property flavor swaps the message); member abstract &&
   base abstract → …overrides_an_abstract_method…;
 - no base && override → …containing_class_0_does_not_extend_another_
-  class. noImplicitOverride: verify options.rs; unmodeled → only
-  override-present faces live. baseClassName/className =
+  class. noImplicitOverride: ABSENT from CompilerOptions (§13
+  audit) → only override-present faces live; the needs-override
+  rows stay dead w/ note. baseClassName/className =
   typeToString (display band containment applies).
 
 implements list: per node: non-entity-name/optional-chain →
@@ -1402,11 +1406,9 @@ those rows dead w/ note, const-enum NaN/non-finite, 2474, 1066,
 computed-value assignability). 5.8 adds ONLY the drivers:
 checkEnumDeclaration (L85767) / checkEnumDeclarationWorker (L85770) /
 checkEnumMember (L85810) / getFirstNonAmbientClassOrFunction
-Declaration (L85818) / inSameLexicalScope (L85829) — EXTRACTION
-PENDING (read at part-3): expected content = grammar-modifiers,
-name-reserved (Enum_name_cannot_be_0 rides collisions §2),
-computeEnumMemberValues drive, enum-merging rules (2432/2567/2433),
-const-enum member forcing. Anchors recorded.
+Declaration (L85818) / inSameLexicalScope (L85829) — EXTRACTED IN
+§8 (Enum drivers); this section only scopes the split: the evaluator
+is 5.3b, the drivers are 5.8c.
 
 ## §8 Enum drivers + module band
 
@@ -1647,12 +1649,8 @@ conformance → None; transcribe the arms with the host read.)
   ExportSpecifier (meaning Value|Type|Namespace); ExportAssignment;
   NamespaceExportDeclaration; PropertyAssignment/Shorthand/access
   expressions/VariableDeclaration/BindingElement = JS arms (elide
-  w/ note). PER-KIND WORKERS (L48652-49070) EXTRACTION PENDING —
-  they carry the 2305/2613/2614/2724/1192/2306/2307-family reporting
-  (getExternalModuleMember L48851 + errorNoModuleMemberSymbol L48902
-  + reportNonDefaultExport L48746 + reportNonExportedMember L48926 +
-  spelling suggestions) and every markSymbolOfAliasDeclarationIfTypeOnly
-  call site.
+  w/ note). Per-kind workers (L48652-49070) are TRANSCRIBED below in
+  this section ("Per-kind alias targets").
 - getSymbolFlags (L49141): alias-chain flag union — walk
   getExportSymbolOfValueSymbolIfExported(resolveAlias(symbol)) while
   Alias-flagged, accumulating flags with a seen-set; unknownSymbol →
@@ -1699,11 +1697,12 @@ kinds + JS arms to elide), getModuleSpecifierForImportOrExport
 - Synthetic-default kit (L48570-48651): isSyntacticDefault;
   isOnlyImportableAsDefault (JSON-under-node16+ — mode machinery);
   canHaveSyntheticDefault — **allowSyntheticDefaultImports** =
-  option || esModuleInterop || module===System: VERIFY options.rs
-  mapping (@esModuleInterop is a COMMON fixture directive — if
-  unmodeled, record and gate faithfully); declaration files: probe
-  syntactic default + __esModule marker; TS files →
-  hasExportAssignmentSymbol (L49778).
+  option || esModuleInterop || module===System: **NEITHER option is
+  in CompilerOptions yet — 5.8d ADDS es_module_interop +
+  allow_synthetic_default_imports + the computed derivation (142 /
+  53 fixtures respectively; the §9 default-import gates are
+  load-bearing)**; declaration files: probe syntactic default +
+  __esModule marker; TS files → hasExportAssignmentSymbol (L49778).
 - getTargetOfImportClause (L48652) → getTargetofModuleDefault
   (L48658): shorthand-ambient module → the module symbol; (Node20
   CJS→ESM module.exports arm dead); exportDefaultSymbol =
@@ -1772,8 +1771,12 @@ kinds + JS arms to elide), getModuleSpecifierForImportOrExport
   known-package suggestion table, transcribe at landing) ?? (Classic
   resolution ? Cannot_find_module_0_Did_you_mean_to_set_the_
   moduleResolution_option… : **Cannot_find_module_0_or_its_
-  corresponding_type_declarations (2307)**). Worker (L49470):
-  string-literal specifiers only.
+  corresponding_type_declarations (2307)**). The Classic-vs-not
+  selection reads getEmitModuleResolutionKind — **moduleResolution
+  is NOT in CompilerOptions yet: 5.8d ADDS the field + mapping +
+  the computed default (transcribe _computedOptions.moduleResolution
+  .computeValue at landing); 262 fixtures set @moduleResolution
+  (60 classic)**. Worker (L49470): string-literal specifiers only.
 - resolveExternalModule (L49473) — port order EXACTLY:
   1. errorNode && "@types/" prefix → Cannot_import_type_declaration_
      files_Consider_importing_0_instead_of_1;
@@ -1888,11 +1891,25 @@ functions.rs "[ITER] yield aggregation" escape lifts:
 
 ## §10 Decorators band
 
-Ownership: legacyDecorators = experimentalDecorators option —
-UNMODELED → constant FALSE → **ES2022+ standard decorators are the
-live semantics**; every legacyDecorators arm is dead w/ note (the
-big legacy signature table L78613-78698 transcribed below for when
-the option lands; do NOT wire it).
+Ownership — **DUAL MODE (review round 2026-07-14)**:
+legacyDecorators = compilerOptions.experimentalDecorators, which IS
+modeled (options.rs experimental_decorators) AND mapped by the
+conformance harness (215 fixtures set @experimentalDecorators).
+Both modes are 5.8c scope:
+- experimental_decorators=false (default): ES2022+ standard
+  decorators — the ES signature table below.
+- experimental_decorators=true: the LEGACY signature table
+  (L78613-78698, fully transcribed below) — legacy-only faces go
+  live under the flag: parameter decorators, the PropertyDeclaration
+  void-head selection, nodeCanBeDecorated's legacy positions.
+Never mix modes; every mode read routes through ONE
+`legacy_decorators()` accessor. FALLBACK if legacy shapes produce
+FP surprises at landing: contain the ENTIRE decorator band behind
+Unsupported when experimental_decorators=true (honest FN on the 215
+fixtures) — applying ES semantics to legacy fixtures is a
+wrong-payload FP, never acceptable. emitDecoratorMetadata stays
+unmapped → its entity-name machinery (L82698-82743) remains
+emit-only/elided in both modes.
 
 ### checkDecorators (L82744) — the forcing entry
 Gates: canHaveDecorators && hasDecorators && modifiers &&
@@ -1956,20 +1973,19 @@ checkDecorator (L82628):
   only; noLib → emptyGenericType-ish fallbacks: check each helper's
   miss arm at landing; unit pins hand-declare or tolerate).
 - headMessage selection (L82640): class → Decorator_function_return_
-  type_0_is_not_assignable_to_type_1; PropertyDeclaration
-  (non-legacy) → same; Parameter (LEGACY ONLY reachable — ES
-  decorators cannot decorate parameters; the parameter arm is dead
-  under ES default w/ note) → Decorator_function_return_type_is_0_
-  but_is_expected_to_be_void_or_any; method/accessors → the
-  assignable flavor. checkTypeAssignableTo(returnType,
+  type_0_is_not_assignable_to_type_1; PropertyDeclaration: non-legacy
+  → same, legacy → falls through to the void-or-any head; Parameter
+  (reachable ONLY under experimental_decorators=true) →
+  Decorator_function_return_type_is_0_but_is_expected_to_be_void_or_
+  any; method/accessors → the assignable flavor. checkTypeAssignableTo(returnType,
   decoratorSignature.resolvedReturnType, node.expression, head).
 - check.rs deferred Decorator arm un-unreachables:
   checkDeferredNode's Decorator → checkDecorator re-entry shape —
   verify tsc's deferred kind list handling (86923-86928 walks RAW
   arguments for overload-failure deferrals of decorators too).
 
-### Legacy table (L78613-78698, DEAD until experimentalDecorators
-models): class → (target) => target|void; parameter →
+### Legacy table (L78613-78698, LIVE under
+experimental_decorators=true): class → (target) => target|void; parameter →
 (target, propertyKey, parameterIndex: numberLiteral) => void (this-
 param and index math transcribed); method/accessor/property →
 (target = getParentTypeOfClassElement L87798, propertyKey =
@@ -2061,25 +2077,64 @@ emit-only, elide.
   containers gain Export|Ambient; global-augment exception) —
   shared §5 kit, transcribe with the overload band.
 
-## §12 Grammar-worker sweep (landing-time transcription)
+## §12 Landing-time transcription CHECKLIST
 
-Per-band grammar workers are NAMED at their call sites (§§2-11) and
-transcribed AT LANDING against these anchors (L88907-90450 region +
-outliers): checkGrammarImportClause, checkGrammarNamedImportsOrExports,
-checkGrammarModifiers (STAYS the M7-stub hook — 5.8 lands only the
-named per-band workers, NOT the general modifier grammar),
-checkGrammarClassLikeDeclaration, checkGrammarInterfaceDeclaration,
-checkGrammarProperty, checkGrammarMethod, checkGrammarIndexSignature,
-checkGrammarFunctionLikeDeclaration, checkGrammarConstructorType
-Parameters/Annotation, checkGrammarForGenerator,
-checkGrammarComputedPropertyName, checkGrammarTypeOperatorNode,
-checkAwaitGrammar (L79338), checkGrammarAccessor (L89843 — §5 read),
-checkGrammarMetaProperty (L90187 — import.meta/new.target rows ride
-operators.rs's checkMetaProperty un-escape). Rule: transcribe each
-worker's FULL body when its first caller lands; a worker shared by
-multiple bands lands with the FIRST band and is re-audited by later
-ones. Suppression discipline (hasParseDiagnostics) is per existing
-grammarError* plumbing.
+Everything else in this doc is implementation-grade; the items below
+transcribe their FULL bodies from the cited anchors when their first
+caller lands (a worker shared by multiple bands lands with the FIRST
+band and is re-audited by later ones). Check each off in the landing
+commit's body.
+
+Grammar workers (suppression discipline per existing grammarError*
+plumbing; checkGrammarModifiers itself STAYS the M7-stub hook — 5.8
+lands only the workers named here):
+- [ ] 5.8a: checkGrammarComputedPropertyName; checkAwaitGrammar
+      (L79338 — await-using lists §2); checkGrammarTypeOperatorNode
+      (§11); checkGrammarMappedType is DONE (L81941, §11).
+- [ ] 5.8b: checkGrammarFunctionLikeDeclaration; checkGrammarIndex
+      Signature; checkGrammarForGenerator; checkGrammarMethod;
+      checkGrammarProperty; checkGrammarConstructorTypeParameters +
+      checkGrammarConstructorTypeAnnotation. (checkGrammarAccessor
+      L89843 already read §5-adjacent.)
+- [ ] 5.8c: checkGrammarClassLikeDeclaration; checkGrammarInterface
+      Declaration.
+- [ ] 5.8d: checkGrammarImportClause; checkGrammarNamedImportsOr
+      Exports. (checkGrammarModuleElementContext L86347 +
+      checkGrammarExportDeclaration L86340 already extracted §8-9.)
+
+Checker workers / helpers:
+- [ ] 5.8a: getErrorSpanForNode's VariableDeclaration arm (the 2322
+      span pin, §2.12); checkExternalEmitHelpers body (verify the
+      importHelpers-gated no-op claim); errorSkippedOn → the
+      skippedOn filter seam beside filter_by_comment_directives;
+      isReferenced bit decision (risk §14.16); getModuleInstance
+      State binder exposure (§2 collisions); templateConstraint
+      Type / anyReadonlyArrayType / stringNumberSymbolType
+      singletons verify.
+- [ ] 5.8b: createGeneratorType tail (L78842+: IterableIterator
+      fallback when global Generator is missing);
+      checkAndAggregateYieldOperandTypes (L78874) +
+      checkAndAggregateReturnExpressionTypes (L78959) generator
+      gates; isImplementationCompatibleWithOverload (grep anchor);
+      getIndexTypeOrString/getExtractStringType verify (for-in).
+- [ ] 5.8c: getEffectiveCallArguments' Decorator arm (L76300
+      region); ES decorator context builders (L78468-78570);
+      legacy helpers getParentTypeOfClassElement (L87798) /
+      getClassElementPropertyKeyType (L87802) /
+      createTypedPropertyDescriptorType (L61029);
+      getTypeWithoutSignatures; isMixinConstructorType +
+      getConstructorsForTypeArguments verify; isPropertyIdenticalTo
+      (compareProperties) exposure.
+- [ ] 5.8d: getSymbolOfPartOfRightHandSideOfImportEquals (L49230);
+      tryFindAmbientModule (L59499) + the ambientModulesCache /
+      patternAmbientModules initialization walk;
+      getCannotResolveModuleNameErrorForSpecificModule (L69377);
+      markExportAsReferenced (L71945 — decide emit-only no-op);
+      mergeModuleAugmentation (L47830) + mergeSymbolTable (L47818)
+      exact merge order (merge.rs); getResolutionDiagnostic (mostly
+      option-dead); getSuggestedSymbolForNonexistentModule (spell.rs
+      twin verify); _computedOptions.moduleResolution.computeValue +
+      getIsolatedModules/shouldPreserveConstEnums derivations.
 
 ## §13 Rust seam inventory + new state
 
@@ -2141,13 +2196,44 @@ New state:
   HasExplicitReturn flow-exit flags (§5 checkAllCodePaths + getter
   2378); localSymbol on exported declarations (§5 overload band);
   getModuleInstanceState exposure (§2 collisions + §8).
-- OPTIONS verifications: esModuleInterop/allowSyntheticDefault
-  Imports (§9 gates), noImplicitReturns/noUncheckedIndexedAccess/
-  noImplicitOverride/noFallthroughCasesInSwitch (absent → dead
-  arms w/ notes), strictPropertyInitialization/useUnknownInCatch
-  Variables/strictBuiltinIteratorReturn (strict family — verify
-  present), useDefineForClassFields default, target floor (kills
-  the `arguments` collision check if ≥ES2015).
+- **OPTIONS AUDIT (verified against options.rs + the conformance
+  mapping, 2026-07-14; fixture counts are corpus-wide file greps)**:
+  - PRESENT + mapped (read directly): target — **ES5 IS mapped and
+    1267 fixtures use it ⇒ every languageVersion<ES2015 arm in this
+    doc is MANDATORY 5.8 scope** (collision bands §2 at their
+    ranges, the ES5 async-return band §5, the downlevel iteration
+    reach §4, emitStandardClassFields=false super-call band §5,
+    setNodeLinksForPrivateIdentifierScope gates §5, class
+    emit-helper gates as no-ops); module; jsx (+factory strings);
+    lib; allowJs/checkJs; **experimentalDecorators (§10 dual
+    mode)**; the strict family (strict/alwaysStrict/
+    strictNullChecks/strictFunctionTypes/strictBindCallApply/
+    noImplicitAny/noImplicitThis/strictPropertyInitialization/
+    useUnknownInCatchVariables via strict_option_value);
+    exactOptionalPropertyTypes; noFallthroughCasesInSwitch (present
+    — the ARM still waits on M5 flow); allowUnreachableCode;
+    noUncheckedIndexedAccess; noPropertyAccessFromIndexSignature;
+    useDefineForClassFields (+ emit_standard_class_fields).
+  - **ADD in 5.8** (CompilerOptions field + conformance mapping,
+    owner slice in §15): no_emit (5.8a — the skippedOn filter's
+    input; 1304 fixtures set @noEmit); downlevel_iteration (5.8b;
+    24 fixtures); strict_builtin_iterator_return (5.8b;
+    strict-family per bundle L46472 — default ON); module_resolution
+    (5.8d; 262/60-classic fixtures; 2792-vs-2307 + Classic
+    behaviors + computed default); es_module_interop +
+    allow_synthetic_default_imports (5.8d; 142/53 fixtures; §9
+    gates + resolveESModuleSymbol interop faces);
+    preserve_const_enums (5.8d; 17 fixtures;
+    shouldPreserveConstEnums = preserveConstEnums || isolatedModules
+    feeds isInstantiatedModule §8).
+  - ABSENT → arms stay DEAD w/ ledger notes: noImplicitReturns,
+    noImplicitOverride, allowUnusedLabels, isolatedModules,
+    verbatimModuleSyntax, erasableSyntaxOnly, ignoreDeprecations
+    (absent ⇒ the assert-deprecation row IS live — it fires unless
+    the option equals "6.0"), resolveJsonModule, importHelpers,
+    emitDecoratorMetadata, allowImportingTsExtensions,
+    rewriteRelativeImportExtensions, noUncheckedSideEffectImports,
+    moduleDetection.
 
 ## §14 FP=0 risk register (pin at each slice)
 
@@ -2156,9 +2242,12 @@ New state:
    [FLOW M5] report gates, never member-table re-containment; the
    well-known-symbol-only carve-out is the fallback. NO other slice
    may un-contain interfaces as a side effect.
-2. **skippedOn(noEmit)**: the collision band lands ONLY with the
-   program-layer filter + a harness @noEmit verification; else every
-   noEmit fixture with a collision row FPs.
+2. **skippedOn(noEmit)**: the collision band lands ONLY with (a)
+   no_emit added to CompilerOptions + the mapping and (b) the
+   skippedOn filter at the diagnostics-finalize seam (beside the
+   existing filter_by_comment_directives in checker/src/lib.rs);
+   1304 fixtures set @noEmit — an unfiltered collision row FPs
+   corpus-wide.
 3. **errorOutputContainer double-add** (§4 union path): keep
    collect-only containers + one explicit add per diagnostic; pin a
    union-iterable failure.
@@ -2197,17 +2286,27 @@ New state:
     exports worker inside the module slice — its getExportsOfModule
     dependency is real; the once-guard must dedupe the
     checkExportAssignment-driven second run.
-14. **Decorators**: ES semantics only (experimentalDecorators
-    unmodeled — never wire the legacy table); ES context types are
-    lib-loaded (noLib pins hand-declare or tolerate 2318).
+14. **Decorators DUAL MODE**: experimental_decorators IS modeled —
+    every mode read through one accessor; applying ES semantics to
+    a legacy fixture (or vice versa) is a wrong-payload FP. If the
+    legacy table misbehaves at landing, contain the WHOLE band
+    under experimental_decorators=true (FN), never mix. ES context
+    types are lib-loaded (noLib pins hand-declare or tolerate 2318).
 15. **checkTypePredicate tail** is provably dead (predicates
     unmodeled until M5) — port the 1228 row + M5-stub escape; do
     not fabricate 2677/1230 shapes.
+16. **isReferenced gate** (§2 renamed-binding drain): the 2842-family
+    row fires only when the binding symbol is NOT referenced —
+    tsc's symbol.isReferenced bit. Port the bit (SymbolLinks write
+    on identifier resolution) or prove signature-only parameter
+    bindings unreferenceable; reporting without the gate FPs on
+    referenced renames.
 
 ## §15 Slicing + sequencing (commits `m4 5.8a-e`)
 
 - **5.8a — statements + variables + type-nodes**: §0 driver arms;
-  §2 whole (collisions band behind risk #2's harness verify); §3
+  no_emit option + the skippedOn(noEmit) filter (risk #2); §2 whole
+  (collisions band incl. the ES5-live faces); §3
   minus for-of/for-in ITERATION semantics (the statements land with
   checkRightHandSideOfForOf escaping to 5.8b; grammar + LHS rows
   live); §11 type-node arms (checkTypeLiteral's lazy block pulls
@@ -2217,8 +2316,10 @@ New state:
   family, 2403/2717, truthiness bands, switch 2678, statement-body
   reach for ALL existing expression machinery (the biggest rate
   multiplier of the stage).
-- **5.8b — iteration + function/member declarations**: §4 protocol
-  + §4-addendum generator inference + for-of/for-in completion +
+- **5.8b — iteration + function/member declarations**:
+  downlevel_iteration + strict_builtin_iterator_return options; §4
+  protocol + §4-addendum generator inference + for-of/for-in
+  completion +
   [ITER] escape-lift sweep (operators/literals/functions/contextual/
   widen/expr/calls) + §5 whole (binder HasImplicitReturn verify is
   this slice's precondition; checkTypePredicate M5-stub tail).
@@ -2226,22 +2327,28 @@ New state:
   overloads, 2391-2394 overload band, 2378/2676/2808 accessors,
   1064 async returns, 2355/2534/2847.
 - **5.8c — class band + interface/enum completions + decorators**:
-  §6 whole + §7 + §8 enum drivers + §10 decorators (calls.rs
-  Decorator arm + deferred arm). Recovery: 2415/2417/2420/2720,
+  §6 whole + §7 + §8 enum drivers + §10 decorators DUAL MODE (both
+  signature tables; calls.rs Decorator arm + deferred arm; the
+  experimental_decorators=true containment fallback per risk #14). Recovery: 2415/2417/2420/2720,
   4112-4116, 2610/2611/2423-2425, abstract 2515/2653-family,
   2564-no-ctor face, 2300/2374/2699, 1206x decorator band.
-- **5.8d — module/alias/import-export band**: §8 module band + §9
-  whole (alias protocol → per-kind targets → module resolution →
+- **5.8d — module/alias/import-export band**: module_resolution +
+  es_module_interop + allow_synthetic_default_imports +
+  preserve_const_enums options; §8 module band + §9 whole (alias protocol → per-kind targets → module resolution →
   exports worker → checkExternalModuleExports + checkExportsOnMerged
   Declarations' alias arm un-escapes) + the VALUE_MODULE
   getTypeOfSymbol arm (annotate.rs 4907 — namespace value types,
   unblocks 2683/2631/2632 + globalThis) + merge.rs augmentation
   completion. Recovery: 2305/2307/2306/2613/2614/2724/2459/2460,
   2440/2484, 2308, 1192-family, namespace bands, import-equals rows.
-- **5.8e — the LIFT slice**: comment-directive program port →
-  interface late-binding lift → full-conformance FP triage →
-  targeted [FLOW M5] gates (or the well-known-symbol carve-out
-  fallback per §1). Recovery: array/string member access
+- **5.8e — the LIFT slice**: comment-directive completion —
+  **EXTEND/REPLACE the existing interim filter**
+  (checker/src/lib.rs filter_by_comment_directives: single-line
+  comment-only lines today) with scanner-backed commentDirectives
+  collection (multi-line-comment directives + exact regex parity;
+  do NOT build a parallel second filter) → interface late-binding
+  lift → full-conformance FP triage → targeted [FLOW M5] gates (or
+  the well-known-symbol carve-out fallback per §1). Recovery: array/string member access
   corpus-wide + for-of over arrays + the §4 slow path.
 
 Per-slice gates unchanged: cargo test workspace; relpin /0; ledger;
