@@ -8,16 +8,21 @@ in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.8
 HERE. This doc's slicing (§15, commits `m4 5.8a-…`) supersedes the
 steps doc's single-commit line.
 
-Status: §§0-5 extracted (driver, late-binding wall, variables,
+Status: §§0-7 extracted (driver, late-binding wall, variables,
 control statements, iteration protocol, member/function
-declarations). REMAINING TO EXTRACT (§§6-11 placeholders at the
-tail carry the anchors): class band L84921-85524, interface/
-typealias/enum L84871+85525-85839, module L85840-86028, alias/
-import/export L86029-86504 + resolveAlias L49116 family, decorators
-L82580-82783 + getDecoratorCallSignature L78699, type-node arms
-L81838-82023, checkPotentialUncheckedRenamedBindingElementsInTypes
-L83180, grammar workers for the declaration bands (L88907-90450),
-then §§12-15 (Rust seams, state, FP register, slicing).
+declarations, class band, interface/typealias/enum-driver notes).
+REMAINING TO EXTRACT (§§8-11 placeholder at the tail): enum drivers
+L85767-85839, module band L85840-86028, alias/import/export
+L86029-86504 + resolveAlias L49116 family + checkExternalModule
+Exports consumers, decorators L82580-82783 +
+getDecoratorCallSignature L78699, type-node arms L81838-82023,
+checkPotentialUncheckedRenamedBindingElementsInTypes L83180,
+grammar workers for the declaration bands (L88907-90450:
+checkGrammarClassLikeDeclaration/InterfaceDeclaration/Property/
+Method/IndexSignature/FunctionLikeDeclaration/Accessor(read)/
+ConstructorTypeParameters+Annotation/ForGenerator/ComputedProperty
+Name + module/import/export grammar), then §§12-15 (Rust seams,
+state summary, FP=0 risk register, slicing `m4 5.8a-…`).
 
 Diagnostic codes: message NAMES are authoritative here (they map 1:1
 onto `tsrs2_diags::gen` statics); numbers are cited where load-bearing
@@ -1143,17 +1148,269 @@ local. AT each declaration's name.
 ### checkMissingDeclaration (L81670)
 checkDecorators only.
 
-## §§6-11 EXTRACTION PENDING (anchors + owners recorded in Status)
 
-Class band (checkClassDeclaration completion L84982 /
-checkClassLikeDeclaration L84994 / overrides L85112-85315 /
-checkKindsOfPropertyMemberOverrides L85315 / heritage +
-checkBaseTypeAccessibility L85269 / checkInheritedPropertiesAre
-Identical L85439 / checkPropertyInitialization L85477 /
-checkIndexConstraints L84705 / checkClassExpression(Deferred)
-L84972-84981 / checkTypeParameterListsIdentical L84871), interface
-completion (L85525), type-alias completion (L85561), enum
-(L85767-85839, evaluator ALREADY PORTED — evaluate.rs 5.3b),
+## §6 Class band
+
+### checkClassDeclaration (L84982) / checkClassExpression (L84972)
+Declaration: legacyDecorators (experimentalDecorators option —
+unmodeled → arm dead, note) static-private grammar row; unnamed
+non-default → A_class_declaration_without_the_default_modifier_must_
+have_a_name (grammarErrorOnFirstToken); checkClassLikeDeclaration;
+forEach members checkSourceElement; M7 register. Expression (the
+expr.rs 5.8 stub lifts): checkClassLikeDeclaration;
+checkNodeDeferred(node) — the check.rs ClassExpression deferred arm
+un-unreachables → checkClassExpressionDeferred (L84978): forEach
+members checkSourceElement; emit-helper worker = no-op; returns
+getTypeOfSymbol(symbol).
+
+### checkClassLikeDeclaration (L84994) — transcribe; order is the spec
+checkGrammarClassLikeDeclaration (grammar band, L~89400 — extract
+with the grammar sweep); checkDecorators (§10);
+checkCollisionsForDeclarationName (§2 — Class_name_cannot_be_0 +
+checkClassNameCollisionWithObject L84787 inside);
+checkTypeParameters (5.4 live); checkExportsOnMergedDeclarations
+(§5); type = getDeclaredTypeOfSymbol; typeWithThis =
+getTypeWithThisArgument(type); staticType = getTypeOfSymbol(symbol);
+checkTypeParameterListsIdentical (L84871: >1 class/interface
+declarations; symbolLinks.typeParametersChecked once-latch;
+areTypeParametersIdentical L84891 — count range vs min/max, name
+text ==, constraint/default isTypeIdenticalTo when both present —
+mismatch → All_declarations_of_0_must_have_identical_type_parameters
+at EVERY declaration name); checkFunctionOrConstructorSymbol (§5);
+checkClassForDuplicateDeclarations (§5); non-ambient →
+checkClassForStaticPropertyNameConflicts (§5).
+
+Base-type block (getEffectiveBaseTypeNode present):
+- eager: forEach typeArguments checkSourceElement; emit-helpers
+  no-op; (JS @augments divergence elided).
+- baseTypes = getBaseTypes(type) (5.2 kit); nonempty → LAZY:
+  - staticBaseType = getApparentType(getBaseConstructorTypeOfClass);
+  - checkBaseTypeAccessibility (L85269: first construct signature's
+    declaration has Private modifier && node not within that class →
+    Cannot_extend_a_class_0_Class_constructor_is_marked_as_private,
+    getFullyQualifiedName arg);
+  - checkSourceElement(baseTypeNode.expression) — dispatch no-op for
+    entity expressions; port literally;
+  - typeArguments → checkSourceElement each (idempotent re-force) +
+    for constructor in getConstructorsForTypeArguments(staticBase,
+    typeArguments, baseTypeNode): checkTypeArgumentConstraints(
+    baseTypeNode, constructor.typeParameters) until first failure —
+    NOTE: check.rs's checkTypeArgumentConstraints currently asserts
+    TypeReference node data; generalize to
+    ExpressionWithTypeArguments (heritage) + keep the effective-
+    type-arguments kit;
+  - baseWithThis = getTypeWithThisArgument(baseType, type.thisType);
+    !isTypeAssignableTo(typeWithThis, baseWithThis) [SILENT] →
+    issueMemberSpecificError(node, typeWithThis, baseWithThis,
+    Class_0_incorrectly_extends_base_class_1); else →
+    checkTypeAssignableTo(staticType, getTypeWithoutSignatures(
+    staticBaseType), node.name||node, Class_static_side_0_
+    incorrectly_extends_base_class_static_side_1)
+    (getTypeWithoutSignatures — new helper, grep anchor at landing);
+  - mixin band: baseConstructorType TypeVariable-flagged →
+    !isMixinConstructorType(staticType) → A_mixin_class_must_have_a_
+    constructor_with_a_single_rest_parameter_of_type_any; else
+    abstract construct sig && class not abstract → A_mixin_class_
+    that_extends_from_a_type_variable_containing_an_abstract_
+    construct_signature_must_also_be_declared_abstract;
+  - non-class-symbol static base && non-TypeVariable →
+    getInstantiatedConstructorsForTypeArguments (5.7 kit); any sig
+    return not identical to baseType → Base_constructors_must_all_
+    have_the_same_return_type AT baseTypeNode.expression;
+  - checkKindsOfPropertyMemberOverrides(type, baseType).
+
+checkMembersForOverrideModifier (L85112): per non-ambient member
+(+ constructor parameter properties flagged memberIsParameterProperty)
+→ checkMemberForOverrideModifier (L85171):
+- override modifier + non-bindable dynamic name → This_member_cannot_
+  have_an_override_modifier_because_its_name_is_dynamic;
+- base exists && (override || noImplicitOverride option): prop/
+  baseProp lookups by escapedName on (static ? staticType/
+  baseStaticType : typeWithThis/baseWithThis); prop && !baseProp &&
+  override → …because_it_is_not_declared_in_the_base_class_0
+  [+ _Did_you_mean_1 flavor via
+  getSuggestedSymbolForNonexistentClassMember — spell.rs]; prop &&
+  baseProp && noImplicitOverride && !ambient: override → Ok;
+  base not abstract → This_member_must_have_an_override_modifier_…
+  (parameter-property flavor swaps the message); member abstract &&
+  base abstract → …overrides_an_abstract_method…;
+- no base && override → …containing_class_0_does_not_extend_another_
+  class. noImplicitOverride: verify options.rs; unmodeled → only
+  override-present faces live. baseClassName/className =
+  typeToString (display band containment applies).
+
+implements list: per node: non-entity-name/optional-chain →
+A_class_can_only_implement_an_identifier_Slashqualified_name_with_
+optional_type_arguments; checkTypeReferenceNode(typeRefNode) (same
+heritage generalization); LAZY: t = getReducedType(getTypeFromType
+Node); non-error: isValidBaseType(t) → baseWithThis = withThis(t);
+silent relation fail → issueMemberSpecificError(node, typeWithThis,
+baseWithThis, class-symbol-t ? Class_0_incorrectly_implements_class_
+1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass :
+Class_0_incorrectly_implements_interface_1); !isValidBaseType →
+A_class_can_only_implement_an_object_type_or_intersection_of_object_
+types_with_statically_known_members.
+
+Final LAZY: checkIndexConstraints(type, symbol) +
+checkIndexConstraints(staticType, symbol, /*isStaticIndex*/ true) +
+checkTypeForDuplicateIndexSignatures (§5) +
+checkPropertyInitialization.
+
+### issueMemberSpecificError (L85233)
+Per NON-static member with a declared prop (member.name symbol):
+prop = getPropertyOfType(typeWithThis, name), baseProp = …(
+baseWithThis, name); both → checkTypeAssignableTo(getTypeOfSymbol(
+prop), getTypeOfSymbol(baseProp), member.name||member, headMessage=
+undefined, rootChain: Property_0_in_type_1_is_not_assignable_to_the_
+same_property_in_base_type_2 (symbolToString, two typeToStrings)) —
+the CHAIN ROOT is the reported code/message (reuse the calls.rs
+chain support; check_type_assignable_to needs the optional chain
+param). Any member failure suppresses the broad row; else broad
+checkTypeAssignableTo(typeWithThis, baseWithThis, node.name||node,
+broadDiag) (2415/2420/2720 heads).
+
+### checkKindsOfPropertyMemberOverrides (L85315) — transcribe
+Per base property (skip Prototype-flagged): base = getTargetSymbol
+(instantiated → links.target); baseSymbol = getPropertyOfObjectType(
+type, name); absent → continue; derived = target(baseSymbol).
+- derived === base (inherited, not overridden): base ABSTRACT-
+  flagged && derived class not abstract → check OTHER base types
+  first (a different base implementing it elides — continue outer);
+  collect per-derived-class-decl notImplementedInfo {baseTypeName,
+  typeName, missedProperties[]} (typeToString displays).
+- derived ≠ base: either side Private-modifier → skip. Both
+  property-or-accessor flagged: skip when base is
+  abstract-or-interface property everywhere (Synthetic base → SOME
+  declarations; else EVERY declaration — isPropertyAbstractOrInterface
+  L85417: abstract && (!property-decl || no initializer) ||
+  interface-parent) or base Mapped check-flag or derived
+  valueDeclaration is a binary expression (JS); accessor→property
+  override → _0_is_defined_as_an_accessor_in_class_1_but_is_
+  overridden_here_in_2_as_an_instance_property; property→accessor →
+  …defined_as_a_property…_as_an_accessor; else useDefineForClassFields
+  (default TRUE at ES2022+): derived has an uninitialized
+  PropertyDeclaration, non-transient, neither side abstract, no
+  ambient declaration → UNLESS (no exclamationToken && constructor
+  exists && identifier name && strictNullChecks &&
+  isPropertyInitializedInConstructor) → Property_0_will_overwrite_
+  the_base_property_in_1_… — the exception clause is FLOW ([M5]):
+  at M4, report only the flow-free faces (exclamationToken present /
+  no constructor / non-identifier name / !strictNullChecks) and
+  ESCAPE when the constructor-initialization probe is required.
+  Method faces: base prototype-property: derived prototype-or-
+  property → skip; derived accessor → Class_0_defines_instance_
+  member_function_1_but_extended_class_2_defines_it_as_instance_
+  member_accessor; base accessor → …accessor_1_…_as_instance_member_
+  function… wait — transcribe the three message selections exactly
+  from L85377-85388 (function→accessor / accessor→function /
+  property→function). Error AT derived valueDeclaration name.
+- notImplementedInfo drain: 1 missing → Non_abstract_class_0_does_
+  not_implement_inherited_abstract_member_1_from_class_2 (class
+  expressions: Non_abstract_class_expression_does_not_implement_
+  inherited_abstract_member_0_from_class_1); >5 → first-4 quoted +
+  _and_N_more flavors; else joined list flavors. Quote format
+  `'name'` joined ", ".
+
+### checkPropertyInitialization (L85477) — the 2564 band
+Gates: strictNullChecks && strictPropertyInitialization (BOTH strict-
+family defaults ON) && !ambient. Per member: skip ambient-modifier /
+static / !isPropertyWithoutInitializer (L85499: PropertyDeclaration,
+no abstract, no exclamation, no initializer); identifier/private/
+computed names; type = getTypeOfSymbol(member symbol); skip
+Any|Unknown or contains-undefined; **!constructor → REPORT
+Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_
+constructor AT member.name — FLOW-FREE face, live at M4**;
+constructor present → isPropertyInitializedInConstructor (L85517:
+fabricated this.prop reference + getFlowTypeOfReference on
+constructor.returnFlowNode) = [FLOW M5] → ESCAPE (recorded FN;
+the M5 swap lifts it, plus isPropertyInitializedInStaticBlocks
+L85502 for the static-block face). 2564 = 1,139 FN rows — the
+no-constructor subset recovers NOW.
+
+### checkInheritedPropertiesAreIdentical (L85439)
+Interfaces with ≥2 base types; seen map from resolveDeclaredMembers
+declaredProperties (containingType=type), then per base
+getPropertiesOfType(withThis(base)): new → record (containingType=
+base); existing with containingType ≠ type && !isPropertyIdenticalTo
+(relate.rs compareProperties identity — verify exposure) → chain
+Named_property_0_of_types_1_and_2_are_not_identical UNDER Interface_
+0_cannot_simultaneously_extend_types_1_and_2, diagnostic AT the
+INTERFACE NAME node (typeNode param = node.name), code = outer
+chain. Returns ok (gates the base-assignability loop).
+
+### checkIndexConstraints (L84705)
+indexInfos of type; none → return. Per property of object type
+(skip Prototype-flagged under isStaticIndex):
+checkIndexConstraintForProperty(type, prop, getLiteralTypeFromProperty
+(prop, StringOrNumberLiteralOrUnique, includeNonPublic=true),
+getNonMissingTypeOfSymbol(prop)). Class declarations additionally
+run NON-bindable-name members (computed names) per static-ness with
+getTypeOfExpression(member.name.expression) as the name type.
+>1 index infos → pairwise checkIndexConstraintForIndexSignature.
+- ForProperty (L84735): private-identifier names skip;
+  applicable infos via getApplicableIndexInfos(type, propNameType)
+  (indexed.rs kit); errorNode selection: LOCAL prop declaration
+  (parent symbol === type.symbol) || LOCAL index declaration ||
+  (interface type && no base carries both the property and the
+  index → the interface declaration) — else SILENT (inherited
+  conflicts report only on the declaring interface); fail →
+  Property_0_of_type_1_is_not_assignable_to_2_index_type_3
+  (+related _0_is_declared_here at binary/computed propDeclaration
+  when errorNode differs).
+- ForIndexSignature (L84757): per other info; errorNode = local
+  check declaration || local other-index declaration || interface-
+  without-base-carrying-both; fail → _0_index_type_1_is_not_
+  assignable_to_2_index_type_3.
+
+## §7 Interface / type alias / enum completions
+
+### checkInterfaceDeclaration (L85525) — completes the 5.4 slice
+Order: grammar-modifiers hook → checkGrammarInterfaceDeclaration
+(grammar band); !allowBlockDeclarations(parent) → _0_declarations_
+can_only_be_declared_inside_a_block("interface");
+checkTypeParameters (5.4 live); LAZY: checkTypeNameIsReserved (5.4
+live — MOVE under the lazy identity, order-sensitive only vs new
+rows); checkExportsOnMergedDeclarations (§5);
+checkTypeParameterListsIdentical (§6); node === FIRST interface
+declaration → type/typeWithThis; checkInheritedPropertiesAre
+Identical(type, node.name) (§6) OK → per baseType:
+checkTypeAssignableTo(typeWithThis, withThis(baseType, thisType),
+node.name, Interface_0_incorrectly_extends_interface_1) +
+checkIndexConstraints(type, symbol) (§6);
+checkObjectTypeForDuplicateDeclarations (§5). EAGER: per
+getInterfaceBaseTypeNodes: non-entity/optional-chain → An_interface_
+can_only_extend_an_identifier_Slashqualified_name_with_optional_
+type_arguments; checkTypeReferenceNode(heritage) — heritage
+generalization (§6); forEach members checkSourceElement (5.4 live);
+LAZY: checkTypeForDuplicateIndexSignatures (§5) + M7 register.
+NOTE the interface-extends relation reports at node.NAME with the
+2430 head — no member-specific elaboration (unlike classes).
+
+### checkTypeAliasDeclaration (L85561) — delta over the 5.4 slice
+Adds: !allowBlockDeclarations(parent) → block-decl row ("type");
+checkExportsOnMergedDeclarations. Everything else (name-reserved,
+type params, intrinsic-keyword arm, checkSourceElement(type))
+already landed at 5.4 — verify order matches L85562-85578 exactly
+(name-reserved BEFORE block-decl row).
+
+### Enum band (L85580-85839) — the evaluator is ALREADY PORTED (5.3b)
+computeEnumMemberValues/computeEnumMemberValue/
+computeConstantEnumMemberValue/evaluate* live in evaluate.rs with
+their diagnostic rows (numeric-name 2452-family, 1061,
+isolatedModules rows behind getIsolatedModules — OPTION unmodeled →
+those rows dead w/ note, const-enum NaN/non-finite, 2474, 1066,
+computed-value assignability). 5.8 adds ONLY the drivers:
+checkEnumDeclaration (L85767) / checkEnumDeclarationWorker (L85770) /
+checkEnumMember (L85810) / getFirstNonAmbientClassOrFunction
+Declaration (L85818) / inSameLexicalScope (L85829) — EXTRACTION
+PENDING (read at part-3): expected content = grammar-modifiers,
+name-reserved (Enum_name_cannot_be_0 rides collisions §2),
+computeEnumMemberValues drive, enum-merging rules (2432/2567/2433),
+const-enum member forcing. Anchors recorded.
+
+## §§8-11 EXTRACTION PENDING (anchors + owners recorded in Status)
+
+Enum drivers (L85767-85839 tail),
 module (L85840 checkModuleDeclaration + augmentation elements),
 alias band (checkAliasSymbol L86029 + resolveAlias L49116 +
 import/export declaration checks L86163-86501 +
