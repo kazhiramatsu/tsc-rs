@@ -123,9 +123,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getWidenedLiteralLikeTypeForContextualReturnTypeIfNeeded @6.0.3
     /// tsc-hash: e4a1b137182f82fa0678d1ae3be9c2b587f29bdc5a8011d40f409f55fadf4e28
     /// tsc-span: _tsc.js:67777-67783
-    ///
-    /// The async arm reads getPromisedTypeOfPromise — [ASYNC → 5.5f];
-    /// the consumer (getReturnTypeFromBody 78752) lands there too.
     #[allow(dead_code)]
     pub(crate) fn get_widened_literal_like_type_for_contextual_return_type_if_needed(
         &mut self,
@@ -141,11 +138,9 @@ impl<'a> CheckerState<'a> {
         }
         let contextual_type = match contextual_signature_return_type {
             None => None,
-            Some(_signature_return) if is_async => {
-                return Err(crate::state::Unsupported::new(
-                    "getWidenedLiteralLikeTypeForContextualReturnTypeIfNeeded async arm \
-                     (expired 5.5f dep; folded into the 5.7b close)",
-                ));
+            // 67779: async contexts compare against the PROMISED type.
+            Some(signature_return) if is_async => {
+                self.get_promised_type_of_promise(signature_return)?
             }
             Some(signature_return) => Some(signature_return),
         };

@@ -542,7 +542,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getNullableType @6.0.3
     /// tsc-hash: e51ab12c29ed98598d2d368c3bd905b09fb8e31de0a718389a894ad5d7677537
     /// tsc-span: _tsc.js:67848-67851
-    fn get_nullable_type(&mut self, ty: TypeId, flags: i32) -> TypeId {
+    pub(crate) fn get_nullable_type(&mut self, ty: TypeId, flags: i32) -> TypeId {
         let missing = flags
             & !self.tables.flags_of(ty).bits()
             & (TypeFlags::UNDEFINED.bits() | TypeFlags::NULL.bits());

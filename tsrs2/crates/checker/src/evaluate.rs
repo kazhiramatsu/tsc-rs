@@ -7,10 +7,10 @@
 //!
 //! The declared-before-use walk gained its checkExpression-era arms at
 //! 5.5a (TDZ band: class + binding-element declarations, the IIFE /
-//! property-initializer / decorator usage sub-arms). Still escaped:
-//! property and parameter-property DECLARATIONS plus the static-block
-//! property-initialization probe — the 2729 consumer band (folded
-//! into the 5.7b close by the 5.7a expiry audit).
+//! property-initializer / decorator usage sub-arms) and closed at 5.7b
+//! (2729 band: property / parameter-property declarations, the
+//! positional isPropertyImmediatelyReferencedWithinDeclaration walk,
+//! and the static-block probe's [FLOW M5] stub reduction).
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::gen as diagnostics;
@@ -675,9 +675,8 @@ impl<'a> CheckerState<'a> {
     /// moduleKind conjunct needs an externalModuleIndicator either way
     /// and `!compilerOptions.outFile` is always true (outFile
     /// unmodeled), so the tsc disjunction short-circuits. The JSDoc
-    /// usage-flag test is elided (no JSDoc nodes parse). Declaration
-    /// kinds the evaluator cannot produce (BindingElement, classes,
-    /// property/parameter-property declarations) escape.
+    /// usage-flag test is elided (no JSDoc nodes parse). All
+    /// declaration arms are live since 5.7b (2729 band).
     pub(crate) fn is_block_scoped_name_declared_before_use(
         &mut self,
         declaration: NodeId,
@@ -728,12 +727,24 @@ impl<'a> CheckerState<'a> {
                     // property names or (standard) decorators.
                     Ok(self.class_use_before_declaration_is_legal(declaration, usage))
                 }
-                SyntaxKind::PropertyDeclaration => Err(Unsupported::new(
-                    "property declared-before-use (2729 band; expired 5.5d dep, folded into the 5.7b close)",
-                )),
-                SyntaxKind::Parameter => Err(Unsupported::new(
-                    "parameter-property declared-before-use (2729 band; expired 5.5d dep, folded into the 5.7b close)",
-                )),
+                SyntaxKind::PropertyDeclaration => Ok(!self
+                    .is_property_immediately_referenced_within_declaration(
+                        declaration,
+                        usage,
+                        /*stop_at_any_property_declaration*/ false,
+                    )),
+                SyntaxKind::Parameter => {
+                    // 47974-47976: only PARAMETER PROPERTIES take the
+                    // emitStandardClassFields arm; plain parameters
+                    // fall to the `return true` tail.
+                    if !self.is_parameter_property_declaration(declaration) {
+                        return Ok(true);
+                    }
+                    Ok(!(self.options.emit_standard_class_fields()
+                        && self.containing_class_of(declaration)
+                            == self.containing_class_of(usage)
+                        && self.is_used_in_function_or_instance_property(usage, declaration)?))
+                }
                 _ => Ok(true),
             };
         }
@@ -754,12 +765,105 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.is_used_in_function_or_instance_property(usage, declaration)? {
-            // 48046-48056: the emitStandardClassFields sub-arm requires
-            // a property/parameter-property declaration — the kinds
-            // above already escape, so this reduces to `true`.
+            // 48046-48056: property/parameter-property declarations in
+            // a class re-run the positional walk with the
+            // stop-at-any-property-declaration flavor under standard
+            // class fields.
+            if self.options.emit_standard_class_fields()
+                && self.containing_class_of(declaration).is_some()
+                && (self.kind_of(declaration) == SyntaxKind::PropertyDeclaration
+                    || self.is_parameter_property_declaration(declaration))
+            {
+                return Ok(!self.is_property_immediately_referenced_within_declaration(
+                    declaration,
+                    usage,
+                    /*stop_at_any_property_declaration*/ true,
+                ));
+            }
             return Ok(true);
         }
         Ok(false)
+    }
+
+    /// tsc isParameterPropertyDeclaration (12440): a constructor
+    /// parameter carrying a parameter-property modifier.
+    fn is_parameter_property_declaration(&self, node: NodeId) -> bool {
+        self.kind_of(node) == SyntaxKind::Parameter
+            && node_util::has_syntactic_modifier(
+                self.binder.source_of_node(node),
+                node,
+                tsrs2_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+            )
+            && self
+                .parent_of(node)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::Constructor)
+    }
+
+    /// tsc-port: isBlockScopedNameDeclaredBeforeUse.isPropertyImmediatelyReferencedWithinDeclaration @6.0.3
+    /// tsc-hash: 8805212c30023aa38f7e3a68b4e88152253a2470946a9b2fc1c242c751667998
+    /// tsc-span: _tsc.js:48061-48088
+    ///
+    /// Purely positional: a usage past the declaration's end is never
+    /// "immediately referenced"; otherwise the ancestor walk looks for
+    /// a reference-scope change (arrow function, another property
+    /// declaration, an accessor/method block) before reaching the
+    /// declaration itself.
+    fn is_property_immediately_referenced_within_declaration(
+        &self,
+        declaration: NodeId,
+        usage: NodeId,
+        stop_at_any_property_declaration: bool,
+    ) -> bool {
+        if self.end_of(usage) > self.end_of(declaration) {
+            return false;
+        }
+        let mut current = Some(usage);
+        while let Some(node) = current {
+            if node == declaration {
+                // "quit" — no scope-changing ancestor found.
+                return true;
+            }
+            match self.kind_of(node) {
+                SyntaxKind::ArrowFunction => return false,
+                SyntaxKind::PropertyDeclaration => {
+                    if stop_at_any_property_declaration {
+                        let same_container =
+                            if self.kind_of(declaration) == SyntaxKind::PropertyDeclaration {
+                                self.parent_of(node) == self.parent_of(declaration)
+                            } else if self.is_parameter_property_declaration(declaration) {
+                                self.parent_of(node)
+                                    == self
+                                        .parent_of(declaration)
+                                        .and_then(|ctor| self.parent_of(ctor))
+                            } else {
+                                false
+                            };
+                        if same_container {
+                            // "quit".
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                SyntaxKind::Block => {
+                    let parent_kind = self.parent_of(node).map(|parent| self.kind_of(parent));
+                    if matches!(
+                        parent_kind,
+                        Some(
+                            SyntaxKind::GetAccessor
+                                | SyntaxKind::MethodDeclaration
+                                | SyntaxKind::SetAccessor
+                        )
+                    ) {
+                        return false;
+                    }
+                }
+                _ => {}
+            }
+            current = self.parent_of(node);
+        }
+        // Ancestor walk exhausted without finding a scope changer.
+        true
     }
 
     /// The isClassLike arm of isBlockScopedNameDeclaredBeforeUse
@@ -836,6 +940,63 @@ impl<'a> CheckerState<'a> {
     /// tsc getContainingClass (14487).
     fn containing_class_of(&self, node: NodeId) -> Option<NodeId> {
         node_util::get_containing_class(self.binder.source_of_node(node), node)
+    }
+
+    /// tsc-port: isPropertyInitializedInStaticBlocks @6.0.3 (the
+    /// flow-stub reduction)
+    /// tsc-hash: 391d2cdaf50aeca1fbbfca25191e370ea5e2651803cc5fac9ac8a3ba75dea4fa
+    /// tsc-span: _tsc.js:85502-85516
+    ///
+    /// tsc fabricates a `this.<prop>` reference wired to each block's
+    /// returnFlowNode and asks getFlowTypeOfReference(ref, propType,
+    /// getOptionalType(propType)) whether undefined survived. Under
+    /// the M4 flow stub ([FLOW M5]: declared type), the per-block read
+    /// collapses to `!containsUndefinedType(propType)` — a block that
+    /// does NOT initialize the property diverges (stub answers
+    /// "initialized"), but the reachable downstream shapes converge:
+    /// the caller's stop-at-property positional walk re-derives the
+    /// same 2729 verdict either way. The identifier/private-identifier
+    /// name guard from the call site (48032) is folded in.
+    fn is_property_initialized_in_static_blocks(
+        &mut self,
+        declaration: NodeId,
+        current: NodeId,
+    ) -> CheckResult2<bool> {
+        let NodeData::PropertyDeclaration(data) = self.data_of(declaration) else {
+            unreachable!("caller checked the declaration kind");
+        };
+        let name_ok = data.name.is_some_and(|name| {
+            matches!(
+                self.kind_of(name),
+                SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier
+            )
+        });
+        if !name_ok {
+            return Ok(false);
+        }
+        let Some(class) = self.parent_of(declaration) else {
+            return Ok(false);
+        };
+        let members = match self.data_of(class) {
+            NodeData::ClassDeclaration(class_data) => class_data.members,
+            NodeData::ClassExpression(class_data) => class_data.members,
+            _ => None,
+        };
+        let start_pos = self.pos_of(class);
+        let end_pos = self.pos_of(current);
+        let block_in_range = self.nodes_of(members).into_iter().any(|member| {
+            self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration && {
+                let pos = self.pos_of(member);
+                pos >= start_pos && pos <= end_pos
+            }
+        });
+        if !block_in_range {
+            return Ok(false);
+        }
+        let symbol = self.get_symbol_of_declaration(declaration)?;
+        let prop_type = self.get_type_of_symbol(symbol)?;
+        // [FLOW M5] getFlowTypeOfReference stub → declared type.
+        Ok(!self.contains_undefined_type(prop_type))
     }
 
     /// tsc getAncestor (12654) — nearest ancestor OR SELF of `kind`.
@@ -956,15 +1117,10 @@ impl<'a> CheckerState<'a> {
                             if self.kind_of(declaration) == SyntaxKind::PropertyDeclaration
                                 && self.containing_class_of(usage)
                                     == self.containing_class_of(declaration)
+                                && self
+                                    .is_property_initialized_in_static_blocks(declaration, node)?
                             {
-                                // isPropertyInitializedInStaticBlocks
-                                // needs getTypeOfSymbol — the 2729
-                                // consumer band (folded into the 5.7b
-                                // close); TDZ declarations are never
-                                // properties.
-                                return Err(Unsupported::new(
-                                    "static-block property-initialization probe (2729 band; expired 5.5d dep, folded into the 5.7b close)",
-                                ));
+                                return Ok(true);
                             }
                         } else {
                             let is_declaration_instance_property = self.kind_of(declaration)
@@ -1189,6 +1345,10 @@ impl<'a> CheckerState<'a> {
 
     pub(crate) fn pos_of(&self, node: NodeId) -> u32 {
         self.binder.source_of_node(node).arena.node(node).pos
+    }
+
+    pub(crate) fn end_of(&self, node: NodeId) -> u32 {
+        self.binder.source_of_node(node).arena.node(node).end
     }
 
     /// tsc-port: skipParentheses @6.0.3

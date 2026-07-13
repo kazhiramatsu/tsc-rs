@@ -1539,11 +1539,9 @@ impl<'a> CheckerState<'a> {
     /// (57016-57024) rides on JS Assignment binding (M2 3.4c residual);
     /// JSDoc kinds (JSDocFunctionType/template/typedef/enum/callback
     /// tags, the JSDoc parameter/comment arms 57067-57078) are elided
-    /// project-wide. Function-expression containers escape because the
-    /// context-sensitive replay (57052-57057) needs isContextSensitive
-    /// (5.5); class containers escape on thisType (their declared types
-    /// are GenericType, 5.2 follow-up); conditional-type containers are
-    /// live via getInferTypeParameters.
+    /// project-wide. The context-sensitive function-expression replay
+    /// (57052-57057) is live since 5.7b; conditional-type containers
+    /// are live via getInferTypeParameters.
     pub(crate) fn get_outer_type_parameters(
         &mut self,
         node: NodeId,
@@ -1575,15 +1573,31 @@ impl<'a> CheckerState<'a> {
                     let outer = self
                         .get_outer_type_parameters(node, include_this_types)?
                         .unwrap_or_default();
-                    if matches!(
+                    if (matches!(
                         kind,
                         SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
-                    ) || self.is_object_literal_method(node)
+                    ) || self.is_object_literal_method(node))
+                        && self.is_context_sensitive(node)
                     {
-                        return Err(Unsupported::new(
-                            "outer type parameters across function expressions \
-                             (expired 5.5 dep; folded into the 5.7b close)",
-                        ));
+                        // 57052-57057: context-sensitive function
+                        // expressions replay their CHECKED signature's
+                        // type parameters (the contextual assignment
+                        // may have instantiated them); others fall
+                        // through to the declared-type-parameter
+                        // append.
+                        let symbol = self.get_symbol_of_declaration(node)?;
+                        let ty = self.get_type_of_symbol(symbol)?;
+                        let signatures = self
+                            .get_signatures_of_type(ty, crate::structural::SignatureKind::Call)?;
+                        if let Some(&first) = signatures.first() {
+                            if let Some(type_parameters) =
+                                self.signature_of(first).type_parameters.clone()
+                            {
+                                let mut result = outer;
+                                result.extend(type_parameters.iter().copied());
+                                return Ok(Some(result));
+                            }
+                        }
                     }
                     if kind == SyntaxKind::MappedType {
                         let NodeData::MappedType(data) = self.data_of(node) else {

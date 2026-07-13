@@ -286,27 +286,18 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::QualifiedName => self.check_qualified_name(node, check_mode),
             SyntaxKind::ElementAccessExpression => self.check_indexed_access(node, check_mode),
             SyntaxKind::CallExpression => {
+                // isImportCall covers `import(...)` AND `import.defer(...)`
+                // (tsc 14150) — both route to the import-call worker so
+                // the errorType of a bare `import.defer` meta-property
+                // never leaks into untyped-call arg checking.
                 if self.is_import_call(node) {
-                    return self.expression_stub("checkImportCallExpression", "5.7b");
-                }
-                // `import.defer(...)`: the deferred dynamic-import
-                // flavor rides the import-call band (checkMetaProperty
-                // answers errorType for the bare `import.defer`, which
-                // must not leak into untyped-call arg checking).
-                let defer_call = matches!(self.data_of(node), NodeData::CallExpression(data)
-                if data.expression.is_some_and(|expression| {
-                    self.kind_of(expression) == SyntaxKind::MetaProperty
-                        && !self.meta_property_is_new(expression)
-                }));
-                if defer_call {
-                    return self
-                        .expression_stub("checkImportCallExpression (import.defer)", "5.7b");
+                    return self.check_import_call_expression(node);
                 }
                 self.check_call_expression(node, check_mode)
             }
             SyntaxKind::NewExpression => self.check_call_expression(node, check_mode),
             SyntaxKind::TaggedTemplateExpression => {
-                self.expression_stub("checkTaggedTemplateExpression", "5.7b")
+                self.check_tagged_template_expression(node, check_mode)
             }
             SyntaxKind::ParenthesizedExpression => {
                 self.check_parenthesized_expression(node, check_mode)
@@ -361,13 +352,25 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc isImportCall (16097): CallExpression whose expression is the
-    /// `import` keyword.
+    /// tsc isImportCall (14150): CallExpression whose expression is the
+    /// `import` keyword — or (6.0.3) the `import.defer` meta-property
+    /// (keywordToken `import`, name `defer`; the leading source token
+    /// disambiguates from `new.target` — no keywordToken slot).
     pub(crate) fn is_import_call(&self, node: NodeId) -> bool {
-        match self.data_of(node) {
-            NodeData::CallExpression(data) => data
-                .expression
-                .is_some_and(|expression| self.kind_of(expression) == SyntaxKind::ImportKeyword),
+        let NodeData::CallExpression(data) = self.data_of(node) else {
+            return false;
+        };
+        let Some(expression) = data.expression else {
+            return false;
+        };
+        match self.kind_of(expression) {
+            SyntaxKind::ImportKeyword => true,
+            SyntaxKind::MetaProperty => {
+                !self.meta_property_is_new(expression)
+                    && matches!(self.data_of(expression), NodeData::MetaProperty(meta)
+                        if meta.name.and_then(|name| self.identifier_text_of(name))
+                            == Some("defer"))
+            }
             _ => false,
         }
     }

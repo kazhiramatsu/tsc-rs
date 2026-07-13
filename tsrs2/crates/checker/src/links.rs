@@ -126,6 +126,9 @@ pub struct SymbolLinks {
     /// the NamedTupleMember/Parameter node behind a synthesized tuple
     /// index property.
     pub tuple_label_declaration: Option<NodeId>,
+    /// tsc links.uniqueESSymbolType (getESSymbolLikeTypeForNode 63127)
+    /// — the per-declaration `unique symbol` type memo.
+    pub unique_es_symbol_type: Option<TypeId>,
     /// tsc links.writeType (getWriteTypeOfAccessors 56787) — the
     /// setter-side type; the WriteType resolution property.
     pub write_type: LinkSlot<TypeId>,
@@ -412,6 +415,23 @@ impl LinksTables {
         }
     }
 
+    /// getContextuallyTypedParameterType's IIFE stash (72708-72712):
+    /// tsc parks anySignature on the IIFE while checking the argument
+    /// (so re-entrant getResolvedSignature reads short-circuit), then
+    /// restores the prior value. A RAW swap — the ONLY writer allowed
+    /// to take the slot back to Vacant (restoring a previously-vacant
+    /// slot); both directions bypass the call-protocol transitions.
+    pub fn swap_node_resolved_signature_iife(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: LinkSlot<SignatureId>,
+    ) -> LinkSlot<SignatureId> {
+        Self::assert_writable(speculation_depth);
+        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        std::mem::replace(slot, value)
+    }
+
     /// Err-unwind twin for the call protocol: tsc cannot fail inside
     /// resolveSignature, so an Unsupported unwind that left the
     /// sentinel must revert to Vacant — a later query re-resolves and
@@ -544,6 +564,18 @@ impl LinksTables {
 
     pub fn set_symbol_is_discriminant(&mut self, id: SymbolId, value: bool) {
         self.symbol.entry(id).or_default().is_discriminant_property = Some(value);
+    }
+
+    /// `links.uniqueESSymbolType = ...` (getESSymbolLikeTypeForNode
+    /// 63127).
+    pub fn set_symbol_unique_es_symbol_type(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        ty: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().unique_es_symbol_type = Some(ty);
     }
 
     /// tsc createSymbol's checkFlags seed (47656) for transient symbols

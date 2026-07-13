@@ -926,6 +926,45 @@ impl<'a> CheckerState<'a> {
             .create_type_reference(global_promise, &[awaited]))
     }
 
+    /// tsc-port: getGlobalPromiseLikeType @6.0.3
+    /// tsc-hash: ac8c0f35caff10d3e34cda093925f7dcaf5f40347ee803b6e363b54b6bef3aa2
+    /// tsc-span: _tsc.js:60758-60765
+    pub(crate) fn get_global_promise_like_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let Some(memo) = self.deferred_global_promise_like_type {
+            return Ok((memo != self.empty_generic_type).then_some(memo));
+        }
+        let symbol = self.get_global_type_symbol("PromiseLike", report_errors);
+        if symbol.is_none() && !report_errors {
+            return Ok(None);
+        }
+        let resolved = self.get_type_of_global_symbol(symbol, 1)?;
+        self.deferred_global_promise_like_type = Some(resolved);
+        Ok((resolved != self.empty_generic_type).then_some(resolved))
+    }
+
+    /// tsc-port: createPromiseLikeType @6.0.3
+    /// tsc-hash: 815667493c5a737be799570a3aef5987952582bafb15ee6d73fb814860b16c3c
+    /// tsc-span: _tsc.js:78713-78723
+    pub(crate) fn create_promise_like_type(
+        &mut self,
+        promised_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let global_promise_like = self.get_global_promise_like_type(/*report_errors*/ true)?;
+        let Some(global_promise_like) = global_promise_like else {
+            return Ok(self.tables.intrinsics.unknown);
+        };
+        let unwrapped = self.unwrap_awaited_type(promised_type)?;
+        let awaited = self
+            .get_awaited_type_no_alias(unwrapped, None)?
+            .unwrap_or(self.tables.intrinsics.unknown);
+        Ok(self
+            .tables
+            .create_type_reference(global_promise_like, &[awaited]))
+    }
+
     /// tsc-port: createPromiseReturnType @6.0.3
     /// tsc-hash: 8deae93ccfc7675a8ab2ff4fbfba4c0490efc173ad3b4fc8a82b609a35d1ed4b
     /// tsc-span: _tsc.js:78724-78742

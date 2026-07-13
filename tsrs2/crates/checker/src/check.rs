@@ -339,10 +339,12 @@ impl<'a> CheckerState<'a> {
     }
 
     /// One no-op escape per not-yet-landed checkSourceElementWorker
-    /// arm. The worker name + owner stage make each arm's disposition
-    /// greppable; the arm emits nothing (FN) until its stage ports the
-    /// worker.
-    fn source_element_stub(&self, _worker: &str, _owner: &str) -> CheckResult2<()> {
+    /// arm (and per value-level SILENT stub — a divergence that keeps
+    /// producing a result instead of unwinding). The worker name +
+    /// owner stage make each disposition greppable and visible to the
+    /// `xtask escapes` audit; the site emits nothing (FN) until its
+    /// stage ports the worker.
+    pub(crate) fn source_element_stub(&self, _worker: &str, _owner: &str) -> CheckResult2<()> {
         Ok(())
     }
 
@@ -851,7 +853,11 @@ impl<'a> CheckerState<'a> {
                 Ok(())
             }
             SyntaxKind::TaggedTemplateExpression => {
-                unreachable!("resolveTaggedTemplateExpression registers deferrals at 5.7b")
+                // checkDeferredNode 86923-86928: overload-failure
+                // deferrals re-check the raw operands (template + type
+                // arguments) against the stashed failure candidate.
+                self.resolve_untyped_call(node)?;
+                Ok(())
             }
             SyntaxKind::Decorator => {
                 unreachable!("resolveDecorator registers deferrals at 5.8")
@@ -902,7 +908,16 @@ impl<'a> CheckerState<'a> {
                 Ok(())
             }
             SyntaxKind::BinaryExpression => {
-                unreachable!("instanceof deferral registers at 5.5/5.7")
+                // 86960-86964: only instanceof binaries register
+                // deferrals (overload failure on [Symbol.hasInstance]).
+                let is_instanceof = matches!(self.data_of(node), NodeData::BinaryExpression(data)
+                if data.operator_token.is_some_and(|t| {
+                    self.kind_of(t) == SyntaxKind::InstanceOfKeyword
+                }));
+                if is_instanceof {
+                    self.resolve_untyped_call(node)?;
+                }
+                Ok(())
             }
             _ => Ok(()),
         }

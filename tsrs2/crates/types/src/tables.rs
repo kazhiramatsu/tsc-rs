@@ -586,6 +586,25 @@ impl TypeTables {
         regular
     }
 
+    /// tsc-port: createUniqueESSymbolType @6.0.3
+    /// tsc-hash: 24679b8eb2b6106a5821310dd0100a840d74facaa1fb3ebcacf571754c8de27d
+    /// tsc-span: _tsc.js:63112-63116
+    ///
+    /// Not freshable; the caller (getESSymbolLikeTypeForNode) supplies
+    /// the `__@<name>@<id>` escaped name and owns the per-symbol memo.
+    pub fn create_unique_es_symbol_type(
+        &mut self,
+        symbol: SymbolId,
+        escaped_name: String,
+    ) -> TypeId {
+        let id = self.create_type(
+            TypeFlags::UNIQUE_ES_SYMBOL,
+            TypeData::UniqueESSymbol { escaped_name },
+        );
+        self.type_mut(id).symbol = Some(symbol);
+        id
+    }
+
     // ---- list ids & propagating flags ----
 
     /// tsc-port: getTypeListId @6.0.3

@@ -935,11 +935,115 @@ impl<'a> CheckerState<'a> {
                 let operand = self.get_type_from_type_node(inner)?;
                 self.get_index_type(operand, tsrs2_types::IndexFlags::NONE)
             }
-            SyntaxKind::UniqueKeyword => Err(Unsupported::new("unique symbol types (M4)")),
+            SyntaxKind::UniqueKeyword => {
+                // 62035-62037: `unique symbol` resolves through the
+                // OWNING declaration (walkUpParenthesizedTypes on the
+                // operator's parent); non-`symbol` operands answer
+                // errorType.
+                if self.kind_of(inner) != SyntaxKind::SymbolKeyword {
+                    return Ok(self.tables.intrinsics.error);
+                }
+                let mut parent = self.parent_of(node).ok_or_else(|| {
+                    Unsupported::new("type operator without a parent (parse recovery)")
+                })?;
+                while self.kind_of(parent) == SyntaxKind::ParenthesizedType {
+                    match self.parent_of(parent) {
+                        Some(next) => parent = next,
+                        None => break,
+                    }
+                }
+                self.get_es_symbol_like_type_for_node(parent)
+            }
             other => Err(Unsupported::new(format!(
                 "type operator {other:?} outside the M3 slice"
             ))),
         }
+    }
+
+    /// tsc-port: getESSymbolLikeTypeForNode @6.0.3
+    /// tsc-hash: cfffbfaec274ec3d0403dfece197ea736c208fd8698405ab6a3696e5f41d915b
+    /// tsc-span: _tsc.js:63117-63132
+    ///
+    /// The JSDoc host hop and isCommonJsExportPropertyAssignment are
+    /// JS-only (elided). getSymbolOfNode tolerates unbound nodes — an
+    /// invalid position falls through to the plain `symbol` intrinsic
+    /// (the 1332-family grammar rows are parser-emitted).
+    pub(crate) fn get_es_symbol_like_type_for_node(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        if self.is_valid_es_symbol_declaration(node) {
+            let symbol = self.node_symbol(node).map(|s| self.get_merged_symbol(s));
+            if let Some(symbol) = symbol {
+                if let Some(cached) = self.links.symbol(symbol).unique_es_symbol_type {
+                    return Ok(cached);
+                }
+                let escaped_name = format!(
+                    "__@{}@{}",
+                    self.binder.symbol(symbol).escaped_name,
+                    symbol.0
+                );
+                let ty = self
+                    .tables
+                    .create_unique_es_symbol_type(symbol, escaped_name);
+                self.links
+                    .set_symbol_unique_es_symbol_type(self.speculation_depth, symbol, ty);
+                return Ok(ty);
+            }
+        }
+        Ok(self.tables.intrinsics.es_symbol)
+    }
+
+    /// tsc-port: isValidESSymbolDeclaration @6.0.3
+    /// tsc-hash: 667a26eb7c294b84d739b1e9b57d758772ff062767d05c4cfabd873d99eac28c
+    /// tsc-span: _tsc.js:14377-14379
+    ///
+    /// isCommonJsExportPropertyAssignment is JS-only (constant false).
+    fn is_valid_es_symbol_declaration(&self, node: NodeId) -> bool {
+        let source = self.binder.source_of_node(node);
+        match self.data_of(node) {
+            NodeData::VariableDeclaration(data) => {
+                // isVarConst: (combined & BlockScoped) == Const.
+                let combined = node_util::get_combined_node_flags(source, node);
+                let block_scoped = tsrs2_types::NodeFlags::from_bits(
+                    tsrs2_types::NodeFlags::LET.bits()
+                        | tsrs2_types::NodeFlags::CONST.bits()
+                        | tsrs2_types::NodeFlags::USING.bits(),
+                );
+                let is_const =
+                    combined.bits() & block_scoped.bits() == tsrs2_types::NodeFlags::CONST.bits();
+                is_const
+                    && data
+                        .name
+                        .is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
+                    && self.is_variable_declaration_in_variable_statement(node)
+            }
+            NodeData::PropertyDeclaration(_) => {
+                node_util::has_syntactic_modifier(
+                    source,
+                    node,
+                    tsrs2_types::ModifierFlags::READONLY,
+                ) && self.has_static_modifier(node)
+            }
+            NodeData::PropertySignature(_) => node_util::has_syntactic_modifier(
+                source,
+                node,
+                tsrs2_types::ModifierFlags::READONLY,
+            ),
+            _ => false,
+        }
+    }
+
+    /// tsc isVariableDeclarationInVariableStatement (14384):
+    /// declaration → VariableDeclarationList → VariableStatement.
+    fn is_variable_declaration_in_variable_statement(&self, node: NodeId) -> bool {
+        let Some(list) = self.parent_of(node) else {
+            return false;
+        };
+        self.kind_of(list) == SyntaxKind::VariableDeclarationList
+            && self
+                .parent_of(list)
+                .is_some_and(|statement| self.kind_of(statement) == SyntaxKind::VariableStatement)
     }
 
     // ---- type literals / function / constructor types ----
@@ -4695,26 +4799,25 @@ impl<'a> CheckerState<'a> {
         if let Some(mut ty) = ty {
             if self.tables.flags_of(ty).intersects(TypeFlags::ES_SYMBOL) {
                 // isGlobalSymbolConstructor(declaration.parent): only a
-                // parent whose (merged) symbol IS the global Symbol
-                // constructor takes getESSymbolLikeTypeForNode — a JS
-                // expando/global-augmentation shape. Everything else
-                // (ordinary `: symbol` annotations) falls through.
+                // parent whose (merged) symbol IS the global
+                // SymbolConstructor type symbol takes
+                // getESSymbolLikeTypeForNode. Everything else (ordinary
+                // `: symbol` annotations) falls through.
                 if self.is_in_js_file(declaration) {
                     return Err(Unsupported::new(
                         "widenTypeForVariableLikeDeclaration JS ESSymbol arm ([JSDOC])",
                     ));
                 }
-                let parent_symbol_name = self
+                let parent_symbol = self
                     .parent_of(declaration)
                     .and_then(|parent| self.binder.node_symbol(parent))
-                    .map(|symbol| self.binder.symbol(symbol).escaped_name.clone());
-                if matches!(
-                    parent_symbol_name.as_deref(),
-                    Some("Symbol" | "SymbolConstructor")
-                ) {
-                    return Err(Unsupported::new(
-                        "isGlobalSymbolConstructor arm (getESSymbolLikeTypeForNode, 5.7)",
-                    ));
+                    .map(|symbol| self.get_merged_symbol(symbol));
+                if let Some(parent_symbol) = parent_symbol {
+                    // getGlobalESSymbolConstructorTypeSymbol(false).
+                    let global = self.get_global_type_symbol("SymbolConstructor", false);
+                    if global == Some(parent_symbol) {
+                        ty = self.get_es_symbol_like_type_for_node(declaration)?;
+                    }
                 }
             }
             if report_errors {

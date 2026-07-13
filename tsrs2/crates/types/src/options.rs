@@ -11,6 +11,13 @@ pub struct CompilerOptions {
     pub experimental_decorators: bool,
     /// tsc ScriptTarget value; None when the option is absent.
     pub target: Option<i32>,
+    /// tsc ModuleKind value; None when the option is absent. Read
+    /// through emit_module_kind (the computed default depends on
+    /// target). Consumed by checkGrammarImportCallExpression's rows
+    /// (18060/1323/1324/1450/1325) — other moduleKind reads across the
+    /// checker still assume the default (their fixtures' divergences
+    /// predate this field; tighten per-site as bands land).
+    pub module: Option<i32>,
     pub always_strict: Option<bool>,
     pub strict: Option<bool>,
     /// strict-family flags the relation engine consumes (M3+); read
@@ -84,6 +91,28 @@ impl CompilerOptions {
         }
     }
 
+    /// tsc _computedOptions.module.computeValue (18190-region):
+    /// explicit value wins; else target ESNext → ESNext(99), target ≥
+    /// ES2022 → ES2022(7), ≥ ES2020 → ES2020(6), ≥ ES2015 → ES2015(5),
+    /// else CommonJS(1). The ES2025 default target computes ES2022.
+    pub fn emit_module_kind(&self) -> i32 {
+        if let Some(module) = self.module {
+            return module;
+        }
+        let target = self.emit_script_target();
+        if target == ScriptTarget::ES_NEXT {
+            99
+        } else if target >= ScriptTarget::ES2022 {
+            7
+        } else if target >= ScriptTarget::ES2020 {
+            6
+        } else if target >= ScriptTarget::ES2015 {
+            5
+        } else {
+            1
+        }
+    }
+
     /// tsc _computedOptions.alwaysStrict.computeValue (18257):
     /// `compilerOptions.alwaysStrict !== false` — strict-by-default in
     /// TS 6; only an explicit `alwaysStrict: false` disables it (the
@@ -108,5 +137,13 @@ impl CompilerOptions {
             Some(value) => value,
             None => self.emit_script_target() >= ScriptTarget::ES2022,
         }
+    }
+
+    /// tsc getEmitStandardClassFields (18286): NOT the same as the
+    /// computed useDefineForClassFields — an explicit `true` below
+    /// ES2022 still emits legacy fields.
+    pub fn emit_standard_class_fields(&self) -> bool {
+        self.use_define_for_class_fields != Some(false)
+            && self.emit_script_target() >= ScriptTarget::ES2022
     }
 }

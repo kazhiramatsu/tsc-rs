@@ -1705,6 +1705,19 @@ struct EscapeSite {
     line: usize,
     reason: String,
     owner: Option<StageKey>,
+    /// Owner-less PERMANENT guards for malformed/parse-recovery trees
+    /// — auditable as a class (they never expire), so they do not
+    /// count against the untagged ratchet. Classification is strict:
+    /// only reasons carrying an explicit recovery marker qualify.
+    recovery: bool,
+}
+
+/// The strict recovery-marker test: `(parse recovery)`,
+/// `parse-recovery`, or `recovery node` in the reason text.
+fn is_recovery_reason(reason: &str) -> bool {
+    reason.contains("parse recovery")
+        || reason.contains("parse-recovery")
+        || reason.contains("recovery node")
 }
 
 /// Orderable stage key: M4 sub-stages sort inside milestone 4
@@ -1800,6 +1813,10 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
 /// invisible to any Err-based accounting. Reasons built with format!
 /// ARE scanned (their static text carries the owner tag); only the
 /// wrappers' own `{worker}…{owner}` templates are excluded.
+/// Owner-less reasons carrying an explicit recovery marker classify
+/// as permanent RECOVERY guards (auditable as a class, exempt from
+/// the untagged ratchet); everything else owner-less is untagged
+/// debt.
 fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
     let mut sites = Vec::new();
     for marker in [
@@ -1820,11 +1837,13 @@ fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
                 continue;
             }
             let owner = parse_stage_key(&reason);
+            let recovery = owner.is_none() && is_recovery_reason(&reason);
             sites.push(EscapeSite {
                 path: path.to_owned(),
                 line,
                 reason,
                 owner,
+                recovery,
             });
         }
     }
@@ -1874,12 +1893,19 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let sites = collect_escape_sites(&workspace)?;
     let mut stale = 0usize;
     let mut untagged = 0usize;
+    let mut recovery = 0usize;
     for site in &sites {
         let relative = display_relative(&workspace, &site.path);
         match (site.owner, stale_before) {
             (Some(owner), Some(threshold)) if owner <= threshold => {
                 stale += 1;
                 println!("STALE {:?} {relative}:{} {}", owner, site.line, site.reason);
+            }
+            (None, _) if site.recovery => {
+                recovery += 1;
+                if stale_before.is_none() {
+                    println!("RECOVERY {relative}:{} {}", site.line, site.reason);
+                }
             }
             (None, _) => {
                 untagged += 1;
@@ -1894,10 +1920,11 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         }
     }
     println!(
-        "escapes: sites={} stale={} untagged={}",
+        "escapes: sites={} stale={} untagged={} recovery={}",
         sites.len(),
         stale,
-        untagged
+        untagged,
+        recovery
     );
     if stale_before.is_some() && stale > 0 {
         return Err(format!("{stale} escape(s) have an expired owner stage").into());
@@ -5404,6 +5431,29 @@ mod escape_scanner_tests {
         assert_eq!(sites[0].owner, Some(StageKey(4, 7, u8::MAX)));
         // 5.7 letterless does NOT expire mid-stage (threshold 5.7a).
         assert!(sites[0].owner.unwrap() > parse_stage_key("5.7a").unwrap());
+    }
+
+    #[test]
+    fn recovery_markers_classify_owner_less_guards() {
+        let sites = scan(
+            r#"Err(Unsupported::new("tagged template without a tag (parse recovery)"))
+               Err(Unsupported::new("conditional with missing branch (parse-recovery tree)"))
+               Err(Unsupported::new("entityNameToString on recovery node"))
+               Err(Unsupported::new("template span with missing literal"))"#,
+        );
+        assert_eq!(sites.len(), 4);
+        assert!(sites[0].recovery && sites[1].recovery && sites[2].recovery);
+        // No marker → stays a plain untagged debt.
+        assert!(!sites[3].recovery);
+    }
+
+    #[test]
+    fn owned_reasons_never_classify_as_recovery() {
+        // The owner tag wins even when recovery words appear.
+        let sites = scan(r#"Err(Unsupported::new("checkFoo recovery node handling (5.8)"))"#);
+        assert_eq!(sites.len(), 1);
+        assert!(sites[0].owner.is_some());
+        assert!(!sites[0].recovery);
     }
 }
 
