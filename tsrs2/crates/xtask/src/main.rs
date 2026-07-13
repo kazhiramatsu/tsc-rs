@@ -1794,6 +1794,43 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
     reason.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// Scan one file's text for escape sites. Wrapper constructors count
+/// too: expression_stub / source_element_stub carry (worker, owner)
+/// string pairs — source_element_stub is a SILENT Ok(()) stub,
+/// invisible to any Err-based accounting. Reasons built with format!
+/// ARE scanned (their static text carries the owner tag); only the
+/// wrappers' own `{worker}…{owner}` templates are excluded.
+fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
+    let mut sites = Vec::new();
+    for marker in [
+        "Unsupported::new(",
+        "M4Dependency(",
+        "expression_stub(",
+        "source_element_stub(",
+    ] {
+        let mut search = 0usize;
+        while let Some(found) = text[search..].find(marker) {
+            let offset = search + found;
+            search = offset + marker.len();
+            let line = text[..offset].bytes().filter(|&b| b == b'\n').count() + 1;
+            let reason = escape_reason_after(text, offset + marker.len() - 1);
+            // Empty reasons are definitions/imports; the wrapper
+            // definitions interpolate their `worker` parameter.
+            if reason.is_empty() || reason.contains("{worker}") {
+                continue;
+            }
+            let owner = parse_stage_key(&reason);
+            sites.push(EscapeSite {
+                path: path.to_owned(),
+                line,
+                reason,
+                owner,
+            });
+        }
+    }
+    sites
+}
+
 fn collect_escape_sites(workspace: &Path) -> Result<Vec<EscapeSite>, Box<dyn Error>> {
     let mut sites = Vec::new();
     for path in collect_rs_paths(&workspace.join("crates"))? {
@@ -1803,36 +1840,7 @@ fn collect_escape_sites(workspace: &Path) -> Result<Vec<EscapeSite>, Box<dyn Err
             continue;
         }
         let text = fs::read_to_string(&path)?;
-        // Wrapper constructors count too: expression_stub /
-        // source_element_stub carry (worker, owner) string pairs —
-        // source_element_stub is a SILENT Ok(()) stub, invisible to
-        // any Err-based accounting.
-        for marker in [
-            "Unsupported::new(",
-            "M4Dependency(",
-            "expression_stub(",
-            "source_element_stub(",
-        ] {
-            let mut search = 0usize;
-            while let Some(found) = text[search..].find(marker) {
-                let offset = search + found;
-                search = offset + marker.len();
-                let line = text[..offset].bytes().filter(|&b| b == b'\n').count() + 1;
-                let reason = escape_reason_after(&text, offset + marker.len() - 1);
-                // Empty reasons are definitions/imports; `{`-bearing
-                // reasons are the wrappers' own format templates.
-                if reason.is_empty() || reason.contains('{') {
-                    continue;
-                }
-                let owner = parse_stage_key(&reason);
-                sites.push(EscapeSite {
-                    path: path.clone(),
-                    line,
-                    reason,
-                    owner,
-                });
-            }
-        }
+        sites.extend(scan_escape_text(&path, &text));
     }
     sites.sort_by(|left, right| {
         left.owner
@@ -5290,4 +5298,73 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         return Err("lib-gate failed".into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod escape_scanner_tests {
+    use super::*;
+
+    fn scan(text: &str) -> Vec<EscapeSite> {
+        scan_escape_text(Path::new("test.rs"), text)
+    }
+
+    #[test]
+    fn plain_reason_parses_its_owner() {
+        let sites = scan(r#"return Err(Unsupported::new("mapped types (M4-end sweep 5.8)"));"#);
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].owner, Some(StageKey(4, 8, u8::MAX)));
+    }
+
+    #[test]
+    fn wrapper_call_sites_are_scanned() {
+        let sites = scan(
+            r#"self.expression_stub("checkFoo ([ITER])", "5.8 iteration protocol")
+               self.source_element_stub("checkBar", "M5")"#,
+        );
+        assert_eq!(sites.len(), 2);
+        assert_eq!(sites[0].owner, Some(StageKey(4, 8, u8::MAX)));
+        assert_eq!(sites[1].owner, Some(StageKey(5, 0, 0)));
+    }
+
+    #[test]
+    fn wrapper_definitions_are_excluded() {
+        let sites = scan(
+            r#"fn expression_stub(&self, worker: &str, owner: &str) -> CheckResult2<TypeId> {
+                   Err(Unsupported::new(format!(
+                       "{worker} (expression band, lands at {owner})"
+                   )))
+               }"#,
+        );
+        assert!(sites.is_empty(), "{:?}", sites[0].reason);
+    }
+
+    #[test]
+    fn format_reasons_are_scanned_not_dropped() {
+        // A real escape whose reason is built with format! — the
+        // static text carries the owner; the blanket `{` skip that
+        // hid these was a false negative.
+        let sites = scan(
+            r#"Err(Unsupported::new(format!(
+                   "anonymous members for symbol flags {flags:?} (M4 5.3e/5.8)"
+               )))"#,
+        );
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].owner, Some(StageKey(4, 8, u8::MAX)));
+    }
+
+    #[test]
+    fn latest_stage_in_a_reason_wins() {
+        let sites =
+            scan(r#"Err(Unsupported::new("expired 5.5f dep; folded into the 5.7b close"))"#);
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].owner, Some(StageKey(4, 7, b'b')));
+    }
+
+    #[test]
+    fn letterless_stage_owns_the_whole_stage() {
+        let sites = scan(r#"Err(Unsupported::new("resolveFoo (5.7)"))"#);
+        assert_eq!(sites[0].owner, Some(StageKey(4, 7, u8::MAX)));
+        // 5.7 letterless does NOT expire mid-stage (threshold 5.7a).
+        assert!(sites[0].owner.unwrap() > parse_stage_key("5.7a").unwrap());
+    }
 }

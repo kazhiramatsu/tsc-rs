@@ -3112,11 +3112,14 @@ impl<'a> CheckerState<'a> {
             };
             let type_arguments = self.get_type_arguments(ty)?;
             return if target_parameters.len() == type_arguments.len() {
-                // Tuple targets append the this slot past the element
-                // list; tsc's downstream elementFlags[i] reads see
-                // `undefined`, whose bitwise coercion is 0 — the twin
-                // mirrors that with zero element flags for
-                // out-of-range positions.
+                // PLAIN createTypeReference (57789) — NOT the
+                // normalized path: the this slot appends past the
+                // element list on the SAME target (a tuple target's
+                // arity/flags must not change here). Downstream
+                // elementFlags[i] reads see `undefined` in tsc, whose
+                // bitwise coercion is 0 — the normalization twin
+                // mirrors that with element_flag_at's zero flags when
+                // INSTANTIATION later re-normalizes this reference.
                 let this_type = match &self.tables.type_of(target).data {
                     TypeData::GenericType { this_type, .. } => *this_type,
                     TypeData::TupleTarget(data) => data.this_type,
@@ -3124,7 +3127,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut arguments = type_arguments;
                 arguments.push(this_argument.unwrap_or(this_type));
-                self.create_normalized_type_reference_forced(target, &arguments)
+                Ok(self.tables.create_type_reference(target, &arguments))
             } else {
                 Ok(ty)
             };
@@ -8115,5 +8118,29 @@ mod enum_tests {
                 assert!(!state.is_type_assignable_to(c, e).expect("c->e"));
             },
         );
+    }
+    #[test]
+    fn tuple_this_append_keeps_the_target() {
+        with_state("declare var t: [number, string?];\n", |state| {
+            let tuple = annotation_type(state, "t");
+            let target = state.tables.reference_target(tuple);
+            let with_this = state
+                .get_type_with_this_argument(tuple, None, false)
+                .expect("tuple-this append is in-slice");
+            // tsc 57789 = PLAIN createTypeReference: the SAME tuple
+            // target with one extra (this) argument — arity, length
+            // and element flags must not change.
+            assert_eq!(state.tables.reference_target(with_this), target);
+            let arguments = state
+                .tables
+                .try_type_arguments(with_this)
+                .expect("plain references carry resolved arguments")
+                .to_vec();
+            let TypeData::TupleTarget(data) = &state.tables.type_of(target).data else {
+                panic!("tuple annotations target a tuple target");
+            };
+            assert_eq!(arguments.len(), data.type_parameters.len() + 1);
+            assert_eq!(data.element_flags.len(), data.type_parameters.len());
+        });
     }
 }

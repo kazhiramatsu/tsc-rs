@@ -634,6 +634,18 @@ optional-call cache. NO type-predicate modeling this stage.
   stub) + instanceof completion (2860 head + operators tail) +
   unique-symbol tail (getESSymbolLikeTypeForNode) + IIFE contextual arm
   + tagged substitution arm + deprecation decision (flag audit).
+  PLUS the "5.7b close" items folded in by the 5.7a expiry audit
+  (2026-07-13; m4-55 §10 re-classification note is the source of
+  truth): async contextual/widening arms
+  (getContextualTypeForReturnExpression async /
+  getContextualTypeForAwaitOperand /
+  getWidenedLiteralLikeTypeForContextualReturnTypeIfNeeded), the 2729
+  declared-before-use band (property / parameter-property /
+  static-block arms, evaluate.rs), unknownSignature for
+  globalFunctionType union members, isContextSensitive
+  outer-type-parameter walk across function expressions, and
+  [Symbol.hasInstance] resolveCall. `cargo xtask escapes --stale 5.7b`
+  must be clean at this slice's exit.
 - **5.7c — JSX band**: getIntrinsicTagSymbol +
   intrinsic-attributes/fake signatures + getUninstantiatedJsxSignatures
   + resolveJsxOpeningLikeElement + fragment type +
