@@ -22,12 +22,13 @@ implementers start from the stage step docs referenced there.
    tsrs2/STAGE)` incl. the untagged ceiling).
 4. Merge back with a merge commit marking the slice boundary:
    `git checkout main && git merge --no-ff <branch>`, then delete the
-   branch. Bump `tsrs2/ratchet.toml` and `tsrs2/STAGE` as part of the
-   slice, not the merge.
+   branch (local and remote). Bump `tsrs2/ratchet.toml` and
+   `tsrs2/STAGE` as part of the slice, not the merge.
 5. Trivial process/docs-only changes may land directly on `main`.
-
-Pushing to `origin` and PR-based review are the user's call — do not
-push unless asked.
+6. **Pushing to `origin` is allowed and expected**: push the slice
+   branch with `-u` while working (backup/visibility), push `main`
+   after every merge. PR-based review via `gh` is available if ever
+   preferred, but the default is local `--no-ff` merge + push.
 
 ## Verification quick reference
 
