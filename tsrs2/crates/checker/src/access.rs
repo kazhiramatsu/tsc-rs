@@ -117,7 +117,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: addOptionalTypeMarker @6.0.3
     /// tsc-hash: 2f1bc5d7263e537738cfae30bb751693cb7cc8a515df0c8e66238e37eb8b1170
     /// tsc-span: _tsc.js:67871-67879
-    fn add_optional_type_marker(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn add_optional_type_marker(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         if self
             .options
             .strict_option_value(self.options.strict_null_checks)
@@ -129,7 +129,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn remove_optional_type_marker(&mut self, ty: TypeId) -> TypeId {
+    pub(crate) fn remove_optional_type_marker(&mut self, ty: TypeId) -> TypeId {
         if self
             .options
             .strict_option_value(self.options.strict_null_checks)
@@ -293,7 +293,7 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    fn check_non_null_type_with_reporter(
+    pub(crate) fn check_non_null_type_with_reporter(
         &mut self,
         ty: TypeId,
         node: NodeId,
@@ -346,6 +346,45 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
+    /// The [FLOW M5] guard-position probe: walk expression parents up
+    /// to the statement boundary; a right operand of `&&`/`||` or a
+    /// conditional-expression branch is a position where tsc's flow
+    /// narrowing can retype the receiver.
+    pub(crate) fn access_sits_in_guarded_position(&self, node: NodeId) -> bool {
+        let mut current = node;
+        while let Some(parent) = self.parent_of(current) {
+            match self.data_of(parent) {
+                NodeData::BinaryExpression(data) => {
+                    let operator = data
+                        .operator_token
+                        .map(|token| self.kind_of(token));
+                    if matches!(
+                        operator,
+                        Some(
+                            SyntaxKind::AmpersandAmpersandToken
+                                | SyntaxKind::BarBarToken
+                                | SyntaxKind::QuestionQuestionToken
+                        )
+                    ) && data.right == Some(current)
+                    {
+                        return true;
+                    }
+                }
+                NodeData::ConditionalExpression(data) => {
+                    if data.when_true == Some(current) || data.when_false == Some(current) {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+            // No explicit statement-boundary test: past it, no parent
+            // is a binary/conditional expression, so the walk just
+            // runs out at the root.
+            current = parent;
+        }
+        false
+    }
+
     pub(crate) fn check_non_null_type(
         &mut self,
         ty: TypeId,
@@ -356,6 +395,31 @@ impl<'a> CheckerState<'a> {
             node,
             Self::report_object_possibly_null_or_undefined_error,
         )
+    }
+
+    /// tsc-port: reportCannotInvokePossiblyNullOrUndefinedError @6.0.3
+    /// tsc-hash: b3748b887956c0833de220ae247af85d956add778ef31dd09c491063e8aaf39b
+    /// tsc-span: _tsc.js:75022-75027
+    ///
+    /// The Invoke reporter flavor (resolveCallExpression 77002) — the
+    /// [FLOW M5] narrowable-receiver containment gate rides in
+    /// check_non_null_type_with_reporter unchanged.
+    pub(crate) fn report_cannot_invoke_possibly_null_or_undefined_error(
+        &mut self,
+        node: NodeId,
+        facts: TypeFacts,
+    ) -> CheckResult2<()> {
+        let message = if facts.intersects(TypeFacts::IS_UNDEFINED) {
+            if facts.intersects(TypeFacts::IS_NULL) {
+                &tsrs2_diags::gen::Cannot_invoke_an_object_which_is_possibly_null_or_undefined
+            } else {
+                &tsrs2_diags::gen::Cannot_invoke_an_object_which_is_possibly_undefined
+            }
+        } else {
+            &tsrs2_diags::gen::Cannot_invoke_an_object_which_is_possibly_null
+        };
+        self.error_at(Some(node), message, &[]);
+        Ok(())
     }
 
 
@@ -753,7 +817,7 @@ impl<'a> CheckerState<'a> {
         .is_some()
     }
 
-    fn is_node_within_class(&self, node: NodeId, class_declaration: Option<NodeId>) -> bool {
+    pub(crate) fn is_node_within_class(&self, node: NodeId, class_declaration: Option<NodeId>) -> bool {
         let Some(class_declaration) = class_declaration else {
             return false;
         };
@@ -770,7 +834,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getClassLikeDeclarationOfSymbol @6.0.3
     /// tsc-hash: acf690079471ca724f4c20e7f54ec1e0de2863874ad80b01bf0c9e3b25b0f18a
     /// tsc-span: _tsc.js:17548-17551
-    fn get_class_like_declaration_of_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
+    pub(crate) fn get_class_like_declaration_of_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
         self.binder
             .symbol(symbol)
             .declarations
@@ -1638,6 +1702,22 @@ impl<'a> CheckerState<'a> {
                     return Ok(self.tables.intrinsics.any);
                 }
                 if !right_text.is_empty() && !self.check_and_report_error_for_extending_interface(node)? {
+                    // [FLOW M5] guard-position gate: tsc resolves the
+                    // property against the receiver's FLOW type — a
+                    // miss on the DECLARED type of a narrowable
+                    // receiver sitting under an expression-level guard
+                    // (&&/|| right operand, conditional branches) may
+                    // be tsc-clean once predicates/typeof narrow
+                    // (conformance FP: typeGuardOfFormIsType's
+                    // `isC1(c) && c.p1` — exposed when 5.7 un-escaped
+                    // guard calls). M5 removes the gate.
+                    if self.receiver_may_be_flow_narrowed(left)
+                        && self.access_sits_in_guarded_position(node)
+                    {
+                        return Err(Unsupported::new(
+                            "[FLOW M5] property miss on a narrowable receiver in a guarded position",
+                        ));
+                    }
                     let report_target = if self.is_this_type_parameter(left_type) {
                         apparent_type
                     } else {

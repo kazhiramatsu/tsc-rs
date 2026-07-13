@@ -84,7 +84,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isMutableArrayLikeType @6.0.3
     /// tsc-hash: 84f59dc973996df4a4a92ebe41bf5d0e9f65062dc4fba30c805914771da10094
     /// tsc-span: _tsc.js:67683-67685
-    fn is_mutable_array_like_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_mutable_array_like_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if self.is_mutable_array_or_tuple(ty)? {
             return Ok(true);
         }

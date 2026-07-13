@@ -79,6 +79,7 @@ impl<'a> CheckerState<'a> {
                             erased_signature_cache: None,
                             composite_kind: None,
                             composite_signatures: None,
+                            optional_call_signature_cache: (None, None),
                         };
                         let signature = self.alloc_signature(return_only_signature);
                         let symbol = self.node_symbol(node);
@@ -1690,7 +1691,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// skipOuterExpressions(Parentheses | Satisfies) — the two kinds
     /// interleave in any order.
-    fn get_effective_check_node(&self, argument: NodeId) -> NodeId {
+    pub(crate) fn get_effective_check_node(&self, argument: NodeId) -> NodeId {
         let mut node = argument;
         loop {
             match self.data_of(node) {
@@ -1816,7 +1817,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalPromiseConstructorSymbol @6.0.3
     /// tsc-hash: 40dd0097149011100b9db68105bde360ed986c349536d3e106c8633a99ff2cb5
     /// tsc-span: _tsc.js:60766-60768
-    fn get_global_promise_constructor_symbol(
+    pub(crate) fn get_global_promise_constructor_symbol(
         &mut self,
         report_errors: bool,
     ) -> CheckResult2<Option<SymbolId>> {

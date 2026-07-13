@@ -1572,6 +1572,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if self.relation == RelationKind::Identity {
             return self.signatures_identical_to(source, target, kind);
         }
+        // 66939-66944: the anyFunctionType wildcard arms — a
+        // SkipContextSensitive function-expression stand-in (M4 5.7
+        // argument selection is the first producer) relates to every
+        // signature list; nothing relates TO it.
+        if source == self.st.any_function_type {
+            return Ok(Ternary::TRUE);
+        }
+        if target == self.st.any_function_type {
+            return Ok(Ternary::FALSE);
+        }
         let source_signatures = self.st.get_signatures_of_type(source, kind)?;
         let target_signatures = self.st.get_signatures_of_type(target, kind)?;
         if kind == SignatureKind::Construct
@@ -3463,6 +3473,7 @@ impl<'a> CheckerState<'a> {
             erased_signature_cache: None,
             composite_kind: source.composite_kind,
             composite_signatures: source.composite_signatures.clone(),
+            optional_call_signature_cache: (None, None),
         };
         self.alloc_signature(result)
     }
@@ -4059,6 +4070,7 @@ impl<'a> CheckerState<'a> {
             erased_signature_cache: None,
             composite_kind: Some(TypeFlags::UNION),
             composite_signatures: Some(composite_signatures),
+            optional_call_signature_cache: (None, None),
         };
         Ok(self.alloc_signature(result))
     }
@@ -4212,7 +4224,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: findMixins @6.0.3
     /// tsc-hash: 842e131d8b6c0647002c0dc233b86d0e4caf1ccaa10126ad25c0881f10fab8a4
     /// tsc-span: _tsc.js:58233-58244
-    fn find_mixins(&mut self, types: &[TypeId]) -> CheckResult2<Vec<bool>> {
+    pub(crate) fn find_mixins(&mut self, types: &[TypeId]) -> CheckResult2<Vec<bool>> {
         let mut constructor_type_count = 0usize;
         for &t in types {
             if !self

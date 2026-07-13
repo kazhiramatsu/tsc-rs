@@ -293,13 +293,28 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ElementAccessExpression => self.check_indexed_access(node, check_mode),
             SyntaxKind::CallExpression => {
                 if self.is_import_call(node) {
-                    return self.expression_stub("checkImportCallExpression", "5.7");
+                    return self.expression_stub("checkImportCallExpression", "5.7b");
                 }
-                self.expression_stub("checkCallExpression", "5.7")
+                // `import.defer(...)`: the deferred dynamic-import
+                // flavor rides the import-call band (checkMetaProperty
+                // answers errorType for the bare `import.defer`, which
+                // must not leak into untyped-call arg checking).
+                let defer_call = matches!(self.data_of(node), NodeData::CallExpression(data)
+                    if data.expression.is_some_and(|expression| {
+                        self.kind_of(expression) == SyntaxKind::MetaProperty
+                            && !self.meta_property_is_new(expression)
+                    }));
+                if defer_call {
+                    return self.expression_stub(
+                        "checkImportCallExpression (import.defer)",
+                        "5.7b",
+                    );
+                }
+                self.check_call_expression(node, check_mode)
             }
-            SyntaxKind::NewExpression => self.expression_stub("checkCallExpression", "5.7"),
+            SyntaxKind::NewExpression => self.check_call_expression(node, check_mode),
             SyntaxKind::TaggedTemplateExpression => {
-                self.expression_stub("checkTaggedTemplateExpression", "5.7")
+                self.expression_stub("checkTaggedTemplateExpression", "5.7b")
             }
             SyntaxKind::ParenthesizedExpression => {
                 self.check_parenthesized_expression(node, check_mode)
@@ -3105,7 +3120,7 @@ impl<'a> CheckerState<'a> {
     /// The Conditional/Mapped arms ride M8 (unconstructible); the
     /// Substitution/IndexedAccess/generic-tuple arms port over the
     /// existing TypeData kinds.
-    fn is_const_type_variable(&mut self, ty: Option<TypeId>, depth: u32) -> bool {
+    pub(crate) fn is_const_type_variable(&mut self, ty: Option<TypeId>, depth: u32) -> bool {
         let Some(ty) = ty else {
             return false;
         };

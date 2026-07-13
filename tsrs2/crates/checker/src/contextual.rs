@@ -659,37 +659,81 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fd4575a68cf6d1f6f7455674078b3c307ffa8b684aa12747ef5ca66c3a85ecc7
     /// tsc-span: _tsc.js:72906-72910
     ///
-    /// tsc-port: getContextualTypeForArgumentAtIndex @6.0.3
-    /// tsc-hash: 6ce36cc4edfdefeba3dfd2a1aeef63dc139941ee14d9cf4886e7354ec145741f
-    /// tsc-span: _tsc.js:72911-72924
-    ///
-    /// [CALLS → 5.7] except the self-contained isImportCall arm: tsc
-    /// resolves the call signature and reads the parameter type; our
-    /// None is an honest FN for argument positions until 5.7. The
-    /// import-call argument scan is the plain arguments list —
-    /// getEffectiveCallArguments' spread/synthetic handling ([CALLS])
-    /// cannot change an import call's shape (grammar caps it at two
-    /// plain arguments; spreads are a grammar error).
+    /// The effective-args recompute checks spread operands through the
+    /// cached path exactly like tsc; the EffectiveArg::Node equality is
+    /// tsc's args.indexOf.
     fn get_contextual_type_for_argument(
         &mut self,
         call_target: NodeId,
         arg: NodeId,
     ) -> CheckResult2<Option<TypeId>> {
-        if !self.is_import_call(call_target) {
-            return Ok(None);
+        let args = self.get_effective_call_arguments(call_target)?;
+        let arg_index = args
+            .iter()
+            .position(|candidate| *candidate == crate::calls::EffectiveArg::Node(arg));
+        match arg_index {
+            None => Ok(None),
+            Some(arg_index) => {
+                self.get_contextual_type_for_argument_at_index(call_target, arg_index)
+            }
         }
-        let NodeData::CallExpression(data) = self.data_of(call_target) else {
-            unreachable!("import calls are call expressions");
+    }
+
+    /// tsc-port: getContextualTypeForArgumentAtIndex @6.0.3
+    /// tsc-hash: 6ce36cc4edfdefeba3dfd2a1aeef63dc139941ee14d9cf4886e7354ec145741f
+    /// tsc-span: _tsc.js:72911-72924
+    ///
+    /// The SENTINEL VALVE (72918): while the call is mid-resolution
+    /// (links Resolving), contextual reads see resolvingSignature —
+    /// zero parameters, so getTypeAtPosition answers anyType — and
+    /// never re-enter resolution. The import-call arm precedes the
+    /// resolution read: the plain arguments list is the effective
+    /// list (grammar caps import calls at two plain arguments).
+    fn get_contextual_type_for_argument_at_index(
+        &mut self,
+        call_target: NodeId,
+        arg_index: usize,
+    ) -> CheckResult2<Option<TypeId>> {
+        if self.is_import_call(call_target) {
+            return Ok(Some(match arg_index {
+                0 => self.tables.intrinsics.string,
+                1 => self.get_global_import_call_options_type()?,
+                _ => self.tables.intrinsics.any,
+            }));
+        }
+        let signature = if self
+            .links
+            .node(call_target)
+            .resolved_signature
+            .is_resolving()
+        {
+            self.resolving_signature
+        } else {
+            self.get_resolved_signature(call_target, tsrs2_types::CheckMode::NORMAL)?
         };
-        let arguments = data.arguments;
-        let Some(arg_index) = self.nodes_of(arguments).iter().position(|&a| a == arg) else {
-            return Ok(None);
-        };
-        Ok(Some(match arg_index {
-            0 => self.tables.intrinsics.string,
-            1 => self.get_global_import_call_options_type()?,
-            _ => self.tables.intrinsics.any,
-        }))
+        // The JSX opening arm (getEffectiveFirstArgumentForJsxSignature)
+        // is 5.7c — JSX call targets cannot reach this dispatch yet.
+        let data = self.signature_of(signature);
+        let has_rest = data
+            .flags
+            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER);
+        let parameters = data.parameters.clone();
+        if has_rest && !parameters.is_empty() && arg_index >= parameters.len() - 1 {
+            let rest_index = parameters.len() - 1;
+            let rest_type = self.get_type_of_symbol(parameters[rest_index])?;
+            let literal = self
+                .tables
+                .get_number_literal_type((arg_index - rest_index) as f64);
+            return Ok(Some(self.get_indexed_access_type(
+                rest_type,
+                literal,
+                tsrs2_types::AccessFlags::CONTEXTUAL,
+                None,
+                None,
+                None,
+            )?));
+        }
+        Ok(Some(self.get_type_at_position(signature, arg_index)?))
     }
 
     /// tsc-port: getContextualTypeForSubstitutionExpression @6.0.3
@@ -1483,6 +1527,17 @@ impl<'a> CheckerState<'a> {
         index: usize,
     ) -> CheckResult2<Option<TypeId>> {
         self.get_contextual_type_for_element_expression(Some(ty), index, None, None, None)
+    }
+
+    /// getSpreadArgumentType's tuple-rest contextual read (76029):
+    /// (type, index, length) with no spread-index bookkeeping.
+    pub(crate) fn get_contextual_type_for_element_expression_at(
+        &mut self,
+        ty: TypeId,
+        index: usize,
+        length: Option<usize>,
+    ) -> CheckResult2<Option<TypeId>> {
+        self.get_contextual_type_for_element_expression(Some(ty), index, length, None, None)
     }
 
     /// tsc-port: getContextualTypeForElementExpression @6.0.3
@@ -2397,6 +2452,7 @@ impl<'a> CheckerState<'a> {
             erased_signature_cache: None,
             composite_kind: Some(TypeFlags::INTERSECTION),
             composite_signatures: Some(composite_signatures),
+            optional_call_signature_cache: (None, None),
         };
         Ok(self.alloc_signature(result))
     }

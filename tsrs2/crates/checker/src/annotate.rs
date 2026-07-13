@@ -2837,7 +2837,20 @@ impl<'a> CheckerState<'a> {
             return if target_parameters.len() == type_arguments.len() {
                 let this_type = match &self.tables.type_of(target).data {
                     TypeData::GenericType { this_type, .. } => *this_type,
-                    TypeData::TupleTarget(data) => data.this_type,
+                    TypeData::TupleTarget(data) => {
+                        // Appending the this slot to a TUPLE reference
+                        // rides tsc's undefined-element-flags indexing
+                        // (createNormalizedTupleType 61255 pushes an
+                        // undefined flag for the extra slot) — a
+                        // JS-only shape our ElementFlags cannot carry;
+                        // first reachable through checkTypeArguments'
+                        // tuple constraints (M4 5.7).
+                        let _ = data;
+                        return Err(Unsupported::new(
+                            "getTypeWithThisArgument tuple-this append \
+                             (undefined element-flags quirk)",
+                        ));
+                    }
                     _ => unreachable!("references target generic or tuple targets"),
                 };
                 let mut arguments = type_arguments;
@@ -3314,6 +3327,7 @@ impl<'a> CheckerState<'a> {
                 erased_signature_cache: None,
                 composite_kind: None,
                 composite_signatures: None,
+                optional_call_signature_cache: (None, None),
             };
             return Ok(vec![self.alloc_signature(signature)]);
         }
@@ -5315,6 +5329,7 @@ impl<'a> CheckerState<'a> {
             erased_signature_cache: None,
             composite_kind: None,
             composite_signatures: None,
+            optional_call_signature_cache: (None, None),
         };
         let id = self.alloc_signature(signature);
         self.links.set_node_resolved_signature(
@@ -5426,6 +5441,24 @@ impl<'a> CheckerState<'a> {
             })(self),
         };
         let resolved = match computed {
+            Ok(resolved) => resolved,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
+            }
+        };
+        // 59816-59820: call-chain signatures adjust return
+        // optionality (getOptionalCallSignature's flagged clones,
+        // M4 5.7).
+        let chain_flags = self.signature_of(id).flags;
+        let adjusted = if chain_flags.intersects(SignatureFlags::IS_INNER_CALL_CHAIN) {
+            self.add_optional_type_marker(resolved)
+        } else if chain_flags.intersects(SignatureFlags::IS_OUTER_CALL_CHAIN) {
+            self.get_optional_type(resolved, /*is_property*/ false)
+        } else {
+            Ok(resolved)
+        };
+        let resolved = match adjusted {
             Ok(resolved) => resolved,
             Err(err) => {
                 self.pop_type_resolution();

@@ -381,6 +381,47 @@ impl LinksTables {
         );
     }
 
+    /// getResolvedSignature's cache protocol (77491-77508) on CALL-LIKE
+    /// nodes — the same NodeLinks field getSignatureFromDeclaration
+    /// uses (disjoint node kinds, mirroring tsc). Unlike the write-once
+    /// declaration path, the call protocol REWRITES: the resolving
+    /// sentinel transitions to the result, resolveCall's failure stash
+    /// (76630) precedes getResolvedSignature's own tail write with the
+    /// SAME value, and a re-entrant resolution's concrete write feeds
+    /// the outer early return (76621-76625). Tolerated transitions:
+    /// Vacant→Resolving, Resolving→Resolving (re-entrant sentinel
+    /// write), Resolving→Resolved, Resolved(x)→Resolved(x). A
+    /// DIFFERENT resolved value still panics.
+    pub fn set_node_resolved_signature_call_protocol(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: LinkSlot<SignatureId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        match (&*slot, &value) {
+            (LinkSlot::Vacant, LinkSlot::Resolving)
+            | (LinkSlot::Resolving, LinkSlot::Resolving)
+            | (LinkSlot::Resolving, LinkSlot::Resolved(_)) => *slot = value,
+            (LinkSlot::Resolved(existing), LinkSlot::Resolved(next)) if existing == next => {}
+            _ => panic!("call resolvedSignature protocol violated: {slot:?} -> {value:?}"),
+        }
+    }
+
+    /// Err-unwind twin for the call protocol: tsc cannot fail inside
+    /// resolveSignature, so an Unsupported unwind that left the
+    /// sentinel must revert to Vacant — a later query re-resolves and
+    /// fails identically instead of observing a phantom mid-flight
+    /// sentinel. Only the frame that WROTE the sentinel reverts
+    /// (Resolved stashes stay — they are real memos).
+    pub fn revert_node_resolved_signature_call(&mut self, id: NodeId) {
+        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        if matches!(slot, LinkSlot::Resolving) {
+            *slot = LinkSlot::Vacant;
+        }
+    }
+
     pub fn set_symbol_variances(
         &mut self,
         speculation_depth: u32,

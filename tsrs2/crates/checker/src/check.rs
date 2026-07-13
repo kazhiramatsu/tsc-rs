@@ -843,12 +843,21 @@ impl<'a> CheckerState<'a> {
 
     fn check_deferred_node_worker(&mut self, node: NodeId) -> CheckResult2<()> {
         match self.kind_of(node) {
-            SyntaxKind::CallExpression
-            | SyntaxKind::NewExpression
-            | SyntaxKind::TaggedTemplateExpression
-            | SyntaxKind::Decorator
-            | SyntaxKind::JsxOpeningElement => {
-                unreachable!("resolveUntypedCall deferral registers at 5.7")
+            SyntaxKind::CallExpression | SyntaxKind::NewExpression => {
+                // checkDeferredNode 86923-86928: the overload-failure
+                // deferral re-checks the RAW arguments; contextual
+                // reads see the stashed failure candidate (5.7a).
+                self.resolve_untyped_call(node)?;
+                Ok(())
+            }
+            SyntaxKind::TaggedTemplateExpression => {
+                unreachable!("resolveTaggedTemplateExpression registers deferrals at 5.7b")
+            }
+            SyntaxKind::Decorator => {
+                unreachable!("resolveDecorator registers deferrals at 5.8")
+            }
+            SyntaxKind::JsxOpeningElement => {
+                unreachable!("resolveJsxOpeningLikeElement registers deferrals at 5.7c")
             }
             SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
@@ -1192,7 +1201,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typeCouldHaveTopLevelSingletonTypes @6.0.3
     /// tsc-hash: 30ea1344b1c8021a31ecb437af9d4a5867abd72fb6bf08c9b64d434ca6f09947
     /// tsc-span: _tsc.js:67231-67245
-    fn type_could_have_top_level_singleton_types(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn type_could_have_top_level_singleton_types(&mut self, ty: TypeId) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::BOOLEAN) {
             return Ok(false);

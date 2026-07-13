@@ -31,6 +31,9 @@ impl OuterExpressionKinds {
     pub(crate) const PARENTHESES: Self = Self(1);
     pub(crate) const TYPE_ASSERTIONS: Self = Self(2);
     pub(crate) const NON_NULL_ASSERTIONS: Self = Self(4);
+    // PartiallyEmittedExpression nodes never parse (transform-only
+    // kind) — the bit stays for the ALL mask arithmetic.
+    #[allow(dead_code)]
     pub(crate) const PARTIALLY_EMITTED_EXPRESSIONS: Self = Self(8);
     pub(crate) const EXPRESSIONS_WITH_TYPE_ARGUMENTS: Self = Self(16);
     pub(crate) const SATISFIES: Self = Self(32);
@@ -2611,82 +2614,6 @@ impl<'a> CheckerState<'a> {
         Ok(result)
     }
 
-    /// tsc-port: hasCorrectTypeArgumentArity @6.0.3
-    /// tsc-hash: cb80010a22cf0b9bd684af501fd92e442b330c0bbe9ea3005074570ee292c316
-    /// tsc-span: _tsc.js:75866-75870
-    fn has_correct_type_argument_arity(
-        &mut self,
-        signature: crate::state::SignatureId,
-        type_arguments: &[NodeId],
-    ) -> bool {
-        let type_parameters = self.signatures[signature.0 as usize].type_parameters.clone();
-        let num_type_parameters = type_parameters.as_ref().map_or(0, |p| p.len());
-        let min_type_argument_count =
-            self.get_min_type_argument_count(type_parameters.as_deref());
-        type_arguments.is_empty()
-            || (type_arguments.len() >= min_type_argument_count
-                && type_arguments.len() <= num_type_parameters)
-    }
-
-    /// tsc-port: checkTypeArguments @6.0.3
-    /// tsc-hash: 0ed3ecbc655cc994e561d59933ee8a10a78f5b42fd1fcb8968033a99d4ceef83
-    /// tsc-span: _tsc.js:76043-76075
-    fn check_type_arguments(
-        &mut self,
-        signature: crate::state::SignatureId,
-        type_argument_nodes: &[NodeId],
-        report_errors: bool,
-        head_message: Option<&'static tsrs2_diags::DiagnosticMessage>,
-    ) -> CheckResult2<Option<Vec<TypeId>>> {
-        let type_parameters = self.signatures[signature.0 as usize]
-            .type_parameters
-            .clone()
-            .unwrap_or_default();
-        let mut argument_types = Vec::with_capacity(type_argument_nodes.len());
-        for &node in type_argument_nodes {
-            argument_types.push(self.get_type_from_type_node(node)?);
-        }
-        let min_count = self.get_min_type_argument_count(Some(&type_parameters));
-        let type_argument_types = self.fill_missing_type_arguments(
-            Some(&argument_types),
-            Some(&type_parameters),
-            min_count,
-            /*is_javascript*/ false,
-        )?;
-        let type_argument_types =
-            type_argument_types.expect("fillMissingTypeArguments over Some input");
-        let mut mapper = None;
-        for (i, &argument_node) in type_argument_nodes.iter().enumerate() {
-            let constraint = self.get_constraint_of_type_parameter(type_parameters[i])?;
-            let Some(constraint) = constraint else {
-                continue;
-            };
-            let head = head_message
-                .unwrap_or(&tsrs2_diags::gen::Type_0_does_not_satisfy_the_constraint_1);
-            if mapper.is_none() {
-                mapper = Some(
-                    self.create_type_mapper(
-                        type_parameters.clone(),
-                        Some(type_argument_types.clone()),
-                    ),
-                );
-            }
-            let type_argument = type_argument_types[i];
-            let instantiated = self.instantiate_type(constraint, mapper)?;
-            let with_this =
-                self.get_type_with_this_argument(instantiated, Some(type_argument), false)?;
-            let checked = self.check_type_assignable_to(
-                type_argument,
-                with_this,
-                report_errors.then_some(argument_node),
-                head,
-            )?;
-            if !checked {
-                return Ok(None);
-            }
-        }
-        Ok(Some(type_argument_types))
-    }
 
     /// createDiagnosticForNodeArray over the typeArguments range: the
     /// 2635 span covers `<` .. `>`.
@@ -2818,7 +2745,7 @@ impl<'a> CheckerState<'a> {
 
     /// The keywordToken read: `new.target` vs `import.meta` via the
     /// leading token (parser convention — no keywordToken slot).
-    fn meta_property_is_new(&self, node: NodeId) -> bool {
+    pub(crate) fn meta_property_is_new(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
         let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
@@ -4702,11 +4629,21 @@ mod tests {
     }
 
     #[test]
-    fn indirect_call_comma_shape_is_exempt_from_2695() {
-        // `(0, f)()` — the call itself escapes (5.7) AFTER the binary
-        // folds cleanly; no 2695 either way (oracle: clean).
+    fn indirect_call_comma_left_reports_2695_unless_access_or_eval() {
+        // `(0, f)()` with a PLAIN identifier right is NOT the
+        // isIndirectCall exemption shape (80296: access expression or
+        // `eval` only) — oracle-pinned 2695 at the `0`. Pre-5.7 the
+        // call stub's containment swallowed the row; 5.7a un-escapes
+        // the statement and the row renders.
         assert_eq!(
             checked_rows("declare function f(): void;\n(0, f)();\n"),
+            [(2695, 29, 1)]
+        );
+        // The access-expression right IS exempt (oracle: clean).
+        assert_eq!(
+            checked_rows(
+                "declare const o: { f(): void };\n(0, o.f)();\n"
+            ),
             []
         );
     }

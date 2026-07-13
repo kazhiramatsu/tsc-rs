@@ -99,6 +99,9 @@ pub struct Signature {
     pub composite_kind: Option<TypeFlags>,
     /// tsc signature.compositeSignatures (58206).
     pub composite_signatures: Option<Vec<SignatureId>>,
+    /// tsc signature.optionalCallSignatureCache (getOptionalCallSignature
+    /// 57899-57903): the (inner, outer) call-chain clone pair.
+    pub optional_call_signature_cache: (Option<SignatureId>, Option<SignatureId>),
 }
 
 /// tsc IndexInfo (createIndexInfo 59989).
@@ -192,6 +195,24 @@ pub struct CheckerState<'a> {
     pub deferred_global_promise_type: Option<TypeId>,
     /// deferredGlobalPromiseConstructorSymbol (60766) memo.
     pub deferred_global_promise_constructor_symbol: Option<Option<SymbolId>>,
+    // ---- M4 5.7: the call-resolution signature singletons ----
+    /// tsc anySignature (47220).
+    pub any_signature: SignatureId,
+    /// tsc unknownSignature (47234).
+    pub unknown_signature: SignatureId,
+    /// tsc resolvingSignature (47248): the links.resolvedSignature
+    /// in-flight sentinel — an actual signature VALUE in tsc, kept so
+    /// the M6-dead `signature === resolvingSignature` guards transcribe.
+    pub resolving_signature: SignatureId,
+    /// tsc silentNeverSignature (47262).
+    pub silent_never_signature: SignatureId,
+    /// tsc isInferencePartiallyBlocked (47420) — only ever set by M6
+    /// inference; resolveCall's reportErrors stays true until then.
+    pub(crate) is_inference_partially_blocked: bool,
+    /// tsc apparentArgumentCount (77606) — only the signature-help LSP
+    /// entry point sets it; None forever in the compile pipeline.
+    pub(crate) apparent_argument_count: Option<usize>,
+
     /// tsc noConstraintType (47188): "constraint computed, none"
     /// sentinel in TypeParameter.constraint slots — never exposed.
     pub no_constraint_type: TypeId,
@@ -466,6 +487,12 @@ impl<'a> CheckerState<'a> {
             any_function_type: TypeId(0),
             deferred_global_promise_type: None,
             deferred_global_promise_constructor_symbol: None,
+            any_signature: SignatureId(0),
+            unknown_signature: SignatureId(0),
+            resolving_signature: SignatureId(0),
+            silent_never_signature: SignatureId(0),
+            is_inference_partially_blocked: false,
+            apparent_argument_count: None,
             no_constraint_type: TypeId(0),
             circular_constraint_type: TypeId(0),
             mappers: Vec::new(),
@@ -629,8 +656,18 @@ impl<'a> CheckerState<'a> {
         state.marker_sub_type_for_check = state
             .tables
             .create_synthesized_type_parameter(Some(state.marker_super_type_for_check));
+        // tsc-port: anySignature + unknownSignature + resolvingSignature + silentNeverSignature @6.0.3
+        // tsc-hash: 72420792b8e72d9feaad43a2af6671f0782fbcaec8d644171340e8bb2eff04f2
+        // tsc-span: _tsc.js:47220-47275
+        let any = state.tables.intrinsics.any;
+        let error_type = state.tables.intrinsics.error;
+        let silent_never = state.tables.intrinsics.silent_never;
+        state.any_signature = state.create_singleton_signature(any);
+        state.unknown_signature = state.create_singleton_signature(error_type);
+        state.resolving_signature = state.create_singleton_signature(any);
+        state.silent_never_signature = state.create_singleton_signature(silent_never);
         // tsc-port: createTypeofType @6.0.3
-        // tsc-hash: 917b32b2a4664e0000258fed2360fb1d20e0d4d5f6bc9eb52b7369a4d0e21eb4
+        // tsc-hash: fe7ba70726e502c98681faa1024d1b2ba663aac0e621246079642989bfa774df
         // tsc-span: _tsc.js:50136-50138
         // (typeofNEFacts insertion order, 46376-46385.)
         state.typeof_type = {
@@ -674,6 +711,28 @@ impl<'a> CheckerState<'a> {
             })
         });
         state
+    }
+
+    /// The 47220-47275 singleton shape: declaration-less, no
+    /// parameters, minArg 0, pre-resolved return type.
+    fn create_singleton_signature(&mut self, return_type: TypeId) -> SignatureId {
+        self.alloc_signature(Signature {
+            declaration: None,
+            flags: SignatureFlags::NONE,
+            type_parameters: None,
+            parameters: Vec::new(),
+            this_parameter: None,
+            min_argument_count: 0,
+            resolved_return_type: LinkSlot::Resolved(return_type),
+            from_method: false,
+            target: None,
+            mapper: None,
+            instantiations: std::collections::HashMap::new(),
+            erased_signature_cache: None,
+            composite_kind: None,
+            composite_signatures: None,
+            optional_call_signature_cache: (None, None),
+        })
     }
 
     /// tsc-port: createAnonymousType @6.0.3
