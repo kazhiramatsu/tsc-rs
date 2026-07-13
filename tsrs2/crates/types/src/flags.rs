@@ -537,6 +537,53 @@ impl std::ops::BitOrAssign for ContextFlags {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct JsxFlags(i32);
+
+impl JsxFlags {
+    /// tsc JsxFlags.None
+    pub const NONE: Self = Self(0);
+    /// tsc JsxFlags.IntrinsicNamedElement — an element from a named
+    /// property of the JSX.IntrinsicElements interface.
+    pub const INTRINSIC_NAMED_ELEMENT: Self = Self(1);
+    /// tsc JsxFlags.IntrinsicIndexedElement — an element inferred from
+    /// the string index signature of JSX.IntrinsicElements.
+    pub const INTRINSIC_INDEXED_ELEMENT: Self = Self(2);
+    /// tsc JsxFlags.IntrinsicElement
+    pub const INTRINSIC_ELEMENT: Self =
+        Self(Self::INTRINSIC_NAMED_ELEMENT.0 | Self::INTRINSIC_INDEXED_ELEMENT.0);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        (self.0 & other.0) != 0
+    }
+}
+
+impl std::ops::BitOr for JsxFlags {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for JsxFlags {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DiagnosticCategory(i32);
 
 impl DiagnosticCategory {

@@ -450,6 +450,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
+            isolated_signature_type: None,
         };
         Ok(self.alloc_signature(result))
     }

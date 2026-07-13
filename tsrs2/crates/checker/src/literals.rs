@@ -1112,7 +1112,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkSpreadPropOverrides @6.0.3
     /// tsc-hash: d7b214c0f5be33bdc704b964aa3564298a490c7a2420eb052f06418bbab6679e
     /// tsc-span: _tsc.js:74511-74521
-    fn check_spread_prop_overrides(
+    pub(crate) fn check_spread_prop_overrides(
         &mut self,
         ty: TypeId,
         props: &SymbolTable,
@@ -1310,7 +1310,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSpreadType @6.0.3
     /// tsc-hash: d634ea9b62362ca445f014e39bab81d0f54845ad4efc867fdb130837387749b6
     /// tsc-span: _tsc.js:62964-63039
-    fn get_spread_type(
+    pub(crate) fn get_spread_type(
         &mut self,
         left: TypeId,
         right: TypeId,

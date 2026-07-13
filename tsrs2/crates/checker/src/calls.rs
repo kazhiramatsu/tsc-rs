@@ -23,6 +23,7 @@
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo};
+use tsrs2_syntax::nodes::{JsxOpeningElementData, JsxSelfClosingElementData};
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckMode, ElementFlags, ModifierFlags, NodeFlags, SignatureFlags, SymbolFlags, TypeData,
@@ -183,7 +184,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn diagnostic_at_span(&self, span: &DiagSpan, chain: MessageChain) -> Diagnostic {
+    pub(crate) fn diagnostic_at_span(&self, span: &DiagSpan, chain: MessageChain) -> Diagnostic {
         Diagnostic::new(
             Some(span.file_name.clone()),
             Some(span.start),
@@ -230,9 +231,14 @@ impl<'a> CheckerState<'a> {
         };
         let _ = is_tag;
         let Some(expression) = expression else {
-            // JSX opening-likes answer tagName (5.7c); everything else
-            // the node itself.
-            return node;
+            // JSX opening-likes answer tagName; everything else the
+            // node itself.
+            let tag_name = match self.data_of(node) {
+                NodeData::JsxOpeningElement(data) => data.tag_name,
+                NodeData::JsxSelfClosingElement(data) => data.tag_name,
+                _ => None,
+            };
+            return tag_name.unwrap_or(node);
         };
         match self.data_of(expression) {
             NodeData::PropertyAccessExpression(access) => access.name.unwrap_or(expression),
@@ -288,11 +294,35 @@ impl<'a> CheckerState<'a> {
                     self.check_expression(left, CheckMode::NORMAL)?;
                 }
             }
+            NodeData::JsxOpeningElement(data) => {
+                let type_arguments = data.type_arguments;
+                let attributes = data.attributes;
+                for argument in self.nodes_of(type_arguments) {
+                    self.check_source_element(Some(argument));
+                }
+                if let Some(attributes) = attributes {
+                    self.check_expression(attributes, CheckMode::NORMAL)?;
+                }
+            }
+            NodeData::JsxSelfClosingElement(data) => {
+                let type_arguments = data.type_arguments;
+                let attributes = data.attributes;
+                for argument in self.nodes_of(type_arguments) {
+                    self.check_source_element(Some(argument));
+                }
+                if let Some(attributes) = attributes {
+                    self.check_expression(attributes, CheckMode::NORMAL)?;
+                }
+            }
+            _ if self.kind_of(node) == SyntaxKind::JsxOpeningFragment => {
+                // Fragments carry no type arguments (not a
+                // callLikeExpressionMayHaveTypeArguments kind) and no
+                // operand to walk.
+            }
             _ => {
-                // JSX opening-likes (attributes operand) arrive at
-                // 5.7c; decorators at 5.8.
+                // Decorators arrive at 5.8.
                 return Err(Unsupported::new(
-                    "resolveUntypedCall operand walk for JSX/decorator call-likes (5.7c/5.8)",
+                    "resolveUntypedCall operand walk for decorator call-likes (5.8)",
                 ));
             }
         }
@@ -481,9 +511,53 @@ impl<'a> CheckerState<'a> {
                 })?;
                 return Ok(vec![EffectiveArg::Node(left)]);
             }
+            NodeData::JsxOpeningElement(JsxOpeningElementData { attributes, .. })
+            | NodeData::JsxSelfClosingElement(JsxSelfClosingElementData { attributes, .. }) => {
+                // 76315-76317: the attributes node is THE argument when
+                // properties exist or an opening element has children.
+                let attributes = attributes.ok_or_else(|| {
+                    Unsupported::new("JSX opening element without attributes (parse recovery)")
+                })?;
+                let has_properties = match self.data_of(attributes) {
+                    NodeData::JsxAttributes(attributes_data) => {
+                        !self.nodes_of(attributes_data.properties).is_empty()
+                    }
+                    _ => false,
+                };
+                let has_children = self.kind_of(node) == SyntaxKind::JsxOpeningElement
+                    && self
+                        .parent_of(node)
+                        .is_some_and(|parent| match self.data_of(parent) {
+                            NodeData::JsxElement(element) => {
+                                !self.nodes_of(element.children).is_empty()
+                            }
+                            _ => false,
+                        });
+                return Ok(if has_properties || has_children {
+                    vec![EffectiveArg::Node(attributes)]
+                } else {
+                    Vec::new()
+                });
+            }
+            _ if self.kind_of(node) == SyntaxKind::JsxOpeningFragment => {
+                // 76296-76298: one synthetic emptyFreshJsxObjectType
+                // argument at the fragment's span.
+                let (pos, end) = {
+                    let source = self.binder.source_of_node(node);
+                    let raw = source.arena.node(node);
+                    (raw.pos, raw.end)
+                };
+                return Ok(vec![EffectiveArg::Synthetic {
+                    pos,
+                    end,
+                    ty: self.empty_fresh_jsx_object_type,
+                    is_spread: false,
+                    tuple_name_source: None,
+                }]);
+            }
             _ => {
                 return Err(Unsupported::new(
-                    "getEffectiveCallArguments decorator/JSX arms (5.8/5.7c)",
+                    "getEffectiveCallArguments decorator arm (5.8)",
                 ));
             }
         };
@@ -661,11 +735,13 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         signature_help_trailing_comma: bool,
     ) -> CheckResult2<bool> {
+        if self.kind_of(node) == SyntaxKind::JsxOpeningFragment {
+            return Ok(true);
+        }
         let arg_count: usize;
         let mut call_is_incomplete = false;
-        // The JSX arm's clamps on these two counts arrive with 5.7c.
-        let effective_parameter_count = self.get_parameter_count(signature)?;
-        let effective_minimum_arguments = self.get_min_argument_count(signature)?;
+        let mut effective_parameter_count = self.get_parameter_count(signature)?;
+        let mut effective_minimum_arguments = self.get_min_argument_count(signature)?;
         match self.kind_of(node) {
             SyntaxKind::TaggedTemplateExpression => {
                 arg_count = args.len();
@@ -702,7 +778,32 @@ impl<'a> CheckerState<'a> {
                 arg_count = 1;
             }
             SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
-                return Err(Unsupported::new("hasCorrectArity JSX arm (5.7c)"));
+                // 75833-75840: an unterminated opening element
+                // (attributes.end == node.end) is always arity-correct;
+                // otherwise the counts clamp to the one-argument shape.
+                let attributes = match self.data_of(node) {
+                    NodeData::JsxOpeningElement(data) => data.attributes,
+                    NodeData::JsxSelfClosingElement(data) => data.attributes,
+                    _ => None,
+                }
+                .ok_or_else(|| {
+                    Unsupported::new("JSX opening element without attributes (parse recovery)")
+                })?;
+                let source = self.binder.source_of_node(node);
+                call_is_incomplete =
+                    source.arena.node(attributes).end == source.arena.node(node).end;
+                if call_is_incomplete {
+                    return Ok(true);
+                }
+                arg_count = if effective_minimum_arguments == 0 {
+                    args.len()
+                } else {
+                    1
+                };
+                if !args.is_empty() {
+                    effective_parameter_count = 1;
+                }
+                effective_minimum_arguments = effective_minimum_arguments.min(1);
             }
             _ => {
                 let arguments = match self.data_of(node) {
@@ -1441,6 +1542,205 @@ impl<'a> CheckerState<'a> {
 
     // ---- applicability ----
 
+    /// tsc-port: checkApplicableSignatureForJsxCallLikeElement @6.0.3
+    /// tsc-hash: ee3bdb8977701e194a71bc78bdf77e9f22b52d20800425ade1f126d340f6bd65
+    /// tsc-span: _tsc.js:76088-76189
+    ///
+    /// The reporting faces contain: elaborateError over the attributes
+    /// node is elementwise elaboration (elaborateJsxComponents — T2
+    /// machinery that moves code/span into the attribute values), and
+    /// the headless reportRelationError fallback at the tag renders
+    /// the anonymous attributes type (T2 display). The SILENT verdict
+    /// (selection) and the 6229 factory-arity probe are fully live.
+    fn check_applicable_signature_for_jsx_call_like_element(
+        &mut self,
+        node: NodeId,
+        signature: SignatureId,
+        relation: RelationKind,
+        check_mode: CheckMode,
+        mode: ApplicabilityMode,
+    ) -> CheckResult2<Option<Vec<ApplicabilityError>>> {
+        let param_type = self.get_effective_first_argument_for_jsx_signature(signature, node)?;
+        let is_jsx_open_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
+        let attributes_type = if is_jsx_open_fragment {
+            self.create_jsx_attributes_type_from_attributes_property(node, CheckMode::NORMAL)?
+        } else {
+            let attributes = match self.data_of(node) {
+                NodeData::JsxOpeningElement(data) => data.attributes,
+                NodeData::JsxSelfClosingElement(data) => data.attributes,
+                _ => None,
+            }
+            .ok_or_else(|| {
+                Unsupported::new("JSX opening element without attributes (parse recovery)")
+            })?;
+            self.check_expression_with_contextual_type(
+                attributes, param_type, /*inference_context*/ None, check_mode,
+            )?
+        };
+        let check_attributes_type = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
+            self.get_regular_type_of_object_literal(attributes_type)?
+        } else {
+            attributes_type
+        };
+        if let Some(factory_arity_error) =
+            self.check_tag_name_expects_too_many_arguments(node, mode)?
+        {
+            return Ok(Some(vec![factory_arity_error]));
+        }
+        if self.is_type_related_to(check_attributes_type, param_type, relation)? {
+            return Ok(None);
+        }
+        if mode == ApplicabilityMode::Silent {
+            return Ok(Some(Vec::new()));
+        }
+        Err(Unsupported::new(
+            "JSX attributes relation reporting \
+             (elaborateJsxComponents / headless reportRelationError, T2)",
+        ))
+    }
+
+    /// checkTagNameDoesNotExpectTooManyArguments (76109-76188), verdict
+    /// INVERTED for the applicability protocol: None = the tag/factory
+    /// pair passes; Some = the 6229 ApplicabilityError. The
+    /// getJsxFactoryEntity face is the post-entity-guard survivor
+    /// (jsxFactory/pragma shapes escaped upstream inside
+    /// getEffectiveFirstArgumentForJsxSignature's namespace walk):
+    /// `reactNamespace‖React` + ".createElement", resolved like
+    /// resolveEntityName(QualifiedName, Value, ignoreErrors).
+    fn check_tag_name_expects_too_many_arguments(
+        &mut self,
+        node: NodeId,
+        mode: ApplicabilityMode,
+    ) -> CheckResult2<Option<ApplicabilityError>> {
+        // getJsxNamespaceContainerForImplicitImport: None (guarded).
+        let tag_name = match self.data_of(node) {
+            NodeData::JsxOpeningElement(data) => data.tag_name,
+            NodeData::JsxSelfClosingElement(data) => data.tag_name,
+            _ => None,
+        };
+        let Some(tag_name) = tag_name else {
+            return Ok(None);
+        };
+        if self.is_jsx_intrinsic_tag_name(tag_name)
+            || self.kind_of(tag_name) == SyntaxKind::JsxNamespacedName
+        {
+            return Ok(None);
+        }
+        let tag_type = self.check_expression(tag_name, CheckMode::NORMAL)?;
+        let tag_call_signatures = self.get_signatures_of_type(tag_type, SignatureKind::Call)?;
+        if tag_call_signatures.is_empty() {
+            return Ok(None);
+        }
+        let factory_namespace = self.get_jsx_namespace_name(node);
+        let namespace_symbol = self.resolve_name(
+            Some(node),
+            &factory_namespace,
+            SymbolFlags::NAMESPACE,
+            /*name_not_found_message*/ None,
+            /*is_use*/ false,
+            /*exclude_globals*/ false,
+        );
+        let Some(namespace_symbol) = namespace_symbol else {
+            return Ok(None);
+        };
+        if self
+            .symbol_flags(namespace_symbol)
+            .intersects(SymbolFlags::ALIAS)
+        {
+            return Err(Unsupported::new(
+                "aliased JSX factory namespace (alias resolution, 5.8)",
+            ));
+        }
+        let exports = self.get_exports_of_jsx_factory_symbol(namespace_symbol)?;
+        let factory_symbol = match exports.get("createElement").copied() {
+            Some(symbol) => {
+                let symbol = self.get_merged_symbol(symbol);
+                let flags = self.symbol_flags(symbol);
+                if flags.intersects(SymbolFlags::VALUE) {
+                    symbol
+                } else if flags.intersects(SymbolFlags::ALIAS) {
+                    return Err(Unsupported::new(
+                        "aliased JSX factory member (alias resolution, 5.8)",
+                    ));
+                } else {
+                    return Ok(None);
+                }
+            }
+            None => return Ok(None),
+        };
+        let factory_type = self.get_type_of_symbol(factory_symbol)?;
+        let call_signatures = self.get_signatures_of_type(factory_type, SignatureKind::Call)?;
+        if call_signatures.is_empty() {
+            return Ok(None);
+        }
+        let mut has_first_param_signatures = false;
+        let mut max_param_count = 0usize;
+        for signature in call_signatures {
+            let first_param = self.get_type_at_position(signature, 0)?;
+            let signatures_of_param =
+                self.get_signatures_of_type(first_param, SignatureKind::Call)?;
+            if signatures_of_param.is_empty() {
+                continue;
+            }
+            for param_signature in signatures_of_param {
+                has_first_param_signatures = true;
+                if self.has_effective_rest_parameter(param_signature)? {
+                    return Ok(None);
+                }
+                let param_count = self.get_parameter_count(param_signature)?;
+                max_param_count = max_param_count.max(param_count);
+            }
+        }
+        if !has_first_param_signatures {
+            return Ok(None);
+        }
+        let mut absolute_min_arg_count = usize::MAX;
+        for tag_signature in tag_call_signatures {
+            let tag_required_arg_count = self.get_min_argument_count(tag_signature)?;
+            absolute_min_arg_count = absolute_min_arg_count.min(tag_required_arg_count);
+        }
+        if absolute_min_arg_count <= max_param_count {
+            return Ok(None);
+        }
+        let span = self.diag_span_of_node(tag_name);
+        let tag_text = self.text_of_node(tag_name)?;
+        let factory_text = format!("{factory_namespace}.createElement");
+        let mut related: Vec<RelatedInfo> = Vec::new();
+        if let Some(tag_symbol) = self.links.node(tag_name).resolved_symbol.resolved() {
+            if let Some(declaration) = self.binder.symbol(tag_symbol).value_declaration {
+                related.push(self.related_info_for_node(
+                    declaration,
+                    &diagnostics::_0_is_declared_here,
+                    &[&tag_text],
+                ));
+            }
+        }
+        let diagnostic = match mode {
+            ApplicabilityMode::Report => {
+                let mut diagnostic = self.diagnostic_at_span(
+                    &span,
+                    MessageChain::new(
+                        &diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
+                        &[
+                            tag_text.clone(),
+                            absolute_min_arg_count.to_string(),
+                            factory_text,
+                            max_param_count.to_string(),
+                        ],
+                    ),
+                );
+                diagnostic.related = related.clone();
+                Some(diagnostic)
+            }
+            _ => None,
+        };
+        Ok(Some(ApplicabilityError {
+            span,
+            related,
+            diagnostic,
+        }))
+    }
+
     /// tsc-port: getSignatureApplicabilityError @6.0.3
     /// tsc-hash: bd05784a6cdf0b44aae49b1b7135d05b6105da3b41e39e7b01d3950a29709f1b
     /// tsc-span: _tsc.js:76194-76276
@@ -1465,9 +1765,9 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::JsxSelfClosingElement
                 | SyntaxKind::JsxOpeningFragment
         ) {
-            return Err(Unsupported::new(
-                "checkApplicableSignatureForJsxCallLikeElement (5.7c)",
-            ));
+            return self.check_applicable_signature_for_jsx_call_like_element(
+                node, signature, relation, check_mode, mode,
+            );
         }
         let this_type = self.get_this_type_of_signature(signature)?;
         if let Some(this_type) = this_type {
@@ -1746,6 +2046,8 @@ impl<'a> CheckerState<'a> {
                 NodeData::CallExpression(data) => data.type_arguments,
                 NodeData::NewExpression(data) => data.type_arguments,
                 NodeData::TaggedTemplateExpression(data) => data.type_arguments,
+                NodeData::JsxOpeningElement(data) => data.type_arguments,
+                NodeData::JsxSelfClosingElement(data) => data.type_arguments,
                 _ => None,
             };
             type_argument_nodes = self.nodes_of(type_arguments_array);
@@ -2539,6 +2841,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
+            isolated_signature_type: None,
         }))
     }
 
@@ -3412,6 +3715,135 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
+    // ---- JSX opening-like elements ----
+
+    /// tsc-port: resolveJsxOpeningLikeElement @6.0.3
+    /// tsc-hash: de958e239f9938f6db012bfdfb5c38e1a8708ed8c5bf2a1bf4fd79c49a878fa0
+    /// tsc-span: _tsc.js:77397-77444
+    ///
+    /// The intrinsic path returns the fake signature WITHOUT entering
+    /// resolveCall (risk-register #6); its attributes-vs-intrinsic
+    /// relation failure contains at the elaboration gate
+    /// (elaborateJsxComponents = elementwise elaboration, T2 — a plain
+    /// head at the tag would be a wrong-span FP).
+    fn resolve_jsx_opening_like_element(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<SignatureId> {
+        let is_jsx_open_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
+        let mut value_tag_name: Option<NodeId> = None;
+        let expr_types;
+        if !is_jsx_open_fragment {
+            let (tag_name, type_arguments, attributes) = match self.data_of(node) {
+                NodeData::JsxOpeningElement(data) => {
+                    (data.tag_name, data.type_arguments, data.attributes)
+                }
+                NodeData::JsxSelfClosingElement(data) => {
+                    (data.tag_name, data.type_arguments, data.attributes)
+                }
+                _ => (None, None, None),
+            };
+            let tag_name = tag_name.ok_or_else(|| {
+                Unsupported::new("JSX opening element without a tag name (parse recovery)")
+            })?;
+            if self.is_jsx_intrinsic_tag_name(tag_name) {
+                let result =
+                    self.get_intrinsic_attributes_type_from_jsx_opening_like_element(node)?;
+                let fake_signature = self.create_signature_for_jsx_intrinsic(node, result)?;
+                let param_type =
+                    self.get_effective_first_argument_for_jsx_signature(fake_signature, node)?;
+                let attributes = attributes.ok_or_else(|| {
+                    Unsupported::new("JSX opening element without attributes (parse recovery)")
+                })?;
+                let attr_type = self.check_expression_with_contextual_type(
+                    attributes,
+                    param_type,
+                    /*inference_context*/ None,
+                    CheckMode::NORMAL,
+                )?;
+                // checkTypeAssignableToAndOptionallyElaborate(attrType,
+                // result, errorNode=tagName, expr=attributes).
+                if !self.is_type_assignable_to(attr_type, result)? {
+                    if self
+                        .elaboration_disposition(
+                            attributes,
+                            attr_type,
+                            result,
+                            RelationKind::Assignable,
+                        )?
+                        .is_some()
+                    {
+                        return Err(Unsupported::new(
+                            "did-you-mean elaboration over JSX attributes (T2)",
+                        ));
+                    }
+                    self.check_type_assignable_to(
+                        attr_type,
+                        result,
+                        Some(tag_name),
+                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                    )?;
+                }
+                let type_argument_nodes = self.nodes_of(type_arguments);
+                if !type_argument_nodes.is_empty() {
+                    for &type_argument in &type_argument_nodes {
+                        self.check_source_element(Some(type_argument));
+                    }
+                    // createDiagnosticForNodeArray(2558, 0, n) on the
+                    // typeArguments range.
+                    let array = type_arguments.expect("non-empty nodes imply an array");
+                    let (pos, end) = {
+                        let source = self.binder.source_of_node(node);
+                        let array = source.arena.node_array(array);
+                        (array.pos, array.end)
+                    };
+                    let span = self.diag_span_of_byte_range(node, pos, end);
+                    let diagnostic = self.diagnostic_at_span(
+                        &span,
+                        MessageChain::new(
+                            &diagnostics::Expected_0_type_arguments_but_got_1,
+                            &["0".to_owned(), type_argument_nodes.len().to_string()],
+                        ),
+                    );
+                    self.push_error_diagnostic(diagnostic);
+                }
+                return Ok(fake_signature);
+            }
+            value_tag_name = Some(tag_name);
+            expr_types = self.check_expression(tag_name, CheckMode::NORMAL)?;
+        } else {
+            expr_types = self.get_jsx_fragment_type(node)?;
+        }
+        let apparent_type = self.get_apparent_type(expr_types)?;
+        if self.tables.is_error_type(apparent_type) {
+            return self.resolve_error_call(node);
+        }
+        let signatures = self.get_uninstantiated_jsx_signatures_of_type(expr_types, node)?;
+        if self.is_untyped_function_call(
+            expr_types,
+            apparent_type,
+            signatures.len(),
+            /*construct_signatures*/ 0,
+        )? {
+            return self.resolve_untyped_call(node);
+        }
+        if signatures.is_empty() {
+            let error_target = match value_tag_name {
+                Some(tag_name) => tag_name,
+                None => node,
+            };
+            let text = self.text_of_node(error_target)?;
+            self.error_at(
+                Some(error_target),
+                &diagnostics::JSX_element_type_0_does_not_have_any_construct_or_call_signatures,
+                &[&text],
+            );
+            return self.resolve_error_call(node);
+        }
+        self.resolve_call(node, &signatures, check_mode, SignatureFlags::NONE, None)
+    }
+
     // ---- tagged templates ----
 
     /// tsc-port: resolveTaggedTemplateExpression @6.0.3
@@ -3773,7 +4205,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::JsxOpeningFragment
             | SyntaxKind::JsxOpeningElement
             | SyntaxKind::JsxSelfClosingElement => {
-                Err(Unsupported::new("resolveJsxOpeningLikeElement (5.7c)"))
+                self.resolve_jsx_opening_like_element(node, check_mode)
             }
             SyntaxKind::BinaryExpression => self.resolve_instanceof_expression(node, check_mode),
             _ => unreachable!("Branch in 'resolveSignature' should be unreachable."),

@@ -863,7 +863,11 @@ impl<'a> CheckerState<'a> {
                 unreachable!("resolveDecorator registers deferrals at 5.8")
             }
             SyntaxKind::JsxOpeningElement => {
-                unreachable!("resolveJsxOpeningLikeElement registers deferrals at 5.7c")
+                // 86923-86928: an overload-failure deferral over a JSX
+                // opening element re-checks the raw attributes operand
+                // against the stashed failure candidate, like calls.
+                self.resolve_untyped_call(node)?;
+                Ok(())
             }
             SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction

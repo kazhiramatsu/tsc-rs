@@ -3164,7 +3164,7 @@ impl<'a> CheckerState<'a> {
     /// The static `resolvedExports` kind — getExportsOfSymbol's
     /// late-binding-container route. Module symbols need
     /// getExportsOfModuleWorker's export-star walk (5.8).
-    fn get_exports_of_symbol(
+    pub(crate) fn get_exports_of_symbol(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult2<tsrs2_binder::SymbolTable> {
@@ -4062,6 +4062,7 @@ impl<'a> CheckerState<'a> {
                 composite_kind: None,
                 composite_signatures: None,
                 optional_call_signature_cache: (None, None),
+                isolated_signature_type: None,
             };
             return Ok(vec![self.alloc_signature(signature)]);
         }
@@ -5016,7 +5017,7 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::JsxAttribute => {
                     match state.try_get_type_from_effective_type_node(declaration)? {
                         Some(declared) => Ok(declared),
-                        None => Err(Unsupported::new("checkJsxAttribute (5.7)")),
+                        None => state.check_jsx_attribute(declaration, CheckMode::NORMAL),
                     }
                 }
                 SyntaxKind::ShorthandPropertyAssignment => {
@@ -6059,6 +6060,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
+            isolated_signature_type: None,
         };
         let id = self.alloc_signature(signature);
         self.links.set_node_resolved_signature(

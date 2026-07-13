@@ -3485,6 +3485,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: source.composite_kind,
             composite_signatures: source.composite_signatures.clone(),
             optional_call_signature_cache: (None, None),
+            isolated_signature_type: None,
         };
         self.alloc_signature(result)
     }
@@ -3657,7 +3658,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getUnionSignatures @6.0.3
     /// tsc-hash: de365ba44bdfdca52811439ffebf59ebc19fb1b100954118cea2daaafb974edd
     /// tsc-span: _tsc.js:58055-58108
-    fn get_union_signatures(
+    pub(crate) fn get_union_signatures(
         &mut self,
         signature_lists: &[Vec<SignatureId>],
     ) -> CheckResult2<Vec<SignatureId>> {
@@ -4089,6 +4090,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: Some(TypeFlags::UNION),
             composite_signatures: Some(composite_signatures),
             optional_call_signature_cache: (None, None),
+            isolated_signature_type: None,
         };
         Ok(self.alloc_signature(result))
     }
