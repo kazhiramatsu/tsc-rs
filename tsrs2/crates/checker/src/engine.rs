@@ -26,7 +26,7 @@ use tsrs2_types::{
 use tsrs2_syntax::NodeId;
 
 use crate::relate::RelationKind;
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 /// stableTypeOrdering off: binary search keyed by type id over the
 /// id-sorted member list (tsc containsType 61327).
@@ -1838,40 +1838,17 @@ impl<'a> CheckerState<'a> {
     /// The value-type of the applicable index info for a property
     /// name (getApplicableIndexInfoForName slice: string index catches
     /// every name, number index catches numeric names; symbol keys are
-    /// late-bound names, M4). Union/intersection index-info synthesis
-    /// (resolveUnionTypeMembers / intersection index merging) is M4
-    /// 5.3 — a union/intersection whose object member carries index
-    /// infos escapes as Unsupported instead of silently answering
-    /// None.
+    /// late-bound names, M4). Unions/intersections read their OWN
+    /// resolved members — resolveUnionTypeMembers synthesizes the
+    /// intersected index infos (getUnionIndexInfos).
     pub fn get_applicable_index_info_for_name(
         &mut self,
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<TypeId>> {
-        if self
-            .tables
-            .flags_of(ty)
-            .intersects(TypeFlags::UNION_OR_INTERSECTION)
-        {
-            let members = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => types.to_vec(),
-                TypeData::Intersection { types } => types.to_vec(),
-                _ => Vec::new(),
-            };
-            for t in members {
-                if !self.tables.flags_of(t).intersects(TypeFlags::OBJECT) {
-                    continue;
-                }
-                let resolved = self.resolve_structured_type_members(t)?;
-                if !self.members_of(resolved).index_infos.is_empty() {
-                    return Err(Unsupported::new(
-                        "union/intersection index-info synthesis (M4 5.3)",
-                    ));
-                }
-            }
-            return Ok(None);
-        }
-        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
+        if !self.tables.flags_of(ty).intersects(TypeFlags::from_bits(
+            TypeFlags::OBJECT.bits() | TypeFlags::UNION_OR_INTERSECTION.bits(),
+        )) {
             return Ok(None);
         }
         let members = self.resolve_structured_type_members(ty)?;

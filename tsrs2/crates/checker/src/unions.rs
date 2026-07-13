@@ -17,7 +17,7 @@
 use tsrs2_types::{TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::relate::RelationKind;
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: isTypeSubtypeOf @6.0.3
@@ -371,11 +371,9 @@ impl<'a> CheckerState<'a> {
             let source = types[i];
             let source_flags = self.tables.flags_of(source);
             if has_empty_object || source_flags.intersects(TypeFlags::STRUCTURED_OR_INSTANTIABLE) {
-                if source_flags.intersects(TypeFlags::TYPE_PARAMETER) {
-                    return Err(Unsupported::new(
-                        "type-parameter subtype reduction (M4 5.1)",
-                    ));
-                }
+                // Type-parameter sources run the plain subtype probes
+                // (the M3-era escape expired at 5.3b when bare
+                // type-parameter relations landed).
                 // The key-property fast filter (61389-61391).
                 let key_property = if source_flags.intersects(TypeFlags::from_bits(
                     TypeFlags::OBJECT.bits()

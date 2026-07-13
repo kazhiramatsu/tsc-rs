@@ -2567,15 +2567,47 @@ impl<'a> CheckerState<'a> {
                     &[],
                 );
             } else {
-                // checkDeleteExpressionMustBeOptional (79325): the 2790
-                // strictNullChecks arm reads hasTypeFacts(IsUndefined)
-                // — [FACTS] 5.5d, unreachable today (module note).
-                return Err(Unsupported::new(
-                    "checkDeleteExpressionMustBeOptional (facts classifier, 5.5d)",
-                ));
+                self.check_delete_expression_must_be_optional(expr, symbol)?;
             }
         }
         Ok(self.tables.intrinsics.boolean)
+    }
+
+    /// tsc-port: checkDeleteExpressionMustBeOptional @6.0.3
+    /// tsc-hash: c9a573f62eae96ce88545504ee3cbd7b2e6dc21828056dbb1c3a23439cc58193
+    /// tsc-span: _tsc.js:79324-79330
+    fn check_delete_expression_must_be_optional(
+        &mut self,
+        expr: NodeId,
+        symbol: SymbolId,
+    ) -> CheckResult2<()> {
+        let ty = self.get_type_of_symbol(symbol)?;
+        let strict_null_checks = self
+            .options
+            .strict_option_value(self.options.strict_null_checks);
+        if !strict_null_checks
+            || self.tables.flags_of(ty).intersects(TypeFlags::from_bits(
+                TypeFlags::ANY.bits() | TypeFlags::UNKNOWN.bits() | TypeFlags::NEVER.bits(),
+            ))
+        {
+            return Ok(());
+        }
+        let optional = if self.options.exact_optional_property_types == Some(true) {
+            self.binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::OPTIONAL)
+        } else {
+            self.has_type_facts(ty, tsrs2_types::TypeFacts::IS_UNDEFINED)?
+        };
+        if !optional {
+            self.error_at(
+                Some(expr),
+                &diagnostics::The_operand_of_a_delete_operator_must_be_optional,
+                &[],
+            );
+        }
+        Ok(())
     }
 }
 
@@ -4022,6 +4054,72 @@ mod tests {
                 state.check_source_file(0);
                 assert_eq!(rows(state), first);
             },
+        );
+    }
+
+    // ---- 5.5 seam residuals — oracle-pinned ----
+
+    #[test]
+    fn unresolved_type_names_type_as_error_type() {
+        // resolveEntityName reports the 2304s; typeof/type references
+        // then type as errorType, so the property reads stay silent
+        // (the old escapes contained both statements after the 2304).
+        assert_eq!(
+            checked_rows(
+                "declare const x: typeof missingV;\nx.prop;\ndeclare const y: MissingT;\ny.prop;\n"
+            ),
+            [(2304, 24, 8), (2304, 59, 8)]
+        );
+    }
+
+    #[test]
+    fn delete_of_non_optional_property_reports_2790() {
+        // checkDeleteExpressionMustBeOptional: strict default → the
+        // non-optional operand reports 2790; the optional one is
+        // clean (hasTypeFacts IsUndefined sees the added undefined).
+        assert_eq!(
+            checked_rows(
+                "declare const o: { p: number };\ndelete o.p;\ndeclare const q: { p?: number };\ndelete q.p;\n"
+            ),
+            [(2790, 39, 3)]
+        );
+    }
+
+    #[test]
+    fn mixin_factory_extends_expression_checks() {
+        // check_base_type_expression = plain checkExpression (tsc
+        // 57156): the mixin-call base resolves and instances type.
+        assert_eq!(
+            checked_rows(
+                "declare function Mix(): new () => { m: number };\nclass C extends Mix() { }\ndeclare const c: C;\nc.m.bad;\n"
+            ),
+            [(2339, 99, 3)]
+        );
+    }
+
+    #[test]
+    fn computed_property_name_flows_into_keyof() {
+        // getLiteralTypeFromPropertyName's computed arm rides
+        // checkComputedPropertyName: keyof typeof o = "kk" (object-
+        // literal members carry the computed-name declaration).
+        assert_eq!(
+            checked_rows(
+                "const k = \"kk\";\nconst o = { [k]: 1 };\ntype K = keyof typeof o;\ndeclare const kk: K;\ndeclare function take(x: \"nope\"): void;\ntake(kk);\n"
+            ),
+            [(2345, 129, 2)]
+        );
+    }
+
+    #[test]
+    fn type_literal_computed_member_still_contains_on_late_binding() {
+        // `{ [k]: number }` members need lateBindMember (57662) — the
+        // design's M7-stub fallback; oracle keyof O = "kk" stays a
+        // recorded FN until late binding lands.
+        assert_eq!(
+            checked_rows(
+                "const k = \"kk\";\ntype O = { [k]: number };\ntype K = keyof O;\ndeclare const kk: K;\ndeclare function take(x: \"nope\"): void;\ntake(kk);\n"
+            ),
+            []
         );
     }
 

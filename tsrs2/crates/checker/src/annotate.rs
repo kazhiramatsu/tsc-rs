@@ -122,9 +122,15 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
-            SyntaxKind::MappedType => Err(Unsupported::new("mapped types (M4 5.2)")),
-            SyntaxKind::ConditionalType => Err(Unsupported::new("conditional types (M4 5.2)")),
-            SyntaxKind::InferType => Err(Unsupported::new("infer types (M4 5.2)")),
+            SyntaxKind::MappedType => Err(Unsupported::new(
+                "mapped types (unported family, M4-end sweep 5.8)",
+            )),
+            SyntaxKind::ConditionalType => Err(Unsupported::new(
+                "conditional types (unported family, M4-end sweep 5.8)",
+            )),
+            SyntaxKind::InferType => Err(Unsupported::new(
+                "infer types (unported family, M4-end sweep 5.8)",
+            )),
             SyntaxKind::ImportType => Err(Unsupported::new("import types (M4)")),
             // 63207: heritage ExpressionWithTypeArguments routes
             // through the same type-reference worker (getTypeReferenceName
@@ -429,6 +435,13 @@ impl<'a> CheckerState<'a> {
     /// checker callers pre-force here — element order matches tsc's
     /// left-to-right expansion, and the forced resolution has no other
     /// observable effects.
+    /// tsc-port: createNormalizedTypeReference @6.0.3
+    /// tsc-hash: 32b91334e6762e8ea63ac6a9be5f6689a4d112aa1db2d59986c736ac6735e143
+    /// tsc-span: _tsc.js:61210-61212
+    ///
+    /// The checker twin: tuple targets run the FULL
+    /// createNormalizedTupleType below (the tables twin keeps its
+    /// M4Dependency escapes for tables-internal callers only).
     pub(crate) fn create_normalized_type_reference_forced(
         &mut self,
         target: TypeId,
@@ -439,21 +452,280 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(target)
             .intersects(ObjectFlags::TUPLE)
         {
-            let element_flags = match &self.tables.type_of(target).data {
-                TypeData::TupleTarget(data) => data.element_flags.to_vec(),
-                _ => unreachable!("TUPLE object flag implies a tuple target"),
+            self.create_normalized_tuple_type_full(target, type_arguments)
+        } else {
+            Ok(self.tables.create_type_reference(target, type_arguments))
+        }
+    }
+
+    /// tsc-port: createNormalizedTupleType @6.0.3
+    /// tsc-hash: 5b7968f648c63d88544746d841015ff7800b723dbc071b96fb4d6f7ae0b18154
+    /// tsc-span: _tsc.js:61213-61287
+    ///
+    /// Checker twin of the tables port — the three former M4Dependency
+    /// arms run live here: union/never variadic distribution (mapType
+    /// with checkCrossProductUnion 2590 at currentNode), array-like
+    /// variadic collapse (getIndexTypeOfType), and the variadic-in-
+    /// rest-window collapse (getIndexedAccessType); the 10k-element
+    /// guard reports 2799/2800 at currentNode. mapType here is the
+    /// no-origin form (union constituents are flattened at creation,
+    /// so the origin-walk arm has nothing extra to see).
+    fn create_normalized_tuple_type_full(
+        &mut self,
+        target: TypeId,
+        element_types: &[TypeId],
+    ) -> CheckResult2<TypeId> {
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+            unreachable!("createNormalizedTupleType requires a tuple target");
+        };
+        if !data.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
+            // No non-required elements: plain reference (61215-61217).
+            return Ok(self.tables.create_type_reference(target, element_types));
+        }
+        if data.combined_flags.intersects(ElementFlags::VARIADIC) {
+            // Union/never variadic distribution (61218-61223).
+            let union_index = (0..element_types.len()).find(|&i| {
+                data.element_flags[i].intersects(ElementFlags::VARIADIC)
+                    && self
+                        .tables
+                        .flags_of(element_types[i])
+                        .intersects(TypeFlags::from_bits(
+                            TypeFlags::NEVER.bits() | TypeFlags::UNION.bits(),
+                        ))
+            });
+            if let Some(union_index) = union_index {
+                let cross: Vec<TypeId> = element_types
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &t)| {
+                        if data.element_flags[i].intersects(ElementFlags::VARIADIC) {
+                            t
+                        } else {
+                            self.tables.intrinsics.unknown
+                        }
+                    })
+                    .collect();
+                if !self.check_cross_product_union(&cross) {
+                    return Ok(self.tables.intrinsics.error);
+                }
+                let outer = element_types.to_vec();
+                return self.map_type_result(outer[union_index], move |state, t| {
+                    let mut replaced = outer.clone();
+                    replaced[union_index] = t;
+                    state.create_normalized_tuple_type_full(target, &replaced)
+                });
+            }
+        }
+        let mut expanded_types: Vec<TypeId> = Vec::new();
+        let mut expanded_flags: Vec<ElementFlags> = Vec::new();
+        let mut expanded_declarations: Vec<Option<u32>> = Vec::new();
+        let outer_labels = data.labeled_element_declarations.clone();
+        let outer_declaration = move |i: usize| -> Option<u32> {
+            outer_labels
+                .as_ref()
+                .and_then(|declarations| declarations.get(i).copied())
+                .flatten()
+        };
+        let mut last_required_index: isize = -1;
+        let mut first_rest_index: isize = -1;
+        let mut last_optional_or_rest_index: isize = -1;
+        {
+            let mut add_element = |state: &mut Self,
+                                   expanded_types: &mut Vec<TypeId>,
+                                   expanded_flags: &mut Vec<ElementFlags>,
+                                   expanded_declarations: &mut Vec<Option<u32>>,
+                                   ty: TypeId,
+                                   flags: ElementFlags,
+                                   declaration: Option<u32>| {
+                if flags.intersects(ElementFlags::REQUIRED) {
+                    last_required_index = expanded_flags.len() as isize;
+                }
+                if flags.intersects(ElementFlags::REST) && first_rest_index < 0 {
+                    first_rest_index = expanded_flags.len() as isize;
+                }
+                if flags.intersects(ElementFlags::from_bits(
+                    ElementFlags::OPTIONAL.bits() | ElementFlags::REST.bits(),
+                )) {
+                    last_optional_or_rest_index = expanded_flags.len() as isize;
+                }
+                let pushed = if flags.intersects(ElementFlags::OPTIONAL) {
+                    state.tables.add_optionality(ty, /*is_property*/ true, true)
+                } else {
+                    ty
+                };
+                expanded_types.push(pushed);
+                expanded_flags.push(flags);
+                expanded_declarations.push(declaration);
             };
-            for (index, &argument) in type_arguments.iter().enumerate() {
-                if element_flags[index].intersects(ElementFlags::VARIADIC)
-                    && self.tables.is_tuple_type(argument)
-                {
-                    self.get_type_arguments(argument)?;
+
+            for (i, &element_type) in element_types.iter().enumerate() {
+                let flags = data.element_flags[i];
+                if flags.intersects(ElementFlags::VARIADIC) {
+                    if self
+                        .tables
+                        .flags_of(element_type)
+                        .intersects(TypeFlags::ANY)
+                    {
+                        add_element(
+                            self,
+                            &mut expanded_types,
+                            &mut expanded_flags,
+                            &mut expanded_declarations,
+                            element_type,
+                            ElementFlags::REST,
+                            outer_declaration(i),
+                        );
+                    } else if self
+                        .tables
+                        .flags_of(element_type)
+                        .intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
+                        || self.is_generic_mapped_type_state(element_type)
+                    {
+                        add_element(
+                            self,
+                            &mut expanded_types,
+                            &mut expanded_flags,
+                            &mut expanded_declarations,
+                            element_type,
+                            ElementFlags::VARIADIC,
+                            outer_declaration(i),
+                        );
+                    } else if self.tables.is_tuple_type(element_type) {
+                        let inner_args = self.get_type_arguments(element_type)?;
+                        if inner_args.len() + expanded_types.len() >= 10_000 {
+                            // 61240-61246: 2799 in type positions,
+                            // 2800 in expression positions.
+                            let message = if self
+                                .current_node
+                                .is_some_and(|node| self.is_part_of_type_node(node))
+                            {
+                                &diagnostics::Type_produces_a_tuple_type_that_is_too_large_to_represent
+                            } else {
+                                &diagnostics::Expression_produces_a_tuple_type_that_is_too_large_to_represent
+                            };
+                            self.error_at(self.current_node, message, &[]);
+                            return Ok(self.tables.intrinsics.error);
+                        }
+                        let inner_target = self.tables.reference_target(element_type);
+                        let TypeData::TupleTarget(inner) =
+                            self.tables.type_of(inner_target).data.clone()
+                        else {
+                            unreachable!("tuple type targets a tuple target");
+                        };
+                        for (n, &inner_type) in inner_args.iter().enumerate() {
+                            let inner_declaration = inner
+                                .labeled_element_declarations
+                                .as_ref()
+                                .and_then(|declarations| declarations.get(n).copied())
+                                .flatten();
+                            add_element(
+                                self,
+                                &mut expanded_types,
+                                &mut expanded_flags,
+                                &mut expanded_declarations,
+                                inner_type,
+                                inner.element_flags[n],
+                                inner_declaration,
+                            );
+                        }
+                    } else {
+                        // 61252: `isArrayLikeType(type) &&
+                        // getIndexTypeOfType(type, numberType) ||
+                        // errorType` as a Rest element.
+                        let index_type = if self.is_array_like_type(element_type)? {
+                            self.get_index_type_of_type(
+                                element_type,
+                                self.tables.intrinsics.number,
+                            )?
+                        } else {
+                            None
+                        };
+                        add_element(
+                            self,
+                            &mut expanded_types,
+                            &mut expanded_flags,
+                            &mut expanded_declarations,
+                            index_type.unwrap_or(self.tables.intrinsics.error),
+                            ElementFlags::REST,
+                            outer_declaration(i),
+                        );
+                    }
+                } else {
+                    add_element(
+                        self,
+                        &mut expanded_types,
+                        &mut expanded_flags,
+                        &mut expanded_declarations,
+                        element_type,
+                        flags,
+                        outer_declaration(i),
+                    );
                 }
             }
         }
-        self.tables
-            .create_normalized_type_reference(target, type_arguments)
-            .map_err(Self::unsupported_m4)
+        // Optional elements before the last required one become
+        // required (61258-61260).
+        for flags in expanded_flags
+            .iter_mut()
+            .take(last_required_index.max(0) as usize)
+        {
+            if flags.intersects(ElementFlags::OPTIONAL) {
+                *flags = ElementFlags::REQUIRED;
+            }
+        }
+        // Collapse everything from the first rest element through the
+        // last optional/rest element into a single rest union
+        // (61261-61266); variadic window members read their number
+        // index via getIndexedAccessType.
+        if first_rest_index >= 0 && first_rest_index < last_optional_or_rest_index {
+            let first = first_rest_index as usize;
+            let last = last_optional_or_rest_index as usize;
+            let window: Vec<TypeId> = expanded_types[first..=last].to_vec();
+            let mut mapped = Vec::with_capacity(window.len());
+            for (offset, &t) in window.iter().enumerate() {
+                let member = if expanded_flags[first + offset].intersects(ElementFlags::VARIADIC) {
+                    self.get_indexed_access_type(
+                        t,
+                        self.tables.intrinsics.number,
+                        tsrs2_types::AccessFlags::NONE,
+                        None,
+                        None,
+                        None,
+                    )?
+                } else {
+                    t
+                };
+                mapped.push(member);
+            }
+            expanded_types[first] = self.get_union_type_ex(&mapped, UnionReduction::Literal)?;
+            expanded_types.drain(first + 1..=last);
+            expanded_flags.drain(first + 1..=last);
+            expanded_declarations.drain(first + 1..=last);
+        }
+        // getTupleTargetType's single-rest collapse (61146-61148) needs
+        // the checker-owned global array targets, so it lives here like
+        // create_tuple_type_forced's copy.
+        let tuple_target = if expanded_flags.len() == 1
+            && expanded_flags[0].intersects(ElementFlags::REST)
+        {
+            if data.readonly {
+                self.global_readonly_array_type()?
+            } else {
+                self.global_array_type()?
+            }
+        } else {
+            self.tables
+                .get_tuple_target_type(&expanded_flags, data.readonly, Some(&expanded_declarations))
+                .map_err(Self::unsupported_m4)?
+        };
+        Ok(if tuple_target == self.empty_generic_type {
+            self.empty_object_type
+        } else if !expanded_flags.is_empty() {
+            self.tables
+                .create_type_reference(tuple_target, &expanded_types)
+        } else {
+            tuple_target
+        })
     }
 
     /// tsc-port: getArrayOrTupleTargetType @6.0.3
@@ -728,15 +1000,15 @@ impl<'a> CheckerState<'a> {
         };
         let type_name =
             type_name.ok_or_else(|| Unsupported::new("type reference with missing name"))?;
+        // resolveEntityName reports (2304 family) and yields
+        // unknownSymbol; the reference then types as errorType.
         let Some(symbol) = self.resolve_entity_name(
             type_name,
             SymbolFlags::TYPE,
             /*ignore_errors*/ false,
             None,
         ) else {
-            return Err(Unsupported::new(
-                "unresolved type name (unknownSymbol -> errorType, observable at M4 5.4)",
-            ));
+            return Ok(self.tables.intrinsics.error);
         };
         let flags = self.symbol_flags(symbol);
         let resolved = if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
@@ -1673,17 +1945,17 @@ impl<'a> CheckerState<'a> {
         let expr_name = data
             .expr_name
             .ok_or_else(|| Unsupported::new("typeof with missing entity name"))?;
-        let Some(symbol) = self.resolve_entity_name(
+        // resolveEntityName reports (2304 family) and yields
+        // unknownSymbol; typeof then types as errorType.
+        let ty = match self.resolve_entity_name(
             expr_name,
             SymbolFlags::VALUE,
             /*ignore_errors*/ false,
             None,
-        ) else {
-            return Err(Unsupported::new(
-                "unresolved typeof entity name (unknownSymbol -> errorType, observable at 5.4)",
-            ));
+        ) {
+            Some(symbol) => self.get_type_of_symbol(symbol)?,
+            None => self.tables.intrinsics.error,
         };
-        let ty = self.get_type_of_symbol(symbol)?;
         let widened = self.get_widened_type(ty)?;
         let resolved = self.tables.get_regular_type_of_literal_type(widened);
         self.links.set_node_resolved_type(
@@ -2443,8 +2715,11 @@ impl<'a> CheckerState<'a> {
                     continue;
                 }
                 if self.has_late_bindable_ast_name(member) {
+                    // checkComputedPropertyName exists since 5.5; the
+                    // remaining owner is lateBindMember itself (57662)
+                    // — deferred per the 5.3 design's M7-stub fallback.
                     return Err(Unsupported::new(
-                        "late-bound members (checkComputedPropertyName, M4 5.5/M7)",
+                        "late-bound members (lateBindMember 57662, M7-stub)",
                     ));
                 }
             }
@@ -2900,28 +3175,12 @@ impl<'a> CheckerState<'a> {
         None
     }
 
-    /// The checkExpression slice for extends clauses: entity-name
-    /// expressions resolve through the VALUE meaning and
-    /// getTypeOfSymbol — exactly what checkIdentifier/
-    /// checkPropertyAccessExpression compute for flow-free ambient
-    /// references. Anything else (mixin factory calls etc.) is 5.5.
+    /// The checkExpression read for extends clauses (tsc 57156 calls
+    /// plain checkExpression): mixin factory calls and other
+    /// non-entity-name shapes ride the full expression checker — the
+    /// 5.5-era entity-name-only slice is retired.
     fn check_base_type_expression(&mut self, expression: NodeId) -> CheckResult2<TypeId> {
-        if !self.is_entity_name_expression(expression) {
-            return Err(Unsupported::new(
-                "non-entity-name extends expressions (checkExpression, M4 5.5)",
-            ));
-        }
-        let Some(symbol) = self.resolve_entity_name(
-            expression,
-            SymbolFlags::VALUE,
-            /*ignore_errors*/ false,
-            None,
-        ) else {
-            return Err(Unsupported::new(
-                "unresolved extends expression (unknownSymbol -> errorType, observable at M4 5.4)",
-            ));
-        };
-        self.get_type_of_symbol(symbol)
+        self.check_expression(expression, tsrs2_types::CheckMode::NORMAL)
     }
 
     /// tsc-port: getBaseConstructorTypeOfClass @6.0.3
@@ -3172,22 +3431,40 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// getDeclaredTypeOfSymbol's class/interface slice for base
-    /// resolution (the full dispatch is getDeclaredTypeOfSymbol 57376).
+    /// tsc-port: tryGetDeclaredTypeOfSymbol @6.0.3
+    /// tsc-hash: 28a2c468c08ad14478832fbe5bbeaa107945fc9314bbf768156d2668101141af
+    /// tsc-span: _tsc.js:57505-57525
+    ///
+    /// Covers the getDeclaredTypeOfSymbol wrapper too (57502-57504):
+    /// a symbol matching no arm — e.g. a TypeLiteral in mixin base
+    /// position — is errorType, not a failure. The Alias arm needs
+    /// resolveAlias (import semantics, 5.8) and stays an escape.
     pub(crate) fn get_declared_type_of_symbol_slice(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult2<TypeId> {
-        if self
-            .symbol_flags(symbol)
-            .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
-        {
+        let flags = self.symbol_flags(symbol);
+        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
             return self.get_declared_type_of_class_or_interface(symbol);
         }
-        Err(Unsupported::new(format!(
-            "getDeclaredTypeOfSymbol for symbol flags {:?} in base position (M4)",
-            self.symbol_flags(symbol)
-        )))
+        if flags.intersects(SymbolFlags::TYPE_ALIAS) {
+            return self.get_declared_type_of_type_alias(symbol);
+        }
+        if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+            return Ok(self.get_declared_type_of_type_parameter(symbol));
+        }
+        if flags.intersects(SymbolFlags::ENUM) {
+            return self.get_declared_type_of_enum(symbol);
+        }
+        if flags.intersects(SymbolFlags::ENUM_MEMBER) {
+            return self.get_declared_type_of_enum_member(symbol);
+        }
+        if flags.intersects(SymbolFlags::ALIAS) {
+            return Err(Unsupported::new(
+                "getDeclaredTypeOfAlias (resolveAlias, 5.8 modules)",
+            ));
+        }
+        Ok(self.tables.intrinsics.error)
     }
 
     /// tsc-port: areAllOuterTypeParametersApplied @6.0.3
@@ -4947,7 +5224,9 @@ impl<'a> CheckerState<'a> {
             };
             for member in self.nodes_of(data.members) {
                 if self.has_late_bindable_ast_name(member) {
-                    return Err(Unsupported::new("late-bound enum member name (M4 5.5)"));
+                    return Err(Unsupported::new(
+                        "late-bound enum member name (lateBindMember 57662, M7-stub)",
+                    ));
                 }
                 if node_util::has_dynamic_name(self.binder.source_of_node(member), member) {
                     continue;
@@ -6129,18 +6408,24 @@ mod tests {
         with_state(
             "declare var b: number extends string ? 1 : 2;\ndeclare var c: Missing;\n",
             |state| {
-                for (name, needle) in [("b", "conditional"), ("c", "unresolved type name")] {
-                    let annotation =
-                        find_probe_annotation(state.binder.source(0), name).expect("annotation");
-                    let err = state
-                        .get_type_from_type_node(annotation)
-                        .expect_err("out-of-slice shape must be Unsupported");
-                    assert!(
-                        err.reason.contains(needle),
-                        "{name}: {} should mention {needle}",
-                        err.reason
-                    );
-                }
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), "b").expect("annotation");
+                let err = state
+                    .get_type_from_type_node(annotation)
+                    .expect_err("out-of-slice shape must be Unsupported");
+                assert!(
+                    err.reason.contains("conditional"),
+                    "b: {} should mention conditional",
+                    err.reason
+                );
+                // Unresolved names are in-slice: resolveEntityName
+                // reports 2304 and the reference types as errorType.
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), "c").expect("annotation");
+                let ty = state
+                    .get_type_from_type_node(annotation)
+                    .expect("unresolved names type as errorType");
+                assert_eq!(ty, state.tables.intrinsics.error);
             },
         );
     }

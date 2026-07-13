@@ -255,17 +255,10 @@ impl<'a> CheckerState<'a> {
             })
     }
 
-    /// getDeclaredTypeOfSymbol slice for globals: class/interface
-    /// symbols route to the M3 interface path; everything else is a
-    /// 5.1 row (type aliases, enums as globals).
+    /// getDeclaredTypeOfSymbol for globals: the full
+    /// tryGetDeclaredTypeOfSymbol dispatch (annotate.rs slice).
     fn get_declared_type_of_symbol_for_global(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
-        let flags = self.binder.symbol(symbol).flags;
-        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
-            return self.get_declared_type_of_class_or_interface(symbol);
-        }
-        Err(crate::state::Unsupported::new(
-            "getDeclaredTypeOfSymbol beyond class/interface (M4 5.1)",
-        ))
+        self.get_declared_type_of_symbol_slice(symbol)
     }
 
     /// tsc-port: getGlobalType @6.0.3

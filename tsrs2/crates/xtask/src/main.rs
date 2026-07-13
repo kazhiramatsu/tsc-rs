@@ -61,6 +61,7 @@ fn main() {
             }
         },
         Some("ci") => run_or_exit(ci()),
+        Some("escapes") => run_or_exit(escapes(args)),
         Some("codegen") => match args.next().as_deref() {
             Some("diags") => run_or_exit(codegen_diags(false)),
             Some("diags-check") => run_or_exit(codegen_diags(true)),
@@ -1696,6 +1697,192 @@ fn ledger_coverage() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// A parsed containment escape site: an `Unsupported::new(...)` or
+/// `M4Dependency(...)` call with the stage owner parsed out of its
+/// reason string.
+struct EscapeSite {
+    path: PathBuf,
+    line: usize,
+    reason: String,
+    owner: Option<StageKey>,
+}
+
+/// Orderable stage key: M4 sub-stages sort inside milestone 4
+/// ((4, minor, letter)), later milestones as (5..8, 0, 0). T2 counts
+/// as M8 (display/precision work).
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct StageKey(u32, u32, u8);
+
+fn parse_stage_key(text: &str) -> Option<StageKey> {
+    let bytes = text.as_bytes();
+    let mut best: Option<StageKey> = None;
+    let mut push = |key: StageKey| {
+        // The LATEST stage named in a reason is its owner (a re-marked
+        // deferral names the future stage after the historical one).
+        if best.is_none_or(|current| key > current) {
+            best = Some(key);
+        }
+    };
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'5' if i + 2 < bytes.len() && bytes[i + 1] == b'.' => {
+                if let Some(minor) = (bytes[i + 2] as char).to_digit(10) {
+                    // A letterless tag (`5.7`) owns the WHOLE stage:
+                    // it only expires once a later stage is current.
+                    let letter = bytes
+                        .get(i + 3)
+                        .filter(|byte| byte.is_ascii_lowercase())
+                        .copied()
+                        .unwrap_or(u8::MAX);
+                    push(StageKey(4, minor, letter));
+                    i += 3;
+                    continue;
+                }
+            }
+            b'M' => {
+                if let Some(digit) = bytes.get(i + 1).and_then(|&b| (b as char).to_digit(10)) {
+                    if (5..=8).contains(&digit) {
+                        push(StageKey(digit, 0, 0));
+                        i += 2;
+                        continue;
+                    }
+                }
+            }
+            b'T' if bytes.get(i + 1) == Some(&b'2') => {
+                push(StageKey(8, 0, 0));
+                i += 2;
+                continue;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    best
+}
+
+/// Extract the first string literal following `offset` in `text`,
+/// concatenating adjacent literals (rustfmt splits long reasons).
+fn escape_reason_after(text: &str, offset: usize) -> String {
+    let mut reason = String::new();
+    let bytes = text.as_bytes();
+    let mut i = offset;
+    let mut depth = 0i32;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth <= 0 {
+                    break;
+                }
+            }
+            b'"' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    reason.push(bytes[i] as char);
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    reason.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn collect_escape_sites(workspace: &Path) -> Result<Vec<EscapeSite>, Box<dyn Error>> {
+    let mut sites = Vec::new();
+    for path in collect_rs_paths(&workspace.join("crates"))? {
+        let text = fs::read_to_string(&path)?;
+        for marker in ["Unsupported::new(", "M4Dependency("] {
+            let mut search = 0usize;
+            while let Some(found) = text[search..].find(marker) {
+                let offset = search + found;
+                search = offset + marker.len();
+                // Skip definitions/imports and test assertions on the
+                // marker names themselves.
+                let line = text[..offset].bytes().filter(|&b| b == b'\n').count() + 1;
+                let reason = escape_reason_after(&text, offset + marker.len() - 1);
+                if reason.is_empty() {
+                    continue;
+                }
+                let owner = parse_stage_key(&reason);
+                sites.push(EscapeSite {
+                    path: path.clone(),
+                    line,
+                    reason,
+                    owner,
+                });
+            }
+        }
+    }
+    sites.sort_by(|left, right| {
+        left.owner
+            .cmp(&right.owner)
+            .then_with(|| left.path.cmp(&right.path))
+            .then_with(|| left.line.cmp(&right.line))
+    });
+    Ok(sites)
+}
+
+/// The expiry audit (stage-closing loop): list containment escapes
+/// whose parsed owner stage is at or before `--stale <stage>` — those
+/// justifications have expired and must be implemented or re-marked
+/// with their real future owner. Untagged reasons are reported
+/// separately (they cannot be audited).
+fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut stale_before: Option<StageKey> = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--stale" => {
+                let value = args.next().ok_or("missing value after --stale")?;
+                stale_before = Some(
+                    parse_stage_key(&value).ok_or_else(|| format!("unparseable stage: {value}"))?,
+                );
+            }
+            other => return Err(format!("unexpected escapes argument: {other}").into()),
+        }
+    }
+    let workspace = find_tsrs2_root()?;
+    let sites = collect_escape_sites(&workspace)?;
+    let mut stale = 0usize;
+    let mut untagged = 0usize;
+    for site in &sites {
+        let relative = display_relative(&workspace, &site.path);
+        match (site.owner, stale_before) {
+            (Some(owner), Some(threshold)) if owner <= threshold => {
+                stale += 1;
+                println!("STALE {:?} {relative}:{} {}", owner, site.line, site.reason);
+            }
+            (None, _) => {
+                untagged += 1;
+                if stale_before.is_none() {
+                    println!("UNTAGGED {relative}:{} {}", site.line, site.reason);
+                }
+            }
+            (Some(owner), None) => {
+                println!("{:?} {relative}:{} {}", owner, site.line, site.reason);
+            }
+            _ => {}
+        }
+    }
+    println!(
+        "escapes: sites={} stale={} untagged={}",
+        sites.len(),
+        stale,
+        untagged
+    );
+    if stale_before.is_some() && stale > 0 {
+        return Err(format!("{stale} escape(s) have an expired owner stage").into());
+    }
+    Ok(())
+}
+
 fn collect_ledger_entries(workspace: &Path) -> Result<Vec<LedgerEntry>, Box<dyn Error>> {
     let mut entries = Vec::new();
     for path in collect_rs_paths(&workspace.join("crates"))? {
@@ -2090,6 +2277,16 @@ fn ci() -> Result<(), Box<dyn Error>> {
             .arg("xtask")
             .arg("ledger")
             .arg("check"),
+    )?;
+    // The expiry audit: escapes whose owner stage (per the STAGE
+    // marker file) has passed must be implemented or re-marked.
+    let stage = fs::read_to_string(find_tsrs2_root()?.join("STAGE"))?;
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("escapes")
+            .arg("--stale")
+            .arg(stage.trim()),
     )?;
     Ok(())
 }

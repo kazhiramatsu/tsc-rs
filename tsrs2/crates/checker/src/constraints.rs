@@ -462,7 +462,7 @@ impl<'a> CheckerState<'a> {
             // array/tuple; needs sliceTupleType-adjacent machinery that
             // lands with 5.3 tuple member synthesis.
             return Err(Unsupported::new(
-                "computeBaseConstraint for generic tuples (M4 5.3 tuple synthesis)",
+                "computeBaseConstraint for generic tuples (generic-tuple family, M4-end sweep 5.8)",
             ));
         }
         Ok(Some(t))

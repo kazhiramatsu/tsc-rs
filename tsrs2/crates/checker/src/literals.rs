@@ -207,7 +207,7 @@ impl<'a> CheckerState<'a> {
                                 // rather than fabricating unknown.
                                 return Err(Unsupported::new(
                                     "array destructuring rest over a non-array-like \
-                                     (getIteratedTypeOrElementType, [ITER] 5.5f)",
+                                     (getIteratedTypeOrElementType, [ITER] 5.8 iteration protocol)",
                                 ));
                             }
                         }
@@ -216,7 +216,7 @@ impl<'a> CheckerState<'a> {
                         // e.expression) — [ITER → 5.5f].
                         return Err(Unsupported::new(
                             "array spread over a non-array-like \
-                             (checkIteratedTypeOrElementType, [ITER] 5.5f)",
+                             (checkIteratedTypeOrElementType, [ITER] 5.8 iteration protocol)",
                         ));
                     }
                 } else if state.tables.exact_optional_property_types
@@ -1293,7 +1293,7 @@ impl<'a> CheckerState<'a> {
     /// The error-reporting variant getSpreadType consumes (2590 at
     /// currentNode); the intersection path keeps its silent guard
     /// (intersect.rs) with the diagnostic deferred.
-    fn check_cross_product_union(&mut self, types: &[TypeId]) -> bool {
+    pub(crate) fn check_cross_product_union(&mut self, types: &[TypeId]) -> bool {
         let size = self.cross_product_union_size(types);
         if size >= 100_000 {
             self.error_at(

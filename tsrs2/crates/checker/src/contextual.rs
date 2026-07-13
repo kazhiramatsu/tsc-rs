@@ -574,12 +574,12 @@ impl<'a> CheckerState<'a> {
         if function_flags & FUNCTION_FLAGS_GENERATOR != 0 {
             return Err(Unsupported::new(
                 "getContextualTypeForReturnExpression generator filter \
-                 (getIterationTypeOfGeneratorFunctionReturnType, 5.5f)",
+                 (getIterationTypeOfGeneratorFunctionReturnType, 5.8 iteration protocol)",
             ));
         }
         if function_flags & FUNCTION_FLAGS_ASYNC != 0 {
             return Err(Unsupported::new(
-                "getContextualTypeForReturnExpression async arm (getAwaitedTypeNoAlias, 5.5f)",
+                "getContextualTypeForReturnExpression async arm (expired 5.5f dep; folded into the 5.7b close)",
             ));
         }
         Ok(Some(contextual_return_type))
@@ -597,7 +597,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         Err(Unsupported::new(
-            "getContextualTypeForAwaitOperand (getAwaitedTypeNoAlias, awaited family 5.5f)",
+            "getContextualTypeForAwaitOperand (expired 5.5f dep; folded into the 5.7b close)",
         ))
     }
 
@@ -626,7 +626,7 @@ impl<'a> CheckerState<'a> {
                 if function_flags & FUNCTION_FLAGS_GENERATOR != 0 {
                     return Err(Unsupported::new(
                         "getContextualReturnType generator filter \
-                         (checkGeneratorInstantiationAssignabilityToReturnType, 5.5f)",
+                         (checkGeneratorInstantiationAssignabilityToReturnType, 5.8 iteration protocol)",
                     ));
                 }
                 if function_flags & FUNCTION_FLAGS_ASYNC != 0 {
@@ -843,7 +843,7 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
                     return Err(Unsupported::new(
                         "getSymbolForExpression private-identifier arm \
-                         (lookupSymbolForPrivateIdentifierDeclaration, 5.5d)",
+                         (lookupSymbolForPrivateIdentifierDeclaration, 5.8 class band)",
                     ));
                 }
                 let Some(name_text) = self.identifier_text_of(name).map(str::to_owned) else {
@@ -1969,7 +1969,7 @@ impl<'a> CheckerState<'a> {
             }
             if self.kind_of(node) == SyntaxKind::JsxAttributes {
                 return Err(Unsupported::new(
-                    "discriminateContextualTypeByJSXAttributes (JSX slice, 5.5f)",
+                    "discriminateContextualTypeByJSXAttributes (JSX slice, 5.7c)",
                 ));
             }
         }
@@ -2158,10 +2158,10 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::JsxExpression
             | SyntaxKind::JsxAttribute
             | SyntaxKind::JsxSpreadAttribute => Err(Unsupported::new(
-                "getContextualType JSX attribute arms (JSX slice, 5.5f)",
+                "getContextualType JSX attribute arms (JSX slice, 5.7c)",
             )),
             SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => Err(
-                Unsupported::new("getContextualJsxElementAttributesType (JSX slice, 5.5f)"),
+                Unsupported::new("getContextualJsxElementAttributesType (JSX slice, 5.7c)"),
             ),
             SyntaxKind::ImportAttribute => self.get_contextual_import_attribute_type(parent),
             _ => Ok(None),

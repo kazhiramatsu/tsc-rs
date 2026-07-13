@@ -144,7 +144,7 @@ impl<'a> CheckerState<'a> {
             Some(_signature_return) if is_async => {
                 return Err(crate::state::Unsupported::new(
                     "getWidenedLiteralLikeTypeForContextualReturnTypeIfNeeded async arm \
-                     (getPromisedTypeOfPromise, 5.5f)",
+                     (expired 5.5f dep; folded into the 5.7b close)",
                 ));
             }
             Some(signature_return) => Some(signature_return),
@@ -176,7 +176,7 @@ impl<'a> CheckerState<'a> {
         if contextual_signature_return_type.is_some() {
             return Err(crate::state::Unsupported::new(
                 "getWidenedLiteralLikeTypeForContextualIterationTypeIfNeeded generator arm \
-                 (getIterationTypeOfGeneratorFunctionReturnType, 5.5f)",
+                 (getIterationTypeOfGeneratorFunctionReturnType, 5.8 iteration protocol)",
             ));
         }
         Ok(Some(

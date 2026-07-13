@@ -1679,7 +1679,7 @@ impl TypeTables {
         if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::REST) {
             // `[...T[]]` collapses to (readonly) Array<T> (61146-61148).
             return Err(M4Dependency(
-                "single-rest tuple collapses to globalArrayType (M4 5.3)",
+                "single-rest tuple collapse (tables-internal callers only; the checker twin owns live paths — M4-end sweep 5.8)",
             ));
         }
         let mut key = element_flags

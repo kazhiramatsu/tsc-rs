@@ -3860,4 +3860,60 @@ mod tests {
             []
         );
     }
+
+    // ---- createNormalizedTupleType checker twin (5.3 residuals) ----
+
+    #[test]
+    fn union_variadic_tuple_distributes_over_constituents() {
+        // [...(A | B)] distributes via mapType — formerly an
+        // M4Dependency containment of the whole alias. The demand
+        // avoids tuple DISPLAY (still a T2 curtain): u[0] is 1 | 2.
+        assert_eq!(
+            checked_rows(
+                "type A = [1];\ntype B = [2];\ntype U = [...(A | B)];\ndeclare const u: U;\nu[0].bad;\n"
+            ),
+            [(2339, 76, 3)]
+        );
+    }
+
+    #[test]
+    fn array_like_variadic_element_collapses_to_rest() {
+        // [...Arr, number] with Arr = string[]: the array-like arm
+        // reads the number index type into a Rest element (noLib
+        // degrades the element to any — matching the oracle).
+        assert_eq!(
+            checked_rows(
+                "type Arr = string[];\ntype V = [...Arr, number];\ndeclare const v: V;\ndeclare function takeNever(x: never): void;\ntakeNever(v[0]);\n"
+            ),
+            [(2345, 122, 4)]
+        );
+    }
+
+    #[test]
+    fn reference_source_vs_tuple_target_relates_structurally() {
+        // A non-array reference source against a tuple target rides
+        // the property machinery (the stale M3-era escape contained
+        // the whole call); the 2-3 overload ladder renders 2769
+        // display-free.
+        assert_eq!(
+            checked_rows(
+                "interface Box<T> { v: T }\ndeclare const b: Box<string>;\ndeclare function f(x: [number]): void;\ndeclare function f(x: number): void;\nf(b);\n"
+            ),
+            [(2769, 134, 1)]
+        );
+    }
+
+    #[test]
+    fn variadic_in_rest_window_collapses_via_indexed_access() {
+        // [...string[], ...T]: the generic variadic sits inside the
+        // rest window at declaration normalization (T[number] via
+        // getIndexedAccessType); W<[boolean]> re-normalizes and w[0]
+        // reads string | boolean.
+        assert_eq!(
+            checked_rows(
+                "type W<T extends unknown[]> = [...string[], ...T];\ndeclare const w: W<[boolean]>;\ndeclare function takeNever(x: never): void;\ntakeNever(w[0]);\n"
+            ),
+            [(2345, 136, 4)]
+        );
+    }
 }

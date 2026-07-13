@@ -885,7 +885,7 @@ impl<'a> CheckerState<'a> {
                 self.get_symbol_has_instance_method_of_object_type(right_type)?;
             if has_instance_method_type.is_some() {
                 return Err(Unsupported::new(
-                    "resolveCall over [Symbol.hasInstance] (call resolution, 5.7)",
+                    "resolveCall over [Symbol.hasInstance] (instanceof completion, 5.7b)",
                 ));
             }
             let function_like = self.type_has_call_or_construct_signatures(right_type)? || {
@@ -2010,7 +2010,7 @@ impl<'a> CheckerState<'a> {
         if !self.is_array_like_type(source_type)? {
             return Err(Unsupported::new(
                 "array destructuring over the iteration protocol \
-                 (checkIteratedTypeOrElementType, [ITER] 5.5f)",
+                 (checkIteratedTypeOrElementType, [ITER] 5.8 iteration protocol)",
             ));
         }
         for index in 0..elements.len() {
@@ -2124,7 +2124,7 @@ impl<'a> CheckerState<'a> {
             // iteration element type for non-tuple sources.
             return Err(Unsupported::new(
                 "array destructuring rest over a non-tuple source \
-                 (checkIteratedTypeOrElementType, [ITER] 5.5f)",
+                 (checkIteratedTypeOrElementType, [ITER] 5.8 iteration protocol)",
             ));
         }
         let sliced = self.map_type(

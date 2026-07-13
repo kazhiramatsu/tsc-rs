@@ -333,9 +333,10 @@ impl<'a> CheckerState<'a> {
                 let value = crate::annotate::parse_numeric_literal_text(&data.text)?;
                 Ok(self.tables.get_number_literal_type(value))
             }
-            NodeData::ComputedPropertyName(_) => Err(Unsupported::new(
-                "computed property names in keyof (checkComputedPropertyName, M4 5.5)",
-            )),
+            NodeData::ComputedPropertyName(_) => {
+                let ty = self.check_computed_property_name(name)?;
+                Ok(self.tables.get_regular_type_of_literal_type(ty))
+            }
             NodeData::Identifier(data) => {
                 Ok(self
                     .tables
@@ -351,9 +352,15 @@ impl<'a> CheckerState<'a> {
                 let text = data.text.clone();
                 Ok(self.tables.get_string_literal_type(&text))
             }
-            _ => Err(Unsupported::new(
-                "expression property names in keyof (checkExpression, M4 5.5)",
-            )),
+            // isExpression(name) tail (61979-61981): remaining name
+            // kinds (BigIntLiteral et al) check as expressions; true
+            // non-expressions bottom out in checkExpression's own
+            // escape rather than tsc's neverType tail (no such name
+            // kind parses today).
+            _ => {
+                let ty = self.check_expression(name, tsrs2_types::CheckMode::NORMAL)?;
+                Ok(self.tables.get_regular_type_of_literal_type(ty))
+            }
         }
     }
 

@@ -1582,7 +1582,7 @@ impl<'a> CheckerState<'a> {
                     {
                         return Err(Unsupported::new(
                             "outer type parameters across function expressions \
-                             (isContextSensitive, M4 5.5)",
+                             (expired 5.5 dep; folded into the 5.7b close)",
                         ));
                     }
                     if kind == SyntaxKind::MappedType {

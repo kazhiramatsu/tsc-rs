@@ -728,10 +728,10 @@ impl<'a> CheckerState<'a> {
                     Ok(self.class_use_before_declaration_is_legal(declaration, usage))
                 }
                 SyntaxKind::PropertyDeclaration => Err(Unsupported::new(
-                    "property declared-before-use (2729 band, 5.5d)",
+                    "property declared-before-use (2729 band, [FLOW M5])",
                 )),
                 SyntaxKind::Parameter => Err(Unsupported::new(
-                    "parameter-property declared-before-use (2729 band, 5.5d)",
+                    "parameter-property declared-before-use (2729 band, [FLOW M5])",
                 )),
                 _ => Ok(true),
             };
@@ -961,7 +961,7 @@ impl<'a> CheckerState<'a> {
                                 // consumer band (5.5d); TDZ
                                 // declarations are never properties.
                                 return Err(Unsupported::new(
-                                    "static-block property-initialization probe (2729 band, 5.5d)",
+                                    "static-block property-initialization probe (2729 band, [FLOW M5])",
                                 ));
                             }
                         } else {
@@ -1231,10 +1231,15 @@ impl<'a> CheckerState<'a> {
                 .expression
                 .ok_or_else(|| Unsupported::new("computed property name missing expression"))?;
             return node_util::get_escaped_text_of_identifier_or_literal(source, expression)
-                .ok_or_else(|| Unsupported::new("non-literal computed property name text (5.5)"));
+                .ok_or_else(|| {
+                    Unsupported::new(
+                        "non-literal computed property name text (late-bound names, M7-stub)",
+                    )
+                });
         }
-        node_util::get_escaped_text_of_identifier_or_literal(source, name)
-            .ok_or_else(|| Unsupported::new("property name shape without literal text (5.5)"))
+        node_util::get_escaped_text_of_identifier_or_literal(source, name).ok_or_else(|| {
+            Unsupported::new("property name shape without literal text (late-bound names, M7-stub)")
+        })
     }
 
     /// tsc-port: isEnumConst @6.0.3

@@ -425,16 +425,24 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if target_flags.intersects(TypeFlags::INDEX) {
-            return Err(Unsupported::new("keyof targets (M4 5.2)"));
+            return Err(Unsupported::new(
+                "keyof targets (Index relation arms, M4-end sweep 5.8)",
+            ));
         }
         if target_flags.intersects(TypeFlags::INDEXED_ACCESS) {
-            return Err(Unsupported::new("indexed-access targets (M4 5.2)"));
+            return Err(Unsupported::new(
+                "indexed-access targets (IndexedAccess relation arms, M4-end sweep 5.8)",
+            ));
         }
         if self.is_generic_mapped_type(target) && self.relation != RelationKind::Identity {
-            return Err(Unsupported::new("mapped-type targets (M4 5.2)"));
+            return Err(Unsupported::new(
+                "mapped-type targets (unported family, M4-end sweep 5.8)",
+            ));
         }
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
-            return Err(Unsupported::new("conditional targets (M4 5.2)"));
+            return Err(Unsupported::new(
+                "conditional targets (unported family, M4-end sweep 5.8)",
+            ));
         }
         if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -516,7 +524,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if source_flags.intersects(TypeFlags::INDEX) {
-            return Err(Unsupported::new("keyof sources (M4 5.2)"));
+            return Err(Unsupported::new(
+                "keyof sources (Index relation arms, M4-end sweep 5.8)",
+            ));
         }
         if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL)
             && !target_flags.intersects(TypeFlags::OBJECT)
@@ -581,7 +591,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
-            return Err(Unsupported::new("conditional sources (M4 5.2)"));
+            return Err(Unsupported::new(
+                "conditional sources (unported family, M4-end sweep 5.8)",
+            ));
         } else {
             // Stubbed guard: tsc gates this band behind
             // `!(source TEMPLATE_LITERAL && target OBJECT && <predicate>)`;
@@ -1349,16 +1361,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
                 return Ok(result);
             }
-            if self
-                .st
-                .tables
-                .object_flags_of(source)
-                .intersects(ObjectFlags::REFERENCE)
-            {
-                // Array sources are M4 (global Array); no other
-                // references exist in M3.
-                return Err(Unsupported::new("array-to-tuple relations (M4 5.3)"));
-            }
+            // tsc 66849-66851 `else if`: non-array/tuple sources
+            // (references included — the M3-era escape here was stale)
+            // fail fast against variable-arity targets, else fall
+            // through to the property machinery over the synthesized
+            // tuple index members.
             let target_target = self.st.tables.reference_target(target);
             let TypeData::TupleTarget(target_data) =
                 self.st.tables.type_of(target_target).data.clone()
@@ -4149,7 +4156,7 @@ impl<'a> CheckerState<'a> {
         for &t in types.iter() {
             if self.is_global_function_type(t)? {
                 return Err(Unsupported::new(
-                    "unknownSignature for globalFunctionType union members (5.3e)",
+                    "unknownSignature for globalFunctionType union members (5.7b close)",
                 ));
             }
             call_lists.push(self.get_signatures_of_type(t, SignatureKind::Call)?);
