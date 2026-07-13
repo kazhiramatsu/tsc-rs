@@ -69,6 +69,17 @@ Phase-gate percentages are calibration priors (from the first
 implementation's trajectory), not physics; the hard requirements are
 the 100% endpoint and monotone ratchets.
 
+Stage 5.7 appears in two rows by design, not by conflict: phase 6's
+steps-doc range (5.5-5.8) covers 5.7's *stubbed-inference* half
+executed in checker-steps order, and phase 7 is the M6 swap that
+makes those calls fully live. The 5.7-with-stub work therefore does
+not wait on phase 6's gate percentage. The lib-loaded corpus also
+re-based the priors: at 5.7a the measured T0-2xxx was 8.67% with the
+M5/M7-owned code families (2454/2564/18050, 6133/6196) still fully
+contained — the 25%/55% figures predate lib loading and overstate
+what phases 5-6 can show before flow and the unused-band land.
+(Clarified 2026-07-13 after the stage-5.7a external review.)
+
 Note the resequencing vs the original milestone table: flow (old M5)
 moves AFTER calls/inference (old M6) because the call/overload 2XXX
 family is larger than the flow-dependent one and does not depend on

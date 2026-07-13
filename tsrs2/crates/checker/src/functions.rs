@@ -2152,14 +2152,15 @@ mod tests {
 
     #[test]
     fn custom_thenable_awaits_to_its_promised_type() {
-        // Oracle adds 2339 @94 (x.bad → number) — the `const x`
-        // initializer typing is the 5.6 band, so that row is a
-        // recorded FN here; the 2697 proves the awaited walk ran.
+        // Oracle rows exactly: 2697 (untyped thenable await needs a
+        // declared Promise) + 2339 @94 (x.bad → number). The 2339 row
+        // recovered when getQuickTypeOfExpression's await arm went
+        // live (the initializer used to contain the whole element).
         assert_eq!(
             checked_rows(
                 "declare const p: { then(cb: (v: number) => void): void };\n(async () => { const x = await p; x.bad; });\n"
             ),
-            [(2697, 59, 41)]
+            [(2697, 59, 41), (2339, 94, 3)]
         );
     }
 

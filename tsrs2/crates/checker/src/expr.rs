@@ -3234,7 +3234,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getReturnTypeOfSingleNonGenericCallSignature @6.0.3
     /// tsc-hash: e303b67bb9b2a56c491ea265d4a9dcec19c2fd5a6b9b4a44f5972612ee007e1d
     /// tsc-span: _tsc.js:80883-80888
-    #[allow(dead_code)] // consumer: getQuickTypeOfExpression's call arm (5.5d/5.7)
     fn get_return_type_of_single_non_generic_call_signature(
         &mut self,
         func_type: TypeId,
@@ -3246,6 +3245,63 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         self.get_return_type_of_signature(signature).map(Some)
+    }
+
+    /// tsc-port: getReturnTypeOfSingleNonGenericSignatureOfCallChain @6.0.3
+    /// tsc-hash: d7e4d35b38dd3164f0bb63170b6714186799d8506c2bcf6dae247717bb61eca1
+    /// tsc-span: _tsc.js:80889-80894
+    fn get_return_type_of_single_non_generic_signature_of_call_chain(
+        &mut self,
+        expr: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let callee = match self.data_of(expr) {
+            NodeData::CallExpression(data) => data.expression,
+            _ => None,
+        };
+        let Some(callee) = callee else {
+            return Ok(None);
+        };
+        let func_type = self.check_expression(callee, CheckMode::NORMAL)?;
+        let non_optional_type = self.get_optional_expression_type(func_type, callee)?;
+        let return_type = self.get_return_type_of_single_non_generic_call_signature(func_type)?;
+        match return_type {
+            Some(return_type) => self
+                .propagate_optional_type_marker(return_type, expr, non_optional_type != func_type)
+                .map(Some),
+            None => Ok(None),
+        }
+    }
+
+    /// tsc-port: isRequireCall @6.0.3
+    /// tsc-hash: 97ce63365149bdbd32198cf0b6527081ed21cc939dcfbe25d0c24caf3aad5077
+    /// tsc-span: _tsc.js:14901-14914
+    fn is_require_call(&self, node: NodeId, require_string_literal_like_argument: bool) -> bool {
+        if self.kind_of(node) != SyntaxKind::CallExpression {
+            return false;
+        }
+        let (callee, arguments) = match self.data_of(node) {
+            NodeData::CallExpression(data) => (data.expression, data.arguments),
+            _ => (None, None),
+        };
+        let is_require_callee = callee.is_some_and(|callee| {
+            self.kind_of(callee) == SyntaxKind::Identifier
+                && matches!(
+                    self.data_of(callee),
+                    NodeData::Identifier(data) if data.escaped_text == "require"
+                )
+        });
+        if !is_require_callee {
+            return false;
+        }
+        let arguments = self.nodes_of(arguments);
+        if arguments.len() != 1 {
+            return false;
+        }
+        !require_string_literal_like_argument
+            || matches!(
+                self.kind_of(arguments[0]),
+                SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+            )
     }
 
     /// tsc-port: getTypeOfExpression @6.0.3
@@ -3279,11 +3335,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 12fa64ad550e27bc242ab7af46766acf39032fe3d50d50699bdb2a0a251a5c57
     /// tsc-span: _tsc.js:80915-80944
     ///
-    /// The JSDoc-assertion arm is [JSDOC]. The await arm needs
-    /// getAwaitedType ([ASYNC → 5.5f]) and the call arm needs
-    /// checkNonNullExpression ([FACTS → 5.5d]) / the resolved-signature
-    /// machinery — both escape; their fallback (full checkExpression)
-    /// escapes on the same nodes today, so containment is unchanged.
+    /// The JSDoc-assertion arm is [JSDOC]. The await and call arms went
+    /// live once their dependencies landed (getAwaitedType @5.5f,
+    /// checkNonNullExpression @5.5d, single-signature reads @5.2): a
+    /// stale escape here contained every `const x = f()` initializer
+    /// even after 5.7a made the call itself checkable.
     pub(crate) fn get_quick_type_of_expression(
         &mut self,
         node: NodeId,
@@ -3292,9 +3348,17 @@ impl<'a> CheckerState<'a> {
         let expr = node_util::skip_parentheses_pub(source, node);
         match self.kind_of(expr) {
             SyntaxKind::AwaitExpression => {
-                return Err(Unsupported::new(
-                    "getQuickTypeOfExpression await arm (getAwaitedType, 5.5f)",
-                ));
+                let operand = match self.data_of(expr) {
+                    NodeData::AwaitExpression(data) => data.expression,
+                    _ => None,
+                };
+                let Some(operand) = operand else {
+                    return Ok(None);
+                };
+                return match self.get_quick_type_of_expression(operand)? {
+                    Some(ty) => self.get_awaited_type_probe(ty),
+                    None => Ok(None),
+                };
             }
             SyntaxKind::CallExpression => {
                 let callee = match self.data_of(expr) {
@@ -3303,10 +3367,21 @@ impl<'a> CheckerState<'a> {
                 };
                 let super_call =
                     callee.is_some_and(|c| self.kind_of(c) == SyntaxKind::SuperKeyword);
-                if !super_call {
-                    return Err(Unsupported::new(
-                        "getQuickTypeOfExpression call arm (checkNonNullExpression, 5.5d/5.7)",
-                    ));
+                if !super_call
+                    && !self
+                        .is_require_call(expr, /*require_string_literal_like_argument*/ true)
+                    && !self.is_symbol_or_symbol_for_call(expr)?
+                    && !self.is_import_call(expr)
+                {
+                    let ty = if node_util::is_optional_chain(source, expr) {
+                        self.get_return_type_of_single_non_generic_signature_of_call_chain(expr)?
+                    } else if let Some(callee) = callee {
+                        let func_type = self.check_non_null_expression(callee)?;
+                        self.get_return_type_of_single_non_generic_call_signature(func_type)?
+                    } else {
+                        None
+                    };
+                    return Ok(ty);
                 }
             }
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
@@ -3947,6 +4022,55 @@ mod tests {
                 state.check_source_file(0);
                 assert_eq!(rows(state), first);
             },
+        );
+    }
+
+    // ---- getQuickTypeOfExpression call/await arms — oracle-pinned ----
+
+    #[test]
+    fn quick_call_initializer_types_the_variable() {
+        // Call arm: a single non-generic signature types the
+        // initializer without argument checks (oracle rows exactly).
+        assert_eq!(
+            checked_rows("declare function f(): number;\nconst x = f();\nx.bad;\n"),
+            [(2339, 47, 3)]
+        );
+    }
+
+    #[test]
+    fn quick_call_chain_initializer_keeps_undefined() {
+        // Chain flavor rides getReturnTypeOfSingleNonGenericSignature-
+        // OfCallChain: the optional marker propagates into `y`. The
+        // demand is an argument check (2345, live since 5.7a) — a
+        // `sink = y` demand would hit the 5.5e [FLOW M5] narrowable-
+        // union assignment gate and contain.
+        assert_eq!(
+            checked_rows(
+                "declare const g: (() => number) | undefined;\nconst y = g?.();\ndeclare function take(n: number): void;\ntake(y);\n"
+            ),
+            [(2345, 107, 1)]
+        );
+    }
+
+    #[test]
+    fn quick_call_generic_initializer_still_contains() {
+        // M6-stub observability rule: a generic no-typearg call still
+        // contains the element — the oracle's 2339 @52 (`.bad` on
+        // type '1') is a recorded FN until M6 inference lands.
+        assert_eq!(
+            checked_rows("declare function id<T>(x: T): T;\nconst y = id(1);\ny.bad;\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn quick_call_require_guard_falls_through() {
+        // isRequireCall guard: the quick path declines and the full
+        // resolution reports the noLib require spelling row (the `r;`
+        // statement supplies the type demand).
+        assert_eq!(
+            checked_rows("const r = require(\"m\");\nr;\n"),
+            [(2591, 10, 7)]
         );
     }
 }

@@ -1851,11 +1851,18 @@ impl<'a> CheckerState<'a> {
             } else {
                 // 76667-76722: 2-3 failed candidates — each re-runs
                 // under an `Overload N of M` chain (display-elided
-                // tail); one 2769 lands at the shared span, else at
-                // the callee error node.
+                // tail). When any candidate produced MORE than one
+                // error, only the min-error candidate's diags feed the
+                // 2769 (last min wins, tsc `diags.length <= min`);
+                // otherwise all candidates' flatten. One 2769 lands at
+                // the chosen diags' shared span, else at the callee
+                // error node.
                 let args = ctx.args.clone();
-                let mut all_errors: Vec<ApplicabilityError> = Vec::new();
-                for &candidate in &candidates_for_argument_error {
+                let mut all_diagnostics: Vec<Vec<ApplicabilityError>> = Vec::new();
+                let mut max = 0usize;
+                let mut min = usize::MAX;
+                let mut min_index = 0usize;
+                for (i, &candidate) in candidates_for_argument_error.iter().enumerate() {
                     let errors = self
                         .get_signature_applicability_error(
                             node,
@@ -1871,27 +1878,32 @@ impl<'a> CheckerState<'a> {
                                 self.binder.source_of_node(node).file_name
                             )
                         });
-                    all_errors.extend(errors);
+                    if errors.len() <= min {
+                        min = errors.len();
+                        min_index = i;
+                    }
+                    max = std::cmp::max(max, errors.len());
+                    all_diagnostics.push(errors);
                 }
+                let chosen: Vec<ApplicabilityError> = if max > 1 {
+                    all_diagnostics.swap_remove(min_index)
+                } else {
+                    all_diagnostics.into_iter().flatten().collect()
+                };
                 debug_assert!(
-                    !all_errors.is_empty(),
+                    !chosen.is_empty(),
                     "No errors reported for 3 or fewer overload signatures"
                 );
                 let chain = MessageChain::new(&diagnostics::No_overload_matches_this_call, &[]);
-                let shared_span = all_errors
-                    .iter()
-                    .all(|error| error.span == all_errors[0].span);
+                let shared_span = chosen.iter().all(|error| error.span == chosen[0].span);
                 let mut diagnostic = if shared_span {
-                    self.diagnostic_at_span(&all_errors[0].span, chain)
+                    self.diagnostic_at_span(&chosen[0].span, chain)
                 } else {
                     let error_node = self.get_error_node_for_call_node(node);
                     let span = self.diag_span_of_node(error_node);
                     self.diagnostic_at_span(&span, chain)
                 };
-                diagnostic.related = all_errors
-                    .into_iter()
-                    .flat_map(|error| error.related)
-                    .collect();
+                diagnostic.related = chosen.into_iter().flat_map(|error| error.related).collect();
                 if let Some(related) =
                     self.implementation_success_elaboration(ctx, candidates_for_argument_error[0])?
                 {
@@ -3439,7 +3451,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isSymbolOrSymbolForCall @6.0.3
     /// tsc-hash: 7f795d82739f8c0d3e0537b4833ca9e15fe55c71dd23938052fff87798ea1dfc
     /// tsc-span: _tsc.js:77692-77717
-    fn is_symbol_or_symbol_for_call(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn is_symbol_or_symbol_for_call(&mut self, node: NodeId) -> CheckResult2<bool> {
         let NodeData::CallExpression(data) = self.data_of(node) else {
             return Ok(false);
         };
