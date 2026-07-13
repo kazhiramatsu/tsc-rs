@@ -51,8 +51,7 @@ fn levenshtein_with_max(s1: &[u16], s2: &[u16], max: f64) -> Option<f64> {
             *slot = big;
         }
         for j in min_j..=max_j {
-            let substitution_distance = if lowercase_unit(s1[i - 1]) == lowercase_unit(s2[j - 1])
-            {
+            let substitution_distance = if lowercase_unit(s1[i - 1]) == lowercase_unit(s2[j - 1]) {
                 previous[j - 1] + 0.1
             } else {
                 previous[j - 1] + 2.0
@@ -107,9 +106,7 @@ pub(crate) fn get_spelling_suggestion<C: Copy, S>(
             if candidate_name == name {
                 continue;
             }
-            if candidate_units.len() < 3
-                && candidate_name.to_lowercase() != name.to_lowercase()
-            {
+            if candidate_units.len() < 3 && candidate_name.to_lowercase() != name.to_lowercase() {
                 continue;
             }
             let Some(distance) =

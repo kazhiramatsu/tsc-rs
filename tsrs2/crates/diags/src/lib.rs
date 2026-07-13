@@ -212,13 +212,16 @@ fn compare_diagnostic_message_text(left: &Diagnostic, right: &Diagnostic) -> Ord
     left.comparison_text()
         .cmp(right.comparison_text())
         .then_with(|| compare_message_chain(&left.message.next, &right.message.next))
-        .then_with(
-            || match (left.canonical_head.is_some(), right.canonical_head.is_some()) {
+        .then_with(|| {
+            match (
+                left.canonical_head.is_some(),
+                right.canonical_head.is_some(),
+            ) {
                 (true, false) => Ordering::Less,
                 (false, true) => Ordering::Greater,
                 _ => Ordering::Equal,
-            },
-        )
+            }
+        })
 }
 
 fn compare_related_information(left: &[RelatedInfo], right: &[RelatedInfo]) -> Ordering {

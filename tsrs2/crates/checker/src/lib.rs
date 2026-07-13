@@ -11,12 +11,12 @@ pub mod evaluate;
 pub mod expr;
 pub mod facts;
 pub mod functions;
-pub mod jsx;
 pub mod globals;
 pub mod indexed;
 pub mod instantiate;
 pub mod intersect;
 mod js_grammar;
+pub mod jsx;
 pub mod links;
 pub mod literals;
 pub mod merge;
@@ -194,13 +194,11 @@ pub fn check_program_with_libs(
         .filter(|lib| !fixture_names.contains(lib.name.as_str()))
         .collect();
     let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
-    let (lib_sources, lib_binders): (
-        &[tsrs2_syntax::SourceFile],
-        &[tsrs2_binder::Binder<'_>],
-    ) = match bundle {
-        Some(bundle) => (bundle.sources, bundle.binders),
-        None => (&[], &[]),
-    };
+    let (lib_sources, lib_binders): (&[tsrs2_syntax::SourceFile], &[tsrs2_binder::Binder<'_>]) =
+        match bundle {
+            Some(bundle) => (bundle.sources, bundle.binders),
+            None => (&[], &[]),
+        };
 
     // Fixture-file shadowing (unchanged from the libless world): a
     // later file with the same name shadows an earlier one entirely.
@@ -448,8 +446,8 @@ fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBun
     type Key = (Vec<(String, u64)>, CompilerOptions);
     static CACHE: OnceLock<Mutex<HashMap<Key, &'static LibBundle>>> = OnceLock::new();
 
-    let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE")
-        .map_or(true, |value| value != "0");
+    let cache_enabled =
+        std::env::var_os("TSRS_LIB_BUNDLE_CACHE").map_or(true, |value| value != "0");
     let key: Key = (
         libs.iter()
             .map(|lib| (lib.name.clone(), lib_text_fingerprint(&lib.text)))
@@ -521,8 +519,7 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
         binder.bind_source_file();
         binders.push(binder);
     }
-    let binders: &'static [tsrs2_binder::Binder<'static>] =
-        Box::leak(binders.into_boxed_slice());
+    let binders: &'static [tsrs2_binder::Binder<'static>] = Box::leak(binders.into_boxed_slice());
     Box::leak(Box::new(LibBundle { sources, binders }))
 }
 
@@ -627,8 +624,13 @@ mod tests {
 
     #[test]
     fn lib_names_resolve_through_the_loaded_lib() {
-        assert_eq!(lib_backed_diags("interface I<T extends Date> { x: T }
-"), []);
+        assert_eq!(
+            lib_backed_diags(
+                "interface I<T extends Date> { x: T }
+"
+            ),
+            []
+        );
     }
 
     #[test]
@@ -636,8 +638,10 @@ mod tests {
         // Map is not in es5: the failure is GENUINE under this lib set
         // (the lib_globals gate stands down for lib-loaded programs)
         // and the suggested-lib arm supplies tsc's exact argument.
-        let diags = lib_backed_diags("interface I<T extends Map> { x: T }
-");
+        let diags = lib_backed_diags(
+            "interface I<T extends Map> { x: T }
+",
+        );
         assert_eq!(
             diags,
             [(
@@ -654,8 +658,13 @@ mod tests {
     fn lib_array_members_drive_variance_measurement() {
         // Mutable method parameters are bivariant, so es5 Array
         // measures covariant and `out` holds (oracle-pinned clean)...
-        assert_eq!(lib_backed_diags("interface Wrap<out T> { xs: T[] }
-"), []);
+        assert_eq!(
+            lib_backed_diags(
+                "interface Wrap<out T> { xs: T[] }
+"
+            ),
+            []
+        );
         // ...including when a fixture declaration MERGES into the lib
         // interface (both member sets resolve; oracle-pinned clean).
         assert_eq!(
@@ -675,8 +684,10 @@ interface Wrap<out T> { xs: T[] }
             []
         );
         assert_eq!(
-            lib_backed_diags("interface Wrap<out T> { xs: ReadonlyArray<T> }
-"),
+            lib_backed_diags(
+                "interface Wrap<out T> { xs: ReadonlyArray<T> }
+"
+            ),
             []
         );
     }
@@ -700,14 +711,16 @@ interface Wrap<out T> { xs: T[] }
 
     #[test]
     fn lib_array_in_parameter_position_reports_2636() {
-        let diags = lib_backed_diags("interface Wrap<out T> { f: (xs: T[]) => void }
-");
+        let diags = lib_backed_diags(
+            "interface Wrap<out T> { f: (xs: T[]) => void }
+",
+        );
         assert_eq!(diags.len(), 1, "{diags:?}");
         assert_eq!((diags[0].0, diags[0].1, diags[0].2), (2636, 15, 5));
         assert!(
-            diags[0].3.starts_with(
-                "Type 'Wrap<sub-T>' is not assignable to type 'Wrap<super-T>'"
-            ),
+            diags[0]
+                .3
+                .starts_with("Type 'Wrap<sub-T>' is not assignable to type 'Wrap<super-T>'"),
             "{}",
             diags[0].3
         );

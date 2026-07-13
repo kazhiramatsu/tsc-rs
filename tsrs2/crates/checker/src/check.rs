@@ -29,7 +29,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFlags, TypeId};
 
-use crate::state::{CheckerState, CheckResult2, Unsupported};
+use crate::state::{CheckResult2, CheckerState, Unsupported};
 
 impl<'a> CheckerState<'a> {
     /// Per-file driver entry — checkSourceFile (86969) minus the
@@ -80,11 +80,8 @@ impl<'a> CheckerState<'a> {
         }
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
-        self.links.or_node_check_flags(
-            self.speculation_depth,
-            root,
-            NodeCheckFlags::TYPE_CHECKED,
-        );
+        self.links
+            .or_node_check_flags(self.speculation_depth, root, NodeCheckFlags::TYPE_CHECKED);
     }
 
     /// tsc-port: skipTypeCheckingWorker @6.0.3
@@ -138,10 +135,11 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::An_implementation_cannot_be_declared_in_ambient_contexts,
                 &[],
             ) {
-                self.links.set_node_has_reported_statement_in_ambient_context(
-                    self.speculation_depth,
-                    node,
-                );
+                self.links
+                    .set_node_has_reported_statement_in_ambient_context(
+                        self.speculation_depth,
+                        node,
+                    );
             }
             return;
         }
@@ -160,10 +158,11 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::Statements_are_not_allowed_in_ambient_contexts,
                     &[],
                 ) {
-                    self.links.set_node_has_reported_statement_in_ambient_context(
-                        self.speculation_depth,
-                        parent,
-                    );
+                    self.links
+                        .set_node_has_reported_statement_in_ambient_context(
+                            self.speculation_depth,
+                            parent,
+                        );
                 }
             }
         }
@@ -437,10 +436,7 @@ impl<'a> CheckerState<'a> {
         }
         self.check_node_deferred(node);
         if let Some(name) = name {
-            self.check_type_name_is_reserved(
-                name,
-                &diagnostics::Type_parameter_name_cannot_be_0,
-            );
+            self.check_type_name_is_reserved(name, &diagnostics::Type_parameter_name_cannot_be_0);
         }
         Ok(())
     }
@@ -507,7 +503,11 @@ impl<'a> CheckerState<'a> {
         while let Some(node) = stack.pop() {
             if self.kind_of(node) == SyntaxKind::TypeReference {
                 let ty = self.get_type_from_type_reference(node)?;
-                if self.tables.flags_of(ty).intersects(TypeFlags::TYPE_PARAMETER) {
+                if self
+                    .tables
+                    .flags_of(ty)
+                    .intersects(TypeFlags::TYPE_PARAMETER)
+                {
                     let symbol = self.tables.type_of(ty).symbol;
                     for &later in &type_parameters[index..] {
                         if symbol.is_some() && self.get_symbol_of_declaration(later).ok() == symbol
@@ -542,8 +542,8 @@ impl<'a> CheckerState<'a> {
             return;
         };
         match text {
-            "any" | "unknown" | "never" | "number" | "bigint" | "boolean" | "string"
-            | "symbol" | "void" | "object" | "undefined" => {
+            "any" | "unknown" | "never" | "number" | "bigint" | "boolean" | "string" | "symbol"
+            | "void" | "object" | "undefined" => {
                 let text = text.to_owned();
                 self.error_at(Some(name), message, &[&text]);
             }
@@ -802,7 +802,10 @@ impl<'a> CheckerState<'a> {
             .check_flags
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
-            self.deferred_nodes.entry(file_root).or_default().insert(node);
+            self.deferred_nodes
+                .entry(file_root)
+                .or_default()
+                .insert(node);
         } else {
             debug_assert!(
                 !self.deferred_nodes.contains_key(&file_root),
@@ -883,9 +886,7 @@ impl<'a> CheckerState<'a> {
                 unreachable!("checkClassExpression's eager arm escapes until 5.8")
             }
             SyntaxKind::TypeParameter => self.check_type_parameter_deferred(node),
-            SyntaxKind::JsxSelfClosingElement => {
-                self.check_jsx_self_closing_element_deferred(node)
-            }
+            SyntaxKind::JsxSelfClosingElement => self.check_jsx_self_closing_element_deferred(node),
             SyntaxKind::JsxElement => self.check_jsx_element_deferred(node),
             SyntaxKind::TypeAssertionExpression
             | SyntaxKind::AsExpression
@@ -951,9 +952,15 @@ impl<'a> CheckerState<'a> {
         } else if modifiers == ModifierFlags::IN || modifiers == ModifierFlags::OUT {
             let out = modifiers == ModifierFlags::OUT;
             let (source_marker, target_marker) = if out {
-                (self.marker_sub_type_for_check, self.marker_super_type_for_check)
+                (
+                    self.marker_sub_type_for_check,
+                    self.marker_super_type_for_check,
+                )
             } else {
-                (self.marker_super_type_for_check, self.marker_sub_type_for_check)
+                (
+                    self.marker_super_type_for_check,
+                    self.marker_sub_type_for_check,
+                )
             };
             let source = self.create_marker_type(parent_symbol, type_parameter, source_marker)?;
             let target = self.create_marker_type(parent_symbol, type_parameter, target_marker)?;
@@ -1043,7 +1050,11 @@ impl<'a> CheckerState<'a> {
                 } else {
                     source_text
                 };
-                self.error_at(Some(error_node), head_message, &[&source_text, &target_text]);
+                self.error_at(
+                    Some(error_node),
+                    head_message,
+                    &[&source_text, &target_text],
+                );
             }
         }
         Ok(related)
@@ -1103,16 +1114,10 @@ impl<'a> CheckerState<'a> {
         let target_text = self.type_to_string_slice(target)?;
         if unmatched.len() == 1 {
             let prop = unmatched[0];
-            let prop_name = tsrs2_binder::unescape_leading_underscores(
-                &self.binder.symbol(prop).escaped_name,
-            )
-            .to_owned();
-            let declaration = self
-                .binder
-                .symbol(prop)
-                .declarations
-                .first()
-                .copied();
+            let prop_name =
+                tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(prop).escaped_name)
+                    .to_owned();
+            let declaration = self.binder.symbol(prop).declarations.first().copied();
             let related = declaration
                 .map(|declaration| {
                     self.related_info_for_node(
@@ -1134,10 +1139,8 @@ impl<'a> CheckerState<'a> {
         let names: Vec<String> = unmatched
             .iter()
             .map(|&prop| {
-                tsrs2_binder::unescape_leading_underscores(
-                    &self.binder.symbol(prop).escaped_name,
-                )
-                .to_owned()
+                tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(prop).escaped_name)
+                    .to_owned()
             })
             .collect();
         if unmatched.len() > 5 {
@@ -1192,7 +1195,11 @@ impl<'a> CheckerState<'a> {
                 } else {
                     source_text
                 };
-                self.error_at(Some(error_node), head_message, &[&source_text, &target_text]);
+                self.error_at(
+                    Some(error_node),
+                    head_message,
+                    &[&source_text, &target_text],
+                );
             }
         }
         Ok(related)
@@ -1201,7 +1208,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typeCouldHaveTopLevelSingletonTypes @6.0.3
     /// tsc-hash: 30ea1344b1c8021a31ecb437af9d4a5867abd72fb6bf08c9b64d434ca6f09947
     /// tsc-span: _tsc.js:67231-67245
-    pub(crate) fn type_could_have_top_level_singleton_types(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn type_could_have_top_level_singleton_types(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::BOOLEAN) {
             return Ok(false);
@@ -1313,9 +1323,9 @@ impl<'a> CheckerState<'a> {
             TypeData::Intrinsic { name, .. } => Ok((*name).to_owned()),
             TypeData::Literal { value } => match value {
                 tsrs2_types::LiteralValue::String(text)
-                    if text
-                        .chars()
-                        .all(|c| c.is_ascii() && !c.is_ascii_control() && c != '"' && c != '\\') =>
+                    if text.chars().all(|c| {
+                        c.is_ascii() && !c.is_ascii_control() && c != '"' && c != '\\'
+                    }) =>
                 {
                     Ok(format!("\"{text}\""))
                 }
@@ -1529,8 +1539,7 @@ mod tests {
 
     #[test]
     fn alias_annotation_on_non_object_rhs_reports_2637() {
-        let diags =
-            checked_diags("type F<in T> = T[];\ninterface Array<T> { length: number }\n");
+        let diags = checked_diags("type F<in T> = T[];\ninterface Array<T> { length: number }\n");
         assert_eq!(diags.len(), 1, "{diags:?}");
         assert_eq!((diags[0].0, diags[0].1, diags[0].2), (2637, 7, 4));
     }
@@ -1606,8 +1615,7 @@ mod tests {
 
     #[test]
     fn cross_generic_default_cycle_reports_2716() {
-        let diags =
-            checked_diags("interface P<T = Q> { x: T }\ninterface Q<U = P> { y: U }\n");
+        let diags = checked_diags("interface P<T = Q> { x: T }\ninterface Q<U = P> { y: U }\n");
         assert_eq!(
             diags,
             [(
@@ -1705,8 +1713,7 @@ mod tests {
 
     #[test]
     fn explicit_type_arguments_check_their_constraints() {
-        let diags =
-            checked_diags("interface I<T extends string> { x: T }\ntype X = I<number>;\n");
+        let diags = checked_diags("interface I<T extends string> { x: T }\ntype X = I<number>;\n");
         assert_eq!(
             diags,
             [(

@@ -637,9 +637,7 @@ impl TypeTables {
     /// createTypeReference keys by list id; getObjectTypeInstantiation
     /// keys by list id + alias id over the SAME map.
     pub fn instantiation_get(&self, target: TypeId, key: &str) -> Option<TypeId> {
-        self.instantiations
-            .get(&(target, key.to_owned()))
-            .copied()
+        self.instantiations.get(&(target, key.to_owned())).copied()
     }
 
     pub fn instantiation_insert(&mut self, target: TypeId, key: String, value: TypeId) {
@@ -1190,7 +1188,9 @@ impl TypeTables {
         let union = self.type_mut(id);
         union.object_flags = object_flags;
         union.alias_symbol = alias_symbol;
-        union.alias_type_arguments = alias_type_arguments.map(<[TypeId]>::to_vec).map(Vec::into_boxed_slice);
+        union.alias_type_arguments = alias_type_arguments
+            .map(<[TypeId]>::to_vec)
+            .map(Vec::into_boxed_slice);
         self.union_types.insert(key, id);
         id
     }
@@ -1373,8 +1373,13 @@ impl TypeTables {
                 insert_type(&mut result, t);
             }
         }
-        types[index] =
-            self.get_union_type_from_sorted_list(result, ObjectFlags::PRIMITIVE_UNION, None, None, None);
+        types[index] = self.get_union_type_from_sorted_list(
+            result,
+            ObjectFlags::PRIMITIVE_UNION,
+            None,
+            None,
+            None,
+        );
         true
     }
 
@@ -1451,7 +1456,13 @@ impl TypeTables {
                     & (ObjectFlags::PRIMITIVE_UNION.bits()
                         | ObjectFlags::CONTAINS_INTERSECTIONS.bits()),
             );
-            return self.get_union_type_from_sorted_list(filtered, object_flags, None, None, new_origin);
+            return self.get_union_type_from_sorted_list(
+                filtered,
+                object_flags,
+                None,
+                None,
+                new_origin,
+            );
         }
         if self.flags_of(ty).intersects(TypeFlags::NEVER) || f(self, ty) {
             ty
@@ -1550,8 +1561,11 @@ impl TypeTables {
     /// reference (getTypeFromArrayBindingPattern 56541).
     pub fn clone_type_reference(&mut self, source: TypeId) -> TypeId {
         let source_type = self.type_of(source);
-        let (flags, symbol, object_flags) =
-            (source_type.flags, source_type.symbol, source_type.object_flags);
+        let (flags, symbol, object_flags) = (
+            source_type.flags,
+            source_type.symbol,
+            source_type.object_flags,
+        );
         let data = match &source_type.data {
             TypeData::Reference {
                 target,
@@ -1565,12 +1579,10 @@ impl TypeTables {
             // self-aliases (target = self, resolvedTypeArguments =
             // typeParameters = []), so the clone reads through the
             // same aliasing tsc's dynamic fields encode.
-            TypeData::TupleTarget(data) if data.element_flags.is_empty() => {
-                TypeData::Reference {
-                    target: source,
-                    resolved_type_arguments: Some(Box::from([])),
-                }
-            }
+            TypeData::TupleTarget(data) if data.element_flags.is_empty() => TypeData::Reference {
+                target: source,
+                resolved_type_arguments: Some(Box::from([])),
+            },
             _ => panic!("cloneTypeReference over a non-reference"),
         };
         let id = self.create_type(flags, data);
@@ -1950,8 +1962,9 @@ impl TypeTables {
                         // the checker, so checker callers pre-force
                         // variadic tuple elements and this guard keeps
                         // any missed path an honest escape.
-                        let Some(inner_args) =
-                            self.try_type_arguments(element_type).map(<[TypeId]>::to_vec)
+                        let Some(inner_args) = self
+                            .try_type_arguments(element_type)
+                            .map(<[TypeId]>::to_vec)
                         else {
                             return Err(M4Dependency(
                                 "unforced deferred tuple arguments in variadic expansion \
@@ -2210,8 +2223,7 @@ impl TypeTables {
                     return false;
                 }
                 text.push_str(&texts[i + 1]);
-            } else if self.is_generic_index_type(t) || self.is_pattern_literal_placeholder_type(t)
-            {
+            } else if self.is_generic_index_type(t) || self.is_pattern_literal_placeholder_type(t) {
                 new_types.push(t);
                 new_texts.push(std::mem::take(text));
                 *text = texts[i + 1].clone();
@@ -2292,11 +2304,9 @@ impl TypeTables {
         } else {
             0
         };
-        let index = if flags
-            .intersects(TypeFlags::from_bits(
-                TypeFlags::INSTANTIABLE_NON_PRIMITIVE.bits() | TypeFlags::INDEX.bits(),
-            ))
-            || self.is_generic_string_like_type(id)
+        let index = if flags.intersects(TypeFlags::from_bits(
+            TypeFlags::INSTANTIABLE_NON_PRIMITIVE.bits() | TypeFlags::INDEX.bits(),
+        )) || self.is_generic_string_like_type(id)
         {
             ObjectFlags::IS_GENERIC_INDEX_TYPE.bits()
         } else {
@@ -2314,9 +2324,7 @@ impl TypeTables {
         }
         let target = self.reference_target(id);
         match &self.type_of(target).data {
-            TypeData::TupleTarget(data) => {
-                data.combined_flags.intersects(ElementFlags::VARIADIC)
-            }
+            TypeData::TupleTarget(data) => data.combined_flags.intersects(ElementFlags::VARIADIC),
             _ => false,
         }
     }

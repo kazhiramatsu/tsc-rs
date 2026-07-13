@@ -116,7 +116,10 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         };
         Ok(self.every_type(length_type, |state, t| {
-            state.tables.flags_of(t).intersects(TypeFlags::NUMBER_LITERAL)
+            state
+                .tables
+                .flags_of(t)
+                .intersects(TypeFlags::NUMBER_LITERAL)
         }))
     }
 
@@ -163,10 +166,9 @@ impl<'a> CheckerState<'a> {
                 state.get_apparent_type_of_contextual_type(node, ContextFlags::NONE)?;
             let in_tuple_context = state.is_spread_into_call_or_new(node)
                 || match contextual_type {
-                    Some(contextual) => state
-                        .some_type_result(contextual, |state, t| {
-                            state.is_tuple_context_constituent(t)
-                        })?,
+                    Some(contextual) => state.some_type_result(contextual, |state, t| {
+                        state.is_tuple_context_constituent(t)
+                    })?,
                     None => false,
                 };
             let mut element_types: Vec<TypeId> = Vec::with_capacity(elements.len());
@@ -280,7 +282,12 @@ impl<'a> CheckerState<'a> {
                 };
             let tuple = self
                 .tables
-                .create_tuple_type(&scan.element_types, Some(&scan.element_flags), readonly, None)
+                .create_tuple_type(
+                    &scan.element_types,
+                    Some(&scan.element_flags),
+                    readonly,
+                    None,
+                )
                 .map_err(Self::unsupported_m4)?;
             return self.create_array_literal_type(tuple);
         }
@@ -417,7 +424,13 @@ impl<'a> CheckerState<'a> {
             return Ok(error);
         }
         let ty = self.check_expression(expression, CheckMode::NORMAL)?;
-        if self.links.node(expression).resolved_type.resolved().is_none() {
+        if self
+            .links
+            .node(expression)
+            .resolved_type
+            .resolved()
+            .is_none()
+        {
             self.links.set_node_resolved_type(
                 self.speculation_depth,
                 expression,
@@ -778,8 +791,11 @@ impl<'a> CheckerState<'a> {
                             prop,
                             acc.check_flags | CheckFlags::LATE,
                         );
-                        self.links
-                            .set_symbol_name_type(self.speculation_depth, prop, Some(name_type));
+                        self.links.set_symbol_name_type(
+                            self.speculation_depth,
+                            prop,
+                            Some(name_type),
+                        );
                         prop
                     }
                     None => {
@@ -819,8 +835,9 @@ impl<'a> CheckerState<'a> {
                             if self.get_index_info_of_type(contextual, string)?.is_none() {
                                 let member_display = self.symbol_display_name(member_sym);
                                 let contextual_display = self.type_to_string_slice(contextual)?;
-                                let error_node =
-                                    self.name_of_named_declaration(member_decl).or(Some(member_decl));
+                                let error_node = self
+                                    .name_of_named_declaration(member_decl)
+                                    .or(Some(member_decl));
                                 self.error_at(
                                     error_node,
                                     &diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
@@ -895,14 +912,15 @@ impl<'a> CheckerState<'a> {
                 let expression = expression.ok_or_else(|| {
                     Unsupported::new("spread assignment without expression (parse recovery)")
                 })?;
-                let inner_mode = CheckMode::from_bits(
-                    check_mode.bits() & CheckMode::INFERENTIAL.bits(),
-                );
+                let inner_mode =
+                    CheckMode::from_bits(check_mode.bits() & CheckMode::INFERENTIAL.bits());
                 let raw = self.check_expression(expression, inner_mode)?;
                 let ty = self.get_reduced_type(raw)?;
                 if self.is_valid_spread_type(ty)? {
-                    let merged =
-                        self.try_merge_union_of_object_type_and_empty_object(ty, acc.in_const_context)?;
+                    let merged = self.try_merge_union_of_object_type_and_empty_object(
+                        ty,
+                        acc.in_const_context,
+                    )?;
                     if let Some(all) = &acc.all_properties_table {
                         let all = all.clone();
                         self.check_spread_prop_overrides(merged, &all, member_decl)?;
@@ -1205,18 +1223,14 @@ impl<'a> CheckerState<'a> {
 
     /// getAnonymousPartialType — the inner closure of
     /// tryMergeUnionOfObjectTypeAndEmptyObject (62940-62962).
-    fn get_anonymous_partial_type(
-        &mut self,
-        ty: TypeId,
-        readonly: bool,
-    ) -> CheckResult2<TypeId> {
+    fn get_anonymous_partial_type(&mut self, ty: TypeId, readonly: bool) -> CheckResult2<TypeId> {
         let mut members = SymbolTable::default();
         let mut properties: Vec<SymbolId> = Vec::new();
         for prop in self.get_properties_of_type(ty)? {
             let modifiers = self.get_declaration_modifier_flags_from_symbol(prop);
-            if modifiers
-                .intersects(tsrs2_types::ModifierFlags::PRIVATE | tsrs2_types::ModifierFlags::PROTECTED)
-            {
+            if modifiers.intersects(
+                tsrs2_types::ModifierFlags::PRIVATE | tsrs2_types::ModifierFlags::PROTECTED,
+            ) {
                 // Skipped entirely (62943).
             } else if self.is_spreadable_property(prop) {
                 let prop_flags = self.binder.symbol(prop).flags;
@@ -1309,8 +1323,7 @@ impl<'a> CheckerState<'a> {
         if left_flags.intersects(TypeFlags::ANY) || right_flags.intersects(TypeFlags::ANY) {
             return Ok(self.tables.intrinsics.any);
         }
-        if left_flags.intersects(TypeFlags::UNKNOWN) || right_flags.intersects(TypeFlags::UNKNOWN)
-        {
+        if left_flags.intersects(TypeFlags::UNKNOWN) || right_flags.intersects(TypeFlags::UNKNOWN) {
             return Ok(self.tables.intrinsics.unknown);
         }
         if left_flags.intersects(TypeFlags::NEVER) {
@@ -1354,7 +1367,11 @@ impl<'a> CheckerState<'a> {
             if self.is_empty_object_type(left)? {
                 return Ok(right);
             }
-            if self.tables.flags_of(left).intersects(TypeFlags::INTERSECTION) {
+            if self
+                .tables
+                .flags_of(left)
+                .intersects(TypeFlags::INTERSECTION)
+            {
                 let types: Vec<TypeId> = match &self.tables.type_of(left).data {
                     TypeData::Intersection { types } => types.to_vec(),
                     _ => unreachable!("intersection flag implies intersection data"),
@@ -1367,8 +1384,10 @@ impl<'a> CheckerState<'a> {
                         self.get_spread_type(last_left, right, symbol, object_flags, readonly)?;
                     let mut constituents = types[..types.len() - 1].to_vec();
                     constituents.push(folded);
-                    return self
-                        .get_intersection_type(&constituents, tsrs2_types::IntersectionFlags::NONE);
+                    return self.get_intersection_type(
+                        &constituents,
+                        tsrs2_types::IntersectionFlags::NONE,
+                    );
                 }
             }
             return self
@@ -1396,8 +1415,7 @@ impl<'a> CheckerState<'a> {
         }
         for left_prop in self.get_properties_of_type(left)? {
             let name = self.binder.symbol(left_prop).escaped_name.clone();
-            if skipped_private_members.contains(&name) || !self.is_spreadable_property(left_prop)
-            {
+            if skipped_private_members.contains(&name) || !self.is_spreadable_property(left_prop) {
                 continue;
             }
             if let Some(&right_prop) = members.get(&name) {
@@ -1414,7 +1432,8 @@ impl<'a> CheckerState<'a> {
                         | (self.binder.symbol(left_prop).flags & SymbolFlags::OPTIONAL);
                     let result = self.binder.create_symbol(flags, name.clone());
                     let left_type = self.get_type_of_symbol(left_prop)?;
-                    let left_without_undefined = self.remove_missing_or_undefined_type(left_type)?;
+                    let left_without_undefined =
+                        self.remove_missing_or_undefined_type(left_type)?;
                     let right_without_undefined =
                         self.remove_missing_or_undefined_type(right_type)?;
                     let result_type = if left_without_undefined == right_without_undefined {
@@ -1488,9 +1507,10 @@ impl<'a> CheckerState<'a> {
         if has_private_identifier {
             return false;
         }
-        if !symbol.flags.intersects(
-            SymbolFlags::METHOD | SymbolFlags::GET_ACCESSOR | SymbolFlags::SET_ACCESSOR,
-        ) {
+        if !symbol
+            .flags
+            .intersects(SymbolFlags::METHOD | SymbolFlags::GET_ACCESSOR | SymbolFlags::SET_ACCESSOR)
+        {
             return true;
         }
         !symbol.declarations.iter().any(|&decl| {
@@ -1506,7 +1526,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSpreadSymbol @6.0.3
     /// tsc-hash: 081b8438c5ab6cb37771a452a7f336cc67ee020d921994fcd1e6cc09100e97f9
     /// tsc-span: _tsc.js:63044-63056
-    pub(crate) fn get_spread_symbol(&mut self, prop: SymbolId, readonly: bool) -> CheckResult2<SymbolId> {
+    pub(crate) fn get_spread_symbol(
+        &mut self,
+        prop: SymbolId,
+        readonly: bool,
+    ) -> CheckResult2<SymbolId> {
         let prop_flags = self.binder.symbol(prop).flags;
         let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
             && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
@@ -1720,9 +1744,7 @@ mod tests {
     #[test]
     fn spreading_an_object_union_is_silent() {
         assert_eq!(
-            checked_rows(
-                "declare const u2: { a: number } | { b: string };\n({ ...u2 });\n"
-            ),
+            checked_rows("declare const u2: { a: number } | { b: string };\n({ ...u2 });\n"),
             []
         );
     }
@@ -1732,19 +1754,15 @@ mod tests {
     #[test]
     fn spread_overriding_a_property_reports_2783_with_related_2785() {
         let text = "({ a: 1, ...{ a: 2 } });\n";
-        with_program_state(
-            &[("a.ts", text)],
-            &CompilerOptions::default(),
-            |state| {
-                state.check_source_file(0);
-                assert_eq!(rows(state), [(2783, 3, 4)]);
-                let related = &state.diagnostics[0].related;
-                assert_eq!(related.len(), 1);
-                assert_eq!(related[0].message.code, 2785);
-                assert_eq!(related[0].start, Some(9));
-                assert_eq!(related[0].length, Some(11));
-            },
-        );
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            assert_eq!(rows(state), [(2783, 3, 4)]);
+            let related = &state.diagnostics[0].related;
+            assert_eq!(related.len(), 1);
+            assert_eq!(related[0].message.code, 2785);
+            assert_eq!(related[0].start, Some(9));
+            assert_eq!(related[0].length, Some(11));
+        });
     }
 
     #[test]

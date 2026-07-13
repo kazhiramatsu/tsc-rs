@@ -749,9 +749,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         jsx: program.options.iter().find_map(|(key, value)| {
             if key.eq_ignore_ascii_case("jsx") {
                 match value {
-                    tsrs2_harness::OptionValue::String(value) => {
-                        jsx_option_value(value)
-                    }
+                    tsrs2_harness::OptionValue::String(value) => jsx_option_value(value),
                     tsrs2_harness::OptionValue::Number(value) => Some(*value),
                     _ => None,
                 }

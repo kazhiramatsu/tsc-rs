@@ -319,7 +319,11 @@ impl<'a> CheckerState<'a> {
                     return Ok(self.tables.intrinsics.error);
                 }
             }
-            self.error_at(Some(node), &tsrs2_diags::gen::Object_is_of_type_unknown, &[]);
+            self.error_at(
+                Some(node),
+                &tsrs2_diags::gen::Object_is_of_type_unknown,
+                &[],
+            );
             return Ok(self.tables.intrinsics.error);
         }
         let facts = self.get_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL)?;
@@ -355,9 +359,7 @@ impl<'a> CheckerState<'a> {
         while let Some(parent) = self.parent_of(current) {
             match self.data_of(parent) {
                 NodeData::BinaryExpression(data) => {
-                    let operator = data
-                        .operator_token
-                        .map(|token| self.kind_of(token));
+                    let operator = data.operator_token.map(|token| self.kind_of(token));
                     if matches!(
                         operator,
                         Some(
@@ -385,11 +387,7 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    pub(crate) fn check_non_null_type(
-        &mut self,
-        ty: TypeId,
-        node: NodeId,
-    ) -> CheckResult2<TypeId> {
+    pub(crate) fn check_non_null_type(&mut self, ty: TypeId, node: NodeId) -> CheckResult2<TypeId> {
         self.check_non_null_type_with_reporter(
             ty,
             node,
@@ -421,7 +419,6 @@ impl<'a> CheckerState<'a> {
         self.error_at(Some(node), message, &[]);
         Ok(())
     }
-
 
     // ---- property accessibility (74871-74989) ----
 
@@ -497,9 +494,11 @@ impl<'a> CheckerState<'a> {
                     let prop_name = self.symbol_display_name(prop);
                     let class_name = match self.get_declaring_class(prop)? {
                         Some(class) => self.type_to_string_slice(class)?,
-                        None => return Err(Unsupported::new(
-                            "abstract member without declaring class (recovery)",
-                        )),
+                        None => {
+                            return Err(Unsupported::new(
+                                "abstract member without declaring class (recovery)",
+                            ))
+                        }
                     };
                     self.error_at(
                         Some(error_node),
@@ -573,9 +572,11 @@ impl<'a> CheckerState<'a> {
                     let prop_name = self.symbol_display_name(prop);
                     let class_name = match self.get_declaring_class(prop)? {
                         Some(class) => self.type_to_string_slice(class)?,
-                        None => return Err(Unsupported::new(
-                            "private member without declaring class (recovery)",
-                        )),
+                        None => {
+                            return Err(Unsupported::new(
+                                "private member without declaring class (recovery)",
+                            ))
+                        }
                     };
                     self.error_at(
                         Some(error_node),
@@ -606,7 +607,8 @@ impl<'a> CheckerState<'a> {
         if enclosing_class.is_none() {
             let mut this_class = self.get_enclosing_class_from_this_parameter(location)?;
             if let Some(candidate) = this_class {
-                this_class = self.is_class_derived_from_declaring_classes(candidate, prop, writing)?;
+                this_class =
+                    self.is_class_derived_from_declaring_classes(candidate, prop, writing)?;
             }
             if flags.intersects(ModifierFlags::STATIC) || this_class.is_none() {
                 if let Some(error_node) = error_node {
@@ -639,7 +641,10 @@ impl<'a> CheckerState<'a> {
             let current = containing_type.expect("set above");
             let is_this_type = matches!(
                 &self.tables.type_of(current).data,
-                tsrs2_types::TypeData::TypeParameter { is_this_type: true, .. }
+                tsrs2_types::TypeData::TypeParameter {
+                    is_this_type: true,
+                    ..
+                }
             );
             containing_type = if is_this_type {
                 self.get_constraint_of_type_parameter(current)?
@@ -657,9 +662,11 @@ impl<'a> CheckerState<'a> {
                 let enclosing_name = self.type_to_string_slice(enclosing_class)?;
                 let containing_name = match containing_type {
                     Some(containing) => self.type_to_string_slice(containing)?,
-                    None => return Err(Unsupported::new(
-                        "protected-instance report without containing type",
-                    )),
+                    None => {
+                        return Err(Unsupported::new(
+                            "protected-instance report without containing type",
+                        ))
+                    }
                 };
                 self.error_at(
                     Some(error_node),
@@ -677,20 +684,18 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
     ) -> CheckResult2<Option<TypeId>> {
         let source = self.binder.source_of_node(node);
-        let this_container = node_util::get_this_container(
-            source,
-            node,
-            /*include_arrow_functions*/ false,
-        );
+        let this_container =
+            node_util::get_this_container(source, node, /*include_arrow_functions*/ false);
         let this_parameter = this_container
             .filter(|&container| {
                 tsrs2_binder::node_util::is_function_like_kind(self.kind_of(container))
             })
             .and_then(|container| self.this_parameter_node_of(container));
-        let mut this_type = match this_parameter.and_then(|parameter| self.type_annotation_of(parameter)) {
-            Some(annotation) => Some(self.get_type_from_type_node(annotation)?),
-            None => None,
-        };
+        let mut this_type =
+            match this_parameter.and_then(|parameter| self.type_annotation_of(parameter)) {
+                Some(annotation) => Some(self.get_type_from_type_node(annotation)?),
+                None => None,
+            };
         if let Some(current) = this_type {
             if self
                 .tables
@@ -705,11 +710,9 @@ impl<'a> CheckerState<'a> {
             }
         }
         if let Some(this_type) = this_type {
-            if self
-                .tables
-                .object_flags_of(this_type)
-                .intersects(tsrs2_types::ObjectFlags::CLASS_OR_INTERFACE | tsrs2_types::ObjectFlags::REFERENCE)
-            {
+            if self.tables.object_flags_of(this_type).intersects(
+                tsrs2_types::ObjectFlags::CLASS_OR_INTERFACE | tsrs2_types::ObjectFlags::REFERENCE,
+            ) {
                 return Ok(Some(self.get_target_type(this_type)));
             }
         }
@@ -817,7 +820,11 @@ impl<'a> CheckerState<'a> {
         .is_some()
     }
 
-    pub(crate) fn is_node_within_class(&self, node: NodeId, class_declaration: Option<NodeId>) -> bool {
+    pub(crate) fn is_node_within_class(
+        &self,
+        node: NodeId,
+        class_declaration: Option<NodeId>,
+    ) -> bool {
         let Some(class_declaration) = class_declaration else {
             return false;
         };
@@ -1002,8 +1009,7 @@ impl<'a> CheckerState<'a> {
             return Err(Unsupported::new("NonNullExpression recovery node"));
         };
         let source = self.binder.source_of_node(node);
-        if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN)
-        {
+        if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
             // checkNonNullChain (77955-77959).
             let left_type = self.check_expression(expression, CheckMode::NORMAL)?;
             let non_optional_type = self.get_optional_expression_type(left_type, expression)?;
@@ -1079,14 +1085,13 @@ impl<'a> CheckerState<'a> {
             return Err(Unsupported::new("QualifiedName recovery node"));
         };
         let source = self.binder.source_of_node(node);
-        let left_type = if node_util::is_part_of_type_query(source, node)
-            && self.is_this_identifier(left)
-        {
-            let this_type = self.check_this_expression(left)?;
-            self.check_non_null_type(this_type, left)?
-        } else {
-            self.check_non_null_expression(left)?
-        };
+        let left_type =
+            if node_util::is_part_of_type_query(source, node) && self.is_this_identifier(left) {
+                let this_type = self.check_this_expression(left)?;
+                self.check_non_null_type(this_type, left)?
+            } else {
+                self.check_non_null_expression(left)?
+            };
         self.check_property_access_expression_or_qualified_name(
             node, left, left_type, right, check_mode, /*write_only*/ false,
         )
@@ -1129,8 +1134,7 @@ impl<'a> CheckerState<'a> {
         prop_name: &str,
         location: NodeId,
     ) -> CheckResult2<Option<SymbolId>> {
-        let mut containing =
-            self.get_containing_class_excluding_class_decorators(location);
+        let mut containing = self.get_containing_class_excluding_class_decorators(location);
         while let Some(class) = containing {
             let Some(symbol) = self.binder.node_symbol(class) else {
                 containing = self.get_containing_class_of(class);
@@ -1159,10 +1163,7 @@ impl<'a> CheckerState<'a> {
     /// getContainingClassExcludingClassDecorators (17520-ish): like
     /// getContainingClass but a decorator's class does not contain its
     /// own decorator expressions.
-    fn get_containing_class_excluding_class_decorators(
-        &self,
-        node: NodeId,
-    ) -> Option<NodeId> {
+    fn get_containing_class_excluding_class_decorators(&self, node: NodeId) -> Option<NodeId> {
         // Walk up past a class's OWN decorators: find the decorator
         // ancestor first; when its parent is class-like, start the
         // containing-class walk from the class's parent.
@@ -1207,10 +1208,7 @@ impl<'a> CheckerState<'a> {
         Ok(self.tables.intrinsics.any)
     }
 
-    fn check_grammar_private_identifier_expression(
-        &mut self,
-        priv_id: NodeId,
-    ) -> CheckResult2<()> {
+    fn check_grammar_private_identifier_expression(&mut self, priv_id: NodeId) -> CheckResult2<()> {
         let source = self.binder.source_of_node(priv_id);
         if node_util::get_containing_class(source, priv_id).is_none() {
             self.grammar_error_on_node(
@@ -1239,7 +1237,9 @@ impl<'a> CheckerState<'a> {
                 data.operator_token
                     .is_some_and(|op| self.kind_of(op) == SyntaxKind::InKeyword)
             });
-            if self.get_symbol_for_private_identifier_expression(priv_id)?.is_none()
+            if self
+                .get_symbol_for_private_identifier_expression(priv_id)?
+                .is_none()
                 && !is_in_operation
             {
                 let text = self
@@ -1264,17 +1264,14 @@ impl<'a> CheckerState<'a> {
         if !node_util::is_expression_node(self.binder.source_of_node(priv_id), priv_id) {
             return Ok(None);
         }
-        if let crate::links::LinkSlot::Resolved(symbol) =
-            self.links.node(priv_id).resolved_symbol
-        {
+        if let crate::links::LinkSlot::Resolved(symbol) = self.links.node(priv_id).resolved_symbol {
             return Ok(Some(symbol));
         }
         let name = self
             .identifier_text_of(priv_id)
             .map(str::to_owned)
             .unwrap_or_default();
-        let symbol =
-            self.lookup_symbol_for_private_identifier_declaration(&name, priv_id)?;
+        let symbol = self.lookup_symbol_for_private_identifier_declaration(&name, priv_id)?;
         if let Some(symbol) = symbol {
             self.links
                 .set_node_resolved_symbol(self.speculation_depth, priv_id, symbol);
@@ -1401,8 +1398,7 @@ impl<'a> CheckerState<'a> {
                 Some(declaration)
                     if self.kind_of(declaration) == SyntaxKind::PropertyDeclaration =>
                 {
-                    let NodeData::PropertyDeclaration(data) = self.data_of(declaration)
-                    else {
+                    let NodeData::PropertyDeclaration(data) = self.data_of(declaration) else {
                         unreachable!("kind/data agree");
                     };
                     data.r#type.is_none()
@@ -1419,11 +1415,8 @@ impl<'a> CheckerState<'a> {
         }
         // getThisContainer(node, true, false) === getDeclaringConstructor(prop)
         let source = self.binder.source_of_node(node);
-        let this_container = node_util::get_this_container(
-            source,
-            node,
-            /*include_arrow_functions*/ true,
-        );
+        let this_container =
+            node_util::get_this_container(source, node, /*include_arrow_functions*/ true);
         let declaring_ctor = self
             .binder
             .symbol(prop)
@@ -1529,9 +1522,7 @@ impl<'a> CheckerState<'a> {
                         .binder
                         .symbol(scoped)
                         .value_declaration
-                        .is_some_and(|decl| {
-                            self.kind_of(decl) == SyntaxKind::MethodDeclaration
-                        })
+                        .is_some_and(|decl| self.kind_of(decl) == SyntaxKind::MethodDeclaration)
                     {
                         let display =
                             tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
@@ -1564,9 +1555,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             prop = match lexically_scoped_symbol {
-                Some(scoped) => {
-                    self.get_private_identifier_property_of_type(left_type, scoped)?
-                }
+                Some(scoped) => self.get_private_identifier_property_of_type(left_type, scoped)?,
                 None => None,
             };
             if prop.is_none() {
@@ -1583,9 +1572,7 @@ impl<'a> CheckerState<'a> {
                 let flags = self.binder.symbol(prop_symbol).flags;
                 let is_setonly_accessor = flags.intersects(SymbolFlags::SET_ACCESSOR)
                     && !flags.intersects(SymbolFlags::GET_ACCESSOR);
-                if is_setonly_accessor
-                    && assignment_kind != crate::expr::AssignmentKind::Definite
-                {
+                if is_setonly_accessor && assignment_kind != crate::expr::AssignmentKind::Definite {
                     self.error_at(
                         Some(node),
                         &tsrs2_diags::gen::Private_accessor_was_defined_without_a_getter,
@@ -1631,8 +1618,7 @@ impl<'a> CheckerState<'a> {
                 /*report_error*/ true,
             )?;
             if self.is_assignment_to_readonly_entity(node, prop, assignment_kind)? {
-                let display =
-                    tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
+                let display = tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
                 self.error_at(
                     Some(right),
                     &tsrs2_diags::gen::Cannot_assign_to_0_because_it_is_a_read_only_property,
@@ -1679,8 +1665,8 @@ impl<'a> CheckerState<'a> {
                             .flags
                             .intersects(SymbolFlags::BLOCK_SCOPED)
                         {
-                            let display = tsrs2_binder::unescape_leading_underscores(&right_text)
-                                .to_owned();
+                            let display =
+                                tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
                             let type_name = self.type_to_string_slice(left_type)?;
                             self.error_at(
                                 Some(right),
@@ -1701,7 +1687,9 @@ impl<'a> CheckerState<'a> {
                     }
                     return Ok(self.tables.intrinsics.any);
                 }
-                if !right_text.is_empty() && !self.check_and_report_error_for_extending_interface(node)? {
+                if !right_text.is_empty()
+                    && !self.check_and_report_error_for_extending_interface(node)?
+                {
                     // [FLOW M5] guard-position gate: tsc resolves the
                     // property against the receiver's FLOW type — a
                     // miss on the DECLARED type of a narrowable
@@ -1802,9 +1790,7 @@ impl<'a> CheckerState<'a> {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::PROPERTY) {
             let ty = self.get_type_of_symbol(symbol)?;
-            return Ok(
-                self.remove_missing_type(ty, flags.intersects(SymbolFlags::OPTIONAL))
-            );
+            return Ok(self.remove_missing_type(ty, flags.intersects(SymbolFlags::OPTIONAL)));
         }
         if flags.intersects(SymbolFlags::ACCESSOR) {
             if check_flags.intersects(tsrs2_types::CheckFlags::INSTANTIATED) {
@@ -1843,14 +1829,10 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(prop_symbol) = prop {
             let flags = self.binder.symbol(prop_symbol).flags;
-            let narrowable_kind = flags.intersects(
-                SymbolFlags::VARIABLE | SymbolFlags::PROPERTY | SymbolFlags::ACCESSOR,
-            );
+            let narrowable_kind = flags
+                .intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY | SymbolFlags::ACCESSOR);
             let union_method = flags.intersects(SymbolFlags::METHOD)
-                && self
-                    .tables
-                    .flags_of(prop_type)
-                    .intersects(TypeFlags::UNION);
+                && self.tables.flags_of(prop_type).intersects(TypeFlags::UNION);
             // isDuplicatedCommonJSExport: JS band, false in TS.
             if !narrowable_kind && !union_method {
                 return Ok(prop_type);
@@ -1909,8 +1891,7 @@ impl<'a> CheckerState<'a> {
                             .intersects(NodeFlags::AMBIENT);
                         if let Some(flow_container) = flow_container {
                             if self.kind_of(flow_container) == SyntaxKind::Constructor
-                                && self.parent_of(flow_container)
-                                    == self.parent_of(declaration)
+                                && self.parent_of(flow_container) == self.parent_of(declaration)
                                 && !is_ambient
                             {
                                 assume_uninitialized = true;
@@ -2272,9 +2253,7 @@ impl<'a> CheckerState<'a> {
             return;
         }
         if let Some(node) = node_for_check_write_only {
-            if self.is_write_only_access(node)
-                && !flags.intersects(SymbolFlags::SET_ACCESSOR)
-            {
+            if self.is_write_only_access(node) && !flags.intersects(SymbolFlags::SET_ACCESSOR) {
                 return;
             }
         }
@@ -2539,7 +2518,10 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::TYPE_PARAMETER)
             && matches!(
                 &self.tables.type_of(ty).data,
-                tsrs2_types::TypeData::TypeParameter { is_this_type: true, .. }
+                tsrs2_types::TypeData::TypeParameter {
+                    is_this_type: true,
+                    ..
+                }
             )
     }
 
@@ -2550,8 +2532,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         error_location: NodeId,
     ) -> CheckResult2<bool> {
-        let Some(expression) = self.get_entity_name_for_extending_interface(error_location)
-        else {
+        let Some(expression) = self.get_entity_name_for_extending_interface(error_location) else {
             return Ok(false);
         };
         if self
@@ -2579,7 +2560,8 @@ impl<'a> CheckerState<'a> {
                     return None;
                 };
                 let expression = data.expression?;
-                self.is_entity_name_expression(expression).then_some(expression)
+                self.is_entity_name_expression(expression)
+                    .then_some(expression)
             }
             _ => None,
         }
@@ -2625,7 +2607,9 @@ impl<'a> CheckerState<'a> {
                 _ => unreachable!("union flag implies union data"),
             };
             for subtype in constituents {
-                let has_prop = self.get_property_of_type_full(subtype, &prop_name_raw)?.is_some();
+                let has_prop = self
+                    .get_property_of_type_full(subtype, &prop_name_raw)?
+                    .is_some();
                 let has_index = has_prop
                     || self
                         .get_applicable_index_info_for_name_info(subtype, &prop_name_raw)?
@@ -2670,8 +2654,10 @@ impl<'a> CheckerState<'a> {
                 ));
             } else {
                 let container = self.type_to_string_slice(containing_type)?;
-                let lib_suggestion =
-                    self.get_suggested_lib_for_non_existent_property(&missing_property, containing_type)?;
+                let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
+                    &missing_property,
+                    containing_type,
+                )?;
                 if let Some(lib) = lib_suggestion {
                     head = tsrs2_diags::MessageChain::new(
                         &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_2_or_later,
@@ -2724,7 +2710,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let mut diagnostic = self.diagnostic_for_node(prop_node, &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1, &[]);
+        let mut diagnostic = self.diagnostic_for_node(
+            prop_node,
+            &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1,
+            &[],
+        );
         diagnostic.message = head.with_next(chain_tail);
         if let Some(related) = related {
             diagnostic.related.push(related);
@@ -2788,15 +2778,18 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         // everyContainedType(t => symbol name matches the DOM shape).
-        let constituents: Vec<TypeId> =
-            if self.tables.flags_of(containing_type).intersects(TypeFlags::UNION) {
-                match &self.tables.type_of(containing_type).data {
-                    tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
-                    _ => unreachable!("union flag implies union data"),
-                }
-            } else {
-                vec![containing_type]
-            };
+        let constituents: Vec<TypeId> = if self
+            .tables
+            .flags_of(containing_type)
+            .intersects(TypeFlags::UNION)
+        {
+            match &self.tables.type_of(containing_type).data {
+                tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            }
+        } else {
+            vec![containing_type]
+        };
         let dom_shape = |name: &str| {
             name == "EventTarget"
                 || name == "Node"
@@ -2819,8 +2812,13 @@ impl<'a> CheckerState<'a> {
     /// consumer slice — errorNode/thisTypeForErrorOut stay 5.5f)
     /// tsc-hash: 34400f2efd43255c842416a05dbe9f0b0e3f9f09d13162db7e61e10a0f59541f
     /// tsc-span: _tsc.js:82316-82376
-    pub(crate) fn get_promised_type_of_promise(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
-        Ok(self.get_promised_type_of_promise_with_this_error(ty, None)?.0)
+    pub(crate) fn get_promised_type_of_promise(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        Ok(self
+            .get_promised_type_of_promise_with_this_error(ty, None)?
+            .0)
     }
 
     /// The full face: (promised, thisTypeForErrorOut). Error rows
@@ -2849,31 +2847,30 @@ impl<'a> CheckerState<'a> {
             if is_reference {
                 let arguments = self.get_type_arguments(ty)?;
                 if let Some(&first) = arguments.first() {
-                    self.links.set_type_promised_type_of_promise(
-                        self.speculation_depth,
-                        ty,
-                        first,
-                    );
+                    self.links
+                        .set_type_promised_type_of_promise(self.speculation_depth, ty, first);
                     return Ok((Some(first), None));
                 }
             }
         }
         let base_or_type = self.get_base_constraint_or_type(ty)?;
-        if self.all_types_assignable_to_kind(
-            base_or_type,
-            TypeFlags::PRIMITIVE | TypeFlags::NEVER,
-        )? {
+        if self
+            .all_types_assignable_to_kind(base_or_type, TypeFlags::PRIMITIVE | TypeFlags::NEVER)?
+        {
             return Ok((None, None));
         }
         let then_function = self.get_type_of_property_of_type(ty, "then")?;
         if then_function.is_some_and(|then_function| {
-            self.tables.flags_of(then_function).intersects(TypeFlags::ANY)
+            self.tables
+                .flags_of(then_function)
+                .intersects(TypeFlags::ANY)
         }) {
             return Ok((None, None));
         }
         let then_signatures = match then_function {
-            Some(then_function) => self
-                .get_signatures_of_type(then_function, crate::structural::SignatureKind::Call)?,
+            Some(then_function) => {
+                self.get_signatures_of_type(then_function, crate::structural::SignatureKind::Call)?
+            }
             None => Vec::new(),
         };
         if then_signatures.is_empty() {
@@ -2920,11 +2917,7 @@ impl<'a> CheckerState<'a> {
         }
         let union = self.get_union_type_ex(&first_param_types, UnionReduction::Literal)?;
         let onfulfilled = self.get_type_with_facts(union, TypeFacts::NE_UNDEFINED_OR_NULL)?;
-        if self
-            .tables
-            .flags_of(onfulfilled)
-            .intersects(TypeFlags::ANY)
-        {
+        if self.tables.flags_of(onfulfilled).intersects(TypeFlags::ANY) {
             return Ok((None, None));
         }
         let onfulfilled_signatures =
@@ -3107,9 +3100,7 @@ mod tests {
         // Oracle: (18047, 58, 4) — span includes the `?.`, message
         // renders 'x.a' (entityNameToString). [FLOW M5] gate.
         assert_eq!(
-            checked_rows(
-                "declare const x: { a: { b: number } | null } | undefined;\nx?.a.b;\n"
-            ),
+            checked_rows("declare const x: { a: { b: number } | null } | undefined;\nx?.a.b;\n"),
             []
         );
     }
@@ -3255,7 +3246,10 @@ mod tests {
                 .collect();
             assert_eq!(diags.len(), 1, "{diags:?}");
             let diag = diags[0];
-            assert_eq!((diag.code(), diag.start, diag.length), (2339, Some(68), Some(1)));
+            assert_eq!(
+                (diag.code(), diag.start, diag.length),
+                (2339, Some(68), Some(1))
+            );
             assert_eq!(diag.message.next.len(), 1);
             assert_eq!(
                 diag.message.next[0].text,
@@ -3353,7 +3347,8 @@ mod tests {
 
     #[test]
     fn element_string_key_reports_7053_no_index_signature() {
-        let text = "interface O { a: number }\ndeclare const o: O;\ndeclare const k: string;\no[k];\n";
+        let text =
+            "interface O { a: number }\ndeclare const o: O;\ndeclare const k: string;\no[k];\n";
         with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
             state.check_source_file(0);
             let diags: Vec<_> = state
@@ -3363,7 +3358,10 @@ mod tests {
                 .collect();
             assert_eq!(diags.len(), 1, "{diags:?}");
             let diag = diags[0];
-            assert_eq!((diag.code(), diag.start, diag.length), (7053, Some(71), Some(4)));
+            assert_eq!(
+                (diag.code(), diag.start, diag.length),
+                (7053, Some(71), Some(4))
+            );
             assert_eq!(
                 diag.message.next[0].text,
                 "No index signature with a parameter of type 'string' was found on type 'O'."
@@ -3408,7 +3406,10 @@ mod tests {
                 .collect();
             assert_eq!(diags.len(), 1, "{diags:?}");
             let diag = diags[0];
-            assert_eq!((diag.code(), diag.start, diag.length), (7053, Some(101), Some(4)));
+            assert_eq!(
+                (diag.code(), diag.start, diag.length),
+                (7053, Some(101), Some(4))
+            );
             assert_eq!(
                 diag.message.next[0].text,
                 "No index signature with a parameter of type 'string' was found on type 'A | B'."
@@ -3443,10 +3444,7 @@ mod tests {
         // Bootstrap burns all 10 slots: near-miss names degrade to
         // plain 2304 (oracle-pinned; the LIB-LOADED 2552 flavor is
         // conformance-gated).
-        assert_eq!(
-            checked_rows("const hello = 1;\nhelo;\n"),
-            [(2304, 17, 4)]
-        );
+        assert_eq!(checked_rows("const hello = 1;\nhelo;\n"), [(2304, 17, 4)]);
     }
 
     #[test]
@@ -3480,8 +3478,7 @@ mod tests {
             strict_bind_call_apply: Some(false),
             ..CompilerOptions::default()
         };
-        let text =
-            "const hello = 1;\nconst world = 1;\nstring;\nhelo;\nworl;\n";
+        let text = "const hello = 1;\nconst world = 1;\nstring;\nhelo;\nworl;\n";
         with_program_state(&[("a.ts", text)], &options, |state| {
             state.check_source_file(0);
             let codes: Vec<u32> = state
@@ -3575,7 +3572,8 @@ impl<'a> CheckerState<'a> {
         // checkElementAccessExpression receiver widening (75720):
         // assignment targets and method-call receivers read the
         // widened type.
-        let object_type = if self.get_assignment_target_kind(node) != crate::expr::AssignmentKind::None
+        let object_type = if self.get_assignment_target_kind(node)
+            != crate::expr::AssignmentKind::None
             || self.is_method_access_for_call(node)
         {
             self.get_widened_type(expr_type)?
@@ -3689,8 +3687,7 @@ impl<'a> CheckerState<'a> {
                                 self.check_expression_cached(expression, CheckMode::NORMAL)?;
                             let infos = self.get_index_infos_of_type(expression_type)?;
                             let number = self.tables.intrinsics.number;
-                            if infos.len() == 1
-                                && infos.iter().any(|info| info.key_type == number)
+                            if infos.len() == 1 && infos.iter().any(|info| info.key_type == number)
                             {
                                 return Ok(true);
                             }
@@ -3817,8 +3814,7 @@ impl<'a> CheckerState<'a> {
                         .get_declaration_modifier_flags_from_symbol(property_symbol)
                         .intersects(ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
                     {
-                        let display =
-                            tsrs2_binder::unescape_leading_underscores(&property_name);
+                        let display = tsrs2_binder::unescape_leading_underscores(&property_name);
                         self.error_at(
                             Some(access_node),
                             &tsrs2_diags::gen::Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter,

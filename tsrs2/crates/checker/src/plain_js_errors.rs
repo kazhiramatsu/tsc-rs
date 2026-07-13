@@ -9,9 +9,7 @@ use tsrs2_diags::gen as diagnostics;
 /// tsc-hash: 9068c49f4ac525d7b7cac90bd636a3c8f833127e0b5b721ba936caccd9ed5c62
 /// tsc-span: _tsc.js:122514-122610
 pub(crate) fn is_plain_js_error(code: u32) -> bool {
-    PLAIN_JS_ERRORS
-        .iter()
-        .any(|message| message.code == code)
+    PLAIN_JS_ERRORS.iter().any(|message| message.code == code)
 }
 
 static PLAIN_JS_ERRORS: &[&tsrs2_diags::DiagnosticMessage] = &[

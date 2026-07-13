@@ -584,16 +584,14 @@ impl<'a> CheckerState<'a> {
         // tsc-port: reportUnreliableMapper + reportUnmeasurableMapper @6.0.3
         // tsc-hash: 23800396495e1d0c1eba42745b023673852d55da0f6a4b92c2f9704b086d044e
         // tsc-span: _tsc.js:47113-47131
-        state.report_unreliable_mapper = state.alloc_mapper(
-            crate::instantiate::TypeMapper::Function(
+        state.report_unreliable_mapper =
+            state.alloc_mapper(crate::instantiate::TypeMapper::Function(
                 crate::instantiate::FunctionMapper::ReportsUnreliable,
-            ),
-        );
-        state.report_unmeasurable_mapper = state.alloc_mapper(
-            crate::instantiate::TypeMapper::Function(
+            ));
+        state.report_unmeasurable_mapper =
+            state.alloc_mapper(crate::instantiate::TypeMapper::Function(
                 crate::instantiate::FunctionMapper::ReportsUnmeasurable,
-            ),
-        );
+            ));
 
         // The empty anonymous types from the checker init block
         // (47132/47160/47170/47179): resolved-empty from birth.
@@ -1026,9 +1024,8 @@ impl<'a> CheckerState<'a> {
                     } else {
                         tsrs2_types::RelationComparisonResult::REPORTS_UNMEASURABLE
                     };
-                    *flags = tsrs2_types::RelationComparisonResult::from_bits(
-                        flags.bits() | bit.bits(),
-                    );
+                    *flags =
+                        tsrs2_types::RelationComparisonResult::from_bits(flags.bits() | bit.bits());
                 }
                 VarianceHandlerFrame::Base {
                     unmeasurable,

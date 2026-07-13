@@ -33,7 +33,7 @@ use crate::relate::RelationKind;
 
 use crate::links::LinkSlot;
 use crate::operators::OuterExpressionKinds;
-use crate::state::{CheckerState, CheckResult2, Signature, SignatureId, Unsupported};
+use crate::state::{CheckResult2, CheckerState, Signature, SignatureId, Unsupported};
 use crate::structural::SignatureKind;
 
 /// The Rust stand-in for tsc's fabricated SyntheticExpression parse
@@ -99,7 +99,6 @@ struct ResolveCallCtx {
     candidate_for_argument_arity_error: Option<SignatureId>,
     candidate_for_type_argument_error: Option<SignatureId>,
 }
-
 
 /// skipTrivia(text, pos, stopAfterLineBreak=true) followed by tsc's
 /// `isLineBreak(text.charCodeAt(result - 1))` (77025-77031): true when
@@ -210,9 +209,7 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(expression) = data.expression {
                 let target = match self.data_of(expression) {
-                    NodeData::PropertyAccessExpression(access) => {
-                        access.name.unwrap_or(expression)
-                    }
+                    NodeData::PropertyAccessExpression(access) => access.name.unwrap_or(expression),
                     _ => expression,
                 };
                 return self.diag_span_of_node(target);
@@ -325,8 +322,9 @@ impl<'a> CheckerState<'a> {
         call_chain_flags: SignatureFlags,
     ) -> SignatureId {
         let existing_flags = self.signature_of(signature).flags;
-        if SignatureFlags::from_bits(existing_flags.bits() & SignatureFlags::CALL_CHAIN_FLAGS.bits())
-            == call_chain_flags
+        if SignatureFlags::from_bits(
+            existing_flags.bits() & SignatureFlags::CALL_CHAIN_FLAGS.bits(),
+        ) == call_chain_flags
         {
             return signature;
         }
@@ -470,8 +468,11 @@ impl<'a> CheckerState<'a> {
         let Some(spread_index) = spread_index else {
             return Ok(args.into_iter().map(EffectiveArg::Node).collect());
         };
-        let mut effective_args: Vec<EffectiveArg> =
-            args[..spread_index].iter().copied().map(EffectiveArg::Node).collect();
+        let mut effective_args: Vec<EffectiveArg> = args[..spread_index]
+            .iter()
+            .copied()
+            .map(EffectiveArg::Node)
+            .collect();
         for &arg in &args[spread_index..] {
             let spread_type = if self.kind_of(arg) == SyntaxKind::SpreadElement {
                 let NodeData::SpreadElement(data) = self.data_of(arg) else {
@@ -659,8 +660,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        if !self.has_effective_rest_parameter(signature)? && arg_count > effective_parameter_count
-        {
+        if !self.has_effective_rest_parameter(signature)? && arg_count > effective_parameter_count {
             return Ok(false);
         }
         if call_is_incomplete || arg_count >= effective_minimum_arguments {
@@ -766,10 +766,7 @@ impl<'a> CheckerState<'a> {
                             Unsupported::new("spread without operand (parse recovery)")
                         })?;
                         self.check_expression_with_contextual_type(
-                            expression,
-                            rest_type,
-                            /*inference_context*/ None,
-                            check_mode,
+                            expression, rest_type, /*inference_context*/ None, check_mode,
                         )?
                     }
                 };
@@ -826,8 +823,11 @@ impl<'a> CheckerState<'a> {
                         None,
                     )?
                 };
-                let arg_type =
-                    self.check_effective_arg_with_contextual_type(&arg, contextual_type, check_mode)?;
+                let arg_type = self.check_effective_arg_with_contextual_type(
+                    &arg,
+                    contextual_type,
+                    check_mode,
+                )?;
                 let has_primitive_contextual_type = in_const_context
                     || self.maybe_type_of_kind(
                         contextual_type,
@@ -976,7 +976,8 @@ impl<'a> CheckerState<'a> {
         span: &DiagSpan,
         head: &'static DiagnosticMessage,
     ) -> CheckResult2<Diagnostic> {
-        if head.code == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
+        if head.code
+            == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
             && self.options.exact_optional_property_types.unwrap_or(false)
         {
             // 65111: the 2345→exactOptionalPropertyTypes head variant
@@ -999,10 +1000,7 @@ impl<'a> CheckerState<'a> {
         } else {
             source_text
         };
-        Ok(self.diagnostic_at_span(
-            span,
-            MessageChain::new(head, &[source_text, target_text]),
-        ))
+        Ok(self.diagnostic_at_span(span, MessageChain::new(head, &[source_text, target_text])))
     }
 
     // ---- elaboration gate ----
@@ -1154,7 +1152,9 @@ impl<'a> CheckerState<'a> {
                     // elaborateArrayLiteral (64410): decide whether the
                     // elementwise walk WOULD report — if not, tsc falls
                     // back to the plain head at the literal (live).
-                    if self.array_literal_elaboration_would_report(walk, source, target, relation)? {
+                    if self
+                        .array_literal_elaboration_would_report(walk, source, target, relation)?
+                    {
                         return Err(Unsupported::new(
                             "elaborateArrayLiteral (elementwise elaboration, T2)",
                         ));
@@ -1237,7 +1237,9 @@ impl<'a> CheckerState<'a> {
         let mut candidates: Vec<(usize, TypeId)> = Vec::new();
         for (i, &element) in elements.iter().enumerate() {
             if self.is_tuple_like_type(target)?
-                && self.get_property_of_type_full(target, &i.to_string())?.is_none()
+                && self
+                    .get_property_of_type_full(target, &i.to_string())?
+                    .is_none()
             {
                 continue;
             }
@@ -1436,7 +1438,8 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let param_type = self.get_type_at_position(signature, i)?;
-            let arg_type = self.check_effective_arg_with_contextual_type(&arg, param_type, check_mode)?;
+            let arg_type =
+                self.check_effective_arg_with_contextual_type(&arg, param_type, check_mode)?;
             let check_arg_type = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                 self.get_regular_type_of_object_literal(arg_type)?
             } else {
@@ -1447,9 +1450,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(Some(Vec::new()));
                 }
                 let effective = match arg {
-                    EffectiveArg::Node(arg_node) => {
-                        Some(self.get_effective_check_node(arg_node))
-                    }
+                    EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
                     EffectiveArg::Synthetic { .. } => None,
                 };
                 // The elaboration gate: elementwise elaborations move
@@ -1518,12 +1519,9 @@ impl<'a> CheckerState<'a> {
                     self.diag_span_of_byte_range(node, pos, end)
                 };
                 let mut related: Vec<RelatedInfo> = Vec::new();
-                if let Some(await_related) = self.missing_await_related_at(
-                    Some(&span),
-                    spread_type,
-                    rest_type,
-                    relation,
-                )? {
+                if let Some(await_related) =
+                    self.missing_await_related_at(Some(&span), spread_type, rest_type, relation)?
+                {
                     related.push(await_related);
                 }
                 let diagnostic = match mode {
@@ -1687,7 +1685,10 @@ impl<'a> CheckerState<'a> {
             let span = self.diag_span_for_call_node(node);
             let diagnostic = self.diagnostic_at_span(
                 &span,
-                MessageChain::new(&diagnostics::Call_target_does_not_contain_any_signatures, &[]),
+                MessageChain::new(
+                    &diagnostics::Call_target_does_not_contain_any_signatures,
+                    &[],
+                ),
             );
             self.push_error_diagnostic(diagnostic);
             return self.resolve_error_call(node);
@@ -1780,9 +1781,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<()> {
         if let Some(candidates_for_argument_error) = ctx.candidates_for_argument_error.take() {
             ctx.candidates_for_argument_error = Some(candidates_for_argument_error.clone());
-            if candidates_for_argument_error.len() == 1
-                || candidates_for_argument_error.len() > 3
-            {
+            if candidates_for_argument_error.len() == 1 || candidates_for_argument_error.len() > 3 {
                 let last = *candidates_for_argument_error
                     .last()
                     .expect("non-empty by construction");
@@ -1808,14 +1807,12 @@ impl<'a> CheckerState<'a> {
                             )
                         });
                     for error in errors {
-                        let chain = MessageChain::new(
-                            &diagnostics::No_overload_matches_this_call,
-                            &[],
-                        )
-                        .with_next(vec![MessageChain::new(
-                            &diagnostics::The_last_overload_gave_the_following_error,
-                            &[],
-                        )]);
+                        let chain =
+                            MessageChain::new(&diagnostics::No_overload_matches_this_call, &[])
+                                .with_next(vec![MessageChain::new(
+                                    &diagnostics::The_last_overload_gave_the_following_error,
+                                    &[],
+                                )]);
                         let mut diagnostic = self.diagnostic_at_span(&error.span, chain);
                         diagnostic.related = error.related;
                         if let Some(declaration) = self.signature_of(last).declaration {
@@ -1825,9 +1822,7 @@ impl<'a> CheckerState<'a> {
                                 &[],
                             ));
                         }
-                        if let Some(related) =
-                            self.implementation_success_elaboration(ctx, last)?
-                        {
+                        if let Some(related) = self.implementation_success_elaboration(ctx, last)? {
                             diagnostic.related.push(related);
                         }
                         self.push_error_diagnostic(diagnostic);
@@ -1851,9 +1846,7 @@ impl<'a> CheckerState<'a> {
                     for error in errors {
                         let mut diagnostic =
                             error.diagnostic.expect("Report mode builds diagnostics");
-                        if let Some(related) =
-                            self.implementation_success_elaboration(ctx, last)?
-                        {
+                        if let Some(related) = self.implementation_success_elaboration(ctx, last)? {
                             diagnostic.related.push(related);
                         }
                         self.push_error_diagnostic(diagnostic);
@@ -1888,8 +1881,7 @@ impl<'a> CheckerState<'a> {
                     !all_errors.is_empty(),
                     "No errors reported for 3 or fewer overload signatures"
                 );
-                let chain =
-                    MessageChain::new(&diagnostics::No_overload_matches_this_call, &[]);
+                let chain = MessageChain::new(&diagnostics::No_overload_matches_this_call, &[]);
                 let shared_span = all_errors
                     .iter()
                     .all(|error| error.span == all_errors[0].span);
@@ -1904,8 +1896,8 @@ impl<'a> CheckerState<'a> {
                     .into_iter()
                     .flat_map(|error| error.related)
                     .collect();
-                if let Some(related) = self
-                    .implementation_success_elaboration(ctx, candidates_for_argument_error[0])?
+                if let Some(related) =
+                    self.implementation_success_elaboration(ctx, candidates_for_argument_error[0])?
                 {
                     diagnostic.related.push(related);
                 }
@@ -1983,8 +1975,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(None);
             };
             let candidate = state.get_signature_from_declaration(impl_decl)?;
-            let is_single_non_generic =
-                state.signature_of(candidate).type_parameters.is_none();
+            let is_single_non_generic = state.signature_of(candidate).type_parameters.is_none();
             let mut probe_ctx = ResolveCallCtx {
                 node: ctx.node,
                 args: ctx.args.clone(),
@@ -2388,17 +2379,16 @@ impl<'a> CheckerState<'a> {
             let unioned = self.get_union_type_ex(&rest_types, UnionReduction::Subtype)?;
             let array = self.create_array_type(unioned, /*readonly*/ false)?;
             parameters.push(self.create_symbol_with_type(rest_parameter_symbols[0], array));
-            flags = SignatureFlags::from_bits(
-                flags.bits() | SignatureFlags::HAS_REST_PARAMETER.bits(),
-            );
+            flags =
+                SignatureFlags::from_bits(flags.bits() | SignatureFlags::HAS_REST_PARAMETER.bits());
         }
-        if candidates
-            .iter()
-            .any(|&c| self.signature_of(c).flags.intersects(SignatureFlags::HAS_LITERAL_TYPES))
-        {
-            flags = SignatureFlags::from_bits(
-                flags.bits() | SignatureFlags::HAS_LITERAL_TYPES.bits(),
-            );
+        if candidates.iter().any(|&c| {
+            self.signature_of(c)
+                .flags
+                .intersects(SignatureFlags::HAS_LITERAL_TYPES)
+        }) {
+            flags =
+                SignatureFlags::from_bits(flags.bits() | SignatureFlags::HAS_LITERAL_TYPES.bits());
         }
         let mut return_types: Vec<TypeId> = Vec::with_capacity(candidates.len());
         for &candidate in candidates {
@@ -2569,14 +2559,10 @@ impl<'a> CheckerState<'a> {
                 closest_signature = Some(signature);
             }
             max = std::cmp::max(max, max_parameter);
-            if min_parameter < args.len()
-                && max_below.map_or(true, |below| min_parameter > below)
-            {
+            if min_parameter < args.len() && max_below.map_or(true, |below| min_parameter > below) {
                 max_below = Some(min_parameter);
             }
-            if args.len() < max_parameter
-                && min_above.map_or(true, |above| max_parameter < above)
-            {
+            if args.len() < max_parameter && min_above.map_or(true, |above| max_parameter < above) {
                 min_above = Some(max_parameter);
             }
         }
@@ -2872,12 +2858,12 @@ impl<'a> CheckerState<'a> {
             }
         }
         // 77240-77244: the span override inside call parents.
-        let span = if parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CallExpression)
-        {
-            self.diag_span_for_call_node(parent.expect("checked above"))
-        } else {
-            self.diag_span_of_node(error_target)
-        };
+        let span =
+            if parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CallExpression) {
+                self.diag_span_for_call_node(parent.expect("checked above"))
+            } else {
+                self.diag_span_of_node(error_target)
+            };
         let mut diagnostic = self.diagnostic_at_span(&span, MessageChain::new(head, &[]));
         if maybe_missing_await {
             diagnostic.related.push(self.related_info_for_node(
@@ -2904,9 +2890,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::CallExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data.expression.ok_or_else(|| {
-            Unsupported::new("call without a callee (parse recovery)")
-        })?;
+        let expression = data
+            .expression
+            .ok_or_else(|| Unsupported::new("call without a callee (parse recovery)"))?;
         let type_arguments = data.type_arguments;
         if self.kind_of(expression) == SyntaxKind::SuperKeyword {
             // 76973-76989: the super() arm.
@@ -3042,9 +3028,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::NewExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data.expression.ok_or_else(|| {
-            Unsupported::new("new without a callee (parse recovery)")
-        })?;
+        let expression = data
+            .expression
+            .ok_or_else(|| Unsupported::new("new without a callee (parse recovery)"))?;
         let type_arguments = data.type_arguments;
         let expression_type = self.check_non_null_expression(expression)?;
         if expression_type == self.tables.intrinsics.silent_never {
@@ -3158,8 +3144,7 @@ impl<'a> CheckerState<'a> {
                         );
                     }
                 }
-                if self.get_this_type_of_signature(signature)?
-                    == Some(self.tables.intrinsics.void)
+                if self.get_this_type_of_signature(signature)? == Some(self.tables.intrinsics.void)
                 {
                     self.error_at(
                         Some(node),
@@ -3216,11 +3201,9 @@ impl<'a> CheckerState<'a> {
                 if mixin_flags[i] {
                     continue;
                 }
-                if self
-                    .tables
-                    .object_flags_of(member)
-                    .intersects(tsrs2_types::ObjectFlags::CLASS | tsrs2_types::ObjectFlags::INTERFACE)
-                {
+                if self.tables.object_flags_of(member).intersects(
+                    tsrs2_types::ObjectFlags::CLASS | tsrs2_types::ObjectFlags::INTERFACE,
+                ) {
                     if self.tables.type_of(member).symbol == Some(target) {
                         return Ok(true);
                     }
@@ -3253,8 +3236,7 @@ impl<'a> CheckerState<'a> {
             node_util::get_combined_modifier_flags(source, declaration).bits()
                 & ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.bits(),
         );
-        if modifiers == ModifierFlags::NONE
-            || self.kind_of(declaration) != SyntaxKind::Constructor
+        if modifiers == ModifierFlags::NONE || self.kind_of(declaration) != SyntaxKind::Constructor
         {
             return Ok(true);
         }
@@ -3310,18 +3292,18 @@ impl<'a> CheckerState<'a> {
         match self.kind_of(node) {
             SyntaxKind::CallExpression => self.resolve_call_expression(node, check_mode),
             SyntaxKind::NewExpression => self.resolve_new_expression(node, check_mode),
-            SyntaxKind::TaggedTemplateExpression => Err(Unsupported::new(
-                "resolveTaggedTemplateExpression (5.7b)",
-            )),
+            SyntaxKind::TaggedTemplateExpression => {
+                Err(Unsupported::new("resolveTaggedTemplateExpression (5.7b)"))
+            }
             SyntaxKind::Decorator => Err(Unsupported::new("resolveDecorator (5.8)")),
             SyntaxKind::JsxOpeningFragment
             | SyntaxKind::JsxOpeningElement
-            | SyntaxKind::JsxSelfClosingElement => Err(Unsupported::new(
-                "resolveJsxOpeningLikeElement (5.7c)",
-            )),
-            SyntaxKind::BinaryExpression => Err(Unsupported::new(
-                "resolveInstanceofExpression (5.7b)",
-            )),
+            | SyntaxKind::JsxSelfClosingElement => {
+                Err(Unsupported::new("resolveJsxOpeningLikeElement (5.7c)"))
+            }
+            SyntaxKind::BinaryExpression => {
+                Err(Unsupported::new("resolveInstanceofExpression (5.7b)"))
+            }
             _ => unreachable!("Branch in 'resolveSignature' should be unreachable."),
         }
     }
@@ -3487,19 +3469,12 @@ impl<'a> CheckerState<'a> {
         // getGlobalESSymbolConstructorSymbol(reportErrors=false)
         // (77701): the silent global-value probe; the deferredGlobal*
         // memo elides (deterministic, no suggestion-budget burn).
-        let Some(global_es_symbol) =
-            self.get_global_symbol("Symbol", SymbolFlags::VALUE, None)
+        let Some(global_es_symbol) = self.get_global_symbol("Symbol", SymbolFlags::VALUE, None)
         else {
             return Ok(false);
         };
-        let resolved = self.resolve_name(
-            Some(left),
-            "Symbol",
-            SymbolFlags::VALUE,
-            None,
-            false,
-            false,
-        );
+        let resolved =
+            self.resolve_name(Some(left), "Symbol", SymbolFlags::VALUE, None, false, false);
         Ok(resolved == Some(global_es_symbol))
     }
 }
@@ -3619,9 +3594,7 @@ mod tests {
     #[test]
     fn rest_under_min_reports_2555_not_2554() {
         assert_eq!(
-            checked_rows(
-                "declare function r(a: number, ...rest: string[]): void;\nr();\n"
-            ),
+            checked_rows("declare function r(a: number, ...rest: string[]): void;\nr();\n"),
             [(2555, 56, 1)]
         );
     }
@@ -3837,9 +3810,7 @@ mod tests {
         // (getIteratedTypeOrElementType) — recorded FN until the
         // iteration protocol lands.
         assert_eq!(
-            checked_rows(
-                "interface I { p: string }\ndeclare function el(a: I): void;\nel([1]);\n"
-            ),
+            checked_rows("interface I { p: string }\ndeclare function el(a: I): void;\nel([1]);\n"),
             []
         );
         // Tuple targets check the elements fine; the plain head then
@@ -3881,5 +3852,4 @@ mod tests {
             []
         );
     }
-
 }

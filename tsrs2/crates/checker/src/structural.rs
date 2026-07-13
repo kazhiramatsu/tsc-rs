@@ -87,14 +87,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if !is_false(result) {
             return Ok(Some(result));
         }
-        if variances.iter().any(|v| {
-            v.intersects(tsrs2_types::VarianceFlags::ALLOWS_STRUCTURAL_FALLBACK)
-        }) {
+        if variances
+            .iter()
+            .any(|v| v.intersects(tsrs2_types::VarianceFlags::ALLOWS_STRUCTURAL_FALLBACK))
+        {
             return Ok(None);
         }
-        let allow_structural_fallback =
-            self.st
-                .has_covariant_void_argument(target_type_arguments, variances);
+        let allow_structural_fallback = self
+            .st
+            .has_covariant_void_argument(target_type_arguments, variances);
         if !allow_structural_fallback {
             return Ok(Some(Ternary::FALSE));
         }
@@ -319,8 +320,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 .alias_type_arguments
                                 .clone()
                                 .expect("same-alias pairs both carry alias arguments");
-                            let params =
-                                self.st.links.symbol(alias_symbol).type_parameters.clone();
+                            let params = self.st.links.symbol(alias_symbol).type_parameters.clone();
                             let min_arguments =
                                 self.st.get_min_type_argument_count(params.as_deref());
                             let source_types = self
@@ -404,12 +404,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 // still mentions type parameters.
                 let mut constraint = self.st.get_constraint_of_type_parameter(source)?;
                 while let Some(current) = constraint {
-                    if !self
-                        .st
-                        .some_type(current, |st, c| {
-                            st.tables.flags_of(c).intersects(TypeFlags::TYPE_PARAMETER)
-                        })
-                    {
+                    if !self.st.some_type(current, |st, c| {
+                        st.tables.flags_of(c).intersects(TypeFlags::TYPE_PARAMETER)
+                    }) {
                         break;
                     }
                     let result = self.is_related_to(
@@ -545,8 +542,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else if source_flags.intersects(TypeFlags::STRING_MAPPING) {
             // 66345-66358.
             if target_flags.intersects(TypeFlags::STRING_MAPPING) {
-                if self.st.tables.type_of(source).symbol != self.st.tables.type_of(target).symbol
-                {
+                if self.st.tables.type_of(source).symbol != self.st.tables.type_of(target).symbol {
                     return Ok(Ternary::FALSE);
                 }
                 let TypeData::StringMapping { ty: source_inner } =
@@ -640,10 +636,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let global_array = self.st.global_array_type()?;
                 let global_readonly = self.st.global_readonly_array_type()?;
                 let is_array = |st: &crate::state::CheckerState, t: TypeId| {
-                    st.tables.object_flags_of(t).intersects(ObjectFlags::REFERENCE) && {
-                        let target = st.tables.reference_target(t);
-                        target == global_array || target == global_readonly
-                    }
+                    st.tables
+                        .object_flags_of(t)
+                        .intersects(ObjectFlags::REFERENCE)
+                        && {
+                            let target = st.tables.reference_target(t);
+                            target == global_array || target == global_readonly
+                        }
                 };
                 let target_is_readonly_array = self
                     .st
@@ -2414,7 +2413,11 @@ impl<'a> CheckerState<'a> {
             return Err(Unsupported::new("mapped type apparent types (M8)"));
         }
         if object_flags.intersects(ObjectFlags::REFERENCE) && t != ty {
-            return self.get_type_with_this_argument(t, Some(ty), /*need_apparent_type*/ false);
+            return self.get_type_with_this_argument(
+                t,
+                Some(ty),
+                /*need_apparent_type*/ false,
+            );
         }
         let flags = self.tables.flags_of(t);
         if flags.intersects(TypeFlags::INTERSECTION) {
@@ -2580,7 +2583,9 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<SymbolId>> {
-        self.get_property_of_type_ex(ty, name, /*skip_object_function_property_augment*/ false)
+        self.get_property_of_type_ex(
+            ty, name, /*skip_object_function_property_augment*/ false,
+        )
     }
 
     /// The full tsc shape (59348-59389), object/function augment
@@ -3151,8 +3156,7 @@ impl<'a> CheckerState<'a> {
         {
             return true;
         }
-        if flags.intersects(SymbolFlags::ACCESSOR) && !flags.intersects(SymbolFlags::SET_ACCESSOR)
-        {
+        if flags.intersects(SymbolFlags::ACCESSOR) && !flags.intersects(SymbolFlags::SET_ACCESSOR) {
             return true;
         }
         flags.intersects(SymbolFlags::ENUM_MEMBER)
@@ -3256,7 +3260,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDiscriminantProperty @6.0.3
     /// tsc-hash: 1b3d6f14be2183682f24b21ec0f57e84975ced1cf03ab31db92b2b62388d6a8a
     /// tsc-span: _tsc.js:69562-69573
-    pub(crate) fn is_discriminant_property(&mut self, ty: TypeId, name: &str) -> CheckResult2<bool> {
+    pub(crate) fn is_discriminant_property(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+    ) -> CheckResult2<bool> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             return Ok(false);
         }
@@ -3358,10 +3366,7 @@ impl<'a> CheckerState<'a> {
         prop: SymbolId,
         out: &mut Vec<SymbolId>,
     ) -> CheckResult2<()> {
-        if self
-            .get_check_flags(prop)
-            .intersects(CheckFlags::SYNTHETIC)
-        {
+        if self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC) {
             let containing = self
                 .links
                 .symbol(prop)
@@ -3369,9 +3374,7 @@ impl<'a> CheckerState<'a> {
                 .expect("synthetic properties carry their containing type");
             let name = self.binder.symbol(prop).escaped_name.clone();
             let types = match &self.tables.type_of(containing).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    types.to_vec()
-                }
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
                 _ => unreachable!("containing types are unions or intersections"),
             };
             for t in types {
@@ -3507,8 +3510,11 @@ impl<'a> CheckerState<'a> {
         );
         self.links
             .set_symbol_check_flags(self.speculation_depth, symbol, readonly);
-        self.links
-            .set_symbol_type(self.speculation_depth, symbol, crate::links::LinkSlot::Resolved(ty));
+        self.links.set_symbol_type(
+            self.speculation_depth,
+            symbol,
+            crate::links::LinkSlot::Resolved(ty),
+        );
         self.links
             .set_symbol_target(self.speculation_depth, symbol, source);
         let declarations = self.binder.symbol(source).declarations.clone();
@@ -3684,8 +3690,10 @@ impl<'a> CheckerState<'a> {
                                 this_types.push(self.get_type_of_symbol(this_param)?);
                             }
                         }
-                        let this_type =
-                            self.get_intersection_type(&this_types, tsrs2_types::IntersectionFlags::NONE)?;
+                        let this_type = self.get_intersection_type(
+                            &this_types,
+                            tsrs2_types::IntersectionFlags::NONE,
+                        )?;
                         this_parameter = Some(self.create_symbol_with_type(first_this, this_type));
                     }
                     s = self.create_union_signature(signature, union_signatures);
@@ -3709,8 +3717,7 @@ impl<'a> CheckerState<'a> {
                     && results.as_ref().is_some_and(|results| {
                         results.iter().any(|&s| {
                             self.signatures[s.0 as usize].type_parameters.is_some()
-                                && !self
-                                    .compare_type_parameters_identical_ok(signature, s)
+                                && !self.compare_type_parameters_identical_ok(signature, s)
                         })
                     });
                 if incompatible_generics {
@@ -3816,8 +3823,10 @@ impl<'a> CheckerState<'a> {
         let left_type = self.get_type_of_symbol(left)?;
         let right_type = self.get_type_of_symbol(right)?;
         let right_type = self.instantiate_type(right_type, mapper)?;
-        let this_type =
-            self.get_intersection_type(&[left_type, right_type], tsrs2_types::IntersectionFlags::NONE)?;
+        let this_type = self.get_intersection_type(
+            &[left_type, right_type],
+            tsrs2_types::IntersectionFlags::NONE,
+        )?;
         Ok(Some(self.create_symbol_with_type(left, this_type)))
     }
 
@@ -3846,8 +3855,8 @@ impl<'a> CheckerState<'a> {
         } else {
             right_count
         };
-        let either_has_effective_rest = self.has_effective_rest_parameter(left)?
-            || self.has_effective_rest_parameter(right)?;
+        let either_has_effective_rest =
+            self.has_effective_rest_parameter(left)? || self.has_effective_rest_parameter(right)?;
         let needs_extra_rest_element =
             either_has_effective_rest && !self.has_effective_rest_parameter(longest)?;
         let mut params: Vec<SymbolId> =
@@ -3990,10 +3999,9 @@ impl<'a> CheckerState<'a> {
             .clone()
             .or_else(|| right_data.type_parameters.clone());
         let param_mapper = match (&left_data.type_parameters, &right_data.type_parameters) {
-            (Some(left_params), Some(right_params)) => Some(self.create_type_mapper(
-                right_params.clone(),
-                Some(left_params.clone()),
-            )),
+            (Some(left_params), Some(right_params)) => {
+                Some(self.create_type_mapper(right_params.clone(), Some(left_params.clone())))
+            }
             _ => None,
         };
         let mut flags = tsrs2_types::SignatureFlags::from_bits(
@@ -4017,7 +4025,9 @@ impl<'a> CheckerState<'a> {
             right_data.this_parameter,
             param_mapper,
         )?;
-        let min_arg_count = left_data.min_argument_count.max(right_data.min_argument_count);
+        let min_arg_count = left_data
+            .min_argument_count
+            .max(right_data.min_argument_count);
         let mut composite_signatures = match (
             left_data.composite_kind,
             left_data.composite_signatures.clone(),
@@ -4028,33 +4038,37 @@ impl<'a> CheckerState<'a> {
             _ => vec![left],
         };
         composite_signatures.push(right);
-        let mapper = if param_mapper.is_some() {
-            match (
-                left_data.composite_kind,
-                left_data.mapper,
-                &left_data.composite_signatures,
-            ) {
-                (Some(kind), Some(left_mapper), Some(_))
-                    if !kind.intersects(TypeFlags::INTERSECTION) =>
-                {
-                    Some(self.combine_type_mappers(Some(left_mapper), param_mapper.expect("checked")))
+        let mapper =
+            if param_mapper.is_some() {
+                match (
+                    left_data.composite_kind,
+                    left_data.mapper,
+                    &left_data.composite_signatures,
+                ) {
+                    (Some(kind), Some(left_mapper), Some(_))
+                        if !kind.intersects(TypeFlags::INTERSECTION) =>
+                    {
+                        Some(self.combine_type_mappers(
+                            Some(left_mapper),
+                            param_mapper.expect("checked"),
+                        ))
+                    }
+                    _ => param_mapper,
                 }
-                _ => param_mapper,
-            }
-        } else {
-            match (
-                left_data.composite_kind,
-                left_data.mapper,
-                &left_data.composite_signatures,
-            ) {
-                (Some(kind), Some(left_mapper), Some(_))
-                    if !kind.intersects(TypeFlags::INTERSECTION) =>
-                {
-                    Some(left_mapper)
+            } else {
+                match (
+                    left_data.composite_kind,
+                    left_data.mapper,
+                    &left_data.composite_signatures,
+                ) {
+                    (Some(kind), Some(left_mapper), Some(_))
+                        if !kind.intersects(TypeFlags::INTERSECTION) =>
+                    {
+                        Some(left_mapper)
+                    }
+                    _ => None,
                 }
-                _ => None,
-            }
-        };
+            };
         let result = crate::state::Signature {
             declaration: left_data.declaration,
             flags,
@@ -4078,7 +4092,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getUnionIndexInfos @6.0.3
     /// tsc-hash: 722b15b0268f26a28505f37b9d187c7d568785aa74d9cbf3adf015693e35fc9f
     /// tsc-span: _tsc.js:58210-58223
-    pub(crate) fn get_union_index_infos(&mut self, types: &[TypeId]) -> CheckResult2<Vec<IndexInfo>> {
+    pub(crate) fn get_union_index_infos(
+        &mut self,
+        types: &[TypeId],
+    ) -> CheckResult2<Vec<IndexInfo>> {
         let source_infos = self.get_index_infos_of_type(types[0])?;
         let mut result = Vec::new();
         'infos: for info in source_infos {
@@ -4123,7 +4140,10 @@ impl<'a> CheckerState<'a> {
     /// The globalFunctionType→[unknownSignature] substitution needs a
     /// declaration-less signature — escapes until Signature.declaration
     /// goes optional (5.3e/M6 surface).
-    pub(crate) fn resolve_union_type_members(&mut self, ty: TypeId) -> CheckResult2<crate::state::MembersId> {
+    pub(crate) fn resolve_union_type_members(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<crate::state::MembersId> {
         let TypeData::Union { types, .. } = self.tables.type_of(ty).data.clone() else {
             unreachable!("union flag implies union data");
         };
@@ -4147,8 +4167,11 @@ impl<'a> CheckerState<'a> {
             index_infos,
             ..crate::state::ResolvedMembers::default()
         });
-        self.links
-            .set_type_members(self.speculation_depth, ty, crate::links::LinkSlot::Resolved(id));
+        self.links.set_type_members(
+            self.speculation_depth,
+            ty,
+            crate::links::LinkSlot::Resolved(id),
+        );
         Ok(id)
     }
 
@@ -4216,8 +4239,11 @@ impl<'a> CheckerState<'a> {
             index_infos,
             ..crate::state::ResolvedMembers::default()
         });
-        self.links
-            .set_type_members(self.speculation_depth, ty, crate::links::LinkSlot::Resolved(id));
+        self.links.set_type_members(
+            self.speculation_depth,
+            ty,
+            crate::links::LinkSlot::Resolved(id),
+        );
         Ok(id)
     }
 
@@ -4550,7 +4576,9 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         key_type: TypeId,
     ) -> CheckResult2<Option<TypeId>> {
-        Ok(self.get_index_info_of_type(ty, key_type)?.map(|info| info.value_type))
+        Ok(self
+            .get_index_info_of_type(ty, key_type)?
+            .map(|info| info.value_type))
     }
 
     /// tsc-port: isEmptyLiteralType @6.0.3
@@ -4611,10 +4639,8 @@ impl<'a> CheckerState<'a> {
     pub fn get_parameter_count(&mut self, signature: SignatureId) -> CheckResult2<usize> {
         let length = self.signature_of(signature).parameters.len();
         if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
-            return Ok(
-                length + data.fixed_length
-                    - usize::from(!data.combined_flags.intersects(ElementFlags::VARIABLE)),
-            );
+            return Ok(length + data.fixed_length
+                - usize::from(!data.combined_flags.intersects(ElementFlags::VARIABLE)));
         }
         Ok(length)
     }
@@ -4637,13 +4663,11 @@ impl<'a> CheckerState<'a> {
                 .position(|flags| !flags.intersects(ElementFlags::REQUIRED));
             let required_count = first_optional_index.unwrap_or(data.fixed_length);
             if required_count > 0 {
-                computed =
-                    Some(self.signature_of(signature).parameters.len() - 1 + required_count);
+                computed = Some(self.signature_of(signature).parameters.len() - 1 + required_count);
             }
         }
         let signature_data = self.signature_of(signature);
-        let mut min_argument_count =
-            computed.unwrap_or(signature_data.min_argument_count as usize);
+        let mut min_argument_count = computed.unwrap_or(signature_data.min_argument_count as usize);
         let mut i = min_argument_count;
         while i > 0 {
             i -= 1;
@@ -4758,9 +4782,7 @@ impl<'a> CheckerState<'a> {
         let rest_type = self.get_rest_type_at_position(source, pos, /*readonly*/ false)?;
         let element = self.get_element_type_of_array_type(rest_type)?;
         Ok(match element {
-            Some(element)
-                if self.tables.flags_of(element).intersects(TypeFlags::ANY) =>
-            {
+            Some(element) if self.tables.flags_of(element).intersects(TypeFlags::ANY) => {
                 self.tables.intrinsics.any
             }
             _ => rest_type,
@@ -4854,7 +4876,11 @@ impl<'a> CheckerState<'a> {
             unreachable!("tuple type targets a tuple target");
         };
         if data.combined_flags.intersects(ElementFlags::VARIABLE) {
-            return Ok(Some(self.slice_tuple_type(rest_type, data.fixed_length, 0)?));
+            return Ok(Some(self.slice_tuple_type(
+                rest_type,
+                data.fixed_length,
+                0,
+            )?));
         }
         Ok(None)
     }

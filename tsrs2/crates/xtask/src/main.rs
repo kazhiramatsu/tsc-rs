@@ -673,13 +673,12 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                 //  - `__#N@` private-name ids embed tsc's program-global
                 //    getSymbolId counter (libs advance it) — the counter
                 //    digits are wildcarded, keeping the structure check.
-                let (oracle_lines, rust_lines) = if oracle_file.lines.len() == rust_file.lines.len()
-                    && !positions_only
-                {
-                    normalized_symbol_audit_lines(&oracle_file.lines, &rust_file.lines)
-                } else {
-                    (oracle_file.lines.clone(), rust_file.lines.clone())
-                };
+                let (oracle_lines, rust_lines) =
+                    if oracle_file.lines.len() == rust_file.lines.len() && !positions_only {
+                        normalized_symbol_audit_lines(&oracle_file.lines, &rust_file.lines)
+                    } else {
+                        (oracle_file.lines.clone(), rust_file.lines.clone())
+                    };
                 let oracle_dump = project(&oracle_lines);
                 let rust_dump = project(&rust_lines);
                 if !oracle_file.in_program || oracle_dump != rust_dump {
@@ -4921,8 +4920,7 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     }
 
     // Phase 2: bind gate.
-    let temp_root =
-        std::env::temp_dir().join(format!("tsrs2-lib-gate-{}", std::process::id()));
+    let temp_root = std::env::temp_dir().join(format!("tsrs2-lib-gate-{}", std::process::id()));
     if temp_root.exists() {
         fs::remove_dir_all(&temp_root)?;
     }
@@ -4951,8 +4949,7 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(&program), &out_dir)?;
         let oracle_files = symbol_oracle.symbol_dump(&paths[0])?;
         let rust_files = rust_symbol_dump(&program)?;
-        let (Some(oracle_file), Some(Some(rust_file))) =
-            (oracle_files.first(), rust_files.first())
+        let (Some(oracle_file), Some(Some(rust_file))) = (oracle_files.first(), rust_files.first())
         else {
             return Err(format!("lib-gate bind dump missing for {file_name}").into());
         };

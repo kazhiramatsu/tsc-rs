@@ -350,9 +350,9 @@ impl<'a> CheckerState<'a> {
         // Function fallback fires only when strictBindCallApply is off.
         let resolved = if strict_bind_call_apply {
             {
-            let symbol = self.init_probed_global_type_symbol("CallableFunction");
-            self.get_type_of_global_symbol(symbol, 0)?
-        }
+                let symbol = self.init_probed_global_type_symbol("CallableFunction");
+                self.get_type_of_global_symbol(symbol, 0)?
+            }
         } else {
             self.global_function_type()?
         };
@@ -370,9 +370,9 @@ impl<'a> CheckerState<'a> {
             .strict_option_value(self.options.strict_bind_call_apply);
         let resolved = if strict_bind_call_apply {
             {
-            let symbol = self.init_probed_global_type_symbol("NewableFunction");
-            self.get_type_of_global_symbol(symbol, 0)?
-        }
+                let symbol = self.init_probed_global_type_symbol("NewableFunction");
+                self.get_type_of_global_symbol(symbol, 0)?
+            }
         } else {
             self.global_function_type()?
         };
@@ -536,10 +536,8 @@ impl<'a> CheckerState<'a> {
         let iterable = self.get_global_iterable_type(true)?;
         let void_type = self.tables.intrinsics.void;
         let undefined = self.tables.intrinsics.undefined;
-        Ok(self.create_type_from_generic_global_type(
-            iterable,
-            &[iterated_type, void_type, undefined],
-        ))
+        Ok(self
+            .create_type_from_generic_global_type(iterable, &[iterated_type, void_type, undefined]))
     }
 
     /// initializeTypeChecker 88851: anyArrayType = createArrayType(any).

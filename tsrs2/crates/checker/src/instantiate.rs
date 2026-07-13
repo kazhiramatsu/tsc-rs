@@ -72,7 +72,10 @@ pub enum TypeMapper {
     /// tsc-port: makeUnaryTypeMapper @6.0.3
     /// tsc-hash: f16e43be81b2a0ab46054c6a62c222608c47514ebef557e8fdbe5fc2b022cb63
     /// tsc-span: _tsc.js:63359-63361
-    Simple { source: TypeId, target: TypeId },
+    Simple {
+        source: TypeId,
+        target: TypeId,
+    },
     /// tsc-port: makeArrayTypeMapper @6.0.3
     /// tsc-hash: e011653188a06047cc1bd6668dc7b584e0756d94eb7e8a572b0cc9fe88695602
     /// tsc-span: _tsc.js:63362-63364
@@ -87,8 +90,14 @@ pub enum TypeMapper {
     /// tsc-port: makeCompositeTypeMapper @6.0.3
     /// tsc-hash: c6357cfb91719fe9cb439c4d6b9743da0095e3f28e047b98a4e46654c02c3196
     /// tsc-span: _tsc.js:63371-63373
-    Composite { mapper1: MapperId, mapper2: MapperId },
-    Merged { mapper1: MapperId, mapper2: MapperId },
+    Composite {
+        mapper1: MapperId,
+        mapper2: MapperId,
+    },
+    Merged {
+        mapper1: MapperId,
+        mapper2: MapperId,
+    },
 }
 
 /// tsc intrinsicTypeKinds (46408-46414).
@@ -212,9 +221,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63327-63358
     pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult2<TypeId> {
         match self.mapper(mapper).clone() {
-            TypeMapper::Simple { source, target } => {
-                Ok(if ty == source { target } else { ty })
-            }
+            TypeMapper::Simple { source, target } => Ok(if ty == source { target } else { ty }),
             TypeMapper::Array { sources, targets } => {
                 for (i, &source) in sources.iter().enumerate() {
                     if ty == source {
@@ -282,11 +289,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: mergeTypeMappers @6.0.3
     /// tsc-hash: a0a8887e865c76ba68e96a6afc6cf0e7936b3269cf9844f78846d137571acb16
     /// tsc-span: _tsc.js:63391-63393
-    pub fn merge_type_mappers(
-        &mut self,
-        mapper1: Option<MapperId>,
-        mapper2: MapperId,
-    ) -> MapperId {
+    pub fn merge_type_mappers(&mut self, mapper1: Option<MapperId>, mapper2: MapperId) -> MapperId {
         match mapper1 {
             Some(mapper1) => self.make_composite_type_mapper(true, mapper1, mapper2),
             None => mapper2,
@@ -367,8 +370,11 @@ impl<'a> CheckerState<'a> {
         );
         self.tables.type_mut(restrictive).symbol = symbol;
         let no_constraint = self.no_constraint_type;
-        self.links
-            .set_type_parameter_constraint(self.speculation_depth, restrictive, no_constraint);
+        self.links.set_type_parameter_constraint(
+            self.speculation_depth,
+            restrictive,
+            no_constraint,
+        );
         self.links
             .set_type_restrictive_instantiation(self.speculation_depth, tp, restrictive);
         restrictive
@@ -576,7 +582,11 @@ impl<'a> CheckerState<'a> {
         } else {
             ty
         };
-        let type_parameters = match self.links.node(declaration).outer_type_parameters.resolved()
+        let type_parameters = match self
+            .links
+            .node(declaration)
+            .outer_type_parameters
+            .resolved()
         {
             Some(cached) => cached.to_vec(),
             None => {
@@ -588,11 +598,10 @@ impl<'a> CheckerState<'a> {
                 // Method || ... & TypeLiteral` — the symbol read is
                 // short-circuited away for references (tuple-target
                 // deferred references have no symbol).
-                let filter_applies = (self
-                    .tables
-                    .object_flags_of(target)
-                    .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
-                    || {
+                let filter_applies =
+                    (self.tables.object_flags_of(target).intersects(
+                        ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE,
+                    ) || {
                         let target_symbol = self
                             .tables
                             .type_of(target)
@@ -603,8 +612,7 @@ impl<'a> CheckerState<'a> {
                             || self
                                 .symbol_flags(target_symbol)
                                 .intersects(SymbolFlags::TYPE_LITERAL)
-                    })
-                    && self.tables.type_of(target).alias_type_arguments.is_none();
+                    }) && self.tables.type_of(target).alias_type_arguments.is_none();
                 let all_declarations: Vec<NodeId> = if object_flags
                     .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
                 {
@@ -772,9 +780,7 @@ impl<'a> CheckerState<'a> {
             return true;
         };
         match self.data_of(parent) {
-            NodeData::TypeReference(data)
-                if self.kind_of(parent) == SyntaxKind::TypeReference =>
-            {
+            NodeData::TypeReference(data) if self.kind_of(parent) == SyntaxKind::TypeReference => {
                 !(data.type_arguments.is_some() && data.type_name == Some(node))
             }
             NodeData::ImportType(data) if self.kind_of(parent) == SyntaxKind::ImportType => {
@@ -883,8 +889,9 @@ impl<'a> CheckerState<'a> {
                 if !self.is_this_identifier(first_identifier) {
                     let first_identifier_symbol = self.get_resolved_symbol(first_identifier);
                     let tp_symbol = self.tables.type_of(tp).symbol;
-                    let tp_declaration = tp_symbol
-                        .and_then(|symbol| self.binder.symbol(symbol).declarations.first().copied());
+                    let tp_declaration = tp_symbol.and_then(|symbol| {
+                        self.binder.symbol(symbol).declarations.first().copied()
+                    });
                     let tp_is_this = matches!(
                         self.tables.type_of(tp).data,
                         TypeData::TypeParameter {
@@ -923,9 +930,12 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
                 let (r#type, body, type_parameters, parameters) = match self.data_of(node) {
-                    NodeData::MethodDeclaration(data) => {
-                        (data.r#type, data.body, data.type_parameters, data.parameters)
-                    }
+                    NodeData::MethodDeclaration(data) => (
+                        data.r#type,
+                        data.body,
+                        data.type_parameters,
+                        data.parameters,
+                    ),
                     NodeData::MethodSignature(data) => {
                         (data.r#type, None, data.type_parameters, data.parameters)
                     }
@@ -1128,9 +1138,7 @@ impl<'a> CheckerState<'a> {
                     };
                 }
                 if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
-                    return Err(Unsupported::new(
-                        "reverse-mapped type instantiation (M8)",
-                    ));
+                    return Err(Unsupported::new("reverse-mapped type instantiation (M8)"));
                 }
                 return self.get_object_type_instantiation(
                     ty,
@@ -1166,9 +1174,7 @@ impl<'a> CheckerState<'a> {
                 },
             };
             let new_types = self.instantiate_types(&source_types, mapper)?;
-            if new_types == source_types
-                && alias_symbol == self.tables.type_of(ty).alias_symbol
-            {
+            if new_types == source_types && alias_symbol == self.tables.type_of(ty).alias_symbol {
                 return Ok(ty);
             }
             let new_alias_symbol = alias_symbol.or(self.tables.type_of(ty).alias_symbol);
@@ -1266,9 +1272,7 @@ impl<'a> CheckerState<'a> {
             ));
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
-            return Err(Unsupported::new(
-                "substitution-type instantiation (M8)",
-            ));
+            return Err(Unsupported::new("substitution-type instantiation (M8)"));
         }
         Ok(ty)
     }
@@ -1313,9 +1317,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b215e803aced2e65175ffa5a5f69c5bc14075e5898b9e01e29edf4d45182474b
     /// tsc-span: _tsc.js:63815-63817
     pub fn get_permissive_instantiation(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
-        if self.tables.flags_of(ty).intersects(
-            TypeFlags::PRIMITIVE | TypeFlags::ANY_OR_UNKNOWN | TypeFlags::NEVER,
-        ) {
+        if self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::PRIMITIVE | TypeFlags::ANY_OR_UNKNOWN | TypeFlags::NEVER)
+        {
             return Ok(ty);
         }
         if let Some(cached) = self.links.ty(ty).permissive_instantiation.resolved() {
@@ -1332,9 +1338,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d450bbffe7bd10c6ad0d93eb8bacb16be8a7b92303aee9a7565e3ff43c328716
     /// tsc-span: _tsc.js:63818-63828
     pub fn get_restrictive_instantiation(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
-        if self.tables.flags_of(ty).intersects(
-            TypeFlags::PRIMITIVE | TypeFlags::ANY_OR_UNKNOWN | TypeFlags::NEVER,
-        ) {
+        if self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::PRIMITIVE | TypeFlags::ANY_OR_UNKNOWN | TypeFlags::NEVER)
+        {
             return Ok(ty);
         }
         if let Some(cached) = self.links.ty(ty).restrictive_instantiation.resolved() {
@@ -1459,9 +1467,7 @@ impl<'a> CheckerState<'a> {
                 .declarations
                 .iter()
                 .copied()
-                .find(|&declaration| {
-                    self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration
-                });
+                .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
             // findAncestor(declaration.parent, SourceFile → true,
             // ModuleDeclaration → false, else "quit"): only a DIRECT
             // source-file parent answers true.
@@ -1655,7 +1661,6 @@ impl<'a> CheckerState<'a> {
         result
     }
 
-
     // ---- signature instantiation ----
 
     /// tsc-port: getSignatureInstantiation @6.0.3
@@ -1673,19 +1678,17 @@ impl<'a> CheckerState<'a> {
         inferred_type_parameters: Option<&[TypeId]>,
     ) -> CheckResult2<SignatureId> {
         let type_parameters = self.signature_of(signature).type_parameters.clone();
-        let min_type_argument_count =
-            self.get_min_type_argument_count(type_parameters.as_deref());
+        let min_type_argument_count = self.get_min_type_argument_count(type_parameters.as_deref());
         let filled = self.fill_missing_type_arguments(
             type_arguments,
             type_parameters.as_deref(),
             min_type_argument_count,
             is_javascript,
         )?;
-        let instantiated = self
-            .get_signature_instantiation_without_filling_in_type_arguments(
-                signature,
-                filled.as_deref(),
-            )?;
+        let instantiated = self.get_signature_instantiation_without_filling_in_type_arguments(
+            signature,
+            filled.as_deref(),
+        )?;
         if inferred_type_parameters.is_some() {
             return Err(Unsupported::new(
                 "instantiation-expression signatures (inferredTypeParameters, M6)",
@@ -1702,9 +1705,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         type_arguments: Option<&[TypeId]>,
     ) -> CheckResult2<SignatureId> {
-        let key = self
-            .tables
-            .get_type_list_id(type_arguments.unwrap_or(&[]));
+        let key = self.tables.get_type_list_id(type_arguments.unwrap_or(&[]));
         if let Some(&existing) = self.signature_of(signature).instantiations.get(&key) {
             return Ok(existing);
         }
@@ -1845,8 +1846,7 @@ impl<'a> CheckerState<'a> {
             let type_parameters = type_parameters.expect("non-zero length implies a list");
             let mut result: Vec<TypeId> = type_arguments.map(<[_]>::to_vec).unwrap_or_default();
             result.resize(num_type_parameters, self.tables.intrinsics.error);
-            let base_default_type =
-                self.get_default_type_argument_type(is_javascript_implicit_any);
+            let base_default_type = self.get_default_type_argument_type(is_javascript_implicit_any);
             for i in num_type_arguments..num_type_parameters {
                 let mut default_type = self.get_default_from_type_parameter(type_parameters[i])?;
                 if is_javascript_implicit_any {
@@ -1868,8 +1868,8 @@ impl<'a> CheckerState<'a> {
                 }
                 result[i] = match default_type {
                     Some(default) => {
-                        let mapper = self
-                            .create_type_mapper(type_parameters.to_vec(), Some(result.clone()));
+                        let mapper =
+                            self.create_type_mapper(type_parameters.to_vec(), Some(result.clone()));
                         self.instantiate_type(default, Some(mapper))?
                     }
                     None => base_default_type,
@@ -1901,7 +1901,10 @@ impl<'a> CheckerState<'a> {
     /// links slot (permanently, like tsc), the outer frame keeps a
     /// re-entry stamp over its own result, and an Err unwind leaves the
     /// slot Vacant (re-queryable).
-    pub(crate) fn get_resolved_type_parameter_default(&mut self, tp: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_resolved_type_parameter_default(
+        &mut self,
+        tp: TypeId,
+    ) -> CheckResult2<TypeId> {
         if let Some(resolved) = self.links.ty(tp).type_parameter_default.resolved() {
             return Ok(resolved);
         }
@@ -2061,7 +2064,9 @@ impl<'a> CheckerState<'a> {
             };
             let (new_texts, new_types) =
                 self.apply_template_string_mapping(symbol, texts, types)?;
-            return Ok(self.tables.get_template_literal_type(&new_texts, &new_types));
+            return Ok(self
+                .tables
+                .get_template_literal_type(&new_texts, &new_types));
         }
         // Mapping<Mapping<T>> === Mapping<T>
         if flags.intersects(TypeFlags::STRING_MAPPING)
@@ -2072,7 +2077,9 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::ANY | TypeFlags::STRING | TypeFlags::STRING_MAPPING)
             || self.tables.is_generic_index_type(ty)
         {
-            return Ok(self.tables.get_string_mapping_type_for_generic_type(symbol, ty));
+            return Ok(self
+                .tables
+                .get_string_mapping_type_for_generic_type(symbol, ty));
         }
         // Mapping<`${number}`> / Mapping<`${bigint}`>
         if self.tables.is_pattern_literal_placeholder_type(ty) {
@@ -2188,8 +2195,7 @@ impl<'a> CheckerState<'a> {
             for symbol in mapping_stack {
                 mapped_source = self.get_string_mapping_type(symbol, mapped_source)?;
             }
-            return Ok(mapped_source == source
-                && self.is_member_of_string_mapping(source, inner)?);
+            return Ok(mapped_source == source && self.is_member_of_string_mapping(source, inner)?);
         }
         Ok(false)
     }
@@ -2276,9 +2282,7 @@ impl<'a> CheckerState<'a> {
                             NodeData::QualifiedName(data) if data.right == Some(node) => {
                                 node = parent;
                             }
-                            NodeData::PropertyAccessExpression(data)
-                                if data.name == Some(node) =>
-                            {
+                            NodeData::PropertyAccessExpression(data) if data.name == Some(node) => {
                                 node = parent;
                             }
                             _ => {}
@@ -2389,7 +2393,6 @@ impl<'a> CheckerState<'a> {
             .trim_start()
             .starts_with("typeof")
     }
-
 }
 
 /// tsc-port: applyStringMapping @6.0.3
@@ -2604,9 +2607,7 @@ mod tests {
                 let literal_node = source
                     .arena
                     .node_ids()
-                    .find(|&id| {
-                        source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::TypeLiteral
-                    })
+                    .find(|&id| source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::TypeLiteral)
                     .expect("type literal");
                 let anonymous = state
                     .get_type_from_type_node(literal_node)
@@ -2813,10 +2814,7 @@ mod tests {
     #[test]
     fn permissive_and_restrictive_instantiations() {
         with_program_state(
-            &[(
-                "a.ts",
-                "function f<T extends string, U>() { var v: T; }\n",
-            )],
+            &[("a.ts", "function f<T extends string, U>() { var v: T; }\n")],
             &CompilerOptions::default(),
             |state| {
                 let t = declared_type_parameter(state, "T");
@@ -2869,7 +2867,10 @@ mod tests {
                 let cloned_signature = state
                     .instantiate_signature(generic, identity, /*erase*/ false)
                     .expect("instantiation in slice");
-                let fresh = state.signature_of(cloned_signature).type_parameters.clone()
+                let fresh = state
+                    .signature_of(cloned_signature)
+                    .type_parameters
+                    .clone()
                     .expect("fresh type parameters")[0];
                 assert_ne!(fresh, t);
                 assert_eq!(state.links.ty(fresh).type_parameter_target, Some(t));
@@ -2898,9 +2899,7 @@ mod class_container_tests {
                 let literal_node = source
                     .arena
                     .node_ids()
-                    .find(|&id| {
-                        source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::TypeLiteral
-                    })
+                    .find(|&id| source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::TypeLiteral)
                     .expect("type literal");
                 let anonymous = state
                     .get_type_from_type_node(literal_node)

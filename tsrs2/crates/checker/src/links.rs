@@ -349,7 +349,10 @@ impl LinksTables {
         value: LinkSlot<TypeId>,
     ) {
         Self::assert_writable(speculation_depth);
-        Self::write_slot(&mut self.node.entry(id).or_default().context_free_type, value);
+        Self::write_slot(
+            &mut self.node.entry(id).or_default().context_free_type,
+            value,
+        );
     }
 
     /// `links.spreadIndices ??= getSpreadIndices(...)` (73520) — a
@@ -948,7 +951,11 @@ impl LinksTables {
     ) {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
-            &mut self.ty.entry(id).or_default().resolved_base_constructor_type,
+            &mut self
+                .ty
+                .entry(id)
+                .or_default()
+                .resolved_base_constructor_type,
             LinkSlot::Resolved(value),
         );
     }
@@ -1014,7 +1021,12 @@ impl LinksTables {
     }
 
     /// cloneTypeParameter/getRestrictiveTypeParameter target stamp.
-    pub fn set_type_parameter_target(&mut self, speculation_depth: u32, id: TypeId, target: TypeId) {
+    pub fn set_type_parameter_target(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        target: TypeId,
+    ) {
         Self::assert_writable(speculation_depth);
         let links = self.ty.entry(id).or_default();
         assert!(
@@ -1038,7 +1050,12 @@ impl LinksTables {
     }
 
     /// instantiateSignature's fresh-parameter mapper stamp (63418).
-    pub fn set_type_parameter_mapper(&mut self, speculation_depth: u32, id: TypeId, mapper: MapperId) {
+    pub fn set_type_parameter_mapper(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        mapper: MapperId,
+    ) {
         Self::assert_writable(speculation_depth);
         let links = self.ty.entry(id).or_default();
         assert!(
@@ -1065,7 +1082,12 @@ impl LinksTables {
         links.type_parameters = Some(type_parameters);
     }
 
-    pub fn set_type_resolved_index_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
+    pub fn set_type_resolved_index_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.entry(id).or_default().resolved_index_type,

@@ -301,10 +301,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The exactOptionalPropertyTypes arm inlines tsc removeType
     /// (filterType with a `t !== missingType` predicate, 69993).
-    pub(crate) fn remove_missing_or_undefined_type(
-        &mut self,
-        ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    pub(crate) fn remove_missing_or_undefined_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         if self.options.exact_optional_property_types == Some(true) {
             let missing = self.tables.intrinsics.missing;
             return Ok(self.tables.filter_type(ty, |_, t| t != missing));
@@ -328,8 +325,7 @@ impl<'a> CheckerState<'a> {
         let strict_null_checks = self
             .options
             .strict_option_value(self.options.strict_null_checks);
-        let input = if strict_null_checks
-            && self.tables.flags_of(ty).intersects(TypeFlags::UNKNOWN)
+        let input = if strict_null_checks && self.tables.flags_of(ty).intersects(TypeFlags::UNKNOWN)
         {
             self.unknown_union_type
         } else {
@@ -364,7 +360,9 @@ impl<'a> CheckerState<'a> {
                         reduced,
                         &mut |state, t| {
                             if state.has_type_facts(t, TypeFacts::EQ_UNDEFINED_OR_NULL)? {
-                                state.get_global_non_nullable_type_instantiation(t).map(Some)
+                                state
+                                    .get_global_non_nullable_type_instantiation(t)
+                                    .map(Some)
                             } else {
                                 Ok(Some(t))
                             }
@@ -458,10 +456,7 @@ impl<'a> CheckerState<'a> {
     /// with NO diagnostic — no suggestion-budget interaction); the
     /// noLib fallback is `T & {}`. The miss memoizes as tsc's
     /// unknownSymbol sentinel.
-    fn get_global_non_nullable_type_instantiation(
-        &mut self,
-        ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    fn get_global_non_nullable_type_instantiation(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         if self.deferred_global_non_nullable_type_alias.is_none() {
             let symbol = self.get_global_symbol("NonNullable", SymbolFlags::TYPE_ALIAS, None);
             self.deferred_global_non_nullable_type_alias = Some(symbol);

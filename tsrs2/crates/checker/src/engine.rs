@@ -523,10 +523,11 @@ impl<'a> CheckerState<'a> {
                 /*need_apparent_type*/ false,
             )?;
         }
-        let with_exists = self.tables.object_flags_of(ty).bits()
-            | ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS.bits();
+        let with_exists =
+            self.tables.object_flags_of(ty).bits() | ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS.bits();
         self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_exists);
-        self.links.ty_mut_cached_equivalent_base_type(ty, instantiated_base);
+        self.links
+            .ty_mut_cached_equivalent_base_type(ty, instantiated_base);
         Ok(Some(instantiated_base))
     }
 
@@ -1594,16 +1595,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         // 65803-65810: wrap the active handler with a propagating
         // accumulator — only when a handler exists, like tsc's
         // `if (outofbandVarianceMarkerHandler)` gate.
-        let pushed_handler = if !self.st.variance_handler_stack.is_empty() {
-            self.st
-                .variance_handler_stack
-                .push(crate::state::VarianceHandlerFrame::Propagating(
-                    RelationComparisonResult::NONE,
-                ));
-            true
-        } else {
-            false
-        };
+        let pushed_handler =
+            if !self.st.variance_handler_stack.is_empty() {
+                self.st.variance_handler_stack.push(
+                    crate::state::VarianceHandlerFrame::Propagating(RelationComparisonResult::NONE),
+                );
+                true
+            } else {
+                false
+            };
         let outcome = if self.expanding_flags == ExpandingFlags::BOTH {
             Ok(Ternary::MAYBE)
         } else {
@@ -2412,8 +2412,7 @@ impl<'a> CheckerState<'a> {
                 .flags_of(current)
                 .intersects(TypeFlags::INDEXED_ACCESS)
             {
-                let TypeData::IndexedAccess { object_type, .. } =
-                    self.tables.type_of(current).data
+                let TypeData::IndexedAccess { object_type, .. } = self.tables.type_of(current).data
                 else {
                     unreachable!("indexed-access flag implies indexed-access data");
                 };

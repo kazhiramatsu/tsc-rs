@@ -21,10 +21,10 @@ use tsrs2_types::{
 };
 
 use crate::links::LinkSlot;
-use tsrs2_diags::DiagnosticMessage;
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 use crate::structural::SignatureKind;
 use tsrs2_diags::gen as diagnostics;
+use tsrs2_diags::DiagnosticMessage;
 
 pub(crate) const FUNCTION_FLAGS_GENERATOR: u32 = 1;
 pub(crate) const FUNCTION_FLAGS_ASYNC: u32 = 2;
@@ -59,8 +59,7 @@ impl<'a> CheckerState<'a> {
                     let contextual_return =
                         self.get_return_type_of_signature(contextual_signature)?;
                     if self.could_contain_type_variables(contextual_return) {
-                        if let Some(cached) = self.links.node(node).context_free_type.resolved()
-                        {
+                        if let Some(cached) = self.links.node(node).context_free_type.resolved() {
                             return Ok(cached);
                         }
                         let return_type = self.get_return_type_from_body(node, check_mode)?;
@@ -300,8 +299,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<()> {
         if self.signature_of(context).type_parameters.is_some() {
             if self.signature_of(signature).type_parameters.is_none() {
-                let context_type_parameters =
-                    self.signature_of(context).type_parameters.clone();
+                let context_type_parameters = self.signature_of(context).type_parameters.clone();
                 self.signatures[signature.0 as usize].type_parameters = context_type_parameters;
             } else {
                 return Ok(());
@@ -311,14 +309,10 @@ impl<'a> CheckerState<'a> {
             let parameter = self.signature_of(signature).this_parameter;
             let needs_assignment = match parameter {
                 None => true,
-                Some(parameter) => {
-                    match self.binder.symbol(parameter).value_declaration {
-                        Some(declaration) => {
-                            self.effective_type_annotation_node(declaration).is_none()
-                        }
-                        None => false,
-                    }
-                }
+                Some(parameter) => match self.binder.symbol(parameter).value_declaration {
+                    Some(declaration) => self.effective_type_annotation_node(declaration).is_none(),
+                    None => false,
+                },
             };
             if needs_assignment {
                 if parameter.is_none() {
@@ -354,11 +348,10 @@ impl<'a> CheckerState<'a> {
                             None,
                         )?;
                         if !self.is_type_assignable_to(initializer_type, current)? {
-                            let widened =
-                                self.widen_type_inferred_from_initializer(
-                                    declaration,
-                                    initializer_type,
-                                )?;
+                            let widened = self.widen_type_inferred_from_initializer(
+                                declaration,
+                                initializer_type,
+                            )?;
                             if self.is_type_assignable_to(current, widened)? {
                                 ty = Some(widened);
                             }
@@ -375,15 +368,14 @@ impl<'a> CheckerState<'a> {
                 .last()
                 .expect("rest flag implies a parameter");
             let needs_assignment = match self.binder.symbol(parameter).value_declaration {
-                Some(declaration) => {
-                    self.effective_type_annotation_node(declaration).is_none()
-                }
+                Some(declaration) => self.effective_type_annotation_node(declaration).is_none(),
                 None => self
                     .get_check_flags(parameter)
                     .intersects(tsrs2_types::CheckFlags::DEFERRED_TYPE),
             };
             if needs_assignment {
-                let contextual_parameter_type = self.get_rest_type_at_position(context, len, false)?;
+                let contextual_parameter_type =
+                    self.get_rest_type_at_position(context, len, false)?;
                 self.assign_parameter_type(parameter, Some(contextual_parameter_type))?;
             }
         }
@@ -448,11 +440,8 @@ impl<'a> CheckerState<'a> {
                 )
         });
         let mut ty = self.tables.add_optionality(base, false, is_optional);
-        self.links.set_symbol_type(
-            self.speculation_depth,
-            parameter,
-            LinkSlot::Resolved(ty),
-        );
+        self.links
+            .set_symbol_type(self.speculation_depth, parameter, LinkSlot::Resolved(ty));
         if let Some(declaration) = declaration {
             let name = match self.data_of(declaration) {
                 NodeData::Parameter(data) => data.name,
@@ -505,11 +494,8 @@ impl<'a> CheckerState<'a> {
             let Some(name) = name else { continue };
             if self.kind_of(name) == SyntaxKind::Identifier {
                 let symbol = self.get_symbol_of_declaration(element)?;
-                self.links.set_symbol_type(
-                    self.speculation_depth,
-                    symbol,
-                    LinkSlot::Resolved(ty),
-                );
+                self.links
+                    .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(ty));
             } else {
                 self.assign_binding_element_types(name, ty)?;
             }
@@ -557,9 +543,8 @@ impl<'a> CheckerState<'a> {
         let mut return_type: Option<TypeId>;
         let fallback_return_type = self.tables.intrinsics.void;
         if self.kind_of(body) != SyntaxKind::Block {
-            let inner_mode = CheckMode::from_bits(
-                check_mode.bits() & !CheckMode::SKIP_GENERIC_FUNCTIONS.bits(),
-            );
+            let inner_mode =
+                CheckMode::from_bits(check_mode.bits() & !CheckMode::SKIP_GENERIC_FUNCTIONS.bits());
             let mut ty = self.check_expression_cached(body, inner_mode)?;
             if self.is_const_context(body)? {
                 ty = self.tables.get_regular_type_of_literal_type(ty);
@@ -593,8 +578,7 @@ impl<'a> CheckerState<'a> {
                     self.get_contextual_return_type(func, tsrs2_types::ContextFlags::NONE)?;
                 let undefined_preferred = match contextual_return_type {
                     Some(contextual) => {
-                        let unwrapped = self
-                            .unwrap_return_type(contextual, function_flags)?;
+                        let unwrapped = self.unwrap_return_type(contextual, function_flags)?;
                         self.some_type(unwrapped, |state, t| {
                             state.tables.flags_of(t).intersects(TypeFlags::UNDEFINED)
                         })
@@ -638,18 +622,16 @@ impl<'a> CheckerState<'a> {
                         } else {
                             let signature_return =
                                 self.get_return_type_of_signature(contextual_signature)?;
-                            self.instantiate_contextual_type(
-                                Some(signature_return),
-                                func,
-                            )?
+                            self.instantiate_contextual_type(Some(signature_return), func)?
                         }
                     }
                 };
-                return_type = self.get_widened_literal_like_type_for_contextual_return_type_if_needed(
-                    Some(current),
-                    contextual_type,
-                    is_async,
-                )?;
+                return_type = self
+                    .get_widened_literal_like_type_for_contextual_return_type_if_needed(
+                        Some(current),
+                        contextual_type,
+                        is_async,
+                    )?;
             }
             // Final getWidenedType (78827-78829).
             if let Some(current) = return_type {
@@ -709,7 +691,10 @@ impl<'a> CheckerState<'a> {
             {
                 if let NodeData::AwaitExpression(data) = self.data_of(expr) {
                     if let Some(operand) = data.expression {
-                        expr = node_util::skip_parentheses_pub(self.binder.source_of_node(operand), operand);
+                        expr = node_util::skip_parentheses_pub(
+                            self.binder.source_of_node(operand),
+                            operand,
+                        );
                     }
                 }
             }
@@ -720,9 +705,8 @@ impl<'a> CheckerState<'a> {
                 has_return_of_type_never = true;
                 continue;
             }
-            let inner_mode = CheckMode::from_bits(
-                check_mode.bits() & !CheckMode::SKIP_GENERIC_FUNCTIONS.bits(),
-            );
+            let inner_mode =
+                CheckMode::from_bits(check_mode.bits() & !CheckMode::SKIP_GENERIC_FUNCTIONS.bits());
             let mut ty = self.check_expression_cached(expr, inner_mode)?;
             if function_flags & FUNCTION_FLAGS_ASYNC != 0 {
                 let checked = self.check_awaited_type(
@@ -809,14 +793,10 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::CatchClause => {
                     let source = self.binder.source_of_node(node);
                     let mut children = Vec::new();
-                    tsrs2_syntax::for_each_child(
-                        &source.arena,
-                        source.arena.node(node),
-                        |child| {
-                            children.push(child);
-                            false
-                        },
-                    );
+                    tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+                        children.push(child);
+                        false
+                    });
                     // LIFO worklist: reversed push keeps source order.
                     for &child in children.iter().rev() {
                         worklist.push(child);
@@ -832,11 +812,7 @@ impl<'a> CheckerState<'a> {
     /// over a plain identifier callee whose cached type's symbol is
     /// the function's own merged symbol, unless the function is a
     /// fn-expression/arrow whose reference is non-constant.
-    fn is_self_recursive_call_return(
-        &mut self,
-        expr: NodeId,
-        func: NodeId,
-    ) -> CheckResult2<bool> {
+    fn is_self_recursive_call_return(&mut self, expr: NodeId, func: NodeId) -> CheckResult2<bool> {
         if self.kind_of(expr) != SyntaxKind::CallExpression {
             return Ok(false);
         }
@@ -861,9 +837,8 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let value_declaration = self.binder.symbol(func_symbol).value_declaration;
-        let is_fn_expression = value_declaration.is_some_and(|declaration| {
-            self.is_function_expression_or_arrow_function(declaration)
-        });
+        let is_fn_expression = value_declaration
+            .is_some_and(|declaration| self.is_function_expression_or_arrow_function(declaration));
         if !is_fn_expression {
             return Ok(true);
         }
@@ -946,7 +921,9 @@ impl<'a> CheckerState<'a> {
         let awaited = self
             .get_awaited_type_no_alias(unwrapped, None)?
             .unwrap_or(self.tables.intrinsics.unknown);
-        Ok(self.tables.create_type_reference(global_promise, &[awaited]))
+        Ok(self
+            .tables
+            .create_type_reference(global_promise, &[awaited]))
     }
 
     /// tsc-port: createPromiseReturnType @6.0.3
@@ -975,7 +952,10 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(self.tables.intrinsics.error);
         }
-        if self.get_global_promise_constructor_symbol(/*report_errors*/ true)?.is_none() {
+        if self
+            .get_global_promise_constructor_symbol(/*report_errors*/ true)?
+            .is_none()
+        {
             let is_import_call = self.is_import_call(func);
             self.error_at(
                 Some(func),
@@ -1031,7 +1011,8 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<()> {
         let function_flags = self.get_function_flags(container);
         if let Some(expr) = expr {
-            let unwrapped_expr = node_util::skip_parentheses_pub(self.binder.source_of_node(expr), expr);
+            let unwrapped_expr =
+                node_util::skip_parentheses_pub(self.binder.source_of_node(expr), expr);
             if self.kind_of(unwrapped_expr) == SyntaxKind::ConditionalExpression {
                 let (when_true, when_false) = match self.data_of(unwrapped_expr) {
                     NodeData::ConditionalExpression(data) => (data.when_true, data.when_false),
@@ -1104,8 +1085,8 @@ impl<'a> CheckerState<'a> {
             NodeData::AwaitExpression(data) => data.expression,
             _ => None,
         };
-        let expression = expression
-            .ok_or_else(|| Unsupported::new("await without operand (parse recovery)"))?;
+        let expression =
+            expression.ok_or_else(|| Unsupported::new("await without operand (parse recovery)"))?;
         let operand_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let awaited_type = self.check_awaited_type(
             operand_type,
@@ -1147,9 +1128,9 @@ impl<'a> CheckerState<'a> {
                 }
             }
         };
-        if container
-            .is_some_and(|container| self.kind_of(container) == SyntaxKind::ClassStaticBlockDeclaration)
-        {
+        if container.is_some_and(|container| {
+            self.kind_of(container) == SyntaxKind::ClassStaticBlockDeclaration
+        }) {
             self.error_at(
                 Some(node),
                 &diagnostics::await_expression_cannot_be_used_inside_a_class_static_block,
@@ -1387,7 +1368,8 @@ impl<'a> CheckerState<'a> {
                         &[],
                     ));
                 }
-                if !NodeFlags::from_bits(self.node_flags(parameter)).intersects(NodeFlags::AMBIENT) {
+                if !NodeFlags::from_bits(self.node_flags(parameter)).intersects(NodeFlags::AMBIENT)
+                {
                     let array = self.parameter_array_of_function(node);
                     if let Some(array) = array {
                         self.check_grammar_for_disallowed_trailing_comma(
@@ -1497,8 +1479,7 @@ impl<'a> CheckerState<'a> {
                         || data.name.is_some_and(|name| {
                             matches!(
                                 self.kind_of(name),
-                                SyntaxKind::ObjectBindingPattern
-                                    | SyntaxKind::ArrayBindingPattern
+                                SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
                             )
                         })
                 }
@@ -1642,17 +1623,15 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::Parameter => true,
             SyntaxKind::VariableDeclaration => {
                 let parent = self.parent_of(root);
-                let is_catch = parent
-                    .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause);
+                let is_catch =
+                    parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause);
                 if is_catch {
                     return true;
                 }
                 // isMutableLocalVariableDeclaration: `let` list, not
                 // exported, and not a global-file top-level statement.
                 const LET: i32 = 1;
-                let let_list = parent.is_some_and(|parent| {
-                    self.node_flags(parent) & LET != 0
-                });
+                let let_list = parent.is_some_and(|parent| self.node_flags(parent) & LET != 0);
                 if !let_list {
                     return false;
                 }
@@ -1696,11 +1675,15 @@ impl<'a> CheckerState<'a> {
         loop {
             match self.data_of(node) {
                 NodeData::ParenthesizedExpression(data) => {
-                    let Some(expression) = data.expression else { return node };
+                    let Some(expression) = data.expression else {
+                        return node;
+                    };
                     node = expression;
                 }
                 NodeData::SatisfiesExpression(data) => {
-                    let Some(expression) = data.expression else { return node };
+                    let Some(expression) = data.expression else {
+                        return node;
+                    };
                     node = expression;
                 }
                 _ => return node,
@@ -1755,7 +1738,11 @@ impl<'a> CheckerState<'a> {
         for info in related {
             diagnostic.related.push(info);
         }
-        if !self.diagnostics.iter().any(|existing| *existing == diagnostic) {
+        if !self
+            .diagnostics
+            .iter()
+            .any(|existing| *existing == diagnostic)
+        {
             self.diagnostics.push(diagnostic);
         }
     }
@@ -1852,9 +1839,9 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(parent_type).intersects(TypeFlags::ANY) {
             return Ok(parent_type);
         }
-        let pattern = self
-            .parent_of(declaration)
-            .ok_or_else(|| Unsupported::new("binding element without a pattern (parse recovery)"))?;
+        let pattern = self.parent_of(declaration).ok_or_else(|| {
+            Unsupported::new("binding element without a pattern (parse recovery)")
+        })?;
         let strict_null_checks = self
             .options
             .strict_option_value(self.options.strict_null_checks);
@@ -1873,19 +1860,24 @@ impl<'a> CheckerState<'a> {
             if let Some(initializer) = grandparent_initializer {
                 let initializer_type = self.get_type_of_initializer(initializer)?;
                 if !self.has_type_facts(initializer_type, tsrs2_types::TypeFacts::EQ_UNDEFINED)? {
-                    parent_type =
-                        self.get_type_with_facts(parent_type, tsrs2_types::TypeFacts::NE_UNDEFINED)?;
+                    parent_type = self
+                        .get_type_with_facts(parent_type, tsrs2_types::TypeFacts::NE_UNDEFINED)?;
                 }
             }
         }
         let ty;
         if self.kind_of(pattern) == SyntaxKind::ObjectBindingPattern {
             let NodeData::BindingElement(data) = self.data_of(declaration).clone() else {
-                return Err(Unsupported::new("malformed binding element (parse recovery)"));
+                return Err(Unsupported::new(
+                    "malformed binding element (parse recovery)",
+                ));
             };
             if data.dot_dot_dot_token.is_some() {
                 parent_type = self.get_reduced_type(parent_type)?;
-                if self.tables.flags_of(parent_type).intersects(TypeFlags::UNKNOWN)
+                if self
+                    .tables
+                    .flags_of(parent_type)
+                    .intersects(TypeFlags::UNKNOWN)
                     || !self.is_valid_spread_type(parent_type)?
                 {
                     self.error_at(
@@ -1962,10 +1954,8 @@ impl<'a> CheckerState<'a> {
         let non_undefined = self.get_non_undefined_type(ty)?;
         let initializer_type =
             self.check_declaration_initializer(declaration, CheckMode::NORMAL, None)?;
-        let union = self.get_union_type_ex(
-            &[non_undefined, initializer_type],
-            UnionReduction::Subtype,
-        )?;
+        let union =
+            self.get_union_type_ex(&[non_undefined, initializer_type], UnionReduction::Subtype)?;
         self.widen_type_inferred_from_initializer(declaration, union)
     }
 
@@ -2011,7 +2001,6 @@ impl<'a> CheckerState<'a> {
         self.get_type_of_expression(node)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -92,10 +92,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ee812153d4466d26d0df3c91de6dcf99bbc7463a34626c706c8d5b0084079c69
     /// tsc-span: _tsc.js:73581-73588
     fn find_contextual_node(&self, node: NodeId, include_caches: bool) -> Option<usize> {
-        (0..self.contextual_type_nodes.len())
-            .rev()
-            .find(|&i| node == self.contextual_type_nodes[i]
-                && (include_caches || !self.contextual_is_cache[i]))
+        (0..self.contextual_type_nodes.len()).rev().find(|&i| {
+            node == self.contextual_type_nodes[i]
+                && (include_caches || !self.contextual_is_cache[i])
+        })
     }
 
     /// tsc-port: pushInferenceContext @6.0.3
@@ -304,8 +304,8 @@ impl<'a> CheckerState<'a> {
             if let Some(parent) = parent {
                 if let NodeData::BinaryExpression(data) = self.data_of(parent) {
                     let (left, operator) = (data.left, data.operator_token);
-                    let is_assignment = operator
-                        .is_some_and(|op| self.kind_of(op) == SyntaxKind::EqualsToken);
+                    let is_assignment =
+                        operator.is_some_and(|op| self.kind_of(op) == SyntaxKind::EqualsToken);
                     if is_assignment {
                         if let Some(target) = left {
                             if matches!(
@@ -411,10 +411,7 @@ impl<'a> CheckerState<'a> {
                     ModifierFlags::STATIC,
                 ) =>
             {
-                self.get_contextual_type_for_static_property_declaration(
-                    declaration,
-                    context_flags,
-                )
+                self.get_contextual_type_for_static_property_declaration(declaration, context_flags)
             }
             _ => Ok(None),
         }
@@ -433,8 +430,11 @@ impl<'a> CheckerState<'a> {
         let NodeData::BindingElement(data) = self.data_of(declaration) else {
             unreachable!("kind/data agree");
         };
-        let (property_name, element_name, dot_dot_dot) =
-            (data.property_name, data.name, data.dot_dot_dot_token.is_some());
+        let (property_name, element_name, dot_dot_dot) = (
+            data.property_name,
+            data.name,
+            data.dot_dot_dot_token.is_some(),
+        );
         let name = property_name.or(element_name).expect("element has a name");
         let mut parent_type =
             self.get_contextual_type_for_variable_like_declaration(parent, context_flags)?;
@@ -445,8 +445,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     tsrs2_types::CheckMode::NORMAL
                 };
-                parent_type =
-                    Some(self.check_declaration_initializer(parent, check_mode, None)?);
+                parent_type = Some(self.check_declaration_initializer(parent, check_mode, None)?);
             }
         }
         let Some(parent_type) = parent_type else {
@@ -648,7 +647,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         let source = self.binder.source_of_node(function_decl);
-        if let Some(iife) = node_util::get_immediately_invoked_function_expression(source, function_decl)
+        if let Some(iife) =
+            node_util::get_immediately_invoked_function_expression(source, function_decl)
         {
             return self.get_contextual_type(iife, context_flags);
         }
@@ -791,8 +791,7 @@ impl<'a> CheckerState<'a> {
                 // false in TS) — those get the LHS type.
                 let ty = self.get_contextual_type(binary, context_flags)?;
                 if Some(node) == right {
-                    let has_pattern =
-                        ty.is_some_and(|t| self.links.ty(t).pattern.is_some());
+                    let has_pattern = ty.is_some_and(|t| self.links.ty(t).pattern.is_some());
                     let no_context_non_expando =
                         ty.is_none() && !self.is_defaulted_expando_initializer(binary);
                     if has_pattern || no_context_non_expando {
@@ -857,7 +856,8 @@ impl<'a> CheckerState<'a> {
                 let Some(argument) = argument else {
                     return Ok(None);
                 };
-                let prop_type = self.check_expression_cached(argument, tsrs2_types::CheckMode::NORMAL)?;
+                let prop_type =
+                    self.check_expression_cached(argument, tsrs2_types::CheckMode::NORMAL)?;
                 let Some(name_text) = self.property_name_from_type_usable(prop_type) else {
                     return Ok(None);
                 };
@@ -905,8 +905,10 @@ impl<'a> CheckerState<'a> {
                     ) {
                         if let Some(annotation) = self.effective_type_annotation_node(decl) {
                             let annotated = self.get_type_from_type_node(annotation)?;
-                            let mapper =
-                                self.links.symbol(lhs_symbol.expect("decl implies symbol")).mapper;
+                            let mapper = self
+                                .links
+                                .symbol(lhs_symbol.expect("decl implies symbol"))
+                                .mapper;
                             return Ok(Some(self.instantiate_type(annotated, mapper)?));
                         }
                         if self.kind_of(decl) == SyntaxKind::PropertyDeclaration {
@@ -951,9 +953,7 @@ impl<'a> CheckerState<'a> {
                     });
                 };
                 let lhs_expression = access.expression.expect("access has an expression");
-                if let Some(id_text) =
-                    self.identifier_text_of(lhs_expression).map(str::to_owned)
-                {
+                if let Some(id_text) = self.identifier_text_of(lhs_expression).map(str::to_owned) {
                     let parent_symbol = self.resolve_value_name_no_report(lhs_expression, &id_text);
                     if let Some(parent_symbol) = parent_symbol {
                         let annotated = self
@@ -1077,9 +1077,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::VoidExpression(data) = self.data_of(node) else {
             return false;
         };
-        data.expression.is_some_and(|e| {
-            matches!(self.data_of(e), NodeData::NumericLiteral(data) if data.text == "0")
-        })
+        data.expression.is_some_and(
+            |e| matches!(self.data_of(e), NodeData::NumericLiteral(data) if data.text == "0"),
+        )
     }
 
     /// tsc isBindableStaticNameExpression (15090-15092) =
@@ -1098,8 +1098,8 @@ impl<'a> CheckerState<'a> {
             NodeData::PropertyAccessExpression(data) => {
                 let expression = data.expression;
                 let name = data.name;
-                let this_base = expression
-                    .is_some_and(|e| self.kind_of(e) == SyntaxKind::ThisKeyword);
+                let this_base =
+                    expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::ThisKeyword);
                 if !exclude_this && this_base {
                     return true;
                 }
@@ -1131,7 +1131,6 @@ impl<'a> CheckerState<'a> {
             _ => false,
         }
     }
-
 
     /// tsc isPrototypeAccess: bindable access whose name is
     /// "prototype".
@@ -1372,18 +1371,13 @@ impl<'a> CheckerState<'a> {
         let Some(prop) = self.get_property_of_type_full(ty, name)? else {
             return Ok(None);
         };
-        if self
-            .get_check_flags(prop)
-            .intersects(CheckFlags::MAPPED)
-        {
+        if self.get_check_flags(prop).intersects(CheckFlags::MAPPED) {
             return Err(Unsupported::new(
                 "isCircularMappedProperty (mapped-type properties, M8)",
             ));
         }
         let prop_type = self.get_type_of_symbol(prop)?;
-        let optional = self
-            .symbol_flags(prop)
-            .intersects(SymbolFlags::OPTIONAL);
+        let optional = self.symbol_flags(prop).intersects(SymbolFlags::OPTIONAL);
         Ok(Some(self.remove_missing_type(prop_type, optional)))
     }
 
@@ -1478,7 +1472,8 @@ impl<'a> CheckerState<'a> {
                     unreachable!("kind/data agree");
                 };
                 if let Some(expression) = data.expression {
-                    let expr_type = self.check_expression(expression, tsrs2_types::CheckMode::NORMAL)?;
+                    let expr_type =
+                        self.check_expression(expression, tsrs2_types::CheckMode::NORMAL)?;
                     if let Some(text) = self.property_name_from_type_usable(expr_type) {
                         if let Some(prop_type) =
                             self.get_type_of_property_of_contextual_type(ty, &text, None)?
@@ -1575,7 +1570,8 @@ impl<'a> CheckerState<'a> {
                             ),
                             _ => unreachable!("tuple type has a tuple target"),
                         };
-                    if (first_spread_index.is_none() || index < first_spread_index.unwrap() as usize)
+                    if (first_spread_index.is_none()
+                        || index < first_spread_index.unwrap() as usize)
                         && index < fixed_length
                     {
                         let element = state.get_type_arguments(t)?[index];
@@ -1605,9 +1601,7 @@ impl<'a> CheckerState<'a> {
                         return Ok(Some(type_arguments[arity - offset]));
                     }
                     let end_skip_count = match (length, last_spread_index) {
-                        (Some(length), Some(last)) => {
-                            fixed_end_length.min(length - last as usize)
-                        }
+                        (Some(length), Some(last)) => fixed_end_length.min(length - last as usize),
                         _ => fixed_end_length,
                     };
                     return state.get_element_type_of_slice_of_tuple_type(
@@ -1683,14 +1677,12 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::NullKeyword
             | SyntaxKind::Identifier
             | SyntaxKind::UndefinedKeyword => true,
-            SyntaxKind::PropertyAccessExpression => {
-                match self.data_of(node) {
-                    NodeData::PropertyAccessExpression(data) => data
-                        .expression
-                        .is_some_and(|e| self.is_possibly_discriminant_value(e)),
-                    _ => false,
-                }
-            }
+            SyntaxKind::PropertyAccessExpression => match self.data_of(node) {
+                NodeData::PropertyAccessExpression(data) => data
+                    .expression
+                    .is_some_and(|e| self.is_possibly_discriminant_value(e)),
+                _ => false,
+            },
             SyntaxKind::ParenthesizedExpression => match self.data_of(node) {
                 NodeData::ParenthesizedExpression(data) => data
                     .expression
@@ -1797,18 +1789,17 @@ impl<'a> CheckerState<'a> {
                         };
                         let Some(name) = data.name else { continue };
                         if self.is_discriminant_property(contextual_type, &escaped_name)? {
-                            discriminators.push((
-                                ContextualDiscriminator::ContextFree(name),
-                                escaped_name,
-                            ));
+                            discriminators
+                                .push((ContextualDiscriminator::ContextFree(name), escaped_name));
                         }
                     }
                     _ => {}
                 }
             }
         }
-        let node_members: Option<&tsrs2_binder::SymbolTable> =
-            self.node_symbol(node).map(|s| &self.binder.symbol(s).members);
+        let node_members: Option<&tsrs2_binder::SymbolTable> = self
+            .node_symbol(node)
+            .map(|s| &self.binder.symbol(s).members);
         let has_members = node_members.is_some_and(|m| !m.is_empty());
         let mut absent_optional: Vec<String> = Vec::new();
         if has_members {
@@ -1831,8 +1822,10 @@ impl<'a> CheckerState<'a> {
                 .into_iter()
                 .map(|name| (ContextualDiscriminator::Undefined, name)),
         );
-        let discriminated = self
-            .discriminate_type_by_discriminable_items_contextual(contextual_type, &discriminators)?;
+        let discriminated = self.discriminate_type_by_discriminable_items_contextual(
+            contextual_type,
+            &discriminators,
+        )?;
         Ok(self.set_cached_type(key, discriminated))
     }
 
@@ -1874,9 +1867,7 @@ impl<'a> CheckerState<'a> {
                             ContextualDiscriminator::ContextFree(expr) => {
                                 self.get_context_free_type_of_expression(*expr)?
                             }
-                            ContextualDiscriminator::Undefined => {
-                                self.tables.intrinsics.undefined
-                            }
+                            ContextualDiscriminator::Undefined => self.tables.intrinsics.undefined,
                         };
                         let related = self.some_type_result(discriminating_type, |state, t| {
                             state.is_type_assignable_to(t, target_type)
@@ -1950,7 +1941,11 @@ impl<'a> CheckerState<'a> {
         let apparent_type = self.map_type(
             instantiated_type,
             &mut |state, t| {
-                if state.tables.object_flags_of(t).intersects(ObjectFlags::MAPPED) {
+                if state
+                    .tables
+                    .object_flags_of(t)
+                    .intersects(ObjectFlags::MAPPED)
+                {
                     Ok(Some(t))
                 } else {
                     state.get_apparent_type(t).map(Some)
@@ -2096,8 +2091,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::ArrayLiteralExpression => {
                 let array_literal = parent;
-                let ty =
-                    self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
+                let ty = self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
                 let NodeData::ArrayLiteralExpression(data) = self.data_of(array_literal) else {
                     unreachable!("kind/data agree");
                 };
@@ -2165,14 +2159,10 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::JsxSpreadAttribute => Err(Unsupported::new(
                 "getContextualType JSX attribute arms (JSX slice, 5.5f)",
             )),
-            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
-                Err(Unsupported::new(
-                    "getContextualJsxElementAttributesType (JSX slice, 5.5f)",
-                ))
-            }
-            SyntaxKind::ImportAttribute => {
-                self.get_contextual_import_attribute_type(parent)
-            }
+            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => Err(
+                Unsupported::new("getContextualJsxElementAttributesType (JSX slice, 5.5f)"),
+            ),
+            SyntaxKind::ImportAttribute => self.get_contextual_import_attribute_type(parent),
             _ => Ok(None),
         }
     }
@@ -2259,7 +2249,8 @@ impl<'a> CheckerState<'a> {
         let left_type = self.get_type_of_symbol(left)?;
         let right_type = self.get_type_of_symbol(right)?;
         let right_type = self.instantiate_type(right_type, mapper)?;
-        let this_type = self.get_union_type_ex(&[left_type, right_type], UnionReduction::Literal)?;
+        let this_type =
+            self.get_union_type_ex(&[left_type, right_type], UnionReduction::Literal)?;
         Ok(Some(self.create_symbol_with_type(left, this_type)))
     }
 
@@ -2279,7 +2270,11 @@ impl<'a> CheckerState<'a> {
         } else {
             (right, left)
         };
-        let longest_count = if longest == left { left_count } else { right_count };
+        let longest_count = if longest == left {
+            left_count
+        } else {
+            right_count
+        };
         let either_has_effective_rest =
             self.has_effective_rest_parameter(left)? || self.has_effective_rest_parameter(right)?;
         let needs_extra_rest_element =
@@ -2298,8 +2293,10 @@ impl<'a> CheckerState<'a> {
             if shorter == right {
                 shorter_param_type = self.instantiate_type(shorter_param_type, mapper)?;
             }
-            let union_param_type = self
-                .get_union_type_ex(&[longest_param_type, shorter_param_type], UnionReduction::Literal)?;
+            let union_param_type = self.get_union_type_ex(
+                &[longest_param_type, shorter_param_type],
+                UnionReduction::Literal,
+            )?;
             let is_rest_param =
                 either_has_effective_rest && !needs_extra_rest_element && i == longest_count - 1;
             let is_optional = i >= self.get_min_argument_count(left)?
@@ -2413,7 +2410,8 @@ impl<'a> CheckerState<'a> {
         }
         let left_this = self.signature_of(left).this_parameter;
         let right_this = self.signature_of(right).this_parameter;
-        let this_param = self.combine_intersection_this_param(left_this, right_this, param_mapper)?;
+        let this_param =
+            self.combine_intersection_this_param(left_this, right_this, param_mapper)?;
         let min_arg_count = self
             .signature_of(left)
             .min_argument_count
@@ -2514,7 +2512,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult2<Option<SignatureId>> {
-        if self.is_function_expression_or_arrow_function(node) || self.is_object_literal_method(node)
+        if self.is_function_expression_or_arrow_function(node)
+            || self.is_object_literal_method(node)
         {
             self.get_contextual_signature(node)
         } else {
@@ -2613,7 +2612,9 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ConditionalExpression => match self.data_of(node) {
                 NodeData::ConditionalExpression(data) => {
                     data.when_true.is_some_and(|n| self.is_context_sensitive(n))
-                        || data.when_false.is_some_and(|n| self.is_context_sensitive(n))
+                        || data
+                            .when_false
+                            .is_some_and(|n| self.is_context_sensitive(n))
                 }
                 _ => false,
             },
@@ -2632,15 +2633,15 @@ impl<'a> CheckerState<'a> {
                 _ => false,
             },
             SyntaxKind::PropertyAssignment => match self.data_of(node) {
-                NodeData::PropertyAssignment(data) => {
-                    data.initializer.is_some_and(|n| self.is_context_sensitive(n))
-                }
+                NodeData::PropertyAssignment(data) => data
+                    .initializer
+                    .is_some_and(|n| self.is_context_sensitive(n)),
                 _ => false,
             },
             SyntaxKind::ParenthesizedExpression => match self.data_of(node) {
-                NodeData::ParenthesizedExpression(data) => {
-                    data.expression.is_some_and(|n| self.is_context_sensitive(n))
-                }
+                NodeData::ParenthesizedExpression(data) => data
+                    .expression
+                    .is_some_and(|n| self.is_context_sensitive(n)),
                 _ => false,
             },
             SyntaxKind::JsxAttributes | SyntaxKind::JsxAttribute => {
@@ -2679,9 +2680,10 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let parameters = self.parameters_of_function(node);
-        if parameters.iter().any(|&p| {
-            matches!(self.data_of(p), NodeData::Parameter(data) if data.r#type.is_none())
-        }) {
+        if parameters
+            .iter()
+            .any(|&p| matches!(self.data_of(p), NodeData::Parameter(data) if data.r#type.is_none()))
+        {
             return true;
         }
         if self.kind_of(node) != SyntaxKind::ArrowFunction {
@@ -2729,7 +2731,8 @@ impl<'a> CheckerState<'a> {
             let NodeData::ReturnStatement(data) = state.data_of(statement) else {
                 return false;
             };
-            data.expression.is_some_and(|e| state.is_context_sensitive(e))
+            data.expression
+                .is_some_and(|e| state.is_context_sensitive(e))
         })
     }
 
@@ -2759,11 +2762,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         func: NodeId,
     ) -> CheckResult2<bool> {
-        Ok(
-            (self.is_function_expression_or_arrow_function(func)
-                || self.is_object_literal_method(func))
-                && self.is_context_sensitive_function_like_declaration_syntactic(func),
-        )
+        Ok((self.is_function_expression_or_arrow_function(func)
+            || self.is_object_literal_method(func))
+            && self.is_context_sensitive_function_like_declaration_syntactic(func))
     }
 
     /// tsc-port: forEachReturnStatement @6.0.3
@@ -2964,7 +2965,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-
     /// tsc isConstTypeReference on a TYPE node: `const` type reference
     /// with no type arguments.
     pub(crate) fn is_const_type_reference_node(&self, type_node: NodeId) -> bool {
@@ -2989,10 +2989,14 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
     ) -> CheckResult2<Option<TypeId>> {
         if self.kind_of(declaration) == SyntaxKind::Constructor {
-            let class = self.parent_of(declaration).expect("constructor has a class");
+            let class = self
+                .parent_of(declaration)
+                .expect("constructor has a class");
             let symbol = self.get_symbol_of_declaration(class)?;
             let symbol = self.get_merged_symbol(symbol);
-            return self.get_declared_type_of_class_or_interface(symbol).map(Some);
+            return self
+                .get_declared_type_of_class_or_interface(symbol)
+                .map(Some);
         }
         let type_node = match self.data_of(declaration) {
             NodeData::FunctionDeclaration(data) => data.r#type,
@@ -3046,10 +3050,12 @@ impl<'a> CheckerState<'a> {
             }
         }
         data.resolved_return_type.resolved().is_none()
-            && self.find_resolution_cycle_start_index(
-                crate::state::ResolutionTarget::Signature(signature),
-                tsrs2_types::TypeSystemPropertyName::RESOLVED_RETURN_TYPE,
-            ).is_some()
+            && self
+                .find_resolution_cycle_start_index(
+                    crate::state::ResolutionTarget::Signature(signature),
+                    tsrs2_types::TypeSystemPropertyName::RESOLVED_RETURN_TYPE,
+                )
+                .is_some()
     }
 }
 
@@ -3106,7 +3112,10 @@ mod tests {
     #[test]
     fn conditional_operands_inherit_the_outer_context() {
         with_program_state(
-            &[("a.ts", "declare var b: boolean;\nlet x: number = b ? 1 : 2;\n")],
+            &[(
+                "a.ts",
+                "declare var b: boolean;\nlet x: number = b ? 1 : 2;\n",
+            )],
             &CompilerOptions::default(),
             |state| {
                 let when_true = find_node(
@@ -3169,9 +3178,7 @@ mod tests {
                 // under the default strictNullChecks.
                 let number = state.tables.intrinsics.number;
                 let expected = state.tables.add_optionality(
-                    number,
-                    /*is_property*/ false,
-                    /*is_optional*/ true,
+                    number, /*is_property*/ false, /*is_optional*/ true,
                 );
                 assert_eq!(member, expected);
                 // SkipBindingPatterns answers None instead.
@@ -3206,9 +3213,7 @@ mod tests {
                 // the default strictNullChecks.
                 let string = state.tables.intrinsics.string;
                 let expected = state.tables.add_optionality(
-                    string,
-                    /*is_property*/ false,
-                    /*is_optional*/ true,
+                    string, /*is_property*/ false, /*is_optional*/ true,
                 );
                 assert_eq!(contextual, Some(expected));
             },

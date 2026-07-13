@@ -174,10 +174,7 @@ impl<'a> CheckerState<'a> {
                 }
                 BinaryState::Operator => {
                     state_stack[stack_index] = BinaryState::Right;
-                    self.binary_on_operator(
-                        frame_node,
-                        user.as_mut().expect("onEnter ran"),
-                    )?;
+                    self.binary_on_operator(frame_node, user.as_mut().expect("onEnter ran"))?;
                 }
                 BinaryState::Right => {
                     state_stack[stack_index] = BinaryState::Exit;
@@ -199,7 +196,9 @@ impl<'a> CheckerState<'a> {
                     if stack_index > 0 {
                         stack_index -= 1;
                         // foldState: setLastResult(state, result).
-                        user.as_mut().expect("shared record").set_last_result(Some(result));
+                        user.as_mut()
+                            .expect("shared record")
+                            .set_last_result(Some(result));
                     } else {
                         return Ok(result);
                     }
@@ -257,12 +256,8 @@ impl<'a> CheckerState<'a> {
             let check_mode = state.check_mode;
             let right_type = self.check_expression(right, check_mode)?;
             let right_is_this = self.kind_of(right) == SyntaxKind::ThisKeyword;
-            let result = self.check_destructuring_assignment(
-                left,
-                right_type,
-                check_mode,
-                right_is_this,
-            )?;
+            let result =
+                self.check_destructuring_assignment(left, right_type, check_mode, right_is_this)?;
             user.as_mut()
                 .expect("created above")
                 .set_last_result(Some(result));
@@ -301,8 +296,7 @@ impl<'a> CheckerState<'a> {
                 }
                 parent = self.parent_of(p);
             }
-            let if_parent =
-                parent.filter(|&p| self.kind_of(p) == SyntaxKind::IfStatement);
+            let if_parent = parent.filter(|&p| self.kind_of(p) == SyntaxKind::IfStatement);
             if operator == SyntaxKind::AmpersandAmpersandToken || if_parent.is_some() {
                 let body = if_parent.and_then(|p| match self.data_of(p) {
                     NodeData::IfStatement(data) => data.then_statement,
@@ -585,36 +579,45 @@ impl<'a> CheckerState<'a> {
                 if left_type == silent_never || right_type == silent_never {
                     return Ok(silent_never);
                 }
-                let (left_type, right_type) = if !self.is_type_assignable_to_kind(
-                    left_type,
-                    TypeFlags::STRING_LIKE,
-                    false,
-                )? && !self.is_type_assignable_to_kind(
-                    right_type,
-                    TypeFlags::STRING_LIKE,
-                    false,
-                )? {
-                    (
-                        self.check_non_null_type(left_type, left)?,
-                        self.check_non_null_type(right_type, right)?,
-                    )
-                } else {
-                    (left_type, right_type)
-                };
+                let (left_type, right_type) =
+                    if !self.is_type_assignable_to_kind(left_type, TypeFlags::STRING_LIKE, false)?
+                        && !self.is_type_assignable_to_kind(
+                            right_type,
+                            TypeFlags::STRING_LIKE,
+                            false,
+                        )?
+                    {
+                        (
+                            self.check_non_null_type(left_type, left)?,
+                            self.check_non_null_type(right_type, right)?,
+                        )
+                    } else {
+                        (left_type, right_type)
+                    };
                 let mut result_type: Option<TypeId> = None;
                 if self.is_type_assignable_to_kind(left_type, TypeFlags::NUMBER_LIKE, true)?
                     && self.is_type_assignable_to_kind(right_type, TypeFlags::NUMBER_LIKE, true)?
                 {
                     result_type = Some(self.tables.intrinsics.number);
-                } else if self
-                    .is_type_assignable_to_kind(left_type, TypeFlags::BIG_INT_LIKE, true)?
-                    && self.is_type_assignable_to_kind(right_type, TypeFlags::BIG_INT_LIKE, true)?
-                {
+                } else if self.is_type_assignable_to_kind(
+                    left_type,
+                    TypeFlags::BIG_INT_LIKE,
+                    true,
+                )? && self.is_type_assignable_to_kind(
+                    right_type,
+                    TypeFlags::BIG_INT_LIKE,
+                    true,
+                )? {
                     result_type = Some(self.tables.intrinsics.bigint);
-                } else if self
-                    .is_type_assignable_to_kind(left_type, TypeFlags::STRING_LIKE, true)?
-                    || self.is_type_assignable_to_kind(right_type, TypeFlags::STRING_LIKE, true)?
-                {
+                } else if self.is_type_assignable_to_kind(
+                    left_type,
+                    TypeFlags::STRING_LIKE,
+                    true,
+                )? || self.is_type_assignable_to_kind(
+                    right_type,
+                    TypeFlags::STRING_LIKE,
+                    true,
+                )? {
                     result_type = Some(self.tables.intrinsics.string);
                 } else if self.tables.flags_of(left_type).intersects(TypeFlags::ANY)
                     || self.tables.flags_of(right_type).intersects(TypeFlags::ANY)
@@ -885,11 +888,10 @@ impl<'a> CheckerState<'a> {
                     "resolveCall over [Symbol.hasInstance] (call resolution, 5.7)",
                 ));
             }
-            let function_like = self.type_has_call_or_construct_signatures(right_type)?
-                || {
-                    let global_function = self.global_function_type()?;
-                    self.is_type_subtype_of(right_type, global_function)?
-                };
+            let function_like = self.type_has_call_or_construct_signatures(right_type)? || {
+                let global_function = self.global_function_type()?;
+                self.is_type_subtype_of(right_type, global_function)?
+            };
             if !function_like {
                 self.error_at(
                     Some(right),
@@ -908,7 +910,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult2<Option<TypeId>> {
-        let has_instance_property_name = self.get_property_name_for_known_symbol_name("hasInstance")?;
+        let has_instance_property_name =
+            self.get_property_name_for_known_symbol_name("hasInstance")?;
         if !self.all_types_assignable_to_kind(ty, TypeFlags::NON_PRIMITIVE)? {
             return Ok(None);
         }
@@ -1019,8 +1022,10 @@ impl<'a> CheckerState<'a> {
 
     /// bothAreBigIntLike (80264-80266).
     fn both_are_bigint_like(&mut self, left: TypeId, right: TypeId) -> CheckResult2<bool> {
-        Ok(self.is_type_assignable_to_kind(left, TypeFlags::BIG_INT_LIKE, false)?
-            && self.is_type_assignable_to_kind(right, TypeFlags::BIG_INT_LIKE, false)?)
+        Ok(
+            self.is_type_assignable_to_kind(left, TypeFlags::BIG_INT_LIKE, false)?
+                && self.is_type_assignable_to_kind(right, TypeFlags::BIG_INT_LIKE, false)?,
+        )
     }
 
     /// The shift-simplification row (80098-80119): evaluate the RHS;
@@ -1164,7 +1169,9 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::JsxElement => true,
             SyntaxKind::ConditionalExpression => match self.data_of(node) {
                 NodeData::ConditionalExpression(data) => match (data.when_true, data.when_false) {
-                    (Some(t), Some(f)) => self.is_side_effect_free(t) && self.is_side_effect_free(f),
+                    (Some(t), Some(f)) => {
+                        self.is_side_effect_free(t) && self.is_side_effect_free(f)
+                    }
                     _ => false,
                 },
                 _ => false,
@@ -1592,7 +1599,9 @@ impl<'a> CheckerState<'a> {
         let related = self.related_info_for_node(
             location,
             &tsrs2_diags::gen::Did_you_mean_0,
-            &[&format!("{operator_string}Number.isNaN({suggestion_target})")],
+            &[&format!(
+                "{operator_string}Number.isNaN({suggestion_target})"
+            )],
         );
         self.error_at_with_related(
             error_node.or(Some(operator_token)),
@@ -1631,8 +1640,10 @@ impl<'a> CheckerState<'a> {
 
     /// areTypesComparable (63928-63930).
     fn are_types_comparable(&mut self, type1: TypeId, type2: TypeId) -> CheckResult2<bool> {
-        Ok(self.is_type_comparable_to(type1, type2)?
-            || self.is_type_comparable_to(type2, type1)?)
+        Ok(
+            self.is_type_comparable_to(type1, type2)?
+                || self.is_type_comparable_to(type2, type1)?,
+        )
     }
 
     /// tsc-port: getBaseTypesIfUnrelated @6.0.3
@@ -1780,7 +1791,13 @@ impl<'a> CheckerState<'a> {
                 let equals_token = equals_token.ok_or_else(|| {
                     Unsupported::new("shorthand default without `=` (parse-recovery tree)")
                 })?;
-                self.check_binary_like_expression(name, equals_token, initializer, check_mode, None)?;
+                self.check_binary_like_expression(
+                    name,
+                    equals_token,
+                    initializer,
+                    check_mode,
+                    None,
+                )?;
             }
             target = name;
         }
@@ -2265,9 +2282,7 @@ impl<'a> CheckerState<'a> {
             .links
             .node(node)
             .assertion_expression_type
-            .ok_or_else(|| {
-                Unsupported::new("assertion deferred without a stashed operand type")
-            })?;
+            .ok_or_else(|| Unsupported::new("assertion deferred without a stashed operand type"))?;
         let base = self.get_base_type_of_literal_type(stashed)?;
         let expr_type = self.get_regular_type_of_object_literal(base)?;
         let target_type = self.get_type_from_type_node(type_node)?;
@@ -2338,9 +2353,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<TypeId> {
         self.check_grammar_expression_with_type_arguments(node);
         let (expression, type_arguments) = match self.data_of(node) {
-            NodeData::ExpressionWithTypeArguments(data) => {
-                (data.expression, data.type_arguments)
-            }
+            NodeData::ExpressionWithTypeArguments(data) => (data.expression, data.type_arguments),
             // The TypeQuery flavor (`typeof f<number>`) routes through
             // getTypeFromTypeNode, not this arm.
             _ => (None, None),
@@ -2484,8 +2497,7 @@ impl<'a> CheckerState<'a> {
                 self.get_instantiated_signatures(&call_signatures, argument_nodes)?;
             let instantiated_construct =
                 self.get_instantiated_signatures(&construct_signatures, argument_nodes)?;
-            *has_signatures |=
-                !call_signatures.is_empty() || !construct_signatures.is_empty();
+            *has_signatures |= !call_signatures.is_empty() || !construct_signatures.is_empty();
             *has_applicable_signature |=
                 !instantiated_call.is_empty() || !instantiated_construct.is_empty();
             if instantiated_call != call_signatures
@@ -2494,12 +2506,9 @@ impl<'a> CheckerState<'a> {
                 let symbol = self
                     .binder
                     .create_symbol(SymbolFlags::NONE, "__instantiationExpression".to_owned());
-                let result = self
-                    .tables
-                    .create_type(TypeFlags::OBJECT, TypeData::Object);
-                self.tables.type_mut(result).object_flags =
-                    tsrs2_types::ObjectFlags::ANONYMOUS
-                        | tsrs2_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
+                let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+                self.tables.type_mut(result).object_flags = tsrs2_types::ObjectFlags::ANONYMOUS
+                    | tsrs2_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
                 self.tables.type_mut(result).symbol = Some(symbol);
                 let members_id = self.alloc_members(crate::state::ResolvedMembers {
                     members,
@@ -2576,8 +2585,7 @@ impl<'a> CheckerState<'a> {
                 mapped.push(instantiated);
             }
             if changed {
-                return self
-                    .get_intersection_type(&mapped, tsrs2_types::IntersectionFlags::NONE);
+                return self.get_intersection_type(&mapped, tsrs2_types::IntersectionFlags::NONE);
             }
             return Ok(ty);
         }
@@ -2593,7 +2601,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Vec<crate::state::SignatureId>> {
         let mut applicable = Vec::new();
         for &signature in signatures {
-            if self.signatures[signature.0 as usize].type_parameters.is_none() {
+            if self.signatures[signature.0 as usize]
+                .type_parameters
+                .is_none()
+            {
                 continue;
             }
             if self.has_correct_type_argument_arity(signature, argument_nodes) {
@@ -2613,7 +2624,6 @@ impl<'a> CheckerState<'a> {
         }
         Ok(result)
     }
-
 
     /// createDiagnosticForNodeArray over the typeArguments range: the
     /// 2635 span covers `<` .. `>`.
@@ -2928,10 +2938,7 @@ impl<'a> CheckerState<'a> {
                 Unsupported::new("template span without expression (parse-recovery tree)")
             })?;
             let ty = self.check_expression(expression, CheckMode::NORMAL)?;
-            if self.maybe_type_of_kind_considering_base_constraint(
-                ty,
-                TypeFlags::ES_SYMBOL_LIKE,
-            )? {
+            if self.maybe_type_of_kind_considering_base_constraint(ty, TypeFlags::ES_SYMBOL_LIKE)? {
                 self.error_at(
                     Some(expression),
                     &tsrs2_diags::gen::Implicit_conversion_of_a_symbol_to_a_string_will_fail_at_runtime_Consider_wrapping_this_expression_in_String,
@@ -2973,7 +2980,9 @@ impl<'a> CheckerState<'a> {
                 state.is_template_literal_contextual_type(t)
             })?
         };
-        if self.is_const_context(node)? || self.is_template_literal_context(node) || contextual_template
+        if self.is_const_context(node)?
+            || self.is_template_literal_context(node)
+            || contextual_template
         {
             return Ok(self.tables.get_template_literal_type(&texts, &types));
         }
@@ -3170,11 +3179,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:79501-79508
     fn get_unary_result_type(&mut self, operand_type: TypeId) -> CheckResult2<TypeId> {
         if self.maybe_type_of_kind(operand_type, TypeFlags::BIG_INT_LIKE) {
-            let mixes_number = self.is_type_assignable_to_kind(
-                operand_type,
-                TypeFlags::ANY_OR_UNKNOWN,
-                false,
-            )? || self.maybe_type_of_kind(operand_type, TypeFlags::NUMBER_LIKE);
+            let mixes_number =
+                self.is_type_assignable_to_kind(operand_type, TypeFlags::ANY_OR_UNKNOWN, false)?
+                    || self.maybe_type_of_kind(operand_type, TypeFlags::NUMBER_LIKE);
             return Ok(if mixes_number {
                 self.tables.intrinsics.number_or_bigint
             } else {
@@ -3187,7 +3194,11 @@ impl<'a> CheckerState<'a> {
     /// getFlowTypeOfDestructuring (55892-55895): getFlowTypeOfReference
     /// over a synthetic element access — the [FLOW M5] stub answers
     /// the declared type, so the synthesis collapses to identity.
-    pub(crate) fn get_flow_type_of_destructuring(&self, _node: NodeId, declared_type: TypeId) -> TypeId {
+    pub(crate) fn get_flow_type_of_destructuring(
+        &self,
+        _node: NodeId,
+        declared_type: TypeId,
+    ) -> TypeId {
         declared_type
     }
 
@@ -3372,9 +3383,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         let parent = self.parent_of(node);
-        if let Some(parent) =
-            parent.filter(|&p| self.kind_of(p) == SyntaxKind::BinaryExpression)
-        {
+        if let Some(parent) = parent.filter(|&p| self.kind_of(p) == SyntaxKind::BinaryExpression) {
             let (parent_left, parent_op, _) = self.binary_parts(parent)?;
             if self.kind_of(parent_left) == SyntaxKind::BinaryExpression
                 && self.operator_kind(parent_op) == SyntaxKind::BarBarToken
@@ -3411,8 +3420,9 @@ impl<'a> CheckerState<'a> {
             if self.operator_kind(right_op) == SyntaxKind::AmpersandAmpersandToken {
                 let qq = tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
                     .expect("?? has token text");
-                let amp = tsrs2_syntax::tokens::token_to_string(SyntaxKind::AmpersandAmpersandToken)
-                    .expect("&& has token text");
+                let amp =
+                    tsrs2_syntax::tokens::token_to_string(SyntaxKind::AmpersandAmpersandToken)
+                        .expect("&& has token text");
                 self.grammar_error_on_node(
                     right,
                     &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
@@ -3719,8 +3729,7 @@ impl<'a> CheckerState<'a> {
             ) {
                 break;
             }
-            cond_expr2 =
-                node_util::skip_parentheses_pub(self.binder.source_of_node(left), left);
+            cond_expr2 = node_util::skip_parentheses_pub(self.binder.source_of_node(left), left);
             self.truthy_callable_helper(cond_expr, cond_expr2, cond_type, body)?;
         }
         Ok(())
@@ -3830,7 +3839,10 @@ impl<'a> CheckerState<'a> {
             if !is_used {
                 if let (Some(body), Some(tested_node)) = (body, tested_node) {
                     if self.is_symbol_used_in_condition_body(
-                        cond_expr2, body, tested_node, symbol,
+                        cond_expr2,
+                        body,
+                        tested_node,
+                        symbol,
                     )? {
                         is_used = true;
                     }
@@ -4285,7 +4297,8 @@ impl<'a> CheckerState<'a> {
         let Some(then_function) = then_function else {
             return Ok(false);
         };
-        let non_nullable = self.get_type_with_facts(then_function, TypeFacts::NE_UNDEFINED_OR_NULL)?;
+        let non_nullable =
+            self.get_type_with_facts(then_function, TypeFacts::NE_UNDEFINED_OR_NULL)?;
         Ok(!self
             .get_signatures_of_type(non_nullable, SignatureKind::Call)?
             .is_empty())
@@ -4345,7 +4358,10 @@ impl<'a> CheckerState<'a> {
             let base_constraint = self.get_base_constraint_of_type(ty)?;
             match base_constraint {
                 Some(base) => {
-                    if self.tables.flags_of(base).intersects(TypeFlags::ANY_OR_UNKNOWN)
+                    if self
+                        .tables
+                        .flags_of(base)
+                        .intersects(TypeFlags::ANY_OR_UNKNOWN)
                         || self.is_empty_object_type(base)?
                         || self.some_type_result(base, |state, t| state.is_thenable_type(t))?
                     {
@@ -4429,15 +4445,11 @@ impl<'a> CheckerState<'a> {
     /// along: an Awaited alias with the wrong arity errors on ITS
     /// declaration (2317) — only constructible with a user-shadowed
     /// lib, so the arm escapes rather than half-rendering.
-    fn get_global_awaited_symbol(
-        &mut self,
-        report_errors: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    fn get_global_awaited_symbol(&mut self, report_errors: bool) -> CheckResult2<Option<SymbolId>> {
         if let Some(memo) = self.deferred_global_awaited_symbol {
             return Ok(memo.filter(|&s| s != self.unknown_symbol));
         }
-        let diagnostic =
-            report_errors.then_some(&tsrs2_diags::gen::Cannot_find_global_type_0);
+        let diagnostic = report_errors.then_some(&tsrs2_diags::gen::Cannot_find_global_type_0);
         let symbol = self.get_global_symbol("Awaited", SymbolFlags::TYPE_ALIAS, diagnostic);
         if let Some(symbol) = symbol {
             // getGlobalTypeAliasSymbol arity check: Awaited<T> is 1.
@@ -4588,9 +4600,7 @@ mod tests {
     #[test]
     fn relational_string_number_reports_2365_on_the_binary() {
         assert_eq!(
-            checked_rows(
-                "declare const s0: string;\ndeclare const n0: number;\ns0 < n0;\n"
-            ),
+            checked_rows("declare const s0: string;\ndeclare const n0: number;\ns0 < n0;\n"),
             [(2365, 52, 7)]
         );
     }
@@ -4598,9 +4608,7 @@ mod tests {
     #[test]
     fn equality_disjoint_primitives_upgrade_to_2367() {
         assert_eq!(
-            checked_rows(
-                "declare const s0: string;\ndeclare const n0: number;\nn0 === s0;\n"
-            ),
+            checked_rows("declare const s0: string;\ndeclare const n0: number;\nn0 === s0;\n"),
             [(2367, 52, 9)]
         );
     }
@@ -4608,9 +4616,7 @@ mod tests {
     #[test]
     fn assignment_mismatch_reports_2322_on_the_left() {
         assert_eq!(
-            checked_rows(
-                "declare let ln: number;\ndeclare const s0: string;\nln = s0;\n"
-            ),
+            checked_rows("declare let ln: number;\ndeclare const s0: string;\nln = s0;\n"),
             [(2322, 50, 2)]
         );
     }
@@ -4641,9 +4647,7 @@ mod tests {
         );
         // The access-expression right IS exempt (oracle: clean).
         assert_eq!(
-            checked_rows(
-                "declare const o: { f(): void };\n(0, o.f)();\n"
-            ),
+            checked_rows("declare const o: { f(): void };\n(0, o.f)();\n"),
             []
         );
     }
@@ -4662,9 +4666,7 @@ mod tests {
     #[test]
     fn symbol_plus_number_reports_2365() {
         assert_eq!(
-            checked_rows(
-                "declare const sy: symbol;\ndeclare const n0: number;\nn0 + sy;\n"
-            ),
+            checked_rows("declare const sy: symbol;\ndeclare const n0: number;\nn0 + sy;\n"),
             [(2365, 52, 7)]
         );
     }
@@ -4688,9 +4690,7 @@ mod tests {
     #[test]
     fn mixed_bigint_number_arithmetic_reports_2365() {
         assert_eq!(
-            checked_rows(
-                "declare const bg: bigint;\ndeclare const n0: number;\nbg * n0;\n"
-            ),
+            checked_rows("declare const bg: bigint;\ndeclare const n0: number;\nbg * n0;\n"),
             [(2365, 52, 7)]
         );
     }
@@ -4709,9 +4709,7 @@ mod tests {
     fn nan_equality_reports_2845_when_global_nan_resolves() {
         // The script-level ambient const IS the global NaN here.
         assert_eq!(
-            checked_rows(
-                "declare const NaN: number;\ndeclare const n0: number;\nn0 === NaN;\n"
-            ),
+            checked_rows("declare const NaN: number;\ndeclare const n0: number;\nn0 === NaN;\n"),
             [(2845, 53, 10)]
         );
     }
@@ -4763,10 +4761,7 @@ mod tests {
 
     #[test]
     fn nullable_typed_identifier_is_syntactically_sometimes_nullish() {
-        assert_eq!(
-            checked_rows("declare const nu: null;\nnu ?? 5;\n"),
-            []
-        );
+        assert_eq!(checked_rows("declare const nu: null;\nnu ?? 5;\n"), []);
     }
 
     #[test]
@@ -4988,9 +4983,7 @@ mod tests {
     #[test]
     fn literal_and_enum_member_const_assertions_are_clean() {
         assert_eq!(
-            checked_rows(
-                "declare enum EC { A = 1 }\n5 as const;\n(5) as const;\nEC.A as const;\n"
-            ),
+            checked_rows("declare enum EC { A = 1 }\n5 as const;\n(5) as const;\nEC.A as const;\n"),
             []
         );
     }

@@ -30,11 +30,11 @@ use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain, RelatedInfo};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckMode, ModifierFlags, NodeCheckFlags, ObjectFlags, PseudoBigInt, ScriptTarget,
-    SymbolFlags, TypeData, TypeFlags, TypeId,
+    CheckMode, ModifierFlags, NodeCheckFlags, ObjectFlags, PseudoBigInt, ScriptTarget, SymbolFlags,
+    TypeData, TypeFlags, TypeId,
 };
 
-use crate::state::{CheckerState, CheckResult2, Unsupported};
+use crate::state::{CheckResult2, CheckerState, Unsupported};
 
 /// tsc AssignmentKind (15579 band): None / Definite / Compound.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -133,9 +133,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
-        if check_mode
-            .intersects(CheckMode::INFERENTIAL | CheckMode::SKIP_GENERIC_FUNCTIONS)
-        {
+        if check_mode.intersects(CheckMode::INFERENTIAL | CheckMode::SKIP_GENERIC_FUNCTIONS) {
             unreachable!(
                 "Inferential/SkipGenericFunctions have no producer until M6 \
                  (CheckMode audit, m4-55-expression-extraction.md §2)"
@@ -276,12 +274,8 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::TrueKeyword => Ok(self.tables.intrinsics.true_fresh),
             SyntaxKind::FalseKeyword => Ok(self.tables.intrinsics.false_fresh),
-            SyntaxKind::TemplateExpression => {
-                self.check_template_expression(node)
-            }
-            SyntaxKind::RegularExpressionLiteral => {
-                self.check_regular_expression_literal(node)
-            }
+            SyntaxKind::TemplateExpression => self.check_template_expression(node),
+            SyntaxKind::RegularExpressionLiteral => self.check_regular_expression_literal(node),
             SyntaxKind::ArrayLiteralExpression => {
                 self.check_array_literal(node, check_mode, force_tuple)
             }
@@ -300,15 +294,13 @@ impl<'a> CheckerState<'a> {
                 // answers errorType for the bare `import.defer`, which
                 // must not leak into untyped-call arg checking).
                 let defer_call = matches!(self.data_of(node), NodeData::CallExpression(data)
-                    if data.expression.is_some_and(|expression| {
-                        self.kind_of(expression) == SyntaxKind::MetaProperty
-                            && !self.meta_property_is_new(expression)
-                    }));
+                if data.expression.is_some_and(|expression| {
+                    self.kind_of(expression) == SyntaxKind::MetaProperty
+                        && !self.meta_property_is_new(expression)
+                }));
                 if defer_call {
-                    return self.expression_stub(
-                        "checkImportCallExpression (import.defer)",
-                        "5.7b",
-                    );
+                    return self
+                        .expression_stub("checkImportCallExpression (import.defer)", "5.7b");
                 }
                 self.check_call_expression(node, check_mode)
             }
@@ -359,9 +351,7 @@ impl<'a> CheckerState<'a> {
             ),
             SyntaxKind::JsxExpression => self.check_jsx_expression(node),
             SyntaxKind::JsxElement => self.check_jsx_element(node),
-            SyntaxKind::JsxSelfClosingElement => {
-                self.check_jsx_self_closing_element(node)
-            }
+            SyntaxKind::JsxSelfClosingElement => self.check_jsx_self_closing_element(node),
             SyntaxKind::JsxFragment => self.check_jsx_fragment(node),
             SyntaxKind::JsxAttributes => self.check_jsx_attributes_stub(),
             SyntaxKind::JsxOpeningElement => {
@@ -503,7 +493,11 @@ impl<'a> CheckerState<'a> {
             Some(end_utf16.saturating_sub(start_utf16)),
             MessageChain::new(message, &args),
         );
-        if !self.diagnostics.iter().any(|existing| *existing == diagnostic) {
+        if !self
+            .diagnostics
+            .iter()
+            .any(|existing| *existing == diagnostic)
+        {
             self.diagnostics.push(diagnostic);
         }
         true
@@ -579,26 +573,23 @@ impl<'a> CheckerState<'a> {
             return self.arguments_symbol_type();
         }
         let local_or_export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
-        let mut declaration = self
-            .binder
-            .symbol(local_or_export_symbol)
-            .value_declaration;
+        let mut declaration = self.binder.symbol(local_or_export_symbol).value_declaration;
         let immediate_declaration = declaration;
         if let Some(decl) = declaration {
             if self.kind_of(decl) == SyntaxKind::BindingElement {
                 let pattern = self.parent_of(decl);
-                if pattern.is_some_and(|pattern| {
-                    self.contextual_binding_patterns.contains(&pattern)
-                }) && self
-                    .find_ancestor(Some(node), |state, ancestor| {
-                        if Some(ancestor) == pattern {
-                            Ancestor::Yes
-                        } else {
-                            let _ = state;
-                            Ancestor::No
-                        }
-                    })
-                    .is_some()
+                if pattern
+                    .is_some_and(|pattern| self.contextual_binding_patterns.contains(&pattern))
+                    && self
+                        .find_ancestor(Some(node), |state, ancestor| {
+                            if Some(ancestor) == pattern {
+                                Ancestor::Yes
+                            } else {
+                                let _ = state;
+                                Ancestor::No
+                            }
+                        })
+                        .is_some()
                 {
                     return Ok(self.tables.intrinsics.non_inferrable_any);
                 }
@@ -678,21 +669,19 @@ impl<'a> CheckerState<'a> {
         let is_spread_destructuring_assignment_target = {
             let parent = self.parent_of(node);
             let grand = parent.and_then(|parent| self.parent_of(parent));
-            parent.is_some_and(|parent| {
-                self.kind_of(parent) == SyntaxKind::SpreadAssignment
-            }) && grand.is_some_and(|grand| self.is_destructuring_assignment_target(grand))
+            parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SpreadAssignment)
+                && grand.is_some_and(|grand| self.is_destructuring_assignment_target(grand))
         };
         let is_module_exports = self
             .binder
             .symbol(symbol)
             .flags
             .intersects(SymbolFlags::MODULE_EXPORTS);
-        let type_is_automatic =
-            ty == self.tables.intrinsics.auto || self.is_auto_array_type(ty);
+        let type_is_automatic = ty == self.tables.intrinsics.auto || self.is_auto_array_type(ty);
         let is_automatic_type_in_non_null = type_is_automatic
-            && self.parent_of(node).is_some_and(|parent| {
-                self.kind_of(parent) == SyntaxKind::NonNullExpression
-            });
+            && self
+                .parent_of(node)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::NonNullExpression);
         let is_never_initialized = immediate_declaration.is_some_and(|decl| {
             if self.kind_of(decl) != SyntaxKind::VariableDeclaration {
                 return false;
@@ -735,9 +724,9 @@ impl<'a> CheckerState<'a> {
                     || self.parent_of(node).is_some_and(|parent| {
                         self.kind_of(parent) == SyntaxKind::ExportSpecifier
                     })))
-            || self.parent_of(node).is_some_and(|parent| {
-                self.kind_of(parent) == SyntaxKind::NonNullExpression
-            })
+            || self
+                .parent_of(node)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::NonNullExpression)
             || (self.kind_of(declaration) == SyntaxKind::VariableDeclaration
                 && matches!(
                     self.data_of(declaration),
@@ -883,8 +872,7 @@ impl<'a> CheckerState<'a> {
                 );
                 if is_class_like && declaration_name != Some(node) {
                     let source = self.binder.source_of_node(node);
-                    let mut container =
-                        node_util::get_this_container(source, node, false);
+                    let mut container = node_util::get_this_container(source, node, false);
                     while let Some(current) = container {
                         if self.kind_of(current) == SyntaxKind::SourceFile
                             || self.parent_of(current) == Some(declaration)
@@ -953,8 +941,7 @@ impl<'a> CheckerState<'a> {
         let Some(container) = self.get_enclosing_block_scope_container(value_declaration) else {
             return;
         };
-        let is_captured =
-            self.is_inside_function_or_instance_property_initializer(node, container);
+        let is_captured = self.is_inside_function_or_instance_property_initializer(node, container);
         let enclosing_iteration_statement = self.get_enclosing_iteration_statement(container);
         if let Some(iteration) = enclosing_iteration_statement {
             if is_captured {
@@ -968,12 +955,10 @@ impl<'a> CheckerState<'a> {
                         .and_then(|list| self.parent_of(list))
                         .is_some_and(|parent| parent == container)
                     {
-                        if let Some(part) = self
-                            .get_part_of_for_statement_containing_node(
-                                self.parent_of(node).unwrap_or(node),
-                                container,
-                            )
-                        {
+                        if let Some(part) = self.get_part_of_for_statement_containing_node(
+                            self.parent_of(node).unwrap_or(node),
+                            container,
+                        ) {
                             self.links.or_node_check_flags(
                                 self.speculation_depth,
                                 part,
@@ -1068,8 +1053,12 @@ impl<'a> CheckerState<'a> {
         let NodeData::ForStatement(data) = self.data_of(container) else {
             return None;
         };
-        let (initializer, condition, incrementor, statement) =
-            (data.initializer, data.condition, data.incrementor, data.statement);
+        let (initializer, condition, incrementor, statement) = (
+            data.initializer,
+            data.condition,
+            data.incrementor,
+            data.statement,
+        );
         self.find_ancestor(Some(node), |_, n| {
             if n == container {
                 Ancestor::Quit
@@ -1197,12 +1186,10 @@ impl<'a> CheckerState<'a> {
                 }
             }
             SyntaxKind::Block => {
-                let parent_is_non_arrow_function_like = state
-                    .parent_of(n)
-                    .is_some_and(|parent| {
-                        node_util::is_function_like_declaration_kind(state.kind_of(parent))
-                            && state.kind_of(parent) != SyntaxKind::ArrowFunction
-                    });
+                let parent_is_non_arrow_function_like = state.parent_of(n).is_some_and(|parent| {
+                    node_util::is_function_like_declaration_kind(state.kind_of(parent))
+                        && state.kind_of(parent) != SyntaxKind::ArrowFunction
+                });
                 if parent_is_non_arrow_function_like {
                     Ancestor::Quit
                 } else {
@@ -1270,7 +1257,9 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
         let substitute_constraints = !check_mode.intersects(CheckMode::INFERENTIAL)
-            && self.some_type_result(ty, |state, t| state.is_generic_type_with_union_constraint(t))?
+            && self.some_type_result(ty, |state, t| {
+                state.is_generic_type_with_union_constraint(t)
+            })?
             && (self.is_constraint_position(ty, reference)?
                 || self.has_contextual_type_with_no_generic_types(reference, check_mode)?);
         if substitute_constraints {
@@ -1487,7 +1476,9 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(statement) == SyntaxKind::VariableStatement {
                 if let Some(container) = self.parent_of(statement) {
                     if self.kind_of(container) == SyntaxKind::SourceFile
-                        && !self.binder.is_external_or_common_js_module_of_node(container)
+                        && !self
+                            .binder
+                            .is_external_or_common_js_module_of_node(container)
                     {
                         return false;
                     }
@@ -1980,7 +1971,9 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 };
-                return Ok(Some(self.get_flow_type_of_reference_stub(node, ty, ty, None)));
+                return Ok(Some(
+                    self.get_flow_type_of_reference_stub(node, ty, ty, None),
+                ));
             }
         }
         if self.kind_of(container) == SyntaxKind::SourceFile {
@@ -2010,7 +2003,10 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getThisTypeOfDeclaration (63160): the declared this-
     /// parameter type of a function-like's signature.
-    fn get_this_type_of_declaration(&mut self, declaration: NodeId) -> CheckResult2<Option<TypeId>> {
+    fn get_this_type_of_declaration(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
         let signature = self.get_signature_from_declaration(declaration)?;
         let Some(this_parameter) = self.signature_of(signature).this_parameter else {
             return Ok(None);
@@ -2045,7 +2041,10 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isInParameterInitializerBeforeContainingFunction (73797).
-    pub(crate) fn is_in_parameter_initializer_before_containing_function(&self, node: NodeId) -> bool {
+    pub(crate) fn is_in_parameter_initializer_before_containing_function(
+        &self,
+        node: NodeId,
+    ) -> bool {
         let mut in_binding_initializer = false;
         let mut current = self.parent_of(node);
         while let Some(n) = current {
@@ -2069,11 +2068,8 @@ impl<'a> CheckerState<'a> {
 
     /// tsc captureLexicalThis (72346).
     fn capture_lexical_this(&mut self, node: NodeId, container: NodeId) {
-        self.links.or_node_check_flags(
-            self.speculation_depth,
-            node,
-            NodeCheckFlags::LEXICAL_THIS,
-        );
+        self.links
+            .or_node_check_flags(self.speculation_depth, node, NodeCheckFlags::LEXICAL_THIS);
         if matches!(
             self.kind_of(container),
             SyntaxKind::PropertyDeclaration | SyntaxKind::Constructor
@@ -2145,13 +2141,12 @@ impl<'a> CheckerState<'a> {
 
     /// tsc classDeclarationExtendsNull (72336).
     fn class_declaration_extends_null(&mut self, class_declaration: NodeId) -> CheckResult2<bool> {
-        let symbol = self.node_symbol(class_declaration).ok_or_else(|| {
-            Unsupported::new("class without a bound symbol (parse recovery)")
-        })?;
+        let symbol = self
+            .node_symbol(class_declaration)
+            .ok_or_else(|| Unsupported::new("class without a bound symbol (parse recovery)"))?;
         let symbol = self.get_merged_symbol(symbol);
         let class_instance_type = self.get_declared_type_of_class_or_interface(symbol)?;
-        let base_constructor_type =
-            self.get_base_constructor_type_of_class(class_instance_type)?;
+        let base_constructor_type = self.get_base_constructor_type_of_class(class_instance_type)?;
         Ok(base_constructor_type == self.tables.intrinsics.null_widening)
     }
 
@@ -2216,8 +2211,9 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let legal = container
-            .is_some_and(|container| self.is_legal_usage_of_super_expression(container, is_call_expression));
+        let legal = container.is_some_and(|container| {
+            self.is_legal_usage_of_super_expression(container, is_call_expression)
+        });
         if !legal {
             let current = self.find_ancestor(Some(node), |state, n| {
                 if Some(n) == container {
@@ -2281,9 +2277,10 @@ impl<'a> CheckerState<'a> {
                 {
                     let mut scope = self.parent_of(node);
                     while let Some(current) = scope {
-                        let current_scope =
-                            self.get_enclosing_block_scope_container(current);
-                        let Some(current_scope) = current_scope else { break };
+                        let current_scope = self.get_enclosing_block_scope_container(current);
+                        let Some(current_scope) = current_scope else {
+                            break;
+                        };
                         if self.kind_of(current_scope) != SyntaxKind::SourceFile
                             || self
                                 .binder
@@ -2306,19 +2303,18 @@ impl<'a> CheckerState<'a> {
         self.links
             .or_node_check_flags(self.speculation_depth, node, node_check_flag);
         if self.kind_of(container) == SyntaxKind::MethodDeclaration && in_async_function {
-            let parent_is_super_property_assignment =
-                self.parent_of(node).is_some_and(|parent| {
-                    let is_super_property = matches!(
-                        self.data_of(parent),
-                        NodeData::PropertyAccessExpression(data)
-                            if data.expression == Some(node)
-                    ) || matches!(
-                        self.data_of(parent),
-                        NodeData::ElementAccessExpression(data)
-                            if data.expression == Some(node)
-                    );
-                    is_super_property && self.get_assignment_target(parent).is_some()
-                });
+            let parent_is_super_property_assignment = self.parent_of(node).is_some_and(|parent| {
+                let is_super_property = matches!(
+                    self.data_of(parent),
+                    NodeData::PropertyAccessExpression(data)
+                        if data.expression == Some(node)
+                ) || matches!(
+                    self.data_of(parent),
+                    NodeData::ElementAccessExpression(data)
+                        if data.expression == Some(node)
+                );
+                is_super_property && self.get_assignment_target(parent).is_some()
+            });
             let flag = if parent_is_super_property_assignment {
                 NodeCheckFlags::METHOD_WITH_SUPER_PROPERTY_ASSIGNMENT_IN_ASYNC
             } else {
@@ -2403,15 +2399,14 @@ impl<'a> CheckerState<'a> {
         if is_call_expression {
             return self.kind_of(container) == SyntaxKind::Constructor;
         }
-        let parent_is_class_or_object_literal =
-            self.parent_of(container).is_some_and(|parent| {
-                matches!(
-                    self.kind_of(parent),
-                    SyntaxKind::ClassDeclaration
-                        | SyntaxKind::ClassExpression
-                        | SyntaxKind::ObjectLiteralExpression
-                )
-            });
+        let parent_is_class_or_object_literal = self.parent_of(container).is_some_and(|parent| {
+            matches!(
+                self.kind_of(parent),
+                SyntaxKind::ClassDeclaration
+                    | SyntaxKind::ClassExpression
+                    | SyntaxKind::ObjectLiteralExpression
+            )
+        });
         if !parent_is_class_or_object_literal {
             return false;
         }
@@ -2598,7 +2593,9 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) == SyntaxKind::JsxAttributes {
             let parent = self.parent_of(node).expect("attributes have an element");
             if self.kind_of(parent) != SyntaxKind::JsxSelfClosingElement {
-                return self.parent_of(parent).expect("opening element has a parent");
+                return self
+                    .parent_of(parent)
+                    .expect("opening element has a parent");
             }
         }
         node
@@ -2625,8 +2622,8 @@ impl<'a> CheckerState<'a> {
         let result = (|state: &mut Self| -> CheckResult2<TypeId> {
             let ty = state.check_expression(node, check_mode | CheckMode::CONTEXTUAL)?;
             if state.maybe_type_of_kind(ty, TypeFlags::LITERAL) {
-                let instantiated = state
-                    .instantiate_contextual_type_for_node(Some(contextual_type), node)?;
+                let instantiated =
+                    state.instantiate_contextual_type_for_node(Some(contextual_type), node)?;
                 if state.is_literal_of_contextual_type(ty, instantiated)? {
                     return Ok(state.tables.get_regular_type_of_literal_type(ty));
                 }
@@ -2748,7 +2745,6 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
-
     /// tsc-port: padObjectLiteralType @6.0.3
     /// tsc-hash: 27d1ecfe9de206dd54dee7b938427800afbe679cccfdb1b16ffd99b872488dff
     /// tsc-span: _tsc.js:80629-80660
@@ -2791,9 +2787,7 @@ impl<'a> CheckerState<'a> {
                 .binder
                 .create_symbol(SymbolFlags::PROPERTY | SymbolFlags::OPTIONAL, name.clone());
             let element_type = self.get_type_from_binding_element(
-                e,
-                /*include_pattern_in_type*/ false,
-                /*report_errors*/ false,
+                e, /*include_pattern_in_type*/ false, /*report_errors*/ false,
             )?;
             self.links.set_symbol_type(
                 self.speculation_depth,
@@ -2829,10 +2823,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyNameFromBindingElement @6.0.3
     /// tsc-hash: 0384b54e818653d7ffc1e37a749d326641ed2996e361ac13190e37260ff67a66
     /// tsc-span: _tsc.js:80661-80664
-    fn property_name_from_binding_element(
-        &mut self,
-        e: NodeId,
-    ) -> CheckResult2<Option<String>> {
+    fn property_name_from_binding_element(&mut self, e: NodeId) -> CheckResult2<Option<String>> {
         let NodeData::BindingElement(data) = self.data_of(e) else {
             return Ok(None);
         };
@@ -2883,9 +2874,7 @@ impl<'a> CheckerState<'a> {
                 let has_default = !omitted && self.has_default_value(e);
                 element_types.push(if has_default {
                     self.get_type_from_binding_element(
-                        e,
-                        /*include_pattern_in_type*/ false,
-                        /*report_errors*/ false,
+                        e, /*include_pattern_in_type*/ false, /*report_errors*/ false,
                     )?
                 } else {
                     self.tables.intrinsics.any
@@ -2963,9 +2952,7 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(contextual_type);
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let types = match &self.tables.type_of(contextual_type).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    types.to_vec()
-                }
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
                 _ => unreachable!("union/intersection flag implies payload"),
             };
             for t in types {
@@ -3105,9 +3092,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     None
                 };
-                Ok(symbol.is_some_and(|s| {
-                    self.symbol_flags(s).intersects(SymbolFlags::ENUM)
-                }))
+                Ok(symbol.is_some_and(|s| self.symbol_flags(s).intersects(SymbolFlags::ENUM)))
             }
             _ => Ok(false),
         }
@@ -3142,9 +3127,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let types = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    types.to_vec()
-                }
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
                 _ => return false,
             };
             return types
@@ -3383,7 +3366,6 @@ impl<'a> CheckerState<'a> {
         }
         Ok(ty)
     }
-
 }
 
 /// tsc getThisContainer (14459) with BOTH parameters — the binder's
@@ -3646,7 +3628,11 @@ mod tests {
             .expect("fixture contains the probe node")
     }
 
-    fn direct_expression_rows(text: &str, kind: SyntaxKind, parent: Option<SyntaxKind>) -> Vec<(u32, u32, u32)> {
+    fn direct_expression_rows(
+        text: &str,
+        kind: SyntaxKind,
+        parent: Option<SyntaxKind>,
+    ) -> Vec<(u32, u32, u32)> {
         with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
             let node = find_node(state, kind, parent);
             let _ = state.check_expression(node, CheckMode::NORMAL);
@@ -3693,7 +3679,10 @@ mod tests {
 
     #[test]
     fn literal_statements_are_silent() {
-        assert_eq!(checked_rows("\"abc\";\n123;\ntrue;\nfalse;\nnull;\n1n;\n"), []);
+        assert_eq!(
+            checked_rows("\"abc\";\n123;\ntrue;\nfalse;\nnull;\n1n;\n"),
+            []
+        );
         // Regex forces the RegExp global: no-lib fixtures take the
         // one-shot file-less 2318, excluded from per-file rows.
         assert_eq!(checked_rows("/abc/;\n"), []);
@@ -3800,7 +3789,10 @@ mod tests {
         assert_eq!(direct("declare namespace N { 1; }\n", 1), [(1036, 22, 1)]);
         // Once-flag sits on the enclosing block: a second statement
         // stays silent.
-        assert_eq!(direct("declare namespace N { 1; 2; }\n", 2), [(1036, 22, 1)]);
+        assert_eq!(
+            direct("declare namespace N { 1; 2; }\n", 2),
+            [(1036, 22, 1)]
+        );
     }
 
     // ---- this / super — oracle-pinned ----
@@ -3867,7 +3859,10 @@ mod tests {
 
     #[test]
     fn assigning_to_an_enum_reports_2628() {
-        assert_eq!(assignment_lhs_rows("enum E { A }\nE = 1;\n"), [(2628, 13, 1)]);
+        assert_eq!(
+            assignment_lhs_rows("enum E { A }\nE = 1;\n"),
+            [(2628, 13, 1)]
+        );
     }
 
     #[test]

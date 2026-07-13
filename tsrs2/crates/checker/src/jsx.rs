@@ -207,9 +207,10 @@ impl<'a> CheckerState<'a> {
                     // containsOnlyTriviaWhiteSpaces: the scanner marks
                     // whitespace-only JSX text.
                     let is_trivia = match self.data_of(child) {
-                        NodeData::JsxText(data) => {
-                            data.text.chars().all(|c| matches!(c, ' ' | '\t' | '\r' | '\n'))
-                        }
+                        NodeData::JsxText(data) => data
+                            .text
+                            .chars()
+                            .all(|c| matches!(c, ' ' | '\t' | '\r' | '\n')),
                         _ => false,
                     };
                     if !is_trivia {
@@ -256,10 +257,7 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = exports.get(name).copied() else {
             return Ok(self.tables.intrinsics.error);
         };
-        if !self
-            .symbol_flags(symbol)
-            .intersects(SymbolFlags::TYPE)
-        {
+        if !self.symbol_flags(symbol).intersects(SymbolFlags::TYPE) {
             return Ok(self.tables.intrinsics.error);
         }
         self.get_declared_type_of_symbol_slice(symbol)
@@ -316,10 +314,7 @@ impl<'a> CheckerState<'a> {
                     .intersects(SymbolFlags::NAMESPACE_MODULE | SymbolFlags::VALUE_MODULE)
                     && candidate != self.unknown_symbol
                 {
-                    if self
-                        .symbol_flags(candidate)
-                        .intersects(SymbolFlags::ALIAS)
-                    {
+                    if self.symbol_flags(candidate).intersects(SymbolFlags::ALIAS) {
                         return Err(Unsupported::new(
                             "aliased JSX namespace member (alias resolution, 5.8)",
                         ));

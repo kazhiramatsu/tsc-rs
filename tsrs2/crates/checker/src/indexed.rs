@@ -151,7 +151,11 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_reducible_intersection(&mut self, ty: TypeId) -> CheckResult2<bool> {
-        let unique_filled = match self.links.ty(ty).unique_literal_filled_instantiation.resolved()
+        let unique_filled = match self
+            .links
+            .ty(ty)
+            .unique_literal_filled_instantiation
+            .resolved()
         {
             Some(cached) => cached,
             None => {
@@ -235,9 +239,7 @@ impl<'a> CheckerState<'a> {
         let mut key_types: Vec<TypeId> = Vec::with_capacity(properties.len());
         for property in properties {
             key_types.push(self.get_literal_type_from_property(
-                property,
-                include,
-                /*include_non_public*/ false,
+                property, include, /*include_non_public*/ false,
             )?);
         }
         for info in self.get_index_infos_of_type(ty)? {
@@ -321,7 +323,10 @@ impl<'a> CheckerState<'a> {
     /// Numeric names take the literal directly (checkExpression on a
     /// NumericLiteral reduces to it); computed names and expression
     /// names are 5.5 rows.
-    pub(crate) fn get_literal_type_from_property_name(&mut self, name: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_literal_type_from_property_name(
+        &mut self,
+        name: NodeId,
+    ) -> CheckResult2<TypeId> {
         match self.data_of(name) {
             NodeData::PrivateIdentifier(_) => Ok(self.tables.intrinsics.never),
             NodeData::NumericLiteral(data) => {
@@ -331,11 +336,13 @@ impl<'a> CheckerState<'a> {
             NodeData::ComputedPropertyName(_) => Err(Unsupported::new(
                 "computed property names in keyof (checkComputedPropertyName, M4 5.5)",
             )),
-            NodeData::Identifier(data) => Ok(self
-                .tables
-                .get_string_literal_type(tsrs2_binder::unescape_leading_underscores(
-                    &data.escaped_text,
-                ))),
+            NodeData::Identifier(data) => {
+                Ok(self
+                    .tables
+                    .get_string_literal_type(tsrs2_binder::unescape_leading_underscores(
+                        &data.escaped_text,
+                    )))
+            }
             NodeData::StringLiteral(data) => {
                 let text = data.text.clone();
                 Ok(self.tables.get_string_literal_type(&text))
@@ -530,15 +537,14 @@ impl<'a> CheckerState<'a> {
         if self.options.no_unchecked_indexed_access == Some(true)
             && access_flags.intersects(AccessFlags::EXPRESSION_POSITION)
         {
-            access_flags = AccessFlags::from_bits(
-                access_flags.bits() | AccessFlags::INCLUDE_UNDEFINED.bits(),
-            );
+            access_flags =
+                AccessFlags::from_bits(access_flags.bits() | AccessFlags::INCLUDE_UNDEFINED.bits());
         }
         // 62576 deferral asymmetry: EXPRESSION access nodes defer only
         // generic TUPLES; type nodes defer any generic object.
         let generic = self.tables.is_generic_index_type(index_type) || {
-            let expression_access = access_node
-                .is_some_and(|node| self.kind_of(node) != SyntaxKind::IndexedAccessType);
+            let expression_access =
+                access_node.is_some_and(|node| self.kind_of(node) != SyntaxKind::IndexedAccessType);
             let tuple_fixed_access = self.tables.is_tuple_type(object_type) && {
                 let target = self.tables.reference_target(object_type);
                 let limit = self.get_total_fixed_element_count(target);
@@ -560,9 +566,8 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(Some(object_type));
             }
-            let persistent = AccessFlags::from_bits(
-                access_flags.bits() & AccessFlags::PERSISTENT.bits(),
-            );
+            let persistent =
+                AccessFlags::from_bits(access_flags.bits() & AccessFlags::PERSISTENT.bits());
             return Ok(Some(self.tables.get_indexed_access_type_interned(
                 object_type,
                 index_type,
@@ -664,8 +669,8 @@ impl<'a> CheckerState<'a> {
         access_node: Option<NodeId>,
         access_flags: AccessFlags,
     ) -> CheckResult2<Option<TypeId>> {
-        let access_expression = access_node
-            .filter(|&node| self.kind_of(node) == SyntaxKind::ElementAccessExpression);
+        let access_expression =
+            access_node.filter(|&node| self.kind_of(node) == SyntaxKind::ElementAccessExpression);
         let property_name = if access_node
             .is_some_and(|node| self.kind_of(node) == SyntaxKind::PrivateIdentifier)
         {
@@ -692,9 +697,7 @@ impl<'a> CheckerState<'a> {
                     };
                     let object_symbol = self.tables.type_of(object_type).symbol;
                     let self_access = match receiver {
-                        Some(receiver) => {
-                            self.is_self_type_access(receiver, object_symbol)?
-                        }
+                        Some(receiver) => self.is_self_type_access(receiver, object_symbol)?,
                         None => false,
                     };
                     self.mark_property_as_referenced(
@@ -750,9 +753,10 @@ impl<'a> CheckerState<'a> {
                         )
                     }
                     _ => {
-                        let type_node_missing = access_node.is_some_and(|node| {
-                            self.kind_of(node) == SyntaxKind::IndexedAccessType
-                        }) && self.tables.contains_missing_type(property_type);
+                        let type_node_missing =
+                            access_node.is_some_and(|node| {
+                                self.kind_of(node) == SyntaxKind::IndexedAccessType
+                            }) && self.tables.contains_missing_type(property_type);
                         if type_node_missing {
                             let undefined = self.tables.intrinsics.undefined;
                             self.get_union_type_ex(
@@ -822,13 +826,15 @@ impl<'a> CheckerState<'a> {
                         object_type,
                         access_expression,
                     )?;
-                    return Ok(Some(self.get_tuple_element_type_out_of_start_count(
-                        object_type,
-                        index as usize,
-                        access_flags
-                            .intersects(AccessFlags::INCLUDE_UNDEFINED)
-                            .then_some(self.tables.intrinsics.missing),
-                    )?));
+                    return Ok(Some(
+                        self.get_tuple_element_type_out_of_start_count(
+                            object_type,
+                            index as usize,
+                            access_flags
+                                .intersects(AccessFlags::INCLUDE_UNDEFINED)
+                                .then_some(self.tables.intrinsics.missing),
+                        )?,
+                    ));
                 }
             }
         }
@@ -876,8 +882,7 @@ impl<'a> CheckerState<'a> {
                             );
                         } else {
                             let index_display = self.type_to_string_slice(index_type)?;
-                            let object_display =
-                                self.type_to_string_slice(original_object_type)?;
+                            let object_display = self.type_to_string_slice(original_object_type)?;
                             self.error_at(
                                 Some(access_expression),
                                 &diagnostics::Type_0_cannot_be_used_to_index_type_1,
@@ -924,24 +929,26 @@ impl<'a> CheckerState<'a> {
                 )?;
                 if access_flags.intersects(AccessFlags::INCLUDE_UNDEFINED) {
                     // The enum-keyed exemption (62284-62287).
-                    let enum_keyed = self
-                        .tables
-                        .type_of(object_type)
-                        .symbol
-                        .is_some_and(|object_symbol| {
-                            self.binder.symbol(object_symbol).flags.intersects(
-                                SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM,
-                            ) && self
-                                .tables
-                                .flags_of(index_type)
-                                .intersects(TypeFlags::ENUM_LITERAL)
-                                && self.tables.type_of(index_type).symbol.is_some_and(
-                                    |index_symbol| {
-                                        self.get_parent_of_symbol(index_symbol)
-                                            == Some(object_symbol)
-                                    },
-                                )
-                        });
+                    let enum_keyed =
+                        self.tables
+                            .type_of(object_type)
+                            .symbol
+                            .is_some_and(|object_symbol| {
+                                self.binder
+                                    .symbol(object_symbol)
+                                    .flags
+                                    .intersects(SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM)
+                                    && self
+                                        .tables
+                                        .flags_of(index_type)
+                                        .intersects(TypeFlags::ENUM_LITERAL)
+                                    && self.tables.type_of(index_type).symbol.is_some_and(
+                                        |index_symbol| {
+                                            self.get_parent_of_symbol(index_symbol)
+                                                == Some(object_symbol)
+                                        },
+                                    )
+                            });
                     if !enum_keyed {
                         let missing = self.tables.intrinsics.missing;
                         return Ok(Some(self.get_union_type_ex(
@@ -991,12 +998,9 @@ impl<'a> CheckerState<'a> {
             let index_node = self.get_index_node_for_access_expression(node);
             let index_flags = self.tables.flags_of(index_type);
             if self.kind_of(index_node) != SyntaxKind::BigIntLiteral
-                && index_flags
-                    .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
+                && index_flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
             {
-                let value = self
-                    .property_name_from_type(index_type)
-                    .unwrap_or_default();
+                let value = self.property_name_from_type(index_type).unwrap_or_default();
                 let object_display = self.type_to_string_slice(object_type)?;
                 self.error_at(
                     Some(index_node),
@@ -1054,12 +1058,9 @@ impl<'a> CheckerState<'a> {
             .intersects(ObjectFlags::OBJECT_LITERAL)
         {
             if no_implicit_any
-                && index_flags
-                    .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
+                && index_flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
             {
-                let value = self
-                    .property_name_from_type(index_type)
-                    .unwrap_or_default();
+                let value = self.property_name_from_type(index_type).unwrap_or_default();
                 let object_display = self.type_to_string_slice(object_type)?;
                 self.error_at(
                     Some(access_expression),
@@ -1070,8 +1071,12 @@ impl<'a> CheckerState<'a> {
             }
             if index_flags.intersects(TypeFlags::NUMBER | TypeFlags::STRING) {
                 let resolved = self.resolve_structured_type_members(object_type)?;
-                let properties: Vec<SymbolId> =
-                    self.members_of(resolved).members.values().copied().collect();
+                let properties: Vec<SymbolId> = self
+                    .members_of(resolved)
+                    .members
+                    .values()
+                    .copied()
+                    .collect();
                 let mut types = Vec::with_capacity(properties.len() + 1);
                 for property in properties {
                     types.push(self.get_type_of_symbol(property)?);
@@ -1093,9 +1098,8 @@ impl<'a> CheckerState<'a> {
                 })
             });
         if global_this_block_scoped {
-            let display = tsrs2_binder::unescape_leading_underscores(
-                property_name.expect("checked above"),
-            );
+            let display =
+                tsrs2_binder::unescape_leading_underscores(property_name.expect("checked above"));
             let object_display = self.type_to_string_slice(object_type)?;
             self.error_at(
                 Some(access_expression),
@@ -1120,8 +1124,7 @@ impl<'a> CheckerState<'a> {
                     Some(argument) => {
                         let source = self.binder.source_of_node(argument);
                         let raw = source.arena.node(argument);
-                        let start =
-                            tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+                        let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
                         source.text[start..raw.end as usize].to_owned()
                     }
                     None => String::new(),
@@ -1185,8 +1188,7 @@ impl<'a> CheckerState<'a> {
                             let mut tail: Vec<tsrs2_diags::MessageChain> = Vec::new();
                             if index_flags.intersects(TypeFlags::ENUM_LITERAL) {
                                 let index_display = self.type_to_string_slice(index_type)?;
-                                let object_display =
-                                    self.type_to_string_slice(object_type)?;
+                                let object_display = self.type_to_string_slice(object_type)?;
                                 tail.push(tsrs2_diags::MessageChain::new(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[format!("[{index_display}]"), object_display],
@@ -1202,21 +1204,17 @@ impl<'a> CheckerState<'a> {
                             } else if index_flags
                                 .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
                             {
-                                let value = self
-                                    .property_name_from_type(index_type)
-                                    .unwrap_or_default();
-                                let object_display =
-                                    self.type_to_string_slice(object_type)?;
+                                let value =
+                                    self.property_name_from_type(index_type).unwrap_or_default();
+                                let object_display = self.type_to_string_slice(object_type)?;
                                 tail.push(tsrs2_diags::MessageChain::new(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[value, object_display],
                                 ));
-                            } else if index_flags
-                                .intersects(TypeFlags::NUMBER | TypeFlags::STRING)
+                            } else if index_flags.intersects(TypeFlags::NUMBER | TypeFlags::STRING)
                             {
                                 let index_display = self.type_to_string_slice(index_type)?;
-                                let object_display =
-                                    self.type_to_string_slice(object_type)?;
+                                let object_display = self.type_to_string_slice(object_type)?;
                                 tail.push(tsrs2_diags::MessageChain::new(
                                     &diagnostics::No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1,
                                     &[index_display, object_display],
@@ -1415,7 +1413,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getRestTypeOfTupleType @6.0.3
     /// tsc-hash: e1a5ac9e819103ea900bad4707f9547b51786eed8ac31d5baac42ef703c0974c
     /// tsc-span: _tsc.js:67800-67802
-    pub(crate) fn get_rest_type_of_tuple_type(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+    pub(crate) fn get_rest_type_of_tuple_type(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
         let target = self.tables.reference_target(ty);
         let fixed_length = match &self.tables.type_of(target).data {
             TypeData::TupleTarget(data) => data.fixed_length,
@@ -1439,11 +1440,11 @@ impl<'a> CheckerState<'a> {
         // their arguments lazily here.
         let type_arguments: Vec<TypeId> = self.get_type_arguments(ty)?;
         let target = self.tables.reference_target(ty);
-        let element_flags: Vec<tsrs2_types::ElementFlags> =
-            match &self.tables.type_of(target).data {
-                TypeData::TupleTarget(data) => data.element_flags.to_vec(),
-                _ => return Ok(None),
-            };
+        let element_flags: Vec<tsrs2_types::ElementFlags> = match &self.tables.type_of(target).data
+        {
+            TypeData::TupleTarget(data) => data.element_flags.to_vec(),
+            _ => return Ok(None),
+        };
         let length = element_flags.len().saturating_sub(end_skip_count);
         if index >= length {
             return Ok(None);
@@ -1526,8 +1527,8 @@ mod tests {
     use crate::state::CheckerState;
 
     fn annotation_type(state: &mut CheckerState, name: &str) -> tsrs2_types::TypeId {
-        let annotation = find_probe_annotation(state.binder.source(0), name)
-            .expect("var with annotation");
+        let annotation =
+            find_probe_annotation(state.binder.source(0), name).expect("var with annotation");
         state
             .get_type_from_type_node(annotation)
             .expect("annotation resolves")

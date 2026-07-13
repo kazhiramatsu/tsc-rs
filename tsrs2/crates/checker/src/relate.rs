@@ -435,7 +435,11 @@ mod tests {
             // one M3-constructible generic-reference shape.
             let target = state
                 .tables
-                .get_tuple_target_type(&[ElementFlags::REQUIRED, ElementFlags::OPTIONAL], false, None)
+                .get_tuple_target_type(
+                    &[ElementFlags::REQUIRED, ElementFlags::OPTIONAL],
+                    false,
+                    None,
+                )
                 .expect("tuple target");
             let key = state.get_relation_key(
                 target,

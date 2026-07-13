@@ -172,8 +172,7 @@ impl<'a> CheckerState<'a> {
         let parent = self
             .parent_of(member)
             .expect("enum members hang off their enum declaration");
-        if self.node_flags(parent) & NodeFlags::AMBIENT.bits() != 0 && !self.is_enum_const(parent)
-        {
+        if self.node_flags(parent) & NodeFlags::AMBIENT.bits() != 0 && !self.is_enum_const(parent) {
             return Ok(undefined_result());
         }
         let Some(auto_value) = auto_value else {
@@ -306,11 +305,7 @@ impl<'a> CheckerState<'a> {
                 let (left_node, operator_token, right_node) =
                     match (data.left, data.operator_token, data.right) {
                         (Some(left), Some(operator), Some(right)) => (left, operator, right),
-                        _ => {
-                            return Err(Unsupported::new(
-                                "binary expression with missing pieces",
-                            ))
-                        }
+                        _ => return Err(Unsupported::new("binary expression with missing pieces")),
                     };
                 let operator = self.kind_of(operator_token);
                 let left = self.evaluate(left_node, location)?;
@@ -360,9 +355,7 @@ impl<'a> CheckerState<'a> {
                     let concat = |value: &EvalValue| -> String {
                         match value {
                             EvalValue::Str(text) => text.clone(),
-                            EvalValue::Num(number) => {
-                                tsrs2_types::js_number_to_string(*number)
-                            }
+                            EvalValue::Num(number) => tsrs2_types::js_number_to_string(*number),
                         }
                     };
                     if let (Some(l), Some(r)) = (&left.value, &right.value) {
@@ -461,7 +454,8 @@ impl<'a> CheckerState<'a> {
                 _ => return Err(Unsupported::new("template span with non-template literal")),
             }
             resolved_other_files = resolved_other_files || span_result.resolved_other_files;
-            has_external_references = has_external_references || span_result.has_external_references;
+            has_external_references =
+                has_external_references || span_result.has_external_references;
         }
         Ok(evaluator_result(
             Some(EvalValue::Str(result)),
@@ -488,7 +482,11 @@ impl<'a> CheckerState<'a> {
             if let Some(text) = self.identifier_text_of(expr).map(str::to_owned) {
                 if is_infinity_or_nan_string(&text)
                     && Some(symbol)
-                        == self.get_global_symbol(&text, SymbolFlags::VALUE, /*diagnostic*/ None)
+                        == self.get_global_symbol(
+                            &text,
+                            SymbolFlags::VALUE,
+                            /*diagnostic*/ None,
+                        )
                 {
                     let value = if text == "NaN" {
                         f64::NAN
@@ -822,7 +820,9 @@ impl<'a> CheckerState<'a> {
                     return false;
                 }
                 if node_util::is_function_like_kind(self.kind_of(n))
-                    && self.get_immediately_invoked_function_expression(n).is_none()
+                    && self
+                        .get_immediately_invoked_function_expression(n)
+                        .is_none()
                 {
                     return true;
                 }
@@ -928,7 +928,10 @@ impl<'a> CheckerState<'a> {
                 // findAncestor callback `!getIIFE(current)`: an IIFE
                 // keeps climbing (its body runs immediately), any other
                 // function-like defers the use — hit.
-                if self.get_immediately_invoked_function_expression(node).is_none() {
+                if self
+                    .get_immediately_invoked_function_expression(node)
+                    .is_none()
+                {
                     return Ok(true);
                 }
                 current = self.parent_of(node);
@@ -1229,9 +1232,7 @@ impl<'a> CheckerState<'a> {
                 .expression
                 .ok_or_else(|| Unsupported::new("computed property name missing expression"))?;
             return node_util::get_escaped_text_of_identifier_or_literal(source, expression)
-                .ok_or_else(|| {
-                    Unsupported::new("non-literal computed property name text (5.5)")
-                });
+                .ok_or_else(|| Unsupported::new("non-literal computed property name text (5.5)"));
         }
         node_util::get_escaped_text_of_identifier_or_literal(source, name)
             .ok_or_else(|| Unsupported::new("property name shape without literal text (5.5)"))
@@ -1317,13 +1318,22 @@ fn js_string_to_number(text: &str) -> f64 {
         "-Infinity" => return f64::NEG_INFINITY,
         _ => {}
     }
-    if let Some(digits) = trimmed.strip_prefix("0x").or_else(|| trimmed.strip_prefix("0X")) {
+    if let Some(digits) = trimmed
+        .strip_prefix("0x")
+        .or_else(|| trimmed.strip_prefix("0X"))
+    {
         return u128::from_str_radix(digits, 16).map_or(f64::NAN, |value| value as f64);
     }
-    if let Some(digits) = trimmed.strip_prefix("0o").or_else(|| trimmed.strip_prefix("0O")) {
+    if let Some(digits) = trimmed
+        .strip_prefix("0o")
+        .or_else(|| trimmed.strip_prefix("0O"))
+    {
         return u128::from_str_radix(digits, 8).map_or(f64::NAN, |value| value as f64);
     }
-    if let Some(digits) = trimmed.strip_prefix("0b").or_else(|| trimmed.strip_prefix("0B")) {
+    if let Some(digits) = trimmed
+        .strip_prefix("0b")
+        .or_else(|| trimmed.strip_prefix("0B"))
+    {
         return u128::from_str_radix(digits, 2).map_or(f64::NAN, |value| value as f64);
     }
     if trimmed

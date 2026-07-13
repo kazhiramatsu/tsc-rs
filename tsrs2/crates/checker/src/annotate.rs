@@ -407,9 +407,9 @@ impl<'a> CheckerState<'a> {
                     let NodeData::ArrayType(data) = self.data_of(node) else {
                         unreachable!("non-tuple node here is an array");
                     };
-                    let element = data.element_type.ok_or_else(|| {
-                        Unsupported::new("array type with missing element type")
-                    })?;
+                    let element = data
+                        .element_type
+                        .ok_or_else(|| Unsupported::new("array type with missing element type"))?;
                     vec![self.get_type_from_type_node(element)?]
                 };
                 self.create_normalized_type_reference_forced(target, &element_types)?
@@ -674,9 +674,7 @@ impl<'a> CheckerState<'a> {
         let alias_symbol = self.get_alias_symbol_for_type_node(node);
         let resolved = match symbol {
             None => self.empty_type_literal_type,
-            Some(symbol)
-                if self.symbol_members(symbol).is_empty() && alias_symbol.is_none() =>
-            {
+            Some(symbol) if self.symbol_members(symbol).is_empty() && alias_symbol.is_none() => {
                 self.empty_type_literal_type
             }
             Some(symbol) => {
@@ -686,8 +684,7 @@ impl<'a> CheckerState<'a> {
                 ty.object_flags = ObjectFlags::ANONYMOUS;
                 ty.symbol = Some(symbol);
                 ty.alias_symbol = alias_symbol;
-                ty.alias_type_arguments =
-                    alias_type_arguments.map(Vec::into_boxed_slice);
+                ty.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
                 id
             }
         };
@@ -729,8 +726,8 @@ impl<'a> CheckerState<'a> {
                 .filter(|&expression| self.is_entity_name_expression(expression)),
             _ => unreachable!("type reference kinds imply payloads"),
         };
-        let type_name = type_name
-            .ok_or_else(|| Unsupported::new("type reference with missing name"))?;
+        let type_name =
+            type_name.ok_or_else(|| Unsupported::new("type reference with missing name"))?;
         let Some(symbol) = self.resolve_entity_name(
             type_name,
             SymbolFlags::TYPE,
@@ -817,9 +814,7 @@ impl<'a> CheckerState<'a> {
     fn get_this_type(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let source = self.binder.source_of_node(node);
         let container = tsrs2_binder::node_util::get_this_container(
-            source,
-            node,
-            /*include_arrow_functions*/ false,
+            source, node, /*include_arrow_functions*/ false,
         );
         let parent = container.and_then(|container| self.parent_of(container));
         if let (Some(container), Some(parent)) = (container, parent) {
@@ -838,8 +833,7 @@ impl<'a> CheckerState<'a> {
                     };
                     body.is_some_and(|body| self.is_node_descendant_of(node, body))
                 };
-                if !self.has_static_modifier(container) && (!is_constructor || descendant_of_body)
-                {
+                if !self.has_static_modifier(container) && (!is_constructor || descendant_of_body) {
                     let symbol = self
                         .node_symbol(parent)
                         .expect("class/interface declarations bind symbols");
@@ -887,8 +881,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<TypeId> {
         let (alias_symbol, alias_type_arguments) = if alias_symbol.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
-            let local_alias_type_arguments =
-                self.get_type_arguments_for_alias_symbol(alias_symbol);
+            let local_alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
             let alias_type_arguments = match (mapper, local_alias_type_arguments) {
                 (Some(mapper), Some(local)) => Some(self.instantiate_types(&local, mapper)?),
                 (_, local) => local,
@@ -957,9 +950,9 @@ impl<'a> CheckerState<'a> {
                     Ok(arguments)
                 }
                 NodeData::ArrayType(data) => {
-                    let element = data.element_type.ok_or_else(|| {
-                        Unsupported::new("array type with missing element type")
-                    })?;
+                    let element = data
+                        .element_type
+                        .ok_or_else(|| Unsupported::new("array type with missing element type"))?;
                     Ok(vec![state.get_type_from_type_node(element)?])
                 }
                 NodeData::TupleType(data) => {
@@ -992,11 +985,13 @@ impl<'a> CheckerState<'a> {
                     Some(mapper) => self.instantiate_types(&type_arguments, mapper)?,
                     None => type_arguments,
                 };
-                self.tables.set_resolved_type_arguments_if_vacant(ty, resolved);
+                self.tables
+                    .set_resolved_type_arguments_if_vacant(ty, resolved);
             }
         } else {
             let fallback = self.error_filled_type_arguments(ty);
-            self.tables.set_resolved_type_arguments_if_vacant(ty, fallback);
+            self.tables
+                .set_resolved_type_arguments_if_vacant(ty, fallback);
             let target = self.tables.reference_target(ty);
             match self.tables.type_of(target).symbol {
                 Some(symbol) => {
@@ -1098,9 +1093,7 @@ impl<'a> CheckerState<'a> {
         if !local_type_parameters.is_empty() {
             let node_type_arguments = match self.data_of(node) {
                 NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-                NodeData::ExpressionWithTypeArguments(data) => {
-                    self.nodes_of(data.type_arguments)
-                }
+                NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
                 _ => Vec::new(),
             };
             let num_type_arguments = node_type_arguments.len();
@@ -1145,8 +1138,7 @@ impl<'a> CheckerState<'a> {
             {
                 return self.create_deferred_type_reference(ty, node, None, None, None);
             }
-            let mut resolved_arguments: Vec<TypeId> =
-                Vec::with_capacity(node_type_arguments.len());
+            let mut resolved_arguments: Vec<TypeId> = Vec::with_capacity(node_type_arguments.len());
             for argument in node_type_arguments {
                 resolved_arguments.push(self.get_type_from_type_node(argument)?);
             }
@@ -1242,14 +1234,11 @@ impl<'a> CheckerState<'a> {
         if let Some(type_parameters) = type_parameters {
             let node_type_arguments = match self.data_of(node) {
                 NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-                NodeData::ExpressionWithTypeArguments(data) => {
-                    self.nodes_of(data.type_arguments)
-                }
+                NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
                 _ => Vec::new(),
             };
             let num_type_arguments = node_type_arguments.len();
-            let min_type_argument_count =
-                self.get_min_type_argument_count(Some(&type_parameters));
+            let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
             if num_type_arguments < min_type_argument_count
                 || num_type_arguments > type_parameters.len()
             {
@@ -1281,8 +1270,7 @@ impl<'a> CheckerState<'a> {
                 self.is_local_type_alias(symbol) || !self.is_local_type_alias(alias)
             });
             let alias_type_arguments = self.get_type_arguments_for_alias_symbol(new_alias_symbol);
-            let mut resolved_arguments: Vec<TypeId> =
-                Vec::with_capacity(node_type_arguments.len());
+            let mut resolved_arguments: Vec<TypeId> = Vec::with_capacity(node_type_arguments.len());
             for argument in node_type_arguments {
                 resolved_arguments.push(self.get_type_from_type_node(argument)?);
             }
@@ -1343,7 +1331,10 @@ impl<'a> CheckerState<'a> {
             self.tables.get_type_list_id(type_arguments.unwrap_or(&[])),
             self.tables.get_alias_id(alias_symbol, alias_type_arguments)
         );
-        if let Some(&instantiation) = self.links.alias_instantiations.get(&(symbol, id_key.clone()))
+        if let Some(&instantiation) = self
+            .links
+            .alias_instantiations
+            .get(&(symbol, id_key.clone()))
         {
             return Ok(instantiation);
         }
@@ -1416,11 +1407,7 @@ impl<'a> CheckerState<'a> {
                     _ => "(anonymous)".to_owned(),
                 },
             };
-            self.error_at(
-                Some(node),
-                &diagnostics::Type_0_is_not_generic,
-                &[&display],
-            );
+            self.error_at(Some(node), &diagnostics::Type_0_is_not_generic, &[&display]);
             return false;
         }
         true
@@ -1576,7 +1563,8 @@ impl<'a> CheckerState<'a> {
                     None,
                 );
                 Ok(symbol.is_some_and(|symbol| {
-                    self.symbol_flags(symbol).intersects(SymbolFlags::TYPE_ALIAS)
+                    self.symbol_flags(symbol)
+                        .intersects(SymbolFlags::TYPE_ALIAS)
                 }))
             }
             NodeData::TypeQuery(_) => Ok(true),
@@ -1659,7 +1647,6 @@ impl<'a> CheckerState<'a> {
             _ => Ok(false),
         }
     }
-
 
     /// tsc-port: getTypeFromTypeQueryNode @6.0.3
     /// tsc-hash: d8e9b4a2ea79ce1b11bdaebf9b475b2b7175e9b653c0e8c0f87925ab8908f7c6
@@ -1771,7 +1758,9 @@ impl<'a> CheckerState<'a> {
                     symbol,
                     type_parameters,
                 );
-                self.links.alias_instantiations.insert((symbol, list_id), ty);
+                self.links
+                    .alias_instantiations
+                    .insert((symbol, list_id), ty);
             }
             if ty == self.tables.intrinsics.intrinsic_marker
                 && self.binder.symbol(symbol).escaped_name == "BuiltinIteratorReturn"
@@ -1872,9 +1861,8 @@ impl<'a> CheckerState<'a> {
             );
             self.tables.type_mut(this_type).symbol = Some(symbol);
             let generic_type = self.tables.type_mut(id);
-            generic_type.object_flags = ObjectFlags::from_bits(
-                kind.bits() | ObjectFlags::REFERENCE.bits(),
-            );
+            generic_type.object_flags =
+                ObjectFlags::from_bits(kind.bits() | ObjectFlags::REFERENCE.bits());
             generic_type.data = TypeData::GenericType {
                 type_parameters: type_parameters.into_boxed_slice(),
                 outer_type_parameter_count: outer_count,
@@ -1904,9 +1892,7 @@ impl<'a> CheckerState<'a> {
                 .declarations
                 .iter()
                 .copied()
-                .find(|&declaration| {
-                    self.kind_of(declaration) == SyntaxKind::InterfaceDeclaration
-                })
+                .find(|&declaration| self.kind_of(declaration) == SyntaxKind::InterfaceDeclaration)
         };
         let declaration = declaration.expect(
             "Class was missing valueDeclaration -OR- non-class had no interface declarations",
@@ -2109,7 +2095,13 @@ impl<'a> CheckerState<'a> {
             padded.push(ty);
             padded
         };
-        self.resolve_object_type_members(ty, target, source, &type_parameters, &padded_type_arguments)
+        self.resolve_object_type_members(
+            ty,
+            target,
+            source,
+            &type_parameters,
+            &padded_type_arguments,
+        )
     }
 
     /// tsc-port: resolveDeclaredMembers @6.0.3
@@ -2274,10 +2266,8 @@ impl<'a> CheckerState<'a> {
             construct_signatures = self.members_of(source).construct_signatures.clone();
             index_infos = self.members_of(source).index_infos.clone();
         } else {
-            let type_mapper = self.create_type_mapper(
-                type_parameters.to_vec(),
-                Some(type_arguments.to_vec()),
-            );
+            let type_mapper =
+                self.create_type_mapper(type_parameters.to_vec(), Some(type_arguments.to_vec()));
             mapper = Some(type_mapper);
             let declared_properties = self.members_of(source).properties.clone();
             members = self.create_instantiated_symbol_table(
@@ -2336,7 +2326,8 @@ impl<'a> CheckerState<'a> {
                         }
                         None => base_type,
                     };
-                    let base_properties = state.get_properties_of_type_full(instantiated_base_type)?;
+                    let base_properties =
+                        state.get_properties_of_type_full(instantiated_base_type)?;
                     state.add_inherited_members(&mut members, &base_properties);
                     call_signatures.extend(state.get_signatures_of_type(
                         instantiated_base_type,
@@ -2359,9 +2350,10 @@ impl<'a> CheckerState<'a> {
                             }]
                         };
                     for info in inherited_index_infos {
-                        if !index_infos.iter().any(|existing| {
-                            existing.key_type == info.key_type
-                        }) {
+                        if !index_infos
+                            .iter()
+                            .any(|existing| existing.key_type == info.key_type)
+                        {
                             index_infos.push(info);
                         }
                     }
@@ -2458,11 +2450,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         let resolved = self.symbol_members(symbol).clone();
-        self.links.set_symbol_resolved_members(
-            self.speculation_depth,
-            symbol,
-            resolved.clone(),
-        );
+        self.links
+            .set_symbol_resolved_members(self.speculation_depth, symbol, resolved.clone());
         Ok(resolved)
     }
 
@@ -2470,11 +2459,11 @@ impl<'a> CheckerState<'a> {
     /// getResolvedMembersOrExportsOfSymbol (57712) — getExportsOfSymbol's
     /// late-binding-container route. Module symbols need
     /// getExportsOfModuleWorker's export-star walk (5.8).
-    fn get_exports_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<tsrs2_binder::SymbolTable> {
-        if self
-            .symbol_flags(symbol)
-            .intersects(SymbolFlags::MODULE)
-        {
+    fn get_exports_of_symbol(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<tsrs2_binder::SymbolTable> {
+        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
             return Err(Unsupported::new(
                 "module exports (getExportsOfModuleWorker export-star, M4 5.8)",
             ));
@@ -2502,11 +2491,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         let resolved = self.binder.symbol(symbol).exports.clone();
-        self.links.set_symbol_resolved_exports(
-            self.speculation_depth,
-            symbol,
-            resolved.clone(),
-        );
+        self.links
+            .set_symbol_resolved_exports(self.speculation_depth, symbol, resolved.clone());
         Ok(resolved)
     }
 
@@ -2588,7 +2574,11 @@ impl<'a> CheckerState<'a> {
                 tsrs2_types::TypeSystemPropertyName::RESOLVED_BASE_TYPES,
             ) {
                 let resolved = (|state: &mut Self| -> CheckResult2<()> {
-                    if state.tables.object_flags_of(ty).intersects(ObjectFlags::TUPLE) {
+                    if state
+                        .tables
+                        .object_flags_of(ty)
+                        .intersects(ObjectFlags::TUPLE)
+                    {
                         let base = state.get_tuple_base_type(ty)?;
                         state.links.set_type_resolved_base_types(
                             state.speculation_depth,
@@ -2867,7 +2857,8 @@ impl<'a> CheckerState<'a> {
             let mut new_types = Vec::with_capacity(types.len());
             let mut changed = false;
             for &t in types.iter() {
-                let mapped = self.get_type_with_this_argument(t, this_argument, need_apparent_type)?;
+                let mapped =
+                    self.get_type_with_this_argument(t, this_argument, need_apparent_type)?;
                 changed |= mapped != t;
                 new_types.push(mapped);
             }
@@ -2963,8 +2954,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
-            let NodeData::ExpressionWithTypeArguments(data) = state.data_of(base_type_node)
-            else {
+            let NodeData::ExpressionWithTypeArguments(data) = state.data_of(base_type_node) else {
                 unreachable!("heritage clause types are ExpressionWithTypeArguments");
             };
             let expression = data
@@ -3174,14 +3164,20 @@ impl<'a> CheckerState<'a> {
         if self.links.ty(ty).resolved_members.resolved().is_some() {
             self.links.retract_type_members(ty);
         }
-        self.links
-            .set_type_resolved_base_types(self.speculation_depth, ty, vec![reduced_base_type]);
+        self.links.set_type_resolved_base_types(
+            self.speculation_depth,
+            ty,
+            vec![reduced_base_type],
+        );
         Ok(())
     }
 
     /// getDeclaredTypeOfSymbol's class/interface slice for base
     /// resolution (the full dispatch is getDeclaredTypeOfSymbol 57376).
-    pub(crate) fn get_declared_type_of_symbol_slice(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_declared_type_of_symbol_slice(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<TypeId> {
         if self
             .symbol_flags(symbol)
             .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
@@ -3296,17 +3292,17 @@ impl<'a> CheckerState<'a> {
                 .iter()
                 .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
         });
-        let local_type_parameters: Option<Vec<TypeId>> =
-            match &self.tables.type_of(class_type).data {
-                TypeData::GenericType {
-                    type_parameters,
-                    outer_type_parameter_count,
-                    ..
-                } if type_parameters.len() > *outer_type_parameter_count => {
-                    Some(type_parameters[*outer_type_parameter_count..].to_vec())
-                }
-                _ => None,
-            };
+        let local_type_parameters: Option<Vec<TypeId>> = match &self.tables.type_of(class_type).data
+        {
+            TypeData::GenericType {
+                type_parameters,
+                outer_type_parameter_count,
+                ..
+            } if type_parameters.len() > *outer_type_parameter_count => {
+                Some(type_parameters[*outer_type_parameter_count..].to_vec())
+            }
+            _ => None,
+        };
         if base_signatures.is_empty() {
             let signature = Signature {
                 declaration: None,
@@ -3519,7 +3515,13 @@ impl<'a> CheckerState<'a> {
             }
             self.tables.intrinsics.any
         };
-        if self.links.symbol(symbol).type_of_symbol.resolved().is_none() {
+        if self
+            .links
+            .symbol(symbol)
+            .type_of_symbol
+            .resolved()
+            .is_none()
+        {
             self.links.set_symbol_type(
                 self.speculation_depth,
                 symbol,
@@ -3606,7 +3608,6 @@ impl<'a> CheckerState<'a> {
             _ => None,
         }
     }
-
 
     // ---- member instantiation ----
 
@@ -3788,11 +3789,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Vec<SignatureId>> {
         let mut result = Vec::with_capacity(signatures.len());
         for &signature in signatures {
-            result.push(self.instantiate_signature(
-                signature,
-                mapper,
-                /*erase_type_parameters*/ false,
-            )?);
+            result.push(
+                self.instantiate_signature(
+                    signature, mapper, /*erase_type_parameters*/ false,
+                )?,
+            );
         }
         Ok(result)
     }
@@ -3849,16 +3850,15 @@ impl<'a> CheckerState<'a> {
                     mapper,
                     /*mapping_this_only*/ false,
                 )?;
-                let target_calls = state
-                    .get_signatures_of_type(target, crate::structural::SignatureKind::Call)?;
+                let target_calls =
+                    state.get_signatures_of_type(target, crate::structural::SignatureKind::Call)?;
                 let call_signatures = state.instantiate_signature_list(&target_calls, mapper)?;
                 let target_constructs = state
                     .get_signatures_of_type(target, crate::structural::SignatureKind::Construct)?;
                 let construct_signatures =
                     state.instantiate_signature_list(&target_constructs, mapper)?;
                 let target_index_infos = state.get_index_infos_of_type(target)?;
-                let index_infos =
-                    state.instantiate_index_info_list(&target_index_infos, mapper)?;
+                let index_infos = state.instantiate_index_info_list(&target_index_infos, mapper)?;
                 let properties = state.get_named_members(&members);
                 return Ok(ResolvedMembers {
                     members,
@@ -3890,9 +3890,7 @@ impl<'a> CheckerState<'a> {
                     index_infos,
                 });
             }
-            if flags
-                .intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD | SymbolFlags::CLASS)
-            {
+            if flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD | SymbolFlags::CLASS) {
                 // 58341-58407: the value-side tail — exports as
                 // members, static base inheritance for classes,
                 // call/construct signatures.
@@ -3909,8 +3907,7 @@ impl<'a> CheckerState<'a> {
                         // inherit the base's STATIC side.
                         let named = state.get_named_members(&members);
                         let mut table = state.symbol_list_to_table(&named);
-                        if let Some(index_symbol) =
-                            members.get(InternalSymbolName::INDEX).copied()
+                        if let Some(index_symbol) = members.get(InternalSymbolName::INDEX).copied()
                         {
                             table.insert(InternalSymbolName::INDEX.to_owned(), index_symbol);
                         }
@@ -3934,9 +3931,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let index_symbol = members.get(InternalSymbolName::INDEX).copied();
                 let mut index_infos = match index_symbol {
-                    Some(index_symbol) => {
-                        state.get_index_infos_of_index_symbol(index_symbol)?
-                    }
+                    Some(index_symbol) => state.get_index_infos_of_index_symbol(index_symbol)?,
                     None => match base_constructor_index_info {
                         Some(info) => vec![info],
                         // The enum number-index arm (58372-58374) rides
@@ -3964,8 +3959,7 @@ impl<'a> CheckerState<'a> {
                         .copied();
                     construct_signatures = state.get_signatures_of_symbol(constructor)?;
                     if construct_signatures.is_empty() {
-                        let class_type =
-                            state.get_declared_type_of_class_or_interface(symbol)?;
+                        let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
                         construct_signatures =
                             state.get_default_construct_signatures(class_type)?;
                     }
@@ -4149,7 +4143,9 @@ impl<'a> CheckerState<'a> {
             return self.get_type_of_instantiated_symbol(symbol);
         }
         if check_flags.intersects(CheckFlags::MAPPED) {
-            return Err(Unsupported::new("mapped symbols (getTypeOfMappedSymbol, M8)"));
+            return Err(Unsupported::new(
+                "mapped symbols (getTypeOfMappedSymbol, M8)",
+            ));
         }
         if check_flags.intersects(CheckFlags::REVERSE_MAPPED) {
             return Err(Unsupported::new(
@@ -4304,9 +4300,7 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::MethodDeclaration => {
                     match state.try_get_type_from_effective_type_node(declaration)? {
                         Some(declared) => Ok(declared),
-                        None => {
-                            state.check_object_literal_method(declaration, CheckMode::NORMAL)
-                        }
+                        None => state.check_object_literal_method(declaration, CheckMode::NORMAL),
                     }
                 }
                 SyntaxKind::Parameter
@@ -4442,7 +4436,10 @@ impl<'a> CheckerState<'a> {
             if report_errors {
                 self.report_errors_from_widening(declaration, ty, /*widening_kind*/ None)?;
             }
-            if self.tables.flags_of(ty).intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+            if self
+                .tables
+                .flags_of(ty)
+                .intersects(TypeFlags::UNIQUE_ES_SYMBOL)
                 && (self.kind_of(declaration) == SyntaxKind::BindingElement
                     || self.effective_type_annotation_node(declaration).is_none())
             {
@@ -4487,8 +4484,7 @@ impl<'a> CheckerState<'a> {
             || self
                 .name_of_node(member)
                 .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier);
-        private
-            && self.node_flags(member) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0
+        private && self.node_flags(member) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0
     }
 
     /// tsc-port: tryGetTypeFromEffectiveTypeNode @6.0.3
@@ -4560,7 +4556,8 @@ impl<'a> CheckerState<'a> {
             if let Some(declared) = declared_type {
                 let flags = self.tables.flags_of(declared);
                 return Ok(Some(
-                    if flags.intersects(TypeFlags::ANY) || declared == self.tables.intrinsics.unknown
+                    if flags.intersects(TypeFlags::ANY)
+                        || declared == self.tables.intrinsics.unknown
                     {
                         declared
                     } else {
@@ -4626,11 +4623,11 @@ impl<'a> CheckerState<'a> {
                 return Ok(None);
             }
             let func = parent.expect("parameter has a parent");
-            if self.kind_of(func) == SyntaxKind::SetAccessor && !self.has_late_bindable_ast_name(func)
+            if self.kind_of(func) == SyntaxKind::SetAccessor
+                && !self.has_late_bindable_ast_name(func)
             {
                 let accessor_symbol = self.get_symbol_of_declaration(func)?;
-                let getter =
-                    self.get_declaration_of_kind(accessor_symbol, SyntaxKind::GetAccessor);
+                let getter = self.get_declaration_of_kind(accessor_symbol, SyntaxKind::GetAccessor);
                 if let Some(getter) = getter {
                     let is_this_parameter = matches!(
                         self.data_of(declaration),
@@ -4653,8 +4650,8 @@ impl<'a> CheckerState<'a> {
             }
             // getParameterTypeOfTypeTag: [JSDOC] — no-op outside JS.
             let symbol = self.binder.node_symbol(declaration);
-            let is_this = symbol
-                .is_some_and(|symbol| self.binder.symbol(symbol).escaped_name == "this");
+            let is_this =
+                symbol.is_some_and(|symbol| self.binder.symbol(symbol).escaped_name == "this");
             let contextual = if is_this {
                 self.get_contextual_this_parameter_type(func)?
             } else {
@@ -4685,7 +4682,8 @@ impl<'a> CheckerState<'a> {
             }
             let initializer_type =
                 self.check_declaration_initializer(declaration, check_mode, None)?;
-            let widened = self.widen_type_inferred_from_initializer(declaration, initializer_type)?;
+            let widened =
+                self.widen_type_inferred_from_initializer(declaration, initializer_type)?;
             return Ok(Some(self.tables.add_optionality(
                 widened,
                 is_property,
@@ -4744,9 +4742,7 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
             ) {
                 return Ok(Some(self.get_type_from_binding_pattern(
-                    name,
-                    /*include_pattern_in_type*/ false,
-                    /*report_errors*/ true,
+                    name, /*include_pattern_in_type*/ false, /*report_errors*/ true,
                 )?));
             }
         }
@@ -4798,9 +4794,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<TypeId>> {
         if check_mode != CheckMode::NORMAL {
             return self.get_type_for_variable_like_declaration(
-                node,
-                /*include_optionality*/ false,
-                check_mode,
+                node, /*include_optionality*/ false, check_mode,
             );
         }
         let symbol = self.get_symbol_of_declaration(node)?;
@@ -4808,9 +4802,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(cached));
         }
         self.get_type_for_variable_like_declaration(
-            node,
-            /*include_optionality*/ false,
-            check_mode,
+            node, /*include_optionality*/ false, check_mode,
         )
     }
 
@@ -4822,9 +4814,7 @@ impl<'a> CheckerState<'a> {
         let expr = self.skip_parentheses(node);
         match self.kind_of(expr) {
             SyntaxKind::NullKeyword => true,
-            SyntaxKind::Identifier => {
-                self.get_resolved_symbol(expr) == Some(self.undefined_symbol)
-            }
+            SyntaxKind::Identifier => self.get_resolved_symbol(expr) == Some(self.undefined_symbol),
             _ => false,
         }
     }
@@ -4845,10 +4835,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isCatchClauseVariableDeclarationOrBindingElement @6.0.3
     /// tsc-hash: 621724a8fdb0fa42184253babb0c36ecf2e7a3862a4216921af939fec7741262
     /// tsc-span: _tsc.js:13709-13712
-    fn is_catch_clause_variable_declaration_or_binding_element(
-        &self,
-        declaration: NodeId,
-    ) -> bool {
+    fn is_catch_clause_variable_declaration_or_binding_element(&self, declaration: NodeId) -> bool {
         let source = self.binder.source_of_node(declaration);
         let root = node_util::get_root_declaration(source, declaration);
         self.kind_of(root) == SyntaxKind::VariableDeclaration
@@ -4920,10 +4907,9 @@ impl<'a> CheckerState<'a> {
             // 56849-56852: mixin-extending classes intersect with the
             // base type variable.
             match self.get_base_type_variable_of_class(symbol)? {
-                Some(base_type_variable) => self.get_intersection_type(
-                    &[id, base_type_variable],
-                    IntersectionFlags::NONE,
-                )?,
+                Some(base_type_variable) => {
+                    self.get_intersection_type(&[id, base_type_variable], IntersectionFlags::NONE)?
+                }
                 None => id,
             }
         } else {
@@ -5016,8 +5002,7 @@ impl<'a> CheckerState<'a> {
                 // the enum symbol as alias id, so the mutation cannot
                 // leak into structurally identical bare unions.
                 let ty = self.tables.type_mut(union);
-                ty.flags =
-                    TypeFlags::from_bits(ty.flags.bits() | TypeFlags::ENUM_LITERAL.bits());
+                ty.flags = TypeFlags::from_bits(ty.flags.bits() | TypeFlags::ENUM_LITERAL.bits());
                 ty.symbol = Some(symbol);
             }
             union
@@ -5139,7 +5124,12 @@ impl<'a> CheckerState<'a> {
                 let same_kind = self.kind_of(declaration) == self.kind_of(previous);
                 let source = self.binder.source_of_node(declaration);
                 let adjacent = source.arena.node(declaration).pos
-                    == self.binder.source_of_node(previous).arena.node(previous).end;
+                    == self
+                        .binder
+                        .source_of_node(previous)
+                        .arena
+                        .node(previous)
+                        .end;
                 if same_parent && same_kind && adjacent {
                     continue;
                 }
@@ -5255,10 +5245,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
         ) && this_parameter.is_none()
             && !self.has_late_bindable_ast_name(declaration)
-            && !node_util::has_dynamic_name(
-                self.binder.source_of_node(declaration),
-                declaration,
-            )
+            && !node_util::has_dynamic_name(self.binder.source_of_node(declaration), declaration)
         {
             let other_kind = if self.kind_of(declaration) == SyntaxKind::GetAccessor {
                 SyntaxKind::SetAccessor
@@ -5399,12 +5386,12 @@ impl<'a> CheckerState<'a> {
                 for &member in &composite {
                     returns.push(state.get_return_type_of_signature(member)?);
                 }
-                let combined =
-                    if kind.is_some_and(|kind| kind.intersects(TypeFlags::INTERSECTION)) {
-                        state.get_intersection_type(&returns, IntersectionFlags::NONE)?
-                    } else {
-                        state.get_union_type_ex(&returns, UnionReduction::Subtype)?
-                    };
+                let combined = if kind.is_some_and(|kind| kind.intersects(TypeFlags::INTERSECTION))
+                {
+                    state.get_intersection_type(&returns, IntersectionFlags::NONE)?
+                } else {
+                    state.get_union_type_ex(&returns, UnionReduction::Subtype)?
+                };
                 let mapper = state.signature_of(id).mapper;
                 state.instantiate_type(combined, mapper)
             })(self),
@@ -5433,10 +5420,9 @@ impl<'a> CheckerState<'a> {
                     node_util::body_of(state.binder.source_of_node(declaration), declaration);
                 match body {
                     None => Ok(state.tables.intrinsics.any),
-                    Some(_) => state.get_return_type_from_body(
-                        declaration,
-                        tsrs2_types::CheckMode::NORMAL,
-                    ),
+                    Some(_) => {
+                        state.get_return_type_from_body(declaration, tsrs2_types::CheckMode::NORMAL)
+                    }
                 }
             })(self),
         };
@@ -5582,9 +5568,7 @@ impl<'a> CheckerState<'a> {
             let contextual_type = match name {
                 Some(name) if node_util::is_binding_pattern(source, name) => self
                     .get_type_from_binding_pattern(
-                        name,
-                        /*include_pattern_in_type*/ true,
-                        /*report_errors*/ false,
+                        name, /*include_pattern_in_type*/ true, /*report_errors*/ false,
                     )?,
                 _ => self.tables.intrinsics.unknown,
             };
@@ -5593,11 +5577,10 @@ impl<'a> CheckerState<'a> {
                 tsrs2_types::CheckMode::NORMAL,
                 Some(contextual_type),
             )?;
-            let widened = self.get_widened_literal_type_for_initializer(element, initializer_type)?;
+            let widened =
+                self.get_widened_literal_type_for_initializer(element, initializer_type)?;
             return Ok(self.tables.add_optionality(
-                widened,
-                /*is_property*/ false,
-                /*is_optional*/ true,
+                widened, /*is_property*/ false, /*is_optional*/ true,
             ));
         }
         if let Some(name) = name {
@@ -5700,7 +5683,8 @@ impl<'a> CheckerState<'a> {
             crate::links::LinkSlot::Resolved(members_id),
         );
         if include_pattern_in_type {
-            self.links.set_type_pattern(self.speculation_depth, id, pattern);
+            self.links
+                .set_type_pattern(self.speculation_depth, id, pattern);
             // objectFlags |= ContainsObjectOrArrayLiteral (already set).
         }
         Ok(id)
@@ -5765,9 +5749,10 @@ impl<'a> CheckerState<'a> {
             self.create_tuple_type_forced(&element_types, Some(&element_flags), false, None)?;
         if include_pattern_in_type {
             result = self.tables.clone_type_reference(result);
-            self.links.set_type_pattern(self.speculation_depth, result, pattern);
-            let with_literal_flag = self.tables.object_flags_of(result)
-                | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+            self.links
+                .set_type_pattern(self.speculation_depth, result, pattern);
+            let with_literal_flag =
+                self.tables.object_flags_of(result) | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
             self.tables.type_mut(result).object_flags = with_literal_flag;
         }
         Ok(result)
@@ -6144,10 +6129,7 @@ mod tests {
         with_state(
             "declare var b: number extends string ? 1 : 2;\ndeclare var c: Missing;\n",
             |state| {
-                for (name, needle) in [
-                    ("b", "conditional"),
-                    ("c", "unresolved type name"),
-                ] {
+                for (name, needle) in [("b", "conditional"), ("c", "unresolved type name")] {
                     let annotation =
                         find_probe_annotation(state.binder.source(0), name).expect("annotation");
                     let err = state
@@ -6847,12 +6829,9 @@ mod generic_reference_tests {
                         .get_property_of_type_full(b, name)
                         .expect("members resolve")
                         .expect("property present");
-                    let property_type = state
-                        .get_type_of_symbol(property)
-                        .expect("property type");
+                    let property_type = state.get_type_of_symbol(property).expect("property type");
                     assert_eq!(
-                        property_type,
-                        state.tables.intrinsics.number,
+                        property_type, state.tables.intrinsics.number,
                         "{name} instantiates through the heritage mapper"
                     );
                 }
@@ -6933,9 +6912,7 @@ mod generic_reference_tests {
                     .get_property_of_type_full(c, "self")
                     .expect("members resolve")
                     .expect("self property");
-                let self_type = state
-                    .get_type_of_symbol(self_property)
-                    .expect("self type");
+                let self_type = state.get_type_of_symbol(self_property).expect("self type");
                 assert_eq!(
                     self_type, c,
                     "this maps to the reference through the this-argument mapper"
@@ -6998,9 +6975,7 @@ mod generic_reference_tests {
                     .get_property_of_type_full(x, "self")
                     .expect("intersection apparent resolves")
                     .expect("self property");
-                let self_type = state
-                    .get_type_of_symbol(self_property)
-                    .expect("self type");
+                let self_type = state.get_type_of_symbol(self_property).expect("self type");
                 assert_eq!(self_type, x, "this-argument = the intersection");
                 assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
             },
@@ -7228,14 +7203,15 @@ mod generic_reference_tests {
             |state| {
                 let v = annotation_of(state, "v");
                 let c = state.get_type_from_type_node(v).expect("C resolves");
-                for (name, expected) in [("c", state.tables.intrinsics.number), ("b", state.tables.intrinsics.string)] {
+                for (name, expected) in [
+                    ("c", state.tables.intrinsics.number),
+                    ("b", state.tables.intrinsics.string),
+                ] {
                     let property = state
                         .get_property_of_type_full(c, name)
                         .expect("class members resolve")
                         .expect("property present");
-                    let property_type = state
-                        .get_type_of_symbol(property)
-                        .expect("property type");
+                    let property_type = state.get_type_of_symbol(property).expect("property type");
                     assert_eq!(property_type, expected, "{name}");
                 }
                 assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
@@ -7389,10 +7365,7 @@ mod generic_reference_tests {
                 // flows through the instantiated `a` property.
                 assert_eq!(state.is_type_assignable_to(narrow, wide), Ok(true));
                 assert_eq!(state.is_type_assignable_to(wide, narrow), Ok(false));
-                assert!(state
-                    .tables
-                    .flags_of(narrow)
-                    .intersects(TypeFlags::OBJECT));
+                assert!(state.tables.flags_of(narrow).intersects(TypeFlags::OBJECT));
             },
         );
     }
@@ -7495,7 +7468,11 @@ mod alias_instantiation_tests {
                     .expect("inherited alias symbol");
                 assert_eq!(state.binder.symbol(alias).escaped_name, "L");
                 assert_eq!(
-                    state.tables.type_of(instantiated).alias_type_arguments.as_deref(),
+                    state
+                        .tables
+                        .type_of(instantiated)
+                        .alias_type_arguments
+                        .as_deref(),
                     Some(&[state.tables.intrinsics.string][..])
                 );
             },
@@ -7651,11 +7628,13 @@ mod generic_signature_tests {
                 let target = state.get_type_from_type_node(w).expect("w type");
                 let related = state.is_type_assignable_to(source, target);
                 let reason = related.expect_err("generic relations are M6").reason;
-                assert!(reason.contains("instantiateSignatureInContextOf"), "{reason}");
+                assert!(
+                    reason.contains("instantiateSignatureInContextOf"),
+                    "{reason}"
+                );
             },
         );
     }
-
 }
 
 // ---- enum declared types + values (M4 5.3b) ----
@@ -7711,10 +7690,7 @@ mod enum_tests {
                 // E.A resolves to the member's REGULAR literal type.
                 let a = annotation_type(state, "a");
                 assert_eq!(a, members[0]);
-                assert!(state
-                    .tables
-                    .flags_of(a)
-                    .intersects(TypeFlags::ENUM_LITERAL));
+                assert!(state.tables.flags_of(a).intersects(TypeFlags::ENUM_LITERAL));
             },
         );
     }
@@ -7767,15 +7743,12 @@ mod enum_tests {
 
     #[test]
     fn enum_forward_reference_reports_2651_and_yields_zero() {
-        with_state(
-            "enum E { A = B, B = 1 }\ndeclare var a: E.A;\n",
-            |state| {
-                let a = annotation_type(state, "a");
-                assert_eq!(literal_number(state, a), 0.0);
-                let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
-                assert_eq!(codes, vec![2651]);
-            },
-        );
+        with_state("enum E { A = B, B = 1 }\ndeclare var a: E.A;\n", |state| {
+            let a = annotation_type(state, "a");
+            assert_eq!(literal_number(state, a), 0.0);
+            let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
+            assert_eq!(codes, vec![2651]);
+        });
     }
 
     #[test]

@@ -147,10 +147,11 @@ impl<'a> CheckerState<'a> {
         if modifiers.intersects(ModifierFlags::IN) {
             return Ok(VarianceFlags::CONTRAVARIANT);
         }
-        self.variance_handler_stack.push(VarianceHandlerFrame::Base {
-            unmeasurable: false,
-            unreliable: false,
-        });
+        self.variance_handler_stack
+            .push(VarianceHandlerFrame::Base {
+                unmeasurable: false,
+                unreliable: false,
+            });
         let outcome = self.measure_type_parameter_variance_worker(symbol, tp);
         let (unmeasurable, unreliable) = match self.variance_handler_stack.pop() {
             Some(VarianceHandlerFrame::Base {
@@ -161,13 +162,11 @@ impl<'a> CheckerState<'a> {
         };
         let mut variance = outcome?;
         if unmeasurable {
-            variance = VarianceFlags::from_bits(
-                variance.bits() | VarianceFlags::UNMEASURABLE.bits(),
-            );
+            variance =
+                VarianceFlags::from_bits(variance.bits() | VarianceFlags::UNMEASURABLE.bits());
         }
         if unreliable {
-            variance =
-                VarianceFlags::from_bits(variance.bits() | VarianceFlags::UNRELIABLE.bits());
+            variance = VarianceFlags::from_bits(variance.bits() | VarianceFlags::UNRELIABLE.bits());
         }
         Ok(variance)
     }
@@ -254,8 +253,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
     ) -> CheckResult2<TypeId> {
         let flags = self.binder.symbol(symbol).flags;
-        if flags.intersects(tsrs2_types::SymbolFlags::CLASS | tsrs2_types::SymbolFlags::INTERFACE)
-        {
+        if flags.intersects(tsrs2_types::SymbolFlags::CLASS | tsrs2_types::SymbolFlags::INTERFACE) {
             return self.get_declared_type_of_class_or_interface(symbol);
         }
         if flags.intersects(tsrs2_types::SymbolFlags::TYPE_ALIAS) {

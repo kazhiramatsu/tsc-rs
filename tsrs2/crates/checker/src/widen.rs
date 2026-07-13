@@ -41,7 +41,9 @@ impl<'a> CheckerState<'a> {
                 .map_type(
                     ty,
                     &mut |state, t| {
-                        state.get_base_type_of_literal_type_for_comparison(t).map(Some)
+                        state
+                            .get_base_type_of_literal_type_for_comparison(t)
+                            .map(Some)
                     },
                     false,
                 )?
@@ -147,10 +149,9 @@ impl<'a> CheckerState<'a> {
             }
             Some(signature_return) => Some(signature_return),
         };
-        Ok(Some(self.get_widened_literal_like_type_for_contextual_type(
-            current,
-            contextual_type,
-        )?))
+        Ok(Some(
+            self.get_widened_literal_like_type_for_contextual_type(current, contextual_type)?,
+        ))
     }
 
     /// tsc-port: getWidenedLiteralLikeTypeForContextualIterationTypeIfNeeded @6.0.3
@@ -178,7 +179,9 @@ impl<'a> CheckerState<'a> {
                  (getIterationTypeOfGeneratorFunctionReturnType, 5.5f)",
             ));
         }
-        Ok(Some(self.get_widened_literal_like_type_for_contextual_type(current, None)?))
+        Ok(Some(
+            self.get_widened_literal_like_type_for_contextual_type(current, None)?,
+        ))
     }
     // ---- M4 5.6: widening contexts + object-level widening ----
 
@@ -206,10 +209,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Root contexts are created WITH siblings (the union arm), so the
     /// lazy fill only ever walks a parent that exists.
-    fn get_siblings_of_context(
-        &mut self,
-        context: WideningContextId,
-    ) -> CheckResult2<Vec<TypeId>> {
+    fn get_siblings_of_context(&mut self, context: WideningContextId) -> CheckResult2<Vec<TypeId>> {
         if let Some(siblings) = &self.widening_contexts[context].siblings {
             return Ok(siblings.clone());
         }
@@ -432,7 +432,11 @@ impl<'a> CheckerState<'a> {
             };
             let mut widened = Vec::with_capacity(members.len());
             for member in &members {
-                let next = if self.tables.flags_of(*member).intersects(TypeFlags::NULLABLE) {
+                let next = if self
+                    .tables
+                    .flags_of(*member)
+                    .intersects(TypeFlags::NULLABLE)
+                {
                     *member
                 } else {
                     self.get_widened_type_with_context(*member, Some(union_context))?
@@ -733,7 +737,11 @@ impl<'a> CheckerState<'a> {
             Some(name) => self.text_of_node(name)?,
             None => "(Missing)".to_owned(),
         };
-        self.error_at(Some(declaration), diagnostic, &[&name_string, &type_as_string]);
+        self.error_at(
+            Some(declaration),
+            diagnostic,
+            &[&name_string, &type_as_string],
+        );
         Ok(())
     }
 
@@ -822,11 +830,10 @@ impl<'a> CheckerState<'a> {
             None => true,
             Some(kind) => {
                 node_util::is_function_like_declaration_kind(self.kind_of(declaration))
-                    && self
-                        .should_report_errors_from_widening_with_contextual_signature(
-                            declaration,
-                            kind,
-                        )?
+                    && self.should_report_errors_from_widening_with_contextual_signature(
+                        declaration,
+                        kind,
+                    )?
             }
         };
         if should_report && !self.report_widening_errors_in_type(ty)? {

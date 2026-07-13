@@ -179,13 +179,8 @@ impl<'a> CheckerState<'a> {
         meaning: SymbolFlags,
     ) -> Option<SymbolId> {
         self.resolve_name_full(
-            location,
-            name,
-            meaning,
-            /*name_not_found_message*/ None,
-            /*is_use*/ false,
-            /*exclude_globals*/ false,
-            /*suggestion*/ true,
+            location, name, meaning, /*name_not_found_message*/ None, /*is_use*/ false,
+            /*exclude_globals*/ false, /*suggestion*/ true,
         )
     }
 
@@ -411,8 +406,13 @@ impl<'a> CheckerState<'a> {
                             if let Some(ctor) = self.find_constructor_declaration(class) {
                                 if let Some(ctor_locals) = self.binder.locals_of(ctor) {
                                     let masked = meaning & SymbolFlags::VALUE;
-                                    let probe = self
-                                        .lookup_probe(ctor_locals, name, masked, suggestion, false);
+                                    let probe = self.lookup_probe(
+                                        ctor_locals,
+                                        name,
+                                        masked,
+                                        suggestion,
+                                        false,
+                                    );
                                     if self.finish_lookup(probe, name, masked).is_some() {
                                         property_with_invalid_initializer = Some(loc);
                                     }
@@ -1076,8 +1076,7 @@ impl<'a> CheckerState<'a> {
         } else {
             let mut suggestion: Option<SymbolId> = None;
             if self.suggestion_count < MAXIMUM_SUGGESTION_COUNT {
-                suggestion =
-                    self.resolve_name_for_symbol_suggestion(error_location, name, meaning);
+                suggestion = self.resolve_name_for_symbol_suggestion(error_location, name, meaning);
                 // The isGlobalScopeAugmentationDeclaration filter
                 // (48126-48129) is provably dead here: the
                 // program_has_global_augmentation gate above already
@@ -1100,14 +1099,9 @@ impl<'a> CheckerState<'a> {
                     // sort/dedupe compare through the PLAIN form.
                     diagnostic.canonical_head = Some(tsrs2_diags::CanonicalHead {
                         code: message.code,
-                        text: tsrs2_diags::MessageChain::new(
-                            message,
-                            &[display.to_owned()],
-                        )
-                        .text,
+                        text: tsrs2_diags::MessageChain::new(message, &[display.to_owned()]).text,
                     });
-                    if let Some(value_declaration) =
-                        self.binder.symbol(suggested).value_declaration
+                    if let Some(value_declaration) = self.binder.symbol(suggested).value_declaration
                     {
                         diagnostic.related.push(self.related_info_for_node(
                             value_declaration,
@@ -1264,8 +1258,7 @@ impl<'a> CheckerState<'a> {
                 let heritage_is_extends = self.heritage_clause_is_extends(grandparent);
                 let container = self.parent_of(grandparent);
                 let container_kind = container.map(|container| self.kind_of(container));
-                if container_kind == Some(SyntaxKind::InterfaceDeclaration) && heritage_is_extends
-                {
+                if container_kind == Some(SyntaxKind::InterfaceDeclaration) && heritage_is_extends {
                     self.error_at(
                         Some(error_location),
                         &diagnostics::An_interface_cannot_extend_a_primitive_type_like_0_It_can_only_extend_other_named_object_types,
@@ -1361,9 +1354,7 @@ impl<'a> CheckerState<'a> {
             SymbolFlags::BLOCK_SCOPED_VARIABLE | SymbolFlags::CLASS | SymbolFlags::ENUM
         ));
         if flags.intersects(
-            SymbolFlags::FUNCTION
-                | SymbolFlags::FUNCTION_SCOPED_VARIABLE
-                | SymbolFlags::ASSIGNMENT,
+            SymbolFlags::FUNCTION | SymbolFlags::FUNCTION_SCOPED_VARIABLE | SymbolFlags::ASSIGNMENT,
         ) && flags.intersects(SymbolFlags::CLASS)
         {
             return Ok(());
@@ -1657,8 +1648,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.links.node(node).resolved_symbol.resolved() {
             return (cached != self.unknown_symbol).then_some(cached);
         }
-        let resolved = if node_util::node_is_missing(self.binder.source_of_node(node), Some(node))
-        {
+        let resolved = if node_util::node_is_missing(self.binder.source_of_node(node), Some(node)) {
             None
         } else {
             let name = self.identifier_text_of(node).unwrap_or_default().to_owned();
@@ -1674,7 +1664,8 @@ impl<'a> CheckerState<'a> {
             )
         };
         let cached = resolved.unwrap_or(self.unknown_symbol);
-        self.links.set_node_resolved_symbol(self.speculation_depth, node, cached);
+        self.links
+            .set_node_resolved_symbol(self.speculation_depth, node, cached);
         resolved
     }
 
