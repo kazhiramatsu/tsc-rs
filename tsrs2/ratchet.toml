@@ -36,3 +36,11 @@ max_untagged = 114
 # transcriptions of createJsxAttributesTypeFromAttributesProperty and
 # getIntrinsicTagSymbol, risk #6).
 max_recovery = 87
+
+[ledger]
+# Checker pub/pub(crate) fns without a disposition header (tsc-port
+# family / tsrs-native / tsc-deferred / tsc-not-applicable). Monotone
+# non-increasing: new functions carry their disposition at write
+# time; the backlog burns down file-by-file as 5.8 touches them and
+# must reach 0 before M8 starts (definition-of-done.md).
+max_undispositioned = 278

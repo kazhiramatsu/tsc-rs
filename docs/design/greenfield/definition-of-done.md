@@ -35,7 +35,12 @@ matrix-expanded by the harness — 5,908 fixtures today):
 4. **Zero escapes**: no `Unsupported` containment sites remain
    (`cargo xtask escapes` reports sites=0), the site manifest
    (`tsrs2/escapes.toml`) is empty, and every ledger entry is
-   hash-fresh against the vendored bundle.
+   hash-fresh against the vendored bundle. Every checker
+   pub/pub(crate) function carries a DISPOSITION (the tsc-port
+   header family / tsrs-native / tsc-deferred / tsc-not-applicable
+   — `[ledger] max_undispositioned` ratchets to 0 before M8
+   starts); the tsc-side converse (emitter inventory + dependency
+   closure over the SAME vocabulary) is the M8-start checkpoint.
 5. **Determinism invariants green** at full scope: idempotence,
    jobs-independence, prefix-determinism, encodings,
    matrix-independence.

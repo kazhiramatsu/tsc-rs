@@ -1684,6 +1684,7 @@ fn ledger_check() -> Result<(), Box<dyn Error>> {
     let public_functions = collect_hot_public_functions(&workspace)?;
     let unported = unported_public_functions(&entries, &public_functions);
     let todo_sites = collect_todo_port_sites(&workspace)?;
+    let undispositioned = collect_undispositioned_checker_fns(&workspace)?;
 
     for entry in &stale {
         eprintln!("{entry}");
@@ -1693,12 +1694,13 @@ fn ledger_check() -> Result<(), Box<dyn Error>> {
     }
 
     println!(
-        "ledger check: entries={} stale={} hot_pub_fns={} unported_pub_fns={} todo_port={}",
+        "ledger check: entries={} stale={} hot_pub_fns={} unported_pub_fns={} todo_port={} undispositioned={}",
         entries.len(),
         stale.len(),
         public_functions.len(),
         unported.len(),
-        todo_sites.len()
+        todo_sites.len(),
+        undispositioned.len()
     );
     if !unported.is_empty() {
         println!("unported pub fns:");
@@ -1712,6 +1714,27 @@ fn ledger_check() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    if let Some(ceiling) = read_ratchet_ceiling(&workspace, "ledger", "max_undispositioned")? {
+        if undispositioned.len() > ceiling {
+            println!("undispositioned checker fns (over the {ceiling} ceiling):");
+            for function in &undispositioned {
+                println!(
+                    "  {}:{} {}",
+                    display_relative(&workspace, &function.path),
+                    function.line,
+                    function.name
+                );
+            }
+            return Err(format!(
+                "fn-disposition ratchet regression: {} > recorded ceiling {ceiling} — every \
+                 new checker pub fn needs a disposition header (tsc-port / tsrs-native / \
+                 tsc-deferred: Mx / tsc-not-applicable); lower [ledger].max_undispositioned \
+                 in ratchet.toml as the backlog burns down",
+                undispositioned.len()
+            )
+            .into());
+        }
+    }
     if !stale.is_empty() || !todo_sites.is_empty() {
         return Err("ledger check failed".into());
     }
@@ -1988,7 +2011,7 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     // re-tagging/retiring legacy reasons lowers the recorded ceilings
     // like any ratchet bump.
     if stale_before.is_some() {
-        if let Some(ceiling) = read_escapes_ceiling(&workspace, "max_untagged")? {
+        if let Some(ceiling) = read_ratchet_ceiling(&workspace, "escapes", "max_untagged")? {
             if untagged > ceiling {
                 return Err(format!(
                     "untagged escape ratchet regression: {untagged} > recorded ceiling {ceiling} \
@@ -1997,7 +2020,7 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
                 .into());
             }
         }
-        if let Some(ceiling) = read_escapes_ceiling(&workspace, "max_recovery")? {
+        if let Some(ceiling) = read_ratchet_ceiling(&workspace, "escapes", "max_recovery")? {
             if recovery > ceiling {
                 return Err(format!(
                     "recovery escape ratchet regression: {recovery} > recorded ceiling {ceiling} \
@@ -2012,10 +2035,11 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// A `[escapes]` integer ceiling from ratchet.toml — an absent
+/// An integer ceiling from a ratchet.toml section — an absent
 /// section/key means that ratchet is not armed.
-fn read_escapes_ceiling(
+fn read_ratchet_ceiling(
     workspace: &Path,
+    section: &str,
     ceiling_key: &str,
 ) -> Result<Option<usize>, Box<dyn Error>> {
     let text = fs::read_to_string(workspace.join("ratchet.toml"))?;
@@ -2023,7 +2047,7 @@ fn read_escapes_ceiling(
     for raw_line in text.lines() {
         let line = raw_line.split('#').next().unwrap_or("").trim();
         if line.starts_with('[') && line.ends_with(']') {
-            in_section = &line[1..line.len() - 1] == "escapes";
+            in_section = &line[1..line.len() - 1] == section;
             continue;
         }
         if !in_section {
@@ -2450,6 +2474,87 @@ fn ledger_source_path(workspace: &Path, span_file: &str) -> Result<PathBuf, Box<
         .into_iter()
         .find(|path| path.is_file())
         .ok_or_else(|| format!("missing ledger source file: {span_file}").into())
+}
+
+/// Function-level DISPOSITION census (external review item #5): every
+/// checker pub/pub(crate) fn must say where it came from — the
+/// existing `tsc-port` ledger header family (incl. tsc-hash/tsc-span
+/// partials), `tsrs-native` (Rust-side glue with no tsc counterpart:
+/// arenas, links accessors, harness plumbing), `tsc-deferred`
+/// M5|M6|M7|M8 (the WHOLE fn is a later stage's port; finer-grained
+/// deferral stays with escapes), or `tsc-not-applicable` with a
+/// reason (LSP-only/emit-only surfaces). Rust-side accountability
+/// only: the "missing tsc function" direction is the M8
+/// emitter-inventory + dependency closure. The count ratchets
+/// monotonically down via [ledger] max_undispositioned (0 before M8
+/// starts per definition-of-done.md).
+fn fn_disposition_markers() -> [&'static str; 6] {
+    // concat! keeps the contiguous marker tokens out of THIS file's
+    // source text (the ledger-entry scanner walks xtask too and would
+    // otherwise read the literals as headerless port entries).
+    [
+        concat!("tsc-", "port:"),
+        concat!("tsc-", "hash:"),
+        concat!("tsc-", "span:"),
+        "tsrs-native",
+        concat!("tsc-", "deferred:"),
+        concat!("tsc-", "not-applicable:"),
+    ]
+}
+
+fn doc_block_has_disposition(lines: &[&str], fn_index: usize) -> bool {
+    let mut index = fn_index;
+    while index > 0 {
+        let line = lines[index - 1].trim_start();
+        if line.starts_with("///") || line.starts_with("//") || line.starts_with("#[") {
+            if fn_disposition_markers()
+                .iter()
+                .any(|marker| line.contains(marker))
+            {
+                return true;
+            }
+            index -= 1;
+        } else {
+            break;
+        }
+    }
+    false
+}
+
+fn collect_undispositioned_checker_fns(
+    workspace: &Path,
+) -> Result<Vec<PublicFunction>, Box<dyn Error>> {
+    let mut functions = Vec::new();
+    for path in collect_rs_paths(&workspace.join("crates/checker/src"))? {
+        let text = fs::read_to_string(&path)?;
+        let lines = text.lines().collect::<Vec<_>>();
+        for (index, line) in lines.iter().enumerate() {
+            let trimmed = line.trim_start();
+            let is_pub_fn = ["pub fn ", "pub async fn ", "pub const fn "]
+                .iter()
+                .any(|prefix| trimmed.starts_with(prefix))
+                || ["fn ", "async fn ", "const fn "].iter().any(|suffix| {
+                    trimmed
+                        .strip_prefix("pub(crate) ")
+                        .is_some_and(|rest| rest.starts_with(suffix))
+                });
+            if !is_pub_fn {
+                continue;
+            }
+            if doc_block_has_disposition(&lines, index) {
+                continue;
+            }
+            if let Some(name) = function_name(trimmed) {
+                functions.push(PublicFunction {
+                    path: path.clone(),
+                    line: index + 1,
+                    name,
+                });
+            }
+        }
+    }
+    functions.sort();
+    Ok(functions)
 }
 
 fn collect_hot_public_functions(workspace: &Path) -> Result<Vec<PublicFunction>, Box<dyn Error>> {
@@ -5756,6 +5861,32 @@ mod escape_scanner_tests {
     }
 
     #[test]
+    fn disposition_census_reads_the_doc_block() {
+        let ported = ["/// tsc-port: checkFoo @6.0.3", "pub fn check_foo() {}"];
+        let native = [
+            "/// tsrs-native: arena accessor",
+            "#[inline]",
+            "pub(crate) fn arena_get() {}",
+        ];
+        let deferred = [
+            "/// tsc-deferred: M6 inferTypeArguments",
+            "pub fn infer() {}",
+        ];
+        let bare = ["/// plain prose only", "pub fn mystery() {}"];
+        assert!(doc_block_has_disposition(&ported, 1));
+        assert!(doc_block_has_disposition(&native, 2));
+        assert!(doc_block_has_disposition(&deferred, 1));
+        assert!(!doc_block_has_disposition(&bare, 1));
+        // The block scan stops at the first non-comment/attr line.
+        let detached = [
+            "/// tsrs-native: someone else's fn",
+            "pub fn other() {}",
+            "pub fn unrelated() {}",
+        ];
+        assert!(!doc_block_has_disposition(&detached, 2));
+    }
+
+    #[test]
     fn stage_key_displays_match_reason_conventions() {
         assert_eq!(stage_key_display(StageKey(4, 8, u8::MAX)), "5.8");
         assert_eq!(stage_key_display(StageKey(4, 7, b'b')), "5.7b");
@@ -5817,16 +5948,22 @@ mod escapes_ceiling_tests {
         )
         .unwrap();
         assert_eq!(
-            read_escapes_ceiling(&dir, "max_untagged").unwrap(),
+            read_ratchet_ceiling(&dir, "escapes", "max_untagged").unwrap(),
             Some(178)
         );
         assert_eq!(
-            read_escapes_ceiling(&dir, "max_recovery").unwrap(),
+            read_ratchet_ceiling(&dir, "escapes", "max_recovery").unwrap(),
             Some(71)
         );
         fs::write(dir.join("ratchet.toml"), "[t0]\nrate = 0.1\n").unwrap();
-        assert_eq!(read_escapes_ceiling(&dir, "max_untagged").unwrap(), None);
-        assert_eq!(read_escapes_ceiling(&dir, "max_recovery").unwrap(), None);
+        assert_eq!(
+            read_ratchet_ceiling(&dir, "escapes", "max_untagged").unwrap(),
+            None
+        );
+        assert_eq!(
+            read_ratchet_ceiling(&dir, "escapes", "max_recovery").unwrap(),
+            None
+        );
         fs::remove_dir_all(&dir).ok();
     }
 }

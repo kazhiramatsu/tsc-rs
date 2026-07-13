@@ -65,8 +65,10 @@ fn note_resolving_transition(before: bool, after: bool) {
     }
 }
 
-/// The open-`Resolving` census for this thread; 0 whenever no
-/// resolution is mid-flight. Debug builds only — release answers 0.
+/// tsrs-native: debug census accessor for the unsupported-unwind
+/// invariant (no tsc counterpart). The open-`Resolving` census for
+/// this thread; 0 whenever no resolution is mid-flight. Debug builds
+/// only — release answers 0.
 pub fn debug_resolving_open() -> i64 {
     #[cfg(debug_assertions)]
     {
