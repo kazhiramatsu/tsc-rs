@@ -1,8 +1,8 @@
 [t0]
 # rate is display-only once matched/total are present; the gate
 # compares the exact integer counts (zero-regression).
-rate = 0.098429
-matched = 4781
+rate = 0.102011
+matched = 4955
 total = 48573
 allowed_regression = 0.0
 
@@ -11,8 +11,8 @@ rate = 0.0
 allowed_regression = 0.0
 
 [t0-2xxx]
-rate = 0.087648
-matched = 1825
+rate = 0.093459
+matched = 1946
 total = 20822
 allowed_regression = 0.0
 
@@ -25,4 +25,10 @@ allowed_regression = 0.0
 [escapes]
 # Untagged Unsupported/M4Dependency reasons (no parseable owner
 # stage). Monotone non-increasing; must reach 0 by the M4 close.
-max_untagged = 178
+# Owner-less reasons with an explicit recovery marker ("parse
+# recovery"/"parse-recovery"/"recovery node") classify as permanent
+# RECOVERY guards since 5.7b and ratchet separately below — a new
+# marked guard trips max_recovery, so re-labeling real containment
+# escapes as "recovery" cannot slip past the gate.
+max_untagged = 114
+max_recovery = 71

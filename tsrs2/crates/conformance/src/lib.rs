@@ -740,10 +740,22 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
             None
         }
     });
+    let module = program.options.iter().find_map(|(key, value)| {
+        if key.eq_ignore_ascii_case("module") {
+            match value {
+                tsrs2_harness::OptionValue::String(value) => module_option_value(value),
+                tsrs2_harness::OptionValue::Number(value) => Some(*value),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    });
     CompilerOptions {
         allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
         experimental_decorators: bool_option("experimentalDecorators").unwrap_or(false),
         target,
+        module,
         always_strict: bool_option("alwaysStrict"),
         strict: bool_option("strict"),
         strict_null_checks: bool_option("strictNullChecks"),
@@ -814,6 +826,28 @@ fn string_option(program: &tsrs2_harness::ProgramJson, name: &str) -> Option<Str
         } else {
             None
         }
+    })
+}
+
+/// tsc moduleOptionDeclaration.type (36853-36868) — the module
+/// option's string→ModuleKind map.
+fn module_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "none" => 0,
+        "commonjs" => 1,
+        "amd" => 2,
+        "umd" => 3,
+        "system" => 4,
+        "es6" | "es2015" => 5,
+        "es2020" => 6,
+        "es2022" => 7,
+        "esnext" => 99,
+        "node16" => 100,
+        "node18" => 101,
+        "node20" => 102,
+        "nodenext" => 199,
+        "preserve" => 200,
+        _ => return None,
     })
 }
 

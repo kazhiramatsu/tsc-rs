@@ -105,6 +105,13 @@ pub enum TypeData {
     /// minted for enums whose member list is empty or whose members
     /// have no compile-time value; never interned.
     Enum,
+    /// `unique symbol` (createUniqueESSymbolType 63112): one per
+    /// declaration symbol (memoized in SymbolLinks.uniqueESSymbolType);
+    /// escaped_name = `__@<symbol.escapedName>@<symbolId>` — the
+    /// late-bound member name known-symbol lookups compare against.
+    UniqueESSymbol {
+        escaped_name: String,
+    },
     Union {
         types: Box<[TypeId]>,
         /// Denormalized origin union/intersection (4.2+).

@@ -3833,4 +3833,38 @@ mod tests {
             assert_eq!(codes, [2304, 2552, 2304]);
         });
     }
+
+    // ---- 5.7b: the 2729 declared-before-use band (scratchpad
+    // pins/r{1,2}.ts, oracle-probed 2026-07-13) ----
+
+    #[test]
+    fn static_property_used_before_initialization_reports_2729() {
+        assert_eq!(
+            checked_rows("class C {\n    static a = C.b;\n    static b = 1;\n}\nC.a;\n"),
+            [(2729, 27, 1)]
+        );
+    }
+
+    #[test]
+    fn instance_property_used_before_initialization_stays_contained() {
+        // Oracle: 2729 at `b` (23+1). The `this` receiver contains on
+        // the strict noImplicitThis probe (globalThis reads the
+        // VALUE_MODULE getTypeOfSymbol escape, 5.8) — the row is that
+        // band's recorded FN, not the 2729 walk's; the static pin
+        // above exercises the walk end-to-end.
+        assert_eq!(
+            checked_rows("class E {\n    a = this.b;\n    b = 1;\n}\ndeclare const e: E;\ne.a;\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn property_used_after_its_declaration_is_clean() {
+        // The positional walk's other face: b precedes a (static so
+        // the receiver stays this-free).
+        assert_eq!(
+            checked_rows("class G {\n    static b = 1;\n    static a = G.b;\n}\nG.a;\n"),
+            []
+        );
+    }
 }

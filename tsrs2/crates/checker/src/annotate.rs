@@ -935,11 +935,115 @@ impl<'a> CheckerState<'a> {
                 let operand = self.get_type_from_type_node(inner)?;
                 self.get_index_type(operand, tsrs2_types::IndexFlags::NONE)
             }
-            SyntaxKind::UniqueKeyword => Err(Unsupported::new("unique symbol types (M4)")),
+            SyntaxKind::UniqueKeyword => {
+                // 62035-62037: `unique symbol` resolves through the
+                // OWNING declaration (walkUpParenthesizedTypes on the
+                // operator's parent); non-`symbol` operands answer
+                // errorType.
+                if self.kind_of(inner) != SyntaxKind::SymbolKeyword {
+                    return Ok(self.tables.intrinsics.error);
+                }
+                let mut parent = self.parent_of(node).ok_or_else(|| {
+                    Unsupported::new("type operator without a parent (parse recovery)")
+                })?;
+                while self.kind_of(parent) == SyntaxKind::ParenthesizedType {
+                    match self.parent_of(parent) {
+                        Some(next) => parent = next,
+                        None => break,
+                    }
+                }
+                self.get_es_symbol_like_type_for_node(parent)
+            }
             other => Err(Unsupported::new(format!(
                 "type operator {other:?} outside the M3 slice"
             ))),
         }
+    }
+
+    /// tsc-port: getESSymbolLikeTypeForNode @6.0.3
+    /// tsc-hash: cfffbfaec274ec3d0403dfece197ea736c208fd8698405ab6a3696e5f41d915b
+    /// tsc-span: _tsc.js:63117-63132
+    ///
+    /// The JSDoc host hop and isCommonJsExportPropertyAssignment are
+    /// JS-only (elided). getSymbolOfNode tolerates unbound nodes — an
+    /// invalid position falls through to the plain `symbol` intrinsic
+    /// (the 1332-family grammar rows are parser-emitted).
+    pub(crate) fn get_es_symbol_like_type_for_node(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        if self.is_valid_es_symbol_declaration(node) {
+            let symbol = self.node_symbol(node).map(|s| self.get_merged_symbol(s));
+            if let Some(symbol) = symbol {
+                if let Some(cached) = self.links.symbol(symbol).unique_es_symbol_type {
+                    return Ok(cached);
+                }
+                let escaped_name = format!(
+                    "__@{}@{}",
+                    self.binder.symbol(symbol).escaped_name,
+                    symbol.0
+                );
+                let ty = self
+                    .tables
+                    .create_unique_es_symbol_type(symbol, escaped_name);
+                self.links
+                    .set_symbol_unique_es_symbol_type(self.speculation_depth, symbol, ty);
+                return Ok(ty);
+            }
+        }
+        Ok(self.tables.intrinsics.es_symbol)
+    }
+
+    /// tsc-port: isValidESSymbolDeclaration @6.0.3
+    /// tsc-hash: 667a26eb7c294b84d739b1e9b57d758772ff062767d05c4cfabd873d99eac28c
+    /// tsc-span: _tsc.js:14377-14379
+    ///
+    /// isCommonJsExportPropertyAssignment is JS-only (constant false).
+    fn is_valid_es_symbol_declaration(&self, node: NodeId) -> bool {
+        let source = self.binder.source_of_node(node);
+        match self.data_of(node) {
+            NodeData::VariableDeclaration(data) => {
+                // isVarConst: (combined & BlockScoped) == Const.
+                let combined = node_util::get_combined_node_flags(source, node);
+                let block_scoped = tsrs2_types::NodeFlags::from_bits(
+                    tsrs2_types::NodeFlags::LET.bits()
+                        | tsrs2_types::NodeFlags::CONST.bits()
+                        | tsrs2_types::NodeFlags::USING.bits(),
+                );
+                let is_const =
+                    combined.bits() & block_scoped.bits() == tsrs2_types::NodeFlags::CONST.bits();
+                is_const
+                    && data
+                        .name
+                        .is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
+                    && self.is_variable_declaration_in_variable_statement(node)
+            }
+            NodeData::PropertyDeclaration(_) => {
+                node_util::has_syntactic_modifier(
+                    source,
+                    node,
+                    tsrs2_types::ModifierFlags::READONLY,
+                ) && self.has_static_modifier(node)
+            }
+            NodeData::PropertySignature(_) => node_util::has_syntactic_modifier(
+                source,
+                node,
+                tsrs2_types::ModifierFlags::READONLY,
+            ),
+            _ => false,
+        }
+    }
+
+    /// tsc isVariableDeclarationInVariableStatement (14384):
+    /// declaration → VariableDeclarationList → VariableStatement.
+    fn is_variable_declaration_in_variable_statement(&self, node: NodeId) -> bool {
+        let Some(list) = self.parent_of(node) else {
+            return false;
+        };
+        self.kind_of(list) == SyntaxKind::VariableDeclarationList
+            && self
+                .parent_of(list)
+                .is_some_and(|statement| self.kind_of(statement) == SyntaxKind::VariableStatement)
     }
 
     // ---- type literals / function / constructor types ----
@@ -956,11 +1060,18 @@ impl<'a> CheckerState<'a> {
         }
         let symbol = self.node_symbol(node);
         let alias_symbol = self.get_alias_symbol_for_type_node(node);
+        let members_empty = match symbol {
+            // 62894: getMembersOfSymbol — the RESOLVED (late-bound)
+            // table decides emptiness; a type literal whose only
+            // member is computed-named must NOT collapse to
+            // emptyTypeLiteralType (its early table is empty — the
+            // binder parks dynamic names off-table).
+            Some(symbol) => self.get_members_of_symbol(symbol)?.is_empty(),
+            None => true,
+        };
         let resolved = match symbol {
             None => self.empty_type_literal_type,
-            Some(symbol) if self.symbol_members(symbol).is_empty() && alias_symbol.is_none() => {
-                self.empty_type_literal_type
-            }
+            Some(_) if members_empty && alias_symbol.is_none() => self.empty_type_literal_type,
             Some(symbol) => {
                 let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
@@ -2706,44 +2817,351 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 658bb9b2cdee7a906c4edf27c0be7a544b0be92d2d4bfb14dcc52675429f1304
     /// tsc-span: _tsc.js:57712-57766
     ///
-    /// The non-static `resolvedMembers` kind only (the static
-    /// `resolvedExports` side is 5.3e class statics). Late-bindable
-    /// members need checkComputedPropertyName/checkExpressionCached
-    /// (5.5), so a member whose name is late-bindable AST escapes —
-    /// with none present, the resolved table IS the early table
-    /// (combineSymbolTables(early, ∅)). The JS assignment-declaration
-    /// and cjsExportMerged blocks are elided project-wide.
+    /// Both resolution kinds route here (is_static selects the
+    /// resolvedExports flavor). The EARLY table parks in the links
+    /// slot before binding (the 57717 re-entrancy guard) and the
+    /// combined table rewrites it; an Err unwind reverts to Vacant.
+    /// The JS assignment-declaration and cjsExportMerged blocks are
+    /// elided project-wide. An early/late NAME COLLISION would need
+    /// mergeSymbol across the tables — escape (5.8 merge surface).
+    fn get_resolved_members_or_exports_of_symbol(
+        &mut self,
+        symbol: SymbolId,
+        is_static: bool,
+    ) -> CheckResult2<tsrs2_binder::SymbolTable> {
+        let cached = if is_static {
+            self.links.symbol(symbol).resolved_exports.resolved()
+        } else {
+            self.links.symbol(symbol).resolved_members.resolved()
+        };
+        if let Some(resolved) = cached {
+            return Ok(resolved);
+        }
+        let early = if is_static {
+            self.binder.symbol(symbol).exports.clone()
+        } else {
+            self.symbol_members(symbol).clone()
+        };
+        if is_static {
+            self.links.set_symbol_resolved_exports_late_bind(
+                self.speculation_depth,
+                symbol,
+                early.clone(),
+            );
+        } else {
+            self.links.set_symbol_resolved_members_late_bind(
+                self.speculation_depth,
+                symbol,
+                early.clone(),
+            );
+        }
+        // Members whose lateBindMember pre-write happens in THIS frame
+        // — an Err unwind must revert their node/lateSymbol memos too,
+        // or the retry's memo-hits would silently DROP them from the
+        // rebuilt late table (review round #2).
+        let mut freshly_bound: Vec<NodeId> = Vec::new();
+        let result = (|state: &mut Self,
+                       freshly_bound: &mut Vec<NodeId>|
+         -> CheckResult2<tsrs2_binder::SymbolTable> {
+            let mut late = tsrs2_binder::SymbolTable::default();
+            let declarations = state.binder.symbol(symbol).declarations.clone();
+            for declaration in declarations {
+                for member in state.members_of_declaration(declaration) {
+                    if is_static != state.has_static_modifier(member) {
+                        continue;
+                    }
+                    if !state.has_late_bindable_ast_name(member) {
+                        continue;
+                    }
+                    // INTERFACE containers keep the M7-stub containment:
+                    // un-containing the lib interfaces (String/Array/
+                    // Function carry `[Symbol.iterator]`-family members
+                    // at ES2015+) unmasks [FLOW M5], comment-directive
+                    // and declare-global-augment divergences corpus-wide
+                    // (5.7b review round, FP find). Type literals,
+                    // classes and object literals late-bind for real.
+                    if state
+                        .symbol_flags(symbol)
+                        .intersects(SymbolFlags::INTERFACE)
+                    {
+                        return Err(Unsupported::new(
+                            "late-bound INTERFACE members (lib well-known-symbol surface, M7-stub)",
+                        ));
+                    }
+                    let name = state
+                        .name_of_named_declaration(member)
+                        .expect("late-bindable AST implies a computed name");
+                    // The silent pre-flight: checkComputedPropertyName
+                    // EMITS resolution misses (2304/2339) — where OUR
+                    // resolution diverges from tsc's (declare-global
+                    // augments, module band), the emission itself would
+                    // be the FP. A chain that does not resolve contains
+                    // the container like the old stub — no diagnostic.
+                    if !state.computed_name_chain_resolves(name)? {
+                        return Err(Unsupported::new(
+                            "late-bound member name resolution miss \
+                             (declare-global augment / module band, 5.8)",
+                        ));
+                    }
+                    // hasLateBindableName / hasLateBindableIndexSignature
+                    // (57635-57642) dispatch on the CHECKED name type:
+                    // property-usable → member; string/number/symbol
+                    // assignable → index signature; neither → skip
+                    // (checkComputedPropertyName memoizes the type).
+                    let name_type = state.check_computed_property_name(name)?;
+                    if state.property_name_from_type_usable(name_type).is_some() {
+                        if state
+                            .links
+                            .node(member)
+                            .resolved_symbol
+                            .resolved()
+                            .is_none()
+                        {
+                            freshly_bound.push(member);
+                        }
+                        state.late_bind_member(symbol, &early, &mut late, member)?;
+                    } else {
+                        let string_number_symbol = state.tables.intrinsics.string_number_symbol;
+                        if state.is_type_assignable_to(name_type, string_number_symbol)? {
+                            state.late_bind_index_signature(&early, &mut late, member)?;
+                        }
+                    }
+                }
+            }
+            // combineSymbolTables (47810): plain inserts when the key
+            // sets are disjoint; a collision needs mergeSymbol (5.8).
+            let mut resolved = early.clone();
+            for (name, member) in late.iter() {
+                if resolved.get(name).is_some() {
+                    return Err(Unsupported::new(
+                        "early/late member table merge (combineSymbolTables → mergeSymbol, 5.8)",
+                    ));
+                }
+                resolved.insert(name.clone(), *member);
+            }
+            Ok(resolved)
+        })(self, &mut freshly_bound);
+        match result {
+            Ok(resolved) => {
+                if is_static {
+                    self.links.set_symbol_resolved_exports_late_bind(
+                        self.speculation_depth,
+                        symbol,
+                        resolved.clone(),
+                    );
+                } else {
+                    self.links.set_symbol_resolved_members_late_bind(
+                        self.speculation_depth,
+                        symbol,
+                        resolved.clone(),
+                    );
+                }
+                Ok(resolved)
+            }
+            Err(err) => {
+                if is_static {
+                    self.links.revert_symbol_resolved_exports(symbol);
+                } else {
+                    self.links.revert_symbol_resolved_members(symbol);
+                }
+                for member in freshly_bound {
+                    self.links.revert_node_resolved_symbol_late_bind(member);
+                    if let Some(member_symbol) = self.node_symbol(member) {
+                        self.links.clear_symbol_late_symbol(member_symbol);
+                    }
+                }
+                Err(err)
+            }
+        }
+    }
+
     fn get_resolved_members_of_symbol(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult2<tsrs2_binder::SymbolTable> {
-        if let Some(resolved) = self.links.symbol(symbol).resolved_members.resolved() {
-            return Ok(resolved);
-        }
-        let declarations = self.binder.symbol(symbol).declarations.clone();
-        for declaration in declarations {
-            for member in self.members_of_declaration(declaration) {
-                if self.has_static_modifier(member) {
-                    continue;
-                }
-                if self.has_late_bindable_ast_name(member) {
-                    // checkComputedPropertyName exists since 5.5; the
-                    // remaining owner is lateBindMember itself (57662)
-                    // — deferred per the 5.3 design's M7-stub fallback.
-                    return Err(Unsupported::new(
-                        "late-bound members (lateBindMember 57662, M7-stub)",
-                    ));
-                }
-            }
-        }
-        let resolved = self.symbol_members(symbol).clone();
-        self.links
-            .set_symbol_resolved_members(self.speculation_depth, symbol, resolved.clone());
-        Ok(resolved)
+        self.get_resolved_members_or_exports_of_symbol(symbol, /*is_static*/ false)
     }
 
-    /// The static `resolvedExports` kind of
-    /// getResolvedMembersOrExportsOfSymbol (57712) — getExportsOfSymbol's
+    /// tsc-port: lateBindMember @6.0.3
+    /// tsc-hash: 27f7f740dbb3500e1dc1cd5612f22f37c1e285c4ed662ea8910f8be5044be367
+    /// tsc-span: _tsc.js:57662-57693
+    ///
+    /// The BinaryExpression/element-access declName arms are JS
+    /// (expando assignments) — TS members always carry a
+    /// ComputedPropertyName. The member's node links.resolvedSymbol
+    /// parks its own binder symbol first (re-entrancy guard), then the
+    /// late symbol replaces it (the dedicated protocol setter).
+    fn late_bind_member(
+        &mut self,
+        parent: SymbolId,
+        early: &tsrs2_binder::SymbolTable,
+        late: &mut tsrs2_binder::SymbolTable,
+        decl: NodeId,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let decl_symbol = self
+            .node_symbol(decl)
+            .expect("the member is expected to have a symbol");
+        if let Some(resolved) = self.links.node(decl).resolved_symbol.resolved() {
+            return Ok(Some(resolved));
+        }
+        self.links
+            .set_node_resolved_symbol_late_bind(self.speculation_depth, decl, decl_symbol);
+        let decl_name = self
+            .name_of_named_declaration(decl)
+            .expect("late-bindable AST implies a computed name");
+        let name_type = self.check_computed_property_name(decl_name)?;
+        let Some(member_name) = self.property_name_from_type_usable(name_type) else {
+            return Ok(Some(decl_symbol));
+        };
+        let symbol_flags = self.binder.symbol(decl_symbol).flags;
+        let mut late_symbol = match late.get(&member_name) {
+            Some(&existing) => existing,
+            None => {
+                let created = self
+                    .binder
+                    .create_symbol(SymbolFlags::NONE, member_name.clone());
+                self.links.set_symbol_check_flags(
+                    self.speculation_depth,
+                    created,
+                    tsrs2_types::CheckFlags::LATE,
+                );
+                late.insert(member_name.clone(), created);
+                created
+            }
+        };
+        let early_symbol = early.get(&member_name).copied();
+        let parent_is_class = self.symbol_flags(parent).intersects(SymbolFlags::CLASS);
+        let excluded = get_excluded_symbol_flags(symbol_flags);
+        if !parent_is_class && self.binder.symbol(late_symbol).flags.intersects(excluded) {
+            // 57676-57681: duplicate late-bound member.
+            let declarations: Vec<NodeId> = early_symbol
+                .map(|s| self.binder.symbol(s).declarations.clone())
+                .unwrap_or_default()
+                .into_iter()
+                .chain(self.binder.symbol(late_symbol).declarations.clone())
+                .collect();
+            let display = if !self
+                .tables
+                .flags_of(name_type)
+                .intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+            {
+                tsrs2_binder::unescape_leading_underscores(&member_name).to_owned()
+            } else {
+                self.text_of_node(decl_name)?
+            };
+            for declaration in declarations {
+                let error_node = self
+                    .name_of_named_declaration(declaration)
+                    .unwrap_or(declaration);
+                self.error_at(
+                    Some(error_node),
+                    &diagnostics::Property_0_was_also_declared_here,
+                    &[&display],
+                );
+            }
+            self.error_at(
+                Some(decl_name),
+                &diagnostics::Duplicate_property_0,
+                &[&display],
+            );
+            let fresh = self
+                .binder
+                .create_symbol(SymbolFlags::NONE, member_name.clone());
+            self.links.set_symbol_check_flags(
+                self.speculation_depth,
+                fresh,
+                tsrs2_types::CheckFlags::LATE,
+            );
+            late.insert(member_name.clone(), fresh);
+            late_symbol = fresh;
+        }
+        self.links
+            .set_symbol_name_type(self.speculation_depth, late_symbol, Some(name_type));
+        self.add_declaration_to_late_bound_symbol(late_symbol, decl, symbol_flags);
+        let existing_parent = self.binder.symbol(late_symbol).parent;
+        match existing_parent {
+            Some(existing) => debug_assert_eq!(
+                existing, parent,
+                "Existing symbol parent should match new one"
+            ),
+            None => self.binder.symbol_mut(late_symbol).parent = Some(parent),
+        }
+        self.links
+            .set_node_resolved_symbol_late_bind(self.speculation_depth, decl, late_symbol);
+        Ok(Some(late_symbol))
+    }
+
+    /// tsc-port: addDeclarationToLateBoundSymbol @6.0.3
+    /// tsc-hash: 5902dcfdc7b047251415cfe2d48d2423eaa85135ceaeeee2427343e3c4716661
+    /// tsc-span: _tsc.js:57649-57661
+    ///
+    /// isReplaceableByMethod is a JS object-literal flag (always
+    /// false); setValueDeclaration reduces to the first-Value-wins
+    /// write for TS member shapes.
+    fn add_declaration_to_late_bound_symbol(
+        &mut self,
+        late_symbol: SymbolId,
+        member: NodeId,
+        symbol_flags: SymbolFlags,
+    ) {
+        let member_symbol = self
+            .node_symbol(member)
+            .expect("late-bound member has a symbol");
+        self.binder.symbol_mut(late_symbol).flags |= symbol_flags;
+        self.links
+            .set_symbol_late_symbol(self.speculation_depth, member_symbol, late_symbol);
+        self.binder
+            .symbol_mut(late_symbol)
+            .declarations
+            .push(member);
+        if symbol_flags.intersects(SymbolFlags::VALUE)
+            && self.binder.symbol(late_symbol).value_declaration.is_none()
+        {
+            self.binder.symbol_mut(late_symbol).value_declaration = Some(member);
+        }
+    }
+
+    /// tsc-port: lateBindIndexSignature @6.0.3
+    /// tsc-hash: e4a21cba13d27d2990eb3880e9c33d4ed3b06acc26c66109960ba95799663165
+    /// tsc-span: _tsc.js:57694-57711
+    ///
+    /// cloneSymbol of an early __index (both computed AND declared
+    /// index members on one container) is a merge surface — escape;
+    /// the pure-late shape allocates the fresh __index symbol. The
+    /// consumer (getIndexInfosOfIndexSymbol) still escapes on
+    /// non-IndexSignature declarations, so these members stay FN
+    /// (honest containment at the read).
+    fn late_bind_index_signature(
+        &mut self,
+        early: &tsrs2_binder::SymbolTable,
+        late: &mut tsrs2_binder::SymbolTable,
+        decl: NodeId,
+    ) -> CheckResult2<()> {
+        let index_symbol = match late.get(InternalSymbolName::INDEX) {
+            Some(&existing) => existing,
+            None => {
+                if early.get(InternalSymbolName::INDEX).is_some() {
+                    return Err(Unsupported::new(
+                        "late index signature over an early __index (cloneSymbol merge, 5.8)",
+                    ));
+                }
+                let created = self
+                    .binder
+                    .create_symbol(SymbolFlags::NONE, InternalSymbolName::INDEX.to_owned());
+                self.links.set_symbol_check_flags(
+                    self.speculation_depth,
+                    created,
+                    tsrs2_types::CheckFlags::LATE,
+                );
+                late.insert(InternalSymbolName::INDEX.to_owned(), created);
+                created
+            }
+        };
+        self.binder.symbol_mut(index_symbol).declarations.push(decl);
+        Ok(())
+    }
+
+    /// The static `resolvedExports` kind — getExportsOfSymbol's
     /// late-binding-container route. Module symbols need
     /// getExportsOfModuleWorker's export-star walk (5.8).
     fn get_exports_of_symbol(
@@ -2761,26 +3179,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(self.binder.symbol(symbol).exports.clone());
         }
-        if let Some(resolved) = self.links.symbol(symbol).resolved_exports.resolved() {
-            return Ok(resolved);
-        }
-        let declarations = self.binder.symbol(symbol).declarations.clone();
-        for declaration in declarations {
-            for member in self.members_of_declaration(declaration) {
-                if !self.has_static_modifier(member) {
-                    continue;
-                }
-                if self.has_late_bindable_ast_name(member) {
-                    return Err(Unsupported::new(
-                        "late-bound static members (checkComputedPropertyName, M4 5.5/M7)",
-                    ));
-                }
-            }
-        }
-        let resolved = self.binder.symbol(symbol).exports.clone();
-        self.links
-            .set_symbol_resolved_exports(self.speculation_depth, symbol, resolved.clone());
-        Ok(resolved)
+        self.get_resolved_members_or_exports_of_symbol(symbol, /*is_static*/ true)
     }
 
     /// getMembersOfDeclaration (19010-ish): the member lists a
@@ -2798,9 +3197,8 @@ impl<'a> CheckerState<'a> {
 
     /// hasLateBindableName's AST half (isLateBindableAST 57622-57628):
     /// a computed name over an entity-name expression. The TYPE half
-    /// (isTypeUsableAsPropertyName over the checked name) is 5.5 — AST
-    /// presence alone triggers the honest escape, a strict superset of
-    /// tsc's late-bind set.
+    /// (property-name vs index-signature usability) dispatches at the
+    /// late-binding loop.
     fn has_late_bindable_ast_name(&self, member: NodeId) -> bool {
         let name = match self.data_of(member) {
             NodeData::PropertySignature(data) => data.name,
@@ -2821,6 +3219,62 @@ impl<'a> CheckerState<'a> {
         };
         data.expression
             .is_some_and(|expression| self.is_entity_name_expression(expression))
+    }
+
+    /// The silent pre-flight over a computed name's entity chain
+    /// (Identifier / dotted PropertyAccess): the leftmost name
+    /// resolves with NO diagnostic and each property hop looks up
+    /// silently. False = our resolution diverges from tsc's (a
+    /// declare-global augment / module-band member we cannot merge) —
+    /// the late-binding loop then contains WITHOUT emitting the miss
+    /// checkComputedPropertyName would fabricate.
+    fn computed_name_chain_resolves(&mut self, name: NodeId) -> CheckResult2<bool> {
+        let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
+            return Ok(false);
+        };
+        let Some(expression) = data.expression else {
+            return Ok(false);
+        };
+        let mut hops: Vec<String> = Vec::new();
+        let mut current = expression;
+        while let NodeData::PropertyAccessExpression(access) = self.data_of(current) {
+            let Some(prop) = access
+                .name
+                .and_then(|n| self.identifier_text_of(n))
+                .map(str::to_owned)
+            else {
+                return Ok(false);
+            };
+            hops.push(prop);
+            let Some(inner) = access.expression else {
+                return Ok(false);
+            };
+            current = inner;
+        }
+        if self.kind_of(current) != SyntaxKind::Identifier {
+            return Ok(false);
+        }
+        let Some(root_text) = self.identifier_text_of(current).map(str::to_owned) else {
+            return Ok(false);
+        };
+        let Some(root) = self.resolve_name(
+            Some(current),
+            &root_text,
+            SymbolFlags::VALUE,
+            None,
+            false,
+            false,
+        ) else {
+            return Ok(false);
+        };
+        let mut ty = self.get_type_of_symbol(root)?;
+        for hop in hops.iter().rev() {
+            let Some(prop) = self.get_property_of_type_full(ty, hop)? else {
+                return Ok(false);
+            };
+            ty = self.get_type_of_symbol(prop)?;
+        }
+        Ok(true)
     }
 
     pub(crate) fn has_static_modifier(&self, member: NodeId) -> bool {
@@ -4305,8 +4759,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2dffc568392757cc14418934e18e93bb1927d8ad61ab7932fb91c1e8a0cfb768
     /// tsc-span: _tsc.js:59983-59985
     fn get_index_infos_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<Vec<IndexInfo>> {
+        // getIndexSymbol reads getMembersOfSymbol (the late-bound
+        // table) — a computed-name index member surfaces here and the
+        // declaration reader below keeps its honest escape.
         let index_symbol = self
-            .symbol_members(symbol)
+            .get_members_of_symbol(symbol)?
             .get(InternalSymbolName::INDEX)
             .copied();
         match index_symbol {
@@ -4695,26 +5152,25 @@ impl<'a> CheckerState<'a> {
         if let Some(mut ty) = ty {
             if self.tables.flags_of(ty).intersects(TypeFlags::ES_SYMBOL) {
                 // isGlobalSymbolConstructor(declaration.parent): only a
-                // parent whose (merged) symbol IS the global Symbol
-                // constructor takes getESSymbolLikeTypeForNode — a JS
-                // expando/global-augmentation shape. Everything else
-                // (ordinary `: symbol` annotations) falls through.
+                // parent whose (merged) symbol IS the global
+                // SymbolConstructor type symbol takes
+                // getESSymbolLikeTypeForNode. Everything else (ordinary
+                // `: symbol` annotations) falls through.
                 if self.is_in_js_file(declaration) {
                     return Err(Unsupported::new(
                         "widenTypeForVariableLikeDeclaration JS ESSymbol arm ([JSDOC])",
                     ));
                 }
-                let parent_symbol_name = self
+                let parent_symbol = self
                     .parent_of(declaration)
                     .and_then(|parent| self.binder.node_symbol(parent))
-                    .map(|symbol| self.binder.symbol(symbol).escaped_name.clone());
-                if matches!(
-                    parent_symbol_name.as_deref(),
-                    Some("Symbol" | "SymbolConstructor")
-                ) {
-                    return Err(Unsupported::new(
-                        "isGlobalSymbolConstructor arm (getESSymbolLikeTypeForNode, 5.7)",
-                    ));
+                    .map(|symbol| self.get_merged_symbol(symbol));
+                if let Some(parent_symbol) = parent_symbol {
+                    // getGlobalESSymbolConstructorTypeSymbol(false).
+                    let global = self.get_global_type_symbol("SymbolConstructor", false);
+                    if global == Some(parent_symbol) {
+                        ty = self.get_es_symbol_like_type_for_node(declaration)?;
+                    }
                 }
             }
             if report_errors {
@@ -5784,6 +6240,62 @@ impl<'a> CheckerState<'a> {
 /// tsc-port: isReservedMemberName @6.0.3
 /// tsc-hash: 6e93c419462cea22e393d89e2df487745553e2aab4363501e4c436f1d5a13b84
 /// tsc-span: _tsc.js:50142-50144
+/// tsc-port: getExcludedSymbolFlags @6.0.3
+/// tsc-hash: 44af025b45ba77e5268ef6b5eb0d490623d4607c7085362e5f1f0f0436f2da41
+/// tsc-span: _tsc.js:47669-47688
+fn get_excluded_symbol_flags(flags: SymbolFlags) -> SymbolFlags {
+    let mut result = 0i32;
+    if flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
+        result |= SymbolFlags::BLOCK_SCOPED_VARIABLE_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+        result |= SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::PROPERTY) {
+        result |= SymbolFlags::PROPERTY_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::ENUM_MEMBER) {
+        result |= SymbolFlags::ENUM_MEMBER_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::FUNCTION) {
+        result |= SymbolFlags::FUNCTION_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::CLASS) {
+        result |= SymbolFlags::CLASS_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::INTERFACE) {
+        result |= SymbolFlags::INTERFACE_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::REGULAR_ENUM) {
+        result |= SymbolFlags::REGULAR_ENUM_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::CONST_ENUM) {
+        result |= SymbolFlags::CONST_ENUM_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::VALUE_MODULE) {
+        result |= SymbolFlags::VALUE_MODULE_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::METHOD) {
+        result |= SymbolFlags::METHOD_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::GET_ACCESSOR) {
+        result |= SymbolFlags::GET_ACCESSOR_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::SET_ACCESSOR) {
+        result |= SymbolFlags::SET_ACCESSOR_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+        result |= SymbolFlags::TYPE_PARAMETER_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::TYPE_ALIAS) {
+        result |= SymbolFlags::TYPE_ALIAS_EXCLUDES.bits();
+    }
+    if flags.intersects(SymbolFlags::ALIAS) {
+        result |= SymbolFlags::ALIAS_EXCLUDES.bits();
+    }
+    SymbolFlags::from_bits(result)
+}
+
 fn is_reserved_member_name(name: &str) -> bool {
     let bytes = name.as_bytes();
     bytes.first() == Some(&b'_')
@@ -8142,5 +8654,134 @@ mod enum_tests {
             assert_eq!(arguments.len(), data.type_parameters.len() + 1);
             assert_eq!(data.element_flags.len(), data.type_parameters.len());
         });
+    }
+}
+
+#[cfg(test)]
+mod unique_symbol_tests {
+    use tsrs2_types::{CompilerOptions, SymbolFlags, TypeData, TypeFlags};
+
+    use crate::state::test_support::with_program_state;
+
+    /// 5.7b review round: the unique-symbol type identity contract —
+    /// one type per declaration (SymbolLinks.uniqueESSymbolType memo),
+    /// UNIQUE_ES_SYMBOL flagged, distinct across declarations, and
+    /// widening collapses to the plain `symbol` intrinsic.
+    #[test]
+    fn unique_symbol_types_are_per_declaration_memoized_and_widen() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare const u: unique symbol;\ndeclare const v: unique symbol;\nlet l: unique symbol;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let sym = |state: &mut crate::state::CheckerState, name: &str| {
+                    state
+                        .get_global_symbol(name, SymbolFlags::VALUE, None)
+                        .expect("fixture declares the name")
+                };
+                let u = sym(state, "u");
+                let v = sym(state, "v");
+                let u_type = state.get_type_of_symbol(u).expect("u types");
+                let v_type = state.get_type_of_symbol(v).expect("v types");
+                assert!(state
+                    .tables
+                    .flags_of(u_type)
+                    .intersects(TypeFlags::UNIQUE_ES_SYMBOL));
+                assert!(state
+                    .tables
+                    .flags_of(v_type)
+                    .intersects(TypeFlags::UNIQUE_ES_SYMBOL));
+                assert_ne!(
+                    u_type, v_type,
+                    "distinct declarations mint distinct unique types"
+                );
+                let name_of = |state: &crate::state::CheckerState, ty| {
+                    match &state.tables.type_of(ty).data {
+                        TypeData::UniqueESSymbol { escaped_name } => escaped_name.clone(),
+                        other => panic!("expected a unique symbol, got {other:?}"),
+                    }
+                };
+                let u_name = name_of(state, u_type);
+                let v_name = name_of(state, v_type);
+                assert!(u_name.starts_with("__@u@"), "{u_name}");
+                assert!(v_name.starts_with("__@v@"), "{v_name}");
+                assert_ne!(u_name, v_name);
+                // The per-declaration memo: re-resolving the same
+                // declaration answers the SAME TypeId.
+                let u_decl = state.binder.symbol(u).declarations[0];
+                let first = state
+                    .get_es_symbol_like_type_for_node(u_decl)
+                    .expect("resolves");
+                let second = state
+                    .get_es_symbol_like_type_for_node(u_decl)
+                    .expect("resolves");
+                assert_eq!(first, second, "SymbolLinks.uniqueESSymbolType memoizes");
+                assert_eq!(first, u_type);
+                // An INVALID position (a `let`) answers the plain
+                // `symbol` intrinsic, not a unique type.
+                let l = sym(state, "l");
+                let l_decl = state.binder.symbol(l).declarations[0];
+                let l_type = state
+                    .get_es_symbol_like_type_for_node(l_decl)
+                    .expect("resolves");
+                assert_eq!(l_type, state.tables.intrinsics.es_symbol);
+                // Widening collapses unique → symbol.
+                let widened = state
+                    .get_widened_unique_es_symbol_type(u_type)
+                    .expect("widens");
+                assert_eq!(widened, state.tables.intrinsics.es_symbol);
+            },
+        );
+    }
+}
+
+#[cfg(test)]
+mod late_binding_tests {
+    use tsrs2_syntax::SyntaxKind;
+    use tsrs2_types::CompilerOptions;
+
+    use crate::state::test_support::with_program_state;
+
+    /// 5.7b review round #2: an Err unwind mid-late-binding must leave
+    /// every touched member re-bindable — asking the same question
+    /// twice answers the same thing. Without the member-side rollback,
+    /// the retry memo-hits past lateBindMember and SUCCEEDS with the
+    /// colliding late member silently dropped from the table.
+    #[test]
+    fn late_binding_err_unwind_is_idempotent() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "const k = \"x\";\ntype T = { x: number; [k]: string };\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let source = state.binder.source(0);
+                let type_literal = source
+                    .arena
+                    .node_ids()
+                    .find(|&id| {
+                        tsrs2_binder::node_util::kind_of(source, id) == SyntaxKind::TypeLiteral
+                    })
+                    .expect("fixture contains a type literal");
+                let symbol = state
+                    .binder
+                    .node_symbol(type_literal)
+                    .expect("type literal binds a symbol");
+                let first = state.get_members_of_symbol(symbol);
+                let second = state.get_members_of_symbol(symbol);
+                let first_reason = first.expect_err("early/late collision escapes").reason;
+                let second_reason = second
+                    .expect_err("the retry must escape the same way")
+                    .reason;
+                assert_eq!(first_reason, second_reason);
+                assert!(
+                    first_reason.contains("combineSymbolTables"),
+                    "{first_reason}"
+                );
+            },
+        );
     }
 }

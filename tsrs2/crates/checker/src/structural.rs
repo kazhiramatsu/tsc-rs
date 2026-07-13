@@ -4141,9 +4141,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b79146b727edab18aa3474c4ab6d0ef5d15302b2264ec1ca853d395372867afb
     /// tsc-span: _tsc.js:58224-58229
     ///
-    /// The globalFunctionType→[unknownSignature] substitution needs a
-    /// declaration-less signature — escapes until Signature.declaration
-    /// goes optional (5.3e/M6 surface).
+    /// A globalFunctionType member contributes [unknownSignature] to
+    /// the CALL list (58225 — the declaration-less singleton exists
+    /// since 5.7a); its construct list resolves normally.
     pub(crate) fn resolve_union_type_members(
         &mut self,
         ty: TypeId,
@@ -4155,11 +4155,10 @@ impl<'a> CheckerState<'a> {
         let mut construct_lists = Vec::with_capacity(types.len());
         for &t in types.iter() {
             if self.is_global_function_type(t)? {
-                return Err(Unsupported::new(
-                    "unknownSignature for globalFunctionType union members (5.7b close)",
-                ));
+                call_lists.push(vec![self.unknown_signature]);
+            } else {
+                call_lists.push(self.get_signatures_of_type(t, SignatureKind::Call)?);
             }
-            call_lists.push(self.get_signatures_of_type(t, SignatureKind::Call)?);
             construct_lists.push(self.get_signatures_of_type(t, SignatureKind::Construct)?);
         }
         let call_signatures = self.get_union_signatures(&call_lists)?;

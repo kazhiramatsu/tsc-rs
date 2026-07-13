@@ -846,26 +846,24 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: checkInstanceOfExpression @6.0.3 (the 5.5e slice;
-    /// the 2359 side transcribes resolveInstanceofExpression
-    /// 77445-77468)
+    /// tsc-port: checkInstanceOfExpression @6.0.3
     /// tsc-hash: 8b4bc390c2cbc6af55fcefe572164921124693cbde399348bb7a321ce672bef0
     /// tsc-span: _tsc.js:79558-79577
     ///
-    /// tsc resolves a SIGNATURE for the binary: a callable
-    /// [Symbol.hasInstance] method routes resolveCall ([CALLS] 5.7 —
-    /// the 2860/2861 rows land there, so that shape escapes); no
-    /// signatures and not Function-subtype → 2359 + errorCall (whose
-    /// errorType return passes the 2861 boolean check silently); every
-    /// other shape is anySignature (any return — 2861 silent). Both
-    /// non-escaping arms therefore collapse to booleanType.
+    /// The binary resolves a SIGNATURE (resolveInstanceofExpression,
+    /// calls.rs): callable [Symbol.hasInstance] methods run the full
+    /// resolveCall protocol (2860 failure head on the ladder); no
+    /// signatures and not Function-subtype → 2359 + errorCall; every
+    /// other shape is anySignature. The 2861 boolean check runs on the
+    /// resolved signature's return type — anySignature (any) and
+    /// errorCall (errorType) both pass silently.
     fn check_instance_of_expression(
         &mut self,
         left: NodeId,
         right: NodeId,
         left_type: TypeId,
         right_type: TypeId,
-        _check_mode: CheckMode,
+        check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
         let silent_never = self.tables.intrinsics.silent_never;
         if left_type == silent_never || right_type == silent_never {
@@ -880,33 +878,30 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         }
-        if !self.tables.flags_of(right_type).intersects(TypeFlags::ANY) {
-            let has_instance_method_type =
-                self.get_symbol_has_instance_method_of_object_type(right_type)?;
-            if has_instance_method_type.is_some() {
-                return Err(Unsupported::new(
-                    "resolveCall over [Symbol.hasInstance] (instanceof completion, 5.7b)",
-                ));
-            }
-            let function_like = self.type_has_call_or_construct_signatures(right_type)? || {
-                let global_function = self.global_function_type()?;
-                self.is_type_subtype_of(right_type, global_function)?
-            };
-            if !function_like {
-                self.error_at(
-                    Some(right),
-                    &tsrs2_diags::gen::The_right_hand_side_of_an_instanceof_expression_must_be_either_of_type_any_a_class_function_or_other_type_assignable_to_the_Function_interface_type_or_an_object_type_with_a_Symbol_hasInstance_method,
-                    &[],
-                );
-            }
+        let binary = self.parent_of(left).ok_or_else(|| {
+            Unsupported::new("instanceof operand without a parent (parse recovery)")
+        })?;
+        debug_assert_eq!(self.kind_of(binary), SyntaxKind::BinaryExpression);
+        let signature = self.get_resolved_signature(binary, check_mode)?;
+        if signature == self.resolving_signature {
+            // 79568-79570: M6-dead (SkipGenericFunctions producer).
+            return Ok(silent_never);
         }
-        Ok(self.tables.intrinsics.boolean)
+        let return_type = self.get_return_type_of_signature(signature)?;
+        let boolean = self.tables.intrinsics.boolean;
+        self.check_type_assignable_to(
+            return_type,
+            boolean,
+            Some(right),
+            &tsrs2_diags::gen::An_object_s_Symbol_hasInstance_method_must_return_a_boolean_value_for_it_to_be_used_on_the_right_hand_side_of_an_instanceof_expression,
+        )?;
+        Ok(boolean)
     }
 
     /// tsc-port: getSymbolHasInstanceMethodOfObjectType @6.0.3
     /// tsc-hash: bbccaf986fe1a5455266aea00e7514929bfb20bab61dcd969d44420b84375bdb
     /// tsc-span: _tsc.js:79546-79557
-    fn get_symbol_has_instance_method_of_object_type(
+    pub(crate) fn get_symbol_has_instance_method_of_object_type(
         &mut self,
         ty: TypeId,
     ) -> CheckResult2<Option<TypeId>> {
@@ -1016,7 +1011,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
             let base = state.get_base_constraint_or_type(t)?;
-            Ok(state.is_empty_anonymous_object_type(base))
+            state.is_empty_anonymous_object_type(base)
         })
     }
 
@@ -1069,7 +1064,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// walkUpParenthesizedExpressions.
-    fn walk_up_parenthesized_expressions(&self, mut node: NodeId) -> NodeId {
+    pub(crate) fn walk_up_parenthesized_expressions(&self, mut node: NodeId) -> NodeId {
         while self.kind_of(node) == SyntaxKind::ParenthesizedExpression {
             match self.parent_of(node) {
                 Some(parent) => node = parent,
@@ -5035,6 +5030,33 @@ mod tests {
                 "declare const oo: { a: number };\ndeclare const eo: {};\neo instanceof oo;\n"
             ),
             []
+        );
+    }
+
+    #[test]
+    fn has_instance_first_argument_mismatch_reports_2860() {
+        // 5.7b: the resolveCall failure ladder under the 2860 head —
+        // the hand-declared SymbolConstructor recreates the
+        // known-symbol name path under noLib (oracle-probed u1.ts,
+        // 2026-07-13: 2860 at `w`).
+        assert_eq!(
+            checked_rows(
+                "interface SymbolConstructor { readonly hasInstance: unique symbol; }\ndeclare var Symbol: SymbolConstructor;\ndeclare const H: { [Symbol.hasInstance](value: { n: number }): boolean };\ndeclare const w: { m: string };\nw instanceof H;\n"
+            ),
+            [(2860, 214, 1)]
+        );
+    }
+
+    #[test]
+    fn has_instance_non_boolean_return_reports_2861() {
+        // 5.7b: checkInstanceOfExpression's boolean check on the
+        // resolved signature's return type (oracle-probed u2.ts:
+        // 2861 at `H`).
+        assert_eq!(
+            checked_rows(
+                "interface SymbolConstructor { readonly hasInstance: unique symbol; }\ndeclare var Symbol: SymbolConstructor;\ndeclare const H: { [Symbol.hasInstance](value: object): number };\ndeclare const o: { x: number };\no instanceof H;\n"
+            ),
+            [(2861, 219, 1)]
         );
     }
 

@@ -21,31 +21,38 @@ impl<'a> CheckerState<'a> {
     ///
     /// The `t !== anyFunctionType` exclusion is live since M4 5.0
     /// built anyFunctionType (checker init block, 47179).
-    pub fn is_empty_anonymous_object_type(&self, ty: TypeId) -> bool {
+    ///
+    /// The symbol branch reads getMembersOfSymbol — the LATE-BOUND
+    /// table (5.7b review round #2: the raw early table is empty for
+    /// a type literal whose only member is computed-named, which
+    /// collapsed `O & "s"` intersections to the literal).
+    pub fn is_empty_anonymous_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if !self
             .tables
             .object_flags_of(ty)
             .intersects(ObjectFlags::ANONYMOUS)
         {
-            return false;
+            return Ok(false);
         }
         // `type.members && isEmptyResolvedType(type)`: checks ALREADY
         // resolved members without forcing resolution.
         if let Some(members) = self.links.ty(ty).resolved_members.resolved() {
             let resolved = self.members_of(members);
-            return ty != self.any_function_type
+            return Ok(ty != self.any_function_type
                 && resolved.properties.is_empty()
                 && resolved.call_signatures.is_empty()
                 && resolved.construct_signatures.is_empty()
-                && resolved.index_infos.is_empty();
+                && resolved.index_infos.is_empty());
         }
         match self.tables.type_of(ty).symbol {
-            Some(symbol) => {
-                self.symbol_flags(symbol)
-                    .intersects(tsrs2_types::SymbolFlags::TYPE_LITERAL)
-                    && self.symbol_members(symbol).is_empty()
+            Some(symbol)
+                if self
+                    .symbol_flags(symbol)
+                    .intersects(tsrs2_types::SymbolFlags::TYPE_LITERAL) =>
+            {
+                Ok(self.get_members_of_symbol(symbol)?.is_empty())
             }
-            None => false,
+            _ => Ok(false),
         }
     }
 
@@ -62,7 +69,7 @@ impl<'a> CheckerState<'a> {
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
         ty: TypeId,
-    ) -> i32 {
+    ) -> CheckResult2<i32> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INTERSECTION) {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
@@ -70,7 +77,7 @@ impl<'a> CheckerState<'a> {
             };
             return self.add_types_to_intersection(type_set, includes, &types);
         }
-        if self.is_empty_anonymous_object_type(ty) {
+        if self.is_empty_anonymous_object_type(ty)? {
             if includes & TypeFlags::INCLUDES_EMPTY_OBJECT.bits() == 0 {
                 includes |= TypeFlags::INCLUDES_EMPTY_OBJECT.bits();
                 type_set.push(ty);
@@ -100,7 +107,7 @@ impl<'a> CheckerState<'a> {
             }
             includes |= flags.bits() & TypeFlags::INCLUDES_MASK.bits();
         }
-        includes
+        Ok(includes)
     }
 
     /// tsc-port: addTypesToIntersection @6.0.3
@@ -111,18 +118,22 @@ impl<'a> CheckerState<'a> {
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
         types: &[TypeId],
-    ) -> i32 {
+    ) -> CheckResult2<i32> {
         for &ty in types {
             let regular = self.tables.get_regular_type_of_literal_type(ty);
-            includes = self.add_type_to_intersection(type_set, includes, regular);
+            includes = self.add_type_to_intersection(type_set, includes, regular)?;
         }
-        includes
+        Ok(includes)
     }
 
     /// tsc-port: removeRedundantSupertypes @6.0.3
     /// tsc-hash: e5493d8e8fca52c9df30c4d0f8896f71949b552a67b270198ad38d45edda2810
     /// tsc-span: _tsc.js:61686-61696
-    fn remove_redundant_supertypes(&mut self, types: &mut Vec<TypeId>, includes: i32) {
+    fn remove_redundant_supertypes(
+        &mut self,
+        types: &mut Vec<TypeId>,
+        includes: i32,
+    ) -> CheckResult2<()> {
         let mut i = types.len();
         while i > 0 {
             i -= 1;
@@ -142,12 +153,13 @@ impl<'a> CheckerState<'a> {
                     && includes & TypeFlags::UNIQUE_ES_SYMBOL.bits() != 0)
                 || (flags.intersects(TypeFlags::VOID)
                     && includes & TypeFlags::UNDEFINED.bits() != 0)
-                || (self.is_empty_anonymous_object_type(t)
+                || (self.is_empty_anonymous_object_type(t)?
                     && includes & TypeFlags::DEFINITELY_NON_NULLABLE.bits() != 0);
             if remove {
                 types.remove(i);
             }
         }
+        Ok(())
     }
 
     /// tsc-port: getIntersectionType @6.0.3
@@ -182,7 +194,7 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult2<TypeId> {
         let mut type_set: Vec<TypeId> = Vec::new();
-        let includes = self.add_types_to_intersection(&mut type_set, 0, types);
+        let includes = self.add_types_to_intersection(&mut type_set, 0, types)?;
         // objectFlags picks up IsConstrainedTypeVariable only in the
         // M4 step-6 branch below; zero until then.
         let object_flags = ObjectFlags::from_bits(0);
@@ -258,7 +270,7 @@ impl<'a> CheckerState<'a> {
                 && includes & TypeFlags::DEFINITELY_NON_NULLABLE.bits() != 0))
             && !flags.intersects(IntersectionFlags::NO_SUPERTYPE_REDUCTION)
         {
-            self.remove_redundant_supertypes(&mut type_set, includes);
+            self.remove_redundant_supertypes(&mut type_set, includes)?;
         }
         if includes & TypeFlags::INCLUDES_MISSING_TYPE.bits() != 0 {
             let undefined = self.tables.intrinsics.undefined;
@@ -301,12 +313,19 @@ impl<'a> CheckerState<'a> {
                 if let Some(constraint) = self.get_base_constraint_of_type(type_variable)? {
                     let all_primitive_like = {
                         let members = self.union_members_or_self(constraint);
-                        members.iter().all(|&member| {
-                            self.tables
+                        let mut all = true;
+                        for &member in members.iter() {
+                            if !(self
+                                .tables
                                 .flags_of(member)
                                 .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE)
-                                || self.is_empty_anonymous_object_type(member)
-                        })
+                                || self.is_empty_anonymous_object_type(member)?)
+                            {
+                                all = false;
+                                break;
+                            }
+                        }
+                        all
                     };
                     if all_primitive_like {
                         if self.is_type_strict_subtype_of(constraint, primitive_type)? {

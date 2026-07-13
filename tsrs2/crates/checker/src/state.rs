@@ -193,6 +193,8 @@ pub struct CheckerState<'a> {
     /// deferredGlobalPromiseType (60750) memo — emptyGenericType when
     /// the reporting probe missed.
     pub deferred_global_promise_type: Option<TypeId>,
+    /// deferredGlobalPromiseLikeType (60758) memo — same discipline.
+    pub deferred_global_promise_like_type: Option<TypeId>,
     /// deferredGlobalPromiseConstructorSymbol (60766) memo.
     pub deferred_global_promise_constructor_symbol: Option<Option<SymbolId>>,
     // ---- M4 5.7: the call-resolution signature singletons ----
@@ -486,6 +488,7 @@ impl<'a> CheckerState<'a> {
             empty_generic_type: TypeId(0),
             any_function_type: TypeId(0),
             deferred_global_promise_type: None,
+            deferred_global_promise_like_type: None,
             deferred_global_promise_constructor_symbol: None,
             any_signature: SignatureId(0),
             unknown_signature: SignatureId(0),

@@ -341,9 +341,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e63a5c7305b6cd22417fe6667a33caf49d1794694a7131a99263b174e1a08bde
     /// tsc-span: _tsc.js:72687-72719
     ///
-    /// The IIFE arm is [CALLS → 5.7] (getEffectiveCallArguments +
-    /// getSpreadArgumentType + the resolvedSignature=anySignature
-    /// save/restore); the contextual-signature arm is live.
+    /// The IIFE arm parks anySignature on the call while the argument
+    /// checks (links swap — re-entrant reads short-circuit); note the
+    /// IIFE index is the RAW parameter position (no this-parameter
+    /// shift, unlike the contextual-signature arm below).
     pub(crate) fn get_contextually_typed_parameter_type(
         &mut self,
         parameter: NodeId,
@@ -355,11 +356,54 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(func);
         let iife = node_util::get_immediately_invoked_function_expression(source, func);
         if let Some(iife) = iife {
-            if matches!(self.data_of(iife), NodeData::CallExpression(data) if data.arguments.is_some())
-            {
-                return Err(Unsupported::new(
-                    "getContextuallyTypedParameterType IIFE arm (getEffectiveCallArguments, 5.7)",
-                ));
+            let has_arguments = matches!(self.data_of(iife), NodeData::CallExpression(data)
+                if data.arguments.is_some());
+            if has_arguments {
+                let args = self.get_effective_call_arguments(iife)?;
+                let parameters = self.parameters_of_function(func);
+                let index_of_parameter = parameters
+                    .iter()
+                    .position(|&p| p == parameter)
+                    .expect("parameter is in its own function's list");
+                let is_rest = matches!(
+                    self.data_of(parameter),
+                    NodeData::Parameter(data) if data.dot_dot_dot_token.is_some()
+                );
+                if is_rest {
+                    let any = self.tables.intrinsics.any;
+                    return Ok(Some(self.get_spread_argument_type(
+                        &args,
+                        index_of_parameter,
+                        args.len(),
+                        any,
+                        tsrs2_types::CheckMode::NORMAL,
+                    )?));
+                }
+                let has_initializer = matches!(
+                    self.data_of(parameter),
+                    NodeData::Parameter(data) if data.initializer.is_some()
+                );
+                let cached = self.links.swap_node_resolved_signature_iife(
+                    self.speculation_depth,
+                    iife,
+                    crate::links::LinkSlot::Resolved(self.any_signature),
+                );
+                let result = (|state: &mut Self| -> CheckResult2<Option<TypeId>> {
+                    if index_of_parameter < args.len() {
+                        let checked = state.check_effective_arg(
+                            &args[index_of_parameter],
+                            tsrs2_types::CheckMode::NORMAL,
+                        )?;
+                        Ok(Some(state.get_widened_literal_type(checked)?))
+                    } else if has_initializer {
+                        Ok(None)
+                    } else {
+                        Ok(Some(state.tables.intrinsics.undefined_widening))
+                    }
+                })(self);
+                self.links
+                    .swap_node_resolved_signature_iife(self.speculation_depth, iife, cached);
+                return result;
             }
         }
         let Some(contextual_signature) = self.get_contextual_signature(func)? else {
@@ -578,11 +622,28 @@ impl<'a> CheckerState<'a> {
             ));
         }
         if function_flags & FUNCTION_FLAGS_ASYNC != 0 {
-            return Err(Unsupported::new(
-                "getContextualTypeForReturnExpression async arm (expired 5.5f dep; folded into the 5.7b close)",
-            ));
+            // 72792-72795: awaited-or-promise-like of the contextual
+            // return type.
+            return self.awaited_or_promise_like_of(contextual_return_type);
         }
         Ok(Some(contextual_return_type))
+    }
+
+    /// The shared async-contextual shape (72793/72805): the awaited
+    /// contextual type unioned with its PromiseLike wrap; an undefined
+    /// awaited answers None. (The return arm's outer mapType is
+    /// redundant — getAwaitedTypeNoAlias already distributes over
+    /// unions internally.)
+    fn awaited_or_promise_like_of(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+        let awaited = self.get_awaited_type_no_alias(ty, None)?;
+        let Some(awaited) = awaited else {
+            return Ok(None);
+        };
+        let promise_like = self.create_promise_like_type(awaited)?;
+        Ok(Some(self.get_union_type_ex(
+            &[awaited, promise_like],
+            tsrs2_types::UnionReduction::Literal,
+        )?))
     }
 
     /// tsc-port: getContextualTypeForAwaitOperand @6.0.3
@@ -593,12 +654,10 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         context_flags: ContextFlags,
     ) -> CheckResult2<Option<TypeId>> {
-        let Some(_contextual_type) = self.get_contextual_type(node, context_flags)? else {
+        let Some(contextual_type) = self.get_contextual_type(node, context_flags)? else {
             return Ok(None);
         };
-        Err(Unsupported::new(
-            "getContextualTypeForAwaitOperand (expired 5.5f dep; folded into the 5.7b close)",
-        ))
+        self.awaited_or_promise_like_of(contextual_type)
     }
 
     /// tsc-port: getContextualReturnType @6.0.3
@@ -698,7 +757,7 @@ impl<'a> CheckerState<'a> {
         if self.is_import_call(call_target) {
             return Ok(Some(match arg_index {
                 0 => self.tables.intrinsics.string,
-                1 => self.get_global_import_call_options_type()?,
+                1 => self.get_global_import_call_options_type(/*report_errors*/ false)?,
                 _ => self.tables.intrinsics.any,
             }));
         }
@@ -741,17 +800,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 62ca4575e0c962280f0dab001970618308c877ac39e0db34c92eff453bb4de07
     /// tsc-span: _tsc.js:72929-72934
     ///
-    /// Tagged templates route to getContextualTypeForArgument [CALLS →
-    /// 5.7] → None; the untagged answer is tsc's own undefined.
+    /// Tagged templates route to getContextualTypeForArgument on the
+    /// tagged parent; the untagged answer is tsc's own undefined.
     fn get_contextual_type_for_substitution_expression(
         &mut self,
         template: NodeId,
-        _substitution_expression: NodeId,
+        substitution_expression: NodeId,
     ) -> CheckResult2<Option<TypeId>> {
         let parent = self.parent_of(template).expect("template has a parent");
         if self.kind_of(parent) == SyntaxKind::TaggedTemplateExpression {
-            // [CALLS → 5.7] getContextualTypeForArgument on the tag.
-            return Ok(None);
+            return self.get_contextual_type_for_argument(parent, substitution_expression);
         }
         Ok(None)
     }

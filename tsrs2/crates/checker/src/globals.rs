@@ -52,6 +52,11 @@ pub(crate) struct GlobalTypeMemos {
     import_attributes: Option<TypeId>,
     /// deferredGlobalIterableType (60820).
     iterable: Option<TypeId>,
+    /// deferredGlobalTemplateStringsArrayType (60688) — reportErrors
+    /// TRUE and the `|| emptyObjectType` fallback sits INSIDE the memo
+    /// assignment: a noLib miss reports 2318 once and memoizes the
+    /// empty-object fallback.
+    template_strings_array: Option<TypeId>,
 }
 
 impl<'a> CheckerState<'a> {
@@ -477,14 +482,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5f2aba39e62bc9958871cefa6d88a061576effca96d4f9ea914a59381768bbb4
     /// tsc-span: _tsc.js:60719-60726
     ///
-    /// reportErrors=false at the 5.5b call site (the import-call
-    /// contextual arm) — a missing global falls back to
+    /// reportErrors=false at the 5.5b contextual arm, true at the
+    /// import-call worker (77733) — a missing global falls back to
     /// emptyObjectType without memoizing, like tsc.
-    pub(crate) fn get_global_import_call_options_type(&mut self) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_import_call_options_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.import_call_options {
             return Ok(cached);
         }
-        let resolved = self.get_global_type("ImportCallOptions", 0, false)?;
+        let resolved = self.get_global_type("ImportCallOptions", 0, report_errors)?;
         if let Some(resolved) = resolved {
             self.global_type_memos.import_call_options = Some(resolved);
             return Ok(resolved);
@@ -505,6 +513,20 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         Ok(self.empty_object_type)
+    }
+
+    /// tsc-port: getGlobalTemplateStringsArrayType @6.0.3
+    /// tsc-hash: de0940ef152fcbf182f52f2e15a37b09cbc656cb634e07930302c7959427369d
+    /// tsc-span: _tsc.js:60688-60696
+    pub(crate) fn get_global_template_strings_array_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.template_strings_array {
+            return Ok(cached);
+        }
+        let resolved = self
+            .get_global_type("TemplateStringsArray", 0, /*report_errors*/ true)?
+            .unwrap_or(self.empty_object_type);
+        self.global_type_memos.template_strings_array = Some(resolved);
+        Ok(resolved)
     }
 
     /// tsc-port: getGlobalIterableType @6.0.3

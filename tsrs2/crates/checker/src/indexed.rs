@@ -112,11 +112,10 @@ impl<'a> CheckerState<'a> {
                 TypeData::Intersection { types } => types.to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
-            if members
-                .iter()
-                .any(|&member| self.is_empty_anonymous_object_type(member))
-            {
-                return Ok(true);
+            for &member in &members {
+                if self.is_empty_anonymous_object_type(member)? {
+                    return Ok(true);
+                }
             }
         }
         Ok(false)
@@ -1373,8 +1372,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// isTypeUsableAsPropertyName (19351) + getPropertyNameFromType
-    /// (19354): string/number literals; unique ES symbols are
-    /// unconstructible before 5.3b.
+    /// (19354): string/number literals and unique ES symbols.
     pub(crate) fn property_name_from_type_usable(&self, ty: TypeId) -> Option<String> {
         if !self
             .tables
@@ -1394,6 +1392,9 @@ impl<'a> CheckerState<'a> {
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::Number(value),
             } => Some(tsrs2_types::tables::js_number_to_string(*value)),
+            // getPropertyNameFromType's UniqueESSymbol arm: the
+            // late-bound `__@<name>@<id>` member name.
+            TypeData::UniqueESSymbol { escaped_name } => Some(escaped_name.clone()),
             _ => None,
         }
     }
