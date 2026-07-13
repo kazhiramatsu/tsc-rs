@@ -22,6 +22,12 @@ algorithm skeletons — each stage names the parent-doc section and the
 tsc anchor to port from. If a steps doc and a parent doc disagree, the
 parent doc plus the tsc source win; file a doc fix.
 
+**Completion authority:**
+[definition-of-done.md](definition-of-done.md) — the normative one
+page for WHAT "done" means (version pin, tiers, exclusions,
+go/no-go checkpoints). It wins over every other doc on that
+question.
+
 **Scheduling authority:**
 [2xxx-first-order.md](2xxx-first-order.md) — the build is ordered
 around one goal: complete 2XXX-band parity first (phases 0-9,
