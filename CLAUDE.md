@@ -42,6 +42,9 @@ implementers start from the stage step docs referenced there.
 - Full gate suite: `cargo xtask ci` (from `tsrs2/`)
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
 - Escape expiry audit: `cargo xtask escapes --stale $(cat STAGE)`
+  (also verifies `escapes.toml`; after adding/retiring an escape run
+  `cargo xtask escapes --write-manifest` — the manifest diff is the
+  review surface)
 - Oracle probe for pins: see scratchpad `probe.sh` pattern
   (`cargo xtask expand <fixture> --out-dir ...` + `node
   crates/oracle/driver.mjs`)

@@ -1188,6 +1188,15 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         summary.false_negative_diagnostics,
         summary.mismatch_cases
     );
+    println!(
+        "shadow (non-gating) T1={:.4}% ({}) T2={:.4}% ({}) T3={:.4}% ({})",
+        summary.shadow_t1_rate * 100.0,
+        summary.shadow_t1_matched,
+        summary.shadow_t2_rate * 100.0,
+        summary.shadow_t2_matched,
+        summary.shadow_t3_rate * 100.0,
+        summary.shadow_t3_matched
+    );
     println!("mismatch json: {}", out_json.display());
     Ok(())
 }

@@ -155,6 +155,17 @@ pub struct ConformanceSummary {
     pub tsrs_diagnostics: usize,
     pub matched_t0_diagnostics: usize,
     pub t0_rate: f64,
+    /// Shadow tiers (NON-GATING — greenfield §7.4; measured from
+    /// pre-5.8a per the external review, ratchets stay T0-only until
+    /// M8): of the T0-matched pairs, how many also match category
+    /// (T1), exact span + top message text (T2), and the full chain
+    /// + relatedInformation (T3). Nested: t3 ≤ t2 ≤ t1 ≤ t0.
+    pub shadow_t1_matched: usize,
+    pub shadow_t2_matched: usize,
+    pub shadow_t3_matched: usize,
+    pub shadow_t1_rate: f64,
+    pub shadow_t2_rate: f64,
+    pub shadow_t3_rate: f64,
     pub exact_match_cases: usize,
     pub mismatch_cases: usize,
     pub false_positive_diagnostics: usize,
@@ -444,6 +455,9 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     let mut oracle_diagnostics = 0usize;
     let mut tsrs_diagnostics = 0usize;
     let mut matched_t0_diagnostics = 0usize;
+    let mut shadow_t1_matched = 0usize;
+    let mut shadow_t2_matched = 0usize;
+    let mut shadow_t3_matched = 0usize;
     let mut fp_count = 0usize;
     let mut fn_count = 0usize;
     let mut fp_codes = BTreeMap::<u32, usize>::new();
@@ -508,6 +522,18 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
             }
 
             matched_t0_diagnostics += expected.intersection(&actual).count();
+            let (t1, t2, t3) = shadow_tier_matches(
+                current
+                    .iter()
+                    .filter(|diag| options.band.contains(diag.code)),
+                golden_case
+                    .oracle
+                    .iter()
+                    .filter(|diag| options.band.matches_oracle(diag)),
+            );
+            shadow_t1_matched += t1;
+            shadow_t2_matched += t2;
+            shadow_t3_matched += t3;
             oracle_diagnostics += expected.len();
             tsrs_diagnostics += actual.len();
             fp_count += fp.len();
@@ -530,6 +556,12 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
         tsrs_diagnostics,
         matched_t0_diagnostics,
         t0_rate,
+        shadow_t1_matched,
+        shadow_t2_matched,
+        shadow_t3_matched,
+        shadow_t1_rate: shadow_rate(shadow_t1_matched, oracle_diagnostics),
+        shadow_t2_rate: shadow_rate(shadow_t2_matched, oracle_diagnostics),
+        shadow_t3_rate: shadow_rate(shadow_t3_matched, oracle_diagnostics),
         exact_match_cases,
         mismatch_cases: case_count - exact_match_cases,
         false_positive_diagnostics: fp_count,
@@ -578,6 +610,67 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     Ok(summary)
 }
 
+fn shadow_rate(matched: usize, total: usize) -> f64 {
+    if total == 0 {
+        1.0
+    } else {
+        matched as f64 / total as f64
+    }
+}
+
+/// Shadow tier grading (NON-GATING): pair AT MOST ONE diagnostic per
+/// matched T0 key per side — both sides sorted by (start, length,
+/// top text) for determinism, mirroring T0's set semantics so the
+/// tiers nest under matched_t0 — then grade each pair: T1 =
+/// category; T2 = T1 + exact start/length + top message text; T3 =
+/// T2 + full chain tree + relatedInformation. tsrs-side related info
+/// flows through from_tsrs since pre-5.8a (it was dropped before —
+/// external review risk: T0-invisible rework discovered only at M8).
+fn shadow_tier_matches<'a>(
+    actual: impl Iterator<Item = &'a GoldenDiag>,
+    expected: impl Iterator<Item = &'a GoldenDiag>,
+) -> (usize, usize, usize) {
+    fn keyed<'a>(
+        diags: impl Iterator<Item = &'a GoldenDiag>,
+    ) -> BTreeMap<T0Key, Vec<&'a GoldenDiag>> {
+        let mut map: BTreeMap<T0Key, Vec<&'a GoldenDiag>> = BTreeMap::new();
+        for diag in diags {
+            map.entry(t0_key(diag)).or_default().push(diag);
+        }
+        for bucket in map.values_mut() {
+            bucket.sort_by(|left, right| {
+                (left.start, left.length, &left.chain.text).cmp(&(
+                    right.start,
+                    right.length,
+                    &right.chain.text,
+                ))
+            });
+        }
+        map
+    }
+    let actual = keyed(actual);
+    let expected = keyed(expected);
+    let (mut t1, mut t2, mut t3) = (0usize, 0usize, 0usize);
+    for (key, expected_bucket) in &expected {
+        let Some(actual_bucket) = actual.get(key) else {
+            continue;
+        };
+        let (a, e) = (&actual_bucket[0], &expected_bucket[0]);
+        if a.category != e.category {
+            continue;
+        }
+        t1 += 1;
+        if a.start != e.start || a.length != e.length || a.chain.text != e.chain.text {
+            continue;
+        }
+        t2 += 1;
+        if a.chain == e.chain && a.related == e.related {
+            t3 += 1;
+        }
+    }
+    (t1, t2, t3)
+}
+
 impl GoldenDiag {
     fn from_oracle(diag: &OracleDiag, file_texts: &BTreeMap<String, String>) -> Self {
         let (line, col) = line_col_for_oracle(diag, file_texts);
@@ -621,7 +714,18 @@ impl GoldenDiag {
             pass: None,
             category: diag.category().name().to_owned(),
             chain: GoldenMessageChain::from_tsrs(&diag.message),
-            related: Vec::new(),
+            related: diag
+                .related
+                .iter()
+                .map(|related| GoldenRelated {
+                    file: related.file_name.clone(),
+                    start: related.start,
+                    length: related.length,
+                    code: related.message.code,
+                    category: related.message.category.name().to_owned(),
+                    chain: GoldenMessageChain::from_tsrs(&related.message),
+                })
+                .collect(),
             reports_unnecessary: false,
             reports_deprecated: false,
             source: None,
@@ -938,15 +1042,17 @@ fn line_col_for_tsrs(
     (Some(line_col.line), Some(line_col.character))
 }
 
+fn t0_key(diag: &GoldenDiag) -> T0Key {
+    T0Key {
+        file: diag.file.clone(),
+        code: diag.code,
+        line: diag.line,
+        col: diag.col,
+    }
+}
+
 fn t0_set<'a>(diagnostics: impl Iterator<Item = &'a GoldenDiag>) -> BTreeSet<T0Key> {
-    diagnostics
-        .map(|diag| T0Key {
-            file: diag.file.clone(),
-            code: diag.code,
-            line: diag.line,
-            col: diag.col,
-        })
-        .collect()
+    diagnostics.map(t0_key).collect()
 }
 
 fn write_golden(root: &Path, golden: &GoldenFile) -> ConformanceResult<()> {
