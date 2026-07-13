@@ -481,6 +481,16 @@ inference.
 
 Commit: `m4 5.7: resolveCall/chooseOverload (inference stubbed)`.
 
+EXTRACTION COMPLETE (2026-07-13):
+[m4-57-call-extraction.md](m4-57-call-extraction.md) carries the
+implementation-grade semantics — the M6-stub observability rule
+(stub-filled instantiations escape the moment they would become
+observable; non-generic/explicit-typearg/arity/target-shape bands go
+live), the getResolvedSignature links protocol, the EffectiveArg
+enum mandate, the failure-ladder shape, the JSX band, the FP risk
+register, and the a-c slicing that supersedes this section's
+single-commit line. Implementers start there.
+
 ## Stage 5.8: statements + declarations [M]
 
 RE-ENTRANCY TRAP (from 5.4): node resolvedType caches are write-once
