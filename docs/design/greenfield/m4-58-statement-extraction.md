@@ -8,7 +8,7 @@ in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.8
 HERE. This doc's slicing (§15, commits `m4 5.8a-…`) supersedes the
 steps doc's single-commit line.
 
-Status: §§0-9(checker half) extracted (driver, late-binding wall,
+Status: §§0-9 (checker half + alias protocol) extracted (driver, late-binding wall,
 variables, control statements, iteration protocol, member/function
 declarations, class band, interface/typealias/enum, module band,
 import/export checks).
@@ -1623,11 +1623,63 @@ modules… ; System non-ambient → Export_assignment_is_not_supported_
 when_module_flag_is_system. (impliedNodeFormat: single-file
 conformance → None; transcribe the arms with the host read.)
 
-## §§9(resolveAlias)-11 EXTRACTION PENDING
+### resolveAlias protocol (L49109-49229) — the resolve.rs elision lifts
+- resolveAlias (L49116): SymbolLinks.aliasTarget slot protocol —
+  unset → write resolvingSymbol SENTINEL → node =
+  getDeclarationOfAliasSymbol → target = getTargetOfAliasDeclaration
+  (node) → slot still sentinel ? (target || unknownSymbol) :
+  **Circular_definition_of_import_alias_0** error AT node (a
+  re-entrant write happened); sentinel found ON ENTRY → unknownSymbol
+  (cycle collapse). Rust: SymbolLinks.alias_target via the LinkSlot
+  resolving-state pattern (the resolvedSignature twin), NOT
+  write-once. tryResolveAlias (L49134): sentinel → None (spell.rs's
+  tryResolveAlias-chase escape lifts).
+- resolveSymbol (L49113) = isNonLocalAlias(symbol) && !dontResolve →
+  resolveAlias : symbol; isNonLocalAlias (L49109): (flags & (Alias |
+  excludes)) === Alias || (Alias && Assignment) with excludes
+  defaulting Value|Type|Namespace — resolve.rs's getSymbol/
+  resolveEntityName sites that currently return aliases unchanged
+  route through THIS predicate pair.
+- getTargetOfAliasDeclaration (L49071) kind dispatch (TS core):
+  ImportEqualsDeclaration → getTargetOfImportEqualsDeclaration;
+  ImportClause; NamespaceImport; NamespaceExport; ImportSpecifier;
+  ExportSpecifier (meaning Value|Type|Namespace); ExportAssignment;
+  NamespaceExportDeclaration; PropertyAssignment/Shorthand/access
+  expressions/VariableDeclaration/BindingElement = JS arms (elide
+  w/ note). PER-KIND WORKERS (L48652-49070) EXTRACTION PENDING —
+  they carry the 2305/2613/2614/2724/1192/2306/2307-family reporting
+  (getExternalModuleMember L48851 + errorNoModuleMemberSymbol L48902
+  + reportNonDefaultExport L48746 + reportNonExportedMember L48926 +
+  spelling suggestions) and every markSymbolOfAliasDeclarationIfTypeOnly
+  call site.
+- getSymbolFlags (L49141): alias-chain flag union — walk
+  getExportSymbolOfValueSymbolIfExported(resolveAlias(symbol)) while
+  Alias-flagged, accumulating flags with a seen-set; unknownSymbol →
+  ALL. excludeTypeOnlyMeanings arm needs getTypeOnlyAliasDeclaration
+  + export-star resolution (checkAliasSymbol's §9 caller passes no
+  excludes — port the plain walk first, the exclude arms with the
+  isolatedModules faces they serve).
+- Type-only marking protocol (L49176-49229): SymbolLinks additions
+  typeOnlyDeclaration: TRI-STATE (unset | false | NodeId) +
+  typeOnlyExportStarName; markSymbolOfAliasDeclarationIfTypeOnly
+  writes from type-only declarations / export-star declarations /
+  target-links propagation (worker L49195: target's export= symbol
+  or self; first-write-wins unless overwriteEmpty over false);
+  getTypeOnlyAliasDeclaration (L49204): lazy compute on first read
+  via resolveSymbol + mark(declarations[0], immediate, final,
+  overwriteEmpty=true); include-filtered flavor resolves through
+  getExportsOfModule for export-star marks. Consumers: checkAliasSymbol
+  isolatedModules faces (dead now), checkExportAssignment rows
+  (dead), export-specifier faces. Port the LINKS + lazy protocol
+  with the per-kind workers; dead consumers keep their option notes.
 
-resolveAlias L49116 + getTargetOf* family (L~48700-49110) +
-resolveExternalModuleName worker family (L~48800-48950) +
-getSymbolFlags + getTypeOnlyAliasDeclaration + markExportAsReferenced;
+## §§9(per-kind targets)-11 EXTRACTION PENDING
+
+getTargetOf* per-kind workers (L48652-49070: ImportEquals target +
+module-default/module-member machinery + export-specifier meaning
+walk + the 2305/2613/2614/2724-family reporting) +
+resolveExternalModuleName worker family (module-resolution minimal
+port, 2307 un-silencing) + markExportAsReferenced consumers;
 
 
 alias band (checkAliasSymbol L86029 + resolveAlias L49116 +
