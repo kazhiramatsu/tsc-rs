@@ -129,6 +129,9 @@ pub struct SymbolLinks {
     /// tsc links.uniqueESSymbolType (getESSymbolLikeTypeForNode 63127)
     /// — the per-declaration `unique symbol` type memo.
     pub unique_es_symbol_type: Option<TypeId>,
+    /// tsc links.lateSymbol (addDeclarationToLateBoundSymbol 57652) —
+    /// the late-bound symbol a member's own binder symbol resolved to.
+    pub late_symbol: Option<SymbolId>,
     /// tsc links.writeType (getWriteTypeOfAccessors 56787) — the
     /// setter-side type; the WriteType resolution property.
     pub write_type: LinkSlot<TypeId>,
@@ -826,6 +829,23 @@ impl LinksTables {
         );
     }
 
+    /// lateBindMember's two-phase resolvedSymbol write (57665/57689):
+    /// the member's own binder symbol parks first (the re-entrancy
+    /// guard — checkComputedPropertyName may demand the container
+    /// mid-bind), then the LATE symbol replaces it. This protocol
+    /// setter permits that one rewrite; member-declaration nodes are
+    /// disjoint from the identifier/access kinds the strict setter
+    /// serves.
+    pub fn set_node_resolved_symbol_late_bind(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: SymbolId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.node.entry(id).or_default().resolved_symbol = LinkSlot::Resolved(value);
+    }
+
     /// tsc reassigns links.resolvedSymbol unconditionally on every
     /// checkPropertyAccessExpression run — re-checks (the compound
     /// assignment writeOnly pass 80311, the condition-walker forcing
@@ -914,6 +934,50 @@ impl LinksTables {
             &mut self.symbol.entry(id).or_default().resolved_members,
             LinkSlot::Resolved(value),
         );
+    }
+
+    /// The late-binding pre-write/rewrite protocol (57717 → 57763):
+    /// the EARLY table parks in the slot so re-entrant reads observe
+    /// it mid-bind, then the combined table rewrites. Err unwinds must
+    /// revert to Vacant (tsc cannot fail here) — a parked early table
+    /// left behind would silently hide late members from later
+    /// queries.
+    pub fn set_symbol_resolved_members_late_bind(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: tsrs2_binder::SymbolTable,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().resolved_members = LinkSlot::Resolved(value);
+    }
+
+    /// Err-unwind twin for the late-binding protocol.
+    pub fn revert_symbol_resolved_members(&mut self, id: SymbolId) {
+        self.symbol.entry(id).or_default().resolved_members = LinkSlot::Vacant;
+    }
+
+    /// The resolvedExports flavor of the late-binding protocol.
+    pub fn set_symbol_resolved_exports_late_bind(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: tsrs2_binder::SymbolTable,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().resolved_exports = LinkSlot::Resolved(value);
+    }
+
+    /// Err-unwind twin for the resolvedExports flavor.
+    pub fn revert_symbol_resolved_exports(&mut self, id: SymbolId) {
+        self.symbol.entry(id).or_default().resolved_exports = LinkSlot::Vacant;
+    }
+
+    /// `links.lateSymbol = ...` (addDeclarationToLateBoundSymbol 57652)
+    /// on the MEMBER's binder symbol.
+    pub fn set_symbol_late_symbol(&mut self, speculation_depth: u32, id: SymbolId, late: SymbolId) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().late_symbol = Some(late);
     }
 
     /// resolveDeclaredMembers' declared-members stamp (57604-57613),

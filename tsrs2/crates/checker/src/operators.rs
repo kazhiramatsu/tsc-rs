@@ -5034,6 +5034,33 @@ mod tests {
     }
 
     #[test]
+    fn has_instance_first_argument_mismatch_reports_2860() {
+        // 5.7b: the resolveCall failure ladder under the 2860 head —
+        // the hand-declared SymbolConstructor recreates the
+        // known-symbol name path under noLib (oracle-probed u1.ts,
+        // 2026-07-13: 2860 at `w`).
+        assert_eq!(
+            checked_rows(
+                "interface SymbolConstructor { readonly hasInstance: unique symbol; }\ndeclare var Symbol: SymbolConstructor;\ndeclare const H: { [Symbol.hasInstance](value: { n: number }): boolean };\ndeclare const w: { m: string };\nw instanceof H;\n"
+            ),
+            [(2860, 214, 1)]
+        );
+    }
+
+    #[test]
+    fn has_instance_non_boolean_return_reports_2861() {
+        // 5.7b: checkInstanceOfExpression's boolean check on the
+        // resolved signature's return type (oracle-probed u2.ts:
+        // 2861 at `H`).
+        assert_eq!(
+            checked_rows(
+                "interface SymbolConstructor { readonly hasInstance: unique symbol; }\ndeclare var Symbol: SymbolConstructor;\ndeclare const H: { [Symbol.hasInstance](value: object): number };\ndeclare const o: { x: number };\no instanceof H;\n"
+            ),
+            [(2861, 219, 1)]
+        );
+    }
+
+    #[test]
     fn in_rhs_primitive_reports_2322_against_object() {
         assert_eq!(checked_rows("\"a\" in 1;\n"), [(2322, 7, 1)]);
     }

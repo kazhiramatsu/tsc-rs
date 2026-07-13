@@ -4114,15 +4114,15 @@ mod tests {
     }
 
     #[test]
-    fn type_literal_computed_member_still_contains_on_late_binding() {
-        // `{ [k]: number }` members need lateBindMember (57662) — the
-        // design's M7-stub fallback; oracle keyof O = "kk" stays a
-        // recorded FN until late binding lands.
+    fn type_literal_computed_member_late_binds() {
+        // lateBindMember (57662) landed with the 5.7b review round:
+        // `{ [k]: number }` resolves its computed member, keyof O =
+        // "kk", and the oracle row (2345 at `kk`) goes live.
         assert_eq!(
             checked_rows(
                 "const k = \"kk\";\ntype O = { [k]: number };\ntype K = keyof O;\ndeclare const kk: K;\ndeclare function take(x: \"nope\"): void;\ntake(kk);\n"
             ),
-            []
+            [(2345, 126, 2)]
         );
     }
 

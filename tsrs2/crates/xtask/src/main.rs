@@ -1929,12 +1929,13 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     if stale_before.is_some() && stale > 0 {
         return Err(format!("{stale} escape(s) have an expired owner stage").into());
     }
-    // The untagged-count ratchet (gate mode only): monotone
-    // non-increasing toward 0 by the M4 close — new escapes must
-    // carry a parseable owner, and re-tagging legacy reasons lowers
-    // the recorded ceiling like any ratchet bump.
+    // The untagged/recovery-count ratchets (gate mode only): both
+    // monotone non-increasing — new escapes must carry a parseable
+    // owner, new recovery guards may not accumulate unnoticed, and
+    // re-tagging/retiring legacy reasons lowers the recorded ceilings
+    // like any ratchet bump.
     if stale_before.is_some() {
-        if let Some(ceiling) = read_untagged_ceiling(&workspace)? {
+        if let Some(ceiling) = read_escapes_ceiling(&workspace, "max_untagged")? {
             if untagged > ceiling {
                 return Err(format!(
                     "untagged escape ratchet regression: {untagged} > recorded ceiling {ceiling} \
@@ -1943,13 +1944,27 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
                 .into());
             }
         }
+        if let Some(ceiling) = read_escapes_ceiling(&workspace, "max_recovery")? {
+            if recovery > ceiling {
+                return Err(format!(
+                    "recovery escape ratchet regression: {recovery} > recorded ceiling {ceiling} \
+                     (a new `(parse recovery)`-marked guard needs review — real containment \
+                     escapes must carry an owner stage instead; bump [escapes].max_recovery \
+                     in ratchet.toml only for genuine malformed-tree guards)"
+                )
+                .into());
+            }
+        }
     }
     Ok(())
 }
 
-/// `[escapes] max_untagged` from ratchet.toml — absent section means
-/// the ratchet is not armed.
-fn read_untagged_ceiling(workspace: &Path) -> Result<Option<usize>, Box<dyn Error>> {
+/// A `[escapes]` integer ceiling from ratchet.toml — an absent
+/// section/key means that ratchet is not armed.
+fn read_escapes_ceiling(
+    workspace: &Path,
+    ceiling_key: &str,
+) -> Result<Option<usize>, Box<dyn Error>> {
     let text = fs::read_to_string(workspace.join("ratchet.toml"))?;
     let mut in_section = false;
     for raw_line in text.lines() {
@@ -1962,7 +1977,7 @@ fn read_untagged_ceiling(workspace: &Path) -> Result<Option<usize>, Box<dyn Erro
             continue;
         }
         if let Some((key, value)) = line.split_once('=') {
-            if key.trim() == "max_untagged" {
+            if key.trim() == ceiling_key {
                 return Ok(Some(value.trim().parse::<usize>()?));
             }
         }
@@ -5458,7 +5473,7 @@ mod escape_scanner_tests {
 }
 
 #[cfg(test)]
-mod untagged_ceiling_tests {
+mod escapes_ceiling_tests {
     use super::*;
 
     #[test]
@@ -5467,12 +5482,20 @@ mod untagged_ceiling_tests {
         fs::create_dir_all(&dir).unwrap();
         fs::write(
             dir.join("ratchet.toml"),
-            "[t0]\nrate = 0.1\n\n[escapes]\n# comment\nmax_untagged = 178\n",
+            "[t0]\nrate = 0.1\n\n[escapes]\n# comment\nmax_untagged = 178\nmax_recovery = 71\n",
         )
         .unwrap();
-        assert_eq!(read_untagged_ceiling(&dir).unwrap(), Some(178));
+        assert_eq!(
+            read_escapes_ceiling(&dir, "max_untagged").unwrap(),
+            Some(178)
+        );
+        assert_eq!(
+            read_escapes_ceiling(&dir, "max_recovery").unwrap(),
+            Some(71)
+        );
         fs::write(dir.join("ratchet.toml"), "[t0]\nrate = 0.1\n").unwrap();
-        assert_eq!(read_untagged_ceiling(&dir).unwrap(), None);
+        assert_eq!(read_escapes_ceiling(&dir, "max_untagged").unwrap(), None);
+        assert_eq!(read_escapes_ceiling(&dir, "max_recovery").unwrap(), None);
         fs::remove_dir_all(&dir).ok();
     }
 }
