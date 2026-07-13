@@ -1155,8 +1155,11 @@ checkDecorators only.
 ## §6 Class band
 
 ### checkClassDeclaration (L84982) / checkClassExpression (L84972)
-Declaration: legacyDecorators (experimentalDecorators option —
-unmodeled → arm dead, note) static-private grammar row; unnamed
+Declaration: legacy static-private grammar row — **LIVE under
+experimental_decorators=true** (§10 dual mode): first decorator +
+any static private-identifier class element → grammarErrorOnNode(
+firstDecorator, Class_decorators_can_t_be_used_with_static_private_
+identifier_Consider_removing_the_experimental_decorator); unnamed
 non-default → A_class_declaration_without_the_default_modifier_must_
 have_a_name (grammarErrorOnFirstToken); checkClassLikeDeclaration;
 forEach members checkSourceElement; M7 register. Expression (the
@@ -1913,8 +1916,11 @@ emit-only/elided in both modes.
 
 ### checkDecorators (L82744) — the forcing entry
 Gates: canHaveDecorators && hasDecorators && modifiers &&
-nodeCanBeDecorated(legacy=false, node, parent, grandparent) (util —
-verify tsrs2_binder::node_util port). Emit-helper probes: no-op.
+nodeCanBeDecorated(**legacy_decorators()**, node, parent,
+grandparent) (util — verify tsrs2_binder::node_util port carries the
+legacy flavor: legacy admits PARAMETER positions that the ES flavor
+rejects; passing constant false would gate legacy parameter
+decorators out at the entry). Emit-helper probes: no-op.
 markLinkedReferences → no-op hook. Per decorator modifier →
 checkDecorator (L82628):
 - checkGrammarDecorator (L82580): parse-diag gated; parenthesized →
@@ -1939,11 +1945,35 @@ checkDecorator (L82628):
   errorCall; else resolveCall(..., headMessage) — the failure
   ladder chains the decorator head OUTERMOST (m4-57 §3 shape,
   calls.rs already models headMessage chains).
-- getEffectiveCallArguments' Decorator arm (calls.rs escape lifts):
-  effective args = the DECORATOR SIGNATURE's parameter shapes —
-  tsc fabricates [target, context] synthetic args from
-  getDecoratorCallSignature; transcribe from L76300-region's
-  decorator arm at landing (EffectiveArg::Synthetic pair).
+- getEffectiveCallArguments' Decorator arm (L76310, calls.rs escape
+  lifts) → getEffectiveDecoratorArguments (L76340, EXTRACTED):
+  synthetic args from the decorator SIGNATURE's FULL parameter list
+  — `for param in getDecoratorCallSignature(node).parameters:
+  Synthetic(getTypeOfSymbol(param))` at the decorator EXPRESSION's
+  span; no signature → Debug.fail (unreachable: resolveDecorator
+  precedes). Arg COUNT is therefore mode-dependent: ES = 2
+  (target, context); legacy = 1 (class) / 2-3 (property by accessor
+  modifier) / 2-3 (method+accessors by sig param count) / 3
+  (parameter) per the legacy signature table.
+- **Dual-mode call-machinery helpers (calls.rs — audit the existing
+  5.7a ports)**:
+  - getDecoratorArgumentCount (L76353): experimentalDecorators →
+    getLegacyDecoratorArgumentCount (L76359: class=1; property =
+    accessor-modifier ? 3 : 2; method/get/set = sig.parameters ≤ 2
+    ? 2 : 3; parameter=3) else ES `min(max(paramCount,1),2)` —
+    calls.rs's hasCorrectArity decorator arm (m4-57 §4) cites this
+    pair: verify the existing arm reads the REAL option, not a
+    constant.
+  - getThisArgumentOfCall (L76277): the Decorator arm is gated
+    `node.kind === Decorator && !legacyDecorators` → ES decorators
+    take a this-argument from an access-expression callee; LEGACY
+    decorators take NONE. The 5.7a port predates decorator forcing —
+    add the arm with the flag read.
+  - isPotentiallyUncalledDecorator (L77469): every signature has
+    minArg 0 && no rest && parameters.length <
+    getDecoratorArgumentCount(decorator, signature) — consumes the
+    mode-dependent count (the "Did_you_mean_to_call_it_first" probe
+    in resolveDecorator).
 - checkDeprecatedSignature → no-op/suggestion.
 - returnType any → done. decoratorSignature =
   getDecoratorCallSignature (L78699 → ES flavor L78571):
@@ -2117,8 +2147,11 @@ Checker workers / helpers:
       checkAndAggregateReturnExpressionTypes (L78959) generator
       gates; isImplementationCompatibleWithOverload (grep anchor);
       getIndexTypeOrString/getExtractStringType verify (for-in).
-- [ ] 5.8c: getEffectiveCallArguments' Decorator arm (L76300
-      region); ES decorator context builders (L78468-78570);
+- [ ] 5.8c: calls.rs dual-mode audit — hasCorrectArity's decorator
+      arm reads the real experimental_decorators (not a constant);
+      getThisArgumentOfCall gains the `!legacy_decorators()`
+      Decorator arm (L76281); ES decorator context builders
+      (L78468-78570);
       legacy helpers getParentTypeOfClassElement (L87798) /
       getClassElementPropertyKeyType (L87802) /
       createTypedPropertyDescriptorType (L61029);
@@ -2197,7 +2230,11 @@ New state:
   2378); localSymbol on exported declarations (§5 overload band);
   getModuleInstanceState exposure (§2 collisions + §8).
 - **OPTIONS AUDIT (verified against options.rs + the conformance
-  mapping, 2026-07-14; fixture counts are corpus-wide file greps)**:
+  mapping, 2026-07-14). Count unit: SOURCE FIXTURE FILES across all
+  test suites — `grep -rli '@<option>' ts-tests/tests/cases | wc -l`
+  (compiler+conformance+fourslash+projects; option-matrix expansion
+  multiplies these into more conformance programs/cases, so expanded
+  counts run higher — re-measure per slice with the same command)**:
   - PRESENT + mapped (read directly): target — **ES5 IS mapped and
     1267 fixtures use it ⇒ every languageVersion<ES2015 arm in this
     doc is MANDATORY 5.8 scope** (collision bands §2 at their
