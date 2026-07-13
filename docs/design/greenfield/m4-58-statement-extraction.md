@@ -8,8 +8,8 @@ in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.8
 HERE. This doc's slicing (§15, commits `m4 5.8a-…`) supersedes the
 steps doc's single-commit line.
 
-Status: §§0-9 COMPLETE (incl. per-kind alias targets + module
-resolution + exports worker) extracted (driver, late-binding wall,
+Status: §§0-10 COMPLETE (+ §4-addendum generator body inference)
+extracted (driver, late-binding wall,
 variables, control statements, iteration protocol, member/function
 declarations, class band, interface/typealias/enum, module band,
 import/export checks).
@@ -1856,7 +1856,130 @@ kinds + JS arms to elide), getModuleSpecifierForImportOrExport
   implementation slice (anchors recorded; the §1 lift depends on
   the declare-global face).
 
-## §§10-11 EXTRACTION PENDING
+## §4-addendum: generator body inference (captured with §10 reads)
+
+getReturnTypeFromBody's generator arm (L78752-78841) — the
+functions.rs "[ITER] yield aggregation" escape lifts:
+- Block-bodied generator: returnTypes = checkAndAggregateReturn
+  ExpressionTypes (L78959 — the EXISTING 5.5f walk; verify its
+  generator gate) → none → fallbackReturnType = neverType; some →
+  Subtype union. {yieldTypes, nextTypes} =
+  checkAndAggregateYieldOperandTypes (L78874 — transcribe at
+  landing: walks yield expressions; yield* routes through
+  getIterationTypesOf* §4); yieldType = Subtype union; nextType =
+  INTERSECTION.
+- Widening tail runs per component (reportErrorsFromWidening w/
+  GeneratorYield/FunctionReturn/GeneratorNext flavors — widen.rs
+  generator rows un-escape L68187); unit-type contextual
+  de-literalization via getWidenedLiteralLikeTypeForContextual
+  IterationTypeIfNeeded (L67784 — the 5.7b-close async arm's
+  generator sibling); then getWidenedType each.
+- Final: createGeneratorType(yield || never, return || fallback,
+  next || getContextualIterationType(Next, func) (L72862) ||
+  unknown, isAsync) — L78842: resolver-based; global Generator
+  missing → IterableIterator fallback (read tail at landing);
+  resolveIterationType per component (async → awaited).
+- Async non-generator tail: createPromiseType/createPromiseReturn
+  Type (L78702-78742: Promise<awaited T> reference; missing global →
+  A_dynamic_import_call_returns_a_Promise… / An_async_function_or_
+  method_must_return_a_Promise… (2712/2697) + ES5 ctor flavors) —
+  the 5.5f kit's createPromiseReturnType already exists (verify
+  which rows landed).
+
+## §10 Decorators band
+
+Ownership: legacyDecorators = experimentalDecorators option —
+UNMODELED → constant FALSE → **ES2022+ standard decorators are the
+live semantics**; every legacyDecorators arm is dead w/ note (the
+big legacy signature table L78613-78698 transcribed below for when
+the option lands; do NOT wire it).
+
+### checkDecorators (L82744) — the forcing entry
+Gates: canHaveDecorators && hasDecorators && modifiers &&
+nodeCanBeDecorated(legacy=false, node, parent, grandparent) (util —
+verify tsrs2_binder::node_util port). Emit-helper probes: no-op.
+markLinkedReferences → no-op hook. Per decorator modifier →
+checkDecorator (L82628):
+- checkGrammarDecorator (L82580): parse-diag gated; parenthesized →
+  ok; walk expression through ExpressionWithTypeArguments/NonNull/
+  Call(once)/PropertyAccess chains — second call, ?.-tokens, or
+  non-identifier head → Expression_must_be_enclosed_in_parentheses_
+  to_be_used_as_a_decorator AT decorator.expression + related
+  Invalid_syntax_in_decorator AT the offending node.
+- getResolvedSignature(node) — the calls.rs Decorator arm UN-STUBS:
+  resolveSignature dispatch Decorator → resolveDecorator (L77298):
+  checkExpression(expression); apparent error → resolveErrorCall;
+  untyped-call → resolveUntypedCall; isPotentiallyUncalledDecorator
+  && !parenthesized → _0_accepts_too_few_arguments_to_be_used_as_a_
+  decorator_here_Did_you_mean_to_call_it_first_and_write_0 AT node
+  (getTextOfNode source text) → errorCall; no call signatures →
+  invocationErrorDetails chained under getDiagnosticHeadMessageFor
+  DecoratorResolution (1329 Decorator_function_return_type…? NO —
+  the head is 1241-family "Unable to resolve signature of X
+  decorator when called as an expression" — resolve exact statics
+  from gen.rs: getDiagnosticHeadMessageForDecoratorResolution maps
+  parent kind → 1238/1239/1240/1241 family) + related + recovery →
+  errorCall; else resolveCall(..., headMessage) — the failure
+  ladder chains the decorator head OUTERMOST (m4-57 §3 shape,
+  calls.rs already models headMessage chains).
+- getEffectiveCallArguments' Decorator arm (calls.rs escape lifts):
+  effective args = the DECORATOR SIGNATURE's parameter shapes —
+  tsc fabricates [target, context] synthetic args from
+  getDecoratorCallSignature; transcribe from L76300-region's
+  decorator arm at landing (EffectiveArg::Synthetic pair).
+- checkDeprecatedSignature → no-op/suggestion.
+- returnType any → done. decoratorSignature =
+  getDecoratorCallSignature (L78699 → ES flavor L78571):
+  NodeLinks.decoratorSignature memo (anySignature sentinel = "no
+  signature"); parent kind:
+  - Class declaration/expression: targetType = static type;
+    contextType = createClassDecoratorContextType(targetType)
+    (L78468 — instantiates global ClassDecoratorContext<T>);
+    signature = createESDecoratorCallSignature(target, context,
+    RETURN targetType) (L78558: (target, context) =>
+    return | void — read exact optionality at landing).
+  - Method/accessors (class-parented only): valueType = method
+    signature type / accessor type; thisType = static-modifier ?
+    static type : declared instance type; target/return = getter →
+    createGetterFunctionType(valueType) (L82677: () => V), setter →
+    createSetterFunctionType (L82687: (value: V) => void), method →
+    valueType; contextType = createClassMemberDecoratorContextType
+    ForNode (L78524 — ClassMethodDecoratorContext/ClassGetter…/
+    ClassSetter… global instantiations).
+  - PropertyDeclaration (class-parented): valueType; thisType;
+    accessor-modifier → ClassAccessorDecoratorTarget/Result global
+    instantiations (L78532/78538) else target = undefinedType +
+    return = createClassFieldDecoratorInitializerMutatorType
+    (L78544: (this: This, value: V) => V shape).
+  All the create*ContextType helpers instantiate GLOBAL lib types
+  (ClassDecoratorContext etc., lib.decorators.d.ts — lib-loaded
+  only; noLib → emptyGenericType-ish fallbacks: check each helper's
+  miss arm at landing; unit pins hand-declare or tolerate).
+- headMessage selection (L82640): class → Decorator_function_return_
+  type_0_is_not_assignable_to_type_1; PropertyDeclaration
+  (non-legacy) → same; Parameter (LEGACY ONLY reachable — ES
+  decorators cannot decorate parameters; the parameter arm is dead
+  under ES default w/ note) → Decorator_function_return_type_is_0_
+  but_is_expected_to_be_void_or_any; method/accessors → the
+  assignable flavor. checkTypeAssignableTo(returnType,
+  decoratorSignature.resolvedReturnType, node.expression, head).
+- check.rs deferred Decorator arm un-unreachables:
+  checkDeferredNode's Decorator → checkDecorator re-entry shape —
+  verify tsc's deferred kind list handling (86923-86928 walks RAW
+  arguments for overload-failure deferrals of decorators too).
+
+### Legacy table (L78613-78698, DEAD until experimentalDecorators
+models): class → (target) => target|void; parameter →
+(target, propertyKey, parameterIndex: numberLiteral) => void (this-
+param and index math transcribed); method/accessor/property →
+(target = getParentTypeOfClassElement L87798, propertyKey =
+getClassElementPropertyKeyType L87802, descriptor?:
+TypedPropertyDescriptor<T> L61029) => T-descriptor|void (property
+sans accessor-modifier omits descriptor, returns void|...).
+emitDecoratorMetadata entity-name machinery (L82698-82743) =
+emit-only, elide.
+
+## §11 EXTRACTION PENDING
 
 markExportAsReferenced consumers (L71945, emit-adjacent — decide
 no-op) + getSymbolOfPartOfRightHandSideOfImportEquals (L49230) +
