@@ -2609,9 +2609,9 @@ fn ledger_source_path(workspace: &Path, span_file: &str) -> Result<PathBuf, Box<
 /// deferral stays with escapes), or `tsc-not-applicable` with a
 /// reason (LSP-only/emit-only surfaces). Rust-side accountability
 /// only: the "missing tsc function" direction is the M8
-/// emitter-inventory + dependency closure. The count ratchets
-/// monotonically down via [ledger] max_undispositioned (0 before M8
-/// starts per definition-of-done.md).
+/// emitter-inventory + dependency closure. The backlog is the
+/// fn-dispositions.toml EQUALITY allowlist (deletions only; empties
+/// before M8 starts per definition-of-done.md).
 fn fn_disposition_markers() -> [&'static str; 4] {
     // concat! keeps the contiguous marker tokens out of THIS file's
     // source text (the ledger-entry scanner walks xtask too and would
@@ -2629,20 +2629,27 @@ fn fn_disposition_markers() -> [&'static str; 4] {
     ]
 }
 
-/// A doc line carries a disposition only when the marker STARTS the
-/// line's content (prose mentions don't count — review finding) and
-/// its payload validates: tsc-port needs no payload here (ledger
-/// check owns its block's hash/span completeness); tsrs-native/
-/// tsc-not-applicable need a non-empty reason; tsc-deferred must
-/// name its owner milestone as a WHOLE WORD (M5-M8; "M50" does not
-/// pass — review round 3).
+/// A line carries a disposition only when it is a `///` DOC comment
+/// (plain `//` comments are rejected — review round 4: the
+/// ledger-entry collector reads /// blocks alone, so a plain-comment
+/// `// tsc-port: …` would satisfy the census while evading the
+/// hash/span validation entirely), the marker STARTS the content
+/// (prose mentions don't count), and its payload validates: tsc-port
+/// needs no payload here (ledger check owns its block's hash/span
+/// completeness); tsrs-native/tsc-not-applicable need a non-empty
+/// reason; tsc-deferred must name its owner milestone as a WHOLE
+/// WORD (M5-M8; "M50" does not pass).
 fn line_is_valid_disposition(line: &str) -> bool {
-    let content = line
-        .trim_start()
-        .trim_start_matches('/')
-        .trim_start()
-        .trim_start_matches("//!")
-        .trim_start();
+    let trimmed = line.trim_start();
+    // `////…` banner lines are not doc comments; reject them along
+    // with plain `//`.
+    let Some(after) = trimmed.strip_prefix("///") else {
+        return false;
+    };
+    if after.starts_with('/') {
+        return false;
+    }
+    let content = after.trim_start();
     let [port, native, deferred, not_applicable] = fn_disposition_markers();
     if content.starts_with(port) {
         return true;
@@ -6157,6 +6164,16 @@ mod escape_scanner_tests {
         assert!(!doc_block_has_disposition(&span_only, 1));
         assert!(!doc_block_has_disposition(&stage_prefix, 1));
         assert!(doc_block_has_disposition(&stage_word, 1));
+        // Review round 4: PLAIN `//` comments (and //// banners) are
+        // not dispositions — the ledger collector reads /// blocks
+        // alone, so a plain-comment tsc-port would evade hash/span
+        // validation.
+        let plain_port = ["// tsc-port: fake @6.0.3", "pub(crate) fn sneaky() {}"];
+        let plain_native = ["// tsrs-native: also fake", "pub fn sly() {}"];
+        let banner = ["//// tsc-port: banner", "pub fn b() {}"];
+        assert!(!doc_block_has_disposition(&plain_port, 1));
+        assert!(!doc_block_has_disposition(&plain_native, 1));
+        assert!(!doc_block_has_disposition(&banner, 1));
         // The block scan stops at the first non-comment/attr line.
         let detached = [
             "/// tsrs-native: someone else's fn",
