@@ -618,18 +618,18 @@ fn shadow_rate(matched: usize, total: usize) -> f64 {
     }
 }
 
-/// Shadow tier grading (NON-GATING). Bucket both sides by T0 key;
-/// a key contributes 1 to a tier (nesting under matched_t0's set
-/// semantics) only when the buckets have EQUAL length and EVERY
-/// position-wise pair — both sides sorted by (start, length, top
-/// text) for determinism — matches at that tier: T1 = category;
-/// T2 = T1 + exact start/length + top message text; T3 = T2 + full
-/// chain tree + relatedInformation. Grading all pairs (review round
-/// 2) means multiplicity differences and second-diagnostic drift on
-/// a shared key count as misses instead of hiding behind bucket[0];
-/// definition-of-done's "every diagnostic" reading is per-key
-/// all-pairs. tsrs-side related info flows through from_tsrs since
-/// pre-5.8a (it was dropped before).
+/// Shadow tier grading (NON-GATING). Bucket both sides by T0 key; a
+/// key contributes 1 to a tier only when the two buckets are equal
+/// AS MULTISETS under that tier's OWN equivalence (review round 3:
+/// tiers compare independently — T1 must not depend on how T2's
+/// finer key would pair elements):
+///   T1 = category
+///   T2 = T1 + exact start/length + top message text
+///   T3 = T2 + full chain tree + relatedInformation
+/// The equivalences nest, so equal-T3 multisets imply equal-T2 imply
+/// equal-T1, and per-key counting keeps the tiers nested under
+/// matched_t0's set semantics. tsrs-side related info flows through
+/// from_tsrs since pre-5.8a (it was dropped before).
 fn shadow_tier_matches<'a>(
     actual: impl Iterator<Item = &'a GoldenDiag>,
     expected: impl Iterator<Item = &'a GoldenDiag>,
@@ -641,16 +641,38 @@ fn shadow_tier_matches<'a>(
         for diag in diags {
             map.entry(t0_key(diag)).or_default().push(diag);
         }
-        for bucket in map.values_mut() {
-            bucket.sort_by(|left, right| {
-                (left.start, left.length, &left.chain.text).cmp(&(
-                    right.start,
-                    right.length,
-                    &right.chain.text,
-                ))
-            });
-        }
         map
+    }
+    /// Greedy multiset equality under `eq` — buckets are tiny (almost
+    /// always 1), so O(n²) matching beats deriving Ord for chains.
+    fn multiset_eq(
+        actual: &[&GoldenDiag],
+        expected: &[&GoldenDiag],
+        eq: impl Fn(&GoldenDiag, &GoldenDiag) -> bool,
+    ) -> bool {
+        if actual.len() != expected.len() {
+            return false;
+        }
+        let mut used = vec![false; expected.len()];
+        'outer: for left in actual {
+            for (index, right) in expected.iter().enumerate() {
+                if !used[index] && eq(left, right) {
+                    used[index] = true;
+                    continue 'outer;
+                }
+            }
+            return false;
+        }
+        true
+    }
+    fn t1_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
+        a.category == e.category
+    }
+    fn t2_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
+        t1_eq(a, e) && a.start == e.start && a.length == e.length && a.chain.text == e.chain.text
+    }
+    fn t3_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
+        t2_eq(a, e) && a.chain == e.chain && a.related == e.related
     }
     let actual = keyed(actual);
     let expected = keyed(expected);
@@ -659,21 +681,15 @@ fn shadow_tier_matches<'a>(
         let Some(actual_bucket) = actual.get(key) else {
             continue;
         };
-        if actual_bucket.len() != expected_bucket.len() {
-            continue;
-        }
-        let pairs = || actual_bucket.iter().zip(expected_bucket.iter());
-        if !pairs().all(|(a, e)| a.category == e.category) {
+        if !multiset_eq(actual_bucket, expected_bucket, t1_eq) {
             continue;
         }
         t1 += 1;
-        if !pairs().all(|(a, e)| {
-            a.start == e.start && a.length == e.length && a.chain.text == e.chain.text
-        }) {
+        if !multiset_eq(actual_bucket, expected_bucket, t2_eq) {
             continue;
         }
         t2 += 1;
-        if pairs().all(|(a, e)| a.chain == e.chain && a.related == e.related) {
+        if multiset_eq(actual_bucket, expected_bucket, t3_eq) {
             t3 += 1;
         }
     }
@@ -1289,6 +1305,68 @@ fn temp_root(prefix: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn diag(category: &str, start: u32, text: &str) -> GoldenDiag {
+        GoldenDiag {
+            file: Some("a.ts".to_owned()),
+            start: Some(start),
+            length: Some(1),
+            line: Some(1),
+            col: Some(1),
+            code: 2322,
+            pass: None,
+            category: category.to_owned(),
+            chain: GoldenMessageChain {
+                text: text.to_owned(),
+                code: 2322,
+                category: category.to_owned(),
+                next: Vec::new(),
+            },
+            related: Vec::new(),
+            reports_unnecessary: false,
+            reports_deprecated: false,
+            source: None,
+        }
+    }
+
+    /// Review round 3: tiers compare independent multisets — a
+    /// category-multiset match must register T1 even when the
+    /// category↔text CORRESPONDENCE differs (which is a T2 miss),
+    /// and multiplicity differences miss every tier.
+    #[test]
+    fn shadow_tiers_grade_buckets_as_independent_multisets() {
+        // Same T0 key (same file/code/line/col): one error + one
+        // warning per side, texts swapped across categories.
+        let actual = [diag("error", 5, "A"), diag("warning", 5, "B")];
+        let expected = [diag("error", 5, "B"), diag("warning", 5, "A")];
+        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!((t1, t2, t3), (1, 0, 0));
+
+        // Identical buckets → all tiers.
+        let actual = [diag("error", 5, "A"), diag("warning", 5, "B")];
+        let expected = [diag("warning", 5, "B"), diag("error", 5, "A")];
+        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!((t1, t2, t3), (1, 1, 1));
+
+        // Multiplicity difference on a shared key → no tier.
+        let actual = [diag("error", 5, "A")];
+        let expected = [diag("error", 5, "A"), diag("error", 5, "A")];
+        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!((t1, t2, t3), (0, 0, 0));
+
+        // Chain-tail divergence: T2 matches, T3 misses.
+        let mut deep = diag("error", 5, "A");
+        deep.chain.next.push(GoldenMessageChain {
+            text: "tail".to_owned(),
+            code: 1,
+            category: "error".to_owned(),
+            next: Vec::new(),
+        });
+        let actual = [deep];
+        let expected = [diag("error", 5, "A")];
+        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!((t1, t2, t3), (1, 1, 0));
+    }
 
     /// The harness serializes @lib as OptionValue::StringList; the
     /// conversion must lowercase and forward it (a String-only match

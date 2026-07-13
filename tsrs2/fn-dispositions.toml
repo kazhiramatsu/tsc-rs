@@ -3,7 +3,9 @@
 # tsrs-native: <reason> / tsc-deferred: M5-M8 / tsc-not-applicable:
 # <reason>), then `cargo xtask ledger write-backlog` — the shrinking
 # diff is the review surface. New undispositioned fns are rejected by
-# `cargo xtask ledger check`. Reaches 0 before M8 starts
+# `cargo xtask ledger check`. Identity is (file, fn name) with a count
+# for same-named impl-block fns — function-level tracking, same
+# accepted residual as escapes.toml. Reaches 0 before M8 starts
 # (definition-of-done.md clause 4).
 
 [[fn]]
