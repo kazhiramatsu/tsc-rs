@@ -8,12 +8,12 @@ in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.8
 HERE. This doc's slicing (§15, commits `m4 5.8a-…`) supersedes the
 steps doc's single-commit line.
 
-Status: §§0-8 extracted (driver, late-binding wall, variables,
-control statements, iteration protocol, member/function
-declarations, class band, interface/typealias/enum, module band).
-REMAINING TO EXTRACT (§§9-11 placeholder at the tail): alias/import/export
-L86029-86504 + resolveAlias L49116 family + checkExternalModule
-Exports consumers, decorators L82580-82783 +
+Status: §§0-9(checker half) extracted (driver, late-binding wall,
+variables, control statements, iteration protocol, member/function
+declarations, class band, interface/typealias/enum, module band,
+import/export checks).
+REMAINING TO EXTRACT: resolveAlias L49116 family +
+resolveExternalModuleName workers (2307 un-silencing), decorators L82580-82783 +
 getDecoratorCallSignature L78699, type-node arms L81838-82023,
 checkPotentialUncheckedRenamedBindingElementsInTypes L83180,
 grammar workers for the declaration bands (L88907-90450:
@@ -1506,7 +1506,128 @@ Identifier_expected; moduleKind ES2015|ES2020 → String_literal_
 import_and_export_names_are_not_supported_when_the_module_flag_is_
 set_to_es2015_or_es2020 (modeled module option read).
 
-## §§9-11 EXTRACTION PENDING (anchors + owners recorded in Status)
+## §9 Import/export/alias band (checker half; resolveAlias family pending)
+
+### checkAliasSymbol (L86029) — the shared alias check
+target = resolveAlias(symbol) — **THE §9 dependency**; target ===
+unknownSymbol → whole check skips (resolveAlias reports its own
+2303/2305/2307-family during resolution). symbol = getMergedSymbol(
+symbol.exportSymbol || symbol). JS arm elided. LIVE core:
+- targetFlags = getSymbolFlags(target) (alias-aware flag union —
+  grep anchor at landing); excludedMeanings from the LOCAL symbol's
+  meanings (Value|ExportValue → Value; Type; Namespace); overlap →
+  ExportSpecifier ? Export_declaration_conflicts_with_exported_
+  declaration_of_0 : Import_declaration_conflicts_with_local_
+  declaration_of_0 AT node (symbolToString display).
+- isolatedModules/verbatimModuleSyntax/Preserve-CJS/ambient-const-
+  enum faces (L86074-86128): ALL behind unmodeled options → dead w/
+  notes (getIsolatedModules = isolatedModules || verbatimModuleSyntax).
+- ImportSpecifier deprecation walk (L86138) → suggestion band, skip.
+
+### checkImportBinding (L86163)
+checkCollisionsForDeclarationName (§2); checkAliasSymbol;
+ImportSpecifier → checkModuleExportName(propertyName) (§8) +
+esModuleInterop default-import emit-helper probe (no-op).
+
+### checkImportDeclaration (L86220)
+checkGrammarModuleElementContext(node, An_import_declaration_can_
+only_be_used_at_the_top_level_of_a_namespace_or_module) → return;
+modifiers present (post grammar-modifiers hook) → An_import_
+declaration_cannot_have_modifiers (first token);
+checkExternalImportOrExportDeclaration (§8) →
+- importClause (+ !checkGrammarImportClause — grammar sweep):
+  name → checkImportBinding(importClause); namedBindings:
+  NamespaceImport → checkImportBinding (+interop helper no-op);
+  NamedImports → **resolvedModule = resolveExternalModuleName(node,
+  moduleSpecifier); resolved → forEach elements checkImportBinding**
+  — named bindings check ONLY when the module resolves.
+- Node18..NodeNext JSON default-import row (modeled module-option
+  read; isOnlyImportableAsDefault + hasTypeJsonImportAttribute
+  L86262); noUncheckedSideEffectImports row (option → dead).
+- checkImportAttributes(node) (L86173: ImportAttributes global-type
+  relation + moduleSupportsImportAttributes(moduleKind) grammar rows
+  + assert-deprecation rows (ignoreDeprecations option → the
+  non-Node20 assert row is LIVE by default — verify) + CJS-emit rows
+  + type-only row + resolution-mode row; getTypeFromImportAttributes
+  builds the object type from checkImportAttribute L86217 =
+  getRegularTypeOfLiteralType(checkExpressionCached(value))).
+
+**resolveExternalModuleName is 5.8-owned now** (the 5.7b import-call
+silent stub UN-silences for declarations): minimal worker = relative/
+absolute specifiers against program files + ambient module symbols +
+pattern ambient modules; misses emit Cannot_find_module_0… (2307
+family — 480 FN rows) — EXTRACT the worker family (L~48800-48950)
+with resolveAlias next part. Import-call sites KEEP the silent stub
+(m4-57 §6 risk 7) until this lands; then both route through one
+worker.
+
+### checkImportEqualsDeclaration (L86268)
+context gate (same import message); grammar-modifiers hook;
+erasableSyntaxOnly (dead); (internal-module form ||
+checkExternalImportOrExportDeclaration) →
+checkImportBinding; NON-external module reference: target =
+resolveAlias(symbol) ≠ unknown → targetFlags Value: first identifier
+of moduleReference resolveEntityName(Value|Namespace) NOT
+Namespace-flagged → Module_0_is_hidden_by_a_local_declaration_with_
+the_same_name AT that identifier; targetFlags Type →
+checkTypeNameIsReserved(node.name, Import_name_cannot_be_0);
+isTypeOnly → An_import_alias_cannot_use_import_type (grammar).
+EXTERNAL reference form: moduleKind ES2015..ESNext && !typeOnly &&
+!ambient → Import_assignment_cannot_be_used_when_targeting_
+ECMAScript_modules… (grammar; modeled module option).
+
+### checkExportDeclaration (L86303) + checkExportSpecifier (L86354)
+context gate (export message); modifiers → An_export_declaration_
+cannot_have_modifiers; checkGrammarExportDeclaration (L86340:
+type-only + NamedExports → checkGrammarNamedImportsOrExports —
+grammar sweep). (no specifier || external-decl ok):
+- Named exports (non-namespace clause): forEach checkExportSpecifier;
+  non-(SourceFile | ambient-module block | ambient namespace block)
+  parent → Export_declarations_are_not_permitted_in_a_namespace.
+- star/namespace-export: moduleSymbol = resolveExternalModuleName;
+  hasExportAssignmentSymbol(moduleSymbol) → Module_0_uses_export_
+  and_cannot_be_used_with_export_Asterisk AT specifier;
+  namespace-export clause → checkAliasSymbol(clause) +
+  checkModuleExportName(clause.name). Emit helpers no-op.
+- checkImportAttributes tail.
+checkExportSpecifier: checkAliasSymbol; checkModuleExportName(
+propertyName, allowStringLiteral = has specifier) + (name);
+declaration-emit collect = no-op; NO specifier: string-literal
+exported name → return; resolveName(exportedName, Value|Type|
+Namespace|Alias, no-error, isUse=TRUE); symbol is undefinedSymbol/
+globalThisSymbol/declared in a GLOBAL source file → Cannot_export_0_
+Only_local_declarations_can_be_exported_from_a_module AT name.
+
+### checkExportAssignment (L86391)
+context gate (An_export_assignment_must_be_at_the_top_level… /
+A_default_export_must_be_at_the_top_level…); erasable (dead);
+container = SourceFile | parent.parent; non-ambient ModuleDeclaration
+container → export= ? An_export_assignment_cannot_be_used_in_a_
+namespace : A_default_export_can_only_be_used_in_an_ECMAScript_style_
+module; RETURN. modifiers → An_export_assignment_cannot_have_
+modifiers. (JSDoc type-annotation arm — JS, elide.) Identifier
+expression: sym = getExportSymbolOfValueSymbolIfExported(
+resolveEntityName(id, ALL meanings, ignoreErrors, dontResolveAlias=
+TRUE, location=node)); sym: getSymbolFlags(sym) & Value →
+checkExpressionCached(id) — **a pure-type export= does NOT check
+the expression** (no 2693 here); verbatim/isolatedModules rows dead;
+!sym → checkExpressionCached(id). Non-identifier →
+checkExpressionCached(expression). checkExternalModuleExports(
+container) (§0 drain ALSO runs from here — symbolLinks.exportsChecked
+once-guard dedupes). Ambient + non-entity expression → The_
+expression_of_an_export_assignment_must_be_an_identifier_or_
+qualified_name_in_an_ambient_context (grammar). export= tails:
+moduleKind ≥ ES2015 && ≠ Preserve && (per impliedNodeFormat-for-emit
+arms) → Export_assignment_cannot_be_used_when_targeting_ECMAScript_
+modules… ; System non-ambient → Export_assignment_is_not_supported_
+when_module_flag_is_system. (impliedNodeFormat: single-file
+conformance → None; transcribe the arms with the host read.)
+
+## §§9(resolveAlias)-11 EXTRACTION PENDING
+
+resolveAlias L49116 + getTargetOf* family (L~48700-49110) +
+resolveExternalModuleName worker family (L~48800-48950) +
+getSymbolFlags + getTypeOnlyAliasDeclaration + markExportAsReferenced;
 
 
 alias band (checkAliasSymbol L86029 + resolveAlias L49116 +
