@@ -276,7 +276,7 @@ impl<'a> CheckerState<'a> {
         }
         if s & TypeFlags::OBJECT.bits() != 0 && t & TypeFlags::NON_PRIMITIVE.bits() != 0 {
             let strict_subtype_exclusion = relation == RelationKind::StrictSubtype
-                && self.is_empty_anonymous_object_type(source)
+                && self.is_empty_anonymous_object_type(source)?
                 && !self
                     .tables
                     .object_flags_of(source)
@@ -346,9 +346,16 @@ impl<'a> CheckerState<'a> {
                     .flags_of(types[0])
                     .intersects(TypeFlags::UNDEFINED)
                 && self.tables.flags_of(types[1]).intersects(TypeFlags::NULL)
-                && types
-                    .iter()
-                    .any(|&t| self.is_empty_anonymous_object_type(t));
+                && {
+                    let mut any_empty = false;
+                    for &t in types.iter() {
+                        if self.is_empty_anonymous_object_type(t)? {
+                            any_empty = true;
+                            break;
+                        }
+                    }
+                    any_empty
+                };
             let new_flags = self.tables.object_flags_of(ty).bits()
                 | ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED.bits()
                 | if is_unknown_like {
@@ -548,7 +555,7 @@ impl<'a> CheckerState<'a> {
             return Ok(reduced);
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION)
-            && self.should_normalize_intersection(ty)
+            && self.should_normalize_intersection(ty)?
         {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
                 unreachable!("intersection flag implies intersection data");
@@ -571,8 +578,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: shouldNormalizeIntersection @6.0.3
     /// tsc-hash: ac2985b3bcb9ba84f303ae672a68613c34772919f604484580cb8cb21b69edf1
     /// tsc-span: _tsc.js:64827-64836
-    fn should_normalize_intersection(&self, ty: TypeId) -> bool {
-        let TypeData::Intersection { types } = &self.tables.type_of(ty).data else {
+    fn should_normalize_intersection(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
             unreachable!("intersection flag implies intersection data");
         };
         let mut has_instantiable = false;
@@ -580,12 +587,12 @@ impl<'a> CheckerState<'a> {
         for &t in types.iter() {
             has_instantiable |= self.tables.flags_of(t).intersects(TypeFlags::INSTANTIABLE);
             has_nullable_or_empty |= self.tables.flags_of(t).intersects(TypeFlags::NULLABLE)
-                || self.is_empty_anonymous_object_type(t);
+                || self.is_empty_anonymous_object_type(t)?;
             if has_instantiable && has_nullable_or_empty {
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     /// tsc isGenericTupleType (67794) — the tables twin holds the body

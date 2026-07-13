@@ -2855,7 +2855,14 @@ impl<'a> CheckerState<'a> {
                 early.clone(),
             );
         }
-        let result = (|state: &mut Self| -> CheckResult2<tsrs2_binder::SymbolTable> {
+        // Members whose lateBindMember pre-write happens in THIS frame
+        // — an Err unwind must revert their node/lateSymbol memos too,
+        // or the retry's memo-hits would silently DROP them from the
+        // rebuilt late table (review round #2).
+        let mut freshly_bound: Vec<NodeId> = Vec::new();
+        let result = (|state: &mut Self,
+                       freshly_bound: &mut Vec<NodeId>|
+         -> CheckResult2<tsrs2_binder::SymbolTable> {
             let mut late = tsrs2_binder::SymbolTable::default();
             let declarations = state.binder.symbol(symbol).declarations.clone();
             for declaration in declarations {
@@ -2903,6 +2910,15 @@ impl<'a> CheckerState<'a> {
                     // (checkComputedPropertyName memoizes the type).
                     let name_type = state.check_computed_property_name(name)?;
                     if state.property_name_from_type_usable(name_type).is_some() {
+                        if state
+                            .links
+                            .node(member)
+                            .resolved_symbol
+                            .resolved()
+                            .is_none()
+                        {
+                            freshly_bound.push(member);
+                        }
                         state.late_bind_member(symbol, &early, &mut late, member)?;
                     } else {
                         let string_number_symbol = state.tables.intrinsics.string_number_symbol;
@@ -2924,7 +2940,7 @@ impl<'a> CheckerState<'a> {
                 resolved.insert(name.clone(), *member);
             }
             Ok(resolved)
-        })(self);
+        })(self, &mut freshly_bound);
         match result {
             Ok(resolved) => {
                 if is_static {
@@ -2947,6 +2963,12 @@ impl<'a> CheckerState<'a> {
                     self.links.revert_symbol_resolved_exports(symbol);
                 } else {
                     self.links.revert_symbol_resolved_members(symbol);
+                }
+                for member in freshly_bound {
+                    self.links.revert_node_resolved_symbol_late_bind(member);
+                    if let Some(member_symbol) = self.node_symbol(member) {
+                        self.links.clear_symbol_late_symbol(member_symbol);
+                    }
                 }
                 Err(err)
             }
@@ -8710,6 +8732,55 @@ mod unique_symbol_tests {
                     .get_widened_unique_es_symbol_type(u_type)
                     .expect("widens");
                 assert_eq!(widened, state.tables.intrinsics.es_symbol);
+            },
+        );
+    }
+}
+
+#[cfg(test)]
+mod late_binding_tests {
+    use tsrs2_syntax::SyntaxKind;
+    use tsrs2_types::CompilerOptions;
+
+    use crate::state::test_support::with_program_state;
+
+    /// 5.7b review round #2: an Err unwind mid-late-binding must leave
+    /// every touched member re-bindable — asking the same question
+    /// twice answers the same thing. Without the member-side rollback,
+    /// the retry memo-hits past lateBindMember and SUCCEEDS with the
+    /// colliding late member silently dropped from the table.
+    #[test]
+    fn late_binding_err_unwind_is_idempotent() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "const k = \"x\";\ntype T = { x: number; [k]: string };\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let source = state.binder.source(0);
+                let type_literal = source
+                    .arena
+                    .node_ids()
+                    .find(|&id| {
+                        tsrs2_binder::node_util::kind_of(source, id) == SyntaxKind::TypeLiteral
+                    })
+                    .expect("fixture contains a type literal");
+                let symbol = state
+                    .binder
+                    .node_symbol(type_literal)
+                    .expect("type literal binds a symbol");
+                let first = state.get_members_of_symbol(symbol);
+                let second = state.get_members_of_symbol(symbol);
+                let first_reason = first.expect_err("early/late collision escapes").reason;
+                let second_reason = second
+                    .expect_err("the retry must escape the same way")
+                    .reason;
+                assert_eq!(first_reason, second_reason);
+                assert!(
+                    first_reason.contains("combineSymbolTables"),
+                    "{first_reason}"
+                );
             },
         );
     }

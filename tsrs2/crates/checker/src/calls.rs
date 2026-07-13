@@ -4556,6 +4556,22 @@ mod tests {
         );
     }
 
+    // ---- 5.7b review round 2: late-bound members in intersections ----
+
+    #[test]
+    fn late_bound_type_literal_does_not_collapse_in_intersections() {
+        // isEmptyAnonymousObjectType must read the LATE-BOUND member
+        // table: with the raw early table, O looked empty and O & "s"
+        // degenerated to "s" — silencing the oracle's 2345 (probed
+        // w1.ts, 2026-07-13).
+        assert_eq!(
+            checked_rows(
+                "const k = \"kk\";\ntype O = { [k]: number };\ntype X = O & \"s\";\ndeclare const s: \"s\";\ndeclare function f(x: X): void;\nf(s);\n"
+            ),
+            [(2345, 116, 1)]
+        );
+    }
+
     // ---- 5.7b: outer type parameters across function expressions ----
 
     #[test]

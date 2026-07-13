@@ -846,6 +846,20 @@ impl LinksTables {
         self.node.entry(id).or_default().resolved_symbol = LinkSlot::Resolved(value);
     }
 
+    /// Err-unwind twin for the late-bind protocol: a container
+    /// resolution cut short by Unsupported must leave every member it
+    /// touched re-bindable — a parked memo would short-circuit the
+    /// retry's lateBindMember and DROP the member from the rebuilt
+    /// late table (5.7b review round #2).
+    pub fn revert_node_resolved_symbol_late_bind(&mut self, id: NodeId) {
+        self.node.entry(id).or_default().resolved_symbol = LinkSlot::Vacant;
+    }
+
+    /// Err-unwind twin for `links.lateSymbol`.
+    pub fn clear_symbol_late_symbol(&mut self, id: SymbolId) {
+        self.symbol.entry(id).or_default().late_symbol = None;
+    }
+
     /// tsc reassigns links.resolvedSymbol unconditionally on every
     /// checkPropertyAccessExpression run — re-checks (the compound
     /// assignment writeOnly pass 80311, the condition-walker forcing

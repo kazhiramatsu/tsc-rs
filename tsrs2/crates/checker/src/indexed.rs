@@ -112,11 +112,10 @@ impl<'a> CheckerState<'a> {
                 TypeData::Intersection { types } => types.to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
-            if members
-                .iter()
-                .any(|&member| self.is_empty_anonymous_object_type(member))
-            {
-                return Ok(true);
+            for &member in &members {
+                if self.is_empty_anonymous_object_type(member)? {
+                    return Ok(true);
+                }
             }
         }
         Ok(false)

@@ -1011,7 +1011,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
             let base = state.get_base_constraint_or_type(t)?;
-            Ok(state.is_empty_anonymous_object_type(base))
+            state.is_empty_anonymous_object_type(base)
         })
     }
 
