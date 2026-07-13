@@ -1259,6 +1259,7 @@ enum InvariantSuite {
     JobsIndependence,
     Encodings,
     MatrixIndependence,
+    UnsupportedUnwind,
 }
 
 impl InvariantSuite {
@@ -1271,6 +1272,7 @@ impl InvariantSuite {
             "jobs-independence" => Ok(Self::JobsIndependence),
             "encodings" => Ok(Self::Encodings),
             "matrix-independence" => Ok(Self::MatrixIndependence),
+            "unsupported-unwind" => Ok(Self::UnsupportedUnwind),
             _ => Err(format!("unknown invariant suite: {value}").into()),
         }
     }
@@ -1284,6 +1286,7 @@ impl InvariantSuite {
             Self::JobsIndependence => "jobs-independence",
             Self::Encodings => "encodings",
             Self::MatrixIndependence => "matrix-independence",
+            Self::UnsupportedUnwind => "unsupported-unwind",
         }
     }
 
@@ -1375,6 +1378,13 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         run_matrix_independence(&programs)?;
         println!(
             "invariant matrix-independence ok: programs={}",
+            programs.len()
+        );
+    }
+    if args.suite.includes(InvariantSuite::UnsupportedUnwind) {
+        run_unsupported_unwind(&programs)?;
+        println!(
+            "invariant unsupported-unwind ok: programs={}",
             programs.len()
         );
     }
@@ -1502,6 +1512,24 @@ fn run_idempotence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
             )
             .into());
         }
+    }
+    Ok(())
+}
+
+/// The unsupported-unwind sweep: run every sample program once with
+/// the checker's debug unwind guards active (check.rs UnwindSnapshot
+/// + the links.rs Resolving census) — a violated guard panics with
+/// the offending element. The guards are plain debug_assertions, so
+/// the lib-loaded conformance gate exercises them corpus-wide too;
+/// this suite is the labeled, fast-attribution entry point.
+fn run_unsupported_unwind(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+    if !cfg!(debug_assertions) {
+        return Err(
+            "unsupported-unwind needs debug_assertions (run via the dev-profile xtask)".into(),
+        );
+    }
+    for program in programs {
+        let _ = check_bytes(&program.files);
     }
     Ok(())
 }

@@ -31,7 +31,69 @@ use tsrs2_types::{ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFlag
 
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 
+/// Debug-only unwind census (the unsupported-unwind invariant):
+/// every transient stack an element check may push must be back at
+/// its ENTRY depth when the element completes — Ok or Err alike —
+/// and no `Resolving` sentinel may stay open across elements. A
+/// deeper stack or a leaked sentinel after an Unsupported unwind is
+/// the state-leak bug class the Err-revert twins exist for (the
+/// 5.7b lateBind revert was one instance); this makes the whole
+/// class fail loud in dev builds instead of surfacing as downstream
+/// nondeterminism.
+#[cfg(debug_assertions)]
+#[derive(Debug, Eq, PartialEq)]
+struct UnwindSnapshot {
+    resolution_targets: usize,
+    contextual_type_nodes: usize,
+    contextual_types: usize,
+    contextual_is_cache: usize,
+    contextual_binding_patterns: usize,
+    inference_context_nodes: usize,
+    awaited_type_stack: usize,
+    active_type_mappers: usize,
+    active_type_mappers_caches: usize,
+    variance_handler_stack: usize,
+    class_interface_declared_in_progress: usize,
+    type_parameter_defaults_in_progress: usize,
+    // widening_contexts is deliberately ABSENT: it is an arena
+    // (WideningContextId-indexed, tsc's GC'd context objects), not a
+    // transient stack — growth across an element is allocation, not
+    // leaked in-progress state.
+    speculation_depth: u32,
+    resolving_open: i64,
+}
+
 impl<'a> CheckerState<'a> {
+    #[cfg(debug_assertions)]
+    fn unwind_snapshot(&self) -> UnwindSnapshot {
+        UnwindSnapshot {
+            resolution_targets: self.resolution_targets.len(),
+            contextual_type_nodes: self.contextual_type_nodes.len(),
+            contextual_types: self.contextual_types.len(),
+            contextual_is_cache: self.contextual_is_cache.len(),
+            contextual_binding_patterns: self.contextual_binding_patterns.len(),
+            inference_context_nodes: self.inference_context_nodes.len(),
+            awaited_type_stack: self.awaited_type_stack.len(),
+            active_type_mappers: self.active_type_mappers.len(),
+            active_type_mappers_caches: self.active_type_mappers_caches.len(),
+            variance_handler_stack: self.variance_handler_stack.len(),
+            class_interface_declared_in_progress: self.class_interface_declared_in_progress.len(),
+            type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
+            speculation_depth: self.speculation_depth,
+            resolving_open: crate::links::debug_resolving_open(),
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn assert_unwound(&self, entry: &UnwindSnapshot, node: NodeId, boundary: &str) {
+        let exit = self.unwind_snapshot();
+        assert_eq!(
+            &exit, entry,
+            "unsupported-unwind invariant violated after {boundary} of {node:?} \
+             (an Err path left checker state behind — add/fix its revert twin)"
+        );
+    }
+
     /// Per-file driver entry — checkSourceFile (86969) minus the
     /// tracing/perf marks and the nodesToCheck partial-check path
     /// (unported; conformance always full-checks).
@@ -80,6 +142,34 @@ impl<'a> CheckerState<'a> {
         }
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
+        // File-boundary unwind invariant: between files every
+        // transient stack is EMPTY (not merely restored) and no
+        // Resolving sentinel is open — the per-element guards bound
+        // leaks to an element; this pins the absolute baseline.
+        #[cfg(debug_assertions)]
+        {
+            let end = self.unwind_snapshot();
+            let baseline = UnwindSnapshot {
+                resolution_targets: 0,
+                contextual_type_nodes: 0,
+                contextual_types: 0,
+                contextual_is_cache: 0,
+                contextual_binding_patterns: 0,
+                inference_context_nodes: 0,
+                awaited_type_stack: 0,
+                active_type_mappers: 0,
+                active_type_mappers_caches: 0,
+                variance_handler_stack: 0,
+                class_interface_declared_in_progress: 0,
+                type_parameter_defaults_in_progress: 0,
+                speculation_depth: 0,
+                resolving_open: 0,
+            };
+            assert_eq!(
+                end, baseline,
+                "unsupported-unwind invariant violated at the end of file {root:?}"
+            );
+        }
         self.links
             .or_node_check_flags(self.speculation_depth, root, NodeCheckFlags::TYPE_CHECKED);
     }
@@ -178,6 +268,8 @@ impl<'a> CheckerState<'a> {
         let save_current_node = self.current_node;
         self.current_node = Some(node);
         self.instantiation_count = 0;
+        #[cfg(debug_assertions)]
+        let unwind_entry = self.unwind_snapshot();
         // Unsupported containment boundary: tsc has no failure channel
         // here; an Err abandons this element's remaining checks (FN)
         // and the caller's loop continues. TSRS_TRACE_CONTAIN=1 prints
@@ -187,6 +279,8 @@ impl<'a> CheckerState<'a> {
                 eprintln!("contained @{node:?}: {}", err.reason);
             }
         }
+        #[cfg(debug_assertions)]
+        self.assert_unwound(&unwind_entry, node, "check_source_element");
         self.current_node = save_current_node;
     }
 
@@ -839,7 +933,11 @@ impl<'a> CheckerState<'a> {
         let save_current_node = self.current_node;
         self.current_node = Some(node);
         self.instantiation_count = 0;
+        #[cfg(debug_assertions)]
+        let unwind_entry = self.unwind_snapshot();
         let _ = self.check_deferred_node_worker(node);
+        #[cfg(debug_assertions)]
+        self.assert_unwound(&unwind_entry, node, "check_deferred_node");
         self.current_node = save_current_node;
     }
 

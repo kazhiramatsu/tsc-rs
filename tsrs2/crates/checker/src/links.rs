@@ -39,6 +39,45 @@ impl<T: Clone> LinkSlot<T> {
     }
 }
 
+/// Debug-only census of OPEN `Resolving` sentinels on this thread.
+/// Every slot writer below reports its transition; the
+/// unsupported-unwind invariant reads the census at element/file
+/// boundaries (check.rs) — a leaked sentinel after an Err unwind is
+/// the "phantom mid-flight state" bug class the Err-revert twins
+/// exist for. Thread-local is sound because one program's check runs
+/// wholly on one thread (the conformance pool parallelizes across
+/// fixtures, never inside one). Release builds compile the census
+/// out and always answer 0.
+#[cfg(debug_assertions)]
+thread_local! {
+    static RESOLVING_OPEN: std::cell::Cell<i64> = const { std::cell::Cell::new(0) };
+}
+
+#[inline]
+fn note_resolving_transition(before: bool, after: bool) {
+    #[cfg(debug_assertions)]
+    if before != after {
+        RESOLVING_OPEN.with(|cell| cell.set(cell.get() + if after { 1 } else { -1 }));
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (before, after);
+    }
+}
+
+/// The open-`Resolving` census for this thread; 0 whenever no
+/// resolution is mid-flight. Debug builds only — release answers 0.
+pub fn debug_resolving_open() -> i64 {
+    #[cfg(debug_assertions)]
+    {
+        RESOLVING_OPEN.with(std::cell::Cell::get)
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        0
+    }
+}
+
 /// tsc NodeLinks (getNodeLinks) — the per-node subset M3 consumes.
 #[derive(Clone, Debug, Default)]
 pub struct NodeLinks {
@@ -324,7 +363,10 @@ impl LinksTables {
 
     fn write_slot<T: Clone + std::fmt::Debug>(slot: &mut LinkSlot<T>, next: LinkSlot<T>) {
         match (&*slot, &next) {
-            (LinkSlot::Vacant, _) | (LinkSlot::Resolving, LinkSlot::Resolved(_)) => *slot = next,
+            (LinkSlot::Vacant, _) | (LinkSlot::Resolving, LinkSlot::Resolved(_)) => {
+                note_resolving_transition(slot.is_resolving(), next.is_resolving());
+                *slot = next;
+            }
             _ => panic!("links slot rewritten: {slot:?} -> {next:?}"),
         }
     }
@@ -356,6 +398,8 @@ impl LinksTables {
     ) {
         Self::assert_writable(speculation_depth);
         let links = self.node.entry(id).or_default();
+        note_resolving_transition(links.resolved_symbol.is_resolving(), false);
+        note_resolving_transition(links.resolved_type.is_resolving(), false);
         links.resolved_symbol = LinkSlot::Resolved(symbol);
         links.resolved_type = LinkSlot::Resolved(value);
     }
@@ -474,7 +518,10 @@ impl LinksTables {
         match (&*slot, &value) {
             (LinkSlot::Vacant, LinkSlot::Resolving)
             | (LinkSlot::Resolving, LinkSlot::Resolving)
-            | (LinkSlot::Resolving, LinkSlot::Resolved(_)) => *slot = value,
+            | (LinkSlot::Resolving, LinkSlot::Resolved(_)) => {
+                note_resolving_transition(slot.is_resolving(), value.is_resolving());
+                *slot = value;
+            }
             (LinkSlot::Resolved(existing), LinkSlot::Resolved(next)) if existing == next => {}
             _ => panic!("call resolvedSignature protocol violated: {slot:?} -> {value:?}"),
         }
@@ -494,6 +541,7 @@ impl LinksTables {
     ) -> LinkSlot<SignatureId> {
         Self::assert_writable(speculation_depth);
         let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        note_resolving_transition(slot.is_resolving(), value.is_resolving());
         std::mem::replace(slot, value)
     }
 
@@ -506,6 +554,7 @@ impl LinksTables {
     pub fn revert_node_resolved_signature_call(&mut self, id: NodeId) {
         let slot = &mut self.node.entry(id).or_default().resolved_signature;
         if matches!(slot, LinkSlot::Resolving) {
+            note_resolving_transition(true, false);
             *slot = LinkSlot::Vacant;
         }
     }
@@ -529,6 +578,7 @@ impl LinksTables {
             matches!(slot, LinkSlot::Resolving),
             "variances revert without an in-progress measurement for {id:?}"
         );
+        note_resolving_transition(true, false);
         *slot = LinkSlot::Vacant;
     }
 
@@ -905,7 +955,9 @@ impl LinksTables {
         value: SymbolId,
     ) {
         Self::assert_writable(speculation_depth);
-        self.node.entry(id).or_default().resolved_symbol = LinkSlot::Resolved(value);
+        let slot = &mut self.node.entry(id).or_default().resolved_symbol;
+        note_resolving_transition(slot.is_resolving(), false);
+        *slot = LinkSlot::Resolved(value);
     }
 
     /// Err-unwind twin for the late-bind protocol: a container
@@ -914,7 +966,9 @@ impl LinksTables {
     /// retry's lateBindMember and DROP the member from the rebuilt
     /// late table (5.7b review round #2).
     pub fn revert_node_resolved_symbol_late_bind(&mut self, id: NodeId) {
-        self.node.entry(id).or_default().resolved_symbol = LinkSlot::Vacant;
+        let slot = &mut self.node.entry(id).or_default().resolved_symbol;
+        note_resolving_transition(slot.is_resolving(), false);
+        *slot = LinkSlot::Vacant;
     }
 
     /// Err-unwind twin for `links.lateSymbol`.
@@ -940,7 +994,10 @@ impl LinksTables {
             LinkSlot::Resolved(existing) => {
                 panic!("resolvedSymbol rewritten with a DIFFERENT value: {existing:?} -> {value:?}")
             }
-            _ => *slot = LinkSlot::Resolved(value),
+            _ => {
+                note_resolving_transition(slot.is_resolving(), false);
+                *slot = LinkSlot::Resolved(value);
+            }
         }
     }
 
@@ -1025,12 +1082,16 @@ impl LinksTables {
         value: tsrs2_binder::SymbolTable,
     ) {
         Self::assert_writable(speculation_depth);
-        self.symbol.entry(id).or_default().resolved_members = LinkSlot::Resolved(value);
+        let slot = &mut self.symbol.entry(id).or_default().resolved_members;
+        note_resolving_transition(slot.is_resolving(), false);
+        *slot = LinkSlot::Resolved(value);
     }
 
     /// Err-unwind twin for the late-binding protocol.
     pub fn revert_symbol_resolved_members(&mut self, id: SymbolId) {
-        self.symbol.entry(id).or_default().resolved_members = LinkSlot::Vacant;
+        let slot = &mut self.symbol.entry(id).or_default().resolved_members;
+        note_resolving_transition(slot.is_resolving(), false);
+        *slot = LinkSlot::Vacant;
     }
 
     /// The resolvedExports flavor of the late-binding protocol.
@@ -1041,12 +1102,16 @@ impl LinksTables {
         value: tsrs2_binder::SymbolTable,
     ) {
         Self::assert_writable(speculation_depth);
-        self.symbol.entry(id).or_default().resolved_exports = LinkSlot::Resolved(value);
+        let slot = &mut self.symbol.entry(id).or_default().resolved_exports;
+        note_resolving_transition(slot.is_resolving(), false);
+        *slot = LinkSlot::Resolved(value);
     }
 
     /// Err-unwind twin for the resolvedExports flavor.
     pub fn revert_symbol_resolved_exports(&mut self, id: SymbolId) {
-        self.symbol.entry(id).or_default().resolved_exports = LinkSlot::Vacant;
+        let slot = &mut self.symbol.entry(id).or_default().resolved_exports;
+        note_resolving_transition(slot.is_resolving(), false);
+        *slot = LinkSlot::Vacant;
     }
 
     /// `links.lateSymbol = ...` (addDeclarationToLateBoundSymbol 57652)
