@@ -1,9 +1,13 @@
-//! M4 5.5f: the §9 JSX attribute slice — eager element/fragment arms,
-//! the deferred opening check up to THE 5.7 BOUNDARY (L74804
-//! `getResolvedSignature`), JSX grammar (2633/2639/17001/17000/18007)
-//! and preconditions (17004). Everything past the boundary
-//! (closing-tag checks, children, attributes-vs-props relations,
-//! 2604/2605/18053/2786-2789) arrives with call resolution at 5.7.
+//! M4 5.5f + 5.7c: the JSX band — eager element/fragment arms, JSX
+//! grammar (2633/2639/17001/17000/18007) and preconditions (17004)
+//! landed at 5.5f; 5.7c adds everything past the old
+//! `getResolvedSignature` boundary: getIntrinsicTagSymbol +
+//! intrinsic/fragment/value-tag resolution (7026/2339/2604/2879/
+//! 2558), the attributes worker (2698/2710/2608), effective-first-arg
+//! (2607) and the post-resolution tail (2786-family). Attributes-vs-
+//! props relation FAILURES largely contain: elaborateJsxComponents is
+//! elementwise elaboration (T2 machinery) and the anonymous
+//! attributes-type display rides the T2 curtain.
 //!
 //! Namespace machinery scope: the `jsx` option is modeled; fixtures
 //! that customize the namespace ENTITY (jsxFactory-family options,
@@ -12,17 +16,42 @@
 //! namespace would resolve the wrong JSX.* container (FP shape), so
 //! containment wins.
 
-use tsrs2_binder::SymbolId;
+use tsrs2_binder::{SymbolId, SymbolTable};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{SymbolFlags, TypeId};
+use tsrs2_types::{
+    CheckMode, ContextFlags, IntersectionFlags, JsxFlags, ObjectFlags, SymbolFlags, TypeData,
+    TypeFlags, TypeId,
+};
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::structural::SignatureKind;
+
+use crate::links::LinkSlot;
+use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
 use tsrs2_diags::gen as diagnostics;
+use tsrs2_diags::MessageChain;
 
 /// JsxNames (90915): the JSX.* well-known member names this slice
 /// consults.
 const JSX_NAMESPACE_NAME: &str = "JSX";
 const JSX_ELEMENT: &str = "Element";
+const JSX_INTRINSIC_ELEMENTS: &str = "IntrinsicElements";
+const JSX_ELEMENT_CLASS: &str = "ElementClass";
+const JSX_ELEMENT_ATTRIBUTES_PROPERTY_NAME_CONTAINER: &str = "ElementAttributesProperty";
+const JSX_ELEMENT_CHILDREN_ATTRIBUTE_NAME_CONTAINER: &str = "ElementChildrenAttribute";
+const JSX_ELEMENT_TYPE: &str = "ElementType";
+const JSX_INTRINSIC_ATTRIBUTES: &str = "IntrinsicAttributes";
+const JSX_INTRINSIC_CLASS_ATTRIBUTES: &str = "IntrinsicClassAttributes";
+const JSX_LIBRARY_MANAGED_ATTRIBUTES: &str = "LibraryManagedAttributes";
+/// ReactNames (90927).
+const REACT_FRAGMENT: &str = "Fragment";
+
+/// tsc JsxReferenceKind (getJsxReferenceKind 76075).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum JsxReferenceKind {
+    Component,
+    Function,
+    Mixed,
+}
 
 impl<'a> CheckerState<'a> {
     // ---- eager worker arms ----
@@ -64,7 +93,7 @@ impl<'a> CheckerState<'a> {
         if let Some(opening_fragment) = opening_fragment {
             self.check_jsx_opening_like_element_or_opening_fragment(opening_fragment)?;
         }
-        self.check_jsx_children(node)?;
+        self.check_jsx_children(node, tsrs2_types::CheckMode::NORMAL)?;
         let element_type = self.get_jsx_element_type_at(node)?;
         Ok(if self.tables.is_error_type(element_type) {
             self.tables.intrinsics.any
@@ -98,16 +127,407 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
-    /// The JsxAttributes worker arm: createJsxAttributesTypeFromAttributesProperty
-    /// (74346) builds the attributes object type — its observable
-    /// consumers (props relations, contextual attribute types) all sit
-    /// behind the resolveJsxOpeningLikeElement boundary. Escape with
-    /// the 5.7 band rather than half-build the type (children
-    /// synthesis fabricates a PropertySignature declaration).
-    pub(crate) fn check_jsx_attributes_stub(&self) -> CheckResult2<TypeId> {
-        Err(Unsupported::new(
-            "checkJsxAttributes (attributes type construction, 5.7)",
-        ))
+    /// tsc-port: checkJsxAttributes @6.0.3
+    /// tsc-hash: ceed171a5b09ff0e3d5ee2df7229d3afa2e83ed0c8bd34c36f8f3006a32c0c8a
+    /// tsc-span: _tsc.js:74522-74524
+    pub(crate) fn check_jsx_attributes(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        let parent = self.parent_of(node).ok_or_else(|| {
+            Unsupported::new("JSX attributes without an element (parse recovery)")
+        })?;
+        self.create_jsx_attributes_type_from_attributes_property(parent, check_mode)
+    }
+
+    /// tsc-port: checkJsxAttribute @6.0.3
+    /// tsc-hash: 91408c9840bf8a783d7d1ced8d401c91a4ece4e3cd97ffefcc87f31685bf5852
+    /// tsc-span: _tsc.js:74343-74345
+    pub(crate) fn check_jsx_attribute(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        let initializer = match self.data_of(node) {
+            NodeData::JsxAttribute(data) => data.initializer,
+            _ => None,
+        };
+        match initializer {
+            Some(initializer) => {
+                self.check_expression_for_mutable_location(initializer, check_mode, false)
+            }
+            None => Ok(self.tables.intrinsics.true_fresh),
+        }
+    }
+
+    /// tsc-port: createJsxAttributesTypeFromAttributesProperty @6.0.3
+    /// tsc-hash: 0a9b4693e940d88eb7c1f44bf68f18be234122787ee12bdd1cee1f6250e83715
+    /// tsc-span: _tsc.js:74346-74490
+    ///
+    /// Divergences held to the T2/M6 lines: the deprecation-suggestion
+    /// probe (74381-74386) is suggestion-band (unmodeled JSDoc) — the
+    /// access.rs precedent; addIntraExpressionInferenceSite requires a
+    /// live inference context (Inferential never set at M4 — escape
+    /// mirrors literals.rs); the synthesized children property carries
+    /// NO fabricated PropertySignature valueDeclaration (node
+    /// fabrication is unavailable — its consumers are display/related-
+    /// span side, T2).
+    pub(crate) fn create_jsx_attributes_type_from_attributes_property(
+        &mut self,
+        opening_like_element: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        let strict_null_checks = self.tables.strict_null_checks;
+        let mut all_attributes_table = strict_null_checks.then(SymbolTable::default);
+        let mut attributes_table = SymbolTable::default();
+        let mut spread = self.empty_jsx_object_type;
+        let mut has_spread_any_type = false;
+        let mut type_to_intersect: Option<TypeId> = None;
+        let mut explicitly_specify_children_attribute = false;
+        let mut object_flags = ObjectFlags::JSX_ATTRIBUTES;
+        let jsx_namespace = self.get_jsx_namespace_at(opening_like_element)?;
+        let jsx_children_property_name =
+            self.get_jsx_element_children_property_name(jsx_namespace)?;
+        let is_jsx_open_fragment =
+            self.kind_of(opening_like_element) == SyntaxKind::JsxOpeningFragment;
+        let mut attributes_symbol: Option<SymbolId> = None;
+        let mut attribute_parent = opening_like_element;
+        if !is_jsx_open_fragment {
+            let attributes = match self.data_of(opening_like_element) {
+                NodeData::JsxOpeningElement(data) => data.attributes,
+                NodeData::JsxSelfClosingElement(data) => data.attributes,
+                _ => None,
+            }
+            .ok_or_else(|| {
+                Unsupported::new("JSX opening element without attributes (parse recovery)")
+            })?;
+            attributes_symbol = self.node_symbol(attributes);
+            attribute_parent = attributes;
+            let contextual_type = self.get_contextual_type(attributes, ContextFlags::NONE)?;
+            let properties = match self.data_of(attributes) {
+                NodeData::JsxAttributes(data) => data.properties,
+                _ => None,
+            };
+            for attribute_decl in self.nodes_of(properties) {
+                if self.kind_of(attribute_decl) == SyntaxKind::JsxAttribute {
+                    let member = self.node_symbol(attribute_decl).ok_or_else(|| {
+                        Unsupported::new("JSX attribute without a bound symbol (parse recovery)")
+                    })?;
+                    let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
+                    object_flags |=
+                        self.tables.object_flags_of(expr_type) & ObjectFlags::PROPAGATING_FLAGS;
+                    let member_flags = self.binder.symbol(member).flags;
+                    let escaped_name = self.binder.symbol(member).escaped_name.clone();
+                    let attribute_symbol = self
+                        .binder
+                        .create_symbol(SymbolFlags::PROPERTY | member_flags, escaped_name.clone());
+                    let declarations = self.binder.symbol(member).declarations.clone();
+                    let parent = self.binder.symbol(member).parent;
+                    let value_declaration = self.binder.symbol(member).value_declaration;
+                    {
+                        let symbol = self.binder.symbol_mut(attribute_symbol);
+                        symbol.declarations = declarations;
+                        symbol.parent = parent;
+                        if let Some(value_declaration) = value_declaration {
+                            symbol.value_declaration = Some(value_declaration);
+                        }
+                    }
+                    self.links.set_symbol_type(
+                        self.speculation_depth,
+                        attribute_symbol,
+                        LinkSlot::Resolved(expr_type),
+                    );
+                    self.links
+                        .set_symbol_target(self.speculation_depth, attribute_symbol, member);
+                    attributes_table.insert(escaped_name.clone(), attribute_symbol);
+                    if let Some(all) = &mut all_attributes_table {
+                        all.insert(escaped_name, attribute_symbol);
+                    }
+                    let name_text = match self.data_of(attribute_decl) {
+                        NodeData::JsxAttribute(data) => {
+                            data.name.map(|name| self.jsx_attribute_name_text(name))
+                        }
+                        _ => None,
+                    };
+                    if let (Some(name_text), Some(children_name)) =
+                        (&name_text, &jsx_children_property_name)
+                    {
+                        if name_text == children_name {
+                            explicitly_specify_children_attribute = true;
+                        }
+                    }
+                    // 74381-74386: addDeprecatedSuggestion — the
+                    // suggestion band rides JSDoc @deprecated
+                    // (unmodeled); elided like access.rs.
+                    if contextual_type.is_some()
+                        && check_mode.intersects(CheckMode::INFERENTIAL)
+                        && !check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
+                        && self.is_context_sensitive(attribute_decl)
+                    {
+                        return Err(Unsupported::new(
+                            "addIntraExpressionInferenceSite (inference contexts, M6)",
+                        ));
+                    }
+                } else {
+                    // Debug.assert(JsxSpreadAttribute) — recovery kinds
+                    // take a named escape instead of a panic (risk #6).
+                    if self.kind_of(attribute_decl) != SyntaxKind::JsxSpreadAttribute {
+                        return Err(Unsupported::new(
+                            "unexpected JSX attribute kind (parse recovery)",
+                        ));
+                    }
+                    if !attributes_table.is_empty() {
+                        let segment = self.create_jsx_attributes_segment(
+                            &mut object_flags,
+                            attributes_symbol,
+                            &attributes_table,
+                        );
+                        spread = self.get_spread_type(
+                            spread,
+                            segment,
+                            attributes_symbol,
+                            object_flags,
+                            /*readonly*/ false,
+                        )?;
+                        attributes_table = SymbolTable::default();
+                    }
+                    let expression = match self.data_of(attribute_decl) {
+                        NodeData::JsxSpreadAttribute(data) => data.expression,
+                        _ => None,
+                    }
+                    .ok_or_else(|| {
+                        Unsupported::new("JSX spread without an expression (parse recovery)")
+                    })?;
+                    let inner_mode =
+                        CheckMode::from_bits(check_mode.bits() & CheckMode::INFERENTIAL.bits());
+                    let raw = self.check_expression(expression, inner_mode)?;
+                    let expr_type = self.get_reduced_type(raw)?;
+                    if self.tables.flags_of(expr_type).intersects(TypeFlags::ANY) {
+                        has_spread_any_type = true;
+                    }
+                    if self.is_valid_spread_type(expr_type)? {
+                        spread = self.get_spread_type(
+                            spread,
+                            expr_type,
+                            attributes_symbol,
+                            object_flags,
+                            /*readonly*/ false,
+                        )?;
+                        if let Some(all) = &all_attributes_table {
+                            let all = all.clone();
+                            self.check_spread_prop_overrides(expr_type, &all, attribute_decl)?;
+                        }
+                    } else {
+                        self.error_at(
+                            Some(expression),
+                            &diagnostics::Spread_types_may_only_be_created_from_object_types,
+                            &[],
+                        );
+                        type_to_intersect = Some(match type_to_intersect {
+                            Some(existing) => self.get_intersection_type(
+                                &[existing, expr_type],
+                                IntersectionFlags::NONE,
+                            )?,
+                            None => expr_type,
+                        });
+                    }
+                }
+            }
+            if !has_spread_any_type && !attributes_table.is_empty() {
+                let segment = self.create_jsx_attributes_segment(
+                    &mut object_flags,
+                    attributes_symbol,
+                    &attributes_table,
+                );
+                spread = self.get_spread_type(
+                    spread,
+                    segment,
+                    attributes_symbol,
+                    object_flags,
+                    /*readonly*/ false,
+                )?;
+            }
+        }
+        // 74441-74478: the children property synthesis.
+        let parent = self.parent_of(opening_like_element);
+        let element_with_children = parent.filter(|&parent| match self.data_of(parent) {
+            NodeData::JsxElement(data) => data.opening_element == Some(opening_like_element),
+            NodeData::JsxFragment(data) => data.opening_fragment == Some(opening_like_element),
+            _ => false,
+        });
+        if let Some(element) = element_with_children {
+            let children = match self.data_of(element) {
+                NodeData::JsxElement(data) => data.children,
+                NodeData::JsxFragment(data) => data.children,
+                _ => None,
+            };
+            let semantic_children = self
+                .nodes_of(children)
+                .into_iter()
+                .filter(|&child| self.is_semantic_jsx_child(child))
+                .count();
+            if semantic_children > 0 {
+                let children_types = self.check_jsx_children(element, check_mode)?;
+                if let Some(children_name) = jsx_children_property_name
+                    .as_ref()
+                    .filter(|name| !has_spread_any_type && !name.is_empty())
+                {
+                    if explicitly_specify_children_attribute {
+                        let display = tsrs2_binder::unescape_leading_underscores(children_name);
+                        self.error_at(
+                            Some(attribute_parent),
+                            &diagnostics::_0_are_specified_twice_The_attribute_named_0_will_be_overwritten,
+                            &[display],
+                        );
+                    }
+                    let contextual_type =
+                        if self.kind_of(opening_like_element) == SyntaxKind::JsxOpeningElement {
+                            self.get_apparent_type_of_contextual_type(
+                                attribute_parent,
+                                ContextFlags::NONE,
+                            )?
+                        } else {
+                            None
+                        };
+                    let children_contextual_type = match contextual_type {
+                        Some(contextual_type) => self.get_type_of_property_of_contextual_type(
+                            contextual_type,
+                            children_name,
+                            None,
+                        )?,
+                        None => None,
+                    };
+                    let children_prop_symbol = self
+                        .binder
+                        .create_symbol(SymbolFlags::PROPERTY, children_name.clone());
+                    let children_prop_type = if children_types.len() == 1 {
+                        children_types[0]
+                    } else if self
+                        .contextual_children_type_is_tuple_like(children_contextual_type)?
+                    {
+                        self.create_tuple_type_forced(&children_types, None, false, None)?
+                    } else {
+                        let union = self.get_union_type_ex(
+                            &children_types,
+                            tsrs2_types::UnionReduction::Literal,
+                        )?;
+                        self.create_array_type(union, /*readonly*/ false)?
+                    };
+                    self.links.set_symbol_type(
+                        self.speculation_depth,
+                        children_prop_symbol,
+                        LinkSlot::Resolved(children_prop_type),
+                    );
+                    // The fabricated PropertySignature valueDeclaration
+                    // (74456-74466) is elided — see the fn header.
+                    let mut child_prop_map = SymbolTable::default();
+                    child_prop_map.insert(children_name.clone(), children_prop_symbol);
+                    let child_type = self.make_resolved_anonymous_type(
+                        attributes_symbol,
+                        child_prop_map,
+                        vec![children_prop_symbol],
+                        Vec::new(),
+                        ObjectFlags::ANONYMOUS,
+                    );
+                    let mut propagating = ObjectFlags::from_bits(0);
+                    for &child in &children_types {
+                        propagating |=
+                            self.tables.object_flags_of(child) & ObjectFlags::PROPAGATING_FLAGS;
+                    }
+                    spread = self.get_spread_type(
+                        spread,
+                        child_type,
+                        attributes_symbol,
+                        object_flags | propagating,
+                        /*readonly*/ false,
+                    )?;
+                }
+            }
+        }
+        if has_spread_any_type {
+            return Ok(self.tables.intrinsics.any);
+        }
+        if let Some(type_to_intersect) = type_to_intersect {
+            if spread != self.empty_jsx_object_type {
+                return self
+                    .get_intersection_type(&[type_to_intersect, spread], IntersectionFlags::NONE);
+            }
+            return Ok(type_to_intersect);
+        }
+        if spread == self.empty_jsx_object_type {
+            return Ok(self.create_jsx_attributes_segment(
+                &mut object_flags,
+                attributes_symbol,
+                &attributes_table,
+            ));
+        }
+        Ok(spread)
+    }
+
+    /// The createJsxAttributesTypeHelper closure (74486-74489) +
+    /// createJsxAttributesType (74491-74495): a FRESH anonymous type
+    /// over the current segment table; the helper mutates the shared
+    /// objectFlags word (FreshLiteral accumulates).
+    fn create_jsx_attributes_segment(
+        &mut self,
+        object_flags: &mut ObjectFlags,
+        attributes_symbol: Option<SymbolId>,
+        attributes_table: &SymbolTable,
+    ) -> TypeId {
+        *object_flags |= ObjectFlags::FRESH_LITERAL;
+        let flags = ObjectFlags::ANONYMOUS
+            | *object_flags
+            | ObjectFlags::FRESH_LITERAL
+            | ObjectFlags::OBJECT_LITERAL
+            | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+        let properties: Vec<SymbolId> = attributes_table.values().copied().collect();
+        self.make_resolved_anonymous_type(
+            attributes_symbol,
+            attributes_table.clone(),
+            properties,
+            Vec::new(),
+            flags,
+        )
+    }
+
+    /// someType(childrenContextualType, isTupleLikeType) (74455) —
+    /// the union-distributing probe, result-carrying.
+    fn contextual_children_type_is_tuple_like(
+        &mut self,
+        children_contextual_type: Option<TypeId>,
+    ) -> CheckResult2<bool> {
+        let Some(ty) = children_contextual_type else {
+            return Ok(false);
+        };
+        let constituents: Vec<TypeId> = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
+            match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => vec![ty],
+            }
+        } else {
+            vec![ty]
+        };
+        for constituent in constituents {
+            if self.is_tuple_like_type(constituent)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: getSemanticJsxChildren @6.0.3 (the per-child predicate)
+    /// tsc-hash: 6f3f6ec374677f5ec862f5979a10f36bbed5b161dd1f0ba688e0a2003f12bc8d
+    /// tsc-span: _tsc.js:16187-16200
+    pub(crate) fn is_semantic_jsx_child(&self, child: NodeId) -> bool {
+        match self.data_of(child) {
+            NodeData::JsxExpression(data) => data.expression.is_some(),
+            NodeData::JsxText(data) => !data
+                .text
+                .chars()
+                .all(|c| matches!(c, ' ' | '\t' | '\r' | '\n')),
+            _ => true,
+        }
     }
 
     // ---- deferred arms ----
@@ -115,22 +535,29 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJsxElementDeferred @6.0.3
     /// tsc-hash: 2068fd98f6f9b417a668c1ce64f5e2eddbad0fbfac7de3c282bb47c997bc6776
     /// tsc-span: _tsc.js:74311-74319
-    ///
-    /// The closing-tag check and checkJsxChildren sit AFTER the
-    /// opening check, whose getResolvedSignature boundary escapes —
-    /// they arrive with 5.7.
     pub(crate) fn check_jsx_element_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
-        let opening_element = match self.data_of(node) {
-            NodeData::JsxElement(data) => data.opening_element,
-            _ => None,
+        let (opening_element, closing_element) = match self.data_of(node) {
+            NodeData::JsxElement(data) => (data.opening_element, data.closing_element),
+            _ => (None, None),
         };
         if let Some(opening_element) = opening_element {
             self.check_jsx_opening_like_element_or_opening_fragment(opening_element)?;
         }
-        // Unreachable until 5.7 (the opening check escaped above):
-        // intrinsic closing tags → getIntrinsicTagSymbol; value tags →
-        // checkExpression(tagName); then checkJsxChildren.
-        unreachable!("the getResolvedSignature boundary escapes until 5.7");
+        if let Some(closing_element) = closing_element {
+            let tag_name = match self.data_of(closing_element) {
+                NodeData::JsxClosingElement(data) => data.tag_name,
+                _ => None,
+            };
+            if let Some(tag_name) = tag_name {
+                if self.is_jsx_intrinsic_tag_name(tag_name) {
+                    self.get_intrinsic_tag_symbol(closing_element)?;
+                } else {
+                    self.check_expression(tag_name, CheckMode::NORMAL)?;
+                }
+            }
+        }
+        self.check_jsx_children(node, CheckMode::NORMAL)?;
+        Ok(())
     }
 
     /// tsc-port: checkJsxSelfClosingElementDeferred @6.0.3
@@ -140,8 +567,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult2<()> {
-        self.check_jsx_opening_like_element_or_opening_fragment(node)?;
-        unreachable!("the getResolvedSignature boundary escapes until 5.7");
+        self.check_jsx_opening_like_element_or_opening_fragment(node)
     }
 
     /// tsc-port: checkJsxOpeningLikeElementOrOpeningFragment @6.0.3
@@ -149,11 +575,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74797-74825
     ///
     /// markJsxAliasReferenced (71787) is emit/alias bookkeeping — no-op
-    /// hook. L74804 `getResolvedSignature` is THE 5.7 line: everything
-    /// from there (checkDeprecatedSignature, the elementTypeConstraint
-    /// relation with 2786-family, checkJsxReturnAssignableToAppropriateBound)
-    /// escapes.
-    fn check_jsx_opening_like_element_or_opening_fragment(
+    /// hook. checkDeprecatedSignature is a no-op like the call worker's
+    /// (the Deprecated flag only comes from JSDoc `@deprecated`,
+    /// unmodeled — the 5.7b flag audit).
+    pub(crate) fn check_jsx_opening_like_element_or_opening_fragment(
         &mut self,
         node: NodeId,
     ) -> CheckResult2<()> {
@@ -165,10 +590,126 @@ impl<'a> CheckerState<'a> {
             self.check_grammar_jsx_element(node);
         }
         self.check_jsx_preconditions(node)?;
-        // markJsxAliasReferenced: no-op hook (emit bookkeeping).
-        Err(Unsupported::new(
-            "getResolvedSignature over a JSX opening-like element (call resolution, 5.7)",
-        ))
+        self.mark_jsx_alias_referenced(node)?;
+        let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
+        // checkDeprecatedSignature: no-op (see the fn header).
+        if is_opening_like {
+            let element_type_constraint = self.get_jsx_element_type_type_at(node)?;
+            let tag_name = match self.data_of(node) {
+                NodeData::JsxOpeningElement(data) => data.tag_name,
+                NodeData::JsxSelfClosingElement(data) => data.tag_name,
+                _ => None,
+            }
+            .ok_or_else(|| {
+                Unsupported::new("JSX opening element without a tag name (parse recovery)")
+            })?;
+            if let Some(constraint) = element_type_constraint {
+                let tag_type = if self.is_jsx_intrinsic_tag_name(tag_name) {
+                    let text = self.intrinsic_tag_name_to_string(tag_name)?;
+                    self.tables.get_string_literal_type(&text)
+                } else {
+                    self.check_expression(tag_name, CheckMode::NORMAL)?
+                };
+                self.check_jsx_bound_relation(
+                    tag_type,
+                    constraint,
+                    tag_name,
+                    &diagnostics::Its_type_0_is_not_a_valid_JSX_element_type,
+                )?;
+            } else {
+                let ref_kind = self.get_jsx_reference_kind(node)?;
+                let instance_type = self.get_return_type_of_signature(signature)?;
+                self.check_jsx_return_assignable_to_appropriate_bound(
+                    ref_kind,
+                    instance_type,
+                    node,
+                    tag_name,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkJsxReturnAssignableToAppropriateBound @6.0.3
+    /// tsc-hash: f2e804bf0cd9a84cfa9cbb8d440df8b5b28180ac83781710e7ce17d31a43fe19
+    /// tsc-span: _tsc.js:74698-74727
+    fn check_jsx_return_assignable_to_appropriate_bound(
+        &mut self,
+        ref_kind: JsxReferenceKind,
+        elem_instance_type: TypeId,
+        opening_like_element: NodeId,
+        tag_name: NodeId,
+    ) -> CheckResult2<()> {
+        match ref_kind {
+            JsxReferenceKind::Function => {
+                let constraint = self.get_jsx_stateless_element_type_at(opening_like_element)?;
+                if let Some(constraint) = constraint {
+                    self.check_jsx_bound_relation(
+                        elem_instance_type,
+                        constraint,
+                        tag_name,
+                        &diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
+                    )?;
+                }
+            }
+            JsxReferenceKind::Component => {
+                let constraint = self.get_jsx_element_class_type_at(opening_like_element)?;
+                if let Some(constraint) = constraint {
+                    self.check_jsx_bound_relation(
+                        elem_instance_type,
+                        constraint,
+                        tag_name,
+                        &diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
+                    )?;
+                }
+            }
+            JsxReferenceKind::Mixed => {
+                let sfc = self.get_jsx_stateless_element_type_at(opening_like_element)?;
+                let class = self.get_jsx_element_class_type_at(opening_like_element)?;
+                let (Some(sfc), Some(class)) = (sfc, class) else {
+                    return Ok(());
+                };
+                let combined =
+                    self.get_union_type_ex(&[sfc, class], tsrs2_types::UnionReduction::Literal)?;
+                self.check_jsx_bound_relation(
+                    elem_instance_type,
+                    combined,
+                    tag_name,
+                    &diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// checkTypeRelatedTo(source, target, assignable, errorNode=tagName,
+    /// headMessage, generateInitialErrorChain) — the 2786-family
+    /// reporter: the OUTER chain (and diagnostic code) is 2786
+    /// `_0_cannot_be_used_as_a_JSX_component` over the flavor head; the
+    /// relation-detail tail elides (T2). Display failures unwind
+    /// Unsupported per the house discipline.
+    fn check_jsx_bound_relation(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        tag_name: NodeId,
+        head: &'static tsrs2_diags::DiagnosticMessage,
+    ) -> CheckResult2<()> {
+        if self.is_type_assignable_to(source, target)? {
+            return Ok(());
+        }
+        let source_text = self.type_to_string_slice(source)?;
+        let target_text = self.type_to_string_slice(target)?;
+        let component_name = self.text_of_node(tag_name)?;
+        let chain = MessageChain::new(
+            &diagnostics::_0_cannot_be_used_as_a_JSX_component,
+            &[component_name],
+        )
+        .with_next(vec![MessageChain::new(head, &[source_text, target_text])]);
+        let span = self.diag_span_of_node(tag_name);
+        let diagnostic = self.diagnostic_at_span(&span, chain);
+        self.push_error_diagnostic(diagnostic);
+        Ok(())
     }
 
     /// tsc-port: checkJsxPreconditions @6.0.3
@@ -191,10 +732,77 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
+    /// tsc-port: markJsxAliasReferenced @6.0.3
+    /// tsc-hash: 0eada6ca95ca451acb3957d1c93cab747727a4e7e2681109206f406b65eb9efa
+    /// tsc-span: _tsc.js:71787-71827
+    ///
+    /// The REFERENCE bookkeeping (isReferenced, alias marking) is
+    /// M7/alias-band and stays inert; the T0 face is the factory
+    /// resolveName probe whose not-found message (2874) fires under
+    /// jsx===React. The implicit-import container is None behind the
+    /// entity guard; getJsxFactoryEntity's surviving face shares the
+    /// same first identifier (reactNamespace ‖ React), so the
+    /// fragment's second probe dedupes to the first (exact-duplicate
+    /// diagnostic).
+    fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult2<()> {
+        // The factory NAME below is the post-guard surviving face
+        // (reactNamespace ‖ React) — a pragma/jsxFactory file would
+        // resolve the WRONG entity and fabricate 2874 (FP shape), so
+        // the entity guard runs first.
+        self.jsx_namespace_entity_guard(node)?;
+        let jsx_factory_ref_err = (self.options.jsx == Some(2)).then_some(
+            &diagnostics::This_JSX_tag_requires_0_to_be_in_scope_but_it_could_not_be_found,
+        );
+        let jsx_factory_namespace = self.get_jsx_namespace_name(node);
+        let jsx_factory_location = match self.data_of(node) {
+            NodeData::JsxOpeningElement(data) => data.tag_name.unwrap_or(node),
+            NodeData::JsxSelfClosingElement(data) => data.tag_name.unwrap_or(node),
+            _ => node,
+        };
+        // shouldFactoryRefErr: jsx !== Preserve && jsx !== ReactNative.
+        let should_factory_ref_err = !matches!(self.options.jsx, Some(1) | Some(3));
+        let meaning = if should_factory_ref_err {
+            SymbolFlags::VALUE
+        } else {
+            SymbolFlags::from_bits(SymbolFlags::VALUE.bits() & !SymbolFlags::ENUM.bits())
+        };
+        let is_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
+        if !(is_fragment && jsx_factory_namespace == "null") {
+            let symbol = self.resolve_name(
+                Some(jsx_factory_location),
+                &jsx_factory_namespace,
+                meaning,
+                jsx_factory_ref_err,
+                /*is_use*/ true,
+                /*exclude_globals*/ false,
+            );
+            // isReferenced/alias marking: M7/alias bookkeeping, inert.
+            let _ = symbol;
+        }
+        if is_fragment {
+            // getJsxFactoryEntity's first identifier is the SAME
+            // surviving namespace name — the duplicate probe re-runs
+            // for its diagnostic (exact duplicates dedupe).
+            self.resolve_name(
+                Some(jsx_factory_location),
+                &jsx_factory_namespace,
+                meaning,
+                jsx_factory_ref_err,
+                /*is_use*/ true,
+                /*exclude_globals*/ false,
+            );
+        }
+        Ok(())
+    }
+
     /// tsc-port: checkJsxChildren @6.0.3
     /// tsc-hash: 4278af460ef6a9ddc82ec13a9987a5a5680260214fdf98c2be57a7f478751355
     /// tsc-span: _tsc.js:74496-74510
-    fn check_jsx_children(&mut self, node: NodeId) -> CheckResult2<Vec<TypeId>> {
+    fn check_jsx_children(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<Vec<TypeId>> {
         let children = match self.data_of(node) {
             NodeData::JsxElement(data) => data.children,
             NodeData::JsxFragment(data) => data.children,
@@ -223,11 +831,9 @@ impl<'a> CheckerState<'a> {
                         NodeData::JsxExpression(data) if data.expression.is_none()
                     ) => {}
                 _ => {
-                    children_types.push(self.check_expression_for_mutable_location(
-                        child,
-                        tsrs2_types::CheckMode::NORMAL,
-                        false,
-                    )?);
+                    children_types.push(
+                        self.check_expression_for_mutable_location(child, check_mode, false)?,
+                    );
                 }
             }
         }
@@ -275,6 +881,952 @@ impl<'a> CheckerState<'a> {
         Ok(self.binder.symbol(namespace).exports.clone())
     }
 
+    /// getSymbol(getExportsOfSymbol(namespace), name, meaning) (50791)
+    /// over the JSX namespace: merged-symbol chase + meaning filter;
+    /// the alias arm (resolveAlias target-flag probe) escapes to 5.8.
+    fn jsx_namespace_export(
+        &mut self,
+        namespace: SymbolId,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let exports = self.get_exports_of_jsx_namespace(namespace)?;
+        let Some(&symbol) = exports.get(name) else {
+            return Ok(None);
+        };
+        let symbol = self.get_merged_symbol(symbol);
+        let flags = self.symbol_flags(symbol);
+        if flags.intersects(meaning) {
+            return Ok(Some(symbol));
+        }
+        if flags.intersects(SymbolFlags::ALIAS) {
+            return Err(Unsupported::new(
+                "aliased JSX.* namespace member (alias resolution, 5.8)",
+            ));
+        }
+        Ok(None)
+    }
+
+    // ---- 5.7c: intrinsic tag resolution ----
+
+    /// tsc-port: isJsxIntrinsicTagName @6.0.3
+    /// tsc-hash: 12579b4f2aea0333c0ef3472df620269b6209d96f0b9344fb1a4c0603f4a52c8
+    /// tsc-span: _tsc.js:74340-74342
+    pub(crate) fn is_jsx_intrinsic_tag_name(&self, tag_name: NodeId) -> bool {
+        match self.data_of(tag_name) {
+            NodeData::Identifier(data) => is_intrinsic_jsx_name(&data.escaped_text),
+            NodeData::JsxNamespacedName(_) => true,
+            _ => false,
+        }
+    }
+
+    /// The escaped property name an intrinsic tag looks up
+    /// (tagName.escapedText ‖ getEscapedTextOfJsxNamespacedName).
+    fn intrinsic_tag_property_name(&self, tag_name: NodeId) -> CheckResult2<String> {
+        match self.data_of(tag_name) {
+            NodeData::Identifier(data) => Ok(data.escaped_text.clone()),
+            NodeData::JsxNamespacedName(_) => Ok(self.jsx_attribute_name_text(tag_name)),
+            _ => Err(Unsupported::new(
+                "intrinsic tag with a non-identifier name (parse recovery)",
+            )),
+        }
+    }
+
+    /// tsc-port: intrinsicTagNameToString @6.0.3
+    /// tsc-hash: 2664b54c05cf94a2a019c82065356c1348fec112c02379f734d79d8b7a488aa4
+    /// tsc-span: _tsc.js:19348-19350
+    ///
+    /// idText flavors: the DISPLAY form (unescaped).
+    fn intrinsic_tag_name_to_string(&self, tag_name: NodeId) -> CheckResult2<String> {
+        let escaped = self.intrinsic_tag_property_name(tag_name)?;
+        Ok(tsrs2_binder::unescape_leading_underscores(&escaped).to_owned())
+    }
+
+    /// tsc-port: getIntrinsicTagSymbol @6.0.3
+    /// tsc-hash: b9cbc750759c56623f8eedde30346c88f2d5482af2d9800ac332796eafc4253f
+    /// tsc-span: _tsc.js:74531-74562
+    ///
+    /// The getApplicableIndexSymbol arm (74543-74547) and the
+    /// propName-typed re-probe (74548-74551) merge here: both answer
+    /// IntrinsicIndexedElement, and the memoized symbol identity
+    /// (a filtered `__index` copy vs the container symbol) is
+    /// services-only — T0 reads jsxFlags and the error rows.
+    pub(crate) fn get_intrinsic_tag_symbol(&mut self, node: NodeId) -> CheckResult2<SymbolId> {
+        if let Some(cached) = self.links.node(node).resolved_symbol.resolved() {
+            return Ok(cached);
+        }
+        let tag_name = match self.data_of(node) {
+            NodeData::JsxOpeningElement(data) => data.tag_name,
+            NodeData::JsxSelfClosingElement(data) => data.tag_name,
+            NodeData::JsxClosingElement(data) => data.tag_name,
+            _ => None,
+        }
+        .ok_or_else(|| Unsupported::new("JSX element without a tag name (parse recovery)"))?;
+        let intrinsic_elements_type = self.get_jsx_type(JSX_INTRINSIC_ELEMENTS, node)?;
+        let symbol;
+        if !self.tables.is_error_type(intrinsic_elements_type) {
+            let prop_name = self.intrinsic_tag_property_name(tag_name)?;
+            let intrinsic_prop =
+                self.get_property_of_type_full(intrinsic_elements_type, &prop_name)?;
+            if let Some(intrinsic_prop) = intrinsic_prop {
+                self.links.add_node_jsx_flags(
+                    self.speculation_depth,
+                    node,
+                    JsxFlags::INTRINSIC_NAMED_ELEMENT,
+                );
+                symbol = intrinsic_prop;
+            } else if self
+                .get_applicable_index_info_for_name(intrinsic_elements_type, &prop_name)?
+                .is_some()
+            {
+                self.links.add_node_jsx_flags(
+                    self.speculation_depth,
+                    node,
+                    JsxFlags::INTRINSIC_INDEXED_ELEMENT,
+                );
+                let members = self.resolve_structured_type_members(intrinsic_elements_type)?;
+                let index_symbol = self
+                    .members_of(members)
+                    .members
+                    .get(tsrs2_binder::InternalSymbolName::INDEX)
+                    .copied();
+                symbol = match index_symbol {
+                    Some(index_symbol) => index_symbol,
+                    None => self
+                        .tables
+                        .type_of(intrinsic_elements_type)
+                        .symbol
+                        .ok_or_else(|| {
+                            Unsupported::new(
+                                "index-signature-only JSX.IntrinsicElements without a symbol \
+                                 (instantiated container, services-only identity; M4-end sweep 5.8)",
+                            )
+                        })?,
+                };
+            } else {
+                let display = self.intrinsic_tag_name_to_string(tag_name)?;
+                let container = format!("JSX.{JSX_INTRINSIC_ELEMENTS}");
+                self.error_at(
+                    Some(node),
+                    &diagnostics::Property_0_does_not_exist_on_type_1,
+                    &[&display, &container],
+                );
+                symbol = self.unknown_symbol;
+            }
+        } else {
+            if self
+                .options
+                .strict_option_value(self.options.no_implicit_any)
+            {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::JSX_element_implicitly_has_type_any_because_no_interface_JSX_0_exists,
+                    &[JSX_INTRINSIC_ELEMENTS],
+                );
+            }
+            symbol = self.unknown_symbol;
+        }
+        self.links
+            .set_node_resolved_symbol(self.speculation_depth, node, symbol);
+        Ok(symbol)
+    }
+
+    /// tsc-port: getIntrinsicAttributesTypeFromJsxOpeningLikeElement @6.0.3
+    /// tsc-hash: 677b24cfa7578ef6b8b502ea20f8478b4b09153eea27dbcc8cee8260eaacd929
+    /// tsc-span: _tsc.js:74728-74744
+    pub(crate) fn get_intrinsic_attributes_type_from_jsx_opening_like_element(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.node(node).resolved_jsx_element_attributes_type {
+            return Ok(cached);
+        }
+        let symbol = self.get_intrinsic_tag_symbol(node)?;
+        let jsx_flags = self.links.node(node).jsx_flags;
+        let result = if jsx_flags.intersects(JsxFlags::INTRINSIC_NAMED_ELEMENT) {
+            self.get_type_of_symbol(symbol)?
+        } else if jsx_flags.intersects(JsxFlags::INTRINSIC_INDEXED_ELEMENT) {
+            let tag_name = match self.data_of(node) {
+                NodeData::JsxOpeningElement(data) => data.tag_name,
+                NodeData::JsxSelfClosingElement(data) => data.tag_name,
+                _ => None,
+            }
+            .ok_or_else(|| {
+                Unsupported::new("JSX opening element without a tag name (parse recovery)")
+            })?;
+            let prop_name = self.intrinsic_tag_property_name(tag_name)?;
+            let intrinsic_elements_type = self.get_jsx_type(JSX_INTRINSIC_ELEMENTS, node)?;
+            self.get_applicable_index_info_for_name(intrinsic_elements_type, &prop_name)?
+                .unwrap_or(self.tables.intrinsics.error)
+        } else {
+            self.tables.intrinsics.error
+        };
+        self.links.set_node_resolved_jsx_element_attributes_type(
+            self.speculation_depth,
+            node,
+            result,
+        );
+        Ok(result)
+    }
+
+    /// tsc-port: getIntrinsicAttributesTypeFromStringLiteralType @6.0.3
+    /// tsc-hash: 233443405f32b17a7d94d92f8328c3312488cd4c184541eebaea9c8410cafa1b
+    /// tsc-span: _tsc.js:74682-74697
+    fn get_intrinsic_attributes_type_from_string_literal_type(
+        &mut self,
+        ty: TypeId,
+        location: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let intrinsic_elements_type = self.get_jsx_type(JSX_INTRINSIC_ELEMENTS, location)?;
+        if self.tables.is_error_type(intrinsic_elements_type) {
+            return Ok(Some(self.tables.intrinsics.any));
+        }
+        let value = self.string_literal_type_value(ty)?;
+        let escaped = tsrs2_binder::escape_leading_underscores(&value);
+        if let Some(prop) =
+            self.get_property_of_type_full(intrinsic_elements_type, escaped.as_ref())?
+        {
+            return Ok(Some(self.get_type_of_symbol(prop)?));
+        }
+        let string = self.tables.intrinsics.string;
+        if let Some(info) = self.get_index_info_of_type(intrinsic_elements_type, string)? {
+            return Ok(Some(info.value_type));
+        }
+        Ok(None)
+    }
+
+    /// The StringLiteral payload read.
+    fn string_literal_type_value(&self, ty: TypeId) -> CheckResult2<String> {
+        match &self.tables.type_of(ty).data {
+            TypeData::Literal {
+                value: tsrs2_types::LiteralValue::String(value),
+            } => Ok(value.clone()),
+            _ => Err(Unsupported::new(
+                "string-literal tag type without a string payload (enum literal shape, M4-end sweep 5.8)",
+            )),
+        }
+    }
+
+    // ---- 5.7c: signatures for JSX resolution ----
+
+    /// tsc-port: createSignatureForJSXIntrinsic @6.0.3
+    /// tsc-hash: f98bc97eeb008dd1fe5c95999ea48780a5263535f6bfd184069bb8b92de9fd33
+    /// tsc-span: _tsc.js:77332-77371
+    ///
+    /// DECLARATION-LESS: tsc fabricates a FunctionTypeNode purely for
+    /// signature DISPLAY (nodeBuilder) — T2 side; the T0 signature is
+    /// one `props` parameter typed by the intrinsic attributes type,
+    /// returning the JSX.Element declared type ‖ errorType, minArg 1.
+    pub(crate) fn create_signature_for_jsx_intrinsic(
+        &mut self,
+        node: NodeId,
+        result: TypeId,
+    ) -> CheckResult2<SignatureId> {
+        let namespace = self.get_jsx_namespace_at(node)?;
+        let type_symbol = match namespace {
+            Some(namespace) => {
+                self.jsx_namespace_export(namespace, JSX_ELEMENT, SymbolFlags::TYPE)?
+            }
+            None => None,
+        };
+        let return_type = match type_symbol {
+            Some(type_symbol) => self.get_declared_type_of_symbol_slice(type_symbol)?,
+            None => self.tables.intrinsics.error,
+        };
+        let props = self
+            .binder
+            .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "props".to_owned());
+        self.links
+            .set_symbol_type(self.speculation_depth, props, LinkSlot::Resolved(result));
+        Ok(self.alloc_signature(crate::state::Signature {
+            declaration: None,
+            flags: tsrs2_types::SignatureFlags::NONE,
+            type_parameters: None,
+            parameters: vec![props],
+            this_parameter: None,
+            min_argument_count: 1,
+            resolved_return_type: LinkSlot::Resolved(return_type),
+            from_method: false,
+            target: None,
+            mapper: None,
+            instantiations: std::collections::HashMap::new(),
+            erased_signature_cache: None,
+            composite_kind: None,
+            composite_signatures: None,
+            optional_call_signature_cache: (None, None),
+            isolated_signature_type: None,
+        }))
+    }
+
+    /// tsc-port: getOrCreateTypeFromSignature @6.0.3
+    /// tsc-hash: 226def909910a74af356148d136d42297aba460f51ea90cf8ffe0c769bf08ec9
+    /// tsc-span: _tsc.js:59968-59982
+    ///
+    /// An undefined declaration kind counts as a CONSTRUCTOR (59972) —
+    /// the JSX fake signatures land in constructSignatures (and carry
+    /// no symbol: `signature.declaration?.symbol` is undefined).
+    fn get_or_create_type_from_signature(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.signature_of(signature).isolated_signature_type {
+            return Ok(cached);
+        }
+        let is_constructor = match self.signature_of(signature).declaration {
+            None => true,
+            Some(declaration) => matches!(
+                self.kind_of(declaration),
+                SyntaxKind::Constructor
+                    | SyntaxKind::ConstructSignature
+                    | SyntaxKind::ConstructorType
+            ),
+        };
+        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        self.tables.type_mut(id).object_flags =
+            ObjectFlags::ANONYMOUS | ObjectFlags::SINGLE_SIGNATURE_TYPE;
+        let members = self.alloc_members(crate::state::ResolvedMembers {
+            members: SymbolTable::default(),
+            properties: Vec::new(),
+            call_signatures: if is_constructor {
+                Vec::new()
+            } else {
+                vec![signature]
+            },
+            construct_signatures: if is_constructor {
+                vec![signature]
+            } else {
+                Vec::new()
+            },
+            index_infos: Vec::new(),
+        });
+        self.links
+            .set_type_members(self.speculation_depth, id, LinkSlot::Resolved(members));
+        self.signature_mut(signature).isolated_signature_type = Some(id);
+        Ok(id)
+    }
+
+    /// tsc-port: getUninstantiatedJsxSignaturesOfType @6.0.3
+    /// tsc-hash: 3faa3a5b89bb9582c3d52fd7fc87289777fae435a5796fa918dc9f1800ad7909
+    /// tsc-span: _tsc.js:74659-74681
+    pub(crate) fn get_uninstantiated_jsx_signatures_of_type(
+        &mut self,
+        element_type: TypeId,
+        caller: NodeId,
+    ) -> CheckResult2<Vec<SignatureId>> {
+        let flags = self.tables.flags_of(element_type);
+        if flags.intersects(TypeFlags::STRING) && !flags.intersects(TypeFlags::STRING_LITERAL) {
+            return Ok(vec![self.any_signature]);
+        }
+        if flags.intersects(TypeFlags::STRING_LITERAL) {
+            let intrinsic_type =
+                self.get_intrinsic_attributes_type_from_string_literal_type(element_type, caller)?;
+            let Some(intrinsic_type) = intrinsic_type else {
+                let value = self.string_literal_type_value(element_type)?;
+                let container = format!("JSX.{JSX_INTRINSIC_ELEMENTS}");
+                self.error_at(
+                    Some(caller),
+                    &diagnostics::Property_0_does_not_exist_on_type_1,
+                    &[&value, &container],
+                );
+                return Ok(Vec::new());
+            };
+            let fake_signature = self.create_signature_for_jsx_intrinsic(caller, intrinsic_type)?;
+            return Ok(vec![fake_signature]);
+        }
+        let apparent_elem_type = self.get_apparent_type(element_type)?;
+        let mut signatures =
+            self.get_signatures_of_type(apparent_elem_type, SignatureKind::Construct)?;
+        if signatures.is_empty() {
+            signatures = self.get_signatures_of_type(apparent_elem_type, SignatureKind::Call)?;
+        }
+        if signatures.is_empty()
+            && self
+                .tables
+                .flags_of(apparent_elem_type)
+                .intersects(TypeFlags::UNION)
+        {
+            let constituents: Vec<TypeId> = match &self.tables.type_of(apparent_elem_type).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => Vec::new(),
+            };
+            let mut lists: Vec<Vec<SignatureId>> = Vec::with_capacity(constituents.len());
+            for constituent in constituents {
+                lists.push(self.get_uninstantiated_jsx_signatures_of_type(constituent, caller)?);
+            }
+            signatures = self.get_union_signatures(&lists)?;
+        }
+        Ok(signatures)
+    }
+
+    /// tsc-port: getJSXFragmentType @6.0.3
+    /// tsc-hash: 7a885aaa15a865e701ecab621cb35e8cc1e9f33b5962ab7bae27d992ee703452
+    /// tsc-span: _tsc.js:77372-77396
+    ///
+    /// The surviving face after the entity guard: no jsxFragmentFactory
+    /// and no pragmas, so the fragment factory name is
+    /// reactNamespace ‖ "React" and shouldResolveFactoryReference
+    /// reduces to `jsx === React(2)`.
+    pub(crate) fn get_jsx_fragment_type(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        // Same entity-guard discipline as getJsxNamespaceAt: the
+        // fragment factory NAME is the post-guard surviving face.
+        self.jsx_namespace_entity_guard(node)?;
+        let root = self.binder.source_of_node(node).root;
+        if let Some(cached) = self.links.node(root).jsx_fragment_type {
+            return Ok(cached);
+        }
+        let fragment_factory_name = self.get_jsx_namespace_name(node);
+        let should_resolve_factory_reference =
+            self.options.jsx == Some(2) && fragment_factory_name != "null";
+        if !should_resolve_factory_reference {
+            let any = self.tables.intrinsics.any;
+            self.links
+                .set_node_jsx_fragment_type(self.speculation_depth, root, any);
+            return Ok(any);
+        }
+        // getJsxNamespaceContainerForImplicitImport: None (the guard
+        // escaped the react-jsx flavors). shouldModuleRefErr is true at
+        // jsx===React, so the meaning is plain VALUE.
+        let factory_symbol = self.resolve_name(
+            Some(node),
+            &fragment_factory_name,
+            SymbolFlags::VALUE,
+            Some(&diagnostics::Using_JSX_fragments_requires_fragment_factory_0_to_be_in_scope_but_it_could_not_be_found),
+            /*is_use*/ true,
+            /*exclude_globals*/ false,
+        );
+        let Some(factory_symbol) = factory_symbol else {
+            let error = self.tables.intrinsics.error;
+            self.links
+                .set_node_jsx_fragment_type(self.speculation_depth, root, error);
+            return Ok(error);
+        };
+        if self.binder.symbol(factory_symbol).escaped_name == REACT_FRAGMENT {
+            let ty = self.get_type_of_symbol(factory_symbol)?;
+            self.links
+                .set_node_jsx_fragment_type(self.speculation_depth, root, ty);
+            return Ok(ty);
+        }
+        if self
+            .symbol_flags(factory_symbol)
+            .intersects(SymbolFlags::ALIAS)
+        {
+            return Err(Unsupported::new(
+                "aliased JSX fragment factory (alias resolution, 5.8)",
+            ));
+        }
+        let exports = self.get_exports_of_symbol(factory_symbol)?;
+        let type_symbol = match exports.get(REACT_FRAGMENT).copied() {
+            Some(symbol) => {
+                let symbol = self.get_merged_symbol(symbol);
+                let flags = self.symbol_flags(symbol);
+                if flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
+                    Some(symbol)
+                } else if flags.intersects(SymbolFlags::ALIAS) {
+                    return Err(Unsupported::new(
+                        "aliased React.Fragment member (alias resolution, 5.8)",
+                    ));
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+        let ty = match type_symbol {
+            Some(type_symbol) => self.get_type_of_symbol(type_symbol)?,
+            None => self.tables.intrinsics.error,
+        };
+        self.links
+            .set_node_jsx_fragment_type(self.speculation_depth, root, ty);
+        Ok(ty)
+    }
+
+    // ---- 5.7c: reference kind + effective first argument ----
+
+    /// tsc-port: getJsxReferenceKind @6.0.3
+    /// tsc-hash: 2c7cc3306ba04d73d4dc86ab318c011deda247f0aacaed1ff0499e02415d4c06
+    /// tsc-span: _tsc.js:76075-76087
+    pub(crate) fn get_jsx_reference_kind(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<JsxReferenceKind> {
+        let tag_name = match self.data_of(node) {
+            NodeData::JsxOpeningElement(data) => data.tag_name,
+            NodeData::JsxSelfClosingElement(data) => data.tag_name,
+            _ => None,
+        }
+        .ok_or_else(|| {
+            Unsupported::new("JSX opening element without a tag name (parse recovery)")
+        })?;
+        if self.is_jsx_intrinsic_tag_name(tag_name) {
+            return Ok(JsxReferenceKind::Mixed);
+        }
+        let checked = self.check_expression(tag_name, CheckMode::NORMAL)?;
+        let tag_type = self.get_apparent_type(checked)?;
+        if !self
+            .get_signatures_of_type(tag_type, SignatureKind::Construct)?
+            .is_empty()
+        {
+            return Ok(JsxReferenceKind::Component);
+        }
+        if !self
+            .get_signatures_of_type(tag_type, SignatureKind::Call)?
+            .is_empty()
+        {
+            return Ok(JsxReferenceKind::Function);
+        }
+        Ok(JsxReferenceKind::Mixed)
+    }
+
+    /// tsc-port: getEffectiveFirstArgumentForJsxSignature @6.0.3
+    /// tsc-hash: 625ad2f2732a3c7c2ed3a22ae6e0ec29b410073c53d989874648717245c98573
+    /// tsc-span: _tsc.js:73648-73650
+    pub(crate) fn get_effective_first_argument_for_jsx_signature(
+        &mut self,
+        signature: SignatureId,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let is_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
+        if is_fragment || self.get_jsx_reference_kind(node)? != JsxReferenceKind::Component {
+            self.get_jsx_props_type_from_call_signature(signature, node)
+        } else {
+            self.get_jsx_props_type_from_class_type(signature, node)
+        }
+    }
+
+    /// tsc-port: getJsxPropsTypeFromCallSignature @6.0.3
+    /// tsc-hash: 33e5c609300535f18be8be847ad477103464f14b66e441fef6b3381a0eac35d8
+    /// tsc-span: _tsc.js:73651-73659
+    fn get_jsx_props_type_from_call_signature(
+        &mut self,
+        signature: SignatureId,
+        context: NodeId,
+    ) -> CheckResult2<TypeId> {
+        // getTypeOfFirstParameterOfSignatureWithFallback(sig, unknown).
+        let mut props_type = if self.signature_of(signature).parameters.is_empty() {
+            self.tables.intrinsics.unknown
+        } else {
+            self.get_type_at_position(signature, 0)?
+        };
+        let namespace = self.get_jsx_namespace_at(context)?;
+        props_type = self
+            .get_jsx_managed_attributes_from_located_attributes(context, namespace, props_type)?;
+        let intrinsic_attribs = self.get_jsx_type(JSX_INTRINSIC_ATTRIBUTES, context)?;
+        if !self.tables.is_error_type(intrinsic_attribs) {
+            props_type = self
+                .get_intersection_type(&[intrinsic_attribs, props_type], IntersectionFlags::NONE)?;
+        }
+        Ok(props_type)
+    }
+
+    /// tsc-port: getJsxPropsTypeForSignatureFromMember @6.0.3
+    /// tsc-hash: a52282550d0eb07807f3c0eed685e822c1db097a5cbe7cbdf8928b26fadf168e
+    /// tsc-span: _tsc.js:73660-73678
+    fn get_jsx_props_type_for_signature_from_member(
+        &mut self,
+        signature: SignatureId,
+        forced_lookup_location: &str,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let Some(composites) = self.signature_of(signature).composite_signatures.clone() {
+            let mut results: Vec<TypeId> = Vec::with_capacity(composites.len());
+            for composite in composites {
+                let instance = self.get_return_type_of_signature(composite)?;
+                if self.tables.flags_of(instance).intersects(TypeFlags::ANY) {
+                    return Ok(Some(instance));
+                }
+                let Some(prop_type) =
+                    self.get_type_of_property_of_type(instance, forced_lookup_location)?
+                else {
+                    return Ok(None);
+                };
+                results.push(prop_type);
+            }
+            return Ok(Some(
+                self.get_intersection_type(&results, IntersectionFlags::NONE)?,
+            ));
+        }
+        let instance_type = self.get_return_type_of_signature(signature)?;
+        if self
+            .tables
+            .flags_of(instance_type)
+            .intersects(TypeFlags::ANY)
+        {
+            return Ok(Some(instance_type));
+        }
+        self.get_type_of_property_of_type(instance_type, forced_lookup_location)
+    }
+
+    /// tsc-port: getStaticTypeOfReferencedJsxConstructor @6.0.3
+    /// tsc-hash: c473cec1cbbe45817fcdeb6cfd76ed4f4ce0fd98927235f5724a2dde0eff8823
+    /// tsc-span: _tsc.js:73679-73696
+    fn get_static_type_of_referenced_jsx_constructor(
+        &mut self,
+        context: NodeId,
+    ) -> CheckResult2<TypeId> {
+        if self.kind_of(context) == SyntaxKind::JsxOpeningFragment {
+            return self.get_jsx_fragment_type(context);
+        }
+        let tag_name = match self.data_of(context) {
+            NodeData::JsxOpeningElement(data) => data.tag_name,
+            NodeData::JsxSelfClosingElement(data) => data.tag_name,
+            _ => None,
+        }
+        .ok_or_else(|| {
+            Unsupported::new("JSX opening element without a tag name (parse recovery)")
+        })?;
+        if self.is_jsx_intrinsic_tag_name(tag_name) {
+            let result =
+                self.get_intrinsic_attributes_type_from_jsx_opening_like_element(context)?;
+            let fake_signature = self.create_signature_for_jsx_intrinsic(context, result)?;
+            return self.get_or_create_type_from_signature(fake_signature);
+        }
+        let tag_type = self.check_expression_cached(tag_name, CheckMode::NORMAL)?;
+        if self
+            .tables
+            .flags_of(tag_type)
+            .intersects(TypeFlags::STRING_LITERAL)
+        {
+            let Some(result) =
+                self.get_intrinsic_attributes_type_from_string_literal_type(tag_type, context)?
+            else {
+                return Ok(self.tables.intrinsics.error);
+            };
+            let fake_signature = self.create_signature_for_jsx_intrinsic(context, result)?;
+            return self.get_or_create_type_from_signature(fake_signature);
+        }
+        Ok(tag_type)
+    }
+
+    /// tsc-port: getJsxManagedAttributesFromLocatedAttributes @6.0.3
+    /// tsc-hash: eecb5b27501de81d5e4bc7c7fc14ab0b9f5e528c09b233bea9b20f2332030113
+    /// tsc-span: _tsc.js:73697-73707
+    fn get_jsx_managed_attributes_from_located_attributes(
+        &mut self,
+        context: NodeId,
+        namespace: Option<SymbolId>,
+        attributes_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let managed_sym = match namespace {
+            Some(namespace) => self.jsx_namespace_export(
+                namespace,
+                JSX_LIBRARY_MANAGED_ATTRIBUTES,
+                SymbolFlags::TYPE,
+            )?,
+            None => None,
+        };
+        if let Some(managed_sym) = managed_sym {
+            let ctor_type = self.get_static_type_of_referenced_jsx_constructor(context)?;
+            if let Some(result) = self.instantiate_alias_or_interface_with_defaults(
+                managed_sym,
+                self.is_in_js_file(context),
+                &[ctor_type, attributes_type],
+            )? {
+                return Ok(result);
+            }
+        }
+        Ok(attributes_type)
+    }
+
+    /// tsc-port: getJsxPropsTypeFromClassType @6.0.3
+    /// tsc-hash: 182e71e720a8189ea641031ab9f51dee87cee594b1677967b9df3665dffcea81
+    /// tsc-span: _tsc.js:73708-73740
+    fn get_jsx_props_type_from_class_type(
+        &mut self,
+        signature: SignatureId,
+        context: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let namespace = self.get_jsx_namespace_at(context)?;
+        let forced_lookup_location = self.get_jsx_element_properties_name(namespace)?;
+        let attributes_type: Option<TypeId> = match &forced_lookup_location {
+            None => Some(if self.signature_of(signature).parameters.is_empty() {
+                self.tables.intrinsics.unknown
+            } else {
+                self.get_type_at_position(signature, 0)?
+            }),
+            Some(location) if location.is_empty() => {
+                Some(self.get_return_type_of_signature(signature)?)
+            }
+            Some(location) => {
+                let location = location.clone();
+                self.get_jsx_props_type_for_signature_from_member(signature, &location)?
+            }
+        };
+        let Some(mut attributes_type) = attributes_type else {
+            if let Some(location) = forced_lookup_location.as_ref().filter(|l| !l.is_empty()) {
+                let has_properties = match self.data_of(context) {
+                    NodeData::JsxOpeningElement(data) => data.attributes,
+                    NodeData::JsxSelfClosingElement(data) => data.attributes,
+                    _ => None,
+                }
+                .is_some_and(|attributes| match self.data_of(attributes) {
+                    NodeData::JsxAttributes(data) => !self.nodes_of(data.properties).is_empty(),
+                    _ => false,
+                });
+                if has_properties {
+                    let display = tsrs2_binder::unescape_leading_underscores(location);
+                    self.error_at(
+                        Some(context),
+                        &diagnostics::JSX_element_class_does_not_support_attributes_because_it_does_not_have_a_0_property,
+                        &[display],
+                    );
+                }
+            }
+            return Ok(self.tables.intrinsics.unknown);
+        };
+        attributes_type = self.get_jsx_managed_attributes_from_located_attributes(
+            context,
+            namespace,
+            attributes_type,
+        )?;
+        if self
+            .tables
+            .flags_of(attributes_type)
+            .intersects(TypeFlags::ANY)
+        {
+            return Ok(attributes_type);
+        }
+        let mut apparent_attributes_type = attributes_type;
+        let intrinsic_class_attribs = self.get_jsx_type(JSX_INTRINSIC_CLASS_ATTRIBUTES, context)?;
+        if !self.tables.is_error_type(intrinsic_class_attribs) {
+            let class_symbol = self.tables.type_of(intrinsic_class_attribs).symbol;
+            let type_params = match class_symbol {
+                Some(symbol) => {
+                    let params =
+                        self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+                    (!params.is_empty()).then_some(params)
+                }
+                None => None,
+            };
+            let host_class_type = self.get_return_type_of_signature(signature)?;
+            let library_managed_attribute_type = if let Some(type_params) = type_params {
+                let min = self.get_min_type_argument_count(Some(&type_params));
+                let inferred_args = self
+                    .fill_missing_type_arguments(
+                        Some(&[host_class_type]),
+                        Some(&type_params),
+                        min,
+                        self.is_in_js_file(context),
+                    )?
+                    .expect("Some input yields Some");
+                let mapper = self.create_type_mapper(type_params, Some(inferred_args));
+                self.instantiate_type(intrinsic_class_attribs, Some(mapper))?
+            } else {
+                intrinsic_class_attribs
+            };
+            apparent_attributes_type = self.get_intersection_type(
+                &[library_managed_attribute_type, apparent_attributes_type],
+                IntersectionFlags::NONE,
+            )?;
+        }
+        let intrinsic_attribs = self.get_jsx_type(JSX_INTRINSIC_ATTRIBUTES, context)?;
+        if !self.tables.is_error_type(intrinsic_attribs) {
+            apparent_attributes_type = self.get_intersection_type(
+                &[intrinsic_attribs, apparent_attributes_type],
+                IntersectionFlags::NONE,
+            )?;
+        }
+        Ok(apparent_attributes_type)
+    }
+
+    /// tsc-port: instantiateAliasOrInterfaceWithDefaults @6.0.3
+    /// tsc-hash: 6671afcf7448a7c82e3862d888997dcf5f4acdddf9a83c3930a97d42814086d7
+    /// tsc-span: _tsc.js:74768-74782
+    fn instantiate_alias_or_interface_with_defaults(
+        &mut self,
+        managed_sym: SymbolId,
+        in_js: bool,
+        type_arguments: &[TypeId],
+    ) -> CheckResult2<Option<TypeId>> {
+        let declared_managed_type = self.get_declared_type_of_symbol_slice(managed_sym)?;
+        if self
+            .symbol_flags(managed_sym)
+            .intersects(SymbolFlags::TYPE_ALIAS)
+        {
+            let params = self.links.symbol(managed_sym).type_parameters.clone();
+            if params.as_ref().map_or(0, Vec::len) >= type_arguments.len() {
+                let args = self
+                    .fill_missing_type_arguments(
+                        Some(type_arguments),
+                        params.as_deref(),
+                        type_arguments.len(),
+                        in_js,
+                    )?
+                    .unwrap_or_default();
+                return Ok(Some(if args.is_empty() {
+                    declared_managed_type
+                } else {
+                    self.get_type_alias_instantiation(managed_sym, Some(&args), None, None)?
+                }));
+            }
+        }
+        let declared_params = self.interface_type_parameters(declared_managed_type);
+        if declared_params.as_ref().map_or(0, Vec::len) >= type_arguments.len() {
+            if declared_params.is_none() {
+                // tsc's createTypeReference over a non-generic declared
+                // type reads an undefined `instantiations` map —
+                // crash-adjacent corner, escaped.
+                return Err(Unsupported::new(
+                    "createTypeReference over a non-generic interface \
+                     (undefined instantiations map, tsc crash-adjacent corner; M4-end sweep 5.8)",
+                ));
+            }
+            let args = self
+                .fill_missing_type_arguments(
+                    Some(type_arguments),
+                    declared_params.as_deref(),
+                    type_arguments.len(),
+                    in_js,
+                )?
+                .unwrap_or_default();
+            return Ok(Some(
+                self.tables
+                    .create_type_reference(declared_managed_type, &args),
+            ));
+        }
+        Ok(None)
+    }
+
+    /// InterfaceType.typeParameters (outer+local): the GenericType
+    /// payload; every other declared-type shape reads tsc's undefined
+    /// (`length(undefined) = 0` in the caller's arity compare).
+    fn interface_type_parameters(&self, ty: TypeId) -> Option<Vec<TypeId>> {
+        match &self.tables.type_of(ty).data {
+            TypeData::GenericType {
+                type_parameters, ..
+            } => Some(type_parameters.to_vec()),
+            _ => None,
+        }
+    }
+
+    // ---- 5.7c: JSX.* container names ----
+
+    /// tsc-port: getNameFromJsxElementAttributesContainer @6.0.3
+    /// tsc-hash: bbc6bda45fdd402c4219619a669313f010d5116d72b0a07ec882689f542f006e
+    /// tsc-span: _tsc.js:74629-74643
+    fn get_name_from_jsx_element_attributes_container(
+        &mut self,
+        name_of_attrib_prop_container: &str,
+        jsx_namespace: Option<SymbolId>,
+    ) -> CheckResult2<Option<String>> {
+        let Some(jsx_namespace) = jsx_namespace else {
+            return Ok(None);
+        };
+        let container_sym = self.jsx_namespace_export(
+            jsx_namespace,
+            name_of_attrib_prop_container,
+            SymbolFlags::TYPE,
+        )?;
+        let Some(container_sym) = container_sym else {
+            return Ok(None);
+        };
+        let container_type = self.get_declared_type_of_symbol_slice(container_sym)?;
+        let properties = self.get_properties_of_type(container_type)?;
+        if properties.is_empty() {
+            return Ok(Some(String::new()));
+        }
+        if properties.len() == 1 {
+            return Ok(Some(self.binder.symbol(properties[0]).escaped_name.clone()));
+        }
+        let first_declaration = self
+            .binder
+            .symbol(container_sym)
+            .declarations
+            .first()
+            .copied();
+        if let Some(declaration) = first_declaration {
+            let display = tsrs2_binder::unescape_leading_underscores(name_of_attrib_prop_container);
+            self.error_at(
+                Some(declaration),
+                &diagnostics::The_global_type_JSX_0_may_not_have_more_than_one_property,
+                &[display],
+            );
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: getJsxElementPropertiesName @6.0.3
+    /// tsc-hash: 55d3c72e591c4eb119250d751ad968064e49c90244fcf9c9b424995e594df6cd
+    /// tsc-span: _tsc.js:74650-74652
+    fn get_jsx_element_properties_name(
+        &mut self,
+        jsx_namespace: Option<SymbolId>,
+    ) -> CheckResult2<Option<String>> {
+        self.get_name_from_jsx_element_attributes_container(
+            JSX_ELEMENT_ATTRIBUTES_PROPERTY_NAME_CONTAINER,
+            jsx_namespace,
+        )
+    }
+
+    /// tsc-port: getJsxElementChildrenPropertyName @6.0.3
+    /// tsc-hash: 81212cb84e0b2a445d123c8a4b26aaa5cacebd72ab98c37cbf504245212a9d40
+    /// tsc-span: _tsc.js:74653-74658
+    ///
+    /// The react-jsx/react-jsxdev arm is dead behind the namespace
+    /// entity guard (jsx 4/5 escape) — transcribed anyway.
+    pub(crate) fn get_jsx_element_children_property_name(
+        &mut self,
+        jsx_namespace: Option<SymbolId>,
+    ) -> CheckResult2<Option<String>> {
+        if matches!(self.options.jsx, Some(4) | Some(5)) {
+            return Ok(Some("children".to_owned()));
+        }
+        self.get_name_from_jsx_element_attributes_container(
+            JSX_ELEMENT_CHILDREN_ATTRIBUTE_NAME_CONTAINER,
+            jsx_namespace,
+        )
+    }
+
+    /// tsc-port: getJsxElementClassTypeAt @6.0.3
+    /// tsc-hash: 31d63d85b4f693d040d29b074963ce0ef9ae73d19806e78b1d280057e1836fa3
+    /// tsc-span: _tsc.js:74745-74749
+    fn get_jsx_element_class_type_at(&mut self, location: NodeId) -> CheckResult2<Option<TypeId>> {
+        let ty = self.get_jsx_type(JSX_ELEMENT_CLASS, location)?;
+        if self.tables.is_error_type(ty) {
+            return Ok(None);
+        }
+        Ok(Some(ty))
+    }
+
+    /// tsc-port: getJsxStatelessElementTypeAt @6.0.3
+    /// tsc-hash: c2de6c99befedb5ba48ecdbeacb67038bef469c76e05d90dd33f8ac616aff58a
+    /// tsc-span: _tsc.js:74753-74758
+    ///
+    /// getJsxElementTypeAt answers errorType when JSX.Element is
+    /// missing — truthy in tsc, so the union with nullType still
+    /// forms (relations against it succeed through the error member).
+    fn get_jsx_stateless_element_type_at(
+        &mut self,
+        location: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let jsx_element_type = self.get_jsx_element_type_at(location)?;
+        let null = self.tables.intrinsics.null;
+        Ok(Some(self.get_union_type_ex(
+            &[jsx_element_type, null],
+            tsrs2_types::UnionReduction::Literal,
+        )?))
+    }
+
+    /// tsc-port: getJsxElementTypeTypeAt @6.0.3
+    /// tsc-hash: 030d14a4dfacaa6c26e2e15f7df9dddcf85ea21f6d086780a054e57e8a25f96c
+    /// tsc-span: _tsc.js:74759-74767
+    fn get_jsx_element_type_type_at(&mut self, location: NodeId) -> CheckResult2<Option<TypeId>> {
+        let Some(namespace) = self.get_jsx_namespace_at(location)? else {
+            return Ok(None);
+        };
+        let Some(sym) =
+            self.jsx_namespace_export(namespace, JSX_ELEMENT_TYPE, SymbolFlags::TYPE)?
+        else {
+            return Ok(None);
+        };
+        let in_js = self.is_in_js_file(location);
+        let Some(ty) = self.instantiate_alias_or_interface_with_defaults(sym, in_js, &[])? else {
+            return Ok(None);
+        };
+        if self.tables.is_error_type(ty) {
+            return Ok(None);
+        }
+        Ok(Some(ty))
+    }
+
     /// tsc-port: getJsxNamespaceAt @6.0.3
     /// tsc-hash: 56cd592146ecb83505d526562a9ebe446de69ccd680f8f2418766b0fc36d9cba
     /// tsc-span: _tsc.js:74586-74628
@@ -283,7 +1835,10 @@ impl<'a> CheckerState<'a> {
     /// observable beyond repeated lookups). resolveSymbol over the
     /// resolved names is the alias-free face (alias resolution is
     /// 5.8; an aliased React/JSX container escapes below).
-    fn get_jsx_namespace_at(&mut self, location: NodeId) -> CheckResult2<Option<SymbolId>> {
+    pub(crate) fn get_jsx_namespace_at(
+        &mut self,
+        location: NodeId,
+    ) -> CheckResult2<Option<SymbolId>> {
         self.jsx_namespace_entity_guard(location)?;
         if let Some(container) = self.get_jsx_namespace_container_for_implicit_import(location)? {
             let _ = container;
@@ -362,7 +1917,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The surviving face after the entity guard: reactNamespace ‖
     /// "React" (pragma/jsxFactory shapes escaped).
-    fn get_jsx_namespace_name(&self, _location: NodeId) -> String {
+    pub(crate) fn get_jsx_namespace_name(&self, _location: NodeId) -> String {
         self.options
             .react_namespace
             .clone()
@@ -531,7 +2086,7 @@ impl<'a> CheckerState<'a> {
 
     /// getEscapedTextOfJsxAttributeName: identifier text or
     /// "namespace:name".
-    fn jsx_attribute_name_text(&self, name: NodeId) -> String {
+    pub(crate) fn jsx_attribute_name_text(&self, name: NodeId) -> String {
         match self.data_of(name) {
             NodeData::Identifier(data) => data.escaped_text.clone(),
             NodeData::JsxNamespacedName(data) => {
@@ -596,40 +2151,168 @@ mod tests {
 
     #[test]
     fn no_jsx_option_reports_17004_and_empty_initializer_17000() {
-        // Oracle: 17004 @89+13 + 17000 @97+2 (7026 rows ride 5.7's
-        // resolveJsxOpeningLikeElement).
+        // Oracle: 17000 @97+2 + 17004 @89+13 + 7026 @89+13 for the
+        // expression statement (5.7c recovered the 7026 row); the
+        // const-statement rows (7026/17004/17001/2695/18007) stay FN
+        // behind the 5.8 statement band (demand caveat).
         assert_eq!(
             checked_rows_with(
                 "declare var React: any;\nconst a = <div id=\"x\" id=\"y\" />;\nconst b = <span>{1, 2}</span>;\n(<p attr={} />);\n",
                 &CompilerOptions::default(),
             ),
-            [(17000, 97, 2), (17004, 89, 13)]
+            [(17000, 97, 2), (17004, 89, 13), (7026, 89, 13)]
         );
     }
 
     #[test]
     fn duplicate_attribute_reports_17001_in_expression_position() {
-        // Oracle: 17004 @25+21 + 17001 @37+2 (7026 rides 5.7).
+        // Oracle: 7026 @25+21 + 17004 @25+21 + 17001 @37+2 — the FULL
+        // oracle set (5.7c recovered the 7026 row).
         assert_eq!(
             checked_rows_with(
                 "declare var React: any;\n(<div id=\"x\" id=\"y\" />);\n",
                 &CompilerOptions::default(),
             ),
-            [(17001, 37, 2), (17004, 25, 21)]
+            [(17001, 37, 2), (17004, 25, 21), (7026, 25, 21)]
         );
     }
 
     #[test]
-    fn declared_jsx_namespace_with_jsx_option_stays_silent() {
-        // Oracle (jsx: preserve): only the 7026 rows (5.7 FN) — the
-        // namespace resolves, no 17004, fragment/element statements
-        // contain at the getResolvedSignature boundary.
+    fn value_tag_without_signatures_reports_2604() {
+        // Oracle (jsx: preserve, noLib + hand-declared Function so the
+        // isUntypedFunctionCall globalFunctionType probe stays honest —
+        // the degenerate noLib Function absorbs every object type):
+        // 2604 @147+4 at the tag name.
+        assert_eq!(
+            checked_rows_with(
+                "interface Function { $brand: 1 }\ndeclare namespace JSX { interface Element { e: 1 } }\ndeclare var React: any;\ndeclare const Comp: { x: number };\n(<Comp />);\n",
+                &jsx(1),
+            ),
+            [(2604, 147, 4)]
+        );
+    }
+
+    #[test]
+    fn intrinsic_type_arguments_report_2558() {
+        // Oracle (jsx: preserve): 2558 @136+6 on the typeArguments
+        // range (the intrinsic fake signature expects 0).
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface IntrinsicElements { div: { id?: string } } }\ndeclare var React: any;\n(<div<string> id=\"a\" />);\n",
+                &jsx(1),
+            ),
+            [(2558, 136, 6)]
+        );
+    }
+
+    #[test]
+    fn react_fragment_with_untyped_react_stays_silent() {
+        // Oracle (jsx: react): NO rows — React resolves as a value,
+        // its exports carry no Fragment, the fragment type is
+        // errorType and resolveErrorCall stays silent.
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } }\ndeclare var React: any;\n(<>x</>);\n",
+                &jsx(2),
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn react_fragment_without_react_reports_2874_and_2879() {
+        // Oracle (jsx: react): 2874 @54+2 (markJsxAliasReferenced's
+        // factory probe) + 2879 @54+2 (getJSXFragmentType's resolve).
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } }\n(<>x</>);\n",
+                &jsx(2),
+            ),
+            [(2874, 54, 2), (2879, 54, 2)]
+        );
+    }
+
+    #[test]
+    fn sfc_wrong_return_type_reports_2786() {
+        // Oracle (jsx: preserve): 2786 @171+1 at the tag name (chain:
+        // "Its return type 'number' is not a valid JSX element").
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface ElementClass { render(): void } }\ndeclare var React: any;\ndeclare function F(props: { a: string }): number;\n(<F a=\"x\" />);\n",
+                &jsx(1),
+            ),
+            [(2786, 171, 1)]
+        );
+    }
+
+    #[test]
+    fn class_component_wrong_instance_type_reports_2786() {
+        // Oracle (jsx: preserve): 2786 @213+1 at the tag name (chain:
+        // "Its instance type 'C' is not a valid JSX element") — the
+        // Component ref kind + ElementAttributesProperty props path.
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface ElementClass { render(): void } interface ElementAttributesProperty { props: {} } }\ndeclare var React: any;\ndeclare class C { props: { a: string }; }\n(<C a=\"x\" />);\n",
+                &jsx(1),
+            ),
+            [(2786, 213, 1)]
+        );
+    }
+
+    #[test]
+    fn children_specified_twice_reports_2710() {
+        // Oracle (jsx: preserve): 2710 @194+12 at the attributes node
+        // (explicit `children` attribute + semantic children).
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface ElementChildrenAttribute { children: {} } interface IntrinsicElements { div: { children?: string } } }\ndeclare var React: any;\n(<div children=\"a\">text</div>);\n",
+                &jsx(1),
+            ),
+            [(2710, 194, 12)]
+        );
+    }
+
+    #[test]
+    fn non_object_jsx_spread_reports_2698() {
+        // Oracle (jsx: preserve): 2698 @165+1 at the spread expression
+        // + 2559 @157+3 at the tag. The 2559 head is the headless
+        // reportRelationError face — T2-contained here (recorded FN);
+        // the 2698 row emitted by the attributes worker survives the
+        // containment.
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface IntrinsicElements { div: { id?: string } } }\ndeclare var React: any;\ndeclare const n: number;\n(<div {...n} />);\n",
+                &jsx(1),
+            ),
+            [(2698, 165, 1)]
+        );
+    }
+
+    #[test]
+    fn unknown_intrinsic_tag_reports_2339_on_opening_and_closing() {
+        // Oracle (jsx: preserve): 2339 @118+5 (opening `<foo>`) +
+        // 2339 @124+6 (closing `</foo>`) vs JSX.IntrinsicElements.
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface IntrinsicElements { div: {} } }\ndeclare var React: any;\n(<foo>x</foo>);\n",
+                &jsx(1),
+            ),
+            [(2339, 118, 5), (2339, 124, 6)]
+        );
+    }
+
+    #[test]
+    fn declared_jsx_namespace_with_jsx_option_reports_no_intrinsics_7026() {
+        // Oracle (jsx: preserve): 7026 @83+13 + 2339 @117+3 — the FULL
+        // oracle set: the namespace resolves (no 17004), the div tag
+        // misses JSX.IntrinsicElements (7026), the fragment rides the
+        // untyped-call path (anyType at jsx=preserve) cleanly.
         assert_eq!(
             checked_rows_with(
                 "declare namespace JSX { interface Element { x: number } }\ndeclare var React: any;\n(<div a=\"1\" />);\n(<>text</>);\n(\"x\".bad);\n",
                 &jsx(1),
             ),
-            [(2339, 117, 3)]
+            [(2339, 117, 3), (7026, 83, 13)]
         );
     }
 }

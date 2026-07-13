@@ -102,6 +102,9 @@ pub struct Signature {
     /// tsc signature.optionalCallSignatureCache (getOptionalCallSignature
     /// 57899-57903): the (inner, outer) call-chain clone pair.
     pub optional_call_signature_cache: (Option<SignatureId>, Option<SignatureId>),
+    /// tsc signature.isolatedSignatureType (getOrCreateTypeFromSignature
+    /// 60287): the single-signature anonymous object type memo.
+    pub isolated_signature_type: Option<TypeId>,
 }
 
 /// tsc IndexInfo (createIndexInfo 59989).
@@ -190,6 +193,12 @@ pub struct CheckerState<'a> {
     /// createAnonymousType + NonInferrableType (47179) — the vacuous-
     /// exclusion type in isEmptyAnonymousObjectType, live from 5.0.
     pub any_function_type: TypeId,
+    /// tsc emptyJsxObjectType (47140-47148): the JSX attributes spread
+    /// seed (ObjectFlags::JSX_ATTRIBUTES).
+    pub empty_jsx_object_type: TypeId,
+    /// tsc emptyFreshJsxObjectType (47149-47157): the JSX opening
+    /// FRAGMENT's synthetic effective argument.
+    pub empty_fresh_jsx_object_type: TypeId,
     /// deferredGlobalPromiseType (60750) memo — emptyGenericType when
     /// the reporting probe missed.
     pub deferred_global_promise_type: Option<TypeId>,
@@ -487,6 +496,8 @@ impl<'a> CheckerState<'a> {
             unknown_union_type: TypeId(0),
             empty_generic_type: TypeId(0),
             any_function_type: TypeId(0),
+            empty_jsx_object_type: TypeId(0),
+            empty_fresh_jsx_object_type: TypeId(0),
             deferred_global_promise_type: None,
             deferred_global_promise_like_type: None,
             deferred_global_promise_constructor_symbol: None,
@@ -599,6 +610,28 @@ impl<'a> CheckerState<'a> {
         // The empty anonymous types from the checker init block
         // (47132/47160/47170/47179): resolved-empty from birth.
         state.empty_object_type = state.create_resolved_empty_anonymous_type(None);
+        // tsc-port: emptyJsxObjectType + emptyFreshJsxObjectType @6.0.3
+        // tsc-hash: 3adb5d2dbb1653e5c2d1e59e931b18b6d357619cc9836867b39209a05dd6a70b
+        // tsc-span: _tsc.js:47140-47157
+        state.empty_jsx_object_type = state.create_resolved_empty_anonymous_type(None);
+        let jsx_flags =
+            state.tables.object_flags_of(state.empty_jsx_object_type) | ObjectFlags::JSX_ATTRIBUTES;
+        state
+            .tables
+            .type_mut(state.empty_jsx_object_type)
+            .object_flags = jsx_flags;
+        state.empty_fresh_jsx_object_type = state.create_resolved_empty_anonymous_type(None);
+        let fresh_jsx_flags = state
+            .tables
+            .object_flags_of(state.empty_fresh_jsx_object_type)
+            | ObjectFlags::JSX_ATTRIBUTES
+            | ObjectFlags::FRESH_LITERAL
+            | ObjectFlags::OBJECT_LITERAL
+            | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+        state
+            .tables
+            .type_mut(state.empty_fresh_jsx_object_type)
+            .object_flags = fresh_jsx_flags;
         let empty_type_literal_symbol = state.binder.create_symbol(
             SymbolFlags::TYPE_LITERAL,
             InternalSymbolName::TYPE.to_owned(),
@@ -733,6 +766,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
+            isolated_signature_type: None,
         })
     }
 

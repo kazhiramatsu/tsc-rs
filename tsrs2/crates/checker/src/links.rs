@@ -86,6 +86,18 @@ pub struct NodeLinks {
     /// 75417): `{typeId}|{isUncheckedJS}` dedupe keys — a grow-only
     /// diagnostic-path cache, never speculative.
     pub non_existent_prop_check_cache: std::collections::HashSet<String>,
+    /// tsc links.jsxFlags (getIntrinsicTagSymbol 74540/74545) on JSX
+    /// opening-like/closing elements — an accumulating flags word.
+    pub jsx_flags: tsrs2_types::JsxFlags,
+    /// tsc links.resolvedJsxElementAttributesType
+    /// (getIntrinsicAttributesTypeFromJsxOpeningLikeElement 74731) —
+    /// compute-once; written only on success so an Unsupported unwind
+    /// re-computes.
+    pub resolved_jsx_element_attributes_type: Option<TypeId>,
+    /// tsc sourceFileLinks.jsxFragmentType (getJSXFragmentType 77373)
+    /// on SourceFile nodes — the per-file fragment factory type memo
+    /// (errorType is a real cached verdict, matching tsc).
+    pub jsx_fragment_type: Option<TypeId>,
 }
 
 /// tsc SymbolLinks — the per-symbol subset M3 consumes.
@@ -374,6 +386,56 @@ impl LinksTables {
         let links = self.node.entry(id).or_default();
         if links.spread_indices.is_none() {
             links.spread_indices = Some(value);
+        }
+    }
+
+    /// `links.jsxFlags |= …` (getIntrinsicTagSymbol 74540/74545) — an
+    /// accumulating flags word; re-entry ORs the same bits.
+    pub fn add_node_jsx_flags(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: tsrs2_types::JsxFlags,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.node.entry(id).or_default().jsx_flags |= value;
+    }
+
+    /// `links.resolvedJsxElementAttributesType = …` (74731) —
+    /// compute-once; a rewrite is a protocol bug.
+    pub fn set_node_resolved_jsx_element_attributes_type(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let slot = &mut self
+            .node
+            .entry(id)
+            .or_default()
+            .resolved_jsx_element_attributes_type;
+        match slot {
+            None => *slot = Some(value),
+            Some(existing) if *existing == value => {}
+            _ => panic!("resolvedJsxElementAttributesType rewritten: {slot:?} -> {value:?}"),
+        }
+    }
+
+    /// `sourceFileLinks.jsxFragmentType = …` (getJSXFragmentType
+    /// 77377-77395) — compute-once per source file.
+    pub fn set_node_jsx_fragment_type(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let slot = &mut self.node.entry(id).or_default().jsx_fragment_type;
+        match slot {
+            None => *slot = Some(value),
+            Some(existing) if *existing == value => {}
+            _ => panic!("jsxFragmentType rewritten: {slot:?} -> {value:?}"),
         }
     }
 

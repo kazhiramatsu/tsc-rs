@@ -344,7 +344,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::JsxElement => self.check_jsx_element(node),
             SyntaxKind::JsxSelfClosingElement => self.check_jsx_self_closing_element(node),
             SyntaxKind::JsxFragment => self.check_jsx_fragment(node),
-            SyntaxKind::JsxAttributes => self.check_jsx_attributes_stub(),
+            SyntaxKind::JsxAttributes => self.check_jsx_attributes(node, check_mode),
             SyntaxKind::JsxOpeningElement => {
                 unreachable!("Shouldn't ever directly check a JsxOpeningElement")
             }

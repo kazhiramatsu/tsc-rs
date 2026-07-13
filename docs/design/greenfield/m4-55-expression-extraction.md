@@ -1006,7 +1006,13 @@ checkJsxOpeningLikeElementOrOpeningFragment L74797: prefix =
 checkGrammarJsxElement (2633/2639 namespace-names, 17001 dup attr,
 17000 empty initializer) + checkJsxPreconditions (17004 no-jsx-option,
 2602 noImplicitAny-no-JSX.Element) + markJsxAliasReferenced [no-op
-stub] — then **L74804 `getResolvedSignature` = the 5.7 line**: escape
+stub — RE-CLASSIFIED 2026-07-13 at 5.7c landing: NOT a no-op; its
+factory resolveName probe emits 2874 under jsx===React (L71789), and
+the probe must run BEHIND the namespace entity guard or a
+pragma/jsxFactory file resolves the wrong entity and fabricates 2874
+(FP caught by the 2xxx gate on
+inlineJsxFactoryDeclarationsLocalTypes)] — then **L74804
+`getResolvedSignature` = the 5.7 line**: escape
 Unsupported there. Unreachable until 5.7: 18053/2786/2787/2788/2789,
 2607, 2604/2605-family (resolveJsxOpeningLikeElement L77397).
 Closing-tag check (element deferred): intrinsic → getIntrinsicTagSymbol

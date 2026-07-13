@@ -51,6 +51,8 @@ pub(crate) enum ContextualDiscriminator {
     ContextFree(NodeId),
     /// `() => undefinedType` (73386 — the absent-optional-property row).
     Undefined,
+    /// `() => trueType` (73403 — the initializer-less JSX attribute).
+    True,
 }
 
 impl<'a> CheckerState<'a> {
@@ -771,8 +773,20 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_resolved_signature(call_target, tsrs2_types::CheckMode::NORMAL)?
         };
-        // The JSX opening arm (getEffectiveFirstArgumentForJsxSignature)
-        // is 5.7c — JSX call targets cannot reach this dispatch yet.
+        // 72919-72921: JSX opening-likes answer the effective first
+        // argument (the sentinel valve above still applies — a
+        // mid-resolution read sees resolvingSignature's empty
+        // parameter list, the unknown-fallback call-props face).
+        if matches!(
+            self.kind_of(call_target),
+            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement
+        ) && arg_index == 0
+        {
+            return Ok(Some(self.get_effective_first_argument_for_jsx_signature(
+                signature,
+                call_target,
+            )?));
+        }
         let data = self.signature_of(signature);
         let has_rest = data
             .flags
@@ -1888,6 +1902,103 @@ impl<'a> CheckerState<'a> {
         Ok(self.set_cached_type(key, discriminated))
     }
 
+    /// tsc-port: discriminateContextualTypeByJSXAttributes @6.0.3
+    /// tsc-hash: 40883fde6fc48131a8496a52df4fa2e6e2bff0bda57fd9b057681462e6e2b643
+    /// tsc-span: _tsc.js:73391-73423
+    fn discriminate_contextual_type_by_jsx_attributes(
+        &mut self,
+        node: NodeId,
+        contextual_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let key = format!("D{},{}", node.0, contextual_type.0);
+        if let Some(cached) = self.get_cached_type(&key) {
+            return Ok(cached);
+        }
+        let jsx_namespace = self.get_jsx_namespace_at(node)?;
+        let jsx_children_property_name =
+            self.get_jsx_element_children_property_name(jsx_namespace)?;
+        let mut discriminators: Vec<(ContextualDiscriminator, String)> = Vec::new();
+        let properties = match self.data_of(node) {
+            NodeData::JsxAttributes(data) => data.properties,
+            _ => None,
+        };
+        for p in self.nodes_of(properties) {
+            if self.kind_of(p) != SyntaxKind::JsxAttribute {
+                continue;
+            }
+            let Some(symbol) = self.node_symbol(p) else {
+                continue;
+            };
+            let escaped_name = self.binder.symbol(symbol).escaped_name.clone();
+            if !self.is_discriminant_property(contextual_type, &escaped_name)? {
+                continue;
+            }
+            let initializer = match self.data_of(p) {
+                NodeData::JsxAttribute(data) => data.initializer,
+                _ => None,
+            };
+            match initializer {
+                None => {
+                    discriminators.push((ContextualDiscriminator::True, escaped_name));
+                }
+                Some(initializer) if self.is_possibly_discriminant_value(initializer) => {
+                    discriminators.push((
+                        ContextualDiscriminator::ContextFree(initializer),
+                        escaped_name,
+                    ));
+                }
+                Some(_) => {}
+            }
+        }
+        let has_members = self
+            .node_symbol(node)
+            .is_some_and(|s| !self.binder.symbol(s).members.is_empty());
+        let mut absent_optional: Vec<String> = Vec::new();
+        if has_members {
+            for s in self.get_properties_of_type(contextual_type)? {
+                if !self.symbol_flags(s).intersects(SymbolFlags::OPTIONAL) {
+                    continue;
+                }
+                let name = self.binder.symbol(s).escaped_name.clone();
+                // 73411-73414: an absent `children` attribute does not
+                // discriminate when the element HAS semantic children.
+                if jsx_children_property_name.as_deref() == Some(name.as_str()) {
+                    let element = self.parent_of(node).and_then(|p| self.parent_of(p));
+                    let has_semantic_children = element.is_some_and(|element| {
+                        matches!(self.data_of(element), NodeData::JsxElement(_))
+                            && self
+                                .nodes_of(match self.data_of(element) {
+                                    NodeData::JsxElement(data) => data.children,
+                                    _ => None,
+                                })
+                                .into_iter()
+                                .any(|child| self.is_semantic_jsx_child(child))
+                    });
+                    if has_semantic_children {
+                        continue;
+                    }
+                }
+                let node_symbol = self.node_symbol(node).expect("has_members implies symbol");
+                if self.binder.symbol(node_symbol).members.get(&name).is_some() {
+                    continue;
+                }
+                if self.is_discriminant_property(contextual_type, &name)? {
+                    absent_optional.push(name);
+                }
+            }
+        }
+        discriminators.extend(
+            absent_optional
+                .into_iter()
+                .map(|name| (ContextualDiscriminator::Undefined, name)),
+        );
+        let discriminated = self.discriminate_type_by_discriminable_items_contextual(
+            contextual_type,
+            &discriminators,
+        )?;
+        Ok(self.set_cached_type(key, discriminated))
+    }
+
     /// tsc-port: discriminateTypeByDiscriminableItems @6.0.3 (contextual form)
     /// tsc-hash: 1290115be563c6a5dbeaf88f7facf3ed9a8fed47250275f155ab82f834058cbd
     /// tsc-span: _tsc.js:67259-67284
@@ -1927,6 +2038,7 @@ impl<'a> CheckerState<'a> {
                                 self.get_context_free_type_of_expression(*expr)?
                             }
                             ContextualDiscriminator::Undefined => self.tables.intrinsics.undefined,
+                            ContextualDiscriminator::True => self.tables.intrinsics.true_fresh,
                         };
                         let related = self.some_type_result(discriminating_type, |state, t| {
                             state.is_type_assignable_to(t, target_type)
@@ -2026,9 +2138,9 @@ impl<'a> CheckerState<'a> {
                     .map(Some);
             }
             if self.kind_of(node) == SyntaxKind::JsxAttributes {
-                return Err(Unsupported::new(
-                    "discriminateContextualTypeByJSXAttributes (JSX slice, 5.7c)",
-                ));
+                return self
+                    .discriminate_contextual_type_by_jsx_attributes(node, apparent_type)
+                    .map(Some);
             }
         }
         Ok(Some(apparent_type))
@@ -2213,17 +2325,182 @@ impl<'a> CheckerState<'a> {
                 // read) — tsc's own answer is undefined.
                 Ok(None)
             }
-            SyntaxKind::JsxExpression
-            | SyntaxKind::JsxAttribute
-            | SyntaxKind::JsxSpreadAttribute => Err(Unsupported::new(
-                "getContextualType JSX attribute arms (JSX slice, 5.7c)",
-            )),
-            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => Err(
-                Unsupported::new("getContextualJsxElementAttributesType (JSX slice, 5.7c)"),
-            ),
+            SyntaxKind::JsxExpression => {
+                self.get_contextual_type_for_jsx_expression(parent, context_flags)
+            }
+            SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute => {
+                self.get_contextual_type_for_jsx_attribute(parent, context_flags)
+            }
+            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
+                self.get_contextual_jsx_element_attributes_type(parent, context_flags)
+            }
             SyntaxKind::ImportAttribute => self.get_contextual_import_attribute_type(parent),
             _ => Ok(None),
         }
+    }
+
+    /// tsc-port: getContextualTypeForJsxExpression @6.0.3
+    /// tsc-hash: b10ba9dda2cd44d3442c390ed7f41f269e91d44a9ff50e382f6f991800e3bcc0
+    /// tsc-span: _tsc.js:73321-73324
+    fn get_contextual_type_for_jsx_expression(
+        &mut self,
+        node: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult2<Option<TypeId>> {
+        let Some(expr_parent) = self.parent_of(node) else {
+            return Ok(None);
+        };
+        match self.kind_of(expr_parent) {
+            SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute => {
+                self.get_contextual_type(node, context_flags)
+            }
+            SyntaxKind::JsxElement => {
+                self.get_contextual_type_for_child_jsx_expression(expr_parent, node, context_flags)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// tsc-port: getContextualTypeForChildJsxExpression @6.0.3
+    /// tsc-hash: a7fc76a8ae4a98cf7ed01ce13f28f0b738a923c4badbe00ae8ffe0d84b347329
+    /// tsc-span: _tsc.js:73299-73320
+    fn get_contextual_type_for_child_jsx_expression(
+        &mut self,
+        node: NodeId,
+        child: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult2<Option<TypeId>> {
+        let attributes = match self.data_of(node) {
+            NodeData::JsxElement(data) => data.opening_element,
+            _ => None,
+        }
+        .and_then(|opening| match self.data_of(opening) {
+            NodeData::JsxOpeningElement(data) => data.attributes,
+            _ => None,
+        });
+        let Some(attributes) = attributes else {
+            return Ok(None);
+        };
+        let attributes_type =
+            self.get_apparent_type_of_contextual_type(attributes, context_flags)?;
+        let jsx_namespace = self.get_jsx_namespace_at(node)?;
+        let jsx_children_property_name =
+            self.get_jsx_element_children_property_name(jsx_namespace)?;
+        let Some(attributes_type) = attributes_type else {
+            return Ok(None);
+        };
+        if self
+            .tables
+            .flags_of(attributes_type)
+            .intersects(TypeFlags::ANY)
+        {
+            return Ok(None);
+        }
+        let Some(children_name) = jsx_children_property_name.filter(|name| !name.is_empty()) else {
+            return Ok(None);
+        };
+        let children = match self.data_of(node) {
+            NodeData::JsxElement(data) => data.children,
+            _ => None,
+        };
+        let real_children: Vec<NodeId> = self
+            .nodes_of(children)
+            .into_iter()
+            .filter(|&c| self.is_semantic_jsx_child(c))
+            .collect();
+        let child_index = real_children.iter().position(|&c| c == child);
+        let child_field_type =
+            self.get_type_of_property_of_contextual_type(attributes_type, &children_name, None)?;
+        let Some(child_field_type) = child_field_type else {
+            return Ok(None);
+        };
+        if real_children.len() == 1 {
+            return Ok(Some(child_field_type));
+        }
+        let Some(child_index) = child_index else {
+            return Ok(None);
+        };
+        self.map_type(
+            child_field_type,
+            &mut |state, t| {
+                if state.is_array_like_type(t)? {
+                    let index_type = state.tables.get_number_literal_type(child_index as f64);
+                    Ok(Some(state.get_indexed_access_type(
+                        t,
+                        index_type,
+                        tsrs2_types::AccessFlags::NONE,
+                        None,
+                        None,
+                        None,
+                    )?))
+                } else {
+                    Ok(Some(t))
+                }
+            },
+            /*no_reductions*/ true,
+        )
+    }
+
+    /// tsc-port: getContextualTypeForJsxAttribute @6.0.3
+    /// tsc-hash: 234873420689f4e705c11dd2aef24f03350e3ea62a81f046f4ab3714f94f8bd8
+    /// tsc-span: _tsc.js:73325-73335
+    fn get_contextual_type_for_jsx_attribute(
+        &mut self,
+        attribute: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult2<Option<TypeId>> {
+        if self.kind_of(attribute) == SyntaxKind::JsxAttribute {
+            let Some(attributes) = self.parent_of(attribute) else {
+                return Ok(None);
+            };
+            let attributes_type =
+                self.get_apparent_type_of_contextual_type(attributes, context_flags)?;
+            let Some(attributes_type) = attributes_type else {
+                return Ok(None);
+            };
+            if self
+                .tables
+                .flags_of(attributes_type)
+                .intersects(TypeFlags::ANY)
+            {
+                return Ok(None);
+            }
+            let name = match self.data_of(attribute) {
+                NodeData::JsxAttribute(data) => {
+                    data.name.map(|name| self.jsx_attribute_name_text(name))
+                }
+                _ => None,
+            };
+            let Some(name) = name else {
+                return Ok(None);
+            };
+            return self.get_type_of_property_of_contextual_type(attributes_type, &name, None);
+        }
+        let Some(attributes) = self.parent_of(attribute) else {
+            return Ok(None);
+        };
+        self.get_contextual_type(attributes, context_flags)
+    }
+
+    /// tsc-port: getContextualJsxElementAttributesType @6.0.3
+    /// tsc-hash: 8dde288c7eaa5923dbecc2d5aa84d4cb3b7ca6c4226c4b8fe7d48d91146c349a
+    /// tsc-span: _tsc.js:73635-73647
+    fn get_contextual_jsx_element_attributes_type(
+        &mut self,
+        node: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult2<Option<TypeId>> {
+        if self.kind_of(node) == SyntaxKind::JsxOpeningElement
+            && context_flags != ContextFlags::IGNORE_NODE_INFERENCES
+        {
+            let Some(parent) = self.parent_of(node) else {
+                return Ok(None);
+            };
+            if let Some(index) = self.find_contextual_node(parent, context_flags.is_empty()) {
+                return Ok(self.contextual_types[index]);
+            }
+        }
+        self.get_contextual_type_for_argument_at_index(node, 0)
     }
 
     /// tsc-port: getContextualImportAttributeType @6.0.3
@@ -2510,6 +2787,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: Some(TypeFlags::INTERSECTION),
             composite_signatures: Some(composite_signatures),
             optional_call_signature_cache: (None, None),
+            isolated_signature_type: None,
         };
         Ok(self.alloc_signature(result))
     }

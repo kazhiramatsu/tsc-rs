@@ -79,6 +79,7 @@ impl<'a> CheckerState<'a> {
                             composite_kind: None,
                             composite_signatures: None,
                             optional_call_signature_cache: (None, None),
+                            isolated_signature_type: None,
                         };
                         let signature = self.alloc_signature(return_only_signature);
                         let symbol = self.node_symbol(node);
