@@ -522,10 +522,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_semantic_jsx_child(&self, child: NodeId) -> bool {
         match self.data_of(child) {
             NodeData::JsxExpression(data) => data.expression.is_some(),
-            NodeData::JsxText(data) => !data
-                .text
-                .chars()
-                .all(|c| matches!(c, ' ' | '\t' | '\r' | '\n')),
+            NodeData::JsxText(data) => !jsx_text_contains_only_trivia_white_spaces(&data.text),
             _ => true,
         }
     }
@@ -812,13 +809,15 @@ impl<'a> CheckerState<'a> {
         for child in self.nodes_of(children) {
             match self.kind_of(child) {
                 SyntaxKind::JsxText => {
-                    // containsOnlyTriviaWhiteSpaces: the scanner marks
-                    // whitespace-only JSX text.
+                    // containsOnlyTriviaWhiteSpaces (scanner verdict,
+                    // see jsx_text_contains_only_trivia_white_spaces):
+                    // inline-only whitespace is a semantic string
+                    // child; only line-break-carrying whitespace is
+                    // trivia.
                     let is_trivia = match self.data_of(child) {
-                        NodeData::JsxText(data) => data
-                            .text
-                            .chars()
-                            .all(|c| matches!(c, ' ' | '\t' | '\r' | '\n')),
+                        NodeData::JsxText(data) => {
+                            jsx_text_contains_only_trivia_white_spaces(&data.text)
+                        }
                         _ => false,
                     };
                     if !is_trivia {
@@ -859,13 +858,12 @@ impl<'a> CheckerState<'a> {
         let Some(namespace) = namespace else {
             return Ok(self.tables.intrinsics.error);
         };
-        let exports = self.get_exports_of_jsx_namespace(namespace)?;
-        let Some(symbol) = exports.get(name).copied() else {
+        // getSymbol(exports, name, Type): merged-symbol chase + the
+        // alias escape (an aliased JSX.* type member would otherwise
+        // read as "missing" — review find).
+        let Some(symbol) = self.jsx_namespace_export(namespace, name, SymbolFlags::TYPE)? else {
             return Ok(self.tables.intrinsics.error);
         };
-        if !self.symbol_flags(symbol).intersects(SymbolFlags::TYPE) {
-            return Ok(self.tables.intrinsics.error);
-        }
         self.get_declared_type_of_symbol_slice(symbol)
     }
 
@@ -879,6 +877,23 @@ impl<'a> CheckerState<'a> {
         namespace: SymbolId,
     ) -> CheckResult2<tsrs2_binder::SymbolTable> {
         Ok(self.binder.symbol(namespace).exports.clone())
+    }
+
+    /// getExportsOfSymbol over a resolved FACTORY container (the 6229
+    /// probe's React / the fragment factory): namespace-module symbols
+    /// read their raw exports table — the annotate.rs MODULE escape
+    /// guards source-file export-star walks, which namespace BODIES
+    /// cannot contain (a UMD/global module corner would only lose
+    /// members: probe-pass / errorType, FN-only). Everything else
+    /// rides the shared worker (late-bound statics included).
+    pub(crate) fn get_exports_of_jsx_factory_symbol(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<tsrs2_binder::SymbolTable> {
+        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
+            return Ok(self.binder.symbol(symbol).exports.clone());
+        }
+        self.get_exports_of_symbol(symbol)
     }
 
     /// getSymbol(getExportsOfSymbol(namespace), name, meaning) (50791)
@@ -1314,7 +1329,7 @@ impl<'a> CheckerState<'a> {
                 "aliased JSX fragment factory (alias resolution, 5.8)",
             ));
         }
-        let exports = self.get_exports_of_symbol(factory_symbol)?;
+        let exports = self.get_exports_of_jsx_factory_symbol(factory_symbol)?;
         let type_symbol = match exports.get(REACT_FRAGMENT).copied() {
             Some(symbol) => {
                 let symbol = self.get_merged_symbol(symbol);
@@ -1864,16 +1879,21 @@ impl<'a> CheckerState<'a> {
             }
             let exports = self.binder.symbol(resolved_namespace).exports.clone();
             if let Some(&candidate) = exports.get(JSX_NAMESPACE_NAME) {
+                // ALIAS first: an alias carries neither MODULE meaning
+                // bit, so a meaning-first read would silently fall
+                // through to the global JSX fallback where tsc
+                // resolveSymbol()s to the target namespace (wrong
+                // 7026/2339 shapes — review find). Contain instead.
+                if self.symbol_flags(candidate).intersects(SymbolFlags::ALIAS) {
+                    return Err(Unsupported::new(
+                        "aliased JSX namespace member (alias resolution, 5.8)",
+                    ));
+                }
                 if self
                     .symbol_flags(candidate)
                     .intersects(SymbolFlags::NAMESPACE_MODULE | SymbolFlags::VALUE_MODULE)
                     && candidate != self.unknown_symbol
                 {
-                    if self.symbol_flags(candidate).intersects(SymbolFlags::ALIAS) {
-                        return Err(Unsupported::new(
-                            "aliased JSX namespace member (alias resolution, 5.8)",
-                        ));
-                    }
                     return Ok(Some(self.get_merged_symbol(candidate)));
                 }
             }
@@ -2105,6 +2125,17 @@ impl<'a> CheckerState<'a> {
     }
 }
 
+/// tsc scanJsxToken's JsxTextAllWhiteSpaces verdict (10923-10952),
+/// reproduced over the token text (the parser keeps no flag slot):
+/// the -1 sentinel survives iff EVERY char is whitespace-like AND a
+/// line break occurred while nothing non-whitespace had been seen —
+/// for all-whitespace text that reduces to "contains a line break".
+/// Inline-only whitespace (`<a>   </a>`) is a SEMANTIC string child.
+fn jsx_text_contains_only_trivia_white_spaces(text: &str) -> bool {
+    text.chars().all(tsrs2_syntax::is_whitespace_like)
+        && text.chars().any(tsrs2_syntax::is_line_break)
+}
+
 /// tsc-port: isIntrinsicJsxName @6.0.3
 /// tsc-hash: d8f235d3962904d9679df95b374a3fd3bcf2334b1b8d7a6d1a8b5a495d224202
 /// tsc-span: _tsc.js:16350-16353
@@ -2298,6 +2329,138 @@ mod tests {
                 &jsx(1),
             ),
             [(2339, 118, 5), (2339, 124, 6)]
+        );
+    }
+
+    #[test]
+    fn inline_whitespace_child_is_semantic_and_fires_2710() {
+        // Oracle (jsx: preserve): 2710 @194+12 — `<div children="a"> `
+        // has an INLINE-SPACE text child (no line break), which is a
+        // SEMANTIC string child (scanJsxToken keeps firstNonWhitespace
+        // at 0, NOT -1) — the children synthesis runs and the explicit
+        // `children` attribute reports as overwritten.
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface ElementChildrenAttribute { children: {} } interface IntrinsicElements { div: { children?: string } } }\ndeclare var React: any;\n(<div children=\"a\"> </div>);\n",
+                &jsx(1),
+            ),
+            [(2710, 194, 12)]
+        );
+    }
+
+    #[test]
+    fn line_break_whitespace_child_is_trivia_and_stays_silent() {
+        // Oracle (jsx: preserve): NO rows — the same shape with a
+        // LINE-BREAK whitespace child is JsxTextAllWhiteSpaces
+        // (non-semantic), so no children synthesis and no 2710.
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface ElementChildrenAttribute { children: {} } interface IntrinsicElements { div: { children?: string } } }\ndeclare var React: any;\n(<div children=\"a\">\n</div>);\n",
+                &jsx(1),
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn aliased_react_jsx_namespace_contains() {
+        // Oracle (jsx: preserve): 2339 @143+7 — tsc resolveSymbol()s
+        // the `export import JSX = Inner` alias to the real container
+        // and reports the unknown intrinsic. Alias resolution is 5.8:
+        // the walk CONTAINS (recorded FN) instead of falling through
+        // to the absent global JSX (which fabricated 7026 pre-fix —
+        // review find).
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace React { namespace Inner { interface Element { e: 1 } interface IntrinsicElements { div: {} } } export import JSX = Inner; }\n(<foo />);\n",
+                &jsx(1),
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn factory_arity_reports_6229() {
+        // Oracle (jsx: preserve): 6229 @229+4 at the tag name — Comp
+        // requires 3 arguments but React.createElement's first-param
+        // signatures provide at most 2.
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } }\ndeclare namespace React { function createElement(tag: (a: string, b: string) => any, props: any): any; }\ndeclare function Comp(a: string, b: string, c: string): JSX.Element;\n(<Comp />);\n",
+                &jsx(1),
+            ),
+            [(6229, 229, 4)]
+        );
+    }
+
+    #[test]
+    fn class_without_props_property_reports_2607() {
+        // Oracle (jsx: preserve): 2607 @159+11 at the opening element —
+        // ElementAttributesProperty forces a `props` lookup the class
+        // lacks, and attributes are present.
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface ElementAttributesProperty { props: {} } }\ndeclare var React: any;\ndeclare class C { m(): void; }\n(<C a=\"x\" />);\n",
+                &jsx(1),
+            ),
+            [(2607, 159, 11)]
+        );
+    }
+
+    #[test]
+    fn multi_property_children_container_reports_2608() {
+        // Oracle (jsx: preserve): 2608 @61+24 at the container's NAME
+        // (the ElementChildrenAttribute interface declaration).
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } interface ElementChildrenAttribute { children: {}; kids: {} } interface IntrinsicElements { div: {} } }\ndeclare var React: any;\n(<div>text</div>);\n",
+                &jsx(1),
+            ),
+            [(2608, 61, 24)]
+        );
+    }
+
+    #[test]
+    fn element_type_constraint_reports_2786() {
+        // Oracle (jsx: preserve): 2786 @155+4 at the tag name — the
+        // JSX.ElementType alias constrains tags to "div"; the "span"
+        // string-literal tag type fails (chain: Its type '"span"' is
+        // not a valid JSX element type).
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element { e: 1 } type ElementType = \"div\"; interface IntrinsicElements { div: {}; span: {} } }\ndeclare var React: any;\n(<span />);\n",
+                &jsx(1),
+            ),
+            [(2786, 155, 4)]
+        );
+    }
+
+    #[test]
+    fn library_managed_attributes_drive_contextual_typing() {
+        // Oracle (jsx: preserve): 2339 @237+3 — LibraryManagedAttributes
+        // REPLACES the props type, so the callback parameter is
+        // contextually typed V and `v.bad` misses. (The oracle's 6205
+        // unused-type-parameters row is suggestion-band, M7 FN.)
+        assert_eq!(
+            checked_rows_with(
+                "interface V { m: number }\ndeclare namespace JSX { interface Element { e: 1 } type LibraryManagedAttributes<C, P> = { cb?: (v: V) => void }; }\ndeclare var React: any;\ndeclare function F(props: { a?: string }): JSX.Element;\n(<F cb={v => v.bad} />);\n",
+                &jsx(1),
+            ),
+            [(2339, 237, 3)]
+        );
+    }
+
+    #[test]
+    fn jsx_attribute_callback_is_contextually_typed() {
+        // Oracle (jsx: preserve): 2339 @183+3 — the attribute value's
+        // arrow parameter is contextually typed from the props member
+        // (`v: V`), so `v.bad` misses.
+        assert_eq!(
+            checked_rows_with(
+                "interface V { m: number }\ndeclare namespace JSX { interface Element { e: 1 } }\ndeclare var React: any;\ndeclare function F(props: { cb?: (v: V) => void }): JSX.Element;\n(<F cb={v => v.bad} />);\n",
+                &jsx(1),
+            ),
+            [(2339, 183, 3)]
         );
     }
 

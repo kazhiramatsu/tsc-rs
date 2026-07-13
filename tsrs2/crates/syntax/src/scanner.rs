@@ -1885,7 +1885,10 @@ pub fn skip_trivia(text: &str, start: usize) -> usize {
     }
 }
 
-fn is_line_break(ch: char) -> bool {
+/// tsc-port: isLineBreak @6.0.3
+/// tsc-hash: 395982e80e116c8398678784061594649abf26264ad052748b2fa4af2a106ef9
+/// tsc-span: _tsc.js:8337-8339
+pub fn is_line_break(ch: char) -> bool {
     matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}')
 }
 
@@ -1897,7 +1900,10 @@ fn is_single_line_whitespace(ch: char) -> bool {
     )
 }
 
-fn is_whitespace_like(ch: char) -> bool {
+/// tsc-port: isWhiteSpaceLike @6.0.3
+/// tsc-hash: 124a9964c3f49bd1a6000a5b891b57fabe0f56a270a199ff89dc83ab089b0dad
+/// tsc-span: _tsc.js:8331-8333
+pub fn is_whitespace_like(ch: char) -> bool {
     is_line_break(ch) || is_single_line_whitespace(ch)
 }
 

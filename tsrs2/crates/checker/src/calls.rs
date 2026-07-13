@@ -1651,7 +1651,7 @@ impl<'a> CheckerState<'a> {
                 "aliased JSX factory namespace (alias resolution, 5.8)",
             ));
         }
-        let exports = self.get_exports_of_symbol(namespace_symbol)?;
+        let exports = self.get_exports_of_jsx_factory_symbol(namespace_symbol)?;
         let factory_symbol = match exports.get("createElement").copied() {
             Some(symbol) => {
                 let symbol = self.get_merged_symbol(symbol);
