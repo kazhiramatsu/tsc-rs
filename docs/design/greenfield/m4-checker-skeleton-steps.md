@@ -528,6 +528,15 @@ relation, 2717).
 
 Commit(s): `m4 5.8a-d: statements + declaration checks (+rate)`.
 
+EXTRACTION COMPLETE (2026-07-14):
+[m4-58-statement-extraction.md](m4-58-statement-extraction.md)
+carries the implementation-grade semantics — the LATE-BINDING WALL
+finding and its lift protocol (§1), the full statement/variable/
+iteration/declaration/class/module/alias/decorator/type-node
+transcriptions with L-anchors, the Rust seam inventory (§13), the
+FP=0 risk register (§14), and the a-e slicing (§15) that supersedes
+this section's single-commit line. Implementers start there.
+
 ## Unsupported channel in M4
 
 The CheckResult2/Unsupported channel STAYS through M4 — it is the
