@@ -155,6 +155,17 @@ pub struct ConformanceSummary {
     pub tsrs_diagnostics: usize,
     pub matched_t0_diagnostics: usize,
     pub t0_rate: f64,
+    /// Shadow tiers (NON-GATING — greenfield §7.4; measured from
+    /// pre-5.8a per the external review, ratchets stay T0-only until
+    /// M8): of the T0-matched pairs, how many also match category
+    /// (T1), exact span + top message text (T2), and the full chain
+    /// + relatedInformation (T3). Nested: t3 ≤ t2 ≤ t1 ≤ t0.
+    pub shadow_t1_matched: usize,
+    pub shadow_t2_matched: usize,
+    pub shadow_t3_matched: usize,
+    pub shadow_t1_rate: f64,
+    pub shadow_t2_rate: f64,
+    pub shadow_t3_rate: f64,
     pub exact_match_cases: usize,
     pub mismatch_cases: usize,
     pub false_positive_diagnostics: usize,
@@ -444,6 +455,9 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     let mut oracle_diagnostics = 0usize;
     let mut tsrs_diagnostics = 0usize;
     let mut matched_t0_diagnostics = 0usize;
+    let mut shadow_t1_matched = 0usize;
+    let mut shadow_t2_matched = 0usize;
+    let mut shadow_t3_matched = 0usize;
     let mut fp_count = 0usize;
     let mut fn_count = 0usize;
     let mut fp_codes = BTreeMap::<u32, usize>::new();
@@ -508,6 +522,18 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
             }
 
             matched_t0_diagnostics += expected.intersection(&actual).count();
+            let (t1, t2, t3) = shadow_tier_matches(
+                current
+                    .iter()
+                    .filter(|diag| options.band.contains(diag.code)),
+                golden_case
+                    .oracle
+                    .iter()
+                    .filter(|diag| options.band.matches_oracle(diag)),
+            );
+            shadow_t1_matched += t1;
+            shadow_t2_matched += t2;
+            shadow_t3_matched += t3;
             oracle_diagnostics += expected.len();
             tsrs_diagnostics += actual.len();
             fp_count += fp.len();
@@ -530,6 +556,12 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
         tsrs_diagnostics,
         matched_t0_diagnostics,
         t0_rate,
+        shadow_t1_matched,
+        shadow_t2_matched,
+        shadow_t3_matched,
+        shadow_t1_rate: shadow_rate(shadow_t1_matched, oracle_diagnostics),
+        shadow_t2_rate: shadow_rate(shadow_t2_matched, oracle_diagnostics),
+        shadow_t3_rate: shadow_rate(shadow_t3_matched, oracle_diagnostics),
         exact_match_cases,
         mismatch_cases: case_count - exact_match_cases,
         false_positive_diagnostics: fp_count,
@@ -578,6 +610,92 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     Ok(summary)
 }
 
+fn shadow_rate(matched: usize, total: usize) -> f64 {
+    if total == 0 {
+        1.0
+    } else {
+        matched as f64 / total as f64
+    }
+}
+
+/// Shadow tier grading (NON-GATING). Bucket both sides by T0 key; a
+/// key contributes 1 to a tier only when the two buckets are equal
+/// AS MULTISETS under that tier's OWN equivalence (review round 3:
+/// tiers compare independently — T1 must not depend on how T2's
+/// finer key would pair elements):
+///   T1 = category
+///   T2 = T1 + exact start/length + top message text
+///   T3 = T2 + full chain tree + relatedInformation
+/// The equivalences nest, so equal-T3 multisets imply equal-T2 imply
+/// equal-T1, and per-key counting keeps the tiers nested under
+/// matched_t0's set semantics. tsrs-side related info flows through
+/// from_tsrs since pre-5.8a (it was dropped before).
+fn shadow_tier_matches<'a>(
+    actual: impl Iterator<Item = &'a GoldenDiag>,
+    expected: impl Iterator<Item = &'a GoldenDiag>,
+) -> (usize, usize, usize) {
+    fn keyed<'a>(
+        diags: impl Iterator<Item = &'a GoldenDiag>,
+    ) -> BTreeMap<T0Key, Vec<&'a GoldenDiag>> {
+        let mut map: BTreeMap<T0Key, Vec<&'a GoldenDiag>> = BTreeMap::new();
+        for diag in diags {
+            map.entry(t0_key(diag)).or_default().push(diag);
+        }
+        map
+    }
+    /// Greedy multiset equality under `eq` — buckets are tiny (almost
+    /// always 1), so O(n²) matching beats deriving Ord for chains.
+    fn multiset_eq(
+        actual: &[&GoldenDiag],
+        expected: &[&GoldenDiag],
+        eq: impl Fn(&GoldenDiag, &GoldenDiag) -> bool,
+    ) -> bool {
+        if actual.len() != expected.len() {
+            return false;
+        }
+        let mut used = vec![false; expected.len()];
+        'outer: for left in actual {
+            for (index, right) in expected.iter().enumerate() {
+                if !used[index] && eq(left, right) {
+                    used[index] = true;
+                    continue 'outer;
+                }
+            }
+            return false;
+        }
+        true
+    }
+    fn t1_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
+        a.category == e.category
+    }
+    fn t2_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
+        t1_eq(a, e) && a.start == e.start && a.length == e.length && a.chain.text == e.chain.text
+    }
+    fn t3_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
+        t2_eq(a, e) && a.chain == e.chain && a.related == e.related
+    }
+    let actual = keyed(actual);
+    let expected = keyed(expected);
+    let (mut t1, mut t2, mut t3) = (0usize, 0usize, 0usize);
+    for (key, expected_bucket) in &expected {
+        let Some(actual_bucket) = actual.get(key) else {
+            continue;
+        };
+        if !multiset_eq(actual_bucket, expected_bucket, t1_eq) {
+            continue;
+        }
+        t1 += 1;
+        if !multiset_eq(actual_bucket, expected_bucket, t2_eq) {
+            continue;
+        }
+        t2 += 1;
+        if multiset_eq(actual_bucket, expected_bucket, t3_eq) {
+            t3 += 1;
+        }
+    }
+    (t1, t2, t3)
+}
+
 impl GoldenDiag {
     fn from_oracle(diag: &OracleDiag, file_texts: &BTreeMap<String, String>) -> Self {
         let (line, col) = line_col_for_oracle(diag, file_texts);
@@ -621,7 +739,18 @@ impl GoldenDiag {
             pass: None,
             category: diag.category().name().to_owned(),
             chain: GoldenMessageChain::from_tsrs(&diag.message),
-            related: Vec::new(),
+            related: diag
+                .related
+                .iter()
+                .map(|related| GoldenRelated {
+                    file: related.file_name.clone(),
+                    start: related.start,
+                    length: related.length,
+                    code: related.message.code,
+                    category: related.message.category.name().to_owned(),
+                    chain: GoldenMessageChain::from_tsrs(&related.message),
+                })
+                .collect(),
             reports_unnecessary: false,
             reports_deprecated: false,
             source: None,
@@ -938,15 +1067,17 @@ fn line_col_for_tsrs(
     (Some(line_col.line), Some(line_col.character))
 }
 
+fn t0_key(diag: &GoldenDiag) -> T0Key {
+    T0Key {
+        file: diag.file.clone(),
+        code: diag.code,
+        line: diag.line,
+        col: diag.col,
+    }
+}
+
 fn t0_set<'a>(diagnostics: impl Iterator<Item = &'a GoldenDiag>) -> BTreeSet<T0Key> {
-    diagnostics
-        .map(|diag| T0Key {
-            file: diag.file.clone(),
-            code: diag.code,
-            line: diag.line,
-            col: diag.col,
-        })
-        .collect()
+    diagnostics.map(t0_key).collect()
 }
 
 fn write_golden(root: &Path, golden: &GoldenFile) -> ConformanceResult<()> {
@@ -1174,6 +1305,68 @@ fn temp_root(prefix: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn diag(category: &str, start: u32, text: &str) -> GoldenDiag {
+        GoldenDiag {
+            file: Some("a.ts".to_owned()),
+            start: Some(start),
+            length: Some(1),
+            line: Some(1),
+            col: Some(1),
+            code: 2322,
+            pass: None,
+            category: category.to_owned(),
+            chain: GoldenMessageChain {
+                text: text.to_owned(),
+                code: 2322,
+                category: category.to_owned(),
+                next: Vec::new(),
+            },
+            related: Vec::new(),
+            reports_unnecessary: false,
+            reports_deprecated: false,
+            source: None,
+        }
+    }
+
+    /// Review round 3: tiers compare independent multisets — a
+    /// category-multiset match must register T1 even when the
+    /// category↔text CORRESPONDENCE differs (which is a T2 miss),
+    /// and multiplicity differences miss every tier.
+    #[test]
+    fn shadow_tiers_grade_buckets_as_independent_multisets() {
+        // Same T0 key (same file/code/line/col): one error + one
+        // warning per side, texts swapped across categories.
+        let actual = [diag("error", 5, "A"), diag("warning", 5, "B")];
+        let expected = [diag("error", 5, "B"), diag("warning", 5, "A")];
+        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!((t1, t2, t3), (1, 0, 0));
+
+        // Identical buckets → all tiers.
+        let actual = [diag("error", 5, "A"), diag("warning", 5, "B")];
+        let expected = [diag("warning", 5, "B"), diag("error", 5, "A")];
+        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!((t1, t2, t3), (1, 1, 1));
+
+        // Multiplicity difference on a shared key → no tier.
+        let actual = [diag("error", 5, "A")];
+        let expected = [diag("error", 5, "A"), diag("error", 5, "A")];
+        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!((t1, t2, t3), (0, 0, 0));
+
+        // Chain-tail divergence: T2 matches, T3 misses.
+        let mut deep = diag("error", 5, "A");
+        deep.chain.next.push(GoldenMessageChain {
+            text: "tail".to_owned(),
+            code: 1,
+            category: "error".to_owned(),
+            next: Vec::new(),
+        });
+        let actual = [deep];
+        let expected = [diag("error", 5, "A")];
+        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!((t1, t2, t3), (1, 1, 0));
+    }
 
     /// The harness serializes @lib as OptionValue::StringList; the
     /// conversion must lowercase and forward it (a String-only match

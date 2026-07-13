@@ -6,6 +6,20 @@ Prerequisite: M5 gate green. This milestone REPLACES exactly one
 M4 stub (`infer_type_arguments`) and activates the CheckMode plumbing
 M4 ported inert.
 
+**START PRECONDITION (external review 2026-07-14,
+[definition-of-done.md](definition-of-done.md) checkpoint table): a
+speculation scoped-transaction API must exist BEFORE any stage here
+lands.** Today the links contract is only "speculative writes panic"
+(links.rs assert_writable) and speculation_depth is raised solely by
+its unit tests; candidate trials during overload/inference need a
+production `begin_speculation()` guard whose drop/abort rolls back
+the contextual/inference stacks, temporary caches, and collected
+diagnostics, with commit-on-success — plus failed-candidate rollback
+tests. Design and land that (a 7.0-adjacent stage) before 7.1; the
+alternative — candidate state leaking through links or blanket
+panics mid-resolution — is the exact failure mode the M4 5.7a
+deferred re-check protocol only papered over for calls.
+
 Gate: T0 ≥ 58%. Inference moves 2345/2322/2769/2339 together — run
 the full gate per stage, not just call fixtures.
 

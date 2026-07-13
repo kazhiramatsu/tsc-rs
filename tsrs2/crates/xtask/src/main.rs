@@ -50,6 +50,7 @@ fn main() {
         },
         Some("ledger") => match args.next().as_deref() {
             Some("check") => run_or_exit(ledger_check()),
+            Some("write-backlog") => run_or_exit(ledger_write_backlog()),
             Some("coverage") => run_or_exit(ledger_coverage()),
             Some(other) => {
                 eprintln!("unknown ledger command: {other}");
@@ -1188,6 +1189,15 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         summary.false_negative_diagnostics,
         summary.mismatch_cases
     );
+    println!(
+        "shadow (non-gating) T1={:.4}% ({}) T2={:.4}% ({}) T3={:.4}% ({})",
+        summary.shadow_t1_rate * 100.0,
+        summary.shadow_t1_matched,
+        summary.shadow_t2_rate * 100.0,
+        summary.shadow_t2_matched,
+        summary.shadow_t3_rate * 100.0,
+        summary.shadow_t3_matched
+    );
     println!("mismatch json: {}", out_json.display());
     Ok(())
 }
@@ -1259,6 +1269,7 @@ enum InvariantSuite {
     JobsIndependence,
     Encodings,
     MatrixIndependence,
+    UnsupportedUnwind,
 }
 
 impl InvariantSuite {
@@ -1271,6 +1282,7 @@ impl InvariantSuite {
             "jobs-independence" => Ok(Self::JobsIndependence),
             "encodings" => Ok(Self::Encodings),
             "matrix-independence" => Ok(Self::MatrixIndependence),
+            "unsupported-unwind" => Ok(Self::UnsupportedUnwind),
             _ => Err(format!("unknown invariant suite: {value}").into()),
         }
     }
@@ -1284,6 +1296,7 @@ impl InvariantSuite {
             Self::JobsIndependence => "jobs-independence",
             Self::Encodings => "encodings",
             Self::MatrixIndependence => "matrix-independence",
+            Self::UnsupportedUnwind => "unsupported-unwind",
         }
     }
 
@@ -1375,6 +1388,13 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         run_matrix_independence(&programs)?;
         println!(
             "invariant matrix-independence ok: programs={}",
+            programs.len()
+        );
+    }
+    if args.suite.includes(InvariantSuite::UnsupportedUnwind) {
+        run_unsupported_unwind(&programs)?;
+        println!(
+            "invariant unsupported-unwind ok: programs={}",
             programs.len()
         );
     }
@@ -1502,6 +1522,24 @@ fn run_idempotence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
             )
             .into());
         }
+    }
+    Ok(())
+}
+
+/// The unsupported-unwind sweep: run every sample program once with
+/// the checker's debug unwind guards active (check.rs UnwindSnapshot
+/// and the links.rs Resolving census) — a violated guard panics with
+/// the offending element. The guards are plain debug_assertions, so
+/// the lib-loaded conformance gate exercises them corpus-wide too;
+/// this suite is the labeled, fast-attribution entry point.
+fn run_unsupported_unwind(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+    if !cfg!(debug_assertions) {
+        return Err(
+            "unsupported-unwind needs debug_assertions (run via the dev-profile xtask)".into(),
+        );
+    }
+    for program in programs {
+        let _ = check_bytes(&program.files);
     }
     Ok(())
 }
@@ -1647,6 +1685,7 @@ fn ledger_check() -> Result<(), Box<dyn Error>> {
     let public_functions = collect_hot_public_functions(&workspace)?;
     let unported = unported_public_functions(&entries, &public_functions);
     let todo_sites = collect_todo_port_sites(&workspace)?;
+    let undispositioned = collect_undispositioned_checker_fns(&workspace)?;
 
     for entry in &stale {
         eprintln!("{entry}");
@@ -1656,12 +1695,13 @@ fn ledger_check() -> Result<(), Box<dyn Error>> {
     }
 
     println!(
-        "ledger check: entries={} stale={} hot_pub_fns={} unported_pub_fns={} todo_port={}",
+        "ledger check: entries={} stale={} hot_pub_fns={} unported_pub_fns={} todo_port={} undispositioned={}",
         entries.len(),
         stale.len(),
         public_functions.len(),
         unported.len(),
-        todo_sites.len()
+        todo_sites.len(),
+        undispositioned.len()
     );
     if !unported.is_empty() {
         println!("unported pub fns:");
@@ -1675,9 +1715,80 @@ fn ledger_check() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    // The disposition BACKLOG gate (review round 2): equality against
+    // fn-dispositions.toml — a NEW undispositioned identity is
+    // rejected outright (a same-commit annotate+add swap cannot slip
+    // through a count ceiling), and burn-down must land as a
+    // shrinking, reviewable diff.
+    let backlog_path = workspace.join("fn-dispositions.toml");
+    if !backlog_path.exists() {
+        return Err(
+            "fn-dispositions.toml is missing — run `cargo xtask ledger write-backlog`, \
+             review, and commit it"
+                .into(),
+        );
+    }
+    let recorded_backlog = parse_fn_backlog(&fs::read_to_string(&backlog_path)?)?;
+    let scanned_backlog = backlog_map(&undispositioned, &workspace);
+    let mut backlog_divergences = 0usize;
+    for (key, count) in &scanned_backlog {
+        match recorded_backlog.get(key) {
+            Some(recorded) if recorded == count => {}
+            Some(recorded) if count < recorded => {
+                backlog_divergences += 1;
+                println!(
+                    "BACKLOG-STALE-COUNT {}::{} — {count} undispositioned left of {recorded}: \
+                     run `cargo xtask ledger write-backlog` (burn-down lands as a diff)",
+                    key.0, key.1
+                );
+            }
+            _ => {
+                backlog_divergences += 1;
+                println!(
+                    "BACKLOG-NEW {}::{} — NEW undispositioned checker fn: give it a \
+                     disposition header ({}) instead of listing it",
+                    key.0,
+                    key.1,
+                    fn_disposition_markers().join(" / ")
+                );
+            }
+        }
+    }
+    for key in recorded_backlog.keys() {
+        if !scanned_backlog.contains_key(key) {
+            backlog_divergences += 1;
+            println!(
+                "BACKLOG-STALE {}::{} — dispositioned or removed: run \
+                 `cargo xtask ledger write-backlog` (the shrinking diff is the record)",
+                key.0, key.1
+            );
+        }
+    }
+    if backlog_divergences > 0 {
+        return Err(format!(
+            "fn-disposition backlog out of date: {backlog_divergences} divergence(s)"
+        )
+        .into());
+    }
     if !stale.is_empty() || !todo_sites.is_empty() {
         return Err("ledger check failed".into());
     }
+    Ok(())
+}
+
+fn ledger_write_backlog() -> Result<(), Box<dyn Error>> {
+    let workspace = find_tsrs2_root()?;
+    let undispositioned = collect_undispositioned_checker_fns(&workspace)?;
+    let map = backlog_map(&undispositioned, &workspace);
+    fs::write(
+        workspace.join("fn-dispositions.toml"),
+        render_fn_backlog(&map),
+    )?;
+    println!(
+        "fn-dispositions.toml written: {} identities ({} fns) — review the diff",
+        map.len(),
+        undispositioned.len()
+    );
     Ok(())
 }
 
@@ -1703,6 +1814,10 @@ fn ledger_coverage() -> Result<(), Box<dyn Error>> {
 struct EscapeSite {
     path: PathBuf,
     line: usize,
+    /// The enclosing function's name — part of the manifest identity
+    /// (review finding: (file, reason) alone let a same-count MOVE
+    /// between functions land without a manifest diff).
+    containing_fn: String,
     reason: String,
     owner: Option<StageKey>,
     /// Owner-less PERMANENT guards for malformed/parse-recovery trees
@@ -1776,8 +1891,12 @@ fn parse_stage_key(text: &str) -> Option<StageKey> {
 
 /// Extract the first string literal following `offset` in `text`,
 /// concatenating adjacent literals (rustfmt splits long reasons).
+/// Byte-walking is UTF-8-safe here because every delimiter tested is
+/// ASCII; the literal CONTENT is collected as raw bytes and decoded
+/// once (pushing bytes as chars mojibake'd every multi-byte reason —
+/// review finding).
 fn escape_reason_after(text: &str, offset: usize) -> String {
-    let mut reason = String::new();
+    let mut content = Vec::new();
     let bytes = text.as_bytes();
     let mut i = offset;
     let mut depth = 0i32;
@@ -1796,7 +1915,7 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
                     if bytes[i] == b'\\' {
                         i += 1;
                     }
-                    reason.push(bytes[i] as char);
+                    content.push(bytes[i]);
                     i += 1;
                 }
             }
@@ -1804,6 +1923,7 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
         }
         i += 1;
     }
+    let reason = String::from_utf8_lossy(&content);
     reason.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
@@ -1818,6 +1938,38 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
 /// the untagged ratchet); everything else owner-less is untagged
 /// debt.
 fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
+    // Line-indexed fn-definition table for containing-fn lookup: the
+    // last `fn name(` at or before an escape's line encloses it
+    // (closures don't match `fn `; nested named fns resolve to the
+    // innermost preceding definition, which is the enclosing one for
+    // straight-line code).
+    let mut fn_lines: Vec<(usize, String)> = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        let mut trimmed = line.trim_start();
+        loop {
+            let stripped = trimmed
+                .strip_prefix("pub(crate) ")
+                .or_else(|| trimmed.strip_prefix("pub "))
+                .or_else(|| trimmed.strip_prefix("async "))
+                .or_else(|| trimmed.strip_prefix("const "))
+                .or_else(|| trimmed.strip_prefix("unsafe "));
+            match stripped {
+                Some(rest) => trimmed = rest,
+                None => break,
+            }
+        }
+        if trimmed.starts_with("fn ") {
+            if let Some(name) = function_name(trimmed) {
+                fn_lines.push((index + 1, name));
+            }
+        }
+    }
+    let containing_fn = |line: usize| -> String {
+        match fn_lines.iter().rev().find(|(fn_line, _)| *fn_line <= line) {
+            Some((_, name)) => name.clone(),
+            None => "<module>".to_owned(),
+        }
+    };
     let mut sites = Vec::new();
     for marker in [
         "Unsupported::new(",
@@ -1841,6 +1993,7 @@ fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
             sites.push(EscapeSite {
                 path: path.to_owned(),
                 line,
+                containing_fn: containing_fn(line),
                 reason,
                 owner,
                 recovery,
@@ -1877,6 +2030,7 @@ fn collect_escape_sites(workspace: &Path) -> Result<Vec<EscapeSite>, Box<dyn Err
 /// separately (they cannot be audited).
 fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut stale_before: Option<StageKey> = None;
+    let mut write_manifest = false;
     let mut args = args.peekable();
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -1886,11 +2040,26 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
                     parse_stage_key(&value).ok_or_else(|| format!("unparseable stage: {value}"))?,
                 );
             }
+            "--write-manifest" => write_manifest = true,
             other => return Err(format!("unexpected escapes argument: {other}").into()),
         }
     }
     let workspace = find_tsrs2_root()?;
     let sites = collect_escape_sites(&workspace)?;
+    if write_manifest {
+        let entries = escape_manifest_from_sites(&workspace, &sites);
+        fs::write(
+            workspace.join("escapes.toml"),
+            render_escape_manifest(&entries),
+        )?;
+        println!(
+            "escapes.toml written: {} entries ({} sites) — review the diff",
+            entries.len(),
+            sites.len()
+        );
+    } else {
+        check_escape_manifest(&workspace, &sites)?;
+    }
     let mut stale = 0usize;
     let mut untagged = 0usize;
     let mut recovery = 0usize;
@@ -1935,7 +2104,7 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     // re-tagging/retiring legacy reasons lowers the recorded ceilings
     // like any ratchet bump.
     if stale_before.is_some() {
-        if let Some(ceiling) = read_escapes_ceiling(&workspace, "max_untagged")? {
+        if let Some(ceiling) = read_ratchet_ceiling(&workspace, "escapes", "max_untagged")? {
             if untagged > ceiling {
                 return Err(format!(
                     "untagged escape ratchet regression: {untagged} > recorded ceiling {ceiling} \
@@ -1944,7 +2113,7 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
                 .into());
             }
         }
-        if let Some(ceiling) = read_escapes_ceiling(&workspace, "max_recovery")? {
+        if let Some(ceiling) = read_ratchet_ceiling(&workspace, "escapes", "max_recovery")? {
             if recovery > ceiling {
                 return Err(format!(
                     "recovery escape ratchet regression: {recovery} > recorded ceiling {ceiling} \
@@ -1959,10 +2128,11 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// A `[escapes]` integer ceiling from ratchet.toml — an absent
+/// An integer ceiling from a ratchet.toml section — an absent
 /// section/key means that ratchet is not armed.
-fn read_escapes_ceiling(
+fn read_ratchet_ceiling(
     workspace: &Path,
+    section: &str,
     ceiling_key: &str,
 ) -> Result<Option<usize>, Box<dyn Error>> {
     let text = fs::read_to_string(workspace.join("ratchet.toml"))?;
@@ -1970,7 +2140,7 @@ fn read_escapes_ceiling(
     for raw_line in text.lines() {
         let line = raw_line.split('#').next().unwrap_or("").trim();
         if line.starts_with('[') && line.ends_with(']') {
-            in_section = &line[1..line.len() - 1] == "escapes";
+            in_section = &line[1..line.len() - 1] == section;
             continue;
         }
         if !in_section {
@@ -1983,6 +2153,275 @@ fn read_escapes_ceiling(
         }
     }
     Ok(None)
+}
+
+/// One escape MANIFEST entry: the reviewable identity of an escape
+/// class is (file, containing fn, reason) — line numbers are
+/// deliberately absent so unrelated edits don't churn the manifest,
+/// while the containing fn pins moves/replacements between functions
+/// (review finding). `count` catches duplicate-site growth under an
+/// existing identity; class/owner are derived from the reason text
+/// and recorded so retags surface as manifest diffs. Accepted
+/// residual (review round 3): a same-reason site swap WITHIN one
+/// function at unchanged count does not diff — this is
+/// function-level debt tracking, not per-site audit.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct EscapeManifestEntry {
+    file: String,
+    containing_fn: String,
+    reason: String,
+    /// "stage" (owner-tagged deferral) | "recovery" (permanent
+    /// malformed-tree guard) | "untagged" (debt — 0 by M4 close).
+    class: String,
+    /// Display owner for class == "stage" ("5.8", "5.7b", "M5"…).
+    owner: Option<String>,
+    count: usize,
+}
+
+fn stage_key_display(key: StageKey) -> String {
+    match key {
+        StageKey(4, minor, u8::MAX) => format!("5.{minor}"),
+        StageKey(4, minor, letter) => format!("5.{}{}", minor, letter as char),
+        StageKey(milestone, _, _) => format!("M{milestone}"),
+    }
+}
+
+fn escape_manifest_from_sites(workspace: &Path, sites: &[EscapeSite]) -> Vec<EscapeManifestEntry> {
+    let mut map: BTreeMap<(String, String, String), EscapeManifestEntry> = BTreeMap::new();
+    for site in sites {
+        let file = display_relative(workspace, &site.path);
+        let (class, owner) = match (site.owner, site.recovery) {
+            (Some(key), _) => ("stage", Some(stage_key_display(key))),
+            (None, true) => ("recovery", None),
+            (None, false) => ("untagged", None),
+        };
+        map.entry((
+            file.clone(),
+            site.containing_fn.clone(),
+            site.reason.clone(),
+        ))
+        .or_insert_with(|| EscapeManifestEntry {
+            file,
+            containing_fn: site.containing_fn.clone(),
+            reason: site.reason.clone(),
+            class: class.to_owned(),
+            owner,
+            count: 0,
+        })
+        .count += 1;
+    }
+    map.into_values().collect()
+}
+
+fn toml_escape_string(text: &str) -> String {
+    text.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn render_escape_manifest(entries: &[EscapeManifestEntry]) -> String {
+    let mut out = String::from(
+        "# Escape site manifest — REVIEW EVERY DIFF TO THIS FILE.\n\
+         # Generated by `cargo xtask escapes --write-manifest`; verified by\n\
+         # `cargo xtask escapes` (plain and --stale/ci gate runs): a scan/manifest\n\
+         # mismatch fails the build. GRANULARITY: identity is (file, containing\n\
+         # fn, reason) with a count — adds, removals, retags, cross-function\n\
+         # moves, and count changes all land as diffs; the ACCEPTED residual is\n\
+         # a same-reason site swap WITHIN one function at unchanged count\n\
+         # (function-level debt tracking by design; per-site IDs were judged\n\
+         # not worth the annotation churn). Line numbers deliberately omitted.\n\
+         # class: stage (owner-tagged deferral) | recovery (permanent\n\
+         # malformed-tree guard) | untagged (debt; 0 by M4 close —\n\
+         # ratchet.toml [escapes] ceilings still apply on top).\n",
+    );
+    for entry in entries {
+        out.push_str("\n[[site]]\n");
+        out.push_str(&format!("file = \"{}\"\n", toml_escape_string(&entry.file)));
+        out.push_str(&format!(
+            "in = \"{}\"\n",
+            toml_escape_string(&entry.containing_fn)
+        ));
+        out.push_str(&format!(
+            "reason = \"{}\"\n",
+            toml_escape_string(&entry.reason)
+        ));
+        out.push_str(&format!("class = \"{}\"\n", entry.class));
+        if let Some(owner) = &entry.owner {
+            out.push_str(&format!("owner = \"{}\"\n", toml_escape_string(owner)));
+        }
+        if entry.count != 1 {
+            out.push_str(&format!("count = {}\n", entry.count));
+        }
+    }
+    out
+}
+
+/// Line-based reader for the manifest's own fixed shape (the xtask
+/// convention: no toml crate — see read_escapes_ceiling).
+fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn Error>> {
+    fn parse_string(value: &str, line_no: usize) -> Result<String, Box<dyn Error>> {
+        let value = value.trim();
+        let inner = value
+            .strip_prefix('"')
+            .and_then(|rest| rest.strip_suffix('"'))
+            .ok_or_else(|| format!("escapes.toml:{line_no}: expected a quoted string"))?;
+        let mut out = String::new();
+        let mut chars = inner.chars();
+        while let Some(ch) = chars.next() {
+            if ch == '\\' {
+                match chars.next() {
+                    Some('\\') => out.push('\\'),
+                    Some('"') => out.push('"'),
+                    other => {
+                        return Err(
+                            format!("escapes.toml:{line_no}: unsupported escape {other:?}").into(),
+                        )
+                    }
+                }
+            } else {
+                out.push(ch);
+            }
+        }
+        Ok(out)
+    }
+
+    let mut entries: Vec<EscapeManifestEntry> = Vec::new();
+    let mut current: Option<EscapeManifestEntry> = None;
+    let finish = |current: &mut Option<EscapeManifestEntry>,
+                  entries: &mut Vec<EscapeManifestEntry>|
+     -> Result<(), Box<dyn Error>> {
+        if let Some(entry) = current.take() {
+            if entry.file.is_empty()
+                || entry.containing_fn.is_empty()
+                || entry.reason.is_empty()
+                || entry.class.is_empty()
+            {
+                return Err(format!(
+                    "escapes.toml: incomplete [[site]] entry (file/reason/class required): \
+                     {entry:?}"
+                )
+                .into());
+            }
+            entries.push(entry);
+        }
+        Ok(())
+    };
+    for (index, raw_line) in text.lines().enumerate() {
+        let line_no = index + 1;
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if line == "[[site]]" {
+            finish(&mut current, &mut entries)?;
+            current = Some(EscapeManifestEntry {
+                file: String::new(),
+                containing_fn: String::new(),
+                reason: String::new(),
+                class: String::new(),
+                owner: None,
+                count: 1,
+            });
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            return Err(format!("escapes.toml:{line_no}: unrecognized line: {line}").into());
+        };
+        let entry = current
+            .as_mut()
+            .ok_or_else(|| format!("escapes.toml:{line_no}: key outside a [[site]] entry"))?;
+        match key.trim() {
+            "file" => entry.file = parse_string(value, line_no)?,
+            "in" => entry.containing_fn = parse_string(value, line_no)?,
+            "reason" => entry.reason = parse_string(value, line_no)?,
+            "class" => entry.class = parse_string(value, line_no)?,
+            "owner" => entry.owner = Some(parse_string(value, line_no)?),
+            "count" => entry.count = value.trim().parse::<usize>()?,
+            other => {
+                return Err(format!("escapes.toml:{line_no}: unknown key {other}").into());
+            }
+        }
+    }
+    finish(&mut current, &mut entries)?;
+    Ok(entries)
+}
+
+/// The manifest gate: the scan and escapes.toml must agree EXACTLY.
+/// Every divergence is printed with its remedy; any divergence fails.
+fn check_escape_manifest(workspace: &Path, sites: &[EscapeSite]) -> Result<(), Box<dyn Error>> {
+    let manifest_path = workspace.join("escapes.toml");
+    if !manifest_path.exists() {
+        return Err(
+            "escapes.toml is missing — run `cargo xtask escapes --write-manifest`, \
+                    review the generated file, and commit it"
+                .into(),
+        );
+    }
+    let recorded = parse_escape_manifest(&fs::read_to_string(&manifest_path)?)?;
+    let expected = escape_manifest_from_sites(workspace, sites);
+    let key = |entry: &EscapeManifestEntry| {
+        (
+            entry.file.clone(),
+            entry.containing_fn.clone(),
+            entry.reason.clone(),
+        )
+    };
+    let recorded_map: BTreeMap<_, _> = recorded.iter().map(|e| (key(e), e.clone())).collect();
+    let expected_map: BTreeMap<_, _> = expected.iter().map(|e| (key(e), e.clone())).collect();
+    let mut divergences = 0usize;
+    for (k, entry) in &expected_map {
+        match recorded_map.get(k) {
+            None => {
+                divergences += 1;
+                println!(
+                    "MANIFEST-NEW {} ({}): \"{}\" [{}{}] — new escape site: run \
+                     `cargo xtask escapes --write-manifest` and get the diff reviewed",
+                    entry.file,
+                    entry.containing_fn,
+                    entry.reason,
+                    entry.class,
+                    entry
+                        .owner
+                        .as_deref()
+                        .map(|owner| format!(" {owner}"))
+                        .unwrap_or_default(),
+                );
+            }
+            Some(prior) if prior != entry => {
+                divergences += 1;
+                println!(
+                    "MANIFEST-CHANGED {} ({}): \"{}\" — recorded {}/{:?}/count {}, scanned \
+                     {}/{:?}/count {} — regenerate + review",
+                    entry.file,
+                    entry.containing_fn,
+                    entry.reason,
+                    prior.class,
+                    prior.owner,
+                    prior.count,
+                    entry.class,
+                    entry.owner,
+                    entry.count,
+                );
+            }
+            Some(_) => {}
+        }
+    }
+    for (k, prior) in &recorded_map {
+        if !expected_map.contains_key(k) {
+            divergences += 1;
+            println!(
+                "MANIFEST-STALE {} ({}): \"{}\" — site no longer in the code: regenerate \
+                 (retiring an escape is progress; the diff records it)",
+                prior.file, prior.containing_fn, prior.reason,
+            );
+        }
+    }
+    if divergences > 0 {
+        return Err(format!(
+            "escape manifest out of date: {divergences} divergence(s) — \
+             `cargo xtask escapes --write-manifest` + review"
+        )
+        .into());
+    }
+    Ok(())
 }
 
 fn collect_ledger_entries(workspace: &Path) -> Result<Vec<LedgerEntry>, Box<dyn Error>> {
@@ -2159,6 +2598,243 @@ fn ledger_source_path(workspace: &Path, span_file: &str) -> Result<PathBuf, Box<
         .into_iter()
         .find(|path| path.is_file())
         .ok_or_else(|| format!("missing ledger source file: {span_file}").into())
+}
+
+/// Function-level DISPOSITION census (external review item #5): every
+/// checker pub/pub(crate) fn must say where it came from — the
+/// existing `tsc-port` ledger header family (incl. tsc-hash/tsc-span
+/// partials), `tsrs-native` (Rust-side glue with no tsc counterpart:
+/// arenas, links accessors, harness plumbing), `tsc-deferred`
+/// M5|M6|M7|M8 (the WHOLE fn is a later stage's port; finer-grained
+/// deferral stays with escapes), or `tsc-not-applicable` with a
+/// reason (LSP-only/emit-only surfaces). Rust-side accountability
+/// only: the "missing tsc function" direction is the M8
+/// emitter-inventory + dependency closure. The backlog is the
+/// fn-dispositions.toml EQUALITY allowlist (deletions only; empties
+/// before M8 starts per definition-of-done.md).
+fn fn_disposition_markers() -> [&'static str; 4] {
+    // concat! keeps the contiguous marker tokens out of THIS file's
+    // source text (the ledger-entry scanner walks xtask too and would
+    // otherwise read the literals as headerless port entries).
+    // tsc-hash:/tsc-span: are deliberately NOT accepted alone (review
+    // round 3): the ledger parser keys entries on the port header, so
+    // a bare hash/span line would satisfy the census while evading
+    // ledger validation entirely — only the port header counts, and
+    // ledger check owns the hash/span completeness of its block.
+    [
+        concat!("tsc-", "port:"),
+        concat!("tsrs-", "native:"),
+        concat!("tsc-", "deferred:"),
+        concat!("tsc-", "not-applicable:"),
+    ]
+}
+
+/// A line carries a disposition only when it is a `///` DOC comment
+/// (plain `//` comments are rejected — review round 4: the
+/// ledger-entry collector reads /// blocks alone, so a plain-comment
+/// `// tsc-port: …` would satisfy the census while evading the
+/// hash/span validation entirely), the marker STARTS the content
+/// (prose mentions don't count), and its payload validates: tsc-port
+/// needs no payload here (ledger check owns its block's hash/span
+/// completeness); tsrs-native/tsc-not-applicable need a non-empty
+/// reason; tsc-deferred must name its owner milestone as a WHOLE
+/// WORD (M5-M8; "M50" does not pass).
+fn line_is_valid_disposition(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    // `////…` banner lines are not doc comments; reject them along
+    // with plain `//`.
+    let Some(after) = trimmed.strip_prefix("///") else {
+        return false;
+    };
+    if after.starts_with('/') {
+        return false;
+    }
+    let content = after.trim_start();
+    let [port, native, deferred, not_applicable] = fn_disposition_markers();
+    if content.starts_with(port) {
+        return true;
+    }
+    for marker in [native, not_applicable] {
+        if let Some(tail) = content.strip_prefix(marker) {
+            return !tail.trim().is_empty();
+        }
+    }
+    if let Some(tail) = content.strip_prefix(deferred) {
+        let tail = tail.trim_start();
+        return ["M5", "M6", "M7", "M8"].iter().any(|stage| {
+            tail.strip_prefix(stage).is_some_and(|rest| {
+                rest.chars()
+                    .next()
+                    .is_none_or(|ch| !ch.is_ascii_alphanumeric())
+            })
+        });
+    }
+    false
+}
+
+/// Mirrors parse_ledger_entries_in_file's doc-block rules EXACTLY,
+/// so a disposition can never be visible to the census yet invisible
+/// to the ledger parser (review round 5: a plain `//` line between
+/// the doc block and the fn CLEARS the block on the ledger side —
+/// walking over it here let a detached `/// tsc-port:` satisfy the
+/// census while evading hash/span validation). Upward from the fn:
+/// `///` doc lines accumulate, blank lines and `#[` attributes are
+/// transparent, ANYTHING else — including plain `//` comments —
+/// terminates the block. Keep the two in lockstep: a rule change in
+/// either MUST land in both.
+fn doc_block_has_disposition(lines: &[&str], fn_index: usize) -> bool {
+    let mut index = fn_index;
+    while index > 0 {
+        let line = lines[index - 1].trim_start();
+        if line.starts_with("///") {
+            if line_is_valid_disposition(line) {
+                return true;
+            }
+            index -= 1;
+        } else if line.is_empty() || line.starts_with("#[") {
+            index -= 1;
+        } else {
+            break;
+        }
+    }
+    false
+}
+
+fn collect_undispositioned_checker_fns(
+    workspace: &Path,
+) -> Result<Vec<PublicFunction>, Box<dyn Error>> {
+    let mut functions = Vec::new();
+    for path in collect_rs_paths(&workspace.join("crates/checker/src"))? {
+        let text = fs::read_to_string(&path)?;
+        let lines = text.lines().collect::<Vec<_>>();
+        for (index, line) in lines.iter().enumerate() {
+            let trimmed = line.trim_start();
+            let is_pub_fn = ["pub fn ", "pub async fn ", "pub const fn "]
+                .iter()
+                .any(|prefix| trimmed.starts_with(prefix))
+                || ["fn ", "async fn ", "const fn "].iter().any(|suffix| {
+                    trimmed
+                        .strip_prefix("pub(crate) ")
+                        .is_some_and(|rest| rest.starts_with(suffix))
+                });
+            if !is_pub_fn {
+                continue;
+            }
+            if doc_block_has_disposition(&lines, index) {
+                continue;
+            }
+            if let Some(name) = function_name(trimmed) {
+                functions.push(PublicFunction {
+                    path: path.clone(),
+                    line: index + 1,
+                    name,
+                });
+            }
+        }
+    }
+    functions.sort();
+    Ok(functions)
+}
+
+/// The disposition BACKLOG allowlist (fn-dispositions.toml): the
+/// pre-existing undispositioned fns, keyed (file, name) with a count
+/// for same-named impl-block collisions. The gate is EQUALITY: a
+/// scanned undispositioned fn absent from the file is a NEW
+/// undispositioned identity (forbidden — annotate it instead); a
+/// listed identity no longer undispositioned is STALE (progress —
+/// regenerate so the burn-down lands as a reviewable diff). The file
+/// only ever shrinks toward 0 before M8 (definition-of-done.md).
+fn backlog_map(
+    functions: &[PublicFunction],
+    workspace: &Path,
+) -> BTreeMap<(String, String), usize> {
+    let mut map = BTreeMap::new();
+    for function in functions {
+        *map.entry((
+            display_relative(workspace, &function.path),
+            function.name.clone(),
+        ))
+        .or_insert(0) += 1;
+    }
+    map
+}
+
+fn render_fn_backlog(map: &BTreeMap<(String, String), usize>) -> String {
+    let mut out = String::from(
+        "# fn-disposition BACKLOG — pre-existing checker pub fns without a\n\
+         # disposition header. DELETIONS ONLY: annotate a fn (tsc-port family /\n\
+         # tsrs-native: <reason> / tsc-deferred: M5-M8 / tsc-not-applicable:\n\
+         # <reason>), then `cargo xtask ledger write-backlog` — the shrinking\n\
+         # diff is the review surface. New undispositioned fns are rejected by\n\
+         # `cargo xtask ledger check`. Identity is (file, fn name) with a count\n\
+         # for same-named impl-block fns — function-level tracking, same\n\
+         # accepted residual as escapes.toml. Reaches 0 before M8 starts\n\
+         # (definition-of-done.md clause 4).\n",
+    );
+    for ((file, name), count) in map {
+        out.push_str("\n[[fn]]\n");
+        out.push_str(&format!("file = \"{}\"\n", toml_escape_string(file)));
+        out.push_str(&format!("name = \"{}\"\n", toml_escape_string(name)));
+        if *count != 1 {
+            out.push_str(&format!("count = {count}\n"));
+        }
+    }
+    out
+}
+
+fn parse_fn_backlog(text: &str) -> Result<BTreeMap<(String, String), usize>, Box<dyn Error>> {
+    let mut map = BTreeMap::new();
+    let mut file = String::new();
+    let mut name = String::new();
+    let mut count = 1usize;
+    let mut open = false;
+    let flush = |file: &mut String,
+                 name: &mut String,
+                 count: &mut usize,
+                 open: &mut bool,
+                 map: &mut BTreeMap<(String, String), usize>|
+     -> Result<(), Box<dyn Error>> {
+        if *open {
+            if file.is_empty() || name.is_empty() {
+                return Err("fn-dispositions.toml: incomplete [[fn]] entry".into());
+            }
+            map.insert((std::mem::take(file), std::mem::take(name)), *count);
+            *count = 1;
+        }
+        *open = true;
+        Ok(())
+    };
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if line == "[[fn]]" {
+            flush(&mut file, &mut name, &mut count, &mut open, &mut map)?;
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            return Err(format!("fn-dispositions.toml: unrecognized line: {line}").into());
+        };
+        let value = value
+            .trim()
+            .trim_matches('"')
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\");
+        match key.trim() {
+            "file" => file = value,
+            "name" => name = value,
+            "count" => count = value.parse()?,
+            other => return Err(format!("fn-dispositions.toml: unknown key {other}").into()),
+        }
+    }
+    if open {
+        if file.is_empty() || name.is_empty() {
+            return Err("fn-dispositions.toml: incomplete [[fn]] entry".into());
+        }
+        map.insert((file, name), count);
+    }
+    Ok(map)
 }
 
 fn collect_hot_public_functions(workspace: &Path) -> Result<Vec<PublicFunction>, Box<dyn Error>> {
@@ -5433,6 +6109,122 @@ mod escape_scanner_tests {
     }
 
     #[test]
+    fn manifest_roundtrips_and_keys_on_file_reason() {
+        let sites = scan(
+            r#"Err(Unsupported::new("alias value types (getTypeOfAlias, 5.8)"));
+               Err(Unsupported::new("alias value types (getTypeOfAlias, 5.8)"));
+               Err(Unsupported::new("entityNameToString on recovery node"));
+               Err(Unsupported::new("a reason with \"quotes\" and back\\slash"));"#,
+        );
+        let entries = escape_manifest_from_sites(Path::new(""), &sites);
+        // Duplicate reasons fold into one entry with count 2; classes
+        // derive from the reason text.
+        assert_eq!(entries.len(), 3);
+        let dup = entries
+            .iter()
+            .find(|entry| entry.reason.starts_with("alias value types"))
+            .expect("folded entry");
+        assert_eq!(
+            (dup.count, dup.class.as_str(), dup.owner.as_deref()),
+            (2, "stage", Some("5.8"))
+        );
+        let recovery = entries
+            .iter()
+            .find(|entry| entry.reason.contains("recovery node"))
+            .expect("recovery entry");
+        assert_eq!(
+            (recovery.class.as_str(), recovery.owner.as_deref()),
+            ("recovery", None)
+        );
+        let parsed = parse_escape_manifest(&render_escape_manifest(&entries)).expect("roundtrip");
+        assert_eq!(parsed, entries);
+    }
+
+    #[test]
+    fn disposition_census_reads_the_doc_block() {
+        let ported = ["/// tsc-port: checkFoo @6.0.3", "pub fn check_foo() {}"];
+        let native = [
+            "/// tsrs-native: arena accessor",
+            "#[inline]",
+            "pub(crate) fn arena_get() {}",
+        ];
+        let deferred = [
+            "/// tsc-deferred: M6 inferTypeArguments",
+            "pub fn infer() {}",
+        ];
+        let bare = ["/// plain prose only", "pub fn mystery() {}"];
+        assert!(doc_block_has_disposition(&ported, 1));
+        assert!(doc_block_has_disposition(&native, 2));
+        assert!(doc_block_has_disposition(&deferred, 1));
+        assert!(!doc_block_has_disposition(&bare, 1));
+        // Review round 2: prose MENTIONS and invalid payloads do not
+        // count — the marker must start the line and validate.
+        let prose = ["/// this helper is tsrs-native: in spirit", "pub fn x() {}"];
+        let empty_native = ["/// tsrs-native:", "pub fn y() {}"];
+        let bad_stage = ["/// tsc-deferred: someday", "pub fn z() {}"];
+        assert!(!doc_block_has_disposition(&prose, 1));
+        assert!(!doc_block_has_disposition(&empty_native, 1));
+        assert!(!doc_block_has_disposition(&bad_stage, 1));
+        // Review round 3: bare hash/span lines are NOT dispositions
+        // (the ledger parser keys on the port header — a bare hash
+        // would evade both checks), and stage names are whole words.
+        let hash_only = ["/// tsc-hash: abc123", "pub fn h() {}"];
+        let span_only = ["/// tsc-span: _tsc.js:1-2", "pub fn s() {}"];
+        let stage_prefix = ["/// tsc-deferred: M50 someday", "pub fn w() {}"];
+        let stage_word = ["/// tsc-deferred: M5, with reason", "pub fn v() {}"];
+        assert!(!doc_block_has_disposition(&hash_only, 1));
+        assert!(!doc_block_has_disposition(&span_only, 1));
+        assert!(!doc_block_has_disposition(&stage_prefix, 1));
+        assert!(doc_block_has_disposition(&stage_word, 1));
+        // Review round 4: PLAIN `//` comments (and //// banners) are
+        // not dispositions — the ledger collector reads /// blocks
+        // alone, so a plain-comment tsc-port would evade hash/span
+        // validation.
+        let plain_port = ["// tsc-port: fake @6.0.3", "pub(crate) fn sneaky() {}"];
+        let plain_native = ["// tsrs-native: also fake", "pub fn sly() {}"];
+        let banner = ["//// tsc-port: banner", "pub fn b() {}"];
+        assert!(!doc_block_has_disposition(&plain_port, 1));
+        assert!(!doc_block_has_disposition(&plain_native, 1));
+        assert!(!doc_block_has_disposition(&banner, 1));
+        // Review round 5: a plain `//` line TERMINATES the block
+        // (the ledger parser clears its doc block there — a doc
+        // comment detached by a separator must not count), while a
+        // BLANK line is transparent on both sides.
+        let separated = [
+            "/// tsc-port: dummy @6.0.3",
+            "// ordinary separator",
+            "pub(crate) fn newly_added() {}",
+        ];
+        let blank_gap = ["/// tsc-port: real @6.0.3", "", "pub fn f() {}"];
+        assert!(!doc_block_has_disposition(&separated, 2));
+        assert!(doc_block_has_disposition(&blank_gap, 2));
+        // The block scan stops at the first non-comment/attr line.
+        let detached = [
+            "/// tsrs-native: someone else's fn",
+            "pub fn other() {}",
+            "pub fn unrelated() {}",
+        ];
+        assert!(!doc_block_has_disposition(&detached, 2));
+    }
+
+    #[test]
+    fn fn_backlog_roundtrips() {
+        let mut map = BTreeMap::new();
+        map.insert(("crates/checker/src/a.rs".to_owned(), "foo".to_owned()), 1);
+        map.insert(("crates/checker/src/b.rs".to_owned(), "bar".to_owned()), 2);
+        let parsed = parse_fn_backlog(&render_fn_backlog(&map)).expect("roundtrip");
+        assert_eq!(parsed, map);
+    }
+
+    #[test]
+    fn stage_key_displays_match_reason_conventions() {
+        assert_eq!(stage_key_display(StageKey(4, 8, u8::MAX)), "5.8");
+        assert_eq!(stage_key_display(StageKey(4, 7, b'b')), "5.7b");
+        assert_eq!(stage_key_display(StageKey(5, 0, 0)), "M5");
+        assert_eq!(stage_key_display(StageKey(8, 0, 0)), "M8");
+    }
+
+    #[test]
     fn latest_stage_in_a_reason_wins() {
         let sites =
             scan(r#"Err(Unsupported::new("expired 5.5f dep; folded into the 5.7b close"))"#);
@@ -5486,16 +6278,22 @@ mod escapes_ceiling_tests {
         )
         .unwrap();
         assert_eq!(
-            read_escapes_ceiling(&dir, "max_untagged").unwrap(),
+            read_ratchet_ceiling(&dir, "escapes", "max_untagged").unwrap(),
             Some(178)
         );
         assert_eq!(
-            read_escapes_ceiling(&dir, "max_recovery").unwrap(),
+            read_ratchet_ceiling(&dir, "escapes", "max_recovery").unwrap(),
             Some(71)
         );
         fs::write(dir.join("ratchet.toml"), "[t0]\nrate = 0.1\n").unwrap();
-        assert_eq!(read_escapes_ceiling(&dir, "max_untagged").unwrap(), None);
-        assert_eq!(read_escapes_ceiling(&dir, "max_recovery").unwrap(), None);
+        assert_eq!(
+            read_ratchet_ceiling(&dir, "escapes", "max_untagged").unwrap(),
+            None
+        );
+        assert_eq!(
+            read_ratchet_ceiling(&dir, "escapes", "max_recovery").unwrap(),
+            None
+        );
         fs::remove_dir_all(&dir).ok();
     }
 }

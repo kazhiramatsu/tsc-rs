@@ -36,3 +36,4 @@ max_untagged = 114
 # transcriptions of createJsxAttributesTypeFromAttributesProperty and
 # getIntrinsicTagSymbol, risk #6).
 max_recovery = 87
+
