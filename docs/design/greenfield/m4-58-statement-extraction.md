@@ -8,8 +8,8 @@ in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.8
 HERE. This doc's slicing (§15, commits `m4 5.8a-…`) supersedes the
 steps doc's single-commit line.
 
-Status: §§0-10 COMPLETE (+ §4-addendum generator body inference)
-extracted (driver, late-binding wall,
+Status: EXTRACTION COMPLETE (§§0-15; grammar workers transcribe at
+landing per §12's rule). Implementers start at §15's slicing. (driver, late-binding wall,
 variables, control statements, iteration protocol, member/function
 declarations, class band, interface/typealias/enum, module band,
 import/export checks).
@@ -1979,23 +1979,287 @@ sans accessor-modifier omits descriptor, returns void|...).
 emitDecoratorMetadata entity-name machinery (L82698-82743) =
 emit-only, elide.
 
-## §11 EXTRACTION PENDING
+## §11 Type-node arms (L81838-82023)
 
-markExportAsReferenced consumers (L71945, emit-adjacent — decide
-no-op) + getSymbolOfPartOfRightHandSideOfImportEquals (L49230) +
-tryFindAmbientModule (L59499) + getCannotResolveModuleNameError
-ForSpecificModule (L69377) transcriptions at landing;
+- checkTypeQuery (L81838): getTypeFromTypeQueryNode force (annotate
+  kit).
+- checkTypeLiteral (L81841): members forEach checkSourceElement;
+  LAZY: type = getTypeFromTypeLiteralOrFunctionOrConstructorTypeNode;
+  checkIndexConstraints(type, type.symbol) (§6);
+  checkTypeForDuplicateIndexSignatures;
+  checkObjectTypeForDuplicateDeclarations (§5).
+- checkArrayType (L81851): element recursion only — SELF-FORCING
+  ABSENT (no re-entrancy trap exposure).
+- checkTupleType (L81854): per element getTupleElementFlags walk:
+  Variadic → getTypeFromTypeNode(e.type) NOT array-like →
+  A_rest_element_type_must_be_an_array_type AT element, break;
+  array/rest-carrying-tuple variadic → Rest reclass; Rest after
+  Rest → A_rest_element_cannot_follow_another_rest_element
+  (grammar); Optional after Rest → An_optional_element_cannot_
+  follow_a_rest_element; Required after Optional → A_required_
+  element_cannot_follow_an_optional_element; ALL break-on-first.
+  THEN element recursion + **getTypeFromTypeNode(node) SELF-FORCE**
+  (re-entrancy trap: route through the overwrite-tolerant cache or
+  prove unreachable from default subtrees — §0).
+- checkUnionOrIntersectionType (L81889): recursion + SELF-FORCE
+  (same trap note).
+- checkIndexedAccessType (L81919): recurse both; checkIndexedAccess
+  IndexType (L81893) on the RESOLVED type: non-IndexedAccess pass;
+  index assignable to keyof objectType (or applicable number index)
+  → (element-access assignment to mapped readonly → Index_signature_
+  in_type_0_only_permits_reading — expression-side twin exists in
+  access.rs:3260 escape) → pass; generic objectType + property-name
+  index + non-public member → Private_or_protected_member_0_cannot_
+  be_accessed_on_a_type_parameter → errorType; else Type_0_cannot_
+  be_used_to_index_type_1 → errorType. NOTE annotate.rs's indexed-
+  access TYPE resolution already reports its own band — this arm is
+  the CHECK-side; verify no double-report with the 5.2g resolver
+  rows (tsc's resolver reports via the same helper on access
+  EXPRESSIONS; type-node path reports HERE — pin `T['x']` bad-index
+  shape).
+- checkMappedType (L81924): checkGrammarMappedType (L81941: members
+  present → A_mapped_type_may_not_declare_properties_or_methods);
+  recurse typeParameter/nameType/type; !type → reportImplicitAny(
+  node, anyType) (5.6 kit — 7040-family? number from gen.rs);
+  type = getTypeFromMappedTypeNode (M8-stub in annotate.rs —
+  **containment: when the mapped-type resolver escapes, the
+  remaining rows escape with it**; the grammar + recursion + 7061
+  rows above still fire); nameType present → checkTypeAssignableTo(
+  nameType, stringNumberSymbolType, node.nameType) else
+  constraint → …(constraintType, stringNumberSymbolType, effective
+  constraint node) — keyof-side kit exists.
+- checkThisType (L81947): getTypeFromThisTypeNode force.
+- checkTypeOperator (L81950): checkGrammarTypeOperatorNode (grammar
+  band — unique/readonly position rules 1331/1354/1355) + operand
+  recursion.
+- checkConditionalType (L81954): forEachChild recursion ONLY (the
+  M8-stub stays on the annotate side — no self-force here).
+- checkInferType (L81957): ancestor probe for conditional-extends
+  position → infer_declarations_are_only_permitted_in_the_extends_
+  clause_of_a_conditional_type (grammar); recurse typeParameter;
+  multi-declaration constraint identity via areTypeParametersIdentical
+  (§6 kit) once-latched on symbolLinks.typeParametersChecked →
+  All_declarations_of_0_must_have_identical_constraints per
+  declaration name; M7 register.
+- checkTemplateLiteralType (L81979): per span: recurse + span type
+  assignable to templateConstraintType (string|number|bigint|
+  boolean|null|undefined intrinsic union — state singleton, verify
+  tables) AT span.type; self-force tail.
+- checkImportType (L81987): recurse argument; attributes: assert
+  deprecation row + getResolutionModeOverride grammar;
+  checkTypeReferenceOrImport tail (check.rs 5.4 port GENERALIZES:
+  its current TypeReference-only data assert must accept ImportType
+  — same §6 heritage generalization family).
+- checkNamedTupleMember (L81997): rest+optional → A_tuple_member_
+  cannot_be_both_optional_and_rest; OptionalType inner → A_labeled_
+  tuple_element_is_declared_as_optional_with_a_question_mark_after_
+  the_name…; RestType inner → …declared_as_rest_with_a_before_the_
+  name…; recurse + self-force.
+- isPrivateWithinAmbient (L82010) + getEffectiveDeclarationFlags
+  (L82013: combined modifiers + ambient-context Export/Ambient
+  synthesis — non-class/interface members in ambient ExportContext
+  containers gain Export|Ambient; global-augment exception) —
+  shared §5 kit, transcribe with the overload band.
 
+## §12 Grammar-worker sweep (landing-time transcription)
 
-alias band (checkAliasSymbol L86029 + resolveAlias L49116 +
-import/export declaration checks L86163-86501 +
-checkExternalModuleExports L86505 — §0 lists the drain), decorators
-(checkDecorators L82744 + checkDecorator L82628 +
-getDecoratorCallSignature L78699 + grammar L82580), type-node arms
-(L81838-82023: checkTypeQuery/TypeLiteral/Array/Tuple/UnionOr
-Intersection/IndexedAccess(+IndexType worker L81893)/Mapped/This/
-TypeOperator/Conditional/Infer/TemplateLiteral/Import/
-NamedTupleMember), checkPotentialUncheckedRenamedBindingElements
-InTypes (L83180), declaration-band grammar workers (L88907-90450:
-checkGrammarModifiers full port decision stays M7 vs 5.8 — the
-statement band only needs the workers named in §§2-3).
+Per-band grammar workers are NAMED at their call sites (§§2-11) and
+transcribed AT LANDING against these anchors (L88907-90450 region +
+outliers): checkGrammarImportClause, checkGrammarNamedImportsOrExports,
+checkGrammarModifiers (STAYS the M7-stub hook — 5.8 lands only the
+named per-band workers, NOT the general modifier grammar),
+checkGrammarClassLikeDeclaration, checkGrammarInterfaceDeclaration,
+checkGrammarProperty, checkGrammarMethod, checkGrammarIndexSignature,
+checkGrammarFunctionLikeDeclaration, checkGrammarConstructorType
+Parameters/Annotation, checkGrammarForGenerator,
+checkGrammarComputedPropertyName, checkGrammarTypeOperatorNode,
+checkAwaitGrammar (L79338), checkGrammarAccessor (L89843 — §5 read),
+checkGrammarMetaProperty (L90187 — import.meta/new.target rows ride
+operators.rs's checkMetaProperty un-escape). Rule: transcribe each
+worker's FULL body when its first caller lands; a worker shared by
+multiple bands lands with the FIRST band and is re-audited by later
+ones. Suppression discipline (hasParseDiagnostics) is per existing
+grammarError* plumbing.
+
+## §13 Rust seam inventory + new state
+
+Checker crate growth (file plan mirrors band structure):
+- statements.rs NEW (§§2-3, est. 1.5-2k): variable band + control
+  statements + truthiness kit + collisions band + grammar workers.
+- iterate.rs NEW (§4 + §4-addendum, est. 1-1.3k): IterationTypes
+  arena/singletons + resolvers + worker family + generator return
+  types + createGeneratorType + the [ITER] escape lifts touch
+  operators/literals/functions/contextual/widen/expr/calls.
+- functions.rs GROWS (§5): checkParameter/SignatureDeclaration/
+  FunctionOrMethodDeclaration/overload band/checkAsyncFunctionReturn
+  Type/checkAllCodePaths/accessor pair checks; evaluate.rs's
+  declared-before-use walk untouched.
+- class.rs NEW (§6, est. 1-1.4k): checkClassLikeDeclaration +
+  overrides + member-kind overrides + property initialization +
+  index constraints + issueMemberSpecificError.
+- modules.rs NEW (§§8-9, est. 1.5-2k): module/augmentation band +
+  import/export checks + alias protocol + per-kind targets + module
+  resolution + exports worker; merge.rs completes mergeModule
+  Augmentation rows; annotate.rs 3173/access.rs 1603 escapes lift.
+- calls.rs GROWS (§10): resolveDecorator + decorator effective args
+  + getDecoratorCallSignature (+ its global-type builders).
+- check.rs: stub arms → dispatch to the above; heritage/import-type
+  generalization of checkTypeReferenceNode/checkTypeArgument
+  Constraints/checkTypeReferenceOrImport; chain-closure param on
+  check_type_assignable_to (reuse calls.rs's chain support);
+  checkSourceFileWorker tail (drains + checkExternalModuleExports +
+  checkPotentialUncheckedRenamed).
+
+New state:
+- CheckerState: potentialThisCollisions/NewTarget/WeakMapSet/
+  Reflect/UnusedRenamedBindingElements vectors;
+  ambientModulesCache + patternAmbientModules +
+  patternAmbientModuleAugmentations (init from bound files);
+  templateConstraintType/anyReadonlyArrayType/stringNumberSymbolType
+  singletons (verify existing); iterationTypesCache intern map.
+- TypeLinks: iteration_types_of_{iterable,async_iterable,iterator,
+  async_iterator,iterator_result} (5 verdict slots storing the
+  noIterationTypes sentinel distinguishably).
+- NodeLinks: decorator_signature (anySignature-sentinel memo);
+  enum_member_value EXISTS; has_reported_statement_in_ambient_context
+  EXISTS.
+- SymbolLinks: alias_target (LinkSlot w/ Resolving), type_only_
+  declaration (tri-state) + type_only_export_star_name,
+  type_only_export_star_map, resolved_exports (module flavor beside
+  the late-bind flavor — SAME slot in tsc; keep one slot routed by
+  getExportsOfSymbol), exports_checked, type_parameters_checked,
+  cjs_export_merged.
+- NodeCheckFlags: LexicalModuleMergesWithClass +
+  ContainsClassWithPrivateIdentifiers (verify bits exist).
+- PROGRAM layer: minimal module resolver (relative specifiers vs
+  in-program file names + extension probes; harness @filename
+  layout is the spec); skippedOn("noEmit") diagnostic filter;
+  commentDirectives collection (parser) + directive filter — the
+  §1 LIFT slice's dependency.
+- BINDER verifications (BLOCKING their bands): NodeFlags.Namespace
+  stamp on `namespace` keyword (§8 row); HasImplicitReturn/
+  HasExplicitReturn flow-exit flags (§5 checkAllCodePaths + getter
+  2378); localSymbol on exported declarations (§5 overload band);
+  getModuleInstanceState exposure (§2 collisions + §8).
+- OPTIONS verifications: esModuleInterop/allowSyntheticDefault
+  Imports (§9 gates), noImplicitReturns/noUncheckedIndexedAccess/
+  noImplicitOverride/noFallthroughCasesInSwitch (absent → dead
+  arms w/ notes), strictPropertyInitialization/useUnknownInCatch
+  Variables/strictBuiltinIteratorReturn (strict family — verify
+  present), useDefineForClassFields default, target floor (kills
+  the `arguments` collision check if ≥ES2015).
+
+## §14 FP=0 risk register (pin at each slice)
+
+1. **The late-binding lift (§1)** is its own slice with a re-run +
+   full-conformance triage protocol; FLOW-narrowing FPs get targeted
+   [FLOW M5] report gates, never member-table re-containment; the
+   well-known-symbol-only carve-out is the fallback. NO other slice
+   may un-contain interfaces as a side effect.
+2. **skippedOn(noEmit)**: the collision band lands ONLY with the
+   program-layer filter + a harness @noEmit verification; else every
+   noEmit fixture with a collision row FPs.
+3. **errorOutputContainer double-add** (§4 union path): keep
+   collect-only containers + one explicit add per diagnostic; pin a
+   union-iterable failure.
+4. **Display-band containment**: 2403/2717/2415/2416/2320-family
+   render whole types in args — unrenderable displays ESCAPE (the
+   established T2 curtain), never partial-render.
+5. **Flow-gated faces split**: 2564 + 2612 report ONLY the
+   no-constructor/flow-free faces; constructor-present faces escape
+   [FLOW M5]. Pin both shapes each.
+6. **NodeFlags.Namespace**: verify the parser stamps it before
+   wiring the module-keyword row — else FP on every `namespace`.
+7. **2307 un-silencing order**: resolver must consult in-program
+   files + ambient + pattern-ambient modules BEFORE the error tail;
+   flip the import-call silent stub only after declaration-side
+   conformance shows no fabricated 2307/2306.
+8. **Body double-drive**: eager function/constructor body checks +
+   the 5.5f deferred method path must stay idempotent through links
+   + exact-dedupe; pin an object-literal method with an internal
+   error.
+9. **Demand-caveat inversion**: checkVariableLikeDeclaration forces
+   getTypeOfSymbol on EVERY declaration — 5.6's demand-gated
+   implicit-any rows now fire at declaration sites; re-audit pins
+   that assumed absence (the "const-position rows remain 5.8" FN
+   class flips to live).
+10. **Truthiness/always-defined bands** (§3): symbol-identity walks
+    (isSymbolUsedIn*) compare RESOLVED symbols; text comparison FPs
+    under shadowing. 2774/2801 gate on strictNullChecks.
+11. **Grammar suppression**: every new grammarError* row stays
+    behind hasParseDiagnostics; plain error() rows (e.g.
+    _0_declarations_can_only_be_declared_inside_a_block) do NOT.
+12. **Heritage/import-type self-forcing** rides the TypeReference
+    overwrite-tolerant cache arm (§0 re-entrancy trap) — audit
+    checkTupleType/checkUnionOrIntersectionType/checkTemplateLiteral
+    self-forces for default-subtree reachability.
+13. **checkExternalModuleExports** (2309/2323) lands AFTER the §9
+    exports worker inside the module slice — its getExportsOfModule
+    dependency is real; the once-guard must dedupe the
+    checkExportAssignment-driven second run.
+14. **Decorators**: ES semantics only (experimentalDecorators
+    unmodeled — never wire the legacy table); ES context types are
+    lib-loaded (noLib pins hand-declare or tolerate 2318).
+15. **checkTypePredicate tail** is provably dead (predicates
+    unmodeled until M5) — port the 1228 row + M5-stub escape; do
+    not fabricate 2677/1230 shapes.
+
+## §15 Slicing + sequencing (commits `m4 5.8a-e`)
+
+- **5.8a — statements + variables + type-nodes**: §0 driver arms;
+  §2 whole (collisions band behind risk #2's harness verify); §3
+  minus for-of/for-in ITERATION semantics (the statements land with
+  checkRightHandSideOfForOf escaping to 5.8b; grammar + LHS rows
+  live); §11 type-node arms (checkTypeLiteral's lazy block pulls
+  checkIndexConstraints + duplicate-check helpers forward — they
+  are self-contained); checkPotentialUncheckedRenamed drain.
+  Expected recovery: 17004/7050 const-position rows, 1155/1156-
+  family, 2403/2717, truthiness bands, switch 2678, statement-body
+  reach for ALL existing expression machinery (the biggest rate
+  multiplier of the stage).
+- **5.8b — iteration + function/member declarations**: §4 protocol
+  + §4-addendum generator inference + for-of/for-in completion +
+  [ITER] escape-lift sweep (operators/literals/functions/contextual/
+  widen/expr/calls) + §5 whole (binder HasImplicitReturn verify is
+  this slice's precondition; checkTypePredicate M5-stub tail).
+  Recovery: 2461/2488/2549-family, 2345-in-bodies, 7010/7011 at
+  overloads, 2391-2394 overload band, 2378/2676/2808 accessors,
+  1064 async returns, 2355/2534/2847.
+- **5.8c — class band + interface/enum completions + decorators**:
+  §6 whole + §7 + §8 enum drivers + §10 decorators (calls.rs
+  Decorator arm + deferred arm). Recovery: 2415/2417/2420/2720,
+  4112-4116, 2610/2611/2423-2425, abstract 2515/2653-family,
+  2564-no-ctor face, 2300/2374/2699, 1206x decorator band.
+- **5.8d — module/alias/import-export band**: §8 module band + §9
+  whole (alias protocol → per-kind targets → module resolution →
+  exports worker → checkExternalModuleExports + checkExportsOnMerged
+  Declarations' alias arm un-escapes) + the VALUE_MODULE
+  getTypeOfSymbol arm (annotate.rs 4907 — namespace value types,
+  unblocks 2683/2631/2632 + globalThis) + merge.rs augmentation
+  completion. Recovery: 2305/2307/2306/2613/2614/2724/2459/2460,
+  2440/2484, 2308, 1192-family, namespace bands, import-equals rows.
+- **5.8e — the LIFT slice**: comment-directive program port →
+  interface late-binding lift → full-conformance FP triage →
+  targeted [FLOW M5] gates (or the well-known-symbol carve-out
+  fallback per §1). Recovery: array/string member access
+  corpus-wide + for-of over arrays + the §4 slow path.
+
+Per-slice gates unchanged: cargo test workspace; relpin /0; ledger;
+invariants idempotence; conformance FULL — T0 in commit body,
+**FP=0 absolute**; integer ratchet non-regression + bump; escapes
+--stale $(cat STAGE) clean incl. untagged/recovery ceilings; STAGE
+bumps per letter; oracle pins land WITH each commit. Letterless
+"5.7" tags EXPIRE at 5.8a — grep and re-own in the first slice.
+"M4-end sweep 5.8"-tagged residuals (tables.rs tuple collapse,
+constraints.rs generic tuples, structural keyof/indexed relation
+arms, jsx corners, createTypeReference-over-non-generic-interface)
+are NOT 5.8a-e scope: they form the M4 final-gate sweep after 5.8e
+(re-tag then per skeleton-steps final gate + NOTES-m4.md).
+
+Cross-references: [[tsrs2-m4-checker]] memory (session state);
+skeleton-steps §5.8 (scope + re-entrancy trap + final gate);
+m4-55 §0 (stub tags) / §11-12 (discipline); m4-57 (links/chain/
+EffectiveArg patterns, M6-stub rule — decorators + §9 reuse);
+m5-flow-steps.md (the [FLOW M5] faces recorded here: 2564/2612
+constructor faces, checkTestingKnownTruthy narrowing adjacency,
+isPropertyInitializedInConstructor/StaticBlocks swap surface).
