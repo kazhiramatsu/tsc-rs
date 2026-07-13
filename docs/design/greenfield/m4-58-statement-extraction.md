@@ -2253,8 +2253,10 @@ New state:
   '@<option>' ts-tests/tests/cases/conformance | wc -l` (plain BSD
   grep: the workspace's interactive grep aliases to ugrep, and
   all-suite scopes inflate the numbers; option-matrix expansion
-  multiplies files into more programs/cases). Re-measure per slice
-  with the same command**:
+  multiplies files into more programs/cases). Counts are DIRECTIVE
+  PRESENCE; some fixtures set the option false — true-valued subsets
+  run lower (experimentalDecorators=true: 119 of 134; noEmit=true:
+  469 of 727). Re-measure per slice with the same command**:
   - PRESENT + mapped (read directly): target — **ES5 IS mapped and
     807 conformance fixtures use it ⇒ every languageVersion<ES2015 arm in this
     doc is MANDATORY 5.8 scope** (collision bands §2 at their
