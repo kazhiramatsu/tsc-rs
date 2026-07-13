@@ -1,0 +1,1116 @@
+# fn-disposition BACKLOG — pre-existing checker pub fns without a
+# disposition header. DELETIONS ONLY: annotate a fn (tsc-port family /
+# tsrs-native: <reason> / tsc-deferred: M5-M8 / tsc-not-applicable:
+# <reason>), then `cargo xtask ledger write-backlog` — the shrinking
+# diff is the review surface. New undispositioned fns are rejected by
+# `cargo xtask ledger check`. Reaches 0 before M8 starts
+# (definition-of-done.md clause 4).
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "access_sits_in_guarded_position"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "check_non_null_type"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "check_non_null_type_with_reporter"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "check_qualified_name"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "get_promised_type_of_promise_with_this_error"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "is_delete_target"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "is_node_within_class"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "is_self_type_access"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "propagate_optional_type_marker"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "related_info_for_node"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
+name = "remove_optional_type_marker"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "data_of"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "get_exports_of_symbol"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "get_target_type"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "has_static_modifier"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "identifier_text"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "kind_of"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "nodes_of"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "parent_of"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "parse_numeric_literal_text"
+
+[[fn]]
+file = "crates/checker/src/annotate.rs"
+name = "unsupported_m4"
+
+[[fn]]
+file = "crates/checker/src/calls.rs"
+name = "check_effective_arg"
+
+[[fn]]
+file = "crates/checker/src/calls.rs"
+name = "diag_span_of_node"
+
+[[fn]]
+file = "crates/checker/src/calls.rs"
+name = "diagnostic_at_span"
+
+[[fn]]
+file = "crates/checker/src/check.rs"
+name = "check_grammar_modifiers"
+
+[[fn]]
+file = "crates/checker/src/check.rs"
+name = "check_source_file"
+
+[[fn]]
+file = "crates/checker/src/check.rs"
+name = "get_symbol_of_declaration"
+
+[[fn]]
+file = "crates/checker/src/check.rs"
+name = "source_element_stub"
+
+[[fn]]
+file = "crates/checker/src/check.rs"
+name = "type_to_string_slice"
+
+[[fn]]
+file = "crates/checker/src/constraints.rs"
+name = "union_members_or_self"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "effective_type_annotation_node"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "get_cached_type"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "get_contextual_type_for_element_expression_at"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "initializer_of"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "instantiate_contextual_type_for_node"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "is_const_type_reference_node"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "is_function_expression_or_arrow_function"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "is_object_literal_method"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "parameters_of_function"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "set_cached_type"
+
+[[fn]]
+file = "crates/checker/src/contextual.rs"
+name = "this_parameter_node_of"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "contains_type"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "flags"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "get_applicable_index_info_for_name"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "get_properties_of_type"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "get_type_of_property_of_type"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "is_false"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "is_generic_mapped_type_state"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "is_generic_tuple_type"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "is_true"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "is_type_assignable_to"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "is_type_comparable_to"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "recursive_type_related_to"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "ternary_and"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "type_has_call_or_construct_signatures"
+
+[[fn]]
+file = "crates/checker/src/engine.rs"
+name = "union_members"
+
+[[fn]]
+file = "crates/checker/src/evaluate.rs"
+name = "end_of"
+
+[[fn]]
+file = "crates/checker/src/evaluate.rs"
+name = "evaluator_result"
+
+[[fn]]
+file = "crates/checker/src/evaluate.rs"
+name = "pos_of"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "access_kind"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "check_expression_with_force_tuple"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "contains_undefined_type"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "find_ancestor"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "get_assignment_target"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "get_assignment_target_kind"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "get_containing_function"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "get_control_flow_container"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "get_export_symbol_of_value_symbol_if_exported"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "get_flow_type_of_reference_stub"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "get_this_container_full"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "grammar_error_on_first_token"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "grammar_error_on_node"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "has_parse_diagnostics"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "is_import_call"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "is_in_parameter_initializer_before_containing_function"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "is_in_property_initializer_or_class_static_block"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "is_symbol_assigned_definitely_stub"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "is_this_in_type_query"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "is_write_only_access"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "map_type_result"
+
+[[fn]]
+file = "crates/checker/src/expr.rs"
+name = "some_type_result"
+
+[[fn]]
+file = "crates/checker/src/facts.rs"
+name = "filter_type_with"
+
+[[fn]]
+file = "crates/checker/src/functions.rs"
+name = "check_collisions_for_declaration_name"
+
+[[fn]]
+file = "crates/checker/src/functions.rs"
+name = "effective_return_type_node"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "any_array_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "any_readonly_array_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "arguments_symbol_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "auto_array_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_array_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_boolean_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_callable_function_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_function_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_newable_function_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_number_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_object_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_readonly_array_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_regexp_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_string_type"
+
+[[fn]]
+file = "crates/checker/src/globals.rs"
+name = "global_this_type_alias"
+
+[[fn]]
+file = "crates/checker/src/indexed.rs"
+name = "get_total_fixed_element_count"
+
+[[fn]]
+file = "crates/checker/src/indexed.rs"
+name = "property_name_from_type_usable"
+
+[[fn]]
+file = "crates/checker/src/instantiate.rs"
+name = "alloc_mapper"
+
+[[fn]]
+file = "crates/checker/src/instantiate.rs"
+name = "children_of"
+
+[[fn]]
+file = "crates/checker/src/instantiate.rs"
+name = "instantiate_types"
+
+[[fn]]
+file = "crates/checker/src/instantiate.rs"
+name = "intrinsic_type_kind"
+
+[[fn]]
+file = "crates/checker/src/instantiate.rs"
+name = "make_array_type_mapper"
+
+[[fn]]
+file = "crates/checker/src/instantiate.rs"
+name = "make_unary_type_mapper"
+
+[[fn]]
+file = "crates/checker/src/instantiate.rs"
+name = "mapper"
+
+[[fn]]
+file = "crates/checker/src/instantiate.rs"
+name = "type_parameter_declarations_of"
+
+[[fn]]
+file = "crates/checker/src/intersect.rs"
+name = "cross_product_union_size"
+
+[[fn]]
+file = "crates/checker/src/intersect.rs"
+name = "get_intersection_type_ex"
+
+[[fn]]
+file = "crates/checker/src/js_grammar.rs"
+name = "get_js_syntactic_diagnostics"
+
+[[fn]]
+file = "crates/checker/src/jsx.rs"
+name = "get_exports_of_jsx_factory_symbol"
+
+[[fn]]
+file = "crates/checker/src/jsx.rs"
+name = "jsx_attribute_name_text"
+
+[[fn]]
+file = "crates/checker/src/lib.rs"
+name = "check_program"
+
+[[fn]]
+file = "crates/checker/src/lib.rs"
+name = "check_program_with_libs"
+
+[[fn]]
+file = "crates/checker/src/lib.rs"
+name = "is_js_file_name"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "add_node_jsx_flags"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "clear_symbol_late_symbol"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "insert_node_non_existent_prop_key"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "is_resolving"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "node"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "or_node_check_flags"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "overwrite_type_reference_resolution"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "resolved"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "retract_type_members"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "revert_node_enum_values_computed"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "revert_node_resolved_signature_call"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "revert_node_resolved_symbol_late_bind"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "revert_symbol_resolved_exports"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "revert_symbol_resolved_members"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "revert_symbol_variances"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_assertion_expression_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_context_free_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_enum_member_value"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_enum_values_computed"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_has_reported_statement_in_ambient_context"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_instantiation_expression_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_jsx_fragment_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_outer_type_parameters"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_resolved_jsx_element_attributes_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_resolved_signature"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_resolved_signature_call_protocol"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_resolved_symbol"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_resolved_symbol_late_bind"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_resolved_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_node_spread_indices"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_check_flags"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_declared_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_instantiation_links"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_is_discriminant"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_is_referenced"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_late_symbol"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_name_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_resolved_exports"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_resolved_exports_late_bind"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_resolved_members"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_resolved_members_late_bind"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_spread_pair"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_synthetic"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_synthetic_origin"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_target"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_tuple_label_declaration"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_type_parameters"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_unique_es_symbol_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_variances"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_write_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_awaited_type_of_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_base_types_resolved"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_declared_members"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_deferred_reference_links"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_immediate_base_constraint"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_instantiation_links"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_literal_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_members"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_parameter_constraint"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_parameter_default"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_parameter_mapper"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_parameter_target"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_pattern"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_permissive_instantiation"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_promised_type_of_promise"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_resolved_base_constraint"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_resolved_base_constructor_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_resolved_base_types"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_resolved_index_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_resolved_properties"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_resolved_reduced_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_resolved_string_index_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_restrictive_instantiation"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_union_key_property"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_unique_literal_filled_instantiation"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_type_widened"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "swap_node_resolved_signature_iife"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "symbol"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "ty"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "ty_mut_cached_equivalent_base_type"
+
+[[fn]]
+file = "crates/checker/src/literals.rs"
+name = "is_non_generic_object_type"
+
+[[fn]]
+file = "crates/checker/src/literals.rs"
+name = "make_resolved_anonymous_type"
+
+[[fn]]
+file = "crates/checker/src/literals.rs"
+name = "name_of_named_declaration"
+
+[[fn]]
+file = "crates/checker/src/merge.rs"
+name = "is_in_js_file"
+
+[[fn]]
+file = "crates/checker/src/merge.rs"
+name = "related_for_node"
+
+[[fn]]
+file = "crates/checker/src/merge.rs"
+name = "symbol_display_name"
+
+[[fn]]
+file = "crates/checker/src/operators.rs"
+name = "check_grammar_type_arguments"
+
+[[fn]]
+file = "crates/checker/src/operators.rs"
+name = "get_flow_type_of_destructuring"
+
+[[fn]]
+file = "crates/checker/src/operators.rs"
+name = "meta_property_is_new"
+
+[[fn]]
+file = "crates/checker/src/operators.rs"
+name = "text_of_node"
+
+[[fn]]
+file = "crates/checker/src/operators.rs"
+name = "walk_up_parenthesized_expressions"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "file"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "file_count"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "file_index_of_node"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "files"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "flags_of"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "is_external_or_common_js_module_of_node"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "locals_of"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "new"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "node_array"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "node_symbol"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "source"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "source_of_node"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "symbol"
+
+[[fn]]
+file = "crates/checker/src/program.rs"
+name = "symbol_mut"
+
+[[fn]]
+file = "crates/checker/src/relate.rs"
+name = "cache"
+
+[[fn]]
+file = "crates/checker/src/relate.rs"
+name = "cache_index"
+
+[[fn]]
+file = "crates/checker/src/relate.rs"
+name = "cache_mut"
+
+[[fn]]
+file = "crates/checker/src/relpin.rs"
+name = "find_probe_annotation"
+
+[[fn]]
+file = "crates/checker/src/relpin.rs"
+name = "probe_relation"
+
+[[fn]]
+file = "crates/checker/src/resolve.rs"
+name = "declaration_of_kind"
+
+[[fn]]
+file = "crates/checker/src/resolve.rs"
+name = "find_ancestor_of_kind"
+
+[[fn]]
+file = "crates/checker/src/resolve.rs"
+name = "find_constructor_declaration"
+
+[[fn]]
+file = "crates/checker/src/resolve.rs"
+name = "heritage_clause_is_extends"
+
+[[fn]]
+file = "crates/checker/src/resolve.rs"
+name = "identifier_text_of"
+
+[[fn]]
+file = "crates/checker/src/resolve.rs"
+name = "is_type_node_kind"
+
+[[fn]]
+file = "crates/checker/src/resolve.rs"
+name = "name_of_node"
+
+[[fn]]
+file = "crates/checker/src/resolve.rs"
+name = "type_annotation_of"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "alloc_members"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "alloc_signature"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "diagnostic_for_node"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "error_at_with_related"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "fire_variance_marker_if_marker"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "from_program"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "members_mut"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "members_of"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "new"
+count = 2
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "node_flags"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "node_symbol"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "parse_program"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "program_has_global_augmentation"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "push_error_diagnostic"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "resolve_file_scope_name"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "signature_mut"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "signature_of"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "symbol_flags"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "symbol_members"
+
+[[fn]]
+file = "crates/checker/src/state.rs"
+name = "with_program_state"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "compare_signatures_identical_at"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "compare_signatures_identical_ex"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "create_tuple_type_forced"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_applicable_index_info_for_name_info"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_check_flags"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_declaration_modifier_flags_from_symbol"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_declaration_modifier_flags_from_symbol_write"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_effective_rest_type"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_element_type_of_array_type"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_index_info_of_type"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_parameter_name_at_position"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_property_of_type_ex"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_single_call_signature"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_target_symbol"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "get_type_predicate_of_signature"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "is_generic_mapped_type"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "is_type_identical_to"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "remove_nullable_for_callback_gate"
+
+[[fn]]
+file = "crates/checker/src/structural.rs"
+name = "undefined_null_facts"
+
+[[fn]]
+file = "crates/checker/src/unions.rs"
+name = "get_union_type_ex_with_origin"
+
+[[fn]]
+file = "crates/checker/src/variance.rs"
+name = "get_declared_type_of_symbol_for_variance"

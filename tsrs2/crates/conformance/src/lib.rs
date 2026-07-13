@@ -618,14 +618,18 @@ fn shadow_rate(matched: usize, total: usize) -> f64 {
     }
 }
 
-/// Shadow tier grading (NON-GATING): pair AT MOST ONE diagnostic per
-/// matched T0 key per side — both sides sorted by (start, length,
-/// top text) for determinism, mirroring T0's set semantics so the
-/// tiers nest under matched_t0 — then grade each pair: T1 =
-/// category; T2 = T1 + exact start/length + top message text; T3 =
-/// T2 + full chain tree + relatedInformation. tsrs-side related info
-/// flows through from_tsrs since pre-5.8a (it was dropped before —
-/// external review risk: T0-invisible rework discovered only at M8).
+/// Shadow tier grading (NON-GATING). Bucket both sides by T0 key;
+/// a key contributes 1 to a tier (nesting under matched_t0's set
+/// semantics) only when the buckets have EQUAL length and EVERY
+/// position-wise pair — both sides sorted by (start, length, top
+/// text) for determinism — matches at that tier: T1 = category;
+/// T2 = T1 + exact start/length + top message text; T3 = T2 + full
+/// chain tree + relatedInformation. Grading all pairs (review round
+/// 2) means multiplicity differences and second-diagnostic drift on
+/// a shared key count as misses instead of hiding behind bucket[0];
+/// definition-of-done's "every diagnostic" reading is per-key
+/// all-pairs. tsrs-side related info flows through from_tsrs since
+/// pre-5.8a (it was dropped before).
 fn shadow_tier_matches<'a>(
     actual: impl Iterator<Item = &'a GoldenDiag>,
     expected: impl Iterator<Item = &'a GoldenDiag>,
@@ -655,16 +659,21 @@ fn shadow_tier_matches<'a>(
         let Some(actual_bucket) = actual.get(key) else {
             continue;
         };
-        let (a, e) = (&actual_bucket[0], &expected_bucket[0]);
-        if a.category != e.category {
+        if actual_bucket.len() != expected_bucket.len() {
+            continue;
+        }
+        let pairs = || actual_bucket.iter().zip(expected_bucket.iter());
+        if !pairs().all(|(a, e)| a.category == e.category) {
             continue;
         }
         t1 += 1;
-        if a.start != e.start || a.length != e.length || a.chain.text != e.chain.text {
+        if !pairs().all(|(a, e)| {
+            a.start == e.start && a.length == e.length && a.chain.text == e.chain.text
+        }) {
             continue;
         }
         t2 += 1;
-        if a.chain == e.chain && a.related == e.related {
+        if pairs().all(|(a, e)| a.chain == e.chain && a.related == e.related) {
             t3 += 1;
         }
     }

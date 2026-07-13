@@ -50,6 +50,7 @@ fn main() {
         },
         Some("ledger") => match args.next().as_deref() {
             Some("check") => run_or_exit(ledger_check()),
+            Some("write-backlog") => run_or_exit(ledger_write_backlog()),
             Some("coverage") => run_or_exit(ledger_coverage()),
             Some(other) => {
                 eprintln!("unknown ledger command: {other}");
@@ -1714,30 +1715,80 @@ fn ledger_check() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    if let Some(ceiling) = read_ratchet_ceiling(&workspace, "ledger", "max_undispositioned")? {
-        if undispositioned.len() > ceiling {
-            println!("undispositioned checker fns (over the {ceiling} ceiling):");
-            for function in &undispositioned {
+    // The disposition BACKLOG gate (review round 2): equality against
+    // fn-dispositions.toml — a NEW undispositioned identity is
+    // rejected outright (a same-commit annotate+add swap cannot slip
+    // through a count ceiling), and burn-down must land as a
+    // shrinking, reviewable diff.
+    let backlog_path = workspace.join("fn-dispositions.toml");
+    if !backlog_path.exists() {
+        return Err(
+            "fn-dispositions.toml is missing — run `cargo xtask ledger write-backlog`, \
+             review, and commit it"
+                .into(),
+        );
+    }
+    let recorded_backlog = parse_fn_backlog(&fs::read_to_string(&backlog_path)?)?;
+    let scanned_backlog = backlog_map(&undispositioned, &workspace);
+    let mut backlog_divergences = 0usize;
+    for (key, count) in &scanned_backlog {
+        match recorded_backlog.get(key) {
+            Some(recorded) if recorded == count => {}
+            Some(recorded) if count < recorded => {
+                backlog_divergences += 1;
                 println!(
-                    "  {}:{} {}",
-                    display_relative(&workspace, &function.path),
-                    function.line,
-                    function.name
+                    "BACKLOG-STALE-COUNT {}::{} — {count} undispositioned left of {recorded}: \
+                     run `cargo xtask ledger write-backlog` (burn-down lands as a diff)",
+                    key.0, key.1
                 );
             }
-            return Err(format!(
-                "fn-disposition ratchet regression: {} > recorded ceiling {ceiling} — every \
-                 new checker pub fn needs a disposition header (tsc-port / tsrs-native / \
-                 tsc-deferred: Mx / tsc-not-applicable); lower [ledger].max_undispositioned \
-                 in ratchet.toml as the backlog burns down",
-                undispositioned.len()
-            )
-            .into());
+            _ => {
+                backlog_divergences += 1;
+                println!(
+                    "BACKLOG-NEW {}::{} — NEW undispositioned checker fn: give it a \
+                     disposition header ({}) instead of listing it",
+                    key.0,
+                    key.1,
+                    fn_disposition_markers().join(" / ")
+                );
+            }
         }
+    }
+    for key in recorded_backlog.keys() {
+        if !scanned_backlog.contains_key(key) {
+            backlog_divergences += 1;
+            println!(
+                "BACKLOG-STALE {}::{} — dispositioned or removed: run \
+                 `cargo xtask ledger write-backlog` (the shrinking diff is the record)",
+                key.0, key.1
+            );
+        }
+    }
+    if backlog_divergences > 0 {
+        return Err(format!(
+            "fn-disposition backlog out of date: {backlog_divergences} divergence(s)"
+        )
+        .into());
     }
     if !stale.is_empty() || !todo_sites.is_empty() {
         return Err("ledger check failed".into());
     }
+    Ok(())
+}
+
+fn ledger_write_backlog() -> Result<(), Box<dyn Error>> {
+    let workspace = find_tsrs2_root()?;
+    let undispositioned = collect_undispositioned_checker_fns(&workspace)?;
+    let map = backlog_map(&undispositioned, &workspace);
+    fs::write(
+        workspace.join("fn-dispositions.toml"),
+        render_fn_backlog(&map),
+    )?;
+    println!(
+        "fn-dispositions.toml written: {} identities ({} fns) — review the diff",
+        map.len(),
+        undispositioned.len()
+    );
     Ok(())
 }
 
@@ -1763,6 +1814,10 @@ fn ledger_coverage() -> Result<(), Box<dyn Error>> {
 struct EscapeSite {
     path: PathBuf,
     line: usize,
+    /// The enclosing function's name — part of the manifest identity
+    /// (review finding: (file, reason) alone let a same-count MOVE
+    /// between functions land without a manifest diff).
+    containing_fn: String,
     reason: String,
     owner: Option<StageKey>,
     /// Owner-less PERMANENT guards for malformed/parse-recovery trees
@@ -1836,8 +1891,12 @@ fn parse_stage_key(text: &str) -> Option<StageKey> {
 
 /// Extract the first string literal following `offset` in `text`,
 /// concatenating adjacent literals (rustfmt splits long reasons).
+/// Byte-walking is UTF-8-safe here because every delimiter tested is
+/// ASCII; the literal CONTENT is collected as raw bytes and decoded
+/// once (pushing bytes as chars mojibake'd every multi-byte reason —
+/// review finding).
 fn escape_reason_after(text: &str, offset: usize) -> String {
-    let mut reason = String::new();
+    let mut content = Vec::new();
     let bytes = text.as_bytes();
     let mut i = offset;
     let mut depth = 0i32;
@@ -1856,7 +1915,7 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
                     if bytes[i] == b'\\' {
                         i += 1;
                     }
-                    reason.push(bytes[i] as char);
+                    content.push(bytes[i]);
                     i += 1;
                 }
             }
@@ -1864,6 +1923,7 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
         }
         i += 1;
     }
+    let reason = String::from_utf8_lossy(&content);
     reason.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
@@ -1878,6 +1938,38 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
 /// the untagged ratchet); everything else owner-less is untagged
 /// debt.
 fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
+    // Line-indexed fn-definition table for containing-fn lookup: the
+    // last `fn name(` at or before an escape's line encloses it
+    // (closures don't match `fn `; nested named fns resolve to the
+    // innermost preceding definition, which is the enclosing one for
+    // straight-line code).
+    let mut fn_lines: Vec<(usize, String)> = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        let mut trimmed = line.trim_start();
+        loop {
+            let stripped = trimmed
+                .strip_prefix("pub(crate) ")
+                .or_else(|| trimmed.strip_prefix("pub "))
+                .or_else(|| trimmed.strip_prefix("async "))
+                .or_else(|| trimmed.strip_prefix("const "))
+                .or_else(|| trimmed.strip_prefix("unsafe "));
+            match stripped {
+                Some(rest) => trimmed = rest,
+                None => break,
+            }
+        }
+        if trimmed.starts_with("fn ") {
+            if let Some(name) = function_name(trimmed) {
+                fn_lines.push((index + 1, name));
+            }
+        }
+    }
+    let containing_fn = |line: usize| -> String {
+        match fn_lines.iter().rev().find(|(fn_line, _)| *fn_line <= line) {
+            Some((_, name)) => name.clone(),
+            None => "<module>".to_owned(),
+        }
+    };
     let mut sites = Vec::new();
     for marker in [
         "Unsupported::new(",
@@ -1901,6 +1993,7 @@ fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
             sites.push(EscapeSite {
                 path: path.to_owned(),
                 line,
+                containing_fn: containing_fn(line),
                 reason,
                 owner,
                 recovery,
@@ -2063,14 +2156,16 @@ fn read_ratchet_ceiling(
 }
 
 /// One escape MANIFEST entry: the reviewable identity of an escape
-/// class is (file, reason) — line numbers are deliberately absent so
-/// unrelated edits don't churn the manifest. `count` catches
-/// duplicate-site growth under an existing reason; class/owner are
-/// derived from the reason text and recorded so retags surface as
-/// manifest diffs.
+/// class is (file, containing fn, reason) — line numbers are
+/// deliberately absent so unrelated edits don't churn the manifest,
+/// while the containing fn pins moves/replacements between functions
+/// (review finding). `count` catches duplicate-site growth under an
+/// existing identity; class/owner are derived from the reason text
+/// and recorded so retags surface as manifest diffs.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct EscapeManifestEntry {
     file: String,
+    containing_fn: String,
     reason: String,
     /// "stage" (owner-tagged deferral) | "recovery" (permanent
     /// malformed-tree guard) | "untagged" (debt — 0 by M4 close).
@@ -2089,7 +2184,7 @@ fn stage_key_display(key: StageKey) -> String {
 }
 
 fn escape_manifest_from_sites(workspace: &Path, sites: &[EscapeSite]) -> Vec<EscapeManifestEntry> {
-    let mut map: BTreeMap<(String, String), EscapeManifestEntry> = BTreeMap::new();
+    let mut map: BTreeMap<(String, String, String), EscapeManifestEntry> = BTreeMap::new();
     for site in sites {
         let file = display_relative(workspace, &site.path);
         let (class, owner) = match (site.owner, site.recovery) {
@@ -2097,15 +2192,20 @@ fn escape_manifest_from_sites(workspace: &Path, sites: &[EscapeSite]) -> Vec<Esc
             (None, true) => ("recovery", None),
             (None, false) => ("untagged", None),
         };
-        map.entry((file.clone(), site.reason.clone()))
-            .or_insert_with(|| EscapeManifestEntry {
-                file,
-                reason: site.reason.clone(),
-                class: class.to_owned(),
-                owner,
-                count: 0,
-            })
-            .count += 1;
+        map.entry((
+            file.clone(),
+            site.containing_fn.clone(),
+            site.reason.clone(),
+        ))
+        .or_insert_with(|| EscapeManifestEntry {
+            file,
+            containing_fn: site.containing_fn.clone(),
+            reason: site.reason.clone(),
+            class: class.to_owned(),
+            owner,
+            count: 0,
+        })
+        .count += 1;
     }
     map.into_values().collect()
 }
@@ -2121,7 +2221,7 @@ fn render_escape_manifest(entries: &[EscapeManifestEntry]) -> String {
          # `cargo xtask escapes` (plain and --stale/ci gate runs): a scan/manifest\n\
          # mismatch fails the build, so adding, removing, retagging, or\n\
          # duplicating an escape always lands as a reviewable diff here.\n\
-         # Identity is (file, reason) — line numbers deliberately omitted.\n\
+         # Identity is (file, containing fn, reason) — line numbers omitted.\n\
          # class: stage (owner-tagged deferral) | recovery (permanent\n\
          # malformed-tree guard) | untagged (debt; 0 by M4 close —\n\
          # ratchet.toml [escapes] ceilings still apply on top).\n",
@@ -2129,6 +2229,10 @@ fn render_escape_manifest(entries: &[EscapeManifestEntry]) -> String {
     for entry in entries {
         out.push_str("\n[[site]]\n");
         out.push_str(&format!("file = \"{}\"\n", toml_escape_string(&entry.file)));
+        out.push_str(&format!(
+            "in = \"{}\"\n",
+            toml_escape_string(&entry.containing_fn)
+        ));
         out.push_str(&format!(
             "reason = \"{}\"\n",
             toml_escape_string(&entry.reason)
@@ -2179,7 +2283,11 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
                   entries: &mut Vec<EscapeManifestEntry>|
      -> Result<(), Box<dyn Error>> {
         if let Some(entry) = current.take() {
-            if entry.file.is_empty() || entry.reason.is_empty() || entry.class.is_empty() {
+            if entry.file.is_empty()
+                || entry.containing_fn.is_empty()
+                || entry.reason.is_empty()
+                || entry.class.is_empty()
+            {
                 return Err(format!(
                     "escapes.toml: incomplete [[site]] entry (file/reason/class required): \
                      {entry:?}"
@@ -2200,6 +2308,7 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
             finish(&mut current, &mut entries)?;
             current = Some(EscapeManifestEntry {
                 file: String::new(),
+                containing_fn: String::new(),
                 reason: String::new(),
                 class: String::new(),
                 owner: None,
@@ -2215,6 +2324,7 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
             .ok_or_else(|| format!("escapes.toml:{line_no}: key outside a [[site]] entry"))?;
         match key.trim() {
             "file" => entry.file = parse_string(value, line_no)?,
+            "in" => entry.containing_fn = parse_string(value, line_no)?,
             "reason" => entry.reason = parse_string(value, line_no)?,
             "class" => entry.class = parse_string(value, line_no)?,
             "owner" => entry.owner = Some(parse_string(value, line_no)?),
@@ -2241,7 +2351,13 @@ fn check_escape_manifest(workspace: &Path, sites: &[EscapeSite]) -> Result<(), B
     }
     let recorded = parse_escape_manifest(&fs::read_to_string(&manifest_path)?)?;
     let expected = escape_manifest_from_sites(workspace, sites);
-    let key = |entry: &EscapeManifestEntry| (entry.file.clone(), entry.reason.clone());
+    let key = |entry: &EscapeManifestEntry| {
+        (
+            entry.file.clone(),
+            entry.containing_fn.clone(),
+            entry.reason.clone(),
+        )
+    };
     let recorded_map: BTreeMap<_, _> = recorded.iter().map(|e| (key(e), e.clone())).collect();
     let expected_map: BTreeMap<_, _> = expected.iter().map(|e| (key(e), e.clone())).collect();
     let mut divergences = 0usize;
@@ -2250,9 +2366,10 @@ fn check_escape_manifest(workspace: &Path, sites: &[EscapeSite]) -> Result<(), B
             None => {
                 divergences += 1;
                 println!(
-                    "MANIFEST-NEW {}: \"{}\" [{}{}] — new escape site: run \
+                    "MANIFEST-NEW {} ({}): \"{}\" [{}{}] — new escape site: run \
                      `cargo xtask escapes --write-manifest` and get the diff reviewed",
                     entry.file,
+                    entry.containing_fn,
                     entry.reason,
                     entry.class,
                     entry
@@ -2265,9 +2382,10 @@ fn check_escape_manifest(workspace: &Path, sites: &[EscapeSite]) -> Result<(), B
             Some(prior) if prior != entry => {
                 divergences += 1;
                 println!(
-                    "MANIFEST-CHANGED {}: \"{}\" — recorded {}/{:?}/count {}, scanned \
+                    "MANIFEST-CHANGED {} ({}): \"{}\" — recorded {}/{:?}/count {}, scanned \
                      {}/{:?}/count {} — regenerate + review",
                     entry.file,
+                    entry.containing_fn,
                     entry.reason,
                     prior.class,
                     prior.owner,
@@ -2284,9 +2402,9 @@ fn check_escape_manifest(workspace: &Path, sites: &[EscapeSite]) -> Result<(), B
         if !expected_map.contains_key(k) {
             divergences += 1;
             println!(
-                "MANIFEST-STALE {}: \"{}\" — site no longer in the code: regenerate \
+                "MANIFEST-STALE {} ({}): \"{}\" — site no longer in the code: regenerate \
                  (retiring an escape is progress; the diff records it)",
-                prior.file, prior.reason,
+                prior.file, prior.containing_fn, prior.reason,
             );
         }
     }
@@ -2496,10 +2614,43 @@ fn fn_disposition_markers() -> [&'static str; 6] {
         concat!("tsc-", "port:"),
         concat!("tsc-", "hash:"),
         concat!("tsc-", "span:"),
-        "tsrs-native",
+        concat!("tsrs-", "native:"),
         concat!("tsc-", "deferred:"),
         concat!("tsc-", "not-applicable:"),
     ]
+}
+
+/// A doc line carries a disposition only when the marker STARTS the
+/// line's content (prose mentions don't count — review finding) and
+/// its payload validates: the tsc-port header family needs no payload
+/// here (ledger check owns their structure); tsrs-native/
+/// tsc-not-applicable need a non-empty reason; tsc-deferred must name
+/// its owner milestone (M5-M8).
+fn line_is_valid_disposition(line: &str) -> bool {
+    let content = line
+        .trim_start()
+        .trim_start_matches('/')
+        .trim_start()
+        .trim_start_matches("//!")
+        .trim_start();
+    let [port, hash, span, native, deferred, not_applicable] = fn_disposition_markers();
+    for marker in [port, hash, span] {
+        if content.starts_with(marker) {
+            return true;
+        }
+    }
+    for marker in [native, not_applicable] {
+        if let Some(tail) = content.strip_prefix(marker) {
+            return !tail.trim().is_empty();
+        }
+    }
+    if let Some(tail) = content.strip_prefix(deferred) {
+        let tail = tail.trim_start();
+        return ["M5", "M6", "M7", "M8"]
+            .iter()
+            .any(|stage| tail.starts_with(stage));
+    }
+    false
 }
 
 fn doc_block_has_disposition(lines: &[&str], fn_index: usize) -> bool {
@@ -2507,10 +2658,7 @@ fn doc_block_has_disposition(lines: &[&str], fn_index: usize) -> bool {
     while index > 0 {
         let line = lines[index - 1].trim_start();
         if line.starts_with("///") || line.starts_with("//") || line.starts_with("#[") {
-            if fn_disposition_markers()
-                .iter()
-                .any(|marker| line.contains(marker))
-            {
+            if line_is_valid_disposition(line) {
                 return true;
             }
             index -= 1;
@@ -2555,6 +2703,105 @@ fn collect_undispositioned_checker_fns(
     }
     functions.sort();
     Ok(functions)
+}
+
+/// The disposition BACKLOG allowlist (fn-dispositions.toml): the
+/// pre-existing undispositioned fns, keyed (file, name) with a count
+/// for same-named impl-block collisions. The gate is EQUALITY: a
+/// scanned undispositioned fn absent from the file is a NEW
+/// undispositioned identity (forbidden — annotate it instead); a
+/// listed identity no longer undispositioned is STALE (progress —
+/// regenerate so the burn-down lands as a reviewable diff). The file
+/// only ever shrinks toward 0 before M8 (definition-of-done.md).
+fn backlog_map(
+    functions: &[PublicFunction],
+    workspace: &Path,
+) -> BTreeMap<(String, String), usize> {
+    let mut map = BTreeMap::new();
+    for function in functions {
+        *map.entry((
+            display_relative(workspace, &function.path),
+            function.name.clone(),
+        ))
+        .or_insert(0) += 1;
+    }
+    map
+}
+
+fn render_fn_backlog(map: &BTreeMap<(String, String), usize>) -> String {
+    let mut out = String::from(
+        "# fn-disposition BACKLOG — pre-existing checker pub fns without a\n\
+         # disposition header. DELETIONS ONLY: annotate a fn (tsc-port family /\n\
+         # tsrs-native: <reason> / tsc-deferred: M5-M8 / tsc-not-applicable:\n\
+         # <reason>), then `cargo xtask ledger write-backlog` — the shrinking\n\
+         # diff is the review surface. New undispositioned fns are rejected by\n\
+         # `cargo xtask ledger check`. Reaches 0 before M8 starts\n\
+         # (definition-of-done.md clause 4).\n",
+    );
+    for ((file, name), count) in map {
+        out.push_str("\n[[fn]]\n");
+        out.push_str(&format!("file = \"{}\"\n", toml_escape_string(file)));
+        out.push_str(&format!("name = \"{}\"\n", toml_escape_string(name)));
+        if *count != 1 {
+            out.push_str(&format!("count = {count}\n"));
+        }
+    }
+    out
+}
+
+fn parse_fn_backlog(text: &str) -> Result<BTreeMap<(String, String), usize>, Box<dyn Error>> {
+    let mut map = BTreeMap::new();
+    let mut file = String::new();
+    let mut name = String::new();
+    let mut count = 1usize;
+    let mut open = false;
+    let flush = |file: &mut String,
+                 name: &mut String,
+                 count: &mut usize,
+                 open: &mut bool,
+                 map: &mut BTreeMap<(String, String), usize>|
+     -> Result<(), Box<dyn Error>> {
+        if *open {
+            if file.is_empty() || name.is_empty() {
+                return Err("fn-dispositions.toml: incomplete [[fn]] entry".into());
+            }
+            map.insert((std::mem::take(file), std::mem::take(name)), *count);
+            *count = 1;
+        }
+        *open = true;
+        Ok(())
+    };
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if line == "[[fn]]" {
+            flush(&mut file, &mut name, &mut count, &mut open, &mut map)?;
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            return Err(format!("fn-dispositions.toml: unrecognized line: {line}").into());
+        };
+        let value = value
+            .trim()
+            .trim_matches('"')
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\");
+        match key.trim() {
+            "file" => file = value,
+            "name" => name = value,
+            "count" => count = value.parse()?,
+            other => return Err(format!("fn-dispositions.toml: unknown key {other}").into()),
+        }
+    }
+    if open {
+        if file.is_empty() || name.is_empty() {
+            return Err("fn-dispositions.toml: incomplete [[fn]] entry".into());
+        }
+        map.insert((file, name), count);
+    }
+    Ok(map)
 }
 
 fn collect_hot_public_functions(workspace: &Path) -> Result<Vec<PublicFunction>, Box<dyn Error>> {
@@ -5877,6 +6124,14 @@ mod escape_scanner_tests {
         assert!(doc_block_has_disposition(&native, 2));
         assert!(doc_block_has_disposition(&deferred, 1));
         assert!(!doc_block_has_disposition(&bare, 1));
+        // Review round 2: prose MENTIONS and invalid payloads do not
+        // count — the marker must start the line and validate.
+        let prose = ["/// this helper is tsrs-native: in spirit", "pub fn x() {}"];
+        let empty_native = ["/// tsrs-native:", "pub fn y() {}"];
+        let bad_stage = ["/// tsc-deferred: someday", "pub fn z() {}"];
+        assert!(!doc_block_has_disposition(&prose, 1));
+        assert!(!doc_block_has_disposition(&empty_native, 1));
+        assert!(!doc_block_has_disposition(&bad_stage, 1));
         // The block scan stops at the first non-comment/attr line.
         let detached = [
             "/// tsrs-native: someone else's fn",
@@ -5884,6 +6139,15 @@ mod escape_scanner_tests {
             "pub fn unrelated() {}",
         ];
         assert!(!doc_block_has_disposition(&detached, 2));
+    }
+
+    #[test]
+    fn fn_backlog_roundtrips() {
+        let mut map = BTreeMap::new();
+        map.insert(("crates/checker/src/a.rs".to_owned(), "foo".to_owned()), 1);
+        map.insert(("crates/checker/src/b.rs".to_owned(), "bar".to_owned()), 2);
+        let parsed = parse_fn_backlog(&render_fn_backlog(&map)).expect("roundtrip");
+        assert_eq!(parsed, map);
     }
 
     #[test]

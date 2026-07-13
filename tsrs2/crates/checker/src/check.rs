@@ -44,11 +44,15 @@ use crate::state::{CheckResult2, CheckerState, Unsupported};
 #[derive(Debug, Eq, PartialEq)]
 struct UnwindSnapshot {
     resolution_targets: usize,
+    resolution_results: usize,
+    resolution_property_names: usize,
+    resolution_start: usize,
     contextual_type_nodes: usize,
     contextual_types: usize,
     contextual_is_cache: usize,
     contextual_binding_patterns: usize,
     inference_context_nodes: usize,
+    inference_contexts: usize,
     awaited_type_stack: usize,
     active_type_mappers: usize,
     active_type_mappers_caches: usize,
@@ -60,6 +64,11 @@ struct UnwindSnapshot {
     // transient stack — growth across an element is allocation, not
     // leaked in-progress state.
     speculation_depth: u32,
+    instantiation_depth: u32,
+    in_variance_computation: bool,
+    variance_type_parameter: Option<TypeId>,
+    flow_loop_start: u32,
+    flow_loop_count: u32,
     resolving_open: i64,
 }
 
@@ -68,11 +77,15 @@ impl<'a> CheckerState<'a> {
     fn unwind_snapshot(&self) -> UnwindSnapshot {
         UnwindSnapshot {
             resolution_targets: self.resolution_targets.len(),
+            resolution_results: self.resolution_results.len(),
+            resolution_property_names: self.resolution_property_names.len(),
+            resolution_start: self.resolution_start,
             contextual_type_nodes: self.contextual_type_nodes.len(),
             contextual_types: self.contextual_types.len(),
             contextual_is_cache: self.contextual_is_cache.len(),
             contextual_binding_patterns: self.contextual_binding_patterns.len(),
             inference_context_nodes: self.inference_context_nodes.len(),
+            inference_contexts: self.inference_contexts.len(),
             awaited_type_stack: self.awaited_type_stack.len(),
             active_type_mappers: self.active_type_mappers.len(),
             active_type_mappers_caches: self.active_type_mappers_caches.len(),
@@ -80,6 +93,11 @@ impl<'a> CheckerState<'a> {
             class_interface_declared_in_progress: self.class_interface_declared_in_progress.len(),
             type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
             speculation_depth: self.speculation_depth,
+            instantiation_depth: self.instantiation_depth,
+            in_variance_computation: self.in_variance_computation,
+            variance_type_parameter: self.variance_type_parameter,
+            flow_loop_start: self.flow_loop_start,
+            flow_loop_count: self.flow_loop_count,
             resolving_open: crate::links::debug_resolving_open(),
         }
     }
@@ -151,11 +169,15 @@ impl<'a> CheckerState<'a> {
             let end = self.unwind_snapshot();
             let baseline = UnwindSnapshot {
                 resolution_targets: 0,
+                resolution_results: 0,
+                resolution_property_names: 0,
+                resolution_start: 0,
                 contextual_type_nodes: 0,
                 contextual_types: 0,
                 contextual_is_cache: 0,
                 contextual_binding_patterns: 0,
                 inference_context_nodes: 0,
+                inference_contexts: 0,
                 awaited_type_stack: 0,
                 active_type_mappers: 0,
                 active_type_mappers_caches: 0,
@@ -163,6 +185,11 @@ impl<'a> CheckerState<'a> {
                 class_interface_declared_in_progress: 0,
                 type_parameter_defaults_in_progress: 0,
                 speculation_depth: 0,
+                instantiation_depth: 0,
+                in_variance_computation: false,
+                variance_type_parameter: None,
+                flow_loop_start: 0,
+                flow_loop_count: 0,
                 resolving_open: 0,
             };
             assert_eq!(

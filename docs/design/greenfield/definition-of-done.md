@@ -38,9 +38,10 @@ matrix-expanded by the harness — 5,908 fixtures today):
    hash-fresh against the vendored bundle. Every checker
    pub/pub(crate) function carries a DISPOSITION (the tsc-port
    header family / tsrs-native / tsc-deferred / tsc-not-applicable
-   — `[ledger] max_undispositioned` ratchets to 0 before M8
-   starts); the tsc-side converse (emitter inventory + dependency
-   closure over the SAME vocabulary) is the M8-start checkpoint.
+   — the `fn-dispositions.toml` backlog allowlist admits ONLY
+   deletions and empties before M8 starts); the tsc-side converse
+   (emitter inventory + dependency closure over the SAME
+   vocabulary) is the M8-start checkpoint.
 5. **Determinism invariants green** at full scope: idempotence,
    jobs-independence, prefix-determinism, encodings,
    matrix-independence.
