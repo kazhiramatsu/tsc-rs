@@ -20,15 +20,22 @@ implementers start from the stage step docs referenced there.
    relpin, conformance all + 2xxx with FP=0 and integer-ratchet
    non-regression, invariants, ledger check, `escapes --stale $(cat
    tsrs2/STAGE)` incl. the untagged ceiling).
-4. Merge back with a merge commit marking the slice boundary:
-   `git checkout main && git merge --no-ff <branch>`, then delete the
-   branch (local and remote). Bump `tsrs2/ratchet.toml` and
-   `tsrs2/STAGE` as part of the slice, not the merge.
-5. Trivial process/docs-only changes may land directly on `main`.
-6. **Pushing to `origin` is allowed and expected**: push the slice
-   branch with `-u` while working (backup/visibility), push `main`
-   after every merge. PR-based review via `gh` is available if ever
-   preferred, but the default is local `--no-ff` merge + push.
+4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
+   gates are green, push the branch and open a PR whose body carries
+   the gate summary (conformance rates + FP=0, escapes, tests). The
+   user runs their external review against the PR; fixes land as
+   additional commits on the same branch. On approval, merge with
+   `gh pr merge --merge --delete-branch` — **merge commit ONLY,
+   never squash/rebase**: commit hashes are cross-referenced from
+   design docs, memory, and commit bodies, and must survive.
+5. Bump `tsrs2/ratchet.toml` and `tsrs2/STAGE` as part of the slice,
+   not the merge. Pull `main` after merging.
+6. Trivial process/docs-only changes may land directly on `main`
+   and be pushed.
+7. Pushing to `origin` is allowed and expected: push the slice branch
+   with `-u` while working. The PR enforces nothing by itself (no
+   Actions CI) — the real gate stays local `cargo xtask ci`; run it
+   before opening and before merging.
 
 ## Verification quick reference
 
