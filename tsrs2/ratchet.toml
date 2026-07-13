@@ -21,3 +21,8 @@ rate = 0.998219
 matched = 2242
 total = 2246
 allowed_regression = 0.0
+
+[escapes]
+# Untagged Unsupported/M4Dependency reasons (no parseable owner
+# stage). Monotone non-increasing; must reach 0 by the M4 close.
+max_untagged = 178

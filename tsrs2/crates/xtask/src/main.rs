@@ -1902,7 +1902,45 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     if stale_before.is_some() && stale > 0 {
         return Err(format!("{stale} escape(s) have an expired owner stage").into());
     }
+    // The untagged-count ratchet (gate mode only): monotone
+    // non-increasing toward 0 by the M4 close — new escapes must
+    // carry a parseable owner, and re-tagging legacy reasons lowers
+    // the recorded ceiling like any ratchet bump.
+    if stale_before.is_some() {
+        if let Some(ceiling) = read_untagged_ceiling(&workspace)? {
+            if untagged > ceiling {
+                return Err(format!(
+                    "untagged escape ratchet regression: {untagged} > recorded ceiling {ceiling} \
+                     (tag the new reasons or bump [escapes].max_untagged in ratchet.toml)"
+                )
+                .into());
+            }
+        }
+    }
     Ok(())
+}
+
+/// `[escapes] max_untagged` from ratchet.toml — absent section means
+/// the ratchet is not armed.
+fn read_untagged_ceiling(workspace: &Path) -> Result<Option<usize>, Box<dyn Error>> {
+    let text = fs::read_to_string(workspace.join("ratchet.toml"))?;
+    let mut in_section = false;
+    for raw_line in text.lines() {
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        if line.starts_with('[') && line.ends_with(']') {
+            in_section = &line[1..line.len() - 1] == "escapes";
+            continue;
+        }
+        if !in_section {
+            continue;
+        }
+        if let Some((key, value)) = line.split_once('=') {
+            if key.trim() == "max_untagged" {
+                return Ok(Some(value.trim().parse::<usize>()?));
+            }
+        }
+    }
+    Ok(None)
 }
 
 fn collect_ledger_entries(workspace: &Path) -> Result<Vec<LedgerEntry>, Box<dyn Error>> {
@@ -5366,5 +5404,25 @@ mod escape_scanner_tests {
         assert_eq!(sites[0].owner, Some(StageKey(4, 7, u8::MAX)));
         // 5.7 letterless does NOT expire mid-stage (threshold 5.7a).
         assert!(sites[0].owner.unwrap() > parse_stage_key("5.7a").unwrap());
+    }
+}
+
+#[cfg(test)]
+mod untagged_ceiling_tests {
+    use super::*;
+
+    #[test]
+    fn parses_the_escapes_section() {
+        let dir = std::env::temp_dir().join(format!("tsrs2-ceiling-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("ratchet.toml"),
+            "[t0]\nrate = 0.1\n\n[escapes]\n# comment\nmax_untagged = 178\n",
+        )
+        .unwrap();
+        assert_eq!(read_untagged_ceiling(&dir).unwrap(), Some(178));
+        fs::write(dir.join("ratchet.toml"), "[t0]\nrate = 0.1\n").unwrap();
+        assert_eq!(read_untagged_ceiling(&dir).unwrap(), None);
+        fs::remove_dir_all(&dir).ok();
     }
 }
