@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use tsrs2_checker::{check_program, check_program_with_libs, CompilerOptions, InputFile};
@@ -635,9 +636,24 @@ impl GoldenMessageChain {
 }
 
 /// The lib texts for a program, read from the vendored lib directory
-/// (the same files the oracle host loads for programJson.libs).
-fn read_lib_inputs(libs: &[String], vendor_lib_dir: &Path) -> ConformanceResult<Vec<InputFile>> {
-    libs.iter()
+/// (the same files the oracle host loads for programJson.libs). The
+/// corpus reuses a handful of lib sets across thousands of cases and
+/// re-reading ~9MB of vendored libs per case dominated the conformer,
+/// so the loaded set is cached per (lib dir, lib list).
+fn read_lib_inputs(
+    libs: &[String],
+    vendor_lib_dir: &Path,
+) -> ConformanceResult<Arc<Vec<InputFile>>> {
+    static CACHE: OnceLock<Mutex<BTreeMap<(PathBuf, Vec<String>), Arc<Vec<InputFile>>>>> =
+        OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(BTreeMap::new()));
+    let key = (vendor_lib_dir.to_owned(), libs.to_vec());
+    if let Some(inputs) = cache.lock().expect("lib input cache").get(&key) {
+        return Ok(inputs.clone());
+    }
+
+    let inputs = libs
+        .iter()
         .map(|name| {
             let text = fs::read_to_string(vendor_lib_dir.join(name))
                 .map_err(|err| format!("failed to read lib {name}: {err}"))?;
@@ -646,7 +662,13 @@ fn read_lib_inputs(libs: &[String], vendor_lib_dir: &Path) -> ConformanceResult<
                 text,
             })
         })
-        .collect()
+        .collect::<ConformanceResult<Vec<_>>>()?;
+    let inputs = Arc::new(inputs);
+    cache
+        .lock()
+        .expect("lib input cache")
+        .insert(key, inputs.clone());
+    Ok(inputs)
 }
 
 fn current_tsrs_diagnostics(
@@ -812,8 +834,8 @@ fn file_texts_for_program(
     vendor_lib_dir: &Path,
 ) -> ConformanceResult<BTreeMap<String, String>> {
     let mut file_texts = BTreeMap::new();
-    for lib in &program.libs {
-        file_texts.insert(lib.clone(), fs::read_to_string(vendor_lib_dir.join(lib))?);
+    for lib in read_lib_inputs(&program.libs, vendor_lib_dir)?.iter() {
+        file_texts.insert(lib.name.clone(), lib.text.clone());
     }
     for file in &program.files {
         file_texts.insert(file.name.clone(), base64_decode_to_string(&file.text_b64)?);

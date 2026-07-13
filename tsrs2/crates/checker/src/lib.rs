@@ -443,7 +443,6 @@ struct LibBundle {
 /// call) — the L3 A/B lever proving reuse changes nothing.
 fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
     use std::collections::HashMap;
-    use std::hash::{Hash, Hasher};
     use std::sync::{Mutex, OnceLock};
 
     type Key = (Vec<(String, u64)>, CompilerOptions);
@@ -453,11 +452,7 @@ fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBun
         .map_or(true, |value| value != "0");
     let key: Key = (
         libs.iter()
-            .map(|lib| {
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                lib.text.hash(&mut hasher);
-                (lib.name.clone(), hasher.finish())
-            })
+            .map(|lib| (lib.name.clone(), lib_text_fingerprint(&lib.text)))
             .collect(),
         options.clone(),
     );
@@ -473,6 +468,24 @@ fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBun
         cache.lock().expect("lib bundle cache").insert(key, bundle);
     }
     bundle
+}
+
+/// Content fingerprint for the bundle cache key. The key's u64 has
+/// always stood in for text identity (64-bit collision accepted); a
+/// word-folding FNV variant keeps full-text coverage at a fraction of
+/// the SipHash cost, which dominated per-case conformance time.
+fn lib_text_fingerprint(text: &str) -> u64 {
+    let bytes = text.as_bytes();
+    let mut hash = 0xcbf29ce484222325u64;
+    let mut chunks = bytes.chunks_exact(8);
+    for chunk in &mut chunks {
+        let word = u64::from_le_bytes(chunk.try_into().expect("8-byte chunk"));
+        hash = (hash ^ word).wrapping_mul(0x100000001b3).rotate_left(23);
+    }
+    let mut tail = [0u8; 8];
+    tail[..chunks.remainder().len()].copy_from_slice(chunks.remainder());
+    hash = (hash ^ u64::from_le_bytes(tail)).wrapping_mul(0x100000001b3);
+    hash ^ bytes.len() as u64
 }
 
 fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {

@@ -20,3 +20,21 @@ license = "MIT"
 
 [workspace.lints.clippy]
 iter_over_hash_type = "deny"
+
+# `cargo xtask` runs the dev profile; unoptimized parse/bind/check made
+# corpus-wide commands ~9x slower than release. Optimize the compute
+# crates while keeping dev's debug-assertions (invariant checks stay on).
+[profile.dev.package.tsrs2-syntax]
+opt-level = 3
+[profile.dev.package.tsrs2-binder]
+opt-level = 3
+[profile.dev.package.tsrs2-types]
+opt-level = 3
+[profile.dev.package.tsrs2-checker]
+opt-level = 3
+[profile.dev.package.tsrs2-diags]
+opt-level = 3
+[profile.dev.package.tsrs2-harness]
+opt-level = 3
+[profile.dev.package.tsrs2-conformance]
+opt-level = 3

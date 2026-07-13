@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
 
 pub use tsrs2_checker::{check_program, CheckResult, CompilerOptions, InputFile};
 
@@ -193,7 +194,7 @@ pub fn expand_fixture_text(
     vendor_lib_dir: &Path,
 ) -> HarnessResult<Vec<ProgramJson>> {
     let parsed = parse_fixture(default_file_name, text)?;
-    let resolver = LibResolver::from_vendor_lib_dir(vendor_lib_dir)?;
+    let resolver = shared_lib_resolver(vendor_lib_dir)?;
     expand_parsed_fixture(&parsed, &resolver)
 }
 
@@ -558,6 +559,23 @@ fn resolve_program_libs(
     resolver.expand_lib_files(&roots)
 }
 
+/// Process-wide resolver cache: the resolver is immutable once built,
+/// and rebuilding it per fixture (a 6MB `_tsc.js` read plus several
+/// full-text scans) dominated corpus walks.
+fn shared_lib_resolver(lib_dir: &Path) -> HarnessResult<Arc<LibResolver>> {
+    static CACHE: OnceLock<Mutex<BTreeMap<PathBuf, Arc<LibResolver>>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(BTreeMap::new()));
+    if let Some(resolver) = cache.lock().expect("lib resolver cache").get(lib_dir) {
+        return Ok(resolver.clone());
+    }
+    let resolver = Arc::new(LibResolver::from_vendor_lib_dir(lib_dir)?);
+    cache
+        .lock()
+        .expect("lib resolver cache")
+        .insert(lib_dir.to_owned(), resolver.clone());
+    Ok(resolver)
+}
+
 impl LibResolver {
     fn from_vendor_lib_dir(lib_dir: &Path) -> HarnessResult<Self> {
         let tsc_path = lib_dir.join("_tsc.js");
@@ -645,6 +663,18 @@ impl LibResolver {
     }
 
     fn expand_lib_files(&self, roots: &[String]) -> HarnessResult<Vec<String>> {
+        // Closure expansion reads every lib file in the closure just to
+        // discover `<reference lib>` edges; the corpus reuses a handful
+        // of root sets across thousands of programs, so the result is
+        // cached per (lib dir, roots).
+        static CACHE: OnceLock<Mutex<BTreeMap<(PathBuf, Vec<String>), Vec<String>>>> =
+            OnceLock::new();
+        let cache = CACHE.get_or_init(|| Mutex::new(BTreeMap::new()));
+        let key = (self.lib_dir.clone(), roots.to_vec());
+        if let Some(files) = cache.lock().expect("lib expansion cache").get(&key) {
+            return Ok(files.clone());
+        }
+
         let mut files = Vec::<String>::new();
         let mut seen = BTreeSet::<String>::new();
         for root in roots {
@@ -661,6 +691,10 @@ impl LibResolver {
                 .cmp(&self.lib_file_priority(right))
                 .then_with(|| indexed[left].cmp(&indexed[right]))
         });
+        cache
+            .lock()
+            .expect("lib expansion cache")
+            .insert(key, files.clone());
         Ok(files)
     }
 
