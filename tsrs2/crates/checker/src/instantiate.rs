@@ -1925,28 +1925,25 @@ impl<'a> CheckerState<'a> {
             return Ok(default);
         }
         self.type_parameter_defaults_in_progress.push(tp);
-        let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
-            let default_declaration = state.tables.type_of(tp).symbol.and_then(|symbol| {
-                state
-                    .binder
-                    .symbol(symbol)
-                    .declarations
-                    .clone()
-                    .into_iter()
-                    .find_map(|declaration| match state.data_of(declaration) {
-                        NodeData::TypeParameter(data)
-                            if state.kind_of(declaration) == SyntaxKind::TypeParameter =>
-                        {
-                            data.r#default
-                        }
-                        _ => None,
-                    })
-            });
-            match default_declaration {
-                Some(declaration) => state.get_type_from_type_node(declaration),
-                None => Ok(state.no_constraint_type),
-            }
-        })(self);
+        let default_declaration = self.tables.type_of(tp).symbol.and_then(|symbol| {
+            self.binder
+                .symbol(symbol)
+                .declarations
+                .clone()
+                .into_iter()
+                .find_map(|declaration| match self.data_of(declaration) {
+                    NodeData::TypeParameter(data)
+                        if self.kind_of(declaration) == SyntaxKind::TypeParameter =>
+                    {
+                        data.r#default
+                    }
+                    _ => None,
+                })
+        });
+        let computed = match default_declaration {
+            Some(declaration) => self.get_type_from_type_node(declaration),
+            None => Ok(self.no_constraint_type),
+        };
         self.type_parameter_defaults_in_progress.pop();
         let default_type = computed?;
         // A re-entry may have stamped the circular sentinel while the

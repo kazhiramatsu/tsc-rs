@@ -773,8 +773,8 @@ impl<'a> CheckerState<'a> {
                     _ => self.check_object_literal_method(member_decl, check_mode)?,
                 };
                 // isInJavascript jsDocType/enumTag arms — [JSDOC] dead.
-                acc.object_flags = acc.object_flags
-                    | (self.tables.object_flags_of(ty) & ObjectFlags::PROPAGATING_FLAGS);
+                acc.object_flags |=
+                    self.tables.object_flags_of(ty) & ObjectFlags::PROPAGATING_FLAGS;
                 let name_type = computed_name_type
                     .filter(|&t| self.property_name_from_type_usable(t).is_some());
                 let member_flags = self.binder.symbol(member_sym).flags;
@@ -1032,8 +1032,7 @@ impl<'a> CheckerState<'a> {
             | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
         // isJSObjectLiteral → JSLiteral: [JSDOC] dead in TS files.
         if acc.pattern_with_computed_properties {
-            object_flags =
-                object_flags | ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES;
+            object_flags |= ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES;
         }
         let id = self.make_resolved_anonymous_type(
             symbol,

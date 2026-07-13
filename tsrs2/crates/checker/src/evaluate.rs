@@ -522,7 +522,7 @@ impl<'a> CheckerState<'a> {
             let declaration = self.binder.symbol(symbol).value_declaration;
             if let Some(declaration) = declaration {
                 if let NodeData::VariableDeclaration(data) = self.data_of(declaration).clone() {
-                    if data.r#type.is_none() && data.initializer.is_some() {
+                    if let (None, Some(initializer)) = (data.r#type, data.initializer) {
                         let gate = match location {
                             None => true,
                             Some(location) => {
@@ -534,8 +534,7 @@ impl<'a> CheckerState<'a> {
                             }
                         };
                         if gate {
-                            let result =
-                                self.evaluate(data.initializer.unwrap(), Some(declaration))?;
+                            let result = self.evaluate(initializer, Some(declaration))?;
                             if let Some(location) = location {
                                 if self.binder.file_index_of_node(location)
                                     != self.binder.file_index_of_node(declaration)

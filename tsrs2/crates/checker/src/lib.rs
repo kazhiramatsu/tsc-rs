@@ -379,26 +379,25 @@ pub fn check_program_with_libs(
                 }
                 continue;
             }
-            match file_name.as_deref().and_then(|name| by_name.get(name)) {
-                Some(source) => diagnostics.extend(filter_by_comment_directives(
+            // No arm for the file-less case: program-level diagnostics
+            // do not join the per-file output. In tsc the only such
+            // emitters today (the missing-global 2318/2317 family) fire
+            // inside initializeTypeChecker BEFORE getDiagnosticsWorker's
+            // previousGlobalDiagnostics snapshot, so per-file
+            // getSemanticDiagnostics never surfaces them; our 5.0
+            // lazy-global architecture raises them mid-check, which
+            // would surface a diagnostic tsc keeps invisible. tsc's
+            // genuinely-visible mid-check globals are the deferred
+            // wrapper lookups, and our 5.3b port passes
+            // reportErrors=false there — nothing observable is
+            // dropped. Revisit when getGlobalDiagnostics grows a
+            // consumer (program-level API, M8).
+            if let Some(source) = file_name.as_deref().and_then(|name| by_name.get(name)) {
+                diagnostics.extend(filter_by_comment_directives(
                     &source.text,
                     &source.line_map,
                     file_diagnostics.into_iter(),
-                )),
-                // File-less (program-level) diagnostics do not join the
-                // per-file output. In tsc the only such emitters today
-                // (the missing-global 2318/2317 family) fire inside
-                // initializeTypeChecker BEFORE getDiagnosticsWorker's
-                // previousGlobalDiagnostics snapshot, so per-file
-                // getSemanticDiagnostics never surfaces them; our 5.0
-                // lazy-global architecture raises them mid-check, which
-                // would surface a diagnostic tsc keeps invisible. tsc's
-                // genuinely-visible mid-check globals are the deferred
-                // wrapper lookups, and our 5.3b port passes
-                // reportErrors=false there — nothing observable is
-                // dropped. Revisit when getGlobalDiagnostics grows a
-                // consumer (program-level API, M8).
-                None => {}
+                ));
             }
         }
         // The aggregate pass is sorted + deduplicated like tsc's
@@ -446,8 +445,7 @@ fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBun
     type Key = (Vec<(String, u64)>, CompilerOptions);
     static CACHE: OnceLock<Mutex<HashMap<Key, &'static LibBundle>>> = OnceLock::new();
 
-    let cache_enabled =
-        std::env::var_os("TSRS_LIB_BUNDLE_CACHE").map_or(true, |value| value != "0");
+    let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
     let key: Key = (
         libs.iter()
             .map(|lib| (lib.name.clone(), lib_text_fingerprint(&lib.text)))

@@ -1830,6 +1830,92 @@ impl<'a> CheckerState<'a> {
     }
 }
 
+/// tsc-port: getScriptTargetFeatures @6.0.3 (keys-only slice)
+/// tsc-hash: 4caf0dbfd5f82ff6f32731df602469bcbc345272d4a232aef289c77293d3f659
+/// tsc-span: _tsc.js:13062-13646
+///
+/// getSuggestedLibForNonExistentName consumes only each type entry's
+/// FIRST lib key (firstIterator(typeFeatures.keys())); the per-lib
+/// member lists feed getSuggestedLibForNonExistentProperty (2550-family,
+/// 5.5) and stay unported until then. Pairs extracted mechanically from
+/// the table in source order.
+static SCRIPT_TARGET_FEATURE_FIRST_LIB: &[(&str, &str)] = &[
+    ("Array", "es2015"),
+    ("Iterator", "es2015"),
+    ("AsyncIterator", "es2015"),
+    ("ArrayBuffer", "es2024"),
+    ("Atomics", "es2017"),
+    ("SharedArrayBuffer", "es2017"),
+    ("AsyncIterable", "es2018"),
+    ("AsyncIterableIterator", "es2018"),
+    ("AsyncGenerator", "es2018"),
+    ("AsyncGeneratorFunction", "es2018"),
+    ("RegExp", "es2015"),
+    ("RegExpConstructor", "es2025"),
+    ("Reflect", "es2015"),
+    ("ArrayConstructor", "es2015"),
+    ("ObjectConstructor", "es2015"),
+    ("NumberConstructor", "es2015"),
+    ("Math", "es2015"),
+    ("Map", "es2015"),
+    ("MapConstructor", "es2024"),
+    ("Set", "es2015"),
+    ("PromiseConstructor", "es2015"),
+    ("Symbol", "es2015"),
+    ("WeakMap", "es2015"),
+    ("WeakSet", "es2015"),
+    ("String", "es2015"),
+    ("StringConstructor", "es2015"),
+    ("DateTimeFormat", "es2017"),
+    ("Promise", "es2015"),
+    ("RegExpMatchArray", "es2018"),
+    ("RegExpExecArray", "es2018"),
+    ("Intl", "es2018"),
+    ("NumberFormat", "es2018"),
+    ("SymbolConstructor", "es2020"),
+    ("DataView", "es2020"),
+    ("BigInt", "es2020"),
+    ("RelativeTimeFormat", "es2020"),
+    ("Int8Array", "es2022"),
+    ("Uint8Array", "es2022"),
+    ("Uint8ClampedArray", "es2022"),
+    ("Int16Array", "es2022"),
+    ("Uint16Array", "es2022"),
+    ("Int32Array", "es2022"),
+    ("Uint32Array", "es2022"),
+    ("Float16Array", "es2025"),
+    ("Float32Array", "es2022"),
+    ("Float64Array", "es2022"),
+    ("BigInt64Array", "es2020"),
+    ("BigUint64Array", "es2020"),
+    ("Error", "es2022"),
+    ("ErrorConstructor", "esnext"),
+    ("Uint8ArrayConstructor", "esnext"),
+    ("Date", "esnext"),
+    ("DisposableStack", "esnext"),
+    ("AsyncDisposableStack", "esnext"),
+];
+
+/// tsc-port: getSuggestedLibForNonExistentName @6.0.3
+/// tsc-hash: b60265e4566246083d64e6d4fc258cac9ecc7c3e156ac3218c439b565375f46b
+/// tsc-span: _tsc.js:75476-75481
+pub(crate) fn get_suggested_lib_for_non_existent_name(name: &str) -> Option<&'static str> {
+    SCRIPT_TARGET_FEATURE_FIRST_LIB
+        .iter()
+        .find(|(type_name, _)| *type_name == name)
+        .map(|(_, lib)| *lib)
+}
+
+/// tsc-port: isPrimitiveTypeName @6.0.3
+/// tsc-hash: bca4359c333883add2e1cf67e043cd84811da2258483f0e2ab470b6b7f9d6bda
+/// tsc-span: _tsc.js:48334-48336
+fn is_primitive_type_name(name: &str) -> bool {
+    matches!(
+        name,
+        "any" | "string" | "number" | "boolean" | "never" | "unknown"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -2035,90 +2121,4 @@ mod tests {
             },
         );
     }
-}
-
-/// tsc-port: getScriptTargetFeatures @6.0.3 (keys-only slice)
-/// tsc-hash: 4caf0dbfd5f82ff6f32731df602469bcbc345272d4a232aef289c77293d3f659
-/// tsc-span: _tsc.js:13062-13646
-///
-/// getSuggestedLibForNonExistentName consumes only each type entry's
-/// FIRST lib key (firstIterator(typeFeatures.keys())); the per-lib
-/// member lists feed getSuggestedLibForNonExistentProperty (2550-family,
-/// 5.5) and stay unported until then. Pairs extracted mechanically from
-/// the table in source order.
-static SCRIPT_TARGET_FEATURE_FIRST_LIB: &[(&str, &str)] = &[
-    ("Array", "es2015"),
-    ("Iterator", "es2015"),
-    ("AsyncIterator", "es2015"),
-    ("ArrayBuffer", "es2024"),
-    ("Atomics", "es2017"),
-    ("SharedArrayBuffer", "es2017"),
-    ("AsyncIterable", "es2018"),
-    ("AsyncIterableIterator", "es2018"),
-    ("AsyncGenerator", "es2018"),
-    ("AsyncGeneratorFunction", "es2018"),
-    ("RegExp", "es2015"),
-    ("RegExpConstructor", "es2025"),
-    ("Reflect", "es2015"),
-    ("ArrayConstructor", "es2015"),
-    ("ObjectConstructor", "es2015"),
-    ("NumberConstructor", "es2015"),
-    ("Math", "es2015"),
-    ("Map", "es2015"),
-    ("MapConstructor", "es2024"),
-    ("Set", "es2015"),
-    ("PromiseConstructor", "es2015"),
-    ("Symbol", "es2015"),
-    ("WeakMap", "es2015"),
-    ("WeakSet", "es2015"),
-    ("String", "es2015"),
-    ("StringConstructor", "es2015"),
-    ("DateTimeFormat", "es2017"),
-    ("Promise", "es2015"),
-    ("RegExpMatchArray", "es2018"),
-    ("RegExpExecArray", "es2018"),
-    ("Intl", "es2018"),
-    ("NumberFormat", "es2018"),
-    ("SymbolConstructor", "es2020"),
-    ("DataView", "es2020"),
-    ("BigInt", "es2020"),
-    ("RelativeTimeFormat", "es2020"),
-    ("Int8Array", "es2022"),
-    ("Uint8Array", "es2022"),
-    ("Uint8ClampedArray", "es2022"),
-    ("Int16Array", "es2022"),
-    ("Uint16Array", "es2022"),
-    ("Int32Array", "es2022"),
-    ("Uint32Array", "es2022"),
-    ("Float16Array", "es2025"),
-    ("Float32Array", "es2022"),
-    ("Float64Array", "es2022"),
-    ("BigInt64Array", "es2020"),
-    ("BigUint64Array", "es2020"),
-    ("Error", "es2022"),
-    ("ErrorConstructor", "esnext"),
-    ("Uint8ArrayConstructor", "esnext"),
-    ("Date", "esnext"),
-    ("DisposableStack", "esnext"),
-    ("AsyncDisposableStack", "esnext"),
-];
-
-/// tsc-port: getSuggestedLibForNonExistentName @6.0.3
-/// tsc-hash: b60265e4566246083d64e6d4fc258cac9ecc7c3e156ac3218c439b565375f46b
-/// tsc-span: _tsc.js:75476-75481
-pub(crate) fn get_suggested_lib_for_non_existent_name(name: &str) -> Option<&'static str> {
-    SCRIPT_TARGET_FEATURE_FIRST_LIB
-        .iter()
-        .find(|(type_name, _)| *type_name == name)
-        .map(|(_, lib)| *lib)
-}
-
-/// tsc-port: isPrimitiveTypeName @6.0.3
-/// tsc-hash: bca4359c333883add2e1cf67e043cd84811da2258483f0e2ab470b6b7f9d6bda
-/// tsc-span: _tsc.js:48334-48336
-fn is_primitive_type_name(name: &str) -> bool {
-    matches!(
-        name,
-        "any" | "string" | "number" | "boolean" | "never" | "unknown"
-    )
 }

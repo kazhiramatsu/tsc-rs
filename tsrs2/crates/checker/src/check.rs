@@ -152,18 +152,17 @@ impl<'a> CheckerState<'a> {
                 .links
                 .node(parent)
                 .has_reported_statement_in_ambient_context
-            {
-                if self.grammar_error_on_first_token(
+                && self.grammar_error_on_first_token(
                     node,
                     &diagnostics::Statements_are_not_allowed_in_ambient_contexts,
                     &[],
-                ) {
-                    self.links
-                        .set_node_has_reported_statement_in_ambient_context(
-                            self.speculation_depth,
-                            parent,
-                        );
-                }
+                )
+            {
+                self.links
+                    .set_node_has_reported_statement_in_ambient_context(
+                        self.speculation_depth,
+                        parent,
+                    );
             }
         }
     }
@@ -691,14 +690,12 @@ impl<'a> CheckerState<'a> {
         has_type_arguments: bool,
     ) -> CheckResult2<()> {
         let ty = self.get_type_from_type_node(node)?;
-        if ty != self.tables.intrinsics.error {
-            if has_type_arguments {
-                // addLazyDiagnostic runs inline (eager identity).
-                if let Some(type_parameters) =
-                    self.get_type_parameters_for_type_reference_or_import(node)?
-                {
-                    self.check_type_argument_constraints(node, &type_parameters)?;
-                }
+        if ty != self.tables.intrinsics.error && has_type_arguments {
+            // addLazyDiagnostic runs inline (eager identity).
+            if let Some(type_parameters) =
+                self.get_type_parameters_for_type_reference_or_import(node)?
+            {
+                self.check_type_argument_constraints(node, &type_parameters)?;
             }
         }
         Ok(())

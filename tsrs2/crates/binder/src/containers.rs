@@ -196,8 +196,8 @@ impl<'a> Binder<'a> {
     /// bindBlockScopedDeclaration: `if (!blockScopeContainer.locals)
     /// { ...createSymbolTable(); addToContainerChain(...) }`.
     pub fn ensure_locals(&mut self, node: NodeId) {
-        if !self.locals.contains_key(&node) {
-            self.locals.insert(node, SymbolTable::default());
+        if let std::collections::hash_map::Entry::Vacant(entry) = self.locals.entry(node) {
+            entry.insert(SymbolTable::default());
             self.add_to_container_chain(node);
         }
     }

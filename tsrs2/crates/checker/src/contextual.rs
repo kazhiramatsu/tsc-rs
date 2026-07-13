@@ -438,15 +438,16 @@ impl<'a> CheckerState<'a> {
         let name = property_name.or(element_name).expect("element has a name");
         let mut parent_type =
             self.get_contextual_type_for_variable_like_declaration(parent, context_flags)?;
-        if parent_type.is_none() && self.kind_of(parent) != SyntaxKind::BindingElement {
-            if self.initializer_of(parent).is_some() {
-                let check_mode = if dot_dot_dot {
-                    tsrs2_types::CheckMode::REST_BINDING_ELEMENT
-                } else {
-                    tsrs2_types::CheckMode::NORMAL
-                };
-                parent_type = Some(self.check_declaration_initializer(parent, check_mode, None)?);
-            }
+        if parent_type.is_none()
+            && self.kind_of(parent) != SyntaxKind::BindingElement
+            && self.initializer_of(parent).is_some()
+        {
+            let check_mode = if dot_dot_dot {
+                tsrs2_types::CheckMode::REST_BINDING_ELEMENT
+            } else {
+                tsrs2_types::CheckMode::NORMAL
+            };
+            parent_type = Some(self.check_declaration_initializer(parent, check_mode, None)?);
         }
         let Some(parent_type) = parent_type else {
             return Ok(None);

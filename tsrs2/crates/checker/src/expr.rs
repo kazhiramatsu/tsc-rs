@@ -493,11 +493,7 @@ impl<'a> CheckerState<'a> {
             Some(end_utf16.saturating_sub(start_utf16)),
             MessageChain::new(message, &args),
         );
-        if !self
-            .diagnostics
-            .iter()
-            .any(|existing| *existing == diagnostic)
-        {
+        if !self.diagnostics.contains(&diagnostic) {
             self.diagnostics.push(diagnostic);
         }
         true
@@ -599,8 +595,8 @@ impl<'a> CheckerState<'a> {
         let assignment_kind = self.get_assignment_target_kind(node);
         if assignment_kind != AssignmentKind::None {
             let local_flags = self.binder.symbol(local_or_export_symbol).flags;
-            if !local_flags.intersects(SymbolFlags::VARIABLE)
-                && !(self.is_in_js_file(node) && local_flags.intersects(SymbolFlags::VALUE_MODULE))
+            if !(local_flags.intersects(SymbolFlags::VARIABLE)
+                || self.is_in_js_file(node) && local_flags.intersects(SymbolFlags::VALUE_MODULE))
             {
                 let message = if local_flags.intersects(SymbolFlags::ENUM) {
                     &diagnostics::Cannot_assign_to_0_because_it_is_an_enum

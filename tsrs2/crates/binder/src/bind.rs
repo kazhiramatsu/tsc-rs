@@ -899,11 +899,10 @@ impl<'a> Binder<'a> {
         {
             self.emit_flags |= NodeFlags::HAS_ASYNC_FUNCTIONS.bits();
         }
-        if self.current_flow.is_some()
-            && is_object_literal_or_class_expression_method_or_accessor(self.source, node)
-        {
-            let current_flow = self.current_flow.unwrap();
-            self.node_flow.insert(node, current_flow);
+        if let Some(current_flow) = self.current_flow {
+            if is_object_literal_or_class_expression_method_or_accessor(self.source, node) {
+                self.node_flow.insert(node, current_flow);
+            }
         }
         if has_dynamic_name(self.source, node) {
             self.bind_anonymous_declaration(
@@ -1127,6 +1126,7 @@ impl<'a> Binder<'a> {
     /// The TS-visible slice of bindSpecialPropertyAssignment (44821):
     /// in a TS file only function-parent (expando) assignments proceed;
     /// the symbol-producing body is stage 3.4c.
+    #[allow(clippy::needless_return)] // the guard's fall-through body is the 3.4c stub tail
     fn bind_special_property_assignment(&mut self, node: NodeId) {
         let source = self.source;
         let left = match &source.arena.node(node).data {
@@ -2518,8 +2518,10 @@ impl<'a> Binder<'a> {
         };
         if operator == SyntaxKind::ExclamationToken {
             let save_true_target = self.current_true_target;
-            self.current_true_target = self.current_false_target;
-            self.current_false_target = save_true_target;
+            std::mem::swap(
+                &mut self.current_true_target,
+                &mut self.current_false_target,
+            );
             self.bind_each_child(node);
             self.current_false_target = self.current_true_target;
             self.current_true_target = save_true_target;
@@ -3165,6 +3167,7 @@ fn is_logical_expression(source: &tsrs2_syntax::SourceFile, mut node: NodeId) ->
 }
 
 /// tsc isTopLevelLogicalExpression (43178).
+#[allow(clippy::nonminimal_bool)] // the return expression mirrors the tsc source shape
 fn is_top_level_logical_expression(source: &tsrs2_syntax::SourceFile, mut node: NodeId) -> bool {
     while let Some(parent) = parent_of(source, node) {
         let is_wrapper = kind_of(source, parent) == SyntaxKind::ParenthesizedExpression
@@ -3512,7 +3515,7 @@ mod tests {
              interface I2 {}\n",
         );
         let modules = find_nodes(&source, SyntaxKind::ModuleDeclaration);
-        let mut state = |id: NodeId| {
+        let state = |id: NodeId| {
             get_module_instance_state(&source, id, &mut std::collections::HashMap::new())
         };
         assert_eq!(state(modules[0]), ModuleInstanceState::NonInstantiated);
@@ -3820,7 +3823,7 @@ mod tests {
         text.push_str(";\n");
         let source = parse(&text);
         let binder = bind(&source);
-        assert!(binder.symbols.len() >= 1);
+        assert!(!binder.symbols.is_empty());
     }
 
     #[test]

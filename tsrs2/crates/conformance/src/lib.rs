@@ -546,10 +546,24 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     }
     fs::write(&options.out_json, serde_json::to_string_pretty(&summary)?)?;
 
-    if summary.t0_rate + summary.ratchet_allowed_regression < summary.ratchet_rate {
+    // With matched/total recorded the comparison is exact (cross-
+    // multiplied integers): a rounded `rate` float would let up to a
+    // few diagnostics regress silently.
+    let regressed = match (ratchet.matched, ratchet.total) {
+        (Some(matched), Some(total)) if summary.ratchet_allowed_regression == 0.0 => {
+            (summary.matched_t0_diagnostics as u128) * (total as u128)
+                < (matched as u128) * (summary.oracle_diagnostics as u128)
+        }
+        _ => summary.t0_rate + summary.ratchet_allowed_regression < summary.ratchet_rate,
+    };
+    if regressed {
         return Err(format!(
-            "T0 ratchet regression: measured {:.6}, required {:.6} (allowed regression {:.6})",
-            summary.t0_rate, summary.ratchet_rate, summary.ratchet_allowed_regression
+            "T0 ratchet regression: measured {:.6} ({}/{}), required {:.6} (allowed regression {:.6})",
+            summary.t0_rate,
+            summary.matched_t0_diagnostics,
+            summary.oracle_diagnostics,
+            summary.ratchet_rate,
+            summary.ratchet_allowed_regression
         )
         .into());
     }
@@ -644,8 +658,8 @@ fn read_lib_inputs(
     libs: &[String],
     vendor_lib_dir: &Path,
 ) -> ConformanceResult<Arc<Vec<InputFile>>> {
-    static CACHE: OnceLock<Mutex<BTreeMap<(PathBuf, Vec<String>), Arc<Vec<InputFile>>>>> =
-        OnceLock::new();
+    type LibInputKey = (PathBuf, Vec<String>);
+    static CACHE: OnceLock<Mutex<BTreeMap<LibInputKey, Arc<Vec<InputFile>>>>> = OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(BTreeMap::new()));
     let key = (vendor_lib_dir.to_owned(), libs.to_vec());
     if let Some(inputs) = cache.lock().expect("lib input cache").get(&key) {
@@ -763,7 +777,17 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         react_namespace: string_option(program, "reactNamespace"),
         lib: program.options.iter().find_map(|(key, value)| {
             if key.eq_ignore_ascii_case("lib") {
+                // The harness serializes @lib as a StringList (it
+                // rejects anything else at expansion time); the String
+                // arm keeps hand-built programs working.
                 match value {
+                    tsrs2_harness::OptionValue::StringList(values) => Some(
+                        values
+                            .iter()
+                            .map(|entry| entry.trim().to_ascii_lowercase())
+                            .filter(|entry| !entry.is_empty())
+                            .collect(),
+                    ),
                     tsrs2_harness::OptionValue::String(value) => Some(
                         value
                             .split(',')
@@ -992,6 +1016,10 @@ fn top_codes(codes: BTreeMap<u32, usize>) -> Vec<(u32, usize)> {
 #[derive(Clone, Copy, Debug)]
 struct Ratchet {
     rate: f64,
+    /// Exact matched/total counts; when present the zero-regression
+    /// gate compares integers instead of the rounded `rate`.
+    matched: Option<u64>,
+    total: Option<u64>,
     allowed_regression: f64,
 }
 
@@ -1000,6 +1028,8 @@ fn read_ratchet(path: &Path, band: DiagnosticBand) -> ConformanceResult<Ratchet>
     let section = band.ratchet_key();
     let mut in_section = false;
     let mut rate = None;
+    let mut matched = None;
+    let mut total = None;
     let mut allowed_regression = None;
 
     for raw_line in text.lines() {
@@ -1017,16 +1047,32 @@ fn read_ratchet(path: &Path, band: DiagnosticBand) -> ConformanceResult<Ratchet>
         let Some((key, value)) = line.split_once('=') else {
             continue;
         };
-        let value = value.trim().parse::<f64>()?;
+        let value = value.trim();
         match key.trim() {
-            "rate" => rate = Some(value),
-            "allowed_regression" => allowed_regression = Some(value),
+            "rate" => rate = Some(value.parse::<f64>()?),
+            "matched" => matched = Some(value.parse::<u64>()?),
+            "total" => total = Some(value.parse::<u64>()?),
+            "allowed_regression" => allowed_regression = Some(value.parse::<f64>()?),
             _ => {}
         }
     }
 
+    if matched.is_some() != total.is_some() {
+        return Err(format!(
+            "[{section}] must set both `matched` and `total` (or neither) in {}",
+            path.display()
+        )
+        .into());
+    }
+    let rate = match (rate, matched, total) {
+        (Some(rate), _, _) => rate,
+        (None, Some(matched), Some(total)) if total > 0 => matched as f64 / total as f64,
+        _ => return Err(format!("missing [{section}].rate in {}", path.display()).into()),
+    };
     Ok(Ratchet {
-        rate: rate.ok_or_else(|| format!("missing [{section}].rate in {}", path.display()))?,
+        rate,
+        matched,
+        total,
         allowed_regression: allowed_regression.unwrap_or(0.0),
     })
 }
@@ -1089,4 +1135,83 @@ fn decode_base64_value(byte: u8) -> ConformanceResult<u8> {
 
 fn temp_root(prefix: &str) -> PathBuf {
     std::env::temp_dir().join(format!("{prefix}-{}", std::process::id()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The harness serializes @lib as OptionValue::StringList; the
+    /// conversion must lowercase and forward it (a String-only match
+    /// silently dropped the option, leaving CompilerOptions.lib None).
+    #[test]
+    fn lib_string_list_reaches_compiler_options() {
+        let program = tsrs2_harness::ProgramJson {
+            schema: 1,
+            cwd: ".".to_owned(),
+            options: [(
+                "lib".to_owned(),
+                tsrs2_harness::OptionValue::StringList(vec![
+                    "ES2015".to_owned(),
+                    " Dom ".to_owned(),
+                ]),
+            )]
+            .into_iter()
+            .collect(),
+            libs: Vec::new(),
+            files: Vec::new(),
+            matrix_key: String::new(),
+        };
+        let options = compiler_options_from_program(&program);
+        assert_eq!(
+            options.lib,
+            Some(vec!["es2015".to_owned(), "dom".to_owned()])
+        );
+    }
+
+    #[test]
+    fn lib_comma_string_still_supported() {
+        let program = tsrs2_harness::ProgramJson {
+            schema: 1,
+            cwd: ".".to_owned(),
+            options: [(
+                "lib".to_owned(),
+                tsrs2_harness::OptionValue::String("ES2020, dom".to_owned()),
+            )]
+            .into_iter()
+            .collect(),
+            libs: Vec::new(),
+            files: Vec::new(),
+            matrix_key: String::new(),
+        };
+        let options = compiler_options_from_program(&program);
+        assert_eq!(
+            options.lib,
+            Some(vec!["es2020".to_owned(), "dom".to_owned()])
+        );
+    }
+
+    /// Integer ratchets gate exactly: one lost diagnostic must fail
+    /// even when the rounded rate would still pass.
+    #[test]
+    fn ratchet_integer_counts_parse() {
+        let dir = temp_root("tsrs2-ratchet-test");
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("ratchet.toml");
+        fs::write(
+            &path,
+            "[t0]\nrate = 0.0979\nmatched = 4758\ntotal = 48573\nallowed_regression = 0.0\n",
+        )
+        .unwrap();
+        let ratchet = read_ratchet(&path, DiagnosticBand::All).unwrap();
+        assert_eq!(ratchet.matched, Some(4758));
+        assert_eq!(ratchet.total, Some(48573));
+        assert_eq!(ratchet.allowed_regression, 0.0);
+        // The exact-compare shape used by the gate: losing one matched
+        // diagnostic on the same corpus regresses.
+        let (matched, total) = (ratchet.matched.unwrap(), ratchet.total.unwrap());
+        assert!((4758u128) * (total as u128) >= (matched as u128) * (48573u128));
+        assert!((4757u128) * (total as u128) < (matched as u128) * (48573u128));
+        fs::remove_file(&path).ok();
+    }
 }

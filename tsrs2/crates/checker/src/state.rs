@@ -993,12 +993,6 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// tsc-port: createError @6.0.3
-    /// tsc-hash: dedcf6cc6c301274f018ef98543f4abebe1b7826c45f601b914137812caa8cfa
-    /// tsc-span: _tsc.js:47580-47582
-    ///
-    /// No location ⇒ createCompilerDiagnostic: a file-less,
-    /// program-level diagnostic.
     // ---- out-of-band variance marker handler (M4 5.3b) ----
 
     /// The reporter-mapper closures' `t === markerSuperType || ...`
@@ -1042,6 +1036,12 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: createError @6.0.3
+    /// tsc-hash: dedcf6cc6c301274f018ef98543f4abebe1b7826c45f601b914137812caa8cfa
+    /// tsc-span: _tsc.js:47580-47582
+    ///
+    /// No location ⇒ createCompilerDiagnostic: a file-less,
+    /// program-level diagnostic.
     pub fn create_error(
         &self,
         location: Option<NodeId>,

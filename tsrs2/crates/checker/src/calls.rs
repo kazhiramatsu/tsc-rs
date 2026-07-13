@@ -123,8 +123,8 @@ fn line_break_precedes_next_token(text: &str, start: usize) -> bool {
                         cursor += c.len_utf8();
                     }
                     pos = cursor;
-                } else if rest.starts_with("/*") {
-                    match rest[2..].find("*/") {
+                } else if let Some(block) = rest.strip_prefix("/*") {
+                    match block.find("*/") {
                         Some(offset) => pos += 2 + offset + 2,
                         None => return false,
                     }
@@ -625,11 +625,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::BinaryExpression => {
                 arg_count = 1;
             }
-            kind if matches!(
-                kind,
-                SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement
-            ) =>
-            {
+            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
                 return Err(Unsupported::new("hasCorrectArity JSX arm (5.7c)"));
             }
             _ => {
@@ -1432,8 +1428,8 @@ impl<'a> CheckerState<'a> {
         } else {
             args.len()
         };
-        for i in 0..arg_count {
-            let arg = args[i];
+        for (i, arg) in args.iter().enumerate().take(arg_count) {
+            let arg = *arg;
             if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
                 continue;
             }
@@ -2559,10 +2555,10 @@ impl<'a> CheckerState<'a> {
                 closest_signature = Some(signature);
             }
             max = std::cmp::max(max, max_parameter);
-            if min_parameter < args.len() && max_below.map_or(true, |below| min_parameter > below) {
+            if min_parameter < args.len() && max_below.is_none_or(|below| min_parameter > below) {
                 max_below = Some(min_parameter);
             }
-            if args.len() < max_parameter && min_above.map_or(true, |above| max_parameter < above) {
+            if args.len() < max_parameter && min_above.is_none_or(|above| max_parameter < above) {
                 min_above = Some(max_parameter);
             }
         }

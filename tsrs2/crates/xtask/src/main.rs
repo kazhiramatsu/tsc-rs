@@ -2051,9 +2051,33 @@ fn decode_base64_value(byte: u8) -> Result<u8, Box<dyn Error>> {
 }
 
 fn ci() -> Result<(), Box<dyn Error>> {
+    run_command(
+        Command::new("cargo")
+            .arg("fmt")
+            .arg("--all")
+            .arg("--")
+            .arg("--check"),
+    )?;
+    run_command(
+        Command::new("cargo")
+            .arg("clippy")
+            .arg("--workspace")
+            .arg("--all-targets")
+            .arg("--")
+            .arg("-D")
+            .arg("warnings"),
+    )?;
     run_command(Command::new("cargo").arg("build").arg("--workspace"))?;
     run_command(Command::new("cargo").arg("test").arg("--workspace"))?;
+    run_command(Command::new("cargo").arg("xtask").arg("relpin").arg("run"))?;
     run_command(Command::new("cargo").arg("xtask").arg("conformance"))?;
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("conformance")
+            .arg("--band")
+            .arg("2xxx"),
+    )?;
     run_command(
         Command::new("cargo")
             .arg("xtask")

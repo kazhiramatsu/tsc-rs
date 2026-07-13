@@ -428,12 +428,12 @@ impl<'a> CheckerState<'a> {
     ///
     /// checkPropertyAccessibility + checkPropertyAccessibilityAtLocation
     /// + getEnclosingClassFromThisParameter + getThisParameterFromNode-
-    /// Context + symbolHasNonMethodDeclaration, one block. Arm order
-    /// is the observable: super-ES5 2340 → super-abstract 2513 →
-    /// super-instance-field 2855 → abstract-in-ctor 2715 → non-public
-    /// fast-path → private 2341 → super-protected OK → protected
-    /// derivation 2445 → static OK → type-parameter constraint →
-    /// hasBaseType 2446.
+    ///   Context + symbolHasNonMethodDeclaration, one block. Arm order
+    ///   is the observable: super-ES5 2340 → super-abstract 2513 →
+    ///   super-instance-field 2855 → abstract-in-ctor 2715 → non-public
+    ///   fast-path → private 2341 → super-protected OK → protected
+    ///   derivation 2445 → static OK → type-parameter constraint →
+    ///   hasBaseType 2446.
     pub(crate) fn check_property_accessibility(
         &mut self,
         node: NodeId,
@@ -477,17 +477,17 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<bool> {
         let flags = self.get_declaration_modifier_flags_from_symbol_write(prop, writing);
         if is_super {
-            if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015 {
-                if self.symbol_has_non_method_declaration(prop)? {
-                    if let Some(error_node) = error_node {
-                        self.error_at(
-                            Some(error_node),
-                            &tsrs2_diags::gen::Only_public_and_protected_methods_of_the_base_class_are_accessible_via_the_super_keyword,
-                            &[],
-                        );
-                    }
-                    return Ok(false);
+            if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015
+                && self.symbol_has_non_method_declaration(prop)?
+            {
+                if let Some(error_node) = error_node {
+                    self.error_at(
+                        Some(error_node),
+                        &tsrs2_diags::gen::Only_public_and_protected_methods_of_the_base_class_are_accessible_via_the_super_keyword,
+                        &[],
+                    );
                 }
+                return Ok(false);
             }
             if flags.intersects(ModifierFlags::ABSTRACT) {
                 if let Some(error_node) = error_node {
@@ -1558,26 +1558,30 @@ impl<'a> CheckerState<'a> {
                 Some(scoped) => self.get_private_identifier_property_of_type(left_type, scoped)?,
                 None => None,
             };
-            if prop.is_none() {
-                if self.check_private_identifier_property_access(
-                    left_type,
-                    right,
-                    lexically_scoped_symbol,
-                )? {
-                    return Ok(self.tables.intrinsics.error);
+            match prop {
+                None => {
+                    if self.check_private_identifier_property_access(
+                        left_type,
+                        right,
+                        lexically_scoped_symbol,
+                    )? {
+                        return Ok(self.tables.intrinsics.error);
+                    }
+                    // Plain-JS 1111 arm is isPlainJsFile-gated.
                 }
-                // Plain-JS 1111 arm is isPlainJsFile-gated.
-            } else {
-                let prop_symbol = prop.expect("checked above");
-                let flags = self.binder.symbol(prop_symbol).flags;
-                let is_setonly_accessor = flags.intersects(SymbolFlags::SET_ACCESSOR)
-                    && !flags.intersects(SymbolFlags::GET_ACCESSOR);
-                if is_setonly_accessor && assignment_kind != crate::expr::AssignmentKind::Definite {
-                    self.error_at(
-                        Some(node),
-                        &tsrs2_diags::gen::Private_accessor_was_defined_without_a_getter,
-                        &[],
-                    );
+                Some(prop_symbol) => {
+                    let flags = self.binder.symbol(prop_symbol).flags;
+                    let is_setonly_accessor = flags.intersects(SymbolFlags::SET_ACCESSOR)
+                        && !flags.intersects(SymbolFlags::GET_ACCESSOR);
+                    if is_setonly_accessor
+                        && assignment_kind != crate::expr::AssignmentKind::Definite
+                    {
+                        self.error_at(
+                            Some(node),
+                            &tsrs2_diags::gen::Private_accessor_was_defined_without_a_getter,
+                            &[],
+                        );
+                    }
                 }
             }
         } else {
@@ -2302,16 +2306,11 @@ impl<'a> CheckerState<'a> {
         }
         // getResolvedSymbol(getFirstIdentifier(name)).
         let mut first = name;
-        loop {
-            match self.data_of(first) {
-                NodeData::PropertyAccessExpression(data) => {
-                    let Some(expression) = data.expression else {
-                        return Ok(false);
-                    };
-                    first = expression;
-                }
-                _ => break,
-            }
+        while let NodeData::PropertyAccessExpression(data) = self.data_of(first) {
+            let Some(expression) = data.expression else {
+                return Ok(false);
+            };
+            first = expression;
         }
         if self.kind_of(first) != SyntaxKind::Identifier {
             return Ok(false);
@@ -2977,6 +2976,331 @@ impl<'a> CheckerState<'a> {
     }
 }
 
+impl<'a> CheckerState<'a> {
+    /// tsc-port: checkIndexedAccess @6.0.3
+    /// tsc-hash: da7de5599179770799ebfdf4f1d33878c672e95c9361e33df09c5ded59aa2afc
+    /// tsc-span: _tsc.js:75711-75744
+    ///
+    /// Receiver widening is the 5.6 [WIDEN] identity; the index checks
+    /// BEFORE the errorType bail (its diagnostics must land).
+    pub(crate) fn check_indexed_access(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        let source = self.binder.source_of_node(node);
+        if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
+            return self.check_element_access_chain(node, check_mode);
+        }
+        let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let Some(expression) = data.expression else {
+            return Err(Unsupported::new("ElementAccessExpression recovery node"));
+        };
+        let expr_type = self.check_non_null_expression(expression)?;
+        self.check_element_access_expression(node, expr_type, check_mode)
+    }
+
+    fn check_element_access_chain(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let Some(expression) = data.expression else {
+            return Err(Unsupported::new("ElementAccessExpression recovery node"));
+        };
+        let expr_type = self.check_expression(expression, CheckMode::NORMAL)?;
+        let non_optional_type = self.get_optional_expression_type(expr_type, expression)?;
+        let checked = self.check_non_null_type(non_optional_type, expression)?;
+        let access_type = self.check_element_access_expression(node, checked, check_mode)?;
+        self.propagate_optional_type_marker(access_type, node, non_optional_type != expr_type)
+    }
+
+    fn check_element_access_expression(
+        &mut self,
+        node: NodeId,
+        expr_type: TypeId,
+        _check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (Some(_expression), Some(index_expression)) =
+            (data.expression, data.argument_expression)
+        else {
+            return Err(Unsupported::new("ElementAccessExpression recovery node"));
+        };
+        // checkElementAccessExpression receiver widening (75720):
+        // assignment targets and method-call receivers read the
+        // widened type.
+        let object_type = if self.get_assignment_target_kind(node)
+            != crate::expr::AssignmentKind::None
+            || self.is_method_access_for_call(node)
+        {
+            self.get_widened_type(expr_type)?
+        } else {
+            expr_type
+        };
+        let index_type = self.check_expression(index_expression, CheckMode::NORMAL)?;
+        if object_type == self.tables.intrinsics.error
+            || object_type == self.tables.intrinsics.silent_never
+        {
+            return Ok(object_type);
+        }
+        if self.is_const_enum_object_type(object_type)
+            && !matches!(
+                self.kind_of(index_expression),
+                SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+            )
+        {
+            self.error_at(
+                Some(index_expression),
+                &tsrs2_diags::gen::A_const_enum_member_can_only_be_accessed_using_a_string_literal,
+                &[],
+            );
+            return Ok(self.tables.intrinsics.error);
+        }
+        let effective_index_type =
+            if self.is_for_in_variable_for_numeric_property_names(index_expression)? {
+                self.tables.intrinsics.number
+            } else {
+                index_type
+            };
+        let assignment_target_kind = self.get_assignment_target_kind(node);
+        let access_flags = if assignment_target_kind == crate::expr::AssignmentKind::None {
+            tsrs2_types::AccessFlags::EXPRESSION_POSITION
+        } else {
+            let mut bits = tsrs2_types::AccessFlags::WRITING.bits();
+            if self.tables.is_generic_object_type(object_type)
+                && !self.is_this_type_parameter(object_type)
+            {
+                bits |= tsrs2_types::AccessFlags::NO_INDEX_SIGNATURES.bits();
+            }
+            if assignment_target_kind == crate::expr::AssignmentKind::Compound {
+                bits |= tsrs2_types::AccessFlags::EXPRESSION_POSITION.bits();
+            }
+            tsrs2_types::AccessFlags::from_bits(bits)
+        };
+        let indexed_access_type = self
+            .get_indexed_access_type_or_undefined(
+                object_type,
+                effective_index_type,
+                access_flags,
+                Some(node),
+                None,
+                None,
+            )?
+            .unwrap_or(self.tables.intrinsics.error);
+        let resolved_symbol = match self.links.node(node).resolved_symbol {
+            crate::links::LinkSlot::Resolved(symbol) => Some(symbol),
+            _ => None,
+        };
+        let flow_type = self.get_flow_type_of_access_expression(
+            node,
+            resolved_symbol,
+            indexed_access_type,
+            index_expression,
+        )?;
+        self.check_indexed_access_index_type(flow_type, node)
+    }
+
+    /// tsc-port: isForInVariableForNumericPropertyNames @6.0.3
+    /// tsc-hash: 5c9cd3056bea1f4fbb01e9b4f28c93e0a990b94b409ab0b8eabb0afe855960f1
+    /// tsc-span: _tsc.js:75678-75710
+    fn is_for_in_variable_for_numeric_property_names(
+        &mut self,
+        expr: NodeId,
+    ) -> CheckResult2<bool> {
+        let mut e = expr;
+        while self.kind_of(e) == SyntaxKind::ParenthesizedExpression {
+            let NodeData::ParenthesizedExpression(data) = self.data_of(e) else {
+                break;
+            };
+            let Some(inner) = data.expression else { break };
+            e = inner;
+        }
+        if self.kind_of(e) != SyntaxKind::Identifier {
+            return Ok(false);
+        }
+        let Some(symbol) = self.get_resolved_symbol(e) else {
+            return Ok(false);
+        };
+        if !self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::VARIABLE)
+        {
+            return Ok(false);
+        }
+        let mut child = expr;
+        let mut node = self.parent_of(expr);
+        while let Some(current) = node {
+            if self.kind_of(current) == SyntaxKind::ForInStatement {
+                let NodeData::ForInStatement(data) = self.data_of(current) else {
+                    unreachable!("kind/data agree");
+                };
+                if data.statement == Some(child) {
+                    let for_in_symbol = self.get_for_in_variable_symbol(current)?;
+                    if for_in_symbol == Some(symbol) {
+                        if let Some(expression) = data.expression {
+                            let expression_type =
+                                self.check_expression_cached(expression, CheckMode::NORMAL)?;
+                            let infos = self.get_index_infos_of_type(expression_type)?;
+                            let number = self.tables.intrinsics.number;
+                            if infos.len() == 1 && infos.iter().any(|info| info.key_type == number)
+                            {
+                                return Ok(true);
+                            }
+                        }
+                    }
+                }
+            }
+            child = current;
+            node = self.parent_of(current);
+        }
+        Ok(false)
+    }
+
+    fn get_for_in_variable_symbol(&mut self, node: NodeId) -> CheckResult2<Option<SymbolId>> {
+        let NodeData::ForInStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let Some(initializer) = data.initializer else {
+            return Ok(None);
+        };
+        match self.kind_of(initializer) {
+            SyntaxKind::VariableDeclarationList => {
+                let NodeData::VariableDeclarationList(list) = self.data_of(initializer) else {
+                    unreachable!("kind/data agree");
+                };
+                let first = list.declarations.and_then(|declarations| {
+                    self.binder
+                        .source_of_node(initializer)
+                        .arena
+                        .node_array(declarations)
+                        .nodes
+                        .first()
+                        .copied()
+                });
+                if let Some(variable) = first {
+                    let name_is_pattern = self.name_of_node(variable).is_some_and(|name| {
+                        matches!(
+                            self.kind_of(name),
+                            SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                        )
+                    });
+                    if !name_is_pattern {
+                        return Ok(Some(self.get_symbol_of_declaration(variable)?));
+                    }
+                }
+                Ok(None)
+            }
+            SyntaxKind::Identifier => Ok(self.get_resolved_symbol(initializer)),
+            _ => Ok(None),
+        }
+    }
+
+    /// tsc-port: checkIndexedAccessIndexType @6.0.3
+    /// tsc-hash: a2cd8152c78bd2c6042737704036aee3897bd1e8fb54378add79f82572845461
+    /// tsc-span: _tsc.js:81893-81919
+    ///
+    /// The mapped-readonly write arm (2542) gates on ObjectFlags::MAPPED
+    /// — mapped types have no producer yet, so the modifiers read stays
+    /// a named escape behind the dead gate.
+    pub(crate) fn check_indexed_access_index_type(
+        &mut self,
+        ty: TypeId,
+        access_node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        if !self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::INDEXED_ACCESS)
+        {
+            return Ok(ty);
+        }
+        let (object_type, index_type) = match &self.tables.type_of(ty).data {
+            tsrs2_types::TypeData::IndexedAccess {
+                object_type,
+                index_type,
+                ..
+            } => (*object_type, *index_type),
+            _ => unreachable!("IndexedAccess flag implies payload"),
+        };
+        let number = self.tables.intrinsics.number;
+        let has_number_index_info = self
+            .get_index_infos_of_type(object_type)?
+            .iter()
+            .any(|info| info.key_type == number);
+        let key_of_object = self.get_index_type(object_type, tsrs2_types::IndexFlags::NONE)?;
+        let constituents = self.union_members_or_self(index_type);
+        let mut every_assignable = true;
+        for t in constituents {
+            let ok = self.is_type_assignable_to(t, key_of_object)?
+                || has_number_index_info && self.is_applicable_index_type(t, number)?;
+            if !ok {
+                every_assignable = false;
+                break;
+            }
+        }
+        if every_assignable {
+            let source = self.binder.source_of_node(access_node);
+            if self.kind_of(access_node) == SyntaxKind::ElementAccessExpression
+                && node_util::is_assignment_target(source, access_node)
+                && self
+                    .tables
+                    .object_flags_of(object_type)
+                    .intersects(tsrs2_types::ObjectFlags::MAPPED)
+            {
+                return Err(Unsupported::new(
+                    "mapped-readonly write 2542 (getMappedTypeModifiers — mapped types unproduced)",
+                ));
+            }
+            return Ok(ty);
+        }
+        if self.tables.is_generic_object_type(object_type) {
+            if let Some(property_name) = self.property_name_from_type_usable(index_type) {
+                let apparent = self.get_apparent_type(object_type)?;
+                let apparent_members = self.union_members_or_self(apparent);
+                let mut property_symbol = None;
+                for t in apparent_members {
+                    if let Some(found) = self.get_property_of_type_full(t, &property_name)? {
+                        property_symbol = Some(found);
+                        break;
+                    }
+                }
+                if let Some(property_symbol) = property_symbol {
+                    if self
+                        .get_declaration_modifier_flags_from_symbol(property_symbol)
+                        .intersects(ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
+                    {
+                        let display = tsrs2_binder::unescape_leading_underscores(&property_name);
+                        self.error_at(
+                            Some(access_node),
+                            &tsrs2_diags::gen::Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter,
+                            &[display],
+                        );
+                        return Ok(self.tables.intrinsics.error);
+                    }
+                }
+            }
+        }
+        let index_display = self.type_to_string_slice(index_type)?;
+        let object_display = self.type_to_string_slice(object_type)?;
+        self.error_at(
+            Some(access_node),
+            &tsrs2_diags::gen::Type_0_cannot_be_used_to_index_type_1,
+            &[&index_display, &object_display],
+        );
+        Ok(self.tables.intrinsics.error)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use tsrs2_types::CompilerOptions;
@@ -3508,330 +3832,5 @@ mod tests {
                 .collect();
             assert_eq!(codes, [2304, 2552, 2304]);
         });
-    }
-}
-
-impl<'a> CheckerState<'a> {
-    /// tsc-port: checkIndexedAccess @6.0.3
-    /// tsc-hash: da7de5599179770799ebfdf4f1d33878c672e95c9361e33df09c5ded59aa2afc
-    /// tsc-span: _tsc.js:75711-75744
-    ///
-    /// Receiver widening is the 5.6 [WIDEN] identity; the index checks
-    /// BEFORE the errorType bail (its diagnostics must land).
-    pub(crate) fn check_indexed_access(
-        &mut self,
-        node: NodeId,
-        check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
-        let source = self.binder.source_of_node(node);
-        if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
-            return self.check_element_access_chain(node, check_mode);
-        }
-        let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
-        };
-        let Some(expression) = data.expression else {
-            return Err(Unsupported::new("ElementAccessExpression recovery node"));
-        };
-        let expr_type = self.check_non_null_expression(expression)?;
-        self.check_element_access_expression(node, expr_type, check_mode)
-    }
-
-    fn check_element_access_chain(
-        &mut self,
-        node: NodeId,
-        check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
-        let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
-        };
-        let Some(expression) = data.expression else {
-            return Err(Unsupported::new("ElementAccessExpression recovery node"));
-        };
-        let expr_type = self.check_expression(expression, CheckMode::NORMAL)?;
-        let non_optional_type = self.get_optional_expression_type(expr_type, expression)?;
-        let checked = self.check_non_null_type(non_optional_type, expression)?;
-        let access_type = self.check_element_access_expression(node, checked, check_mode)?;
-        self.propagate_optional_type_marker(access_type, node, non_optional_type != expr_type)
-    }
-
-    fn check_element_access_expression(
-        &mut self,
-        node: NodeId,
-        expr_type: TypeId,
-        _check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
-        let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
-        };
-        let (Some(_expression), Some(index_expression)) =
-            (data.expression, data.argument_expression)
-        else {
-            return Err(Unsupported::new("ElementAccessExpression recovery node"));
-        };
-        // checkElementAccessExpression receiver widening (75720):
-        // assignment targets and method-call receivers read the
-        // widened type.
-        let object_type = if self.get_assignment_target_kind(node)
-            != crate::expr::AssignmentKind::None
-            || self.is_method_access_for_call(node)
-        {
-            self.get_widened_type(expr_type)?
-        } else {
-            expr_type
-        };
-        let index_type = self.check_expression(index_expression, CheckMode::NORMAL)?;
-        if object_type == self.tables.intrinsics.error
-            || object_type == self.tables.intrinsics.silent_never
-        {
-            return Ok(object_type);
-        }
-        if self.is_const_enum_object_type(object_type)
-            && !matches!(
-                self.kind_of(index_expression),
-                SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
-            )
-        {
-            self.error_at(
-                Some(index_expression),
-                &tsrs2_diags::gen::A_const_enum_member_can_only_be_accessed_using_a_string_literal,
-                &[],
-            );
-            return Ok(self.tables.intrinsics.error);
-        }
-        let effective_index_type =
-            if self.is_for_in_variable_for_numeric_property_names(index_expression)? {
-                self.tables.intrinsics.number
-            } else {
-                index_type
-            };
-        let assignment_target_kind = self.get_assignment_target_kind(node);
-        let access_flags = if assignment_target_kind == crate::expr::AssignmentKind::None {
-            tsrs2_types::AccessFlags::EXPRESSION_POSITION
-        } else {
-            let mut bits = tsrs2_types::AccessFlags::WRITING.bits();
-            if self.tables.is_generic_object_type(object_type)
-                && !self.is_this_type_parameter(object_type)
-            {
-                bits |= tsrs2_types::AccessFlags::NO_INDEX_SIGNATURES.bits();
-            }
-            if assignment_target_kind == crate::expr::AssignmentKind::Compound {
-                bits |= tsrs2_types::AccessFlags::EXPRESSION_POSITION.bits();
-            }
-            tsrs2_types::AccessFlags::from_bits(bits)
-        };
-        let indexed_access_type = self
-            .get_indexed_access_type_or_undefined(
-                object_type,
-                effective_index_type,
-                access_flags,
-                Some(node),
-                None,
-                None,
-            )?
-            .unwrap_or(self.tables.intrinsics.error);
-        let resolved_symbol = match self.links.node(node).resolved_symbol {
-            crate::links::LinkSlot::Resolved(symbol) => Some(symbol),
-            _ => None,
-        };
-        let flow_type = self.get_flow_type_of_access_expression(
-            node,
-            resolved_symbol,
-            indexed_access_type,
-            index_expression,
-        )?;
-        self.check_indexed_access_index_type(flow_type, node)
-    }
-
-    /// tsc-port: isForInVariableForNumericPropertyNames @6.0.3
-    /// tsc-hash: 5c9cd3056bea1f4fbb01e9b4f28c93e0a990b94b409ab0b8eabb0afe855960f1
-    /// tsc-span: _tsc.js:75678-75710
-    fn is_for_in_variable_for_numeric_property_names(
-        &mut self,
-        expr: NodeId,
-    ) -> CheckResult2<bool> {
-        let mut e = expr;
-        while self.kind_of(e) == SyntaxKind::ParenthesizedExpression {
-            let NodeData::ParenthesizedExpression(data) = self.data_of(e) else {
-                break;
-            };
-            let Some(inner) = data.expression else { break };
-            e = inner;
-        }
-        if self.kind_of(e) != SyntaxKind::Identifier {
-            return Ok(false);
-        }
-        let Some(symbol) = self.get_resolved_symbol(e) else {
-            return Ok(false);
-        };
-        if !self
-            .binder
-            .symbol(symbol)
-            .flags
-            .intersects(SymbolFlags::VARIABLE)
-        {
-            return Ok(false);
-        }
-        let mut child = expr;
-        let mut node = self.parent_of(expr);
-        while let Some(current) = node {
-            if self.kind_of(current) == SyntaxKind::ForInStatement {
-                let NodeData::ForInStatement(data) = self.data_of(current) else {
-                    unreachable!("kind/data agree");
-                };
-                if data.statement == Some(child) {
-                    let for_in_symbol = self.get_for_in_variable_symbol(current)?;
-                    if for_in_symbol == Some(symbol) {
-                        if let Some(expression) = data.expression {
-                            let expression_type =
-                                self.check_expression_cached(expression, CheckMode::NORMAL)?;
-                            let infos = self.get_index_infos_of_type(expression_type)?;
-                            let number = self.tables.intrinsics.number;
-                            if infos.len() == 1 && infos.iter().any(|info| info.key_type == number)
-                            {
-                                return Ok(true);
-                            }
-                        }
-                    }
-                }
-            }
-            child = current;
-            node = self.parent_of(current);
-        }
-        Ok(false)
-    }
-
-    fn get_for_in_variable_symbol(&mut self, node: NodeId) -> CheckResult2<Option<SymbolId>> {
-        let NodeData::ForInStatement(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
-        };
-        let Some(initializer) = data.initializer else {
-            return Ok(None);
-        };
-        match self.kind_of(initializer) {
-            SyntaxKind::VariableDeclarationList => {
-                let NodeData::VariableDeclarationList(list) = self.data_of(initializer) else {
-                    unreachable!("kind/data agree");
-                };
-                let first = list.declarations.and_then(|declarations| {
-                    self.binder
-                        .source_of_node(initializer)
-                        .arena
-                        .node_array(declarations)
-                        .nodes
-                        .first()
-                        .copied()
-                });
-                if let Some(variable) = first {
-                    let name_is_pattern = self.name_of_node(variable).is_some_and(|name| {
-                        matches!(
-                            self.kind_of(name),
-                            SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
-                        )
-                    });
-                    if !name_is_pattern {
-                        return Ok(Some(self.get_symbol_of_declaration(variable)?));
-                    }
-                }
-                Ok(None)
-            }
-            SyntaxKind::Identifier => Ok(self.get_resolved_symbol(initializer)),
-            _ => Ok(None),
-        }
-    }
-
-    /// tsc-port: checkIndexedAccessIndexType @6.0.3
-    /// tsc-hash: a2cd8152c78bd2c6042737704036aee3897bd1e8fb54378add79f82572845461
-    /// tsc-span: _tsc.js:81893-81919
-    ///
-    /// The mapped-readonly write arm (2542) gates on ObjectFlags::MAPPED
-    /// — mapped types have no producer yet, so the modifiers read stays
-    /// a named escape behind the dead gate.
-    pub(crate) fn check_indexed_access_index_type(
-        &mut self,
-        ty: TypeId,
-        access_node: NodeId,
-    ) -> CheckResult2<TypeId> {
-        if !self
-            .tables
-            .flags_of(ty)
-            .intersects(TypeFlags::INDEXED_ACCESS)
-        {
-            return Ok(ty);
-        }
-        let (object_type, index_type) = match &self.tables.type_of(ty).data {
-            tsrs2_types::TypeData::IndexedAccess {
-                object_type,
-                index_type,
-                ..
-            } => (*object_type, *index_type),
-            _ => unreachable!("IndexedAccess flag implies payload"),
-        };
-        let number = self.tables.intrinsics.number;
-        let has_number_index_info = self
-            .get_index_infos_of_type(object_type)?
-            .iter()
-            .any(|info| info.key_type == number);
-        let key_of_object = self.get_index_type(object_type, tsrs2_types::IndexFlags::NONE)?;
-        let constituents = self.union_members_or_self(index_type);
-        let mut every_assignable = true;
-        for t in constituents {
-            let ok = self.is_type_assignable_to(t, key_of_object)?
-                || has_number_index_info && self.is_applicable_index_type(t, number)?;
-            if !ok {
-                every_assignable = false;
-                break;
-            }
-        }
-        if every_assignable {
-            let source = self.binder.source_of_node(access_node);
-            if self.kind_of(access_node) == SyntaxKind::ElementAccessExpression
-                && node_util::is_assignment_target(source, access_node)
-                && self
-                    .tables
-                    .object_flags_of(object_type)
-                    .intersects(tsrs2_types::ObjectFlags::MAPPED)
-            {
-                return Err(Unsupported::new(
-                    "mapped-readonly write 2542 (getMappedTypeModifiers — mapped types unproduced)",
-                ));
-            }
-            return Ok(ty);
-        }
-        if self.tables.is_generic_object_type(object_type) {
-            if let Some(property_name) = self.property_name_from_type_usable(index_type) {
-                let apparent = self.get_apparent_type(object_type)?;
-                let apparent_members = self.union_members_or_self(apparent);
-                let mut property_symbol = None;
-                for t in apparent_members {
-                    if let Some(found) = self.get_property_of_type_full(t, &property_name)? {
-                        property_symbol = Some(found);
-                        break;
-                    }
-                }
-                if let Some(property_symbol) = property_symbol {
-                    if self
-                        .get_declaration_modifier_flags_from_symbol(property_symbol)
-                        .intersects(ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
-                    {
-                        let display = tsrs2_binder::unescape_leading_underscores(&property_name);
-                        self.error_at(
-                            Some(access_node),
-                            &tsrs2_diags::gen::Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter,
-                            &[display],
-                        );
-                        return Ok(self.tables.intrinsics.error);
-                    }
-                }
-            }
-        }
-        let index_display = self.type_to_string_slice(index_type)?;
-        let object_display = self.type_to_string_slice(object_type)?;
-        self.error_at(
-            Some(access_node),
-            &tsrs2_diags::gen::Type_0_cannot_be_used_to_index_type_1,
-            &[&index_display, &object_display],
-        );
-        Ok(self.tables.intrinsics.error)
     }
 }

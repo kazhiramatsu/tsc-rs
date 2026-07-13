@@ -1491,7 +1491,7 @@ impl<'a> CheckerState<'a> {
         let mut effective_left = left_type;
         let mut effective_right = right_type;
         if !would_work_with_await {
-            if let Some(is_related) = is_related.as_deref_mut() {
+            if let Some(is_related) = is_related {
                 let (l, r) = self.get_base_types_if_unrelated(left_type, right_type, is_related)?;
                 effective_left = l;
                 effective_right = r;

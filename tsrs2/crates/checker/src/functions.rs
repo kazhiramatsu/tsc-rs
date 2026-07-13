@@ -1539,9 +1539,7 @@ impl<'a> CheckerState<'a> {
             let NodeData::ExpressionStatement(statement_data) = self.data_of(statement) else {
                 return None;
             };
-            let Some(expression) = statement_data.expression else {
-                return None;
-            };
+            let expression = statement_data.expression?;
             if self.kind_of(expression) != SyntaxKind::StringLiteral {
                 return None;
             }
@@ -1738,11 +1736,7 @@ impl<'a> CheckerState<'a> {
         for info in related {
             diagnostic.related.push(info);
         }
-        if !self
-            .diagnostics
-            .iter()
-            .any(|existing| *existing == diagnostic)
-        {
+        if !self.diagnostics.contains(&diagnostic) {
             self.diagnostics.push(diagnostic);
         }
     }

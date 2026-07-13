@@ -488,7 +488,7 @@ impl<'a> CheckerState<'a> {
         // are NodeId-free).
         let named: Vec<Option<u32>> = elements
             .iter()
-            .map(|&element| self.is_named_tuple_member(element).then(|| element.0))
+            .map(|&element| self.is_named_tuple_member(element).then_some(element.0))
             .collect();
         self.tables
             .get_tuple_target_type(&element_flags, readonly, Some(&named))
@@ -1030,10 +1030,10 @@ impl<'a> CheckerState<'a> {
             } => {
                 let mut arguments: Vec<TypeId> =
                     type_parameters[..*outer_type_parameter_count].to_vec();
-                arguments.extend(
-                    std::iter::repeat(error)
-                        .take(type_parameters.len() - outer_type_parameter_count),
-                );
+                arguments.extend(std::iter::repeat_n(
+                    error,
+                    type_parameters.len() - outer_type_parameter_count,
+                ));
                 arguments
             }
             TypeData::TupleTarget(data) => vec![error; data.type_parameters.len()],

@@ -203,7 +203,7 @@ impl<'a> CheckerState<'a> {
             };
             let mut facts = TypeFacts::NONE;
             for member in members {
-                facts = facts | self.get_type_facts_worker(member, caller_only_needs)?;
+                facts |= self.get_type_facts_worker(member, caller_only_needs)?;
             }
             return Ok(facts);
         }
@@ -231,7 +231,7 @@ impl<'a> CheckerState<'a> {
         for member in members {
             if !(ignore_objects && self.tables.flags_of(member).intersects(TypeFlags::OBJECT)) {
                 let facts = self.get_type_facts_worker(member, caller_only_needs)?;
-                ored = ored | facts;
+                ored |= facts;
                 anded = TypeFacts::from_bits(anded.bits() & facts.bits());
             }
         }

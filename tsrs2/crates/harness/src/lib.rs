@@ -667,8 +667,8 @@ impl LibResolver {
         // discover `<reference lib>` edges; the corpus reuses a handful
         // of root sets across thousands of programs, so the result is
         // cached per (lib dir, roots).
-        static CACHE: OnceLock<Mutex<BTreeMap<(PathBuf, Vec<String>), Vec<String>>>> =
-            OnceLock::new();
+        type ExpansionKey = (PathBuf, Vec<String>);
+        static CACHE: OnceLock<Mutex<BTreeMap<ExpansionKey, Vec<String>>>> = OnceLock::new();
         let cache = CACHE.get_or_init(|| Mutex::new(BTreeMap::new()));
         let key = (self.lib_dir.clone(), roots.to_vec());
         if let Some(files) = cache.lock().expect("lib expansion cache").get(&key) {

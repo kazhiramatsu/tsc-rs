@@ -582,11 +582,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
             return Err(Unsupported::new("conditional sources (M4 5.2)"));
-        } else if !(source_flags.intersects(TypeFlags::TEMPLATE_LITERAL)
-            && target_flags.intersects(TypeFlags::OBJECT)
-            && false)
-        {
-            // Partial mapped targets (66404-66406) are M4. Generic
+        } else {
+            // Stubbed guard: tsc gates this band behind
+            // `!(source TEMPLATE_LITERAL && target OBJECT && <predicate>)`;
+            // the predicate is unported (stub false), so the band always
+            // runs. Partial mapped targets (66404-66406) are M4. Generic
             // mapped sources/targets handled above.
             let source_is_primitive = source_flags.intersects(TypeFlags::PRIMITIVE);
             if self.relation != RelationKind::Identity {
@@ -626,7 +626,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         }
                     }
                 }
-            } else if {
+            } else {
                 // 66432: `isReadonlyArrayType(target) ? everyType(
                 // source, isArrayOrTupleType) : isArrayType(target) &&
                 // everyType(source, t => isTupleType(t) &&
@@ -650,7 +650,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .object_flags_of(target)
                     .intersects(ObjectFlags::REFERENCE)
                     && self.st.tables.reference_target(target) == global_readonly;
-                if target_is_readonly_array {
+                let relates_through_number_index = if target_is_readonly_array {
                     self.st.every_type(source, |st, t| {
                         is_array(st, t) || st.tables.is_tuple_type(t)
                     })
@@ -671,62 +671,63 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 }
                             }
                         })
+                };
+                if relates_through_number_index {
+                    // 66432-66438: (readonly) array targets relate through
+                    // the number index types.
+                    if self.relation != RelationKind::Identity {
+                        let source_index = self
+                            .st
+                            .get_index_type_of_type(source, self.st.tables.intrinsics.number)?
+                            .unwrap_or(self.st.tables.intrinsics.any);
+                        let target_index = self
+                            .st
+                            .get_index_type_of_type(target, self.st.tables.intrinsics.number)?
+                            .unwrap_or(self.st.tables.intrinsics.any);
+                        return self.is_related_to(
+                            source_index,
+                            target_index,
+                            RecursionFlags::BOTH,
+                            report_errors,
+                            IntersectionState::NONE,
+                        );
+                    } else {
+                        return Ok(Ternary::FALSE);
+                    }
+                } else if self.st.is_generic_tuple_type(source)
+                    && self.st.tables.is_tuple_type(target)
+                    && !self.st.is_generic_tuple_type(target)
+                {
+                    // 66439-66443: generic tuple sources relate through
+                    // their base constraint.
+                    let constraint = self.st.get_base_constraint_or_type(source)?;
+                    if constraint != source {
+                        return self.is_related_to(
+                            constraint,
+                            target,
+                            RecursionFlags::SOURCE,
+                            report_errors,
+                            IntersectionState::NONE,
+                        );
+                    }
                 }
-            } {
-                // 66432-66438: (readonly) array targets relate through
-                // the number index types.
-                if self.relation != RelationKind::Identity {
-                    let source_index = self
+                // Subtype fresh-empty-target arm (66444-66446): the LAST
+                // link of the 66420 else-if chain — an entered-but-fallen-
+                // through reference or generic-tuple arm skips it, exactly
+                // like tsc. Subtype activates in 4.8; the guard is ported
+                // faithfully.
+                else if (self.relation == RelationKind::Subtype
+                    || self.relation == RelationKind::StrictSubtype)
+                    && self
                         .st
-                        .get_index_type_of_type(source, self.st.tables.intrinsics.number)?
-                        .unwrap_or(self.st.tables.intrinsics.any);
-                    let target_index = self
-                        .st
-                        .get_index_type_of_type(target, self.st.tables.intrinsics.number)?
-                        .unwrap_or(self.st.tables.intrinsics.any);
-                    return self.is_related_to(
-                        source_index,
-                        target_index,
-                        RecursionFlags::BOTH,
-                        report_errors,
-                        IntersectionState::NONE,
-                    );
-                } else {
+                        .tables
+                        .object_flags_of(target)
+                        .intersects(ObjectFlags::FRESH_LITERAL)
+                    && self.st.is_empty_object_type(target)?
+                    && !self.st.is_empty_object_type(source)?
+                {
                     return Ok(Ternary::FALSE);
                 }
-            } else if self.st.is_generic_tuple_type(source)
-                && self.st.tables.is_tuple_type(target)
-                && !self.st.is_generic_tuple_type(target)
-            {
-                // 66439-66443: generic tuple sources relate through
-                // their base constraint.
-                let constraint = self.st.get_base_constraint_or_type(source)?;
-                if constraint != source {
-                    return self.is_related_to(
-                        constraint,
-                        target,
-                        RecursionFlags::SOURCE,
-                        report_errors,
-                        IntersectionState::NONE,
-                    );
-                }
-            }
-            // Subtype fresh-empty-target arm (66444-66446): the LAST
-            // link of the 66420 else-if chain — an entered-but-fallen-
-            // through reference or generic-tuple arm skips it, exactly
-            // like tsc. Subtype activates in 4.8; the guard is ported
-            // faithfully.
-            else if (self.relation == RelationKind::Subtype
-                || self.relation == RelationKind::StrictSubtype)
-                && self
-                    .st
-                    .tables
-                    .object_flags_of(target)
-                    .intersects(ObjectFlags::FRESH_LITERAL)
-                && self.st.is_empty_object_type(target)?
-                && !self.st.is_empty_object_type(source)?
-            {
-                return Ok(Ternary::FALSE);
             }
             if source_flags.intersects(TypeFlags::from_bits(
                 TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
@@ -4038,37 +4039,33 @@ impl<'a> CheckerState<'a> {
             _ => vec![left],
         };
         composite_signatures.push(right);
-        let mapper =
-            if param_mapper.is_some() {
-                match (
-                    left_data.composite_kind,
-                    left_data.mapper,
-                    &left_data.composite_signatures,
-                ) {
-                    (Some(kind), Some(left_mapper), Some(_))
-                        if !kind.intersects(TypeFlags::INTERSECTION) =>
-                    {
-                        Some(self.combine_type_mappers(
-                            Some(left_mapper),
-                            param_mapper.expect("checked"),
-                        ))
-                    }
-                    _ => param_mapper,
+        let mapper = if let Some(param_mapper) = param_mapper {
+            match (
+                left_data.composite_kind,
+                left_data.mapper,
+                &left_data.composite_signatures,
+            ) {
+                (Some(kind), Some(left_mapper), Some(_))
+                    if !kind.intersects(TypeFlags::INTERSECTION) =>
+                {
+                    Some(self.combine_type_mappers(Some(left_mapper), param_mapper))
                 }
-            } else {
-                match (
-                    left_data.composite_kind,
-                    left_data.mapper,
-                    &left_data.composite_signatures,
-                ) {
-                    (Some(kind), Some(left_mapper), Some(_))
-                        if !kind.intersects(TypeFlags::INTERSECTION) =>
-                    {
-                        Some(left_mapper)
-                    }
-                    _ => None,
+                _ => Some(param_mapper),
+            }
+        } else {
+            match (
+                left_data.composite_kind,
+                left_data.mapper,
+                &left_data.composite_signatures,
+            ) {
+                (Some(kind), Some(left_mapper), Some(_))
+                    if !kind.intersects(TypeFlags::INTERSECTION) =>
+                {
+                    Some(left_mapper)
                 }
-            };
+                _ => None,
+            }
+        };
         let result = crate::state::Signature {
             declaration: left_data.declaration,
             flags,
@@ -4755,16 +4752,19 @@ impl<'a> CheckerState<'a> {
         let mut flags = Vec::new();
         let mut names: Vec<Option<u32>> = Vec::new();
         for i in pos..parameter_count {
-            if rest_type.is_none() || i + 1 < parameter_count {
-                types.push(self.get_type_at_position(source, i)?);
-                flags.push(if i < min_argument_count {
-                    ElementFlags::REQUIRED
-                } else {
-                    ElementFlags::OPTIONAL
-                });
-            } else {
-                types.push(rest_type.expect("the else branch requires a rest type"));
-                flags.push(ElementFlags::VARIADIC);
+            match rest_type {
+                Some(rest_type) if i + 1 >= parameter_count => {
+                    types.push(rest_type);
+                    flags.push(ElementFlags::VARIADIC);
+                }
+                _ => {
+                    types.push(self.get_type_at_position(source, i)?);
+                    flags.push(if i < min_argument_count {
+                        ElementFlags::REQUIRED
+                    } else {
+                        ElementFlags::OPTIONAL
+                    });
+                }
             }
             names.push(self.get_nameable_declaration_at_position(source, i)?);
         }
