@@ -8,7 +8,8 @@ in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.8
 HERE. This doc's slicing (§15, commits `m4 5.8a-…`) supersedes the
 steps doc's single-commit line.
 
-Status: §§0-9 (checker half + alias protocol) extracted (driver, late-binding wall,
+Status: §§0-9 COMPLETE (incl. per-kind alias targets + module
+resolution + exports worker) extracted (driver, late-binding wall,
 variables, control statements, iteration protocol, member/function
 declarations, class band, interface/typealias/enum, module band,
 import/export checks).
@@ -1673,13 +1674,194 @@ conformance → None; transcribe the arms with the host read.)
   (dead), export-specifier faces. Port the LINKS + lazy protocol
   with the per-kind workers; dead consumers keep their option notes.
 
-## §§9(per-kind targets)-11 EXTRACTION PENDING
+### Per-kind alias targets (L48481-49070) — transcribed
+Shared kit: getAnyImportSyntax (L48481), getDeclarationOfAliasSymbol
+(L48495: findLast over isAliasSymbolDeclaration L48498 — TS core
+kinds + JS arms to elide), getModuleSpecifierForImportOrExport
+(L48730).
+- getTargetOfImportEqualsDeclaration (L48504): (JS require/property
+  arms elide); ExternalModuleReference form → immediate =
+  resolveExternalModuleName(node, expression); resolved =
+  resolveExternalModuleSymbol(immediate); (Node20+ module.exports
+  arm — mode machinery, dead at default); mark(node, immediate,
+  resolved, overwriteEmpty=false); return resolved. Entity-name form
+  → getSymbolOfPartOfRightHandSideOfImportEquals (L49230 —
+  transcribe at landing: resolveEntityName-based namespace walk) +
+  checkAndReportErrorForResolvingImportAliasToTypeOnlySymbol
+  (L48535: marked type-only && !node.isTypeOnly →
+  An_import_alias_cannot_reference_a_declaration_that_was_
+  [exported_using_export_type | imported_using_import_type] AT
+  moduleReference + related _0_was_[exported|imported]_here at the
+  type-only declaration; name arg "*" for export-star declarations).
+- resolveExportByName (L48552): export= present →
+  getPropertyOfType(typeof export=, name, skipObjectFunctionProperty
+  Augment=TRUE) else exports.get(name); resolveSymbol + mark.
+- Synthetic-default kit (L48570-48651): isSyntacticDefault;
+  isOnlyImportableAsDefault (JSON-under-node16+ — mode machinery);
+  canHaveSyntheticDefault — **allowSyntheticDefaultImports** =
+  option || esModuleInterop || module===System: VERIFY options.rs
+  mapping (@esModuleInterop is a COMMON fixture directive — if
+  unmodeled, record and gate faithfully); declaration files: probe
+  syntactic default + __esModule marker; TS files →
+  hasExportAssignmentSymbol (L49778).
+- getTargetOfImportClause (L48652) → getTargetofModuleDefault
+  (L48658): shorthand-ambient module → the module symbol; (Node20
+  CJS→ESM module.exports arm dead); exportDefaultSymbol =
+  resolveExportByName(moduleSymbol, "default", node); no specifier →
+  return; NO default/synthetic/default-only:
+  hasExportAssignmentSymbol && !allowSyntheticDefaultImports →
+  Module_0_can_only_be_default_imported_using_the_1_flag (flag name
+  "allowSyntheticDefaultImports" when moduleKind ≥ ES2015 else
+  "esModuleInterop") AT node.name + related This_module_is_declared_
+  with_export_and_can_only_be_used_with_a_default_import_when_using_
+  the_0_flag at the export= declaration; ImportClause →
+  reportNonDefaultExport (L48746: module exports the LOCAL name →
+  Module_0_has_no_default_export_Did_you_mean_to_use_import_1_from_
+  0_instead AT name; else Module_0_has_no_default_export + related
+  export_Asterisk_does_not_re_export_a_default at an export-star
+  redistributing a default); else errorNoModuleMemberSymbol.
+  synthetic/default-only face → resolveExternalModuleSymbol(module)
+  || resolveSymbol(module) + mark → return. Final mark + return.
+- getTargetOfNamespaceImport (L48771) / NamespaceExport (L48790):
+  resolveESModuleSymbol(immediate, specifier, dontResolveAlias,
+  suppressInteropError=false) + mark.
+- getExternalModuleMember (L48851): targetSymbol =
+  resolveESModuleSymbol(module, specifier, false,
+  suppressInteropError = name==="default" && allowSynthetic);
+  shorthand-ambient → module symbol; export= module →
+  symbolFromVariable = getPropertyOfType(typeof target, name,
+  skipAugment=TRUE) else getPropertyOfVariable (L48843: annotated
+  Variable → property of annotation type); symbolFromModule =
+  getExportOfModule (L48825: Module flag → getExportsOfSymbol(
+  symbol).get(name) — routes through the LATE-BINDING container
+  path §1 + typeOnlyExportStarMap mark); default-name synthetic
+  fallback; both differ → combineValueAndTypeSymbols (L48809:
+  transient merge of flags/declarations/members/exports); JSON
+  named-import row (mode, dead); **!symbol →
+  errorNoModuleMemberSymbol (L48902)**: spelling suggestion
+  (getSuggestedSymbolForNonexistentModule, spell.rs) →
+  _0_has_no_exported_member_named_1_Did_you_mean_2 + related
+  _0_is_declared_here; exports has "default" → Module_0_has_no_
+  exported_member_1_Did_you_mean_to_use_import_1_from_0_instead;
+  else reportNonExportedMember (L48926): module-local symbol of that
+  name: export= same-reference → reportInvalidImportEqualsExport
+  Member (L48945: three flavors by moduleKind ≥ ES2015 / JS /
+  esModuleInterop — args differ per flavor); exported under another
+  name → Module_0_declares_1_locally_but_it_is_exported_as_2 +
+  related declaration chain (_0_is_declared_here / and_here); else
+  Module_0_declares_1_locally_but_it_is_not_exported + chain; no
+  local → **Module_0_has_no_exported_member_1 (2305)**.
+- getTargetOfImportSpecifier (L48959): default-named → module-default
+  path; else getExternalModuleMember(importDecl, node) + mark.
+- getTargetOfExportSpecifier (L49003): default-named → module-default;
+  with specifier → getExternalModuleMember(exportDecl, node);
+  local (no specifier): string-literal name → undefined (invalid
+  syntax skip); else resolveEntityName(name, Value|Type|Namespace,
+  **ignoreErrors=FALSE** — the resolver emits its 2304-family) +
+  mark.
+- getTargetOfExportAssignment (L49032) → getTargetOfAliasLike
+  Expression (L49045): ClassExpression → checkExpressionCached.symbol;
+  non-entity → undefined; resolveEntityName(all meanings,
+  ignoreErrors=TRUE); fallback checkExpressionCached +
+  links.resolvedSymbol read. NamespaceExportDeclaration (L48989):
+  resolveExternalModuleSymbol(sourceFile.symbol) + mark (UMD).
 
-getTargetOf* per-kind workers (L48652-49070: ImportEquals target +
-module-default/module-member machinery + export-specifier meaning
-walk + the 2305/2613/2614/2724-family reporting) +
-resolveExternalModuleName worker family (module-resolution minimal
-port, 2307 un-silencing) + markExportAsReferenced consumers;
+### Module resolution (L49465-49682) — the 2307 band
+- resolveExternalModuleName (L49465): default errorMessage =
+  getCannotResolveModuleNameErrorForSpecificModule (L69377 —
+  known-package suggestion table, transcribe at landing) ?? (Classic
+  resolution ? Cannot_find_module_0_Did_you_mean_to_set_the_
+  moduleResolution_option… : **Cannot_find_module_0_or_its_
+  corresponding_type_declarations (2307)**). Worker (L49470):
+  string-literal specifiers only.
+- resolveExternalModule (L49473) — port order EXACTLY:
+  1. errorNode && "@types/" prefix → Cannot_import_type_declaration_
+     files_Consider_importing_0_instead_of_1;
+  2. tryFindAmbientModule(ref, withAugmentations=true) (L59499) →
+     hit → return (ambient `declare module "x"` — including quoted
+     lookups in globals; PLUS patternAmbientModules fallback below);
+  3. host.getResolvedModule(currentSourceFile, ref, mode) — **THE
+     PROGRAM SEAM**: tsrs2's conformance program must implement a
+     minimal resolver for multi-file fixtures (relative specifiers
+     against in-program file names with .ts/.tsx/.d.ts probing; the
+     harness's fixture layout is the spec — verify how @filename
+     fixtures map to InputFile names before wiring); mode/
+     impliedNodeFormat machinery reduces at the modeled defaults;
+  4. resolved source file: resolution-diagnostic band + ts-extension
+     rows + rewriteRelativeImportExtensions rows (options → dead
+     notes); file.symbol → (external-library implicit-any =
+     suggestion band; Node16/18 ESM-require chain rows = mode
+     machinery, dead default) → **getMergedSymbol(sourceFile.symbol)**;
+     no symbol → File_0_is_not_a_module (non-side-effect imports);
+  5. patternAmbientModules best-match (wildcard ambient modules;
+     patternAmbientModuleAugmentations map);
+  6. error tail: project-reference redirect (dead);
+     resolutionDiagnostic; JSON-module row (option); ESM
+     extensionless-relative rows (mode, dead); alternateResult chain
+     (dead); **else error(errorNode, moduleNotFoundError, ref)** —
+     the live 2307/Classic row.
+  isForAugmentation flavor → Invalid_module_name_in_augmentation_…
+  rows (untyped resolution face — dead-ish; the NOT-FOUND face for
+  augmentations rides checkModuleDeclaration→resolveExternalModule
+  Name with isForAugmentation=true — verify the call site when
+  porting §8).
+- errorOnImplicitAnyModule (L49664): suggestion/error under
+  noImplicitAny for untyped resolutions — external-library-gated;
+  dead for fixture programs, note.
+- **UN-SILENCING ORDER**: land the worker + program resolver FIRST,
+  then flip the 5.7b import-call silent stub (calls.rs
+  checkImportCallExpression) to route through it — one shared
+  worker, two call-site flavors (declarations report, import-calls
+  report the SAME rows in tsc — re-verify the m4-57 §6 "silent"
+  decision at that point; it was FP-avoidance for fabricated 2307s,
+  which the real worker eliminates).
+
+### Module symbol resolution + exports (L49683-49931)
+- resolveExternalModuleSymbol (L49683): export= chase →
+  getCommonJsExportEquals (L49691: clone + ValueModule flag + merge
+  the module's OTHER exports into the export= target's exports via
+  mergeSymbol; cjsExportMerged links memo; skip when exports.size ===
+  1 or alias-flagged) — **depends on mergeSymbol (L47707)**: merge.rs
+  owns the port; its module-resolution rows un-defer here.
+- resolveESModuleSymbol (L49715): non-module non-variable export=
+  target referenced from ESM namespace-import/import-call (+ !
+  suppressInteropError) → This_module_can_only_be_referenced_with_
+  ECMAScript_imports_Slashexports_by_turning_on_the_0_flag_and_
+  referencing_its_default_export; esModuleInterop/mode synthetic-
+  default MODULE TYPE cloning (getTypeWithSyntheticDefaultOnly /
+  getTypeWithSyntheticDefaultImportType + cloneTypeAsModuleType
+  L49764 — clones the symbol with links.target + links.
+  originatingImport = the m4-57 invocationErrorRecovery 7038 hook +
+  a fresh anonymous type over the module members): gate on the
+  verified esModuleInterop mapping; unmodeled → plain symbol
+  passthrough w/ note (FN on interop-shaped fixtures, no FP).
+- getExportsOfModule (L49837) + Worker (L49868): links.
+  resolvedExports + typeOnlyExportStarMap memo; worker: visited-set
+  walk from resolveExternalModuleSymbol(module); __export star
+  declarations → per-declaration resolveExternalModuleName +
+  recursive visit (type-only propagates) + extendExportSymbols
+  (L49846: "default" NEVER propagates through export-star; conflict
+  lookupTable) → duplicate distinct-resolution names →
+  **Module_0_has_already_exported_a_member_named_1_Consider_
+  explicitly_re_exporting_to_resolve_the_ambiguity** per export-star
+  node (skip export= and own-export shadowed names); type-only-star
+  name stamping; nonTypeOnlyNames prune the map. **This lifts
+  annotate.rs's getExportsOfModuleWorker escape (3173) and
+  access.rs's typeOnlyExportStarMap read (1603); getExportsOfSymbol
+  (L49834) then routes Module symbols here (the 5.7c
+  get_exports_of_jsx_factory_symbol carve-out folds back in).**
+- mergeModuleAugmentation (L47830) + mergeSymbolTable (L47818):
+  checker-init module/global augmentation merging — merge.rs's
+  deferred rows; extraction of the exact merge order rides the
+  implementation slice (anchors recorded; the §1 lift depends on
+  the declare-global face).
+
+## §§10-11 EXTRACTION PENDING
+
+markExportAsReferenced consumers (L71945, emit-adjacent — decide
+no-op) + getSymbolOfPartOfRightHandSideOfImportEquals (L49230) +
+tryFindAmbientModule (L59499) + getCannotResolveModuleNameError
+ForSpecificModule (L69377) transcriptions at landing;
 
 
 alias band (checkAliasSymbol L86029 + resolveAlias L49116 +
