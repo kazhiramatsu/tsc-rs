@@ -266,11 +266,15 @@ impl<'a> CheckerState<'a> {
         self.pop_contextual_type();
         let scan = scan?;
         if scan.in_destructuring_pattern {
-            // createTupleType RAW — no ArrayLiteral stamp (74021).
-            return self
-                .tables
-                .create_tuple_type(&scan.element_types, Some(&scan.element_flags), false, None)
-                .map_err(Self::unsupported_m4);
+            // createTupleType RAW — no ArrayLiteral stamp (74021);
+            // rides the checker twin (array-like variadic collapse
+            // and friends live there).
+            return self.create_tuple_type_forced(
+                &scan.element_types,
+                Some(&scan.element_flags),
+                false,
+                None,
+            );
         }
         if force_tuple || scan.in_const_context || scan.in_tuple_context {
             let readonly = scan.in_const_context
@@ -280,15 +284,12 @@ impl<'a> CheckerState<'a> {
                     })?,
                     None => false,
                 };
-            let tuple = self
-                .tables
-                .create_tuple_type(
-                    &scan.element_types,
-                    Some(&scan.element_flags),
-                    readonly,
-                    None,
-                )
-                .map_err(Self::unsupported_m4)?;
+            let tuple = self.create_tuple_type_forced(
+                &scan.element_types,
+                Some(&scan.element_flags),
+                readonly,
+                None,
+            )?;
             return self.create_array_literal_type(tuple);
         }
         let element_union = if scan.element_types.is_empty() {

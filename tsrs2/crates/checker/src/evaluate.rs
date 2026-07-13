@@ -9,7 +9,8 @@
 //! 5.5a (TDZ band: class + binding-element declarations, the IIFE /
 //! property-initializer / decorator usage sub-arms). Still escaped:
 //! property and parameter-property DECLARATIONS plus the static-block
-//! property-initialization probe — the 2729 consumer band (5.5d).
+//! property-initialization probe — the 2729 consumer band (folded
+//! into the 5.7b close by the 5.7a expiry audit).
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::gen as diagnostics;
@@ -728,10 +729,10 @@ impl<'a> CheckerState<'a> {
                     Ok(self.class_use_before_declaration_is_legal(declaration, usage))
                 }
                 SyntaxKind::PropertyDeclaration => Err(Unsupported::new(
-                    "property declared-before-use (2729 band, [FLOW M5])",
+                    "property declared-before-use (2729 band; expired 5.5d dep, folded into the 5.7b close)",
                 )),
                 SyntaxKind::Parameter => Err(Unsupported::new(
-                    "parameter-property declared-before-use (2729 band, [FLOW M5])",
+                    "parameter-property declared-before-use (2729 band; expired 5.5d dep, folded into the 5.7b close)",
                 )),
                 _ => Ok(true),
             };
@@ -958,10 +959,11 @@ impl<'a> CheckerState<'a> {
                             {
                                 // isPropertyInitializedInStaticBlocks
                                 // needs getTypeOfSymbol — the 2729
-                                // consumer band (5.5d); TDZ
-                                // declarations are never properties.
+                                // consumer band (folded into the 5.7b
+                                // close); TDZ declarations are never
+                                // properties.
                                 return Err(Unsupported::new(
-                                    "static-block property-initialization probe (2729 band, [FLOW M5])",
+                                    "static-block property-initialization probe (2729 band; expired 5.5d dep, folded into the 5.7b close)",
                                 ));
                             }
                         } else {

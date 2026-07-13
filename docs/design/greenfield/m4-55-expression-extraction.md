@@ -1017,6 +1017,21 @@ index-signature on JSX.IntrinsicElements).
 
 ## §10 Rust-side seam inventory (what 5.5 un-stubs)
 
+RE-CLASSIFICATION (2026-07-13, stage-5.7a expiry audit — `cargo xtask
+escapes --stale <STAGE>` now enforces these tags): rows below whose
+5.5 deps landed but whose arms did not are re-owned — (a) the async
+contextual/widening arms (getContextualTypeForReturnExpression async,
+getContextualTypeForAwaitOperand, getWidenedLiteralLikeTypeFor-
+ContextualReturnTypeIfNeeded) fold into the 5.7b close; (b)
+getSymbolForExpression's private-identifier lookup moves to the 5.8
+class band; (c) the property/parameter-property/static-block
+declared-before-use arms (the 2729 consumer band, evaluate.rs) fold
+into the 5.7b close. Generator-side filters are 5.8 (iteration
+protocol); the JSX contextual arms are 5.7c; SpreadElement's
+checkSpreadExpression is 5.8 (iteration protocol). Late-bound member
+names (lateBindMember 57662) are an explicit M7-stub per §5.3's
+fallback.
+
 check.rs: L228 ExpressionStatement stub → live arm; deferred arms
 (fn-trio incl. MethodSignature per tsc L86930, accessors → register +
 5.8-escape, ClassExpression → register (eager arm itself escapes),

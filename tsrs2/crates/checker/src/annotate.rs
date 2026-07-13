@@ -458,6 +458,16 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc indexes target.elementFlags past the element list for the
+    /// tuple-this append (getTypeWithThisArgument): `undefined`
+    /// coerces to 0 under JS bitwise reads, i.e. zero element flags.
+    fn element_flag_at(flags: &[ElementFlags], index: usize) -> ElementFlags {
+        flags
+            .get(index)
+            .copied()
+            .unwrap_or(ElementFlags::from_bits(0))
+    }
+
     /// tsc-port: createNormalizedTupleType @6.0.3
     /// tsc-hash: 5b7968f648c63d88544746d841015ff7800b723dbc071b96fb4d6f7ae0b18154
     /// tsc-span: _tsc.js:61213-61287
@@ -485,7 +495,7 @@ impl<'a> CheckerState<'a> {
         if data.combined_flags.intersects(ElementFlags::VARIADIC) {
             // Union/never variadic distribution (61218-61223).
             let union_index = (0..element_types.len()).find(|&i| {
-                data.element_flags[i].intersects(ElementFlags::VARIADIC)
+                Self::element_flag_at(&data.element_flags, i).intersects(ElementFlags::VARIADIC)
                     && self
                         .tables
                         .flags_of(element_types[i])
@@ -498,7 +508,9 @@ impl<'a> CheckerState<'a> {
                     .iter()
                     .enumerate()
                     .map(|(i, &t)| {
-                        if data.element_flags[i].intersects(ElementFlags::VARIADIC) {
+                        if Self::element_flag_at(&data.element_flags, i)
+                            .intersects(ElementFlags::VARIADIC)
+                        {
                             t
                         } else {
                             self.tables.intrinsics.unknown
@@ -559,7 +571,7 @@ impl<'a> CheckerState<'a> {
             };
 
             for (i, &element_type) in element_types.iter().enumerate() {
-                let flags = data.element_flags[i];
+                let flags = Self::element_flag_at(&data.element_flags, i);
                 if flags.intersects(ElementFlags::VARIADIC) {
                     if self
                         .tables
@@ -3100,22 +3112,14 @@ impl<'a> CheckerState<'a> {
             };
             let type_arguments = self.get_type_arguments(ty)?;
             return if target_parameters.len() == type_arguments.len() {
+                // Tuple targets append the this slot past the element
+                // list; tsc's downstream elementFlags[i] reads see
+                // `undefined`, whose bitwise coercion is 0 — the twin
+                // mirrors that with zero element flags for
+                // out-of-range positions.
                 let this_type = match &self.tables.type_of(target).data {
                     TypeData::GenericType { this_type, .. } => *this_type,
-                    TypeData::TupleTarget(data) => {
-                        // Appending the this slot to a TUPLE reference
-                        // rides tsc's undefined-element-flags indexing
-                        // (createNormalizedTupleType 61255 pushes an
-                        // undefined flag for the extra slot) — a
-                        // JS-only shape our ElementFlags cannot carry;
-                        // first reachable through checkTypeArguments'
-                        // tuple constraints (M4 5.7).
-                        let _ = data;
-                        return Err(Unsupported::new(
-                            "getTypeWithThisArgument tuple-this append \
-                             (undefined element-flags quirk)",
-                        ));
-                    }
+                    TypeData::TupleTarget(data) => data.this_type,
                     _ => unreachable!("references target generic or tuple targets"),
                 };
                 let mut arguments = type_arguments;

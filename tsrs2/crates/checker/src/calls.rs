@@ -3864,6 +3864,21 @@ mod tests {
     // ---- createNormalizedTupleType checker twin (5.3 residuals) ----
 
     #[test]
+    fn tuple_constraint_this_append_resolves() {
+        // checkTypeArguments' constraint check runs
+        // getTypeWithThisArgument over the TUPLE constraint (the
+        // this slot appends past the element list — tsc's undefined
+        // element-flag read, zero flags here); the surviving arg
+        // mismatch renders 2345 with intrinsic display.
+        assert_eq!(
+            checked_rows(
+                "declare function f<T extends [number, string?]>(x: T, n: number): void;\nf<[1, \"a\"]>([1, \"a\"], \"no\");\n"
+            ),
+            [(2345, 94, 4)]
+        );
+    }
+
+    #[test]
     fn union_variadic_tuple_distributes_over_constituents() {
         // [...(A | B)] distributes via mapType — formerly an
         // M4Dependency containment of the whole alias. The demand

@@ -341,7 +341,7 @@ impl<'a> CheckerState<'a> {
                 self.check_conditional_expression(node, check_mode)
             }
             SyntaxKind::SpreadElement => {
-                self.expression_stub("checkSpreadExpression ([ITER])", "5.5c")
+                self.expression_stub("checkSpreadExpression ([ITER])", "5.8 iteration protocol")
             }
             SyntaxKind::OmittedExpression => Ok(self.tables.intrinsics.undefined_widening),
             SyntaxKind::YieldExpression => self.check_yield_expression(node),

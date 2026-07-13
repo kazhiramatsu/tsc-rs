@@ -1797,17 +1797,31 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
 fn collect_escape_sites(workspace: &Path) -> Result<Vec<EscapeSite>, Box<dyn Error>> {
     let mut sites = Vec::new();
     for path in collect_rs_paths(&workspace.join("crates"))? {
+        // xtask itself holds the marker strings (this scanner) — no
+        // checker escapes live here.
+        if path.components().any(|part| part.as_os_str() == "xtask") {
+            continue;
+        }
         let text = fs::read_to_string(&path)?;
-        for marker in ["Unsupported::new(", "M4Dependency("] {
+        // Wrapper constructors count too: expression_stub /
+        // source_element_stub carry (worker, owner) string pairs —
+        // source_element_stub is a SILENT Ok(()) stub, invisible to
+        // any Err-based accounting.
+        for marker in [
+            "Unsupported::new(",
+            "M4Dependency(",
+            "expression_stub(",
+            "source_element_stub(",
+        ] {
             let mut search = 0usize;
             while let Some(found) = text[search..].find(marker) {
                 let offset = search + found;
                 search = offset + marker.len();
-                // Skip definitions/imports and test assertions on the
-                // marker names themselves.
                 let line = text[..offset].bytes().filter(|&b| b == b'\n').count() + 1;
                 let reason = escape_reason_after(&text, offset + marker.len() - 1);
-                if reason.is_empty() {
+                // Empty reasons are definitions/imports; `{`-bearing
+                // reasons are the wrappers' own format templates.
+                if reason.is_empty() || reason.contains('{') {
                     continue;
                 }
                 let owner = parse_stage_key(&reason);
