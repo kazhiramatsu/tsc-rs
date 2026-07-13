@@ -14,7 +14,7 @@ whose bodies transcribe when their first caller lands — everything
 else in this doc is already implementation-grade). Review round
 2026-07-14 folded in: decorator DUAL-MODE (experimentalDecorators is
 modeled + mapped — §10), the OPTIONS AUDIT (§13: present / add-in-5.8
-/ absent-dead, with fixture counts), ES5 as MANDATORY scope (1267
+/ absent-dead, with fixture counts), ES5 as MANDATORY scope (807
 fixtures — every languageVersion<ES2015 arm is live 5.8 scope, not
 floor-verify), and the comment-directive gap scoped to the EXISTING
 interim filter (§15 5.8e).
@@ -345,9 +345,11 @@ in its §).
 - Promise (L83303): languageVersion ≥ ES2017 → skip; else module file
   with HasAsyncFunctions flag → …_in_top_level_scope_of_a_module_
   containing_async_functions. languageVersion is the mapped @target —
-  LIVE for low-target fixtures (ES5 is mapped; 1267 fixtures).
+  LIVE for low-target fixtures (ES5 is mapped; 807 conformance
+  fixtures).
 - checkCollisionWithArgumentsInGeneratedCode (L83229): ES2015+ →
-  skip; **LIVE for the 1267 ES5-target fixtures** (rest-param +
+  skip; **LIVE for the 807 ES5-target conformance fixtures**
+  (rest-param +
   `arguments`-named parameter under target<ES2015, non-ambient,
   bodied).
 - WeakMapSet (L83315): target ≤ ES2021 && name WeakMap/WeakSet →
@@ -681,7 +683,7 @@ intrinsic escape lifts with this.
   - uplevelIteration = target ≥ ES2015 && globalIterableType
     resolves (≠ emptyGenericType); downlevelIteration = !uplevel &&
     options.downlevelIteration — **NOT in CompilerOptions yet: 5.8b
-    ADDS the field + conformance mapping (24 fixtures set
+    ADDS the field + conformance mapping (21 conformance fixtures set
     @downlevelIteration; without it those select the WRONG
     diagnostic flavor under low targets = FP)**; possibleOutOfBounds
     = noUncheckedIndexedAccess && (use & 128) (option PRESENT in
@@ -921,7 +923,8 @@ getAwaitedTypeNoAlias(returnType) || voidType); return. Then tail
 for the passing shape: checkAwaitedType(returnType, withAlias=false,
 node, The_return_type_of_an_async_function_must_either_be…) (5.5f
 kit). Target < ES2015 (gated on the modeled @target — MANDATORY
-scope, 1267 ES5 fixtures): the ES5 promise-constructor entity band
+scope, 807 ES5 conformance fixtures): the ES5 promise-constructor
+entity band
 (Type_0_is_not_a_valid_async_function_return_type_in_ES5…,
 An_async_function_or_method_in_ES5_requires_the_Promise_constructor…,
 PromiseConstructorLike relation with headMessage+chain,
@@ -1702,9 +1705,11 @@ kinds + JS arms to elide), getModuleSpecifierForImportOrExport
   canHaveSyntheticDefault — **allowSyntheticDefaultImports** =
   option || esModuleInterop || module===System: **NEITHER option is
   in CompilerOptions yet — 5.8d ADDS es_module_interop +
-  allow_synthetic_default_imports + the computed derivation (142 /
-  53 fixtures respectively; the §9 default-import gates are
-  load-bearing)**; declaration files: probe syntactic default +
+  allow_synthetic_default_imports + the computed derivation (19
+  conformance fixtures set @esModuleInterop; standalone
+  @allowSyntheticDefaultImports does not appear in conformance —
+  the field carries the computed value; the §9 default-import gates
+  are load-bearing)**; declaration files: probe syntactic default +
   __esModule marker; TS files → hasExportAssignmentSymbol (L49778).
 - getTargetOfImportClause (L48652) → getTargetofModuleDefault
   (L48658): shorthand-ambient module → the module symbol; (Node20
@@ -1778,8 +1783,9 @@ kinds + JS arms to elide), getModuleSpecifierForImportOrExport
   selection reads getEmitModuleResolutionKind — **moduleResolution
   is NOT in CompilerOptions yet: 5.8d ADDS the field + mapping +
   the computed default (transcribe _computedOptions.moduleResolution
-  .computeValue at landing); 262 fixtures set @moduleResolution
-  (60 classic)**. Worker (L49470): string-literal specifiers only.
+  .computeValue at landing); 85 conformance fixtures set
+  @moduleResolution (43 classic)**. Worker (L49470): string-literal
+  specifiers only.
 - resolveExternalModule (L49473) — port order EXACTLY:
   1. errorNode && "@types/" prefix → Cannot_import_type_declaration_
      files_Consider_importing_0_instead_of_1;
@@ -1897,7 +1903,8 @@ functions.rs "[ITER] yield aggregation" escape lifts:
 Ownership — **DUAL MODE (review round 2026-07-14)**:
 legacyDecorators = compilerOptions.experimentalDecorators, which IS
 modeled (options.rs experimental_decorators) AND mapped by the
-conformance harness (215 fixtures set @experimentalDecorators).
+conformance harness (134 conformance fixtures set
+@experimentalDecorators).
 Both modes are 5.8c scope:
 - experimental_decorators=false (default): ES2022+ standard
   decorators — the ES signature table below.
@@ -1908,7 +1915,7 @@ Both modes are 5.8c scope:
 Never mix modes; every mode read routes through ONE
 `legacy_decorators()` accessor. FALLBACK if legacy shapes produce
 FP surprises at landing: contain the ENTIRE decorator band behind
-Unsupported when experimental_decorators=true (honest FN on the 215
+Unsupported when experimental_decorators=true (honest FN on the 134
 fixtures) — applying ES semantics to legacy fixtures is a
 wrong-payload FP, never acceptable. emitDecoratorMetadata stays
 unmapped → its entity-name machinery (L82698-82743) remains
@@ -1951,16 +1958,26 @@ checkDecorator (L82628):
   — `for param in getDecoratorCallSignature(node).parameters:
   Synthetic(getTypeOfSymbol(param))` at the decorator EXPRESSION's
   span; no signature → Debug.fail (unreachable: resolveDecorator
-  precedes). Arg COUNT is therefore mode-dependent: ES = 2
-  (target, context); legacy = 1 (class) / 2-3 (property by accessor
-  modifier) / 2-3 (method+accessors by sig param count) / 3
-  (parameter) per the legacy signature table.
+  precedes). The effective-arg COUNT comes from the DECORATOR
+  SIGNATURE alone: ES = 2 (target, context); legacy = 1 (class) /
+  2 (plain property) / 3 (accessor-modifier property, method,
+  getter, setter — the descriptor parameter is ALWAYS present in
+  the signature — and parameter). Do NOT conflate with
+  getLegacyDecoratorArgumentCount below: that is the ARITY
+  ALLOWANCE for the CANDIDATE decorator function, not the effective
+  list — method/getter/setter effective args are always 3, so the
+  descriptor argument's assignability IS checked whenever the
+  candidate declares a 3rd parameter.
 - **Dual-mode call-machinery helpers (calls.rs — audit the existing
   5.7a ports)**:
-  - getDecoratorArgumentCount (L76353): experimentalDecorators →
+  - getDecoratorArgumentCount (L76353): the ARITY ALLOWANCE (how
+    many args a candidate may accept — NOT the effective-arg list;
+    method/get/set are the only positions where it varies, by the
+    CANDIDATE's own parameter count): experimentalDecorators →
     getLegacyDecoratorArgumentCount (L76359: class=1; property =
-    accessor-modifier ? 3 : 2; method/get/set = sig.parameters ≤ 2
-    ? 2 : 3; parameter=3) else ES `min(max(paramCount,1),2)` —
+    accessor-modifier ? 3 : 2; method/get/set = CANDIDATE
+    signature.parameters ≤ 2 ? 2 : 3; parameter=3) else ES
+    `min(max(paramCount,1),2)` —
     calls.rs's hasCorrectArity decorator arm (m4-57 §4) cites this
     pair: verify the existing arm reads the REAL option, not a
     constant.
@@ -2230,20 +2247,23 @@ New state:
   2378); localSymbol on exported declarations (§5 overload band);
   getModuleInstanceState exposure (§2 collisions + §8).
 - **OPTIONS AUDIT (verified against options.rs + the conformance
-  mapping, 2026-07-14). Count unit: SOURCE FIXTURE FILES across all
-  test suites — `grep -rli '@<option>' ts-tests/tests/cases | wc -l`
-  (compiler+conformance+fourslash+projects; option-matrix expansion
-  multiplies these into more conformance programs/cases, so expanded
-  counts run higher — re-measure per slice with the same command)**:
+  mapping, 2026-07-14). Count unit: fixture FILES under
+  `ts-tests/tests/cases/conformance` — the only tree the conformance
+  runner walks (select_fixtures) — via `/usr/bin/grep -rli
+  '@<option>' ts-tests/tests/cases/conformance | wc -l` (plain BSD
+  grep: the workspace's interactive grep aliases to ugrep, and
+  all-suite scopes inflate the numbers; option-matrix expansion
+  multiplies files into more programs/cases). Re-measure per slice
+  with the same command**:
   - PRESENT + mapped (read directly): target — **ES5 IS mapped and
-    1267 fixtures use it ⇒ every languageVersion<ES2015 arm in this
+    807 conformance fixtures use it ⇒ every languageVersion<ES2015 arm in this
     doc is MANDATORY 5.8 scope** (collision bands §2 at their
     ranges, the ES5 async-return band §5, the downlevel iteration
     reach §4, emitStandardClassFields=false super-call band §5,
     setNodeLinksForPrivateIdentifierScope gates §5, class
     emit-helper gates as no-ops); module; jsx (+factory strings);
     lib; allowJs/checkJs; **experimentalDecorators (§10 dual
-    mode)**; the strict family (strict/alwaysStrict/
+    mode; 134 fixtures)**; the strict family (strict/alwaysStrict/
     strictNullChecks/strictFunctionTypes/strictBindCallApply/
     noImplicitAny/noImplicitThis/strictPropertyInitialization/
     useUnknownInCatchVariables via strict_option_value);
@@ -2253,14 +2273,15 @@ New state:
     useDefineForClassFields (+ emit_standard_class_fields).
   - **ADD in 5.8** (CompilerOptions field + conformance mapping,
     owner slice in §15): no_emit (5.8a — the skippedOn filter's
-    input; 1304 fixtures set @noEmit); downlevel_iteration (5.8b;
-    24 fixtures); strict_builtin_iterator_return (5.8b;
+    input; 727 conformance fixtures set @noEmit);
+    downlevel_iteration (5.8b; 21 fixtures); strict_builtin_iterator_return (5.8b;
     strict-family per bundle L46472 — default ON); module_resolution
-    (5.8d; 262/60-classic fixtures; 2792-vs-2307 + Classic
+    (5.8d; 85 fixtures / 43 classic; 2792-vs-2307 + Classic
     behaviors + computed default); es_module_interop +
-    allow_synthetic_default_imports (5.8d; 142/53 fixtures; §9
-    gates + resolveESModuleSymbol interop faces);
-    preserve_const_enums (5.8d; 17 fixtures;
+    allow_synthetic_default_imports (5.8d; 19 / 0-standalone
+    conformance fixtures; §9 gates + resolveESModuleSymbol interop
+    faces);
+    preserve_const_enums (5.8d; 2 fixtures;
     shouldPreserveConstEnums = preserveConstEnums || isolatedModules
     feeds isInstantiatedModule §8).
   - ABSENT → arms stay DEAD w/ ledger notes: noImplicitReturns,
@@ -2283,7 +2304,7 @@ New state:
    no_emit added to CompilerOptions + the mapping and (b) the
    skippedOn filter at the diagnostics-finalize seam (beside the
    existing filter_by_comment_directives in checker/src/lib.rs);
-   1304 fixtures set @noEmit — an unfiltered collision row FPs
+   727 conformance fixtures set @noEmit — an unfiltered collision row FPs
    corpus-wide.
 3. **errorOutputContainer double-add** (§4 union path): keep
    collect-only containers + one explicit add per diagnostic; pin a
