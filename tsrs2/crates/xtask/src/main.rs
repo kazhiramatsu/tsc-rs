@@ -2672,14 +2672,26 @@ fn line_is_valid_disposition(line: &str) -> bool {
     false
 }
 
+/// Mirrors parse_ledger_entries_in_file's doc-block rules EXACTLY,
+/// so a disposition can never be visible to the census yet invisible
+/// to the ledger parser (review round 5: a plain `//` line between
+/// the doc block and the fn CLEARS the block on the ledger side —
+/// walking over it here let a detached `/// tsc-port:` satisfy the
+/// census while evading hash/span validation). Upward from the fn:
+/// `///` doc lines accumulate, blank lines and `#[` attributes are
+/// transparent, ANYTHING else — including plain `//` comments —
+/// terminates the block. Keep the two in lockstep: a rule change in
+/// either MUST land in both.
 fn doc_block_has_disposition(lines: &[&str], fn_index: usize) -> bool {
     let mut index = fn_index;
     while index > 0 {
         let line = lines[index - 1].trim_start();
-        if line.starts_with("///") || line.starts_with("//") || line.starts_with("#[") {
+        if line.starts_with("///") {
             if line_is_valid_disposition(line) {
                 return true;
             }
+            index -= 1;
+        } else if line.is_empty() || line.starts_with("#[") {
             index -= 1;
         } else {
             break;
@@ -6174,6 +6186,18 @@ mod escape_scanner_tests {
         assert!(!doc_block_has_disposition(&plain_port, 1));
         assert!(!doc_block_has_disposition(&plain_native, 1));
         assert!(!doc_block_has_disposition(&banner, 1));
+        // Review round 5: a plain `//` line TERMINATES the block
+        // (the ledger parser clears its doc block there — a doc
+        // comment detached by a separator must not count), while a
+        // BLANK line is transparent on both sides.
+        let separated = [
+            "/// tsc-port: dummy @6.0.3",
+            "// ordinary separator",
+            "pub(crate) fn newly_added() {}",
+        ];
+        let blank_gap = ["/// tsc-port: real @6.0.3", "", "pub fn f() {}"];
+        assert!(!doc_block_has_disposition(&separated, 2));
+        assert!(doc_block_has_disposition(&blank_gap, 2));
         // The block scan stops at the first non-comment/attr line.
         let detached = [
             "/// tsrs-native: someone else's fn",
