@@ -1337,37 +1337,15 @@ impl<'a> CheckerState<'a> {
         let (argument, attributes) = (data.argument, data.attributes);
         self.check_source_element(argument);
         if let Some(attributes) = attributes {
-            // node.attributes.token: the parser data carries no token
-            // field — reconstruct from source. The ImportType form is
-            // `import("m", { with: {...} })`: the keyword is the
-            // token AFTER the container's `{`.
-            let source = self.binder.source_of_node(attributes);
-            let mut pos = source.arena.node(attributes).pos as usize;
-            let end = source.arena.node(attributes).end as usize;
-            // Scan the leading punctuation (`,`, `{`) for the keyword;
-            // an unrecognized shape defaults to the with-form (no
-            // report — FN-side).
-            let mut keyword = "with";
-            for _ in 0..4 {
-                if pos >= end {
-                    break;
-                }
-                let (token_start, token_end) =
-                    tsrs2_binder::node_util::get_span_of_token_at_position(source, pos);
-                match &source.text[token_start..token_end] {
-                    "with" | "assert" => {
-                        keyword = if &source.text[token_start..token_end] == "with" {
-                            "with"
-                        } else {
-                            "assert"
-                        };
-                        break;
-                    }
-                    "," | "{" => pos = token_end,
-                    _ => break,
-                }
-            }
-            if keyword != "with" {
+            // node.attributes.token: the parser threads the consumed
+            // with/assert keyword into ImportAttributesData (the
+            // source form is unrecoverable after the parse — review
+            // find, PR #5).
+            let token = match self.data_of(attributes) {
+                NodeData::ImportAttributes(data) => data.token,
+                _ => SyntaxKind::WithKeyword,
+            };
+            if token != SyntaxKind::WithKeyword {
                 self.grammar_error_on_first_token(
                     attributes,
                     &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,

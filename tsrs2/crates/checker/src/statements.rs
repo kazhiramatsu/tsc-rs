@@ -1088,6 +1088,36 @@ impl<'a> CheckerState<'a> {
         false
     }
 
+    /// tsc-port: checkGrammarComputedPropertyName @6.0.3
+    /// tsc-hash: 0b15dfab0744da94138d8fa649fc34a3c99b60d502925604c172630f90362ad6
+    /// tsc-span: _tsc.js:89608-89617
+    ///
+    /// 5.8a caller: the object-literal grammar slice (§12; review
+    /// find, PR #5). The member-declaration callers arrive with their
+    /// bands (checkPropertyDeclaration/Method/Accessor, 5.8b/c).
+    pub(crate) fn check_grammar_computed_property_name(&mut self, node: NodeId) -> bool {
+        if self.kind_of(node) != SyntaxKind::ComputedPropertyName {
+            return false;
+        }
+        let expression = match self.data_of(node) {
+            NodeData::ComputedPropertyName(data) => data.expression,
+            _ => None,
+        };
+        let Some(expression) = expression else {
+            return false;
+        };
+        let is_comma_expression = matches!(self.data_of(expression), NodeData::BinaryExpression(data)
+            if data.operator_token.is_some_and(|op| self.kind_of(op) == SyntaxKind::CommaToken));
+        if is_comma_expression {
+            return self.grammar_error_on_node(
+                expression,
+                &diagnostics::A_comma_expression_is_not_allowed_in_a_computed_property_name,
+                &[],
+            );
+        }
+        false
+    }
+
     /// tsc-port: grammarErrorOnNodeSkippedOn @6.0.3
     /// tsc-hash: a99a58ded4a296b6549a019fb418a7db0d2bc13be8e28d763abc144ce54b72f0
     /// tsc-span: _tsc.js:90232-90239
@@ -2888,6 +2918,86 @@ mod tests {
         assert_eq!(
             checked_rows("if (2) { let z = 1; }\ndo let v = 1; while (0);\n"),
             [(2872, 4, 1), (1156, 25, 10)]
+        );
+    }
+
+    // ---- PR #5 review-round pins (oracle r1-r4 probes) ----
+
+    #[test]
+    fn comma_in_computed_property_name_reports_1171() {
+        // checkGrammarObjectLiteralExpression's computed-name row
+        // (partial slice) + the 5.5e comma-operator 2695.
+        let rows = checked_rows("const a = { [0, 1]: {} };\n");
+        assert!(rows.contains(&(1171, 13, 4)), "{rows:?}");
+        assert!(rows.contains(&(2695, 13, 1)), "{rows:?}");
+        assert_eq!(rows.len(), 2, "{rows:?}");
+    }
+
+    #[test]
+    fn import_type_assert_form_reports_2880_and_with_form_stays_silent() {
+        // The parser threads the consumed keyword into
+        // ImportAttributesData.token (review find: the source form is
+        // unrecoverable after the parse).
+        assert_eq!(
+            checked_rows("type T = typeof import(\"./m\", { assert: {} });\n"),
+            [(2880, 40, 1)]
+        );
+        assert_eq!(
+            checked_rows("type U = typeof import(\"./m\", { with: {} });\n"),
+            []
+        );
+    }
+
+    fn module_target_rows(module: i32, target: i32, text: &str) -> Vec<(u32, u32, u32)> {
+        let options = CompilerOptions {
+            module: Some(module),
+            target: Some(target),
+            ..CompilerOptions::default()
+        };
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: text.to_owned(),
+            }],
+            &options,
+        );
+        result
+            .diagnostics
+            .iter()
+            .filter(|diag| diag.file_name.is_some())
+            .map(|diag| {
+                (
+                    diag.code(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn top_level_await_module_ladder_reports_1378() {
+        // module=es2020 never satisfies the ladder (oracle r3).
+        assert_eq!(
+            module_target_rows(6, 9, "export {};\nawait 1;\n"),
+            [(1378, 11, 5)]
+        );
+        // module=esnext + target>=es2017 is clean.
+        assert_eq!(module_target_rows(99, 9, "export {};\nawait 1;\n"), []);
+    }
+
+    #[test]
+    fn top_level_await_using_ladder_reports_2854_on_low_targets() {
+        // module=esnext + target=es2015 fails on the target half
+        // (oracle r4; the Disposable 2318 probes are file-less and
+        // stay out of per-file output).
+        assert_eq!(
+            module_target_rows(99, 2, "export {};\nawait using x = null;\n"),
+            [(2854, 11, 5)]
+        );
+        assert_eq!(
+            module_target_rows(99, 9, "export {};\nawait using x = null;\n"),
+            []
         );
     }
 

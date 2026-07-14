@@ -390,6 +390,7 @@ pub struct ImportAttributeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportAttributesData {
+    pub token: SyntaxKind,
     pub elements: Option<NodeArrayId>,
 }
 
@@ -1904,9 +1905,10 @@ impl NodeData {
                 name: None,
                 value: None,
             }),
-            SyntaxKind::ImportAttributes => {
-                Self::ImportAttributes(ImportAttributesData { elements: None })
-            }
+            SyntaxKind::ImportAttributes => Self::ImportAttributes(ImportAttributesData {
+                token: SyntaxKind::ImportAttributes,
+                elements: None,
+            }),
             SyntaxKind::ImportClause => Self::ImportClause(ImportClauseData {
                 is_type_only: false,
                 name: None,

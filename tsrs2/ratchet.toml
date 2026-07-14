@@ -1,8 +1,8 @@
 [t0]
 # rate is display-only once matched/total are present; the gate
 # compares the exact integer counts (zero-regression).
-rate = 0.182035
-matched = 8842
+rate = 0.183106
+matched = 8894
 total = 48573
 allowed_regression = 0.0
 
@@ -11,8 +11,8 @@ rate = 0.0
 allowed_regression = 0.0
 
 [t0-2xxx]
-rate = 0.203295
-matched = 4233
+rate = 0.205600
+matched = 4281
 total = 20822
 allowed_regression = 0.0
 

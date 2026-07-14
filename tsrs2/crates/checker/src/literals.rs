@@ -616,7 +616,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74135-74299
     ///
     /// Elided/dead arms: checkGrammarObjectLiteralExpression (89637)
-    /// is an elided slice (1117-family FN, pinned);
+    /// is a PARTIAL slice — the computed-property-name row is live
+    /// (5.8a §12), the rest stays elided (1117-family FN, pinned);
     /// isInJavascript/enumTag/jsDocType/JSLiteral ride [JSDOC] (TS
     /// files answer false — plain-JS files gate earlier); the
     /// languageVersion ObjectAssign emit-helper gate is dead at
@@ -630,8 +631,28 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<TypeId> {
         let source = self.binder.source_of_node(node);
         let in_destructuring_pattern = node_util::is_assignment_target(source, node);
-        // checkGrammarObjectLiteralExpression(node, inDestructuringPattern):
-        // elided slice.
+        // checkGrammarObjectLiteralExpression(node, inDestructuring):
+        // PARTIAL slice — the checkGrammarComputedPropertyName row is
+        // 5.8a-owned (§12; review find, PR #5: 1171); the remaining
+        // rows (rest-binding-pattern, shorthand-equals, private
+        // identifier, modifier and duplicate-kind tables) stay elided
+        // with their owners (1117-family FN, pinned).
+        {
+            let members = match self.data_of(node) {
+                NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
+                _ => Vec::new(),
+            };
+            for member in members {
+                if self.kind_of(member) == SyntaxKind::SpreadAssignment {
+                    continue;
+                }
+                if let Some(name) = self.name_of_node(member) {
+                    if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                        self.check_grammar_computed_property_name(name);
+                    }
+                }
+            }
+        }
         let strict_null_checks = self.tables.strict_null_checks;
         let mut acc = ObjectLiteralAcc {
             all_properties_table: strict_null_checks.then(SymbolTable::default),

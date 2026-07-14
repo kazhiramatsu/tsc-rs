@@ -1138,14 +1138,12 @@ impl<'a> CheckerState<'a> {
     ///
     /// ES2025 target + ESNext-family module default: the moduleKind
     /// ladder's Node16..NodeNext arms need impliedNodeFormat (module
-    /// resolution, 5.8) — under the conformance option mapping the
-    /// reachable rows are the non-module 1375/2853 pair and the
-    /// nested 1308/2852 (+related 1356) pair; the target/module 1378/
-    /// 2854 arms are dead at ES2017+, transcription kept for the
-    /// ladder's fallthrough shape. Since 5.8a `await using`
-    /// declaration LISTS route here too — every message selects on
-    /// isAwaitExpression(node) like tsc (the 2865/2866/2867 family
-    /// for lists).
+    /// resolution, 5.8d) and fall through as non-CommonJS; the
+    /// default arm's 1378/2854 pair is LIVE for sub-ES2017 targets
+    /// and non-ES2022-family module options (review find, PR #5).
+    /// Since 5.8a `await using` declaration LISTS route here too —
+    /// every message selects on isAwaitExpression(node) like tsc
+    /// (the 2865-2868 family for lists).
     pub(crate) fn check_await_grammar(&mut self, node: NodeId) -> CheckResult2<bool> {
         let is_await_expression = self.kind_of(node) == SyntaxKind::AwaitExpression;
         let mut has_error = false;
@@ -1196,10 +1194,34 @@ impl<'a> CheckerState<'a> {
                         );
                         has_error = true;
                     }
-                    // moduleKind ladder: ESNext-family + ES2025 target
-                    // → break (no 1378/2854); Node16..NodeNext need
-                    // impliedNodeFormat (5.8) — the conformance
-                    // mapping never selects them at this stage.
+                    // moduleKind ladder (79357-79383): Node16/18/20/
+                    // NodeNext arms need impliedNodeFormat (module
+                    // resolution, 5.8d) — treated as the non-CommonJS
+                    // fallthrough (true-CJS node-flavor 2856-family
+                    // rows stay FN); the default arm is LIVE for
+                    // sub-ES2017 targets and non-ES2022-family module
+                    // options (review find, PR #5: 1378/2854).
+                    let module_kind = self.options.emit_module_kind();
+                    let target_ok =
+                        self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2017;
+                    let ladder_ok = match module_kind {
+                        100 | 101 | 102 | 199 => target_ok,
+                        7 | 99 | 200 | 4 => target_ok,
+                        _ => false,
+                    };
+                    if !ladder_ok {
+                        self.error_at_span(
+                            span,
+                            node,
+                            if is_await_expression {
+                                &diagnostics::Top_level_await_expressions_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_node16_node18_node20_nodenext_or_preserve_and_the_target_option_is_set_to_es2017_or_higher
+                            } else {
+                                &diagnostics::Top_level_await_using_statements_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_node16_node18_node20_nodenext_or_preserve_and_the_target_option_is_set_to_es2017_or_higher
+                            },
+                            &[],
+                        );
+                        has_error = true;
+                    }
                 }
             } else if !self.has_parse_diagnostics(node) {
                 let span = self.span_of_token_at_node_pos(node);
