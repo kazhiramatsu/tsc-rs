@@ -395,6 +395,53 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsc-port: checkNonNullNonVoidType @6.0.3
+    /// tsc-hash: 8a9444b51ee2d2fad8646f1fe67adeda802f49e5a4f62c88c2adaf356f41e9c8
+    /// tsc-span: _tsc.js:75051-75068
+    ///
+    /// The 5.8a declaration-band consumer (checkVariableLikeDeclaration
+    /// binding-pattern arms): `node` is the DECLARATION there, so the
+    /// entity-name faces are transcribed but reachable only from the
+    /// expression-side callers.
+    pub(crate) fn check_non_null_non_void_type(
+        &mut self,
+        ty: TypeId,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let non_null_type = self.check_non_null_type(ty, node)?;
+        if self
+            .tables
+            .flags_of(non_null_type)
+            .intersects(TypeFlags::VOID)
+        {
+            if self.is_entity_name_expression(node) {
+                let node_text = self.entity_name_to_string(node)?;
+                if self.kind_of(node) == SyntaxKind::Identifier && node_text == "undefined" {
+                    self.error_at(
+                        Some(node),
+                        &tsrs2_diags::gen::The_value_0_cannot_be_used_here,
+                        &[&node_text],
+                    );
+                    return Ok(non_null_type);
+                }
+                if node_text.encode_utf16().count() < 100 {
+                    self.error_at(
+                        Some(node),
+                        &tsrs2_diags::gen::_0_is_possibly_undefined,
+                        &[&node_text],
+                    );
+                    return Ok(non_null_type);
+                }
+            }
+            self.error_at(
+                Some(node),
+                &tsrs2_diags::gen::Object_is_possibly_undefined,
+                &[],
+            );
+        }
+        Ok(non_null_type)
+    }
+
     /// tsc-port: reportCannotInvokePossiblyNullOrUndefinedError @6.0.3
     /// tsc-hash: b3748b887956c0833de220ae247af85d956add778ef31dd09c491063e8aaf39b
     /// tsc-span: _tsc.js:75022-75027

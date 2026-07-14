@@ -2182,16 +2182,28 @@ mod tests {
 
     #[test]
     fn no_jsx_option_reports_17004_and_empty_initializer_17000() {
-        // Oracle: 17000 @97+2 + 17004 @89+13 + 7026 @89+13 for the
-        // expression statement (5.7c recovered the 7026 row); the
-        // const-statement rows (7026/17004/17001/2695/18007) stay FN
-        // behind the 5.8 statement band (demand caveat).
+        // Oracle (scratchpad j58.tsx probe, 2026-07-14): the FULL
+        // 11-row set — 5.8a's checkVariableDeclaration recovered the
+        // const-statement rows (7026/17004/17001/2695/18007) that the
+        // 5.7c pin recorded as demand-caveat FN (risk §14.9 flip).
         assert_eq!(
             checked_rows_with(
                 "declare var React: any;\nconst a = <div id=\"x\" id=\"y\" />;\nconst b = <span>{1, 2}</span>;\n(<p attr={} />);\n",
                 &CompilerOptions::default(),
             ),
-            [(17000, 97, 2), (17004, 89, 13), (7026, 89, 13)]
+            [
+                (17001, 46, 2),
+                (17004, 34, 21),
+                (7026, 34, 21),
+                (17004, 67, 6),
+                (7026, 67, 6),
+                (18007, 74, 4),
+                (2695, 74, 1),
+                (7026, 79, 7),
+                (17000, 97, 2),
+                (17004, 89, 13),
+                (7026, 89, 13),
+            ]
         );
     }
 

@@ -298,6 +298,41 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: getGlobalDisposableType @6.0.3
+    /// tsc-hash: 2f2cf3199d46ec1575c567857c6ca9a8f491e75a659cf35621b5a2e9171f16d3
+    /// tsc-span: _tsc.js:60882-60889
+    ///
+    /// emptyObjectType memoizes a miss (the caller's `!==
+    /// emptyObjectType` gate stands the band down; noLib fixtures ride
+    /// the 2318 band from the reportErrors probe).
+    pub fn get_global_disposable_type(&mut self, report_errors: bool) -> CheckResult2<TypeId> {
+        if let Some(memo) = self.deferred_global_disposable_type {
+            return Ok(memo);
+        }
+        let resolved = self
+            .get_global_type("Disposable", /*arity*/ 0, report_errors)?
+            .unwrap_or(self.empty_object_type);
+        self.deferred_global_disposable_type = Some(resolved);
+        Ok(resolved)
+    }
+
+    /// tsc-port: getGlobalAsyncDisposableType @6.0.3
+    /// tsc-hash: 53203a106cdf5a79912acb05046f34917ef4be01660b3a70c3805fbd27cd6086
+    /// tsc-span: _tsc.js:60890-60897
+    pub fn get_global_async_disposable_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(memo) = self.deferred_global_async_disposable_type {
+            return Ok(memo);
+        }
+        let resolved = self
+            .get_global_type("AsyncDisposable", /*arity*/ 0, report_errors)?
+            .unwrap_or(self.empty_object_type);
+        self.deferred_global_async_disposable_type = Some(resolved);
+        Ok(resolved)
+    }
+
     // ---- the lazily-bound init-block globals (88788-88873) ----
 
     /// initializeTypeChecker 88788-88794, lazy per the 5.0 plan.

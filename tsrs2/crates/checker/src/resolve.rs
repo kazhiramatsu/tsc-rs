@@ -678,10 +678,23 @@ impl<'a> CheckerState<'a> {
                 self.advance_walk(&mut last_location, &mut last_self_reference_location, loc);
         }
 
-        // tsc: `result.isReferenced |= meaning` for uses outside the
-        // self-reference location — M7's unused-diagnostics consumer;
-        // the flags are not stored yet.
-        let _ = (is_use, &last_self_reference_location);
+        // tsc 19767-19769: `result.isReferenced |= meaning` for uses
+        // outside the self-reference location — BEFORE the globals
+        // fallback, so a globals-only hit is never marked. Stored as a
+        // bool (SymbolLinks.is_referenced): the live consumer is the
+        // 5.8a renamed-binding drain's truthiness gate (risk §14.16);
+        // M7's per-meaning reads (83068/83096) upgrade it to the
+        // meaning mask when they land.
+        if is_use {
+            if let Some(found) = result {
+                let is_self_reference = last_self_reference_location
+                    .is_some_and(|loc| self.binder.node_symbol(loc) == Some(found));
+                if !is_self_reference {
+                    self.links
+                        .set_symbol_is_referenced(self.speculation_depth, found);
+                }
+            }
+        }
 
         if result.is_none() {
             if let Some(last) = last_location {

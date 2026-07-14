@@ -125,19 +125,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:87003-87061
     ///
     /// Elisions, each with its owner:
-    /// - the potential{This,NewTarget,WeakMapSet,Reflect}Collisions /
-    ///   potentialUnusedRenamedBindingElementsInTypes clears and their
-    ///   end-of-worker drains: every pusher lives in 5.5+ expression /
-    ///   declaration checkers (grep: no `potential_this_collisions`
-    ///   field exists yet) — the vectors land with their first pusher.
     /// - the PartiallyTypeChecked restore block: nodesToCheck path.
     /// - registerForUnusedIdentifiersCheck + the addLazyDiagnostic
     ///   unused-identifiers block: noUnusedLocals/noUnusedParameters
     ///   are absent from CompilerOptions, so unusedIsError is
-    ///   constant-false — the whole band is inert until M7 models the
-    ///   options.
+    ///   constant-false — the band is inert until M7 models the
+    ///   options. checkPotentialUncheckedRenamedBindingElementsInTypes
+    ///   shares that addLazyDiagnostic block but is NOT option-gated —
+    ///   live from 5.8a (eager identity keeps tsc's order: it runs
+    ///   after the deferred drain, before checkExternalModuleExports).
     /// - checkExternalModuleExports (86505): module export checking is
-    ///   5.8 (needs alias declaration resolution).
+    ///   5.8d (needs alias declaration resolution).
     fn check_source_file_worker(&mut self, root: NodeId) {
         if self
             .links
@@ -151,15 +149,49 @@ impl<'a> CheckerState<'a> {
             return;
         }
         self.check_grammar_source_file(root);
+        // 87010-87014: the five per-file accumulators clear at worker
+        // entry (the PartiallyTypeChecked restore stays elided).
+        self.potential_this_collisions.clear();
+        self.potential_new_target_collisions.clear();
+        self.potential_weak_map_set_collisions.clear();
+        self.potential_reflect_collisions.clear();
+        self.potential_unused_renamed_binding_elements_in_types
+            .clear();
         let NodeData::SourceFile(data) = self.data_of(root) else {
             unreachable!("check_source_file_worker takes source-file roots");
         };
         let end_of_file_token = data.end_of_file_token;
+        let is_declaration_file = self.binder.source_of_node(root).is_declaration_file;
         for statement in self.nodes_of(data.statements) {
             self.check_source_element(Some(statement));
         }
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
+        // 87028-87040 addLazyDiagnostic block (eager identity): the
+        // unused-identifiers drain is M7-inert; the renamed-binding
+        // drain runs for non-declaration files, un-option-gated.
+        if !is_declaration_file {
+            self.check_potential_unchecked_renamed_binding_elements_in_types();
+        }
+        // (checkExternalModuleExports — 5.8d.)
+        // 87042-87058: the four collision drains IN ORDER; each clears
+        // its vector like tsc's clear() tail.
+        let this_collisions = std::mem::take(&mut self.potential_this_collisions);
+        for node in this_collisions {
+            self.check_if_this_is_captured_in_enclosing_scope(node);
+        }
+        let new_target_collisions = std::mem::take(&mut self.potential_new_target_collisions);
+        for node in new_target_collisions {
+            self.check_if_new_target_is_captured_in_enclosing_scope(node);
+        }
+        let weak_map_set_collisions = std::mem::take(&mut self.potential_weak_map_set_collisions);
+        for node in weak_map_set_collisions {
+            self.check_weak_map_set_collision(node);
+        }
+        let reflect_collisions = std::mem::take(&mut self.potential_reflect_collisions);
+        for node in reflect_collisions {
+            self.check_reflect_collision(node);
+        }
         // File-boundary unwind invariant: between files every
         // transient stack is EMPTY (not merely restored) and no
         // Resolving sentinel is open — the per-element guards bound
@@ -221,8 +253,12 @@ impl<'a> CheckerState<'a> {
     /// top-level declare-modifier grammar).
     fn check_grammar_source_file(&mut self, _root: NodeId) {}
 
-    /// checkGrammarModifiers (89164) — M7-stub grammar hook.
-    pub(crate) fn check_grammar_modifiers(&mut self, _node: NodeId) {}
+    /// checkGrammarModifiers (89164) — M7-stub grammar hook; the
+    /// false return feeds callers' && chains (checkVariableStatement's
+    /// grammar ladder sits in tsc's slots).
+    pub(crate) fn check_grammar_modifiers(&mut self, _node: NodeId) -> bool {
+        false
+    }
 
     /// tsc-port: checkGrammarStatementInAmbientContext @6.0.3
     /// tsc-hash: c3ff8c8e4b3e50b58e8e6424b52b33c91680dae809a10c8901d04c1d586a447e
@@ -401,9 +437,7 @@ impl<'a> CheckerState<'a> {
                 self.source_element_stub("checkFunctionDeclaration", "5.8")
             }
             SyntaxKind::Block | SyntaxKind::ModuleBlock => self.check_block(node),
-            SyntaxKind::VariableStatement => {
-                self.source_element_stub("checkVariableStatement", "5.8")
-            }
+            SyntaxKind::VariableStatement => self.check_variable_statement(node),
             SyntaxKind::ExpressionStatement => self.check_expression_statement(node),
             SyntaxKind::IfStatement => self.source_element_stub("checkIfStatement", "5.8"),
             SyntaxKind::DoStatement => self.source_element_stub("checkDoStatement", "5.8"),
@@ -422,10 +456,8 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::ThrowStatement => self.source_element_stub("checkThrowStatement", "5.8"),
             SyntaxKind::TryStatement => self.source_element_stub("checkTryStatement", "5.8"),
-            SyntaxKind::VariableDeclaration => {
-                self.source_element_stub("checkVariableDeclaration", "5.8")
-            }
-            SyntaxKind::BindingElement => self.source_element_stub("checkBindingElement", "5.8"),
+            SyntaxKind::VariableDeclaration => self.check_variable_declaration(node),
+            SyntaxKind::BindingElement => self.check_binding_element(node),
             SyntaxKind::ClassDeclaration => self.check_class_declaration(node),
             SyntaxKind::InterfaceDeclaration => self.check_interface_declaration(node),
             SyntaxKind::TypeAliasDeclaration => self.check_type_alias_declaration(node),
@@ -659,7 +691,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkTypeNameIsReserved @6.0.3
     /// tsc-hash: 6753876527b4f036c118dffe0b6006384c63e44bbd140fb488a592a44f4ab577
     /// tsc-span: _tsc.js:84771-84786
-    fn check_type_name_is_reserved(&mut self, name: NodeId, message: &'static DiagnosticMessage) {
+    pub(crate) fn check_type_name_is_reserved(
+        &mut self,
+        name: NodeId,
+        message: &'static DiagnosticMessage,
+    ) {
         let Some(text) = self.identifier_text_of(name) else {
             return;
         };

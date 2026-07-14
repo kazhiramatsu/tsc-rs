@@ -5144,7 +5144,7 @@ impl<'a> CheckerState<'a> {
     /// The ESSymbol/isGlobalSymbolConstructor arm escapes: an ESSymbol
     /// initializer type only arrives through Symbol() calls
     /// (getResolvedSignature, 5.7), so the arm is dormant until then.
-    fn widen_type_for_variable_like_declaration(
+    pub(crate) fn widen_type_for_variable_like_declaration(
         &mut self,
         ty: Option<TypeId>,
         declaration: NodeId,
@@ -5528,7 +5528,10 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn get_type_for_binding_element_parent(
+    /// tsc-port: getTypeForBindingElementParent @6.0.3
+    /// tsc-hash: 08b0e4f2dd355e6594b9f063fb6aa6f72c5b0ce69241893358080cd4e8a01994
+    /// tsc-span: _tsc.js:55824-55840
+    pub(crate) fn get_type_for_binding_element_parent(
         &mut self,
         node: NodeId,
         check_mode: CheckMode,

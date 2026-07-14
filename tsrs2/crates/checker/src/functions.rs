@@ -46,7 +46,8 @@ impl<'a> CheckerState<'a> {
         );
         self.check_node_deferred(node);
         if self.kind_of(node) == SyntaxKind::FunctionExpression {
-            self.check_collisions_for_declaration_name(node);
+            let name = self.name_of_node(node);
+            self.check_collisions_for_declaration_name(node, name);
         }
         if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
             && self.is_context_sensitive(node)
@@ -263,12 +264,6 @@ impl<'a> CheckerState<'a> {
         }
         Ok(())
     }
-
-    /// checkCollisionsForDeclarationName (83356-83370) — the
-    /// require/exports/globalPromise/name-collision walk is emit-facing
-    /// bookkeeping plus 5.8-band diagnostics (2441/1212-family via
-    /// checkCollision*); no-op hook until 5.8.
-    pub(crate) fn check_collisions_for_declaration_name(&mut self, _node: NodeId) {}
 
     /// checkSignatureDeclaration (86971) — 5.8-DECL no-op hook.
     fn check_signature_declaration_stub(&mut self, _node: NodeId) {}
@@ -1781,9 +1776,13 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc grammarErrorAtPos (90243): explicit-span grammar error,
-    /// gated on the file having NO parse diagnostics.
-    fn grammar_error_at_pos(
+    /// tsc-port: grammarErrorAtPos @6.0.3
+    /// tsc-hash: 6fbd3a708a6c4276e6337b6db010e4a4dcb92cd0d236abf9f538680414e2603e
+    /// tsc-span: _tsc.js:90224-90231
+    ///
+    /// Explicit-span grammar error, gated on the file having NO parse
+    /// diagnostics. Span arguments are UTF-16 units.
+    pub(crate) fn grammar_error_at_pos(
         &mut self,
         node: NodeId,
         start: u32,

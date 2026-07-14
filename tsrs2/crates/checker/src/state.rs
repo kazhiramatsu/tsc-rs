@@ -316,6 +316,29 @@ pub struct CheckerState<'a> {
     /// index iteration over the IndexSet.
     pub(crate) deferred_nodes: std::collections::HashMap<NodeId, indexmap::IndexSet<NodeId>>,
 
+    // ---- M4 5.8a: checkSourceFileWorker's per-file accumulators ----
+    // tsc potential*Collisions + potentialUnusedRenamedBindingElements
+    // InTypes (46441-46445): cleared at worker entry, drained at the
+    // worker tail. Deliberately ABSENT from UnwindSnapshot: they are
+    // per-FILE accumulators that legitimately grow across elements
+    // (same class as widening_contexts), not transient per-element
+    // stacks. The this/newTarget vectors exist per §0 but their
+    // CaptureThis/CaptureNewTarget pushers are downlevel-emit paths —
+    // drains stay empty until a pusher lands (ledger).
+    pub(crate) potential_this_collisions: Vec<NodeId>,
+    pub(crate) potential_new_target_collisions: Vec<NodeId>,
+    pub(crate) potential_weak_map_set_collisions: Vec<NodeId>,
+    pub(crate) potential_reflect_collisions: Vec<NodeId>,
+    pub(crate) potential_unused_renamed_binding_elements_in_types: Vec<NodeId>,
+    /// tsc deferredGlobalDisposableType (60882) — emptyObjectType memo
+    /// on miss, like the Promise pair above.
+    pub(crate) deferred_global_disposable_type: Option<TypeId>,
+    /// tsc deferredGlobalAsyncDisposableType (60890).
+    pub(crate) deferred_global_async_disposable_type: Option<TypeId>,
+    /// tsc deferredGlobalExtractSymbol (60907): None = uncomputed;
+    /// Some(Some(unknown_symbol)) = miss memo (getter filters it).
+    pub(crate) deferred_global_extract_symbol: Option<Option<SymbolId>>,
+
     // ---- M4 5.5d: name-suggestion state ----
     /// tsc suggestionCount (47423), capped by maximumSuggestionCount
     /// (47424) = 10: the checker-wide Did-you-mean budget. Every
@@ -533,6 +556,14 @@ impl<'a> CheckerState<'a> {
             type_parameter_defaults_in_progress: Vec::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
+            potential_this_collisions: Vec::new(),
+            potential_new_target_collisions: Vec::new(),
+            potential_weak_map_set_collisions: Vec::new(),
+            potential_reflect_collisions: Vec::new(),
+            potential_unused_renamed_binding_elements_in_types: Vec::new(),
+            deferred_global_disposable_type: None,
+            deferred_global_async_disposable_type: None,
+            deferred_global_extract_symbol: None,
             suggestion_count: 0,
             init_global_type_probes: std::collections::HashMap::new(),
             deferred_global_non_nullable_type_alias: None,
@@ -1119,6 +1150,26 @@ impl<'a> CheckerState<'a> {
         }
         self.diagnostics.push(diagnostic);
         self.diagnostics.len() - 1
+    }
+
+    /// tsc-port: errorSkippedOn @6.0.3
+    /// tsc-hash: 2115d9b0e896363e61cba7bc292b4fe0af0c1b19a147c05501ae0ed04c333a86
+    /// tsc-span: _tsc.js:47575-47579
+    ///
+    /// error() + `diagnostic.skippedOn = key` — "noEmit" is the only
+    /// key tsc ever passes (collision band 83235-83353 + the
+    /// __esModule marker 90103), so the flag is key-less here; the
+    /// program layer drops flagged diagnostics when options.noEmit is
+    /// set (filterSemanticDiagnostics, checker/src/lib.rs).
+    pub fn error_skipped_on_no_emit(
+        &mut self,
+        location: Option<NodeId>,
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+    ) -> usize {
+        let mut diagnostic = self.create_error(location, message, args);
+        diagnostic.skipped_on_no_emit = true;
+        self.push_error_diagnostic(diagnostic)
     }
 
     /// error + addRelatedInfo in one shot: the related info rides the

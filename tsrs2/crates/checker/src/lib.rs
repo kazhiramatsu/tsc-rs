@@ -28,6 +28,7 @@ pub mod relpin;
 pub mod resolve;
 pub mod spell;
 pub mod state;
+pub mod statements;
 pub mod structural;
 pub mod unions;
 pub mod variance;
@@ -130,6 +131,27 @@ fn filter_by_comment_directives(
             true
         })
         .collect()
+}
+
+/// tsc-port: filterSemanticDiagnostics @6.0.3
+/// tsc-hash: 5585b227fa5ab80bc9c14222bfcb199f66a2d8fb5d2fa640667c188b5152fa22
+/// tsc-span: _tsc.js:125664-125666
+///
+/// tsc filters each file's getSemanticDiagnostics output with
+/// `!d.skippedOn || !option[d.skippedOn]` (getSemanticDiagnosticsForFile
+/// 123698). The only key any emitter passes is "noEmit" (the checker
+/// collision band 83235-83353 + the __esModule marker 90103), no
+/// parse/bind emitter sets it, and the predicate is per-diagnostic —
+/// so one pass over the aggregate list is equivalent to tsc's
+/// per-file filter. Runs beside filter_by_comment_directives at the
+/// program-layer diagnostics-finalize seam (m4-58 §0 skippedOn).
+fn filter_semantic_diagnostics(
+    diagnostics: &mut tsrs2_diags::DiagnosticList,
+    options: &CompilerOptions,
+) {
+    if options.no_emit == Some(true) {
+        diagnostics.retain(|diagnostic| !diagnostic.skipped_on_no_emit);
+    }
 }
 
 /// Byte-offset line starts with tsc's line-break set (\r\n, \r, \n,
@@ -404,6 +426,7 @@ pub fn check_program_with_libs(
         // getPreEmitDiagnostics / the oracle driver's
         // ts.sortAndDeduplicateDiagnostics; getSyntacticDiagnostics
         // stays per-file unsorted concatenation, matching tsc.
+        filter_semantic_diagnostics(&mut diagnostics, options);
         tsrs2_diags::sort_and_dedupe_diagnostics(&mut diagnostics);
     }
 
