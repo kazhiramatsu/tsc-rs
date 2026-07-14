@@ -2719,8 +2719,10 @@ impl<'a> CheckerState<'a> {
         self.push_error_diagnostic(diagnostic);
     }
 
-    /// checkGrammarExpressionWithTypeArguments (89557-89562).
-    fn check_grammar_expression_with_type_arguments(&mut self, node: NodeId) -> bool {
+    /// tsc-port: checkGrammarExpressionWithTypeArguments @6.0.3
+    /// tsc-hash: 8ce018b7777277c725b0efb48645cf9915b3fd4f177967af6c7c0f67aa52f09c
+    /// tsc-span: _tsc.js:89557-89562
+    pub(crate) fn check_grammar_expression_with_type_arguments(&mut self, node: NodeId) -> bool {
         let (expression, type_arguments) = match self.data_of(node) {
             NodeData::ExpressionWithTypeArguments(data) => (data.expression, data.type_arguments),
             _ => (None, None),
@@ -4780,10 +4782,9 @@ mod tests {
 
     #[test]
     fn enum_member_shift_of_32_or_more_elevates_6807_to_error() {
-        // Oracle: (6807, 14, 7). checkEnumMember (85810) owns the
-        // initializer's expression check and the whole enum statement
-        // is the 5.8 declaration band — containment until then.
-        assert_eq!(checked_rows("enum SH { X = 1 << 33 }\n"), []);
+        // Oracle: (6807, 14, 7) — checkEnumMember (85810) drives the
+        // initializer's expression check since 5.8c.
+        assert_eq!(checked_rows("enum SH { X = 1 << 33 }\n"), [(6807, 14, 7)]);
     }
 
     #[test]

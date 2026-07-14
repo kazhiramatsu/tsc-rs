@@ -139,6 +139,1159 @@ fn line_break_precedes_next_token(text: &str, start: usize) -> bool {
 }
 
 impl<'a> CheckerState<'a> {
+    // ---- §10 decorators band (m4-58; DUAL MODE:
+    // legacy_decorators == options.experimental_decorators) ----
+
+    /// tsc-port: checkDecorators @6.0.3
+    /// tsc-hash: c9d5b1fd8dd418487134d131d2a23dc1575b2a5e9105dc7bf2d1278dd45ece84
+    /// tsc-span: _tsc.js:82744-82783
+    ///
+    /// The checkExternalEmitHelpers probes and markLinkedReferences
+    /// are emit-only no-ops.
+    pub(crate) fn check_decorators(&mut self, node: NodeId) -> CheckResult2<()> {
+        if !crate::js_grammar::can_have_decorators(self.kind_of(node)) {
+            return Ok(());
+        }
+        let source = self.binder.source_of_node(node);
+        let Some(modifiers) = node_util::modifiers_of(source, node) else {
+            return Ok(());
+        };
+        let modifiers = self.nodes_of(Some(modifiers));
+        if !modifiers
+            .iter()
+            .any(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
+        {
+            return Ok(());
+        }
+        let parent = self.parent_of(node);
+        let grandparent = parent.and_then(|parent| self.parent_of(parent));
+        if !self.node_can_be_decorated(
+            self.options.experimental_decorators,
+            node,
+            parent,
+            grandparent,
+        ) {
+            return Ok(());
+        }
+        for modifier in modifiers {
+            if self.kind_of(modifier) == SyntaxKind::Decorator {
+                self.check_decorator(modifier)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: nodeCanBeDecorated @6.0.3
+    /// tsc-hash: 8b586f7c989010d7714f73dc58185bf97470cbc92765727657cc7754e3f72ccd
+    /// tsc-span: _tsc.js:14651-14671
+    ///
+    /// The legacy flavor admits PARAMETER positions the ES flavor
+    /// rejects and rejects private-named/class-expression targets the
+    /// ES flavor admits — never hardcode either mode (risk #14).
+    fn node_can_be_decorated(
+        &self,
+        use_legacy_decorators: bool,
+        node: NodeId,
+        parent: Option<NodeId>,
+        grandparent: Option<NodeId>,
+    ) -> bool {
+        let source = self.binder.source_of_node(node);
+        if use_legacy_decorators
+            && self
+                .name_of_node(node)
+                .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
+        {
+            return false;
+        }
+        match self.kind_of(node) {
+            SyntaxKind::ClassDeclaration => true,
+            SyntaxKind::ClassExpression => !use_legacy_decorators,
+            SyntaxKind::PropertyDeclaration => parent.is_some_and(|parent| {
+                if use_legacy_decorators {
+                    self.kind_of(parent) == SyntaxKind::ClassDeclaration
+                } else {
+                    matches!(
+                        self.kind_of(parent),
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    ) && !node_util::has_syntactic_modifier(source, node, ModifierFlags::ABSTRACT)
+                        && !node_util::has_syntactic_modifier(source, node, ModifierFlags::AMBIENT)
+                }
+            }),
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor | SyntaxKind::MethodDeclaration => {
+                node_util::body_of(source, node).is_some()
+                    && parent.is_some_and(|parent| {
+                        if use_legacy_decorators {
+                            self.kind_of(parent) == SyntaxKind::ClassDeclaration
+                        } else {
+                            matches!(
+                                self.kind_of(parent),
+                                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                            )
+                        }
+                    })
+            }
+            SyntaxKind::Parameter => {
+                if !use_legacy_decorators {
+                    return false;
+                }
+                let Some(parent) = parent else { return false };
+                node_util::body_of(self.binder.source_of_node(parent), parent).is_some()
+                    && matches!(
+                        self.kind_of(parent),
+                        SyntaxKind::Constructor
+                            | SyntaxKind::MethodDeclaration
+                            | SyntaxKind::SetAccessor
+                    )
+                    && self.get_this_parameter_of_function(parent) != Some(node)
+                    && grandparent
+                        .is_some_and(|gp| self.kind_of(gp) == SyntaxKind::ClassDeclaration)
+            }
+            _ => false,
+        }
+    }
+
+    /// tsc getThisParameter (14688) reduced to the declaration side:
+    /// the first parameter when its name is the `this` identifier.
+    fn get_this_parameter_of_function(&self, function: NodeId) -> Option<NodeId> {
+        let parameters = match self.data_of(function) {
+            NodeData::Constructor(data) => data.parameters,
+            NodeData::MethodDeclaration(data) => data.parameters,
+            NodeData::SetAccessor(data) => data.parameters,
+            NodeData::GetAccessor(data) => data.parameters,
+            NodeData::FunctionDeclaration(data) => data.parameters,
+            NodeData::FunctionExpression(data) => data.parameters,
+            _ => None,
+        };
+        let first = self.nodes_of(parameters).first().copied()?;
+        let name = match self.data_of(first) {
+            NodeData::Parameter(data) => data.name?,
+            _ => return None,
+        };
+        self.is_this_identifier(name).then_some(first)
+    }
+
+    /// tsc-port: checkGrammarDecorator @6.0.3
+    /// tsc-hash: 87bdfc153db1d1abfd58e5df7a2ed16372dd3cf063cfa1d6d903c13308101ce6
+    /// tsc-span: _tsc.js:82580-82627
+    fn check_grammar_decorator(&mut self, decorator: NodeId) -> bool {
+        if self.has_parse_diagnostics(decorator) {
+            return false;
+        }
+        let NodeData::Decorator(data) = self.data_of(decorator) else {
+            return false;
+        };
+        let Some(expression) = data.expression else {
+            return false;
+        };
+        let mut node = expression;
+        if self.kind_of(node) == SyntaxKind::ParenthesizedExpression {
+            return false;
+        }
+        let mut can_have_call_expression = true;
+        let mut error_node: Option<NodeId> = None;
+        loop {
+            match self.data_of(node) {
+                NodeData::ExpressionWithTypeArguments(data) => {
+                    let Some(next) = data.expression else { break };
+                    node = next;
+                }
+                NodeData::NonNullExpression(data) => {
+                    let Some(next) = data.expression else { break };
+                    node = next;
+                }
+                NodeData::CallExpression(data) => {
+                    if !can_have_call_expression {
+                        error_node = Some(node);
+                    }
+                    if let Some(question_dot) = data.question_dot_token {
+                        error_node = Some(question_dot);
+                    }
+                    let Some(next) = data.expression else { break };
+                    node = next;
+                    can_have_call_expression = false;
+                }
+                NodeData::PropertyAccessExpression(data) => {
+                    if let Some(question_dot) = data.question_dot_token {
+                        error_node = Some(question_dot);
+                    }
+                    let Some(next) = data.expression else { break };
+                    node = next;
+                    can_have_call_expression = false;
+                }
+                _ => {
+                    if self.kind_of(node) != SyntaxKind::Identifier {
+                        error_node = Some(node);
+                    }
+                    break;
+                }
+            }
+        }
+        if let Some(error_node) = error_node {
+            let index = self.error_at(
+                Some(expression),
+                &diagnostics::Expression_must_be_enclosed_in_parentheses_to_be_used_as_a_decorator,
+                &[],
+            );
+            let related = self.related_info_for_node(
+                error_node,
+                &diagnostics::Invalid_syntax_in_decorator,
+                &[],
+            );
+            self.diagnostics[index].related.push(related);
+            return true;
+        }
+        false
+    }
+
+    /// tsc-port: checkDecorator @6.0.3
+    /// tsc-hash: 8be0ce0cdee3c8c15174b3fe4697c773f73b6373f7f5f145778a0079d717b494
+    /// tsc-span: _tsc.js:82628-82663
+    ///
+    /// checkDeprecatedSignature is a suggestion-band no-op. The
+    /// headMessage switch: the legacy PropertyDeclaration face FALLS
+    /// THROUGH to the Parameter void-or-any head; Parameter itself is
+    /// reachable only under experimental_decorators=true.
+    fn check_decorator(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_decorator(node);
+        let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
+        let return_type = self.get_return_type_of_signature(signature)?;
+        if self.tables.flags_of(return_type).intersects(TypeFlags::ANY) {
+            return Ok(());
+        }
+        let Some(decorator_signature) = self.get_decorator_call_signature(node)? else {
+            return Ok(());
+        };
+        let LinkSlot::Resolved(expected_return_type) =
+            self.signature_of(decorator_signature).resolved_return_type
+        else {
+            return Ok(());
+        };
+        let parent = self
+            .parent_of(node)
+            .expect("decorators hang off their decorated node");
+        let head_message: &'static DiagnosticMessage = match self.kind_of(parent) {
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
+                &diagnostics::Decorator_function_return_type_0_is_not_assignable_to_type_1
+            }
+            SyntaxKind::PropertyDeclaration if !self.options.experimental_decorators => {
+                &diagnostics::Decorator_function_return_type_0_is_not_assignable_to_type_1
+            }
+            SyntaxKind::PropertyDeclaration | SyntaxKind::Parameter => {
+                &diagnostics::Decorator_function_return_type_is_0_but_is_expected_to_be_void_or_any
+            }
+            SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                &diagnostics::Decorator_function_return_type_0_is_not_assignable_to_type_1
+            }
+            _ => unreachable!("nodeCanBeDecorated gates the parent kinds"),
+        };
+        let expression = match self.data_of(node) {
+            NodeData::Decorator(data) => data.expression,
+            _ => None,
+        };
+        self.check_type_assignable_to(return_type, expected_return_type, expression, head_message)?;
+        Ok(())
+    }
+
+    /// tsc-port: getDiagnosticHeadMessageForDecoratorResolution @6.0.3
+    /// tsc-hash: a19523d9a6a7886fd56b87ae40ca6878b1d5bc4505b36a4704f18b9225da86f6
+    /// tsc-span: _tsc.js:77281-77297
+    fn diagnostic_head_message_for_decorator_resolution(
+        &self,
+        node: NodeId,
+    ) -> &'static DiagnosticMessage {
+        let parent = self
+            .parent_of(node)
+            .expect("decorators hang off their decorated node");
+        match self.kind_of(parent) {
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
+                &diagnostics::Unable_to_resolve_signature_of_class_decorator_when_called_as_an_expression
+            }
+            SyntaxKind::Parameter => {
+                &diagnostics::Unable_to_resolve_signature_of_parameter_decorator_when_called_as_an_expression
+            }
+            SyntaxKind::PropertyDeclaration => {
+                &diagnostics::Unable_to_resolve_signature_of_property_decorator_when_called_as_an_expression
+            }
+            SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor => {
+                &diagnostics::Unable_to_resolve_signature_of_method_decorator_when_called_as_an_expression
+            }
+            _ => unreachable!("nodeCanBeDecorated gates the parent kinds"),
+        }
+    }
+
+    /// tsc-port: resolveDecorator @6.0.3
+    /// tsc-hash: 05a1c22981f35b25af51ce8b9aa5a5e84b25919cf2047938ded5ed36208ede3a
+    /// tsc-span: _tsc.js:77298-77331
+    ///
+    /// The no-call-signatures face chains invocationErrorDetails' T0
+    /// head (This_expression_is_not_callable) UNDER the 1238-family
+    /// decorator head — the union constituent detail rows elide (T2
+    /// curtain) like the invocation_error port.
+    fn resolve_decorator(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<SignatureId> {
+        let NodeData::Decorator(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let expression = data
+            .expression
+            .ok_or_else(|| Unsupported::new("decorator without an expression (parse recovery)"))?;
+        let func_type = self.check_expression(expression, CheckMode::NORMAL)?;
+        let apparent_type = self.get_apparent_type(func_type)?;
+        if apparent_type == self.tables.intrinsics.error {
+            return self.resolve_error_call(node);
+        }
+        let call_signatures = self.get_signatures_of_type(apparent_type, SignatureKind::Call)?;
+        let num_construct_signatures = self
+            .get_signatures_of_type(apparent_type, SignatureKind::Construct)?
+            .len();
+        if self.is_untyped_function_call(
+            func_type,
+            apparent_type,
+            call_signatures.len(),
+            num_construct_signatures,
+        )? {
+            return self.resolve_untyped_call(node);
+        }
+        if self.is_potentially_uncalled_decorator(node, &call_signatures)?
+            && self.kind_of(expression) != SyntaxKind::ParenthesizedExpression
+        {
+            let node_str = self.text_of_node(expression)?;
+            self.error_at(
+                Some(node),
+                &diagnostics::_0_accepts_too_few_arguments_to_be_used_as_a_decorator_here_Did_you_mean_to_call_it_first_and_write_0,
+                &[&node_str],
+            );
+            return self.resolve_error_call(node);
+        }
+        let head_message = self.diagnostic_head_message_for_decorator_resolution(node);
+        if call_signatures.is_empty() {
+            // invocationErrorDetails (77167+) reduced to its T0 face:
+            // the not-callable head + the missing-await related row.
+            let awaited = self.get_awaited_type_probe(apparent_type)?;
+            let maybe_missing_await = match awaited {
+                Some(awaited) => !self
+                    .get_signatures_of_type(awaited, SignatureKind::Call)?
+                    .is_empty(),
+                None => false,
+            };
+            let span = self.diag_span_of_node(expression);
+            let chain = MessageChain::new(head_message, &[]).with_next(vec![MessageChain::new(
+                &diagnostics::This_expression_is_not_callable,
+                &[],
+            )]);
+            let mut diagnostic = self.diagnostic_at_span(&span, chain);
+            if maybe_missing_await {
+                diagnostic.related.push(self.related_info_for_node(
+                    expression,
+                    &diagnostics::Did_you_forget_to_use_await,
+                    &[],
+                ));
+            }
+            self.push_error_diagnostic(diagnostic);
+            return self.resolve_error_call(node);
+        }
+        self.resolve_call(
+            node,
+            &call_signatures,
+            check_mode,
+            SignatureFlags::NONE,
+            Some(head_message),
+        )
+    }
+
+    /// tsc-port: isPotentiallyUncalledDecorator @6.0.3
+    /// tsc-hash: e3373547cf258d411ab7f2e7db1ed2347382c118fc0791edb5c75960f98b35a6
+    /// tsc-span: _tsc.js:77469-77471
+    fn is_potentially_uncalled_decorator(
+        &mut self,
+        decorator: NodeId,
+        signatures: &[SignatureId],
+    ) -> CheckResult2<bool> {
+        if signatures.is_empty() {
+            return Ok(false);
+        }
+        for &signature in signatures {
+            let data = self.signature_of(signature);
+            if data.min_argument_count != 0
+                || data.flags.intersects(SignatureFlags::HAS_REST_PARAMETER)
+            {
+                return Ok(false);
+            }
+            let parameter_count = data.parameters.len();
+            if parameter_count >= self.get_decorator_argument_count(decorator, signature)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: getEffectiveDecoratorArguments @6.0.3
+    /// tsc-hash: 5d455de97d258fb7c7000bcbbb726b122b7716afd59ccc7d2115f53901146a12
+    /// tsc-span: _tsc.js:76340-76352
+    ///
+    /// The effective-arg COUNT comes from the DECORATOR SIGNATURE
+    /// alone (ES = 2; legacy = 1/2/3 with the descriptor parameter
+    /// ALWAYS present for method/get/set) — do not conflate with
+    /// getDecoratorArgumentCount's arity ALLOWANCE.
+    fn get_effective_decorator_arguments(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<Vec<EffectiveArg>> {
+        let NodeData::Decorator(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let expression = data
+            .expression
+            .ok_or_else(|| Unsupported::new("decorator without an expression (parse recovery)"))?;
+        let signature = self.get_decorator_call_signature(node)?.ok_or_else(|| {
+            // tsc Debug.fail(): resolveDecorator precedes and its error
+            // faces divert before the argument walk (risk #6 guard).
+            Unsupported::new(
+                "getEffectiveDecoratorArguments without a decorator signature \
+                 (Debug.fail transcription, parse recovery)",
+            )
+        })?;
+        let (pos, end) = {
+            let source = self.binder.source_of_node(expression);
+            let raw = source.arena.node(expression);
+            (raw.pos, raw.end)
+        };
+        let parameters = self.signature_of(signature).parameters.clone();
+        let mut args = Vec::with_capacity(parameters.len());
+        for param in parameters {
+            let ty = self.get_type_of_symbol(param)?;
+            args.push(EffectiveArg::Synthetic {
+                pos,
+                end,
+                ty,
+                is_spread: false,
+                tuple_name_source: None,
+            });
+        }
+        Ok(args)
+    }
+
+    /// tsc-port: getDecoratorArgumentCount @6.0.3
+    /// tsc-hash: 2a65f755b4b632527b1587fdfa02177823fb6675c875b9a2383815618111370e
+    /// tsc-span: _tsc.js:76353-76358
+    fn get_decorator_argument_count(
+        &mut self,
+        node: NodeId,
+        signature: SignatureId,
+    ) -> CheckResult2<usize> {
+        if self.options.experimental_decorators {
+            self.get_legacy_decorator_argument_count(node, signature)
+        } else {
+            Ok(self.get_parameter_count(signature)?.clamp(1, 2))
+        }
+    }
+
+    /// tsc-port: getLegacyDecoratorArgumentCount @6.0.3
+    /// tsc-hash: 15845dcaecff2638c744b4edd1a400e210ac13aaa242e037f0a32d585841f5c2
+    /// tsc-span: _tsc.js:76359-76375
+    ///
+    /// The arity ALLOWANCE for a CANDIDATE decorator function —
+    /// method/get/set vary by the candidate's own parameter count.
+    fn get_legacy_decorator_argument_count(
+        &mut self,
+        node: NodeId,
+        signature: SignatureId,
+    ) -> CheckResult2<usize> {
+        let parent = self
+            .parent_of(node)
+            .expect("decorators hang off their decorated node");
+        Ok(match self.kind_of(parent) {
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => 1,
+            SyntaxKind::PropertyDeclaration => {
+                if node_util::has_syntactic_modifier(
+                    self.binder.source_of_node(parent),
+                    parent,
+                    ModifierFlags::ACCESSOR,
+                ) {
+                    3
+                } else {
+                    2
+                }
+            }
+            SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                if self.signature_of(signature).parameters.len() <= 2 {
+                    2
+                } else {
+                    3
+                }
+            }
+            SyntaxKind::Parameter => 3,
+            _ => unreachable!("nodeCanBeDecorated gates the parent kinds"),
+        })
+    }
+
+    /// tsc-port: getDecoratorCallSignature @6.0.3
+    /// tsc-hash: 32c67a2876b89d298ba7712c49d1d769b5145ba462c91c4300a9ae5f8d0a8d59
+    /// tsc-span: _tsc.js:78699-78701
+    ///
+    /// The ONE mode dispatch (risk #14): every mode read routes
+    /// through options.experimental_decorators.
+    pub(crate) fn get_decorator_call_signature(
+        &mut self,
+        decorator: NodeId,
+    ) -> CheckResult2<Option<SignatureId>> {
+        if self.options.experimental_decorators {
+            self.get_legacy_decorator_call_signature(decorator)
+        } else {
+            self.get_es_decorator_call_signature(decorator)
+        }
+    }
+
+    /// tsc-port: getESDecoratorCallSignature @6.0.3
+    /// tsc-hash: 0578ee79cc80a950ccf2a1d50d605bf87c711ef2e37e75a8b76f99fb60ad02ac
+    /// tsc-span: _tsc.js:78571-78612
+    ///
+    /// getTypeOfNode reduces to getTypeOfSymbol(getSymbolOfDeclaration)
+    /// for class-element declarations (87730). tsc builds the getter/
+    /// setter target and return function types as SEPARATE (equal)
+    /// types — one shared TypeId here is relation-identical. On
+    /// Unsupported unwind the sentinel REVERTS so a later query
+    /// recomputes (tsc cannot fail here).
+    fn get_es_decorator_call_signature(
+        &mut self,
+        decorator: NodeId,
+    ) -> CheckResult2<Option<SignatureId>> {
+        let parent = self
+            .parent_of(decorator)
+            .expect("decorators hang off their decorated node");
+        if let Some(existing) = self.links.node(parent).decorator_signature {
+            return Ok((existing != self.any_signature).then_some(existing));
+        }
+        let sentinel = self.any_signature;
+        self.links
+            .set_node_decorator_signature(self.speculation_depth, parent, Some(sentinel));
+        let computed = self.compute_es_decorator_call_signature(parent);
+        match computed {
+            Ok(result) => {
+                self.links.set_node_decorator_signature(
+                    self.speculation_depth,
+                    parent,
+                    Some(result.unwrap_or(sentinel)),
+                );
+                Ok(result)
+            }
+            Err(err) => {
+                self.links
+                    .set_node_decorator_signature(self.speculation_depth, parent, None);
+                Err(err)
+            }
+        }
+    }
+
+    /// The per-kind body of getESDecoratorCallSignature (span carried
+    /// by the caller).
+    fn compute_es_decorator_call_signature(
+        &mut self,
+        parent: NodeId,
+    ) -> CheckResult2<Option<SignatureId>> {
+        match self.kind_of(parent) {
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
+                let symbol = self.get_symbol_of_declaration(parent)?;
+                let target_type = self.get_type_of_symbol(symbol)?;
+                let context_type = self.create_class_decorator_context_type(target_type)?;
+                Ok(Some(self.create_es_decorator_call_signature(
+                    target_type,
+                    context_type,
+                    target_type,
+                )?))
+            }
+            SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                let Some(class_node) = self.parent_of(parent).filter(|&class_node| {
+                    matches!(
+                        self.kind_of(class_node),
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    )
+                }) else {
+                    return Ok(None);
+                };
+                let value_type = if self.kind_of(parent) == SyntaxKind::MethodDeclaration {
+                    let signature = self.get_signature_from_declaration(parent)?;
+                    self.get_or_create_type_from_signature(signature)?
+                } else {
+                    let symbol = self.get_symbol_of_declaration(parent)?;
+                    self.get_type_of_symbol(symbol)?
+                };
+                let this_type = self.decorator_this_type_of_member(parent, class_node)?;
+                let target_type = match self.kind_of(parent) {
+                    SyntaxKind::GetAccessor => self.create_getter_function_type(value_type),
+                    SyntaxKind::SetAccessor => self.create_setter_function_type(value_type),
+                    _ => value_type,
+                };
+                let context_type = self.create_class_member_decorator_context_type_for_node(
+                    parent, this_type, value_type,
+                )?;
+                Ok(Some(self.create_es_decorator_call_signature(
+                    target_type,
+                    context_type,
+                    target_type,
+                )?))
+            }
+            SyntaxKind::PropertyDeclaration => {
+                let Some(class_node) = self.parent_of(parent).filter(|&class_node| {
+                    matches!(
+                        self.kind_of(class_node),
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    )
+                }) else {
+                    return Ok(None);
+                };
+                let symbol = self.get_symbol_of_declaration(parent)?;
+                let value_type = self.get_type_of_symbol(symbol)?;
+                let this_type = self.decorator_this_type_of_member(parent, class_node)?;
+                let has_accessor_modifier = node_util::has_syntactic_modifier(
+                    self.binder.source_of_node(parent),
+                    parent,
+                    ModifierFlags::ACCESSOR,
+                );
+                let target_type = if has_accessor_modifier {
+                    self.create_class_accessor_decorator_target_type(this_type, value_type)?
+                } else {
+                    self.tables.intrinsics.undefined
+                };
+                let context_type = self.create_class_member_decorator_context_type_for_node(
+                    parent, this_type, value_type,
+                )?;
+                let return_type = if has_accessor_modifier {
+                    self.create_class_accessor_decorator_result_type(this_type, value_type)?
+                } else {
+                    self.create_class_field_decorator_initializer_mutator_type(
+                        this_type, value_type,
+                    )?
+                };
+                Ok(Some(self.create_es_decorator_call_signature(
+                    target_type,
+                    context_type,
+                    return_type,
+                )?))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// tsc-port: getLegacyDecoratorCallSignature @6.0.3
+    /// tsc-hash: f217d821b7868ed9af411efdd1cdc0f74762a3ba48c4589f17ca6fe2ad466049
+    /// tsc-span: _tsc.js:78613-78698
+    ///
+    /// LIVE under experimental_decorators=true only. The memo protocol
+    /// mirrors the ES flavor (sentinel + revert-on-unwind).
+    fn get_legacy_decorator_call_signature(
+        &mut self,
+        decorator: NodeId,
+    ) -> CheckResult2<Option<SignatureId>> {
+        let parent = self
+            .parent_of(decorator)
+            .expect("decorators hang off their decorated node");
+        if let Some(existing) = self.links.node(parent).decorator_signature {
+            return Ok((existing != self.any_signature).then_some(existing));
+        }
+        let sentinel = self.any_signature;
+        self.links
+            .set_node_decorator_signature(self.speculation_depth, parent, Some(sentinel));
+        let computed = self.compute_legacy_decorator_call_signature(parent);
+        match computed {
+            Ok(result) => {
+                self.links.set_node_decorator_signature(
+                    self.speculation_depth,
+                    parent,
+                    Some(result.unwrap_or(sentinel)),
+                );
+                Ok(result)
+            }
+            Err(err) => {
+                self.links
+                    .set_node_decorator_signature(self.speculation_depth, parent, None);
+                Err(err)
+            }
+        }
+    }
+
+    /// The per-kind body of getLegacyDecoratorCallSignature (span
+    /// carried by the caller).
+    fn compute_legacy_decorator_call_signature(
+        &mut self,
+        parent: NodeId,
+    ) -> CheckResult2<Option<SignatureId>> {
+        let void_type = self.tables.intrinsics.void;
+        match self.kind_of(parent) {
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
+                let symbol = self.get_symbol_of_declaration(parent)?;
+                let target_type = self.get_type_of_symbol(symbol)?;
+                let target_param = self.create_synthetic_parameter("target", target_type);
+                let return_type =
+                    self.get_union_type_ex(&[target_type, void_type], UnionReduction::Literal)?;
+                Ok(Some(self.create_synthetic_call_signature(
+                    vec![target_param],
+                    None,
+                    return_type,
+                )))
+            }
+            SyntaxKind::Parameter => {
+                let Some(function) = self.parent_of(parent) else {
+                    return Ok(None);
+                };
+                let function_kind = self.kind_of(function);
+                let is_constructor = function_kind == SyntaxKind::Constructor;
+                let class_parented = self.parent_of(function).is_some_and(|class_node| {
+                    matches!(
+                        self.kind_of(class_node),
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    )
+                });
+                let method_or_setter_in_class = matches!(
+                    function_kind,
+                    SyntaxKind::MethodDeclaration | SyntaxKind::SetAccessor
+                ) && class_parented;
+                if !is_constructor && !method_or_setter_in_class {
+                    return Ok(None);
+                }
+                let this_parameter = self.get_this_parameter_of_function(function);
+                if this_parameter == Some(parent) {
+                    return Ok(None);
+                }
+                let parameters = match self.data_of(function) {
+                    NodeData::Constructor(data) => self.nodes_of(data.parameters),
+                    NodeData::MethodDeclaration(data) => self.nodes_of(data.parameters),
+                    NodeData::SetAccessor(data) => self.nodes_of(data.parameters),
+                    _ => Vec::new(),
+                };
+                let raw_index = parameters
+                    .iter()
+                    .position(|&param| param == parent)
+                    .expect("the decorated parameter sits in its function's list");
+                let index = if this_parameter.is_some() {
+                    raw_index
+                        .checked_sub(1)
+                        .expect("this-parameter precedes decorated parameters")
+                } else {
+                    raw_index
+                };
+                let target_type = if is_constructor {
+                    let class_node = self
+                        .parent_of(function)
+                        .expect("constructors hang off their class");
+                    let symbol = self.get_symbol_of_declaration(class_node)?;
+                    self.get_type_of_symbol(symbol)?
+                } else {
+                    self.get_parent_type_of_class_element(function)?
+                };
+                let key_type = if is_constructor {
+                    self.tables.intrinsics.undefined
+                } else {
+                    self.get_class_element_property_key_type(function)?
+                };
+                let index_type = self.tables.get_number_literal_type(index as f64);
+                let target_param = self.create_synthetic_parameter("target", target_type);
+                let key_param = self.create_synthetic_parameter("propertyKey", key_type);
+                let index_param = self.create_synthetic_parameter("parameterIndex", index_type);
+                Ok(Some(self.create_synthetic_call_signature(
+                    vec![target_param, key_param, index_param],
+                    None,
+                    void_type,
+                )))
+            }
+            SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::PropertyDeclaration => {
+                let class_parented = self.parent_of(parent).is_some_and(|class_node| {
+                    matches!(
+                        self.kind_of(class_node),
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    )
+                });
+                if !class_parented {
+                    return Ok(None);
+                }
+                let is_property = self.kind_of(parent) == SyntaxKind::PropertyDeclaration;
+                let target_type = self.get_parent_type_of_class_element(parent)?;
+                let key_type = self.get_class_element_property_key_type(parent)?;
+                let symbol = self.get_symbol_of_declaration(parent)?;
+                let node_type = self.get_type_of_symbol(symbol)?;
+                let return_type = if is_property {
+                    void_type
+                } else {
+                    self.create_typed_property_descriptor_type(node_type)?
+                };
+                let has_prop_desc = !is_property
+                    || node_util::has_syntactic_modifier(
+                        self.binder.source_of_node(parent),
+                        parent,
+                        ModifierFlags::ACCESSOR,
+                    );
+                let target_param = self.create_synthetic_parameter("target", target_type);
+                let key_param = self.create_synthetic_parameter("propertyKey", key_type);
+                let full_return_type =
+                    self.get_union_type_ex(&[return_type, void_type], UnionReduction::Literal)?;
+                if has_prop_desc {
+                    let descriptor_type = self.create_typed_property_descriptor_type(node_type)?;
+                    let descriptor_param =
+                        self.create_synthetic_parameter("descriptor", descriptor_type);
+                    Ok(Some(self.create_synthetic_call_signature(
+                        vec![target_param, key_param, descriptor_param],
+                        None,
+                        full_return_type,
+                    )))
+                } else {
+                    Ok(Some(self.create_synthetic_call_signature(
+                        vec![target_param, key_param],
+                        None,
+                        full_return_type,
+                    )))
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// thisType selection shared by the ES member arms (78591/78602):
+    /// static members take the class's static type, instance members
+    /// the declared instance type.
+    fn decorator_this_type_of_member(
+        &mut self,
+        member: NodeId,
+        class_node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let class_symbol = self.get_symbol_of_declaration(class_node)?;
+        if self.has_static_modifier(member) {
+            self.get_type_of_symbol(class_symbol)
+        } else {
+            self.get_declared_type_of_symbol_slice(class_symbol)
+        }
+    }
+
+    /// tsc-port: getParentTypeOfClassElement @6.0.3
+    /// tsc-hash: 3c26ce179366efa1cea432822c3cbfb5856061741314073968991eee7610b81c
+    /// tsc-span: _tsc.js:87798-87801
+    fn get_parent_type_of_class_element(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let class_node = self
+            .parent_of(node)
+            .expect("class elements hang off their class");
+        let class_symbol = self.get_symbol_of_declaration(class_node)?;
+        if self.is_static_element(node) {
+            self.get_type_of_symbol(class_symbol)
+        } else {
+            self.get_declared_type_of_symbol_slice(class_symbol)
+        }
+    }
+
+    /// tsc-port: getClassElementPropertyKeyType @6.0.3
+    /// tsc-hash: aac60b64694cdf8eae6dcb0edbef3d765eb1c39c713cd0f3d6fea6c7eeea4b2a
+    /// tsc-span: _tsc.js:87802-87816
+    fn get_class_element_property_key_type(&mut self, element: NodeId) -> CheckResult2<TypeId> {
+        let name = self
+            .name_of_node(element)
+            .ok_or_else(|| Unsupported::new("class element without a name (parse recovery)"))?;
+        match self.data_of(name) {
+            NodeData::Identifier(data) => {
+                let text =
+                    tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned();
+                Ok(self.tables.get_string_literal_type(&text))
+            }
+            NodeData::NumericLiteral(data) => {
+                let text = data.text.clone();
+                Ok(self.tables.get_string_literal_type(&text))
+            }
+            NodeData::StringLiteral(data) => {
+                let text = data.text.clone();
+                Ok(self.tables.get_string_literal_type(&text))
+            }
+            NodeData::ComputedPropertyName(_) => {
+                let name_type = self.check_computed_property_name(name)?;
+                if self.is_type_assignable_to_kind(
+                    name_type,
+                    TypeFlags::ES_SYMBOL_LIKE,
+                    /*strict*/ false,
+                )? {
+                    Ok(name_type)
+                } else {
+                    Ok(self.tables.intrinsics.string)
+                }
+            }
+            _ => Err(Unsupported::new(
+                "getClassElementPropertyKeyType over an unsupported property name \
+                 (Debug.fail transcription, parse recovery)",
+            )),
+        }
+    }
+
+    /// tsc-port: createTypedPropertyDescriptorType @6.0.3
+    /// tsc-hash: 78f79ac1082ac6506db4c68bec7fa63b6e85cea495de72ee075605bd902fc1af
+    /// tsc-span: _tsc.js:61029-61031
+    fn create_typed_property_descriptor_type(
+        &mut self,
+        property_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let target = self.get_global_typed_property_descriptor_type()?;
+        Ok(self.create_type_from_generic_global_type(target, &[property_type]))
+    }
+
+    /// tsc-port: createClassDecoratorContextType @6.0.3
+    /// tsc-hash: 4348c9337457af0838ccc26895dcc8a55ddc408fd694b54829235b2bd8fc478e
+    /// tsc-span: _tsc.js:78468-78473
+    fn create_class_decorator_context_type(&mut self, class_type: TypeId) -> CheckResult2<TypeId> {
+        let target = self.get_global_class_decorator_context_type()?;
+        Ok(self.try_create_type_reference(target, &[class_type]))
+    }
+
+    /// tsc-port: createClassMemberDecoratorContextTypeForNode @6.0.3
+    /// tsc-hash: 225565b05e1d5ce029d3c4e525791d8cbf9a8cc7450d96e60ad0bd71db12c1ed
+    /// tsc-span: _tsc.js:78524-78531
+    ///
+    /// The five per-kind context builders (78474-78503) fold into the
+    /// selector — each is one global lookup + tryCreateTypeReference.
+    fn create_class_member_decorator_context_type_for_node(
+        &mut self,
+        node: NodeId,
+        this_type: TypeId,
+        value_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let is_static = self.has_static_modifier(node);
+        let name = self
+            .name_of_node(node)
+            .ok_or_else(|| Unsupported::new("class element without a name (parse recovery)"))?;
+        let is_private = self.kind_of(name) == SyntaxKind::PrivateIdentifier;
+        let name_type = if is_private {
+            let text = match self.data_of(name) {
+                NodeData::PrivateIdentifier(data) => {
+                    tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                }
+                _ => unreachable!("kind/data agree"),
+            };
+            self.tables.get_string_literal_type(&text)
+        } else {
+            self.get_literal_type_from_property_name(name)?
+        };
+        let target = match self.kind_of(node) {
+            SyntaxKind::MethodDeclaration => {
+                self.get_global_class_method_decorator_context_type()?
+            }
+            SyntaxKind::GetAccessor => self.get_global_class_getter_decorator_context_type()?,
+            SyntaxKind::SetAccessor => self.get_global_class_setter_decorator_context_type()?,
+            SyntaxKind::PropertyDeclaration => {
+                if node_util::has_syntactic_modifier(
+                    self.binder.source_of_node(node),
+                    node,
+                    ModifierFlags::ACCESSOR,
+                ) {
+                    self.get_global_class_accessor_decorator_context_type()?
+                } else {
+                    self.get_global_class_field_decorator_context_type()?
+                }
+            }
+            _ => unreachable!("class-element kinds route here"),
+        };
+        let context_type = self.try_create_type_reference(target, &[this_type, value_type]);
+        let override_type =
+            self.get_class_member_decorator_context_override_type(name_type, is_private, is_static);
+        self.get_intersection_type(
+            &[context_type, override_type],
+            tsrs2_types::IntersectionFlags::NONE,
+        )
+    }
+
+    /// tsc-port: getClassMemberDecoratorContextOverrideType @6.0.3
+    /// tsc-hash: fc32154b76ae590afc366fbe925ed5faf7f9ffe1afd0f0d15a07ae3676a1ef6d
+    /// tsc-span: _tsc.js:78504-78523
+    fn get_class_member_decorator_context_override_type(
+        &mut self,
+        name_type: TypeId,
+        is_private: bool,
+        is_static: bool,
+    ) -> TypeId {
+        let key = format!(
+            "{}{}{}",
+            if is_private { "p" } else { "P" },
+            if is_static { "s" } else { "S" },
+            name_type.0
+        );
+        if let Some(&cached) = self.decorator_context_override_type_cache.get(&key) {
+            return cached;
+        }
+        let boolean_literal = |state: &Self, value: bool| {
+            if value {
+                state.tables.intrinsics.true_fresh
+            } else {
+                state.tables.intrinsics.false_fresh
+            }
+        };
+        let name_prop = self.create_synthetic_property("name", name_type);
+        let private_value = boolean_literal(self, is_private);
+        let private_prop = self.create_synthetic_property("private", private_value);
+        let static_value = boolean_literal(self, is_static);
+        let static_prop = self.create_synthetic_property("static", static_value);
+        let mut members = tsrs2_binder::SymbolTable::default();
+        members.insert("name".to_owned(), name_prop);
+        members.insert("private".to_owned(), private_prop);
+        members.insert("static".to_owned(), static_prop);
+        let override_type = self.create_resolved_empty_anonymous_type(None);
+        let members_id = self
+            .links
+            .ty(override_type)
+            .resolved_members
+            .resolved()
+            .expect("freshly created anonymous types carry resolved members");
+        let resolved = self.members_mut(members_id);
+        resolved.members = members;
+        resolved.properties = vec![name_prop, private_prop, static_prop];
+        self.decorator_context_override_type_cache
+            .insert(key, override_type);
+        override_type
+    }
+
+    /// tsc-port: createClassAccessorDecoratorTargetType @6.0.3
+    /// tsc-hash: 182eb6887993302fe3628cf66bb41ea323863e03962b3c34a3728b093b144cda
+    /// tsc-span: _tsc.js:78532-78537
+    fn create_class_accessor_decorator_target_type(
+        &mut self,
+        this_type: TypeId,
+        value_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let target = self.get_global_class_accessor_decorator_target_type()?;
+        Ok(self.try_create_type_reference(target, &[this_type, value_type]))
+    }
+
+    /// tsc-port: createClassAccessorDecoratorResultType @6.0.3
+    /// tsc-hash: 76a4bc9e9489206589373d1ac7f74509b3784f6a1a5593d0aa04c3b9cf18e385
+    /// tsc-span: _tsc.js:78538-78543
+    fn create_class_accessor_decorator_result_type(
+        &mut self,
+        this_type: TypeId,
+        value_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let target = self.get_global_class_accessor_decorator_result_type()?;
+        Ok(self.try_create_type_reference(target, &[this_type, value_type]))
+    }
+
+    /// tsc-port: createClassFieldDecoratorInitializerMutatorType @6.0.3
+    /// tsc-hash: a8d34b1493af25459a49c375a0d61d6a9d2bc80f8c5df3b3656750262ab01b0d
+    /// tsc-span: _tsc.js:78544-78557
+    fn create_class_field_decorator_initializer_mutator_type(
+        &mut self,
+        this_type: TypeId,
+        value_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let this_param = self.create_synthetic_parameter("this", this_type);
+        let value_param = self.create_synthetic_parameter("value", value_type);
+        let signature =
+            self.create_synthetic_call_signature(vec![value_param], Some(this_param), value_type);
+        Ok(self.create_single_signature_anonymous_type(None, signature))
+    }
+
+    /// tsc-port: createESDecoratorCallSignature @6.0.3
+    /// tsc-hash: de37baad30ee9d12ac824e3d65005186ced51f9d34308ca656b6a27893d3b515
+    /// tsc-span: _tsc.js:78558-78570
+    fn create_es_decorator_call_signature(
+        &mut self,
+        target_type: TypeId,
+        context_type: TypeId,
+        non_optional_return_type: TypeId,
+    ) -> CheckResult2<SignatureId> {
+        let target_param = self.create_synthetic_parameter("target", target_type);
+        let context_param = self.create_synthetic_parameter("context", context_type);
+        let return_type = self.get_union_type_ex(
+            &[non_optional_return_type, self.tables.intrinsics.void],
+            UnionReduction::Literal,
+        )?;
+        Ok(self.create_synthetic_call_signature(
+            vec![target_param, context_param],
+            None,
+            return_type,
+        ))
+    }
+
+    /// tsc-port: createGetterFunctionType @6.0.3
+    /// tsc-hash: 784e4c2a63cd0b21f704d8dbcab0ad09b3da059931ff15dcee37b1a9058a5085
+    /// tsc-span: _tsc.js:82677-82686
+    fn create_getter_function_type(&mut self, ty: TypeId) -> TypeId {
+        let signature = self.create_synthetic_call_signature(Vec::new(), None, ty);
+        self.create_single_signature_anonymous_type(None, signature)
+    }
+
+    /// tsc-port: createSetterFunctionType @6.0.3
+    /// tsc-hash: 895e12d1a6d34af32fa8b57f708a4b66f74a2bb76ec7d830ded3e040a2346cdb
+    /// tsc-span: _tsc.js:82687-82697
+    fn create_setter_function_type(&mut self, ty: TypeId) -> TypeId {
+        let value_param = self.create_synthetic_parameter("value", ty);
+        let signature = self.create_synthetic_call_signature(
+            vec![value_param],
+            None,
+            self.tables.intrinsics.void,
+        );
+        self.create_single_signature_anonymous_type(None, signature)
+    }
+
+    /// tsc createParameter (47659): a transient function-scoped
+    /// variable symbol with links.type.
+    fn create_synthetic_parameter(&mut self, name: &str, ty: TypeId) -> SymbolId {
+        let symbol = self
+            .binder
+            .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, name.to_owned());
+        self.links
+            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(ty));
+        symbol
+    }
+
+    /// tsc createProperty (47664): the transient Property twin.
+    fn create_synthetic_property(&mut self, name: &str, ty: TypeId) -> SymbolId {
+        let symbol = self
+            .binder
+            .create_symbol(SymbolFlags::PROPERTY, name.to_owned());
+        self.links
+            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(ty));
+        symbol
+    }
+
+    /// tsc createCallSignature (82664): declaration-less synthetic
+    /// signature, minArgumentCount = parameters.length (the fabricated
+    /// FunctionTypeNode declaration is display-only — elided; the
+    /// single-signature type creators pin the CALL flavor themselves).
+    fn create_synthetic_call_signature(
+        &mut self,
+        parameters: Vec<SymbolId>,
+        this_parameter: Option<SymbolId>,
+        return_type: TypeId,
+    ) -> SignatureId {
+        let min_argument_count = parameters.len() as u32;
+        self.alloc_signature(crate::state::Signature {
+            declaration: None,
+            flags: SignatureFlags::NONE,
+            type_parameters: None,
+            parameters,
+            this_parameter,
+            min_argument_count,
+            resolved_return_type: LinkSlot::Resolved(return_type),
+            from_method: false,
+            target: None,
+            mapper: None,
+            instantiations: std::collections::HashMap::new(),
+            erased_signature_cache: None,
+            composite_kind: None,
+            composite_signatures: None,
+            optional_call_signature_cache: (None, None),
+            isolated_signature_type: None,
+        })
+    }
+
+    /// tsc-port: tryCreateTypeReference @6.0.3
+    /// tsc-hash: ae88596c2a78b501835a0a4d259d84315f7a262cec928a6402a7137cec511f05
+    /// tsc-span: _tsc.js:60163-60168
+    fn try_create_type_reference(&mut self, target: TypeId, type_arguments: &[TypeId]) -> TypeId {
+        if !type_arguments.is_empty() && target == self.empty_generic_type {
+            return self.tables.intrinsics.unknown;
+        }
+        self.tables.create_type_reference(target, type_arguments)
+    }
+
     // ---- spans ----
 
     /// createDiagnosticForNode's location for `node` (error span +
@@ -319,12 +1472,11 @@ impl<'a> CheckerState<'a> {
                 // callLikeExpressionMayHaveTypeArguments kind) and no
                 // operand to walk.
             }
-            _ => {
-                // Decorators arrive at 5.8.
-                return Err(Unsupported::new(
-                    "resolveUntypedCall operand walk for decorator call-likes (5.8)",
-                ));
+            _ if self.kind_of(node) == SyntaxKind::Decorator => {
+                // 75748-75761: decorators fall through every operand
+                // branch (no type arguments, no operand walk).
             }
+            _ => unreachable!("call-like kinds route here"),
         }
         Ok(self.any_signature)
     }
@@ -555,11 +1707,10 @@ impl<'a> CheckerState<'a> {
                     tuple_name_source: None,
                 }]);
             }
-            _ => {
-                return Err(Unsupported::new(
-                    "getEffectiveCallArguments decorator arm (5.8)",
-                ));
+            _ if self.kind_of(node) == SyntaxKind::Decorator => {
+                return self.get_effective_decorator_arguments(node);
             }
+            _ => unreachable!("call-like kinds route here"),
         };
         let args: Vec<NodeId> = self.nodes_of(arguments);
         let spread_index = args
@@ -772,7 +1923,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             SyntaxKind::Decorator => {
-                unreachable!("resolveDecorator escapes until 5.8")
+                arg_count = self.get_decorator_argument_count(node, signature)?;
             }
             SyntaxKind::BinaryExpression => {
                 arg_count = 1;
@@ -1522,7 +2673,9 @@ impl<'a> CheckerState<'a> {
             NodeData::BinaryExpression(data) => return data.right,
             NodeData::CallExpression(data) => data.expression,
             NodeData::TaggedTemplateExpression(data) => data.tag,
-            // The non-legacy decorator arm is 5.8.
+            // ES decorators take a this-argument from an access-
+            // expression callee; LEGACY decorators take NONE (76281).
+            NodeData::Decorator(data) if !self.options.experimental_decorators => data.expression,
             _ => None,
         }?;
         let callee = self.skip_outer_expressions(expression, OuterExpressionKinds::ALL);
@@ -4278,7 +5431,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TaggedTemplateExpression => {
                 self.resolve_tagged_template_expression(node, check_mode)
             }
-            SyntaxKind::Decorator => Err(Unsupported::new("resolveDecorator (5.8)")),
+            SyntaxKind::Decorator => self.resolve_decorator(node, check_mode),
             SyntaxKind::JsxOpeningFragment
             | SyntaxKind::JsxOpeningElement
             | SyntaxKind::JsxSelfClosingElement => {
@@ -5092,5 +6245,60 @@ mod tests {
             ),
             [(2322, 96, 1)]
         );
+    }
+
+    // ---- 5.8c §10 decorators (oracle: scratchpad probe.sh p9/p13-15,
+    // 2026-07-14; both modes pinned per risk #14) ----
+
+    fn legacy_decorator_options() -> CompilerOptions {
+        CompilerOptions {
+            experimental_decorators: true,
+            ..CompilerOptions::default()
+        }
+    }
+
+    #[test]
+    fn uncalled_decorator_reports_1329_in_both_modes() {
+        // Oracle: (1329, 28, 2) under {} AND experimentalDecorators.
+        let text = "declare function d(): void;\n@d class C {}\n";
+        assert_eq!(checked_rows(text), [(1329, 28, 2)]);
+        assert_eq!(
+            checked_rows_with(text, &legacy_decorator_options()),
+            [(1329, 28, 2)]
+        );
+    }
+
+    #[test]
+    fn legacy_class_decorator_return_mismatch_reports_1270() {
+        // Oracle: (1270, 38, 2) "Decorator function return type
+        // 'number' is not assignable to type 'void | typeof C'".
+        let text = "declare function cd(t: any): number;\n@cd class C {}\n";
+        assert_eq!(
+            checked_rows_with(text, &legacy_decorator_options()),
+            [(1270, 38, 2)]
+        );
+    }
+
+    #[test]
+    fn legacy_method_decorator_key_mismatch_chains_under_1241() {
+        // Oracle: (1241, 75, 2) with the 2345 string-vs-number detail
+        // in the chain tail.
+        let text = "declare function md(target: any, key: number, desc: any): void;\nclass C { @md m(): void {} }\n";
+        assert_eq!(
+            checked_rows_with(text, &legacy_decorator_options()),
+            [(1241, 75, 2)]
+        );
+    }
+
+    #[test]
+    fn es_method_decorator_arity_overflow_reports_1241() {
+        // Oracle: locationless 2318 (ClassMethodDecoratorContext,
+        // noLib — dropped from per-file rows) + (1241, 76, 3) + (1270,
+        // 77, 2): the ES arity allowance clamps to 2, md declares 3.
+        // The 1270 tail's target display `void | (() => void)` rides
+        // the T2 curtain (function-type rendering) — recorded FN; the
+        // legacy 1270 pin above covers the live face.
+        let text = "declare function md(target: any, key: string, desc: any): number;\nclass C { @md m(): void {} }\n";
+        assert_eq!(checked_rows(text), [(1241, 76, 3)]);
     }
 }

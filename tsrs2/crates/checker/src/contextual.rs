@@ -874,6 +874,19 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
+    /// tsc-port: getContextualTypeForDecorator @6.0.3
+    /// tsc-hash: 14ed8418fd06a2894d182f1e99e2938447169457f6081bf5a7e9809141125e62
+    /// tsc-span: _tsc.js:72925-72929
+    fn get_contextual_type_for_decorator(
+        &mut self,
+        decorator: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let Some(signature) = self.get_decorator_call_signature(decorator)? else {
+            return Ok(None);
+        };
+        Ok(Some(self.get_or_create_type_from_signature(signature)?))
+    }
+
     /// tsc-port: getContextualTypeForArgument @6.0.3
     /// tsc-hash: fd4575a68cf6d1f6f7455674078b3c307ffa8b684aa12747ef5ca66c3a85ecc7
     /// tsc-span: _tsc.js:72906-72910
@@ -2385,12 +2398,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::CallExpression | SyntaxKind::NewExpression => {
                 self.get_contextual_type_for_argument(parent, node)
             }
-            SyntaxKind::Decorator => {
-                // [CALLS → 5.7] getContextualTypeForDecorator
-                // (72925-72928): decorator call signatures — recorded
-                // FN.
-                Ok(None)
-            }
+            SyntaxKind::Decorator => self.get_contextual_type_for_decorator(parent),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                 let type_node = match self.data_of(parent) {
                     NodeData::AsExpression(data) => data.r#type,

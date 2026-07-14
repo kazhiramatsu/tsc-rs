@@ -139,8 +139,8 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_variable_like_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let node_kind = self.kind_of(node);
         let is_binding_element = node_kind == SyntaxKind::BindingElement;
-        // Step 1: checkDecorators — named stub (5.8c §10).
-        self.source_element_stub("checkDecorators", "5.8c")?;
+        // Step 1: checkDecorators (§10, live since 5.8c).
+        self.check_decorators(node)?;
         // Step 2: force the annotation subtree (type-node arms §11).
         if !is_binding_element {
             let annotation = self.type_annotation_of(node);
@@ -783,7 +783,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: allowBlockDeclarations @6.0.3
     /// tsc-hash: 98fc5c16b54b669191dffc47e7f4d54910c31f6285f14bf70c13927b6cd6c675
     /// tsc-span: _tsc.js:90163-90177
-    fn allow_block_declarations(&self, parent: NodeId) -> bool {
+    pub(crate) fn allow_block_declarations(&self, parent: NodeId) -> bool {
         match self.kind_of(parent) {
             SyntaxKind::IfStatement
             | SyntaxKind::DoStatement
@@ -1828,8 +1828,13 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// declarationNameToString: source text of the name node.
-    fn declaration_name_display(&self, name: NodeId) -> String {
+    /// tsc-port: declarationNameToString @6.0.3
+    /// tsc-hash: 0235d1d1d103fb899b45422f90dcc310a16e0098754ac0e4cc441a82dbc668fa
+    /// tsc-span: _tsc.js:13854-13856
+    ///
+    /// The anonymous-declaration "(Missing)" face reduces away: every
+    /// caller passes a present name node.
+    pub(crate) fn declaration_name_display(&self, name: NodeId) -> String {
         let source = self.binder.source_of_node(name);
         node_util::declaration_name_to_string(source, Some(name))
     }

@@ -489,9 +489,9 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_of_accessors"
-reason = "computed-name accessor pair (late-bound get/set pairing, 5.8c)"
+reason = "computed-name accessor pair (late-bound get/set pairing, 5.8e lift)"
 class = "stage"
-owner = "5.8c"
+owner = "5.8e"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -686,6 +686,12 @@ owner = "M6"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
+in = "create_class_member_decorator_context_type_for_node"
+reason = "class element without a name (parse recovery)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/calls.rs"
 in = "elaboration_disposition"
 reason = "elaborateArrayLiteral (elementwise elaboration, T2)"
 class = "stage"
@@ -714,16 +720,21 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "get_effective_call_arguments"
-reason = "JSX opening element without attributes (parse recovery)"
+in = "get_class_element_property_key_type"
+reason = "class element without a name (parse recovery)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/calls.rs"
+in = "get_class_element_property_key_type"
+reason = "getClassElementPropertyKeyType over an unsupported property name (Debug.fail transcription, parse recovery)"
 class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "get_effective_call_arguments"
-reason = "getEffectiveCallArguments decorator arm (5.8)"
-class = "stage"
-owner = "5.8"
+reason = "JSX opening element without attributes (parse recovery)"
+class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -735,6 +746,18 @@ class = "recovery"
 file = "crates/checker/src/calls.rs"
 in = "get_effective_call_arguments"
 reason = "tagged template without a template (parse recovery)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/calls.rs"
+in = "get_effective_decorator_arguments"
+reason = "decorator without an expression (parse recovery)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/calls.rs"
+in = "get_effective_decorator_arguments"
+reason = "getEffectiveDecoratorArguments without a decorator signature (Debug.fail transcription, parse recovery)"
 class = "recovery"
 
 [[site]]
@@ -819,6 +842,12 @@ owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
+in = "resolve_decorator"
+reason = "decorator without an expression (parse recovery)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/calls.rs"
 in = "resolve_instanceof_expression"
 reason = "instanceof without a right operand (parse recovery)"
 class = "recovery"
@@ -863,23 +892,9 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "resolve_signature_dispatch"
-reason = "resolveDecorator (5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
 in = "resolve_tagged_template_expression"
 reason = "tagged template without a tag (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "resolve_untyped_call"
-reason = "resolveUntypedCall operand walk for decorator call-likes (5.8)"
-class = "stage"
-owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -904,31 +919,10 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
-in = "check_infer_type"
-reason = "checkInferType multi-declaration identity (areTypeParametersIdentical)5.8c"
-class = "stage"
-owner = "5.8c"
-
-[[site]]
-file = "crates/checker/src/check.rs"
 in = "check_mapped_type"
 reason = "checkMappedType nameType/constraint rows (getNameTypeFromMappedType — mapped types M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkEnumDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkEnumMember5.8"
-class = "stage"
-owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -1032,6 +1026,19 @@ class = "untagged"
 file = "crates/checker/src/check.rs"
 in = "type_to_string_slice_structured"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/class.rs"
+in = "check_class_like_declaration"
+reason = "implements heritage element without an expression (parse recovery)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/class.rs"
+in = "fully_qualified_name_slice"
+reason = "getFullyQualifiedName over a contained symbol (nodeBuilder display, T2)"
 class = "stage"
 owner = "M8"
 
@@ -1185,13 +1192,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/expr.rs"
-in = "check_expression_worker"
-reason = "checkClassExpression5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/expr.rs"
 in = "check_parenthesized_expression"
 reason = "parenthesized expression without operand (parse recovery)"
 class = "recovery"
@@ -1260,13 +1260,6 @@ class = "untagged"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
-in = "check_accessor_declaration"
-reason = "checkDecorators5.8c"
-class = "stage"
-owner = "5.8c"
-
-[[site]]
-file = "crates/checker/src/functions.rs"
 in = "check_all_code_paths_in_non_void_function_return_or_throw"
 reason = "[FLOW M5] implicit-return verdict over a switch/call-bearing body (isReachableFlowNode refinement)"
 class = "stage"
@@ -1286,24 +1279,10 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
-in = "check_function_or_method_declaration"
-reason = "checkDecorators5.8c"
-class = "stage"
-owner = "5.8c"
-
-[[site]]
-file = "crates/checker/src/functions.rs"
 in = "check_grammar_property"
 reason = "ambient-initializer row behind checkGrammarModifiers' decorator rows (M7)"
 class = "stage"
 owner = "M7"
-
-[[site]]
-file = "crates/checker/src/functions.rs"
-in = "check_missing_declaration"
-reason = "checkDecorators5.8c"
-class = "stage"
-owner = "5.8c"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
@@ -1998,13 +1977,6 @@ file = "crates/checker/src/statements.rs"
 in = "check_switch_statement"
 reason = "SwitchStatement recovery node"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/statements.rs"
-in = "check_variable_like_declaration"
-reason = "checkDecorators5.8c"
-class = "stage"
-owner = "5.8c"
 
 [[site]]
 file = "crates/checker/src/statements.rs"

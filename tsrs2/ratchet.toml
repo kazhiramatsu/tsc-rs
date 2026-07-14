@@ -1,8 +1,8 @@
 [t0]
 # rate is display-only once matched/total are present; the gate
 # compares the exact integer counts (zero-regression).
-rate = 0.292796
-matched = 14222
+rate = 0.313549
+matched = 15230
 total = 48573
 allowed_regression = 0.0
 
@@ -11,8 +11,8 @@ rate = 0.0
 allowed_regression = 0.0
 
 [t0-2xxx]
-rate = 0.281577
-matched = 5863
+rate = 0.339737
+matched = 7074
 total = 20822
 allowed_regression = 0.0
 
@@ -40,5 +40,8 @@ max_untagged = 114
 # 5.8b: +8 §5-band malformed-tree guards (ForOfStatement RHS /
 # SpreadElement / parameter- and declaration-boundary recovery in the
 # overload band + getDeclarationSpaces' failBadSyntaxKind arm).
-max_recovery = 99
+# 5.8c: +7 decorator/class-band guards (decorator/heritage/class-
+# element recovery nodes + the getEffectiveDecoratorArguments and
+# getClassElementPropertyKeyType Debug.fail transcriptions, risk #6).
+max_recovery = 106
 

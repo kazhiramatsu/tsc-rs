@@ -730,8 +730,10 @@ fn can_have_illegal_decorators(kind: SyntaxKind) -> bool {
     )
 }
 
-/// tsc canHaveDecorators.
-fn can_have_decorators(kind: SyntaxKind) -> bool {
+/// tsc-port: canHaveDecorators @6.0.3
+/// tsc-hash: 55d6b35e1b66572fa2e24ca5a5d956c35dd1bcbef83c1de2d02e4fe8129b7290
+/// tsc-span: _tsc.js:28263-28266
+pub(crate) fn can_have_decorators(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::Parameter

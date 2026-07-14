@@ -463,6 +463,10 @@ pub struct CheckerState<'a> {
     /// here — m4-checker-skeleton-steps.md 5.0 — so each global starts
     /// resolving the moment 5.1's declared types exist).
     pub(crate) global_type_memos: crate::globals::GlobalTypeMemos,
+    /// tsc decoratorContextOverrideTypeCache (78504): the per-shape
+    /// `{name, private, static}` anonymous-type intern keyed by
+    /// `{p|P}{s|S}{nameType.id}`.
+    pub(crate) decorator_context_override_type_cache: std::collections::HashMap<String, TypeId>,
 
     // ---- M4 5.0: the resolution stack (pushTypeResolution 55728) ----
     pub(crate) resolution_targets: Vec<ResolutionTarget>,
@@ -609,6 +613,7 @@ impl<'a> CheckerState<'a> {
             unknown_symbol,
             pattern_ambient_modules: Vec::new(),
             global_type_memos: Default::default(),
+            decorator_context_override_type_cache: Default::default(),
             resolution_targets: Vec::new(),
             resolution_results: Vec::new(),
             resolution_property_names: Vec::new(),

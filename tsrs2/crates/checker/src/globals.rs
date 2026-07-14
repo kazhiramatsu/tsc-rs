@@ -80,6 +80,21 @@ pub(crate) struct GlobalTypeMemos {
     /// memoized (only a SUCCESS memoizes; emptyObjectType fallback
     /// per call).
     promise_constructor_like: Option<TypeId>,
+    /// deferredGlobalTypedPropertyDescriptorType (60679) — the
+    /// emptyGenericType fallback sits INSIDE the memo assignment (a
+    /// noLib miss reports 2318 once and memoizes the fallback).
+    typed_property_descriptor: Option<TypeId>,
+    /// The §10 decorator context globals (60945-61008) — `??`
+    /// memoized: only a SUCCESS memoizes; the emptyGenericType
+    /// fallback returns per call.
+    class_decorator_context: Option<TypeId>,
+    class_method_decorator_context: Option<TypeId>,
+    class_getter_decorator_context: Option<TypeId>,
+    class_setter_decorator_context: Option<TypeId>,
+    class_accessor_decorator_context: Option<TypeId>,
+    class_accessor_decorator_target: Option<TypeId>,
+    class_accessor_decorator_result: Option<TypeId>,
+    class_field_decorator_context: Option<TypeId>,
 }
 
 impl<'a> CheckerState<'a> {
@@ -571,6 +586,178 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         Ok(self.empty_object_type)
+    }
+
+    /// tsc-port: getGlobalTypedPropertyDescriptorType @6.0.3
+    /// tsc-hash: 22b2b2e9fb21cd1166f25a522e260d82e388d177541a11e582df40400572db3c
+    /// tsc-span: _tsc.js:60679-60687
+    pub(crate) fn get_global_typed_property_descriptor_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.typed_property_descriptor {
+            return Ok(cached);
+        }
+        let resolved = self
+            .get_global_type("TypedPropertyDescriptor", 1, /*report_errors*/ true)?
+            .unwrap_or(self.empty_generic_type);
+        self.global_type_memos.typed_property_descriptor = Some(resolved);
+        Ok(resolved)
+    }
+
+    /// tsc-port: getGlobalClassDecoratorContextType @6.0.3
+    /// tsc-hash: c0ab9cfcf0b2d556e8e5705e833e765174f73537ac631866a5e72d653a0fb824
+    /// tsc-span: _tsc.js:60945-60952
+    pub(crate) fn get_global_class_decorator_context_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.class_decorator_context {
+            return Ok(cached);
+        }
+        let resolved =
+            self.get_global_type("ClassDecoratorContext", 1, /*report_errors*/ true)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.class_decorator_context = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalClassMethodDecoratorContextType @6.0.3
+    /// tsc-hash: 5ed635f5bf4e6fa8680d87e45408498f2de6fd5cf49ee1a9a810af1027816bea
+    /// tsc-span: _tsc.js:60953-60960
+    pub(crate) fn get_global_class_method_decorator_context_type(
+        &mut self,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.class_method_decorator_context {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type(
+            "ClassMethodDecoratorContext",
+            2,
+            /*report_errors*/ true,
+        )?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.class_method_decorator_context = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalClassGetterDecoratorContextType @6.0.3
+    /// tsc-hash: 3e980b8213ad276b5d0226a4251cbdab783e31adae13ab5f89f84cee13d984fb
+    /// tsc-span: _tsc.js:60961-60968
+    pub(crate) fn get_global_class_getter_decorator_context_type(
+        &mut self,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.class_getter_decorator_context {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type(
+            "ClassGetterDecoratorContext",
+            2,
+            /*report_errors*/ true,
+        )?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.class_getter_decorator_context = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalClassSetterDecoratorContextType @6.0.3
+    /// tsc-hash: 6d5f4db36ddf911f42a0a06ded1380d5181f8feddd2c9f420cf42ee43ca4636b
+    /// tsc-span: _tsc.js:60969-60976
+    pub(crate) fn get_global_class_setter_decorator_context_type(
+        &mut self,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.class_setter_decorator_context {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type(
+            "ClassSetterDecoratorContext",
+            2,
+            /*report_errors*/ true,
+        )?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.class_setter_decorator_context = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalClassAccessorDecoratorContextType @6.0.3
+    /// tsc-hash: 9255eb94ba4fae1c52f4535995d838360dbf5fc13e49b35de6c8a03bcf392bb8
+    /// tsc-span: _tsc.js:60977-60984
+    pub(crate) fn get_global_class_accessor_decorator_context_type(
+        &mut self,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.class_accessor_decorator_context {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type(
+            "ClassAccessorDecoratorContext",
+            2,
+            /*report_errors*/ true,
+        )?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.class_accessor_decorator_context = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalClassAccessorDecoratorTargetType @6.0.3
+    /// tsc-hash: 868f31819ef76612705c81014e07d72fa1ab0418521b320133ed5bf7868a944d
+    /// tsc-span: _tsc.js:60985-60992
+    pub(crate) fn get_global_class_accessor_decorator_target_type(
+        &mut self,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.class_accessor_decorator_target {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type(
+            "ClassAccessorDecoratorTarget",
+            2,
+            /*report_errors*/ true,
+        )?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.class_accessor_decorator_target = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalClassAccessorDecoratorResultType @6.0.3
+    /// tsc-hash: 4b64c345ef7a029fa9b3a67d155e932c9c662c158e6caaf10365ae70ec84d3b1
+    /// tsc-span: _tsc.js:60993-61000
+    pub(crate) fn get_global_class_accessor_decorator_result_type(
+        &mut self,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.class_accessor_decorator_result {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type(
+            "ClassAccessorDecoratorResult",
+            2,
+            /*report_errors*/ true,
+        )?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.class_accessor_decorator_result = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalClassFieldDecoratorContextType @6.0.3
+    /// tsc-hash: fa092c061b0e22bc938f2a384bbe4ecb59b1eb038e3b509a3e959f8df55209d2
+    /// tsc-span: _tsc.js:61001-61008
+    pub(crate) fn get_global_class_field_decorator_context_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.class_field_decorator_context {
+            return Ok(cached);
+        }
+        let resolved =
+            self.get_global_type("ClassFieldDecoratorContext", 2, /*report_errors*/ true)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.class_field_decorator_context = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
     }
 
     /// tsc-port: getGlobalTemplateStringsArrayType @6.0.3

@@ -1190,7 +1190,7 @@ impl<'a> CheckerState<'a> {
     /// An undefined declaration kind counts as a CONSTRUCTOR (59972) —
     /// the JSX fake signatures land in constructSignatures (and carry
     /// no symbol: `signature.declaration?.symbol` is undefined).
-    fn get_or_create_type_from_signature(
+    pub(crate) fn get_or_create_type_from_signature(
         &mut self,
         signature: SignatureId,
     ) -> CheckResult2<TypeId> {

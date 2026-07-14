@@ -785,9 +785,12 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    /// tsc isParameterPropertyDeclaration (12440): a constructor
-    /// parameter carrying a parameter-property modifier.
-    fn is_parameter_property_declaration(&self, node: NodeId) -> bool {
+    /// tsc-port: isParameterPropertyDeclaration @6.0.3
+    /// tsc-hash: 88582712711a67bad416cbd2e5f7eac84ac510c85645c56476027783380f9b05
+    /// tsc-span: _tsc.js:11312-11314
+    ///
+    /// The parent param folds into the constructor-parent probe.
+    pub(crate) fn is_parameter_property_declaration(&self, node: NodeId) -> bool {
         self.kind_of(node) == SyntaxKind::Parameter
             && node_util::has_syntactic_modifier(
                 self.binder.source_of_node(node),
@@ -1450,6 +1453,112 @@ impl<'a> CheckerState<'a> {
             .iter()
             .copied()
             .find(|&declaration| self.kind_of(declaration) == kind)
+    }
+
+    // ---- §8 enum drivers (m4-58; the evaluator above is 5.3b) ----
+
+    /// tsc-port: checkEnumDeclaration @6.0.3
+    /// tsc-hash: 6ef7ab60c691ef91d451d73c97da85239617878b3e6c55f0cb32739e872770e4
+    /// tsc-span: _tsc.js:85767-85769
+    ///
+    /// addLazyDiagnostic = eager identity (the worker runs inline).
+    pub(crate) fn check_enum_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_enum_declaration_worker(node)
+    }
+
+    /// tsc-port: checkEnumDeclarationWorker @6.0.3
+    /// tsc-hash: fe02c67ee8f8715c4b3de45b7dec5f11b6bf6ba3831e07b74e0e672972cd0616
+    /// tsc-span: _tsc.js:85770-85809
+    ///
+    /// erasableSyntaxOnly is ABSENT from CompilerOptions (§13 options
+    /// audit) — its row stays dead. computeEnumMemberValues'
+    /// isolatedModules-gated rows stay dead behind the same audit.
+    fn check_enum_declaration_worker(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_modifiers(node);
+        let NodeData::EnumDeclaration(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (name, members) = (data.name, data.members);
+        self.check_collisions_for_declaration_name(node, name);
+        self.check_exports_on_merged_declarations(node)?;
+        for member in self.nodes_of(members) {
+            self.check_source_element(Some(member));
+        }
+        self.compute_enum_member_values(node)?;
+        let enum_symbol = self.get_symbol_of_declaration(node)?;
+        let first_declaration = self.get_declaration_of_kind(enum_symbol, self.kind_of(node));
+        if first_declaration != Some(node) {
+            return Ok(());
+        }
+        let declarations = self.binder.symbol(enum_symbol).declarations.clone();
+        if declarations.len() > 1 {
+            let enum_is_const = self.is_enum_const(node);
+            for &declaration in &declarations {
+                if self.kind_of(declaration) == SyntaxKind::EnumDeclaration
+                    && self.is_enum_const(declaration) != enum_is_const
+                {
+                    let declaration_name = self.name_of_node(declaration);
+                    self.error_at(
+                        declaration_name,
+                        &diagnostics::Enum_declarations_must_all_be_const_or_non_const,
+                        &[],
+                    );
+                }
+            }
+        }
+        let mut seen_enum_missing_initial_initializer = false;
+        for &declaration in &declarations {
+            if self.kind_of(declaration) != SyntaxKind::EnumDeclaration {
+                continue;
+            }
+            let NodeData::EnumDeclaration(declaration_data) = self.data_of(declaration) else {
+                unreachable!("kind/data agree");
+            };
+            let members = self.nodes_of(declaration_data.members);
+            let Some(&first_enum_member) = members.first() else {
+                continue;
+            };
+            let NodeData::EnumMember(member_data) = self.data_of(first_enum_member) else {
+                unreachable!("enum members hold EnumMember data");
+            };
+            if member_data.initializer.is_none() {
+                if seen_enum_missing_initial_initializer {
+                    let member_name = member_data.name;
+                    self.error_at(
+                        member_name,
+                        &diagnostics::In_an_enum_with_multiple_declarations_only_one_declaration_can_omit_an_initializer_for_its_first_enum_element,
+                        &[],
+                    );
+                } else {
+                    seen_enum_missing_initial_initializer = true;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkEnumMember @6.0.3
+    /// tsc-hash: f56bf519db7b2ba271fff1b086aaf2e8516a549852c4e38ba0128f0e8f5dbd3a
+    /// tsc-span: _tsc.js:85810-85817
+    ///
+    /// The initializer checkExpression is idempotent over the
+    /// evaluator's checkExpressionCached demand (m4-58 §8).
+    pub(crate) fn check_enum_member(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::EnumMember(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (name, initializer) = (data.name, data.initializer);
+        if name.is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier) {
+            self.error_at(
+                Some(node),
+                &diagnostics::An_enum_member_cannot_be_named_with_a_private_identifier,
+                &[],
+            );
+        }
+        if let Some(initializer) = initializer {
+            self.check_expression(initializer, tsrs2_types::CheckMode::NORMAL)?;
+        }
+        Ok(())
     }
 }
 

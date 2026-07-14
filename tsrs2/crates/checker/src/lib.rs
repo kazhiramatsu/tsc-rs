@@ -73,6 +73,51 @@ pub(crate) fn is_js_file_name(name: &str) -> bool {
 /// on comment-only lines are detected (the scanner-side directive
 /// collection lands with real comment ranges); multi-line-comment
 /// directives are not handled.
+/// tsc ts-nocheck pragma: extractPragmas walks
+/// getLeadingCommentRanges(text, 0) — single-line comments BEFORE the
+/// first token — and the LAST ts-check/ts-nocheck pragma wins
+/// (processPragmasIntoFields); skipTypeChecking then drops the file's
+/// bind+check diagnostics whole (parse diagnostics stay). Pragma names
+/// lowercase; the name must end at whitespace/colon/EOL like
+/// `@([^\s:]+)`. The 5.8e directive completion replaces this slice
+/// together with the interim line filter below.
+fn has_ts_nocheck_pragma(text: &str) -> bool {
+    let mut rest = text.strip_prefix('\u{FEFF}').unwrap_or(text);
+    let mut nocheck = false;
+    loop {
+        rest = rest.trim_start();
+        if let Some(after) = rest.strip_prefix("//") {
+            let line_end = after.find(['\n', '\r']).unwrap_or(after.len());
+            let comment = &after[..line_end];
+            // singleLinePragmaRegEx: ^///?\s*@([^\s:]+)
+            let body = comment.strip_prefix('/').unwrap_or(comment).trim_start();
+            if let Some(name_and_tail) = body.strip_prefix('@') {
+                let name_end = name_and_tail
+                    .find(|c: char| c.is_whitespace() || c == ':')
+                    .unwrap_or(name_and_tail.len());
+                match name_and_tail[..name_end].to_ascii_lowercase().as_str() {
+                    "ts-nocheck" => nocheck = true,
+                    "ts-check" => nocheck = false,
+                    _ => {}
+                }
+            }
+            rest = &after[line_end..];
+            continue;
+        }
+        if let Some(after) = rest.strip_prefix("/*") {
+            match after.find("*/") {
+                Some(end) => {
+                    rest = &after[end + 2..];
+                    continue;
+                }
+                None => break,
+            }
+        }
+        break;
+    }
+    nocheck
+}
+
 fn filter_by_comment_directives(
     text: &str,
     line_map: &tsrs2_diags::LineMap,
@@ -342,7 +387,7 @@ pub fn check_program_with_libs(
                         .cloned(),
                 );
             }
-        } else {
+        } else if !has_ts_nocheck_pragma(&source_file.text) {
             diagnostics.extend(filter_by_comment_directives(
                 &source_file.text,
                 &source_file.line_map,
@@ -426,6 +471,9 @@ pub fn check_program_with_libs(
             // dropped. Revisit when getGlobalDiagnostics grows a
             // consumer (program-level API, M8).
             if let Some(source) = file_name.as_deref().and_then(|name| by_name.get(name)) {
+                if has_ts_nocheck_pragma(&source.text) {
+                    continue;
+                }
                 diagnostics.extend(filter_by_comment_directives(
                     &source.text,
                     &source.line_map,

@@ -441,8 +441,8 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ClassDeclaration => self.check_class_declaration(node),
             SyntaxKind::InterfaceDeclaration => self.check_interface_declaration(node),
             SyntaxKind::TypeAliasDeclaration => self.check_type_alias_declaration(node),
-            SyntaxKind::EnumDeclaration => self.source_element_stub("checkEnumDeclaration", "5.8"),
-            SyntaxKind::EnumMember => self.source_element_stub("checkEnumMember", "5.8"),
+            SyntaxKind::EnumDeclaration => self.check_enum_declaration(node),
+            SyntaxKind::EnumMember => self.check_enum_member(node),
             SyntaxKind::ModuleDeclaration => {
                 self.source_element_stub("checkModuleDeclaration", "5.8")
             }
@@ -689,45 +689,101 @@ impl<'a> CheckerState<'a> {
 
     // ---- the three declaration arms that own type parameter lists ----
 
-    /// tsc-port: checkInterfaceDeclaration @6.0.3 (5.4 slice)
-    /// tsc-hash: 6df0302c1a4a5645e3939a694ea5810085be32dad26245db8f1531e56511beee
-    /// tsc-span: _tsc.js:85525-85552
+    /// tsc-port: checkInterfaceDeclaration @6.0.3
+    /// tsc-hash: 6fe6388be7f049b58542cc3671974c0e7a0e156d49320e8180940cd69187782d
+    /// tsc-span: _tsc.js:85525-85560
     ///
-    /// 5.4 lands the checkTypeParameters call, the lazy block's leading
-    /// checkTypeNameIsReserved (inline per the eager identity), and the
-    /// member recursion. Elided to 5.8: allowBlockDeclarations grammar,
-    /// checkExportsOnMergedDeclarations, checkTypeParameterListsIdentical,
-    /// the first-declaration base-type assignability block (2430/index
-    /// constraints), checkObjectTypeForDuplicateDeclarations, the
-    /// heritage loop (2312-family + checkTypeReferenceNode), and
-    /// checkTypeForDuplicateIndexSignatures; registerForUnusedIdentifiersCheck
-    /// is inert until M7.
+    /// Whole since 5.8c. addLazyDiagnostic = eager identity: both lazy
+    /// blocks run inline at their queue points. The interface-extends
+    /// relation reports AT node.name with the 2430 head — no
+    /// member-specific elaboration (unlike classes);
+    /// registerForUnusedIdentifiersCheck is inert until M7. A missing
+    /// name (parse recovery) skips the name-anchored lazy block.
     fn check_interface_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
-        self.check_grammar_modifiers(node);
+        if !self.check_grammar_modifiers(node) {
+            self.check_grammar_interface_declaration(node);
+        }
         let NodeData::InterfaceDeclaration(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
         let (name, type_parameters, members) = (data.name, data.type_parameters, data.members);
+        if self
+            .parent_of(node)
+            .is_some_and(|parent| !self.allow_block_declarations(parent))
+        {
+            self.grammar_error_on_node(
+                node,
+                &diagnostics::_0_declarations_can_only_be_declared_inside_a_block,
+                &["interface"],
+            );
+        }
         let type_parameters = self.nodes_of(type_parameters);
         self.check_type_parameters(&type_parameters)?;
         if let Some(name) = name {
             self.check_type_name_is_reserved(name, &diagnostics::Interface_name_cannot_be_0);
         }
+        self.check_exports_on_merged_declarations(node)?;
+        let symbol = self.get_symbol_of_declaration(node)?;
+        self.check_type_parameter_lists_identical(symbol)?;
+        let first_interface_declaration =
+            self.get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration);
+        if first_interface_declaration == Some(node) {
+            if let Some(name) = name {
+                let ty = self.get_declared_type_of_symbol_slice(symbol)?;
+                let type_with_this = self.get_type_with_this_argument(ty, None, false)?;
+                if self.check_inherited_properties_are_identical(ty, name)? {
+                    let this_type = self.this_type_of_class_or_interface(ty);
+                    for base_type in self.get_base_types(ty)? {
+                        let base_with_this =
+                            self.get_type_with_this_argument(base_type, this_type, false)?;
+                        self.check_type_assignable_to(
+                            type_with_this,
+                            base_with_this,
+                            Some(name),
+                            &diagnostics::Interface_0_incorrectly_extends_interface_1,
+                        )?;
+                    }
+                    self.check_index_constraints(ty, symbol, /*is_static_index*/ false)?;
+                }
+            }
+        }
+        self.check_object_type_for_duplicate_declarations(node)?;
+        for heritage_element in self.interface_base_type_nodes(node) {
+            let expression = match self.data_of(heritage_element) {
+                NodeData::ExpressionWithTypeArguments(data) => data.expression,
+                _ => None,
+            };
+            let expression_is_entity = expression.is_some_and(|expression| {
+                let source = self.binder.source_of_node(expression);
+                tsrs2_binder::node_util::is_entity_name_expression(source, expression)
+                    && !tsrs2_binder::node_util::is_optional_chain(source, expression)
+            });
+            if !expression_is_entity {
+                self.error_at(
+                    expression.or(Some(heritage_element)),
+                    &diagnostics::An_interface_can_only_extend_an_identifier_qualified_name_with_optional_type_arguments,
+                    &[],
+                );
+            }
+            self.check_type_reference_node(heritage_element)?;
+        }
         for member in self.nodes_of(members) {
             self.check_source_element(Some(member));
         }
+        self.check_type_for_duplicate_index_signatures(node)?;
         Ok(())
     }
 
-    /// tsc-port: checkTypeAliasDeclaration @6.0.3 (5.4 slice)
-    /// tsc-hash: cb2cf1db95228440b0323ea8ac8544170a95c013e71ba8385b09b5ce3a36345e
-    /// tsc-span: _tsc.js:85561-85585
+    /// tsc-port: checkTypeAliasDeclaration @6.0.3
+    /// tsc-hash: 0913cf2c0e396d42118c7452712bafc208e014da0f657f04666dd295eaaf36ff
+    /// tsc-span: _tsc.js:85561-85579
     ///
-    /// Elided to 5.8: allowBlockDeclarations grammar and
-    /// checkExportsOnMergedDeclarations; registerForUnusedIdentifiersCheck
-    /// is inert until M7. The intrinsic-keyword validity arm is live
-    /// (intrinsicTypeKinds membership == instantiate.rs
-    /// intrinsic_type_kind).
+    /// Whole since 5.8c: the allowBlockDeclarations grammar row and
+    /// checkExportsOnMergedDeclarations join in tsc order —
+    /// name-reserved BEFORE the block row (m4-58 §7);
+    /// registerForUnusedIdentifiersCheck is inert until M7. The
+    /// intrinsic-keyword validity arm is live (intrinsicTypeKinds
+    /// membership == instantiate.rs intrinsic_type_kind).
     fn check_type_alias_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_modifiers(node);
         let NodeData::TypeAliasDeclaration(data) = self.data_of(node) else {
@@ -737,6 +793,17 @@ impl<'a> CheckerState<'a> {
         if let Some(name) = name {
             self.check_type_name_is_reserved(name, &diagnostics::Type_alias_name_cannot_be_0);
         }
+        if self
+            .parent_of(node)
+            .is_some_and(|parent| !self.allow_block_declarations(parent))
+        {
+            self.grammar_error_on_node(
+                node,
+                &diagnostics::_0_declarations_can_only_be_declared_inside_a_block,
+                &["type"],
+            );
+        }
+        self.check_exports_on_merged_declarations(node)?;
         let type_parameters = self.nodes_of(type_parameters);
         self.check_type_parameters(&type_parameters)?;
         let Some(alias_type) = alias_type else {
@@ -764,30 +831,7 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: checkClassDeclaration @6.0.3 (5.4 slice)
-    /// tsc-hash: 3b07c1829619db8554a666700209aa994ea32f0c7371e513ab4e6005bfaa7e88
-    /// tsc-span: _tsc.js:84982-84993
-    ///
-    /// 5.4 keeps the checkClassLikeDeclaration head's
-    /// checkTypeParameters call (84998; getEffectiveTypeParameterDeclarations
-    /// reduces to node.typeParameters in TS files) and the member
-    /// recursion. Everything else in checkClassDeclaration /
-    /// checkClassLikeDeclaration — decorator/name grammar, collisions,
-    /// declared/static type forcing, heritage, index constraints,
-    /// overrides — is 5.8; registerForUnusedIdentifiersCheck is inert
-    /// until M7.
-    fn check_class_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
-        let NodeData::ClassDeclaration(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
-        };
-        let (type_parameters, members) = (data.type_parameters, data.members);
-        let type_parameters = self.nodes_of(type_parameters);
-        self.check_type_parameters(&type_parameters)?;
-        for member in self.nodes_of(members) {
-            self.check_source_element(Some(member));
-        }
-        Ok(())
-    }
+    // checkClassDeclaration moved to class.rs at 5.8c (§6 whole).
 
     // ---- type reference checking ----
 
@@ -800,12 +844,14 @@ impl<'a> CheckerState<'a> {
     /// arm is what makes checkSourceElement(default/constraint) FORCE
     /// references BEFORE hasNonCircularTypeParameterDefault reads the
     /// default slot — the 2716-lands-on-the-second-parameter ordering
-    /// depends on it (oracle-pinned).
-    fn check_type_reference_node(&mut self, node: NodeId) -> CheckResult2<()> {
-        let NodeData::TypeReference(data) = self.data_of(node) else {
-            unreachable!("kind/data agree");
+    /// depends on it (oracle-pinned). Heritage
+    /// ExpressionWithTypeArguments routes here since 5.8c (§6/§7).
+    pub(crate) fn check_type_reference_node(&mut self, node: NodeId) -> CheckResult2<()> {
+        let type_arguments = match self.data_of(node) {
+            NodeData::TypeReference(data) => data.type_arguments,
+            NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
+            _ => unreachable!("kind/data agree"),
         };
-        let type_arguments = data.type_arguments;
         for argument in self.nodes_of(type_arguments) {
             self.check_source_element(Some(argument));
         }
@@ -912,10 +958,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:81682-81702
     ///
     /// getEffectiveTypeArguments is the annotate.rs port (5.2g).
-    /// TypeReference + ImportType route here (the §6 heritage
-    /// generalization family — ExpressionWithTypeArguments joins at
-    /// 5.8c).
-    fn check_type_argument_constraints(
+    /// TypeReference + ImportType route here; heritage
+    /// ExpressionWithTypeArguments joined at 5.8c (§6 generalization).
+    pub(crate) fn check_type_argument_constraints(
         &mut self,
         node: NodeId,
         type_parameters: &[TypeId],
@@ -923,7 +968,8 @@ impl<'a> CheckerState<'a> {
         let type_argument_nodes = match self.data_of(node) {
             NodeData::TypeReference(data) => data.type_arguments,
             NodeData::ImportType(data) => data.type_arguments,
-            _ => unreachable!("TypeReference/ImportType route here until 5.8c heritage"),
+            NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
+            _ => unreachable!("TypeReference/ImportType/heritage route here"),
         };
         let argument_nodes = self.nodes_of(type_argument_nodes);
         let mut type_arguments: Option<Vec<TypeId>> = None;
@@ -1233,10 +1279,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ed384c17a08679e21b2aebb3031c7d2c4116124e7ab40de146483d42d9a4209e
     /// tsc-span: _tsc.js:81957-81978
     ///
-    /// The multi-declaration constraint-identity walk needs
-    /// areTypeParametersIdentical (§6 kit, 5.8c) — that corner is a
-    /// named escape until the kit lands; the grammar row and the
-    /// type-parameter recursion are live.
+    /// Whole since 5.8c: the multi-declaration constraint-identity
+    /// walk consumes the §6 areTypeParametersIdentical kit
+    /// (getTypeParameterDeclarations = decl => [decl], 81969);
+    /// registerForUnusedIdentifiersCheck is inert until M7.
     fn check_infer_type(&mut self, node: NodeId) -> CheckResult2<()> {
         let mut in_extends_clause = false;
         let mut current = Some(node);
@@ -1270,11 +1316,31 @@ impl<'a> CheckerState<'a> {
         self.check_source_element(type_parameter);
         if let Some(type_parameter) = type_parameter {
             let symbol = self.get_symbol_of_declaration(type_parameter)?;
-            if self.binder.symbol(symbol).declarations.len() > 1 {
-                return self.source_element_stub(
-                    "checkInferType multi-declaration identity (areTypeParametersIdentical)",
-                    "5.8c",
-                );
+            if self.binder.symbol(symbol).declarations.len() > 1
+                && !self.links.symbol(symbol).type_parameters_checked
+            {
+                self.links
+                    .set_symbol_type_parameters_checked(self.speculation_depth, symbol);
+                let declared = self.get_declared_type_of_type_parameter(symbol);
+                let declarations: Vec<NodeId> = self
+                    .binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .copied()
+                    .filter(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeParameter)
+                    .collect();
+                if !self.are_type_parameters_identical(&declarations, &[declared])? {
+                    let name = self.symbol_display_name(symbol);
+                    for declaration in declarations {
+                        let declaration_name = self.name_of_node(declaration);
+                        self.error_at(
+                            declaration_name,
+                            &diagnostics::All_declarations_of_0_must_have_identical_constraints,
+                            &[&name],
+                        );
+                    }
+                }
             }
         }
         Ok(())
@@ -1593,7 +1659,10 @@ impl<'a> CheckerState<'a> {
                 Ok(())
             }
             SyntaxKind::Decorator => {
-                unreachable!("resolveDecorator registers deferrals at 5.8")
+                // 86923-86928: overload-failure deferrals re-check the
+                // raw operands like calls.
+                self.resolve_untyped_call(node)?;
+                Ok(())
             }
             SyntaxKind::JsxOpeningElement => {
                 // 86923-86928: an overload-failure deferral over a JSX
@@ -1618,13 +1687,7 @@ impl<'a> CheckerState<'a> {
                     "checkAccessorDeclaration (deferred object-literal accessor, 5.8)",
                 ))
             }
-            SyntaxKind::ClassExpression => {
-                // checkClassExpression's EAGER checkClassLikeDeclaration
-                // escapes whole at 5.5 (§8: heritage/member checks are
-                // one unit) — checkNodeDeferred is never reached, so
-                // the deferred arm stays unreachable until 5.8.
-                unreachable!("checkClassExpression's eager arm escapes until 5.8")
-            }
+            SyntaxKind::ClassExpression => self.check_class_expression_deferred(node),
             SyntaxKind::TypeParameter => self.check_type_parameter_deferred(node),
             SyntaxKind::JsxSelfClosingElement => self.check_jsx_self_closing_element_deferred(node),
             SyntaxKind::JsxElement => self.check_jsx_element_deferred(node),
@@ -1756,6 +1819,21 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
+                // An EXPLICIT tsc headMessage chains OUTERMOST
+                // unconditionally (64860: errorInfo =
+                // chainDiagnosticMessages(errorInfo, headMessage)) —
+                // the reportUnmatchedProperty override and the 2696
+                // head selection replace only the relation-level
+                // GENERIC head. Our conflated signature distinguishes
+                // by message identity: only the generic 2322 head
+                // takes the override paths (the 5.8c class-band heads
+                // 2415/2417/2420/2430 keep their code —
+                // implementingAnInterfaceExtendingClassWithPrivates
+                // pins the 2739→2720 silence).
+                let generic_head = std::ptr::eq(
+                    head_message,
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                );
                 // A failed relation whose SOURCE is the global
                 // Object type selects between a 2696 head (when an
                 // override-flavored deep incompatibility suppressed
@@ -1767,7 +1845,8 @@ impl<'a> CheckerState<'a> {
                 // parserAutomaticSemicolonInsertion1 wants 2322,
                 // objectTypeHidingMembersOfObjectAssignmentCompat2
                 // wants 2696).
-                if self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
+                if generic_head
+                    && self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
                     && self.tables.type_of(source).symbol.is_some()
                     && source == self.global_object_type()?
                 {
@@ -1776,7 +1855,9 @@ impl<'a> CheckerState<'a> {
                          (overrideNextErrorInfo tracking, T2)",
                     ));
                 }
-                if self.report_unmatched_property_head(source, target, error_node)? {
+                if generic_head
+                    && self.report_unmatched_property_head(source, target, error_node)?
+                {
                     return Ok(related);
                 }
                 let source_text = self.type_to_string_slice(source)?;
@@ -2384,19 +2465,29 @@ mod tests {
 
     #[test]
     fn class_property_out_annotation_reports_2636() {
-        // Oracle also reports 2564 (strict property initialization,
-        // 5.8) — a known FN here.
+        // Oracle pair: 2564 (checkPropertyInitialization's
+        // no-constructor face, live since 5.8c) + the variance 2636.
         let diags = checked_diags("class C<out T> { f: (x: T) => void; }\n");
         assert_eq!(
             diags,
-            [(
-                2636,
-                8,
-                5,
-                "Type 'C<sub-T>' is not assignable to type 'C<super-T>' as implied by \
-                 variance annotation."
-                    .to_owned()
-            )]
+            [
+                (
+                    2564,
+                    17,
+                    1,
+                    "Property 'f' has no initializer and is not definitely assigned in the \
+                     constructor."
+                        .to_owned()
+                ),
+                (
+                    2636,
+                    8,
+                    5,
+                    "Type 'C<sub-T>' is not assignable to type 'C<super-T>' as implied by \
+                     variance annotation."
+                        .to_owned()
+                )
+            ]
         );
     }
 

@@ -2356,7 +2356,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult2<()> {
-        self.source_element_stub("checkDecorators", "5.8c")?;
+        self.check_decorators(node)?;
         self.check_signature_declaration(node)?;
         let function_flags = self.get_function_flags(node);
         let name = self.name_of_node(node);
@@ -2904,7 +2904,7 @@ impl<'a> CheckerState<'a> {
                 self.check_grammar_computed_property_name(name);
             }
         }
-        self.source_element_stub("checkDecorators", "5.8c")?;
+        self.check_decorators(node)?;
         self.check_signature_declaration(node)?;
         let is_get = self.kind_of(node) == SyntaxKind::GetAccessor;
         let body = node_util::body_of(source, node);
@@ -3001,8 +3001,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 452c55461683d3ab7d952ca2d6f80d4f55796de22a8e268b0309db7b876edaef
     /// tsc-span: _tsc.js:81670-81672
     pub(crate) fn check_missing_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
-        let _ = node;
-        self.source_element_stub("checkDecorators", "5.8c")
+        self.check_decorators(node)
     }
 
     /// tsc-port: getEffectiveDeclarationFlags @6.0.3
@@ -4530,7 +4529,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarTypeParameterList @6.0.3
     /// tsc-hash: b38e4c29614faf900e080dc6c95f69705bbeab6d9fba40536784f9a966c176e3
     /// tsc-span: _tsc.js:89407-89414
-    fn check_grammar_type_parameter_list(
+    pub(crate) fn check_grammar_type_parameter_list(
         &mut self,
         node: NodeId,
         type_parameters: Option<tsrs2_syntax::NodeArrayId>,
@@ -4987,9 +4986,10 @@ impl<'a> CheckerState<'a> {
         true
     }
 
-    /// createAnonymousType(symbol, emptySymbols, [signature], [], []):
-    /// the returnOnlyType shape (79138).
-    fn create_single_signature_anonymous_type(
+    /// tsrs-native: createAnonymousType(symbol, emptySymbols,
+    /// [signature], [], []) shorthand — the returnOnlyType shape
+    /// (79138); tsc inlines the call at each site.
+    pub(crate) fn create_single_signature_anonymous_type(
         &mut self,
         symbol: Option<SymbolId>,
         signature: crate::state::SignatureId,
