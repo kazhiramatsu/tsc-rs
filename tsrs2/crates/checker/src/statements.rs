@@ -2408,7 +2408,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isIterationStatement @6.0.3
     /// tsc-hash: e3c007a9658a14db85ec10eac1f2ddfc6778a433592040d024484dd5d7fe180d
     /// tsc-span: _tsc.js:12302-12314
-    fn is_iteration_statement(&self, node: NodeId, look_in_labeled_statements: bool) -> bool {
+    pub(crate) fn is_iteration_statement(
+        &self,
+        node: NodeId,
+        look_in_labeled_statements: bool,
+    ) -> bool {
         match self.kind_of(node) {
             SyntaxKind::ForStatement
             | SyntaxKind::ForInStatement
@@ -2928,6 +2932,115 @@ mod tests {
         assert_eq!(
             checked_rows(
                 "declare function obj(o: object): void;\nfunction f(x: unknown) {\n    if (!x) { return; }\n    if (typeof x === 'object') { obj(x); }\n}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn later_guard_does_not_suppress_2345() {
+        // PR #6 review round 2 P1: a guard AFTER the read cannot
+        // narrow it — the [FLOW M5] reach face keys on forward flow.
+        // Oracle: 2345 @74+1.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\n\nf(x);\nif (typeof x === \"string\") {}\n"
+            ),
+            [(2345, 74, 1)]
+        );
+    }
+
+    #[test]
+    fn shadowed_binding_guard_does_not_suppress_2345() {
+        // PR #6 review round 2 P1: the guard's `x` is the block-scoped
+        // shadow, a different BINDING than the outer argument — the
+        // root match compares symbols, not spellings. Oracle: 2345
+        // @130+1.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\n{\n    const x = \"s\";\n    if (typeof x === \"string\") {}\n}\nf(x);\n"
+            ),
+            [(2345, 130, 1)]
+        );
+    }
+
+    #[test]
+    fn unrelated_limb_does_not_suppress_2339() {
+        // PR #6 review round 2 P1: sitting inside `if (true) { ... }`
+        // is not a guarded position for `x` — the limb probe now
+        // requires the CONDITION to mention a root. Oracle: 2339
+        // @60+7.
+        assert_eq!(
+            checked_rows(
+                "interface I { a: number }\ndeclare const x: I;\nif (true) { x.missing; }\n"
+            ),
+            [(2339, 60, 7)]
+        );
+    }
+
+    #[test]
+    fn else_sibling_guard_does_not_suppress_2345() {
+        // Flow out of a then-limb guard rejoins unnarrowed before the
+        // else-limb — the reach face excludes sibling if limbs.
+        // Oracle: 2345 @147+1.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\ndeclare const c: boolean;\nif (c) { if (typeof x === \"string\") {} } else { f(x); }\n"
+            ),
+            [(2345, 147, 1)]
+        );
+    }
+
+    #[test]
+    fn aliased_predicate_call_contains_the_narrowed_argument() {
+        // PR #6 review round 2 P1 (the FP face): tsc narrows `x`
+        // through the aliased predicate call (`const ok = isString(x);
+        // if (ok)`), so the 2345 verdict must contain. Oracle: silent.
+        assert_eq!(
+            checked_rows(
+                "declare function isString(x: unknown): x is string;\ndeclare function take(s: string): void;\ndeclare const x: unknown;\nconst ok = isString(x);\nif (ok) { take(x); }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn non_predicate_call_alias_does_not_suppress_2345() {
+        // The counter-face: `notPred` resolves to a plain boolean
+        // signature — not every call is a guard, and the report
+        // stands. Oracle: 2345 @141+1.
+        assert_eq!(
+            checked_rows(
+                "declare function notPred(x: unknown): boolean;\ndeclare function take(s: string): void;\ndeclare const x: unknown;\nconst ok = notPred(x);\ntake(x);\n"
+            ),
+            [(2345, 141, 1)]
+        );
+    }
+
+    #[test]
+    fn loop_back_edge_guard_contains() {
+        // Containment pin (deliberate FN until M5): inside a shared
+        // loop the back edge can carry a later guard to an earlier
+        // read, so the reach face waives ordering. Oracle reports
+        // 2345 @111+1 here (the rejoin kills the narrowing) — M5's
+        // real flow types reclaim it.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\ndeclare const c: boolean;\nwhile (c) { f(x); if (typeof x === \"string\") {} }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn guard_before_reference_contains() {
+        // Containment pin (deliberate FN until M5): a RELATED guard
+        // BEFORE the read stays contained — the structural reach face
+        // cannot see that the empty limb rejoins. Oracle reports 2345
+        // @103+1 here — M5's real flow types reclaim it.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\nif (typeof x === \"string\") {}\nf(x);\n"
             ),
             []
         );

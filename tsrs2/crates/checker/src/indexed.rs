@@ -1113,11 +1113,12 @@ impl<'a> CheckerState<'a> {
         access_flags: AccessFlags,
         property_name: Option<&str>,
     ) -> CheckResult2<Option<TypeId>> {
-        // [FLOW M5] guard-position gate (5.8a statement-body reach):
-        // tsc runs the ladder over the receiver's FLOW type — a
-        // narrowable receiver under a guard (if/loop/switch bodies,
-        // &&-rights, conditional branches) may be tsc-clean once
-        // narrowing lands. Same shape as the 2339 gate (access.rs).
+        // [FLOW M5] guard gate: tsc runs the ladder over the
+        // receiver's FLOW type — a narrowable receiver with a
+        // RELATED, REACHING guard may be tsc-clean once narrowing
+        // lands. Same shape as the 2339 gate (access.rs); the
+        // reference-targeted probe replaced the old position-only
+        // limb test (PR #6 review round 2).
         let ladder_receiver = match self.data_of(access_expression) {
             NodeData::ElementAccessExpression(data) => data.expression,
             _ => None,
@@ -1126,8 +1127,7 @@ impl<'a> CheckerState<'a> {
             // The INDEX operand narrows too (`switch (k) ...; o[k]`)
             // — probe the whole access expression's roots.
             if self.receiver_may_be_flow_narrowed(receiver)
-                && (self.access_sits_in_guarded_position(access_expression)
-                    || self.flow_guards_narrow_reference(access_expression, access_expression))
+                && self.flow_guards_narrow_reference(access_expression, access_expression)
             {
                 return Err(Unsupported::new(
                     "[FLOW M5] element-access ladder on a narrowable receiver in a guarded position",
