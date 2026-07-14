@@ -388,12 +388,12 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::TypeReference => self.check_type_reference_node(node),
             SyntaxKind::TypePredicate => self.source_element_stub("checkTypePredicate", "5.8"),
-            SyntaxKind::TypeQuery => self.source_element_stub("checkTypeQuery", "5.8"),
-            SyntaxKind::TypeLiteral => self.source_element_stub("checkTypeLiteral", "5.8"),
-            SyntaxKind::ArrayType => self.source_element_stub("checkArrayType", "5.8"),
-            SyntaxKind::TupleType => self.source_element_stub("checkTupleType", "5.8"),
+            SyntaxKind::TypeQuery => self.check_type_query(node),
+            SyntaxKind::TypeLiteral => self.check_type_literal(node),
+            SyntaxKind::ArrayType => self.check_array_type(node),
+            SyntaxKind::TupleType => self.check_tuple_type(node),
             SyntaxKind::UnionType | SyntaxKind::IntersectionType => {
-                self.source_element_stub("checkUnionOrIntersectionType", "5.8")
+                self.check_union_or_intersection_type(node)
             }
             SyntaxKind::ParenthesizedType => {
                 let NodeData::ParenthesizedType(data) = self.data_of(node) else {
@@ -416,23 +416,15 @@ impl<'a> CheckerState<'a> {
                 self.check_source_element(data.r#type);
                 Ok(())
             }
-            SyntaxKind::ThisType => self.source_element_stub("checkThisType", "5.8"),
-            SyntaxKind::TypeOperator => self.source_element_stub("checkTypeOperator", "5.8"),
-            SyntaxKind::ConditionalType => {
-                self.source_element_stub("checkConditionalType", "5.8/M8")
-            }
-            SyntaxKind::InferType => self.source_element_stub("checkInferType", "5.8/M8"),
-            SyntaxKind::TemplateLiteralType => {
-                self.source_element_stub("checkTemplateLiteralType", "5.8")
-            }
-            SyntaxKind::ImportType => self.source_element_stub("checkImportType", "5.8"),
-            SyntaxKind::NamedTupleMember => {
-                self.source_element_stub("checkNamedTupleMember", "5.8")
-            }
-            SyntaxKind::IndexedAccessType => {
-                self.source_element_stub("checkIndexedAccessType", "5.8")
-            }
-            SyntaxKind::MappedType => self.source_element_stub("checkMappedType", "5.8/M8"),
+            SyntaxKind::ThisType => self.check_this_type(node),
+            SyntaxKind::TypeOperator => self.check_type_operator(node),
+            SyntaxKind::ConditionalType => self.check_conditional_type(node),
+            SyntaxKind::InferType => self.check_infer_type(node),
+            SyntaxKind::TemplateLiteralType => self.check_template_literal_type(node),
+            SyntaxKind::ImportType => self.check_import_type(node),
+            SyntaxKind::NamedTupleMember => self.check_named_tuple_member(node),
+            SyntaxKind::IndexedAccessType => self.check_indexed_access_type(node),
+            SyntaxKind::MappedType => self.check_mapped_type(node),
             SyntaxKind::FunctionDeclaration => {
                 self.source_element_stub("checkFunctionDeclaration", "5.8")
             }
@@ -908,15 +900,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:81682-81702
     ///
     /// getEffectiveTypeArguments is the annotate.rs port (5.2g).
+    /// TypeReference + ImportType route here (the §6 heritage
+    /// generalization family — ExpressionWithTypeArguments joins at
+    /// 5.8c).
     fn check_type_argument_constraints(
         &mut self,
         node: NodeId,
         type_parameters: &[TypeId],
     ) -> CheckResult2<bool> {
-        let NodeData::TypeReference(data) = self.data_of(node) else {
-            unreachable!("only TypeReference routes here until import types land");
+        let type_argument_nodes = match self.data_of(node) {
+            NodeData::TypeReference(data) => data.type_arguments,
+            NodeData::ImportType(data) => data.type_arguments,
+            _ => unreachable!("TypeReference/ImportType route here until 5.8c heritage"),
         };
-        let argument_nodes = self.nodes_of(data.type_arguments);
+        let argument_nodes = self.nodes_of(type_argument_nodes);
         let mut type_arguments: Option<Vec<TypeId>> = None;
         let mut mapper = None;
         let mut result = true;
@@ -941,6 +938,563 @@ impl<'a> CheckerState<'a> {
             result = result && checked;
         }
         Ok(result)
+    }
+
+    // ---- §11 type-node arms (m4-58, L81838-82023) ----
+
+    /// tsc-port: checkTypeQuery @6.0.3
+    /// tsc-hash: a286ebe08d784672b568547713b5de7467388c5c12c4164d9ebe414bf021fb16
+    /// tsc-span: _tsc.js:81838-81840
+    fn check_type_query(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.get_type_from_type_query_node(node)?;
+        Ok(())
+    }
+
+    /// tsc-port: checkTypeLiteral @6.0.3
+    /// tsc-hash: af0e82a9973f07ca63af60ceec2148cc5efff3b06708128338038bda9f5c6cf2
+    /// tsc-span: _tsc.js:81841-81850
+    ///
+    /// addLazyDiagnostic = eager identity: the lazy block's forcing +
+    /// index-constraint + duplicate checks run inline (class.rs seed).
+    fn check_type_literal(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::TypeLiteral(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let members = data.members;
+        for member in self.nodes_of(members) {
+            self.check_source_element(Some(member));
+        }
+        let ty = self.get_type_from_type_literal_or_fn_ctor_node(node)?;
+        if let Some(symbol) = self.tables.type_of(ty).symbol {
+            self.check_index_constraints(ty, symbol, /*is_static_index*/ false)?;
+        }
+        self.check_type_for_duplicate_index_signatures(node)?;
+        self.check_object_type_for_duplicate_declarations(node)?;
+        Ok(())
+    }
+
+    /// tsc-port: checkArrayType @6.0.3
+    /// tsc-hash: 7c9a9b2e9c511cfdb0d095a4e1a95b6c58a25c4d9e2365ef7caed76d5478912f
+    /// tsc-span: _tsc.js:81851-81853
+    ///
+    /// Element recursion only — SELF-FORCING ABSENT (no re-entrancy
+    /// trap exposure).
+    fn check_array_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::ArrayType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        self.check_source_element(data.element_type);
+        Ok(())
+    }
+
+    /// tsc-port: checkTupleType @6.0.3
+    /// tsc-hash: 45cdb43dde757cc99bacb74d03e41f5b36753aa7bfa6a61793135a59af7f3df9
+    /// tsc-span: _tsc.js:81854-81888
+    ///
+    /// The self-force rides getTypeFromTypeNode's memo (re-entrancy
+    /// trap §0: reads-before-writes; the write-once panic is the
+    /// tripwire for default-subtree exposure).
+    fn check_tuple_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::TupleType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let elements = self.nodes_of(data.elements);
+        let mut seen_optional_element = false;
+        let mut seen_rest_element = false;
+        for &element in &elements {
+            let mut flags = self.get_tuple_element_flags(element);
+            if flags.intersects(tsrs2_types::ElementFlags::VARIADIC) {
+                let inner = match self.data_of(element) {
+                    NodeData::RestType(data) => data.r#type,
+                    NodeData::NamedTupleMember(data) => data.r#type,
+                    _ => None,
+                };
+                if let Some(inner) = inner {
+                    let ty = self.get_type_from_type_node(inner)?;
+                    if !self.is_array_like_type(ty)? {
+                        self.error_at(
+                            Some(element),
+                            &diagnostics::A_rest_element_type_must_be_an_array_type,
+                            &[],
+                        );
+                        break;
+                    }
+                    if self.is_array_type(ty)?
+                        || self.tables.is_tuple_type(ty)
+                            && self.tuple_combined_flags(ty).intersects(
+                                tsrs2_types::ElementFlags::REST,
+                            )
+                    {
+                        flags |= tsrs2_types::ElementFlags::REST;
+                    }
+                }
+            }
+            if flags.intersects(tsrs2_types::ElementFlags::REST) {
+                if seen_rest_element {
+                    self.grammar_error_on_node(
+                        element,
+                        &diagnostics::A_rest_element_cannot_follow_another_rest_element,
+                        &[],
+                    );
+                    break;
+                }
+                seen_rest_element = true;
+            } else if flags.intersects(tsrs2_types::ElementFlags::OPTIONAL) {
+                if seen_rest_element {
+                    self.grammar_error_on_node(
+                        element,
+                        &diagnostics::An_optional_element_cannot_follow_a_rest_element,
+                        &[],
+                    );
+                    break;
+                }
+                seen_optional_element = true;
+            } else if flags.intersects(tsrs2_types::ElementFlags::REQUIRED) && seen_optional_element
+            {
+                self.grammar_error_on_node(
+                    element,
+                    &diagnostics::A_required_element_cannot_follow_an_optional_element,
+                    &[],
+                );
+                break;
+            }
+        }
+        for element in elements {
+            self.check_source_element(Some(element));
+        }
+        self.get_type_from_type_node(node)?;
+        Ok(())
+    }
+
+    /// type.target.combinedFlags for tuple references.
+    fn tuple_combined_flags(&self, ty: TypeId) -> tsrs2_types::ElementFlags {
+        let target = if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            self.tables.reference_target(ty)
+        } else {
+            ty
+        };
+        match &self.tables.type_of(target).data {
+            TypeData::TupleTarget(data) => data
+                .element_flags
+                .iter()
+                .fold(tsrs2_types::ElementFlags::from_bits(0), |acc, &flags| {
+                    acc | flags
+                }),
+            _ => tsrs2_types::ElementFlags::from_bits(0),
+        }
+    }
+
+    /// tsc-port: checkUnionOrIntersectionType @6.0.3
+    /// tsc-hash: fb99110bb4ec225868bfc2a8215247de48be9c3b4c2e50d4283b5bafc74da82b
+    /// tsc-span: _tsc.js:81889-81892
+    fn check_union_or_intersection_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        let types = match self.data_of(node) {
+            NodeData::UnionType(data) => data.types,
+            NodeData::IntersectionType(data) => data.types,
+            _ => unreachable!("kind/data agree"),
+        };
+        for member in self.nodes_of(types) {
+            self.check_source_element(Some(member));
+        }
+        self.get_type_from_type_node(node)?;
+        Ok(())
+    }
+
+    /// tsc-port: checkIndexedAccessType @6.0.3
+    /// tsc-hash: b9f47c8db7e5d08720094c3f6903c6876193cec060eb761bb3c17332f4834241
+    /// tsc-span: _tsc.js:81919-81923
+    ///
+    /// The CHECK-side of the 5.2g resolver rows: tsc's resolver
+    /// reports through the same helper on access EXPRESSIONS, the
+    /// type-node path reports HERE (pinned against double-reports).
+    fn check_indexed_access_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::IndexedAccessType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (object_type, index_type) = (data.object_type, data.index_type);
+        self.check_source_element(object_type);
+        self.check_source_element(index_type);
+        let resolved = self.get_type_from_indexed_access_type_node(node)?;
+        self.check_indexed_access_index_type(resolved, node)?;
+        Ok(())
+    }
+
+    /// tsc-port: checkMappedType @6.0.3
+    /// tsc-hash: 12a5060787f6d1849d7f77ba2d3beb1f786fb8263e2fcd929c49d5c9673375e4
+    /// tsc-span: _tsc.js:81924-81940
+    ///
+    /// getTypeFromMappedTypeNode is the annotate.rs M8-stub: when the
+    /// resolver escapes, the nameType/constraint rows escape with it —
+    /// the grammar, recursion and reportImplicitAny rows above still
+    /// fire (§11 containment note).
+    fn check_mapped_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_mapped_type(node);
+        let NodeData::MappedType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (type_parameter, name_type, mapped_type) =
+            (data.type_parameter, data.name_type, data.r#type);
+        self.check_source_element(type_parameter);
+        self.check_source_element(name_type);
+        self.check_source_element(mapped_type);
+        if mapped_type.is_none() {
+            let any = self.tables.intrinsics.any;
+            self.report_implicit_any(node, any, None)?;
+        }
+        let ty = self.get_type_from_type_node(node)?;
+        let _ = ty;
+        Err(Unsupported::new(
+            "checkMappedType nameType/constraint rows (getNameTypeFromMappedType — mapped types M8)",
+        ))
+    }
+
+    /// tsc-port: checkGrammarMappedType @6.0.3
+    /// tsc-hash: 802be8a8f24d762dd0798504e86d1e35b61dd97e4cf8c63aa19481b345d72d5c
+    /// tsc-span: _tsc.js:81941-81946
+    fn check_grammar_mapped_type(&mut self, node: NodeId) -> bool {
+        let NodeData::MappedType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let members = self.nodes_of(data.members);
+        if let Some(&first) = members.first() {
+            return self.grammar_error_on_node(
+                first,
+                &diagnostics::A_mapped_type_may_not_declare_properties_or_methods,
+                &[],
+            );
+        }
+        false
+    }
+
+    /// tsc-port: checkThisType @6.0.3
+    /// tsc-hash: 020890db1cf60fb0cc561e6645d70cb91378192c0c86dab624ba13f87ab93ffc
+    /// tsc-span: _tsc.js:81947-81949
+    fn check_this_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.get_type_from_this_type_node(node)?;
+        Ok(())
+    }
+
+    /// tsc-port: checkTypeOperator @6.0.3
+    /// tsc-hash: 887ed97e8defb9d4edfae94a11eec1b2fd95836cc3f6a620fc0ed3ff07edc620
+    /// tsc-span: _tsc.js:81950-81953
+    fn check_type_operator(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_type_operator_node(node);
+        let NodeData::TypeOperator(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        self.check_source_element(data.r#type);
+        Ok(())
+    }
+
+    /// tsc-port: checkConditionalType @6.0.3
+    /// tsc-hash: 8b19e799fa6c783fd212472aae2cac4d26d0969e145ab225d79ef608e80dd573
+    /// tsc-span: _tsc.js:81954-81956
+    ///
+    /// forEachChild recursion ONLY — the M8-stub stays on the annotate
+    /// side, no self-force here.
+    fn check_conditional_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        let source = self.binder.source_of_node(node);
+        let mut children = Vec::new();
+        for_each_child(&source.arena, source.arena.node(node), |child| {
+            children.push(child);
+            false
+        });
+        for child in children {
+            self.check_source_element(Some(child));
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkInferType @6.0.3
+    /// tsc-hash: ed384c17a08679e21b2aebb3031c7d2c4116124e7ab40de146483d42d9a4209e
+    /// tsc-span: _tsc.js:81957-81978
+    ///
+    /// The multi-declaration constraint-identity walk needs
+    /// areTypeParametersIdentical (§6 kit, 5.8c) — that corner is a
+    /// named escape until the kit lands; the grammar row and the
+    /// type-parameter recursion are live.
+    fn check_infer_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        let mut in_extends_clause = false;
+        let mut current = Some(node);
+        while let Some(candidate) = current {
+            let parent = self.parent_of(candidate);
+            if let Some(parent) = parent {
+                if self.kind_of(parent) == SyntaxKind::ConditionalType {
+                    let extends = match self.data_of(parent) {
+                        NodeData::ConditionalType(data) => data.extends_type,
+                        _ => None,
+                    };
+                    if extends == Some(candidate) {
+                        in_extends_clause = true;
+                        break;
+                    }
+                }
+            }
+            current = parent;
+        }
+        if !in_extends_clause {
+            self.grammar_error_on_node(
+                node,
+                &diagnostics::infer_declarations_are_only_permitted_in_the_extends_clause_of_a_conditional_type,
+                &[],
+            );
+        }
+        let NodeData::InferType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let type_parameter = data.type_parameter;
+        self.check_source_element(type_parameter);
+        if let Some(type_parameter) = type_parameter {
+            let symbol = self.get_symbol_of_declaration(type_parameter)?;
+            if self.binder.symbol(symbol).declarations.len() > 1 {
+                return self.source_element_stub(
+                    "checkInferType multi-declaration identity (areTypeParametersIdentical)",
+                    "5.8c",
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkTemplateLiteralType @6.0.3
+    /// tsc-hash: 584dbe841ce2a956ded87bd9c7646da0232693367645061bf3ff5a6989d1b196
+    /// tsc-span: _tsc.js:81979-81986
+    fn check_template_literal_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::TemplateLiteralType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let spans = self.nodes_of(data.template_spans);
+        for span in spans {
+            let span_type = match self.data_of(span) {
+                NodeData::TemplateLiteralTypeSpan(data) => data.r#type,
+                _ => None,
+            };
+            self.check_source_element(span_type);
+            if let Some(span_type) = span_type {
+                let ty = self.get_type_from_type_node(span_type)?;
+                let constraint = self.tables.intrinsics.template_constraint;
+                self.check_type_assignable_to(
+                    ty,
+                    constraint,
+                    Some(span_type),
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                )?;
+            }
+        }
+        self.get_type_from_type_node(node)?;
+        Ok(())
+    }
+
+    /// tsc-port: checkImportType @6.0.3
+    /// tsc-hash: e300b9504ef6915d0ee8b66eee8c536bf348750ed9a5a320144d96aac474ff56
+    /// tsc-span: _tsc.js:81987-81996
+    ///
+    /// The `assert`-deprecation row is LIVE (ignoreDeprecations is
+    /// absent, §13); the token is reconstructed from source text
+    /// (the node data carries no token field). The
+    /// getResolutionModeOverride grammar validation is a named escape
+    /// (5.8d §9 — resolution-mode plumbing).
+    fn check_import_type(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::ImportType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (argument, attributes) = (data.argument, data.attributes);
+        self.check_source_element(argument);
+        if let Some(attributes) = attributes {
+            let source = self.binder.source_of_node(attributes);
+            let pos = source.arena.node(attributes).pos as usize;
+            let (token_start, token_end) =
+                tsrs2_binder::node_util::get_span_of_token_at_position(source, pos);
+            let is_with = &source.text[token_start..token_end] == "with";
+            if !is_with {
+                self.grammar_error_on_first_token(
+                    attributes,
+                    &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
+                    &[],
+                );
+            }
+            self.source_element_stub("getResolutionModeOverride", "5.8d")?;
+        }
+        self.check_type_reference_or_import(node, {
+            let NodeData::ImportType(data) = self.data_of(node) else {
+                unreachable!("kind/data agree");
+            };
+            data.type_arguments.is_some()
+        })
+    }
+
+    /// tsc-port: checkNamedTupleMember @6.0.3
+    /// tsc-hash: d4d925e652a06dede81d11ea41937e9285024be36e62e01e7c02ae8cf38acda8
+    /// tsc-span: _tsc.js:81997-82009
+    fn check_named_tuple_member(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::NamedTupleMember(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (dot_dot_dot, question, member_type) =
+            (data.dot_dot_dot_token, data.question_token, data.r#type);
+        if dot_dot_dot.is_some() && question.is_some() {
+            self.grammar_error_on_node(
+                node,
+                &diagnostics::A_tuple_member_cannot_be_both_optional_and_rest,
+                &[],
+            );
+        }
+        if let Some(member_type) = member_type {
+            match self.kind_of(member_type) {
+                SyntaxKind::OptionalType => {
+                    self.grammar_error_on_node(
+                        member_type,
+                        &diagnostics::A_labeled_tuple_element_is_declared_as_optional_with_a_question_mark_after_the_name_and_before_the_colon_rather_than_after_the_type,
+                        &[],
+                    );
+                }
+                SyntaxKind::RestType => {
+                    self.grammar_error_on_node(
+                        member_type,
+                        &diagnostics::A_labeled_tuple_element_is_declared_as_rest_with_a_before_the_name_rather_than_before_the_type,
+                        &[],
+                    );
+                }
+                _ => {}
+            }
+        }
+        self.check_source_element(member_type);
+        self.get_type_from_type_node(node)?;
+        Ok(())
+    }
+
+    /// tsc-port: checkGrammarTypeOperatorNode @6.0.3
+    /// tsc-hash: 1d1ac27cc886851d1df8f00399ac752d935cdc56b0eda59d59fd918de563d38f
+    /// tsc-span: _tsc.js:89894-89937
+    ///
+    /// The JSDoc host arms are JS-only (elided).
+    fn check_grammar_type_operator_node(&mut self, node: NodeId) -> bool {
+        let NodeData::TypeOperator(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (operator, operand) = (data.operator, data.r#type);
+        if operator == SyntaxKind::UniqueKeyword {
+            let Some(operand) = operand else {
+                return false;
+            };
+            if self.kind_of(operand) != SyntaxKind::SymbolKeyword {
+                return self.grammar_error_on_node(
+                    operand,
+                    &diagnostics::_0_expected,
+                    &["symbol"],
+                );
+            }
+            // walkUpParenthesizedTypes.
+            let mut parent = self.parent_of(node);
+            while let Some(candidate) = parent {
+                if self.kind_of(candidate) != SyntaxKind::ParenthesizedType {
+                    break;
+                }
+                parent = self.parent_of(candidate);
+            }
+            let Some(parent) = parent else {
+                return false;
+            };
+            match self.kind_of(parent) {
+                SyntaxKind::VariableDeclaration => {
+                    let name = self.name_of_node(parent);
+                    let Some(name) = name else { return false };
+                    if self.kind_of(name) != SyntaxKind::Identifier {
+                        return self.grammar_error_on_node(
+                            node,
+                            &diagnostics::unique_symbol_types_may_not_be_used_on_a_variable_declaration_with_a_binding_name,
+                            &[],
+                        );
+                    }
+                    let list = self.parent_of(parent);
+                    let in_variable_statement = list.is_some_and(|list| {
+                        self.kind_of(list) == SyntaxKind::VariableDeclarationList
+                            && self.parent_of(list).is_some_and(|statement| {
+                                self.kind_of(statement) == SyntaxKind::VariableStatement
+                            })
+                    });
+                    if !in_variable_statement {
+                        return self.grammar_error_on_node(
+                            node,
+                            &diagnostics::unique_symbol_types_are_only_allowed_on_variables_in_a_variable_statement,
+                            &[],
+                        );
+                    }
+                    let list_is_const = list.is_some_and(|list| {
+                        self.node_flags(list) & tsrs2_types::NodeFlags::CONST.bits() != 0
+                    });
+                    if !list_is_const {
+                        return self.grammar_error_on_node(
+                            name,
+                            &diagnostics::A_variable_whose_type_is_a_unique_symbol_type_must_be_const,
+                            &[],
+                        );
+                    }
+                }
+                SyntaxKind::PropertyDeclaration => {
+                    let source = self.binder.source_of_node(parent);
+                    let is_static = tsrs2_binder::node_util::has_syntactic_modifier(
+                        source,
+                        parent,
+                        tsrs2_types::ModifierFlags::STATIC,
+                    );
+                    let is_readonly = tsrs2_binder::node_util::has_syntactic_modifier(
+                        source,
+                        parent,
+                        tsrs2_types::ModifierFlags::READONLY,
+                    );
+                    if !is_static || !is_readonly {
+                        let name = self.name_of_node(parent);
+                        return self.grammar_error_on_node(
+                            name.unwrap_or(parent),
+                            &diagnostics::A_property_of_a_class_whose_type_is_a_unique_symbol_type_must_be_both_static_and_readonly,
+                            &[],
+                        );
+                    }
+                }
+                SyntaxKind::PropertySignature => {
+                    let source = self.binder.source_of_node(parent);
+                    let is_readonly = tsrs2_binder::node_util::has_syntactic_modifier(
+                        source,
+                        parent,
+                        tsrs2_types::ModifierFlags::READONLY,
+                    );
+                    if !is_readonly {
+                        let name = self.name_of_node(parent);
+                        return self.grammar_error_on_node(
+                            name.unwrap_or(parent),
+                            &diagnostics::A_property_of_an_interface_or_type_literal_whose_type_is_a_unique_symbol_type_must_be_readonly,
+                            &[],
+                        );
+                    }
+                }
+                _ => {
+                    return self.grammar_error_on_node(
+                        node,
+                        &diagnostics::unique_symbol_types_are_not_allowed_here,
+                        &[],
+                    );
+                }
+            }
+        } else if operator == SyntaxKind::ReadonlyKeyword {
+            if let Some(operand) = operand {
+                if !matches!(
+                    self.kind_of(operand),
+                    SyntaxKind::ArrayType | SyntaxKind::TupleType
+                ) {
+                    return self.grammar_error_on_first_token(
+                        node,
+                        &diagnostics::readonly_type_modifier_is_only_permitted_on_array_and_tuple_literal_types,
+                        &["symbol"],
+                    );
+                }
+            }
+        }
+        false
     }
 
     // ---- deferred nodes ----

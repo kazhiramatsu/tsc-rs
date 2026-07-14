@@ -794,7 +794,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTupleElementFlags @6.0.3
     /// tsc-hash: 20a58237c33ac7f48b75470a5b7ff6badfc7c8190624917b6bb38a95fad11224
     /// tsc-span: _tsc.js:61041-61052
-    fn get_tuple_element_flags(&self, node: NodeId) -> ElementFlags {
+    pub(crate) fn get_tuple_element_flags(&self, node: NodeId) -> ElementFlags {
         match self.data_of(node) {
             NodeData::OptionalType(_) => ElementFlags::OPTIONAL,
             NodeData::RestType(data) => self.get_rest_type_element_flags(data.r#type),
@@ -1054,7 +1054,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Alias symbols (getAliasSymbolForTypeNode) are M4; the JSDoc
     /// array-type wrap is JS-only.
-    fn get_type_from_type_literal_or_fn_ctor_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_type_from_type_literal_or_fn_ctor_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
@@ -1187,7 +1187,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeFromThisTypeNode @6.0.3
     /// tsc-hash: 5f298805f1bf4351822f0b77399acba5c31dff7ee616d8f1efed35ea03d4c9da
     /// tsc-span: _tsc.js:63160-63166
-    fn get_type_from_this_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_type_from_this_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
@@ -1446,7 +1446,8 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Vec<TypeId>> {
         let argument_nodes = match self.data_of(node) {
             NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-            _ => unreachable!("getEffectiveTypeArguments reads TypeReference nodes here"),
+            NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
+            _ => unreachable!("TypeReference/ImportType route here until 5.8c heritage"),
         };
         let mut resolved = Vec::with_capacity(argument_nodes.len());
         for argument in argument_nodes {
@@ -1563,7 +1564,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeFromIndexedAccessTypeNode @6.0.3
     /// tsc-hash: bfdb8d46e15236842742a4ae54bf26a85b7605b13304de4118efae469dfbed94
     /// tsc-span: _tsc.js:62612-62621
-    fn get_type_from_indexed_access_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_type_from_indexed_access_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
@@ -2053,7 +2054,7 @@ impl<'a> CheckerState<'a> {
     /// collapses to exactly this while identifiers carry their
     /// declared types (flow narrowing is M5; type arguments on typeof
     /// are `typeof f<...>` instantiation expressions, 5.2/M6).
-    fn get_type_from_type_query_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_type_from_type_query_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }

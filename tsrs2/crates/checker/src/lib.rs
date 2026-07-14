@@ -4,6 +4,7 @@ pub mod access;
 pub mod annotate;
 pub mod calls;
 pub mod check;
+pub mod class;
 pub mod constraints;
 pub mod contextual;
 pub mod engine;
