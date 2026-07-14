@@ -1,39 +1,33 @@
 # tsc-rs
 
-`tsc-rs` is a Rust implementation of TypeScript checker behavior, focused on
-reproducing `tsc` diagnostics closely enough for differential testing.
+`tsc-rs` is a Rust port of the TypeScript compiler (tsc 6.0.3), focused on
+reproducing `tsc` diagnostics byte-for-byte, verified by differential
+testing against the real `tsc` oracle over the TypeScript conformance
+corpus.
 
 ## Repository Layout
 
-- `src/`: Rust checker, parser, binder, diagnostics, and harness code.
-- `lib/`: TypeScript library declarations used by the checker.
-- `difftest/`: diagnostic comparison tooling and corpus files.
-- `conf/`: generated conformance-case tooling.
-- `scripts/`: repository-maintained helper scripts.
-- `docs/`: project notes and handoff documentation.
+- `tsrs2/`: the active codebase — a self-contained Cargo workspace with
+  its own conformance corpus (`tsrs2/ts-tests/`) and pinned TypeScript
+  oracle (`tsrs2/vendor/typescript-6.0.3/`).
+- `docs/`: design documentation. `docs/design/greenfield/` is
+  authoritative for `tsrs2/`; the remaining documents are v1-era notes
+  kept for historical cross-references.
 
-## Current Status
+The v1 implementation that previously lived at the repository root
+(`src/` and its tooling) is preserved at tag [`v1-final`]. Check out
+that tag to resume it; its `scripts/bootstrap.sh` rebuilds the corpus
+and oracle it needs.
 
-The checker is measured against the real `tsc` oracle over ~5,900 conformance
-fixtures. As of the latest sweep it reaches **~62% gate-filtered exact
-file-level diagnostic match**, climbing monotonically with zero shipped
-regressions (every change passes a hard "0 new false positives" gate).
+## Verification
 
-Foundations in place: the control-flow graph resolver is the sole flow engine
-(the earlier fact-stack is retired), unused-locals/members mirror `tsc`, and the
-comparable relation plus generic-signature inference match `tsc`'s structure.
-The remaining conformance work - priorities, per-workstream designs with
-step-by-step implementation guides, the mandatory verification protocol, a
-pinned knowledge base, the architectural stall playbook, and a from-scratch
-rebuild design - is documented under [docs/design/](docs/design/README.md).
-**Start any handoff there.** See [docs/setup.md](docs/setup.md) for the
-verification environment and [docs/determinism-design.md](docs/determinism-design.md)
-for the flow-engine and determinism design.en-check
+All gates run from `tsrs2/`:
+
+```sh
+cd tsrs2
+cargo xtask ci            # full gate suite (must be green on main)
+cargo xtask conformance   # conformance sweep (optionally --band 2xxx)
 ```
-
-`verify.sh` resolves paths from this checkout by default. Override `TSRS_ROOT`,
-`TSRS_WORK`, `TSRS_LIB`, `TSRS_BIN_RELEASE`, or `TSRS_ORACLE` if you need to use
-external artifacts.
 
 ## License
 
