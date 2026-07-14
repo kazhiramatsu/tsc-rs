@@ -161,6 +161,15 @@ pub enum ResolutionTarget {
     Node(NodeId),
 }
 
+#[derive(Clone, Debug, Default)]
+pub(crate) struct FlowContainmentCandidates {
+    pub alias_declarations: Vec<NodeId>,
+    pub guard_nodes: Vec<NodeId>,
+}
+
+pub(crate) type FlowContainmentIndex =
+    std::collections::HashMap<Option<NodeId>, FlowContainmentCandidates>;
+
 pub struct CheckerState<'a> {
     pub binder: ProgramBinder<'a>,
     pub options: &'a CompilerOptions,
@@ -420,6 +429,11 @@ pub struct CheckerState<'a> {
     pub(crate) flow_type_cache: Option<std::collections::HashMap<NodeId, TypeId>>,
     /// tsc flowInvocationCount (46433).
     pub(crate) flow_invocation_count: u32,
+    /// tsrs-native temporary [FLOW M5] containment index. It caches
+    /// syntax candidates only (per source and nearest function scope),
+    /// so each failed diagnostic need not walk the whole source again.
+    pub(crate) flow_containment_indexes:
+        std::cell::RefCell<std::collections::HashMap<NodeId, FlowContainmentIndex>>,
 
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
@@ -584,6 +598,7 @@ impl<'a> CheckerState<'a> {
             flow_loop_count: 0,
             flow_type_cache: None,
             flow_invocation_count: 0,
+            flow_containment_indexes: Default::default(),
             has_global_augmentation: false,
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),
