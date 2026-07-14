@@ -83,6 +83,15 @@ pub(crate) fn is_js_file_name(name: &str) -> bool {
 /// together with the interim line filter below.
 fn has_ts_nocheck_pragma(text: &str) -> bool {
     let mut rest = text.strip_prefix('\u{FEFF}').unwrap_or(text);
+    // getLeadingCommentRanges starts after a leading shebang. Keep
+    // the shebang itself out of the pragma scan so the following
+    // leading comments are still visible.
+    if let Some(after) = rest.strip_prefix("#!") {
+        let line_end = after
+            .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+            .unwrap_or(after.len());
+        rest = &after[line_end..];
+    }
     let mut nocheck = false;
     loop {
         rest = rest.trim_start();
@@ -373,12 +382,13 @@ pub fn check_program_with_libs(
         // requires knowing a directive suppressed NOTHING, and the
         // checker's diagnostic surface is still FN-heavy — emitting it
         // now would fabricate 2578s wherever we under-report (FP).
+        let no_check = has_ts_nocheck_pragma(&source_file.text);
         if is_js_file_name(&source_file.file_name) {
             // canIncludeBindAndCheckDiagnostics: an EXPLICIT checkJs:
             // false fails isPlainJsFile (checkJs must be undefined)
             // AND isCheckJs — the file skips bind/check diagnostics
             // entirely.
-            if options.check_js != Some(false) {
+            if !no_check && options.check_js != Some(false) {
                 diagnostics.extend(
                     binder
                         .bind_diagnostics
@@ -387,7 +397,7 @@ pub fn check_program_with_libs(
                         .cloned(),
                 );
             }
-        } else if !has_ts_nocheck_pragma(&source_file.text) {
+        } else if !no_check {
             diagnostics.extend(filter_by_comment_directives(
                 &source_file.text,
                 &source_file.line_map,
@@ -450,7 +460,11 @@ pub fn check_program_with_libs(
             }
             let javascript_file = file_name.as_deref().is_some_and(is_js_file_name);
             if javascript_file {
-                if options.check_js != Some(false) {
+                let no_check = file_name
+                    .as_deref()
+                    .and_then(|name| by_name.get(name))
+                    .is_some_and(|source| has_ts_nocheck_pragma(&source.text));
+                if !no_check && options.check_js != Some(false) {
                     diagnostics.extend(file_diagnostics.into_iter().filter(|diagnostic| {
                         plain_js_errors::is_plain_js_error(diagnostic.code())
                     }));
@@ -664,6 +678,36 @@ mod tests {
             pins,
             [(8006, 0, 27), (8006, 37, 6), (8006, 56, 18), (8003, 75, 11)]
         );
+    }
+
+    #[test]
+    fn ts_nocheck_suppresses_checked_js_diagnostics() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "// @ts-nocheck\nlet x;\nlet x;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    }
+
+    #[test]
+    fn ts_nocheck_after_shebang_suppresses_semantic_diagnostics() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "#!/usr/bin/env node\n// @ts-nocheck\nconst value: string = 1;\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     }
 
     // ---- lib-loading L2: lib-backed programs (oracle-pinned) ----

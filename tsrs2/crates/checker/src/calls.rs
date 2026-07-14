@@ -6301,4 +6301,10 @@ mod tests {
         let text = "declare function md(target: any, key: string, desc: any): number;\nclass C { @md m(): void {} }\n";
         assert_eq!(checked_rows(text), [(1241, 76, 3)]);
     }
+
+    #[test]
+    fn es_decorator_arrow_receives_contextual_call_signature() {
+        let text = "@((value, context) => { context.nonexistent; return value; })\nclass C {}\ninterface ClassDecoratorContext<T> {}\n";
+        assert_eq!(checked_rows(text), [(2339, 32, 11)]);
+    }
 }

@@ -7,10 +7,9 @@
 //!
 //! Stage-boundary escapes in this module (m4-55-expression-extraction.md
 //! §0/§4 dispositions):
-//! - [CALLS → 5.7] argument/decorator/tagged-template contextual arms
-//!   answer None (tsc computes a type from the resolved signature; our
-//!   None is an FN risk logged per arm) — EXCEPT the self-contained
-//!   isImportCall arm, which ports.
+//! - [CALLS → 5.7/5.8] argument, decorator, and tagged-template
+//!   contextual arms are live, including the self-contained
+//!   isImportCall arm.
 //! - [ITER → 5.5f/5.8] yield-operand arm answers None; generator
 //!   filters inside return-type arms escape.
 //! - [ASYNC → 5.5f] awaited-family arms escape once a contextual type
@@ -884,7 +883,19 @@ impl<'a> CheckerState<'a> {
         let Some(signature) = self.get_decorator_call_signature(decorator)? else {
             return Ok(None);
         };
-        Ok(Some(self.get_or_create_type_from_signature(signature)?))
+        if let Some(cached) = self.signature_of(signature).isolated_signature_type {
+            return Ok(Some(cached));
+        }
+        // The upstream synthetic signature owns a fabricated
+        // FunctionTypeNode declaration, which makes
+        // getOrCreateTypeFromSignature create a CALL type. Our
+        // display-only declaration is elided, so pin that flavor here;
+        // declaration-less JSX fake signatures intentionally remain
+        // construct signatures in the generic helper.
+        let contextual_type = self.create_single_signature_anonymous_type(None, signature);
+        self.tables.type_mut(contextual_type).object_flags |= ObjectFlags::SINGLE_SIGNATURE_TYPE;
+        self.signature_mut(signature).isolated_signature_type = Some(contextual_type);
+        Ok(Some(contextual_type))
     }
 
     /// tsc-port: getContextualTypeForArgument @6.0.3
@@ -2359,11 +2370,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 02e025b3e9c853ac1497ab5d7bd33875c5e78ff40065cf2b8f3febad76aa2316
     /// tsc-span: _tsc.js:73471-73556
     ///
-    /// Arm dispositions per the extraction doc §4 table; the remaining
-    /// None answers ([CALLS] decorator arm) are recorded FNs, not
-    /// escapes — a contextual type is optional and the un-stubbing
-    /// stage lifts them in place. The yield-operand arm is live since
-    /// 5.8b.
+    /// Arm dispositions per the extraction doc §4 table; the CALLS
+    /// contextual arms are live through decorators. The yield-operand
+    /// arm is live since 5.8b.
     pub(crate) fn get_contextual_type(
         &mut self,
         node: NodeId,

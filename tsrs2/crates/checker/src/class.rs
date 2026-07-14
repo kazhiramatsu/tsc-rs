@@ -943,7 +943,13 @@ impl<'a> CheckerState<'a> {
                 };
                 let pos = {
                     let source = self.binder.source_of_node(node);
-                    source.arena.node_array(types).pos
+                    let byte_pos = source.arena.node_array(types).pos;
+                    source
+                        .line_map
+                        .byte_to_utf16
+                        .get(byte_pos as usize)
+                        .copied()
+                        .unwrap_or(byte_pos)
                 };
                 return self.grammar_error_at_pos(
                     node,
@@ -1199,7 +1205,7 @@ impl<'a> CheckerState<'a> {
                     0
                 };
                 let member_name = self.effective_property_name_for_property_name_node(name)?;
-                if let Some(member_name) = member_name {
+                if let Some(member_name) = member_name.filter(|name| !name.is_empty()) {
                     let meaning = match self.kind_of(member) {
                         SyntaxKind::GetAccessor => GET_ACCESSOR,
                         SyntaxKind::SetAccessor => SET_ACCESSOR,
@@ -2267,6 +2273,22 @@ mod tests {
         let text =
             "interface I1 { a: number }\ninterface I2 { a: string }\ninterface I3 extends I1, I2 {}\n";
         assert_eq!(checked_rows(text), [(2320, 64, 2)]);
+    }
+
+    #[test]
+    fn empty_string_class_members_do_not_conflict() {
+        assert_eq!(
+            checked_rows("class C { \"\": number; \"\": string; }\n"),
+            [(2717, 22, 2)]
+        );
+    }
+
+    #[test]
+    fn empty_heritage_list_position_is_utf16() {
+        assert_eq!(
+            checked_rows("const é = 0; class C implements {}\n"),
+            [(1097, 31, 0)]
+        );
     }
 
     #[test]
