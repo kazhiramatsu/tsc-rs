@@ -42,10 +42,12 @@ pub struct CompilerOptions {
     /// unreachable statements, but the comma-operator 2695 gate reads
     /// plain falsiness (`!compilerOptions.allowUnreachableCode`).
     pub allow_unreachable_code: Option<bool>,
-    /// tsc checkJs: an EXPLICIT false turns bind/check diagnostics off
-    /// for JS files entirely (canIncludeBindAndCheckDiagnostics —
-    /// isPlainJsFile requires checkJs === undefined); true is the
-    /// checkJs band (JS checking semantics largely unported).
+    /// tsc checkJs: absent per-file directives, an EXPLICIT false turns
+    /// bind/check diagnostics off for JS files
+    /// (canIncludeBindAndCheckDiagnostics — isPlainJsFile requires
+    /// checkJs === undefined). A per-file @ts-check/@ts-nocheck
+    /// overrides the option; true is the checkJs band (JS checking
+    /// semantics largely unported).
     pub check_js: Option<bool>,
     /// M4 5.5d access band: index-signature reads union in missingType
     /// (checkPropertyAccessExpressionOrQualifiedName 75301,
