@@ -267,7 +267,7 @@ impl<'a> CheckerState<'a> {
     /// Live from 5.5a (checkExpressionStatement's head); the
     /// EmptyStatement/DebuggerStatement arm and checkBlock's Block arm
     /// were already routed here as 5.4 stub hooks.
-    fn check_grammar_statement_in_ambient_context(&mut self, node: NodeId) {
+    pub(crate) fn check_grammar_statement_in_ambient_context(&mut self, node: NodeId) {
         if self.node_flags(node) & tsrs2_types::NodeFlags::AMBIENT.bits() == 0 {
             return;
         }
@@ -439,23 +439,21 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::Block | SyntaxKind::ModuleBlock => self.check_block(node),
             SyntaxKind::VariableStatement => self.check_variable_statement(node),
             SyntaxKind::ExpressionStatement => self.check_expression_statement(node),
-            SyntaxKind::IfStatement => self.source_element_stub("checkIfStatement", "5.8"),
-            SyntaxKind::DoStatement => self.source_element_stub("checkDoStatement", "5.8"),
-            SyntaxKind::WhileStatement => self.source_element_stub("checkWhileStatement", "5.8"),
-            SyntaxKind::ForStatement => self.source_element_stub("checkForStatement", "5.8"),
-            SyntaxKind::ForInStatement => self.source_element_stub("checkForInStatement", "5.8"),
-            SyntaxKind::ForOfStatement => self.source_element_stub("checkForOfStatement", "5.8"),
+            SyntaxKind::IfStatement => self.check_if_statement(node),
+            SyntaxKind::DoStatement => self.check_do_statement(node),
+            SyntaxKind::WhileStatement => self.check_while_statement(node),
+            SyntaxKind::ForStatement => self.check_for_statement(node),
+            SyntaxKind::ForInStatement => self.check_for_in_statement(node),
+            SyntaxKind::ForOfStatement => self.check_for_of_statement(node),
             SyntaxKind::ContinueStatement | SyntaxKind::BreakStatement => {
-                self.source_element_stub("checkBreakOrContinueStatement", "5.8")
+                self.check_break_or_continue_statement(node)
             }
-            SyntaxKind::ReturnStatement => self.source_element_stub("checkReturnStatement", "5.8"),
-            SyntaxKind::WithStatement => self.source_element_stub("checkWithStatement", "5.8"),
-            SyntaxKind::SwitchStatement => self.source_element_stub("checkSwitchStatement", "5.8"),
-            SyntaxKind::LabeledStatement => {
-                self.source_element_stub("checkLabeledStatement", "5.8")
-            }
-            SyntaxKind::ThrowStatement => self.source_element_stub("checkThrowStatement", "5.8"),
-            SyntaxKind::TryStatement => self.source_element_stub("checkTryStatement", "5.8"),
+            SyntaxKind::ReturnStatement => self.check_return_statement(node),
+            SyntaxKind::WithStatement => self.check_with_statement(node),
+            SyntaxKind::SwitchStatement => self.check_switch_statement(node),
+            SyntaxKind::LabeledStatement => self.check_labeled_statement(node),
+            SyntaxKind::ThrowStatement => self.check_throw_statement(node),
+            SyntaxKind::TryStatement => self.check_try_statement(node),
             SyntaxKind::VariableDeclaration => self.check_variable_declaration(node),
             SyntaxKind::BindingElement => self.check_binding_element(node),
             SyntaxKind::ClassDeclaration => self.check_class_declaration(node),
@@ -509,7 +507,7 @@ impl<'a> CheckerState<'a> {
     /// M5 flow state (no field yet), and registerForUnusedIdentifiersCheck
     /// is inert until M7 (worker note) — both branches reduce to the
     /// statement loop.
-    fn check_block(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_block(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.kind_of(node) == SyntaxKind::Block {
             self.check_grammar_statement_in_ambient_context(node);
         }

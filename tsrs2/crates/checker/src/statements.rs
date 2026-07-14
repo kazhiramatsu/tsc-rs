@@ -24,7 +24,7 @@
 //!   are JS-only (M2 3.4c residual); TS-file variable symbols never
 //!   carry the Alias flag here.
 
-use tsrs2_binder::{node_util, SymbolId};
+use tsrs2_binder::node_util;
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{CheckMode, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId};
@@ -1742,10 +1742,926 @@ impl<'a> CheckerState<'a> {
             .unwrap_or(byte as u32)
     }
 
+
+    /// tsc getContainingFunctionOrClassStaticBlock (14612): nearest
+    /// function-like or class-static-block ancestor.
+    fn get_containing_function_or_class_static_block(&self, node: NodeId) -> Option<NodeId> {
+        let mut current = self.parent_of(node);
+        while let Some(candidate) = current {
+            if node_util::is_function_like_kind(self.kind_of(candidate))
+                || self.kind_of(candidate) == SyntaxKind::ClassStaticBlockDeclaration
+            {
+                return Some(candidate);
+            }
+            current = self.parent_of(candidate);
+        }
+        None
+    }
+
     /// getModuleInstanceState through the binder's cached walk.
     fn module_instance_state_of(&self, node: NodeId) -> tsrs2_binder::containers::ModuleInstanceState {
         let source = self.binder.source_of_node(node);
         let mut visited = std::collections::HashMap::new();
         tsrs2_binder::containers::get_module_instance_state(source, node, &mut visited)
+    }
+}
+
+// ---- §3 control statements ----
+// (The truthiness kit + the known-truthy-callable/awaitable/enum
+// condition band live in operators.rs — the 5.5e conditional-
+// expression face; §3's statement callers route there.)
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: checkIfStatement @6.0.3
+    /// tsc-hash: 2b63e389f5aac26a193f562defbd10f1bf73b620ec6293432cd8ab8318954da4
+    /// tsc-span: _tsc.js:83626-83635
+    pub(crate) fn check_if_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_statement_in_ambient_context(node);
+        let NodeData::IfStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (expression, then_statement, else_statement) =
+            (data.expression, data.then_statement, data.else_statement);
+        let Some(expression) = expression else {
+            return Err(Unsupported::new("IfStatement recovery node"));
+        };
+        let ty = self.check_truthiness_expression(expression, CheckMode::NORMAL)?;
+        self.check_testing_known_truthy_callable_or_awaitable_or_enum_member_type(
+            expression,
+            ty,
+            then_statement,
+        )?;
+        self.check_source_element(then_statement);
+        if let Some(then_statement) = then_statement {
+            if self.kind_of(then_statement) == SyntaxKind::EmptyStatement {
+                self.error_at(
+                    Some(then_statement),
+                    &diagnostics::The_body_of_an_if_statement_cannot_be_the_empty_statement,
+                    &[],
+                );
+            }
+        }
+        self.check_source_element(else_statement);
+        Ok(())
+    }
+
+    /// tsc-port: checkDoStatement @6.0.3
+    /// tsc-hash: 57686e3d150a3f2ac5f1e97af5f1337d8bbf1461eda3360d5c2808e93744e0b2
+    /// tsc-span: _tsc.js:83738-83742
+    pub(crate) fn check_do_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_statement_in_ambient_context(node);
+        let NodeData::DoStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (statement, expression) = (data.statement, data.expression);
+        self.check_source_element(statement);
+        if let Some(expression) = expression {
+            self.check_truthiness_expression(expression, CheckMode::NORMAL)?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkWhileStatement @6.0.3
+    /// tsc-hash: 241a76e376f4046953222221e540da949932dfe134639342bf04abed3629c625
+    /// tsc-span: _tsc.js:83743-83747
+    pub(crate) fn check_while_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_statement_in_ambient_context(node);
+        let NodeData::WhileStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (expression, statement) = (data.expression, data.statement);
+        if let Some(expression) = expression {
+            self.check_truthiness_expression(expression, CheckMode::NORMAL)?;
+        }
+        self.check_source_element(statement);
+        Ok(())
+    }
+
+    /// tsc-port: checkForStatement @6.0.3
+    /// tsc-hash: 856acc0f28558cdfa2066735ebf036025b3617b8443b9a2576c083024403149c
+    /// tsc-span: _tsc.js:83799-83818
+    ///
+    /// registerForUnusedIdentifiersCheck is M7-inert.
+    pub(crate) fn check_for_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::ForStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (initializer, condition, incrementor, statement) = (
+            data.initializer,
+            data.condition,
+            data.incrementor,
+            data.statement,
+        );
+        if !self.check_grammar_statement_in_ambient_context_reported(node) {
+            if let Some(initializer) = initializer {
+                if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
+                    self.check_grammar_variable_declaration_list(initializer)?;
+                }
+            }
+        }
+        if let Some(initializer) = initializer {
+            if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
+                self.check_variable_declaration_list(initializer)?;
+            } else {
+                self.check_expression(initializer, CheckMode::NORMAL)?;
+            }
+        }
+        if let Some(condition) = condition {
+            self.check_truthiness_expression(condition, CheckMode::NORMAL)?;
+        }
+        if let Some(incrementor) = incrementor {
+            self.check_expression(incrementor, CheckMode::NORMAL)?;
+        }
+        self.check_source_element(statement);
+        Ok(())
+    }
+
+    /// tsc-port: checkForOfStatement @6.0.3
+    /// tsc-hash: 08b449c328a80dc775d3d2a2a8ed70659946c2d654441989dbfd0a2a42f496ff
+    /// tsc-span: _tsc.js:83819-83857
+    ///
+    /// ITERATION SEMANTICS ESCAPE to 5.8b (§15): the grammar rows and
+    /// the declaration-list LHS are live; checkRightHandSideOfForOf
+    /// and the expression-LHS arms that consume its type are silent
+    /// stubs so the BODY stays checked (per-element containment would
+    /// silence it). Emit-helper probes elided (module note).
+    pub(crate) fn check_for_of_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_for_in_or_for_of_statement(node)?;
+        let NodeData::ForOfStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (await_modifier, initializer, statement) =
+            (data.await_modifier, data.initializer, data.statement);
+        if let Some(await_modifier) = await_modifier {
+            let container = self.get_containing_function_or_class_static_block(node);
+            if container.is_some_and(|container| {
+                self.kind_of(container) == SyntaxKind::ClassStaticBlockDeclaration
+            }) {
+                self.grammar_error_on_node(
+                    await_modifier,
+                    &diagnostics::for_await_loops_cannot_be_used_inside_a_class_static_block,
+                    &[],
+                );
+            }
+            // (else: the ForAwaitOf emit-helper probe — elided.)
+        }
+        // (downlevelIteration ForOf emit-helper probe — elided.)
+        if let Some(initializer) = initializer {
+            if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
+                self.check_variable_declaration_list(initializer)?;
+            } else {
+                // varExpr arm: iteratedType = checkRightHandSideOfForOf
+                // FIRST in tsc; the protocol is §4 (5.8b), so the
+                // destructuring/LHS-relation consumers stub with it.
+                self.source_element_stub("checkRightHandSideOfForOf", "5.8b")?;
+                if matches!(
+                    self.kind_of(initializer),
+                    SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
+                ) {
+                    // checkDestructuringAssignment(varExpr,
+                    // iteratedType || errorType) needs the iterated
+                    // type — running it against a stand-in could
+                    // fabricate rows; whole arm stubs (FN).
+                    self.source_element_stub("checkDestructuringAssignment (for-of LHS)", "5.8b")?;
+                } else {
+                    let _left_type = self.check_expression(initializer, CheckMode::NORMAL)?;
+                    self.check_reference_expression(
+                        initializer,
+                        &diagnostics::The_left_hand_side_of_a_for_of_statement_must_be_a_variable_or_a_property_access,
+                        &diagnostics::The_left_hand_side_of_a_for_of_statement_may_not_be_an_optional_property_access,
+                    );
+                    // (iteratedType → leftType relation — 5.8b.)
+                }
+            }
+        }
+        self.check_source_element(statement);
+        Ok(())
+    }
+
+    /// tsc-port: checkForInStatement @6.0.3
+    /// tsc-hash: 61579064b6101c0d86e57e90f1c2cf86ab07a63e8c92f14f8af3b9d4c4fadca1
+    /// tsc-span: _tsc.js:83858-83889
+    pub(crate) fn check_for_in_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_for_in_or_for_of_statement(node)?;
+        let NodeData::ForInStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (initializer, expression, statement) =
+            (data.initializer, data.expression, data.statement);
+        let Some(expression) = expression else {
+            return Err(Unsupported::new("ForInStatement recovery node"));
+        };
+        let raw_right = self.check_expression(expression, CheckMode::NORMAL)?;
+        let right_type = self.get_non_nullable_type_if_needed(raw_right)?;
+        if let Some(initializer) = initializer {
+            if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
+                let declarations = match self.data_of(initializer) {
+                    NodeData::VariableDeclarationList(data) => self.nodes_of(data.declarations),
+                    _ => Vec::new(),
+                };
+                if let Some(&variable) = declarations.first() {
+                    if let Some(name) = self.name_of_node(variable) {
+                        if node_util::is_binding_pattern(self.binder.source_of_node(name), name) {
+                            self.error_at(
+                                Some(name),
+                                &diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_be_a_destructuring_pattern,
+                                &[],
+                            );
+                        }
+                    }
+                }
+                self.check_variable_declaration_list(initializer)?;
+            } else {
+                let left_type = self.check_expression(initializer, CheckMode::NORMAL)?;
+                if matches!(
+                    self.kind_of(initializer),
+                    SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
+                ) {
+                    self.error_at(
+                        Some(initializer),
+                        &diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_be_a_destructuring_pattern,
+                        &[],
+                    );
+                } else {
+                    let index_or_string = self.get_index_type_or_string(right_type)?;
+                    if !self.is_type_assignable_to(index_or_string, left_type)? {
+                        self.error_at(
+                            Some(initializer),
+                            &diagnostics::The_left_hand_side_of_a_for_in_statement_must_be_of_type_string_or_any,
+                            &[],
+                        );
+                    } else {
+                        self.check_reference_expression(
+                            initializer,
+                            &diagnostics::The_left_hand_side_of_a_for_in_statement_must_be_a_variable_or_a_property_access,
+                            &diagnostics::The_left_hand_side_of_a_for_in_statement_may_not_be_an_optional_property_access,
+                        );
+                    }
+                }
+            }
+        }
+        if right_type == self.tables.intrinsics.never
+            || !self.is_type_assignable_to_kind(
+                right_type,
+                TypeFlags::NON_PRIMITIVE | TypeFlags::INSTANTIABLE_NON_PRIMITIVE,
+                /*strict*/ false,
+            )?
+        {
+            let display = self.type_to_string_slice(right_type)?;
+            self.error_at(
+                Some(expression),
+                &diagnostics::The_right_hand_side_of_a_for_in_statement_must_be_of_type_any_an_object_type_or_a_type_parameter_but_here_has_type_0,
+                &[&display],
+            );
+        }
+        self.check_source_element(statement);
+        Ok(())
+    }
+
+    /// tsc-port: checkGrammarForInOrForOfStatement @6.0.3
+    /// tsc-hash: 112c35d2e30e5202b18a4ba5e9304743e63fd5a059c5d4cae87ee0fefebde9f0
+    /// tsc-span: _tsc.js:89761-89842
+    ///
+    /// The Node16..NodeNext moduleKind arms need impliedNodeFormat
+    /// (module resolution, 5.8d) — treated as the non-CommonJS
+    /// fallthrough (true-CJS node-flavor fixtures FN the 1432 row);
+    /// same disposition as checkAwaitGrammar's ladder (functions.rs).
+    fn check_grammar_for_in_or_for_of_statement(&mut self, node: NodeId) -> CheckResult2<bool> {
+        if self.check_grammar_statement_in_ambient_context_reported(node) {
+            return Ok(true);
+        }
+        let is_for_of = self.kind_of(node) == SyntaxKind::ForOfStatement;
+        let (await_modifier, initializer) = match self.data_of(node) {
+            NodeData::ForOfStatement(data) => (data.await_modifier, data.initializer),
+            NodeData::ForInStatement(data) => (None, data.initializer),
+            _ => unreachable!("kind/data agree"),
+        };
+        if is_for_of {
+            if let Some(await_modifier) = await_modifier {
+                if self.node_flags(node) & NodeFlags::AWAIT_CONTEXT.bits() == 0 {
+                    let source = self.binder.source_of_node(node);
+                    if node_util::is_in_top_level_context(source, node) {
+                        if !self.has_parse_diagnostics(node) {
+                            if !self.is_effective_external_module(node) {
+                                self.error_at(
+                                    Some(await_modifier),
+                                    &diagnostics::for_await_loops_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module,
+                                    &[],
+                                );
+                            }
+                            let module_kind = self.options.emit_module_kind();
+                            let target_ok = self.options.emit_script_target()
+                                >= tsrs2_types::ScriptTarget::ES2017;
+                            let ladder_ok = match module_kind {
+                                // Node16/18/20/NodeNext: impliedNodeFormat
+                                // unported — non-CJS fallthrough.
+                                100 | 101 | 102 | 199 => target_ok,
+                                // ES2022/ESNext/Preserve/System.
+                                7 | 99 | 200 | 4 => target_ok,
+                                _ => false,
+                            };
+                            if !ladder_ok {
+                                self.error_at(
+                                    Some(await_modifier),
+                                    &diagnostics::Top_level_for_await_loops_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_node16_node18_node20_nodenext_or_preserve_and_the_target_option_is_set_to_es2017_or_higher,
+                                    &[],
+                                );
+                            }
+                        }
+                    } else if !self.has_parse_diagnostics(node) {
+                        let func = self.get_containing_function(node);
+                        let related = func
+                            .filter(|&func| self.kind_of(func) != SyntaxKind::Constructor)
+                            .map(|func| {
+                                self.related_info_for_node(
+                                    func,
+                                    &diagnostics::Did_you_mean_to_mark_this_function_as_async,
+                                    &[],
+                                )
+                            })
+                            .into_iter()
+                            .collect();
+                        self.error_at_with_related(
+                            Some(await_modifier),
+                            &diagnostics::for_await_loops_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules,
+                            &[],
+                            related,
+                        );
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+        let Some(initializer) = initializer else {
+            return Ok(false);
+        };
+        if is_for_of
+            && self.node_flags(node) & NodeFlags::AWAIT_CONTEXT.bits() == 0
+            && self.kind_of(initializer) == SyntaxKind::Identifier
+            && self.identifier_text_of(initializer) == Some("async")
+        {
+            self.grammar_error_on_node(
+                initializer,
+                &diagnostics::The_left_hand_side_of_a_for_of_statement_may_not_be_async,
+                &[],
+            );
+            return Ok(false);
+        }
+        if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
+            if !self.check_grammar_variable_declaration_list(initializer)? {
+                let declarations = match self.data_of(initializer) {
+                    NodeData::VariableDeclarationList(data) => self.nodes_of(data.declarations),
+                    _ => Vec::new(),
+                };
+                if declarations.is_empty() {
+                    return Ok(false);
+                }
+                if declarations.len() > 1 {
+                    let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
+                        &diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement
+                    } else {
+                        &diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement
+                    };
+                    return Ok(self.grammar_error_on_first_token(declarations[1], message, &[]));
+                }
+                let first = declarations[0];
+                if self.initializer_of_node(first).is_some() {
+                    let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
+                        &diagnostics::The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer
+                    } else {
+                        &diagnostics::The_variable_declaration_of_a_for_of_statement_cannot_have_an_initializer
+                    };
+                    let name = self.name_of_node(first);
+                    return Ok(self.grammar_error_on_node(name.unwrap_or(first), message, &[]));
+                }
+                if self.type_annotation_of(first).is_some() {
+                    let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
+                        &diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation
+                    } else {
+                        &diagnostics::The_left_hand_side_of_a_for_of_statement_cannot_use_a_type_annotation
+                    };
+                    return Ok(self.grammar_error_on_node(first, message, &[]));
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// checkGrammarStatementInAmbientContext as a REPORTING probe: the
+    /// worker in check.rs returns (), but the §3 callers branch on
+    /// "did the ambient arm report" — mirror tsc's boolean by
+    /// re-testing the ambient condition.
+    fn check_grammar_statement_in_ambient_context_reported(&mut self, node: NodeId) -> bool {
+        let before = self.diagnostics.len();
+        self.check_grammar_statement_in_ambient_context(node);
+        // tsc returns true only when IT reported (or the once-latch
+        // already fired for this context) — approximating with "a new
+        // diagnostic appeared" keeps the && chains correct except for
+        // the latched second statement, where tsc returns FALSE and
+        // falls through to the guarded grammar checks. Re-test the
+        // ambient flag for that case.
+        if self.diagnostics.len() > before {
+            return true;
+        }
+        false
+    }
+
+    /// tsc-port: checkBreakOrContinueStatement @6.0.3
+    /// tsc-hash: 0b9c72fdae9697d6afec768c0ed6ac98460c39571f2911d288f078e4c353afed
+    /// tsc-span: _tsc.js:84497-84499
+    pub(crate) fn check_break_or_continue_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        if !self.check_grammar_statement_in_ambient_context_reported(node) {
+            self.check_grammar_break_or_continue_statement(node);
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkGrammarBreakOrContinueStatement @6.0.3
+    /// tsc-hash: 23f3be29200d64ed5a6497e3ead4bfa1cd9c39f532f41b58245bb3d2d30c8947
+    /// tsc-span: _tsc.js:89978-90022
+    fn check_grammar_break_or_continue_statement(&mut self, node: NodeId) -> bool {
+        let label = match self.data_of(node) {
+            NodeData::BreakStatement(data) => data.label,
+            NodeData::ContinueStatement(data) => data.label,
+            _ => None,
+        };
+        let label_text =
+            label.and_then(|label| self.identifier_text_of(label).map(str::to_owned));
+        let is_break = self.kind_of(node) == SyntaxKind::BreakStatement;
+        let mut current = Some(node);
+        while let Some(candidate) = current {
+            let kind = self.kind_of(candidate);
+            if node_util::is_function_like_kind(kind)
+                || kind == SyntaxKind::ClassStaticBlockDeclaration
+            {
+                return self.grammar_error_on_node(
+                    node,
+                    &diagnostics::Jump_target_cannot_cross_function_boundary,
+                    &[],
+                );
+            }
+            match kind {
+                SyntaxKind::LabeledStatement => {
+                    let (current_label, current_statement) = match self.data_of(candidate) {
+                        NodeData::LabeledStatement(data) => (data.label, data.statement),
+                        _ => (None, None),
+                    };
+                    let labels_match = label.is_some()
+                        && current_label.and_then(|l| {
+                            self.identifier_text_of(l).map(str::to_owned)
+                        }) == label_text;
+                    if labels_match {
+                        let is_misplaced_continue = !is_break
+                            && !current_statement.is_some_and(|statement| {
+                                self.is_iteration_statement(statement, true)
+                            });
+                        if is_misplaced_continue {
+                            return self.grammar_error_on_node(
+                                node,
+                                &diagnostics::A_continue_statement_can_only_jump_to_a_label_of_an_enclosing_iteration_statement,
+                                &[],
+                            );
+                        }
+                        return false;
+                    }
+                }
+                SyntaxKind::SwitchStatement => {
+                    if is_break && label.is_none() {
+                        return false;
+                    }
+                }
+                _ => {
+                    if self.is_iteration_statement(candidate, false) && label.is_none() {
+                        return false;
+                    }
+                }
+            }
+            current = self.parent_of(candidate);
+        }
+        if label.is_some() {
+            let message = if is_break {
+                &diagnostics::A_break_statement_can_only_jump_to_a_label_of_an_enclosing_statement
+            } else {
+                &diagnostics::A_continue_statement_can_only_jump_to_a_label_of_an_enclosing_iteration_statement
+            };
+            self.grammar_error_on_node(node, message, &[])
+        } else {
+            let message = if is_break {
+                &diagnostics::A_break_statement_can_only_be_used_within_an_enclosing_iteration_or_switch_statement
+            } else {
+                &diagnostics::A_continue_statement_can_only_be_used_within_an_enclosing_iteration_statement
+            };
+            self.grammar_error_on_node(node, message, &[])
+        }
+    }
+
+    /// tsc-port: isIterationStatement @6.0.3
+    /// tsc-hash: e3c007a9658a14db85ec10eac1f2ddfc6778a433592040d024484dd5d7fe180d
+    /// tsc-span: _tsc.js:12302-12314
+    fn is_iteration_statement(&self, node: NodeId, look_in_labeled_statements: bool) -> bool {
+        match self.kind_of(node) {
+            SyntaxKind::ForStatement
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+            | SyntaxKind::DoStatement
+            | SyntaxKind::WhileStatement => true,
+            SyntaxKind::LabeledStatement if look_in_labeled_statements => {
+                match self.data_of(node) {
+                    NodeData::LabeledStatement(data) => data
+                        .statement
+                        .is_some_and(|statement| self.is_iteration_statement(statement, true)),
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// tsc-port: checkReturnStatement @6.0.3
+    /// tsc-hash: c9a0f8abcefe176817b5c00491ec3ea7e140cff4d2eb807bc02a925559136718
+    /// tsc-span: _tsc.js:84516-84549
+    ///
+    /// noImplicitReturns is absent from CompilerOptions — the
+    /// Not_all_code_paths_return_a_value arm stays dead (§13 audit).
+    /// unwrapReturnType's generator arm escapes [ITER] (5.8b).
+    pub(crate) fn check_return_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        if self.check_grammar_statement_in_ambient_context_reported(node) {
+            return Ok(());
+        }
+        let NodeData::ReturnStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let expression = data.expression;
+        let container = self.get_containing_function_or_class_static_block(node);
+        if container.is_some_and(|container| {
+            self.kind_of(container) == SyntaxKind::ClassStaticBlockDeclaration
+        }) {
+            self.grammar_error_on_first_token(
+                node,
+                &diagnostics::A_return_statement_cannot_be_used_inside_a_class_static_block,
+                &[],
+            );
+            return Ok(());
+        }
+        let Some(container) = container else {
+            self.grammar_error_on_first_token(
+                node,
+                &diagnostics::A_return_statement_can_only_be_used_within_a_function_body,
+                &[],
+            );
+            return Ok(());
+        };
+        let signature = self.get_signature_from_declaration(container)?;
+        let return_type = self.get_return_type_of_signature(signature)?;
+        let strict_null_checks = self
+            .options
+            .strict_option_value(self.options.strict_null_checks);
+        if strict_null_checks
+            || expression.is_some()
+            || self.tables.flags_of(return_type).intersects(TypeFlags::NEVER)
+        {
+            let expr_type = match expression {
+                Some(expression) => self.check_expression_cached(expression, CheckMode::NORMAL)?,
+                None => self.tables.intrinsics.undefined,
+            };
+            if self.kind_of(container) == SyntaxKind::SetAccessor {
+                if expression.is_some() {
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Setters_cannot_return_a_value,
+                        &[],
+                    );
+                }
+            } else if self.kind_of(container) == SyntaxKind::Constructor {
+                if expression.is_some() {
+                    // Both rows land in one baseline: the relation's
+                    // own failure report plus the 2409 head.
+                    if !self.check_type_assignable_to(
+                        expr_type,
+                        return_type,
+                        Some(node),
+                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                    )? {
+                        self.error_at(
+                            Some(node),
+                            &diagnostics::Return_type_of_constructor_signature_must_be_assignable_to_the_instance_type_of_the_class,
+                            &[],
+                        );
+                    }
+                }
+            } else if self.get_return_type_from_annotation(container)?.is_some() {
+                let function_flags = self.get_function_flags(container);
+                let unwrapped_return_type = self.unwrap_return_type(return_type, function_flags)?;
+                self.check_return_expression(
+                    container,
+                    unwrapped_return_type,
+                    node,
+                    expression,
+                    expr_type,
+                    /*in_conditional_expression*/ false,
+                )?;
+            }
+        }
+        // (noImplicitReturns arm — option absent, dead.)
+        Ok(())
+    }
+
+    /// tsc-port: checkWithStatement @6.0.3
+    /// tsc-hash: 0d7c572d00ec056a1c58e81966d25476549d8e0391fb797d6ae94f01152f2c9f
+    /// tsc-span: _tsc.js:84589-84602
+    ///
+    /// node.statement is NOT checked — with bodies are unchecked.
+    pub(crate) fn check_with_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        if !self.check_grammar_statement_in_ambient_context_reported(node)
+            && self.node_flags(node) & NodeFlags::AWAIT_CONTEXT.bits() != 0
+        {
+            self.grammar_error_on_first_token(
+                node,
+                &diagnostics::with_statements_are_not_allowed_in_an_async_function_block,
+                &[],
+            );
+        }
+        let NodeData::WithStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (expression, statement) = (data.expression, data.statement);
+        if let Some(expression) = expression {
+            self.check_expression(expression, CheckMode::NORMAL)?;
+        }
+        if !self.has_parse_diagnostics(node) {
+            let source = self.binder.source_of_node(node);
+            let node_pos = source.arena.node(node).pos as usize;
+            let (token_start, _token_end) =
+                node_util::get_span_of_token_at_position(source, node_pos);
+            let statement_pos = statement
+                .map(|statement| source.arena.node(statement).pos as usize)
+                .unwrap_or(token_start);
+            let start = self.utf16_position(node, token_start);
+            let end = self.utf16_position(node, statement_pos);
+            self.grammar_error_at_pos(
+                node,
+                start,
+                end.saturating_sub(start),
+                &diagnostics::The_with_statement_is_not_supported_All_symbols_in_a_with_block_will_have_type_any,
+                &[],
+            );
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkSwitchStatement @6.0.3
+    /// tsc-hash: 70c9af565a281e020c5512e951d427e675e7ebe8f53db1409becb949363d98d1
+    /// tsc-span: _tsc.js:84603-84642
+    ///
+    /// noFallthroughCasesInSwitch is modeled but its arm needs M5's
+    /// isReachableFlowNode — dead until then (§0 note). caseBlock
+    /// locals registration is M7-inert.
+    pub(crate) fn check_switch_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_statement_in_ambient_context(node);
+        let NodeData::SwitchStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (expression, case_block) = (data.expression, data.case_block);
+        let Some(expression) = expression else {
+            return Err(Unsupported::new("SwitchStatement recovery node"));
+        };
+        let mut first_default_clause: Option<NodeId> = None;
+        let mut has_duplicate_default_clause = false;
+        let expression_type = self.check_expression(expression, CheckMode::NORMAL)?;
+        let clauses = case_block
+            .map(|case_block| match self.data_of(case_block) {
+                NodeData::CaseBlock(data) => self.nodes_of(data.clauses),
+                _ => Vec::new(),
+            })
+            .unwrap_or_default();
+        for clause in clauses {
+            if self.kind_of(clause) == SyntaxKind::DefaultClause && !has_duplicate_default_clause {
+                if first_default_clause.is_none() {
+                    first_default_clause = Some(clause);
+                } else {
+                    self.grammar_error_on_node(
+                        clause,
+                        &diagnostics::A_default_clause_cannot_appear_more_than_once_in_a_switch_statement,
+                        &[],
+                    );
+                    has_duplicate_default_clause = true;
+                }
+            }
+            if self.kind_of(clause) == SyntaxKind::CaseClause {
+                // addLazyDiagnostic = eager identity (5.4 decision).
+                let clause_expression = match self.data_of(clause) {
+                    NodeData::CaseClause(data) => data.expression,
+                    _ => None,
+                };
+                if let Some(clause_expression) = clause_expression {
+                    let case_type = self.check_expression(clause_expression, CheckMode::NORMAL)?;
+                    if !self.is_type_equality_comparable_to(expression_type, case_type)? {
+                        // ARG ORDER: the case type is the SOURCE.
+                        self.check_type_comparable_to(
+                            case_type,
+                            expression_type,
+                            Some(clause_expression),
+                            &diagnostics::Type_0_is_not_comparable_to_type_1,
+                        )?;
+                    }
+                }
+            }
+            let statements = match self.data_of(clause) {
+                NodeData::CaseClause(data) => data.statements,
+                NodeData::DefaultClause(data) => data.statements,
+                _ => None,
+            };
+            for statement in self.nodes_of(statements) {
+                self.check_source_element(Some(statement));
+            }
+            // (noFallthroughCasesInSwitch arm — M5 flow, dead.)
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkLabeledStatement @6.0.3
+    /// tsc-hash: aede5f733f5c0fbdcac637a52f20f6eb05c2a37f0256ee708789b57bd91eeab8
+    /// tsc-span: _tsc.js:84643-84660
+    ///
+    /// The Unused_label arm is suggestion-band under the absent
+    /// allowUnusedLabels option (errorOrSuggestion isError only when
+    /// the option is EXPLICIT false) — skipped with §0's note.
+    pub(crate) fn check_labeled_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::LabeledStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (label, statement) = (data.label, data.statement);
+        if !self.check_grammar_statement_in_ambient_context_reported(node) {
+            if let Some(label) = label {
+                let label_text = self.identifier_text_of(label).map(str::to_owned);
+                let mut current = self.parent_of(node);
+                while let Some(candidate) = current {
+                    if node_util::is_function_like_kind(self.kind_of(candidate)) {
+                        break;
+                    }
+                    if self.kind_of(candidate) == SyntaxKind::LabeledStatement {
+                        let candidate_label = match self.data_of(candidate) {
+                            NodeData::LabeledStatement(data) => data.label,
+                            _ => None,
+                        };
+                        if candidate_label.and_then(|l| {
+                            self.identifier_text_of(l).map(str::to_owned)
+                        }) == label_text
+                        {
+                            // getTextOfNode — source text of the label.
+                            let display = self.declaration_name_display(label);
+                            self.grammar_error_on_node(
+                                label,
+                                &diagnostics::Duplicate_label_0,
+                                &[&display],
+                            );
+                            break;
+                        }
+                    }
+                    current = self.parent_of(candidate);
+                }
+            }
+        }
+        // (Unused label — suggestion band, skipped.)
+        self.check_source_element(statement);
+        Ok(())
+    }
+
+    /// tsc-port: checkThrowStatement @6.0.3
+    /// tsc-hash: 0290673363a1ea730a006aebe88afb8bdcd18f2e9cbef47902b8bba29fe69b83
+    /// tsc-span: _tsc.js:84661-84670
+    pub(crate) fn check_throw_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        let NodeData::ThrowStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let expression = data.expression;
+        if !self.check_grammar_statement_in_ambient_context_reported(node) {
+            if let Some(expression) = expression {
+                if self.kind_of(expression) == SyntaxKind::Identifier
+                    && self.identifier_text_of(expression) == Some("")
+                {
+                    self.grammar_error_after_first_token(
+                        node,
+                        &diagnostics::Line_break_not_permitted_here,
+                        &[],
+                    );
+                }
+            }
+        }
+        if let Some(expression) = expression {
+            self.check_expression(expression, CheckMode::NORMAL)?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: grammarErrorAfterFirstToken @6.0.3
+    /// tsc-hash: 68bf53599ebc14930b089ab20b2e3947651507045aee3511e408a4131dadc274
+    /// tsc-span: _tsc.js:90369-90384
+    ///
+    /// Zero-length span at the END of the node's first token.
+    fn grammar_error_after_first_token(
+        &mut self,
+        node: NodeId,
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+    ) -> bool {
+        if self.has_parse_diagnostics(node) {
+            return false;
+        }
+        let source = self.binder.source_of_node(node);
+        let node_pos = source.arena.node(node).pos as usize;
+        let (_start, token_end) = node_util::get_span_of_token_at_position(source, node_pos);
+        let end = self.utf16_position(node, token_end);
+        self.grammar_error_at_pos(node, end, 0, message, args)
+    }
+
+    /// tsc-port: checkTryStatement @6.0.3
+    /// tsc-hash: dc888b416e5fa93a08982931e11d7dc3fbe1db56e44418523d1918aaf4c6b5d0
+    /// tsc-span: _tsc.js:84671-84704
+    ///
+    /// forEachKey over catch locals = symbol-table insertion order
+    /// (IndexMap).
+    pub(crate) fn check_try_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_statement_in_ambient_context(node);
+        let NodeData::TryStatement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let (try_block, catch_clause, finally_block) =
+            (data.try_block, data.catch_clause, data.finally_block);
+        if let Some(try_block) = try_block {
+            self.check_block(try_block)?;
+        }
+        if let Some(catch_clause) = catch_clause {
+            let NodeData::CatchClause(clause_data) = self.data_of(catch_clause) else {
+                unreachable!("kind/data agree");
+            };
+            let (variable_declaration, catch_block) =
+                (clause_data.variable_declaration, clause_data.block);
+            if let Some(declaration) = variable_declaration {
+                // Per-declaration containment keeps the catch block
+                // checked when the variable check escapes.
+                let _ = self.check_variable_like_declaration(declaration);
+                let type_node = self.type_annotation_of(declaration);
+                if let Some(type_node) = type_node {
+                    let ty = self.get_type_from_type_node(type_node)?;
+                    if !self
+                        .tables
+                        .flags_of(ty)
+                        .intersects(TypeFlags::ANY | TypeFlags::UNKNOWN)
+                    {
+                        self.grammar_error_on_first_token(
+                            type_node,
+                            &diagnostics::Catch_clause_variable_type_annotation_must_be_any_or_unknown_if_specified,
+                            &[],
+                        );
+                    }
+                } else if let Some(initializer) = self.initializer_of_node(declaration) {
+                    self.grammar_error_on_first_token(
+                        initializer,
+                        &diagnostics::Catch_clause_variable_cannot_have_an_initializer,
+                        &[],
+                    );
+                } else {
+                    let block_locals = catch_block
+                        .and_then(|block| self.binder.locals_of(block))
+                        .cloned();
+                    if let Some(block_locals) = block_locals {
+                        let catch_locals = self
+                            .binder
+                            .locals_of(catch_clause)
+                            .cloned()
+                            .unwrap_or_default();
+                        for caught_name in catch_locals.keys() {
+                            if let Some(&block_local) = block_locals.get(caught_name) {
+                                let block_symbol = self.binder.symbol(block_local);
+                                if let Some(value_declaration) = block_symbol.value_declaration {
+                                    if block_symbol
+                                        .flags
+                                        .intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE)
+                                    {
+                                        let display = tsrs2_binder::unescape_leading_underscores(
+                                            caught_name,
+                                        )
+                                        .to_owned();
+                                        self.grammar_error_on_node(
+                                            value_declaration,
+                                            &diagnostics::Cannot_redeclare_identifier_0_in_catch_clause,
+                                            &[&display],
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some(catch_block) = catch_block {
+                self.check_block(catch_block)?;
+            }
+        }
+        if let Some(finally_block) = finally_block {
+            self.check_block(finally_block)?;
+        }
+        Ok(())
     }
 }

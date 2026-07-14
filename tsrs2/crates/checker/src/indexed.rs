@@ -20,6 +20,65 @@ use crate::state::{CheckResult2, CheckerState, Unsupported};
 use tsrs2_diags::gen as diagnostics;
 
 impl<'a> CheckerState<'a> {
+    /// tsc-port: getGlobalExtractSymbol @6.0.3
+    /// tsc-hash: b22ea48a736bc228a748d543706f8186374bca9aba21f2032144f7b55757e5a6
+    /// tsc-span: _tsc.js:60907-60916
+    ///
+    /// Same memo discipline as the Omit twin (operators.rs): the
+    /// reportErrors=true miss memoizes unknownSymbol; a lib Extract
+    /// with the wrong arity escapes rather than instantiating wrong.
+    fn get_global_extract_symbol(&mut self) -> CheckResult2<Option<tsrs2_binder::SymbolId>> {
+        if let Some(memo) = self.deferred_global_extract_symbol {
+            return Ok(memo.filter(|&s| s != self.unknown_symbol));
+        }
+        let symbol = self.get_global_symbol(
+            "Extract",
+            tsrs2_types::SymbolFlags::TYPE_ALIAS,
+            Some(&diagnostics::Cannot_find_global_type_0),
+        );
+        if let Some(symbol) = symbol {
+            let type_parameters = self.type_alias_type_parameter_count(symbol)?;
+            if type_parameters != 2 {
+                return Err(Unsupported::new(
+                    "global Extract alias with non-2 arity (user-shadowed lib)",
+                ));
+            }
+            self.deferred_global_extract_symbol = Some(Some(symbol));
+            return Ok(Some(symbol));
+        }
+        let unknown = self.unknown_symbol;
+        self.deferred_global_extract_symbol = Some(Some(unknown));
+        Ok(None)
+    }
+
+    /// tsc-port: getExtractStringType @6.0.3
+    /// tsc-hash: e3c1341d9f62620207da8f9e6a74a7fd55301b67530491a046d2a53018028dac
+    /// tsc-span: _tsc.js:62020-62023
+    fn get_extract_string_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        match self.get_global_extract_symbol()? {
+            Some(alias) => {
+                let string = self.tables.intrinsics.string;
+                self.get_type_alias_instantiation(alias, Some(&[ty, string]), None, None)
+            }
+            None => Ok(self.tables.intrinsics.string),
+        }
+    }
+
+    /// tsc-port: getIndexTypeOrString @6.0.3
+    /// tsc-hash: c8ecc6e8763470e9dc210f694a20ab557776d7b467a7ebbebb853f15537f3b8f
+    /// tsc-span: _tsc.js:62024-62027
+    pub(crate) fn get_index_type_or_string(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        let index_type = self.get_index_type(ty, IndexFlags::NONE)?;
+        let extracted = self.get_extract_string_type(index_type)?;
+        Ok(
+            if self.tables.flags_of(extracted).intersects(TypeFlags::NEVER) {
+                self.tables.intrinsics.string
+            } else {
+                extracted
+            },
+        )
+    }
+
     /// tsc-port: getIndexType @6.0.3
     /// tsc-hash: af5867f7723c495d086366e08501a86c4c76b02f70bf5b94dae8f524f2ef51ac
     /// tsc-span: _tsc.js:62016-62019

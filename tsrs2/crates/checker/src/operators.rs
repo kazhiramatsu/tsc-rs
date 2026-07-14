@@ -1622,7 +1622,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// isTypeEqualityComparableTo (79801-79803).
-    fn is_type_equality_comparable_to(
+    pub(crate) fn is_type_equality_comparable_to(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -4481,9 +4481,12 @@ impl<'a> CheckerState<'a> {
         Ok(self.maybe_type_of_kind(base_constraint, kind))
     }
 
-    /// The getGlobalTypeAliasSymbol arity read: declared-type forcing
-    /// plus the links typeParameters length.
-    fn type_alias_type_parameter_count(&mut self, symbol: SymbolId) -> CheckResult2<usize> {
+    /// tsrs-native: the getGlobalTypeAliasSymbol arity read —
+    /// declared-type forcing plus the links typeParameters length.
+    pub(crate) fn type_alias_type_parameter_count(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<usize> {
         self.get_declared_type_of_symbol_slice(symbol)?;
         Ok(self
             .links

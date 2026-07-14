@@ -1690,7 +1690,7 @@ impl<'a> CheckerState<'a> {
     /// isEffectiveExternalModule: the commonJsModuleIndicator half is
     /// JS-only; TS files answer by the parser's external-module
     /// indicator.
-    fn is_effective_external_module(&self, node: NodeId) -> bool {
+    pub(crate) fn is_effective_external_module(&self, node: NodeId) -> bool {
         self.binder
             .source_of_node(node)
             .external_module_indicator
