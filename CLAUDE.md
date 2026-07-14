@@ -1,9 +1,12 @@
 # tsc-rs
 
 A Rust port of the TypeScript compiler (tsc 6.0.3). Active development
-lives in `tsrs2/` (the greenfield rewrite); `src/` is the paused v1
-codebase. Design docs under `docs/design/greenfield/` are authoritative;
-implementers start from the stage step docs referenced there.
+lives in `tsrs2/` (the greenfield rewrite). The paused v1 codebase was
+removed from the working tree and is preserved at tag `v1-final`
+(check out that tag to resume it; `scripts/bootstrap.sh` there rebuilds
+its corpus/oracle). Design docs under `docs/design/greenfield/` are
+authoritative; implementers start from the stage step docs referenced
+there.
 
 ## Branch workflow (trunk-based)
 
