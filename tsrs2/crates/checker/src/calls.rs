@@ -1254,7 +1254,7 @@ impl<'a> CheckerState<'a> {
     /// tsc createCallSignature (82664): declaration-less synthetic
     /// signature, minArgumentCount = parameters.length (the fabricated
     /// FunctionTypeNode declaration is display-only — elided; the
-    /// single-signature type creators pin the CALL flavor themselves).
+    /// explicit isolated-signature kind preserves its CALL flavor).
     fn create_synthetic_call_signature(
         &mut self,
         parameters: Vec<SymbolId>,
@@ -1278,6 +1278,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: Some(SignatureKind::Call),
             isolated_signature_type: None,
         })
     }
@@ -4039,6 +4040,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: first.isolated_signature_kind,
             isolated_signature_type: None,
         }))
     }
@@ -5618,10 +5620,12 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
+    use tsrs2_syntax::{NodeData, SyntaxKind};
     use tsrs2_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
+    use crate::structural::SignatureKind;
 
     /// Driver-level fixture check (operators.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options {} unless stated) — scratchpad
@@ -6306,5 +6310,55 @@ mod tests {
     fn es_decorator_arrow_receives_contextual_call_signature() {
         let text = "@((value, context) => { context.nonexistent; return value; })\nclass C {}\ninterface ClassDecoratorContext<T> {}\n";
         assert_eq!(checked_rows(text), [(2339, 32, 11)]);
+    }
+
+    #[test]
+    fn es_decorator_contextual_signature_cache_is_order_independent() {
+        let text = "@((value, context) => { context.nonexistent; return value; })\nclass C {}\ninterface ClassDecoratorContext<T> {}\n";
+        let actual = with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let root = state.binder.source(0).root;
+            let statements = match state.data_of(root) {
+                NodeData::SourceFile(data) => data.statements,
+                _ => unreachable!("fixture root is a source file"),
+            };
+            let class = state
+                .nodes_of(statements)
+                .into_iter()
+                .find(|&node| state.kind_of(node) == SyntaxKind::ClassDeclaration)
+                .expect("fixture class declaration");
+            let modifiers = match state.data_of(class) {
+                NodeData::ClassDeclaration(data) => data.modifiers,
+                _ => unreachable!("selected a class declaration"),
+            };
+            let decorator = state
+                .nodes_of(modifiers)
+                .into_iter()
+                .find(|&node| state.kind_of(node) == SyntaxKind::Decorator)
+                .expect("fixture decorator");
+            let signature = state
+                .get_decorator_call_signature(decorator)
+                .expect("decorator signature computation")
+                .expect("ES class decorator signature");
+
+            // Warm the shared isolated-signature cache through the
+            // generic helper BEFORE contextual typing reaches it.
+            let isolated = state
+                .get_or_create_type_from_signature(signature)
+                .expect("isolated decorator signature type");
+            assert_eq!(
+                state
+                    .get_signatures_of_type(isolated, SignatureKind::Call)
+                    .expect("call signatures"),
+                [signature]
+            );
+            assert!(state
+                .get_signatures_of_type(isolated, SignatureKind::Construct)
+                .expect("construct signatures")
+                .is_empty());
+
+            state.check_source_file(0);
+            rows(state)
+        });
+        assert_eq!(actual, [(2339, 32, 11)]);
     }
 }

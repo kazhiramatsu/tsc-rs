@@ -883,19 +883,7 @@ impl<'a> CheckerState<'a> {
         let Some(signature) = self.get_decorator_call_signature(decorator)? else {
             return Ok(None);
         };
-        if let Some(cached) = self.signature_of(signature).isolated_signature_type {
-            return Ok(Some(cached));
-        }
-        // The upstream synthetic signature owns a fabricated
-        // FunctionTypeNode declaration, which makes
-        // getOrCreateTypeFromSignature create a CALL type. Our
-        // display-only declaration is elided, so pin that flavor here;
-        // declaration-less JSX fake signatures intentionally remain
-        // construct signatures in the generic helper.
-        let contextual_type = self.create_single_signature_anonymous_type(None, signature);
-        self.tables.type_mut(contextual_type).object_flags |= ObjectFlags::SINGLE_SIGNATURE_TYPE;
-        self.signature_mut(signature).isolated_signature_type = Some(contextual_type);
-        Ok(Some(contextual_type))
+        Ok(Some(self.get_or_create_type_from_signature(signature)?))
     }
 
     /// tsc-port: getContextualTypeForArgument @6.0.3
@@ -2960,6 +2948,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: Some(TypeFlags::INTERSECTION),
             composite_signatures: Some(composite_signatures),
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: self.signature_of(left).isolated_signature_kind,
             isolated_signature_type: None,
         };
         Ok(self.alloc_signature(result))

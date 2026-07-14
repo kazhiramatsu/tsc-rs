@@ -24,6 +24,7 @@ use tsrs2_types::{
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
 use crate::relate::RelationKind;
+pub use crate::state::SignatureKind;
 use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, Unsupported};
 
 /// tsc SignatureCheckMode (inlined const enum).
@@ -35,12 +36,6 @@ mod check_mode {
     pub const IGNORE_RETURN_TYPES: i32 = 4;
     pub const STRICT_ARITY: i32 = 8;
     pub const STRICT_TOP_SIGNATURE: i32 = 16;
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SignatureKind {
-    Call,
-    Construct,
 }
 
 impl<'r, 'a> RelationChecker<'r, 'a> {
@@ -3580,6 +3575,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: source.composite_kind,
             composite_signatures: source.composite_signatures.clone(),
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: source.isolated_signature_kind,
             isolated_signature_type: None,
         };
         self.alloc_signature(result)
@@ -4274,6 +4270,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: Some(TypeFlags::UNION),
             composite_signatures: Some(composite_signatures),
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: left_data.isolated_signature_kind,
             isolated_signature_type: None,
         };
         Ok(self.alloc_signature(result))

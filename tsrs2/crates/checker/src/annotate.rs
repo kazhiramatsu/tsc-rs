@@ -4142,6 +4142,7 @@ impl<'a> CheckerState<'a> {
                 composite_kind: None,
                 composite_signatures: None,
                 optional_call_signature_cache: (None, None),
+                isolated_signature_kind: Some(crate::state::SignatureKind::Construct),
                 isolated_signature_type: None,
             };
             return Ok(vec![self.alloc_signature(signature)]);
@@ -6233,6 +6234,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: None,
             isolated_signature_type: None,
         };
         let id = self.alloc_signature(signature);

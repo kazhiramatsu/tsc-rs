@@ -1179,6 +1179,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: Some(SignatureKind::Construct),
             isolated_signature_type: None,
         }))
     }
@@ -1187,9 +1188,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 226def909910a74af356148d136d42297aba460f51ea90cf8ffe0c769bf08ec9
     /// tsc-span: _tsc.js:59968-59982
     ///
-    /// An undefined declaration kind counts as a CONSTRUCTOR (59972) —
-    /// the JSX fake signatures land in constructSignatures (and carry
-    /// no symbol: `signature.declaration?.symbol` is undefined).
+    /// An undefined declaration kind counts as a CONSTRUCTOR (59972).
+    /// Declaration-elided synthetic signatures carry that kind
+    /// explicitly: JSX fakes land in constructSignatures, while tsc's
+    /// fabricated FunctionTypeNode call signatures remain CALL (both
+    /// carry no symbol: `signature.declaration?.symbol` is undefined).
     pub(crate) fn get_or_create_type_from_signature(
         &mut self,
         signature: SignatureId,
@@ -1197,14 +1200,18 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.signature_of(signature).isolated_signature_type {
             return Ok(cached);
         }
-        let is_constructor = match self.signature_of(signature).declaration {
-            None => true,
-            Some(declaration) => matches!(
-                self.kind_of(declaration),
-                SyntaxKind::Constructor
-                    | SyntaxKind::ConstructSignature
-                    | SyntaxKind::ConstructorType
-            ),
+        let is_constructor = match self.signature_of(signature).isolated_signature_kind {
+            Some(SignatureKind::Call) => false,
+            Some(SignatureKind::Construct) => true,
+            None => match self.signature_of(signature).declaration {
+                None => true,
+                Some(declaration) => matches!(
+                    self.kind_of(declaration),
+                    SyntaxKind::Constructor
+                        | SyntaxKind::ConstructSignature
+                        | SyntaxKind::ConstructorType
+                ),
+            },
         };
         let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         self.tables.type_mut(id).object_flags =
