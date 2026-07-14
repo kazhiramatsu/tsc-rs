@@ -1326,8 +1326,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:81987-81996
     ///
     /// The `assert`-deprecation row is LIVE (ignoreDeprecations is
-    /// absent, §13); the token is reconstructed from source text
-    /// (the node data carries no token field). The
+    /// absent, §13); the with/assert discriminator is read from
+    /// ImportAttributes.token — the parser threads the consumed
+    /// keyword into the node data (codegen seed). The
     /// getResolutionModeOverride grammar validation is a named escape
     /// (5.8d §9 — resolution-mode plumbing).
     fn check_import_type(&mut self, node: NodeId) -> CheckResult2<()> {
