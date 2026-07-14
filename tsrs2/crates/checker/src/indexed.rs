@@ -1123,9 +1123,11 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         if let Some(receiver) = ladder_receiver {
+            // The INDEX operand narrows too (`switch (k) ...; o[k]`)
+            // — probe the whole access expression's roots.
             if self.receiver_may_be_flow_narrowed(receiver)
                 && (self.access_sits_in_guarded_position(access_expression)
-                    || self.enclosing_scope_has_flow_guards(access_expression))
+                    || self.flow_guards_narrow_reference(access_expression, access_expression))
             {
                 return Err(Unsupported::new(
                     "[FLOW M5] element-access ladder on a narrowable receiver in a guarded position",

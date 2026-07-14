@@ -2884,6 +2884,72 @@ mod tests {
     }
 
     #[test]
+    fn unrelated_guard_does_not_suppress_2339() {
+        // PR #6 review P1: the [FLOW M5] gates key on a narrowing
+        // construct RELATED to the reference — `if (true)` mentions
+        // no root of `x`, so the report stands. Oracle: 2339 @61+7.
+        assert_eq!(
+            checked_rows(
+                "interface I { a: number }\ndeclare const x: I;\nif (true) {}\nx.missing;\n"
+            ),
+            [(2339, 61, 7)]
+        );
+    }
+
+    #[test]
+    fn unrelated_guard_does_not_suppress_2345() {
+        // Oracle: 2345 @86+1 — the argument gate requires a guard
+        // mentioning `s`.
+        assert_eq!(
+            checked_rows(
+                "if (true) {}\ndeclare function f(n: number): void;\ndeclare const s: string | number;\nf(s);\n"
+            ),
+            [(2345, 86, 1)]
+        );
+    }
+
+    #[test]
+    fn unrelated_guard_does_not_suppress_2322() {
+        // Oracle: 2322 @70+6 — the return gate requires a guard
+        // mentioning `u`.
+        assert_eq!(
+            checked_rows(
+                "if (true) {}\ndeclare const u: string | number;\nfunction g(): string { return u; }\n"
+            ),
+            [(2322, 70, 6)]
+        );
+    }
+
+    #[test]
+    fn related_guard_contains_the_narrowed_argument() {
+        // The positive face: `typeof x === 'object'` mentions `x`, so
+        // the failed declared-type verdict contains ([FLOW M5]; tsc
+        // narrows x to `object` here and reports nothing).
+        assert_eq!(
+            checked_rows(
+                "declare function obj(o: object): void;\nfunction f(x: unknown) {\n    if (!x) { return; }\n    if (typeof x === 'object') { obj(x); }\n}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn for_await_over_a_sync_only_iterable_falls_back_without_panicking() {
+        // PR #6 review P1: the worker caches AsyncIterable = No on the
+        // async miss, then the sync branch OVERWRITES that key with
+        // the awaited sync-derived triple (tsc worker 84139-84174;
+        // setCachedIterationTypes is a plain assignment) — the old
+        // write-once setter panicked here. Oracle (noLib, 2026-07-14):
+        // silent.
+        assert_eq!(
+            checked_rows(
+                "declare var Symbol: { readonly iterator: unique symbol; readonly asyncIterator: unique symbol };\nclass C {\n    [Symbol.iterator]() { return { next() { return { done: false, value: 1 }; } }; }\n}\nasync function f() {\n    for await (const x of new C()) { x; }\n}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
     fn renamed_signature_binding_2842_reports_since_the_parameter_arm() {
         // Oracle p5: tsc reports 2842 at `b` (offset 24) and the
         // isReferenced gate suppresses h2's `c`. Drain + gate landed

@@ -1347,9 +1347,10 @@ impl<'a> CheckerState<'a> {
         // tsc consumes the FLOW type of a narrowable returned
         // reference — a failed verdict over the DECLARED union/unknown
         // type (or one whose subtree narrows) may be tsc-clean.
-        if expr.is_some_and(|expr| self.subtree_mentions_narrowable_reference(expr))
-            && self.enclosing_scope_has_flow_guards(node)
-            && !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
+        if expr.is_some_and(|expr| {
+            self.subtree_mentions_narrowable_reference(expr)
+                && self.flow_guards_narrow_reference(node, expr)
+        }) && !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
         {
             return Err(Unsupported::new(
                 "[FLOW M5] failed return from a narrowable union/unknown-typed reference",

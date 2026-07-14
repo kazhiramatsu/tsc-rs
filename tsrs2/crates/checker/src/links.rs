@@ -920,9 +920,12 @@ impl LinksTables {
 
     /// tsrs-native: the links half of setCachedIterationTypes
     /// (84059-84061; the tsc-port header lives on iterate.rs's
-    /// set_cached_iteration_types) — one write per key per type in
-    /// every tsc flow (the noCache re-run skips the write);
-    /// EQUAL-value rewrites tolerated per the resolvedSymbol precedent.
+    /// set_cached_iteration_types). A PLAIN ASSIGNMENT like tsc's
+    /// `type[cacheKey] = cachedTypes` — no write-once discipline: the
+    /// for-await async-from-sync fallback legitimately OVERWRITES a
+    /// cached AsyncIterable=No verdict (the async slow path caches No,
+    /// then the sync branch re-caches the awaited sync-derived triple
+    /// under the SAME async key, worker 84139-84174).
     pub fn set_type_iteration_types(
         &mut self,
         speculation_depth: u32,
@@ -945,10 +948,6 @@ impl LinksTables {
                 &mut links.iteration_types_of_iterator_result
             }
         };
-        assert!(
-            slot.is_none() || *slot == Some(value),
-            "iteration-types cache rewritten with a DIFFERENT value"
-        );
         *slot = Some(value);
     }
 

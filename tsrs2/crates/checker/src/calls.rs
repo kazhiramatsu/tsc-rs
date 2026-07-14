@@ -1857,16 +1857,18 @@ impl<'a> CheckerState<'a> {
                 // over the DECLARED union/unknown type may be
                 // tsc-clean. Contain those; M5 removes the gate.
                 if let Some(effective) = effective {
-                    // [FLOW M5]: predicates/typeof/switch narrowing can
-                    // change ANY reference's type, so no flag filter —
-                    // a failed verdict over a narrowable reference in a
-                    // guard-bearing file may be tsc-clean.
+                    // [FLOW M5]: predicates/typeof/switch narrowing
+                    // can change ANY reference's type, so no flag
+                    // filter — a failed verdict over a narrowable
+                    // reference with a RELATED narrowing construct in
+                    // scope may be tsc-clean; unrelated guards never
+                    // suppress (PR #6 review P1).
                     if self.receiver_may_be_flow_narrowed(effective)
-                        && self.enclosing_scope_has_flow_guards(node)
+                        && self.flow_guards_narrow_reference(node, effective)
                     {
                         return Err(Unsupported::new(
-                            "[FLOW M5] failed argument from a narrowable reference in a \
-                             guard-bearing scope",
+                            "[FLOW M5] failed argument from a narrowable reference with a \
+                             related narrowing construct in scope",
                         ));
                     }
                 }

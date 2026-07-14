@@ -740,7 +740,7 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "get_signature_applicability_error"
-reason = "[FLOW M5] failed argument from a narrowable reference in a guard-bearing scope"
+reason = "[FLOW M5] failed argument from a narrowable reference with a related narrowing construct in scope"
 class = "stage"
 owner = "M5"
 

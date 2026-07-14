@@ -362,38 +362,149 @@ impl<'a> CheckerState<'a> {
     /// expressions, logical binaries? tsc's narrowing reaches any
     /// LATER read in the scope (early exits, exhaustive switches), so
     /// position-local guards under-approximate.
-    /// tsrs-native: [FLOW M5] containment probe (no tsc
-    /// counterpart — tsc consults real flow types).
-    pub(crate) fn enclosing_scope_has_flow_guards(&self, node: NodeId) -> bool {
-        // Whole-file scan: narrowing flows into nested closures
-        // (captured variables, `this`), so per-function scoping
-        // under-approximates. M5 replaces the probe with real flow.
-        let source = self.binder.source_of_node(node);
-        let root = source.root;
-        let mut worklist = vec![root];
-        while let Some(current) = worklist.pop() {
-            match self.kind_of(current) {
-                SyntaxKind::IfStatement
-                | SyntaxKind::SwitchStatement
-                | SyntaxKind::ConditionalExpression
-                | SyntaxKind::WhileStatement
-                | SyntaxKind::DoStatement
-                | SyntaxKind::ForStatement => return true,
-                SyntaxKind::BinaryExpression => {
-                    if matches!(
-                        self.data_of(current),
-                        NodeData::BinaryExpression(data)
-                            if data.operator_token.is_some_and(|token| matches!(
-                                self.kind_of(token),
-                                SyntaxKind::AmpersandAmpersandToken
-                                    | SyntaxKind::BarBarToken
-                                    | SyntaxKind::QuestionQuestionToken
-                            ))
-                    ) {
-                        return true;
+    /// tsrs-native: [FLOW M5] containment probe (no tsc counterpart —
+    /// tsc consults real flow types). True when a narrowing construct
+    /// RELATED TO the gated reference exists in the enclosing function
+    /// chain: an if/while/do/for/switch/conditional condition, a
+    /// logical binary's left operand, or an assignment target that
+    /// mentions one of the reference's root names (or `this`).
+    /// Function subtrees that do not contain the gate node are skipped
+    /// — a guard in an unrelated sibling function cannot narrow this
+    /// reference, and an UNRELATED guard (mentioning none of the
+    /// roots) never suppresses a report (PR #6 review P1).
+    pub(crate) fn flow_guards_narrow_reference(
+        &self,
+        gate_node: NodeId,
+        reference: NodeId,
+    ) -> bool {
+        let source = self.binder.source_of_node(gate_node);
+        // Root keys: every identifier text under the reference, plus
+        // the `this` face.
+        let mut roots: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        let mut this_root = false;
+        {
+            let mut worklist = vec![reference];
+            while let Some(current) = worklist.pop() {
+                match self.data_of(current) {
+                    NodeData::Identifier(data) => {
+                        roots.insert(&data.escaped_text);
+                    }
+                    _ => {
+                        if self.kind_of(current) == SyntaxKind::ThisKeyword {
+                            this_root = true;
+                        }
                     }
                 }
-                _ => {}
+                tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
+                    worklist.push(child);
+                    false
+                });
+            }
+        }
+        if roots.is_empty() && !this_root {
+            return false;
+        }
+        let mentions = |state: &Self, operand: NodeId| -> bool {
+            let mut worklist = vec![operand];
+            while let Some(current) = worklist.pop() {
+                match state.data_of(current) {
+                    NodeData::Identifier(data) => {
+                        if roots.contains(data.escaped_text.as_str()) {
+                            return true;
+                        }
+                    }
+                    _ => {
+                        if this_root && state.kind_of(current) == SyntaxKind::ThisKeyword {
+                            return true;
+                        }
+                    }
+                }
+                tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
+                    worklist.push(child);
+                    false
+                });
+            }
+            false
+        };
+        let gate_pos = source.arena.node(gate_node).pos;
+        let gate_end = source.arena.node(gate_node).end;
+        let mut worklist = vec![source.root];
+        while let Some(current) = worklist.pop() {
+            // Skip function subtrees the gate node is not inside —
+            // their narrowing cannot reach the reference.
+            if tsrs2_binder::node_util::is_function_like_kind(self.kind_of(current)) {
+                let raw = source.arena.node(current);
+                if !(raw.pos <= gate_pos && gate_end <= raw.end) {
+                    continue;
+                }
+            }
+            let narrowing_operand = match self.data_of(current) {
+                NodeData::IfStatement(data) => data.expression,
+                NodeData::WhileStatement(data) => data.expression,
+                NodeData::DoStatement(data) => data.expression,
+                NodeData::ForStatement(data) => data.condition,
+                NodeData::SwitchStatement(data) => data.expression,
+                NodeData::ConditionalExpression(data) => data.condition,
+                // Const/let aliases of conditions re-narrow through
+                // their initializer (tsc's aliased-discriminant
+                // narrowing: `const ok = x !== undefined; ok ? x : 0`)
+                // — but only GUARD-SHAPED initializers (comparisons,
+                // logical operators, negation, predicate calls); plain
+                // data aliases (`const y = x`) do not narrow x's later
+                // reads and must not widen the containment.
+                NodeData::VariableDeclaration(data) => {
+                    data.initializer
+                        .filter(|&initializer| match self.data_of(initializer) {
+                            NodeData::BinaryExpression(bin) => {
+                                let operator = bin.operator_token.map(|token| self.kind_of(token));
+                                matches!(
+                                    operator,
+                                    Some(
+                                        SyntaxKind::EqualsEqualsToken
+                                            | SyntaxKind::ExclamationEqualsToken
+                                            | SyntaxKind::EqualsEqualsEqualsToken
+                                            | SyntaxKind::ExclamationEqualsEqualsToken
+                                            | SyntaxKind::InstanceOfKeyword
+                                            | SyntaxKind::InKeyword
+                                            | SyntaxKind::AmpersandAmpersandToken
+                                            | SyntaxKind::BarBarToken
+                                            | SyntaxKind::QuestionQuestionToken
+                                    )
+                                )
+                            }
+                            NodeData::PrefixUnaryExpression(unary) => {
+                                unary.operator == SyntaxKind::ExclamationToken
+                            }
+                            _ => false,
+                        })
+                }
+                NodeData::BinaryExpression(data) => {
+                    let operator = data.operator_token.map(|token| self.kind_of(token));
+                    let is_logical = matches!(
+                        operator,
+                        Some(
+                            SyntaxKind::AmpersandAmpersandToken
+                                | SyntaxKind::BarBarToken
+                                | SyntaxKind::QuestionQuestionToken
+                        )
+                    );
+                    let is_assignment = operator.is_some_and(|op| {
+                        op == SyntaxKind::EqualsToken
+                            || (op.value() >= SyntaxKind::FirstCompoundAssignment.value()
+                                && op.value() <= SyntaxKind::LastCompoundAssignment.value())
+                    });
+                    if is_logical || is_assignment {
+                        data.left
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+            if let Some(operand) = narrowing_operand {
+                if mentions(self, operand) {
+                    return true;
+                }
             }
             tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
                 worklist.push(child);
@@ -1826,7 +1937,7 @@ impl<'a> CheckerState<'a> {
                     // guard calls). M5 removes the gate.
                     if self.receiver_may_be_flow_narrowed(left)
                         && (self.access_sits_in_guarded_position(node)
-                            || self.enclosing_scope_has_flow_guards(node))
+                            || self.flow_guards_narrow_reference(node, left))
                     {
                         return Err(Unsupported::new(
                             "[FLOW M5] property miss on a narrowable receiver in a guarded position",
