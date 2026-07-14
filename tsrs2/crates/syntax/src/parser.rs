@@ -2656,9 +2656,13 @@ impl<'text> Parser<'text> {
             Some(self.disallow_in(|parser| parser.parse_expression()))
         };
 
+        // 33177: `awaitToken ? parseExpected(of) : parseOptional(of)`
+        // — a FAILED parseExpected (false) falls through to the
+        // for-in/plain-for arms, so `for await (x in y)` recovers as a
+        // ForInStatement (with the 1005 parse error), never a
+        // ForOfStatement over a fabricated expression.
         let is_for_of = if await_modifier.is_some() {
-            self.parse_expected(SyntaxKind::OfKeyword, None);
-            true
+            self.parse_expected(SyntaxKind::OfKeyword, None)
         } else {
             self.parse_optional(SyntaxKind::OfKeyword)
         };

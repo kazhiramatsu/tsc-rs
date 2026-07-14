@@ -16,7 +16,8 @@
 use tsrs2_binder::node_util;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckMode, LiteralValue, SymbolFlags, SymbolId, TypeData, TypeFacts, TypeFlags, TypeId,
+    CheckMode, IterationUse, LiteralValue, SymbolFlags, SymbolId, TypeData, TypeFacts, TypeFlags,
+    TypeId,
 };
 
 use crate::state::{CheckResult2, CheckerState, Unsupported};
@@ -945,11 +946,15 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// getPropertyNameForKnownSymbolName: the global Symbol
-    /// constructor's `hasInstance` unique-symbol property name (the
-    /// late-bound `__@hasInstance@<id>` form) with the `__@hasInstance`
-    /// noLib fallback.
-    fn get_property_name_for_known_symbol_name(
+    /// tsc-port: getPropertyNameForKnownSymbolName @6.0.3
+    /// tsc-hash: 339a60369eedfaca440c106b17ebeff12f80aaa9c1c7301c470264254ba9e4a9
+    /// tsc-span: _tsc.js:84219-84226
+    ///
+    /// The global Symbol constructor's unique-symbol property name
+    /// (the late-bound `__@name@<id>` form) with the `__@name` noLib
+    /// fallback. Shared: instanceof (`hasInstance`) + the §4 iterable
+    /// slow path (`iterator`/`asyncIterator`).
+    pub(crate) fn get_property_name_for_known_symbol_name(
         &mut self,
         symbol_name: &str,
     ) -> CheckResult2<String> {
@@ -1096,12 +1101,21 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getTextOfNode: the source text of the node's span (left trivia
-    /// skipped, like getSourceTextOfNodeFromSourceFile).
+    /// skipped, like getSourceTextOfNodeFromSourceFile). JS
+    /// `substring` SWAPS its arguments when begin > end — reachable
+    /// for zero-width recovery nodes whose leading-trivia skip runs
+    /// past their end; replicate rather than panic.
     pub(crate) fn text_of_node(&self, node: NodeId) -> CheckResult2<String> {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
         let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
-        Ok(source.text[start..raw.end as usize].to_owned())
+        let end = raw.end as usize;
+        let (begin, finish) = if start <= end {
+            (start, end)
+        } else {
+            (end, start)
+        };
+        Ok(source.text[begin..finish].to_owned())
     }
 
     /// isIndirectCall (80278-80283) on the comma binary's parent
@@ -2006,14 +2020,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: dd986f2465f4953c7dcc207c5ee398ca69a859a73dc40a9e9d9bbbc4d16d20df
     /// tsc-span: _tsc.js:79667-79682
     ///
-    /// possiblyOutOfBoundsType = checkIteratedTypeOrElementType(
-    /// Destructuring|PossiblyOutOfBounds, …) is the iteration protocol
-    /// ([ITER] 5.5f). Fast path: for an array-like source the value
-    /// feeds ONLY non-array-like elements and non-tuple spread rests —
-    /// both escape below — so the eager call's errors (2488-family)
-    /// cannot fire lib-loaded and the call is skippable. Non-array-like
-    /// sources escape whole (their 2488/2461 rows live in the ITER
-    /// reporter). The DestructuringAssignment emit-helper row is
+    /// The DestructuringAssignment emit-helper row is
     /// importHelpers-gated (no-op).
     fn check_array_literal_assignment(
         &mut self,
@@ -2025,18 +2032,43 @@ impl<'a> CheckerState<'a> {
             NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements),
             _ => return Err(Unsupported::new("array literal without data")),
         };
-        if !self.is_array_like_type(source_type)? {
-            return Err(Unsupported::new(
-                "array destructuring over the iteration protocol \
-                 (checkIteratedTypeOrElementType, [ITER] 5.8 iteration protocol)",
-            ));
-        }
+        let undefined_type = self.tables.intrinsics.undefined;
+        let possibly_out_of_bounds_type = self.check_iterated_type_or_element_type(
+            IterationUse::from_bits(
+                IterationUse::DESTRUCTURING.bits() | IterationUse::POSSIBLY_OUT_OF_BOUNDS.bits(),
+            ),
+            source_type,
+            undefined_type,
+            Some(node),
+        )?;
+        let mut in_bounds_type = if self.options.no_unchecked_indexed_access.unwrap_or(false) {
+            None
+        } else {
+            Some(possibly_out_of_bounds_type)
+        };
         for index in 0..elements.len() {
+            let mut element_type = possibly_out_of_bounds_type;
+            if self.kind_of(elements[index]) == SyntaxKind::SpreadElement {
+                element_type = match in_bounds_type {
+                    Some(ty) => ty,
+                    None => {
+                        let computed = self.check_iterated_type_or_element_type(
+                            IterationUse::DESTRUCTURING,
+                            source_type,
+                            undefined_type,
+                            Some(node),
+                        )?;
+                        in_bounds_type = Some(computed);
+                        computed
+                    }
+                };
+            }
             self.check_array_literal_destructuring_element_assignment(
                 node,
                 source_type,
                 index,
                 &elements,
+                element_type,
                 check_mode,
             )?;
         }
@@ -2059,6 +2091,7 @@ impl<'a> CheckerState<'a> {
         source_type: TypeId,
         element_index: usize,
         elements: &[NodeId],
+        iterated_element_type: TypeId,
         check_mode: CheckMode,
     ) -> CheckResult2<()> {
         let element = elements[element_index];
@@ -2072,9 +2105,18 @@ impl<'a> CheckerState<'a> {
                      collides with the element-access dispatch arm)",
                 ));
             }
+            if !self.is_array_like_type(source_type)? {
+                // 79696: non-array-like sources hand every element the
+                // iterated type.
+                self.check_destructuring_assignment(
+                    element,
+                    iterated_element_type,
+                    check_mode,
+                    false,
+                )?;
+                return Ok(());
+            }
             let index_type = self.tables.get_number_literal_type(element_index as f64);
-            // The caller established isArrayLikeType(sourceType); the
-            // non-array-like else-arm needs the [ITER] element type.
             let access_flags = tsrs2_types::AccessFlags::from_bits(
                 tsrs2_types::AccessFlags::EXPRESSION_POSITION.bits()
                     | if self.has_default_value(element) {
@@ -2137,21 +2179,19 @@ impl<'a> CheckerState<'a> {
             &tsrs2_diags::gen::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
         );
         let all_tuples = self.every_type(source_type, |state, t| state.tables.is_tuple_type(t));
-        if !all_tuples {
-            // createArrayType(elementType) needs the [ITER 5.5f]
-            // iteration element type for non-tuple sources.
-            return Err(Unsupported::new(
-                "array destructuring rest over a non-tuple source \
-                 (checkIteratedTypeOrElementType, [ITER] 5.8 iteration protocol)",
-            ));
-        }
-        let sliced = self.map_type(
-            source_type,
-            &mut |state, t| state.slice_tuple_type(t, element_index, 0).map(Some),
-            false,
-        )?;
-        let sliced = sliced.expect("mapper never returns None");
-        self.check_destructuring_assignment(rest_expression, sliced, check_mode, false)?;
+        let rest_type = if all_tuples {
+            let sliced = self.map_type(
+                source_type,
+                &mut |state, t| state.slice_tuple_type(t, element_index, 0).map(Some),
+                false,
+            )?;
+            sliced.expect("mapper never returns None")
+        } else {
+            // 79707: createArrayType(elementType) — the iterated
+            // element type feeds non-tuple rests since 5.8b.
+            self.create_array_type(iterated_element_type, false)?
+        };
+        self.check_destructuring_assignment(rest_expression, rest_type, check_mode, false)?;
         Ok(())
     }
 
@@ -4463,7 +4503,10 @@ impl<'a> CheckerState<'a> {
     /// along: an Awaited alias with the wrong arity errors on ITS
     /// declaration (2317) — only constructible with a user-shadowed
     /// lib, so the arm escapes rather than half-rendering.
-    fn get_global_awaited_symbol(&mut self, report_errors: bool) -> CheckResult2<Option<SymbolId>> {
+    pub(crate) fn get_global_awaited_symbol(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<Option<SymbolId>> {
         if let Some(memo) = self.deferred_global_awaited_symbol {
             return Ok(memo.filter(|&s| s != self.unknown_symbol));
         }

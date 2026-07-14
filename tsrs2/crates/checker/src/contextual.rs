@@ -618,10 +618,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 941b7545b7acc626e53e5111d6ec13ccfebc39f90fe0a2a9e463dea900536755
     /// tsc-span: _tsc.js:72776-72801
     ///
-    /// Generator filter/iteration arms are [ITER → 5.5f]; the async
-    /// awaited arm is [ASYNC → 5.5f]. Both escape only when a
-    /// contextual return type actually exists — the None fall-through
-    /// is tsc's.
+    /// Generator filter/iteration arms live since 5.8b (§4).
     fn get_contextual_type_for_return_expression(
         &mut self,
         node: NodeId,
@@ -635,11 +632,37 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let function_flags = self.get_function_flags(func);
+        let mut contextual_return_type = contextual_return_type;
         if function_flags & FUNCTION_FLAGS_GENERATOR != 0 {
-            return Err(Unsupported::new(
-                "getContextualTypeForReturnExpression generator filter \
-                 (getIterationTypeOfGeneratorFunctionReturnType, 5.8 iteration protocol)",
-            ));
+            // 72782-72791: union contextual types keep only the
+            // constituents with a generator RETURN iteration type;
+            // a miss on the whole answers None.
+            let is_async_generator = function_flags & FUNCTION_FLAGS_ASYNC != 0;
+            if self
+                .tables
+                .flags_of(contextual_return_type)
+                .intersects(TypeFlags::UNION)
+            {
+                contextual_return_type =
+                    self.filter_type_with(contextual_return_type, |state, t| {
+                        Ok(state
+                            .get_iteration_type_of_generator_function_return_type(
+                                tsrs2_types::IterationTypeKind::RETURN,
+                                t,
+                                is_async_generator,
+                            )?
+                            .is_some())
+                    })?;
+            }
+            let iteration_return_type = self.get_iteration_type_of_generator_function_return_type(
+                tsrs2_types::IterationTypeKind::RETURN,
+                contextual_return_type,
+                is_async_generator,
+            )?;
+            let Some(iteration_return_type) = iteration_return_type else {
+                return Ok(None);
+            };
+            contextual_return_type = iteration_return_type;
         }
         if function_flags & FUNCTION_FLAGS_ASYNC != 0 {
             // 72792-72795: awaited-or-promise-like of the contextual
@@ -666,6 +689,109 @@ impl<'a> CheckerState<'a> {
         )?))
     }
 
+    /// tsc-port: getContextualTypeForYieldOperand @6.0.3
+    /// tsc-hash: 31ef78625fa63299495f6acde2319bebfbd69e0de6ba9aea6831bbc38a8f7115
+    /// tsc-span: _tsc.js:72810-72848
+    fn get_contextual_type_for_yield_operand(
+        &mut self,
+        node: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult2<Option<TypeId>> {
+        let Some(func) = self.get_containing_function(node) else {
+            return Ok(None);
+        };
+        let function_flags = self.get_function_flags(func);
+        let Some(mut contextual_return_type) =
+            self.get_contextual_return_type(func, context_flags)?
+        else {
+            return Ok(None);
+        };
+        let is_async_generator = function_flags & FUNCTION_FLAGS_ASYNC != 0;
+        let asterisk_token = match self.data_of(node) {
+            NodeData::YieldExpression(data) => data.asterisk_token,
+            _ => None,
+        };
+        if asterisk_token.is_none()
+            && self
+                .tables
+                .flags_of(contextual_return_type)
+                .intersects(TypeFlags::UNION)
+        {
+            contextual_return_type =
+                self.filter_type_with(contextual_return_type, |state, t| {
+                    Ok(state
+                        .get_iteration_type_of_generator_function_return_type(
+                            tsrs2_types::IterationTypeKind::RETURN,
+                            t,
+                            is_async_generator,
+                        )?
+                        .is_some())
+                })?;
+        }
+        if asterisk_token.is_some() {
+            let iteration_types = self.get_iteration_types_of_generator_function_return_type(
+                contextual_return_type,
+                is_async_generator,
+            )?;
+            let silent_never = self.tables.intrinsics.silent_never;
+            let yield_type = iteration_types
+                .map(|types| types.yield_type)
+                .unwrap_or(silent_never);
+            let return_type = self
+                .get_contextual_type(node, context_flags)?
+                .unwrap_or(silent_never);
+            let next_type = iteration_types
+                .map(|types| types.next_type)
+                .unwrap_or(self.tables.intrinsics.unknown);
+            let generator_type = self.create_generator_type(
+                yield_type,
+                return_type,
+                next_type,
+                /*is_async_generator*/ false,
+            )?;
+            if is_async_generator {
+                let async_generator_type = self.create_generator_type(
+                    yield_type,
+                    return_type,
+                    next_type,
+                    /*is_async_generator*/ true,
+                )?;
+                return Ok(Some(self.get_union_type_ex(
+                    &[generator_type, async_generator_type],
+                    tsrs2_types::UnionReduction::Literal,
+                )?));
+            }
+            return Ok(Some(generator_type));
+        }
+        self.get_iteration_type_of_generator_function_return_type(
+            tsrs2_types::IterationTypeKind::YIELD,
+            contextual_return_type,
+            is_async_generator,
+        )
+    }
+
+    /// tsc-port: getContextualIterationType @6.0.3
+    /// tsc-hash: 126acfec7a3eab20bcff0beb031916075ebbb2a790f3c36b856b79f7ad90772a
+    /// tsc-span: _tsc.js:72862-72873
+    pub(crate) fn get_contextual_iteration_type(
+        &mut self,
+        kind: tsrs2_types::IterationTypeKind,
+        function_decl: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let is_async = self.get_function_flags(function_decl) & FUNCTION_FLAGS_ASYNC != 0;
+        let contextual_return_type =
+            self.get_contextual_return_type(function_decl, ContextFlags::NONE)?;
+        match contextual_return_type {
+            Some(contextual_return_type) => self
+                .get_iteration_type_of_generator_function_return_type(
+                    kind,
+                    contextual_return_type,
+                    is_async,
+                ),
+            None => Ok(None),
+        }
+    }
+
     /// tsc-port: getContextualTypeForAwaitOperand @6.0.3
     /// tsc-hash: 5f290c56300cb643f37d3f452bd7a0b18c7234bef5c5bda9ff4d100454bce922
     /// tsc-span: _tsc.js:72802-72809
@@ -684,10 +810,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 6656f35e13ca42f182376bea5fca91873448108c174cb259f9fde363dece7113
     /// tsc-span: _tsc.js:72874-72905
     ///
-    /// The async filter is live (5.5f); the generator filter escapes
-    /// [ITER → 5.8]. The annotation, contextual-signature and IIFE
-    /// arms are live ([CALLS]-lite: the IIFE arm is just
-    /// getContextualType of the call node).
+    /// The async filter is live (5.5f); the generator filter since
+    /// 5.8b. The annotation, contextual-signature and IIFE arms are
+    /// live ([CALLS]-lite: the IIFE arm is just getContextualType of
+    /// the call node).
     pub(crate) fn get_contextual_return_type(
         &mut self,
         function_decl: NodeId,
@@ -703,10 +829,23 @@ impl<'a> CheckerState<'a> {
                 let return_type = self.get_return_type_of_signature(signature)?;
                 let function_flags = self.get_function_flags(function_decl);
                 if function_flags & FUNCTION_FLAGS_GENERATOR != 0 {
-                    return Err(Unsupported::new(
-                        "getContextualReturnType generator filter \
-                         (checkGeneratorInstantiationAssignabilityToReturnType, 5.8 iteration protocol)",
-                    ));
+                    // 72883-72892: keep any/unknown/void/instantiable
+                    // constituents plus generator-instantiable ones.
+                    let filtered = self.filter_type_with(return_type, |state, t| {
+                        if state.tables.flags_of(t).intersects(
+                            TypeFlags::ANY_OR_UNKNOWN
+                                | TypeFlags::VOID
+                                | TypeFlags::INSTANTIABLE_NON_PRIMITIVE,
+                        ) {
+                            return Ok(true);
+                        }
+                        state.check_generator_instantiation_assignability_to_return_type(
+                            t,
+                            function_flags,
+                            /*error_node*/ None,
+                        )
+                    })?;
+                    return Ok(Some(filtered));
                 }
                 if function_flags & FUNCTION_FLAGS_ASYNC != 0 {
                     // 72894-72898: keep the constituents that are
@@ -1720,13 +1859,15 @@ impl<'a> CheckerState<'a> {
                         return Ok(Some(prop_type));
                     }
                 }
-                // getIteratedTypeOrElementType(Element, t, undefined,
-                // no-error, no-assignability) — [ITER → 5.8]; the
-                // silent form still needs the iteration protocol.
-                Err(Unsupported::new(
-                    "getContextualTypeForElementExpression iterated-type tail \
-                     (getIteratedTypeOrElementType, 5.8)",
-                ))
+                // 73282-73289: the silent Element probe.
+                let undefined_type = state.tables.intrinsics.undefined;
+                state.get_iterated_type_or_element_type(
+                    tsrs2_types::IterationUse::ELEMENT,
+                    t,
+                    undefined_type,
+                    /*error_node*/ None,
+                    /*check_assignability*/ false,
+                )
             },
             true,
         )
@@ -2205,11 +2346,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 02e025b3e9c853ac1497ab5d7bd33875c5e78ff40065cf2b8f3febad76aa2316
     /// tsc-span: _tsc.js:73471-73556
     ///
-    /// Arm dispositions per the extraction doc §4 table; None answers
-    /// for [CALLS → 5.7] argument/decorator/tagged-span arms and the
-    /// [ITER → 5.5f] yield arm are recorded FNs, not escapes — a
-    /// contextual type is optional and the un-stubbing stage lifts
-    /// them in place.
+    /// Arm dispositions per the extraction doc §4 table; the remaining
+    /// None answers ([CALLS] decorator arm) are recorded FNs, not
+    /// escapes — a contextual type is optional and the un-stubbing
+    /// stage lifts them in place. The yield-operand arm is live since
+    /// 5.8b.
     pub(crate) fn get_contextual_type(
         &mut self,
         node: NodeId,
@@ -2236,10 +2377,7 @@ impl<'a> CheckerState<'a> {
                 self.get_contextual_type_for_return_expression(node, context_flags)
             }
             SyntaxKind::YieldExpression => {
-                // [ITER → 5.5f] getContextualTypeForYieldOperand
-                // (72810-72848): generator iteration types — recorded
-                // FN; the yield checker itself is 5.5f.
-                Ok(None)
+                self.get_contextual_type_for_yield_operand(parent, context_flags)
             }
             SyntaxKind::AwaitExpression => {
                 self.get_contextual_type_for_await_operand(parent, context_flags)

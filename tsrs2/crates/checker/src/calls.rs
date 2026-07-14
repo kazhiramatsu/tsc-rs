@@ -914,9 +914,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: dfdbbb36374c6ab5201a5e1f9856e353347e1d3cace2f7a7f8d6246a95d6fbce
     /// tsc-span: _tsc.js:76002-76042
     ///
-    /// The non-array-like spread arms escape on the [ITER] kit
-    /// (checkIteratedTypeOrElementType — iteration protocols are 5.8
-    /// machinery).
+    /// Non-array-like SYNTHETIC spreads keep a named escape: their
+    /// error node is the synthetic expression (span-only here), and
+    /// suppressing the 2461-band diagnostic tsc would emit is a
+    /// wrong-payload risk.
     pub(crate) fn get_spread_argument_type(
         &mut self,
         args: &[EffectiveArg],
@@ -929,8 +930,8 @@ impl<'a> CheckerState<'a> {
         if arg_count > 0 && index >= arg_count - 1 {
             let arg = &args[arg_count - 1];
             if self.is_spread_argument(arg) {
-                let spread_type = match *arg {
-                    EffectiveArg::Synthetic { ty, .. } => ty,
+                let (spread_type, error_node) = match *arg {
+                    EffectiveArg::Synthetic { ty, .. } => (ty, None),
                     EffectiveArg::Node(node) => {
                         let NodeData::SpreadElement(data) = self.data_of(node) else {
                             unreachable!("spread arguments are spread elements");
@@ -938,17 +939,28 @@ impl<'a> CheckerState<'a> {
                         let expression = data.expression.ok_or_else(|| {
                             Unsupported::new("spread without operand (parse recovery)")
                         })?;
-                        self.check_expression_with_contextual_type(
+                        let ty = self.check_expression_with_contextual_type(
                             expression, rest_type, /*inference_context*/ None, check_mode,
-                        )?
+                        )?;
+                        (ty, Some(expression))
                     }
                 };
                 if self.is_array_like_type(spread_type)? {
                     return self.get_mutable_array_or_tuple_type(spread_type);
                 }
-                return Err(Unsupported::new(
-                    "checkIteratedTypeOrElementType for non-array spread arguments ([ITER] 5.8)",
-                ));
+                if error_node.is_none() {
+                    return Err(Unsupported::new(
+                        "non-array-like SYNTHETIC spread argument (span-only error node; synthetic args ride inference shapes, M6)",
+                    ));
+                }
+                let undefined_type = self.tables.intrinsics.undefined;
+                let element = self.check_iterated_type_or_element_type(
+                    tsrs2_types::IterationUse::SPREAD,
+                    spread_type,
+                    undefined_type,
+                    error_node,
+                )?;
+                return self.create_array_type(element, in_const_context);
             }
         }
         let mut types: Vec<TypeId> = Vec::new();
@@ -957,8 +969,8 @@ impl<'a> CheckerState<'a> {
         for i in index..arg_count {
             let arg = args[i];
             if self.is_spread_argument(&arg) {
-                let spread_type = match arg {
-                    EffectiveArg::Synthetic { ty, .. } => ty,
+                let (spread_type, error_node) = match arg {
+                    EffectiveArg::Synthetic { ty, .. } => (ty, None),
                     EffectiveArg::Node(node) => {
                         let NodeData::SpreadElement(data) = self.data_of(node) else {
                             unreachable!("spread arguments are spread elements");
@@ -966,16 +978,28 @@ impl<'a> CheckerState<'a> {
                         let expression = data.expression.ok_or_else(|| {
                             Unsupported::new("spread without operand (parse recovery)")
                         })?;
-                        self.check_expression(expression, CheckMode::NORMAL)?
+                        let ty = self.check_expression(expression, CheckMode::NORMAL)?;
+                        (ty, Some(expression))
                     }
                 };
                 if self.is_array_like_type(spread_type)? {
                     types.push(spread_type);
                     flags.push(ElementFlags::VARIADIC);
                 } else {
-                    return Err(Unsupported::new(
-                        "checkIteratedTypeOrElementType for non-array spread arguments ([ITER] 5.8)",
-                    ));
+                    if error_node.is_none() {
+                        return Err(Unsupported::new(
+                            "non-array-like SYNTHETIC spread argument (span-only error node; synthetic args ride inference shapes, M6)",
+                        ));
+                    }
+                    let undefined_type = self.tables.intrinsics.undefined;
+                    let element = self.check_iterated_type_or_element_type(
+                        tsrs2_types::IterationUse::SPREAD,
+                        spread_type,
+                        undefined_type,
+                        error_node,
+                    )?;
+                    types.push(element);
+                    flags.push(ElementFlags::REST);
                 }
             } else {
                 let contextual_type = if self.tables.is_tuple_type(rest_type) {
@@ -1408,7 +1432,7 @@ impl<'a> CheckerState<'a> {
         // Target-side pass first: an element can only produce a row
         // when the target has a matching indexed access — deciding
         // this before the forced-tuple re-check keeps no-index targets
-        // out of the [ITER] contextual escapes.
+        // out of the contextual element reads.
         let mut candidates: Vec<(usize, TypeId)> = Vec::new();
         for (i, &element) in elements.iter().enumerate() {
             if self.is_tuple_like_type(target)?
@@ -1827,6 +1851,27 @@ impl<'a> CheckerState<'a> {
                     EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
                     EffectiveArg::Synthetic { .. } => None,
                 };
+                // [FLOW M5] second face for arguments (the 5.5e `=`
+                // precedent): tsc consumes the FLOW type of a
+                // narrowable-reference argument — a failed verdict
+                // over the DECLARED union/unknown type may be
+                // tsc-clean. Contain those; M5 removes the gate.
+                if let Some(effective) = effective {
+                    // [FLOW M5]: predicates/typeof/switch narrowing
+                    // can change ANY reference's type, so no flag
+                    // filter — a failed verdict over a narrowable
+                    // reference with a RELATED narrowing construct in
+                    // scope may be tsc-clean; unrelated guards never
+                    // suppress (PR #6 review P1).
+                    if self.receiver_may_be_flow_narrowed(effective)
+                        && self.flow_guards_narrow_reference(node, effective)
+                    {
+                        return Err(Unsupported::new(
+                            "[FLOW M5] failed argument from a narrowable reference with a \
+                             related narrowing construct in scope",
+                        ));
+                    }
+                }
                 // The elaboration gate: elementwise elaborations move
                 // the code/span (Err); the did-you-mean flavor keeps
                 // the head but reports at the walked node.
@@ -3394,6 +3439,38 @@ impl<'a> CheckerState<'a> {
             call_signatures.len(),
             num_construct_signatures,
         )? {
+            // [FLOW M5] auto-callee gate: `var a;` callees flow-type
+            // to undefined in tsc — checkNonNullExpression yields
+            // errorType (2722 + no 2347); our auto stand-in is anyType
+            // (annotate.rs AUTO ARM), so the error-face never forms.
+            // Contain rather than fabricate 2347 beside tsc's 2722.
+            if type_arguments.is_some() {
+                let auto_callee = {
+                    let core = self.skip_outer_expressions(expression, OuterExpressionKinds::ALL);
+                    (self.kind_of(core) == SyntaxKind::Identifier)
+                        .then(|| self.links.node(core).resolved_symbol.resolved())
+                        .flatten()
+                };
+                if let Some(symbol) = auto_callee {
+                    let is_auto_var =
+                        self.binder
+                            .symbol(symbol)
+                            .value_declaration
+                            .is_some_and(|declaration| {
+                                matches!(
+                                    self.data_of(declaration),
+                                    NodeData::VariableDeclaration(data)
+                                        if data.r#type.is_none() && data.initializer.is_none()
+                                )
+                            });
+                    if is_auto_var {
+                        return Err(Unsupported::new(
+                            "[FLOW M5] untyped-call 2347 over an auto-typed callee \
+                             (checkNonNullExpression error-face unmodeled)",
+                        ));
+                    }
+                }
+            }
             // 77014-77016: 2347 on non-error targets with typeArguments.
             if func_type != self.tables.intrinsics.error && type_arguments.is_some() {
                 self.error_at(
@@ -4711,11 +4788,9 @@ mod tests {
     #[test]
     fn array_literal_args_against_non_array_params_contain() {
         // Oracle: plain 2345 at the literal (elaboration finds no
-        // rows). The ARG CHECK contains first: the array literal's
-        // element contextual read against a non-array/non-tuple
-        // contextual type rides the 5.5c [ITER → 5.8] escape
-        // (getIteratedTypeOrElementType) — recorded FN until the
-        // iteration protocol lands.
+        // rows). The element contextual read runs the live §4 Element
+        // probe (silently None on I); the 2345 head itself still
+        // contains — recorded FN.
         assert_eq!(
             checked_rows("interface I { p: string }\ndeclare function el(a: I): void;\nel([1]);\n"),
             []

@@ -729,6 +729,7 @@ impl<'a> CheckerState<'a> {
                     original_location,
                     name,
                     property,
+                    result,
                 ) {
                     return None;
                 }
@@ -960,9 +961,20 @@ impl<'a> CheckerState<'a> {
         error_location: Option<NodeId>,
         name: &str,
         property: NodeId,
+        result: Option<SymbolId>,
     ) -> bool {
         if self.options.emit_script_target() >= ScriptTarget::ES2022 {
             return false;
+        }
+        // 48098: an UNRESOLVED name first probes the missing-prefix
+        // alternate (2662/2663) — only a miss falls to the 2301/2844
+        // rows; a probe that unwinds suppresses both (FN-safe: this
+        // helper has no Err channel).
+        if result.is_none() {
+            match self.check_and_report_error_for_missing_prefix(error_location, name) {
+                Ok(true) | Err(_) => return true,
+                Ok(false) => {}
+            }
         }
         let NodeData::PropertyDeclaration(data) = self.data_of(property) else {
             unreachable!("PropertyDeclaration kind implies payload");
@@ -1682,6 +1694,10 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn identifier_text_of(&self, node: NodeId) -> Option<&'a str> {
         match self.data_of(node) {
             NodeData::Identifier(data) => Some(&data.escaped_text),
+            // tsc idText serves Identifier AND PrivateIdentifier — the
+            // private text keeps its `#` (getSymbolNameForPrivateIdentifier
+            // suffixes exactly this form).
+            NodeData::PrivateIdentifier(data) => Some(&data.escaped_text),
             _ => None,
         }
     }

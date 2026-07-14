@@ -152,15 +152,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getWidenedLiteralLikeTypeForContextualIterationTypeIfNeeded @6.0.3
     /// tsc-hash: bf2483d08e235cdcd45b14bb2336905208671b3533c617ac30218cc53188328e
     /// tsc-span: _tsc.js:67784-67790
-    ///
-    /// The generator arm reads getIterationTypeOfGeneratorFunctionReturnType
-    /// — [ITER → 5.5f]; the consumers (yield/return aggregation) land
-    /// there too.
-    #[allow(dead_code)]
     pub(crate) fn get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
         &mut self,
         ty: Option<TypeId>,
         contextual_signature_return_type: Option<TypeId>,
+        kind: tsrs2_types::IterationTypeKind,
+        is_async_generator: bool,
     ) -> CheckResult2<Option<TypeId>> {
         let Some(current) = ty else {
             return Ok(ty);
@@ -168,14 +165,16 @@ impl<'a> CheckerState<'a> {
         if !self.is_unit_type(current) {
             return Ok(ty);
         }
-        if contextual_signature_return_type.is_some() {
-            return Err(crate::state::Unsupported::new(
-                "getWidenedLiteralLikeTypeForContextualIterationTypeIfNeeded generator arm \
-                 (getIterationTypeOfGeneratorFunctionReturnType, 5.8 iteration protocol)",
-            ));
-        }
+        let contextual_type = match contextual_signature_return_type {
+            Some(contextual) => self.get_iteration_type_of_generator_function_return_type(
+                kind,
+                contextual,
+                is_async_generator,
+            )?,
+            None => None,
+        };
         Ok(Some(
-            self.get_widened_literal_like_type_for_contextual_type(current, None)?,
+            self.get_widened_literal_like_type_for_contextual_type(current, contextual_type)?,
         ))
     }
     // ---- M4 5.6: widening contexts + object-level widening ----
@@ -755,11 +754,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: shouldReportErrorsFromWideningWithContextualSignature @6.0.3
     /// tsc-hash: 63e7cd6e79236567f70332dbf955020fe94571a9bd466c4e58de94b575cc819f
     /// tsc-span: _tsc.js:68163-68186
-    ///
-    /// The generator rows read getIterationTypeOfGeneratorFunctionReturnType
-    /// ([ITER] 5.8) and escape; generator BODIES already escape whole in
-    /// getReturnTypeFromBody, so only the async FunctionReturn arm is
-    /// reachable at 5.6.
     fn should_report_errors_from_widening_with_contextual_signature(
         &mut self,
         declaration: NodeId,
@@ -773,14 +767,20 @@ impl<'a> CheckerState<'a> {
         };
         let mut return_type = self.get_return_type_of_signature(signature)?;
         let flags = self.get_function_flags(declaration);
+        let is_async = flags & crate::functions::FUNCTION_FLAGS_ASYNC != 0;
         match widening_kind {
             WideningKind::FUNCTION_RETURN => {
                 if flags & crate::functions::FUNCTION_FLAGS_GENERATOR != 0 {
-                    return Err(crate::state::Unsupported::new(
-                        "shouldReportErrorsFromWidening generator arm ([ITER] 5.8)",
-                    ));
-                }
-                if flags & crate::functions::FUNCTION_FLAGS_ASYNC != 0 {
+                    if let Some(iteration) = self
+                        .get_iteration_type_of_generator_function_return_type(
+                            tsrs2_types::IterationTypeKind::RETURN,
+                            return_type,
+                            is_async,
+                        )?
+                    {
+                        return_type = iteration;
+                    }
+                } else if is_async {
                     if let Some(awaited) =
                         self.get_awaited_type_no_alias(return_type, /*error_info*/ None)?
                     {
@@ -789,10 +789,27 @@ impl<'a> CheckerState<'a> {
                 }
                 Ok(self.tables.is_generic_type(return_type))
             }
-            WideningKind::GENERATOR_YIELD | WideningKind::GENERATOR_NEXT => {
-                Err(crate::state::Unsupported::new(
-                    "shouldReportErrorsFromWidening generator rows ([ITER] 5.8)",
-                ))
+            WideningKind::GENERATOR_YIELD => {
+                let yield_type = self.get_iteration_type_of_generator_function_return_type(
+                    tsrs2_types::IterationTypeKind::YIELD,
+                    return_type,
+                    is_async,
+                )?;
+                Ok(match yield_type {
+                    Some(yield_type) => self.tables.is_generic_type(yield_type),
+                    None => false,
+                })
+            }
+            WideningKind::GENERATOR_NEXT => {
+                let next_type = self.get_iteration_type_of_generator_function_return_type(
+                    tsrs2_types::IterationTypeKind::NEXT,
+                    return_type,
+                    is_async,
+                )?;
+                Ok(match next_type {
+                    Some(next_type) => self.tables.is_generic_type(next_type),
+                    None => false,
+                })
             }
             _ => Ok(false),
         }

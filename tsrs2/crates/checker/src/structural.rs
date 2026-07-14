@@ -2725,6 +2725,90 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: isImplementationCompatibleWithOverload @6.0.3
+    /// tsc-hash: 625a585f0579346256510f52327b11c5bd5aee2a2e5c655aef93f2cfb767599b
+    /// tsc-span: _tsc.js:64629-64643
+    /// (covers isSignatureAssignableTo 64463-64477 — the
+    /// ignoreReturnTypes compareSignaturesRelated probe)
+    pub(crate) fn is_implementation_compatible_with_overload(
+        &mut self,
+        implementation: SignatureId,
+        overload: SignatureId,
+    ) -> CheckResult2<bool> {
+        let erased_source = self.get_erased_signature(implementation)?;
+        let erased_target = self.get_erased_signature(overload)?;
+        let source_return_type = self.get_return_type_of_signature(erased_source)?;
+        let target_return_type = self.get_return_type_of_signature(erased_target)?;
+        let return_ok = target_return_type == self.tables.intrinsics.void
+            || self.is_type_related_to(
+                target_return_type,
+                source_return_type,
+                RelationKind::Assignable,
+            )?
+            || self.is_type_related_to(
+                source_return_type,
+                target_return_type,
+                RelationKind::Assignable,
+            )?;
+        if !return_ok {
+            return Ok(false);
+        }
+        let relation = RelationKind::Assignable;
+        let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+        let mut checker = crate::engine::RelationChecker {
+            st: self,
+            relation,
+            maybe_keys: Vec::new(),
+            maybe_keys_set: std::collections::HashSet::new(),
+            source_stack: Vec::new(),
+            target_stack: Vec::new(),
+            maybe_count: 0,
+            source_depth: 0,
+            target_depth: 0,
+            expanding_flags: tsrs2_types::ExpandingFlags::NONE,
+            overflow: false,
+            relation_count,
+        };
+        let verdict = checker.compare_signatures_related(
+            erased_source,
+            erased_target,
+            check_mode::IGNORE_RETURN_TYPES,
+            IntersectionState::NONE,
+            /*report_unreliable_markers*/ None,
+        )?;
+        Ok(verdict != Ternary::FALSE)
+    }
+
+    /// tsc-port: isReferenceToType @6.0.3
+    /// tsc-hash: 84871de8faa8d88bbb9a6ac7c91c4f8b117eb0e41b0fac6b844236f5c61c5451
+    /// tsc-span: _tsc.js:56990-56992
+    ///
+    /// `type.target` covers plain References AND GenericType/tuple
+    /// targets (tsc `type.target = type`) via tables.reference_target.
+    /// The tsc `target !== undefined` guard maps to callers passing a
+    /// real TypeId (the emptyGenericType fallback compares unequal).
+    pub(crate) fn is_reference_to_type(&self, ty: TypeId, target: TypeId) -> bool {
+        self.tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+            && self.tables.reference_target(ty) == target
+    }
+
+    /// tsc-port: isReferenceToSomeType @6.0.3
+    /// tsc-hash: 339c275fb77a043a6f21ed038a1309980614105afcb362ed1386ab2e8e3675a7
+    /// tsc-span: _tsc.js:56979-56989
+    pub(crate) fn is_reference_to_some_type(&self, ty: TypeId, targets: &[TypeId]) -> bool {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            return false;
+        }
+        let target = self.tables.reference_target(ty);
+        targets.contains(&target)
+    }
+
     /// tsc-port: getReducedType @6.0.3
     /// tsc-hash: abdfab6ced2592e580352b92374d1ca078ca38b3ca65ba80961e5f8c83ee32f7
     /// tsc-span: _tsc.js:59287-59297

@@ -27,7 +27,9 @@
 use tsrs2_binder::node_util;
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{CheckMode, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId};
+use tsrs2_types::{
+    CheckMode, IterationUse, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId,
+};
 
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 
@@ -295,9 +297,13 @@ impl<'a> CheckerState<'a> {
                 }
                 if need_check_widened_type {
                     if self.kind_of(name) == SyntaxKind::ArrayBindingPattern {
-                        return Err(Unsupported::new(
-                            "checkIteratedTypeOrElementType ([ITER] §4, 5.8b)",
-                        ));
+                        let undefined_type = self.tables.intrinsics.undefined;
+                        self.check_iterated_type_or_element_type(
+                            IterationUse::DESTRUCTURING,
+                            widened_type,
+                            undefined_type,
+                            Some(node),
+                        )?;
                     } else if strict_null_checks {
                         self.check_non_null_non_void_type(widened_type, node)?;
                     }
@@ -489,7 +495,7 @@ impl<'a> CheckerState<'a> {
         if node_kind != SyntaxKind::PropertyDeclaration
             && node_kind != SyntaxKind::PropertySignature
         {
-            self.source_element_stub("checkExportsOnMergedDeclarations", "5.8b")?;
+            self.check_exports_on_merged_declarations(node)?;
             if node_kind == SyntaxKind::VariableDeclaration
                 || node_kind == SyntaxKind::BindingElement
             {
@@ -962,7 +968,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkAmbientInitializer @6.0.3
     /// tsc-hash: 0fb8e6d9740ef01fa649156af905db37144d09b43fc20b0516dbaea79a377df8
     /// tsc-span: _tsc.js:90049-90062
-    fn check_ambient_initializer(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn check_ambient_initializer(&mut self, node: NodeId) -> CheckResult2<bool> {
         let Some(initializer) = self.initializer_of_node(node) else {
             return Ok(false);
         };
@@ -1719,7 +1725,9 @@ impl<'a> CheckerState<'a> {
 
     /// Any descendant (or the node itself) is a narrowable reference —
     /// the broad FP=0-side probe feeding the declaration-row gate.
-    fn subtree_mentions_narrowable_reference(&self, root: NodeId) -> bool {
+    /// tsrs-native: [FLOW M5] containment probe (no tsc counterpart
+    /// — tsc consults real flow types).
+    pub(crate) fn subtree_mentions_narrowable_reference(&self, root: NodeId) -> bool {
         let mut stack = vec![root];
         while let Some(node) = stack.pop() {
             let source = self.binder.source_of_node(node);
@@ -1785,7 +1793,10 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc hasQuestionToken — the declaration kinds carrying one.
-    fn has_question_token(&self, node: NodeId) -> bool {
+    /// tsc-port: hasQuestionToken @6.0.3
+    /// tsc-hash: 06c9b820c0d5a73c3c11c26fc46049a0742889798513f8030e08f73038a580c3
+    /// tsc-span: _tsc.js:15286-15298
+    pub(crate) fn has_question_token(&self, node: NodeId) -> bool {
         match self.data_of(node) {
             NodeData::Parameter(data) => data.question_token.is_some(),
             NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
@@ -1987,11 +1998,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 08b449c328a80dc775d3d2a2a8ed70659946c2d654441989dbfd0a2a42f496ff
     /// tsc-span: _tsc.js:83819-83857
     ///
-    /// ITERATION SEMANTICS ESCAPE to 5.8b (§15): the grammar rows and
-    /// the declaration-list LHS are live; checkRightHandSideOfForOf
-    /// and the expression-LHS arms that consume its type are silent
-    /// stubs so the BODY stays checked (per-element containment would
-    /// silence it). Emit-helper probes elided (module note).
+    /// Iteration semantics live since 5.8b (§4); emit-helper probes
+    /// elided (module note).
     pub(crate) fn check_for_of_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_for_in_or_for_of_statement(node)?;
         let NodeData::ForOfStatement(data) = self.data_of(node) else {
@@ -2017,32 +2025,68 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
                 self.check_variable_declaration_list(initializer)?;
             } else {
-                // varExpr arm: iteratedType = checkRightHandSideOfForOf
-                // FIRST in tsc; the protocol is §4 (5.8b), so the
-                // destructuring/LHS-relation consumers stub with it.
-                self.source_element_stub("checkRightHandSideOfForOf", "5.8b")?;
+                let var_expr = initializer;
+                let iterated_type = self.check_right_hand_side_of_for_of(node)?;
                 if matches!(
-                    self.kind_of(initializer),
+                    self.kind_of(var_expr),
                     SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
                 ) {
                     // checkDestructuringAssignment(varExpr,
-                    // iteratedType || errorType) needs the iterated
-                    // type — running it against a stand-in could
-                    // fabricate rows; whole arm stubs (FN).
-                    self.source_element_stub("checkDestructuringAssignment (for-of LHS)", "5.8b")?;
+                    // iteratedType || errorType) — the || errorType is
+                    // dead belt (checkIteratedTypeOrElementType's
+                    // anyType fallback makes the result ever-present).
+                    self.check_destructuring_assignment(
+                        var_expr,
+                        iterated_type,
+                        CheckMode::NORMAL,
+                        /*right_is_this*/ false,
+                    )?;
                 } else {
-                    let _left_type = self.check_expression(initializer, CheckMode::NORMAL)?;
+                    let left_type = self.check_expression(var_expr, CheckMode::NORMAL)?;
                     self.check_reference_expression(
-                        initializer,
+                        var_expr,
                         &diagnostics::The_left_hand_side_of_a_for_of_statement_must_be_a_variable_or_a_property_access,
                         &diagnostics::The_left_hand_side_of_a_for_of_statement_may_not_be_an_optional_property_access,
                     );
-                    // (iteratedType → leftType relation — 5.8b.)
+                    // checkTypeAssignableToAndOptionallyElaborate(
+                    // iteratedType, leftType, varExpr, expression) —
+                    // errorNode = the LHS; the RHS feeds only the
+                    // elided elaboration tail (5.4 head-only slice).
+                    self.check_type_assignable_to(
+                        iterated_type,
+                        left_type,
+                        Some(var_expr),
+                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                    )?;
                 }
             }
         }
         self.check_source_element(statement);
         Ok(())
+    }
+
+    /// tsc-port: checkRightHandSideOfForOf @6.0.3
+    /// tsc-hash: 212b61db66be48bbf3245d11cb1f9e527433472ea9edb66fd8f5d44e04bd7f65
+    /// tsc-span: _tsc.js:83890-83893
+    pub(crate) fn check_right_hand_side_of_for_of(
+        &mut self,
+        statement: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let NodeData::ForOfStatement(data) = self.data_of(statement) else {
+            unreachable!("kind/data agree");
+        };
+        let (await_modifier, expression) = (data.await_modifier, data.expression);
+        let Some(expression) = expression else {
+            return Err(Unsupported::new("ForOfStatement recovery node"));
+        };
+        let use_ = if await_modifier.is_some() {
+            IterationUse::FOR_AWAIT_OF
+        } else {
+            IterationUse::FOR_OF
+        };
+        let input_type = self.check_non_null_expression(expression)?;
+        let undefined_type = self.tables.intrinsics.undefined;
+        self.check_iterated_type_or_element_type(use_, input_type, undefined_type, Some(expression))
     }
 
     /// tsc-port: checkForInStatement @6.0.3
@@ -2364,7 +2408,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isIterationStatement @6.0.3
     /// tsc-hash: e3c007a9658a14db85ec10eac1f2ddfc6778a433592040d024484dd5d7fe180d
     /// tsc-span: _tsc.js:12302-12314
-    fn is_iteration_statement(&self, node: NodeId, look_in_labeled_statements: bool) -> bool {
+    pub(crate) fn is_iteration_statement(
+        &self,
+        node: NodeId,
+        look_in_labeled_statements: bool,
+    ) -> bool {
         match self.kind_of(node) {
             SyntaxKind::ForStatement
             | SyntaxKind::ForInStatement
@@ -2389,7 +2437,6 @@ impl<'a> CheckerState<'a> {
     ///
     /// noImplicitReturns is absent from CompilerOptions — the
     /// Not_all_code_paths_return_a_value arm stays dead (§13 audit).
-    /// unwrapReturnType's generator arm escapes [ITER] (5.8b).
     pub(crate) fn check_return_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.check_grammar_statement_in_ambient_context_reported(node) {
             return Ok(());
@@ -2456,7 +2503,10 @@ impl<'a> CheckerState<'a> {
                 }
             } else if self.get_return_type_from_annotation(container)?.is_some() {
                 let function_flags = self.get_function_flags(container);
-                let unwrapped_return_type = self.unwrap_return_type(return_type, function_flags)?;
+                // 84543: `unwrapReturnType(...) ?? returnType`.
+                let unwrapped_return_type = self
+                    .unwrap_return_type(return_type, function_flags)?
+                    .unwrap_or(return_type);
                 self.check_return_expression(
                     container,
                     unwrapped_return_type,
@@ -2838,18 +2888,192 @@ mod tests {
     }
 
     #[test]
-    fn renamed_signature_binding_2842_waits_on_the_parameter_arm() {
+    fn unrelated_guard_does_not_suppress_2339() {
+        // PR #6 review P1: the [FLOW M5] gates key on a narrowing
+        // construct RELATED to the reference — `if (true)` mentions
+        // no root of `x`, so the report stands. Oracle: 2339 @61+7.
+        assert_eq!(
+            checked_rows(
+                "interface I { a: number }\ndeclare const x: I;\nif (true) {}\nx.missing;\n"
+            ),
+            [(2339, 61, 7)]
+        );
+    }
+
+    #[test]
+    fn unrelated_guard_does_not_suppress_2345() {
+        // Oracle: 2345 @86+1 — the argument gate requires a guard
+        // mentioning `s`.
+        assert_eq!(
+            checked_rows(
+                "if (true) {}\ndeclare function f(n: number): void;\ndeclare const s: string | number;\nf(s);\n"
+            ),
+            [(2345, 86, 1)]
+        );
+    }
+
+    #[test]
+    fn unrelated_guard_does_not_suppress_2322() {
+        // Oracle: 2322 @70+6 — the return gate requires a guard
+        // mentioning `u`.
+        assert_eq!(
+            checked_rows(
+                "if (true) {}\ndeclare const u: string | number;\nfunction g(): string { return u; }\n"
+            ),
+            [(2322, 70, 6)]
+        );
+    }
+
+    #[test]
+    fn related_guard_contains_the_narrowed_argument() {
+        // The positive face: `typeof x === 'object'` mentions `x`, so
+        // the failed declared-type verdict contains ([FLOW M5]; tsc
+        // narrows x to `object` here and reports nothing).
+        assert_eq!(
+            checked_rows(
+                "declare function obj(o: object): void;\nfunction f(x: unknown) {\n    if (!x) { return; }\n    if (typeof x === 'object') { obj(x); }\n}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn later_guard_does_not_suppress_2345() {
+        // PR #6 review round 2 P1: a guard AFTER the read cannot
+        // narrow it — the [FLOW M5] reach face keys on forward flow.
+        // Oracle: 2345 @74+1.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\n\nf(x);\nif (typeof x === \"string\") {}\n"
+            ),
+            [(2345, 74, 1)]
+        );
+    }
+
+    #[test]
+    fn shadowed_binding_guard_does_not_suppress_2345() {
+        // PR #6 review round 2 P1: the guard's `x` is the block-scoped
+        // shadow, a different BINDING than the outer argument — the
+        // root match compares symbols, not spellings. Oracle: 2345
+        // @130+1.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\n{\n    const x = \"s\";\n    if (typeof x === \"string\") {}\n}\nf(x);\n"
+            ),
+            [(2345, 130, 1)]
+        );
+    }
+
+    #[test]
+    fn unrelated_limb_does_not_suppress_2339() {
+        // PR #6 review round 2 P1: sitting inside `if (true) { ... }`
+        // is not a guarded position for `x` — the limb probe now
+        // requires the CONDITION to mention a root. Oracle: 2339
+        // @60+7.
+        assert_eq!(
+            checked_rows(
+                "interface I { a: number }\ndeclare const x: I;\nif (true) { x.missing; }\n"
+            ),
+            [(2339, 60, 7)]
+        );
+    }
+
+    #[test]
+    fn else_sibling_guard_does_not_suppress_2345() {
+        // Flow out of a then-limb guard rejoins unnarrowed before the
+        // else-limb — the reach face excludes sibling if limbs.
+        // Oracle: 2345 @147+1.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\ndeclare const c: boolean;\nif (c) { if (typeof x === \"string\") {} } else { f(x); }\n"
+            ),
+            [(2345, 147, 1)]
+        );
+    }
+
+    #[test]
+    fn aliased_predicate_call_contains_the_narrowed_argument() {
+        // PR #6 review round 2 P1 (the FP face): tsc narrows `x`
+        // through the aliased predicate call (`const ok = isString(x);
+        // if (ok)`), so the 2345 verdict must contain. Oracle: silent.
+        assert_eq!(
+            checked_rows(
+                "declare function isString(x: unknown): x is string;\ndeclare function take(s: string): void;\ndeclare const x: unknown;\nconst ok = isString(x);\nif (ok) { take(x); }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn non_predicate_call_alias_does_not_suppress_2345() {
+        // The counter-face: `notPred` resolves to a plain boolean
+        // signature — not every call is a guard, and the report
+        // stands. Oracle: 2345 @141+1.
+        assert_eq!(
+            checked_rows(
+                "declare function notPred(x: unknown): boolean;\ndeclare function take(s: string): void;\ndeclare const x: unknown;\nconst ok = notPred(x);\ntake(x);\n"
+            ),
+            [(2345, 141, 1)]
+        );
+    }
+
+    #[test]
+    fn loop_back_edge_guard_contains() {
+        // Containment pin (deliberate FN until M5): inside a shared
+        // loop the back edge can carry a later guard to an earlier
+        // read, so the reach face waives ordering. Oracle reports
+        // 2345 @111+1 here (the rejoin kills the narrowing) — M5's
+        // real flow types reclaim it.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\ndeclare const c: boolean;\nwhile (c) { f(x); if (typeof x === \"string\") {} }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn guard_before_reference_contains() {
+        // Containment pin (deliberate FN until M5): a RELATED guard
+        // BEFORE the read stays contained — the structural reach face
+        // cannot see that the empty limb rejoins. Oracle reports 2345
+        // @103+1 here — M5's real flow types reclaim it.
+        assert_eq!(
+            checked_rows(
+                "declare function f(n: number): void;\ndeclare const x: string | number;\nif (typeof x === \"string\") {}\nf(x);\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn for_await_over_a_sync_only_iterable_falls_back_without_panicking() {
+        // PR #6 review P1: the worker caches AsyncIterable = No on the
+        // async miss, then the sync branch OVERWRITES that key with
+        // the awaited sync-derived triple (tsc worker 84139-84174;
+        // setCachedIterationTypes is a plain assignment) — the old
+        // write-once setter panicked here. Oracle (noLib, 2026-07-14):
+        // silent.
+        assert_eq!(
+            checked_rows(
+                "declare var Symbol: { readonly iterator: unique symbol; readonly asyncIterator: unique symbol };\nclass C {\n    [Symbol.iterator]() { return { next() { return { done: false, value: 1 }; } }; }\n}\nasync function f() {\n    for await (const x of new C()) { x; }\n}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn renamed_signature_binding_2842_reports_since_the_parameter_arm() {
         // Oracle p5: tsc reports 2842 at `b` (offset 24) and the
-        // isReferenced gate suppresses h2's `c`. The drain + gate are
-        // live (worker tail, risk §14.16), but the PUSHER rides
-        // checkParameter → checkVariableLikeDeclaration (§5, 5.8b) —
-        // until then the row is a recorded FN. This pin flips to
-        // [(2842, 24, 1)] when 5.8b lands.
+        // isReferenced gate suppresses h2's `c`. Drain + gate landed
+        // at 5.8a (risk §14.16); the pusher (checkParameter →
+        // checkVariableLikeDeclaration) went live at 5.8b and flipped
+        // this pin from [].
         assert_eq!(
             checked_rows(
                 "declare function h({ a: b }: { a: number }): void;\ndeclare function h2({ a: c }: { a: number }, d: typeof c): void;\n"
             ),
-            []
+            [(2842, 24, 1)]
         );
     }
 

@@ -853,7 +853,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         | TypeFlags::OBJECT.bits()
                         | TypeFlags::INTERSECTION.bits(),
                 ))
-                && source != self.st.empty_object_type
+                && source != self.st.global_object_type()?
                 && self.flags(target).intersects(TypeFlags::from_bits(
                     TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
                 ))

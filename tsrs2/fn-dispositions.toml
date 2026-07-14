@@ -10,10 +10,6 @@
 
 [[fn]]
 file = "crates/checker/src/access.rs"
-name = "access_sits_in_guarded_position"
-
-[[fn]]
-file = "crates/checker/src/access.rs"
 name = "check_non_null_type"
 
 [[fn]]

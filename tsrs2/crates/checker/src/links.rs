@@ -319,6 +319,15 @@ pub struct TypeLinks {
     /// the context-free widening memo; context-carrying calls bypass
     /// it in both directions.
     pub widened: Option<TypeId>,
+    /// tsc type[iterationTypesCacheKey] (get/setCachedIterationTypes
+    /// 84056-84061): the five §4 verdict slots. `Some(No)` is the
+    /// cached noIterationTypes poison — distinguishable from "never
+    /// computed" (None), per the m4-58 §4 sentinel rule.
+    pub iteration_types_of_iterable: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_async_iterable: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_iterator: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_async_iterator: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_iterator_result: Option<crate::iterate::IterationTypesResult>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -507,8 +516,13 @@ impl LinksTables {
     /// SAME value, and a re-entrant resolution's concrete write feeds
     /// the outer early return (76621-76625). Tolerated transitions:
     /// Vacant→Resolving, Resolving→Resolving (re-entrant sentinel
-    /// write), Resolving→Resolved, Resolved(x)→Resolved(x). A
-    /// DIFFERENT resolved value still panics.
+    /// write), Resolving→Resolved, and Resolved→Resolved — INCLUDING
+    /// a different value: tsc's tail write is a plain assignment
+    /// (77505 `links.resolvedSignature = result`), and a re-entrant
+    /// resolution (declaration-site body driving demanding the same
+    /// call mid-flight, live since 5.8b) can pick a different
+    /// overload than the outer frame; the OUTER (last) write wins,
+    /// exactly like tsc.
     pub fn set_node_resolved_signature_call_protocol(
         &mut self,
         speculation_depth: u32,
@@ -520,11 +534,11 @@ impl LinksTables {
         match (&*slot, &value) {
             (LinkSlot::Vacant, LinkSlot::Resolving)
             | (LinkSlot::Resolving, LinkSlot::Resolving)
-            | (LinkSlot::Resolving, LinkSlot::Resolved(_)) => {
+            | (LinkSlot::Resolving, LinkSlot::Resolved(_))
+            | (LinkSlot::Resolved(_), LinkSlot::Resolved(_)) => {
                 note_resolving_transition(slot.is_resolving(), value.is_resolving());
                 *slot = value;
             }
-            (LinkSlot::Resolved(existing), LinkSlot::Resolved(next)) if existing == next => {}
             _ => panic!("call resolvedSignature protocol violated: {slot:?} -> {value:?}"),
         }
     }
@@ -902,6 +916,39 @@ impl LinksTables {
             "type widened memo rewritten with a DIFFERENT value"
         );
         links.widened = Some(widened);
+    }
+
+    /// tsrs-native: the links half of setCachedIterationTypes
+    /// (84059-84061; the tsc-port header lives on iterate.rs's
+    /// set_cached_iteration_types). A PLAIN ASSIGNMENT like tsc's
+    /// `type[cacheKey] = cachedTypes` — no write-once discipline: the
+    /// for-await async-from-sync fallback legitimately OVERWRITES a
+    /// cached AsyncIterable=No verdict (the async slow path caches No,
+    /// then the sync branch re-caches the awaited sync-derived triple
+    /// under the SAME async key, worker 84139-84174).
+    pub fn set_type_iteration_types(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        key: crate::iterate::IterationCacheKey,
+        value: crate::iterate::IterationTypesResult,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        let slot = match key {
+            crate::iterate::IterationCacheKey::Iterable => &mut links.iteration_types_of_iterable,
+            crate::iterate::IterationCacheKey::AsyncIterable => {
+                &mut links.iteration_types_of_async_iterable
+            }
+            crate::iterate::IterationCacheKey::Iterator => &mut links.iteration_types_of_iterator,
+            crate::iterate::IterationCacheKey::AsyncIterator => {
+                &mut links.iteration_types_of_async_iterator
+            }
+            crate::iterate::IterationCacheKey::IteratorResult => {
+                &mut links.iteration_types_of_iterator_result
+            }
+        };
+        *slot = Some(value);
     }
 
     pub fn set_type_parameter_constraint(
