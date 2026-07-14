@@ -76,6 +76,16 @@ pub struct CompilerOptions {
     /// when noEmit is set (filterSemanticDiagnostics 125664). 727
     /// conformance fixtures carry the directive (469 true-valued).
     pub no_emit: Option<bool>,
+    /// M4 5.8b §4: getIteratedTypeOrElementType's plain-falsiness read
+    /// (83915 `!uplevelIteration && compilerOptions.downlevelIteration`)
+    /// — selects the downlevel diagnostic flavors under low targets.
+    /// 21 conformance fixtures carry the directive.
+    pub downlevel_iteration: Option<bool>,
+    /// strict-family (46472: getStrictOptionValue — defaults ON);
+    /// getBuiltinIteratorReturnType (60844) selects undefinedType over
+    /// anyType for the builtin-iterator TReturn slot. Read through
+    /// strict_option_value.
+    pub strict_builtin_iterator_return: Option<bool>,
     /// jsxFactory/jsxFragmentFactory/jsxImportSource/reactNamespace:
     /// carried so the 5.5f JSX slice can ESCAPE fixtures that
     /// customize the namespace entity (pragma machinery + entity

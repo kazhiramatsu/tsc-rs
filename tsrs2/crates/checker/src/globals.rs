@@ -52,6 +52,25 @@ pub(crate) struct GlobalTypeMemos {
     import_attributes: Option<TypeId>,
     /// deferredGlobalIterableType (60820).
     iterable: Option<TypeId>,
+    /// The §4 iteration-protocol resolver globals (60777-60881) — all
+    /// `||`-memoized like `iterable` (only a SUCCESS memoizes; the
+    /// emptyGenericType fallback is returned per-call).
+    iterator: Option<TypeId>,
+    iterable_iterator: Option<TypeId>,
+    iterator_object: Option<TypeId>,
+    generator: Option<TypeId>,
+    async_iterable: Option<TypeId>,
+    async_iterator: Option<TypeId>,
+    async_iterable_iterator: Option<TypeId>,
+    async_iterator_object: Option<TypeId>,
+    async_generator: Option<TypeId>,
+    iterator_yield_result: Option<TypeId>,
+    iterator_return_result: Option<TypeId>,
+    /// deferredGlobalBuiltinIteratorTypes /
+    /// deferredGlobalBuiltinAsyncIteratorTypes — `??`-memoized (an
+    /// empty list memoizes too, unlike the `||` family).
+    builtin_iterator_types: Option<Vec<TypeId>>,
+    builtin_async_iterator_types: Option<Vec<TypeId>>,
     /// deferredGlobalTemplateStringsArrayType (60688) — reportErrors
     /// TRUE and the `|| emptyObjectType` fallback sits INSIDE the memo
     /// assignment: a noLib miss reports 2318 once and memoizes the
@@ -577,6 +596,254 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalIteratorType @6.0.3
+    /// tsc-hash: e01cd348b57917d99c019686f8d5b023e88c55802b63b47b05b6b2ca449f8c25
+    /// tsc-span: _tsc.js:60828-60835
+    pub(crate) fn get_global_iterator_type(&mut self, report_errors: bool) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.iterator {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("Iterator", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.iterator = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalIterableIteratorType @6.0.3
+    /// tsc-hash: 999a95dd563cc4418d1ad8152c4232786379fdc67f887c9a68712b0ebd708d25
+    /// tsc-span: _tsc.js:60836-60843
+    pub(crate) fn get_global_iterable_iterator_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.iterable_iterator {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("IterableIterator", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.iterable_iterator = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalIteratorObjectType @6.0.3
+    /// tsc-hash: c6bb65e792cad1a928e87009b8ef5016a7e19a2980fecffb032bab6276ede05f
+    /// tsc-span: _tsc.js:60850-60857
+    pub(crate) fn get_global_iterator_object_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.iterator_object {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("IteratorObject", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.iterator_object = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalGeneratorType @6.0.3
+    /// tsc-hash: 60a6d039330a3b8c43fe9eb55d58ff30965acde70d3c95a60201f19193984437
+    /// tsc-span: _tsc.js:60858-60865
+    pub(crate) fn get_global_generator_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.generator {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("Generator", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.generator = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalAsyncIterableType @6.0.3
+    /// tsc-hash: a1f72f4bae88a60b8cecf030c82e1c458d69af1265797314a42c26249658010c
+    /// tsc-span: _tsc.js:60777-60784
+    pub(crate) fn get_global_async_iterable_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.async_iterable {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("AsyncIterable", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.async_iterable = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalAsyncIteratorType @6.0.3
+    /// tsc-hash: 66980ef6137df46e6436c1c8d7a3fb37f737891663db49ad76ea23fa6ce49925
+    /// tsc-span: _tsc.js:60785-60792
+    pub(crate) fn get_global_async_iterator_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.async_iterator {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("AsyncIterator", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.async_iterator = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalAsyncIterableIteratorType @6.0.3
+    /// tsc-hash: 1f092ddeffc2a2cbf0d1bd0066cbc0e50a1348a954ee8eb16a55551b9d6046a4
+    /// tsc-span: _tsc.js:60793-60800
+    pub(crate) fn get_global_async_iterable_iterator_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.async_iterable_iterator {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("AsyncIterableIterator", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.async_iterable_iterator = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalAsyncIteratorObjectType @6.0.3
+    /// tsc-hash: 3a982c41a1bc9df643d7db217720be0ca87a49a598afcac7d3f7a64fc8d0ceab
+    /// tsc-span: _tsc.js:60804-60811
+    pub(crate) fn get_global_async_iterator_object_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.async_iterator_object {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("AsyncIteratorObject", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.async_iterator_object = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalAsyncGeneratorType @6.0.3
+    /// tsc-hash: 34edd2907913120b42bfcd102035016c61afd7c057374cb0d983196dd745cc6f
+    /// tsc-span: _tsc.js:60812-60819
+    pub(crate) fn get_global_async_generator_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.async_generator {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("AsyncGenerator", 3, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.async_generator = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalIteratorYieldResultType @6.0.3
+    /// tsc-hash: 512fc66673e267f41b9268990e9978029c995c1907973600a541db2dc02d9d3e
+    /// tsc-span: _tsc.js:60866-60873
+    pub(crate) fn get_global_iterator_yield_result_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.iterator_yield_result {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("IteratorYieldResult", 1, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.iterator_yield_result = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalIteratorReturnResultType @6.0.3
+    /// tsc-hash: f99b115f6d8aeb327e460d78701862c251695ce374410e81fadede81924fd97a
+    /// tsc-span: _tsc.js:60874-60881
+    pub(crate) fn get_global_iterator_return_result_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.iterator_return_result {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("IteratorReturnResult", 1, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.iterator_return_result = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalBuiltinTypes @6.0.3
+    /// tsc-hash: d87b529fa7c3cdf581d8e6360a9798142580bcd87fa14f9eb7afad16382a82bb
+    /// tsc-span: _tsc.js:60667-60678
+    ///
+    /// reportErrors=false lookups: a missing NAME contributes nothing
+    /// (append skips undefined); a found symbol contributes its
+    /// (possibly fallback) type.
+    fn get_global_builtin_types(
+        &mut self,
+        type_names: &[&str],
+        arity: usize,
+    ) -> CheckResult2<Vec<TypeId>> {
+        let mut types = Vec::new();
+        for type_name in type_names {
+            if let Some(resolved) = self.get_global_type(type_name, arity, false)? {
+                types.push(resolved);
+            }
+        }
+        Ok(types)
+    }
+
+    /// tsc-port: getGlobalBuiltinIteratorTypes @6.0.3
+    /// tsc-hash: bfd64bb69a3e1655ca90dfa9c47428e519ca1838c4b52243a55884b9813f591d
+    /// tsc-span: _tsc.js:60847-60849
+    pub(crate) fn get_global_builtin_iterator_types(&mut self) -> CheckResult2<Vec<TypeId>> {
+        if let Some(cached) = &self.global_type_memos.builtin_iterator_types {
+            return Ok(cached.clone());
+        }
+        let resolved = self.get_global_builtin_types(
+            &[
+                "ArrayIterator",
+                "MapIterator",
+                "SetIterator",
+                "StringIterator",
+            ],
+            1,
+        )?;
+        self.global_type_memos.builtin_iterator_types = Some(resolved.clone());
+        Ok(resolved)
+    }
+
+    /// tsc-port: getGlobalBuiltinAsyncIteratorTypes @6.0.3
+    /// tsc-hash: e833de5aac24e9784e84d05bd92e0243cf24bf89398393008dc112a01aefb407
+    /// tsc-span: _tsc.js:60801-60803
+    pub(crate) fn get_global_builtin_async_iterator_types(&mut self) -> CheckResult2<Vec<TypeId>> {
+        if let Some(cached) = &self.global_type_memos.builtin_async_iterator_types {
+            return Ok(cached.clone());
+        }
+        let resolved = self.get_global_builtin_types(&["ReadableStreamAsyncIterator"], 1)?;
+        self.global_type_memos.builtin_async_iterator_types = Some(resolved.clone());
+        Ok(resolved)
     }
 
     /// tsc-port: createIterableType @6.0.3

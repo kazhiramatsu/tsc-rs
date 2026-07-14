@@ -54,7 +54,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getExtractStringType @6.0.3
     /// tsc-hash: e3c1341d9f62620207da8f9e6a74a7fd55301b67530491a046d2a53018028dac
     /// tsc-span: _tsc.js:62020-62023
-    fn get_extract_string_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_extract_string_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         match self.get_global_extract_symbol()? {
             Some(alias) => {
                 let string = self.tables.intrinsics.string;

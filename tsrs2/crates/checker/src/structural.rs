@@ -2725,6 +2725,36 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: isReferenceToType @6.0.3
+    /// tsc-hash: 84871de8faa8d88bbb9a6ac7c91c4f8b117eb0e41b0fac6b844236f5c61c5451
+    /// tsc-span: _tsc.js:56990-56992
+    ///
+    /// `type.target` covers plain References AND GenericType/tuple
+    /// targets (tsc `type.target = type`) via tables.reference_target.
+    /// The tsc `target !== undefined` guard maps to callers passing a
+    /// real TypeId (the emptyGenericType fallback compares unequal).
+    pub(crate) fn is_reference_to_type(&self, ty: TypeId, target: TypeId) -> bool {
+        self.tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+            && self.tables.reference_target(ty) == target
+    }
+
+    /// tsc-port: isReferenceToSomeType @6.0.3
+    /// tsc-hash: 339c275fb77a043a6f21ed038a1309980614105afcb362ed1386ab2e8e3675a7
+    /// tsc-span: _tsc.js:56979-56989
+    pub(crate) fn is_reference_to_some_type(&self, ty: TypeId, targets: &[TypeId]) -> bool {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            return false;
+        }
+        let target = self.tables.reference_target(ty);
+        targets.contains(&target)
+    }
+
     /// tsc-port: getReducedType @6.0.3
     /// tsc-hash: abdfab6ced2592e580352b92374d1ca078ca38b3ca65ba80961e5f8c83ee32f7
     /// tsc-span: _tsc.js:59287-59297

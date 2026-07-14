@@ -331,9 +331,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ConditionalExpression => {
                 self.check_conditional_expression(node, check_mode)
             }
-            SyntaxKind::SpreadElement => {
-                self.expression_stub("checkSpreadExpression ([ITER])", "5.8 iteration protocol")
-            }
+            SyntaxKind::SpreadElement => self.check_spread_expression(node, check_mode),
             SyntaxKind::OmittedExpression => Ok(self.tables.intrinsics.undefined_widening),
             SyntaxKind::YieldExpression => self.check_yield_expression(node),
             SyntaxKind::SyntheticExpression => unreachable!(
@@ -2516,6 +2514,32 @@ impl<'a> CheckerState<'a> {
     fn check_void_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         self.check_node_deferred(node);
         Ok(self.tables.intrinsics.undefined_widening)
+    }
+
+    /// tsc-port: checkSpreadExpression @6.0.3
+    /// tsc-hash: 3a8f89111524b9308588a5bccb7b84d080a64ba8ebb1e5858bcd85eb71ab52c6
+    /// tsc-span: _tsc.js:73939-73945
+    ///
+    /// The sub-ES2015 emit-helper probe is importHelpers-gated (no-op).
+    fn check_spread_expression(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
+        let NodeData::SpreadElement(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let Some(expression) = data.expression else {
+            return Err(Unsupported::new("SpreadElement recovery node"));
+        };
+        let array_or_iterable_type = self.check_expression(expression, check_mode)?;
+        let undefined_type = self.tables.intrinsics.undefined;
+        self.check_iterated_type_or_element_type(
+            tsrs2_types::IterationUse::SPREAD,
+            array_or_iterable_type,
+            undefined_type,
+            Some(expression),
+        )
     }
 
     /// tsc-port: checkDeleteExpression @6.0.3 (+ checkDeleteExpressionMustBeOptional)

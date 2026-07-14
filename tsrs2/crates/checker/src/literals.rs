@@ -143,10 +143,8 @@ impl<'a> CheckerState<'a> {
     /// The languageVersion emit-helper gate is dead at target ES2025
     /// (LanguageFeatureMinimumTarget.SpreadElements = ES2015); the
     /// [INFER] intra-expression site is behind the Inferential
-    /// checkMode bit no M4 producer sets. Non-array-like spreads take
-    /// the [ITER → 5.5f] escape (checkIteratedTypeOrElementType); the
-    /// silent destructuring variant escapes the same way rather than
-    /// inventing unknownType.
+    /// checkMode bit no M4 producer sets. Non-array-like spreads run
+    /// the §4 iteration protocol (5.8b).
     pub(crate) fn check_array_literal(
         &mut self,
         node: NodeId,
@@ -194,30 +192,32 @@ impl<'a> CheckerState<'a> {
                         element_types.push(spread_type);
                         element_flags.push(ElementFlags::VARIADIC);
                     } else if in_destructuring_pattern {
+                        // 73982-73992: index type ‖ the SILENT
+                        // Destructuring probe ‖ unknownType.
                         let number = state.tables.intrinsics.number;
-                        match state.get_index_type_of_type(spread_type, number)? {
-                            Some(rest) => {
-                                element_types.push(rest);
-                                element_flags.push(ElementFlags::REST);
-                            }
-                            None => {
-                                // getIteratedTypeOrElementType(Destructuring,
-                                // …, /*errorNode*/ undefined) ‖ unknownType
-                                // — the silent [ITER] probe escapes to 5.5f
-                                // rather than fabricating unknown.
-                                return Err(Unsupported::new(
-                                    "array destructuring rest over a non-array-like \
-                                     (getIteratedTypeOrElementType, [ITER] 5.8 iteration protocol)",
-                                ));
-                            }
-                        }
+                        let undefined = state.tables.intrinsics.undefined;
+                        let rest = match state.get_index_type_of_type(spread_type, number)? {
+                            Some(rest) => Some(rest),
+                            None => state.get_iterated_type_or_element_type(
+                                tsrs2_types::IterationUse::DESTRUCTURING,
+                                spread_type,
+                                undefined,
+                                /*error_node*/ None,
+                                /*check_assignability*/ false,
+                            )?,
+                        };
+                        element_types.push(rest.unwrap_or(state.tables.intrinsics.unknown));
+                        element_flags.push(ElementFlags::REST);
                     } else {
-                        // checkIteratedTypeOrElementType(Spread, …,
-                        // e.expression) — [ITER → 5.5f].
-                        return Err(Unsupported::new(
-                            "array spread over a non-array-like \
-                             (checkIteratedTypeOrElementType, [ITER] 5.8 iteration protocol)",
-                        ));
+                        let undefined = state.tables.intrinsics.undefined;
+                        let element = state.check_iterated_type_or_element_type(
+                            tsrs2_types::IterationUse::SPREAD,
+                            spread_type,
+                            undefined,
+                            Some(expression),
+                        )?;
+                        element_types.push(element);
+                        element_flags.push(ElementFlags::REST);
                     }
                 } else if state.tables.exact_optional_property_types
                     && state.kind_of(e) == SyntaxKind::OmittedExpression
@@ -1838,9 +1838,10 @@ mod tests {
 
     #[test]
     fn non_array_spread_in_array_literal_is_contained() {
-        // Oracle (noLib) is ALSO silent here; lib-loaded tsc reports
-        // the 2488 band — the [ITER → 5.5f] escape contains the
-        // statement either way.
+        // Oracle (noLib, re-probed 2026-07-14): silent — noLib's
+        // anyReadonlyArrayType degenerates to emptyObjectType, so
+        // isArrayLikeType(42) is TRUE and the literal tuples up
+        // without touching the (now live) iteration protocol.
         assert_eq!(checked_rows("[...42];\n"), []);
     }
 

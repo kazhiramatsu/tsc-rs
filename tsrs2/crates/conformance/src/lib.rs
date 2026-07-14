@@ -902,6 +902,8 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         use_define_for_class_fields: bool_option("useDefineForClassFields"),
         use_unknown_in_catch_variables: bool_option("useUnknownInCatchVariables"),
         no_emit: bool_option("noEmit"),
+        downlevel_iteration: bool_option("downlevelIteration"),
+        strict_builtin_iterator_return: bool_option("strictBuiltinIteratorReturn"),
         jsx: program.options.iter().find_map(|(key, value)| {
             if key.eq_ignore_ascii_case("jsx") {
                 match value {

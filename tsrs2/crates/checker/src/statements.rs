@@ -27,7 +27,9 @@
 use tsrs2_binder::node_util;
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{CheckMode, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId};
+use tsrs2_types::{
+    CheckMode, IterationUse, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId,
+};
 
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 
@@ -295,9 +297,13 @@ impl<'a> CheckerState<'a> {
                 }
                 if need_check_widened_type {
                     if self.kind_of(name) == SyntaxKind::ArrayBindingPattern {
-                        return Err(Unsupported::new(
-                            "checkIteratedTypeOrElementType ([ITER] §4, 5.8b)",
-                        ));
+                        let undefined_type = self.tables.intrinsics.undefined;
+                        self.check_iterated_type_or_element_type(
+                            IterationUse::DESTRUCTURING,
+                            widened_type,
+                            undefined_type,
+                            Some(node),
+                        )?;
                     } else if strict_null_checks {
                         self.check_non_null_non_void_type(widened_type, node)?;
                     }
@@ -1987,11 +1993,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 08b449c328a80dc775d3d2a2a8ed70659946c2d654441989dbfd0a2a42f496ff
     /// tsc-span: _tsc.js:83819-83857
     ///
-    /// ITERATION SEMANTICS ESCAPE to 5.8b (§15): the grammar rows and
-    /// the declaration-list LHS are live; checkRightHandSideOfForOf
-    /// and the expression-LHS arms that consume its type are silent
-    /// stubs so the BODY stays checked (per-element containment would
-    /// silence it). Emit-helper probes elided (module note).
+    /// Iteration semantics live since 5.8b (§4); emit-helper probes
+    /// elided (module note).
     pub(crate) fn check_for_of_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_for_in_or_for_of_statement(node)?;
         let NodeData::ForOfStatement(data) = self.data_of(node) else {
@@ -2017,32 +2020,68 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
                 self.check_variable_declaration_list(initializer)?;
             } else {
-                // varExpr arm: iteratedType = checkRightHandSideOfForOf
-                // FIRST in tsc; the protocol is §4 (5.8b), so the
-                // destructuring/LHS-relation consumers stub with it.
-                self.source_element_stub("checkRightHandSideOfForOf", "5.8b")?;
+                let var_expr = initializer;
+                let iterated_type = self.check_right_hand_side_of_for_of(node)?;
                 if matches!(
-                    self.kind_of(initializer),
+                    self.kind_of(var_expr),
                     SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression
                 ) {
                     // checkDestructuringAssignment(varExpr,
-                    // iteratedType || errorType) needs the iterated
-                    // type — running it against a stand-in could
-                    // fabricate rows; whole arm stubs (FN).
-                    self.source_element_stub("checkDestructuringAssignment (for-of LHS)", "5.8b")?;
+                    // iteratedType || errorType) — the || errorType is
+                    // dead belt (checkIteratedTypeOrElementType's
+                    // anyType fallback makes the result ever-present).
+                    self.check_destructuring_assignment(
+                        var_expr,
+                        iterated_type,
+                        CheckMode::NORMAL,
+                        /*right_is_this*/ false,
+                    )?;
                 } else {
-                    let _left_type = self.check_expression(initializer, CheckMode::NORMAL)?;
+                    let left_type = self.check_expression(var_expr, CheckMode::NORMAL)?;
                     self.check_reference_expression(
-                        initializer,
+                        var_expr,
                         &diagnostics::The_left_hand_side_of_a_for_of_statement_must_be_a_variable_or_a_property_access,
                         &diagnostics::The_left_hand_side_of_a_for_of_statement_may_not_be_an_optional_property_access,
                     );
-                    // (iteratedType → leftType relation — 5.8b.)
+                    // checkTypeAssignableToAndOptionallyElaborate(
+                    // iteratedType, leftType, varExpr, expression) —
+                    // errorNode = the LHS; the RHS feeds only the
+                    // elided elaboration tail (5.4 head-only slice).
+                    self.check_type_assignable_to(
+                        iterated_type,
+                        left_type,
+                        Some(var_expr),
+                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                    )?;
                 }
             }
         }
         self.check_source_element(statement);
         Ok(())
+    }
+
+    /// tsc-port: checkRightHandSideOfForOf @6.0.3
+    /// tsc-hash: 212b61db66be48bbf3245d11cb1f9e527433472ea9edb66fd8f5d44e04bd7f65
+    /// tsc-span: _tsc.js:83890-83893
+    pub(crate) fn check_right_hand_side_of_for_of(
+        &mut self,
+        statement: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let NodeData::ForOfStatement(data) = self.data_of(statement) else {
+            unreachable!("kind/data agree");
+        };
+        let (await_modifier, expression) = (data.await_modifier, data.expression);
+        let Some(expression) = expression else {
+            return Err(Unsupported::new("ForOfStatement recovery node"));
+        };
+        let use_ = if await_modifier.is_some() {
+            IterationUse::FOR_AWAIT_OF
+        } else {
+            IterationUse::FOR_OF
+        };
+        let input_type = self.check_non_null_expression(expression)?;
+        let undefined_type = self.tables.intrinsics.undefined;
+        self.check_iterated_type_or_element_type(use_, input_type, undefined_type, Some(expression))
     }
 
     /// tsc-port: checkForInStatement @6.0.3
@@ -2389,7 +2428,6 @@ impl<'a> CheckerState<'a> {
     ///
     /// noImplicitReturns is absent from CompilerOptions — the
     /// Not_all_code_paths_return_a_value arm stays dead (§13 audit).
-    /// unwrapReturnType's generator arm escapes [ITER] (5.8b).
     pub(crate) fn check_return_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.check_grammar_statement_in_ambient_context_reported(node) {
             return Ok(());
@@ -2456,7 +2494,10 @@ impl<'a> CheckerState<'a> {
                 }
             } else if self.get_return_type_from_annotation(container)?.is_some() {
                 let function_flags = self.get_function_flags(container);
-                let unwrapped_return_type = self.unwrap_return_type(return_type, function_flags)?;
+                // 84543: `unwrapReturnType(...) ?? returnType`.
+                let unwrapped_return_type = self
+                    .unwrap_return_type(return_type, function_flags)?
+                    .unwrap_or(return_type);
                 self.check_return_expression(
                     container,
                     unwrapped_return_type,

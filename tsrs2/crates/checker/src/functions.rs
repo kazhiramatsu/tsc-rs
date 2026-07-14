@@ -250,16 +250,20 @@ impl<'a> CheckerState<'a> {
         } else {
             let expr_type = self.check_expression(body, CheckMode::NORMAL)?;
             if let Some(return_type) = return_type {
-                let return_or_promised_type =
-                    self.unwrap_return_type(return_type, function_flags)?;
-                self.check_return_expression(
-                    node,
-                    return_or_promised_type,
-                    body,
-                    Some(body),
-                    expr_type,
-                    false,
-                )?;
+                // 79207-79210: a truthiness gate — an undefined
+                // unwrap skips the return-expression relation.
+                if let Some(return_or_promised_type) =
+                    self.unwrap_return_type(return_type, function_flags)?
+                {
+                    self.check_return_expression(
+                        node,
+                        return_or_promised_type,
+                        body,
+                        Some(body),
+                        expr_type,
+                        false,
+                    )?;
+                }
             }
         }
         Ok(())
@@ -519,11 +523,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getReturnTypeFromBody @6.0.3
     /// tsc-hash: 3ea543a40c2fea0856b01ae96456c722222cf0a46b633de952569f737279c3f4
     /// tsc-span: _tsc.js:78752-78841
-    ///
-    /// Generator bodies escape whole ([ITER 5.8]: yield aggregation +
-    /// createGeneratorType), so of the widening tail only the
-    /// FunctionReturn rows run: reportErrorsFromWidening + the
-    /// literal-level contextual widening + the final getWidenedType.
     pub(crate) fn get_return_type_from_body(
         &mut self,
         func: NodeId,
@@ -537,7 +536,9 @@ impl<'a> CheckerState<'a> {
         let is_async = function_flags & FUNCTION_FLAGS_ASYNC != 0;
         let is_generator = function_flags & FUNCTION_FLAGS_GENERATOR != 0;
         let mut return_type: Option<TypeId>;
-        let fallback_return_type = self.tables.intrinsics.void;
+        let mut yield_type: Option<TypeId> = None;
+        let mut next_type: Option<TypeId> = None;
+        let mut fallback_return_type = self.tables.intrinsics.void;
         if self.kind_of(body) != SyntaxKind::Block {
             let inner_mode =
                 CheckMode::from_bits(check_mode.bits() & !CheckMode::SKIP_GENERIC_FUNCTIONS.bits());
@@ -556,9 +557,34 @@ impl<'a> CheckerState<'a> {
             }
             return_type = Some(ty);
         } else if is_generator {
-            return Err(Unsupported::new(
-                "generator body return inference ([ITER] yield aggregation, 5.8)",
-            ));
+            // 78779-78786: return aggregation (no early exits — the
+            // never fallback rides fallbackReturnType) + yield/next
+            // aggregation.
+            return_type = None;
+            match self.check_and_aggregate_return_expression_types(func, check_mode)? {
+                None => fallback_return_type = self.tables.intrinsics.never,
+                Some(types) => {
+                    if !types.is_empty() {
+                        return_type =
+                            Some(self.get_union_type_ex(&types, UnionReduction::Subtype)?);
+                    }
+                }
+            }
+            let (yield_types, next_types) =
+                self.check_and_aggregate_yield_operand_types(func, check_mode)?;
+            yield_type = if yield_types.is_empty() {
+                None
+            } else {
+                Some(self.get_union_type_ex(&yield_types, UnionReduction::Subtype)?)
+            };
+            next_type = if next_types.is_empty() {
+                None
+            } else {
+                Some(self.get_intersection_type(
+                    &next_types,
+                    tsrs2_types::IntersectionFlags::default(),
+                )?)
+            };
         } else {
             let types = self.check_and_aggregate_return_expression_types(func, check_mode)?;
             let Some(types) = types else {
@@ -574,7 +600,10 @@ impl<'a> CheckerState<'a> {
                     self.get_contextual_return_type(func, tsrs2_types::ContextFlags::NONE)?;
                 let undefined_preferred = match contextual_return_type {
                     Some(contextual) => {
-                        let unwrapped = self.unwrap_return_type(contextual, function_flags)?;
+                        // 78799: `unwrapReturnType(...) || voidType`.
+                        let unwrapped = self
+                            .unwrap_return_type(contextual, function_flags)?
+                            .unwrap_or(self.tables.intrinsics.void);
                         self.some_type(unwrapped, |state, t| {
                             state.tables.flags_of(t).intersects(TypeFlags::UNDEFINED)
                         })
@@ -594,15 +623,33 @@ impl<'a> CheckerState<'a> {
             }
             return_type = Some(self.get_union_type_ex(&types, UnionReduction::Subtype)?);
         }
-        if let Some(current) = return_type {
-            // reportErrorsFromWidening (78807-78810): generator bodies
-            // escape whole above, so only the FunctionReturn row runs.
-            self.report_errors_from_widening(
-                func,
-                current,
-                Some(tsrs2_types::WideningKind::FUNCTION_RETURN),
-            )?;
-            if self.is_unit_type(current) {
+        if return_type.is_some() || yield_type.is_some() || next_type.is_some() {
+            // reportErrorsFromWidening (78807-78810).
+            if let Some(current) = yield_type {
+                self.report_errors_from_widening(
+                    func,
+                    current,
+                    Some(tsrs2_types::WideningKind::GENERATOR_YIELD),
+                )?;
+            }
+            if let Some(current) = return_type {
+                self.report_errors_from_widening(
+                    func,
+                    current,
+                    Some(tsrs2_types::WideningKind::FUNCTION_RETURN),
+                )?;
+            }
+            if let Some(current) = next_type {
+                self.report_errors_from_widening(
+                    func,
+                    current,
+                    Some(tsrs2_types::WideningKind::GENERATOR_NEXT),
+                )?;
+            }
+            let any_unit = return_type.is_some_and(|t| self.is_unit_type(t))
+                || yield_type.is_some_and(|t| self.is_unit_type(t))
+                || next_type.is_some_and(|t| self.is_unit_type(t));
+            if any_unit {
                 let contextual_signature =
                     self.get_contextual_signature_for_function_like_declaration(func)?;
                 let contextual_type = match contextual_signature {
@@ -613,7 +660,7 @@ impl<'a> CheckerState<'a> {
                             if is_generator {
                                 None
                             } else {
-                                Some(current)
+                                return_type
                             }
                         } else {
                             let signature_return =
@@ -622,27 +669,235 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 };
-                return_type = self
-                    .get_widened_literal_like_type_for_contextual_return_type_if_needed(
-                        Some(current),
-                        contextual_type,
-                        is_async,
-                    )?;
+                if is_generator {
+                    yield_type = self
+                        .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
+                            yield_type,
+                            contextual_type,
+                            tsrs2_types::IterationTypeKind::YIELD,
+                            is_async,
+                        )?;
+                    return_type = self
+                        .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
+                            return_type,
+                            contextual_type,
+                            tsrs2_types::IterationTypeKind::RETURN,
+                            is_async,
+                        )?;
+                    next_type = self
+                        .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
+                            next_type,
+                            contextual_type,
+                            tsrs2_types::IterationTypeKind::NEXT,
+                            is_async,
+                        )?;
+                } else {
+                    return_type = self
+                        .get_widened_literal_like_type_for_contextual_return_type_if_needed(
+                            return_type,
+                            contextual_type,
+                            is_async,
+                        )?;
+                }
             }
             // Final getWidenedType (78827-78829).
+            if let Some(current) = yield_type {
+                yield_type = Some(self.get_widened_type(current)?);
+            }
             if let Some(current) = return_type {
                 return_type = Some(self.get_widened_type(current)?);
             }
+            if let Some(current) = next_type {
+                next_type = Some(self.get_widened_type(current)?);
+            }
+        }
+        if is_generator {
+            // 78832-78838.
+            let yield_type = yield_type.unwrap_or(self.tables.intrinsics.never);
+            let return_type = return_type.unwrap_or(fallback_return_type);
+            let next_type = match next_type {
+                Some(next_type) => next_type,
+                None => self
+                    .get_contextual_iteration_type(tsrs2_types::IterationTypeKind::NEXT, func)?
+                    .unwrap_or(self.tables.intrinsics.unknown),
+            };
+            return self.create_generator_type(yield_type, return_type, next_type, is_async);
         }
         let final_return = return_type.unwrap_or(fallback_return_type);
-        if is_generator {
-            unreachable!("generator arm escaped above");
-        }
         if is_async {
             self.create_promise_type(final_return)
         } else {
             Ok(final_return)
         }
+    }
+
+    /// tsc-port: checkAndAggregateYieldOperandTypes @6.0.3
+    /// tsc-hash: a16b8857b4be707079b5be83bee1da62028d63253024b55124974a04795b1afd
+    /// tsc-span: _tsc.js:78874-78902
+    fn check_and_aggregate_yield_operand_types(
+        &mut self,
+        func: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<(Vec<TypeId>, Vec<TypeId>)> {
+        let mut yield_types: Vec<TypeId> = Vec::new();
+        let mut next_types: Vec<TypeId> = Vec::new();
+        let is_async = self.get_function_flags(func) & FUNCTION_FLAGS_ASYNC != 0;
+        let source = self.binder.source_of_node(func);
+        let Some(body) = node_util::body_of(source, func) else {
+            return Ok((yield_types, next_types));
+        };
+        let inner_mode =
+            CheckMode::from_bits(check_mode.bits() & !CheckMode::SKIP_GENERIC_FUNCTIONS.bits());
+        for yield_expression in self.collect_yield_expressions(body) {
+            let (expression, asterisk_token) = match self.data_of(yield_expression) {
+                NodeData::YieldExpression(data) => (data.expression, data.asterisk_token),
+                _ => (None, None),
+            };
+            let mut yield_expression_type = match expression {
+                Some(expression) => self.check_expression(expression, inner_mode)?,
+                None => self.tables.intrinsics.undefined_widening,
+            };
+            if let Some(expression) = expression {
+                if self.is_const_context(expression)? {
+                    yield_expression_type = self
+                        .tables
+                        .get_regular_type_of_literal_type(yield_expression_type);
+                }
+            }
+            let any = self.tables.intrinsics.any;
+            let yielded = self.get_yielded_type_of_yield_expression(
+                yield_expression,
+                yield_expression_type,
+                any,
+                is_async,
+            )?;
+            if let Some(yielded) = yielded {
+                if !yield_types.contains(&yielded) {
+                    yield_types.push(yielded);
+                }
+            }
+            let next_type = if asterisk_token.is_some() {
+                let use_ = if is_async {
+                    tsrs2_types::IterationUse::ASYNC_YIELD_STAR
+                } else {
+                    tsrs2_types::IterationUse::YIELD_STAR
+                };
+                let iteration_types =
+                    self.get_iteration_types_of_iterable(yield_expression_type, use_, expression)?;
+                iteration_types.map(|types| types.next_type)
+            } else {
+                self.get_contextual_type(yield_expression, tsrs2_types::ContextFlags::NONE)?
+            };
+            if let Some(next_type) = next_type {
+                if !next_types.contains(&next_type) {
+                    next_types.push(next_type);
+                }
+            }
+        }
+        Ok((yield_types, next_types))
+    }
+
+    /// tsc-port: getYieldedTypeOfYieldExpression @6.0.3
+    /// tsc-hash: d4f6c9a1ee088d42e9287c8ff580ac4a7782234ad201e2ac7af0c0e11c1b6978
+    /// tsc-span: _tsc.js:78903-78911
+    ///
+    /// `None` = tsc's undefined (the async getAwaitedType tail).
+    fn get_yielded_type_of_yield_expression(
+        &mut self,
+        node: NodeId,
+        expression_type: TypeId,
+        sent_type: TypeId,
+        is_async: bool,
+    ) -> CheckResult2<Option<TypeId>> {
+        let (expression, asterisk_token) = match self.data_of(node) {
+            NodeData::YieldExpression(data) => (data.expression, data.asterisk_token),
+            _ => (None, None),
+        };
+        let error_node = expression.unwrap_or(node);
+        let yielded_type = if asterisk_token.is_some() {
+            let use_ = if is_async {
+                tsrs2_types::IterationUse::ASYNC_YIELD_STAR
+            } else {
+                tsrs2_types::IterationUse::YIELD_STAR
+            };
+            self.check_iterated_type_or_element_type(
+                use_,
+                expression_type,
+                sent_type,
+                Some(error_node),
+            )?
+        } else {
+            expression_type
+        };
+        if !is_async {
+            return Ok(Some(yielded_type));
+        }
+        self.get_awaited_type_with_error(
+            yielded_type,
+            Some((
+                error_node,
+                if asterisk_token.is_some() {
+                    &diagnostics::Type_of_iterated_elements_of_a_yield_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member
+                } else {
+                    &diagnostics::Type_of_yield_operand_in_an_async_generator_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member
+                },
+            )),
+        )
+    }
+
+    /// forEachYieldExpression (14300-14328) specialized to an ORDERED
+    /// collector (source order matters for the aggregation unions'
+    /// error attribution): the yield arm recurses into its operand
+    /// AFTER the visit; declaration kinds stop; function-likes
+    /// contribute only computed property names; type nodes stop.
+    fn collect_yield_expressions(&self, body: NodeId) -> Vec<NodeId> {
+        let mut out = Vec::new();
+        let mut worklist = vec![body];
+        while let Some(node) = worklist.pop() {
+            match self.kind_of(node) {
+                SyntaxKind::YieldExpression => {
+                    out.push(node);
+                    if let NodeData::YieldExpression(data) = self.data_of(node) {
+                        if let Some(operand) = data.expression {
+                            worklist.push(operand);
+                        }
+                    }
+                }
+                SyntaxKind::EnumDeclaration
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::ModuleDeclaration
+                | SyntaxKind::TypeAliasDeclaration => {}
+                _ => {
+                    let source = self.binder.source_of_node(node);
+                    if node_util::is_function_like_kind(self.kind_of(node)) {
+                        if let Some(name) = self.name_of_node(node) {
+                            if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                                if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
+                                    if let Some(expression) = data.expression {
+                                        worklist.push(expression);
+                                    }
+                                }
+                            }
+                        }
+                    } else if !self.is_part_of_type_node(node) {
+                        let mut children = Vec::new();
+                        tsrs2_syntax::for_each_child(
+                            &source.arena,
+                            source.arena.node(node),
+                            |child| {
+                                children.push(child);
+                                false
+                            },
+                        );
+                        // LIFO worklist: reversed push keeps source order.
+                        for &child in children.iter().rev() {
+                            worklist.push(child);
+                        }
+                    }
+                }
+            }
+        }
+        out
     }
 
     /// tsc-port: functionHasImplicitReturn @6.0.3
@@ -1011,25 +1266,39 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7a90be08264ca0cb4c797f22e1cad0fb1af1c7ce9586adc56ec473229938554c
     /// tsc-span: _tsc.js:84500-84511
     ///
-    /// The generator arm reads getIterationTypeOfGeneratorFunction-
-    /// ReturnType — [ITER 5.8] escape.
+    /// `None` = tsc's undefined (only the async-generator awaited tail
+    /// produces it, 84508); the missing-iteration-type arm returns
+    /// errorType EXPLICITLY, and the async non-generator arm carries
+    /// its own `|| errorType` belt — callers each keep their distinct
+    /// undefined handling (`?? returnType`, truthiness skip, ||
+    /// voidType).
     pub(crate) fn unwrap_return_type(
         &mut self,
         return_type: TypeId,
         function_flags: u32,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult2<Option<TypeId>> {
         let is_generator = function_flags & FUNCTION_FLAGS_GENERATOR != 0;
         let is_async = function_flags & FUNCTION_FLAGS_ASYNC != 0;
         if is_generator {
-            return Err(Unsupported::new(
-                "unwrapReturnType generator arm ([ITER] iteration types, 5.8)",
-            ));
+            let return_iteration_type = self.get_iteration_type_of_generator_function_return_type(
+                tsrs2_types::IterationTypeKind::RETURN,
+                return_type,
+                is_async,
+            )?;
+            let Some(return_iteration_type) = return_iteration_type else {
+                return Ok(Some(self.tables.intrinsics.error));
+            };
+            if is_async {
+                let unwrapped = self.unwrap_awaited_type(return_iteration_type)?;
+                return self.get_awaited_type_no_alias(unwrapped, None);
+            }
+            return Ok(Some(return_iteration_type));
         }
         if is_async {
             let awaited = self.get_awaited_type_no_alias(return_type, None)?;
-            return Ok(awaited.unwrap_or(self.tables.intrinsics.error));
+            return Ok(Some(awaited.unwrap_or(self.tables.intrinsics.error)));
         }
-        Ok(return_type)
+        Ok(Some(return_type))
     }
 
     /// tsc-port: checkReturnExpression @6.0.3
@@ -1265,16 +1534,15 @@ impl<'a> CheckerState<'a> {
         Ok(has_error)
     }
 
-    // ---- yield (grammar + non-generator arm; [ITER] escape) ----
+    // ---- yield ----
 
     /// tsc-port: checkYieldExpression @6.0.3
     /// tsc-hash: 0b3a8949d463bc687dfc4e9cfdba344821a310459bbf326e88bcbf681ad78c13
     /// tsc-span: _tsc.js:80447-80512
     ///
-    /// 5.5 slice per §8: grammar closure (eager) + the non-generator
-    /// anyType arm. Generator containers need the iteration-types
-    /// protocol ([ITER 5.8]) — escape; per-element containment keeps
-    /// the enclosing file checked.
+    /// Grammar closure runs eager (the 5.4 addLazyDiagnostic
+    /// decision), as does the noImplicitAny 7057 closure. Emit-helper
+    /// probes are importHelpers-gated (no-op).
     pub(crate) fn check_yield_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         self.check_yield_expression_grammar(node);
         let func = self.get_containing_function(node);
@@ -1285,9 +1553,147 @@ impl<'a> CheckerState<'a> {
         if function_flags & FUNCTION_FLAGS_GENERATOR == 0 {
             return Ok(self.tables.intrinsics.any);
         }
-        Err(Unsupported::new(
-            "checkYieldExpression generator arm ([ITER] iteration types, 5.8)",
-        ))
+        let is_async = function_flags & FUNCTION_FLAGS_ASYNC != 0;
+        let (expression, asterisk_token) = match self.data_of(node) {
+            NodeData::YieldExpression(data) => (data.expression, data.asterisk_token),
+            _ => (None, None),
+        };
+        let mut return_type = self.get_return_type_from_annotation(func)?;
+        if let Some(current) = return_type {
+            if self.tables.flags_of(current).intersects(TypeFlags::UNION) {
+                return_type = Some(self.filter_type_with(current, |state, t| {
+                    state.check_generator_instantiation_assignability_to_return_type(
+                        t,
+                        function_flags,
+                        /*error_node*/ None,
+                    )
+                })?);
+            }
+        }
+        let iteration_types = match return_type {
+            Some(return_type) => {
+                self.get_iteration_types_of_generator_function_return_type(return_type, is_async)?
+            }
+            None => None,
+        };
+        let any = self.tables.intrinsics.any;
+        let signature_yield_type = iteration_types.map(|types| types.yield_type).unwrap_or(any);
+        let signature_next_type = iteration_types.map(|types| types.next_type).unwrap_or(any);
+        let yield_expression_type = match expression {
+            Some(expression) => self.check_expression(expression, CheckMode::NORMAL)?,
+            None => self.tables.intrinsics.undefined_widening,
+        };
+        let yielded_type = self.get_yielded_type_of_yield_expression(
+            node,
+            yield_expression_type,
+            signature_next_type,
+            is_async,
+        )?;
+        if return_type.is_some() {
+            if let Some(yielded_type) = yielded_type {
+                // checkTypeAssignableToAndOptionallyElaborate —
+                // head-only slice; errorNode = expression || node.
+                self.check_type_assignable_to(
+                    yielded_type,
+                    signature_yield_type,
+                    Some(expression.unwrap_or(node)),
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                )?;
+            }
+        }
+        if asterisk_token.is_some() {
+            let use_ = if is_async {
+                tsrs2_types::IterationUse::ASYNC_YIELD_STAR
+            } else {
+                tsrs2_types::IterationUse::YIELD_STAR
+            };
+            let iterated = self.get_iteration_type_of_iterable(
+                use_,
+                tsrs2_types::IterationTypeKind::RETURN,
+                yield_expression_type,
+                expression,
+            )?;
+            return Ok(iterated.unwrap_or(any));
+        }
+        if let Some(return_type) = return_type {
+            let next = self.get_iteration_type_of_generator_function_return_type(
+                tsrs2_types::IterationTypeKind::NEXT,
+                return_type,
+                is_async,
+            )?;
+            return Ok(next.unwrap_or(any));
+        }
+        let contextual_next =
+            self.get_contextual_iteration_type(tsrs2_types::IterationTypeKind::NEXT, func)?;
+        if let Some(contextual_next) = contextual_next {
+            return Ok(contextual_next);
+        }
+        // The noImplicitAny 7057 closure (eager identity).
+        if self
+            .options
+            .strict_option_value(self.options.no_implicit_any)
+            && !self.expression_result_is_unused(node)
+        {
+            let contextual_type =
+                self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
+            let contextual_is_any =
+                contextual_type.is_some_and(|t| self.tables.flags_of(t).intersects(TypeFlags::ANY));
+            if contextual_type.is_none() || contextual_is_any {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::yield_expression_implicitly_results_in_an_any_type_because_its_containing_generator_lacks_a_return_type_annotation,
+                    &[],
+                );
+            }
+        }
+        Ok(any)
+    }
+
+    /// tsc-port: expressionResultIsUnused @6.0.3
+    /// tsc-hash: 57c8d4656b6d1338c146dde5d8bb7d44bf64c2a678b8cb84fa7affe6fcb14595
+    /// tsc-span: _tsc.js:19091-19114
+    ///
+    /// CommaListExpression is transform-synthesized — parse trees
+    /// carry comma sequences as BinaryExpression, so only that arm is
+    /// live here.
+    fn expression_result_is_unused(&self, node: NodeId) -> bool {
+        let mut node = node;
+        loop {
+            let Some(parent) = self.parent_of(node) else {
+                return false;
+            };
+            match self.kind_of(parent) {
+                SyntaxKind::ParenthesizedExpression => {
+                    node = parent;
+                }
+                SyntaxKind::ExpressionStatement | SyntaxKind::VoidExpression => {
+                    return true;
+                }
+                SyntaxKind::ForStatement => {
+                    let (initializer, incrementor) = match self.data_of(parent) {
+                        NodeData::ForStatement(data) => (data.initializer, data.incrementor),
+                        _ => (None, None),
+                    };
+                    return initializer == Some(node) || incrementor == Some(node);
+                }
+                SyntaxKind::BinaryExpression => {
+                    let NodeData::BinaryExpression(data) = self.data_of(parent) else {
+                        return false;
+                    };
+                    let is_comma = data
+                        .operator_token
+                        .is_some_and(|token| self.kind_of(token) == SyntaxKind::CommaToken);
+                    if !is_comma {
+                        return false;
+                    }
+                    if data.left == Some(node) {
+                        return true;
+                    }
+                    node = parent;
+                }
+                _ => return false,
+            }
+        }
     }
 
     /// checkYieldExpressionGrammar (80505-80511, the lazy closure —
@@ -1899,8 +2305,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c9233c1ae6f500780146135e92ef33cbbb833c61acdb248037680798e79c0a0e
     /// tsc-span: _tsc.js:55952-56005
     ///
-    /// The array-pattern arm needs checkIteratedTypeOrElementType
-    /// ([ITER 5.8]) — escapes; object patterns run live.
+    /// Array patterns run the §4 iteration protocol (5.8b).
     /// getFlowTypeOfDestructuring is the 5.5e [FLOW M5] identity stub.
     pub(crate) fn get_binding_element_type_from_parent_type(
         &mut self,
@@ -2001,9 +2406,91 @@ impl<'a> CheckerState<'a> {
                 ty = self.get_flow_type_of_destructuring(declaration, declared);
             }
         } else {
-            return Err(Unsupported::new(
-                "array binding pattern element type (checkIteratedTypeOrElementType [ITER], 5.8)",
-            ));
+            // 55984-55996: the array-pattern arm — Destructuring use,
+            // PossiblyOutOfBounds only for non-rest elements.
+            let NodeData::BindingElement(data) = self.data_of(declaration).clone() else {
+                return Err(Unsupported::new(
+                    "malformed binding element (parse recovery)",
+                ));
+            };
+            let use_ = if data.dot_dot_dot_token.is_some() {
+                tsrs2_types::IterationUse::DESTRUCTURING
+            } else {
+                tsrs2_types::IterationUse::from_bits(
+                    tsrs2_types::IterationUse::DESTRUCTURING.bits()
+                        | tsrs2_types::IterationUse::POSSIBLY_OUT_OF_BOUNDS.bits(),
+                )
+            };
+            let undefined_type = self.tables.intrinsics.undefined;
+            let element_type = self.check_iterated_type_or_element_type(
+                use_,
+                parent_type,
+                undefined_type,
+                Some(pattern),
+            )?;
+            let elements = match self.data_of(pattern) {
+                NodeData::ArrayBindingPattern(pattern_data) => self.nodes_of(pattern_data.elements),
+                _ => Vec::new(),
+            };
+            let index = elements
+                .iter()
+                .position(|&element| element == declaration)
+                .ok_or_else(|| {
+                    Unsupported::new("binding element outside its pattern (parse recovery)")
+                })?;
+            if data.dot_dot_dot_token.is_some() {
+                let base_constraint = self.map_type(
+                    parent_type,
+                    &mut |state, t| {
+                        Ok(Some(
+                            if state
+                                .tables
+                                .flags_of(t)
+                                .intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
+                            {
+                                state.get_base_constraint_or_type(t)?
+                            } else {
+                                t
+                            },
+                        ))
+                    },
+                    false,
+                )?;
+                let base_constraint = base_constraint.expect("mapper never returns None");
+                let all_tuples =
+                    self.every_type(base_constraint, |state, t| state.tables.is_tuple_type(t));
+                ty = if all_tuples {
+                    let sliced = self.map_type(
+                        base_constraint,
+                        &mut |state, t| state.slice_tuple_type(t, index, 0).map(Some),
+                        false,
+                    )?;
+                    sliced.expect("mapper never returns None")
+                } else {
+                    self.create_array_type(element_type, false)?
+                };
+            } else if self.is_array_like_type(parent_type)? {
+                let index_type = self.tables.get_number_literal_type(index as f64);
+                let access_flags = tsrs2_types::AccessFlags::EXPRESSION_POSITION
+                    | if no_tuple_bounds_check || self.has_default_value(declaration) {
+                        tsrs2_types::AccessFlags::ALLOW_MISSING
+                    } else {
+                        tsrs2_types::AccessFlags::NONE
+                    };
+                let declared = self
+                    .get_indexed_access_type_or_undefined(
+                        parent_type,
+                        index_type,
+                        access_flags,
+                        data.name,
+                        None,
+                        None,
+                    )?
+                    .unwrap_or(self.tables.intrinsics.error);
+                ty = self.get_flow_type_of_destructuring(declaration, declared);
+            } else {
+                ty = element_type;
+            }
         }
         if self.initializer_of(declaration).is_none() {
             return Ok(ty);

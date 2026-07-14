@@ -319,6 +319,15 @@ pub struct TypeLinks {
     /// the context-free widening memo; context-carrying calls bypass
     /// it in both directions.
     pub widened: Option<TypeId>,
+    /// tsc type[iterationTypesCacheKey] (get/setCachedIterationTypes
+    /// 84056-84061): the five §4 verdict slots. `Some(No)` is the
+    /// cached noIterationTypes poison — distinguishable from "never
+    /// computed" (None), per the m4-58 §4 sentinel rule.
+    pub iteration_types_of_iterable: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_async_iterable: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_iterator: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_async_iterator: Option<crate::iterate::IterationTypesResult>,
+    pub iteration_types_of_iterator_result: Option<crate::iterate::IterationTypesResult>,
 }
 
 /// The getKeyPropertyName cache payload.
@@ -902,6 +911,38 @@ impl LinksTables {
             "type widened memo rewritten with a DIFFERENT value"
         );
         links.widened = Some(widened);
+    }
+
+    /// setCachedIterationTypes (84059-84061) — one write per key per
+    /// type in every tsc flow (the noCache re-run skips the write);
+    /// EQUAL-value rewrites tolerated per the resolvedSymbol precedent.
+    pub fn set_type_iteration_types(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        key: crate::iterate::IterationCacheKey,
+        value: crate::iterate::IterationTypesResult,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        let slot = match key {
+            crate::iterate::IterationCacheKey::Iterable => &mut links.iteration_types_of_iterable,
+            crate::iterate::IterationCacheKey::AsyncIterable => {
+                &mut links.iteration_types_of_async_iterable
+            }
+            crate::iterate::IterationCacheKey::Iterator => &mut links.iteration_types_of_iterator,
+            crate::iterate::IterationCacheKey::AsyncIterator => {
+                &mut links.iteration_types_of_async_iterator
+            }
+            crate::iterate::IterationCacheKey::IteratorResult => {
+                &mut links.iteration_types_of_iterator_result
+            }
+        };
+        assert!(
+            slot.is_none() || *slot == Some(value),
+            "iteration-types cache rewritten with a DIFFERENT value"
+        );
+        *slot = Some(value);
     }
 
     pub fn set_type_parameter_constraint(

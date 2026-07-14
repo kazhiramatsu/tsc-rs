@@ -16,6 +16,7 @@ pub mod globals;
 pub mod indexed;
 pub mod instantiate;
 pub mod intersect;
+pub mod iterate;
 mod js_grammar;
 pub mod jsx;
 pub mod links;

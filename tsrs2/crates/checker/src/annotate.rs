@@ -2131,8 +2131,8 @@ impl<'a> CheckerState<'a> {
     /// bookkeeping is 5.2's (generic alias REFERENCES are Unsupported
     /// at the reference arm, so skipping it is verdict-neutral); the
     /// JSDoc type-alias arms are elided; the BuiltinIteratorReturn
-    /// intrinsic-marker swap needs iterator globals (5.8 iteration
-    /// protocol) and unwinds as Unsupported.
+    /// intrinsic-marker swap resolves through
+    /// get_builtin_iterator_return_type (5.8b).
     pub(crate) fn get_declared_type_of_type_alias(
         &mut self,
         symbol: SymbolId,
@@ -2194,11 +2194,12 @@ impl<'a> CheckerState<'a> {
             if ty == self.tables.intrinsics.intrinsic_marker
                 && self.binder.symbol(symbol).escaped_name == "BuiltinIteratorReturn"
             {
-                return Err(Unsupported::new(
-                    "BuiltinIteratorReturn intrinsic alias (iterator globals, M4 5.8)",
-                ));
+                // 57421-57423: the compiler-provided intrinsic resolves
+                // per strictBuiltinIteratorReturn.
+                self.get_builtin_iterator_return_type()
+            } else {
+                ty
             }
-            ty
         } else {
             // 57426-57432: the cycle came from a deeper frame.
             let error_node = declaration
@@ -5313,10 +5314,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 109205c923753ffa4729ddda5d05745808a37dba0474c79e15e7da5a9e0bb8df
     /// tsc-span: _tsc.js:56032-56144
     ///
-    /// Escaped arms: for-in/for-of variables (5.8 statements /
-    /// [ITER]), the JSDoc/JS container arms ([JSDOC]), the property-
-    /// declaration constructor/static-block flow arms ([FLOW M5]) and
-    /// its ambient getTypeOfPropertyInBaseClass tail (5.8).
+    /// Escaped arms: the JSDoc/JS container arms ([JSDOC]), the
+    /// property-declaration constructor/static-block flow arms
+    /// ([FLOW M5]) and its ambient getTypeOfPropertyInBaseClass tail
+    /// (5.8). The for-in/for-of variable arms are live since 5.8b.
     ///
     /// The AUTO ARM ([FLOW M5]): tsc returns autoType/autoArrayType and
     /// lets control-flow analysis evolve the type. Oracle-pinned
@@ -5338,12 +5339,40 @@ impl<'a> CheckerState<'a> {
             let grand = parent.and_then(|parent| self.parent_of(parent));
             match grand.map(|grand| self.kind_of(grand)) {
                 Some(SyntaxKind::ForInStatement) => {
-                    return Err(Unsupported::new("for-in variable type (5.8 statements)"));
+                    // 56033-56039: keyof the (non-nullable) RHS; only
+                    // TypeParameter/Index-flagged index types survive
+                    // the Extract<_, string> wrap — everything else is
+                    // plain string.
+                    let grand = grand.expect("matched Some above");
+                    let expression = match self.data_of(grand) {
+                        NodeData::ForInStatement(data) => data.expression,
+                        _ => None,
+                    };
+                    let Some(expression) = expression else {
+                        return Err(Unsupported::new("ForInStatement recovery node"));
+                    };
+                    let raw = self.check_expression(expression, check_mode)?;
+                    let non_nullable = self.get_non_nullable_type_if_needed(raw)?;
+                    let index_type =
+                        self.get_index_type(non_nullable, tsrs2_types::IndexFlags::NONE)?;
+                    return Ok(Some(
+                        if self.tables.flags_of(index_type).intersects(
+                            tsrs2_types::TypeFlags::from_bits(
+                                tsrs2_types::TypeFlags::TYPE_PARAMETER.bits()
+                                    | tsrs2_types::TypeFlags::INDEX.bits(),
+                            ),
+                        ) {
+                            self.get_extract_string_type(index_type)?
+                        } else {
+                            self.tables.intrinsics.string
+                        },
+                    ));
                 }
                 Some(SyntaxKind::ForOfStatement) => {
-                    return Err(Unsupported::new(
-                        "for-of variable type (checkRightHandSideOfForOf [ITER] 5.8)",
-                    ));
+                    // 56041-56044: the iterated type (its anyType
+                    // fallback makes the || anyType tail dead belt).
+                    let grand = grand.expect("matched Some above");
+                    return Ok(Some(self.check_right_hand_side_of_for_of(grand)?));
                 }
                 _ => {}
             }
