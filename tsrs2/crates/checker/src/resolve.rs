@@ -1076,6 +1076,16 @@ impl<'a> CheckerState<'a> {
         if self.program_has_global_augmentation() {
             return;
         }
+        // 2b. JS program files can declare types via JSDoc (@typedef/
+        //     @callback — [JSDOC] unbound), so name-resolution
+        //     failures in mixed-JS programs are undecidable the same
+        //     way (typedefMultipleTypeParameters pins the TS-side
+        //     reference staying silent).
+        if (0..self.binder.file_count()).any(|index| {
+            crate::is_js_file_name(&self.binder.source(index).file_name)
+        }) {
+            return;
+        }
         // getSuggestedLibForNonExistentName is static lib metadata, so
         // the 2583/2584-family lib arm is exact. The SPELLING branch
         // (48123-48151) is budget-gated: suggestionCount < 10, where
@@ -1489,6 +1499,21 @@ impl<'a> CheckerState<'a> {
                 if namespace == self.unknown_symbol {
                     return Some(namespace);
                 }
+                // resolveAlias is unported (5.8d §9): an alias left
+                // (import q = a.b / import specifiers) returns
+                // UNRESOLVED from finish_resolve_entity_name, so its
+                // exports table below is not the aliased target's —
+                // the member read would fabricate 2694. Skip the
+                // report (silent None; the 5.8d alias protocol lifts
+                // this).
+                if self
+                    .binder
+                    .symbol(namespace)
+                    .flags
+                    .intersects(SymbolFlags::ALIAS)
+                {
+                    return None;
+                }
                 let right_text = self.identifier_text_of(right)?.to_owned();
                 // getExportsOfSymbol's globalThis special case (47710):
                 // globalThisSymbol's exports ARE the merged globals
@@ -1502,6 +1527,18 @@ impl<'a> CheckerState<'a> {
                     .get_symbol_in_table(&exports, &right_text, meaning)
                     .map(|s| self.get_merged_symbol(s));
                 let Some(symbol) = symbol else {
+                    // A raw table hit that failed only the MEANING
+                    // filter: either an ALIAS (export import a = A —
+                    // tsc's getSymbol alias arm chases the target,
+                    // resolveAlias 5.8d) or a wrong-meaning member
+                    // (tsc's ALTERNATE forms: 2749 value-as-type /
+                    // namespace-as-type family — M8 per the module
+                    // note). Both make plain-2694-vs-alternate
+                    // undecidable — silent None (parserharness pins
+                    // 2749, not 2694).
+                    if exports.get(&right_text).is_some() {
+                        return None;
+                    }
                     if !ignore_errors {
                         let namespace_name = self.fully_qualified_name(namespace);
                         let declaration_name = node_util::declaration_name_to_string(

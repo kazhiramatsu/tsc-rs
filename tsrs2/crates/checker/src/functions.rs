@@ -1142,10 +1142,12 @@ impl<'a> CheckerState<'a> {
     /// reachable rows are the non-module 1375/2853 pair and the
     /// nested 1308/2852 (+related 1356) pair; the target/module 1378/
     /// 2854 arms are dead at ES2017+, transcription kept for the
-    /// ladder's fallthrough shape. `await using` declarations reach
-    /// the checker at 5.8 — the isAwaitExpression selections are all
-    /// true here.
+    /// ladder's fallthrough shape. Since 5.8a `await using`
+    /// declaration LISTS route here too — every message selects on
+    /// isAwaitExpression(node) like tsc (the 2865/2866/2867 family
+    /// for lists).
     pub(crate) fn check_await_grammar(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let is_await_expression = self.kind_of(node) == SyntaxKind::AwaitExpression;
         let mut has_error = false;
         let container = {
             // getContainingFunctionOrClassStaticBlock (14612).
@@ -1168,7 +1170,11 @@ impl<'a> CheckerState<'a> {
         }) {
             self.error_at(
                 Some(node),
-                &diagnostics::await_expression_cannot_be_used_inside_a_class_static_block,
+                if is_await_expression {
+                    &diagnostics::await_expression_cannot_be_used_inside_a_class_static_block
+                } else {
+                    &diagnostics::await_using_statements_cannot_be_used_inside_a_class_static_block
+                },
                 &[],
             );
             has_error = true;
@@ -1181,7 +1187,11 @@ impl<'a> CheckerState<'a> {
                         self.error_at_span(
                             span,
                             node,
-                            &diagnostics::await_expressions_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module,
+                            if is_await_expression {
+                                &diagnostics::await_expressions_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module
+                            } else {
+                                &diagnostics::await_using_statements_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module
+                            },
                             &[],
                         );
                         has_error = true;
@@ -1210,14 +1220,18 @@ impl<'a> CheckerState<'a> {
                 self.error_at_span_with_related(
                     span,
                     node,
-                    &diagnostics::await_expressions_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules,
+                    if is_await_expression {
+                        &diagnostics::await_expressions_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules
+                    } else {
+                        &diagnostics::await_using_statements_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules
+                    },
                     &[],
                     related,
                 );
                 has_error = true;
             }
         }
-        if self.is_in_parameter_initializer_before_containing_function(node) {
+        if is_await_expression && self.is_in_parameter_initializer_before_containing_function(node) {
             self.error_at(
                 Some(node),
                 &diagnostics::await_expressions_cannot_be_used_in_a_parameter_initializer,

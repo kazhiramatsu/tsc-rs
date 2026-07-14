@@ -1113,6 +1113,24 @@ impl<'a> CheckerState<'a> {
         access_flags: AccessFlags,
         property_name: Option<&str>,
     ) -> CheckResult2<Option<TypeId>> {
+        // [FLOW M5] guard-position gate (5.8a statement-body reach):
+        // tsc runs the ladder over the receiver's FLOW type — a
+        // narrowable receiver under a guard (if/loop/switch bodies,
+        // &&-rights, conditional branches) may be tsc-clean once
+        // narrowing lands. Same shape as the 2339 gate (access.rs).
+        let ladder_receiver = match self.data_of(access_expression) {
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        if let Some(receiver) = ladder_receiver {
+            if self.receiver_may_be_flow_narrowed(receiver)
+                && self.access_sits_in_guarded_position(access_expression)
+            {
+                return Err(Unsupported::new(
+                    "[FLOW M5] element-access ladder on a narrowable receiver in a guarded position",
+                ));
+            }
+        }
         let no_implicit_any = self
             .options
             .strict_option_value(self.options.no_implicit_any);

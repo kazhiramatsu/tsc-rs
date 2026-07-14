@@ -2069,19 +2069,46 @@ impl<'a> CheckerState<'a> {
         let expr_name = data
             .expr_name
             .ok_or_else(|| Unsupported::new("typeof with missing entity name"))?;
-        // resolveEntityName reports (2304 family) and yields
-        // unknownSymbol; typeof then types as errorType.
-        let ty = match self.resolve_entity_name(
-            expr_name,
-            SymbolFlags::VALUE,
-            /*ignore_errors*/ false,
-            None,
-        ) {
-            Some(symbol) => self.get_type_of_symbol(symbol)?,
-            None => self.tables.intrinsics.error,
+        // tsc checks exprName as an EXPRESSION (getWidenedType(
+        // checkExpression(node.exprName))): qualified names take the
+        // property-access route (2304 at the head identifier, 2339 on
+        // member misses — parserTypeQuery3 pins 2304, not 2503). The
+        // identifier face keeps the resolver path, which is the same
+        // resolveName + declared-type read minus M5 narrowing.
+        let ty = if self.kind_of(expr_name) == SyntaxKind::QualifiedName {
+            // Resolved qualified names keep the exports-table read
+            // (namespace members type without the VALUE_MODULE
+            // getTypeOfSymbol arm, pinned); an UNRESOLVED name takes
+            // the expression route for tsc's error parity.
+            match self.resolve_entity_name(
+                expr_name,
+                SymbolFlags::VALUE,
+                /*ignore_errors*/ true,
+                None,
+            ) {
+                Some(symbol) => self.get_type_of_symbol(symbol)?,
+                None => self.check_expression(expr_name, tsrs2_types::CheckMode::NORMAL)?,
+            }
+        } else {
+            match self.resolve_entity_name(
+                expr_name,
+                SymbolFlags::VALUE,
+                /*ignore_errors*/ false,
+                None,
+            ) {
+                Some(symbol) => self.get_type_of_symbol(symbol)?,
+                None => self.tables.intrinsics.error,
+            }
         };
         let widened = self.get_widened_type(ty)?;
         let resolved = self.tables.get_regular_type_of_literal_type(widened);
+        // First write wins: the entity resolution above can re-enter
+        // this node (5.8a declaration-site forcing) and fill the slot;
+        // tsc's raw assignment silently overwrites with the identical
+        // recomputation.
+        if let Some(already) = self.links.node(node).resolved_type.resolved() {
+            return Ok(already);
+        }
         self.links.set_node_resolved_type(
             self.speculation_depth,
             node,
@@ -4211,6 +4238,23 @@ impl<'a> CheckerState<'a> {
         let ty = match ty {
             Some(ty) => ty,
             None => {
+                // Computed-name accessor pairs bind one symbol per
+                // member until the late-binding table pairs them
+                // (get/set under [Symbol.x] — 5.8c §6 revisits): the
+                // getter fallback above can miss its partner, so the
+                // implicit-any report is undecidable — escape.
+                let computed_name = setter.or(getter).is_some_and(|accessor| {
+                    tsrs2_binder::node_util::has_dynamic_name(
+                        self.binder.source_of_node(accessor),
+                        accessor,
+                    )
+                });
+                if computed_name {
+                    self.pop_type_resolution();
+                    return Err(Unsupported::new(
+                        "computed-name accessor pair (late-bound get/set pairing, 5.8c)",
+                    ));
+                }
                 // 56761-56769: the noImplicitAny suggestions.
                 if self
                     .options
@@ -4939,6 +4983,14 @@ impl<'a> CheckerState<'a> {
         let mapper = self.links.symbol(symbol).mapper;
         let target_type = self.get_type_of_symbol(target)?;
         let instantiated = self.instantiate_type(target_type, mapper)?;
+        // tsc `links.type || (links.type = ...)` assigns AFTER the RHS
+        // runs — a recursive fill during instantiation is silently
+        // overwritten with the (identical) recomputation. First write
+        // wins here; the write-once slot is the tripwire for a
+        // genuinely diverging recomputation.
+        if let Some(already) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(already);
+        }
         self.links.set_symbol_type(
             self.speculation_depth,
             symbol,
@@ -5075,6 +5127,15 @@ impl<'a> CheckerState<'a> {
             // module symbols do not take this worker in the slice).
             self.report_circularity_error(symbol)
         };
+        // tsc 56668-56672: the DOUBLE-CHECKED write — a nested
+        // resolution (declaration-site forcing recursing through the
+        // initializer, live from 5.8a) may have filled the slot while
+        // the worker ran; the FIRST write wins and the outer frame
+        // returns the cached value (`if (!links.type) links.type =
+        // type; return links.type`).
+        if let Some(already) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(already);
+        }
         self.links
             .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(resolved));
         Ok(resolved)

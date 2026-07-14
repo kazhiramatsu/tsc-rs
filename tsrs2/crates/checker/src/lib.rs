@@ -92,14 +92,21 @@ fn filter_by_comment_directives(
     let line_starts = &line_map.line_starts;
     let is_directive_line = |line: usize| -> bool {
         let trimmed = line_text(line).trim_start();
-        let Some(comment) = trimmed.strip_prefix("//") else {
-            return false;
-        };
-        // regex ^///?\s*@(ts-expect-error|ts-ignore) applied at the
-        // comment start.
-        let comment = comment.strip_prefix('/').unwrap_or(comment);
-        let comment = comment.trim_start();
-        comment.starts_with("@ts-expect-error") || comment.starts_with("@ts-ignore")
+        if let Some(comment) = trimmed.strip_prefix("//") {
+            // regex ^///?\s*@(ts-expect-error|ts-ignore) applied at
+            // the comment start.
+            let comment = comment.strip_prefix('/').unwrap_or(comment);
+            let comment = comment.trim_start();
+            return comment.starts_with("@ts-expect-error") || comment.starts_with("@ts-ignore");
+        }
+        // commentDirectiveRegExMultiLine (8203): ^(?:/|\*)*\s*@(ts-
+        // expect-error|ts-ignore) — the multi-line-comment face,
+        // matched line-wise (the scanner applies it to the closing
+        // line of a /* */ comment; a line-based match over-suppresses
+        // only when the pattern appears mid-comment or in a template
+        // string — FN-side).
+        let stripped = trimmed.trim_start_matches(['/', '*']).trim_start();
+        stripped.starts_with("@ts-expect-error") || stripped.starts_with("@ts-ignore")
     };
     let directive_lines: Vec<usize> = (0..byte_line_starts.len())
         .filter(|&line| is_directive_line(line))
@@ -125,7 +132,10 @@ fn filter_by_comment_directives(
                     return false; // suppressed
                 }
                 let trimmed = line_text(line).trim();
-                if !trimmed.is_empty() && !trimmed.starts_with("//") {
+                let block_comment_shell = trimmed.starts_with("/*")
+                    || trimmed.starts_with('*')
+                    || trimmed == "*/";
+                if !trimmed.is_empty() && !trimmed.starts_with("//") && !block_comment_shell {
                     return true;
                 }
             }

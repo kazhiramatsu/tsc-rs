@@ -724,6 +724,24 @@ impl<'a> CheckerState<'a> {
                         );
                     }
                     self.check_nan_equality(error_node, operator_token, left, right)?;
+                    // Intersection comparability escape: the relation
+                    // slice under-accepts intersection operands
+                    // (equalityWithIntersectionTypes01 is tsc-clean) —
+                    // a failed verdict with an intersection on either
+                    // side escapes instead of fabricating 2367.
+                    let comparable = self.is_type_equality_comparable_to(left_type, right_type)?
+                        || self.is_type_equality_comparable_to(right_type, left_type)?;
+                    if !comparable
+                        && (self.tables.flags_of(left_type).intersects(TypeFlags::INTERSECTION)
+                            || self
+                                .tables
+                                .flags_of(right_type)
+                                .intersects(TypeFlags::INTERSECTION))
+                    {
+                        return Err(Unsupported::new(
+                            "equality comparability over intersection operands (relation slice)",
+                        ));
+                    }
                     self.report_operator_error_unless(
                         operator_token,
                         left_type,

@@ -1029,6 +1029,16 @@ impl<'a> CheckerState<'a> {
                 symbol = self.unknown_symbol;
             }
         } else {
+            // `declare global` programs can declare JSX.IntrinsicElements
+            // through the augmentation merge (unported until 5.8d) —
+            // the miss is undecidable there, same rule as the resolver
+            // failure band (inlineJsxFactoryDeclarations pins the
+            // renderer.d.ts global JSX surface).
+            if self.program_has_global_augmentation() {
+                return Err(Unsupported::new(
+                    "JSX.IntrinsicElements miss in a declare-global program (augmentation merge, 5.8d)",
+                ));
+            }
             if self
                 .options
                 .strict_option_value(self.options.no_implicit_any)

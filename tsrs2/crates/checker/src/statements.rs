@@ -47,7 +47,33 @@ impl<'a> CheckerState<'a> {
         let Some(declaration_list) = data.declaration_list else {
             return Err(Unsupported::new("VariableStatement recovery node"));
         };
-        if !self.check_grammar_modifiers(node)
+        // checkGrammarModifiers gate approximation: in a position
+        // where block declarations are disallowed, ANY modifier on a
+        // variable statement is illegal — tsc's modifier grammar
+        // reports 1184-family and short-circuits the whole ladder.
+        // The M7-stub returns false, so mirror that face here (the
+        // 1184 row itself stays the M7 FN).
+        let has_modifiers = matches!(
+            self.data_of(node),
+            NodeData::VariableStatement(data) if data.modifiers.is_some()
+        );
+        let list_block_scope = self.node_flags(declaration_list) & NodeFlags::BLOCK_SCOPED.bits();
+        let modifiers_would_report = (has_modifiers
+            && self
+                .parent_of(node)
+                .is_some_and(|parent| !self.allow_block_declarations(parent)))
+            // `declare using` / `declare await using`: the modifier
+            // grammar owns the report (1044-family) and short-circuits
+            // the ladder — our ambient row would double-fire (the
+            // usingDeclarations.13 pin).
+            || (node_util::has_syntactic_modifier(
+                self.binder.source_of_node(node),
+                node,
+                ModifierFlags::AMBIENT,
+            ) && (list_block_scope == NodeFlags::USING.bits()
+                || list_block_scope == NodeFlags::AWAIT_USING.bits()));
+        if !modifiers_would_report
+            && !self.check_grammar_modifiers(node)
             && !self.check_grammar_variable_declaration_list(declaration_list)?
         {
             self.check_grammar_for_disallowed_block_scoped_variable_statement(
@@ -256,6 +282,11 @@ impl<'a> CheckerState<'a> {
                         // recomputed like tsc.
                         let target =
                             self.get_widened_type_for_variable_like_declaration(node, false)?;
+                        self.declaration_initializer_flow_gate(
+                            initializer,
+                            initializer_type,
+                            target,
+                        )?;
                         self.check_type_assignable_to(
                             initializer_type,
                             target,
@@ -307,6 +338,7 @@ impl<'a> CheckerState<'a> {
                     // THE annotated-declaration 2322 row: errorNode =
                     // node (getErrorSpanForNode's VariableDeclaration
                     // arm reports at the NAME span — pinned).
+                    self.declaration_initializer_flow_gate(initializer, initializer_type, ty)?;
                     self.check_type_assignable_to(
                         initializer_type,
                         ty,
@@ -399,6 +431,24 @@ impl<'a> CheckerState<'a> {
                 self.convert_auto_to_any(widened)
             };
             let error_type = self.tables.intrinsics.error;
+            // [JSDOC] gate: a merged declaration living in a JS file
+            // takes its type from @type tags (unmodeled) — comparing
+            // against our annotation-less read fabricates 2403/2717.
+            let any_js_declaration = self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .any(|&declaration| {
+                    crate::is_js_file_name(
+                        &self.binder.source_of_node(declaration).file_name,
+                    )
+                });
+            if any_js_declaration {
+                return Err(Unsupported::new(
+                    "merged declaration typed from a JS file (@type tags, [JSDOC])",
+                ));
+            }
             if ty != error_type
                 && declaration_type != error_type
                 && !self.is_type_identical_to(ty, declaration_type)?
@@ -418,6 +468,11 @@ impl<'a> CheckerState<'a> {
             if let Some(initializer) = self.only_expression_initializer_of(node) {
                 let initializer_type =
                     self.check_expression_cached(initializer, CheckMode::NORMAL)?;
+                self.declaration_initializer_flow_gate(
+                    initializer,
+                    initializer_type,
+                    declaration_type,
+                )?;
                 self.check_type_assignable_to(
                     initializer_type,
                     declaration_type,
@@ -1631,6 +1686,47 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// [FLOW M5] declaration-row gate (the 5.5e second-face pattern):
+    /// tsc relates the FLOW type of the initializer — a failed verdict
+    /// over DECLARED types is tsc-clean whenever any narrowable
+    /// reference feeds the initializer (assignment/guard narrowing).
+    /// Contain those reports; M5 removes the gate.
+    fn declaration_initializer_flow_gate(
+        &mut self,
+        initializer: NodeId,
+        initializer_type: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<()> {
+        if self.is_type_assignable_to(initializer_type, target)? {
+            return Ok(());
+        }
+        if self.subtree_mentions_narrowable_reference(initializer) {
+            return Err(Unsupported::new(
+                "[FLOW M5] failed declaration initializer over a narrowable reference",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Any descendant (or the node itself) is a narrowable reference —
+    /// the broad FP=0-side probe feeding the declaration-row gate.
+    fn subtree_mentions_narrowable_reference(&self, root: NodeId) -> bool {
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            let source = self.binder.source_of_node(node);
+            if node_util::is_narrowable_reference(source, node) {
+                return true;
+            }
+            let mut children = Vec::new();
+            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+                children.push(child);
+                false
+            });
+            stack.extend(children);
+        }
+        false
+    }
+
     // ---- shared small helpers ----
 
     /// tsc-port: hasOnlyExpressionInitializer @6.0.3
@@ -2663,5 +2759,53 @@ impl<'a> CheckerState<'a> {
             self.check_block(finally_block)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod debug58 {
+    use crate::{check_program_with_libs, CompilerOptions, InputFile};
+
+    #[test]
+    fn rest_tuple_contextual_params_debug() {
+        let lib_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+        );
+        let _ = lib_path;
+        let vendor = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../vendor/typescript-6.0.3/lib/"
+        );
+        let lib = |name: &str| InputFile {
+            name: name.to_owned(),
+            text: std::fs::read_to_string(format!("{vendor}{name}")).expect("lib"),
+        };
+        let libs = vec![
+            lib("lib.es5.d.ts"),
+            lib("lib.es2015.core.d.ts"),
+            lib("lib.es2015.symbol.d.ts"),
+            lib("lib.es2015.iterable.d.ts"),
+            lib("lib.es2015.generator.d.ts"),
+            lib("lib.es2015.collection.d.ts"),
+            lib("lib.es2015.promise.d.ts"),
+            lib("lib.es2015.symbol.wellknown.d.ts"),
+            lib("lib.es2015.proxy.d.ts"),
+            lib("lib.es2015.reflect.d.ts"),
+        ];
+        let result = check_program_with_libs(
+            &libs,
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: match std::env::var("TSRS_DEBUG_FILE") {
+                    Ok(path) => std::fs::read_to_string(path).expect("debug file"),
+                    Err(_) => "type Args = [\"A\", number] | [\"B\", string];\ndeclare function f50(cb: (...args: Args) => void): void;\nf50((kind, data) => { if (kind === \"A\") { data.toFixed(); } });\n".to_owned(),
+                },
+            }],
+            &CompilerOptions::default(),
+        );
+        for d in result.diagnostics.iter() {
+            eprintln!("DIAG {} {:?}+{:?} {}", d.code(), d.start, d.length, d.message_text());
+        }
     }
 }

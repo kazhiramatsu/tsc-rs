@@ -206,7 +206,17 @@ impl<'text> Parser<'text> {
         language_variant: LanguageVariant,
         javascript_file: bool,
     ) -> Self {
-        let is_declaration_file = file_name.ends_with(".d.ts");
+        // tsc isDeclarationFileName (36180): .d.ts/.d.cts/.d.mts plus
+        // any `.d.<ext>.ts` basename (getDeclarationFileExtension's
+        // ".d." probe — arbitrary-extension declaration files like
+        // component.d.html.ts).
+        let is_declaration_file = file_name.ends_with(".d.ts")
+            || file_name.ends_with(".d.cts")
+            || file_name.ends_with(".d.mts")
+            || (file_name.ends_with(".ts") && {
+                let base = file_name.rsplit('/').next().unwrap_or(&file_name);
+                base.rfind(".d.").is_some()
+            });
         Self {
             scanner: Scanner::new(text, language_variant),
             arena: NodeArena::new(),

@@ -840,6 +840,18 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<()> {
         let ty = self.get_type_from_type_node(node)?;
         if ty != self.tables.intrinsics.error && has_type_arguments {
+            // Conditional-scope escape: inside a ConditionalType, the
+            // check type's parameters carry the extends-clause
+            // constraint context (M8 conditional machinery) — the
+            // slice's constraint check over the RAW parameters
+            // fabricates 2344 (conditionalTypes2 pins the true-branch
+            // reference staying silent).
+            if self.has_conditional_type_ancestor(node) {
+                return self.source_element_stub(
+                    "checkTypeArgumentConstraints under a ConditionalType",
+                    "M8",
+                );
+            }
             // addLazyDiagnostic runs inline (eager identity).
             if let Some(type_parameters) =
                 self.get_type_parameters_for_type_reference_or_import(node)?
@@ -848,6 +860,18 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(())
+    }
+
+    /// The conditional-scope probe feeding the M8 constraint escapes.
+    fn has_conditional_type_ancestor(&self, node: NodeId) -> bool {
+        let mut current = self.parent_of(node);
+        while let Some(candidate) = current {
+            if self.kind_of(candidate) == SyntaxKind::ConditionalType {
+                return true;
+            }
+            current = self.parent_of(candidate);
+        }
+        false
     }
 
     /// tsc-port: getTypeParametersForTypeReferenceOrImport @6.0.3
@@ -1118,6 +1142,16 @@ impl<'a> CheckerState<'a> {
         let (object_type, index_type) = (data.object_type, data.index_type);
         self.check_source_element(object_type);
         self.check_source_element(index_type);
+        // Conditional-scope escape (same M8 class as the constraint
+        // check above): `T extends K ? Obj[T] : ...` narrows T in the
+        // true branch — the raw-parameter index check fabricates 2536
+        // (stringMappingReduction / unknownControlFlow pins).
+        if self.has_conditional_type_ancestor(node) {
+            return self.source_element_stub(
+                "checkIndexedAccessIndexType under a ConditionalType",
+                "M8",
+            );
+        }
         let resolved = self.get_type_from_indexed_access_type_node(node)?;
         self.check_indexed_access_index_type(resolved, node)?;
         Ok(())
@@ -1305,12 +1339,37 @@ impl<'a> CheckerState<'a> {
         let (argument, attributes) = (data.argument, data.attributes);
         self.check_source_element(argument);
         if let Some(attributes) = attributes {
+            // node.attributes.token: the parser data carries no token
+            // field — reconstruct from source. The ImportType form is
+            // `import("m", { with: {...} })`: the keyword is the
+            // token AFTER the container's `{`.
             let source = self.binder.source_of_node(attributes);
-            let pos = source.arena.node(attributes).pos as usize;
-            let (token_start, token_end) =
-                tsrs2_binder::node_util::get_span_of_token_at_position(source, pos);
-            let is_with = &source.text[token_start..token_end] == "with";
-            if !is_with {
+            let mut pos = source.arena.node(attributes).pos as usize;
+            let end = source.arena.node(attributes).end as usize;
+            // Scan the leading punctuation (`,`, `{`) for the keyword;
+            // an unrecognized shape defaults to the with-form (no
+            // report — FN-side).
+            let mut keyword = "with";
+            for _ in 0..4 {
+                if pos >= end {
+                    break;
+                }
+                let (token_start, token_end) =
+                    tsrs2_binder::node_util::get_span_of_token_at_position(source, pos);
+                match &source.text[token_start..token_end] {
+                    "with" | "assert" => {
+                        keyword = if &source.text[token_start..token_end] == "with" {
+                            "with"
+                        } else {
+                            "assert"
+                        };
+                        break;
+                    }
+                    "," | "{" => pos = token_end,
+                    _ => break,
+                }
+            }
+            if keyword != "with" {
                 self.grammar_error_on_first_token(
                     attributes,
                     &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
@@ -1827,10 +1886,26 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let name = self.binder.symbol(target_prop).escaped_name.clone();
-            // isStaticPrivateIdentifierProperty skip: private names
-            // never surface in the missing-property head.
-            if name.starts_with("__#") {
-                continue;
+            // isStaticPrivateIdentifierProperty skip: only STATIC
+            // private-identifier properties stay out of the head —
+            // instance private names DO surface (privateNamesUnique-4
+            // pins 2741 with '#something').
+            let is_private = name.starts_with('#') || name.starts_with("__#");
+            if is_private {
+                let is_static = self
+                    .binder
+                    .symbol(target_prop)
+                    .value_declaration
+                    .is_some_and(|declaration| {
+                        tsrs2_binder::node_util::has_syntactic_modifier(
+                            self.binder.source_of_node(declaration),
+                            declaration,
+                            ModifierFlags::STATIC,
+                        )
+                    });
+                if is_static {
+                    continue;
+                }
             }
             if self.get_property_of_type_full(source, &name)?.is_none() {
                 unmatched.push(target_prop);
@@ -1843,9 +1918,7 @@ impl<'a> CheckerState<'a> {
         let target_text = self.type_to_string_slice(target)?;
         if unmatched.len() == 1 {
             let prop = unmatched[0];
-            let prop_name =
-                tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(prop).escaped_name)
-                    .to_owned();
+            let prop_name = self.missing_property_display_name(unmatched[0]);
             let declaration = self.binder.symbol(prop).declarations.first().copied();
             let related = declaration
                 .map(|declaration| {
@@ -1867,10 +1940,7 @@ impl<'a> CheckerState<'a> {
         }
         let names: Vec<String> = unmatched
             .iter()
-            .map(|&prop| {
-                tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(prop).escaped_name)
-                    .to_owned()
-            })
+            .map(|&prop| self.missing_property_display_name(prop))
             .collect();
         if unmatched.len() > 5 {
             let head: Vec<String> = names[..4].to_vec();
@@ -1888,6 +1958,26 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(true)
+    }
+
+    /// tsrs-native: the missing-property display name — private
+    /// identifiers print their declaration text (`#x`), everything
+    /// else unescapes like symbolToString.
+    fn missing_property_display_name(&self, prop: SymbolId) -> String {
+        let escaped = &self.binder.symbol(prop).escaped_name;
+        if escaped.starts_with('#') {
+            return escaped.clone();
+        }
+        if let Some(stripped) = escaped.strip_prefix("__#") {
+            let _ = stripped;
+            if let Some(declaration) = self.binder.symbol(prop).value_declaration {
+                let source = self.binder.source_of_node(declaration);
+                if let Some(name) = tsrs2_binder::node_util::get_name_of_declaration(source, declaration) {
+                    return tsrs2_binder::node_util::declaration_name_to_string(source, Some(name));
+                }
+            }
+        }
+        tsrs2_binder::unescape_leading_underscores(escaped).to_owned()
     }
 
     /// tsc-port: checkTypeComparableTo @6.0.3 (5.4-slice shape)

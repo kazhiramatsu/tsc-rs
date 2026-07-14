@@ -351,9 +351,11 @@ impl<'a> CheckerState<'a> {
     }
 
     /// The [FLOW M5] guard-position probe: walk expression parents up
-    /// to the statement boundary; a right operand of `&&`/`||` or a
-    /// conditional-expression branch is a position where tsc's flow
-    /// narrowing can retype the receiver.
+    /// to the root; a right operand of `&&`/`||`, a conditional-
+    /// expression branch, or (since 5.8a's statement-body reach) a
+    /// position inside the guarded limb of an if/iteration/switch
+    /// statement is a position where tsc's flow narrowing can retype
+    /// the receiver. M5 removes the probe with the gates it feeds.
     pub(crate) fn access_sits_in_guarded_position(&self, node: NodeId) -> bool {
         let mut current = node;
         while let Some(parent) = self.parent_of(current) {
@@ -377,11 +379,36 @@ impl<'a> CheckerState<'a> {
                         return true;
                     }
                 }
+                // 5.8a statement-body reach: bodies under a condition
+                // (and switch clauses) see condition/assignment
+                // narrowing in tsc — the whole limb is a guarded
+                // position until M5's real flow types land.
+                NodeData::IfStatement(data) => {
+                    if data.then_statement == Some(current) || data.else_statement == Some(current)
+                    {
+                        return true;
+                    }
+                }
+                NodeData::WhileStatement(data) => {
+                    if data.statement == Some(current) {
+                        return true;
+                    }
+                }
+                NodeData::DoStatement(data) => {
+                    if data.statement == Some(current) {
+                        return true;
+                    }
+                }
+                NodeData::ForStatement(data) => {
+                    if data.statement == Some(current) {
+                        return true;
+                    }
+                }
+                NodeData::CaseClause(_) | NodeData::DefaultClause(_) => {
+                    return true;
+                }
                 _ => {}
             }
-            // No explicit statement-boundary test: past it, no parent
-            // is a binary/conditional expression, so the walk just
-            // runs out at the root.
             current = parent;
         }
         false

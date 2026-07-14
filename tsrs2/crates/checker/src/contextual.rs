@@ -409,6 +409,24 @@ impl<'a> CheckerState<'a> {
             }
         }
         let Some(contextual_signature) = self.get_contextual_signature(func)? else {
+            // [INFER M6] gate: a context-sensitive function that HAS a
+            // contextual type but yields no contextual SIGNATURE is
+            // undecidable pre-M6 — during resolveCall's sentinel
+            // window the read sees resolvingSignature's empty list, and
+            // deciding "no context" here caches implicit-any into the
+            // parameter slots and fabricates 7006 (tsc assigns
+            // contextual parameter types inside the pushed-context
+            // window, assignContextualParameterTypes — M6 inference
+            // machinery). A function with NO contextual type at all
+            // keeps the None verdict — the genuine implicit-any face.
+            if self
+                .get_apparent_type_of_contextual_type(func, ContextFlags::SIGNATURE)?
+                .is_some()
+            {
+                return Err(Unsupported::new(
+                    "[INFER M6] context-sensitive parameter under an unresolved contextual signature",
+                ));
+            }
             return Ok(None);
         };
         let parameters = self.parameters_of_function(func);
