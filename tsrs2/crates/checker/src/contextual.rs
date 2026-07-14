@@ -7,10 +7,9 @@
 //!
 //! Stage-boundary escapes in this module (m4-55-expression-extraction.md
 //! §0/§4 dispositions):
-//! - [CALLS → 5.7] argument/decorator/tagged-template contextual arms
-//!   answer None (tsc computes a type from the resolved signature; our
-//!   None is an FN risk logged per arm) — EXCEPT the self-contained
-//!   isImportCall arm, which ports.
+//! - [CALLS → 5.7/5.8] argument, decorator, and tagged-template
+//!   contextual arms are live, including the self-contained
+//!   isImportCall arm.
 //! - [ITER → 5.5f/5.8] yield-operand arm answers None; generator
 //!   filters inside return-type arms escape.
 //! - [ASYNC → 5.5f] awaited-family arms escape once a contextual type
@@ -872,6 +871,19 @@ impl<'a> CheckerState<'a> {
             return self.get_contextual_type(iife, context_flags);
         }
         Ok(None)
+    }
+
+    /// tsc-port: getContextualTypeForDecorator @6.0.3
+    /// tsc-hash: 14ed8418fd06a2894d182f1e99e2938447169457f6081bf5a7e9809141125e62
+    /// tsc-span: _tsc.js:72925-72929
+    fn get_contextual_type_for_decorator(
+        &mut self,
+        decorator: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let Some(signature) = self.get_decorator_call_signature(decorator)? else {
+            return Ok(None);
+        };
+        Ok(Some(self.get_or_create_type_from_signature(signature)?))
     }
 
     /// tsc-port: getContextualTypeForArgument @6.0.3
@@ -2346,11 +2358,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 02e025b3e9c853ac1497ab5d7bd33875c5e78ff40065cf2b8f3febad76aa2316
     /// tsc-span: _tsc.js:73471-73556
     ///
-    /// Arm dispositions per the extraction doc §4 table; the remaining
-    /// None answers ([CALLS] decorator arm) are recorded FNs, not
-    /// escapes — a contextual type is optional and the un-stubbing
-    /// stage lifts them in place. The yield-operand arm is live since
-    /// 5.8b.
+    /// Arm dispositions per the extraction doc §4 table; the CALLS
+    /// contextual arms are live through decorators. The yield-operand
+    /// arm is live since 5.8b.
     pub(crate) fn get_contextual_type(
         &mut self,
         node: NodeId,
@@ -2385,12 +2395,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::CallExpression | SyntaxKind::NewExpression => {
                 self.get_contextual_type_for_argument(parent, node)
             }
-            SyntaxKind::Decorator => {
-                // [CALLS → 5.7] getContextualTypeForDecorator
-                // (72925-72928): decorator call signatures — recorded
-                // FN.
-                Ok(None)
-            }
+            SyntaxKind::Decorator => self.get_contextual_type_for_decorator(parent),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                 let type_node = match self.data_of(parent) {
                     NodeData::AsExpression(data) => data.r#type,
@@ -2943,6 +2948,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: Some(TypeFlags::INTERSECTION),
             composite_signatures: Some(composite_signatures),
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: self.signature_of(left).isolated_signature_kind,
             isolated_signature_type: None,
         };
         Ok(self.alloc_signature(result))

@@ -139,6 +139,10 @@ pub struct NodeLinks {
     /// on SourceFile nodes — the per-file fragment factory type memo
     /// (errorType is a real cached verdict, matching tsc).
     pub jsx_fragment_type: Option<TypeId>,
+    /// tsc links.decoratorSignature (getESDecoratorCallSignature 78574 /
+    /// getLegacyDecoratorCallSignature 78616) on the DECORATED node —
+    /// Some(anySignature) is tsc's "no signature" sentinel.
+    pub decorator_signature: Option<crate::state::SignatureId>,
 }
 
 /// tsc SymbolLinks — the per-symbol subset M3 consumes.
@@ -209,6 +213,10 @@ pub struct SymbolLinks {
     /// getAnonymousPartialType 62955). Dormant store like the pair
     /// above.
     pub synthetic_origin: Option<SymbolId>,
+    /// tsc links.typeParametersChecked (checkTypeParameterListsIdentical
+    /// 84876) — the once-latch on multi-declaration class/interface
+    /// symbols.
+    pub type_parameters_checked: bool,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -627,6 +635,20 @@ impl LinksTables {
             .has_reported_statement_in_ambient_context = true;
     }
 
+    /// tsrs-native: links-table setter (tsc plain property write).
+    /// getDecoratorCallSignature's memo — PLAIN ASSIGNMENT (tsc writes
+    /// the anySignature sentinel first, then possibly overwrites within
+    /// the same computation).
+    pub fn set_node_decorator_signature(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: Option<crate::state::SignatureId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.node.entry(id).or_default().decorator_signature = value;
+    }
+
     pub fn set_node_enum_member_value(
         &mut self,
         speculation_depth: u32,
@@ -652,6 +674,15 @@ impl LinksTables {
         self.node.entry(id).or_default().enum_values_computed = false;
     }
 
+    /// tsrs-native: links-table setter (tsc plain property write).
+    /// checkTypeParameterListsIdentical's once-latch (84877). Like
+    /// tsc, set BEFORE the identity walk runs — re-entry through the
+    /// declared-type forcing sees the latch and skips.
+    pub fn set_symbol_type_parameters_checked(&mut self, speculation_depth: u32, id: SymbolId) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().type_parameters_checked = true;
+    }
+
     pub fn set_symbol_declared_type(
         &mut self,
         speculation_depth: u32,
@@ -673,6 +704,23 @@ impl LinksTables {
             &mut self.symbol.entry(id).or_default().type_of_symbol,
             value,
         );
+    }
+
+    /// tsrs-native: links-table setter (tsc plain property write).
+    /// getTypeOfFuncClassEnumModule's memo write (56824) is a PLAIN
+    /// ASSIGNMENT: a self-referential heritage clause (`class C
+    /// extends C`) re-enters through getBaseTypeVariableOfClass and
+    /// fills the slot mid-flight — tsc's outer write overwrites the
+    /// re-entrant fill (the resolvedSignature 77505 precedent). Only
+    /// that caller may rewrite Resolved→Resolved.
+    pub fn set_symbol_type_func_class_enum_module(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().type_of_symbol = LinkSlot::Resolved(value);
     }
 
     pub fn set_symbol_synthetic(

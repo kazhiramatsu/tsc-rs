@@ -24,6 +24,7 @@ use tsrs2_types::{
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
 use crate::relate::RelationKind;
+pub use crate::state::SignatureKind;
 use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, Unsupported};
 
 /// tsc SignatureCheckMode (inlined const enum).
@@ -35,12 +36,6 @@ mod check_mode {
     pub const IGNORE_RETURN_TYPES: i32 = 4;
     pub const STRICT_ARITY: i32 = 8;
     pub const STRICT_TOP_SIGNATURE: i32 = 16;
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SignatureKind {
-    Call,
-    Construct,
 }
 
 impl<'r, 'a> RelationChecker<'r, 'a> {
@@ -3192,10 +3187,16 @@ impl<'a> CheckerState<'a> {
         Ok(Some(result))
     }
 
-    fn is_prototype_property(&self, prop: SymbolId) -> bool {
-        // tsc isPrototypeProperty: methods and prototype-flagged
-        // symbols; M3 members are methods or plain properties.
+    /// tsc-port: isPrototypeProperty @6.0.3
+    /// tsc-hash: a0150259e3d1514eb8ec0975ce264af887321e6d865c941d8a3dace7eefa0a93
+    /// tsc-span: _tsc.js:74862-74864
+    ///
+    /// The JS valueDeclaration arm is dead in TS files.
+    pub(crate) fn is_prototype_property(&self, prop: SymbolId) -> bool {
         self.symbol_flags(prop).intersects(SymbolFlags::METHOD)
+            || self
+                .get_check_flags(prop)
+                .intersects(CheckFlags::SYNTHETIC_METHOD)
     }
 
     fn is_literal_type_public(&self, ty: TypeId) -> bool {
@@ -3574,6 +3575,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: source.composite_kind,
             composite_signatures: source.composite_signatures.clone(),
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: source.isolated_signature_kind,
             isolated_signature_type: None,
         };
         self.alloc_signature(result)
@@ -3905,6 +3907,95 @@ impl<'a> CheckerState<'a> {
         self.is_type_related_to(source, target, RelationKind::Identity)
     }
 
+    /// tsc-port: isPropertyIdenticalTo @6.0.3
+    /// tsc-hash: e5bc0670b1b176c446db71d2ecbd36ba6cdc4903be20e3bb2ac807ec25c89652
+    /// tsc-span: _tsc.js:67533-67535
+    ///
+    /// compareProperties (67536-67558) under compareTypesIdentical,
+    /// transcribed standalone: the optionality mismatch check runs
+    /// ONLY in the public-accessibility branch (the RelationChecker
+    /// twin above checks it unconditionally per its own span).
+    pub(crate) fn is_property_identical_to(
+        &mut self,
+        source_prop: SymbolId,
+        target_prop: SymbolId,
+    ) -> CheckResult2<bool> {
+        if source_prop == target_prop {
+            return Ok(true);
+        }
+        let source_accessibility = self
+            .get_declaration_modifier_flags_from_symbol(source_prop)
+            .bits()
+            & ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.bits();
+        let target_accessibility = self
+            .get_declaration_modifier_flags_from_symbol(target_prop)
+            .bits()
+            & ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.bits();
+        if source_accessibility != target_accessibility {
+            return Ok(false);
+        }
+        if source_accessibility != 0 {
+            if self.get_target_symbol(source_prop) != self.get_target_symbol(target_prop) {
+                return Ok(false);
+            }
+        } else if self
+            .symbol_flags(source_prop)
+            .intersects(SymbolFlags::OPTIONAL)
+            != self
+                .symbol_flags(target_prop)
+                .intersects(SymbolFlags::OPTIONAL)
+        {
+            return Ok(false);
+        }
+        if self.is_readonly_symbol(source_prop) != self.is_readonly_symbol(target_prop) {
+            return Ok(false);
+        }
+        let source_type = self.get_non_missing_type_of_symbol(source_prop)?;
+        let target_type = self.get_non_missing_type_of_symbol(target_prop)?;
+        self.is_type_identical_to(source_type, target_type)
+    }
+
+    /// tsc-port: getTypeWithoutSignatures @6.0.3
+    /// tsc-hash: 961358bb0c7547ebd888d3e0232d508e0fc4b2a3754c5967d0e953f68ac30903
+    /// tsc-span: _tsc.js:63884-63900
+    pub(crate) fn get_type_without_signatures(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::OBJECT) {
+            let members = self.resolve_structured_type_members(ty)?;
+            let resolved = self.members_of(members).clone();
+            if !resolved.construct_signatures.is_empty() || !resolved.call_signatures.is_empty() {
+                let symbol = self.tables.type_of(ty).symbol;
+                let result = self.create_resolved_empty_anonymous_type(symbol);
+                let result_members = self
+                    .links
+                    .ty(result)
+                    .resolved_members
+                    .resolved()
+                    .expect("freshly created anonymous types carry resolved members");
+                let stripped = crate::state::ResolvedMembers {
+                    members: resolved.members.clone(),
+                    properties: resolved.properties.clone(),
+                    call_signatures: Vec::new(),
+                    construct_signatures: Vec::new(),
+                    index_infos: Vec::new(),
+                };
+                *self.members_mut(result_members) = stripped;
+                return Ok(result);
+            }
+        } else if flags.intersects(TypeFlags::INTERSECTION) {
+            let constituents = match &self.tables.type_of(ty).data {
+                TypeData::Intersection { types } => types.to_vec(),
+                _ => unreachable!("intersection flag implies intersection data"),
+            };
+            let mut mapped = Vec::with_capacity(constituents.len());
+            for constituent in constituents {
+                mapped.push(self.get_type_without_signatures(constituent)?);
+            }
+            return self.get_intersection_type(&mapped, tsrs2_types::IntersectionFlags::NONE);
+        }
+        Ok(ty)
+    }
+
     /// tsc-port: combineUnionThisParam @6.0.3
     /// tsc-hash: c9896f07d74bd49a7292d7a74d1fae3913a232660cf3ac8a9275ca76f9c118a0
     /// tsc-span: _tsc.js:58125-58131
@@ -4179,6 +4270,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: Some(TypeFlags::UNION),
             composite_signatures: Some(composite_signatures),
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: left_data.isolated_signature_kind,
             isolated_signature_type: None,
         };
         Ok(self.alloc_signature(result))

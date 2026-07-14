@@ -73,6 +73,82 @@ pub(crate) fn is_js_file_name(name: &str) -> bool {
 /// on comment-only lines are detected (the scanner-side directive
 /// collection lands with real comment ranges); multi-line-comment
 /// directives are not handled.
+/// tsc check directive: extractPragmas walks
+/// getLeadingCommentRanges(text, 0) — single-line comments BEFORE the
+/// first token — and the LAST ts-check/ts-nocheck pragma wins
+/// (processPragmasIntoFields); skipTypeChecking then drops the file's
+/// bind+check diagnostics whole (parse diagnostics stay). Pragma names
+/// lowercase; the name must end at whitespace/colon/EOL like
+/// `@([^\s:]+)`. The 5.8e directive completion replaces this slice
+/// together with the interim line filter below.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CheckDirective {
+    Check,
+    NoCheck,
+}
+
+fn check_directive(text: &str) -> Option<CheckDirective> {
+    let mut rest = text;
+    // getLeadingCommentRanges starts after a leading shebang. Keep
+    // this test on the RAW offset zero: a BOM before `#!` makes it an
+    // ordinary token sequence, not shebang trivia.
+    if let Some(after) = rest.strip_prefix("#!") {
+        let line_end = after
+            .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+            .unwrap_or(after.len());
+        rest = &after[line_end..];
+    }
+    let mut directive = None;
+    loop {
+        // JS WhiteSpace includes BOM; Rust's is_whitespace does not.
+        rest = rest.trim_start_matches(|c: char| c.is_whitespace() || c == '\u{FEFF}');
+        if let Some(after) = rest.strip_prefix("//") {
+            let line_end = after
+                .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+                .unwrap_or(after.len());
+            let comment = &after[..line_end];
+            // singleLinePragmaRegEx: ^///?\s*@([^\s:]+)
+            let body = comment.strip_prefix('/').unwrap_or(comment).trim_start();
+            if let Some(name_and_tail) = body.strip_prefix('@') {
+                let name_end = name_and_tail
+                    .find(|c: char| c.is_whitespace() || c == ':')
+                    .unwrap_or(name_and_tail.len());
+                match name_and_tail[..name_end].to_ascii_lowercase().as_str() {
+                    "ts-nocheck" => directive = Some(CheckDirective::NoCheck),
+                    "ts-check" => directive = Some(CheckDirective::Check),
+                    _ => {}
+                }
+            }
+            rest = &after[line_end..];
+            continue;
+        }
+        if let Some(after) = rest.strip_prefix("/*") {
+            match after.find("*/") {
+                Some(end) => {
+                    rest = &after[end + 2..];
+                    continue;
+                }
+                None => break,
+            }
+        }
+        break;
+    }
+    directive
+}
+
+fn can_include_bind_and_check_diagnostics(
+    javascript_file: bool,
+    directive: Option<CheckDirective>,
+    options: &CompilerOptions,
+) -> bool {
+    match directive {
+        Some(CheckDirective::NoCheck) => false,
+        // A per-file @ts-check overrides an explicit checkJs:false.
+        Some(CheckDirective::Check) => true,
+        None => !javascript_file || options.check_js != Some(false),
+    }
+}
+
 fn filter_by_comment_directives(
     text: &str,
     line_map: &tsrs2_diags::LineMap,
@@ -306,6 +382,13 @@ pub fn check_program_with_libs(
     // Fixture bind pass: per-file binders with contiguous SymbolId
     // bases continuing from the lib prefix (tsc bindSourceFile per
     // file over one heap).
+    // Parse the per-file check directive ONCE. The 5.8e scanner-side
+    // directive collector can replace this producer without changing
+    // the bind/check assembly consumers below.
+    let check_directives: std::collections::HashMap<&str, Option<CheckDirective>> = program_sources
+        .iter()
+        .map(|source| (source.file_name.as_str(), check_directive(&source.text)))
+        .collect();
     let mut binders: Vec<tsrs2_binder::Binder<'_>> = Vec::new();
     for source_file in &program_sources {
         let (symbol_id_seed, symbol_base) = match binders.last() {
@@ -319,7 +402,7 @@ pub fn check_program_with_libs(
             tsrs2_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
         binder.bind_source_file();
         // tsc getBindAndCheckDiagnosticsForFileNoCache (123717): plain
-        // JS files (checkJs unmodeled beyond the explicit-false skip)
+        // JS files
         // filter bind diagnostics to the plainJSErrors allowlist and
         // SKIP the comment-directive merge
         // (includeBindAndCheckDiagnostics = !isPlainJs); TS files get
@@ -328,12 +411,15 @@ pub fn check_program_with_libs(
         // requires knowing a directive suppressed NOTHING, and the
         // checker's diagnostic surface is still FN-heavy — emitting it
         // now would fabricate 2578s wherever we under-report (FP).
-        if is_js_file_name(&source_file.file_name) {
-            // canIncludeBindAndCheckDiagnostics: an EXPLICIT checkJs:
-            // false fails isPlainJsFile (checkJs must be undefined)
-            // AND isCheckJs — the file skips bind/check diagnostics
-            // entirely.
-            if options.check_js != Some(false) {
+        let javascript_file = is_js_file_name(&source_file.file_name);
+        let directive = check_directives
+            .get(source_file.file_name.as_str())
+            .copied()
+            .flatten();
+        let include_bind_and_check =
+            can_include_bind_and_check_diagnostics(javascript_file, directive, options);
+        if javascript_file {
+            if include_bind_and_check {
                 diagnostics.extend(
                     binder
                         .bind_diagnostics
@@ -342,7 +428,7 @@ pub fn check_program_with_libs(
                         .cloned(),
                 );
             }
-        } else {
+        } else if include_bind_and_check {
             diagnostics.extend(filter_by_comment_directives(
                 &source_file.text,
                 &source_file.line_map,
@@ -405,7 +491,12 @@ pub fn check_program_with_libs(
             }
             let javascript_file = file_name.as_deref().is_some_and(is_js_file_name);
             if javascript_file {
-                if options.check_js != Some(false) {
+                let directive = file_name
+                    .as_deref()
+                    .and_then(|name| check_directives.get(name))
+                    .copied()
+                    .flatten();
+                if can_include_bind_and_check_diagnostics(true, directive, options) {
                     diagnostics.extend(file_diagnostics.into_iter().filter(|diagnostic| {
                         plain_js_errors::is_plain_js_error(diagnostic.code())
                     }));
@@ -426,6 +517,13 @@ pub fn check_program_with_libs(
             // dropped. Revisit when getGlobalDiagnostics grows a
             // consumer (program-level API, M8).
             if let Some(source) = file_name.as_deref().and_then(|name| by_name.get(name)) {
+                let directive = check_directives
+                    .get(source.file_name.as_str())
+                    .copied()
+                    .flatten();
+                if !can_include_bind_and_check_diagnostics(false, directive, options) {
+                    continue;
+                }
                 diagnostics.extend(filter_by_comment_directives(
                     &source.text,
                     &source.line_map,
@@ -616,6 +714,130 @@ mod tests {
             pins,
             [(8006, 0, 27), (8006, 37, 6), (8006, 56, 18), (8003, 75, 11)]
         );
+    }
+
+    #[test]
+    fn ts_nocheck_suppresses_checked_js_diagnostics() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "// @ts-nocheck\nlet x;\nlet x;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    }
+
+    #[test]
+    fn ts_check_overrides_explicit_check_js_false() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "// @ts-check\nlet x;\nlet x;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        let pins: Vec<(u32, u32, u32)> = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| {
+                (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                )
+            })
+            .collect();
+
+        assert_eq!(pins, [(2451, 17, 1), (2451, 24, 1)]);
+    }
+
+    #[test]
+    fn check_directive_matches_shebang_bom_and_unicode_line_breaks() {
+        assert_eq!(
+            check_directive("#!/usr/bin/env node\n// @ts-nocheck\n"),
+            Some(CheckDirective::NoCheck)
+        );
+        assert_eq!(
+            check_directive("\u{FEFF}// @ts-nocheck\n"),
+            Some(CheckDirective::NoCheck)
+        );
+        assert_eq!(
+            check_directive("\u{FEFF}#!/usr/bin/env node\n// @ts-nocheck\n"),
+            None
+        );
+        assert_eq!(
+            check_directive("// @ts-nocheck\u{2028}// @ts-check\u{2029}"),
+            Some(CheckDirective::Check)
+        );
+        assert_eq!(
+            check_directive("// @ts-check\u{2028}// @ts-nocheck\u{2029}"),
+            Some(CheckDirective::NoCheck)
+        );
+    }
+
+    #[test]
+    fn unicode_line_break_last_ts_check_restores_semantic_diagnostics() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "// @ts-nocheck\u{2028}// @ts-check\u{2028}const value: string = 1;"
+                    .to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2322),
+            "{:?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn bom_before_shebang_does_not_enable_following_ts_nocheck() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "\u{FEFF}#!/usr/bin/env node\n// @ts-nocheck\nconst value: string = 1;\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2322),
+            "{:?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn ts_nocheck_after_shebang_suppresses_semantic_diagnostics() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "#!/usr/bin/env node\n// @ts-nocheck\nconst value: string = 1;\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     }
 
     // ---- lib-loading L2: lib-backed programs (oracle-pinned) ----

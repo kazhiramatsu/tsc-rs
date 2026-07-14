@@ -214,15 +214,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// One Unsupported escape per not-yet-landed checkExpressionWorker
-    /// arm; the tsc worker name + owning slice make each disposition
-    /// greppable. Never unreachable!(): fixture code reaches every arm.
-    fn expression_stub(&self, worker: &str, owner: &str) -> CheckResult2<TypeId> {
-        Err(Unsupported::new(format!(
-            "{worker} (expression band, lands at {owner})"
-        )))
-    }
-
     /// tsc-port: checkExpressionWorker @6.0.3
     /// tsc-hash: 74f2718002f80385323e72b43d81bac59101667dab48845c89e6e2f508b19d62
     /// tsc-span: _tsc.js:81011-81127
@@ -302,13 +293,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ParenthesizedExpression => {
                 self.check_parenthesized_expression(node, check_mode)
             }
-            SyntaxKind::ClassExpression => {
-                // checkClassExpression (84972) calls
-                // checkClassLikeDeclaration EAGERLY — heritage/member
-                // checks are one unit, so the whole arm escapes until
-                // 5.8 (extraction doc §8).
-                self.expression_stub("checkClassExpression", "5.8")
-            }
+            SyntaxKind::ClassExpression => self.check_class_expression(node),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
                 self.check_function_expression_or_object_literal_method(node, check_mode)
             }
@@ -2037,27 +2022,36 @@ impl<'a> CheckerState<'a> {
         self.is_this_identifier(name).then_some(first)
     }
 
-    /// tsc isInParameterInitializerBeforeContainingFunction (73797).
+    /// tsc isInParameterInitializerBeforeContainingFunction (73797):
+    /// the walked CHILD must be the parameter/binding-element
+    /// INITIALIZER itself — a parameter DECORATOR operand is not
+    /// (decoratorOnClassMethodParameter3 pins the 2524 silence).
     pub(crate) fn is_in_parameter_initializer_before_containing_function(
         &self,
         node: NodeId,
     ) -> bool {
         let mut in_binding_initializer = false;
+        let mut child = node;
         let mut current = self.parent_of(node);
         while let Some(n) = current {
             if node_util::is_function_like_kind(self.kind_of(n)) {
                 return false;
             }
-            if self.kind_of(n) == SyntaxKind::Parameter && !in_binding_initializer {
-                return true;
+            if self.kind_of(n) == SyntaxKind::Parameter {
+                let is_initializer = matches!(self.data_of(n), NodeData::Parameter(data)
+                    if data.initializer == Some(child));
+                if in_binding_initializer || is_initializer {
+                    return true;
+                }
             }
             if self.kind_of(n) == SyntaxKind::BindingElement {
                 if let NodeData::BindingElement(data) = self.data_of(n) {
-                    if data.initializer.is_some() {
+                    if data.initializer == Some(child) {
                         in_binding_initializer = true;
                     }
                 }
             }
+            child = n;
             current = self.parent_of(n);
         }
         false

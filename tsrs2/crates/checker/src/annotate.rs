@@ -1450,7 +1450,8 @@ impl<'a> CheckerState<'a> {
         let argument_nodes = match self.data_of(node) {
             NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
             NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
-            _ => unreachable!("TypeReference/ImportType route here until 5.8c heritage"),
+            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            _ => unreachable!("TypeReference/ImportType/heritage route here"),
         };
         let mut resolved = Vec::with_capacity(argument_nodes.len());
         for argument in argument_nodes {
@@ -2435,7 +2436,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The extends heritage clause's types (token recovered from source
     /// text, like every heritage read).
-    fn interface_base_type_nodes(&self, declaration: NodeId) -> Vec<NodeId> {
+    pub(crate) fn interface_base_type_nodes(&self, declaration: NodeId) -> Vec<NodeId> {
         let NodeData::InterfaceDeclaration(data) = self.data_of(declaration) else {
             return Vec::new();
         };
@@ -2556,7 +2557,7 @@ impl<'a> CheckerState<'a> {
     /// ResolvedMembers in TypeLinks.declared_members. Tuple targets
     /// synthesize their declared members at creation in tsc
     /// (61160-61185) — that synthesis is 5.3c.
-    fn resolve_declared_members(&mut self, target: TypeId) -> CheckResult2<MembersId> {
+    pub(crate) fn resolve_declared_members(&mut self, target: TypeId) -> CheckResult2<MembersId> {
         if let Some(declared) = self.links.ty(target).declared_members.resolved() {
             return Ok(declared);
         }
@@ -3520,7 +3521,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:57310-57318
     ///
     /// isGenericMappedType is constant-false before M8 mapped types.
-    fn is_valid_base_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_valid_base_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             if let Some(constraint) = self.get_base_constraint_of_type(ty)? {
@@ -4016,10 +4017,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 60d15d3dba29ddf3da5216985843e8d47fffa7f5dd580c60a999eb48a8f00ccc
     /// tsc-span: _tsc.js:57136-57140
     ///
-    /// tsc-port: getInstantiatedConstructorsForTypeArguments @6.0.3
-    /// tsc-hash: 459642b770f0c17bad05b48f8b92b89e167d4cb27c16608acdcdf8f8cdddb358
-    /// tsc-span: _tsc.js:57141-57145
-    fn get_instantiated_constructors_for_type_arguments(
+    /// The UNinstantiated arity-matching filter — 5.8c's heritage
+    /// constraint checks read the raw signatures' typeParameters.
+    pub(crate) fn get_constructors_for_type_arguments(
         &mut self,
         ty: TypeId,
         node: NodeId,
@@ -4040,6 +4040,23 @@ impl<'a> CheckerState<'a> {
                 signatures.push(signature);
             }
         }
+        Ok(signatures)
+    }
+
+    /// tsc-port: getInstantiatedConstructorsForTypeArguments @6.0.3
+    /// tsc-hash: 459642b770f0c17bad05b48f8b92b89e167d4cb27c16608acdcdf8f8cdddb358
+    /// tsc-span: _tsc.js:57141-57145
+    pub(crate) fn get_instantiated_constructors_for_type_arguments(
+        &mut self,
+        ty: TypeId,
+        node: NodeId,
+    ) -> CheckResult2<Vec<SignatureId>> {
+        let argument_nodes = match self.data_of(node) {
+            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
+            _ => Vec::new(),
+        };
+        let signatures = self.get_constructors_for_type_arguments(ty, node)?;
         let mut type_arguments = Vec::with_capacity(argument_nodes.len());
         for argument in argument_nodes {
             type_arguments.push(self.get_type_from_type_node(argument)?);
@@ -4125,6 +4142,7 @@ impl<'a> CheckerState<'a> {
                 composite_kind: None,
                 composite_signatures: None,
                 optional_call_signature_cache: (None, None),
+                isolated_signature_kind: Some(crate::state::SignatureKind::Construct),
                 isolated_signature_type: None,
             };
             return Ok(vec![self.alloc_signature(signature)]);
@@ -4275,9 +4293,11 @@ impl<'a> CheckerState<'a> {
             None => {
                 // Computed-name accessor pairs bind one symbol per
                 // member until the late-binding table pairs them
-                // (get/set under [Symbol.x] — 5.8c §6 revisits): the
-                // getter fallback above can miss its partner, so the
-                // implicit-any report is undecidable — escape.
+                // (get/set under [Symbol.x]): the getter fallback
+                // above can miss its partner, so the implicit-any
+                // report is undecidable — escape. Re-owned 5.8c→5.8e:
+                // the pairing IS the late-binding lift (m4-58 §15
+                // 5.8e), not class-band wiring.
                 let computed_name = setter.or(getter).is_some_and(|accessor| {
                     tsrs2_binder::node_util::has_dynamic_name(
                         self.binder.source_of_node(accessor),
@@ -4287,7 +4307,7 @@ impl<'a> CheckerState<'a> {
                 if computed_name {
                     self.pop_type_resolution();
                     return Err(Unsupported::new(
-                        "computed-name accessor pair (late-bound get/set pairing, 5.8c)",
+                        "computed-name accessor pair (late-bound get/set pairing, 5.8e lift)",
                     ));
                 }
                 // 56761-56769: the noImplicitAny suggestions.
@@ -5798,14 +5818,23 @@ impl<'a> CheckerState<'a> {
                 }
                 None => id,
             }
+        } else if self.tables.strict_null_checks
+            && self.symbol_flags(symbol).intersects(SymbolFlags::OPTIONAL)
+        {
+            // 56853-56857: OPTIONAL METHODS route here — `m?(): any`
+            // reads as `(() => any) | undefined` under strictNullChecks
+            // (the 5.8c TypedPropertyDescriptor→PropertyDescriptor
+            // relation pins this arm live).
+            self.get_optional_type(id, /*is_property*/ true)?
         } else {
-            // The optional-symbol getOptionalType arm (56854-56858) is
-            // property machinery — value module/function symbols are
-            // never OPTIONAL here.
             id
         };
+        // 56824 plain assignment: `class C extends C` re-enters through
+        // get_base_type_variable_of_class and fills the slot mid-flight;
+        // the outer write wins (write-once would panic — the
+        // classExtendsItself conformance fixture is the pin).
         self.links
-            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(resolved));
+            .set_symbol_type_func_class_enum_module(self.speculation_depth, symbol, resolved);
         Ok(resolved)
     }
 
@@ -6205,6 +6234,7 @@ impl<'a> CheckerState<'a> {
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
+            isolated_signature_kind: None,
             isolated_signature_type: None,
         };
         let id = self.alloc_signature(signature);

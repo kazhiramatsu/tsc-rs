@@ -156,6 +156,18 @@ impl<'a> CheckerState<'a> {
         })
     }
 
+    /// tsc-port: getSuggestedSymbolForNonexistentClassMember @6.0.3
+    /// tsc-hash: 8e78ef31290dfaec3cc2ea2e32f9c1036bfcb5a576110ce076f2c56720b0825b
+    /// tsc-span: _tsc.js:75498-75500
+    pub(crate) fn get_suggested_symbol_for_nonexistent_class_member(
+        &mut self,
+        name: &str,
+        base_type: TypeId,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let properties = self.get_properties_of_type(base_type)?;
+        Ok(self.get_spelling_suggestion_for_name(name, &properties, SymbolFlags::CLASS_MEMBER))
+    }
+
     /// tsc-port: getSuggestedSymbolForNonexistentProperty @6.0.3
     /// tsc-hash: 340ae10ba18f958d1611de0ef44f287f188beac9ac63f810afef4b80d64e29b2
     /// tsc-span: _tsc.js:75501-75517
