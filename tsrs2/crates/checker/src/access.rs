@@ -21,6 +21,49 @@ use tsrs2_types::{
 
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FlowGuardCertainty {
+    Yes,
+    No,
+    Unknown,
+}
+
+impl FlowGuardCertainty {
+    fn may_narrow(self) -> bool {
+        self != Self::No
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FlowPredicateEffect {
+    Argument(usize),
+    This,
+    None,
+    Unknown,
+}
+
+impl FlowPredicateEffect {
+    fn certainty(self) -> FlowGuardCertainty {
+        match self {
+            Self::Argument(_) | Self::This => FlowGuardCertainty::Yes,
+            Self::None => FlowGuardCertainty::No,
+            Self::Unknown => FlowGuardCertainty::Unknown,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct FlowReferenceRoot<'a> {
+    text: &'a str,
+    symbol: Option<SymbolId>,
+    /// Aliases cannot participate in narrowing before their initializer
+    /// has executed. Original reference roots use zero.
+    available_from: u32,
+    /// tsc inlines condition aliases only while `inlineLevel < 5`.
+    /// Original roots are level zero; the first alias is level one.
+    alias_depth: u8,
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: entityNameToString @6.0.3
     /// tsc-hash: 1d98dd7fd01a30bb4a1bf4062755311f4a0d24d9d7254db4941dd58e0e1d4333
@@ -359,86 +402,165 @@ impl<'a> CheckerState<'a> {
     /// a shadowed binding, or in a sibling if/conditional limb never
     /// suppresses a report). Constructs: if/while/do/for/switch/
     /// conditional conditions, `case` guards, a logical binary's left
-    /// operand, assignment targets, and guard-shaped `const`/`let`
-    /// aliases (comparisons, logicals, `!`, type-predicate calls).
-    /// Aliased and destructured discriminants (`const kind = obj.kind`,
-    /// `const { kind } = obj`) extend the root set to fixpoint before
-    /// the scan. Function subtrees that do not contain the gate node
-    /// are skipped — a guard in an unrelated sibling function cannot
-    /// narrow this reference. M5 removes the probe with the gates it
-    /// feeds.
+    /// operand, and assignment targets. Guard-shaped `const`/`using`
+    /// aliases (comparisons, logicals, `!`, type-predicate calls) and
+    /// aliased/destructured discriminants (`const kind = obj.kind`,
+    /// `const { kind } = obj`) extend the root set in source order, but
+    /// an alias DEFINITION is not itself a guard — a reaching condition
+    /// must consume it. Candidates are isolated by their nearest
+    /// function boundary. M5 removes the probe with the gates it feeds.
     pub(crate) fn flow_guards_narrow_reference(
         &self,
         gate_node: NodeId,
         reference: NodeId,
     ) -> bool {
         let source = self.binder.source_of_node(gate_node);
-        let mut roots: Vec<(&str, Option<SymbolId>)> = Vec::new();
+        let mut roots: Vec<FlowReferenceRoot<'_>> = Vec::new();
         let mut this_root = false;
         self.collect_reference_roots(reference, &mut roots, &mut this_root);
         if roots.is_empty() && !this_root {
             return false;
         }
-        let gate_pos = source.arena.node(gate_node).pos;
-        let gate_end = source.arena.node(gate_node).end;
-        let subtree_reaches_gate = |current: NodeId| -> bool {
-            // Skip function subtrees the gate node is not inside —
-            // their narrowing cannot reach the reference.
-            if tsrs2_binder::node_util::is_function_like_kind(self.kind_of(current)) {
-                let raw = source.arena.node(current);
-                if !(raw.pos <= gate_pos && gate_end <= raw.end) {
-                    return false;
-                }
+        let mut gate_scopes = Vec::new();
+        let mut cursor = Some(gate_node);
+        while let Some(current) = cursor {
+            if node_util::is_function_like_kind(self.kind_of(current)) {
+                gate_scopes.push(Some(current));
             }
-            true
-        };
-        // Pass 1 — root alias expansion to fixpoint: aliased and
-        // destructured discriminants re-narrow their SOURCE (tsc's
-        // controlFlowAliasing: `const kind = obj.kind;
-        // if (kind === "a") obj.a`), so their binding names join the
-        // root set. Restricted to property/element reads,
-        // destructurings, and guard-shaped initializers — a plain data
-        // alias (`const y = x`) does not narrow x's later reads and
-        // must not widen the containment.
-        loop {
-            let mut grew = false;
-            let mut worklist = vec![source.root];
-            while let Some(current) = worklist.pop() {
-                if !subtree_reaches_gate(current) {
-                    continue;
-                }
-                if let NodeData::VariableDeclaration(data) = self.data_of(current) {
-                    if let (Some(name), Some(initializer)) = (data.name, data.initializer) {
-                        let alias_shaped = matches!(
-                            self.data_of(initializer),
-                            NodeData::PropertyAccessExpression(_)
-                                | NodeData::ElementAccessExpression(_)
-                        ) || matches!(
-                            self.data_of(name),
-                            NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_)
-                        ) || self.initializer_is_guard_shaped(initializer);
-                        if alias_shaped
-                            && self.operand_mentions_roots(initializer, &roots, this_root)
-                        {
-                            grew |= self.push_alias_binding_roots(current, name, &mut roots);
-                        }
+            cursor = self.parent_of(current);
+        }
+        // Guards in an enclosing function can narrow a captured
+        // binding (especially lexical `this`) inside a nested arrow.
+        // The source-file scope is the outermost link in that chain.
+        gate_scopes.push(None);
+
+        // Build a syntax-only index once per source. Grouping by the
+        // nearest function boundary both excludes unrelated closures
+        // and lets later failed diagnostics reuse the source walk.
+        if !self
+            .flow_containment_indexes
+            .borrow()
+            .contains_key(&source.root)
+        {
+            let mut index: crate::state::FlowContainmentIndex = Default::default();
+            let mut worklist = vec![(source.root, None)];
+            while let Some((current, enclosing_scope)) = worklist.pop() {
+                let current_scope = if node_util::is_function_like_kind(self.kind_of(current)) {
+                    Some(current)
+                } else {
+                    enclosing_scope
+                };
+                let candidates = index.entry(current_scope).or_default();
+                match self.data_of(current) {
+                    NodeData::VariableDeclaration(_) => {
+                        candidates.alias_declarations.push(current);
                     }
+                    NodeData::IfStatement(_)
+                    | NodeData::WhileStatement(_)
+                    | NodeData::DoStatement(_)
+                    | NodeData::ForStatement(_)
+                    | NodeData::SwitchStatement(_)
+                    | NodeData::CaseClause(_)
+                    | NodeData::ConditionalExpression(_)
+                    | NodeData::BinaryExpression(_) => candidates.guard_nodes.push(current),
+                    _ => {}
                 }
                 tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
-                    worklist.push(child);
+                    worklist.push((child, current_scope));
                     false
                 });
             }
-            if !grew {
-                break;
+            let mut scopes: Vec<_> = index.keys().copied().collect();
+            scopes.sort_unstable();
+            for scope in scopes {
+                let candidates = index
+                    .get_mut(&scope)
+                    .expect("scope was collected from this index");
+                candidates
+                    .alias_declarations
+                    .sort_by_key(|&node| source.arena.node(node).pos);
+            }
+            self.flow_containment_indexes
+                .borrow_mut()
+                .insert(source.root, index);
+        }
+        let indexes = self.flow_containment_indexes.borrow();
+        let Some(index) = indexes.get(&source.root) else {
+            return false;
+        };
+        let scoped_candidates: Vec<_> = gate_scopes
+            .iter()
+            .filter_map(|scope| index.get(scope))
+            .collect();
+        if scoped_candidates.is_empty() {
+            return false;
+        }
+        let mut alias_declarations: Vec<_> = scoped_candidates
+            .iter()
+            .flat_map(|candidates| candidates.alias_declarations.iter().copied())
+            .collect();
+        alias_declarations.sort_by_key(|&node| source.arena.node(node).pos);
+
+        // Alias declarations are processed in source order: eligible
+        // aliases are immutable and can only reference an earlier
+        // constant, so no fixpoint scan is needed.
+        // Pass 1 — root alias expansion: aliased and destructured
+        // discriminants re-narrow their SOURCE (tsc's
+        // controlFlowAliasing: `const kind = obj.kind;
+        // if (kind === "a") obj.a`), so their binding names join the
+        // root set. tsc's eligibility is intentionally narrow: a
+        // const/using declaration, no explicit type, and at most five
+        // inline alias edges.
+        for current in alias_declarations {
+            let NodeData::VariableDeclaration(data) = self.data_of(current) else {
+                continue;
+            };
+            if data.r#type.is_some()
+                || !node_util::get_combined_node_flags(source, current)
+                    .intersects(NodeFlags::CONSTANT)
+            {
+                continue;
+            }
+            let (Some(name), Some(initializer)) = (data.name, data.initializer) else {
+                continue;
+            };
+            let normalized = self.skip_flow_transparent_expression(initializer);
+            let property_alias = matches!(
+                self.data_of(normalized),
+                NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_)
+            );
+            let destructuring_alias = matches!(
+                self.data_of(name),
+                NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_)
+            );
+            let guard_certainty = self.initializer_guard_certainty(initializer);
+            let condition_alias = matches!(self.data_of(normalized), NodeData::Identifier(_))
+                && self
+                    .operand_root_depth_filtered(normalized, &roots, this_root, true)
+                    .is_some();
+            let source_depth = if guard_certainty.may_narrow() {
+                self.guard_operand_root_depth(initializer, &roots, this_root)
+            } else {
+                self.operand_root_depth(initializer, &roots, this_root)
+            };
+            let Some(source_depth) = source_depth else {
+                continue;
+            };
+            let alias_depth = source_depth.saturating_add(1);
+            if alias_depth <= 5
+                && (property_alias
+                    || destructuring_alias
+                    || guard_certainty.may_narrow()
+                    || condition_alias)
+            {
+                self.push_alias_binding_roots(current, name, alias_depth, &mut roots);
             }
         }
         // Pass 2 — the guard scan proper.
-        let mut worklist = vec![source.root];
-        while let Some(current) = worklist.pop() {
-            if !subtree_reaches_gate(current) {
-                continue;
-            }
+        for &current in scoped_candidates
+            .iter()
+            .flat_map(|candidates| &candidates.guard_nodes)
+        {
             let narrowing_operand = match self.data_of(current) {
                 NodeData::IfStatement(data) => data.expression,
                 NodeData::WhileStatement(data) => data.expression,
@@ -450,15 +572,6 @@ impl<'a> CheckerState<'a> {
                 // arm above cannot see it.
                 NodeData::CaseClause(data) => data.expression,
                 NodeData::ConditionalExpression(data) => data.condition,
-                // Const/let aliases of conditions re-narrow through
-                // their initializer (tsc's aliased-discriminant
-                // narrowing: `const ok = x !== undefined; ok ? x : 0`)
-                // — but only GUARD-SHAPED initializers; plain data
-                // aliases (`const y = x`) do not narrow x's later
-                // reads and must not widen the containment.
-                NodeData::VariableDeclaration(data) => data
-                    .initializer
-                    .filter(|&initializer| self.initializer_is_guard_shaped(initializer)),
                 NodeData::BinaryExpression(data) => {
                     let operator = data.operator_token.map(|token| self.kind_of(token));
                     let is_logical = matches!(
@@ -483,33 +596,28 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             };
             if let Some(operand) = narrowing_operand {
-                if self.operand_mentions_roots(operand, &roots, this_root)
+                if self.guard_operand_mentions_roots(operand, &roots, this_root)
                     && self.guard_reaches_reference(current, operand, reference)
                 {
                     return true;
                 }
             }
-            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
-                worklist.push(child);
-                false
-            });
         }
         false
     }
 
-    /// Root keys under `reference`: every identifier paired with its
-    /// lexical binding, plus the `this` face. Property names stay
-    /// text-only — a lexical lookup on them would bind a stranger and
-    /// wrongly break relatedness.
+    /// Root keys under `reference`: every value-bearing identifier
+    /// paired with its lexical binding, plus the `this` face. A
+    /// property name is not a root by itself: `other.value` cannot
+    /// narrow `obj.value` merely because both paths end in `value`.
     fn collect_reference_roots<'r>(
         &'r self,
         reference: NodeId,
-        roots: &mut Vec<(&'r str, Option<SymbolId>)>,
+        roots: &mut Vec<FlowReferenceRoot<'r>>,
         this_root: &mut bool,
     ) {
         let source = self.binder.source_of_node(reference);
-        let push = |roots: &mut Vec<(&'r str, Option<SymbolId>)>,
-                    entry: (&'r str, Option<SymbolId>)| {
+        let push = |roots: &mut Vec<FlowReferenceRoot<'r>>, entry: FlowReferenceRoot<'r>| {
             if !roots.contains(&entry) {
                 roots.push(entry);
             }
@@ -519,14 +627,17 @@ impl<'a> CheckerState<'a> {
             match self.data_of(current) {
                 NodeData::Identifier(data) => {
                     let symbol = self.resolve_lexical_value_symbol(current, &data.escaped_text);
-                    push(roots, (&data.escaped_text, symbol));
+                    push(
+                        roots,
+                        FlowReferenceRoot {
+                            text: &data.escaped_text,
+                            symbol,
+                            available_from: 0,
+                            alias_depth: 0,
+                        },
+                    );
                 }
                 NodeData::PropertyAccessExpression(data) => {
-                    if let Some(name) = data.name {
-                        if let NodeData::Identifier(name_data) = self.data_of(name) {
-                            push(roots, (&name_data.escaped_text, None));
-                        }
-                    }
                     if let Some(expression) = data.expression {
                         worklist.push(expression);
                     }
@@ -550,48 +661,63 @@ impl<'a> CheckerState<'a> {
     /// sides resolved — a guard on a shadowed binding is unrelated;
     /// an unresolved side stays text-matched, erring on the
     /// containment side.
-    fn operand_mentions_roots(
+    fn operand_root_depth(
         &self,
         operand: NodeId,
-        roots: &[(&str, Option<SymbolId>)],
+        roots: &[FlowReferenceRoot<'_>],
         this_root: bool,
-    ) -> bool {
+    ) -> Option<u8> {
+        self.operand_root_depth_filtered(operand, roots, this_root, false)
+    }
+
+    fn operand_root_depth_filtered(
+        &self,
+        operand: NodeId,
+        roots: &[FlowReferenceRoot<'_>],
+        this_root: bool,
+        aliases_only: bool,
+    ) -> Option<u8> {
         let source = self.binder.source_of_node(operand);
+        let mut minimum_depth = None;
         let mut worklist = vec![operand];
         while let Some(current) = worklist.pop() {
             match self.data_of(current) {
                 NodeData::Identifier(data) => {
                     let text = data.escaped_text.as_str();
-                    if roots.iter().any(|&(root_text, _)| root_text == text) {
+                    if roots
+                        .iter()
+                        .any(|root| root.text == text && (!aliases_only || root.alias_depth > 0))
+                    {
                         let symbol = self.resolve_lexical_value_symbol(current, text);
-                        if roots.iter().any(|&(root_text, root_symbol)| {
-                            root_text == text
-                                && match (root_symbol, symbol) {
+                        let position = source.arena.node(current).pos;
+                        for root in roots.iter().filter(|root| {
+                            root.text == text
+                                && (!aliases_only || root.alias_depth > 0)
+                                && position >= root.available_from
+                                && match (root.symbol, symbol) {
                                     (Some(root), Some(candidate)) => root == candidate,
                                     _ => true,
                                 }
                         }) {
-                            return true;
+                            minimum_depth =
+                                Some(minimum_depth.map_or(root.alias_depth, |depth: u8| {
+                                    depth.min(root.alias_depth)
+                                }));
                         }
                     }
                 }
                 NodeData::PropertyAccessExpression(data) => {
-                    if let Some(name) = data.name {
-                        if let NodeData::Identifier(name_data) = self.data_of(name) {
-                            let text = name_data.escaped_text.as_str();
-                            if roots.iter().any(|&(root_text, _)| root_text == text) {
-                                return true;
-                            }
-                        }
-                    }
                     if let Some(expression) = data.expression {
                         worklist.push(expression);
                     }
                     continue;
                 }
                 _ => {
-                    if this_root && self.kind_of(current) == SyntaxKind::ThisKeyword {
-                        return true;
+                    if !aliases_only
+                        && this_root
+                        && self.kind_of(current) == SyntaxKind::ThisKeyword
+                    {
+                        minimum_depth = Some(0);
                     }
                 }
             }
@@ -600,7 +726,7 @@ impl<'a> CheckerState<'a> {
                 false
             });
         }
-        false
+        minimum_depth
     }
 
     /// Immutable lexical VALUE lookup — the `&self` face that
@@ -622,14 +748,36 @@ impl<'a> CheckerState<'a> {
         self.get_symbol_in_table(&self.globals, name, SymbolFlags::VALUE)
     }
 
-    /// Guard-shaped initializer filter for `const ok = <cond>` aliases
-    /// (tsc's aliased-condition narrowing): comparisons,
-    /// `instanceof`/`in`, logicals, `!`, and type-predicate calls.
-    fn initializer_is_guard_shaped(&self, initializer: NodeId) -> bool {
+    /// Strip expression wrappers that do not change whether an
+    /// initializer/condition can carry a narrowing fact.
+    fn skip_flow_transparent_expression(&self, mut expression: NodeId) -> NodeId {
+        loop {
+            let inner = match self.data_of(expression) {
+                NodeData::ParenthesizedExpression(data) => data.expression,
+                NodeData::PartiallyEmittedExpression(data) => data.expression,
+                NodeData::NonNullExpression(data) => data.expression,
+                NodeData::AsExpression(data) => data.expression,
+                NodeData::SatisfiesExpression(data) => data.expression,
+                NodeData::TypeAssertionExpression(data) => data.expression,
+                _ => None,
+            };
+            let Some(inner) = inner else {
+                return expression;
+            };
+            expression = inner;
+        }
+    }
+
+    /// Guard-shaped initializer classifier for `const ok = <cond>`
+    /// aliases. `Unknown` is distinct from a proven non-predicate:
+    /// until M5 can query resolved signatures, indirect/member/imported
+    /// callees stay on the containment side to preserve FP=0.
+    fn initializer_guard_certainty(&self, initializer: NodeId) -> FlowGuardCertainty {
+        let initializer = self.skip_flow_transparent_expression(initializer);
         match self.data_of(initializer) {
             NodeData::BinaryExpression(bin) => {
                 let operator = bin.operator_token.map(|token| self.kind_of(token));
-                matches!(
+                if matches!(
                     operator,
                     Some(
                         SyntaxKind::EqualsEqualsToken
@@ -642,76 +790,269 @@ impl<'a> CheckerState<'a> {
                             | SyntaxKind::BarBarToken
                             | SyntaxKind::QuestionQuestionToken
                     )
-                )
+                ) {
+                    FlowGuardCertainty::Yes
+                } else {
+                    FlowGuardCertainty::No
+                }
             }
             NodeData::PrefixUnaryExpression(unary) => {
-                unary.operator == SyntaxKind::ExclamationToken
+                if unary.operator != SyntaxKind::ExclamationToken {
+                    FlowGuardCertainty::No
+                } else if let Some(operand) = unary.operand {
+                    let operand = self.skip_flow_transparent_expression(operand);
+                    if matches!(self.data_of(operand), NodeData::CallExpression(_)) {
+                        self.call_predicate_certainty(operand)
+                    } else {
+                        FlowGuardCertainty::Yes
+                    }
+                } else {
+                    FlowGuardCertainty::Unknown
+                }
             }
-            NodeData::CallExpression(_) => self.call_initializer_is_predicate_guard(initializer),
-            _ => false,
+            NodeData::CallExpression(_) => self.call_predicate_certainty(initializer),
+            _ => FlowGuardCertainty::No,
         }
     }
 
-    /// A call initializer is guard-shaped only when its callee is a
-    /// syntactic type predicate — or cannot be resolved at all
-    /// (imports: the alias VALUE-flag chase is unported; stay on the
-    /// containment side). Locally-resolvable non-predicates keep
-    /// reporting (PR #6 review round 2: not every call is a guard).
-    fn call_initializer_is_predicate_guard(&self, call: NodeId) -> bool {
+    /// Does this guard operand contain a root in a position that can
+    /// actually narrow it? In particular, an argument occurrence in a
+    /// locally-known boolean (non-predicate) call is not a narrowing
+    /// occurrence (`if (notPred(x)) ...`).
+    fn guard_operand_mentions_roots(
+        &self,
+        operand: NodeId,
+        roots: &[FlowReferenceRoot<'_>],
+        this_root: bool,
+    ) -> bool {
+        self.guard_operand_root_depth(operand, roots, this_root)
+            .is_some()
+    }
+
+    fn guard_operand_root_depth(
+        &self,
+        operand: NodeId,
+        roots: &[FlowReferenceRoot<'_>],
+        this_root: bool,
+    ) -> Option<u8> {
+        let operand = self.skip_flow_transparent_expression(operand);
+        match self.data_of(operand) {
+            NodeData::CallExpression(data) => match self.call_predicate_effect(operand) {
+                FlowPredicateEffect::Argument(index) => self
+                    .nodes_of(data.arguments)
+                    .get(index)
+                    .and_then(|&argument| self.operand_root_depth(argument, roots, this_root)),
+                FlowPredicateEffect::This => data.expression.and_then(|callee| {
+                    let callee = self.skip_flow_transparent_expression(callee);
+                    match self.data_of(callee) {
+                        NodeData::PropertyAccessExpression(data) => data.expression,
+                        NodeData::ElementAccessExpression(data) => data.expression,
+                        _ => None,
+                    }
+                    .and_then(|receiver| self.operand_root_depth(receiver, roots, this_root))
+                }),
+                FlowPredicateEffect::None => None,
+                FlowPredicateEffect::Unknown => self.operand_root_depth(operand, roots, this_root),
+            },
+            NodeData::PrefixUnaryExpression(data)
+                if data.operator == SyntaxKind::ExclamationToken =>
+            {
+                data.operand
+                    .and_then(|operand| self.guard_operand_root_depth(operand, roots, this_root))
+            }
+            NodeData::BinaryExpression(data) => {
+                let operator = data.operator_token.map(|token| self.kind_of(token));
+                let guard_operator = matches!(
+                    operator,
+                    Some(
+                        SyntaxKind::EqualsEqualsToken
+                            | SyntaxKind::ExclamationEqualsToken
+                            | SyntaxKind::EqualsEqualsEqualsToken
+                            | SyntaxKind::ExclamationEqualsEqualsToken
+                            | SyntaxKind::InstanceOfKeyword
+                            | SyntaxKind::InKeyword
+                            | SyntaxKind::AmpersandAmpersandToken
+                            | SyntaxKind::BarBarToken
+                            | SyntaxKind::QuestionQuestionToken
+                    )
+                );
+                if !guard_operator {
+                    return None;
+                }
+                [data.left, data.right]
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|child| self.guard_operand_root_depth(child, roots, this_root))
+                    .min()
+            }
+            _ => self.operand_root_depth(operand, roots, this_root),
+        }
+    }
+
+    /// Predicate certainty for a call expression. Only an explicitly
+    /// known non-predicate returns `No`; unsupported member/type-alias/
+    /// imported forms are `Unknown`, which contains rather than emits a
+    /// false positive.
+    fn call_predicate_certainty(&self, call: NodeId) -> FlowGuardCertainty {
+        self.call_predicate_effect(call).certainty()
+    }
+
+    /// Predicate effect for the SELECTED call signature. Reading the
+    /// already-populated call cache is important for overloads: unioning
+    /// all declarations would let an unrelated predicate overload
+    /// suppress a real diagnostic. If resolution is unavailable, only
+    /// unanimous declaration effects are considered known.
+    fn call_predicate_effect(&self, call: NodeId) -> FlowPredicateEffect {
         let NodeData::CallExpression(data) = self.data_of(call) else {
-            return false;
+            return FlowPredicateEffect::None;
         };
+        if let Some(signature) = self.links.node(call).resolved_signature.resolved() {
+            return self
+                .signature_of(signature)
+                .declaration
+                .map_or(FlowPredicateEffect::Unknown, |declaration| {
+                    self.declaration_predicate_effect(declaration)
+                });
+        }
         let mut callee = data.expression;
         while let Some(current) = callee {
-            match self.data_of(current) {
-                NodeData::ParenthesizedExpression(inner) => callee = inner.expression,
-                _ => break,
+            let normalized = self.skip_flow_transparent_expression(current);
+            if normalized != current {
+                callee = Some(normalized);
+            } else {
+                break;
             }
         }
         let Some(callee) = callee else {
-            return false;
+            return FlowPredicateEffect::Unknown;
         };
         let NodeData::Identifier(name) = self.data_of(callee) else {
-            return false;
+            return FlowPredicateEffect::Unknown;
         };
         match self.resolve_lexical_value_symbol(callee, &name.escaped_text) {
-            Some(symbol) => self
-                .binder
-                .symbol(symbol)
-                .declarations
-                .iter()
-                .any(|&declaration| self.declaration_returns_type_predicate(declaration)),
-            None => true,
+            Some(symbol) => {
+                let declarations = &self.binder.symbol(symbol).declarations;
+                let mut effect = None;
+                for &declaration in declarations {
+                    let declaration_effect = self.declaration_predicate_effect(declaration);
+                    match effect {
+                        None => effect = Some(declaration_effect),
+                        Some(previous) if previous == declaration_effect => {}
+                        Some(_) => return FlowPredicateEffect::Unknown,
+                    }
+                }
+                effect.unwrap_or(FlowPredicateEffect::Unknown)
+            }
+            None => FlowPredicateEffect::Unknown,
         }
     }
 
-    /// Syntactic predicate probe: does this declaration give the name
-    /// a `x is T` signature face — directly (function/method return
-    /// annotation), through a function-type annotation
-    /// (`const p: (x: unknown) => x is T`), or through a
-    /// function-shaped initializer (`const p = (x): x is T => ...`)?
-    fn declaration_returns_type_predicate(&self, declaration: NodeId) -> bool {
+    /// Syntactic predicate probe for a resolved lexical declaration.
+    /// A TypeReference/intersection/member-shaped callable is not proof
+    /// of a non-predicate; it remains Unknown until signature resolution
+    /// lands in M5.
+    fn declaration_predicate_effect(&self, declaration: NodeId) -> FlowPredicateEffect {
         if let Some(annotation) = self.type_annotation_of(declaration) {
             if self.kind_of(annotation) == SyntaxKind::TypePredicate {
-                return true;
+                return self.type_predicate_effect(declaration, annotation);
             }
+            // On a function-like declaration the annotation is the
+            // function's RETURN type. A returned predicate function is
+            // not a predicate of this call's argument.
+            if tsrs2_binder::node_util::is_function_like_kind(self.kind_of(declaration)) {
+                return FlowPredicateEffect::None;
+            }
+            // On variables/parameters a FunctionType annotation is the
+            // callable's own signature.
             if let NodeData::FunctionType(data) = self.data_of(annotation) {
-                if data
-                    .r#type
-                    .is_some_and(|ret| self.kind_of(ret) == SyntaxKind::TypePredicate)
-                {
-                    return true;
-                }
+                return data.r#type.map_or(FlowPredicateEffect::None, |ret| {
+                    if self.kind_of(ret) == SyntaxKind::TypePredicate {
+                        self.type_predicate_effect(annotation, ret)
+                    } else {
+                        FlowPredicateEffect::None
+                    }
+                });
             }
+            if matches!(
+                self.kind_of(annotation),
+                SyntaxKind::TypeReference | SyntaxKind::IntersectionType | SyntaxKind::UnionType
+            ) {
+                return FlowPredicateEffect::Unknown;
+            }
+            if self.kind_of(annotation) == SyntaxKind::ParenthesizedType {
+                return FlowPredicateEffect::Unknown;
+            }
+            return FlowPredicateEffect::None;
         }
         if let NodeData::VariableDeclaration(data) = self.data_of(declaration) {
             if let Some(initializer) = data.initializer {
-                return self
-                    .type_annotation_of(initializer)
-                    .is_some_and(|ret| self.kind_of(ret) == SyntaxKind::TypePredicate);
+                if let Some(ret) = self.type_annotation_of(initializer) {
+                    return if self.kind_of(ret) == SyntaxKind::TypePredicate {
+                        self.type_predicate_effect(initializer, ret)
+                    } else {
+                        FlowPredicateEffect::None
+                    };
+                }
+                // TypeScript can infer predicates for function-shaped
+                // initializers; without resolved signatures this is not
+                // a proven non-predicate.
+                if tsrs2_binder::node_util::is_function_like_kind(self.kind_of(initializer)) {
+                    return FlowPredicateEffect::Unknown;
+                }
             }
         }
-        false
+        FlowPredicateEffect::Unknown
+    }
+
+    /// Map a syntactic `x is T`/`asserts x` predicate back to the call
+    /// argument it affects. A `this is T` predicate targets the method
+    /// receiver instead.
+    fn type_predicate_effect(&self, declaration: NodeId, predicate: NodeId) -> FlowPredicateEffect {
+        let NodeData::TypePredicate(data) = self.data_of(predicate) else {
+            return FlowPredicateEffect::Unknown;
+        };
+        let Some(parameter_name) = data.parameter_name else {
+            return FlowPredicateEffect::Unknown;
+        };
+        if matches!(
+            self.kind_of(parameter_name),
+            SyntaxKind::ThisKeyword | SyntaxKind::ThisType
+        ) {
+            return FlowPredicateEffect::This;
+        }
+        let Some(predicate_name) = self.identifier_text_of(parameter_name) else {
+            return FlowPredicateEffect::Unknown;
+        };
+        let parameter_list = match self.data_of(declaration) {
+            NodeData::FunctionDeclaration(data) => data.parameters,
+            NodeData::FunctionExpression(data) => data.parameters,
+            NodeData::ArrowFunction(data) => data.parameters,
+            NodeData::MethodDeclaration(data) => data.parameters,
+            NodeData::GetAccessor(data) => data.parameters,
+            NodeData::SetAccessor(data) => data.parameters,
+            NodeData::Constructor(data) => data.parameters,
+            NodeData::FunctionType(data) => data.parameters,
+            NodeData::ConstructorType(data) => data.parameters,
+            NodeData::CallSignature(data) => data.parameters,
+            NodeData::ConstructSignature(data) => data.parameters,
+            NodeData::MethodSignature(data) => data.parameters,
+            _ => None,
+        };
+        let mut argument_index = 0;
+        for parameter in self.nodes_of(parameter_list) {
+            let NodeData::Parameter(data) = self.data_of(parameter) else {
+                continue;
+            };
+            let name = data.name.and_then(|name| self.identifier_text_of(name));
+            if name == Some("this") {
+                continue;
+            }
+            if name == Some(predicate_name) {
+                return FlowPredicateEffect::Argument(argument_index);
+            }
+            argument_index += 1;
+        }
+        FlowPredicateEffect::Unknown
     }
 
     /// Alias-expansion push: the binding names a qualifying
@@ -722,17 +1063,24 @@ impl<'a> CheckerState<'a> {
         &'r self,
         declaration: NodeId,
         name: NodeId,
-        roots: &mut Vec<(&'r str, Option<SymbolId>)>,
+        alias_depth: u8,
+        roots: &mut Vec<FlowReferenceRoot<'r>>,
     ) -> bool {
         let source = self.binder.source_of_node(name);
+        let available_from = source.arena.node(declaration).end;
         let mut grew = false;
         let mut push =
-            |roots: &mut Vec<(&'r str, Option<SymbolId>)>, text: &'r str, declaring: NodeId| {
+            |roots: &mut Vec<FlowReferenceRoot<'r>>, text: &'r str, declaring: NodeId| {
                 let symbol = self
                     .binder
                     .node_symbol(declaring)
                     .map(|symbol| self.get_merged_symbol(symbol));
-                let entry = (text, symbol);
+                let entry = FlowReferenceRoot {
+                    text,
+                    symbol,
+                    available_from,
+                    alias_depth,
+                };
                 if !roots.contains(&entry) {
                     roots.push(entry);
                     grew = true;
@@ -851,6 +1199,22 @@ impl<'a> CheckerState<'a> {
                 let reference_true = data.when_true == Some(reference_child);
                 let reference_false = data.when_false == Some(reference_child);
                 !((guard_true && reference_false) || (guard_false && reference_true))
+            }
+            NodeData::TryStatement(data) => {
+                let regions = [data.try_block, data.catch_clause, data.finally_block];
+                let guard_region = regions
+                    .iter()
+                    .position(|&region| region == Some(guard_child));
+                let reference_region = regions
+                    .iter()
+                    .position(|&region| region == Some(reference_child));
+                // Narrowing established in try/catch/finally does not
+                // transfer into a sibling exception region. Within one
+                // region the lower LCA would have handled ordinary flow.
+                !matches!(
+                    (guard_region, reference_region),
+                    (Some(guard), Some(reference)) if guard != reference
+                )
             }
             _ => true,
         }

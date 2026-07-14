@@ -3018,7 +3018,7 @@ mod tests {
     }
 
     #[test]
-    fn loop_back_edge_guard_contains() {
+    fn loop_back_edge_guard_contains_until_m5() {
         // Containment pin (deliberate FN until M5): inside a shared
         // loop the back edge can carry a later guard to an earlier
         // read, so the reach face waives ordering. Oracle reports
@@ -3033,7 +3033,7 @@ mod tests {
     }
 
     #[test]
-    fn guard_before_reference_contains() {
+    fn guard_before_reference_contains_until_m5() {
         // Containment pin (deliberate FN until M5): a RELATED guard
         // BEFORE the read stays contained — the structural reach face
         // cannot see that the empty limb rejoins. Oracle reports 2345
@@ -3043,6 +3043,170 @@ mod tests {
                 "declare function f(n: number): void;\ndeclare const x: string | number;\nif (typeof x === \"string\") {}\nf(x);\n"
             ),
             []
+        );
+    }
+
+    #[test]
+    fn predicate_type_alias_condition_contains() {
+        assert_eq!(
+            checked_rows(
+                "type Pred = (x: unknown) => x is string;\ndeclare const pred: Pred;\ndeclare function take(s: string): void;\ndeclare const x: unknown;\nconst ok = pred(x);\nif (ok) { take(x); }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn parenthesized_condition_alias_contains() {
+        assert_eq!(
+            checked_rows(
+                "declare function take(s: string): void;\ndeclare const x: unknown;\nconst ok = (typeof x === \"string\");\nif (ok) { take(x); }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn condition_alias_chain_contains() {
+        // The alias definition is only an edge; the final `if (ok)` is
+        // the reaching guard. Oracle: silent.
+        assert_eq!(
+            checked_rows(
+                "declare function take(s: string): void;\ndeclare const x: unknown;\nconst isString = typeof x === \"string\";\nconst ok = isString;\nif (ok) { take(x); }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn mutable_condition_aliases_do_not_narrow() {
+        assert_eq!(
+            checked_rows(
+                "declare function take(s: string): void;\ndeclare const x: unknown;\nlet ok = typeof x === \"string\";\nif (ok) { take(x); }\n"
+            ),
+            [(2345, 113, 1)]
+        );
+        assert_eq!(
+            checked_rows(
+                "declare function take(s: string): void;\ndeclare const x: unknown;\nvar ok = typeof x === \"string\";\nif (ok) { take(x); }\n"
+            ),
+            [(2345, 113, 1)]
+        );
+    }
+
+    #[test]
+    fn annotated_const_condition_alias_does_not_narrow() {
+        assert_eq!(
+            checked_rows(
+                "declare function take(s: string): void;\ndeclare const x: unknown;\nconst ok: boolean = typeof x === \"string\";\nif (ok) { take(x); }\n"
+            ),
+            [(2345, 124, 1)]
+        );
+    }
+
+    #[test]
+    fn condition_alias_inline_depth_matches_tsc() {
+        assert_eq!(
+            checked_rows(
+                "declare function take(s: string): void;\ndeclare const x: unknown;\nconst a0 = typeof x === \"string\";\nconst a1 = a0;\nconst a2 = a1;\nconst a3 = a2;\nconst a4 = a3;\nif (a4) { take(x); }\n"
+            ),
+            []
+        );
+        assert_eq!(
+            checked_rows(
+                "declare function take(s: string): void;\ndeclare const x: unknown;\nconst a0 = typeof x === \"string\";\nconst a1 = a0;\nconst a2 = a1;\nconst a3 = a2;\nconst a4 = a3;\nconst a5 = a4;\nif (a5) { take(x); }\n"
+            ),
+            [(2345, 190, 1)]
+        );
+    }
+
+    #[test]
+    fn predicate_only_narrows_its_target_argument() {
+        assert_eq!(
+            checked_rows(
+                "declare function isString(value: unknown, other: unknown): value is string;\ndeclare function take(s: string): void;\ndeclare const x: unknown, y: unknown;\nconst ok = isString(y, x);\nif (ok) { take(x); }\n"
+            ),
+            [(2345, 196, 1)]
+        );
+    }
+
+    #[test]
+    fn enclosing_predicate_guard_reaches_captured_this_in_arrow() {
+        assert_eq!(
+            checked_rows(
+                "type Wrong = { value: number };\ntype Correct = { name: string };\ndeclare function isCorrect(value: unknown): value is Correct;\ndeclare function callback(cb: () => void): void;\nfunction f(this: Correct | Wrong): void {\n  if (!isCorrect(this)) return;\n  callback(() => { this.name; });\n}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_certainty_does_not_union_overloads() {
+        assert_eq!(
+            checked_rows(
+                "declare function pred(x: string): x is \"a\";\ndeclare function pred(x: number): boolean;\ndeclare function take(s: string): void;\ndeclare const x: number;\nconst ok = pred(x);\nif (ok) { take(x); }\n"
+            ),
+            [(2345, 187, 1)]
+        );
+    }
+
+    #[test]
+    fn member_predicate_condition_alias_contains() {
+        assert_eq!(
+            checked_rows(
+                "declare const guards: { isString(x: unknown): x is string };\ndeclare function take(s: string): void;\ndeclare const x: unknown;\nconst ok = guards.isString(x);\nif (ok) { take(x); }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn unused_condition_alias_does_not_suppress_2345() {
+        assert_eq!(
+            checked_rows(
+                "declare function isString(x: unknown): x is string;\ndeclare function take(s: string): void;\ndeclare const x: unknown;\nconst ok = isString(x);\ntake(x);\n"
+            ),
+            [(2345, 147, 1)]
+        );
+    }
+
+    #[test]
+    fn later_var_alias_does_not_retroactively_narrow() {
+        assert_eq!(
+            checked_rows(
+                "declare function take(s: string): void;\ndeclare const x: unknown;\nif (ok) { take(x); }\nvar ok = typeof x === \"string\";\n"
+            ),
+            [(2345, 81, 1)]
+        );
+    }
+
+    #[test]
+    fn unrelated_property_path_does_not_suppress_2345() {
+        assert_eq!(
+            checked_rows(
+                "declare function take(n: number): void;\ndeclare const obj: { value: string | number };\ndeclare const other: { value: boolean };\nif (other.value) {}\ntake(obj.value);\n"
+            ),
+            [(2345, 153, 9)]
+        );
+    }
+
+    #[test]
+    fn direct_non_predicate_condition_does_not_suppress_2345() {
+        assert_eq!(
+            checked_rows(
+                "declare function notPred(x: unknown): boolean;\ndeclare function take(s: string): void;\ndeclare const x: unknown;\nif (notPred(x)) { take(x); }\n"
+            ),
+            [(2345, 136, 1)]
+        );
+    }
+
+    #[test]
+    fn try_guard_does_not_reach_catch() {
+        assert_eq!(
+            checked_rows(
+                "declare function take(n: number): void;\ndeclare const x: string | number;\ntry { if (typeof x === \"string\") {} } catch { take(x); }\n"
+            ),
+            [(2345, 125, 1)]
         );
     }
 
