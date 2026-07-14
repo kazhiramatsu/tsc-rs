@@ -138,6 +138,11 @@ pub struct Diagnostic {
     pub message: MessageChain,
     pub related: Vec<RelatedInfo>,
     pub canonical_head: Option<CanonicalHead>,
+    /// tsc Diagnostic.skippedOn (errorSkippedOn 47575): the program
+    /// layer drops the diagnostic when the named option is set
+    /// (filterSemanticDiagnostics 125664). "noEmit" is the only key
+    /// any tsc emitter passes, so the field is a bool, not the key.
+    pub skipped_on_no_emit: bool,
 }
 
 impl Diagnostic {
@@ -154,6 +159,7 @@ impl Diagnostic {
             message,
             related: Vec::new(),
             canonical_head: None,
+            skipped_on_no_emit: false,
         }
     }
 

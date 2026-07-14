@@ -338,10 +338,6 @@ name = "filter_type_with"
 
 [[fn]]
 file = "crates/checker/src/functions.rs"
-name = "check_collisions_for_declaration_name"
-
-[[fn]]
-file = "crates/checker/src/functions.rs"
 name = "effective_return_type_node"
 
 [[fn]]

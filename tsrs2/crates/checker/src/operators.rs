@@ -724,6 +724,27 @@ impl<'a> CheckerState<'a> {
                         );
                     }
                     self.check_nan_equality(error_node, operator_token, left, right)?;
+                    // Intersection comparability escape: the relation
+                    // slice under-accepts intersection operands
+                    // (equalityWithIntersectionTypes01 is tsc-clean) —
+                    // a failed verdict with an intersection on either
+                    // side escapes instead of fabricating 2367.
+                    let comparable = self.is_type_equality_comparable_to(left_type, right_type)?
+                        || self.is_type_equality_comparable_to(right_type, left_type)?;
+                    if !comparable
+                        && (self
+                            .tables
+                            .flags_of(left_type)
+                            .intersects(TypeFlags::INTERSECTION)
+                            || self
+                                .tables
+                                .flags_of(right_type)
+                                .intersects(TypeFlags::INTERSECTION))
+                    {
+                        return Err(Unsupported::new(
+                            "equality comparability over intersection operands (relation arm, M4-end sweep 5.8)",
+                        ));
+                    }
                     self.report_operator_error_unless(
                         operator_token,
                         left_type,
@@ -1621,8 +1642,10 @@ impl<'a> CheckerState<'a> {
         Ok(self.get_resolved_symbol(expr) == Some(global_nan))
     }
 
-    /// isTypeEqualityComparableTo (79801-79803).
-    fn is_type_equality_comparable_to(
+    /// tsc-port: isTypeEqualityComparableTo @6.0.3
+    /// tsc-hash: 433b6784f163c0230b9d6321a252e42ea3e01c77e36e7d1c598ec78f9afbaeb0
+    /// tsc-span: _tsc.js:79807-79809
+    pub(crate) fn is_type_equality_comparable_to(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -4481,9 +4504,12 @@ impl<'a> CheckerState<'a> {
         Ok(self.maybe_type_of_kind(base_constraint, kind))
     }
 
-    /// The getGlobalTypeAliasSymbol arity read: declared-type forcing
-    /// plus the links typeParameters length.
-    fn type_alias_type_parameter_count(&mut self, symbol: SymbolId) -> CheckResult2<usize> {
+    /// tsrs-native: the getGlobalTypeAliasSymbol arity read —
+    /// declared-type forcing plus the links typeParameters length.
+    pub(crate) fn type_alias_type_parameter_count(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<usize> {
         self.get_declared_type_of_symbol_slice(symbol)?;
         Ok(self
             .links

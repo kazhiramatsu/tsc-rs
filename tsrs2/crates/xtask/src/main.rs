@@ -4913,6 +4913,19 @@ fn seed_grammar_flag_fields(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
             type_text: "SyntaxKind".to_owned(),
             optional: false,
         });
+    // tsc ImportAttributes.token: WithKeyword | AssertKeyword — a
+    // SyntaxKind payload, not a child node. The checker consumes it
+    // (checkImportType's assert-deprecation row 2880; the parser
+    // consumes the keyword before the attributes braces, so source
+    // reconstruction cannot recover it).
+    nodes
+        .entry("ImportAttributes".to_owned())
+        .or_default()
+        .push(DtsField {
+            name: "token".to_owned(),
+            type_text: "SyntaxKind".to_owned(),
+            optional: false,
+        });
 }
 
 fn collect_interface_fields(

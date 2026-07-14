@@ -46,7 +46,8 @@ impl<'a> CheckerState<'a> {
         );
         self.check_node_deferred(node);
         if self.kind_of(node) == SyntaxKind::FunctionExpression {
-            self.check_collisions_for_declaration_name(node);
+            let name = self.name_of_node(node);
+            self.check_collisions_for_declaration_name(node, name);
         }
         if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
             && self.is_context_sensitive(node)
@@ -263,12 +264,6 @@ impl<'a> CheckerState<'a> {
         }
         Ok(())
     }
-
-    /// checkCollisionsForDeclarationName (83356-83370) — the
-    /// require/exports/globalPromise/name-collision walk is emit-facing
-    /// bookkeeping plus 5.8-band diagnostics (2441/1212-family via
-    /// checkCollision*); no-op hook until 5.8.
-    pub(crate) fn check_collisions_for_declaration_name(&mut self, _node: NodeId) {}
 
     /// checkSignatureDeclaration (86971) — 5.8-DECL no-op hook.
     fn check_signature_declaration_stub(&mut self, _node: NodeId) {}
@@ -1143,14 +1138,14 @@ impl<'a> CheckerState<'a> {
     ///
     /// ES2025 target + ESNext-family module default: the moduleKind
     /// ladder's Node16..NodeNext arms need impliedNodeFormat (module
-    /// resolution, 5.8) — under the conformance option mapping the
-    /// reachable rows are the non-module 1375/2853 pair and the
-    /// nested 1308/2852 (+related 1356) pair; the target/module 1378/
-    /// 2854 arms are dead at ES2017+, transcription kept for the
-    /// ladder's fallthrough shape. `await using` declarations reach
-    /// the checker at 5.8 — the isAwaitExpression selections are all
-    /// true here.
+    /// resolution, 5.8d) and fall through as non-CommonJS; the
+    /// default arm's 1378/2854 pair is LIVE for sub-ES2017 targets
+    /// and non-ES2022-family module options (review find, PR #5).
+    /// Since 5.8a `await using` declaration LISTS route here too —
+    /// every message selects on isAwaitExpression(node) like tsc
+    /// (the 2865-2868 family for lists).
     pub(crate) fn check_await_grammar(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let is_await_expression = self.kind_of(node) == SyntaxKind::AwaitExpression;
         let mut has_error = false;
         let container = {
             // getContainingFunctionOrClassStaticBlock (14612).
@@ -1173,7 +1168,11 @@ impl<'a> CheckerState<'a> {
         }) {
             self.error_at(
                 Some(node),
-                &diagnostics::await_expression_cannot_be_used_inside_a_class_static_block,
+                if is_await_expression {
+                    &diagnostics::await_expression_cannot_be_used_inside_a_class_static_block
+                } else {
+                    &diagnostics::await_using_statements_cannot_be_used_inside_a_class_static_block
+                },
                 &[],
             );
             has_error = true;
@@ -1186,15 +1185,43 @@ impl<'a> CheckerState<'a> {
                         self.error_at_span(
                             span,
                             node,
-                            &diagnostics::await_expressions_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module,
+                            if is_await_expression {
+                                &diagnostics::await_expressions_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module
+                            } else {
+                                &diagnostics::await_using_statements_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module
+                            },
                             &[],
                         );
                         has_error = true;
                     }
-                    // moduleKind ladder: ESNext-family + ES2025 target
-                    // → break (no 1378/2854); Node16..NodeNext need
-                    // impliedNodeFormat (5.8) — the conformance
-                    // mapping never selects them at this stage.
+                    // moduleKind ladder (79357-79383): Node16/18/20/
+                    // NodeNext arms need impliedNodeFormat (module
+                    // resolution, 5.8d) — treated as the non-CommonJS
+                    // fallthrough (true-CJS node-flavor 2856-family
+                    // rows stay FN); the default arm is LIVE for
+                    // sub-ES2017 targets and non-ES2022-family module
+                    // options (review find, PR #5: 1378/2854).
+                    let module_kind = self.options.emit_module_kind();
+                    let target_ok =
+                        self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2017;
+                    let ladder_ok = match module_kind {
+                        100 | 101 | 102 | 199 => target_ok,
+                        7 | 99 | 200 | 4 => target_ok,
+                        _ => false,
+                    };
+                    if !ladder_ok {
+                        self.error_at_span(
+                            span,
+                            node,
+                            if is_await_expression {
+                                &diagnostics::Top_level_await_expressions_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_node16_node18_node20_nodenext_or_preserve_and_the_target_option_is_set_to_es2017_or_higher
+                            } else {
+                                &diagnostics::Top_level_await_using_statements_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_node16_node18_node20_nodenext_or_preserve_and_the_target_option_is_set_to_es2017_or_higher
+                            },
+                            &[],
+                        );
+                        has_error = true;
+                    }
                 }
             } else if !self.has_parse_diagnostics(node) {
                 let span = self.span_of_token_at_node_pos(node);
@@ -1215,14 +1242,19 @@ impl<'a> CheckerState<'a> {
                 self.error_at_span_with_related(
                     span,
                     node,
-                    &diagnostics::await_expressions_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules,
+                    if is_await_expression {
+                        &diagnostics::await_expressions_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules
+                    } else {
+                        &diagnostics::await_using_statements_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules
+                    },
                     &[],
                     related,
                 );
                 has_error = true;
             }
         }
-        if self.is_in_parameter_initializer_before_containing_function(node) {
+        if is_await_expression && self.is_in_parameter_initializer_before_containing_function(node)
+        {
             self.error_at(
                 Some(node),
                 &diagnostics::await_expressions_cannot_be_used_in_a_parameter_initializer,
@@ -1692,10 +1724,13 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// isEffectiveExternalModule: the commonJsModuleIndicator half is
-    /// JS-only; TS files answer by the parser's external-module
-    /// indicator.
-    fn is_effective_external_module(&self, node: NodeId) -> bool {
+    /// tsc-port: isEffectiveExternalModule @6.0.3
+    /// tsc-hash: faeb969f19783953861ac4d20410d7c78928ef45e6ec39f2f27231d2d0acfc33
+    /// tsc-span: _tsc.js:13756-13758
+    ///
+    /// The commonJsModuleIndicator half is JS-only; TS files answer by
+    /// the parser's external-module indicator.
+    pub(crate) fn is_effective_external_module(&self, node: NodeId) -> bool {
         self.binder
             .source_of_node(node)
             .external_module_indicator
@@ -1781,9 +1816,13 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc grammarErrorAtPos (90243): explicit-span grammar error,
-    /// gated on the file having NO parse diagnostics.
-    fn grammar_error_at_pos(
+    /// tsc-port: grammarErrorAtPos @6.0.3
+    /// tsc-hash: 6fbd3a708a6c4276e6337b6db010e4a4dcb92cd0d236abf9f538680414e2603e
+    /// tsc-span: _tsc.js:90224-90231
+    ///
+    /// Explicit-span grammar error, gated on the file having NO parse
+    /// diagnostics. Span arguments are UTF-16 units.
+    pub(crate) fn grammar_error_at_pos(
         &mut self,
         node: NodeId,
         start: u32,

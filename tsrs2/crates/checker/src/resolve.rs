@@ -678,10 +678,23 @@ impl<'a> CheckerState<'a> {
                 self.advance_walk(&mut last_location, &mut last_self_reference_location, loc);
         }
 
-        // tsc: `result.isReferenced |= meaning` for uses outside the
-        // self-reference location — M7's unused-diagnostics consumer;
-        // the flags are not stored yet.
-        let _ = (is_use, &last_self_reference_location);
+        // tsc 19767-19769: `result.isReferenced |= meaning` for uses
+        // outside the self-reference location — BEFORE the globals
+        // fallback, so a globals-only hit is never marked. Stored as a
+        // bool (SymbolLinks.is_referenced): the live consumer is the
+        // 5.8a renamed-binding drain's truthiness gate (risk §14.16);
+        // M7's per-meaning reads (83068/83096) upgrade it to the
+        // meaning mask when they land.
+        if is_use {
+            if let Some(found) = result {
+                let is_self_reference = last_self_reference_location
+                    .is_some_and(|loc| self.binder.node_symbol(loc) == Some(found));
+                if !is_self_reference {
+                    self.links
+                        .set_symbol_is_referenced(self.speculation_depth, found);
+                }
+            }
+        }
 
         if result.is_none() {
             if let Some(last) = last_location {
@@ -1061,6 +1074,16 @@ impl<'a> CheckerState<'a> {
         //    unported (M2 3.4c-adjacent / 5.8), so failures in such
         //    programs are undecidable.
         if self.program_has_global_augmentation() {
+            return;
+        }
+        // 2b. JS program files can declare types via JSDoc (@typedef/
+        //     @callback — [JSDOC] unbound), so name-resolution
+        //     failures in mixed-JS programs are undecidable the same
+        //     way (typedefMultipleTypeParameters pins the TS-side
+        //     reference staying silent).
+        if (0..self.binder.file_count())
+            .any(|index| crate::is_js_file_name(&self.binder.source(index).file_name))
+        {
             return;
         }
         // getSuggestedLibForNonExistentName is static lib metadata, so
@@ -1476,6 +1499,21 @@ impl<'a> CheckerState<'a> {
                 if namespace == self.unknown_symbol {
                     return Some(namespace);
                 }
+                // resolveAlias is unported (5.8d §9): an alias left
+                // (import q = a.b / import specifiers) returns
+                // UNRESOLVED from finish_resolve_entity_name, so its
+                // exports table below is not the aliased target's —
+                // the member read would fabricate 2694. Skip the
+                // report (silent None; the 5.8d alias protocol lifts
+                // this).
+                if self
+                    .binder
+                    .symbol(namespace)
+                    .flags
+                    .intersects(SymbolFlags::ALIAS)
+                {
+                    return None;
+                }
                 let right_text = self.identifier_text_of(right)?.to_owned();
                 // getExportsOfSymbol's globalThis special case (47710):
                 // globalThisSymbol's exports ARE the merged globals
@@ -1489,6 +1527,18 @@ impl<'a> CheckerState<'a> {
                     .get_symbol_in_table(&exports, &right_text, meaning)
                     .map(|s| self.get_merged_symbol(s));
                 let Some(symbol) = symbol else {
+                    // A raw table hit that failed only the MEANING
+                    // filter: either an ALIAS (export import a = A —
+                    // tsc's getSymbol alias arm chases the target,
+                    // resolveAlias 5.8d) or a wrong-meaning member
+                    // (tsc's ALTERNATE forms: 2749 value-as-type /
+                    // namespace-as-type family — M8 per the module
+                    // note). Both make plain-2694-vs-alternate
+                    // undecidable — silent None (parserharness pins
+                    // 2749, not 2694).
+                    if exports.get(&right_text).is_some() {
+                        return None;
+                    }
                     if !ignore_errors {
                         let namespace_name = self.fully_qualified_name(namespace);
                         let declaration_name = node_util::declaration_name_to_string(

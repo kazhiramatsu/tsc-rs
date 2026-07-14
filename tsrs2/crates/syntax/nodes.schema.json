@@ -707,6 +707,7 @@
       "kindName": "ImportAttributes",
       "dataName": "ImportAttributesData",
       "fields": [
+        {"name": "token", "rustName": "token", "type": "SyntaxKind", "optional": false, "child": false},
         {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [

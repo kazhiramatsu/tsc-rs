@@ -206,7 +206,20 @@ impl<'text> Parser<'text> {
         language_variant: LanguageVariant,
         javascript_file: bool,
     ) -> Self {
-        let is_declaration_file = file_name.ends_with(".d.ts");
+        // tsc isDeclarationFileName (36180): .d.ts/.d.cts/.d.mts plus
+        // any `.d.<ext>.ts` basename (getDeclarationFileExtension's
+        // ".d." probe — arbitrary-extension declaration files like
+        // component.d.html.ts).
+        let is_declaration_file = file_name.ends_with(".d.ts")
+            || file_name.ends_with(".d.cts")
+            || file_name.ends_with(".d.mts")
+            || (file_name.ends_with(".ts") && {
+                // getBaseFileName over normalizeSlashes: both
+                // separators split the basename (a `.d.` in a
+                // DIRECTORY name must not mark the file ambient).
+                let base = file_name.rsplit(['/', '\\']).next().unwrap_or(&file_name);
+                base.rfind(".d.").is_some()
+            });
         Self {
             scanner: Scanner::new(text, language_variant),
             arena: NodeArena::new(),
@@ -7056,6 +7069,11 @@ impl<'text> Parser<'text> {
         let mut attributes = None;
         if self.parse_optional(SyntaxKind::CommaToken) {
             self.parse_expected(SyntaxKind::OpenBraceToken, None);
+            // tsc parseImportType captures currentToken() BEFORE the
+            // keyword advance and threads it into parseImportAttributes
+            // — the with/assert discriminator lives on the attributes
+            // node (checkImportType's 2880 row reads it).
+            let keyword = self.token();
             if matches!(
                 self.token(),
                 SyntaxKind::WithKeyword | SyntaxKind::AssertKeyword
@@ -7068,7 +7086,7 @@ impl<'text> Parser<'text> {
                 );
             }
             self.parse_expected(SyntaxKind::ColonToken, None);
-            attributes = Some(self.parse_import_attributes(self.token(), true));
+            attributes = Some(self.parse_import_attributes(keyword, true));
             self.parse_optional(SyntaxKind::CommaToken);
             self.parse_expected(SyntaxKind::CloseBraceToken, None);
         }
@@ -7109,6 +7127,7 @@ impl<'text> Parser<'text> {
         };
         self.finish_node_data(
             NodeData::ImportAttributes(ImportAttributesData {
+                token: keyword,
                 elements: Some(elements),
             }),
             pos,
@@ -8823,6 +8842,27 @@ fn context_flags_for_function_body(is_generator: bool, is_async: bool) -> (NodeF
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// tsc isDeclarationFileName (36180): the `.d.` probe runs on the
+    /// BASENAME under both separators — a `.d.` in a directory name
+    /// must not mark the file ambient (PR #5 review find).
+    #[test]
+    fn declaration_file_name_probe_uses_the_basename_on_both_separators() {
+        let is_decl = |name: &str| {
+            parse_source_file(
+                name.to_owned(),
+                String::new(),
+                ParseOptions::default(),
+                None,
+            )
+            .is_declaration_file
+        };
+        assert!(is_decl("a.d.ts"));
+        assert!(is_decl("pkg/index.d.cts"));
+        assert!(is_decl("pkg/component.d.html.ts"));
+        assert!(!is_decl("C:\\types.d.cache\\index.ts"));
+        assert!(!is_decl("types.d.cache/index.ts"));
+    }
 
     fn parse_tsx(text: &str) -> SourceFile {
         parse_source_file(

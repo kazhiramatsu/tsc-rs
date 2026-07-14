@@ -71,6 +71,11 @@ pub struct CompilerOptions {
     /// ReactJSX=4/ReactJSXDev=5); None when the option is absent.
     /// checkJsxPreconditions' 17004 reads `(jsx || 0) === 0`.
     pub jsx: Option<i32>,
+    /// M4 5.8a: the skippedOn("noEmit") filter's input — collision-band
+    /// diagnostics (errorSkippedOn 47575) drop at the program layer
+    /// when noEmit is set (filterSemanticDiagnostics 125664). 727
+    /// conformance fixtures carry the directive (469 true-valued).
+    pub no_emit: Option<bool>,
     /// jsxFactory/jsxFragmentFactory/jsxImportSource/reactNamespace:
     /// carried so the 5.5f JSX slice can ESCAPE fixtures that
     /// customize the namespace entity (pragma machinery + entity

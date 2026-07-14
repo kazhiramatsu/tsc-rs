@@ -2962,7 +2962,12 @@ impl<'a> CheckerState<'a> {
             {
                 self.get_union_or_intersection_property(ty, name, skip)?
             } else {
-                self.get_property_of_object_type(ty, name)?
+                // tsc 59109: getPropertyOfType WITH the skip flag —
+                // the augment-allowing second pass reaches
+                // Object.prototype members on intersection
+                // constituents (intersectionIncludingPropFromGlobal
+                // Augmentation pins `x.hasOwnProperty`).
+                self.get_property_of_type_ex(ty, name, skip)?
             };
             if let Some(prop) = prop {
                 let prop_symbol_flags = self.symbol_flags(prop);

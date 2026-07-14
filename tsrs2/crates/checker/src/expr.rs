@@ -3114,16 +3114,30 @@ impl<'a> CheckerState<'a> {
                 let source = self.binder.source_of_node(node);
                 let expr = node_util::skip_parentheses_pub(source, expression);
                 let symbol = if self.is_entity_name_expression(expr) {
+                    // VALUE | ALIAS meaning: an imported enum binding
+                    // is an ALIAS symbol until resolveAlias (5.8d) —
+                    // the plain VALUE meaning filter would reject it
+                    // before the alias acceptance below can apply.
                     self.resolve_entity_name(
                         expr,
-                        SymbolFlags::VALUE,
+                        SymbolFlags::from_bits(
+                            SymbolFlags::VALUE.bits() | SymbolFlags::ALIAS.bits(),
+                        ),
                         /*ignore_errors*/ true,
                         /*location*/ None,
                     )
                 } else {
                     None
                 };
-                Ok(symbol.is_some_and(|s| self.symbol_flags(s).intersects(SymbolFlags::ENUM)))
+                // ALIAS acceptance: an imported enum resolves to the
+                // alias symbol until resolveAlias lands (5.8d) —
+                // accept-or-report is undecidable, so aliases pass
+                // (FN-side: invalid const assertions through aliases
+                // stay silent).
+                Ok(symbol.is_some_and(|s| {
+                    self.symbol_flags(s)
+                        .intersects(SymbolFlags::ENUM | SymbolFlags::ALIAS)
+                }))
             }
             _ => Ok(false),
         }

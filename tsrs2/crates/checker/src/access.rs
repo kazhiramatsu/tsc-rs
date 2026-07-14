@@ -351,9 +351,11 @@ impl<'a> CheckerState<'a> {
     }
 
     /// The [FLOW M5] guard-position probe: walk expression parents up
-    /// to the statement boundary; a right operand of `&&`/`||` or a
-    /// conditional-expression branch is a position where tsc's flow
-    /// narrowing can retype the receiver.
+    /// to the root; a right operand of `&&`/`||`, a conditional-
+    /// expression branch, or (since 5.8a's statement-body reach) a
+    /// position inside the guarded limb of an if/iteration/switch
+    /// statement is a position where tsc's flow narrowing can retype
+    /// the receiver. M5 removes the probe with the gates it feeds.
     pub(crate) fn access_sits_in_guarded_position(&self, node: NodeId) -> bool {
         let mut current = node;
         while let Some(parent) = self.parent_of(current) {
@@ -377,11 +379,36 @@ impl<'a> CheckerState<'a> {
                         return true;
                     }
                 }
+                // 5.8a statement-body reach: bodies under a condition
+                // (and switch clauses) see condition/assignment
+                // narrowing in tsc — the whole limb is a guarded
+                // position until M5's real flow types land.
+                NodeData::IfStatement(data) => {
+                    if data.then_statement == Some(current) || data.else_statement == Some(current)
+                    {
+                        return true;
+                    }
+                }
+                NodeData::WhileStatement(data) => {
+                    if data.statement == Some(current) {
+                        return true;
+                    }
+                }
+                NodeData::DoStatement(data) => {
+                    if data.statement == Some(current) {
+                        return true;
+                    }
+                }
+                NodeData::ForStatement(data) => {
+                    if data.statement == Some(current) {
+                        return true;
+                    }
+                }
+                NodeData::CaseClause(_) | NodeData::DefaultClause(_) => {
+                    return true;
+                }
                 _ => {}
             }
-            // No explicit statement-boundary test: past it, no parent
-            // is a binary/conditional expression, so the walk just
-            // runs out at the root.
             current = parent;
         }
         false
@@ -393,6 +420,53 @@ impl<'a> CheckerState<'a> {
             node,
             Self::report_object_possibly_null_or_undefined_error,
         )
+    }
+
+    /// tsc-port: checkNonNullNonVoidType @6.0.3
+    /// tsc-hash: 8a9444b51ee2d2fad8646f1fe67adeda802f49e5a4f62c88c2adaf356f41e9c8
+    /// tsc-span: _tsc.js:75051-75068
+    ///
+    /// The 5.8a declaration-band consumer (checkVariableLikeDeclaration
+    /// binding-pattern arms): `node` is the DECLARATION there, so the
+    /// entity-name faces are transcribed but reachable only from the
+    /// expression-side callers.
+    pub(crate) fn check_non_null_non_void_type(
+        &mut self,
+        ty: TypeId,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let non_null_type = self.check_non_null_type(ty, node)?;
+        if self
+            .tables
+            .flags_of(non_null_type)
+            .intersects(TypeFlags::VOID)
+        {
+            if self.is_entity_name_expression(node) {
+                let node_text = self.entity_name_to_string(node)?;
+                if self.kind_of(node) == SyntaxKind::Identifier && node_text == "undefined" {
+                    self.error_at(
+                        Some(node),
+                        &tsrs2_diags::gen::The_value_0_cannot_be_used_here,
+                        &[&node_text],
+                    );
+                    return Ok(non_null_type);
+                }
+                if node_text.encode_utf16().count() < 100 {
+                    self.error_at(
+                        Some(node),
+                        &tsrs2_diags::gen::_0_is_possibly_undefined,
+                        &[&node_text],
+                    );
+                    return Ok(non_null_type);
+                }
+            }
+            self.error_at(
+                Some(node),
+                &tsrs2_diags::gen::Object_is_possibly_undefined,
+                &[],
+            );
+        }
+        Ok(non_null_type)
     }
 
     /// tsc-port: reportCannotInvokePossiblyNullOrUndefinedError @6.0.3

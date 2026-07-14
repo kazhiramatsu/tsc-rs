@@ -42,6 +42,24 @@ impl<'a> CheckerState<'a> {
         Ok(!self.get_type_facts(ty, mask)?.is_empty())
     }
 
+    /// tsc-port: isNullableType @6.0.3
+    /// tsc-hash: f7b677457f8e94a6bd55aa41baf3f2dd44f4fcafb0b0c2b2ee9b5f0810c77b70
+    /// tsc-span: _tsc.js:74993-74995
+    pub(crate) fn is_nullable_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        self.has_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL)
+    }
+
+    /// tsc-port: getNonNullableTypeIfNeeded @6.0.3
+    /// tsc-hash: 49e58f1edfe3016bf12af5d2d847006af7e55b11c6027d89255c6b9c53bb52d1
+    /// tsc-span: _tsc.js:74996-74998
+    pub(crate) fn get_non_nullable_type_if_needed(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        if self.is_nullable_type(ty)? {
+            self.get_non_nullable_type(ty)
+        } else {
+            Ok(ty)
+        }
+    }
+
     /// tsc-port: getTypeFactsWorker @6.0.3
     /// tsc-hash: 6c1e2c95f8abc6a317ecb892a100b67c5d86d9166a1d2a4919ac9f2d695fb241
     /// tsc-span: _tsc.js:69703-69767

@@ -4,6 +4,7 @@ pub mod access;
 pub mod annotate;
 pub mod calls;
 pub mod check;
+pub mod class;
 pub mod constraints;
 pub mod contextual;
 pub mod engine;
@@ -28,6 +29,7 @@ pub mod relpin;
 pub mod resolve;
 pub mod spell;
 pub mod state;
+pub mod statements;
 pub mod structural;
 pub mod unions;
 pub mod variance;
@@ -90,14 +92,21 @@ fn filter_by_comment_directives(
     let line_starts = &line_map.line_starts;
     let is_directive_line = |line: usize| -> bool {
         let trimmed = line_text(line).trim_start();
-        let Some(comment) = trimmed.strip_prefix("//") else {
-            return false;
-        };
-        // regex ^///?\s*@(ts-expect-error|ts-ignore) applied at the
-        // comment start.
-        let comment = comment.strip_prefix('/').unwrap_or(comment);
-        let comment = comment.trim_start();
-        comment.starts_with("@ts-expect-error") || comment.starts_with("@ts-ignore")
+        if let Some(comment) = trimmed.strip_prefix("//") {
+            // regex ^///?\s*@(ts-expect-error|ts-ignore) applied at
+            // the comment start.
+            let comment = comment.strip_prefix('/').unwrap_or(comment);
+            let comment = comment.trim_start();
+            return comment.starts_with("@ts-expect-error") || comment.starts_with("@ts-ignore");
+        }
+        // commentDirectiveRegExMultiLine (8203): ^(?:/|\*)*\s*@(ts-
+        // expect-error|ts-ignore) — the multi-line-comment face,
+        // matched line-wise (the scanner applies it to the closing
+        // line of a /* */ comment; a line-based match over-suppresses
+        // only when the pattern appears mid-comment or in a template
+        // string — FN-side).
+        let stripped = trimmed.trim_start_matches(['/', '*']).trim_start();
+        stripped.starts_with("@ts-expect-error") || stripped.starts_with("@ts-ignore")
     };
     let directive_lines: Vec<usize> = (0..byte_line_starts.len())
         .filter(|&line| is_directive_line(line))
@@ -123,13 +132,36 @@ fn filter_by_comment_directives(
                     return false; // suppressed
                 }
                 let trimmed = line_text(line).trim();
-                if !trimmed.is_empty() && !trimmed.starts_with("//") {
+                let block_comment_shell =
+                    trimmed.starts_with("/*") || trimmed.starts_with('*') || trimmed == "*/";
+                if !trimmed.is_empty() && !trimmed.starts_with("//") && !block_comment_shell {
                     return true;
                 }
             }
             true
         })
         .collect()
+}
+
+/// tsc-port: filterSemanticDiagnostics @6.0.3
+/// tsc-hash: 5585b227fa5ab80bc9c14222bfcb199f66a2d8fb5d2fa640667c188b5152fa22
+/// tsc-span: _tsc.js:125664-125666
+///
+/// tsc filters each file's getSemanticDiagnostics output with
+/// `!d.skippedOn || !option[d.skippedOn]` (getSemanticDiagnosticsForFile
+/// 123698). The only key any emitter passes is "noEmit" (the checker
+/// collision band 83235-83353 + the __esModule marker 90103), no
+/// parse/bind emitter sets it, and the predicate is per-diagnostic —
+/// so one pass over the aggregate list is equivalent to tsc's
+/// per-file filter. Runs beside filter_by_comment_directives at the
+/// program-layer diagnostics-finalize seam (m4-58 §0 skippedOn).
+fn filter_semantic_diagnostics(
+    diagnostics: &mut tsrs2_diags::DiagnosticList,
+    options: &CompilerOptions,
+) {
+    if options.no_emit == Some(true) {
+        diagnostics.retain(|diagnostic| !diagnostic.skipped_on_no_emit);
+    }
 }
 
 /// Byte-offset line starts with tsc's line-break set (\r\n, \r, \n,
@@ -404,6 +436,7 @@ pub fn check_program_with_libs(
         // getPreEmitDiagnostics / the oracle driver's
         // ts.sortAndDeduplicateDiagnostics; getSyntacticDiagnostics
         // stays per-file unsorted concatenation, matching tsc.
+        filter_semantic_diagnostics(&mut diagnostics, options);
         tsrs2_diags::sort_and_dedupe_diagnostics(&mut diagnostics);
     }
 
