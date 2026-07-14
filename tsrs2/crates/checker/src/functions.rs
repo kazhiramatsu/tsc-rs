@@ -1231,7 +1231,8 @@ impl<'a> CheckerState<'a> {
                 has_error = true;
             }
         }
-        if is_await_expression && self.is_in_parameter_initializer_before_containing_function(node) {
+        if is_await_expression && self.is_in_parameter_initializer_before_containing_function(node)
+        {
             self.error_at(
                 Some(node),
                 &diagnostics::await_expressions_cannot_be_used_in_a_parameter_initializer,
@@ -1701,9 +1702,12 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// isEffectiveExternalModule: the commonJsModuleIndicator half is
-    /// JS-only; TS files answer by the parser's external-module
-    /// indicator.
+    /// tsc-port: isEffectiveExternalModule @6.0.3
+    /// tsc-hash: faeb969f19783953861ac4d20410d7c78928ef45e6ec39f2f27231d2d0acfc33
+    /// tsc-span: _tsc.js:13756-13758
+    ///
+    /// The commonJsModuleIndicator half is JS-only; TS files answer by
+    /// the parser's external-module indicator.
     pub(crate) fn is_effective_external_module(&self, node: NodeId) -> bool {
         self.binder
             .source_of_node(node)

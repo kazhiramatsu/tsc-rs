@@ -1054,7 +1054,10 @@ impl<'a> CheckerState<'a> {
     ///
     /// Alias symbols (getAliasSymbolForTypeNode) are M4; the JSDoc
     /// array-type wrap is JS-only.
-    pub(crate) fn get_type_from_type_literal_or_fn_ctor_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_type_from_type_literal_or_fn_ctor_node(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
@@ -1564,7 +1567,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeFromIndexedAccessTypeNode @6.0.3
     /// tsc-hash: bfdb8d46e15236842742a4ae54bf26a85b7605b13304de4118efae469dfbed94
     /// tsc-span: _tsc.js:62612-62621
-    pub(crate) fn get_type_from_indexed_access_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_type_from_indexed_access_type_node(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }

@@ -1,8 +1,8 @@
 [t0]
 # rate is display-only once matched/total are present; the gate
 # compares the exact integer counts (zero-regression).
-rate = 0.105100
-matched = 5105
+rate = 0.182035
+matched = 8842
 total = 48573
 allowed_regression = 0.0
 
@@ -11,8 +11,8 @@ rate = 0.0
 allowed_regression = 0.0
 
 [t0-2xxx]
-rate = 0.094179
-matched = 1961
+rate = 0.203295
+matched = 4233
 total = 20822
 allowed_regression = 0.0
 
@@ -35,5 +35,7 @@ max_untagged = 114
 # attributes/attribute-symbol reads + the Debug.assert/Debug.fail
 # transcriptions of createJsxAttributesTypeFromAttributesProperty and
 # getIntrinsicTagSymbol, risk #6).
-max_recovery = 87
+# 5.8a: +4 statement-band malformed-tree guards (VariableStatement/
+# IfStatement/ForInStatement/SwitchStatement recovery nodes, risk #6).
+max_recovery = 91
 

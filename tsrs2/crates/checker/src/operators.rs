@@ -732,14 +732,17 @@ impl<'a> CheckerState<'a> {
                     let comparable = self.is_type_equality_comparable_to(left_type, right_type)?
                         || self.is_type_equality_comparable_to(right_type, left_type)?;
                     if !comparable
-                        && (self.tables.flags_of(left_type).intersects(TypeFlags::INTERSECTION)
+                        && (self
+                            .tables
+                            .flags_of(left_type)
+                            .intersects(TypeFlags::INTERSECTION)
                             || self
                                 .tables
                                 .flags_of(right_type)
                                 .intersects(TypeFlags::INTERSECTION))
                     {
                         return Err(Unsupported::new(
-                            "equality comparability over intersection operands (relation slice)",
+                            "equality comparability over intersection operands (relation arm, M4-end sweep 5.8)",
                         ));
                     }
                     self.report_operator_error_unless(
@@ -1639,7 +1642,9 @@ impl<'a> CheckerState<'a> {
         Ok(self.get_resolved_symbol(expr) == Some(global_nan))
     }
 
-    /// isTypeEqualityComparableTo (79801-79803).
+    /// tsc-port: isTypeEqualityComparableTo @6.0.3
+    /// tsc-hash: 433b6784f163c0230b9d6321a252e42ea3e01c77e36e7d1c598ec78f9afbaeb0
+    /// tsc-span: _tsc.js:79807-79809
     pub(crate) fn is_type_equality_comparable_to(
         &mut self,
         source: TypeId,

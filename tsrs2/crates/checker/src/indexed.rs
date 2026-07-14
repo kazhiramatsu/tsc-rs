@@ -40,7 +40,7 @@ impl<'a> CheckerState<'a> {
             let type_parameters = self.type_alias_type_parameter_count(symbol)?;
             if type_parameters != 2 {
                 return Err(Unsupported::new(
-                    "global Extract alias with non-2 arity (user-shadowed lib)",
+                    "global Extract alias with non-2 arity (user-shadowed lib arity report, M4-end sweep 5.8)",
                 ));
             }
             self.deferred_global_extract_symbol = Some(Some(symbol));

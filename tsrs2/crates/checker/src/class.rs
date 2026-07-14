@@ -72,12 +72,12 @@ impl<'a> CheckerState<'a> {
                     );
                     if (is_static_index == member_is_static) && !has_bindable_name {
                         let member_symbol = self.get_symbol_of_declaration(member)?;
-                        let name_expression = self
-                            .name_of_node(member)
-                            .and_then(|name| match self.data_of(name) {
-                                NodeData::ComputedPropertyName(data) => data.expression,
-                                _ => None,
-                            });
+                        let name_expression = self.name_of_node(member).and_then(|name| match self
+                            .data_of(name)
+                        {
+                            NodeData::ComputedPropertyName(data) => data.expression,
+                            _ => None,
+                        });
                         let Some(name_expression) = name_expression else {
                             continue;
                         };
@@ -212,7 +212,12 @@ impl<'a> CheckerState<'a> {
                     self.error_at_with_related(
                         Some(error_node),
                         &diagnostics::Property_0_of_type_1_is_not_assignable_to_2_index_type_3,
-                        &[&prop_display, &prop_type_display, &key_display, &value_display],
+                        &[
+                            &prop_display,
+                            &prop_type_display,
+                            &key_display,
+                            &value_display,
+                        ],
                         related,
                     );
                 }
@@ -418,7 +423,11 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::Duplicate_identifier_0,
                     &[&member_name],
                 );
-                self.error_at(Some(name), &diagnostics::Duplicate_identifier_0, &[&member_name]);
+                self.error_at(
+                    Some(name),
+                    &diagnostics::Duplicate_identifier_0,
+                    &[&member_name],
+                );
             } else {
                 names.insert(member_name);
             }

@@ -189,7 +189,8 @@ impl<'a> CheckerState<'a> {
             } else {
                 CheckMode::NORMAL
             };
-            let parent_type = self.get_type_for_binding_element_parent(parent, parent_check_mode)?;
+            let parent_type =
+                self.get_type_for_binding_element_parent(parent, parent_check_mode)?;
             let effective_name = property_name.unwrap_or(name);
             if let Some(parent_type) = parent_type {
                 if !node_util::is_binding_pattern(
@@ -202,16 +203,14 @@ impl<'a> CheckerState<'a> {
                             self.get_property_of_type_full(parent_type, &name_text)?
                         {
                             self.mark_property_as_referenced(
-                                property,
-                                /*node_for_check_write_only*/ None,
+                                property, /*node_for_check_write_only*/ None,
                                 /*is_self_type_access*/ false,
                             );
-                            let parent_initializer_is_super =
-                                self.only_expression_initializer_of(parent).is_some_and(
-                                    |initializer| {
-                                        self.kind_of(initializer) == SyntaxKind::SuperKeyword
-                                    },
-                                );
+                            let parent_initializer_is_super = self
+                                .only_expression_initializer_of(parent)
+                                .is_some_and(|initializer| {
+                                    self.kind_of(initializer) == SyntaxKind::SuperKeyword
+                                });
                             self.check_property_accessibility(
                                 node,
                                 parent_initializer_is_super,
@@ -228,8 +227,7 @@ impl<'a> CheckerState<'a> {
         // Step 6: recurse into pattern elements. (The array-pattern
         // downlevelIteration emit-helper probe is elided — module
         // note.)
-        let name_is_pattern =
-            node_util::is_binding_pattern(self.binder.source_of_node(name), name);
+        let name_is_pattern = node_util::is_binding_pattern(self.binder.source_of_node(name), name);
         if name_is_pattern {
             for element in self.binding_pattern_elements(name) {
                 self.check_source_element(Some(element));
@@ -345,12 +343,10 @@ impl<'a> CheckerState<'a> {
                         Some(node),
                         &diagnostics::Type_0_is_not_assignable_to_type_1,
                     )?;
-                    let block_scope_kind = node_util::get_combined_node_flags(
-                        self.binder.source_of_node(node),
-                        node,
-                    )
-                    .bits()
-                        & NodeFlags::BLOCK_SCOPED.bits();
+                    let block_scope_kind =
+                        node_util::get_combined_node_flags(self.binder.source_of_node(node), node)
+                            .bits()
+                            & NodeFlags::BLOCK_SCOPED.bits();
                     if block_scope_kind == NodeFlags::AWAIT_USING.bits() {
                         let async_disposable =
                             self.get_global_async_disposable_type(/*report_errors*/ true)?;
@@ -434,19 +430,17 @@ impl<'a> CheckerState<'a> {
             // [JSDOC] gate: a merged declaration living in a JS file
             // takes its type from @type tags (unmodeled) — comparing
             // against our annotation-less read fabricates 2403/2717.
-            let any_js_declaration = self
-                .binder
-                .symbol(symbol)
-                .declarations
-                .iter()
-                .any(|&declaration| {
-                    crate::is_js_file_name(
-                        &self.binder.source_of_node(declaration).file_name,
-                    )
-                });
+            let any_js_declaration =
+                self.binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .any(|&declaration| {
+                        crate::is_js_file_name(&self.binder.source_of_node(declaration).file_name)
+                    });
             if any_js_declaration {
                 return Err(Unsupported::new(
-                    "merged declaration typed from a JS file (@type tags, [JSDOC])",
+                    "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)",
                 ));
             }
             if ty != error_type
@@ -575,18 +569,13 @@ impl<'a> CheckerState<'a> {
             | ModifierFlags::STATIC.bits();
         // getSelectedEffectiveModifierFlags: effective == syntactic in
         // TS files (JSDoc modifiers are the JS residual).
-        let left_flags = node_util::get_syntactic_modifier_flags(
-            self.binder.source_of_node(left),
-            left,
-        )
-        .bits()
-            & interesting;
-        let right_flags = node_util::get_syntactic_modifier_flags(
-            self.binder.source_of_node(right),
-            right,
-        )
-        .bits()
-            & interesting;
+        let left_flags =
+            node_util::get_syntactic_modifier_flags(self.binder.source_of_node(left), left).bits()
+                & interesting;
+        let right_flags =
+            node_util::get_syntactic_modifier_flags(self.binder.source_of_node(right), right)
+                .bits()
+                & interesting;
         left_flags == right_flags
     }
 
@@ -606,8 +595,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:83371-83399
     fn check_var_declared_names_not_shadowed(&mut self, node: NodeId) -> CheckResult2<()> {
         let source = self.binder.source_of_node(node);
-        if node_util::get_combined_node_flags(source, node)
-            .intersects(NodeFlags::BLOCK_SCOPED)
+        if node_util::get_combined_node_flags(source, node).intersects(NodeFlags::BLOCK_SCOPED)
             || node_util::is_part_of_parameter_declaration(source, node)
         {
             return Ok(());
@@ -670,16 +658,14 @@ impl<'a> CheckerState<'a> {
             }
             _ => None,
         };
-        let names_share_scope = container.is_some_and(|container| {
-            match self.kind_of(container) {
-                SyntaxKind::Block => self.parent_of(container).is_some_and(|parent| {
-                    node_util::is_function_like_kind(self.kind_of(parent))
-                }),
-                SyntaxKind::ModuleBlock
-                | SyntaxKind::ModuleDeclaration
-                | SyntaxKind::SourceFile => true,
-                _ => false,
+        let names_share_scope = container.is_some_and(|container| match self.kind_of(container) {
+            SyntaxKind::Block => self
+                .parent_of(container)
+                .is_some_and(|parent| node_util::is_function_like_kind(self.kind_of(parent))),
+            SyntaxKind::ModuleBlock | SyntaxKind::ModuleDeclaration | SyntaxKind::SourceFile => {
+                true
             }
+            _ => false,
         });
         if !names_share_scope {
             let display = self.symbol_display_name(local);
@@ -717,7 +703,11 @@ impl<'a> CheckerState<'a> {
         let (array_nodes_empty, array_pos, array_end) = {
             let source = self.binder.source_of_node(declaration_list);
             let array = source.arena.node_array(declarations_array);
-            (array.nodes.is_empty(), array.pos as usize, array.end as usize)
+            (
+                array.nodes.is_empty(),
+                array.pos as usize,
+                array.end as usize,
+            )
         };
         if array_nodes_empty {
             let start = self.utf16_position(declaration_list, array_pos);
@@ -730,9 +720,7 @@ impl<'a> CheckerState<'a> {
                 &[],
             ));
         }
-        let block_scope_flags = self
-            .node_flags(declaration_list)
-            & NodeFlags::BLOCK_SCOPED.bits();
+        let block_scope_flags = self.node_flags(declaration_list) & NodeFlags::BLOCK_SCOPED.bits();
         if block_scope_flags == NodeFlags::USING.bits()
             || block_scope_flags == NodeFlags::AWAIT_USING.bits()
         {
@@ -780,10 +768,7 @@ impl<'a> CheckerState<'a> {
                 ));
             }
             if !is_using {
-                return self.check_await_grammar(declaration_list).map(|reported| {
-                    // checkAwaitGrammar returns hasError.
-                    reported
-                });
+                return self.check_await_grammar(declaration_list);
             }
         }
         Ok(false)
@@ -899,10 +884,7 @@ impl<'a> CheckerState<'a> {
             } else if initializer.is_none() {
                 if name_is_pattern
                     && !self.parent_of(node).is_some_and(|parent| {
-                        node_util::is_binding_pattern(
-                            self.binder.source_of_node(parent),
-                            parent,
-                        )
+                        node_util::is_binding_pattern(self.binder.source_of_node(parent), parent)
                     })
                 {
                     return Ok(self.grammar_error_on_node(
@@ -998,8 +980,8 @@ impl<'a> CheckerState<'a> {
             && !self.parent_of(node).is_some_and(|parent| {
                 node_util::is_parameter_property_declaration(source, node, parent)
             });
-        let block_scope_kind =
-            node_util::get_combined_node_flags(source, node).bits() & NodeFlags::BLOCK_SCOPED.bits();
+        let block_scope_kind = node_util::get_combined_node_flags(source, node).bits()
+            & NodeFlags::BLOCK_SCOPED.bits();
         let is_const_like = self.kind_of(node) == SyntaxKind::VariableDeclaration
             && (block_scope_kind == NodeFlags::CONST.bits()
                 || block_scope_kind == NodeFlags::USING.bits()
@@ -1032,10 +1014,10 @@ impl<'a> CheckerState<'a> {
             return true;
         }
         matches!(self.data_of(expr), NodeData::PrefixUnaryExpression(data)
-            if data.operator == SyntaxKind::MinusToken
-                && data.operand.is_some_and(|operand| {
-                    self.kind_of(operand) == SyntaxKind::NumericLiteral
-                }))
+        if data.operator == SyntaxKind::MinusToken
+            && data.operand.is_some_and(|operand| {
+                self.kind_of(operand) == SyntaxKind::NumericLiteral
+            }))
     }
 
     /// tsc-port: isBigIntLiteralExpression @6.0.3
@@ -1046,10 +1028,10 @@ impl<'a> CheckerState<'a> {
             return true;
         }
         matches!(self.data_of(expr), NodeData::PrefixUnaryExpression(data)
-            if data.operator == SyntaxKind::MinusToken
-                && data.operand.is_some_and(|operand| {
-                    self.kind_of(operand) == SyntaxKind::BigIntLiteral
-                }))
+        if data.operator == SyntaxKind::MinusToken
+            && data.operand.is_some_and(|operand| {
+                self.kind_of(operand) == SyntaxKind::BigIntLiteral
+            }))
     }
 
     /// tsc-port: isSimpleLiteralEnumReference @6.0.3
@@ -1082,9 +1064,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:90100-90114
     fn check_es_module_marker(&mut self, name: NodeId) -> bool {
         if self.kind_of(name) == SyntaxKind::Identifier {
-            let is_marker = self
-                .identifier_text_of(name)
-                .is_some_and(|text| tsrs2_binder::unescape_leading_underscores(text) == "__esModule");
+            let is_marker = self.identifier_text_of(name).is_some_and(|text| {
+                tsrs2_binder::unescape_leading_underscores(text) == "__esModule"
+            });
             if is_marker {
                 return self.grammar_error_on_node_skipped_on(
                     name,
@@ -1163,13 +1145,13 @@ impl<'a> CheckerState<'a> {
             data.initializer,
         );
         if dot_dot_dot.is_some() {
-            let parent_elements = self.parent_of(node).and_then(|parent| {
-                match self.data_of(parent) {
-                    NodeData::ObjectBindingPattern(data) => data.elements,
-                    NodeData::ArrayBindingPattern(data) => data.elements,
-                    _ => None,
-                }
-            });
+            let parent_elements =
+                self.parent_of(node)
+                    .and_then(|parent| match self.data_of(parent) {
+                        NodeData::ObjectBindingPattern(data) => data.elements,
+                        NodeData::ArrayBindingPattern(data) => data.elements,
+                        _ => None,
+                    });
             if let Some(elements) = parent_elements {
                 let element_nodes = self.nodes_of(Some(elements));
                 if element_nodes.last() != Some(&node) {
@@ -1462,13 +1444,9 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_reflect_collision(&mut self, node: NodeId) {
         let mut has_collision = false;
         let contains_super = |state: &Self, candidate: NodeId| {
-            state
-                .links
-                .node(candidate)
-                .check_flags
-                .intersects(
-                    tsrs2_types::NodeCheckFlags::CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER,
-                )
+            state.links.node(candidate).check_flags.intersects(
+                tsrs2_types::NodeCheckFlags::CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER,
+            )
         };
         match self.kind_of(node) {
             SyntaxKind::ClassExpression => {
@@ -1639,7 +1617,9 @@ impl<'a> CheckerState<'a> {
     /// The isReferenced gate (risk §14.16) reads the resolver-written
     /// SymbolLinks bit (resolve.rs 19767-twin).
     pub(crate) fn check_potential_unchecked_renamed_binding_elements_in_types(&mut self) {
-        let recorded = self.potential_unused_renamed_binding_elements_in_types.clone();
+        let recorded = self
+            .potential_unused_renamed_binding_elements_in_types
+            .clone();
         for node in recorded {
             let Ok(symbol) = self.get_symbol_of_declaration(node) else {
                 continue;
@@ -1669,16 +1649,15 @@ impl<'a> CheckerState<'a> {
             let wrapping_annotation = self.type_annotation_of(wrapping);
             if wrapping_annotation.is_none() {
                 let source = self.binder.source_of_node(wrapping);
-                let end_utf16 = self.utf16_position(wrapping, {
-                    source.arena.node(wrapping).end as usize
-                });
+                let end_utf16 =
+                    self.utf16_position(wrapping, source.arena.node(wrapping).end as usize);
                 diagnostic.related.push(tsrs2_diags::RelatedInfo {
                     file_name: Some(source.file_name.clone()),
                     start: Some(end_utf16),
                     length: Some(0),
                     message: MessageChain::new(
                         &diagnostics::We_can_only_write_a_type_for_0_by_adding_a_type_for_the_entire_parameter_here,
-                        &[property_display.clone()],
+                        std::slice::from_ref(&property_display),
                     ),
                 });
             }
@@ -1730,7 +1709,7 @@ impl<'a> CheckerState<'a> {
     // ---- shared small helpers ----
 
     /// tsc-port: hasOnlyExpressionInitializer @6.0.3
-    /// tsc-hash: 4a4990ecbb0aa438e6f9111f4a0b0f5e0f5a25c0c9deffdcccf5a0ba8d103cff
+    /// tsc-hash: 56782551f781d46f793251ce5a948ea4bfc97074c0912263c4f57f9969f36c3a
     /// tsc-span: _tsc.js:12545-12557
     fn only_expression_initializer_of(&self, node: NodeId) -> Option<NodeId> {
         match self.kind_of(node) {
@@ -1759,7 +1738,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: isVariableLike @6.0.3
-    /// tsc-hash: 3cd1eb0f89f358e6c92e05464e77f66a032dbbf12d3d3b8ce41e565e5ac2fb51
+    /// tsc-hash: 9fa304f6057247becbdf6555219a6fdc01a2f305bfd1babebbbfe887d5d03180
     /// tsc-span: _tsc.js:14350-14365
     fn is_variable_like_declaration_kind(&self, node: NodeId) -> bool {
         matches!(
@@ -1838,7 +1817,6 @@ impl<'a> CheckerState<'a> {
             .unwrap_or(byte as u32)
     }
 
-
     /// tsc getContainingFunctionOrClassStaticBlock (14612): nearest
     /// function-like or class-static-block ancestor.
     fn get_containing_function_or_class_static_block(&self, node: NodeId) -> Option<NodeId> {
@@ -1855,7 +1833,10 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getModuleInstanceState through the binder's cached walk.
-    fn module_instance_state_of(&self, node: NodeId) -> tsrs2_binder::containers::ModuleInstanceState {
+    fn module_instance_state_of(
+        &self,
+        node: NodeId,
+    ) -> tsrs2_binder::containers::ModuleInstanceState {
         let source = self.binder.source_of_node(node);
         let mut visited = std::collections::HashMap::new();
         tsrs2_binder::containers::get_module_instance_state(source, node, &mut visited)
@@ -2203,41 +2184,41 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(false);
         }
-        if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
-            if !self.check_grammar_variable_declaration_list(initializer)? {
-                let declarations = match self.data_of(initializer) {
-                    NodeData::VariableDeclarationList(data) => self.nodes_of(data.declarations),
-                    _ => Vec::new(),
+        if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList
+            && !self.check_grammar_variable_declaration_list(initializer)?
+        {
+            let declarations = match self.data_of(initializer) {
+                NodeData::VariableDeclarationList(data) => self.nodes_of(data.declarations),
+                _ => Vec::new(),
+            };
+            if declarations.is_empty() {
+                return Ok(false);
+            }
+            if declarations.len() > 1 {
+                let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
+                    &diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement
+                } else {
+                    &diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement
                 };
-                if declarations.is_empty() {
-                    return Ok(false);
-                }
-                if declarations.len() > 1 {
-                    let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
-                        &diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement
-                    } else {
-                        &diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement
-                    };
-                    return Ok(self.grammar_error_on_first_token(declarations[1], message, &[]));
-                }
-                let first = declarations[0];
-                if self.initializer_of_node(first).is_some() {
-                    let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
-                        &diagnostics::The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer
-                    } else {
-                        &diagnostics::The_variable_declaration_of_a_for_of_statement_cannot_have_an_initializer
-                    };
-                    let name = self.name_of_node(first);
-                    return Ok(self.grammar_error_on_node(name.unwrap_or(first), message, &[]));
-                }
-                if self.type_annotation_of(first).is_some() {
-                    let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
-                        &diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation
-                    } else {
-                        &diagnostics::The_left_hand_side_of_a_for_of_statement_cannot_use_a_type_annotation
-                    };
-                    return Ok(self.grammar_error_on_node(first, message, &[]));
-                }
+                return Ok(self.grammar_error_on_first_token(declarations[1], message, &[]));
+            }
+            let first = declarations[0];
+            if self.initializer_of_node(first).is_some() {
+                let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
+                    &diagnostics::The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer
+                } else {
+                    &diagnostics::The_variable_declaration_of_a_for_of_statement_cannot_have_an_initializer
+                };
+                let name = self.name_of_node(first);
+                return Ok(self.grammar_error_on_node(name.unwrap_or(first), message, &[]));
+            }
+            if self.type_annotation_of(first).is_some() {
+                let message = if self.kind_of(node) == SyntaxKind::ForInStatement {
+                    &diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation
+                } else {
+                    &diagnostics::The_left_hand_side_of_a_for_of_statement_cannot_use_a_type_annotation
+                };
+                return Ok(self.grammar_error_on_node(first, message, &[]));
             }
         }
         Ok(false)
@@ -2281,8 +2262,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ContinueStatement(data) => data.label,
             _ => None,
         };
-        let label_text =
-            label.and_then(|label| self.identifier_text_of(label).map(str::to_owned));
+        let label_text = label.and_then(|label| self.identifier_text_of(label).map(str::to_owned));
         let is_break = self.kind_of(node) == SyntaxKind::BreakStatement;
         let mut current = Some(node);
         while let Some(candidate) = current {
@@ -2303,9 +2283,9 @@ impl<'a> CheckerState<'a> {
                         _ => (None, None),
                     };
                     let labels_match = label.is_some()
-                        && current_label.and_then(|l| {
-                            self.identifier_text_of(l).map(str::to_owned)
-                        }) == label_text;
+                        && current_label
+                            .and_then(|l| self.identifier_text_of(l).map(str::to_owned))
+                            == label_text;
                     if labels_match {
                         let is_misplaced_continue = !is_break
                             && !current_statement.is_some_and(|statement| {
@@ -2414,7 +2394,10 @@ impl<'a> CheckerState<'a> {
             .strict_option_value(self.options.strict_null_checks);
         if strict_null_checks
             || expression.is_some()
-            || self.tables.flags_of(return_type).intersects(TypeFlags::NEVER)
+            || self
+                .tables
+                .flags_of(return_type)
+                .intersects(TypeFlags::NEVER)
         {
             let expr_type = match expression {
                 Some(expression) => self.check_expression_cached(expression, CheckMode::NORMAL)?,
@@ -2422,11 +2405,7 @@ impl<'a> CheckerState<'a> {
             };
             if self.kind_of(container) == SyntaxKind::SetAccessor {
                 if expression.is_some() {
-                    self.error_at(
-                        Some(node),
-                        &diagnostics::Setters_cannot_return_a_value,
-                        &[],
-                    );
+                    self.error_at(Some(node), &diagnostics::Setters_cannot_return_a_value, &[]);
                 }
             } else if self.kind_of(container) == SyntaxKind::Constructor {
                 if expression.is_some() {
@@ -2600,9 +2579,9 @@ impl<'a> CheckerState<'a> {
                             NodeData::LabeledStatement(data) => data.label,
                             _ => None,
                         };
-                        if candidate_label.and_then(|l| {
-                            self.identifier_text_of(l).map(str::to_owned)
-                        }) == label_text
+                        if candidate_label
+                            .and_then(|l| self.identifier_text_of(l).map(str::to_owned))
+                            == label_text
                         {
                             // getTextOfNode — source text of the label.
                             let display = self.declaration_name_display(label);
@@ -2735,10 +2714,9 @@ impl<'a> CheckerState<'a> {
                                         .flags
                                         .intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE)
                                     {
-                                        let display = tsrs2_binder::unescape_leading_underscores(
-                                            caught_name,
-                                        )
-                                        .to_owned();
+                                        let display =
+                                            tsrs2_binder::unescape_leading_underscores(caught_name)
+                                                .to_owned();
                                         self.grammar_error_on_node(
                                             value_declaration,
                                             &diagnostics::Cannot_redeclare_identifier_0_in_catch_clause,
@@ -2763,49 +2741,165 @@ impl<'a> CheckerState<'a> {
 }
 
 #[cfg(test)]
-mod debug58 {
-    use crate::{check_program_with_libs, CompilerOptions, InputFile};
+mod tests {
+    use crate::state::test_support::with_program_state;
+    use crate::{check_program, CompilerOptions, InputFile};
+
+    /// Checker-sink rows as (code, start, length) — noLib unit parity
+    /// (scratchpad p1-p6 oracle probes, 2026-07-14).
+    fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    // ---- §2 variable band (oracle p1) ----
 
     #[test]
-    fn rest_tuple_contextual_params_debug() {
-        let lib_path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+    fn declaration_initializer_2322_reports_at_the_name_span() {
+        // getErrorSpanForNode's VariableDeclaration arm → the NAME.
+        assert_eq!(checked_rows("const x: string = 1;\n"), [(2322, 6, 1)]);
+    }
+
+    #[test]
+    fn subsequent_variable_declaration_reports_2403_with_related() {
+        let rows = with_program_state(
+            &[("a.ts", "var y: string;\nvar y: number;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .map(|diag| {
+                        (
+                            diag.code(),
+                            diag.start.unwrap_or(u32::MAX),
+                            diag.length.unwrap_or(u32::MAX),
+                            diag.message_text().to_owned(),
+                            diag.related.len(),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            },
         );
-        let _ = lib_path;
-        let vendor = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../vendor/typescript-6.0.3/lib/"
+        assert_eq!(rows.len(), 1, "{rows:?}");
+        assert_eq!(
+            (rows[0].0, rows[0].1, rows[0].2, rows[0].4),
+            (2403, 19, 1, 1)
         );
-        let lib = |name: &str| InputFile {
-            name: name.to_owned(),
-            text: std::fs::read_to_string(format!("{vendor}{name}")).expect("lib"),
+        // tsc's double space after the first sentence is load-bearing.
+        assert_eq!(
+            rows[0].3,
+            "Subsequent variable declarations must have the same type.  Variable 'y' must be of type 'string', but here has type 'number'."
+        );
+    }
+
+    #[test]
+    fn renamed_signature_binding_2842_waits_on_the_parameter_arm() {
+        // Oracle p5: tsc reports 2842 at `b` (offset 24) and the
+        // isReferenced gate suppresses h2's `c`. The drain + gate are
+        // live (worker tail, risk §14.16), but the PUSHER rides
+        // checkParameter → checkVariableLikeDeclaration (§5, 5.8b) —
+        // until then the row is a recorded FN. This pin flips to
+        // [(2842, 24, 1)] when 5.8b lands.
+        assert_eq!(
+            checked_rows(
+                "declare function h({ a: b }: { a: number }): void;\ndeclare function h2({ a: c }: { a: number }, d: typeof c): void;\n"
+            ),
+            []
+        );
+    }
+
+    // ---- §2 collisions band under skippedOn(noEmit) (oracle p4) ----
+
+    fn commonjs_rows(no_emit: Option<bool>) -> Vec<(u32, u32, u32)> {
+        let options = CompilerOptions {
+            module: Some(1),
+            no_emit,
+            ..CompilerOptions::default()
         };
-        let libs = vec![
-            lib("lib.es5.d.ts"),
-            lib("lib.es2015.core.d.ts"),
-            lib("lib.es2015.symbol.d.ts"),
-            lib("lib.es2015.iterable.d.ts"),
-            lib("lib.es2015.generator.d.ts"),
-            lib("lib.es2015.collection.d.ts"),
-            lib("lib.es2015.promise.d.ts"),
-            lib("lib.es2015.symbol.wellknown.d.ts"),
-            lib("lib.es2015.proxy.d.ts"),
-            lib("lib.es2015.reflect.d.ts"),
-        ];
-        let result = check_program_with_libs(
-            &libs,
+        let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
-                text: match std::env::var("TSRS_DEBUG_FILE") {
-                    Ok(path) => std::fs::read_to_string(path).expect("debug file"),
-                    Err(_) => "type Args = [\"A\", number] | [\"B\", string];\ndeclare function f50(cb: (...args: Args) => void): void;\nf50((kind, data) => { if (kind === \"A\") { data.toFixed(); } });\n".to_owned(),
-                },
+                text: "export {};\nvar require: number;\n".to_owned(),
             }],
-            &CompilerOptions::default(),
+            &options,
         );
-        for d in result.diagnostics.iter() {
-            eprintln!("DIAG {} {:?}+{:?} {}", d.code(), d.start, d.length, d.message_text());
-        }
+        result
+            .diagnostics
+            .iter()
+            .map(|diag| {
+                (
+                    diag.code(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn require_collision_reports_2441_and_no_emit_filters_it() {
+        assert_eq!(commonjs_rows(None), [(2441, 15, 7)]);
+        assert_eq!(commonjs_rows(Some(true)), []);
+    }
+
+    // ---- §3 control statements (oracle p2/p3) ----
+
+    #[test]
+    fn condition_bands_report_2774_2873_1313() {
+        assert_eq!(
+            checked_rows("declare function f(): void;\nif (f) {}\nif (void 0) {}\nif (1) ;\n"),
+            [(2774, 32, 1), (2873, 42, 6), (1313, 60, 1)]
+        );
+    }
+
+    #[test]
+    fn switch_case_2678_uses_the_case_type_as_source() {
+        assert_eq!(
+            checked_rows("switch (\"a\") { case 1: break; }\n"),
+            [(2678, 20, 1)]
+        );
+    }
+
+    #[test]
+    fn catch_clause_block_scoped_shadow_reports_2492() {
+        assert_eq!(
+            checked_rows("try {} catch (q) { let q: number; }\n"),
+            [(2492, 23, 1)]
+        );
+    }
+
+    #[test]
+    fn block_scoped_statement_in_do_body_reports_1156() {
+        assert_eq!(
+            checked_rows("if (2) { let z = 1; }\ndo let v = 1; while (0);\n"),
+            [(2872, 4, 1), (1156, 25, 10)]
+        );
+    }
+
+    // ---- §11 tuple type-node rows (oracle p6) ----
+
+    #[test]
+    fn tuple_element_order_rows_1266_1257_2574() {
+        assert_eq!(
+            checked_rows(
+                "interface Array<T> { length: number }\ntype T1 = [...string[], number?];\ntype T2 = [number?, string];\ntype T3 = [...number, string];\n"
+            ),
+            [(1266, 62, 7), (1257, 92, 6), (2574, 112, 9)]
+        );
     }
 }

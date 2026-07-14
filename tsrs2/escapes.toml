@@ -503,6 +503,13 @@ class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
+in = "get_type_of_accessors"
+reason = "computed-name accessor pair (late-bound get/set pairing, 5.8c)"
+class = "stage"
+owner = "5.8c"
+
+[[site]]
+file = "crates/checker/src/annotate.rs"
 in = "get_type_of_symbol"
 reason = "DeferredType symbols (getTypeOfSymbolWithDeferredType, M6)"
 class = "stage"
@@ -884,29 +891,36 @@ owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
+in = "check_import_type"
+reason = "getResolutionModeOverride5.8d"
+class = "stage"
+owner = "5.8d"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "check_indexed_access_type"
+reason = "checkIndexedAccessIndexType under a ConditionalTypeM8"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "check_infer_type"
+reason = "checkInferType multi-declaration identity (areTypeParametersIdentical)5.8c"
+class = "stage"
+owner = "5.8c"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "check_mapped_type"
+reason = "checkMappedType nameType/constraint rows (getNameTypeFromMappedType — mapped types M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
 reason = "checkAccessorDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkArrayType5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkBindingElement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkBreakOrContinueStatement5.8"
 class = "stage"
 owner = "5.8"
 
@@ -920,21 +934,7 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
-reason = "checkConditionalType5.8/M8"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
 reason = "checkConstructorDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkDoStatement5.8"
 class = "stage"
 owner = "5.8"
 
@@ -969,35 +969,7 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
-reason = "checkForInStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkForOfStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkForStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
 reason = "checkFunctionDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkIfStatement5.8"
 class = "stage"
 owner = "5.8"
 
@@ -1018,41 +990,6 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
-reason = "checkImportType5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkIndexedAccessType5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkInferType5.8/M8"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkLabeledStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkMappedType5.8/M8"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
 reason = "checkMethodDeclaration5.8"
 class = "stage"
 owner = "5.8"
@@ -1068,13 +1005,6 @@ owner = "5.8"
 file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
 reason = "checkModuleDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkNamedTupleMember5.8"
 class = "stage"
 owner = "5.8"
 
@@ -1102,13 +1032,6 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
-reason = "checkReturnStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
 reason = "checkSignatureDeclaration5.8"
 class = "stage"
 owner = "5.8"
@@ -1116,105 +1039,7 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
-reason = "checkSwitchStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkTemplateLiteralType5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkThisType5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkThrowStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkTryStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkTupleType5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkTypeLiteral5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkTypeOperator5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
 reason = "checkTypePredicate5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkTypeQuery5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkUnionOrIntersectionType5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkVariableDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkVariableStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkWhileStatement5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkWithStatement5.8"
 class = "stage"
 owner = "5.8"
 
@@ -1236,6 +1061,13 @@ file = "crates/checker/src/check.rs"
 in = "check_type_comparable_to"
 reason = "relation-error display for identically-named types (getTypeNameForErrorDisplay UseFullyQualifiedType)"
 class = "untagged"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "check_type_reference_or_import"
+reason = "checkTypeArgumentConstraints under a ConditionalTypeM8"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -1340,6 +1172,13 @@ in = "get_contextual_type_for_return_expression"
 reason = "getContextualTypeForReturnExpression generator filter (getIterationTypeOfGeneratorFunctionReturnType, 5.8 iteration protocol)"
 class = "stage"
 owner = "5.8"
+
+[[site]]
+file = "crates/checker/src/contextual.rs"
+in = "get_contextually_typed_parameter_type"
+reason = "[INFER M6] context-sensitive parameter under an unresolved contextual signature"
+class = "stage"
+owner = "M6"
 
 [[site]]
 file = "crates/checker/src/contextual.rs"
@@ -1587,8 +1426,22 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/indexed.rs"
 in = "element_access_error_ladder"
+reason = "[FLOW M5] element-access ladder on a narrowable receiver in a guarded position"
+class = "stage"
+owner = "M5"
+
+[[site]]
+file = "crates/checker/src/indexed.rs"
+in = "element_access_error_ladder"
 reason = "unique-symbol index head (unique symbol types, annotate M4)"
 class = "untagged"
+
+[[site]]
+file = "crates/checker/src/indexed.rs"
+in = "get_global_extract_symbol"
+reason = "global Extract alias with non-2 arity (user-shadowed lib arity report, M4-end sweep 5.8)"
+class = "stage"
+owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/instantiate.rs"
@@ -1697,6 +1550,13 @@ file = "crates/checker/src/jsx.rs"
 in = "get_intrinsic_tag_symbol"
 reason = "JSX element without a tag name (parse recovery)"
 class = "recovery"
+
+[[site]]
+file = "crates/checker/src/jsx.rs"
+in = "get_intrinsic_tag_symbol"
+reason = "JSX.IntrinsicElements miss in a declare-global program (augmentation merge, 5.8d)"
+class = "stage"
+owner = "5.8d"
 
 [[site]]
 file = "crates/checker/src/jsx.rs"
@@ -1960,6 +1820,13 @@ class = "untagged"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
+in = "check_binary_like_expression_worker"
+reason = "equality comparability over intersection operands (relation arm, M4-end sweep 5.8)"
+class = "stage"
+owner = "5.8"
+
+[[site]]
+file = "crates/checker/src/operators.rs"
 in = "check_conditional_expression"
 reason = "conditional expression with missing branch (parse-recovery tree)"
 class = "recovery"
@@ -2181,6 +2048,79 @@ in = "is_enum_type_related_to"
 reason = "enum member property without declaration"
 class = "untagged"
 count = 2
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_for_in_statement"
+reason = "ForInStatement recovery node"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_for_of_statement"
+reason = "checkDestructuringAssignment (for-of LHS)5.8b"
+class = "stage"
+owner = "5.8b"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_for_of_statement"
+reason = "checkRightHandSideOfForOf5.8b"
+class = "stage"
+owner = "5.8b"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_if_statement"
+reason = "IfStatement recovery node"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_switch_statement"
+reason = "SwitchStatement recovery node"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
+reason = "checkDecorators5.8c"
+class = "stage"
+owner = "5.8c"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
+reason = "checkExportsOnMergedDeclarations5.8b"
+class = "stage"
+owner = "5.8b"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
+reason = "checkIteratedTypeOrElementType ([ITER] §4, 5.8b)"
+class = "stage"
+owner = "5.8b"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
+reason = "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_statement"
+reason = "VariableStatement recovery node"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "declaration_initializer_flow_gate"
+reason = "[FLOW M5] failed declaration initializer over a narrowable reference"
+class = "stage"
+owner = "M5"
 
 [[site]]
 file = "crates/checker/src/structural.rs"

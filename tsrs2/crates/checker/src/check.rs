@@ -1045,9 +1045,9 @@ impl<'a> CheckerState<'a> {
                     }
                     if self.is_array_type(ty)?
                         || self.tables.is_tuple_type(ty)
-                            && self.tuple_combined_flags(ty).intersects(
-                                tsrs2_types::ElementFlags::REST,
-                            )
+                            && self
+                                .tuple_combined_flags(ty)
+                                .intersects(tsrs2_types::ElementFlags::REST)
                     {
                         flags |= tsrs2_types::ElementFlags::REST;
                     }
@@ -1147,10 +1147,8 @@ impl<'a> CheckerState<'a> {
         // true branch — the raw-parameter index check fabricates 2536
         // (stringMappingReduction / unknownControlFlow pins).
         if self.has_conditional_type_ancestor(node) {
-            return self.source_element_stub(
-                "checkIndexedAccessIndexType under a ConditionalType",
-                "M8",
-            );
+            return self
+                .source_element_stub("checkIndexedAccessIndexType under a ConditionalType", "M8");
         }
         let resolved = self.get_type_from_indexed_access_type_node(node)?;
         self.check_indexed_access_index_type(resolved, node)?;
@@ -1441,11 +1439,7 @@ impl<'a> CheckerState<'a> {
                 return false;
             };
             if self.kind_of(operand) != SyntaxKind::SymbolKeyword {
-                return self.grammar_error_on_node(
-                    operand,
-                    &diagnostics::_0_expected,
-                    &["symbol"],
-                );
+                return self.grammar_error_on_node(operand, &diagnostics::_0_expected, &["symbol"]);
             }
             // walkUpParenthesizedTypes.
             let mut parent = self.parent_of(node);
@@ -1972,7 +1966,9 @@ impl<'a> CheckerState<'a> {
             let _ = stripped;
             if let Some(declaration) = self.binder.symbol(prop).value_declaration {
                 let source = self.binder.source_of_node(declaration);
-                if let Some(name) = tsrs2_binder::node_util::get_name_of_declaration(source, declaration) {
+                if let Some(name) =
+                    tsrs2_binder::node_util::get_name_of_declaration(source, declaration)
+                {
                     return tsrs2_binder::node_util::declaration_name_to_string(source, Some(name));
                 }
             }

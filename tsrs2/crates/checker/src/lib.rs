@@ -132,9 +132,8 @@ fn filter_by_comment_directives(
                     return false; // suppressed
                 }
                 let trimmed = line_text(line).trim();
-                let block_comment_shell = trimmed.starts_with("/*")
-                    || trimmed.starts_with('*')
-                    || trimmed == "*/";
+                let block_comment_shell =
+                    trimmed.starts_with("/*") || trimmed.starts_with('*') || trimmed == "*/";
                 if !trimmed.is_empty() && !trimmed.starts_with("//") && !block_comment_shell {
                     return true;
                 }

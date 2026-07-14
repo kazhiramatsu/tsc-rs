@@ -1081,9 +1081,9 @@ impl<'a> CheckerState<'a> {
         //     failures in mixed-JS programs are undecidable the same
         //     way (typedefMultipleTypeParameters pins the TS-side
         //     reference staying silent).
-        if (0..self.binder.file_count()).any(|index| {
-            crate::is_js_file_name(&self.binder.source(index).file_name)
-        }) {
+        if (0..self.binder.file_count())
+            .any(|index| crate::is_js_file_name(&self.binder.source(index).file_name))
+        {
             return;
         }
         // getSuggestedLibForNonExistentName is static lib metadata, so
