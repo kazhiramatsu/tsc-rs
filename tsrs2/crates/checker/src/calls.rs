@@ -1851,6 +1851,25 @@ impl<'a> CheckerState<'a> {
                     EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
                     EffectiveArg::Synthetic { .. } => None,
                 };
+                // [FLOW M5] second face for arguments (the 5.5e `=`
+                // precedent): tsc consumes the FLOW type of a
+                // narrowable-reference argument — a failed verdict
+                // over the DECLARED union/unknown type may be
+                // tsc-clean. Contain those; M5 removes the gate.
+                if let Some(effective) = effective {
+                    // [FLOW M5]: predicates/typeof/switch narrowing can
+                    // change ANY reference's type, so no flag filter —
+                    // a failed verdict over a narrowable reference in a
+                    // guard-bearing file may be tsc-clean.
+                    if self.receiver_may_be_flow_narrowed(effective)
+                        && self.enclosing_scope_has_flow_guards(node)
+                    {
+                        return Err(Unsupported::new(
+                            "[FLOW M5] failed argument from a narrowable reference in a \
+                             guard-bearing scope",
+                        ));
+                    }
+                }
                 // The elaboration gate: elementwise elaborations move
                 // the code/span (Err); the did-you-mean flavor keeps
                 // the head but reports at the walked node.
@@ -3418,6 +3437,38 @@ impl<'a> CheckerState<'a> {
             call_signatures.len(),
             num_construct_signatures,
         )? {
+            // [FLOW M5] auto-callee gate: `var a;` callees flow-type
+            // to undefined in tsc — checkNonNullExpression yields
+            // errorType (2722 + no 2347); our auto stand-in is anyType
+            // (annotate.rs AUTO ARM), so the error-face never forms.
+            // Contain rather than fabricate 2347 beside tsc's 2722.
+            if type_arguments.is_some() {
+                let auto_callee = {
+                    let core = self.skip_outer_expressions(expression, OuterExpressionKinds::ALL);
+                    (self.kind_of(core) == SyntaxKind::Identifier)
+                        .then(|| self.links.node(core).resolved_symbol.resolved())
+                        .flatten()
+                };
+                if let Some(symbol) = auto_callee {
+                    let is_auto_var =
+                        self.binder
+                            .symbol(symbol)
+                            .value_declaration
+                            .is_some_and(|declaration| {
+                                matches!(
+                                    self.data_of(declaration),
+                                    NodeData::VariableDeclaration(data)
+                                        if data.r#type.is_none() && data.initializer.is_none()
+                                )
+                            });
+                    if is_auto_var {
+                        return Err(Unsupported::new(
+                            "[FLOW M5] untyped-call 2347 over an auto-typed callee \
+                             (checkNonNullExpression error-face unmodeled)",
+                        ));
+                    }
+                }
+            }
             // 77014-77016: 2347 on non-error targets with typeArguments.
             if func_type != self.tables.intrinsics.error && type_arguments.is_some() {
                 self.error_at(

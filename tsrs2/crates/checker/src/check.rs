@@ -360,34 +360,26 @@ impl<'a> CheckerState<'a> {
     fn check_source_element_worker(&mut self, node: NodeId) -> CheckResult2<()> {
         match self.kind_of(node) {
             SyntaxKind::TypeParameter => self.check_type_parameter(node),
-            SyntaxKind::Parameter => self.source_element_stub("checkParameter", "5.8"),
-            SyntaxKind::PropertyDeclaration => {
-                self.source_element_stub("checkPropertyDeclaration", "5.8")
-            }
-            SyntaxKind::PropertySignature => {
-                self.source_element_stub("checkPropertySignature", "5.8")
-            }
+            SyntaxKind::Parameter => self.check_parameter(node),
+            SyntaxKind::PropertyDeclaration => self.check_property_declaration(node),
+            SyntaxKind::PropertySignature => self.check_property_signature(node),
             SyntaxKind::ConstructorType
             | SyntaxKind::FunctionType
             | SyntaxKind::CallSignature
             | SyntaxKind::ConstructSignature
-            | SyntaxKind::IndexSignature => {
-                self.source_element_stub("checkSignatureDeclaration", "5.8")
-            }
+            | SyntaxKind::IndexSignature => self.check_signature_declaration(node),
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-                self.source_element_stub("checkMethodDeclaration", "5.8")
+                self.check_method_declaration(node)
             }
             SyntaxKind::ClassStaticBlockDeclaration => {
-                self.source_element_stub("checkClassStaticBlockDeclaration", "5.8")
+                self.check_class_static_block_declaration(node)
             }
-            SyntaxKind::Constructor => {
-                self.source_element_stub("checkConstructorDeclaration", "5.8")
-            }
+            SyntaxKind::Constructor => self.check_constructor_declaration(node),
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                self.source_element_stub("checkAccessorDeclaration", "5.8")
+                self.check_accessor_declaration(node)
             }
             SyntaxKind::TypeReference => self.check_type_reference_node(node),
-            SyntaxKind::TypePredicate => self.source_element_stub("checkTypePredicate", "5.8"),
+            SyntaxKind::TypePredicate => self.check_type_predicate(node),
             SyntaxKind::TypeQuery => self.check_type_query(node),
             SyntaxKind::TypeLiteral => self.check_type_literal(node),
             SyntaxKind::ArrayType => self.check_array_type(node),
@@ -425,9 +417,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::NamedTupleMember => self.check_named_tuple_member(node),
             SyntaxKind::IndexedAccessType => self.check_indexed_access_type(node),
             SyntaxKind::MappedType => self.check_mapped_type(node),
-            SyntaxKind::FunctionDeclaration => {
-                self.source_element_stub("checkFunctionDeclaration", "5.8")
-            }
+            SyntaxKind::FunctionDeclaration => self.check_function_declaration(node),
             SyntaxKind::Block | SyntaxKind::ModuleBlock => self.check_block(node),
             SyntaxKind::VariableStatement => self.check_variable_statement(node),
             SyntaxKind::ExpressionStatement => self.check_expression_statement(node),
@@ -472,9 +462,7 @@ impl<'a> CheckerState<'a> {
                 self.check_grammar_statement_in_ambient_context(node);
                 Ok(())
             }
-            SyntaxKind::MissingDeclaration => {
-                self.source_element_stub("checkMissingDeclaration", "5.8")
-            }
+            SyntaxKind::MissingDeclaration => self.check_missing_declaration(node),
             // Tokens (incl. the EndOfFileToken pass) and every kind
             // outside tsc's switch: fall through with no work.
             _ => Ok(()),
@@ -592,7 +580,7 @@ impl<'a> CheckerState<'a> {
     /// createCheckTypeParameterDiagnostic closures run inline (eager
     /// addLazyDiagnostic identity — see check_type_parameter), which
     /// preserves the seenDefault fold order exactly.
-    fn check_type_parameters(&mut self, declarations: &[NodeId]) -> CheckResult2<()> {
+    pub(crate) fn check_type_parameters(&mut self, declarations: &[NodeId]) -> CheckResult2<()> {
         let mut seen_default = false;
         for (index, &node) in declarations.iter().enumerate() {
             // Direct checkTypeParameter call (no checkSourceElement
@@ -1843,7 +1831,16 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         error_node: NodeId,
     ) -> CheckResult2<bool> {
-        if !self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
+        // Object AND intersection sources reach tsc's properties walk
+        // (getUnmatchedProperties works over getPropertiesOfType);
+        // unions/primitives keep the generic head (5.4 pin: unionDE =
+        // c stays 2322).
+        if !self
+            .tables
+            .flags_of(source)
+            .intersects(TypeFlags::from_bits(
+                TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
+            ))
             || !self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
         {
             return Ok(false);
@@ -2046,13 +2043,60 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getSymbolOfDeclaration (49936) — the binder's node.symbol
-    /// through the getMergedSymbol chase (getLateBoundSymbol elided
-    /// with late binding; JS aliasing arms with the JS residual).
-    pub(crate) fn get_symbol_of_declaration(&self, node: NodeId) -> CheckResult2<SymbolId> {
+    /// through getLateBoundSymbol (57770) and the getMergedSymbol
+    /// chase (JS aliasing arms with the JS residual).
+    pub(crate) fn get_symbol_of_declaration(&mut self, node: NodeId) -> CheckResult2<SymbolId> {
         let symbol = self.node_symbol(node).ok_or_else(|| {
             Unsupported::new("declaration without a bound symbol (parse-recovery tree)")
         })?;
+        let symbol = self.get_late_bound_symbol(symbol)?;
         Ok(self.get_merged_symbol(symbol))
+    }
+
+    /// tsc-port: getLateBoundSymbol @6.0.3
+    /// tsc-hash: 5a307eb64aef32672fb0364160c3b6f3c2a40a7797ccf19bc86145d1b04c49b8
+    /// tsc-span: _tsc.js:57770-57784
+    ///
+    /// Forcing the parent's member/export tables runs the late-binding
+    /// loop, which stamps links.lateSymbol on the early "__computed"
+    /// symbols; a symbol left unstamped self-resolves (tsc
+    /// `links.lateSymbol ||= symbol`) — the stamp-as-self write is
+    /// elided (pure memo).
+    pub(crate) fn get_late_bound_symbol(&mut self, symbol: SymbolId) -> CheckResult2<SymbolId> {
+        let data = self.binder.symbol(symbol);
+        if !data
+            .flags
+            .intersects(tsrs2_types::SymbolFlags::CLASS_MEMBER)
+            || data.escaped_name != "__computed"
+        {
+            return Ok(symbol);
+        }
+        if self.links.symbol(symbol).late_symbol.is_none()
+            && data
+                .declarations
+                .clone()
+                .iter()
+                .any(|&declaration| self.has_late_bindable_ast_name(declaration))
+        {
+            let parent = data.parent;
+            if let Some(parent) = parent {
+                let parent = self.get_merged_symbol(parent);
+                let source = self.binder.symbol(symbol).declarations.clone();
+                let is_static = source.iter().any(|&declaration| {
+                    tsrs2_binder::node_util::has_syntactic_modifier(
+                        self.binder.source_of_node(declaration),
+                        declaration,
+                        tsrs2_types::ModifierFlags::STATIC,
+                    )
+                });
+                if is_static {
+                    self.get_exports_of_symbol(parent)?;
+                } else {
+                    self.get_members_of_symbol(parent)?;
+                }
+            }
+        }
+        Ok(self.links.symbol(symbol).late_symbol.unwrap_or(symbol))
     }
 
     // ---- typeToString (the 5.4 display slice) ----

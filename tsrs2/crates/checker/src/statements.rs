@@ -495,7 +495,7 @@ impl<'a> CheckerState<'a> {
         if node_kind != SyntaxKind::PropertyDeclaration
             && node_kind != SyntaxKind::PropertySignature
         {
-            self.source_element_stub("checkExportsOnMergedDeclarations", "5.8b")?;
+            self.check_exports_on_merged_declarations(node)?;
             if node_kind == SyntaxKind::VariableDeclaration
                 || node_kind == SyntaxKind::BindingElement
             {
@@ -968,7 +968,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkAmbientInitializer @6.0.3
     /// tsc-hash: 0fb8e6d9740ef01fa649156af905db37144d09b43fc20b0516dbaea79a377df8
     /// tsc-span: _tsc.js:90049-90062
-    fn check_ambient_initializer(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn check_ambient_initializer(&mut self, node: NodeId) -> CheckResult2<bool> {
         let Some(initializer) = self.initializer_of_node(node) else {
             return Ok(false);
         };
@@ -1725,7 +1725,9 @@ impl<'a> CheckerState<'a> {
 
     /// Any descendant (or the node itself) is a narrowable reference —
     /// the broad FP=0-side probe feeding the declaration-row gate.
-    fn subtree_mentions_narrowable_reference(&self, root: NodeId) -> bool {
+    /// tsrs-native: [FLOW M5] containment probe (no tsc counterpart
+    /// — tsc consults real flow types).
+    pub(crate) fn subtree_mentions_narrowable_reference(&self, root: NodeId) -> bool {
         let mut stack = vec![root];
         while let Some(node) = stack.pop() {
             let source = self.binder.source_of_node(node);
@@ -1791,7 +1793,10 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc hasQuestionToken — the declaration kinds carrying one.
-    fn has_question_token(&self, node: NodeId) -> bool {
+    /// tsc-port: hasQuestionToken @6.0.3
+    /// tsc-hash: 06c9b820c0d5a73c3c11c26fc46049a0742889798513f8030e08f73038a580c3
+    /// tsc-span: _tsc.js:15286-15298
+    pub(crate) fn has_question_token(&self, node: NodeId) -> bool {
         match self.data_of(node) {
             NodeData::Parameter(data) => data.question_token.is_some(),
             NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
@@ -2879,18 +2884,17 @@ mod tests {
     }
 
     #[test]
-    fn renamed_signature_binding_2842_waits_on_the_parameter_arm() {
+    fn renamed_signature_binding_2842_reports_since_the_parameter_arm() {
         // Oracle p5: tsc reports 2842 at `b` (offset 24) and the
-        // isReferenced gate suppresses h2's `c`. The drain + gate are
-        // live (worker tail, risk §14.16), but the PUSHER rides
-        // checkParameter → checkVariableLikeDeclaration (§5, 5.8b) —
-        // until then the row is a recorded FN. This pin flips to
-        // [(2842, 24, 1)] when 5.8b lands.
+        // isReferenced gate suppresses h2's `c`. Drain + gate landed
+        // at 5.8a (risk §14.16); the pusher (checkParameter →
+        // checkVariableLikeDeclaration) went live at 5.8b and flipped
+        // this pin from [].
         assert_eq!(
             checked_rows(
                 "declare function h({ a: b }: { a: number }): void;\ndeclare function h2({ a: c }: { a: number }, d: typeof c): void;\n"
             ),
-            []
+            [(2842, 24, 1)]
         );
     }
 

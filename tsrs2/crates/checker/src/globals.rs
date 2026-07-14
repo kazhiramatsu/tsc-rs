@@ -76,6 +76,10 @@ pub(crate) struct GlobalTypeMemos {
     /// assignment: a noLib miss reports 2318 once and memoizes the
     /// empty-object fallback.
     template_strings_array: Option<TypeId>,
+    /// deferredGlobalPromiseConstructorLikeType (60769) — `||`
+    /// memoized (only a SUCCESS memoizes; emptyObjectType fallback
+    /// per call).
+    promise_constructor_like: Option<TypeId>,
 }
 
 impl<'a> CheckerState<'a> {
@@ -596,6 +600,24 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         Ok(self.empty_generic_type)
+    }
+
+    /// tsc-port: getGlobalPromiseConstructorLikeType @6.0.3
+    /// tsc-hash: 919e84bd89382839dcfc952131fa3361aa7e6bad292e3982ff86788fdac1bdd9
+    /// tsc-span: _tsc.js:60769-60776
+    pub(crate) fn get_global_promise_constructor_like_type(
+        &mut self,
+        report_errors: bool,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.promise_constructor_like {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("PromiseConstructorLike", 0, report_errors)?;
+        if let Some(resolved) = resolved {
+            self.global_type_memos.promise_constructor_like = Some(resolved);
+            return Ok(resolved);
+        }
+        Ok(self.empty_object_type)
     }
 
     /// tsc-port: getGlobalIteratorType @6.0.3

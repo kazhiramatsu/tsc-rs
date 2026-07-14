@@ -42,8 +42,12 @@ pub struct IterationTypes {
 }
 
 impl IterationTypes {
-    /// The field selector getIterationTypesKeyFromIterationTypeKind
-    /// (90932-90941) indexes with.
+    /// tsc-port: getIterationTypesKeyFromIterationTypeKind @6.0.3
+    /// tsc-hash: dbe00f29d8431167568c07e26f9a3a2c0f16ca48bfcc6b833d68471e22fd8949
+    /// tsc-span: _tsc.js:90932-90941
+    ///
+    /// The field selector, applied directly instead of returning a
+    /// key string.
     pub fn by_kind(self, kind: IterationTypeKind) -> TypeId {
         match kind {
             IterationTypeKind::RETURN => self.return_type,
@@ -64,6 +68,8 @@ pub enum IterationTypesResult {
 }
 
 impl IterationTypesResult {
+    /// tsrs-native: the `=== noIterationTypes ? undefined : x` unwrap
+    /// every tsc consumer writes inline.
     pub fn types(self) -> Option<IterationTypes> {
         match self {
             IterationTypesResult::No => None,

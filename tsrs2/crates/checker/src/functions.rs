@@ -28,6 +28,7 @@ use tsrs2_diags::DiagnosticMessage;
 
 pub(crate) const FUNCTION_FLAGS_GENERATOR: u32 = 1;
 pub(crate) const FUNCTION_FLAGS_ASYNC: u32 = 2;
+pub(crate) use crate::contextual::FUNCTION_FLAGS_INVALID;
 
 impl<'a> CheckerState<'a> {
     // ---- the trio ----
@@ -236,7 +237,7 @@ impl<'a> CheckerState<'a> {
         );
         let function_flags = self.get_function_flags(node);
         let return_type = self.get_return_type_from_annotation(node)?;
-        self.check_all_code_paths_in_non_void_function_return_or_throw(node, return_type);
+        self.check_all_code_paths_in_non_void_function_return_or_throw(node, return_type)?;
         let body = node_util::body_of(self.binder.source_of_node(node), node);
         let Some(body) = body else {
             return Ok(());
@@ -271,21 +272,6 @@ impl<'a> CheckerState<'a> {
 
     /// checkSignatureDeclaration (86971) — 5.8-DECL no-op hook.
     fn check_signature_declaration_stub(&mut self, _node: NodeId) {}
-
-    /// tsc-port: checkAllCodePathsInNonVoidFunctionReturnOrThrow @6.0.3
-    /// tsc-hash: 608b7fb1571a161314fb3aa82e2817f347b15e39244a275b890104c5423e2dc6
-    /// tsc-span: _tsc.js:79075-79108
-    ///
-    /// [FLOW M5] — the whole lazy closure reads
-    /// functionHasImplicitReturn/isReachableFlowNode; stubbed out
-    /// entirely per the extraction doc §0 (FN on 2355/2366/2534/7030
-    /// until M5).
-    fn check_all_code_paths_in_non_void_function_return_or_throw(
-        &mut self,
-        _func: NodeId,
-        _return_type: Option<TypeId>,
-    ) {
-    }
 
     // ---- contextual parameter assignment ----
 
@@ -900,16 +886,11 @@ impl<'a> CheckerState<'a> {
         out
     }
 
-    /// tsc-port: functionHasImplicitReturn @6.0.3
-    /// tsc-hash: 82639fc96cdd05a5d0f6cec8552ebe828c87898536a91ec4ca88e3d2f606eec1
-    /// tsc-span: _tsc.js:78956-78958
-    ///
-    /// [FLOW M5] stub: endFlowNode reachability answers false until
-    /// the flow graph lands — implicit-return undefined unions are FN
-    /// (divergent fn types stay contained behind the T2 signature
-    /// display).
-    fn function_has_implicit_return_stub(&self, _func: NodeId) -> bool {
-        false
+    /// The 5.5f inference read now routes through the binder flag
+    /// (function_has_implicit_return) — kept as a named seam so the M5
+    /// flow-refined isReachableFlowNode swap has one site.
+    fn function_has_implicit_return_stub(&self, func: NodeId) -> bool {
+        self.function_has_implicit_return(func)
     }
 
     /// tsc-port: checkAndAggregateReturnExpressionTypes @6.0.3
@@ -1362,6 +1343,18 @@ impl<'a> CheckerState<'a> {
         } else {
             effective_expr
         };
+        // [FLOW M5] second face for returns (the 5.5e `=` precedent):
+        // tsc consumes the FLOW type of a narrowable returned
+        // reference — a failed verdict over the DECLARED union/unknown
+        // type (or one whose subtree narrows) may be tsc-clean.
+        if expr.is_some_and(|expr| self.subtree_mentions_narrowable_reference(expr))
+            && self.enclosing_scope_has_flow_guards(node)
+            && !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
+        {
+            return Err(Unsupported::new(
+                "[FLOW M5] failed return from a narrowable union/unknown-typed reference",
+            ));
+        }
         // checkTypeAssignableToAndOptionallyElaborate — the 5.4
         // head-only slice; `effective_expr` feeds only the elided
         // elaboration tail.
@@ -1715,6 +1708,2020 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    // ---- §5 member/function declaration drivers (5.8b) ----
+
+    /// tsc-port: checkParameter @6.0.3
+    /// tsc-hash: 1efd72b631aa59c1a5c9b853f95ad970dd43af2b03a95cb20024b2da103444da
+    /// tsc-span: _tsc.js:81170-81205
+    ///
+    /// checkGrammarModifiers rides the M7-stub hook; the
+    /// erasableSyntaxOnly row is option-absent (dead, §13 audit).
+    pub(crate) fn check_parameter(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_grammar_modifiers(node);
+        self.check_variable_like_declaration(node)?;
+        let Some(func) = self.get_containing_function(node) else {
+            return Err(Unsupported::new(
+                "parameter outside a function (parse recovery)",
+            ));
+        };
+        let source = self.binder.source_of_node(node);
+        let func_kind = self.kind_of(func);
+        let func_body = node_util::body_of(self.binder.source_of_node(func), func);
+        let (name, dot_dot_dot_token, question_token, initializer) = match self.data_of(node) {
+            NodeData::Parameter(data) => (
+                data.name,
+                data.dot_dot_dot_token,
+                data.question_token,
+                data.initializer,
+            ),
+            _ => (None, None, None, None),
+        };
+        if node_util::has_syntactic_modifier(
+            source,
+            node,
+            tsrs2_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+        ) {
+            if !(func_kind == SyntaxKind::Constructor && func_body.is_some()) {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::A_parameter_property_is_only_allowed_in_a_constructor_implementation,
+                    &[],
+                );
+            }
+            if func_kind == SyntaxKind::Constructor {
+                if let Some(name) = name {
+                    if self.kind_of(name) == SyntaxKind::Identifier
+                        && self.identifier_text_of(name) == Some("constructor")
+                    {
+                        self.error_at(
+                            Some(name),
+                            &diagnostics::constructor_cannot_be_used_as_a_parameter_property_name,
+                            &[],
+                        );
+                    }
+                }
+            }
+        }
+        let name_is_pattern = name.is_some_and(|name| {
+            node_util::is_binding_pattern(self.binder.source_of_node(name), name)
+        });
+        if initializer.is_none()
+            && question_token.is_some()
+            && name_is_pattern
+            && func_body.is_some()
+        {
+            self.error_at(
+                Some(node),
+                &diagnostics::A_binding_pattern_parameter_cannot_be_optional_in_an_implementation_signature,
+                &[],
+            );
+        }
+        if let Some(name) = name {
+            if self.kind_of(name) == SyntaxKind::Identifier {
+                let text = self.identifier_text_of(name).map(str::to_owned);
+                if matches!(text.as_deref(), Some("this") | Some("new")) {
+                    let parameters = match self.data_of(func) {
+                        NodeData::FunctionDeclaration(data) => data.parameters,
+                        NodeData::FunctionExpression(data) => data.parameters,
+                        NodeData::ArrowFunction(data) => data.parameters,
+                        NodeData::MethodDeclaration(data) => data.parameters,
+                        NodeData::MethodSignature(data) => data.parameters,
+                        NodeData::Constructor(data) => data.parameters,
+                        NodeData::GetAccessor(data) => data.parameters,
+                        NodeData::SetAccessor(data) => data.parameters,
+                        NodeData::CallSignature(data) => data.parameters,
+                        NodeData::ConstructSignature(data) => data.parameters,
+                        NodeData::FunctionType(data) => data.parameters,
+                        NodeData::ConstructorType(data) => data.parameters,
+                        NodeData::IndexSignature(data) => data.parameters,
+                        _ => None,
+                    };
+                    if self.nodes_of(parameters).first() != Some(&node) {
+                        self.error_at(
+                            Some(node),
+                            &diagnostics::A_0_parameter_must_be_the_first_parameter,
+                            &[text.as_deref().unwrap_or("")],
+                        );
+                    }
+                    if matches!(
+                        func_kind,
+                        SyntaxKind::Constructor
+                            | SyntaxKind::ConstructSignature
+                            | SyntaxKind::ConstructorType
+                    ) {
+                        self.error_at(
+                            Some(node),
+                            &diagnostics::A_constructor_cannot_have_a_this_parameter,
+                            &[],
+                        );
+                    }
+                    if func_kind == SyntaxKind::ArrowFunction {
+                        self.error_at(
+                            Some(node),
+                            &diagnostics::An_arrow_function_cannot_have_a_this_parameter,
+                            &[],
+                        );
+                    }
+                    if matches!(func_kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor) {
+                        self.error_at(
+                            Some(node),
+                            &diagnostics::get_and_set_accessors_cannot_declare_this_parameters,
+                            &[],
+                        );
+                    }
+                }
+            }
+        }
+        if dot_dot_dot_token.is_some() && !name_is_pattern {
+            let symbol = self.get_symbol_of_declaration(node)?;
+            let raw = self.get_type_of_symbol(symbol)?;
+            let reduced = self.get_reduced_type(raw)?;
+            let any_readonly_array = self.any_readonly_array_type()?;
+            if !self.is_type_assignable_to(reduced, any_readonly_array)? {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::A_rest_parameter_must_be_of_an_array_type,
+                    &[],
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkSignatureDeclaration @6.0.3
+    /// tsc-hash: c740ef163bdd457d25dd1f9a18e6dde5f7cb24f26cdba99764015af155055c19
+    /// tsc-span: _tsc.js:81289-81355
+    ///
+    /// Emit-helper probes are importHelpers-gated (no-op);
+    /// checkUnmatchedJSDocParameters is JS-only; the JSDoc type-tag
+    /// return-location indirection is JS-only (returnTypeErrorLocation
+    /// === returnTypeNode in TS files);
+    /// registerForUnusedIdentifiersCheck is M7-inert. The lazy tail
+    /// runs eager (the 5.4 addLazyDiagnostic decision).
+    pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        let kind = self.kind_of(node);
+        if kind == SyntaxKind::IndexSignature {
+            self.check_grammar_index_signature(node)?;
+        } else if matches!(
+            kind,
+            SyntaxKind::FunctionType
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::ConstructorType
+                | SyntaxKind::CallSignature
+                | SyntaxKind::Constructor
+                | SyntaxKind::ConstructSignature
+        ) {
+            self.check_grammar_function_like_declaration(node)?;
+        }
+        let (type_parameters, parameters, type_node) = match self.data_of(node) {
+            NodeData::FunctionDeclaration(data) => {
+                (data.type_parameters, data.parameters, data.r#type)
+            }
+            NodeData::FunctionExpression(data) => {
+                (data.type_parameters, data.parameters, data.r#type)
+            }
+            NodeData::ArrowFunction(data) => (data.type_parameters, data.parameters, data.r#type),
+            NodeData::MethodDeclaration(data) => {
+                (data.type_parameters, data.parameters, data.r#type)
+            }
+            NodeData::MethodSignature(data) => (data.type_parameters, data.parameters, data.r#type),
+            NodeData::Constructor(data) => (data.type_parameters, data.parameters, data.r#type),
+            NodeData::GetAccessor(data) => (data.type_parameters, data.parameters, data.r#type),
+            NodeData::SetAccessor(data) => (data.type_parameters, data.parameters, data.r#type),
+            NodeData::CallSignature(data) => (data.type_parameters, data.parameters, data.r#type),
+            NodeData::ConstructSignature(data) => {
+                (data.type_parameters, data.parameters, data.r#type)
+            }
+            NodeData::FunctionType(data) => (data.type_parameters, data.parameters, data.r#type),
+            NodeData::ConstructorType(data) => (data.type_parameters, data.parameters, data.r#type),
+            NodeData::IndexSignature(data) => (data.type_parameters, data.parameters, data.r#type),
+            _ => (None, None, None),
+        };
+        let type_parameter_nodes = self.nodes_of(type_parameters);
+        self.check_type_parameters(&type_parameter_nodes)?;
+        // forEach(node.parameters, checkParameter) — DIRECT calls with
+        // per-parameter Err containment (the checkTypeParameters
+        // precedent: one out-of-slice parameter must not silence its
+        // siblings).
+        for parameter in self.nodes_of(parameters) {
+            let _ = self.check_parameter(parameter);
+        }
+        if type_node.is_some() {
+            self.check_source_element(type_node);
+        }
+        self.check_collision_with_arguments_in_generated_code(node);
+        let return_type_node = type_node;
+        if self
+            .options
+            .strict_option_value(self.options.no_implicit_any)
+            && return_type_node.is_none()
+        {
+            match kind {
+                SyntaxKind::ConstructSignature => {
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Construct_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type,
+                        &[],
+                    );
+                }
+                SyntaxKind::CallSignature => {
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Call_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type,
+                        &[],
+                    );
+                }
+                _ => {}
+            }
+        }
+        if let Some(return_type_node) = return_type_node {
+            let function_flags = self.get_function_flags(node);
+            if function_flags & (FUNCTION_FLAGS_INVALID | FUNCTION_FLAGS_GENERATOR)
+                == FUNCTION_FLAGS_GENERATOR
+            {
+                let return_type = self.get_type_from_type_node(return_type_node)?;
+                if return_type == self.tables.intrinsics.void {
+                    self.error_at(
+                        Some(return_type_node),
+                        &diagnostics::A_generator_cannot_have_a_void_type_annotation,
+                        &[],
+                    );
+                } else {
+                    self.check_generator_instantiation_assignability_to_return_type(
+                        return_type,
+                        function_flags,
+                        Some(return_type_node),
+                    )?;
+                }
+            } else if function_flags & (FUNCTION_FLAGS_ASYNC | FUNCTION_FLAGS_GENERATOR)
+                == FUNCTION_FLAGS_ASYNC
+            {
+                self.check_async_function_return_type(node, return_type_node)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkCollisionWithArgumentsInGeneratedCode @6.0.3
+    /// tsc-hash: 2a65d820227a75f185de001f3818cd4a5b17061d5288875c90b314b5a89e8b16
+    /// tsc-span: _tsc.js:83229-83238
+    ///
+    /// Dead at target >= ES2015; LIVE for the ES5 fixture matrix. The
+    /// row is errorSkippedOn("noEmit").
+    fn check_collision_with_arguments_in_generated_code(&mut self, node: NodeId) {
+        if self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2015 {
+            return;
+        }
+        let source = self.binder.source_of_node(node);
+        let parameters = match self.data_of(node) {
+            NodeData::FunctionDeclaration(data) => data.parameters,
+            NodeData::FunctionExpression(data) => data.parameters,
+            NodeData::ArrowFunction(data) => data.parameters,
+            NodeData::MethodDeclaration(data) => data.parameters,
+            NodeData::Constructor(data) => data.parameters,
+            NodeData::GetAccessor(data) => data.parameters,
+            NodeData::SetAccessor(data) => data.parameters,
+            _ => None,
+        };
+        let parameter_nodes = self.nodes_of(parameters);
+        let has_rest = parameter_nodes.iter().any(|&parameter| {
+            matches!(
+                self.data_of(parameter),
+                NodeData::Parameter(data) if data.dot_dot_dot_token.is_some()
+            )
+        });
+        if !has_rest
+            || NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
+            || node_util::body_of(source, node).is_none()
+        {
+            return;
+        }
+        for parameter in parameter_nodes {
+            let name = match self.data_of(parameter) {
+                NodeData::Parameter(data) => data.name,
+                _ => None,
+            };
+            let Some(name) = name else { continue };
+            if self.kind_of(name) == SyntaxKind::Identifier
+                && self.identifier_text_of(name) == Some("arguments")
+            {
+                self.error_skipped_on_no_emit(
+                    Some(name),
+                    &diagnostics::Duplicate_identifier_arguments_Compiler_uses_arguments_to_initialize_rest_parameters,
+                    &[],
+                );
+            }
+        }
+    }
+
+    /// tsc-port: checkAsyncFunctionReturnType @6.0.3
+    /// tsc-hash: 284148376bf3f6e79a983118a7b503673819d16045bbc500d5ada6a482e2b2aa
+    /// tsc-span: _tsc.js:82498-82579
+    ///
+    /// returnTypeNode === returnTypeErrorLocation in TS files, so
+    /// reportErrorForInvalidReturnType reduces to a plain error at the
+    /// return-type node. markLinkedReferences is emit-only (no-op).
+    /// The ES5 relation's errorInfo chain is location-equal here —
+    /// tsc's closure answers undefined — so the head carries alone.
+    fn check_async_function_return_type(
+        &mut self,
+        node: NodeId,
+        return_type_node: NodeId,
+    ) -> CheckResult2<()> {
+        let return_type = self.get_type_from_type_node(return_type_node)?;
+        if self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2015 {
+            if return_type == self.tables.intrinsics.error {
+                return Ok(());
+            }
+            let global_promise_type = self.get_global_promise_type(/*report_errors*/ true)?;
+            if let Some(global_promise_type) = global_promise_type {
+                if !self.is_reference_to_type(return_type, global_promise_type) {
+                    let awaited = self.get_awaited_type_no_alias(return_type, None)?;
+                    let display =
+                        self.type_to_string_slice(awaited.unwrap_or(self.tables.intrinsics.void))?;
+                    self.error_at(
+                        Some(return_type_node),
+                        &diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type_Did_you_mean_to_write_Promise_0,
+                        &[&display],
+                    );
+                    return Ok(());
+                }
+            }
+        } else {
+            if return_type == self.tables.intrinsics.error {
+                return Ok(());
+            }
+            let promise_constructor_name = self.get_entity_name_from_type_node(return_type_node);
+            let Some(promise_constructor_name) = promise_constructor_name else {
+                let display = self.type_to_string_slice(return_type)?;
+                self.error_at(
+                    Some(return_type_node),
+                    &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+                    &[&display],
+                );
+                return Ok(());
+            };
+            let promise_constructor_symbol = self.resolve_entity_name(
+                promise_constructor_name,
+                SymbolFlags::VALUE,
+                /*ignore_errors*/ true,
+                None,
+            );
+            let promise_constructor_type = match promise_constructor_symbol {
+                Some(symbol) => self.get_type_of_symbol(symbol)?,
+                None => self.tables.intrinsics.error,
+            };
+            let entity_text = node_util::declaration_name_to_string(
+                self.binder.source_of_node(promise_constructor_name),
+                Some(promise_constructor_name),
+            );
+            if promise_constructor_type == self.tables.intrinsics.error {
+                let is_plain_promise = self.kind_of(promise_constructor_name)
+                    == SyntaxKind::Identifier
+                    && self.identifier_text_of(promise_constructor_name) == Some("Promise")
+                    && {
+                        let target = self.tables.reference_target(return_type);
+                        self.get_global_promise_type(/*report_errors*/ false)? == Some(target)
+                    };
+                if is_plain_promise {
+                    self.error_at(
+                        Some(return_type_node),
+                        &diagnostics::An_async_function_or_method_in_ES5_requires_the_Promise_constructor_Make_sure_you_have_a_declaration_for_the_Promise_constructor_or_include_ES2015_in_your_lib_option,
+                        &[],
+                    );
+                } else {
+                    self.error_at(
+                        Some(return_type_node),
+                        &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+                        &[&entity_text],
+                    );
+                }
+                return Ok(());
+            }
+            let global_promise_constructor_like =
+                self.get_global_promise_constructor_like_type(/*report_errors*/ true)?;
+            if global_promise_constructor_like == self.empty_object_type {
+                self.error_at(
+                    Some(return_type_node),
+                    &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+                    &[&entity_text],
+                );
+                return Ok(());
+            }
+            if !self.check_type_assignable_to(
+                promise_constructor_type,
+                global_promise_constructor_like,
+                Some(return_type_node),
+                &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+            )? {
+                return Ok(());
+            }
+            // The locals collision row (82559-82563).
+            let root_name = self.get_first_identifier(promise_constructor_name);
+            let root_text = self
+                .identifier_text_of(root_name)
+                .map(str::to_owned)
+                .unwrap_or_default();
+            let colliding = self
+                .binder
+                .locals_of(node)
+                .and_then(|locals| locals.get(root_text.as_str()).copied());
+            if let Some(colliding) = colliding {
+                let colliding = self.get_merged_symbol(colliding);
+                if self
+                    .binder
+                    .symbol(colliding)
+                    .flags
+                    .intersects(SymbolFlags::VALUE)
+                {
+                    let value_declaration = self.binder.symbol(colliding).value_declaration;
+                    self.error_at(
+                        value_declaration,
+                        &diagnostics::Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions,
+                        &[&root_text, &entity_text],
+                    );
+                    return Ok(());
+                }
+            }
+        }
+        self.check_awaited_type(
+            return_type,
+            /*with_alias*/ false,
+            node,
+            &diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
+        )?;
+        Ok(())
+    }
+
+    /// getEntityNameFromTypeNode (14623-14635), TS arms only.
+    fn get_entity_name_from_type_node(&self, node: NodeId) -> Option<NodeId> {
+        match self.data_of(node) {
+            NodeData::TypeReference(data) => data.type_name,
+            NodeData::ExpressionWithTypeArguments(data) => data
+                .expression
+                .filter(|&expression| self.is_entity_name_expression(expression)),
+            _ => matches!(
+                self.kind_of(node),
+                SyntaxKind::Identifier | SyntaxKind::QualifiedName
+            )
+            .then_some(node),
+        }
+    }
+
+    /// getFirstIdentifier (the leftmost name of an entity chain).
+    fn get_first_identifier(&self, name: NodeId) -> NodeId {
+        let mut current = name;
+        loop {
+            match self.data_of(current) {
+                NodeData::QualifiedName(data) => match data.left {
+                    Some(left) => current = left,
+                    None => return current,
+                },
+                NodeData::PropertyAccessExpression(data) => match data.expression {
+                    Some(expression) => current = expression,
+                    None => return current,
+                },
+                _ => return current,
+            }
+        }
+    }
+
+    /// hasBindableName (57638-57640): !hasDynamicName ||
+    /// hasLateBindableName (AST half + the memoizing type half).
+    /// tsc-port: hasBindableName @6.0.3
+    /// tsc-hash: 45fe3426c08797ee297d285a79977d446d2cda77badbe86fcca00450c58d1c3b
+    /// tsc-span: _tsc.js:57643-57645
+    pub(crate) fn has_bindable_name(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let source = self.binder.source_of_node(node);
+        if !node_util::has_dynamic_name(source, node) {
+            return Ok(true);
+        }
+        if !self.has_late_bindable_ast_name(node) {
+            return Ok(false);
+        }
+        let name = self
+            .name_of_node(node)
+            .expect("dynamic names are present names");
+        if self.kind_of(name) != SyntaxKind::ComputedPropertyName {
+            // Element-access declaration names are JS-only shapes.
+            return Ok(false);
+        }
+        let name_type = self.check_computed_property_name(name)?;
+        Ok(self.property_name_from_type_usable(name_type).is_some())
+    }
+
+    /// tsc-port: functionHasImplicitReturn @6.0.3
+    /// tsc-hash: 82639fc96cdd05a5d0f6cec8552ebe828c87898536a91ec4ca88e3d2f606eec1
+    /// tsc-span: _tsc.js:78956-78958
+    ///
+    /// tsc reads endFlowNode reachability; the binder stamps
+    /// HAS_IMPLICIT_RETURN under the SAME reachability verdict at bind
+    /// time (containers.rs), so the flag substitutes — the residual
+    /// delta is isReachableFlowNode's checker-side refinement
+    /// (never-returning CALLS via getEffectsSignature, M5), triaged at
+    /// the FP gate. Distinct from the 5.5f inference stub
+    /// (function_has_implicit_return_stub), which stays false until M5
+    /// flips return-union inference deliberately.
+    fn function_has_implicit_return(&self, func: NodeId) -> bool {
+        NodeFlags::from_bits(self.node_flags(func)).intersects(NodeFlags::HAS_IMPLICIT_RETURN)
+    }
+
+    /// tsc-port: checkAllCodePathsInNonVoidFunctionReturnOrThrow @6.0.3
+    /// tsc-hash: 608b7fb1571a161314fb3aa82e2817f347b15e39244a275b890104c5423e2dc6
+    /// tsc-span: _tsc.js:79075-79108
+    ///
+    /// Eager (addLazyDiagnostic identity); the noImplicitReturns arm
+    /// is option-absent (dead, §13 audit).
+    pub(crate) fn check_all_code_paths_in_non_void_function_return_or_throw(
+        &mut self,
+        func: NodeId,
+        return_type: Option<TypeId>,
+    ) -> CheckResult2<()> {
+        let function_flags = self.get_function_flags(func);
+        let ty = match return_type {
+            Some(return_type) => self.unwrap_return_type(return_type, function_flags)?,
+            None => None,
+        };
+        if let Some(ty) = ty {
+            if self.maybe_type_of_kind(ty, TypeFlags::VOID)
+                || self.tables.flags_of(ty).intersects(TypeFlags::from_bits(
+                    TypeFlags::ANY.bits() | TypeFlags::UNDEFINED.bits(),
+                ))
+            {
+                return Ok(());
+            }
+        }
+        let source = self.binder.source_of_node(func);
+        let body = node_util::body_of(source, func);
+        if self.kind_of(func) == SyntaxKind::MethodSignature
+            || body.is_none()
+            || body.is_some_and(|body| self.kind_of(body) != SyntaxKind::Block)
+            || !self.function_has_implicit_return(func)
+        {
+            return Ok(());
+        }
+        // [FLOW M5] gate: tsc's functionHasImplicitReturn consults
+        // checker-side flow reachability (isReachableFlowNode), which
+        // refines the binder's verdict through EXHAUSTIVE SWITCHES and
+        // never-returning CALLS (getEffectsSignature) — both invisible
+        // to the bind-time flag. A body containing either shape may be
+        // tsc-clean where the flag says reachable; contain those and
+        // keep the plain fall-through recoveries.
+        if self.body_contains_switch_or_statement_call(body.expect("checked above")) {
+            return Err(Unsupported::new(
+                "[FLOW M5] implicit-return verdict over a switch/call-bearing body \
+                 (isReachableFlowNode refinement)",
+            ));
+        }
+        let has_explicit_return =
+            NodeFlags::from_bits(self.node_flags(func)).intersects(NodeFlags::HAS_EXPLICIT_RETURN);
+        let error_node = self.type_annotation_of(func).unwrap_or(func);
+        if let Some(ty) = ty {
+            if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
+                self.error_at(
+                    Some(error_node),
+                    &diagnostics::A_function_returning_never_cannot_have_a_reachable_end_point,
+                    &[],
+                );
+                return Ok(());
+            }
+            if !has_explicit_return {
+                self.error_at(
+                    Some(error_node),
+                    &diagnostics::A_function_whose_declared_type_is_neither_undefined_void_nor_any_must_return_a_value,
+                    &[],
+                );
+                return Ok(());
+            }
+            let strict_null_checks = self
+                .options
+                .strict_option_value(self.options.strict_null_checks);
+            if strict_null_checks {
+                let undefined_type = self.tables.intrinsics.undefined;
+                if !self.is_type_assignable_to(undefined_type, ty)? {
+                    self.error_at(
+                        Some(error_node),
+                        &diagnostics::Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined,
+                        &[],
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// The [FLOW M5] reachability-refinement probe: any switch
+    /// statement or statement-position call in the body (stopping at
+    /// nested function boundaries).
+    fn body_contains_switch_or_statement_call(&self, body: NodeId) -> bool {
+        let source = self.binder.source_of_node(body);
+        let mut worklist = vec![body];
+        while let Some(node) = worklist.pop() {
+            match self.kind_of(node) {
+                SyntaxKind::SwitchStatement => return true,
+                SyntaxKind::ExpressionStatement => {
+                    if let NodeData::ExpressionStatement(data) = self.data_of(node) {
+                        if let Some(expression) = data.expression {
+                            if self.kind_of(expression) == SyntaxKind::CallExpression {
+                                return true;
+                            }
+                        }
+                    }
+                    tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+                        worklist.push(child);
+                        false
+                    });
+                }
+                kind if node_util::is_function_like_kind(kind) => {}
+                _ => {
+                    tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+                        worklist.push(child);
+                        false
+                    });
+                }
+            }
+        }
+        false
+    }
+
+    /// tsc-port: checkFunctionOrMethodDeclaration @6.0.3
+    /// tsc-hash: 2fbb401c655a6f56f2d5b09c206d2a1f2ef7791c58986f4371ad680c7021f07f
+    /// tsc-span: _tsc.js:82899-82941
+    ///
+    /// FUNCTION DECLARATION BODIES DRIVE EAGERLY here (the 5.5f
+    /// deferred path covers fn EXPRESSIONS only); the JSDoc type-tag
+    /// arm is JS-only. The lazy tail runs eager.
+    pub(crate) fn check_function_or_method_declaration(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<()> {
+        self.source_element_stub("checkDecorators", "5.8c")?;
+        self.check_signature_declaration(node)?;
+        let function_flags = self.get_function_flags(node);
+        let name = self.name_of_node(node);
+        if let Some(name) = name {
+            if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                self.check_computed_property_name(name)?;
+            }
+        }
+        if self.has_bindable_name(node)? {
+            let symbol = self.get_symbol_of_declaration(node)?;
+            let local_symbol = self
+                .binder
+                .file(self.binder.file_index_of_node(node))
+                .node_local_symbol
+                .get(&node)
+                .copied()
+                .unwrap_or(symbol);
+            let node_kind = self.kind_of(node);
+            let first_declaration = self
+                .binder
+                .symbol(local_symbol)
+                .declarations
+                .iter()
+                .copied()
+                .find(|&declaration| self.kind_of(declaration) == node_kind);
+            if first_declaration == Some(node) {
+                self.check_function_or_constructor_symbol(local_symbol)?;
+            }
+            if self.binder.symbol(symbol).parent.is_some() {
+                self.check_function_or_constructor_symbol(symbol)?;
+            }
+        }
+        let body = if self.kind_of(node) == SyntaxKind::MethodSignature {
+            None
+        } else {
+            node_util::body_of(self.binder.source_of_node(node), node)
+        };
+        self.check_source_element(body);
+        let annotated_return = self.get_return_type_from_annotation(node)?;
+        self.check_all_code_paths_in_non_void_function_return_or_throw(node, annotated_return)?;
+        // The lazy tail (eager identity).
+        if self.type_annotation_of(node).is_none() {
+            let body_missing = body.is_none()
+                || node_util::node_is_missing(self.binder.source_of_node(node), body);
+            if body_missing && !self.is_private_within_ambient(node) {
+                let any = self.tables.intrinsics.any;
+                self.report_implicit_any(node, any, None)?;
+            }
+            if function_flags & FUNCTION_FLAGS_GENERATOR != 0
+                && body.is_some_and(|body| {
+                    !node_util::node_is_missing(self.binder.source_of_node(node), Some(body))
+                })
+            {
+                // FORCING demand: yield aggregation through the
+                // signature's return type.
+                let signature = self.get_signature_from_declaration(node)?;
+                self.get_return_type_of_signature(signature)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: isPrivateWithinAmbient @6.0.3
+    /// tsc-hash: ef8656cf63ef4572437e31c6e94657e5d7347469b8186a82faf2194ccf706b59
+    /// tsc-span: _tsc.js:82010-82012
+    fn is_private_within_ambient(&self, node: NodeId) -> bool {
+        let source = self.binder.source_of_node(node);
+        (node_util::has_syntactic_modifier(source, node, tsrs2_types::ModifierFlags::PRIVATE)
+            || self.is_private_identifier_class_element(node))
+            && NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
+    }
+
+    /// tsc-port: checkFunctionDeclaration @6.0.3
+    /// tsc-hash: 956771632475180065203b669105ea260e3170c06f61bfcf41c9ecc36edfd888
+    /// tsc-span: _tsc.js:82784-82791
+    pub(crate) fn check_function_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_function_or_method_declaration(node)?;
+        self.check_grammar_for_generator(node);
+        let name = self.name_of_node(node);
+        self.check_collisions_for_declaration_name(node, name);
+        Ok(())
+    }
+
+    /// tsc-port: checkMethodDeclaration @6.0.3
+    /// tsc-hash: 7b7dfb1af0fea107714f252f92aa8c55ed9a6fb974e7043caf434e427c83ab0f
+    /// tsc-span: _tsc.js:81522-81535
+    pub(crate) fn check_method_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        if !self.check_grammar_method(node)? {
+            if let Some(name) = self.name_of_node(node) {
+                self.check_grammar_computed_property_name(name);
+            }
+        }
+        let is_method_declaration = self.kind_of(node) == SyntaxKind::MethodDeclaration;
+        let name = self.name_of_node(node);
+        if is_method_declaration {
+            let asterisk = matches!(
+                self.data_of(node),
+                NodeData::MethodDeclaration(data) if data.asterisk_token.is_some()
+            );
+            if asterisk {
+                if let Some(name) = name {
+                    if self.kind_of(name) == SyntaxKind::Identifier
+                        && self.identifier_text_of(name) == Some("constructor")
+                    {
+                        self.error_at(
+                            Some(name),
+                            &diagnostics::Class_constructor_may_not_be_a_generator,
+                            &[],
+                        );
+                    }
+                }
+            }
+        }
+        self.check_function_or_method_declaration(node)?;
+        let source = self.binder.source_of_node(node);
+        let body = node_util::body_of(source, node);
+        if node_util::has_syntactic_modifier(source, node, tsrs2_types::ModifierFlags::ABSTRACT)
+            && is_method_declaration
+            && body.is_some()
+        {
+            let display = name
+                .map(|name| {
+                    node_util::declaration_name_to_string(
+                        self.binder.source_of_node(name),
+                        Some(name),
+                    )
+                })
+                .unwrap_or_default();
+            self.error_at(
+                Some(node),
+                &diagnostics::Method_0_cannot_have_an_implementation_because_it_is_marked_abstract,
+                &[&display],
+            );
+        }
+        if let Some(name) = name {
+            if self.kind_of(name) == SyntaxKind::PrivateIdentifier
+                && node_util::get_containing_class(source, node).is_none()
+            {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+                    &[],
+                );
+            }
+        }
+        self.set_node_links_for_private_identifier_scope(node);
+        Ok(())
+    }
+
+    /// tsc-port: checkPropertyDeclaration @6.0.3
+    /// tsc-hash: fe84062922bd92bdd3e7794e8bec2e7a757490511cb4989fad1b96fecae1d88d
+    /// tsc-span: _tsc.js:81508-81515
+    pub(crate) fn check_property_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        let grammar_reported = {
+            let modifiers_reported = self.check_grammar_modifiers(node);
+            modifiers_reported || self.check_grammar_property(node)?
+        };
+        if !grammar_reported {
+            if let Some(name) = self.name_of_node(node) {
+                self.check_grammar_computed_property_name(name);
+            }
+        }
+        self.check_variable_like_declaration(node)?;
+        self.set_node_links_for_private_identifier_scope(node);
+        let source = self.binder.source_of_node(node);
+        let initializer = match self.data_of(node) {
+            NodeData::PropertyDeclaration(data) => data.initializer,
+            _ => None,
+        };
+        if node_util::has_syntactic_modifier(source, node, tsrs2_types::ModifierFlags::ABSTRACT)
+            && self.kind_of(node) == SyntaxKind::PropertyDeclaration
+            && initializer.is_some()
+        {
+            let display = self
+                .name_of_node(node)
+                .map(|name| {
+                    node_util::declaration_name_to_string(
+                        self.binder.source_of_node(name),
+                        Some(name),
+                    )
+                })
+                .unwrap_or_default();
+            self.error_at(
+                Some(node),
+                &diagnostics::Property_0_cannot_have_an_initializer_because_it_is_marked_abstract,
+                &[&display],
+            );
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkPropertySignature @6.0.3
+    /// tsc-hash: 5ec7037fde36394f480b2002581b97e85c333f095d83c9015ff7ca1b5d281b3e
+    /// tsc-span: _tsc.js:81516-81521
+    pub(crate) fn check_property_signature(&mut self, node: NodeId) -> CheckResult2<()> {
+        if let Some(name) = self.name_of_node(node) {
+            if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+                    &[],
+                );
+            }
+        }
+        self.check_property_declaration(node)
+    }
+
+    /// tsc-port: setNodeLinksForPrivateIdentifierScope @6.0.3
+    /// tsc-hash: a3f5ba27fc2fb97d9c9987c0a09b74d9301ff572b74a4a018ebb222c74367b42
+    /// tsc-span: _tsc.js:81536-81551
+    ///
+    /// The class-expression-in-iteration arm sets emit-only flags
+    /// (BlockScopedBindingInLoop / LoopWithCapturedBlockScopedBinding)
+    /// — elided; no check-path reads them.
+    fn set_node_links_for_private_identifier_scope(&mut self, node: NodeId) {
+        let Some(name) = self.name_of_node(node) else {
+            return;
+        };
+        if self.kind_of(name) != SyntaxKind::PrivateIdentifier {
+            return;
+        }
+        // LanguageFeatureMinimumTarget.PrivateNamesAndClassStaticBlocks
+        // = ClassAndClassElementDecorators = ES2022.
+        if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2022
+            || !self.options.use_define_for_class_fields_effective()
+        {
+            let mut lexical_scope = self.get_enclosing_block_scope_container(node);
+            while let Some(scope) = lexical_scope {
+                self.links.or_node_check_flags(
+                    self.speculation_depth,
+                    scope,
+                    tsrs2_types::NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS,
+                );
+                lexical_scope = self.get_enclosing_block_scope_container(scope);
+            }
+        }
+    }
+
+    /// tsc-port: checkClassStaticBlockDeclaration @6.0.3
+    /// tsc-hash: c69edb58bee2e5b97158cbe060be6384119f295fac411294c48ff6272658951c
+    /// tsc-span: _tsc.js:81552-81555
+    pub(crate) fn check_class_static_block_declaration(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<()> {
+        self.check_grammar_modifiers(node);
+        let source = self.binder.source_of_node(node);
+        let mut children = Vec::new();
+        tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+            children.push(child);
+            false
+        });
+        for child in children {
+            self.check_source_element(Some(child));
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkConstructorDeclaration @6.0.3
+    /// tsc-hash: 191587bffa4356eeeff6ed0796a6b497c9bb677692431871115655f54a277508
+    /// tsc-span: _tsc.js:81556-81611
+    /// (covers superCallIsRootLevelInConstructor 81612-81615 +
+    /// nodeImmediatelyReferencesSuperOrThis 81616-81624 +
+    /// findFirstSuperCall 72321-72323)
+    ///
+    /// captureLexicalThis is emit-only (no-op); the lazy tail runs
+    /// eager. emitStandardClassFields makes the root-level band dead
+    /// at the default target and LIVE for low-@target fixtures.
+    pub(crate) fn check_constructor_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_signature_declaration(node)?;
+        if !self.check_grammar_constructor_type_parameters(node) {
+            self.check_grammar_constructor_type_annotation(node);
+        }
+        let body = match self.data_of(node) {
+            NodeData::Constructor(data) => data.body,
+            _ => None,
+        };
+        self.check_source_element(body);
+        let symbol = self.get_symbol_of_declaration(node)?;
+        let first_declaration = self.get_declaration_of_kind(symbol, SyntaxKind::Constructor);
+        if first_declaration == Some(node) {
+            self.check_function_or_constructor_symbol(symbol)?;
+        }
+        let source = self.binder.source_of_node(node);
+        if node_util::node_is_missing(source, body) {
+            return Ok(());
+        }
+        let body = body.expect("nodeIsMissing answered false");
+        // The lazy tail (eager identity).
+        let Some(containing_class) = self.parent_of(node) else {
+            return Ok(());
+        };
+        if self
+            .get_class_extends_heritage_element(containing_class)
+            .is_some()
+        {
+            let class_extends_null = self.class_declaration_extends_null(containing_class)?;
+            let super_call = self.find_first_super_call(body);
+            if let Some(super_call) = super_call {
+                if class_extends_null {
+                    self.error_at(
+                        Some(super_call),
+                        &diagnostics::A_constructor_cannot_contain_a_super_call_when_its_class_extends_null,
+                        &[],
+                    );
+                }
+                let super_call_should_be_root_level = !self.options.emit_standard_class_fields()
+                    && (self.class_has_initialized_instance_or_private_member(containing_class)
+                        || self.constructor_has_parameter_property(node));
+                if super_call_should_be_root_level {
+                    if !self.super_call_is_root_level_in_constructor(super_call, body) {
+                        self.error_at(
+                            Some(super_call),
+                            &diagnostics::A_super_call_must_be_a_root_level_statement_within_a_constructor_of_a_derived_class_that_contains_initialized_properties_parameter_properties_or_private_identifiers,
+                            &[],
+                        );
+                    } else {
+                        let statements = match self.data_of(body) {
+                            NodeData::Block(data) => self.nodes_of(data.statements),
+                            _ => Vec::new(),
+                        };
+                        let mut super_call_statement = None;
+                        for statement in statements {
+                            if self.kind_of(statement) == SyntaxKind::ExpressionStatement {
+                                let expression = match self.data_of(statement) {
+                                    NodeData::ExpressionStatement(data) => data.expression,
+                                    _ => None,
+                                };
+                                if let Some(expression) = expression {
+                                    let skipped = self.skip_outer_expressions(
+                                        expression,
+                                        crate::operators::OuterExpressionKinds::ALL,
+                                    );
+                                    if self.is_super_call(skipped) {
+                                        super_call_statement = Some(statement);
+                                        break;
+                                    }
+                                }
+                            }
+                            if self.node_immediately_references_super_or_this(statement) {
+                                break;
+                            }
+                        }
+                        if super_call_statement.is_none() {
+                            self.error_at(
+                                Some(node),
+                                &diagnostics::A_super_call_must_be_the_first_statement_in_the_constructor_to_refer_to_super_or_this_when_a_derived_class_contains_initialized_properties_parameter_properties_or_private_identifiers,
+                                &[],
+                            );
+                        }
+                    }
+                }
+            } else if !class_extends_null {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::Constructors_for_derived_classes_must_contain_a_super_call,
+                    &[],
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// isInstancePropertyWithInitializerOrPrivateIdentifierProperty
+    /// over the class members (81570-81575).
+    fn class_has_initialized_instance_or_private_member(&self, class_node: NodeId) -> bool {
+        let members = match self.data_of(class_node) {
+            NodeData::ClassDeclaration(data) => data.members,
+            NodeData::ClassExpression(data) => data.members,
+            _ => None,
+        };
+        let source = self.binder.source_of_node(class_node);
+        self.nodes_of(members).iter().any(|&member| {
+            let _ = source;
+            if self.is_private_identifier_class_element(member) {
+                return true;
+            }
+            matches!(
+                self.data_of(member),
+                NodeData::PropertyDeclaration(data)
+                    if data.initializer.is_some()
+                        && !node_util::has_syntactic_modifier(
+                            source,
+                            member,
+                            tsrs2_types::ModifierFlags::STATIC,
+                        )
+            )
+        })
+    }
+
+    /// `some(node.parameters, p => hasSyntacticModifier(p, 31))`.
+    fn constructor_has_parameter_property(&self, node: NodeId) -> bool {
+        let parameters = match self.data_of(node) {
+            NodeData::Constructor(data) => data.parameters,
+            _ => None,
+        };
+        let source = self.binder.source_of_node(node);
+        self.nodes_of(parameters).iter().any(|&parameter| {
+            node_util::has_syntactic_modifier(
+                source,
+                parameter,
+                tsrs2_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+            )
+        })
+    }
+
+    /// findFirstSuperCall (72321-72323): forEachChild walk stopping at
+    /// function-like boundaries.
+    fn find_first_super_call(&self, node: NodeId) -> Option<NodeId> {
+        if self.is_super_call(node) {
+            return Some(node);
+        }
+        if node_util::is_function_like_kind(self.kind_of(node)) {
+            return None;
+        }
+        let source = self.binder.source_of_node(node);
+        let mut children = Vec::new();
+        tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+            children.push(child);
+            false
+        });
+        children
+            .into_iter()
+            .find_map(|child| self.find_first_super_call(child))
+    }
+
+    /// isPrivateIdentifierClassElementDeclaration (11944-11946).
+    fn is_private_identifier_class_element(&self, node: NodeId) -> bool {
+        matches!(
+            self.kind_of(node),
+            SyntaxKind::PropertyDeclaration
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+        ) && self
+            .name_of_node(node)
+            .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
+    }
+
+    /// isThisContainerOrFunctionBlock (14505-14526).
+    fn is_this_container_or_function_block(&self, node: NodeId) -> bool {
+        match self.kind_of(node) {
+            SyntaxKind::ArrowFunction
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::PropertyDeclaration => true,
+            SyntaxKind::Block => matches!(
+                self.parent_of(node).map(|parent| self.kind_of(parent)),
+                Some(SyntaxKind::Constructor)
+                    | Some(SyntaxKind::MethodDeclaration)
+                    | Some(SyntaxKind::GetAccessor)
+                    | Some(SyntaxKind::SetAccessor)
+            ),
+            _ => false,
+        }
+    }
+
+    /// isSuperCall: a CallExpression over the `super` keyword.
+    fn is_super_call(&self, node: NodeId) -> bool {
+        matches!(
+            self.data_of(node),
+            NodeData::CallExpression(data)
+                if data.expression.is_some_and(
+                    |expression| self.kind_of(expression) == SyntaxKind::SuperKeyword
+                )
+        )
+    }
+
+    /// superCallIsRootLevelInConstructor (81612-81615).
+    fn super_call_is_root_level_in_constructor(&self, super_call: NodeId, body: NodeId) -> bool {
+        let mut parent = self.parent_of(super_call);
+        while let Some(current) = parent {
+            if self.kind_of(current) == SyntaxKind::ParenthesizedExpression {
+                parent = self.parent_of(current);
+            } else {
+                return self.kind_of(current) == SyntaxKind::ExpressionStatement
+                    && self.parent_of(current) == Some(body);
+            }
+        }
+        false
+    }
+
+    /// nodeImmediatelyReferencesSuperOrThis (81616-81624).
+    fn node_immediately_references_super_or_this(&self, node: NodeId) -> bool {
+        let kind = self.kind_of(node);
+        if kind == SyntaxKind::SuperKeyword || kind == SyntaxKind::ThisKeyword {
+            return true;
+        }
+        let source = self.binder.source_of_node(node);
+        let _ = source;
+        if self.is_this_container_or_function_block(node) {
+            return false;
+        }
+        let mut children = Vec::new();
+        tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+            children.push(child);
+            false
+        });
+        children
+            .into_iter()
+            .any(|child| self.node_immediately_references_super_or_this(child))
+    }
+
+    /// tsc-port: checkAccessorDeclaration @6.0.3
+    /// tsc-hash: 90af5f06939b919ab242980dd27109e1cf9c92f8c58c8789120f88283b016300
+    /// tsc-span: _tsc.js:81625-81669
+    ///
+    /// The lazy block runs BEFORE the body (eager identity preserves
+    /// tsc's diagnostic order); the getter/setter pair rows latch on
+    /// the getter's TypeChecked NodeCheckFlags bit.
+    pub(crate) fn check_accessor_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        let name = self.name_of_node(node);
+        let source = self.binder.source_of_node(node);
+        if let Some(name) = name {
+            if self.kind_of(name) == SyntaxKind::Identifier
+                && self.identifier_text_of(name) == Some("constructor")
+                && node_util::get_containing_class(source, node)
+                    == self.parent_of(node).filter(|&parent| {
+                        matches!(
+                            self.kind_of(parent),
+                            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                        )
+                    })
+                && self.parent_of(node).is_some_and(|parent| {
+                    matches!(
+                        self.kind_of(parent),
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    )
+                })
+            {
+                self.error_at(
+                    Some(name),
+                    &diagnostics::Class_constructor_may_not_be_an_accessor,
+                    &[],
+                );
+            }
+        }
+        // The lazy diagnostics block (eager identity).
+        let grammar_reported = {
+            let fn_like = self.check_grammar_function_like_declaration(node)?;
+            fn_like || self.check_grammar_accessor(node)?
+        };
+        if !grammar_reported {
+            if let Some(name) = name {
+                self.check_grammar_computed_property_name(name);
+            }
+        }
+        self.source_element_stub("checkDecorators", "5.8c")?;
+        self.check_signature_declaration(node)?;
+        let is_get = self.kind_of(node) == SyntaxKind::GetAccessor;
+        let body = node_util::body_of(source, node);
+        if is_get {
+            let flags = NodeFlags::from_bits(self.node_flags(node));
+            if !flags.intersects(NodeFlags::AMBIENT)
+                && body.is_some()
+                && flags.intersects(NodeFlags::HAS_IMPLICIT_RETURN)
+                && !flags.intersects(NodeFlags::HAS_EXPLICIT_RETURN)
+            {
+                self.error_at(name, &diagnostics::A_get_accessor_must_return_a_value, &[]);
+            }
+        }
+        if let Some(name) = name {
+            if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                self.check_computed_property_name(name)?;
+            }
+        }
+        if self.has_bindable_name(node)? {
+            let symbol = self.get_symbol_of_declaration(node)?;
+            let getter = self.get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
+            let setter = self.get_declaration_of_kind(symbol, SyntaxKind::SetAccessor);
+            if let (Some(getter), Some(setter)) = (getter, setter) {
+                let getter_checked = self
+                    .links
+                    .node(getter)
+                    .check_flags
+                    .intersects(tsrs2_types::NodeCheckFlags::TYPE_CHECKED);
+                if !getter_checked {
+                    self.links.or_node_check_flags(
+                        self.speculation_depth,
+                        getter,
+                        tsrs2_types::NodeCheckFlags::TYPE_CHECKED,
+                    );
+                    let getter_source = self.binder.source_of_node(getter);
+                    let setter_source = self.binder.source_of_node(setter);
+                    let getter_flags =
+                        node_util::get_syntactic_modifier_flags(getter_source, getter);
+                    let setter_flags =
+                        node_util::get_syntactic_modifier_flags(setter_source, setter);
+                    let getter_name = self.name_of_node(getter);
+                    let setter_name = self.name_of_node(setter);
+                    if getter_flags.intersects(tsrs2_types::ModifierFlags::ABSTRACT)
+                        != setter_flags.intersects(tsrs2_types::ModifierFlags::ABSTRACT)
+                    {
+                        self.error_at(
+                            getter_name,
+                            &diagnostics::Accessors_must_both_be_abstract_or_non_abstract,
+                            &[],
+                        );
+                        self.error_at(
+                            setter_name,
+                            &diagnostics::Accessors_must_both_be_abstract_or_non_abstract,
+                            &[],
+                        );
+                    }
+                    let getter_less_accessible = (getter_flags
+                        .intersects(tsrs2_types::ModifierFlags::PROTECTED)
+                        && !setter_flags.intersects(tsrs2_types::ModifierFlags::from_bits(
+                            tsrs2_types::ModifierFlags::PROTECTED.bits()
+                                | tsrs2_types::ModifierFlags::PRIVATE.bits(),
+                        )))
+                        || (getter_flags.intersects(tsrs2_types::ModifierFlags::PRIVATE)
+                            && !setter_flags.intersects(tsrs2_types::ModifierFlags::PRIVATE));
+                    if getter_less_accessible {
+                        self.error_at(
+                            getter_name,
+                            &diagnostics::A_get_accessor_must_be_at_least_as_accessible_as_the_setter,
+                            &[],
+                        );
+                        self.error_at(
+                            setter_name,
+                            &diagnostics::A_get_accessor_must_be_at_least_as_accessible_as_the_setter,
+                            &[],
+                        );
+                    }
+                }
+            }
+        }
+        let symbol = self.get_symbol_of_declaration(node)?;
+        let return_type = self.get_type_of_accessors(symbol)?;
+        if is_get {
+            self.check_all_code_paths_in_non_void_function_return_or_throw(
+                node,
+                Some(return_type),
+            )?;
+        }
+        self.check_source_element(body);
+        self.set_node_links_for_private_identifier_scope(node);
+        Ok(())
+    }
+
+    /// tsc-port: checkMissingDeclaration @6.0.3
+    /// tsc-hash: 452c55461683d3ab7d952ca2d6f80d4f55796de22a8e268b0309db7b876edaef
+    /// tsc-span: _tsc.js:81670-81672
+    pub(crate) fn check_missing_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        let _ = node;
+        self.source_element_stub("checkDecorators", "5.8c")
+    }
+
+    /// tsc-port: getEffectiveDeclarationFlags @6.0.3
+    /// tsc-hash: 6fa156d5b6aaa7dbafa694411f531167459eb0f991bd2472eb01f79800c1ad74
+    /// tsc-span: _tsc.js:82013-82023
+    ///
+    /// The global-scope-augmentation exemption inspects module blocks
+    /// — constructible only under `declare global` (5.8d modules);
+    /// until then the ambient-export inference treats them like any
+    /// other export-context container (divergence bounded to
+    /// declare-global fixtures, recorded FN class).
+    fn get_effective_declaration_flags(
+        &self,
+        node: NodeId,
+        flags_to_check: tsrs2_types::ModifierFlags,
+    ) -> tsrs2_types::ModifierFlags {
+        let source = self.binder.source_of_node(node);
+        let mut flags = node_util::get_combined_modifier_flags(source, node);
+        let parent_kind = self.parent_of(node).map(|parent| self.kind_of(parent));
+        if !matches!(
+            parent_kind,
+            Some(SyntaxKind::InterfaceDeclaration)
+                | Some(SyntaxKind::ClassDeclaration)
+                | Some(SyntaxKind::ClassExpression)
+        ) && NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
+        {
+            let container = self.get_enclosing_container(node);
+            let in_export_context = container.is_some_and(|container| {
+                NodeFlags::from_bits(self.node_flags(container))
+                    .intersects(NodeFlags::EXPORT_CONTEXT)
+            });
+            if in_export_context && !flags.intersects(tsrs2_types::ModifierFlags::AMBIENT) {
+                flags = tsrs2_types::ModifierFlags::from_bits(
+                    flags.bits() | tsrs2_types::ModifierFlags::EXPORT.bits(),
+                );
+            }
+            flags = tsrs2_types::ModifierFlags::from_bits(
+                flags.bits() | tsrs2_types::ModifierFlags::AMBIENT.bits(),
+            );
+        }
+        tsrs2_types::ModifierFlags::from_bits(flags.bits() & flags_to_check.bits())
+    }
+
+    /// getEnclosingContainer (13841-13843): the nearest ancestor with
+    /// the IsContainer bit.
+    fn get_enclosing_container(&self, node: NodeId) -> Option<NodeId> {
+        let source = self.binder.source_of_node(node);
+        let mut current = node_util::parent_of(source, node);
+        while let Some(candidate) = current {
+            if tsrs2_binder::containers::get_container_flags(source, candidate)
+                .intersects(tsrs2_binder::containers::ContainerFlags::IS_CONTAINER)
+            {
+                return Some(candidate);
+            }
+            current = node_util::parent_of(source, candidate);
+        }
+        None
+    }
+
+    /// tsc-port: checkFunctionOrConstructorSymbol @6.0.3
+    /// tsc-hash: 694b31e3daa15dfa22f631c3a9d695ec5e24d8b301a85016f05603ca0e94503f
+    /// tsc-span: _tsc.js:82024-82026
+    ///
+    /// The worker (checkFunctionOrConstructorSymbolWorker 82027-82214,
+    /// hash 8732298f571dde47010af0ac55f03cf7156c4564b2f4682904e35ecc13
+    /// dbdf19) runs eager per the addLazyDiagnostic decision; JSDoc
+    /// overload tags are JS-only.
+    pub(crate) fn check_function_or_constructor_symbol(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<()> {
+        let flags_to_check = tsrs2_types::ModifierFlags::from_bits(
+            tsrs2_types::ModifierFlags::EXPORT.bits()
+                | tsrs2_types::ModifierFlags::AMBIENT.bits()
+                | tsrs2_types::ModifierFlags::PRIVATE.bits()
+                | tsrs2_types::ModifierFlags::PROTECTED.bits()
+                | tsrs2_types::ModifierFlags::ABSTRACT.bits(),
+        );
+        let mut some_node_flags = tsrs2_types::ModifierFlags::NONE;
+        let mut all_node_flags = flags_to_check;
+        let mut some_have_question_token = false;
+        let mut all_have_question_token = true;
+        let mut has_overloads = false;
+        let mut body_declaration: Option<NodeId> = None;
+        let mut last_seen_non_ambient: Option<NodeId> = None;
+        let mut previous_declaration: Option<NodeId> = None;
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let is_constructor = self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::CONSTRUCTOR);
+        // Parse-recovery gate: under parse errors our recovery tree's
+        // declaration/body boundaries diverge from tsc's, and the
+        // body-accounting rows (2389/2391/2392/2393-family) key on
+        // exactly those boundaries — contain rather than misreport.
+        // (tsc emits these as plain error() even in errored files; the
+        // divergence is OUR tree, not the suppression discipline.)
+        if declarations
+            .iter()
+            .any(|&declaration| self.has_parse_diagnostics(declaration))
+        {
+            return Err(Unsupported::new(
+                "overload band over a parse-recovery tree (declaration boundaries diverge)",
+            ));
+        }
+        let mut duplicate_function_declaration = false;
+        let mut multiple_constructor_implementation = false;
+        let mut has_non_ambient_class = false;
+        let mut function_declarations: Vec<NodeId> = Vec::new();
+        for &node in &declarations {
+            let in_ambient_context =
+                NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT);
+            let parent_kind = self.parent_of(node).map(|parent| self.kind_of(parent));
+            let in_ambient_context_or_interface = matches!(
+                parent_kind,
+                Some(SyntaxKind::InterfaceDeclaration) | Some(SyntaxKind::TypeLiteral)
+            ) || in_ambient_context;
+            if in_ambient_context_or_interface {
+                previous_declaration = None;
+            }
+            let node_kind = self.kind_of(node);
+            if matches!(
+                node_kind,
+                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+            ) && !in_ambient_context
+            {
+                has_non_ambient_class = true;
+            }
+            if matches!(
+                node_kind,
+                SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::MethodDeclaration
+                    | SyntaxKind::MethodSignature
+                    | SyntaxKind::Constructor
+            ) {
+                function_declarations.push(node);
+                let current_node_flags = self.get_effective_declaration_flags(node, flags_to_check);
+                some_node_flags = tsrs2_types::ModifierFlags::from_bits(
+                    some_node_flags.bits() | current_node_flags.bits(),
+                );
+                all_node_flags = tsrs2_types::ModifierFlags::from_bits(
+                    all_node_flags.bits() & current_node_flags.bits(),
+                );
+                let question = self.has_question_token(node);
+                some_have_question_token |= question;
+                all_have_question_token &= question;
+                let source = self.binder.source_of_node(node);
+                let body = node_util::body_of(source, node);
+                let body_is_present =
+                    body.is_some_and(|body| !node_util::node_is_missing(source, Some(body)));
+                if body_is_present && body_declaration.is_some() {
+                    if is_constructor {
+                        multiple_constructor_implementation = true;
+                    } else {
+                        duplicate_function_declaration = true;
+                    }
+                } else if let Some(previous) = previous_declaration {
+                    if self.parent_of(previous) == self.parent_of(node) {
+                        let previous_end = self
+                            .binder
+                            .source_of_node(previous)
+                            .arena
+                            .node(previous)
+                            .end;
+                        let node_pos = source.arena.node(node).pos;
+                        if previous_end != node_pos {
+                            self.report_implementation_expected_error(previous, is_constructor)?;
+                        }
+                    }
+                }
+                if body_is_present {
+                    if body_declaration.is_none() {
+                        body_declaration = Some(node);
+                    }
+                } else {
+                    has_overloads = true;
+                }
+                previous_declaration = Some(node);
+                if !in_ambient_context_or_interface {
+                    last_seen_non_ambient = Some(node);
+                }
+            }
+        }
+        if multiple_constructor_implementation {
+            for &declaration in &function_declarations {
+                self.error_at(
+                    Some(declaration),
+                    &diagnostics::Multiple_constructor_implementations_are_not_allowed,
+                    &[],
+                );
+            }
+        }
+        if duplicate_function_declaration {
+            for &declaration in &function_declarations {
+                let error_node = self.name_of_node(declaration).unwrap_or(declaration);
+                self.error_at(
+                    Some(error_node),
+                    &diagnostics::Duplicate_function_implementation,
+                    &[],
+                );
+            }
+        }
+        if has_non_ambient_class
+            && !is_constructor
+            && self
+                .binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::FUNCTION)
+        {
+            let related: Vec<tsrs2_diags::RelatedInfo> = declarations
+                .iter()
+                .filter(|&&d| self.kind_of(d) == SyntaxKind::ClassDeclaration)
+                .map(|&d| {
+                    self.related_info_for_node(
+                        d,
+                        &diagnostics::Consider_adding_a_declare_modifier_to_this_class,
+                        &[],
+                    )
+                })
+                .collect();
+            let symbol_name = self.symbol_display_name(symbol);
+            for &declaration in &declarations {
+                let diagnostic = match self.kind_of(declaration) {
+                    SyntaxKind::ClassDeclaration => {
+                        Some(&diagnostics::Class_declaration_cannot_implement_overload_list_for_0)
+                    }
+                    SyntaxKind::FunctionDeclaration => Some(
+                        &diagnostics::Function_with_bodies_can_only_merge_with_classes_that_are_ambient,
+                    ),
+                    _ => None,
+                };
+                if let Some(diagnostic) = diagnostic {
+                    let error_node = self.name_of_node(declaration).unwrap_or(declaration);
+                    self.error_at_with_related(
+                        Some(error_node),
+                        diagnostic,
+                        &[&symbol_name],
+                        related.clone(),
+                    );
+                }
+            }
+        }
+        if let Some(last) = last_seen_non_ambient {
+            let source = self.binder.source_of_node(last);
+            let body_missing = match node_util::body_of(source, last) {
+                Some(body) => node_util::node_is_missing(source, Some(body)),
+                None => true,
+            };
+            if body_missing
+                && !node_util::has_syntactic_modifier(
+                    source,
+                    last,
+                    tsrs2_types::ModifierFlags::ABSTRACT,
+                )
+                && !self.has_question_token(last)
+            {
+                self.report_implementation_expected_error(last, is_constructor)?;
+            }
+        }
+        if has_overloads {
+            self.check_flag_agreement_between_overloads(
+                &declarations,
+                body_declaration,
+                flags_to_check,
+                some_node_flags,
+                all_node_flags,
+            );
+            self.check_question_token_agreement_between_overloads(
+                &declarations,
+                body_declaration,
+                some_have_question_token,
+                all_have_question_token,
+            );
+            if let Some(body_declaration) = body_declaration {
+                let signatures = self.get_signatures_of_symbol(Some(symbol))?;
+                let body_signature = self.get_signature_from_declaration(body_declaration)?;
+                for signature in signatures {
+                    if !self
+                        .is_implementation_compatible_with_overload(body_signature, signature)?
+                    {
+                        let error_node = self.signature_of(signature).declaration;
+                        let related = self.related_info_for_node(
+                            body_declaration,
+                            &diagnostics::The_implementation_signature_is_declared_here,
+                            &[],
+                        );
+                        self.error_at_with_related(
+                            error_node,
+                            &diagnostics::This_overload_signature_is_not_compatible_with_its_implementation_signature,
+                            &[],
+                            vec![related],
+                        );
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// reportImplementationExpectedError (82076-82123, the worker's
+    /// inner fn).
+    fn report_implementation_expected_error(
+        &mut self,
+        node: NodeId,
+        is_constructor: bool,
+    ) -> CheckResult2<()> {
+        let source = self.binder.source_of_node(node);
+        let name = self.name_of_node(node);
+        if let Some(name) = name {
+            if node_util::node_is_missing(source, Some(name)) {
+                return Ok(());
+            }
+        }
+        let parent = self.parent_of(node);
+        let subsequent_node = parent.and_then(|parent| {
+            let mut seen = false;
+            let mut found = None;
+            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(parent), |child| {
+                if seen {
+                    found = Some(child);
+                    return true;
+                }
+                seen = child == node;
+                false
+            });
+            found
+        });
+        let node_end = source.arena.node(node).end;
+        if let Some(subsequent) = subsequent_node {
+            if source.arena.node(subsequent).pos == node_end
+                && self.kind_of(subsequent) == self.kind_of(node)
+            {
+                let subsequent_name = self.name_of_node(subsequent);
+                let error_node = subsequent_name.unwrap_or(subsequent);
+                if let (Some(name), Some(subsequent_name)) = (name, subsequent_name) {
+                    let both_private = self.kind_of(name) == SyntaxKind::PrivateIdentifier
+                        && self.kind_of(subsequent_name) == SyntaxKind::PrivateIdentifier
+                        && self.identifier_text_of(name)
+                            == self.identifier_text_of(subsequent_name);
+                    let both_computed_identical = self.kind_of(name)
+                        == SyntaxKind::ComputedPropertyName
+                        && self.kind_of(subsequent_name) == SyntaxKind::ComputedPropertyName
+                        && {
+                            let left = self.check_computed_property_name(name)?;
+                            let right = self.check_computed_property_name(subsequent_name)?;
+                            self.is_type_identical_to(left, right)?
+                        };
+                    let both_literal = node_util::is_property_name_literal(source, name)
+                        && node_util::is_property_name_literal(source, subsequent_name)
+                        && node_util::get_escaped_text_of_identifier_or_literal(source, name)
+                            == node_util::get_escaped_text_of_identifier_or_literal(
+                                source,
+                                subsequent_name,
+                            );
+                    if both_private || both_computed_identical || both_literal {
+                        let is_method = matches!(
+                            self.kind_of(node),
+                            SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature
+                        );
+                        let node_static = node_util::has_syntactic_modifier(
+                            source,
+                            node,
+                            tsrs2_types::ModifierFlags::STATIC,
+                        );
+                        let subsequent_static = node_util::has_syntactic_modifier(
+                            source,
+                            subsequent,
+                            tsrs2_types::ModifierFlags::STATIC,
+                        );
+                        if is_method && node_static != subsequent_static {
+                            let diagnostic = if node_static {
+                                &diagnostics::Function_overload_must_be_static
+                            } else {
+                                &diagnostics::Function_overload_must_not_be_static
+                            };
+                            self.error_at(Some(error_node), diagnostic, &[]);
+                        }
+                        return Ok(());
+                    }
+                }
+                let subsequent_body = node_util::body_of(source, subsequent);
+                if subsequent_body
+                    .is_some_and(|body| !node_util::node_is_missing(source, Some(body)))
+                {
+                    let display = name
+                        .map(|name| node_util::declaration_name_to_string(source, Some(name)))
+                        .unwrap_or_default();
+                    self.error_at(
+                        Some(error_node),
+                        &diagnostics::Function_implementation_name_must_be_0,
+                        &[&display],
+                    );
+                    return Ok(());
+                }
+            }
+        }
+        let error_node = name.unwrap_or(node);
+        if is_constructor {
+            self.error_at(
+                Some(error_node),
+                &diagnostics::Constructor_implementation_is_missing,
+                &[],
+            );
+        } else if node_util::has_syntactic_modifier(
+            source,
+            node,
+            tsrs2_types::ModifierFlags::ABSTRACT,
+        ) {
+            self.error_at(
+                Some(error_node),
+                &diagnostics::All_declarations_of_an_abstract_method_must_be_consecutive,
+                &[],
+            );
+        } else {
+            self.error_at(
+                Some(error_node),
+                &diagnostics::Function_implementation_is_missing_or_not_immediately_following_the_declaration,
+                &[],
+            );
+        }
+        Ok(())
+    }
+
+    /// getCanonicalOverload (82028-82031).
+    fn get_canonical_overload(
+        &self,
+        overloads: &[NodeId],
+        implementation: Option<NodeId>,
+    ) -> NodeId {
+        let shares_container = implementation.is_some_and(|implementation| {
+            overloads
+                .first()
+                .is_some_and(|&first| self.parent_of(implementation) == self.parent_of(first))
+        });
+        if shares_container {
+            implementation.expect("shares_container implies present")
+        } else {
+            overloads[0]
+        }
+    }
+
+    /// checkFlagAgreementBetweenOverloads (82032-82055).
+    fn check_flag_agreement_between_overloads(
+        &mut self,
+        overloads: &[NodeId],
+        implementation: Option<NodeId>,
+        flags_to_check: tsrs2_types::ModifierFlags,
+        some_overload_flags: tsrs2_types::ModifierFlags,
+        all_overload_flags: tsrs2_types::ModifierFlags,
+    ) {
+        let some_but_not_all = some_overload_flags.bits() ^ all_overload_flags.bits();
+        if some_but_not_all == 0 {
+            return;
+        }
+        let canonical = self.get_canonical_overload(overloads, implementation);
+        let canonical_flags = self.get_effective_declaration_flags(canonical, flags_to_check);
+        // group(overloads, fileName) — first-seen file order.
+        let mut file_order: Vec<usize> = Vec::new();
+        let mut groups: std::collections::HashMap<usize, Vec<NodeId>> =
+            std::collections::HashMap::new();
+        for &overload in overloads {
+            let file = self.binder.file_index_of_node(overload);
+            if !groups.contains_key(&file) {
+                file_order.push(file);
+            }
+            groups.entry(file).or_default().push(overload);
+        }
+        for file in file_order {
+            let overloads_in_file = groups[&file].clone();
+            let canonical_for_file =
+                self.get_canonical_overload(&overloads_in_file, implementation);
+            let canonical_flags_for_file =
+                self.get_effective_declaration_flags(canonical_for_file, flags_to_check);
+            for &o in &overloads_in_file {
+                let flags = self.get_effective_declaration_flags(o, flags_to_check);
+                let deviation = flags.bits() ^ canonical_flags.bits();
+                let deviation_in_file = flags.bits() ^ canonical_flags_for_file.bits();
+                let error_node = self.name_of_node(o);
+                if deviation_in_file & tsrs2_types::ModifierFlags::EXPORT.bits() != 0 {
+                    self.error_at(
+                        error_node,
+                        &diagnostics::Overload_signatures_must_all_be_exported_or_non_exported,
+                        &[],
+                    );
+                } else if deviation_in_file & tsrs2_types::ModifierFlags::AMBIENT.bits() != 0 {
+                    self.error_at(
+                        error_node,
+                        &diagnostics::Overload_signatures_must_all_be_ambient_or_non_ambient,
+                        &[],
+                    );
+                } else if deviation
+                    & (tsrs2_types::ModifierFlags::PRIVATE.bits()
+                        | tsrs2_types::ModifierFlags::PROTECTED.bits())
+                    != 0
+                {
+                    self.error_at(
+                        error_node.or(Some(o)),
+                        &diagnostics::Overload_signatures_must_all_be_public_private_or_protected,
+                        &[],
+                    );
+                } else if deviation & tsrs2_types::ModifierFlags::ABSTRACT.bits() != 0 {
+                    self.error_at(
+                        error_node,
+                        &diagnostics::Overload_signatures_must_all_be_abstract_or_non_abstract,
+                        &[],
+                    );
+                }
+            }
+        }
+    }
+
+    /// checkQuestionTokenAgreementBetweenOverloads (82056-82066).
+    fn check_question_token_agreement_between_overloads(
+        &mut self,
+        overloads: &[NodeId],
+        implementation: Option<NodeId>,
+        some_have_question_token: bool,
+        all_have_question_token: bool,
+    ) {
+        if some_have_question_token == all_have_question_token {
+            return;
+        }
+        let canonical = self.get_canonical_overload(overloads, implementation);
+        let canonical_has_question_token = self.has_question_token(canonical);
+        for &o in overloads {
+            if self.has_question_token(o) != canonical_has_question_token {
+                let error_node = self.name_of_node(o);
+                self.error_at(
+                    error_node,
+                    &diagnostics::Overload_signatures_must_all_be_optional_or_required,
+                    &[],
+                );
+            }
+        }
+    }
+
+    /// tsc-port: checkExportsOnMergedDeclarations @6.0.3
+    /// tsc-hash: a2c41fdcf1788e5486ad20834c57dbdf8c55e52950e0c24022870e3510559398
+    /// tsc-span: _tsc.js:82215-82217
+    ///
+    /// The worker (82218-82311, hash 27bf5a2713904b795ff58d00bb0b7709
+    /// eeed5818fb779c3dc557db69107ac931) runs eager; JSDoc tag arms
+    /// are JS-only.
+    pub(crate) fn check_exports_on_merged_declarations(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<()> {
+        let local_symbol = self
+            .binder
+            .file(self.binder.file_index_of_node(node))
+            .node_local_symbol
+            .get(&node)
+            .copied();
+        let symbol = match local_symbol {
+            Some(local) => local,
+            None => {
+                let symbol = self.get_symbol_of_declaration(node)?;
+                if self.binder.symbol(symbol).export_symbol.is_none() {
+                    return Ok(());
+                }
+                symbol
+            }
+        };
+        if self.get_declaration_of_kind(symbol, self.kind_of(node)) != Some(node) {
+            return Ok(());
+        }
+        let mut exported_spaces = 0u32;
+        let mut non_exported_spaces = 0u32;
+        let mut default_exported_spaces = 0u32;
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let export_default = tsrs2_types::ModifierFlags::from_bits(
+            tsrs2_types::ModifierFlags::EXPORT.bits() | tsrs2_types::ModifierFlags::DEFAULT.bits(),
+        );
+        for &d in &declarations {
+            let spaces = self.get_declaration_spaces(d)?;
+            let flags = self.get_effective_declaration_flags(d, export_default);
+            if flags.intersects(tsrs2_types::ModifierFlags::EXPORT) {
+                if flags.intersects(tsrs2_types::ModifierFlags::DEFAULT) {
+                    default_exported_spaces |= spaces;
+                } else {
+                    exported_spaces |= spaces;
+                }
+            } else {
+                non_exported_spaces |= spaces;
+            }
+        }
+        let non_default_exported = exported_spaces | non_exported_spaces;
+        let common_exports_and_locals = exported_spaces & non_exported_spaces;
+        let common_default_and_non_default = default_exported_spaces & non_default_exported;
+        if common_exports_and_locals != 0 || common_default_and_non_default != 0 {
+            for &d in &declarations {
+                let spaces = self.get_declaration_spaces(d)?;
+                let name = self.name_of_node(d);
+                let display = name
+                    .map(|name| {
+                        node_util::declaration_name_to_string(
+                            self.binder.source_of_node(name),
+                            Some(name),
+                        )
+                    })
+                    .unwrap_or_default();
+                if spaces & common_default_and_non_default != 0 {
+                    self.error_at(
+                        name,
+                        &diagnostics::Merged_declaration_0_cannot_include_a_default_export_declaration_Consider_adding_a_separate_export_default_0_declaration_instead,
+                        &[&display],
+                    );
+                } else if spaces & common_exports_and_locals != 0 {
+                    self.error_at(
+                        name,
+                        &diagnostics::Individual_declarations_in_merged_declaration_0_must_be_all_exported_or_all_local,
+                        &[&display],
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// getDeclarationSpaces (82259-82310, the worker's inner fn).
+    /// Alias-target arms (import-equals/namespace-import/import-clause
+    /// and entity-name export assignments) need resolveAlias — they
+    /// escape until the §9 module band (5.8 modules) rather than guess.
+    fn get_declaration_spaces(&mut self, decl: NodeId) -> CheckResult2<u32> {
+        const EXPORT_VALUE: u32 = 1;
+        const EXPORT_TYPE: u32 = 2;
+        const EXPORT_NAMESPACE: u32 = 4;
+        match self.kind_of(decl) {
+            SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeAliasDeclaration => Ok(EXPORT_TYPE),
+            SyntaxKind::ModuleDeclaration => {
+                let source = self.binder.source_of_node(decl);
+                let instantiated = node_util::is_ambient_module(source, decl) || {
+                    let mut visited = std::collections::HashMap::new();
+                    tsrs2_binder::containers::get_module_instance_state(source, decl, &mut visited)
+                        != tsrs2_binder::containers::ModuleInstanceState::NonInstantiated
+                };
+                Ok(if instantiated {
+                    EXPORT_NAMESPACE | EXPORT_VALUE
+                } else {
+                    EXPORT_NAMESPACE
+                })
+            }
+            SyntaxKind::ClassDeclaration | SyntaxKind::EnumDeclaration | SyntaxKind::EnumMember => {
+                Ok(EXPORT_TYPE | EXPORT_VALUE)
+            }
+            SyntaxKind::SourceFile => Ok(EXPORT_TYPE | EXPORT_VALUE | EXPORT_NAMESPACE),
+            SyntaxKind::ExportAssignment | SyntaxKind::BinaryExpression => {
+                let expression = match self.data_of(decl) {
+                    NodeData::ExportAssignment(data) => data.expression,
+                    NodeData::BinaryExpression(data) => data.right,
+                    _ => None,
+                };
+                let is_entity =
+                    expression.is_some_and(|expression| self.is_entity_name_expression(expression));
+                if !is_entity {
+                    return Ok(EXPORT_VALUE);
+                }
+                Err(Unsupported::new(
+                    "getDeclarationSpaces alias target (resolveAlias, 5.8 modules)",
+                ))
+            }
+            SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::ImportClause => Err(Unsupported::new(
+                "getDeclarationSpaces alias target (resolveAlias, 5.8 modules)",
+            )),
+            SyntaxKind::VariableDeclaration
+            | SyntaxKind::BindingElement
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::Identifier => Ok(EXPORT_VALUE),
+            SyntaxKind::MethodSignature | SyntaxKind::PropertySignature => Ok(EXPORT_TYPE),
+            _ => Err(Unsupported::new(
+                "getDeclarationSpaces unexpected declaration kind (Debug.failBadSyntaxKind, parse recovery)",
+            )),
+        }
+    }
+
+    /// tsc-port: checkTypePredicate @6.0.3
+    /// tsc-hash: a9cf25130ba9b91453a845c17be5e5baea7d97023a327b90cc68d9b070610950
+    /// tsc-span: _tsc.js:81206-81253
+    /// (covers getTypePredicateParent 81254-81268)
+    ///
+    /// Signature type predicates are UNMODELED until M5
+    /// (getEffectsSignature): getTypePredicateOfSignature would answer
+    /// None for every signature we build, so the tail past the 1228
+    /// row (2677/1230/1225-family) is provably dead — a named escape
+    /// keeps the containment honest rather than silently skipping
+    /// (risk §14.15: do not fabricate the tail's shapes).
+    pub(crate) fn check_type_predicate(&mut self, node: NodeId) -> CheckResult2<()> {
+        let parent = self.parent_of(node);
+        let is_return_position = parent.is_some_and(|parent| {
+            let parent_type = match self.data_of(parent) {
+                NodeData::ArrowFunction(data) => data.r#type,
+                NodeData::CallSignature(data) => data.r#type,
+                NodeData::FunctionDeclaration(data) => data.r#type,
+                NodeData::FunctionExpression(data) => data.r#type,
+                NodeData::FunctionType(data) => data.r#type,
+                NodeData::MethodDeclaration(data) => data.r#type,
+                NodeData::MethodSignature(data) => data.r#type,
+                _ => None,
+            };
+            parent_type == Some(node)
+        });
+        if !is_return_position {
+            self.error_at(
+                Some(node),
+                &diagnostics::A_type_predicate_is_only_allowed_in_return_type_position_for_functions_and_methods,
+                &[],
+            );
+            return Ok(());
+        }
+        Err(Unsupported::new(
+            "checkTypePredicate tail (signature type predicates, getEffectsSignature M5)",
+        ))
+    }
+
     // ---- grammar (fn-like declaration band) ----
 
     /// tsc-port: checkGrammarFunctionLikeDeclaration @6.0.3
@@ -1734,9 +3741,15 @@ impl<'a> CheckerState<'a> {
             NodeData::FunctionExpression(data) => data.type_parameters,
             NodeData::ArrowFunction(data) => data.type_parameters,
             NodeData::MethodDeclaration(data) => data.type_parameters,
+            NodeData::MethodSignature(data) => data.type_parameters,
             NodeData::FunctionDeclaration(data) => data.type_parameters,
             NodeData::GetAccessor(data) => data.type_parameters,
             NodeData::SetAccessor(data) => data.type_parameters,
+            NodeData::Constructor(data) => data.type_parameters,
+            NodeData::CallSignature(data) => data.type_parameters,
+            NodeData::ConstructSignature(data) => data.type_parameters,
+            NodeData::FunctionType(data) => data.type_parameters,
+            NodeData::ConstructorType(data) => data.type_parameters,
             _ => None,
         };
         if self.check_grammar_type_parameter_list(node, type_parameters) {
@@ -1785,6 +3798,732 @@ impl<'a> CheckerState<'a> {
             );
         }
         false
+    }
+
+    /// tsc-port: checkGrammarForInvalidQuestionMark @6.0.3
+    /// tsc-hash: ecbb4add9b568ce8b186de774851c5795ea842ace6c2c2fa9541e70f8545b8c0
+    /// tsc-span: _tsc.js:89631-89633
+    fn check_grammar_for_invalid_question_mark(
+        &mut self,
+        question_token: Option<NodeId>,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+    ) -> bool {
+        match question_token {
+            Some(token) => self.grammar_error_on_node(token, message, &[]),
+            None => false,
+        }
+    }
+
+    /// tsc-port: checkGrammarForInvalidExclamationToken @6.0.3
+    /// tsc-hash: 11b6e35393603887b71a5bea8e64697e42ca22bd858b3fe12d6d2bfe92d8ad4c
+    /// tsc-span: _tsc.js:89634-89636
+    fn check_grammar_for_invalid_exclamation_token(
+        &mut self,
+        exclamation_token: Option<NodeId>,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+    ) -> bool {
+        match exclamation_token {
+            Some(token) => self.grammar_error_on_node(token, message, &[]),
+            None => false,
+        }
+    }
+
+    /// tsc-port: checkGrammarForInvalidDynamicName @6.0.3
+    /// tsc-hash: 122fcd605b02d6e016546ac05ae47fd79514d7a92c12d6f24c061bc8a74c49a1
+    /// tsc-span: _tsc.js:89938-89942
+    /// (covers isNonBindableDynamicName 57646-57648)
+    ///
+    /// isLateBindableName's TYPE half runs through the memoizing
+    /// checkComputedPropertyName; element-access names are JS-only
+    /// declaration shapes (unreachable from TS member names).
+    fn check_grammar_for_invalid_dynamic_name(
+        &mut self,
+        name: NodeId,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+    ) -> CheckResult2<bool> {
+        let source = self.binder.source_of_node(name);
+        if !node_util::is_dynamic_name(source, name) {
+            return Ok(false);
+        }
+        // isLateBindableName: AST half (entity-name expression) + type
+        // half (literal/unique-symbol name type).
+        let expression = match self.data_of(name) {
+            NodeData::ComputedPropertyName(data) => data.expression,
+            _ => None,
+        };
+        let is_late_bindable = match expression {
+            Some(expression) if self.is_entity_name_expression(expression) => {
+                let name_type = self.check_computed_property_name(name)?;
+                self.property_name_from_type_usable(name_type).is_some()
+            }
+            _ => false,
+        };
+        if is_late_bindable {
+            return Ok(false);
+        }
+        // The tsc guard also requires the non-entity-name shape:
+        // `!isEntityNameExpression(node.expression)` — an entity-name
+        // computed name whose TYPE half failed is dynamic but exempt.
+        if expression.is_some_and(|expression| self.is_entity_name_expression(expression)) {
+            return Ok(false);
+        }
+        Ok(self.grammar_error_on_node(name, message, &[]))
+    }
+
+    /// tsc-port: checkGrammarMethod @6.0.3
+    /// tsc-hash: b527241eef4a0e9f52c7f1aba21a0c2d994426c4e9b937a0b184941346158068
+    /// tsc-span: _tsc.js:89943-89977
+    pub(crate) fn check_grammar_method(&mut self, node: NodeId) -> CheckResult2<bool> {
+        if self.check_grammar_function_like_declaration(node)? {
+            return Ok(true);
+        }
+        let parent = self.parent_of(node);
+        let parent_kind = parent.map(|parent| self.kind_of(parent));
+        let (name, question_token, exclamation_token, body, modifiers) = match self.data_of(node) {
+            NodeData::MethodDeclaration(data) => (
+                data.name,
+                data.question_token,
+                data.exclamation_token,
+                data.body,
+                data.modifiers,
+            ),
+            NodeData::MethodSignature(data) => {
+                (data.name, data.question_token, None, None, data.modifiers)
+            }
+            _ => (None, None, None, None, None),
+        };
+        if self.kind_of(node) == SyntaxKind::MethodDeclaration {
+            if parent_kind == Some(SyntaxKind::ObjectLiteralExpression) {
+                let modifier_nodes = self.nodes_of(modifiers);
+                let only_async = modifier_nodes.len() == 1
+                    && modifier_nodes
+                        .first()
+                        .is_some_and(|&m| self.kind_of(m) == SyntaxKind::AsyncKeyword);
+                if !modifier_nodes.is_empty() && !only_async {
+                    return Ok(self.grammar_error_on_first_token(
+                        node,
+                        &diagnostics::Modifiers_cannot_appear_here,
+                        &[],
+                    ));
+                }
+                if self.check_grammar_for_invalid_question_mark(
+                    question_token,
+                    &diagnostics::An_object_member_cannot_be_declared_optional,
+                ) {
+                    return Ok(true);
+                }
+                if self.check_grammar_for_invalid_exclamation_token(
+                    exclamation_token,
+                    &diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
+                ) {
+                    return Ok(true);
+                }
+                if body.is_none() {
+                    let end = self.binder.source_of_node(node).arena.node(node).end;
+                    return Ok(self.grammar_error_at_pos(
+                        node,
+                        end.saturating_sub(1),
+                        1,
+                        &diagnostics::_0_expected,
+                        &["{"],
+                    ));
+                }
+            }
+            if self.check_grammar_for_generator(node) {
+                return Ok(true);
+            }
+        }
+        let Some(name) = name else {
+            return Ok(false);
+        };
+        if matches!(
+            parent_kind,
+            Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
+        ) {
+            if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015
+                && self.kind_of(name) == SyntaxKind::PrivateIdentifier
+            {
+                return Ok(self.grammar_error_on_node(
+                    name,
+                    &diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
+                    &[],
+                ));
+            }
+            if NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT) {
+                return self.check_grammar_for_invalid_dynamic_name(
+                    name,
+                    &diagnostics::A_computed_property_name_in_an_ambient_context_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
+                );
+            }
+            if self.kind_of(node) == SyntaxKind::MethodDeclaration && body.is_none() {
+                return self.check_grammar_for_invalid_dynamic_name(
+                    name,
+                    &diagnostics::A_computed_property_name_in_a_method_overload_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
+                );
+            }
+        } else if parent_kind == Some(SyntaxKind::InterfaceDeclaration) {
+            return self.check_grammar_for_invalid_dynamic_name(
+                name,
+                &diagnostics::A_computed_property_name_in_an_interface_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
+            );
+        } else if parent_kind == Some(SyntaxKind::TypeLiteral) {
+            return self.check_grammar_for_invalid_dynamic_name(
+                name,
+                &diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
+            );
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: checkGrammarProperty @6.0.3
+    /// tsc-hash: 96ee5a1ca0e98d408af24ce8c6f1d49184809528811cdd2d86069fdba2ee41f7
+    /// tsc-span: _tsc.js:90262-90306
+    pub(crate) fn check_grammar_property(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let (name, question_token, exclamation_token, type_node, initializer) =
+            match self.data_of(node) {
+                NodeData::PropertyDeclaration(data) => (
+                    data.name,
+                    data.question_token,
+                    data.exclamation_token,
+                    data.r#type,
+                    data.initializer,
+                ),
+                NodeData::PropertySignature(data) => (
+                    data.name,
+                    data.question_token,
+                    None,
+                    data.r#type,
+                    data.initializer,
+                ),
+                _ => (None, None, None, None, None),
+            };
+        let _ = question_token;
+        let Some(name) = name else {
+            return Ok(false);
+        };
+        let parent = self.parent_of(node);
+        let parent_kind = parent.map(|parent| self.kind_of(parent));
+        // The mapped-type `in`-name row (90263-90265) targets
+        // node.parent.members[0] — reachable only through parse
+        // recovery of `{ [K in T]: ... }` inside a class/interface.
+        if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+            if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
+                if let Some(expression) = data.expression {
+                    if self.kind_of(expression) == SyntaxKind::BinaryExpression {
+                        let is_in = matches!(
+                            self.data_of(expression),
+                            NodeData::BinaryExpression(bin)
+                                if bin.operator_token.is_some_and(
+                                    |token| self.kind_of(token) == SyntaxKind::InKeyword
+                                )
+                        );
+                        if is_in {
+                            let first_member = parent.and_then(|parent| {
+                                let members = match self.data_of(parent) {
+                                    NodeData::ClassDeclaration(data) => data.members,
+                                    NodeData::ClassExpression(data) => data.members,
+                                    NodeData::InterfaceDeclaration(data) => data.members,
+                                    NodeData::TypeLiteral(data) => data.members,
+                                    _ => None,
+                                };
+                                self.nodes_of(members).first().copied()
+                            });
+                            if let Some(first_member) = first_member {
+                                return Ok(self.grammar_error_on_node(
+                                    first_member,
+                                    &diagnostics::A_mapped_type_may_not_declare_properties_or_methods,
+                                    &[],
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if matches!(
+            parent_kind,
+            Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
+        ) {
+            let string_constructor_name = self.kind_of(name) == SyntaxKind::StringLiteral
+                && matches!(
+                    self.data_of(name),
+                    NodeData::StringLiteral(data) if data.text == "constructor"
+                );
+            if string_constructor_name {
+                return Ok(self.grammar_error_on_node(
+                    name,
+                    &diagnostics::Classes_may_not_have_a_field_named_constructor,
+                    &[],
+                ));
+            }
+            if self.check_grammar_for_invalid_dynamic_name(
+                name,
+                &diagnostics::A_computed_property_name_in_a_class_property_declaration_must_have_a_simple_literal_type_or_a_unique_symbol_type,
+            )? {
+                return Ok(true);
+            }
+            let source = self.binder.source_of_node(node);
+            if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015 {
+                if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
+                    return Ok(self.grammar_error_on_node(
+                        name,
+                        &diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
+                        &[],
+                    ));
+                }
+                if node_util::is_auto_accessor_property_declaration(source, node)
+                    && !NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
+                {
+                    return Ok(self.grammar_error_on_node(
+                        name,
+                        &diagnostics::Properties_with_the_accessor_modifier_are_only_available_when_targeting_ECMAScript_2015_and_higher,
+                        &[],
+                    ));
+                }
+            }
+            if node_util::is_auto_accessor_property_declaration(source, node)
+                && self.check_grammar_for_invalid_question_mark(
+                    question_token,
+                    &diagnostics::An_accessor_property_cannot_be_declared_optional,
+                )
+            {
+                return Ok(true);
+            }
+        } else if parent_kind == Some(SyntaxKind::InterfaceDeclaration) {
+            if self.check_grammar_for_invalid_dynamic_name(
+                name,
+                &diagnostics::A_computed_property_name_in_an_interface_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
+            )? {
+                return Ok(true);
+            }
+            if let Some(initializer) = initializer {
+                return Ok(self.grammar_error_on_node(
+                    initializer,
+                    &diagnostics::An_interface_property_cannot_have_an_initializer,
+                    &[],
+                ));
+            }
+        } else if parent_kind == Some(SyntaxKind::TypeLiteral) {
+            if self.check_grammar_for_invalid_dynamic_name(
+                name,
+                &diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
+            )? {
+                return Ok(true);
+            }
+            if let Some(initializer) = initializer {
+                return Ok(self.grammar_error_on_node(
+                    initializer,
+                    &diagnostics::A_type_literal_property_cannot_have_an_initializer,
+                    &[],
+                ));
+            }
+        }
+        if NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT) {
+            // tsc reaches this through `!checkGrammarModifiers(node) &&
+            // !checkGrammarProperty(node)` — a decorator on an ambient
+            // property reports 1206 in checkGrammarModifiers (M7 stub
+            // here) and SHORT-CIRCUITS this row; contain that shape
+            // rather than fabricate 1039 beside tsc's 1206.
+            let has_decorator = {
+                let modifiers = match self.data_of(node) {
+                    NodeData::PropertyDeclaration(data) => data.modifiers,
+                    NodeData::PropertySignature(data) => data.modifiers,
+                    _ => None,
+                };
+                self.nodes_of(modifiers)
+                    .iter()
+                    .any(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
+            };
+            if has_decorator {
+                return Err(Unsupported::new(
+                    "ambient-initializer row behind checkGrammarModifiers' decorator rows (M7)",
+                ));
+            }
+            self.check_ambient_initializer(node)?;
+        }
+        if self.kind_of(node) == SyntaxKind::PropertyDeclaration {
+            if let Some(exclamation_token) = exclamation_token {
+                let source = self.binder.source_of_node(node);
+                let is_class_parent = matches!(
+                    parent_kind,
+                    Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
+                );
+                let is_static = node_util::has_syntactic_modifier(
+                    source,
+                    node,
+                    tsrs2_types::ModifierFlags::STATIC,
+                );
+                let has_abstract = node_util::has_syntactic_modifier(
+                    source,
+                    node,
+                    tsrs2_types::ModifierFlags::ABSTRACT,
+                );
+                let ambient =
+                    NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT);
+                if !is_class_parent
+                    || type_node.is_none()
+                    || initializer.is_some()
+                    || ambient
+                    || is_static
+                    || has_abstract
+                {
+                    let message = if initializer.is_some() {
+                        &diagnostics::Declarations_with_initializers_cannot_also_have_definite_assignment_assertions
+                    } else if type_node.is_none() {
+                        &diagnostics::Declarations_with_definite_assignment_assertions_must_also_have_type_annotations
+                    } else {
+                        &diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context
+                    };
+                    return Ok(self.grammar_error_on_node(exclamation_token, message, &[]));
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: checkGrammarAccessor @6.0.3
+    /// tsc-hash: 450d5e7cd9f84c9e80f00b3a4cb4181f267550bf59e6691590ac5a1e8346d4a8
+    /// tsc-span: _tsc.js:89843-89885
+    /// (covers doesAccessorHaveCorrectParameterCount 89886-89888 +
+    /// getAccessorThisParameter 89889-89893)
+    pub(crate) fn check_grammar_accessor(&mut self, accessor: NodeId) -> CheckResult2<bool> {
+        let is_get = self.kind_of(accessor) == SyntaxKind::GetAccessor;
+        let (name, type_parameters, parameters, type_node, body) = match self.data_of(accessor) {
+            NodeData::GetAccessor(data) => (
+                data.name,
+                data.type_parameters,
+                data.parameters,
+                data.r#type,
+                data.body,
+            ),
+            NodeData::SetAccessor(data) => (
+                data.name,
+                data.type_parameters,
+                data.parameters,
+                data.r#type,
+                data.body,
+            ),
+            _ => (None, None, None, None, None),
+        };
+        let Some(name) = name else {
+            return Ok(false);
+        };
+        let parent_kind = self.parent_of(accessor).map(|parent| self.kind_of(parent));
+        // tsc's parser stamps the Ambient NODE flag from a `declare`
+        // member modifier; ours reaches it through the modifier — read
+        // both faces.
+        let ambient = NodeFlags::from_bits(self.node_flags(accessor))
+            .intersects(NodeFlags::AMBIENT)
+            || node_util::has_syntactic_modifier(
+                self.binder.source_of_node(accessor),
+                accessor,
+                tsrs2_types::ModifierFlags::AMBIENT,
+            );
+        let in_type_container = matches!(
+            parent_kind,
+            Some(SyntaxKind::TypeLiteral) | Some(SyntaxKind::InterfaceDeclaration)
+        );
+        let source = self.binder.source_of_node(accessor);
+        let has_abstract = node_util::has_syntactic_modifier(
+            source,
+            accessor,
+            tsrs2_types::ModifierFlags::ABSTRACT,
+        );
+        if !ambient && !in_type_container {
+            if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015
+                && self.kind_of(name) == SyntaxKind::PrivateIdentifier
+            {
+                return Ok(self.grammar_error_on_node(
+                    name,
+                    &diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
+                    &[],
+                ));
+            }
+            if body.is_none() && !has_abstract {
+                let end = source.arena.node(accessor).end;
+                return Ok(self.grammar_error_at_pos(
+                    accessor,
+                    end.saturating_sub(1),
+                    1,
+                    &diagnostics::_0_expected,
+                    &["{"],
+                ));
+            }
+        }
+        if let Some(body) = body {
+            if has_abstract {
+                return Ok(self.grammar_error_on_node(
+                    accessor,
+                    &diagnostics::An_abstract_accessor_cannot_have_an_implementation,
+                    &[],
+                ));
+            }
+            if in_type_container {
+                return Ok(self.grammar_error_on_node(
+                    body,
+                    &diagnostics::An_implementation_cannot_be_declared_in_ambient_contexts,
+                    &[],
+                ));
+            }
+        }
+        if type_parameters.is_some() {
+            return Ok(self.grammar_error_on_node(
+                name,
+                &diagnostics::An_accessor_cannot_have_type_parameters,
+                &[],
+            ));
+        }
+        let parameter_nodes = self.nodes_of(parameters);
+        let this_parameter = self.get_accessor_this_parameter(accessor, &parameter_nodes, is_get);
+        let correct_count =
+            this_parameter.is_some() || parameter_nodes.len() == if is_get { 0 } else { 1 };
+        if !correct_count {
+            return Ok(self.grammar_error_on_node(
+                name,
+                if is_get {
+                    &diagnostics::A_get_accessor_cannot_have_parameters
+                } else {
+                    &diagnostics::A_set_accessor_must_have_exactly_one_parameter
+                },
+                &[],
+            ));
+        }
+        if !is_get {
+            if let Some(type_node) = type_node {
+                let _ = type_node;
+                return Ok(self.grammar_error_on_node(
+                    name,
+                    &diagnostics::A_set_accessor_cannot_have_a_return_type_annotation,
+                    &[],
+                ));
+            }
+            // getSetAccessorValueParameter: skip a leading `this`.
+            let value_parameter = if this_parameter.is_some() {
+                parameter_nodes.get(1).copied()
+            } else {
+                parameter_nodes.first().copied()
+            };
+            if let Some(parameter) = value_parameter {
+                let (dot_dot_dot_token, parameter_question_token, parameter_initializer) =
+                    match self.data_of(parameter) {
+                        NodeData::Parameter(data) => (
+                            data.dot_dot_dot_token,
+                            data.question_token,
+                            data.initializer,
+                        ),
+                        _ => (None, None, None),
+                    };
+                if let Some(dot_dot_dot_token) = dot_dot_dot_token {
+                    return Ok(self.grammar_error_on_node(
+                        dot_dot_dot_token,
+                        &diagnostics::A_set_accessor_cannot_have_rest_parameter,
+                        &[],
+                    ));
+                }
+                if let Some(parameter_question_token) = parameter_question_token {
+                    return Ok(self.grammar_error_on_node(
+                        parameter_question_token,
+                        &diagnostics::A_set_accessor_cannot_have_an_optional_parameter,
+                        &[],
+                    ));
+                }
+                if parameter_initializer.is_some() {
+                    return Ok(self.grammar_error_on_node(
+                        name,
+                        &diagnostics::A_set_accessor_parameter_cannot_have_an_initializer,
+                        &[],
+                    ));
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// getAccessorThisParameter (89889-89893): only when the count
+    /// matches get=1/set=2 exactly does the leading `this` parameter
+    /// count as one.
+    fn get_accessor_this_parameter(
+        &self,
+        _accessor: NodeId,
+        parameters: &[NodeId],
+        is_get: bool,
+    ) -> Option<NodeId> {
+        if parameters.len() != if is_get { 1 } else { 2 } {
+            return None;
+        }
+        let first = *parameters.first()?;
+        let name = match self.data_of(first) {
+            NodeData::Parameter(data) => data.name?,
+            _ => return None,
+        };
+        (self.kind_of(name) == SyntaxKind::Identifier
+            && self.identifier_text_of(name) == Some("this"))
+        .then_some(first)
+    }
+
+    /// tsc-port: checkGrammarIndexSignature @6.0.3
+    /// tsc-hash: 2856d1455aeec93ef47683be871684d5298f850b1d5b3361f0477c67511d9c26
+    /// tsc-span: _tsc.js:89525-89527
+    /// (covers checkGrammarIndexSignatureParameters 89488-89524)
+    pub(crate) fn check_grammar_index_signature(&mut self, node: NodeId) -> CheckResult2<bool> {
+        self.check_grammar_modifiers(node);
+        let (parameters_array, type_node) = match self.data_of(node) {
+            NodeData::IndexSignature(data) => (data.parameters, data.r#type),
+            _ => (None, None),
+        };
+        let parameters = self.nodes_of(parameters_array);
+        let parameter = parameters.first().copied();
+        if parameters.len() != 1 {
+            return Ok(match parameter {
+                Some(parameter) => {
+                    let parameter_name = self.name_of_node(parameter).unwrap_or(parameter);
+                    self.grammar_error_on_node(
+                        parameter_name,
+                        &diagnostics::An_index_signature_must_have_exactly_one_parameter,
+                        &[],
+                    )
+                }
+                None => self.grammar_error_on_node(
+                    node,
+                    &diagnostics::An_index_signature_must_have_exactly_one_parameter,
+                    &[],
+                ),
+            });
+        }
+        self.check_grammar_for_disallowed_trailing_comma(
+            parameters_array,
+            &diagnostics::An_index_signature_cannot_have_a_trailing_comma,
+        );
+        let parameter = parameter.expect("length checked above");
+        let (dot_dot_dot_token, parameter_name, question_token, initializer, parameter_type) =
+            match self.data_of(parameter) {
+                NodeData::Parameter(data) => (
+                    data.dot_dot_dot_token,
+                    data.name,
+                    data.question_token,
+                    data.initializer,
+                    data.r#type,
+                ),
+                _ => (None, None, None, None, None),
+            };
+        let error_name = parameter_name.unwrap_or(parameter);
+        if let Some(dot_dot_dot_token) = dot_dot_dot_token {
+            return Ok(self.grammar_error_on_node(
+                dot_dot_dot_token,
+                &diagnostics::An_index_signature_cannot_have_a_rest_parameter,
+                &[],
+            ));
+        }
+        let source = self.binder.source_of_node(parameter);
+        // hasEffectiveModifiers = getEffectiveModifierFlags != None
+        // (16922); JSDoc modifiers are JS-only, so the syntactic
+        // flags ARE the effective flags here.
+        if node_util::get_syntactic_modifier_flags(source, parameter)
+            != tsrs2_types::ModifierFlags::NONE
+        {
+            return Ok(self.grammar_error_on_node(
+                error_name,
+                &diagnostics::An_index_signature_parameter_cannot_have_an_accessibility_modifier,
+                &[],
+            ));
+        }
+        if let Some(question_token) = question_token {
+            return Ok(self.grammar_error_on_node(
+                question_token,
+                &diagnostics::An_index_signature_parameter_cannot_have_a_question_mark,
+                &[],
+            ));
+        }
+        if initializer.is_some() {
+            return Ok(self.grammar_error_on_node(
+                error_name,
+                &diagnostics::An_index_signature_parameter_cannot_have_an_initializer,
+                &[],
+            ));
+        }
+        let Some(parameter_type) = parameter_type else {
+            return Ok(self.grammar_error_on_node(
+                error_name,
+                &diagnostics::An_index_signature_parameter_must_have_a_type_annotation,
+                &[],
+            ));
+        };
+        let ty = self.get_type_from_type_node(parameter_type)?;
+        let literal_or_unique = self.some_type(ty, |state, t| {
+            state.tables.flags_of(t).intersects(TypeFlags::from_bits(
+                TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE.bits(),
+            ))
+        });
+        if literal_or_unique || self.tables.is_generic_type(ty) {
+            return Ok(self.grammar_error_on_node(
+                error_name,
+                &diagnostics::An_index_signature_parameter_type_cannot_be_a_literal_type_or_generic_type_Consider_using_a_mapped_object_type_instead,
+                &[],
+            ));
+        }
+        if !self.every_type(ty, |state, t| state.is_valid_index_key_type(t)) {
+            return Ok(self.grammar_error_on_node(
+                error_name,
+                &diagnostics::An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type,
+                &[],
+            ));
+        }
+        if type_node.is_none() {
+            return Ok(self.grammar_error_on_node(
+                node,
+                &diagnostics::An_index_signature_must_have_a_type_annotation,
+                &[],
+            ));
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: checkGrammarConstructorTypeParameters @6.0.3
+    /// tsc-hash: 86991bda286301e58591072483ca8f83b143fdff37cdd172320489b4336e5785
+    /// tsc-span: _tsc.js:90248-90255
+    ///
+    /// The JSDoc type-parameter arm is JS-only (elided).
+    pub(crate) fn check_grammar_constructor_type_parameters(&mut self, node: NodeId) -> bool {
+        let type_parameters = match self.data_of(node) {
+            NodeData::Constructor(data) => data.type_parameters,
+            _ => None,
+        };
+        let Some(type_parameters) = type_parameters else {
+            return false;
+        };
+        let source = self.binder.source_of_node(node);
+        let array = source.arena.node_array(type_parameters);
+        let (range_pos, range_end) = (array.pos as usize, array.end as usize);
+        let pos = if range_pos == range_end {
+            range_pos
+        } else {
+            tsrs2_syntax::skip_trivia(&source.text, range_pos)
+        };
+        self.grammar_error_at_pos(
+            node,
+            pos as u32,
+            range_end.saturating_sub(pos) as u32,
+            &diagnostics::Type_parameters_cannot_appear_on_a_constructor_declaration,
+            &[],
+        )
+    }
+
+    /// tsc-port: checkGrammarConstructorTypeAnnotation @6.0.3
+    /// tsc-hash: 8ec606d58f086731a46ab06d3c090b5488fe0b3589ec21678e9a14c0145fa26f
+    /// tsc-span: _tsc.js:90256-90261
+    pub(crate) fn check_grammar_constructor_type_annotation(&mut self, node: NodeId) -> bool {
+        let type_node = match self.data_of(node) {
+            NodeData::Constructor(data) => data.r#type,
+            _ => None,
+        };
+        match type_node {
+            Some(type_node) => self.grammar_error_on_node(
+                type_node,
+                &diagnostics::Type_annotation_cannot_appear_on_a_constructor_declaration,
+                &[],
+            ),
+            None => false,
+        }
     }
 
     /// tsc-port: checkGrammarTypeParameterList @6.0.3
@@ -1936,6 +4675,10 @@ impl<'a> CheckerState<'a> {
     ///
     /// languageVersion is ES2025 — the ES2016 gate is always open.
     fn check_grammar_for_use_strict_simple_parameter_list(&mut self, node: NodeId) -> bool {
+        // 89447: languageVersion >= ES2016 only.
+        if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2016 {
+            return false;
+        }
         let source = self.binder.source_of_node(node);
         let body = node_util::body_of(source, node);
         let Some(body) = body else {

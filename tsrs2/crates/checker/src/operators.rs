@@ -946,10 +946,14 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// getPropertyNameForKnownSymbolName: the global Symbol
-    /// constructor's `hasInstance` unique-symbol property name (the
-    /// late-bound `__@hasInstance@<id>` form) with the `__@hasInstance`
-    /// noLib fallback.
+    /// tsc-port: getPropertyNameForKnownSymbolName @6.0.3
+    /// tsc-hash: 339a60369eedfaca440c106b17ebeff12f80aaa9c1c7301c470264254ba9e4a9
+    /// tsc-span: _tsc.js:84219-84226
+    ///
+    /// The global Symbol constructor's unique-symbol property name
+    /// (the late-bound `__@name@<id>` form) with the `__@name` noLib
+    /// fallback. Shared: instanceof (`hasInstance`) + the §4 iterable
+    /// slow path (`iterator`/`asyncIterator`).
     pub(crate) fn get_property_name_for_known_symbol_name(
         &mut self,
         symbol_name: &str,
@@ -1097,12 +1101,21 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getTextOfNode: the source text of the node's span (left trivia
-    /// skipped, like getSourceTextOfNodeFromSourceFile).
+    /// skipped, like getSourceTextOfNodeFromSourceFile). JS
+    /// `substring` SWAPS its arguments when begin > end — reachable
+    /// for zero-width recovery nodes whose leading-trivia skip runs
+    /// past their end; replicate rather than panic.
     pub(crate) fn text_of_node(&self, node: NodeId) -> CheckResult2<String> {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
         let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
-        Ok(source.text[start..raw.end as usize].to_owned())
+        let end = raw.end as usize;
+        let (begin, finish) = if start <= end {
+            (start, end)
+        } else {
+            (end, start)
+        };
+        Ok(source.text[begin..finish].to_owned())
     }
 
     /// isIndirectCall (80278-80283) on the comma binary's parent

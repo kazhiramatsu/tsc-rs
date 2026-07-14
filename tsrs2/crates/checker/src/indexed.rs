@@ -1124,7 +1124,8 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(receiver) = ladder_receiver {
             if self.receiver_may_be_flow_narrowed(receiver)
-                && self.access_sits_in_guarded_position(access_expression)
+                && (self.access_sits_in_guarded_position(access_expression)
+                    || self.enclosing_scope_has_flow_guards(access_expression))
             {
                 return Err(Unsupported::new(
                     "[FLOW M5] element-access ladder on a narrowable receiver in a guarded position",

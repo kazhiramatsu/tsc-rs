@@ -356,6 +356,53 @@ impl<'a> CheckerState<'a> {
     /// position inside the guarded limb of an if/iteration/switch
     /// statement is a position where tsc's flow narrowing can retype
     /// the receiver. M5 removes the probe with the gates it feeds.
+    /// [FLOW M5] scope probe: does the nearest enclosing function body
+    /// (or the source file, for top-level code) contain any
+    /// flow-narrowing construct — if/switch/loops/conditional
+    /// expressions, logical binaries? tsc's narrowing reaches any
+    /// LATER read in the scope (early exits, exhaustive switches), so
+    /// position-local guards under-approximate.
+    /// tsrs-native: [FLOW M5] containment probe (no tsc
+    /// counterpart — tsc consults real flow types).
+    pub(crate) fn enclosing_scope_has_flow_guards(&self, node: NodeId) -> bool {
+        // Whole-file scan: narrowing flows into nested closures
+        // (captured variables, `this`), so per-function scoping
+        // under-approximates. M5 replaces the probe with real flow.
+        let source = self.binder.source_of_node(node);
+        let root = source.root;
+        let mut worklist = vec![root];
+        while let Some(current) = worklist.pop() {
+            match self.kind_of(current) {
+                SyntaxKind::IfStatement
+                | SyntaxKind::SwitchStatement
+                | SyntaxKind::ConditionalExpression
+                | SyntaxKind::WhileStatement
+                | SyntaxKind::DoStatement
+                | SyntaxKind::ForStatement => return true,
+                SyntaxKind::BinaryExpression => {
+                    if matches!(
+                        self.data_of(current),
+                        NodeData::BinaryExpression(data)
+                            if data.operator_token.is_some_and(|token| matches!(
+                                self.kind_of(token),
+                                SyntaxKind::AmpersandAmpersandToken
+                                    | SyntaxKind::BarBarToken
+                                    | SyntaxKind::QuestionQuestionToken
+                            ))
+                    ) {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
+                worklist.push(child);
+                false
+            });
+        }
+        false
+    }
+
     pub(crate) fn access_sits_in_guarded_position(&self, node: NodeId) -> bool {
         let mut current = node;
         while let Some(parent) = self.parent_of(current) {
@@ -1778,7 +1825,8 @@ impl<'a> CheckerState<'a> {
                     // `isC1(c) && c.p1` — exposed when 5.7 un-escaped
                     // guard calls). M5 removes the gate.
                     if self.receiver_may_be_flow_narrowed(left)
-                        && self.access_sits_in_guarded_position(node)
+                        && (self.access_sits_in_guarded_position(node)
+                            || self.enclosing_scope_has_flow_guards(node))
                     {
                         return Err(Unsupported::new(
                             "[FLOW M5] property miss on a narrowable receiver in a guarded position",

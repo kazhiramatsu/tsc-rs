@@ -1955,7 +1955,7 @@ impl<'a> CheckerState<'a> {
                     Unsupported::new("class without a bound symbol (parse recovery)")
                 })?;
                 let symbol = self.get_merged_symbol(symbol);
-                let ty = if self.has_static_modifier(container) {
+                let ty = if self.is_static_element(container) {
                     self.get_type_of_symbol(symbol)?
                 } else {
                     let declared = self.get_declared_type_of_class_or_interface(symbol)?;
@@ -2137,7 +2137,13 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc classDeclarationExtendsNull (72336).
-    fn class_declaration_extends_null(&mut self, class_declaration: NodeId) -> CheckResult2<bool> {
+    /// tsc-port: classDeclarationExtendsNull @6.0.3
+    /// tsc-hash: 669558e437c836e2dc5794ea9c62c5b0eba88ec511fbe5a05ce4d65eae51172a
+    /// tsc-span: _tsc.js:72324-72329
+    pub(crate) fn class_declaration_extends_null(
+        &mut self,
+        class_declaration: NodeId,
+    ) -> CheckResult2<bool> {
         let symbol = self
             .node_symbol(class_declaration)
             .ok_or_else(|| Unsupported::new("class without a bound symbol (parse recovery)"))?;
@@ -2149,7 +2155,10 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getClassExtendsHeritageElement (14700-adjacent): the first
     /// extends-clause type node of a class-like declaration.
-    fn get_class_extends_heritage_element(&self, node: NodeId) -> Option<NodeId> {
+    /// tsc-port: getClassExtendsHeritageElement @6.0.3
+    /// tsc-hash: 7101b7d0f1e607daa5a4ec5b194f7d3cfe15c24c30ebbdbb41a845dceaae5c7d
+    /// tsc-span: _tsc.js:15752-15755
+    pub(crate) fn get_class_extends_heritage_element(&self, node: NodeId) -> Option<NodeId> {
         let heritage = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.heritage_clauses,
             NodeData::ClassExpression(data) => data.heritage_clauses,
@@ -2262,7 +2271,7 @@ impl<'a> CheckerState<'a> {
         if !is_call_expression && self.kind_of(immediate_container) == SyntaxKind::Constructor {
             self.check_this_before_super_stub(node, container);
         }
-        let node_check_flag = if self.has_static_modifier(container) || is_call_expression {
+        let node_check_flag = if self.is_static_element(container) || is_call_expression {
             // The ES2015..ES2021 static-initializer
             // ContainsSuperPropertyInStaticInitializer walk.
             if !is_call_expression {
@@ -2407,7 +2416,7 @@ impl<'a> CheckerState<'a> {
         if !parent_is_class_or_object_literal {
             return false;
         }
-        if self.has_static_modifier(container) {
+        if self.is_static_element(container) {
             matches!(
                 self.kind_of(container),
                 SyntaxKind::MethodDeclaration

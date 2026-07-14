@@ -739,6 +739,13 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
+in = "get_signature_applicability_error"
+reason = "[FLOW M5] failed argument from a narrowable reference in a guard-bearing scope"
+class = "stage"
+owner = "M5"
+
+[[site]]
+file = "crates/checker/src/calls.rs"
 in = "get_spread_argument_type"
 reason = "non-array-like SYNTHETIC spread argument (span-only error node; synthetic args ride inference shapes, M6)"
 class = "stage"
@@ -789,6 +796,13 @@ in = "pick_longest_candidate_signature"
 reason = "inferSignatureInstantiationForOverloadFailure (M6-stub): context-sensitive arguments would observe stub parameter types"
 class = "stage"
 owner = "M6"
+
+[[site]]
+file = "crates/checker/src/calls.rs"
+in = "resolve_call_expression"
+reason = "[FLOW M5] untyped-call 2347 over an auto-typed callee (checkNonNullExpression error-face unmodeled)"
+class = "stage"
+owner = "M5"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -905,27 +919,6 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
-reason = "checkAccessorDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkClassStaticBlockDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkConstructorDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
 reason = "checkEnumDeclaration5.8"
 class = "stage"
 owner = "5.8"
@@ -954,13 +947,6 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
-reason = "checkFunctionDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
 reason = "checkImportDeclaration5.8"
 class = "stage"
 owner = "5.8"
@@ -975,56 +961,7 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_source_element_worker"
-reason = "checkMethodDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkMissingDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
 reason = "checkModuleDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkParameter5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkPropertyDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkPropertySignature5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkSignatureDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkTypePredicate5.8"
 class = "stage"
 owner = "5.8"
 
@@ -1323,9 +1260,70 @@ class = "untagged"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
+in = "check_accessor_declaration"
+reason = "checkDecorators5.8c"
+class = "stage"
+owner = "5.8c"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "check_all_code_paths_in_non_void_function_return_or_throw"
+reason = "[FLOW M5] implicit-return verdict over a switch/call-bearing body (isReachableFlowNode refinement)"
+class = "stage"
+owner = "M5"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
 in = "check_await_expression"
 reason = "await without operand (parse recovery)"
 class = "recovery"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "check_function_or_constructor_symbol"
+reason = "overload band over a parse-recovery tree (declaration boundaries diverge)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "check_function_or_method_declaration"
+reason = "checkDecorators5.8c"
+class = "stage"
+owner = "5.8c"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "check_grammar_property"
+reason = "ambient-initializer row behind checkGrammarModifiers' decorator rows (M7)"
+class = "stage"
+owner = "M7"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "check_missing_declaration"
+reason = "checkDecorators5.8c"
+class = "stage"
+owner = "5.8c"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "check_parameter"
+reason = "parameter outside a function (parse recovery)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "check_return_expression"
+reason = "[FLOW M5] failed return from a narrowable union/unknown-typed reference"
+class = "stage"
+owner = "M5"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "check_type_predicate"
+reason = "checkTypePredicate tail (signature type predicates, getEffectsSignature M5)"
+class = "stage"
+owner = "M5"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
@@ -1351,6 +1349,20 @@ in = "get_binding_element_type_from_parent_type"
 reason = "malformed binding element (parse recovery)"
 class = "recovery"
 count = 2
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "get_declaration_spaces"
+reason = "getDeclarationSpaces alias target (resolveAlias, 5.8 modules)"
+class = "stage"
+owner = "5.8"
+count = 2
+
+[[site]]
+file = "crates/checker/src/functions.rs"
+in = "get_declaration_spaces"
+reason = "getDeclarationSpaces unexpected declaration kind (Debug.failBadSyntaxKind, parse recovery)"
+class = "recovery"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
@@ -1993,13 +2005,6 @@ in = "check_variable_like_declaration"
 reason = "checkDecorators5.8c"
 class = "stage"
 owner = "5.8c"
-
-[[site]]
-file = "crates/checker/src/statements.rs"
-in = "check_variable_like_declaration"
-reason = "checkExportsOnMergedDeclarations5.8b"
-class = "stage"
-owner = "5.8b"
 
 [[site]]
 file = "crates/checker/src/statements.rs"

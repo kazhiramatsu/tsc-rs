@@ -516,8 +516,13 @@ impl LinksTables {
     /// SAME value, and a re-entrant resolution's concrete write feeds
     /// the outer early return (76621-76625). Tolerated transitions:
     /// Vacant→Resolving, Resolving→Resolving (re-entrant sentinel
-    /// write), Resolving→Resolved, Resolved(x)→Resolved(x). A
-    /// DIFFERENT resolved value still panics.
+    /// write), Resolving→Resolved, and Resolved→Resolved — INCLUDING
+    /// a different value: tsc's tail write is a plain assignment
+    /// (77505 `links.resolvedSignature = result`), and a re-entrant
+    /// resolution (declaration-site body driving demanding the same
+    /// call mid-flight, live since 5.8b) can pick a different
+    /// overload than the outer frame; the OUTER (last) write wins,
+    /// exactly like tsc.
     pub fn set_node_resolved_signature_call_protocol(
         &mut self,
         speculation_depth: u32,
@@ -529,11 +534,11 @@ impl LinksTables {
         match (&*slot, &value) {
             (LinkSlot::Vacant, LinkSlot::Resolving)
             | (LinkSlot::Resolving, LinkSlot::Resolving)
-            | (LinkSlot::Resolving, LinkSlot::Resolved(_)) => {
+            | (LinkSlot::Resolving, LinkSlot::Resolved(_))
+            | (LinkSlot::Resolved(_), LinkSlot::Resolved(_)) => {
                 note_resolving_transition(slot.is_resolving(), value.is_resolving());
                 *slot = value;
             }
-            (LinkSlot::Resolved(existing), LinkSlot::Resolved(next)) if existing == next => {}
             _ => panic!("call resolvedSignature protocol violated: {slot:?} -> {value:?}"),
         }
     }
@@ -913,8 +918,10 @@ impl LinksTables {
         links.widened = Some(widened);
     }
 
-    /// setCachedIterationTypes (84059-84061) — one write per key per
-    /// type in every tsc flow (the noCache re-run skips the write);
+    /// tsrs-native: the links half of setCachedIterationTypes
+    /// (84059-84061; the tsc-port header lives on iterate.rs's
+    /// set_cached_iteration_types) — one write per key per type in
+    /// every tsc flow (the noCache re-run skips the write);
     /// EQUAL-value rewrites tolerated per the resolvedSymbol precedent.
     pub fn set_type_iteration_types(
         &mut self,
