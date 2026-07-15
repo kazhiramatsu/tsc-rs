@@ -66,22 +66,17 @@ pub(crate) fn is_js_file_name(name: &str) -> bool {
         .any(|extension| name.ends_with(extension))
 }
 
-/// tsc scanner commentDirectiveRegExSingleLine (8202) +
-/// getDiagnosticsWithPrecedingDirectives / markPrecedingCommentDirectiveLine
-/// (123756): a `// @ts-ignore` / `// @ts-expect-error` comment
-/// suppresses bind/check diagnostics on the following line (walking up
-/// over blank and comment-only lines). INTERIM SCOPE: only directives
-/// on comment-only lines are detected (the scanner-side directive
-/// collection lands with real comment ranges); multi-line-comment
-/// directives are not handled.
 /// tsc check directive: extractPragmas walks
 /// getLeadingCommentRanges(text, 0) — single-line comments BEFORE the
 /// first token — and the LAST ts-check/ts-nocheck pragma wins
 /// (processPragmasIntoFields); skipTypeChecking then drops the file's
 /// bind+check diagnostics whole (parse diagnostics stay). Pragma names
 /// lowercase; the name must end at whitespace/colon/EOL like
-/// `@([^\s:]+)`. The 5.8e directive completion replaces this slice
-/// together with the interim line filter below.
+/// `@([^\s:]+)`. This producer stays TEXTUAL (exact over leading
+/// trivia, which is all extractPragmas reads); the 5.8e directive
+/// completion moved @ts-ignore/@ts-expect-error to scanner-collected
+/// SourceFile.comment_directives — swap this too if the parser ever
+/// grows real pragma processing (M8 surface).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CheckDirective {
     Check,
@@ -150,15 +145,61 @@ fn can_include_bind_and_check_diagnostics(
     }
 }
 
+/// tsc isPlainJsFile (12876): a JS/JSX file is "plain" only when
+/// neither a per-file check directive nor the project-level checkJs
+/// option was supplied. Checked JS uses the same comment-directive
+/// merge as TypeScript files. Upstream also uses its full diagnostic
+/// stream; this checker retains the JS-safe allowlist until JSDoc type
+/// modeling lands.
+fn is_plain_js_file(
+    javascript_file: bool,
+    directive: Option<CheckDirective>,
+    options: &CompilerOptions,
+) -> bool {
+    javascript_file && directive.is_none() && options.check_js.is_none()
+}
+
+/// tsc-port: markPrecedingCommentDirectiveLine @6.0.3
+/// tsc-hash: 5fd3ed53a22559eabfbc34ecee39efa38b2df133d5cc00e86dcd42ecae6ea88b
+/// tsc-span: _tsc.js:123766-123784
+///
+/// getDiagnosticsWithPrecedingDirectives (123756) over one file's
+/// bind+check list: keep a diagnostic only when no comment directive
+/// precedes it. Directives come from the SCANNER
+/// (SourceFile.comment_directives) and key on the line of range.end —
+/// the line holding a single-line comment, or the line holding a
+/// multi-line comment's `*/` (createCommentDirectivesMap 12963; a
+/// second directive ending on the same line collapses into it). The
+/// walk starts one line above the diagnostic and stops at the first
+/// line that is non-empty and not a `//` comment after a JS trim —
+/// unlike the retired interim filter, block-comment shell lines STOP
+/// the walk, exactly as in tsc.
+///
 fn filter_by_comment_directives(
-    text: &str,
-    line_map: &tsrs2_diags::LineMap,
+    source: &tsrs2_syntax::SourceFile,
     diagnostics: impl Iterator<Item = tsrs2_diags::Diagnostic>,
 ) -> Vec<tsrs2_diags::Diagnostic> {
+    // getMergedBindAndCheckDiagnostics (123744): no directives, no
+    // filtering.
+    if source.comment_directives.is_empty() {
+        return diagnostics.collect();
+    }
+    let text = source.text.as_str();
     // LineMap.line_starts are UTF-16 offsets; build BYTE line starts
     // with the same break set (\r\n, \r, \n, U+2028, U+2029) for text
-    // slicing.
+    // slicing and for placing the byte-offset directive ranges.
     let byte_line_starts = compute_byte_line_starts(text);
+    let line_of_byte = |offset: usize| -> usize {
+        match byte_line_starts.binary_search(&offset) {
+            Ok(line) => line,
+            Err(insert) => insert.saturating_sub(1),
+        }
+    };
+    let directive_lines: std::collections::HashSet<usize> = source
+        .comment_directives
+        .iter()
+        .map(|directive| line_of_byte(directive.end as usize))
+        .collect();
     let line_text = |line: usize| -> &str {
         let start = byte_line_starts[line];
         let end = byte_line_starts
@@ -167,58 +208,36 @@ fn filter_by_comment_directives(
             .unwrap_or(text.len());
         &text[start..end]
     };
-    let line_starts = &line_map.line_starts;
-    let is_directive_line = |line: usize| -> bool {
-        let trimmed = line_text(line).trim_start();
-        if let Some(comment) = trimmed.strip_prefix("//") {
-            // regex ^///?\s*@(ts-expect-error|ts-ignore) applied at
-            // the comment start.
-            let comment = comment.strip_prefix('/').unwrap_or(comment);
-            let comment = comment.trim_start();
-            return comment.starts_with("@ts-expect-error") || comment.starts_with("@ts-ignore");
-        }
-        // commentDirectiveRegExMultiLine (8203): ^(?:/|\*)*\s*@(ts-
-        // expect-error|ts-ignore) — the multi-line-comment face,
-        // matched line-wise (the scanner applies it to the closing
-        // line of a /* */ comment; a line-based match over-suppresses
-        // only when the pattern appears mid-comment or in a template
-        // string — FN-side).
-        let stripped = trimmed.trim_start_matches(['/', '*']).trim_start();
-        stripped.starts_with("@ts-expect-error") || stripped.starts_with("@ts-ignore")
-    };
-    let directive_lines: Vec<usize> = (0..byte_line_starts.len())
-        .filter(|&line| is_directive_line(line))
-        .collect();
-    if directive_lines.is_empty() {
-        return diagnostics.collect();
-    }
     // Diagnostic.start is UTF-16, matching line_starts' units.
-    let utf16_line_starts: &[u32] = line_starts;
-    diagnostics
-        .filter(|diagnostic| {
-            let Some(start) = diagnostic.start else {
-                return true;
-            };
-            let diagnostic_line = match utf16_line_starts.binary_search(&start) {
-                Ok(line) => line,
-                Err(insert) => insert.saturating_sub(1),
-            };
-            let mut line = diagnostic_line;
-            while line > 0 {
-                line -= 1;
-                if directive_lines.contains(&line) {
-                    return false; // suppressed
-                }
-                let trimmed = line_text(line).trim();
-                let block_comment_shell =
-                    trimmed.starts_with("/*") || trimmed.starts_with('*') || trimmed == "*/";
-                if !trimmed.is_empty() && !trimmed.starts_with("//") && !block_comment_shell {
-                    return true;
-                }
+    let utf16_line_starts: &[u32] = &source.line_map.line_starts;
+    let mut result = Vec::new();
+    'diagnostic: for diagnostic in diagnostics {
+        let Some(start) = diagnostic.start else {
+            result.push(diagnostic);
+            continue;
+        };
+        let diagnostic_line = match utf16_line_starts.binary_search(&start) {
+            Ok(line) => line,
+            Err(insert) => insert.saturating_sub(1),
+        };
+        let mut line = diagnostic_line;
+        while line > 0 {
+            line -= 1;
+            if directive_lines.contains(&line) {
+                continue 'diagnostic;
             }
-            true
-        })
-        .collect()
+            // `lineText !== "" && !/^\s*\/\/.*$/.test(lineText)`
+            // over the trimmed slice: String.trim's set is JS
+            // whitespace, and post-trim the regex reduces to a
+            // `//` prefix test.
+            let trimmed = line_text(line).trim_matches(tsrs2_syntax::is_js_whitespace);
+            if !trimmed.is_empty() && !trimmed.starts_with("//") {
+                break;
+            }
+        }
+        result.push(diagnostic);
+    }
+    result
 }
 
 /// tsc-port: filterSemanticDiagnostics @6.0.3
@@ -383,9 +402,9 @@ pub fn check_program_with_libs(
     // Fixture bind pass: per-file binders with contiguous SymbolId
     // bases continuing from the lib prefix (tsc bindSourceFile per
     // file over one heap).
-    // Parse the per-file check directive ONCE. The 5.8e scanner-side
-    // directive collector can replace this producer without changing
-    // the bind/check assembly consumers below.
+    // Parse the per-file check directive (ts-check/ts-nocheck pragma)
+    // ONCE; @ts-ignore/@ts-expect-error ride on each SourceFile's
+    // scanner-collected comment_directives.
     let check_directives: std::collections::HashMap<&str, Option<CheckDirective>> = program_sources
         .iter()
         .map(|source| (source.file_name.as_str(), check_directive(&source.text)))
@@ -403,15 +422,10 @@ pub fn check_program_with_libs(
             tsrs2_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
         binder.bind_source_file();
         // tsc getBindAndCheckDiagnosticsForFileNoCache (123717): plain
-        // JS files
-        // filter bind diagnostics to the plainJSErrors allowlist and
-        // SKIP the comment-directive merge
-        // (includeBindAndCheckDiagnostics = !isPlainJs); TS files get
-        // the directive filter (@ts-ignore/@ts-expect-error). Unused
-        // @ts-expect-error reporting (2578) stays a deliberate FN: it
-        // requires knowing a directive suppressed NOTHING, and the
-        // checker's diagnostic surface is still FN-heavy — emitting it
-        // now would fabricate 2578s wherever we under-report (FP).
+        // JS files filter bind diagnostics to the plainJSErrors
+        // allowlist and SKIP the comment-directive merge
+        // (includeBindAndCheckDiagnostics = !isPlainJs); TypeScript
+        // and checked JS get the directive filter.
         let javascript_file = is_js_file_name(&source_file.file_name);
         let directive = check_directives
             .get(source_file.file_name.as_str())
@@ -420,22 +434,28 @@ pub fn check_program_with_libs(
         let include_bind_and_check = !(options.skip_lib_check == Some(true)
             && source_file.is_declaration_file)
             && can_include_bind_and_check_diagnostics(javascript_file, directive, options);
-        if javascript_file {
-            if include_bind_and_check {
-                diagnostics.extend(
-                    binder
-                        .bind_diagnostics
-                        .iter()
-                        .filter(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()))
-                        .cloned(),
-                );
+        if include_bind_and_check {
+            if javascript_file {
+                // The checker does not model JSDoc types yet, so even
+                // checked JS must stay on the proven-safe diagnostic
+                // allowlist. Unlike plain JS it still participates in
+                // @ts-ignore/@ts-expect-error filtering.
+                let allowed = binder
+                    .bind_diagnostics
+                    .iter()
+                    .filter(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()))
+                    .cloned();
+                if is_plain_js_file(true, directive, options) {
+                    diagnostics.extend(allowed);
+                } else {
+                    diagnostics.extend(filter_by_comment_directives(source_file, allowed));
+                }
+            } else {
+                diagnostics.extend(filter_by_comment_directives(
+                    source_file,
+                    binder.bind_diagnostics.iter().cloned(),
+                ));
             }
-        } else if include_bind_and_check {
-            diagnostics.extend(filter_by_comment_directives(
-                &source_file.text,
-                &source_file.line_map,
-                binder.bind_diagnostics.iter().cloned(),
-            ));
         }
         binders.push(binder);
     }
@@ -478,9 +498,9 @@ pub fn check_program_with_libs(
             .collect();
         // Per-file assembly (getBindAndCheckDiagnosticsForFileNoCache
         // 123717): plain JS files filter check diagnostics to the
-        // plainJSErrors allowlist and skip the directive merge; TS
-        // files run the comment-directive filter; file-less
-        // program-level diagnostics pass through.
+        // plainJSErrors allowlist and skip the directive merge;
+        // TypeScript and checked JS run the comment-directive filter;
+        // file-less program-level diagnostics pass through.
         let mut checker_diagnostics_by_file: std::collections::BTreeMap<
             Option<String>,
             Vec<tsrs2_diags::Diagnostic>,
@@ -517,15 +537,22 @@ pub fn check_program_with_libs(
             }
             let javascript_file = file_name.as_deref().is_some_and(is_js_file_name);
             if javascript_file {
-                let directive = file_name
-                    .as_deref()
-                    .and_then(|name| check_directives.get(name))
+                let Some(source) = file_name.as_deref().and_then(|name| by_name.get(name)) else {
+                    continue;
+                };
+                let directive = check_directives
+                    .get(source.file_name.as_str())
                     .copied()
                     .flatten();
                 if can_include_bind_and_check_diagnostics(true, directive, options) {
-                    diagnostics.extend(file_diagnostics.into_iter().filter(|diagnostic| {
-                        plain_js_errors::is_plain_js_error(diagnostic.code())
-                    }));
+                    let allowed = file_diagnostics
+                        .into_iter()
+                        .filter(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()));
+                    if is_plain_js_file(true, directive, options) {
+                        diagnostics.extend(allowed);
+                    } else {
+                        diagnostics.extend(filter_by_comment_directives(source, allowed));
+                    }
                 }
                 continue;
             }
@@ -551,12 +578,17 @@ pub fn check_program_with_libs(
                     continue;
                 }
                 diagnostics.extend(filter_by_comment_directives(
-                    &source.text,
-                    &source.line_map,
+                    source,
                     file_diagnostics.into_iter(),
                 ));
             }
         }
+        // Unused @ts-expect-error (2578) remains deliberately
+        // unreported while semantic coverage is incomplete. Absence of
+        // an emitted diagnostic is not proof that the target line is
+        // clean: whole families such as TS2454 are still silent without
+        // crossing an Unsupported boundary. Emitting 2578 here would
+        // turn those known false negatives into false positives.
         // The aggregate pass is sorted + deduplicated like tsc's
         // getPreEmitDiagnostics / the oracle driver's
         // ts.sortAndDeduplicateDiagnostics; getSyntacticDiagnostics
@@ -742,6 +774,327 @@ mod tests {
         );
     }
 
+    fn codes_of(source: &str) -> Vec<u32> {
+        codes_of_with_options(source, &CompilerOptions::default())
+    }
+
+    fn codes_of_with_options(source: &str, options: &CompilerOptions) -> Vec<u32> {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: source.to_owned(),
+            }],
+            options,
+        );
+        result.diagnostics.iter().map(|d| d.code()).collect()
+    }
+
+    fn strict_options() -> CompilerOptions {
+        CompilerOptions {
+            strict: Some(true),
+            no_implicit_any: Some(true),
+            ..CompilerOptions::default()
+        }
+    }
+
+    fn js_pair_diagnostics(js: &str, ts: &str) -> Vec<(u32, Option<String>)> {
+        check_program(
+            &[
+                InputFile {
+                    name: "a.js".to_owned(),
+                    text: js.to_owned(),
+                },
+                InputFile {
+                    name: "b.ts".to_owned(),
+                    text: ts.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..strict_options()
+            },
+        )
+        .diagnostics
+        .into_iter()
+        .map(|diagnostic| (diagnostic.code(), diagnostic.file_name))
+        .collect()
+    }
+
+    #[test]
+    fn unrelated_destructuring_sibling_guard_keeps_property_miss() {
+        assert_eq!(
+            codes_of_with_options(
+                "function f({a,b}:{a:boolean,b:number}){if(a){b.missing;}}",
+                &strict_options(),
+            ),
+            [2339]
+        );
+    }
+
+    #[test]
+    fn concrete_destructuring_equality_guard_keeps_property_miss() {
+        assert_eq!(
+            codes_of_with_options(
+                "function f({a,b}:{a:boolean,b:number}){if(a===true){b.missing;}}",
+                &strict_options(),
+            ),
+            [2339]
+        );
+    }
+
+    #[test]
+    fn discriminated_destructuring_sibling_still_narrows() {
+        assert_eq!(
+            codes_of_with_options(
+                "type A={kind:'A',payload:{a:number}}|{kind:'B',payload:{b:number}};\
+                 function f({kind,payload}:A){if(kind==='A'){payload.a;}}",
+                &strict_options(),
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn empty_array_redeclaration_still_reports_incompatible_type() {
+        assert_eq!(
+            codes_of_with_options("var x = [];\nvar x = 1;\n", &strict_options()),
+            [2403]
+        );
+    }
+
+    #[test]
+    fn shadowed_array_function_does_not_trigger_evolving_array_containment() {
+        assert_eq!(
+            codes_of_with_options(
+                "function f(){function Array():number{return 1};var x=[];var x=Array();}",
+                &strict_options(),
+            ),
+            [2403]
+        );
+    }
+
+    #[test]
+    fn array_returning_call_keeps_evolving_array_containment() {
+        assert_eq!(
+            codes_of_with_options(
+                "declare function makeArray():number[];var x=[];var x=makeArray();",
+                &strict_options(),
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn js_declared_container_property_miss_in_ts_file_reports() {
+        assert_eq!(
+            js_pair_diagnostics("class C {}", "const c = new C(); c.missing;"),
+            [(2339, Some("b.ts".to_owned()))]
+        );
+    }
+
+    #[test]
+    fn js_assignment_declared_class_member_stays_available() {
+        assert!(js_pair_diagnostics("class C {}\nC.extra = 1;", "C.extra;").is_empty());
+    }
+
+    #[test]
+    fn shadowed_js_class_assignment_does_not_open_outer_class() {
+        assert_eq!(
+            js_pair_diagnostics(
+                "class C {}\nfunction f(){class C {}\nC.extra = 1;}",
+                "C.extra;",
+            ),
+            [(2339, Some("b.ts".to_owned()))]
+        );
+    }
+
+    #[test]
+    fn js_assignment_declared_function_member_stays_available() {
+        assert!(js_pair_diagnostics("function F() {}\nF.extra = 1;", "F.extra;").is_empty());
+    }
+
+    #[test]
+    fn js_assignment_declared_prototype_member_stays_available() {
+        assert!(
+            js_pair_diagnostics("class C {}\nC.prototype.extra = 1;", "new C().extra;").is_empty()
+        );
+    }
+
+    #[test]
+    fn js_static_assignment_does_not_open_instance_side() {
+        assert_eq!(
+            js_pair_diagnostics("class C {}\nC.extra = 1;", "new C().extra;"),
+            [(2339, Some("b.ts".to_owned()))]
+        );
+    }
+
+    #[test]
+    fn js_prototype_assignment_does_not_open_static_side() {
+        assert_eq!(
+            js_pair_diagnostics("class C {}\nC.prototype.extra = 1;", "C.extra;"),
+            [(2339, Some("b.ts".to_owned()))]
+        );
+    }
+
+    #[test]
+    fn truthy_this_guard_keeps_type_query_assignment_error() {
+        assert_eq!(
+            codes_of_with_options(
+                "class C { m() { if (this) { const x: typeof this = 1; } } }",
+                &strict_options(),
+            ),
+            [2322]
+        );
+    }
+
+    #[test]
+    fn tuple_intersection_array_literal_keeps_element_error() {
+        assert_eq!(
+            codes_of_with_options(
+                "const x: [string] & { p: number } = [1];",
+                &strict_options(),
+            ),
+            [2322]
+        );
+    }
+
+    #[test]
+    fn tuple_intersection_keeps_unrelated_required_member_error() {
+        assert_eq!(
+            codes_of_with_options(
+                "const x: [number] & { p: string } = [1];",
+                &strict_options(),
+            ),
+            [2322]
+        );
+    }
+
+    #[test]
+    fn contextual_tuple_arity_gap_remains_contained() {
+        assert_eq!(
+            codes_of_with_options(
+                "const x: [...number[]] & { length: 2 } = [0, 0];",
+                &strict_options(),
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn satisfies_literal_reports_elaborated_member_error() {
+        assert_eq!(
+            codes_of_with_options(
+                "const x = { a: 1 } satisfies { a: string };",
+                &strict_options(),
+            ),
+            [2322]
+        );
+    }
+
+    #[test]
+    fn invalid_interface_computed_name_reports_resolution_error() {
+        assert_eq!(codes_of("interface I { [NotThere.x](): void; }"), [2304]);
+        assert_eq!(
+            codes_of("declare const ns: {}; interface I { [ns.missing](): void; }"),
+            [2339]
+        );
+    }
+
+    #[test]
+    fn computed_object_setter_is_checked_without_a_use_site() {
+        assert_eq!(
+            codes_of_with_options(
+                "declare const k: unique symbol; const o = { set [k](v) {} };",
+                &strict_options(),
+            ),
+            [7032, 7006]
+        );
+    }
+
+    #[test]
+    fn unused_expect_error_stays_silent_while_checker_is_incomplete() {
+        assert_eq!(codes_of("let x: number;\n// @ts-expect-error\nx;\n"), []);
+    }
+
+    #[test]
+    fn unused_expect_error_without_a_target_stays_silent() {
+        assert_eq!(codes_of("// @ts-expect-error\nconst x = 1;\n"), []);
+    }
+
+    #[test]
+    fn contained_expect_error_target_does_not_report_2578() {
+        assert_eq!(
+            codes_of(
+                "// @ts-expect-error\n\
+                 const bad = (() => 1) satisfies number;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn single_line_directive_suppresses_through_comment_lines() {
+        // Walk crosses blank and `//` lines, exactly like tsc.
+        assert_eq!(
+            codes_of("// @ts-ignore\n// note\n\nlet x;\nlet x;\n"),
+            [2451]
+        );
+    }
+
+    #[test]
+    fn block_comment_shell_stops_the_directive_walk() {
+        // tsc's markPrecedingCommentDirectiveLine stops at any line
+        // that is non-empty and not a `//` comment — a block-comment
+        // line between directive and diagnostic KEEPS the diagnostic
+        // (the retired interim filter walked through these).
+        assert_eq!(
+            codes_of("// @ts-ignore\n/* shell */\nlet x;\nlet x;\n"),
+            [2451, 2451]
+        );
+    }
+
+    #[test]
+    fn trailing_comment_directive_suppresses_the_next_line() {
+        // Scanner-collected: the directive comment trails code on its
+        // own line, so a line-start scan would miss it.
+        assert_eq!(
+            codes_of("let a = 1; // @ts-ignore\nlet x;\nlet x;\n"),
+            [2451]
+        );
+    }
+
+    #[test]
+    fn multi_line_directive_keys_on_its_closing_line() {
+        // Directive on the closing line: suppresses the next line.
+        assert_eq!(
+            codes_of("/*\n@ts-expect-error */\nlet x;\nlet x;\n"),
+            [2451]
+        );
+        // Directive on an interior line is no directive at all.
+        assert_eq!(
+            codes_of("/*\n@ts-expect-error\n*/\nlet x;\nlet x;\n"),
+            [2451, 2451]
+        );
+    }
+
+    #[test]
+    fn template_literal_fake_directive_does_not_suppress() {
+        // The `// @ts-ignore` line sits INSIDE a template literal: the
+        // scanner collects nothing, and the walk treats the line as a
+        // `//` comment and keeps climbing past it.
+        assert_eq!(
+            codes_of("const s = `\n// @ts-ignore\n`;\nlet x;\nlet x;\n"),
+            [2451, 2451]
+        );
+    }
+
+    #[test]
+    fn directive_on_the_diagnostic_line_itself_does_not_suppress() {
+        // The walk starts one line ABOVE the diagnostic.
+        assert_eq!(codes_of("let x;\nlet x; // @ts-ignore\n"), [2451, 2451]);
+    }
+
     #[test]
     fn ts_nocheck_suppresses_checked_js_diagnostics() {
         let result = check_program(
@@ -785,6 +1138,49 @@ mod tests {
             .collect();
 
         assert_eq!(pins, [(2451, 17, 1), (2451, 24, 1)]);
+    }
+
+    #[test]
+    fn checked_js_uses_comment_directives() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "// @ts-check\n// @ts-ignore\nlet x;\nlet x;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                ..CompilerOptions::default()
+            },
+        );
+        let codes: Vec<u32> = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect();
+
+        assert_eq!(codes, [2451]);
+    }
+
+    #[test]
+    fn check_js_option_uses_comment_directives() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "// @ts-ignore\nlet x;\nlet x;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let codes: Vec<u32> = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect();
+
+        assert_eq!(codes, [2451]);
     }
 
     #[test]

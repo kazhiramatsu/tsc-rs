@@ -29,7 +29,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFlags, TypeId};
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureKind, Unsupported};
 
 /// Debug-only unwind census (the unsupported-unwind invariant):
 /// every transient stack an element check may push must be back at
@@ -1638,7 +1638,11 @@ impl<'a> CheckerState<'a> {
         self.instantiation_count = 0;
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
-        let _ = self.check_deferred_node_worker(node);
+        if let Err(err) = self.check_deferred_node_worker(node) {
+            if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
+                eprintln!("contained deferred @{node:?}: {}", err.reason);
+            }
+        }
         #[cfg(debug_assertions)]
         self.assert_unwound(&unwind_entry, node, "check_deferred_node");
         self.current_node = save_current_node;
@@ -1680,14 +1684,13 @@ impl<'a> CheckerState<'a> {
                 self.check_function_expression_or_object_literal_method_deferred(node)
             }
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                // checkObjectLiteral defers its accessor members
-                // (74263) since 5.5c; checkAccessorDeclaration itself
-                // is the 5.8 declaration band — a named escape keeps
-                // the drain panic-free (risk #6) and the accessor's
-                // diagnostics FN until then.
-                Err(crate::state::Unsupported::new(
-                    "checkAccessorDeclaration (deferred object-literal accessor, 5.8)",
-                ))
+                if self.parent_of(node).is_some_and(|parent| {
+                    self.kind_of(parent) == SyntaxKind::ObjectLiteralExpression
+                }) {
+                    self.check_object_literal_accessor_deferred(node)
+                } else {
+                    self.check_accessor_declaration(node)
+                }
             }
             SyntaxKind::ClassExpression => self.check_class_expression_deferred(node),
             SyntaxKind::TypeParameter => self.check_type_parameter_deferred(node),
@@ -1792,6 +1795,23 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
+    /// Object-literal accessors are deferred so their signature and
+    /// paired accessor type can be checked after literal construction.
+    /// Their bodies still need object-literal contextual `this`; this
+    /// stage owns the declaration/type diagnostics without forcing the
+    /// incomplete body face.
+    fn check_object_literal_accessor_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_signature_declaration(node)?;
+        if let Some(name) = self.name_of_node(node) {
+            if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                self.check_computed_property_name(name)?;
+            }
+        }
+        let symbol = self.get_symbol_of_declaration(node)?;
+        self.get_type_of_accessors(symbol)?;
+        Ok(())
+    }
+
     // ---- relation reporting (the 5.4 slice) ----
 
     /// tsc-port: checkTypeAssignableTo @6.0.3 (5.4 slice)
@@ -1821,6 +1841,70 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
+                // Contextual tuple-from-intersection: literal callers
+                // elaborate element mismatches before reaching this
+                // generic relation. If no element row was reportable,
+                // the remaining verdict depends on contextual tuple
+                // arity (M6), so keep the head contained.
+                if self
+                    .tables
+                    .object_flags_of(source)
+                    .intersects(tsrs2_types::ObjectFlags::ARRAY_LITERAL)
+                    && self
+                        .tables
+                        .flags_of(target)
+                        .intersects(TypeFlags::INTERSECTION)
+                {
+                    let members = match &self.tables.type_of(target).data {
+                        tsrs2_types::TypeData::Intersection { types } => types.to_vec(),
+                        _ => Vec::new(),
+                    };
+                    let mut tuple_member = None;
+                    let mut only_contextual_arity_is_unresolved = true;
+                    for member in members {
+                        if self.is_array_type(member)? || self.tables.is_tuple_type(member) {
+                            tuple_member.get_or_insert(member);
+                            continue;
+                        }
+                        // The contextual source can already carry
+                        // target members, so a second relation check
+                        // here would bless unrelated requirements such
+                        // as `{ p: string }`. Only the literal-length
+                        // shape is part of the known arity gap.
+                        if !self.is_tuple_arity_only_constraint(member)? {
+                            only_contextual_arity_is_unresolved = false;
+                            break;
+                        }
+                    }
+                    if tuple_member.is_some() {
+                        if only_contextual_arity_is_unresolved {
+                            return Err(Unsupported::new(
+                                "array-literal relation against a tuple-bearing intersection \
+                                 after element elaboration (contextual tuple arity, M6)",
+                            ));
+                        }
+                        // The relation tail is T2, but the outer head
+                        // is determinate. Render the contextual tuple
+                        // (the actual array-literal source in tsc),
+                        // then avoid the missing-property override,
+                        // which is inapplicable to an intersection
+                        // target and otherwise escapes before 2322.
+                        let (source_text, target_text) = self
+                            .tuple_intersection_relation_display_from_syntax(error_node)
+                            .ok_or_else(|| {
+                                Unsupported::new(
+                                    "tuple-bearing intersection relation display without a \
+                                     directly annotated tuple (nodeBuilder work, M6)",
+                                )
+                            })?;
+                        self.error_at(
+                            Some(error_node),
+                            head_message,
+                            &[&source_text, &target_text],
+                        );
+                        return Ok(related);
+                    }
+                }
                 // An EXPLICIT tsc headMessage chains OUTERMOST
                 // unconditionally (64860: errorInfo =
                 // chainDiagnosticMessages(errorInfo, headMessage)) —
@@ -1869,6 +1953,25 @@ impl<'a> CheckerState<'a> {
                 {
                     return Ok(related);
                 }
+                // reportErrorResults 65258 + the `!headMessage &&
+                // maybeSuppress` roll-back (65284): under the GENERIC
+                // head a readonly→mutable array/tuple failure reports
+                // 4104 and the head never lands. The suppression keys
+                // on errorInfo CHANGING — a false verdict with no
+                // report (tuple source vs non-array target) still
+                // takes the head. Explicit heads keep their code (tsc
+                // chains 4104 into the elided tail).
+                if generic_head
+                    && self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
+                    && self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
+                {
+                    let reported_before = self.diagnostics.len();
+                    if !self.try_elaborate_array_like_errors(source, target, true, error_node)?
+                        && self.diagnostics.len() > reported_before
+                    {
+                        return Ok(related);
+                    }
+                }
                 let source_text = self.type_to_string_slice(source)?;
                 let target_text = self.type_to_string_slice(target)?;
                 if source_text == target_text {
@@ -1897,6 +2000,57 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(related)
+    }
+
+    /// Narrow display bridge for the determinate 2322 head above.
+    /// The full tuple renderer is M6; a directly written annotation
+    /// already contains both strings needed by this relation head.
+    fn tuple_intersection_relation_display_from_syntax(
+        &self,
+        error_node: NodeId,
+    ) -> Option<(String, String)> {
+        let mut cursor = Some(error_node);
+        for _ in 0..6 {
+            let current = cursor?;
+            if let Some(annotation) = self.type_annotation_of(current) {
+                if let NodeData::IntersectionType(data) = self.data_of(annotation) {
+                    let tuple_node = self.nodes_of(data.types).into_iter().find(|&member| {
+                        matches!(
+                            self.kind_of(member),
+                            SyntaxKind::TupleType | SyntaxKind::ArrayType
+                        )
+                    })?;
+                    return Some((
+                        self.text_of_node(tuple_node).ok()?,
+                        self.text_of_node(annotation).ok()?,
+                    ));
+                }
+            }
+            cursor = self.parent_of(current);
+        }
+        None
+    }
+
+    /// The remaining M6 hole is specifically a contextual tuple's
+    /// literal `length` relation. It must not hide unrelated required
+    /// members on another intersection constituent.
+    fn is_tuple_arity_only_constraint(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
+            return Ok(false);
+        }
+        let properties = self.get_properties_of_type(ty)?;
+        if properties.len() != 1
+            || self.binder.symbol(properties[0]).escaped_name.as_str() != "length"
+        {
+            return Ok(false);
+        }
+        Ok(self
+            .get_signatures_of_type(ty, SignatureKind::Call)?
+            .is_empty()
+            && self
+                .get_signatures_of_type(ty, SignatureKind::Construct)?
+                .is_empty()
+            && self.get_index_infos_of_type(ty)?.is_empty())
     }
 
     /// tsc-port: reportUnmatchedProperty @6.0.3 (the head-override
@@ -1946,6 +2100,27 @@ impl<'a> CheckerState<'a> {
         if source == self.global_object_type()? {
             return Ok(false);
         }
+        // typeRelatedToSomeType reports on the BEST-MATCHING union
+        // member, and the common-property arm fires inside that member
+        // recursion — for a nullable union (`ImportCallOptions |
+        // undefined`, the import-call options check) the object member
+        // is the best match. Other union shapes keep the generic head.
+        let target = if self.tables.flags_of(target).intersects(TypeFlags::UNION) {
+            let members = match &self.tables.type_of(target).data {
+                tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+                _ => Vec::new(),
+            };
+            let non_nullable: Vec<TypeId> = members
+                .into_iter()
+                .filter(|&member| !self.tables.flags_of(member).intersects(TypeFlags::NULLABLE))
+                .collect();
+            match non_nullable.as_slice() {
+                [only] => *only,
+                _ => return Ok(false),
+            }
+        } else {
+            target
+        };
         if !self
             .tables
             .flags_of(target)
@@ -1988,6 +2163,63 @@ impl<'a> CheckerState<'a> {
             &diagnostics::Type_0_has_no_properties_in_common_with_type_1
         };
         self.error_at(Some(error_node), message, &[&source_text, &target_text]);
+        Ok(true)
+    }
+
+    /// tsc-port: tryElaborateArrayLikeErrors @6.0.3
+    /// tsc-hash: 4d8d191f532ffe704ad74834cc079e0c2f02d50f2a1159f8bde055450d13c086
+    /// tsc-span: _tsc.js:65123-65143
+    ///
+    /// Both faces of tsc's use: with `report_errors` the
+    /// readonly-source→mutable-target failure EMITS 4104 (the
+    /// reportErrorResults call, 65258 — and under the generic head
+    /// tsc's `!headMessage && maybeSuppress` arm rolls the head back,
+    /// so 4104 stands alone); without it the boolean gates the
+    /// missing-properties head (reportUnmatchedProperty's `else if`,
+    /// 66750).
+    fn try_elaborate_array_like_errors(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        report_errors: bool,
+        error_node: NodeId,
+    ) -> CheckResult2<bool> {
+        let report_readonly_mismatch =
+            |state: &mut Self, source: TypeId, target: TypeId| -> CheckResult2<()> {
+                let source_text = state.type_to_string_slice(source)?;
+                let target_text = state.type_to_string_slice(target)?;
+                state.error_at(
+                Some(error_node),
+                &diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                &[&source_text, &target_text],
+            );
+                Ok(())
+            };
+        if self.tables.is_tuple_type(source) {
+            let tuple_readonly = {
+                let tuple_target = self.tables.reference_target(source);
+                match &self.tables.type_of(tuple_target).data {
+                    tsrs2_types::TypeData::TupleTarget(data) => data.readonly,
+                    _ => false,
+                }
+            };
+            if tuple_readonly && self.is_mutable_array_or_tuple(target)? {
+                if report_errors {
+                    report_readonly_mismatch(self, source, target)?;
+                }
+                return Ok(false);
+            }
+            return Ok(self.is_array_type(target)? || self.tables.is_tuple_type(target));
+        }
+        if self.is_readonly_array_type(source)? && self.is_mutable_array_or_tuple(target)? {
+            if report_errors {
+                report_readonly_mismatch(self, source, target)?;
+            }
+            return Ok(false);
+        }
+        if self.tables.is_tuple_type(target) {
+            return self.is_array_type(source);
+        }
         Ok(true)
     }
 
@@ -2048,6 +2280,15 @@ impl<'a> CheckerState<'a> {
             }
         }
         if unmatched.is_empty() {
+            return Ok(false);
+        }
+        // reportUnmatchedProperty 66750: the MULTI-property head runs
+        // behind tryElaborateArrayLikeErrors — a readonly-source /
+        // mutable-target mismatch reports 4104 later instead (the
+        // single-property 2741 arm is unconditional in tsc).
+        if unmatched.len() > 1
+            && !self.try_elaborate_array_like_errors(source, target, false, error_node)?
+        {
             return Ok(false);
         }
         let source_text = self.type_to_string_slice(source)?;

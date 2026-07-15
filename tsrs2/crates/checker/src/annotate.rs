@@ -2106,6 +2106,16 @@ impl<'a> CheckerState<'a> {
         } else if self.is_this_identifier(expr_name)
             || self.kind_of(expr_name) == SyntaxKind::ThisKeyword
         {
+            // [FLOW M5] gate: tsc's checkExpression here reads the
+            // FLOW type of `this` — `if (this instanceof D) { const
+            // d: typeof this = this; }` resolves the query to D.
+            // Contain the query when a reaching `instanceof` guard
+            // narrows `this` (typeofThis conformance FP, 5.8e lift).
+            if self.instanceof_guard_narrows_reference(node, expr_name) {
+                return Err(Unsupported::new(
+                    "[FLOW M5] typeof this under a reaching this-guard",
+                ));
+            }
             // `typeof this` — checkExpression routes the this-face to
             // checkThisExpression (75077's isThisIdentifier precedent).
             self.check_this_expression(expr_name)?
@@ -2922,36 +2932,18 @@ impl<'a> CheckerState<'a> {
                     if !state.has_late_bindable_ast_name(member) {
                         continue;
                     }
-                    // INTERFACE containers keep the M7-stub containment:
-                    // un-containing the lib interfaces (String/Array/
-                    // Function carry `[Symbol.iterator]`-family members
-                    // at ES2015+) unmasks [FLOW M5], comment-directive
-                    // and declare-global-augment divergences corpus-wide
-                    // (5.7b review round, FP find). Type literals,
-                    // classes and object literals late-bind for real.
-                    if state
-                        .symbol_flags(symbol)
-                        .intersects(SymbolFlags::INTERFACE)
-                    {
-                        return Err(Unsupported::new(
-                            "late-bound INTERFACE members (lib well-known-symbol surface, M7-stub)",
-                        ));
-                    }
+                    // INTERFACE containers late-bind for real since the
+                    // 5.8e lift (m4-58 §1): the 5.7b containment guarded
+                    // three recorded divergence bands — comment
+                    // directives (exact scanner-backed filter landed
+                    // first in this slice), declare-global augment
+                    // merges (5.8d module band), and [FLOW M5]
+                    // narrowing shapes
+                    // (triaged to targeted report gates by the lift's
+                    // full-conformance re-run).
                     let name = state
                         .name_of_named_declaration(member)
                         .expect("late-bindable AST implies a computed name");
-                    // The silent pre-flight: checkComputedPropertyName
-                    // EMITS resolution misses (2304/2339) — where OUR
-                    // resolution diverges from tsc's (declare-global
-                    // augments, module band), the emission itself would
-                    // be the FP. A chain that does not resolve contains
-                    // the container like the old stub — no diagnostic.
-                    if !state.computed_name_chain_resolves(name)? {
-                        return Err(Unsupported::new(
-                            "late-bound member name resolution miss \
-                             (declare-global augment / module band, 5.8)",
-                        ));
-                    }
                     // hasLateBindableName / hasLateBindableIndexSignature
                     // (57635-57642) dispatch on the CHECKED name type:
                     // property-usable → member; string/number/symbol
@@ -3277,63 +3269,6 @@ impl<'a> CheckerState<'a> {
         };
         data.expression
             .is_some_and(|expression| self.is_entity_name_expression(expression))
-    }
-
-    /// The silent pre-flight over a computed name's entity chain
-    /// (Identifier / dotted PropertyAccess): the leftmost name
-    /// resolves with NO diagnostic and each property hop looks up
-    /// silently. False = our resolution diverges from tsc's (a
-    /// declare-global augment / module-band member we cannot merge) —
-    /// the late-binding loop then contains WITHOUT emitting the miss
-    /// checkComputedPropertyName would fabricate.
-    fn computed_name_chain_resolves(&mut self, name: NodeId) -> CheckResult2<bool> {
-        let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
-            return Ok(false);
-        };
-        let Some(expression) = data.expression else {
-            return Ok(false);
-        };
-        let mut hops: Vec<String> = Vec::new();
-        let mut current = expression;
-        while let NodeData::PropertyAccessExpression(access) = self.data_of(current) {
-            let Some(prop) = access
-                .name
-                .and_then(|n| self.identifier_text_of(n))
-                .map(str::to_owned)
-            else {
-                return Ok(false);
-            };
-            hops.push(prop);
-            let Some(inner) = access.expression else {
-                return Ok(false);
-            };
-            current = inner;
-        }
-        if self.kind_of(current) != SyntaxKind::Identifier {
-            return Ok(false);
-        }
-        let Some(root_text) = self.identifier_text_of(current).map(str::to_owned) else {
-            return Ok(false);
-        };
-        let Some(root) = self.resolve_name(
-            Some(current),
-            &root_text,
-            SymbolFlags::VALUE,
-            None,
-            false,
-            false,
-        )?
-        else {
-            return Ok(false);
-        };
-        let mut ty = self.get_type_of_symbol(root)?;
-        for hop in hops.iter().rev() {
-            let Some(prop) = self.get_property_of_type_full(ty, hop)? else {
-                return Ok(false);
-            };
-            ty = self.get_type_of_symbol(prop)?;
-        }
-        Ok(true)
     }
 
     /// tsc isStatic (13029-13031): a static-modified class element OR
@@ -4244,6 +4179,29 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
+    /// tsrs-native: symbolToString's late-bound face for the accessor
+    /// reports — a late symbol displays as its declaration name's
+    /// SOURCE TEXT (`[Symbol.iterator]`), matching tsc's
+    /// declarationNameToString route; everything else keeps the
+    /// unescaped symbol name.
+    fn accessor_symbol_display_name(&self, symbol: SymbolId) -> String {
+        let computed_name_text = self
+            .binder
+            .symbol(symbol)
+            .value_declaration
+            .and_then(|declaration| self.name_of_node(declaration))
+            .and_then(|name| {
+                if self.kind_of(name) != SyntaxKind::ComputedPropertyName {
+                    return None;
+                }
+                let source = self.binder.source_of_node(name);
+                let raw = source.arena.node(name);
+                let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+                Some(source.text[start..raw.end as usize].to_owned())
+            });
+        computed_name_text.unwrap_or_else(|| self.symbol_display_name(symbol))
+    }
+
     /// tsc-port: getTypeOfAccessors @6.0.3
     /// tsc-hash: 02e993d3e444bf2bef90e03977fbd24eb389b56578fb5a170fa8ae14660ba119
     /// tsc-span: _tsc.js:56746-56786
@@ -4303,24 +4261,20 @@ impl<'a> CheckerState<'a> {
                 // report is undecidable — escape. Re-owned 5.8c→5.8e:
                 // the pairing IS the late-binding lift (m4-58 §15
                 // 5.8e), not class-band wiring.
-                let computed_name = setter.or(getter).is_some_and(|accessor| {
-                    tsrs2_binder::node_util::has_dynamic_name(
-                        self.binder.source_of_node(accessor),
-                        accessor,
-                    )
-                });
-                if computed_name {
-                    self.pop_type_resolution();
-                    return Err(Unsupported::new(
-                        "computed-name accessor pair (late-bound get/set pairing, 5.8e lift)",
-                    ));
-                }
-                // 56761-56769: the noImplicitAny suggestions.
+                // 56761-56769: the noImplicitAny suggestions. The
+                // 5.8c-era computed-name escape is lifted: the caller
+                // reaches accessors through getSymbolOfDeclaration's
+                // getLateBoundSymbol hop, so get/set pairs under one
+                // [Symbol.x] name share the LATE symbol and the
+                // annotation ladder above sees both halves. tsc's
+                // symbolToString renders a late symbol as its
+                // declaration name's source text (`[Symbol.iterator]`,
+                // never the internal `__@iterator@n`).
                 if self
                     .options
                     .strict_option_value(self.options.no_implicit_any)
                 {
-                    let name = self.symbol_display_name(symbol);
+                    let name = self.accessor_symbol_display_name(symbol);
                     if let Some(setter) = setter {
                         self.error_at(
                             Some(setter),
@@ -4342,7 +4296,7 @@ impl<'a> CheckerState<'a> {
             ty
         } else {
             // 56771-56783: circular accessor annotations.
-            let name = self.symbol_display_name(symbol);
+            let name = self.accessor_symbol_display_name(symbol);
             let location = self
                 .annotated_accessor_type_node(getter)
                 .map(|_| getter.expect("annotated getter"))
@@ -4482,20 +4436,39 @@ impl<'a> CheckerState<'a> {
     ///
     /// The derived-is-JS-assignment override arm (isBinaryExpression
     /// valueDeclaration) rides on JS assignment binding — elided
-    /// project-wide; isStaticPrivateIdentifierProperty is class-only
-    /// machinery live from 5.3e (private identifiers cannot appear on
-    /// interfaces).
+    /// project-wide. isStaticPrivateIdentifierProperty (57599): a
+    /// STATIC private-identifier member never inherits — `typeof
+    /// Derived` does not carry the base's `static #x`, so access
+    /// through the derived constructor reports 2339, not 18013
+    /// (privateNameStaticAccessorssDerivedClasses, 5.8e lift FP).
     fn add_inherited_members(
         &mut self,
         symbols: &mut tsrs2_binder::SymbolTable,
         base_symbols: &[SymbolId],
     ) {
         for &base in base_symbols {
+            if self.is_static_private_identifier_property(base) {
+                continue;
+            }
             let name = self.binder.symbol(base).escaped_name.clone();
             if !symbols.contains_key(&name) {
                 symbols.insert(name, base);
             }
         }
+    }
+
+    /// tsc-port: isStaticPrivateIdentifierProperty @6.0.3
+    /// tsc-hash: c7763b3f1125d6016a597248984eb7ef72ea51ea6f831d542e00f4177e87f433
+    /// tsc-span: _tsc.js:57599-57601
+    pub(crate) fn is_static_private_identifier_property(&self, symbol: SymbolId) -> bool {
+        self.binder
+            .symbol(symbol)
+            .value_declaration
+            .is_some_and(|declaration| {
+                self.name_of_node(declaration)
+                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
+                    && self.has_static_modifier(declaration)
+            })
     }
 
     /// tsc-port: isThisless @6.0.3
@@ -5985,11 +5958,21 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfEnumMember @6.0.3
     /// tsc-hash: 192449a6e0e94c96d5c45accd89b12ed9f2f371748ec65e920acd099eecace29
     /// tsc-span: _tsc.js:56860-56863
+    ///
+    /// The inner re-check is load-bearing, like the declared-type
+    /// sibling's: forcing the declared type can re-enter this symbol
+    /// (a member initializer that resolves members of a late-bound
+    /// container reaches back through checkEnumMember). tsc's
+    /// `links.type || (links.type = …)` silently overwrites on that
+    /// re-entry; the twin rule makes the second write skip instead.
     fn get_type_of_enum_member(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
         }
         let declared = self.get_declared_type_of_enum_member(symbol)?;
+        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(cached);
+        }
         self.links
             .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(declared));
         Ok(declared)

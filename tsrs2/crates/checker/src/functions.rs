@@ -481,8 +481,14 @@ impl<'a> CheckerState<'a> {
             let Some(name) = name else { continue };
             if self.kind_of(name) == SyntaxKind::Identifier {
                 let symbol = self.get_symbol_of_declaration(element)?;
-                self.links
-                    .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(ty));
+                // tsc writes unguarded: the compute above can fill the
+                // slot with a circularity scar that this write repairs
+                // (sanctioned overwrite; see links.rs).
+                self.links.overwrite_symbol_type_for_binding_element(
+                    self.speculation_depth,
+                    symbol,
+                    ty,
+                );
             } else {
                 self.assign_binding_element_types(name, ty)?;
             }

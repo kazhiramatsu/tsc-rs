@@ -749,9 +749,19 @@ impl<'a> CheckerState<'a> {
             }
         }
         for member_decl in properties {
-            let member_symbol = self
-                .node_symbol(member_decl)
-                .map(|symbol| self.get_merged_symbol(symbol));
+            // getSymbolOfDeclaration (74166): the LATE-BOUND hop is
+            // load-bearing for computed-name accessors — the get/set
+            // halves of one `[Symbol.x]` pair share a late symbol,
+            // and the table must carry THAT symbol or
+            // getTypeOfAccessors sees an unpaired half
+            // (symbolDeclarationEmit10, 5.8e lift).
+            let member_symbol = match self.node_symbol(member_decl) {
+                Some(symbol) => {
+                    let late = self.get_late_bound_symbol(symbol)?;
+                    Some(self.get_merged_symbol(late))
+                }
+                None => None,
+            };
             let computed_name_type = match self.name_of_named_declaration(member_decl) {
                 Some(name) if self.kind_of(name) == SyntaxKind::ComputedPropertyName => {
                     Some(self.check_computed_property_name(name)?)

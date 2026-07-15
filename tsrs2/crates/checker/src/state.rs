@@ -445,6 +445,9 @@ pub struct CheckerState<'a> {
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
     pub diagnostics: DiagnosticList,
+    /// Literal operands whose `satisfies` elaboration already emitted
+    /// an inner diagnostic. Re-checks must not add the outer 1360.
+    pub(crate) elaborated_satisfies_expressions: std::collections::HashSet<NodeId>,
 
     // ---- M4 5.0: the global environment (initializeTypeChecker) ----
     /// tsc `globals` (46488): non-module file locals merged in program
@@ -623,6 +626,7 @@ impl<'a> CheckerState<'a> {
             flow_invocation_count: 0,
             flow_containment_indexes: Default::default(),
             diagnostics: Vec::new(),
+            elaborated_satisfies_expressions: std::collections::HashSet::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
             global_this_symbol,
