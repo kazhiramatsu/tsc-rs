@@ -21,7 +21,7 @@ use tsrs2_types::{
 };
 
 use crate::evaluate::EvalValue;
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 /// checker-key §1.5: the five relations (tsc's five checker-scope
 /// relation maps at 47450-47454).
@@ -320,10 +320,10 @@ impl<'a> CheckerState<'a> {
             };
             let source_declaration = self
                 .get_declaration_of_kind(source_property, SyntaxKind::EnumMember)
-                .ok_or_else(|| Unsupported::new("enum member property without declaration"))?;
+                .expect("binder invariant: ENUM_MEMBER symbols carry their EnumMember declaration");
             let target_declaration = self
                 .get_declaration_of_kind(target_property, SyntaxKind::EnumMember)
-                .ok_or_else(|| Unsupported::new("enum member property without declaration"))?;
+                .expect("binder invariant: ENUM_MEMBER symbols carry their EnumMember declaration");
             let source_value = self.get_enum_member_value(source_declaration)?.value;
             let target_value = self.get_enum_member_value(target_declaration)?.value;
             if source_value != target_value {

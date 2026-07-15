@@ -5341,7 +5341,7 @@ impl<'a> CheckerState<'a> {
         let name_type = if is_numeric_name(name) {
             let value: f64 = name
                 .parse()
-                .map_err(|_| Unsupported::new("unparsable numeric member name"))?;
+                .expect("is_numeric_name admits only f64-parsable digit strings");
             self.tables.get_number_literal_type(value)
         } else {
             self.tables.get_string_literal_type(name)

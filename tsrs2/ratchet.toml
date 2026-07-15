@@ -36,7 +36,14 @@ allowed_regression = 0.0
 # m4-end-sweep-steps.md disposition table; the remainder burns down
 # via the dead-guard retires (5.9a) and the implement slices (5.9b-d),
 # reaching 0 at 5.9e close.
-max_untagged = 93
+# 5.9a part 2: 93 -> 29 — 66 proven-dead guards converted to
+# expect/unreachable per the dead-guard policy (constructibility
+# proofs in the m4-end-sweep-steps.md disposition table: L-MISSING /
+# L-COUPLING / L-PARENTS / L-BINDER lemmas + per-site caller
+# guarantees); the 29 remaining untagged rows are the implement-5.9
+# set (burn down in 5.9b-d) plus the 5 tables.rs twin arms retiring
+# with the 5.9b demotion.
+max_untagged = 29
 # 5.7c: +16 genuine malformed-tree guards (JSX band tag-name/
 # attributes/attribute-symbol reads + the Debug.assert/Debug.fail
 # transcriptions of createJsxAttributesTypeFromAttributesProperty and

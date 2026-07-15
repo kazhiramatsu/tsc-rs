@@ -1120,9 +1120,7 @@ impl<'a> CheckerState<'a> {
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
             } => Ok(value.clone()),
-            _ => Err(Unsupported::new(
-                "string-literal tag type without a string payload (enum literal shape, M4-end sweep 5.8)",
-            )),
+            _ => unreachable!("STRING_LITERAL types always carry Literal string data"),
         }
     }
 

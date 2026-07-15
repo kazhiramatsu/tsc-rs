@@ -2663,11 +2663,7 @@ impl<'a> CheckerState<'a> {
                     }
                     type_parameters.len() - outer_type_parameter_count
                 }
-                _ => {
-                    return Err(Unsupported::new(
-                        "non-generic reference display (nodeBuilder)",
-                    ))
-                }
+                _ => unreachable!("reference targets are GenericType or symbol-less TupleTarget"),
             };
             let mut rendered = Vec::new();
             for argument in arguments.iter().take(local_parameter_count) {

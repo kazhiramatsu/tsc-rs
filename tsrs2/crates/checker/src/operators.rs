@@ -116,7 +116,7 @@ impl<'a> CheckerState<'a> {
     /// recovery trees can drop the slot entirely).
     fn binary_parts(&self, node: NodeId) -> CheckResult2<(NodeId, NodeId, NodeId)> {
         let NodeData::BinaryExpression(data) = self.data_of(node) else {
-            return Err(Unsupported::new("binary node without binary data"));
+            unreachable!("kind/data agree");
         };
         match (data.left, data.operator_token, data.right) {
             (Some(left), Some(op), Some(right)) => Ok((left, op, right)),
@@ -862,9 +862,7 @@ impl<'a> CheckerState<'a> {
                 }
                 Ok(right_type)
             }
-            _ => Err(Unsupported::new(
-                "checkBinaryLikeExpressionWorker unknown operator (Debug.fail arm)",
-            )),
+            _ => unreachable!("parser operator domain is closed (tsc Debug.fail)"),
         }
     }
 
@@ -1916,7 +1914,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ObjectLiteralExpression(data) => {
                 (self.nodes_of(data.properties), data.properties)
             }
-            _ => return Err(Unsupported::new("object literal without data")),
+            _ => unreachable!("kind/data agree"),
         };
         let strict_null_checks = self
             .options
@@ -2076,7 +2074,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<TypeId> {
         let elements: Vec<NodeId> = match self.data_of(node) {
             NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements),
-            _ => return Err(Unsupported::new("array literal without data")),
+            _ => unreachable!("kind/data agree"),
         };
         let undefined_type = self.tables.intrinsics.undefined;
         let possibly_out_of_bounds_type = self.check_iterated_type_or_element_type(
@@ -3144,7 +3142,7 @@ impl<'a> CheckerState<'a> {
         let symbol = if self.kind_of(container) == SyntaxKind::Constructor {
             let class = self
                 .parent_of(container)
-                .ok_or_else(|| Unsupported::new("constructor without a class parent"))?;
+                .expect("tree invariant: constructors always have a class parent");
             self.get_symbol_of_declaration(class)?
         } else {
             self.get_symbol_of_declaration(container)?
@@ -3163,7 +3161,7 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
         let NodeData::ConditionalExpression(data) = self.data_of(node) else {
-            return Err(Unsupported::new("conditional expression without data"));
+            unreachable!("kind/data agree");
         };
         let (condition, when_true, when_false) =
             match (data.condition, data.when_true, data.when_false) {
@@ -3195,7 +3193,7 @@ impl<'a> CheckerState<'a> {
     /// literal.
     pub(crate) fn check_template_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let NodeData::TemplateExpression(data) = self.data_of(node) else {
-            return Err(Unsupported::new("template expression without data"));
+            unreachable!("kind/data agree");
         };
         let head = data
             .head
@@ -3204,7 +3202,7 @@ impl<'a> CheckerState<'a> {
         let mut texts: Vec<String> = Vec::with_capacity(spans.len() + 1);
         match self.data_of(head) {
             NodeData::TemplateHead(data) => texts.push(data.text.clone()),
-            _ => return Err(Unsupported::new("template head without data")),
+            _ => unreachable!("parser invariant: template heads carry TemplateHead data"),
         }
         let mut types: Vec<TypeId> = Vec::with_capacity(spans.len());
         for span in spans {
@@ -3229,7 +3227,9 @@ impl<'a> CheckerState<'a> {
             match self.data_of(literal) {
                 NodeData::TemplateMiddle(data) => texts.push(data.text.clone()),
                 NodeData::TemplateTail(data) => texts.push(data.text.clone()),
-                _ => return Err(Unsupported::new("template span literal without data")),
+                _ => unreachable!(
+                    "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
+                ),
             }
             let template_constraint = self.tables.intrinsics.template_constraint;
             types.push(if self.is_type_assignable_to(ty, template_constraint)? {
@@ -3306,7 +3306,7 @@ impl<'a> CheckerState<'a> {
     /// switch): -numeric, +numeric, -bigint — there is NO +bigint arm.
     pub(crate) fn check_prefix_unary_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let NodeData::PrefixUnaryExpression(data) = self.data_of(node) else {
-            return Err(Unsupported::new("prefix unary without data"));
+            unreachable!("kind/data agree");
         };
         let operator = data.operator;
         let operand = data
@@ -3425,7 +3425,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:79482-79500
     pub(crate) fn check_postfix_unary_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let NodeData::PostfixUnaryExpression(data) = self.data_of(node) else {
-            return Err(Unsupported::new("postfix unary without data"));
+            unreachable!("kind/data agree");
         };
         let operand = data
             .operand
@@ -3771,7 +3771,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::ConditionalExpression => {
                 let NodeData::ConditionalExpression(data) = self.data_of(node) else {
-                    return Err(Unsupported::new("conditional node without data"));
+                    unreachable!("kind/data agree");
                 };
                 let (when_true, when_false) = match (data.when_true, data.when_false) {
                     (Some(t), Some(f)) => (t, f),
@@ -3908,7 +3908,7 @@ impl<'a> CheckerState<'a> {
         Ok(match self.kind_of(node) {
             SyntaxKind::NumericLiteral => {
                 let NodeData::NumericLiteral(data) = self.data_of(node) else {
-                    return Err(Unsupported::new("numeric literal without data"));
+                    unreachable!("kind/data agree");
                 };
                 if data.text == "0" || data.text == "1" {
                     SEMANTICS_SOMETIMES
@@ -3930,7 +3930,7 @@ impl<'a> CheckerState<'a> {
                 let text_empty = match self.data_of(node) {
                     NodeData::StringLiteral(data) => data.text.is_empty(),
                     NodeData::NoSubstitutionTemplateLiteral(data) => data.text.is_empty(),
-                    _ => return Err(Unsupported::new("string literal without data")),
+                    _ => unreachable!("kind/data agree"),
                 };
                 if text_empty {
                     SEMANTICS_NEVER
@@ -3940,7 +3940,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::ConditionalExpression => {
                 let NodeData::ConditionalExpression(data) = self.data_of(node) else {
-                    return Err(Unsupported::new("conditional node without data"));
+                    unreachable!("kind/data agree");
                 };
                 let (when_true, when_false) = match (data.when_true, data.when_false) {
                     (Some(t), Some(f)) => (t, f),
@@ -4050,11 +4050,11 @@ impl<'a> CheckerState<'a> {
             && self.kind_of(location) == SyntaxKind::PropertyAccessExpression
         {
             let NodeData::PropertyAccessExpression(data) = self.data_of(location) else {
-                return Err(Unsupported::new("property access without data"));
+                unreachable!("kind/data agree");
             };
             let receiver = data
                 .expression
-                .ok_or_else(|| Unsupported::new("property access without receiver"))?;
+                .expect("parser invariant: PropertyAccess expression always parsed");
             let receiver_symbol = self.links.node(receiver).resolved_symbol.resolved();
             let receiver_is_enum = receiver_symbol.is_some_and(|symbol| {
                 symbol != self.unknown_symbol

@@ -110,18 +110,6 @@ class = "untagged"
 
 [[site]]
 file = "crates/checker/src/access.rs"
-in = "check_property_accessibility_at_location"
-reason = "private member without declaring class (recovery)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/access.rs"
-in = "check_property_accessibility_at_location"
-reason = "protected-instance report without containing type"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/access.rs"
 in = "check_qualified_name"
 reason = "QualifiedName recovery node"
 class = "recovery"
@@ -168,40 +156,10 @@ owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "check_literal_expression"
-reason = "literal type literal kind {:?} outside the M3 slice"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "check_literal_expression"
-reason = "negated non-numeric literal type"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "check_literal_expression"
-reason = "non-minus prefix operator in literal type"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "check_literal_expression"
-reason = "prefix literal with missing operand"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_base_constructor_type_of_class"
 reason = "Type_0_is_not_a_constructor_function_type display (2507, T2/M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_base_constructor_type_of_class"
-reason = "extends clause with missing expression"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -240,27 +198,9 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_signature_from_declaration"
-reason = "malformed signature parameter"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_signature_from_declaration"
 reason = "signature declaration kind {:?} (M4 5.8)"
 class = "stage"
 owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_signature_from_declaration"
-reason = "unbound signature parameter symbol"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_this_type"
-reason = "this type of a mid-cycle declared-type shell"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -268,12 +208,6 @@ in = "get_type_alias_instantiation"
 reason = "NoInfer intrinsic (getNoInferType — Substitution types, M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_arguments"
-reason = "array type with missing element type"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -319,87 +253,9 @@ owner = "M5"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_from_array_or_tuple_type_node"
-reason = "array type with missing element type"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_type_from_binding_element"
 reason = "getTypeFromBindingElement over a non-binding-element (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_indexed_access_type_node"
-reason = "indexed access with missing index type"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_indexed_access_type_node"
-reason = "indexed access with missing object type"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_literal_type_node"
-reason = "literal type with missing literal"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_named_tuple_type_node"
-reason = "named tuple member with missing type"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_optional_type_node"
-reason = "optional type with missing operand"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_rest_type_node"
-reason = "rest type with missing operand"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_template_type_node"
-reason = "template literal head payload"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_template_type_node"
-reason = "template literal span payload"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_template_type_node"
-reason = "template literal type with missing head"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_template_type_node"
-reason = "template span literal payload"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_template_type_node"
-reason = "template span with missing literal"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_template_type_node"
-reason = "template span with missing type"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -431,21 +287,9 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_node"
-reason = "parenthesized type with missing operand"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_node"
 reason = "type node kind {other:?} outside the M3 annotation slice (JSDoc-flavor bands, M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_operator_node"
-reason = "type operator with missing operand"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -455,22 +299,10 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_operator_node"
-reason = "type operator {other:?} outside the M3 slice"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_query_node"
 reason = "[FLOW M5] typeof this under a reaching this-guard"
 class = "stage"
 owner = "M5"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_query_node"
-reason = "typeof with missing entity name"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -550,12 +382,6 @@ in = "late_bind_index_signature"
 reason = "late index signature over an early __index (cloneSymbol merge, 5.8)"
 class = "stage"
 owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "parse_numeric_literal_text"
-reason = "unparsable numeric literal text {text:?}"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -655,13 +481,6 @@ owner = "5.8"
 file = "crates/checker/src/calls.rs"
 in = "check_tag_name_expects_too_many_arguments"
 reason = "aliased JSX factory namespace (alias resolution, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "check_type_arguments"
-reason = "checkTypeArguments under a head message (decorator resolution, 5.8)"
 class = "stage"
 owner = "5.8"
 
@@ -955,12 +774,6 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "type_to_string_slice_structured"
-reason = "non-generic reference display (nodeBuilder)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "type_to_string_slice_structured"
 reason = "origin-union display (keyof/denormalized origins print the origin)"
 class = "untagged"
 
@@ -1070,60 +883,6 @@ count = 2
 
 [[site]]
 file = "crates/checker/src/evaluate.rs"
-in = "compute_enum_member_value"
-reason = "enum member with missing name"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/evaluate.rs"
-in = "evaluate"
-reason = "binary expression with missing pieces"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/evaluate.rs"
-in = "evaluate"
-reason = "prefix expression with missing operand"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/evaluate.rs"
-in = "evaluate_template_expression"
-reason = "template expression missing head"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/evaluate.rs"
-in = "evaluate_template_expression"
-reason = "template expression with non-head head"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/evaluate.rs"
-in = "evaluate_template_expression"
-reason = "template span with missing expression"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/evaluate.rs"
-in = "evaluate_template_expression"
-reason = "template span with missing literal"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/evaluate.rs"
-in = "evaluate_template_expression"
-reason = "template span with non-template literal"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/evaluate.rs"
-in = "get_text_of_property_name"
-reason = "computed property name missing expression"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/evaluate.rs"
 in = "get_text_of_property_name"
 reason = "non-literal computed property name text (late-bound names, M7-stub)"
 class = "stage"
@@ -1209,12 +968,6 @@ file = "crates/checker/src/expr.rs"
 in = "try_get_this_type_at"
 reason = "class without a bound symbol (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/expr.rs"
-in = "try_get_this_type_at"
-reason = "this type of a mid-cycle declared-type shell"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
@@ -1341,24 +1094,6 @@ in = "get_object_type_instantiation"
 reason = "mapped type instantiation (M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/instantiate.rs"
-in = "get_outer_type_parameters"
-reason = "mapped type with missing type parameter"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/instantiate.rs"
-in = "get_outer_type_parameters"
-reason = "unbound class/interface declaration"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/instantiate.rs"
-in = "get_outer_type_parameters"
-reason = "unbound mapped-type type parameter"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/instantiate.rs"
@@ -1538,13 +1273,6 @@ class = "stage"
 owner = "5.8"
 
 [[site]]
-file = "crates/checker/src/jsx.rs"
-in = "string_literal_type_value"
-reason = "string-literal tag type without a string payload (enum literal shape, M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
 file = "crates/checker/src/literals.rs"
 in = "check_array_literal"
 reason = "addIntraExpressionInferenceSite (inference contexts, M6)"
@@ -1654,18 +1382,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
-in = "binary_parts"
-reason = "binary node without binary data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_array_literal_assignment"
-reason = "array literal without data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
 in = "check_array_literal_destructuring_element_assignment"
 reason = "destructuring into an element access (synthetic access-node kind collides with the element-access dispatch arm)"
 class = "untagged"
@@ -1700,12 +1416,6 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "check_binary_like_expression_worker"
-reason = "checkBinaryLikeExpressionWorker unknown operator (Debug.fail arm)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_binary_like_expression_worker"
 reason = "equality comparability over intersection operands (relation arm, M4-end sweep 5.8)"
 class = "stage"
 owner = "5.8"
@@ -1715,12 +1425,6 @@ file = "crates/checker/src/operators.rs"
 in = "check_conditional_expression"
 reason = "conditional expression with missing branch (parse-recovery tree)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_conditional_expression"
-reason = "conditional expression without data"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1761,18 +1465,6 @@ owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
-in = "check_new_target_meta_property"
-reason = "constructor without a class parent"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_object_literal_assignment"
-reason = "object literal without data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
 in = "check_object_literal_destructuring_property_assignment"
 reason = "property assignment without a name (parse-recovery tree)"
 class = "recovery"
@@ -1792,20 +1484,8 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "check_postfix_unary_expression"
-reason = "postfix unary without data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_postfix_unary_expression"
 reason = "postfix unary without operand (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_prefix_unary_expression"
-reason = "prefix unary without data"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1832,24 +1512,6 @@ in = "check_satisfies_expression_worker"
 reason = "satisfies over an arrow/JSX operand (elaborateError, T2)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_template_expression"
-reason = "template expression without data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_template_expression"
-reason = "template head without data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_template_expression"
-reason = "template span literal without data"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1890,38 +1552,14 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "get_syntactic_nullishness_semantics"
-reason = "conditional node without data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "get_syntactic_nullishness_semantics"
 reason = "conditional with missing branch (parse-recovery tree)"
 class = "recovery"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "get_syntactic_truthy_semantics"
-reason = "conditional node without data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "get_syntactic_truthy_semantics"
 reason = "conditional with missing branch (parse-recovery tree)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "get_syntactic_truthy_semantics"
-reason = "numeric literal without data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "get_syntactic_truthy_semantics"
-reason = "string literal without data"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1929,25 +1567,6 @@ in = "get_type_names_for_error_display"
 reason = "operator-error display for identically-named types (getTypeNameForErrorDisplay UseFullyQualifiedType, T2 M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "truthy_callable_helper"
-reason = "property access without data"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "truthy_callable_helper"
-reason = "property access without receiver"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/relate.rs"
-in = "is_enum_type_related_to"
-reason = "enum member property without declaration"
-class = "untagged"
-count = 2
 
 [[site]]
 file = "crates/checker/src/statements.rs"
@@ -2019,12 +1638,6 @@ in = "get_apparent_type"
 reason = "mapped type apparent types (M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "get_applicable_index_info_for_name_info"
-reason = "unparsable numeric member name"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
@@ -2100,12 +1713,6 @@ in = "utf16_to_string"
 reason = "template inference strands a surrogate half (UTF-16 WTF-16 representation, M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/variance.rs"
-in = "get_declared_type_of_symbol_for_variance"
-reason = "getDeclaredTypeOfSymbol for symbol flags {flags:?} in variance measurement"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/widen.rs"

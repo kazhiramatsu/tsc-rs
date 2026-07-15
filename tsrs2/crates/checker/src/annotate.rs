@@ -108,7 +108,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let inner = data
                     .r#type
-                    .ok_or_else(|| Unsupported::new("parenthesized type with missing operand"))?;
+                    .expect("parser invariant: ParenthesizedType operand always parsed");
                 self.get_type_from_type_node(inner)
             }
             SyntaxKind::RestType => self.get_type_from_rest_type_node(node),
@@ -153,7 +153,7 @@ impl<'a> CheckerState<'a> {
         };
         let literal = data
             .literal
-            .ok_or_else(|| Unsupported::new("literal type with missing literal"))?;
+            .expect("parser invariant: LiteralType literal always parsed");
         if self.kind_of(literal) == SyntaxKind::NullKeyword {
             return Ok(self.tables.intrinsics.null);
         }
@@ -196,13 +196,11 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::PrefixUnaryExpression(data) => {
                 if data.operator != SyntaxKind::MinusToken {
-                    return Err(Unsupported::new(
-                        "non-minus prefix operator in literal type",
-                    ));
+                    unreachable!("parser invariant: literal-type prefix operator is always minus");
                 }
                 let operand = data
                     .operand
-                    .ok_or_else(|| Unsupported::new("prefix literal with missing operand"))?;
+                    .expect("parser invariant: literal-type PrefixUnary operand always parsed");
                 match self.data_of(operand).clone() {
                     NodeData::NumericLiteral(data) => {
                         let value = -parse_numeric_literal_text(&data.text)?;
@@ -214,7 +212,9 @@ impl<'a> CheckerState<'a> {
                         let regular = self.tables.get_bigint_literal_type(value);
                         Ok(self.tables.get_fresh_type_of_literal_type(regular))
                     }
-                    _ => Err(Unsupported::new("negated non-numeric literal type")),
+                    _ => unreachable!(
+                        "parser invariant: literal-type minus is lookahead-gated to numeric/bigint"
+                    ),
                 }
             }
             _ if self.kind_of(literal) == SyntaxKind::TrueKeyword => {
@@ -223,10 +223,10 @@ impl<'a> CheckerState<'a> {
             _ if self.kind_of(literal) == SyntaxKind::FalseKeyword => {
                 Ok(self.tables.intrinsics.false_fresh)
             }
-            _ => Err(Unsupported::new(format!(
-                "literal type literal kind {:?} outside the M3 slice",
+            _ => unreachable!(
+                "parser invariant: literal-type literal kinds are closed: {:?}",
                 self.kind_of(literal)
-            ))),
+            ),
         }
     }
 
@@ -337,27 +337,29 @@ impl<'a> CheckerState<'a> {
         };
         let head = data
             .head
-            .ok_or_else(|| Unsupported::new("template literal type with missing head"))?;
+            .expect("parser invariant: TemplateLiteralType head always parsed");
         let spans = self.nodes_of(data.template_spans);
         let NodeData::TemplateHead(head_data) = self.data_of(head) else {
-            return Err(Unsupported::new("template literal head payload"));
+            unreachable!("kind/data agree");
         };
         let mut texts = vec![head_data.text.clone()];
         let mut types = Vec::with_capacity(spans.len());
         for span in spans {
             let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span).clone() else {
-                return Err(Unsupported::new("template literal span payload"));
+                unreachable!("parser invariant: template spans are TemplateLiteralTypeSpan nodes");
             };
             let span_type = span_data
                 .r#type
-                .ok_or_else(|| Unsupported::new("template span with missing type"))?;
+                .expect("parser invariant: template span type always parsed");
             let literal = span_data
                 .literal
-                .ok_or_else(|| Unsupported::new("template span with missing literal"))?;
+                .expect("parser invariant: template span literal always parsed");
             let text = match self.data_of(literal) {
                 NodeData::TemplateMiddle(data) => data.text.clone(),
                 NodeData::TemplateTail(data) => data.text.clone(),
-                _ => return Err(Unsupported::new("template span literal payload")),
+                _ => unreachable!(
+                    "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
+                ),
             };
             types.push(self.get_type_from_type_node(span_type)?);
             texts.push(text);
@@ -415,7 +417,7 @@ impl<'a> CheckerState<'a> {
                     };
                     let element = data
                         .element_type
-                        .ok_or_else(|| Unsupported::new("array type with missing element type"))?;
+                        .expect("parser invariant: ArrayType element_type always parsed");
                     vec![self.get_type_from_type_node(element)?]
                 };
                 self.create_normalized_type_reference_forced(target, &element_types)?
@@ -863,7 +865,7 @@ impl<'a> CheckerState<'a> {
         };
         let inner = data
             .r#type
-            .ok_or_else(|| Unsupported::new("optional type with missing operand"))?;
+            .expect("parser invariant: OptionalType operand always parsed");
         let inner_type = self.get_type_from_type_node(inner)?;
         Ok(self
             .tables
@@ -879,7 +881,7 @@ impl<'a> CheckerState<'a> {
         };
         let inner = data
             .r#type
-            .ok_or_else(|| Unsupported::new("rest type with missing operand"))?;
+            .expect("parser invariant: RestType operand always parsed");
         let unwrapped = self.get_array_element_type_node(inner).unwrap_or(inner);
         self.get_type_from_type_node(unwrapped)
     }
@@ -896,7 +898,7 @@ impl<'a> CheckerState<'a> {
         };
         let inner = data
             .r#type
-            .ok_or_else(|| Unsupported::new("named tuple member with missing type"))?;
+            .expect("parser invariant: NamedTupleMember type always parsed");
         let resolved = if data.dot_dot_dot_token.is_some() {
             let unwrapped = self.get_array_element_type_node(inner).unwrap_or(inner);
             self.get_type_from_type_node(unwrapped)?
@@ -926,7 +928,7 @@ impl<'a> CheckerState<'a> {
         let operator = data.operator;
         let inner = data
             .r#type
-            .ok_or_else(|| Unsupported::new("type operator with missing operand"))?;
+            .expect("parser invariant: TypeOperator operand always parsed");
         match operator {
             // The readonly-ness itself was consumed by
             // getArrayOrTupleTargetType through the parent check.
@@ -954,9 +956,9 @@ impl<'a> CheckerState<'a> {
                 }
                 self.get_es_symbol_like_type_for_node(parent)
             }
-            other => Err(Unsupported::new(format!(
-                "type operator {other:?} outside the M3 slice"
-            ))),
+            other => unreachable!(
+                "parser invariant: type operators are keyof/unique/readonly only: {other:?}"
+            ),
         }
     }
 
@@ -1245,9 +1247,9 @@ impl<'a> CheckerState<'a> {
                         // which forces the GenericType shape — a plain
                         // Object here means the declared type is still
                         // mid-construction (cyclic heritage shell).
-                        _ => Err(Unsupported::new(
-                            "this type of a mid-cycle declared-type shell",
-                        )),
+                        _ => unreachable!(
+                            "declared class/interface types are stamped GenericType atomically"
+                        ),
                     };
                 }
             }
@@ -1351,7 +1353,7 @@ impl<'a> CheckerState<'a> {
                 NodeData::ArrayType(data) => {
                     let element = data
                         .element_type
-                        .ok_or_else(|| Unsupported::new("array type with missing element type"))?;
+                        .expect("parser invariant: ArrayType element_type always parsed");
                     Ok(vec![state.get_type_from_type_node(element)?])
                 }
                 NodeData::TupleType(data) => {
@@ -1581,10 +1583,10 @@ impl<'a> CheckerState<'a> {
         };
         let object_node = data
             .object_type
-            .ok_or_else(|| Unsupported::new("indexed access with missing object type"))?;
+            .expect("parser invariant: IndexedAccessType object_type always parsed");
         let index_node = data
             .index_type
-            .ok_or_else(|| Unsupported::new("indexed access with missing index type"))?;
+            .expect("parser invariant: IndexedAccessType index_type always parsed");
         let object_type = self.get_type_from_type_node(object_node)?;
         let index_type = self.get_type_from_type_node(index_node)?;
         let potential_alias = self.get_alias_symbol_for_type_node(node);
@@ -2082,7 +2084,7 @@ impl<'a> CheckerState<'a> {
         }
         let expr_name = data
             .expr_name
-            .ok_or_else(|| Unsupported::new("typeof with missing entity name"))?;
+            .expect("parser invariant: TypeQuery expr_name always parsed");
         // tsc checks exprName as an EXPRESSION (getWidenedType(
         // checkExpression(node.exprName))): qualified names take the
         // property-access route (2304 at the head identifier, 2339 on
@@ -3681,9 +3683,9 @@ impl<'a> CheckerState<'a> {
             let NodeData::ExpressionWithTypeArguments(data) = state.data_of(base_type_node) else {
                 unreachable!("heritage clause types are ExpressionWithTypeArguments");
             };
-            let expression = data
-                .expression
-                .ok_or_else(|| Unsupported::new("extends clause with missing expression"))?;
+            let expression = data.expression.expect(
+                "parser invariant: heritage ExpressionWithTypeArguments expression always parsed",
+            );
             let base_constructor_type = state.check_base_type_expression(expression)?;
             if state
                 .tables
@@ -6111,10 +6113,10 @@ impl<'a> CheckerState<'a> {
         let mut min_argument_count = 0u32;
         for (i, &parameter) in self.nodes_of(parameter_list).iter().enumerate() {
             let NodeData::Parameter(data) = self.data_of(parameter).clone() else {
-                return Err(Unsupported::new("malformed signature parameter"));
+                unreachable!("parser invariant: parameter lists carry only Parameter nodes");
             };
             let Some(parameter_symbol) = self.node_symbol(parameter) else {
-                return Err(Unsupported::new("unbound signature parameter symbol"));
+                unreachable!("binder invariant: every parameter declaration is bound");
             };
             let is_this =
                 i == 0 && data.name.and_then(|name| self.identifier_text(name)) == Some("this");
@@ -6496,8 +6498,9 @@ fn is_m3_signature_declaration_kind(kind: SyntaxKind) -> bool {
 /// The scanner already normalized numeric literal text to its value
 /// form (tsc node.text = token value); this parses that value string.
 pub(crate) fn parse_numeric_literal_text(text: &str) -> CheckResult2<f64> {
-    text.parse::<f64>()
-        .map_err(|_| Unsupported::new(format!("unparsable numeric literal text {text:?}")))
+    Ok(text.parse::<f64>().unwrap_or_else(|_| {
+        unreachable!("scanner invariant: numeric literal text is f64-parsable: {text:?}")
+    }))
 }
 
 /// The decimal slice of parsePseudoBigInt (18909-18964): annotation

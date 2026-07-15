@@ -1727,11 +1727,10 @@ impl<'a> CheckerState<'a> {
                     let prop_name = self.symbol_display_name(prop);
                     let class_name = match self.get_declaring_class(prop)? {
                         Some(class) => self.type_to_string_slice(class)?,
-                        None => {
-                            return Err(Unsupported::new(
-                                "private member without declaring class (recovery)",
-                            ))
-                        }
+                        None => unreachable!(
+                            "accessibility mask: PRIVATE implies a class parent \
+                             (revisit if Contains* propagation is ported)"
+                        ),
                     };
                     self.error_at(
                         Some(error_node),
@@ -1817,11 +1816,9 @@ impl<'a> CheckerState<'a> {
                 let enclosing_name = self.type_to_string_slice(enclosing_class)?;
                 let containing_name = match containing_type {
                     Some(containing) => self.type_to_string_slice(containing)?,
-                    None => {
-                        return Err(Unsupported::new(
-                            "protected-instance report without containing type",
-                        ))
-                    }
+                    None => unreachable!(
+                        "protected props are only found through resolved base constraints"
+                    ),
                 };
                 self.error_at(
                     Some(error_node),

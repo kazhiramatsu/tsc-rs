@@ -2238,9 +2238,7 @@ impl<'a> CheckerState<'a> {
         if head_message.is_some() {
             // The chained-head flavor (2344-coded outer chain over the
             // decorator head) arrives with decorator resolution (5.8).
-            return Err(Unsupported::new(
-                "checkTypeArguments under a head message (decorator resolution, 5.8)",
-            ));
+            unreachable!("head producers (decorators) skip type-argument collection");
         }
         let type_parameters = self
             .signature_of(signature)
