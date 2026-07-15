@@ -4248,6 +4248,29 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
+    /// tsrs-native: symbolToString's late-bound face for the accessor
+    /// reports — a late symbol displays as its declaration name's
+    /// SOURCE TEXT (`[Symbol.iterator]`), matching tsc's
+    /// declarationNameToString route; everything else keeps the
+    /// unescaped symbol name.
+    fn accessor_symbol_display_name(&self, symbol: SymbolId) -> String {
+        let computed_name_text = self
+            .binder
+            .symbol(symbol)
+            .value_declaration
+            .and_then(|declaration| self.name_of_node(declaration))
+            .and_then(|name| {
+                if self.kind_of(name) != SyntaxKind::ComputedPropertyName {
+                    return None;
+                }
+                let source = self.binder.source_of_node(name);
+                let raw = source.arena.node(name);
+                let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+                Some(source.text[start..raw.end as usize].to_owned())
+            });
+        computed_name_text.unwrap_or_else(|| self.symbol_display_name(symbol))
+    }
+
     /// tsc-port: getTypeOfAccessors @6.0.3
     /// tsc-hash: 02e993d3e444bf2bef90e03977fbd24eb389b56578fb5a170fa8ae14660ba119
     /// tsc-span: _tsc.js:56746-56786
@@ -4307,24 +4330,20 @@ impl<'a> CheckerState<'a> {
                 // report is undecidable — escape. Re-owned 5.8c→5.8e:
                 // the pairing IS the late-binding lift (m4-58 §15
                 // 5.8e), not class-band wiring.
-                let computed_name = setter.or(getter).is_some_and(|accessor| {
-                    tsrs2_binder::node_util::has_dynamic_name(
-                        self.binder.source_of_node(accessor),
-                        accessor,
-                    )
-                });
-                if computed_name {
-                    self.pop_type_resolution();
-                    return Err(Unsupported::new(
-                        "computed-name accessor pair (late-bound get/set pairing, 5.8e lift)",
-                    ));
-                }
-                // 56761-56769: the noImplicitAny suggestions.
+                // 56761-56769: the noImplicitAny suggestions. The
+                // 5.8c-era computed-name escape is lifted: the caller
+                // reaches accessors through getSymbolOfDeclaration's
+                // getLateBoundSymbol hop, so get/set pairs under one
+                // [Symbol.x] name share the LATE symbol and the
+                // annotation ladder above sees both halves. tsc's
+                // symbolToString renders a late symbol as its
+                // declaration name's source text (`[Symbol.iterator]`,
+                // never the internal `__@iterator@n`).
                 if self
                     .options
                     .strict_option_value(self.options.no_implicit_any)
                 {
-                    let name = self.symbol_display_name(symbol);
+                    let name = self.accessor_symbol_display_name(symbol);
                     if let Some(setter) = setter {
                         self.error_at(
                             Some(setter),
@@ -4346,7 +4365,7 @@ impl<'a> CheckerState<'a> {
             ty
         } else {
             // 56771-56783: circular accessor annotations.
-            let name = self.symbol_display_name(symbol);
+            let name = self.accessor_symbol_display_name(symbol);
             let location = self
                 .annotated_accessor_type_node(getter)
                 .map(|_| getter.expect("annotated getter"))
