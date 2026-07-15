@@ -800,6 +800,32 @@ impl<'a> CheckerState<'a> {
             let Some(top_pattern) = top_pattern else {
                 continue;
             };
+            // Correlated narrowing across destructured bindings is a
+            // discriminated-UNION feature. A comparison on one field
+            // of a concrete object does not change the type of its
+            // siblings (`{ a: boolean, b: number }; a === true`).
+            // Keep this containment gate closed unless the annotated
+            // or inferred source has actually resolved to a union.
+            let Some(owner) = self.parent_of(top_pattern) else {
+                continue;
+            };
+            let source_type = self
+                .type_annotation_of(owner)
+                .and_then(|annotation| self.links.node(annotation).resolved_type.resolved())
+                .or_else(|| match self.data_of(owner) {
+                    NodeData::VariableDeclaration(data) => {
+                        data.initializer.and_then(|initializer| {
+                            self.links.node(initializer).resolved_type.resolved()
+                        })
+                    }
+                    _ => None,
+                });
+            let Some(source_type) = source_type else {
+                continue;
+            };
+            if !self.is_confirmed_union_flow_source(source_type) {
+                continue;
+            }
             let mut worklist = vec![top_pattern];
             while let Some(current) = worklist.pop() {
                 match self.data_of(current) {
@@ -831,6 +857,26 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+    }
+
+    fn is_confirmed_union_flow_source(&self, mut ty: TypeId) -> bool {
+        for _ in 0..4 {
+            let flags = self.tables.flags_of(ty);
+            if flags.intersects(TypeFlags::UNION) {
+                return true;
+            }
+            if !flags.intersects(TypeFlags::TYPE_PARAMETER) {
+                return false;
+            }
+            let Some(constraint) = self.links.ty(ty).type_parameter_constraint.resolved() else {
+                return false;
+            };
+            if constraint == ty {
+                return false;
+            }
+            ty = constraint;
+        }
+        false
     }
 
     fn guard_operand_has_instanceof_root(
@@ -2485,27 +2531,43 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    /// JS object literals and values inferred from them are open-ended
-    /// in tsc. Class instances remain closed, except for the precise
-    /// static/prototype assignment members that our JS binder has not
-    /// materialized yet.
+    /// JS assignment-declared members that our binder has not
+    /// materialized yet. Match the receiver's lexical symbol, not its
+    /// spelling: a nested `class C` must never open the outer `C`.
     fn container_has_unbound_js_member(&self, ty: TypeId, property_name: &str) -> bool {
         let Some(symbol) = self.tables.type_of(ty).symbol else {
             return false;
         };
         let symbol = self.get_merged_symbol(symbol);
-        let declarations = &self.binder.symbol(symbol).declarations;
-        let has_js_declaration = declarations.iter().any(|&declaration| {
-            crate::is_js_file_name(&self.binder.source_of_node(declaration).file_name)
-        });
-        if has_js_declaration
-            && !self
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let mut value_symbols = Vec::new();
+        let mut push_value_symbol = |candidate: SymbolId| {
+            let candidate = self.get_merged_symbol(candidate);
+            if self
                 .binder
-                .symbol(symbol)
+                .symbol(candidate)
                 .flags
-                .intersects(SymbolFlags::CLASS)
-        {
-            return true;
+                .intersects(SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE)
+                && !value_symbols.contains(&candidate)
+            {
+                value_symbols.push(candidate);
+            }
+        };
+        push_value_symbol(symbol);
+        // Anonymous object/function types carry a synthetic symbol;
+        // the receiver binding lives on a nearby declaration node.
+        for &declaration in &declarations {
+            let mut cursor = Some(declaration);
+            for _ in 0..4 {
+                let Some(current) = cursor else { break };
+                if let Some(candidate) = self.node_symbol(current) {
+                    push_value_symbol(candidate);
+                }
+                cursor = self.parent_of(current);
+            }
+        }
+        if value_symbols.is_empty() {
+            return false;
         }
         // Class value types are anonymous constructor objects; class
         // instances are CLASS targets or REFERENCE instantiations.
@@ -2515,7 +2577,6 @@ impl<'a> CheckerState<'a> {
             .tables
             .object_flags_of(ty)
             .intersects(tsrs2_types::ObjectFlags::ANONYMOUS);
-        let container_name = self.binder.symbol(symbol).escaped_name.as_str();
         declarations.iter().any(|&declaration| {
             let source = self.binder.source_of_node(declaration);
             if !crate::is_js_file_name(&source.file_name) {
@@ -2525,43 +2586,50 @@ impl<'a> CheckerState<'a> {
                 let NodeData::BinaryExpression(binary) = self.data_of(node) else {
                     return false;
                 };
-                if binary
-                    .operator_token
-                    .map(|token| self.kind_of(token))
+                if binary.operator_token.map(|token| self.kind_of(token))
                     != Some(SyntaxKind::EqualsToken)
                 {
                     return false;
                 }
-                let Some(left) = binary.left else { return false };
+                let Some(left) = binary.left else {
+                    return false;
+                };
                 let NodeData::PropertyAccessExpression(access) = self.data_of(left) else {
                     return false;
                 };
-                if access
-                    .name
-                    .and_then(|name| self.identifier_text_of(name))
-                    != Some(property_name)
+                if access.name.and_then(|name| self.identifier_text_of(name)) != Some(property_name)
                 {
                     return false;
                 }
                 let Some(receiver) = access.expression else {
                     return false;
                 };
-                match self.data_of(receiver) {
-                    NodeData::Identifier(data) => {
-                        !instance_side && data.escaped_text == container_name
+                let receiver_symbol = match self.data_of(receiver) {
+                    NodeData::Identifier(data) if !instance_side => {
+                        self.resolve_lexical_value_symbol(receiver, &data.escaped_text)
                     }
                     NodeData::PropertyAccessExpression(prototype) => {
-                        instance_side
-                            && prototype
-                            .name
-                            .and_then(|name| self.identifier_text_of(name))
-                            == Some("prototype")
-                            && prototype.expression.is_some_and(|base| {
-                                matches!(self.data_of(base), NodeData::Identifier(data) if data.escaped_text == container_name)
+                        if !instance_side
+                            || prototype
+                                .name
+                                .and_then(|name| self.identifier_text_of(name))
+                                != Some("prototype")
+                        {
+                            None
+                        } else {
+                            prototype.expression.and_then(|base| {
+                                let NodeData::Identifier(data) = self.data_of(base) else {
+                                    return None;
+                                };
+                                self.resolve_lexical_value_symbol(base, &data.escaped_text)
                             })
+                        }
                     }
-                    _ => false,
-                }
+                    _ => None,
+                };
+                receiver_symbol
+                    .map(|receiver| self.get_merged_symbol(receiver))
+                    .is_some_and(|receiver| value_symbols.contains(&receiver))
             })
         })
     }

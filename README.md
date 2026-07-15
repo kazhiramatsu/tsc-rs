@@ -8,13 +8,13 @@ corpus.
 ## Status
 
 Milestones M1 (parser), M2 (binder), and M3 (types & relations) are
-complete; M4 (checker) is in progress at stage 5.8c. Measured over the
+complete; M4 (checker) is in progress at stage 5.8e. Measured over the
 full conformance corpus (5,908 fixtures / 7,691 cases) as of 2026-07-15:
 
 | Metric | Value |
 | --- | --- |
-| Exact diagnostic match, all bands | **31.3590%** (15,232 / 48,573) |
-| Exact diagnostic match, 2xxx band | **33.9833%** (7,076 / 20,822) |
+| Exact diagnostic match, all bands | **37.7943%** (18,413 / 48,719) |
+| Exact diagnostic match, 2xxx band | **46.0174%** (9,625 / 20,916) |
 | False positives | **0** (hard gate) |
 | Relation pins vs. tsc oracle | 403 / 403 agree |
 | Determinism/idempotence invariants | 275 programs, all pass |

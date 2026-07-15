@@ -460,12 +460,15 @@ impl<'a> CheckerState<'a> {
             // Array(1);` clean). Contain only when an annotation-less
             // empty-array declaration is paired with another
             // array-producing initializer.
-            if value_declaration.is_some_and(|value_declaration| {
+            let evolving_array_pair = if let Some(value_declaration) = value_declaration {
                 (self.is_annotationless_empty_array_var(node)
-                    && self.has_array_producing_initializer(value_declaration))
+                    && self.has_array_producing_initializer(value_declaration)?)
                     || (self.is_annotationless_empty_array_var(value_declaration)
-                        && self.has_array_producing_initializer(node))
-            }) {
+                        && self.has_array_producing_initializer(node)?)
+            } else {
+                false
+            };
+            if evolving_array_pair {
                 return Err(Unsupported::new(
                     "[FLOW M5] redeclaration comparison against an evolving-array declaration",
                 ));
@@ -546,22 +549,22 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn has_array_producing_initializer(&self, declaration: NodeId) -> bool {
+    fn has_array_producing_initializer(&mut self, declaration: NodeId) -> CheckResult2<bool> {
         let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
-            return false;
+            return Ok(false);
         };
         let Some(initializer) = data.initializer else {
-            return false;
+            return Ok(false);
         };
         match self.data_of(initializer) {
-            NodeData::ArrayLiteralExpression(_) => true,
-            NodeData::CallExpression(call) => call
-                .expression
-                .is_some_and(|expression| self.identifier_text_of(expression) == Some("Array")),
-            NodeData::NewExpression(call) => call
-                .expression
-                .is_some_and(|expression| self.identifier_text_of(expression) == Some("Array")),
-            _ => false,
+            NodeData::ArrayLiteralExpression(_) => Ok(true),
+            NodeData::CallExpression(_) | NodeData::NewExpression(_) => {
+                let initializer_type =
+                    self.check_expression_cached(initializer, CheckMode::NORMAL)?;
+                Ok(self.is_array_type(initializer_type)?
+                    || self.tables.is_tuple_type(initializer_type))
+            }
+            _ => Ok(false),
         }
     }
 

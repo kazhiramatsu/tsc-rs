@@ -911,6 +911,13 @@ class = "untagged"
 
 [[site]]
 file = "crates/checker/src/check.rs"
+in = "check_type_assignable_to"
+reason = "tuple-bearing intersection relation display without a directly annotated tuple (nodeBuilder work, M6)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/check.rs"
 in = "check_type_comparable_to"
 reason = "relation-error display for identically-named types (getTypeNameForErrorDisplay UseFullyQualifiedType)"
 class = "untagged"

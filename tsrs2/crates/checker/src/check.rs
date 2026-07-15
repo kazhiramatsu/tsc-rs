@@ -29,7 +29,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFlags, TypeId};
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureKind, Unsupported};
 
 /// Debug-only unwind census (the unsupported-unwind invariant):
 /// every transient stack an element check may push must be back at
@@ -179,7 +179,6 @@ impl<'a> CheckerState<'a> {
         // matches check_source_element's element boundary.
         if self.binder.is_external_or_common_js_module_of_node(root) {
             if let Err(err) = self.check_external_module_exports(root) {
-                self.record_contained_check(root);
                 if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
                     eprintln!("contained @{root:?}: {}", err.reason);
                 }
@@ -347,7 +346,6 @@ impl<'a> CheckerState<'a> {
         // and the caller's loop continues. TSRS_TRACE_CONTAIN=1 prints
         // the swallowed reasons (debug aid).
         if let Err(err) = self.check_source_element_worker(node) {
-            self.record_contained_check(node);
             if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
                 eprintln!("contained @{node:?}: {}", err.reason);
             }
@@ -1641,7 +1639,6 @@ impl<'a> CheckerState<'a> {
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
         if let Err(err) = self.check_deferred_node_worker(node) {
-            self.record_contained_check(node);
             if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
                 eprintln!("contained deferred @{node:?}: {}", err.reason);
             }
@@ -1649,28 +1646,6 @@ impl<'a> CheckerState<'a> {
         #[cfg(debug_assertions)]
         self.assert_unwound(&unwind_entry, node, "check_deferred_node");
         self.current_node = save_current_node;
-    }
-
-    /// tsrs-native: record the full source-element/deferred-node range
-    /// abandoned by an Unsupported unwind. The driver uses these
-    /// ranges to avoid a false unused-`@ts-expect-error` report without
-    /// silencing other independent directives in the same file.
-    fn record_contained_check(&mut self, node: NodeId) {
-        let source = self.binder.source_of_node(node);
-        let raw = source.arena.node(node);
-        let to_utf16 = |byte: usize| -> u32 {
-            source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
-                .unwrap_or(byte as u32)
-        };
-        let range = (to_utf16(raw.pos as usize), to_utf16(raw.end as usize));
-        self.contained_check_ranges
-            .entry(source.file_name.clone())
-            .or_default()
-            .push(range);
     }
 
     fn check_deferred_node_worker(&mut self, node: NodeId) -> CheckResult2<()> {
@@ -1884,13 +1859,50 @@ impl<'a> CheckerState<'a> {
                         tsrs2_types::TypeData::Intersection { types } => types.to_vec(),
                         _ => Vec::new(),
                     };
+                    let mut tuple_member = None;
+                    let mut only_contextual_arity_is_unresolved = true;
                     for member in members {
                         if self.is_array_type(member)? || self.tables.is_tuple_type(member) {
+                            tuple_member.get_or_insert(member);
+                            continue;
+                        }
+                        // The contextual source can already carry
+                        // target members, so a second relation check
+                        // here would bless unrelated requirements such
+                        // as `{ p: string }`. Only the literal-length
+                        // shape is part of the known arity gap.
+                        if !self.is_tuple_arity_only_constraint(member)? {
+                            only_contextual_arity_is_unresolved = false;
+                            break;
+                        }
+                    }
+                    if tuple_member.is_some() {
+                        if only_contextual_arity_is_unresolved {
                             return Err(Unsupported::new(
                                 "array-literal relation against a tuple-bearing intersection \
                                  after element elaboration (contextual tuple arity, M6)",
                             ));
                         }
+                        // The relation tail is T2, but the outer head
+                        // is determinate. Render the contextual tuple
+                        // (the actual array-literal source in tsc),
+                        // then avoid the missing-property override,
+                        // which is inapplicable to an intersection
+                        // target and otherwise escapes before 2322.
+                        let (source_text, target_text) = self
+                            .tuple_intersection_relation_display_from_syntax(error_node)
+                            .ok_or_else(|| {
+                                Unsupported::new(
+                                    "tuple-bearing intersection relation display without a \
+                                     directly annotated tuple (nodeBuilder work, M6)",
+                                )
+                            })?;
+                        self.error_at(
+                            Some(error_node),
+                            head_message,
+                            &[&source_text, &target_text],
+                        );
+                        return Ok(related);
                     }
                 }
                 // An EXPLICIT tsc headMessage chains OUTERMOST
@@ -1988,6 +2000,57 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(related)
+    }
+
+    /// Narrow display bridge for the determinate 2322 head above.
+    /// The full tuple renderer is M6; a directly written annotation
+    /// already contains both strings needed by this relation head.
+    fn tuple_intersection_relation_display_from_syntax(
+        &self,
+        error_node: NodeId,
+    ) -> Option<(String, String)> {
+        let mut cursor = Some(error_node);
+        for _ in 0..6 {
+            let current = cursor?;
+            if let Some(annotation) = self.type_annotation_of(current) {
+                if let NodeData::IntersectionType(data) = self.data_of(annotation) {
+                    let tuple_node = self.nodes_of(data.types).into_iter().find(|&member| {
+                        matches!(
+                            self.kind_of(member),
+                            SyntaxKind::TupleType | SyntaxKind::ArrayType
+                        )
+                    })?;
+                    return Some((
+                        self.text_of_node(tuple_node).ok()?,
+                        self.text_of_node(annotation).ok()?,
+                    ));
+                }
+            }
+            cursor = self.parent_of(current);
+        }
+        None
+    }
+
+    /// The remaining M6 hole is specifically a contextual tuple's
+    /// literal `length` relation. It must not hide unrelated required
+    /// members on another intersection constituent.
+    fn is_tuple_arity_only_constraint(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
+            return Ok(false);
+        }
+        let properties = self.get_properties_of_type(ty)?;
+        if properties.len() != 1
+            || self.binder.symbol(properties[0]).escaped_name.as_str() != "length"
+        {
+            return Ok(false);
+        }
+        Ok(self
+            .get_signatures_of_type(ty, SignatureKind::Call)?
+            .is_empty()
+            && self
+                .get_signatures_of_type(ty, SignatureKind::Construct)?
+                .is_empty()
+            && self.get_index_infos_of_type(ty)?.is_empty())
     }
 
     /// tsc-port: reportUnmatchedProperty @6.0.3 (the head-override
