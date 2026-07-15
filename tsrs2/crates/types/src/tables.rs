@@ -1696,10 +1696,12 @@ impl TypeTables {
         named_member_declarations: Option<&[Option<u32>]>,
     ) -> Result<TypeId, M4Dependency> {
         if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::REST) {
-            // `[...T[]]` collapses to (readonly) Array<T> (61146-61148).
-            return Err(M4Dependency(
-                "single-rest tuple collapse (tables-internal callers only; the checker twin owns live paths — M4-end sweep 5.8)",
-            ));
+            // `[...T[]]` collapses to (readonly) Array<T> (61146-61148)
+            // — the checker twin owns the collapse
+            // (create_tuple_type_forced pre-collapses before reaching
+            // here) and no tables-internal caller builds single-rest
+            // shapes (L-TWIN caller inventory, M4-end sweep).
+            unreachable!("single-rest tuple targets collapse in the checker twin (L-TWIN)");
         }
         let mut key = element_flags
             .iter()
@@ -1871,12 +1873,14 @@ impl TypeTables {
     /// tsc-hash: 5b7968f648c63d88544746d841015ff7800b723dbc071b96fb4d6f7ae0b18154
     /// tsc-span: _tsc.js:61213-61287
     ///
-    /// M4-dependent arms return M4Dependency instead of a type: the
-    /// union-in-variadic cross product (61218-61223, needs mapType over
-    /// unions with error reporting), array-like variadic collapse
-    /// (61252, getIndexTypeOfType) and the variadic-in-rest-window
-    /// collapse (61262, getIndexedAccessType). None are reachable from
-    /// M3 annotation shapes.
+    /// The tables twin is test-only plus the one live empty-tuple
+    /// caller (structural.rs slice_tuple_type): the checker twin
+    /// (annotate.rs create_normalized_tuple_type_full) owns every
+    /// checker-reachable normalization, so the checker-dependent arms
+    /// (union-in-variadic cross product 61218-61223, array-like
+    /// variadic collapse 61252, variadic-in-rest-window collapse
+    /// 61262, deferred-argument forcing 61240) are proven-dead guards
+    /// here (L-TWIN caller inventory, M4-end sweep).
     pub fn create_normalized_tuple_type(
         &mut self,
         target: TypeId,
@@ -1897,9 +1901,14 @@ impl TypeTables {
                     ))
             });
             if has_union_variadic {
-                return Err(M4Dependency(
-                    "union/never variadic tuple element distribution (M4)",
-                ));
+                // The union/never variadic distribution (61218-61223)
+                // runs live in the checker twin
+                // (create_normalized_tuple_type_full); the only live
+                // tables caller is the empty tuple, which has no
+                // variadic elements (L-TWIN caller inventory).
+                unreachable!(
+                    "union/never variadic distribution lives in the checker twin (L-TWIN)"
+                );
             }
         }
         let mut expanded_types: Vec<TypeId> = Vec::new();
@@ -1978,20 +1987,24 @@ impl TypeTables {
                         };
                         // tsc forces the arguments lazily here
                         // (getTypeArguments 61240); tables cannot reach
-                        // the checker, so checker callers pre-force
-                        // variadic tuple elements and this guard keeps
-                        // any missed path an honest escape.
+                        // the checker, so the checker twin owns every
+                        // deferred-argument path and the only live
+                        // tables caller is the empty tuple (L-TWIN
+                        // caller inventory).
                         let Some(inner_args) = self
                             .try_type_arguments(element_type)
                             .map(<[TypeId]>::to_vec)
                         else {
-                            return Err(M4Dependency(
-                                "unforced deferred tuple arguments in variadic expansion \
-                                 (pre-force via CheckerState::get_type_arguments)",
-                            ));
+                            unreachable!(
+                                "deferred tuple arguments force through the checker twin (L-TWIN)"
+                            );
                         };
                         if inner_args.len() + expanded_types.len() >= 10_000 {
-                            return Err(M4Dependency("tuple too large to represent (2799 family)"));
+                            // The 2799/2800 report lives in the checker
+                            // twin (L-TWIN caller inventory).
+                            unreachable!(
+                                "oversized tuples report through the checker twin (L-TWIN)"
+                            );
                         }
                         for (n, &inner_type) in inner_args.iter().enumerate() {
                             let inner_declaration = inner
@@ -2010,9 +2023,13 @@ impl TypeTables {
                             );
                         }
                     } else {
-                        return Err(M4Dependency(
-                            "array-like variadic element needs getIndexTypeOfType (M4)",
-                        ));
+                        // The array-like variadic collapse
+                        // (getIndexTypeOfType, 61252) runs live in the
+                        // checker twin; the only live tables caller is
+                        // the empty tuple (L-TWIN caller inventory).
+                        unreachable!(
+                            "array-like variadic collapse lives in the checker twin (L-TWIN)"
+                        );
                     }
                 } else {
                     add_element(
@@ -2047,9 +2064,11 @@ impl TypeTables {
                 .iter()
                 .any(|flags| flags.intersects(ElementFlags::VARIADIC))
             {
-                return Err(M4Dependency(
-                    "variadic element inside rest window needs getIndexedAccessType (M4)",
-                ));
+                // The variadic-in-rest-window collapse
+                // (getIndexedAccessType, 61262) runs live in the
+                // checker twin; the only live tables caller is the
+                // empty tuple (L-TWIN caller inventory).
+                unreachable!("variadic-in-rest-window collapse lives in the checker twin (L-TWIN)");
             }
             let window: Vec<TypeId> = expanded_types[first..=last].to_vec();
             expanded_types[first] = self.get_union_type(&window, UnionReduction::Literal);

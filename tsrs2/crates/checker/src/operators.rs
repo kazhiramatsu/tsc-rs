@@ -725,11 +725,16 @@ impl<'a> CheckerState<'a> {
                         );
                     }
                     self.check_nan_equality(error_node, operator_token, left, right)?;
-                    // Intersection comparability escape: the relation
-                    // slice under-accepts intersection operands
-                    // (equalityWithIntersectionTypes01 is tsc-clean) —
-                    // a failed verdict with an intersection on either
-                    // side escapes instead of fabricating 2367.
+                    // The comparability verdict itself is tsc-faithful
+                    // (the intersection relation arms landed 5.9b), but
+                    // 2367 POSITIONS depend on narrowing: a failed
+                    // comparison narrows the operands of the later
+                    // comparisons in the chain, so without flow
+                    // analysis every repeat reports where tsc stays
+                    // silent (equalityWithIntersectionTypes01 pins the
+                    // suppressed repeats). A failed verdict with an
+                    // intersection operand stays contained until the
+                    // narrowing lands.
                     let comparable = self.is_type_equality_comparable_to(left_type, right_type)?
                         || self.is_type_equality_comparable_to(right_type, left_type)?;
                     if !comparable
@@ -743,7 +748,7 @@ impl<'a> CheckerState<'a> {
                                 .intersects(TypeFlags::INTERSECTION))
                     {
                         return Err(Unsupported::new(
-                            "equality comparability over intersection operands (relation arm, M4-end sweep 5.8)",
+                            "equality 2367 over narrowed intersection operands (narrowTypeByEquality, [FLOW M5])",
                         ));
                     }
                     self.report_operator_error_unless(

@@ -59,14 +59,159 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeFromTypeNode @6.0.3
     /// tsc-hash: 5d4a798af65bf23738c21df6d7142d44f9ac093ea314f620267fde2a974f3004
     /// tsc-span: _tsc.js:63196-63198
+    pub fn get_type_from_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let ty = self.get_type_from_type_node_worker(node)?;
+        self.get_conditional_flow_type_of_type(ty, node)
+    }
+
+    /// tsc-port: getConditionalFlowTypeOfType @6.0.3
+    /// tsc-hash: b2dfca101ec5c568bfe71c1127cf9ce42b730f6b27b3a8a7ba7733117c54d61e
+    /// tsc-span: _tsc.js:60454-60482
     ///
-    /// getConditionalFlowTypeOfType (60454) is identity without
-    /// conditional types; it returns with M4 5.2.
+    /// A collected constraint means tsc builds a Substitution type
+    /// (getSubstitutionType) — that TypeFlag is unconstructible until
+    /// M8, so the collection escapes instead of resolving to the
+    /// UNSUBSTITUTED type (the plain parameter would mis-relate:
+    /// mappedTypeAsClauseRelationships pins the template-span check
+    /// under `P extends string ? \`bool${P}\` : P`). The mapped-type
+    /// arm (60467-60478) contains through getTypeFromTypeNode on the
+    /// mapped parent, which escapes until M8 — an over-containment of
+    /// homomorphic template references, never an FP. The JSDoc kind
+    /// stop is vacuous (JSDoc nodes are unconstructed).
+    fn get_conditional_flow_type_of_type(
+        &mut self,
+        ty: TypeId,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let mut covariant = true;
+        let mut node = node;
+        while !Self::is_statement_kind(self.kind_of(node)) {
+            let Some(parent) = self.parent_of(node) else {
+                break;
+            };
+            let parent_kind = self.kind_of(parent);
+            if parent_kind == SyntaxKind::Parameter {
+                covariant = !covariant;
+            }
+            if (covariant
+                || self
+                    .tables
+                    .flags_of(ty)
+                    .intersects(TypeFlags::TYPE_VARIABLE))
+                && parent_kind == SyntaxKind::ConditionalType
+            {
+                let NodeData::ConditionalType(data) = self.data_of(parent) else {
+                    unreachable!("kind/data agree");
+                };
+                let (check_type, extends_type, true_type) =
+                    (data.check_type, data.extends_type, data.true_type);
+                if true_type == Some(node) {
+                    if let (Some(check_type), Some(extends_type)) = (check_type, extends_type) {
+                        if self
+                            .get_implied_constraint(ty, check_type, extends_type)?
+                            .is_some()
+                        {
+                            return Err(Unsupported::new(
+                                "conditional-flow substitution over the true branch \
+                                 (getSubstitutionType — unported family, M8-stub)",
+                            ));
+                        }
+                    }
+                }
+            } else if self
+                .tables
+                .flags_of(ty)
+                .intersects(TypeFlags::TYPE_PARAMETER)
+                && parent_kind == SyntaxKind::MappedType
+            {
+                let NodeData::MappedType(data) = self.data_of(parent) else {
+                    unreachable!("kind/data agree");
+                };
+                if data.name_type.is_none() && data.r#type == Some(node) {
+                    // 60468: reading the mapped type's parameter needs
+                    // getTypeFromTypeNode(parent) — the mapped-type
+                    // arm escapes there until M8.
+                    self.get_type_from_type_node(parent)?;
+                }
+            }
+            node = parent;
+        }
+        Ok(ty)
+    }
+
+    /// tsc-port: getImpliedConstraint @6.0.3
+    /// tsc-hash: 8f769603fba272d4c8241a3bb071298d8f088b86157b532a877e4eda33b5fd26
+    /// tsc-span: _tsc.js:60451-60453
     ///
+    /// getActualTypeVariable is the identity while Substitution types
+    /// are unconstructible (M8).
+    fn get_implied_constraint(
+        &mut self,
+        ty: TypeId,
+        check_node: NodeId,
+        extends_node: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let (Some(check_element), Some(extends_element)) = (
+            self.unary_tuple_element(check_node),
+            self.unary_tuple_element(extends_node),
+        ) {
+            return self.get_implied_constraint(ty, check_element, extends_element);
+        }
+        let check_type = self.get_type_from_type_node(check_node)?;
+        if check_type == ty {
+            Ok(Some(self.get_type_from_type_node(extends_node)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// tsc-port: isUnaryTupleTypeNode @6.0.3
+    /// tsc-hash: c33ee9aa6a429c091bcace9519644c41b93c8c1db0d293d91872d9ac5faaaf26
+    /// tsc-span: _tsc.js:60448-60450
+    ///
+    /// Fused with the element read: Some(element) exactly when the
+    /// node is a one-element tuple type.
+    fn unary_tuple_element(&self, node: NodeId) -> Option<NodeId> {
+        if self.kind_of(node) != SyntaxKind::TupleType {
+            return None;
+        }
+        let NodeData::TupleType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let elements = self.nodes_of(data.elements);
+        match elements[..] {
+            [element] => Some(element),
+            _ => None,
+        }
+    }
+
+    /// tsc isStatement (12473-12476): the statement kind range plus
+    /// the declaration-statement kinds and blocks — the
+    /// getConditionalFlowTypeOfType walk boundary.
+    fn is_statement_kind(kind: SyntaxKind) -> bool {
+        (kind >= SyntaxKind::FirstStatement && kind <= SyntaxKind::LastStatement)
+            || matches!(
+                kind,
+                SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::MissingDeclaration
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::TypeAliasDeclaration
+                    | SyntaxKind::EnumDeclaration
+                    | SyntaxKind::ModuleDeclaration
+                    | SyntaxKind::ImportDeclaration
+                    | SyntaxKind::ImportEqualsDeclaration
+                    | SyntaxKind::ExportDeclaration
+                    | SyntaxKind::ExportAssignment
+                    | SyntaxKind::NamespaceExportDeclaration
+                    | SyntaxKind::Block
+            )
+    }
+
     /// tsc-port: getTypeFromTypeNodeWorker @6.0.3
     /// tsc-hash: 5de45dfdb59c76a72c1b56d2d18859eae20ca9e9db0ff6aa6c4d6aeea0eaf912
     /// tsc-span: _tsc.js:63199-63297
-    pub fn get_type_from_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    fn get_type_from_type_node_worker(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         match self.kind_of(node) {
             SyntaxKind::AnyKeyword => Ok(self.tables.intrinsics.any),
             SyntaxKind::UnknownKeyword => Ok(self.tables.intrinsics.unknown),
@@ -442,8 +587,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:61210-61212
     ///
     /// The checker twin: tuple targets run the FULL
-    /// createNormalizedTupleType below (the tables twin keeps its
-    /// M4Dependency escapes for tables-internal callers only).
+    /// createNormalizedTupleType below (the tables twin is test-only
+    /// plus the live empty-tuple caller; its checker-dependent arms
+    /// are proven-dead guards — L-TWIN).
     pub(crate) fn create_normalized_type_reference_forced(
         &mut self,
         target: TypeId,

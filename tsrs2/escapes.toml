@@ -163,6 +163,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
+in = "get_conditional_flow_type_of_type"
+reason = "conditional-flow substitution over the true branch (getSubstitutionType — unported family, M8-stub)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/annotate.rs"
 in = "get_declared_type_of_enum"
 reason = "late-bound enum member name (lateBindMember 57662, M7-stub)"
 class = "stage"
@@ -259,34 +266,34 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_node"
+in = "get_type_from_type_node_worker"
 reason = "conditional types (unported family, M8-stub)"
 class = "stage"
 owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_node"
+in = "get_type_from_type_node_worker"
 reason = "import types (M4)"
 class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_node"
+in = "get_type_from_type_node_worker"
 reason = "infer types (unported family, M8-stub)"
 class = "stage"
 owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_node"
+in = "get_type_from_type_node_worker"
 reason = "mapped types (unported family, M8-stub)"
 class = "stage"
 owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_node"
+in = "get_type_from_type_node_worker"
 reason = "type node kind {other:?} outside the M3 annotation slice (JSDoc-flavor bands, M8)"
 class = "stage"
 owner = "M8"
@@ -820,23 +827,10 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/constraints.rs"
-in = "compute_base_constraint"
-reason = "computeBaseConstraint for generic tuples (generic-tuple family, M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/constraints.rs"
 in = "get_constraint_from_type_parameter"
 reason = "infer-type parameter constraints (conditional types, M4 5.2/M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/constraints.rs"
-in = "get_constraint_of_type"
-reason = "indexed-access source constraints (getConstraintOfIndexedAccess — keyof/indexed relation arms follow-up)"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/contextual.rs"
@@ -1087,6 +1081,13 @@ in = "get_global_extract_symbol"
 reason = "global Extract alias with non-2 arity (user-shadowed lib arity report, M4-end sweep 5.8)"
 class = "stage"
 owner = "5.8"
+
+[[site]]
+file = "crates/checker/src/indexed.rs"
+in = "get_simplified_type"
+reason = "getSimplifiedConditionalType (unported family, M8-stub)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/instantiate.rs"
@@ -1416,9 +1417,9 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "check_binary_like_expression_worker"
-reason = "equality comparability over intersection operands (relation arm, M4-end sweep 5.8)"
+reason = "equality 2367 over narrowed intersection operands (narrowTypeByEquality, [FLOW M5])"
 class = "stage"
-owner = "5.8"
+owner = "M5"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1628,12 +1629,6 @@ owner = "M6"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
-in = "create_union_or_intersection_property"
-reason = "tuple rest index fallbacks (M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
 in = "get_apparent_type"
 reason = "mapped type apparent types (M8)"
 class = "stage"
@@ -1655,12 +1650,6 @@ owner = "M6"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
-in = "properties_related_to"
-reason = "variadic tuple elements in relations (M4 generic tuples)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
 in = "structured_type_related_to_worker"
 reason = "conditional sources (unported family, M8-stub)"
 class = "stage"
@@ -1676,29 +1665,9 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/structural.rs"
 in = "structured_type_related_to_worker"
-reason = "identity for index/indexed-access/conditional/substitution/string-mapping types (M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "structured_type_related_to_worker"
-reason = "indexed-access targets (IndexedAccess relation arms, M4-end sweep 5.8)"
+reason = "identity for conditional/substitution types (unported family, M8-stub)"
 class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "structured_type_related_to_worker"
-reason = "keyof sources (Index relation arms, M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "structured_type_related_to_worker"
-reason = "keyof targets (Index relation arms, M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
@@ -1720,40 +1689,3 @@ in = "report_implicit_any"
 reason = "reportImplicitAny JSDoc arms ([JSDOC] M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/types/src/tables.rs"
-in = "create_normalized_tuple_type"
-reason = "array-like variadic element needs getIndexTypeOfType (M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/types/src/tables.rs"
-in = "create_normalized_tuple_type"
-reason = "tuple too large to represent (2799 family)"
-class = "untagged"
-
-[[site]]
-file = "crates/types/src/tables.rs"
-in = "create_normalized_tuple_type"
-reason = "unforced deferred tuple arguments in variadic expansion (pre-force via CheckerState::get_type_arguments)"
-class = "untagged"
-
-[[site]]
-file = "crates/types/src/tables.rs"
-in = "create_normalized_tuple_type"
-reason = "union/never variadic tuple element distribution (M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/types/src/tables.rs"
-in = "create_normalized_tuple_type"
-reason = "variadic element inside rest window needs getIndexedAccessType (M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/types/src/tables.rs"
-in = "get_tuple_target_type"
-reason = "single-rest tuple collapse (tables-internal callers only; the checker twin owns live paths — M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"

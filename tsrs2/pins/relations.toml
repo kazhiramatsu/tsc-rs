@@ -2375,3 +2375,81 @@ setup = "interface Array<T> { length: number }"
 source = "(...args: [a: string, b: number]) => void"
 target = "(x: string, y: number) => void"
 expect = "yes"
+
+# ---- M4 5.9b: keyof / indexed-access relation arms + tuple band ----
+# The deferred Index/IndexedAccess arms run during variance
+# measurement (marker type parameters keep keyof/indexed-access reads
+# deferred), so generic-interface pins exercise the new arms and the
+# concrete verdicts pin the measured variances.
+
+[[pair]]
+setup = "interface K59A<T> { k: keyof T }"
+source = "K59A<{ a: number }>"
+target = "K59A<{ a: number; b: number }>"
+expect = "yes"
+
+[[pair]]
+setup = "interface K59A<T> { k: keyof T }"
+source = "K59A<{ a: number; b: number }>"
+target = "K59A<{ a: number }>"
+expect = "no"
+
+[[pair]]
+setup = "interface K59B<T> { f(k: keyof T): void }"
+source = "K59B<{ a: number }>"
+target = "K59B<{ a: number; b: number }>"
+expect = "yes"
+
+[[pair]]
+setup = "interface K59B<T> { f(k: keyof T): void }"
+source = "K59B<{ a: number; b: number }>"
+target = "K59B<{ a: number }>"
+expect = "yes"
+
+[[pair]]
+setup = 'interface V59<T extends { x: unknown }> { v: T["x"] }'
+source = "V59<{ x: number }>"
+target = "V59<{ x: number | string }>"
+expect = "yes"
+
+[[pair]]
+setup = 'interface V59<T extends { x: unknown }> { v: T["x"] }'
+source = "V59<{ x: number | string }>"
+target = "V59<{ x: number }>"
+expect = "no"
+
+[[pair]]
+setup = "interface G59<T extends unknown[]> { f(...args: [string, ...T]): void }"
+source = "G59<[number]>"
+target = "G59<[number | boolean]>"
+expect = "yes"
+
+[[pair]]
+setup = "interface G59<T extends unknown[]> { f(...args: [string, ...T]): void }"
+source = "G59<[number | boolean]>"
+target = "G59<[number]>"
+expect = "yes"
+
+[[pair]]
+setup = "interface H59<T extends string[]> { f(...args: [...T]): void }"
+source = "H59<[string, string]>"
+target = "H59<string[]>"
+expect = "yes"
+
+[[pair]]
+setup = "interface H59<T extends string[]> { f(...args: [...T]): void }"
+source = "H59<string[]>"
+target = "H59<[string, string]>"
+expect = "yes"
+
+[[pair]]
+relation = "comparable"
+source = "`a${string}` & { x: 1 }"
+target = '"abc"'
+expect = "no"
+
+[[pair]]
+relation = "comparable"
+source = "`a${string}` & { x: 1 }"
+target = "number"
+expect = "no"

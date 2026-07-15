@@ -377,9 +377,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// Deferred (node-carrying) references normalize to their eager
     /// twin (createNormalizedTypeReference over the forced arguments);
-    /// Substitution is M8; getSimplifiedType stays the identity stub
-    /// (the IndexedAccess simplification lands with its 5.3c
-    /// consumers — Simplifiable relation inputs escape before this).
+    /// the Substitution arm is M8 (those TypeFlags are unconstructible
+    /// before their type nodes land).
     pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult2<TypeId> {
         loop {
             let flags = self.tables.flags_of(ty);
@@ -406,6 +405,8 @@ impl<'a> CheckerState<'a> {
                 }
             } else if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
                 self.get_normalized_union_or_intersection_type(ty, writing)?
+            } else if flags.intersects(TypeFlags::SIMPLIFIABLE) {
+                self.get_simplified_type(ty, writing)?
             } else {
                 ty
             };
@@ -1108,6 +1109,57 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         if self.flags(target).intersects(TypeFlags::INTERSECTION) {
             return self.type_related_to_each_type(source, target, IntersectionState::TARGET);
+        }
+        // 65433-65456: for comparability against a primitive, an
+        // intersection source steps its instantiable constituents to
+        // their base constraints first; a non-intersection result
+        // compares in both directions.
+        let mut source = source;
+        if self.relation == RelationKind::Comparable
+            && self.flags(target).intersects(TypeFlags::PRIMITIVE)
+        {
+            let members = self.union_members(source);
+            let mut constraints = Vec::with_capacity(members.len());
+            let mut changed = false;
+            for &member in &members {
+                let constraint = if self.flags(member).intersects(TypeFlags::INSTANTIABLE) {
+                    let base = self.st.get_base_constraint_of_type(member)?;
+                    base.unwrap_or(self.st.tables.intrinsics.unknown)
+                } else {
+                    member
+                };
+                if constraint != member {
+                    changed = true;
+                }
+                constraints.push(constraint);
+            }
+            if changed {
+                source = self
+                    .st
+                    .get_intersection_type(&constraints, tsrs2_types::IntersectionFlags::NONE)?;
+                if self.flags(source).intersects(TypeFlags::NEVER) {
+                    return Ok(Ternary::FALSE);
+                }
+                if !self.flags(source).intersects(TypeFlags::INTERSECTION) {
+                    let result = self.is_related_to(
+                        source,
+                        target,
+                        RecursionFlags::SOURCE,
+                        /*report_errors*/ false,
+                        IntersectionState::NONE,
+                    )?;
+                    if !is_false(result) {
+                        return Ok(result);
+                    }
+                    return self.is_related_to(
+                        target,
+                        source,
+                        RecursionFlags::SOURCE,
+                        /*report_errors*/ false,
+                        IntersectionState::NONE,
+                    );
+                }
+            }
         }
         self.some_type_related_to_type(
             source,

@@ -291,6 +291,13 @@ pub struct TypeLinks {
     /// (getIndexTypeForGenericType 61932).
     pub resolved_index_type: LinkSlot<TypeId>,
     pub resolved_string_index_type: LinkSlot<TypeId>,
+    /// tsc type.simplifiedForReading / simplifiedForWriting
+    /// (getSimplifiedIndexedAccessType 62471-62475). Resolving IS
+    /// tsc's circularConstraintType in-flight sentinel (re-entry
+    /// returns the type itself); an Unsupported unwind reverts to
+    /// Vacant per the unwind invariant.
+    pub simplified_for_reading: LinkSlot<TypeId>,
+    pub simplified_for_writing: LinkSlot<TypeId>,
     /// tsc type.uniqueLiteralFilledInstantiation (isReducibleIntersection
     /// 59322).
     pub unique_literal_filled_instantiation: LinkSlot<TypeId>,
@@ -1088,6 +1095,47 @@ impl LinksTables {
             &mut self.ty.entry(id).or_default().immediate_base_constraint,
             LinkSlot::Resolved(value),
         );
+    }
+
+    /// tsrs-native: links-table setter (tsc plain property write).
+    /// getSimplifiedIndexedAccessType's per-direction cache
+    /// (62471-62475): Resolving parks the circular sentinel, Resolved
+    /// stores the simplification.
+    pub fn set_type_simplified(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        writing: bool,
+        value: LinkSlot<TypeId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        let slot = if writing {
+            &mut links.simplified_for_writing
+        } else {
+            &mut links.simplified_for_reading
+        };
+        Self::write_slot(slot, value);
+    }
+
+    /// tsrs-native: Err-unwind twin for the simplified cache — tsc
+    /// cannot fail inside getSimplifiedIndexedAccessType, so an
+    /// Unsupported unwind that left the sentinel must revert to
+    /// Vacant; a later query re-simplifies instead of observing a
+    /// phantom mid-flight sentinel.
+    pub fn revert_type_simplified(&mut self, id: TypeId, writing: bool) {
+        let links = self.ty.entry(id).or_default();
+        let slot = if writing {
+            &mut links.simplified_for_writing
+        } else {
+            &mut links.simplified_for_reading
+        };
+        assert!(
+            matches!(slot, LinkSlot::Resolving),
+            "simplified revert without an in-progress simplification for {id:?}"
+        );
+        note_resolving_transition(true, false);
+        *slot = LinkSlot::Vacant;
     }
 
     /// lateBindMember's two-phase resolvedSymbol write (57665/57689):
