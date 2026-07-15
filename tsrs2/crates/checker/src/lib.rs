@@ -66,22 +66,17 @@ pub(crate) fn is_js_file_name(name: &str) -> bool {
         .any(|extension| name.ends_with(extension))
 }
 
-/// tsc scanner commentDirectiveRegExSingleLine (8202) +
-/// getDiagnosticsWithPrecedingDirectives / markPrecedingCommentDirectiveLine
-/// (123756): a `// @ts-ignore` / `// @ts-expect-error` comment
-/// suppresses bind/check diagnostics on the following line (walking up
-/// over blank and comment-only lines). INTERIM SCOPE: only directives
-/// on comment-only lines are detected (the scanner-side directive
-/// collection lands with real comment ranges); multi-line-comment
-/// directives are not handled.
 /// tsc check directive: extractPragmas walks
 /// getLeadingCommentRanges(text, 0) — single-line comments BEFORE the
 /// first token — and the LAST ts-check/ts-nocheck pragma wins
 /// (processPragmasIntoFields); skipTypeChecking then drops the file's
 /// bind+check diagnostics whole (parse diagnostics stay). Pragma names
 /// lowercase; the name must end at whitespace/colon/EOL like
-/// `@([^\s:]+)`. The 5.8e directive completion replaces this slice
-/// together with the interim line filter below.
+/// `@([^\s:]+)`. This producer stays TEXTUAL (exact over leading
+/// trivia, which is all extractPragmas reads); the 5.8e directive
+/// completion moved @ts-ignore/@ts-expect-error to scanner-collected
+/// SourceFile.comment_directives — swap this too if the parser ever
+/// grows real pragma processing (M8 surface).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CheckDirective {
     Check,
@@ -150,15 +145,53 @@ fn can_include_bind_and_check_diagnostics(
     }
 }
 
+/// tsc-port: markPrecedingCommentDirectiveLine @6.0.3
+/// tsc-hash: 5fd3ed53a22559eabfbc34ecee39efa38b2df133d5cc00e86dcd42ecae6ea88b
+/// tsc-span: _tsc.js:123766-123784
+///
+/// getDiagnosticsWithPrecedingDirectives (123756) over one file's
+/// bind+check list: keep a diagnostic only when no comment directive
+/// precedes it. Directives come from the SCANNER
+/// (SourceFile.comment_directives) and key on the line of range.end —
+/// the line holding a single-line comment, or the line holding a
+/// multi-line comment's `*/` (createCommentDirectivesMap 12963; a
+/// second directive ending on the same line collapses into it). The
+/// walk starts one line above the diagnostic and stops at the first
+/// line that is non-empty and not a `//` comment after a JS trim —
+/// unlike the retired interim filter, block-comment shell lines STOP
+/// the walk, exactly as in tsc.
+///
+/// Unused-@ts-expect-error reporting (2578, getUnusedExpectations at
+/// the getMergedBindAndCheckDiagnostics tail 123751) stays a
+/// deliberate FN: 2578 fires exactly where a directive suppressed
+/// NOTHING, and while the checker under-reports, "suppressed nothing"
+/// conflates our FNs with real unused directives — emitting it would
+/// fabricate 2578s corpus-wide (FP). Re-measure at the M4-end sweep.
 fn filter_by_comment_directives(
-    text: &str,
-    line_map: &tsrs2_diags::LineMap,
+    source: &tsrs2_syntax::SourceFile,
     diagnostics: impl Iterator<Item = tsrs2_diags::Diagnostic>,
 ) -> Vec<tsrs2_diags::Diagnostic> {
+    // getMergedBindAndCheckDiagnostics (123744): no directives, no
+    // filtering.
+    if source.comment_directives.is_empty() {
+        return diagnostics.collect();
+    }
+    let text = source.text.as_str();
     // LineMap.line_starts are UTF-16 offsets; build BYTE line starts
     // with the same break set (\r\n, \r, \n, U+2028, U+2029) for text
-    // slicing.
+    // slicing and for placing the byte-offset directive ranges.
     let byte_line_starts = compute_byte_line_starts(text);
+    let line_of_byte = |offset: usize| -> usize {
+        match byte_line_starts.binary_search(&offset) {
+            Ok(line) => line,
+            Err(insert) => insert.saturating_sub(1),
+        }
+    };
+    let directive_lines: std::collections::HashSet<usize> = source
+        .comment_directives
+        .iter()
+        .map(|directive| line_of_byte(directive.end as usize))
+        .collect();
     let line_text = |line: usize| -> &str {
         let start = byte_line_starts[line];
         let end = byte_line_starts
@@ -167,33 +200,8 @@ fn filter_by_comment_directives(
             .unwrap_or(text.len());
         &text[start..end]
     };
-    let line_starts = &line_map.line_starts;
-    let is_directive_line = |line: usize| -> bool {
-        let trimmed = line_text(line).trim_start();
-        if let Some(comment) = trimmed.strip_prefix("//") {
-            // regex ^///?\s*@(ts-expect-error|ts-ignore) applied at
-            // the comment start.
-            let comment = comment.strip_prefix('/').unwrap_or(comment);
-            let comment = comment.trim_start();
-            return comment.starts_with("@ts-expect-error") || comment.starts_with("@ts-ignore");
-        }
-        // commentDirectiveRegExMultiLine (8203): ^(?:/|\*)*\s*@(ts-
-        // expect-error|ts-ignore) — the multi-line-comment face,
-        // matched line-wise (the scanner applies it to the closing
-        // line of a /* */ comment; a line-based match over-suppresses
-        // only when the pattern appears mid-comment or in a template
-        // string — FN-side).
-        let stripped = trimmed.trim_start_matches(['/', '*']).trim_start();
-        stripped.starts_with("@ts-expect-error") || stripped.starts_with("@ts-ignore")
-    };
-    let directive_lines: Vec<usize> = (0..byte_line_starts.len())
-        .filter(|&line| is_directive_line(line))
-        .collect();
-    if directive_lines.is_empty() {
-        return diagnostics.collect();
-    }
     // Diagnostic.start is UTF-16, matching line_starts' units.
-    let utf16_line_starts: &[u32] = line_starts;
+    let utf16_line_starts: &[u32] = &source.line_map.line_starts;
     diagnostics
         .filter(|diagnostic| {
             let Some(start) = diagnostic.start else {
@@ -207,12 +215,14 @@ fn filter_by_comment_directives(
             while line > 0 {
                 line -= 1;
                 if directive_lines.contains(&line) {
-                    return false; // suppressed
+                    return false; // markUsed hit — suppressed
                 }
-                let trimmed = line_text(line).trim();
-                let block_comment_shell =
-                    trimmed.starts_with("/*") || trimmed.starts_with('*') || trimmed == "*/";
-                if !trimmed.is_empty() && !trimmed.starts_with("//") && !block_comment_shell {
+                // `lineText !== "" && !/^\s*\/\/.*$/.test(lineText)`
+                // over the trimmed slice: String.trim's set is JS
+                // whitespace, and post-trim the regex reduces to a
+                // `//` prefix test.
+                let trimmed = line_text(line).trim_matches(tsrs2_syntax::is_js_whitespace);
+                if !trimmed.is_empty() && !trimmed.starts_with("//") {
                     return true;
                 }
             }
@@ -383,9 +393,9 @@ pub fn check_program_with_libs(
     // Fixture bind pass: per-file binders with contiguous SymbolId
     // bases continuing from the lib prefix (tsc bindSourceFile per
     // file over one heap).
-    // Parse the per-file check directive ONCE. The 5.8e scanner-side
-    // directive collector can replace this producer without changing
-    // the bind/check assembly consumers below.
+    // Parse the per-file check directive (ts-check/ts-nocheck pragma)
+    // ONCE; @ts-ignore/@ts-expect-error ride on each SourceFile's
+    // scanner-collected comment_directives.
     let check_directives: std::collections::HashMap<&str, Option<CheckDirective>> = program_sources
         .iter()
         .map(|source| (source.file_name.as_str(), check_directive(&source.text)))
@@ -432,8 +442,7 @@ pub fn check_program_with_libs(
             }
         } else if include_bind_and_check {
             diagnostics.extend(filter_by_comment_directives(
-                &source_file.text,
-                &source_file.line_map,
+                source_file,
                 binder.bind_diagnostics.iter().cloned(),
             ));
         }
@@ -551,8 +560,7 @@ pub fn check_program_with_libs(
                     continue;
                 }
                 diagnostics.extend(filter_by_comment_directives(
-                    &source.text,
-                    &source.line_map,
+                    source,
                     file_diagnostics.into_iter(),
                 ));
             }
@@ -740,6 +748,79 @@ mod tests {
             pins,
             [(8006, 0, 27), (8006, 37, 6), (8006, 56, 18), (8003, 75, 11)]
         );
+    }
+
+    fn codes_of(source: &str) -> Vec<u32> {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        result.diagnostics.iter().map(|d| d.code()).collect()
+    }
+
+    #[test]
+    fn single_line_directive_suppresses_through_comment_lines() {
+        // Walk crosses blank and `//` lines, exactly like tsc.
+        assert_eq!(
+            codes_of("// @ts-ignore\n// note\n\nlet x;\nlet x;\n"),
+            [2451]
+        );
+    }
+
+    #[test]
+    fn block_comment_shell_stops_the_directive_walk() {
+        // tsc's markPrecedingCommentDirectiveLine stops at any line
+        // that is non-empty and not a `//` comment — a block-comment
+        // line between directive and diagnostic KEEPS the diagnostic
+        // (the retired interim filter walked through these).
+        assert_eq!(
+            codes_of("// @ts-ignore\n/* shell */\nlet x;\nlet x;\n"),
+            [2451, 2451]
+        );
+    }
+
+    #[test]
+    fn trailing_comment_directive_suppresses_the_next_line() {
+        // Scanner-collected: the directive comment trails code on its
+        // own line, so a line-start scan would miss it.
+        assert_eq!(
+            codes_of("let a = 1; // @ts-ignore\nlet x;\nlet x;\n"),
+            [2451]
+        );
+    }
+
+    #[test]
+    fn multi_line_directive_keys_on_its_closing_line() {
+        // Directive on the closing line: suppresses the next line.
+        assert_eq!(
+            codes_of("/*\n@ts-expect-error */\nlet x;\nlet x;\n"),
+            [2451]
+        );
+        // Directive on an interior line is no directive at all.
+        assert_eq!(
+            codes_of("/*\n@ts-expect-error\n*/\nlet x;\nlet x;\n"),
+            [2451, 2451]
+        );
+    }
+
+    #[test]
+    fn template_literal_fake_directive_does_not_suppress() {
+        // The `// @ts-ignore` line sits INSIDE a template literal: the
+        // scanner collects nothing, and the walk treats the line as a
+        // `//` comment and keeps climbing past it.
+        assert_eq!(
+            codes_of("const s = `\n// @ts-ignore\n`;\nlet x;\nlet x;\n"),
+            [2451, 2451]
+        );
+    }
+
+    #[test]
+    fn directive_on_the_diagnostic_line_itself_does_not_suppress() {
+        // The walk starts one line ABOVE the diagnostic.
+        assert_eq!(codes_of("let x;\nlet x; // @ts-ignore\n"), [2451, 2451]);
     }
 
     #[test]

@@ -16,6 +16,29 @@ pub struct TokenRecord {
     pub preceding_line_break: bool,
 }
 
+/// tsc CommentDirectiveType (8199): the two comment directives the
+/// scanner recognizes, `@ts-expect-error` and `@ts-ignore`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CommentDirectiveKind {
+    ExpectError,
+    Ignore,
+}
+
+/// tsc CommentDirective: `{ range: { pos, end }, type }` collected by
+/// the scanner while skipping comment trivia. Offsets are BYTE
+/// positions (node-pos space): `pos` is the matched line's start — the
+/// comment's own start for a single-line comment, the LAST line's
+/// start for a multi-line comment — and `end` is one past the
+/// comment's end (`*/` inclusive; end of text when unterminated).
+/// Consumers key on the LINE of `end` (createCommentDirectivesMap
+/// 12963), so byte-vs-UTF-16 never matters for suppression.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CommentDirective {
+    pub pos: u32,
+    pub end: u32,
+    pub kind: CommentDirectiveKind,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Utf16OffsetMap {
     offsets: Vec<(usize, u32)>,
@@ -106,6 +129,12 @@ pub(crate) struct Scanner<'text> {
     token_flags: TokenFlags,
     language_variant: LanguageVariant,
     errors: Vec<ScanError>,
+    /// Deliberately NOT captured by save()/restore(): tsc's
+    /// speculationHelper rewinds pos/token but leaves appended
+    /// commentDirectives in place, so a rewound-then-rescanned comment
+    /// appends a duplicate. Harmless: consumers key directives by end
+    /// LINE (createCommentDirectivesMap), which deduplicates.
+    comment_directives: Vec<CommentDirective>,
 }
 
 trait Truthy {
@@ -143,6 +172,7 @@ impl<'text> Scanner<'text> {
             token_flags: TokenFlags::empty(),
             language_variant,
             errors: Vec::new(),
+            comment_directives: Vec::new(),
         }
     }
 
@@ -438,6 +468,12 @@ impl<'text> Scanner<'text> {
         std::mem::take(&mut self.errors)
     }
 
+    /// tsc scanner.getCommentDirectives(), moved (parseSourceFileWorker
+    /// hands the collected list to the SourceFile once per parse).
+    pub(crate) fn take_comment_directives(&mut self) -> Vec<CommentDirective> {
+        std::mem::take(&mut self.comment_directives)
+    }
+
     pub(crate) fn has_preceding_line_break(&self) -> bool {
         self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
@@ -478,6 +514,12 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    /// tsc-port: scan (single-line comment arm) @6.0.3
+    /// tsc-hash: 5e22ed053f31e13697554019d0a8c2969d93c82bfb580dab7ac886a6c37c1fc8
+    /// tsc-span: _tsc.js:9523-9542
+    ///
+    /// The comment text from `//` through the line end feeds
+    /// appendIfCommentDirective with the single-line directive shape.
     fn skip_single_line_comment(&mut self) {
         self.pos += 2;
         while let Some(ch) = self.current_char() {
@@ -486,16 +528,29 @@ impl<'text> Scanner<'text> {
             }
             self.advance_char();
         }
+        self.append_if_comment_directive(self.token_start, CommentDirectiveRegEx::SingleLine);
     }
 
+    /// tsc-port: scan (multi-line comment arm) @6.0.3
+    /// tsc-hash: d6a25c66cf14877d656700d6c7c24f3349a1c7e08a791afba3eb19400e72ae64
+    /// tsc-span: _tsc.js:9543-9576
+    ///
+    /// Only the LAST line of the comment (lastLineStart through the
+    /// closing `*/` inclusive) feeds appendIfCommentDirective, with the
+    /// multi-line directive shape — a `@ts-ignore` on an interior line
+    /// is NOT a directive. The append runs whether or not the comment
+    /// closed. (The JSDoc token flag of the tsc arm has no consumer
+    /// here yet.)
     fn skip_multi_line_comment(&mut self) {
-        let _start = self.token_start;
+        let mut last_line_start = self.token_start;
         self.pos += 2;
 
+        let mut comment_closed = false;
         while self.pos < self.end {
             if self.starts_with("*/") {
                 self.pos += 2;
-                return;
+                comment_closed = true;
+                break;
             }
 
             let ch = self
@@ -503,13 +558,39 @@ impl<'text> Scanner<'text> {
                 .expect("position before end has a UTF-8 scalar");
             self.advance_char();
             if is_line_break(ch) {
+                last_line_start = self.pos;
                 self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
             }
         }
 
-        // tsc: the unterminated-comment error sits at the scan position
-        // (end of text), zero width.
-        self.error_at(self.pos, 0, &gen::expected);
+        self.append_if_comment_directive(last_line_start, CommentDirectiveRegEx::MultiLine);
+
+        if !comment_closed {
+            // tsc: the unterminated-comment error sits at the scan
+            // position (end of text), zero width.
+            self.error_at(self.pos, 0, &gen::expected);
+        }
+    }
+
+    /// tsc-port: appendIfCommentDirective @6.0.3
+    /// tsc-hash: a6481c583d6596a12ddc3133df3cb45c7a5ba0d02f052fe2b99c130ee2a33587
+    /// tsc-span: _tsc.js:10845-10857
+    ///
+    /// The matched slice runs from `line_start` to the CURRENT scan
+    /// position (tsc slices at the call sites and closes over `pos`):
+    /// the whole comment for the single-line shape, the last line
+    /// incl. `*/` for the multi-line shape. `line_start` doubles as
+    /// range.pos.
+    fn append_if_comment_directive(&mut self, line_start: usize, regex: CommentDirectiveRegEx) {
+        let comment = &self.text[line_start..self.pos];
+        let Some(kind) = get_directive_from_comment(js_trim_start(comment), regex) else {
+            return;
+        };
+        self.comment_directives.push(CommentDirective {
+            pos: line_start as u32,
+            end: self.pos as u32,
+            kind,
+        });
     }
 
     fn scan_identifier(&mut self) -> SyntaxKind {
@@ -1907,6 +1988,74 @@ pub fn is_whitespace_like(ch: char) -> bool {
     is_line_break(ch) || is_single_line_whitespace(ch)
 }
 
+/// ECMAScript WhiteSpace ∪ LineTerminator — the set behind BOTH the
+/// regex `\s` class and String.prototype.trim/trimStart, which the
+/// comment-directive machinery uses (commentDirectiveRegEx*,
+/// getDirectiveFromComment's trimStart, and the checker walk's
+/// line.trim()). NOT the same set as tsc's isWhiteSpaceSingleLine:
+/// U+0085 NEXT LINE and U+200B ZERO WIDTH SPACE are scanner
+/// whitespace but NOT in `\s`, while U+FEFF is in both. Rust's
+/// char::is_whitespace differs on both ends (has U+0085, lacks
+/// U+FEFF), hence the explicit table.
+pub fn is_js_whitespace(ch: char) -> bool {
+    matches!(
+        ch,
+        '\t' | '\n' | '\u{000B}' | '\u{000C}' | '\r' | ' ' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200A}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202F}'
+                | '\u{205F}'
+                | '\u{3000}'
+                | '\u{FEFF}'
+    )
+}
+
+/// String.prototype.trimStart over the JS whitespace set.
+pub fn js_trim_start(text: &str) -> &str {
+    text.trim_start_matches(is_js_whitespace)
+}
+
+/// The two directive shapes (8202-8203):
+/// `commentDirectiveRegExSingleLine = /^\/\/\/?\s*@(ts-expect-error|ts-ignore)/`
+/// `commentDirectiveRegExMultiLine = /^(?:\/|\*)*\s*@(ts-expect-error|ts-ignore)/`
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CommentDirectiveRegEx {
+    SingleLine,
+    MultiLine,
+}
+
+/// tsc-port: getDirectiveFromComment @6.0.3
+/// tsc-hash: 3f6a61f955474e2c6be73a5d5f5ec207f39b2517119ad3ab73c75ca7968249c0
+/// tsc-span: _tsc.js:10858-10870
+///
+/// Expects the trimStart'd comment slice (the caller mirrors
+/// appendIfCommentDirective's `text.trimStart()`). The regexes have no
+/// word boundary after the directive name — `@ts-ignored` matches as
+/// `@ts-ignore`, faithfully.
+fn get_directive_from_comment(
+    text: &str,
+    regex: CommentDirectiveRegEx,
+) -> Option<CommentDirectiveKind> {
+    let rest = match regex {
+        // ^\/\/\/?  — two slashes, then at most one more.
+        CommentDirectiveRegEx::SingleLine => {
+            let rest = text.strip_prefix("//")?;
+            rest.strip_prefix('/').unwrap_or(rest)
+        }
+        // ^(?:\/|\*)* — any contiguous run of slashes and asterisks.
+        CommentDirectiveRegEx::MultiLine => text.trim_start_matches(['/', '*']),
+    };
+    let rest = js_trim_start(rest).strip_prefix('@')?;
+    if rest.starts_with("ts-expect-error") {
+        return Some(CommentDirectiveKind::ExpectError);
+    }
+    if rest.starts_with("ts-ignore") {
+        return Some(CommentDirectiveKind::Ignore);
+    }
+    None
+}
+
 fn token_is_identifier_or_keyword(kind: SyntaxKind) -> bool {
     kind == SyntaxKind::Identifier
         || (kind as u16) >= (SyntaxKind::FirstKeyword as u16)
@@ -2041,6 +2190,128 @@ mod tests {
         assert_eq!(scanner.pos(), 0);
         assert_eq!(scanner.token, SyntaxKind::Unknown);
         assert!(scanner.errors().is_empty());
+    }
+
+    fn directives_of(text: &str) -> Vec<CommentDirective> {
+        let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+        while scanner.scan() != SyntaxKind::EndOfFileToken {}
+        scanner.take_comment_directives()
+    }
+
+    #[test]
+    fn single_line_comment_directives_are_collected() {
+        let text = "// @ts-ignore\nlet x;\n/// @ts-expect-error\nlet y;\n";
+        assert_eq!(
+            directives_of(text),
+            vec![
+                CommentDirective {
+                    pos: 0,
+                    end: "// @ts-ignore".len() as u32,
+                    kind: CommentDirectiveKind::Ignore,
+                },
+                CommentDirective {
+                    pos: text.find("///").unwrap() as u32,
+                    end: text.find("///").unwrap() as u32 + "/// @ts-expect-error".len() as u32,
+                    kind: CommentDirectiveKind::ExpectError,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn trailing_single_line_comment_is_a_directive() {
+        // The comment slice starts at `//` regardless of what precedes
+        // it on the line.
+        assert_eq!(directives_of("let a = 1; // @ts-ignore\nlet x;\n").len(), 1);
+    }
+
+    #[test]
+    fn four_slashes_are_not_a_directive() {
+        // ^\/\/\/?  allows at most three slashes before the pragma.
+        assert_eq!(directives_of("////@ts-ignore\n"), Vec::new());
+        assert_eq!(directives_of("///@ts-ignore\n").len(), 1);
+    }
+
+    #[test]
+    fn directive_name_has_no_word_boundary() {
+        // tsc's regex quirk: `@ts-ignored` matches as `@ts-ignore`.
+        assert_eq!(
+            directives_of("// @ts-ignored\n")[0].kind,
+            CommentDirectiveKind::Ignore
+        );
+    }
+
+    #[test]
+    fn multi_line_directive_matches_only_the_last_line() {
+        // Interior lines never match, whatever they contain.
+        assert_eq!(
+            directives_of("/*\n@ts-ignore\nrest\n*/\nlet x;\n"),
+            Vec::new()
+        );
+        assert_eq!(directives_of("/*\n@ts-ignore\n*/\nlet x;\n"), Vec::new());
+
+        // One-liner: the last line IS the whole comment.
+        let one_liner = "/* @ts-ignore */\nlet x;\n";
+        assert_eq!(
+            directives_of(one_liner),
+            vec![CommentDirective {
+                pos: 0,
+                end: "/* @ts-ignore */".len() as u32,
+                kind: CommentDirectiveKind::Ignore,
+            }]
+        );
+
+        // Closing-line directive: pos is the LAST line's start, end is
+        // one past `*/`; leading whitespace and a star shell are
+        // allowed by ^(?:\/|\*)*\s* after trimStart.
+        let closing = "/* leading\n * @ts-expect-error */\nlet x;\n";
+        let last_line = closing.find(" * @").unwrap();
+        assert_eq!(
+            directives_of(closing),
+            vec![CommentDirective {
+                pos: last_line as u32,
+                end: closing.find("*/").unwrap() as u32 + 2,
+                kind: CommentDirectiveKind::ExpectError,
+            }]
+        );
+
+        // A bare space between star-shell runs breaks the match.
+        assert_eq!(directives_of("/*\n * * @ts-ignore */\n"), Vec::new());
+    }
+
+    #[test]
+    fn unterminated_multi_line_comment_still_appends_its_directive() {
+        // tsc appends before the unterminated-comment error.
+        let text = "/* @ts-ignore";
+        assert_eq!(
+            directives_of(text),
+            vec![CommentDirective {
+                pos: 0,
+                end: text.len() as u32,
+                kind: CommentDirectiveKind::Ignore,
+            }]
+        );
+    }
+
+    #[test]
+    fn template_literal_interior_is_not_a_directive() {
+        assert_eq!(
+            directives_of("const s = `\n// @ts-ignore\n`;\n"),
+            Vec::new()
+        );
+    }
+
+    #[test]
+    fn js_whitespace_diverges_from_scanner_whitespace_where_tsc_does() {
+        // U+0085 / U+200B: scanner trivia, not regex \s.
+        assert!(is_single_line_whitespace('\u{0085}'));
+        assert!(!is_js_whitespace('\u{0085}'));
+        assert!(is_single_line_whitespace('\u{200B}'));
+        assert!(!is_js_whitespace('\u{200B}'));
+        // U+FEFF is in both.
+        assert!(is_js_whitespace('\u{FEFF}'));
+        assert_eq!(directives_of("//\u{0085}@ts-ignore\n"), Vec::new());
+        assert_eq!(directives_of("//\u{FEFF}@ts-ignore\n").len(), 1);
     }
 
     #[test]

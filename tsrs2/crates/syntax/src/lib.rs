@@ -18,7 +18,8 @@ pub use kind::SyntaxKind;
 pub use nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData};
 pub use parser::{ParseOptions, SyntaxCursor};
 pub use scanner::{
-    is_line_break, is_whitespace_like, scan_tokens, skip_trivia, LanguageVariant, TokenRecord,
+    is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_tokens, skip_trivia,
+    CommentDirective, CommentDirectiveKind, LanguageVariant, TokenRecord,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -32,6 +33,10 @@ pub struct SourceFile {
     pub root: NodeId,
     pub external_module_indicator: Option<NodeId>,
     pub parse_diagnostics: DiagnosticList,
+    /// tsc SourceFile.commentDirectives: scanner-collected
+    /// `@ts-expect-error`/`@ts-ignore` markers, in scan order (byte
+    /// offsets; see CommentDirective).
+    pub comment_directives: Vec<CommentDirective>,
 }
 
 impl SourceFile {

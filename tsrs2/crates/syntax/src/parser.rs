@@ -197,6 +197,7 @@ struct FinishedParse {
     arena: NodeArena,
     root: NodeId,
     parse_diagnostics: DiagnosticList,
+    comment_directives: Vec<crate::CommentDirective>,
 }
 
 impl<'text> Parser<'text> {
@@ -8350,6 +8351,9 @@ impl<'text> Parser<'text> {
         );
         self.arena.finalize_tree(root);
 
+        // tsc parseSourceFileWorker: sourceFile.commentDirectives =
+        // scanner.getCommentDirectives().
+        let comment_directives = self.scanner.take_comment_directives();
         FinishedParse {
             file_name: self.file_name,
             language_variant: self.language_variant,
@@ -8358,6 +8362,7 @@ impl<'text> Parser<'text> {
             arena: self.arena,
             root,
             parse_diagnostics: self.parse_diagnostics,
+            comment_directives,
         }
     }
 
@@ -8457,6 +8462,7 @@ pub fn parse_source_file(
         root: finished.root,
         external_module_indicator,
         parse_diagnostics: finished.parse_diagnostics,
+        comment_directives: finished.comment_directives,
     }
 }
 
@@ -8549,6 +8555,7 @@ pub fn parse_json_text(file_name: String, text: String) -> SourceFile {
         root: finished.root,
         external_module_indicator: None,
         parse_diagnostics: finished.parse_diagnostics,
+        comment_directives: finished.comment_directives,
     }
 }
 
