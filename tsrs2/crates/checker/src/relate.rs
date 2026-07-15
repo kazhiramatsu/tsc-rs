@@ -351,7 +351,10 @@ impl<'a> CheckerState<'a> {
 mod tests {
     use tsrs2_binder::bind_source_file;
     use tsrs2_syntax::{parse_source_file, LanguageVariant, ParseOptions};
-    use tsrs2_types::{CompilerOptions, ElementFlags, IntersectionState, RelationComparisonResult};
+    use tsrs2_types::{
+        CompilerOptions, ElementFlags, IntersectionState, RelationComparisonResult,
+        TupleTargetFlags,
+    };
 
     use super::{RelationCaches, RelationKind};
     use crate::state::CheckerState;
@@ -433,14 +436,12 @@ mod tests {
             // A tuple TARGET is a self-reference whose arguments are
             // its synthesized (unconstrained) type parameters — the
             // one M3-constructible generic-reference shape.
-            let target = state
-                .tables
-                .get_tuple_target_type(
-                    &[ElementFlags::REQUIRED, ElementFlags::OPTIONAL],
-                    false,
-                    None,
-                )
-                .expect("tuple target");
+            let target = state.tables.get_tuple_target_type(
+                TupleTargetFlags::new(&[ElementFlags::REQUIRED, ElementFlags::OPTIONAL])
+                    .expect("required/optional tuple is not single-rest"),
+                false,
+                None,
+            );
             let key = state.get_relation_key(
                 target,
                 target,
@@ -455,8 +456,7 @@ mod tests {
             let number = state.tables.intrinsics.number;
             let string = state.tables.intrinsics.string;
             let concrete = state
-                .tables
-                .create_normalized_type_reference(target, &[number, string])
+                .create_normalized_type_reference_forced(target, &[number, string])
                 .expect("tuple reference");
             let key = state.get_relation_key(
                 concrete,

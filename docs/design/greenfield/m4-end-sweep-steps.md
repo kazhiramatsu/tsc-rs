@@ -94,6 +94,26 @@ Every one of the 157 entries gets exactly one:
   equality-comparability-over-intersection, tables tuple-twin
   demotion to test-only (retires 6 tables escapes). Oracle pins
   land with the commit.
+  **Landed amendments (recorded at implementation):** (1) the
+  worker's source chain restructured to tsc's else-if shape —
+  fall-through TypeVariable/Index sources exit to the worker-tail
+  FALSE instead of reaching the object block (66292-66443 is one
+  chain); (2) getTypeFromTypeNode gained tsc's
+  getConditionalFlowTypeOfType wrapper with an M8 escape where a
+  collected constraint means tsc builds a Substitution type — the
+  keyof source arm otherwise turns the template-span check under
+  `P extends string ? \`bool${P}\` : P` into 2322 FPs
+  (mappedTypeAsClauseRelationships); (3) the
+  equality-comparability relation arms landed (65433-65456 block +
+  intersection traversal verified), but the operators.rs escape
+  re-owned to M5 instead of deleting: 2367 POSITIONS depend on
+  narrowTypeByEquality (a failed comparison narrows the repeats —
+  equalityWithIntersectionTypes01 pins the suppressed repeats);
+  (4) the template-literal source arm's hardcoded stringType
+  constraint replaced by the faithful
+  getBaseConstraintOfType-differs step (relpin p414 caught the
+  over-acceptance: a self-constrained concrete template takes no
+  constraint step).
 - **5.9c `m4/5.9c-members`** — the members/signatures band,
   anchored by the two largest residual FN bands: Constructor
   signatures (getSignatureFromDeclaration classType arm) and the

@@ -18,8 +18,9 @@
 use tsrs2_binder::SymbolId;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, ElementFlags, IntersectionState, ModifierFlags, ObjectFlags, RecursionFlags,
-    SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
+    AccessFlags, CheckFlags, ElementFlags, IndexFlags, IntersectionState, ModifierFlags,
+    ObjectFlags, RecursionFlags, SymbolFlags, Ternary, TupleTargetFlags, TypeData, TypeFlags,
+    TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
@@ -229,15 +230,78 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
                 return Ok(result);
             }
+            if source_flags.intersects(TypeFlags::INDEX) {
+                // 65956-65964: keyof identity compares the operands
+                // (flags equality holds — engine.rs isIdenticalTo).
+                let TypeData::Index {
+                    ty: source_inner, ..
+                } = self.st.tables.type_of(source).data
+                else {
+                    unreachable!("index flag implies index data");
+                };
+                let TypeData::Index {
+                    ty: target_inner, ..
+                } = self.st.tables.type_of(target).data
+                else {
+                    unreachable!("index flag implies index data");
+                };
+                return self.is_related_to(
+                    source_inner,
+                    target_inner,
+                    RecursionFlags::BOTH,
+                    /*report_errors*/ false,
+                    IntersectionState::NONE,
+                );
+            }
+            if source_flags.intersects(TypeFlags::INDEXED_ACCESS) {
+                // 65965-65983: componentwise object/index identity;
+                // failure falls through to the non-object tail.
+                let TypeData::IndexedAccess {
+                    object_type: source_object,
+                    index_type: source_index,
+                    ..
+                } = self.st.tables.type_of(source).data
+                else {
+                    unreachable!("indexed-access flag implies indexed-access data");
+                };
+                let TypeData::IndexedAccess {
+                    object_type: target_object,
+                    index_type: target_index,
+                    ..
+                } = self.st.tables.type_of(target).data
+                else {
+                    unreachable!("indexed-access flag implies indexed-access data");
+                };
+                let mut result = self.is_related_to(
+                    source_object,
+                    target_object,
+                    RecursionFlags::BOTH,
+                    /*report_errors*/ false,
+                    IntersectionState::NONE,
+                )?;
+                if !is_false(result) {
+                    result = ternary_and(
+                        result,
+                        self.is_related_to(
+                            source_index,
+                            target_index,
+                            RecursionFlags::BOTH,
+                            /*report_errors*/ false,
+                            IntersectionState::NONE,
+                        )?,
+                    );
+                    if !is_false(result) {
+                        return Ok(result);
+                    }
+                }
+            }
             if source_flags.intersects(TypeFlags::from_bits(
-                TypeFlags::INDEX.bits()
-                    | TypeFlags::INDEXED_ACCESS.bits()
-                    | TypeFlags::CONDITIONAL.bits()
-                    | TypeFlags::SUBSTITUTION.bits()
-                    | TypeFlags::STRING_MAPPING.bits(),
+                TypeFlags::CONDITIONAL.bits() | TypeFlags::SUBSTITUTION.bits(),
             )) {
+                // 65984-66039: those TypeFlags are unconstructible
+                // before their type nodes land.
                 return Err(Unsupported::new(
-                    "identity for index/indexed-access/conditional/substitution/string-mapping types (M4)",
+                    "identity for conditional/substitution types (unported family, M8-stub)",
                 ));
             }
             if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -259,6 +323,30 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         result = ternary_and(result, related);
                     }
                     return Ok(result);
+                }
+            }
+            if source_flags.intersects(TypeFlags::STRING_MAPPING) {
+                // 66059-66069: same intrinsic symbol → operand
+                // identity; different symbols fall through to the
+                // non-object tail.
+                if self.st.tables.type_of(source).symbol == self.st.tables.type_of(target).symbol {
+                    let TypeData::StringMapping { ty: source_inner } =
+                        self.st.tables.type_of(source).data
+                    else {
+                        unreachable!("string-mapping flag implies string-mapping data");
+                    };
+                    let TypeData::StringMapping { ty: target_inner } =
+                        self.st.tables.type_of(target).data
+                    else {
+                        unreachable!("string-mapping flag implies string-mapping data");
+                    };
+                    return self.is_related_to(
+                        source_inner,
+                        target_inner,
+                        RecursionFlags::BOTH,
+                        /*report_errors*/ false,
+                        IntersectionState::NONE,
+                    );
                 }
             }
             if !source_flags.intersects(TypeFlags::OBJECT) {
@@ -420,14 +508,165 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if target_flags.intersects(TypeFlags::INDEX) {
-            return Err(Unsupported::new(
-                "keyof targets (Index relation arms, M4-end sweep 5.8)",
-            ));
+            // 66126-66163: keyof targets.
+            let TypeData::Index {
+                ty: target_type,
+                index_flags: target_index_flags,
+            } = self.st.tables.type_of(target).data
+            else {
+                unreachable!("index flag implies index data");
+            };
+            // 66128-66138: keyof S related to keyof T when T is
+            // related to S (contravariant operands).
+            if source_flags.intersects(TypeFlags::INDEX) {
+                let TypeData::Index {
+                    ty: source_type, ..
+                } = self.st.tables.type_of(source).data
+                else {
+                    unreachable!("index flag implies index data");
+                };
+                let result = self.is_related_to(
+                    target_type,
+                    source_type,
+                    RecursionFlags::BOTH,
+                    /*report_errors*/ false,
+                    IntersectionState::NONE,
+                )?;
+                if !is_false(result) {
+                    return Ok(result);
+                }
+            }
+            if self.st.tables.is_tuple_type(target_type) {
+                // 66139-66143: a type relates to keyof [tuple] through
+                // the union of the tuple's known keys.
+                let known_keys = self.st.get_known_keys_of_tuple_type(target_type)?;
+                let result = self.is_related_to(
+                    source,
+                    known_keys,
+                    RecursionFlags::TARGET,
+                    report_errors,
+                    IntersectionState::NONE,
+                )?;
+                if !is_false(result) {
+                    return Ok(result);
+                }
+            } else {
+                // 66144-66150: S related to keyof T when S relates to
+                // keyof C over the simplified form or constraint of T
+                // (TRUE verdicts only).
+                let constraint = self.st.get_simplified_type_or_constraint(target_type)?;
+                if let Some(constraint) = constraint {
+                    let index_flags = IndexFlags::from_bits(
+                        target_index_flags.bits() | IndexFlags::NO_REDUCIBLE_CHECK.bits(),
+                    );
+                    let keyof_constraint = self.st.get_index_type(constraint, index_flags)?;
+                    if is_true(self.is_related_to(
+                        source,
+                        keyof_constraint,
+                        RecursionFlags::TARGET,
+                        report_errors,
+                        IntersectionState::NONE,
+                    )?) {
+                        return Ok(Ternary::TRUE);
+                    }
+                }
+                // 66151-66162 isGenericMappedType(targetType): mapped
+                // types are unconstructible until M8, the arm is
+                // vacuously false.
+            }
         }
         if target_flags.intersects(TypeFlags::INDEXED_ACCESS) {
-            return Err(Unsupported::new(
-                "indexed-access targets (IndexedAccess relation arms, M4-end sweep 5.8)",
-            ));
+            // 66164-66207: indexed-access targets.
+            let TypeData::IndexedAccess {
+                object_type: target_object,
+                index_type: target_index,
+                ..
+            } = self.st.tables.type_of(target).data
+            else {
+                unreachable!("indexed-access flag implies indexed-access data");
+            };
+            if source_flags.intersects(TypeFlags::INDEXED_ACCESS) {
+                // 66165-66177: componentwise object/index relation;
+                // the originalErrorInfo juggling is display machinery
+                // — unported like the 66468-66471 precedent.
+                let TypeData::IndexedAccess {
+                    object_type: source_object,
+                    index_type: source_index,
+                    ..
+                } = self.st.tables.type_of(source).data
+                else {
+                    unreachable!("indexed-access flag implies indexed-access data");
+                };
+                let mut result = self.is_related_to(
+                    source_object,
+                    target_object,
+                    RecursionFlags::BOTH,
+                    report_errors,
+                    IntersectionState::NONE,
+                )?;
+                if !is_false(result) {
+                    result = ternary_and(
+                        result,
+                        self.is_related_to(
+                            source_index,
+                            target_index,
+                            RecursionFlags::BOTH,
+                            report_errors,
+                            IntersectionState::NONE,
+                        )?,
+                    );
+                }
+                if !is_false(result) {
+                    return Ok(result);
+                }
+            }
+            if self.relation == RelationKind::Assignable
+                || self.relation == RelationKind::Comparable
+            {
+                // 66178-66203: S related to T[K] through the base-
+                // constraint re-access of T[K] in the writing
+                // direction.
+                let base_object = self
+                    .st
+                    .get_base_constraint_of_type(target_object)?
+                    .unwrap_or(target_object);
+                let base_index = self
+                    .st
+                    .get_base_constraint_of_type(target_index)?
+                    .unwrap_or(target_index);
+                if !self.st.tables.is_generic_object_type(base_object)
+                    && !self.st.tables.is_generic_index_type(base_index)
+                {
+                    let access_flags = AccessFlags::from_bits(
+                        AccessFlags::WRITING.bits()
+                            | if base_object != target_object {
+                                AccessFlags::NO_INDEX_SIGNATURES.bits()
+                            } else {
+                                0
+                            },
+                    );
+                    let constraint = self.st.get_indexed_access_type_or_undefined(
+                        base_object,
+                        base_index,
+                        access_flags,
+                        None,
+                        None,
+                        None,
+                    )?;
+                    if let Some(constraint) = constraint {
+                        let result = self.is_related_to(
+                            source,
+                            constraint,
+                            RecursionFlags::TARGET,
+                            report_errors,
+                            intersection_state,
+                        )?;
+                        if !is_false(result) {
+                            return Ok(result);
+                        }
+                    }
+                }
+            }
         }
         if self.is_generic_mapped_type(target) && self.relation != RelationKind::Identity {
             return Err(Unsupported::new(
@@ -517,30 +756,47 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 // types are unconstructible until M8, the guard is
                 // vacuously false.
             }
-        }
-        if source_flags.intersects(TypeFlags::INDEX) {
-            return Err(Unsupported::new(
-                "keyof sources (Index relation arms, M4-end sweep 5.8)",
-            ));
-        }
-        if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL)
+            // 66292-66443 is ONE else-if chain: a type-variable source
+            // whose constraint chase failed exits it — the worker tail
+            // returns FALSE, never the object block.
+        } else if source_flags.intersects(TypeFlags::INDEX) {
+            // 66325-66337: keyof sources relate through
+            // string | number | symbol; the deferred-mapped-index
+            // branch is vacuously dead (mapped types are
+            // unconstructible until M8, so isDeferredMappedIndex is
+            // constant false and reportErrors passes through).
+            let string_number_symbol = self.st.tables.intrinsics.string_number_symbol;
+            let result = self.is_related_to(
+                string_number_symbol,
+                target,
+                RecursionFlags::SOURCE,
+                report_errors,
+                IntersectionState::NONE,
+            )?;
+            if !is_false(result) {
+                return Ok(result);
+            }
+        } else if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL)
             && !target_flags.intersects(TypeFlags::OBJECT)
         {
             if !target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-                // getBaseConstraintOfType(template) = stringType; the
-                // string-vs-target simple rules already ran, so this
-                // arm re-checks through the constraint.
-                let string = self.st.tables.intrinsics.string;
-                if string != source {
-                    let related = self.is_related_to(
-                        string,
-                        target,
-                        RecursionFlags::SOURCE,
-                        /*report_errors*/ false,
-                        IntersectionState::NONE,
-                    )?;
-                    if is_true(related) {
-                        return Ok(related);
+                // 66338-66344: relate through the template's base
+                // constraint only when it differs from the template
+                // itself (a self-constrained concrete template takes
+                // no constraint step — relpin p414 pins the 2352).
+                let constraint = self.st.get_base_constraint_of_type(source)?;
+                if let Some(constraint) = constraint {
+                    if constraint != source {
+                        let related = self.is_related_to(
+                            constraint,
+                            target,
+                            RecursionFlags::SOURCE,
+                            report_errors,
+                            IntersectionState::NONE,
+                        )?;
+                        if !is_false(related) {
+                            return Ok(related);
+                        }
                     }
                 }
             }
@@ -814,9 +1070,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
     }
 
-    pub(crate) fn is_generic_mapped_type(&self, _ty: TypeId) -> bool {
-        // Mapped types are unconstructible before M4 5.2.
-        false
+    pub(crate) fn is_generic_mapped_type(&self, ty: TypeId) -> bool {
+        // Conservative until M8 can inspect mapped constraints/name
+        // types: mapped relation arms must become live fail-closed as
+        // soon as ObjectFlags::Mapped is constructible.
+        self.st
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
     }
 
     /// tsc-port: typeRelatedToDiscriminatedType @6.0.3
@@ -1327,21 +1588,24 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             continue;
                         }
                     }
-                    if source_flags.intersects(ElementFlags::VARIADIC) {
-                        return Err(Unsupported::new(
-                            "variadic tuple elements in relations (M4 generic tuples)",
-                        ));
-                    }
                     let source_type = self.st.remove_missing_type(
                         source_type_arguments[source_position],
                         source_flags.intersects(ElementFlags::OPTIONAL)
                             && target_flags.intersects(ElementFlags::OPTIONAL),
                     );
                     let target_type = target_type_arguments[target_position];
-                    let target_check_type = self.st.remove_missing_type(
-                        target_type,
-                        target_flags.intersects(ElementFlags::OPTIONAL),
-                    );
+                    // 66841: a variadic source element against a rest
+                    // target element compares to the rest ARRAY.
+                    let target_check_type = if source_flags.intersects(ElementFlags::VARIADIC)
+                        && target_flags.intersects(ElementFlags::REST)
+                    {
+                        self.st.create_array_type(target_type, /*readonly*/ false)?
+                    } else {
+                        self.st.remove_missing_type(
+                            target_type,
+                            target_flags.intersects(ElementFlags::OPTIONAL),
+                        )
+                    };
                     let related = self.is_related_to(
                         source_type,
                         target_check_type,
@@ -3100,10 +3364,15 @@ impl<'a> CheckerState<'a> {
                         } else {
                             0
                         };
-                    if self.tables.is_tuple_type(ty) {
-                        return Err(Unsupported::new("tuple rest index fallbacks (M4)"));
-                    }
-                    index_types.push(index_info.value_type);
+                    // 59161: tuple members contribute their rest type
+                    // (or undefined for fixed-length tuples), not the
+                    // index-info type.
+                    index_types.push(if self.tables.is_tuple_type(ty) {
+                        self.get_rest_type_of_tuple_type(ty)?
+                            .unwrap_or(self.tables.intrinsics.undefined)
+                    } else {
+                        index_info.value_type
+                    });
                 } else if self.is_object_literal_type(ty) {
                     check_flags |= CheckFlags::WRITE_PARTIAL.bits();
                     index_types.push(self.tables.intrinsics.undefined);
@@ -5098,10 +5367,11 @@ impl<'a> CheckerState<'a> {
             let rest_array = self.get_rest_array_type_of_tuple_type(ty)?;
             return match rest_array {
                 Some(array) => Ok(array),
-                None => self
-                    .tables
-                    .create_tuple_type(&[], None, false, None)
-                    .map_err(Self::unsupported_m4),
+                None => Ok(self.tables.get_tuple_target_type(
+                    TupleTargetFlags::new(&[]).expect("empty tuple is not single-rest"),
+                    false,
+                    None,
+                )),
             };
         }
         let arguments = self.get_type_arguments(ty)?;
@@ -5150,15 +5420,16 @@ impl<'a> CheckerState<'a> {
         };
         // getTupleTargetType 61146-61148: `[...E[]]` IS (readonly)
         // E[] — the checker owns the global array targets, so the
-        // collapse lives here; the tables twin keeps its honest
-        // escape for tables-internal normalization callers.
+        // collapse lives here and TupleTargetFlags excludes that shape
+        // from tables target construction (L-TWIN).
         if flags.len() == 1 && flags[0].intersects(ElementFlags::REST) {
             return self.create_array_type(element_types[0], readonly);
         }
+        let flags = TupleTargetFlags::new(flags)
+            .expect("single-rest tuples collapse before tuple-target construction");
         let target = self
             .tables
-            .get_tuple_target_type(flags, readonly, named_member_declarations)
-            .map_err(Self::unsupported_m4)?;
+            .get_tuple_target_type(flags, readonly, named_member_declarations);
         if element_types.is_empty() {
             return Ok(target);
         }

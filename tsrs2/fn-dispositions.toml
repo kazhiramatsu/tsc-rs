@@ -81,10 +81,6 @@ file = "crates/checker/src/annotate.rs"
 name = "parse_numeric_literal_text"
 
 [[fn]]
-file = "crates/checker/src/annotate.rs"
-name = "unsupported_m4"
-
-[[fn]]
 file = "crates/checker/src/calls.rs"
 name = "check_effective_arg"
 

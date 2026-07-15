@@ -4,8 +4,10 @@
 # 5.9a: catch-up to the observed integers (5.8e's final run already
 # produced these; the slice recorded an earlier snapshot — the >= gate
 # never tripped, this just removes the slack).
-rate = 0.377943
-matched = 18413
+# 5.9b: +10 — keyof/indexed-access relation arms + identity halves,
+# getSimplifiedType un-stub, tuple constraint/variadic/rest arms.
+rate = 0.378148
+matched = 18423
 total = 48719
 allowed_regression = 0.0
 
@@ -14,8 +16,9 @@ rate = 0.0
 allowed_regression = 0.0
 
 [t0-2xxx]
-rate = 0.460174
-matched = 9625
+# 5.9b: +10 with the relations band.
+rate = 0.460652
+matched = 9635
 total = 20916
 allowed_regression = 0.0
 
@@ -46,7 +49,12 @@ allowed_regression = 0.0
 # guarantees); the 29 remaining untagged rows are the implement-5.9
 # set (burn down in 5.9b-d) plus the 5 tables.rs twin arms retiring
 # with the 5.9b demotion.
-max_untagged = 29
+# 5.9b: 29 -> 20 — the relations band implemented its 4 untagged rows
+# (identity halves, getConstraintOfIndexedAccess, variadic tuple
+# relations, tuple rest index fallbacks) and the tables twin demotion
+# retired its 5 untagged arms (L-TWIN dead-guard conversions); the
+# remaining 20 are the 5.9c/5.9d implement rows.
+max_untagged = 20
 # 5.7c: +16 genuine malformed-tree guards (JSX band tag-name/
 # attributes/attribute-symbol reads + the Debug.assert/Debug.fail
 # transcriptions of createJsxAttributesTypeFromAttributesProperty and

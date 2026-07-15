@@ -16,6 +16,7 @@ use tsrs2_types::{
     TypeId, UnionReduction,
 };
 
+use crate::links::LinkSlot;
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 use tsrs2_diags::gen as diagnostics;
 
@@ -539,6 +540,245 @@ impl<'a> CheckerState<'a> {
         } else {
             self.tables.intrinsics.unknown
         }))
+    }
+
+    /// tsc-port: getSimplifiedType @6.0.3
+    /// tsc-hash: ac9c7ff358d22383776d3bf0d841ff1a331b67e77b87198ef19ad9398418adc5
+    /// tsc-span: _tsc.js:62455-62457
+    ///
+    /// The Conditional arm is M8 (those TypeFlags are unconstructible
+    /// before conditional type nodes land) — the escape fires if one
+    /// ever appears rather than mis-simplifying.
+    pub(crate) fn get_simplified_type(
+        &mut self,
+        ty: TypeId,
+        writing: bool,
+    ) -> CheckResult2<TypeId> {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::INDEXED_ACCESS) {
+            self.get_simplified_indexed_access_type(ty, writing)
+        } else if flags.intersects(TypeFlags::CONDITIONAL) {
+            Err(Unsupported::new(
+                "getSimplifiedConditionalType (unported family, M8-stub)",
+            ))
+        } else if flags.intersects(TypeFlags::INDEX) {
+            self.get_simplified_index_type(ty)
+        } else {
+            Ok(ty)
+        }
+    }
+
+    /// tsc-port: getSimplifiedIndexType @6.0.3
+    /// tsc-hash: b26e70997196efd7e1f1d3d114b5ff87f5ea045e5856d5925477022d8f4c120c
+    /// tsc-span: _tsc.js:62527-62532
+    ///
+    /// The whole body is the generic-mapped-with-nameType rewrite. The
+    /// conservative mapped gate escapes until that M8 payload lands,
+    /// rather than silently becoming an identity simplification.
+    fn get_simplified_index_type(&self, ty: TypeId) -> CheckResult2<TypeId> {
+        let TypeData::Index { ty: inner, .. } = self.tables.type_of(ty).data else {
+            unreachable!("index flag implies index data");
+        };
+        if self
+            .tables
+            .object_flags_of(inner)
+            .intersects(ObjectFlags::MAPPED)
+        {
+            return Err(Unsupported::new(
+                "getSimplifiedIndexType for mapped types (unported family, M8-stub)",
+            ));
+        }
+        Ok(ty)
+    }
+
+    /// tsc-port: distributeIndexOverObjectType @6.0.3
+    /// tsc-hash: c1b5b66a9950b720634f5c0aed06b0c81a123fc583dab949f49b160b7ee679dc
+    /// tsc-span: _tsc.js:62458-62463
+    fn distribute_index_over_object_type(
+        &mut self,
+        object_type: TypeId,
+        index_type: TypeId,
+        writing: bool,
+    ) -> CheckResult2<Option<TypeId>> {
+        let object_flags = self.tables.flags_of(object_type);
+        let distributes = object_flags.intersects(TypeFlags::UNION)
+            || (object_flags.intersects(TypeFlags::INTERSECTION)
+                && !self.should_defer_index_type(object_type, IndexFlags::NONE)?);
+        if !distributes {
+            return Ok(None);
+        }
+        let members: Vec<TypeId> = match &self.tables.type_of(object_type).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            TypeData::Intersection { types } => types.to_vec(),
+            _ => unreachable!("union/intersection flag implies member data"),
+        };
+        let mut types = Vec::with_capacity(members.len());
+        for member in members {
+            let access = self.get_indexed_access_type(
+                member,
+                index_type,
+                AccessFlags::NONE,
+                None,
+                None,
+                None,
+            )?;
+            types.push(self.get_simplified_type(access, writing)?);
+        }
+        Ok(Some(
+            if object_flags.intersects(TypeFlags::INTERSECTION) || writing {
+                self.get_intersection_type(&types, IntersectionFlags::NONE)?
+            } else {
+                self.get_union_type_ex(&types, UnionReduction::Literal)?
+            },
+        ))
+    }
+
+    /// tsc-port: distributeObjectOverIndexType @6.0.3
+    /// tsc-hash: 3d3e019d985056c1232c73944bbfae00247b8d401992815f6960bcb9b9180155
+    /// tsc-span: _tsc.js:62464-62469
+    fn distribute_object_over_index_type(
+        &mut self,
+        object_type: TypeId,
+        index_type: TypeId,
+        writing: bool,
+    ) -> CheckResult2<Option<TypeId>> {
+        if !self
+            .tables
+            .flags_of(index_type)
+            .intersects(TypeFlags::UNION)
+        {
+            return Ok(None);
+        }
+        let members: Vec<TypeId> = match &self.tables.type_of(index_type).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => unreachable!("union flag implies union data"),
+        };
+        let mut types = Vec::with_capacity(members.len());
+        for member in members {
+            let access = self.get_indexed_access_type(
+                object_type,
+                member,
+                AccessFlags::NONE,
+                None,
+                None,
+                None,
+            )?;
+            types.push(self.get_simplified_type(access, writing)?);
+        }
+        Ok(Some(if writing {
+            self.get_intersection_type(&types, IntersectionFlags::NONE)?
+        } else {
+            self.get_union_type_ex(&types, UnionReduction::Literal)?
+        }))
+    }
+
+    /// tsc-port: getSimplifiedIndexedAccessType @6.0.3
+    /// tsc-hash: 7945a007d8d874e90e9a46305d0a6b9e0240ecad9e9bf00838d64f878c61adb3
+    /// tsc-span: _tsc.js:62470-62506
+    fn get_simplified_indexed_access_type(
+        &mut self,
+        ty: TypeId,
+        writing: bool,
+    ) -> CheckResult2<TypeId> {
+        {
+            let links = self.links.ty(ty);
+            let slot = if writing {
+                &links.simplified_for_writing
+            } else {
+                &links.simplified_for_reading
+            };
+            if slot.is_resolving() {
+                // The circular sentinel: mid-flight re-entry reads the
+                // type unsimplified (62472-62474).
+                return Ok(ty);
+            }
+            if let Some(cached) = slot.resolved() {
+                return Ok(cached);
+            }
+        }
+        self.links
+            .set_type_simplified(self.speculation_depth, ty, writing, LinkSlot::Resolving);
+        match self.simplified_indexed_access_worker(ty, writing) {
+            Ok(simplified) => {
+                self.links.set_type_simplified(
+                    self.speculation_depth,
+                    ty,
+                    writing,
+                    LinkSlot::Resolved(simplified),
+                );
+                Ok(simplified)
+            }
+            Err(err) => {
+                self.links.revert_type_simplified(ty, writing);
+                Err(err)
+            }
+        }
+    }
+
+    /// getSimplifiedIndexedAccessType's body (62476-62505), split out
+    /// so the cache wrapper can park/revert the sentinel around it.
+    fn simplified_indexed_access_worker(
+        &mut self,
+        ty: TypeId,
+        writing: bool,
+    ) -> CheckResult2<TypeId> {
+        let TypeData::IndexedAccess {
+            object_type,
+            index_type,
+            ..
+        } = self.tables.type_of(ty).data
+        else {
+            unreachable!("indexed-access flag implies indexed-access data");
+        };
+        let object_type = self.get_simplified_type(object_type, writing)?;
+        let index_type = self.get_simplified_type(index_type, writing)?;
+        if let Some(distributed) =
+            self.distribute_object_over_index_type(object_type, index_type, writing)?
+        {
+            return Ok(distributed);
+        }
+        if !self
+            .tables
+            .flags_of(index_type)
+            .intersects(TypeFlags::INSTANTIABLE)
+        {
+            if let Some(distributed) =
+                self.distribute_index_over_object_type(object_type, index_type, writing)?
+            {
+                return Ok(distributed);
+            }
+        }
+        if self.is_generic_tuple_type(object_type)
+            && self
+                .tables
+                .flags_of(index_type)
+                .intersects(TypeFlags::NUMBER_LIKE)
+        {
+            let start = if self
+                .tables
+                .flags_of(index_type)
+                .intersects(TypeFlags::NUMBER)
+            {
+                0
+            } else {
+                let target = self.tables.reference_target(object_type);
+                match &self.tables.type_of(target).data {
+                    TypeData::TupleTarget(data) => data.fixed_length,
+                    _ => unreachable!("tuple type targets a tuple target"),
+                }
+            };
+            if let Some(element) =
+                self.get_element_type_of_slice_of_tuple_type(object_type, start, 0, writing, false)?
+            {
+                return Ok(element);
+            }
+        }
+        if self.is_generic_mapped_type_state(object_type) {
+            return Err(Unsupported::new(
+                "simplified indexed access over mapped types (unported family, M8-stub)",
+            ));
+        }
+        Ok(ty)
     }
 
     /// tsc-port: indexTypeLessThan @6.0.3
@@ -1511,6 +1751,26 @@ impl<'a> CheckerState<'a> {
             _ => return Ok(None),
         };
         self.get_element_type_of_slice_of_tuple_type(ty, fixed_length, 0, false, false)
+    }
+
+    /// tsc-port: getKnownKeysOfTupleType @6.0.3
+    /// tsc-hash: feea7a608c0d34daf2e00508df8313ddbd6145e7cd375785fe15482fca9dc2c2
+    /// tsc-span: _tsc.js:61299-61301
+    pub(crate) fn get_known_keys_of_tuple_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        let target = self.tables.reference_target(ty);
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+            unreachable!("tuple type targets a tuple target");
+        };
+        let array = if data.readonly {
+            self.global_readonly_array_type()?
+        } else {
+            self.global_array_type()?
+        };
+        let mut members: Vec<TypeId> = (0..data.fixed_length)
+            .map(|i| self.tables.get_string_literal_type(&i.to_string()))
+            .collect();
+        members.push(self.get_index_type(array, IndexFlags::NONE)?);
+        self.get_union_type_ex(&members, UnionReduction::Literal)
     }
 
     /// tsc-port: getElementTypeOfSliceOfTupleType @6.0.3

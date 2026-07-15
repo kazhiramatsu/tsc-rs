@@ -8,7 +8,8 @@ pub mod ty;
 pub use flags::*;
 pub use options::CompilerOptions;
 pub use tables::{
-    js_number_to_string, IntersectionFlags, Intrinsics, M4Dependency, TypeTables, UnionReduction,
+    js_number_to_string, IntersectionFlags, Intrinsics, TupleTargetFlags, TypeTables,
+    UnionReduction,
 };
 pub use ty::{LiteralValue, PseudoBigInt, SymbolId, TupleTargetData, Type, TypeData, TypeId};
 

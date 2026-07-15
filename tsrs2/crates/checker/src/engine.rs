@@ -26,7 +26,7 @@ use tsrs2_types::{
 use tsrs2_syntax::NodeId;
 
 use crate::relate::RelationKind;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult2, CheckerState, Unsupported};
 
 /// stableTypeOrdering off: binary search keyed by type id over the
 /// id-sorted member list (tsc containsType 61327).
@@ -377,9 +377,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// Deferred (node-carrying) references normalize to their eager
     /// twin (createNormalizedTypeReference over the forced arguments);
-    /// Substitution is M8; getSimplifiedType stays the identity stub
-    /// (the IndexedAccess simplification lands with its 5.3c
-    /// consumers — Simplifiable relation inputs escape before this).
+    /// the Substitution arm fails closed until its base/constraint
+    /// payload and reading/writing normalization land in M8.
     pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult2<TypeId> {
         loop {
             let flags = self.tables.flags_of(ty);
@@ -406,6 +405,12 @@ impl<'a> CheckerState<'a> {
                 }
             } else if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
                 self.get_normalized_union_or_intersection_type(ty, writing)?
+            } else if flags.intersects(TypeFlags::SUBSTITUTION) {
+                return Err(Unsupported::new(
+                    "getNormalizedType for substitution types (unported family, M8-stub)",
+                ));
+            } else if flags.intersects(TypeFlags::SIMPLIFIABLE) {
+                self.get_simplified_type(ty, writing)?
             } else {
                 ty
             };
@@ -605,15 +610,29 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5e3b7a86845b858ca8bb7bc77565a77978ae9c5b794e1c5bf53bd572dac4bec3
     /// tsc-span: _tsc.js:64837-64841
     ///
-    /// The element getSimplifiedType calls are the M3 stub (no
-    /// Simplifiable kinds exist), so normalization reduces to the
-    /// createNormalizedTupleType re-expansion.
-    fn get_normalized_tuple_type(&mut self, ty: TypeId, _writing: bool) -> CheckResult2<TypeId> {
+    /// The checker keeps its eager re-expansion of the tuple reference,
+    /// but first simplifies every SIMPLIFIABLE element in the requested
+    /// reading/writing direction, matching tsc's sameMap step.
+    fn get_normalized_tuple_type(&mut self, ty: TypeId, writing: bool) -> CheckResult2<TypeId> {
         let target = self.tables.reference_target(ty);
         // getTypeArguments (64838) — deferred tuple references force
         // lazily; the wrapper pre-forces variadic elements for the
         // tables re-expansion.
-        let elements = self.get_type_arguments(ty)?;
+        let arity = match &self.tables.type_of(target).data {
+            TypeData::TupleTarget(data) => data.type_parameters.len(),
+            _ => unreachable!("generic tuple targets a tuple target"),
+        };
+        let mut elements = self.get_type_arguments(ty)?;
+        elements.truncate(arity);
+        for element in &mut elements {
+            if self
+                .tables
+                .flags_of(*element)
+                .intersects(TypeFlags::SIMPLIFIABLE)
+            {
+                *element = self.get_simplified_type(*element, writing)?;
+            }
+        }
         self.create_normalized_type_reference_forced(target, &elements)
     }
 
@@ -1108,6 +1127,57 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         if self.flags(target).intersects(TypeFlags::INTERSECTION) {
             return self.type_related_to_each_type(source, target, IntersectionState::TARGET);
+        }
+        // 65433-65456: for comparability against a primitive, an
+        // intersection source steps its instantiable constituents to
+        // their base constraints first; a non-intersection result
+        // compares in both directions.
+        let mut source = source;
+        if self.relation == RelationKind::Comparable
+            && self.flags(target).intersects(TypeFlags::PRIMITIVE)
+        {
+            let members = self.union_members(source);
+            let mut constraints = Vec::with_capacity(members.len());
+            let mut changed = false;
+            for &member in &members {
+                let constraint = if self.flags(member).intersects(TypeFlags::INSTANTIABLE) {
+                    let base = self.st.get_base_constraint_of_type(member)?;
+                    base.unwrap_or(self.st.tables.intrinsics.unknown)
+                } else {
+                    member
+                };
+                if constraint != member {
+                    changed = true;
+                }
+                constraints.push(constraint);
+            }
+            if changed {
+                source = self
+                    .st
+                    .get_intersection_type(&constraints, tsrs2_types::IntersectionFlags::NONE)?;
+                if self.flags(source).intersects(TypeFlags::NEVER) {
+                    return Ok(Ternary::FALSE);
+                }
+                if !self.flags(source).intersects(TypeFlags::INTERSECTION) {
+                    let result = self.is_related_to(
+                        source,
+                        target,
+                        RecursionFlags::SOURCE,
+                        /*report_errors*/ false,
+                        IntersectionState::NONE,
+                    )?;
+                    if !is_false(result) {
+                        return Ok(result);
+                    }
+                    return self.is_related_to(
+                        target,
+                        source,
+                        RecursionFlags::SOURCE,
+                        /*report_errors*/ false,
+                        IntersectionState::NONE,
+                    );
+                }
+            }
         }
         self.some_type_related_to_type(
             source,
@@ -2293,11 +2363,14 @@ impl<'a> CheckerState<'a> {
         Ok(result.filter(|&r| r != unknown))
     }
 
-    /// isGenericMappedType on the checker receiver (the RelationChecker
-    /// twin at structural.rs 810) — mapped types are unconstructible
-    /// until M8, so both answer false.
-    pub(crate) fn is_generic_mapped_type_state(&self, _ty: TypeId) -> bool {
-        false
+    /// Conservative pre-M8 isGenericMappedType gate. Every mapped type
+    /// is treated as generic until the mapped payload and the precise
+    /// constraint/name-type test land; this keeps the dormant mapped
+    /// branches fail-closed as soon as mapped objects become constructible.
+    pub(crate) fn is_generic_mapped_type_state(&self, ty: TypeId) -> bool {
+        self.tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
     }
 
     // ---- recursion depth (checker-key §1.3) ----

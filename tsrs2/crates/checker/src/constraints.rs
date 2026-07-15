@@ -7,7 +7,7 @@
 
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{TypeData, TypeFlags, TypeId, TypeSystemPropertyName};
+use tsrs2_types::{ElementFlags, ObjectFlags, TypeData, TypeFlags, TypeId, TypeSystemPropertyName};
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult2, CheckerState, ResolutionTarget, Unsupported};
@@ -169,21 +169,97 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 777f460fb1f80fa7dca265a22f81147c4d585c4afe7985df22dece9922edba03
     /// tsc-span: _tsc.js:58784-58786
     ///
-    /// The IndexedAccess arm escapes with the keyof/indexed relation
-    /// arms (getConstraintOfIndexedAccess needs the simplified-type
-    /// machinery); Conditional types are unconstructible until M8.
+    /// The Conditional arm (getConstraintOfConditionalType) falls to
+    /// the base-constraint default — those TypeFlags are
+    /// unconstructible until M8 and the base computation escapes on
+    /// them.
     pub fn get_constraint_of_type(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             return self.get_constraint_of_type_parameter(ty);
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
-            return Err(Unsupported::new(
-                "indexed-access source constraints (getConstraintOfIndexedAccess — \
-                 keyof/indexed relation arms follow-up)",
-            ));
+            return self.get_constraint_of_indexed_access(ty);
         }
         self.get_base_constraint_of_type(ty)
+    }
+
+    /// tsc-port: getConstraintOfIndexedAccess @6.0.3
+    /// tsc-hash: a648a76d94ff4c4a99a6b6b8955914b6434c6d7de3653ff6a4ea043d938d7dc1
+    /// tsc-span: _tsc.js:58798-58800
+    pub fn get_constraint_of_indexed_access(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+        if self.has_non_circular_base_constraint(ty)? {
+            self.get_constraint_from_indexed_access(ty)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// tsc-port: getSimplifiedTypeOrConstraint @6.0.3
+    /// tsc-hash: ffdf0b790c2083f9e1b1989d7331f0e6c398a16d089296fee81429185ca13132
+    /// tsc-span: _tsc.js:58801-58808
+    pub fn get_simplified_type_or_constraint(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let simplified = self.get_simplified_type(ty, /*writing*/ false)?;
+        if simplified != ty {
+            Ok(Some(simplified))
+        } else {
+            self.get_constraint_of_type(ty)
+        }
+    }
+
+    /// tsc-port: getConstraintFromIndexedAccess @6.0.3
+    /// tsc-hash: 9b4db0b05453c8a4498e23b0bae23b37a34724a3f3778fd8d62391ba9cf6a2a4
+    /// tsc-span: _tsc.js:58809-58825
+    ///
+    /// The isMappedTypeGenericIndexedAccess head (58810-58812) escapes
+    /// conservatively until the mapped payload lands in M8.
+    fn get_constraint_from_indexed_access(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+        let TypeData::IndexedAccess {
+            object_type,
+            index_type,
+            access_flags,
+        } = self.tables.type_of(ty).data
+        else {
+            unreachable!("indexed-access flag implies indexed-access data");
+        };
+        if self.is_generic_mapped_type_state(object_type) {
+            return Err(Unsupported::new(
+                "indexed-access constraints over mapped types (unported family, M8-stub)",
+            ));
+        }
+        let index_constraint = self.get_simplified_type_or_constraint(index_type)?;
+        if let Some(index_constraint) = index_constraint {
+            if index_constraint != index_type {
+                let indexed_access = self.get_indexed_access_type_or_undefined(
+                    object_type,
+                    index_constraint,
+                    access_flags,
+                    None,
+                    None,
+                    None,
+                )?;
+                if let Some(indexed_access) = indexed_access {
+                    return Ok(Some(indexed_access));
+                }
+            }
+        }
+        let object_constraint = self.get_simplified_type_or_constraint(object_type)?;
+        if let Some(object_constraint) = object_constraint {
+            if object_constraint != object_type {
+                return self.get_indexed_access_type_or_undefined(
+                    object_constraint,
+                    index_type,
+                    access_flags,
+                    None,
+                    None,
+                    None,
+                );
+            }
+        }
+        Ok(None)
     }
 
     /// tsc-port: getBaseConstraintOfType @6.0.3
@@ -228,14 +304,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:58915-59025
     ///
     /// computeBaseConstraint arms present: TypeParameter,
-    /// Union/Intersection, TemplateLiteral, StringMapping (live since
-    /// 5.2), generic tuple, and the default identity. Unsupported
-    /// escapes (each names its owner): IndexedAccess/Conditional/
-    /// Substitution (those TypeFlags are unconstructible before
-    /// their type nodes land — the escape fires if they ever appear
-    /// rather than mis-computing). getSimplifiedType is the M3
-    /// identity stub (un-stubbed at 5.3). The circular-constraint
-    /// related-info (currentNode) is driver state — 5.4.
+    /// Union/Intersection, TemplateLiteral, StringMapping,
+    /// IndexedAccess, generic tuple, and the default identity.
+    /// Conditional/Substitution escape (those TypeFlags are
+    /// unconstructible before their type nodes land — the escape
+    /// fires if they ever appear rather than mis-computing). The
+    /// circular-constraint related-info (currentNode) is driver
+    /// state — 5.4.
     pub fn get_resolved_base_constraint(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.ty(ty).resolved_base_constraint.resolved() {
             return Ok(cached);
@@ -265,8 +340,12 @@ impl<'a> CheckerState<'a> {
         let identity = self.get_recursion_identity(t);
         let computed = if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&identity)) {
             stack.push(identity);
-            // getSimplifiedType is the M3 identity stub until 5.3.
-            let computed = self.compute_base_constraint(t, stack);
+            // 58929-58933: the constraint is computed over the
+            // SIMPLIFIED type (reading direction).
+            let computed = match self.get_simplified_type(t, /*writing*/ false) {
+                Ok(simplified) => self.compute_base_constraint(simplified, stack),
+                Err(err) => Err(err),
+            };
             stack.pop();
             match computed {
                 Ok(computed) => {
@@ -458,12 +537,53 @@ impl<'a> CheckerState<'a> {
         }
         if self.is_generic_tuple_type(t) {
             // 59016-59022: variadic type-parameter elements step to
-            // their base constraints when every constituent is an
-            // array/tuple; needs sliceTupleType-adjacent machinery that
-            // lands with 5.3 tuple member synthesis.
-            return Err(Unsupported::new(
-                "computeBaseConstraint for generic tuples (generic-tuple family, M4-end sweep 5.8)",
-            ));
+            // their base constraints when every constituent of the
+            // constraint is a non-generic array/tuple.
+            let target = self.tables.reference_target(t);
+            let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+                unreachable!("generic tuple targets a tuple target");
+            };
+            // getElementTypes (61313-61316): arguments sliced to arity.
+            let mut elements = self.get_type_arguments(t)?;
+            elements.truncate(data.type_parameters.len());
+            let global_array = self.global_array_type()?;
+            let global_readonly = self.global_readonly_array_type()?;
+            let mut new_elements = Vec::with_capacity(elements.len());
+            for (i, &element) in elements.iter().enumerate() {
+                let mut new_element = element;
+                if self
+                    .tables
+                    .flags_of(element)
+                    .intersects(TypeFlags::TYPE_PARAMETER)
+                    && data.element_flags[i].intersects(ElementFlags::VARIADIC)
+                {
+                    if let Some(constraint) = self.get_base_constraint_inner(element, stack)? {
+                        if constraint != element
+                            && self.every_type(constraint, |state, c| {
+                                let is_array = state
+                                    .tables
+                                    .object_flags_of(c)
+                                    .intersects(ObjectFlags::REFERENCE)
+                                    && {
+                                        let target = state.tables.reference_target(c);
+                                        target == global_array || target == global_readonly
+                                    };
+                                (is_array || state.tables.is_tuple_type(c))
+                                    && !state.tables.is_generic_tuple_type(c)
+                            })
+                        {
+                            new_element = constraint;
+                        }
+                    }
+                }
+                new_elements.push(new_element);
+            }
+            return Ok(Some(self.create_tuple_type_forced(
+                &new_elements,
+                Some(&data.element_flags[..]),
+                data.readonly,
+                data.labeled_element_declarations.as_deref(),
+            )?));
         }
         Ok(Some(t))
     }
