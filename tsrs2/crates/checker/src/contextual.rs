@@ -1124,7 +1124,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<TypeId>> {
         if self.is_in_js_file(binary_expression) {
             return Err(Unsupported::new(
-                "getContextualTypeForAssignmentDeclaration JS kinds ([JSDOC] band)",
+                "getContextualTypeForAssignmentDeclaration JS kinds ([JSDOC] band, M8)",
             ));
         }
         let NodeData::BinaryExpression(data) = self.data_of(binary_expression) else {
@@ -2470,7 +2470,7 @@ impl<'a> CheckerState<'a> {
                     // invisible (no JSDoc parse) — the recursion below
                     // is tsc's untagged path.
                     return Err(Unsupported::new(
-                        "getContextualType parenthesized JSDoc arms ([JSDOC] band)",
+                        "getContextualType parenthesized JSDoc arms ([JSDOC] band, M8)",
                     ));
                 }
                 self.get_contextual_type(parent, context_flags)

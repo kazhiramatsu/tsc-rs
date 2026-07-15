@@ -144,7 +144,7 @@ impl<'a> CheckerState<'a> {
             NodeData::EnumMember(data) => (data.name, data.initializer),
             _ => unreachable!("enum member lists hold enum members"),
         };
-        let name = name.ok_or_else(|| Unsupported::new("enum member with missing name"))?;
+        let name = name.expect("parser invariant: EnumMember name always parsed");
         if self.is_computed_non_literal_name(name) {
             self.error_at(
                 Some(name),
@@ -277,7 +277,7 @@ impl<'a> CheckerState<'a> {
             NodeData::PrefixUnaryExpression(data) => {
                 let operand = data
                     .operand
-                    .ok_or_else(|| Unsupported::new("prefix expression with missing operand"))?;
+                    .expect("parser invariant: PrefixUnary operand always parsed");
                 let result = self.evaluate(operand, location)?;
                 if let Some(EvalValue::Num(value)) = result.value {
                     let mapped = match data.operator {
@@ -306,7 +306,9 @@ impl<'a> CheckerState<'a> {
                 let (left_node, operator_token, right_node) =
                     match (data.left, data.operator_token, data.right) {
                         (Some(left), Some(operator), Some(right)) => (left, operator, right),
-                        _ => return Err(Unsupported::new("binary expression with missing pieces")),
+                        _ => unreachable!(
+                            "parser invariant: BinaryExpression left/operator/right always parsed"
+                        ),
                     };
                 let operator = self.kind_of(operator_token);
                 let left = self.evaluate(left_node, location)?;
@@ -423,10 +425,10 @@ impl<'a> CheckerState<'a> {
             NodeData::TemplateExpression(data) => (data.head, self.nodes_of(data.template_spans)),
             _ => unreachable!("template expression callers check the kind"),
         };
-        let head = head.ok_or_else(|| Unsupported::new("template expression missing head"))?;
+        let head = head.expect("parser invariant: TemplateExpression head always parsed");
         let mut result = match self.data_of(head) {
             NodeData::TemplateHead(data) => data.text.clone(),
-            _ => return Err(Unsupported::new("template expression with non-head head")),
+            _ => unreachable!("parser invariant: template heads carry TemplateHead data"),
         };
         let mut resolved_other_files = false;
         let mut has_external_references = false;
@@ -435,8 +437,8 @@ impl<'a> CheckerState<'a> {
                 NodeData::TemplateSpan(data) => (data.expression, data.literal),
                 _ => unreachable!("template spans hold template spans"),
             };
-            let expression = expression
-                .ok_or_else(|| Unsupported::new("template span with missing expression"))?;
+            let expression =
+                expression.expect("parser invariant: TemplateSpan expression always parsed");
             let span_result = self.evaluate(expression, location)?;
             let Some(value) = span_result.value else {
                 return Ok(evaluator_result(None, true, false, false));
@@ -447,12 +449,13 @@ impl<'a> CheckerState<'a> {
                     result.push_str(&tsrs2_types::js_number_to_string(number))
                 }
             }
-            let literal =
-                literal.ok_or_else(|| Unsupported::new("template span with missing literal"))?;
+            let literal = literal.expect("parser invariant: template span literal always parsed");
             match self.data_of(literal) {
                 NodeData::TemplateMiddle(data) => result.push_str(&data.text),
                 NodeData::TemplateTail(data) => result.push_str(&data.text),
-                _ => return Err(Unsupported::new("template span with non-template literal")),
+                _ => unreachable!(
+                    "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
+                ),
             }
             resolved_other_files = resolved_other_files || span_result.resolved_other_files;
             has_external_references =
@@ -1394,7 +1397,7 @@ impl<'a> CheckerState<'a> {
         if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
             let expression = data
                 .expression
-                .ok_or_else(|| Unsupported::new("computed property name missing expression"))?;
+                .expect("parser invariant: ComputedPropertyName expression always parsed");
             return node_util::get_escaped_text_of_identifier_or_literal(source, expression)
                 .ok_or_else(|| {
                     Unsupported::new(

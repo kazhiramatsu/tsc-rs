@@ -259,9 +259,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(tsrs2_types::SymbolFlags::TYPE_ALIAS) {
             return self.get_declared_type_of_type_alias(symbol);
         }
-        Err(Unsupported::new(format!(
-            "getDeclaredTypeOfSymbol for symbol flags {flags:?} in variance measurement"
-        )))
+        unreachable!("variance symbols are class/interface/alias by caller guarantee: {flags:?}")
     }
 
     /// tsc-port: isMarkerType @6.0.3

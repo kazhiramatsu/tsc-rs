@@ -1139,7 +1139,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
                 Err(Unsupported::new(
-                    "isConstantReference binding-pattern arm (destructured declarations, 5.6/5.8)",
+                    "isConstantReference binding-pattern arm (getNarrowedTypeOfSymbol family, [FLOW M5])",
                 ))
             }
             _ => Ok(false),
@@ -4812,7 +4812,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<TypeId> {
         if self.is_in_js_file(declaration) {
             return Err(Unsupported::new(
-                "widenTypeInferredFromInitializer JS empty-literal arms ([JSDOC])",
+                "widenTypeInferredFromInitializer JS empty-literal arms ([JSDOC] M8)",
             ));
         }
         self.get_widened_literal_type_for_initializer(declaration, ty)

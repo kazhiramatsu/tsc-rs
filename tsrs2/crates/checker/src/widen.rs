@@ -676,7 +676,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::JSDocFunctionType | SyntaxKind::JSDocSignature => {
                 return Err(crate::state::Unsupported::new(
-                    "reportImplicitAny JSDoc arms ([JSDOC])",
+                    "reportImplicitAny JSDoc arms ([JSDOC] M8)",
                 ));
             }
             SyntaxKind::FunctionDeclaration

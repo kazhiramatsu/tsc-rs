@@ -1605,12 +1605,12 @@ impl<'a> CheckerState<'a> {
                         let NodeData::MappedType(data) = self.data_of(node) else {
                             unreachable!("MappedType kind implies payload");
                         };
-                        let type_parameter = data.type_parameter.ok_or_else(|| {
-                            Unsupported::new("mapped type with missing type parameter")
-                        })?;
-                        let symbol = self.node_symbol(type_parameter).ok_or_else(|| {
-                            Unsupported::new("unbound mapped-type type parameter")
-                        })?;
+                        let type_parameter = data
+                            .type_parameter
+                            .expect("parser invariant: MappedType type_parameter always parsed");
+                        let symbol = self
+                            .node_symbol(type_parameter)
+                            .expect("binder invariant: type parameters are always bound");
                         // getSymbolOfDeclaration (57051).
                         let symbol = self.get_merged_symbol(symbol);
                         let declared = self.get_declared_type_of_type_parameter(symbol);
@@ -1637,9 +1637,9 @@ impl<'a> CheckerState<'a> {
                         // 57063-57066: append the declared type's
                         // thisType (GenericType shapes only — plain
                         // thisless interfaces carry none).
-                        let symbol = self.node_symbol(node).ok_or_else(|| {
-                            Unsupported::new("unbound class/interface declaration")
-                        })?;
+                        let symbol = self.node_symbol(node).expect(
+                            "binder invariant: class/interface declarations are always bound",
+                        );
                         // getSymbolOfDeclaration (57065): the MERGED
                         // symbol owns the one true declared type.
                         let symbol = self.get_merged_symbol(symbol);

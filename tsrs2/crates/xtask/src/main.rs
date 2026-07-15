@@ -3035,6 +3035,10 @@ fn ci() -> Result<(), Box<dyn Error>> {
     run_command(Command::new("cargo").arg("build").arg("--workspace"))?;
     run_command(Command::new("cargo").arg("test").arg("--workspace"))?;
     run_command(Command::new("cargo").arg("xtask").arg("relpin").arg("run"))?;
+    // Parse+bind smoke over the full corpus (~1s): the cheap panic
+    // net for the parser/binder invariants the 5.9a dead-guard
+    // conversions lean on (m4-end-sweep-steps.md dead-guard policy).
+    run_command(Command::new("cargo").arg("xtask").arg("bind-corpus"))?;
     run_command(Command::new("cargo").arg("xtask").arg("conformance"))?;
     run_command(
         Command::new("cargo")

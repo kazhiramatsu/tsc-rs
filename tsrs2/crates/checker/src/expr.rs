@@ -1954,11 +1954,9 @@ impl<'a> CheckerState<'a> {
                     let declared = self.get_declared_type_of_class_or_interface(symbol)?;
                     match &self.tables.type_of(declared).data {
                         TypeData::GenericType { this_type, .. } => *this_type,
-                        _ => {
-                            return Err(Unsupported::new(
-                                "this type of a mid-cycle declared-type shell",
-                            ))
-                        }
+                        _ => unreachable!(
+                            "declared class/interface types are stamped GenericType atomically"
+                        ),
                     }
                 };
                 return Ok(Some(
