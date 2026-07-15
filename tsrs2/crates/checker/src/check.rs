@@ -2633,7 +2633,7 @@ impl<'a> CheckerState<'a> {
             let target = self.tables.reference_target(ty);
             let Some(symbol) = self.tables.type_of(target).symbol else {
                 return Err(Unsupported::new(
-                    "symbol-less reference display (tuple shapes are nodeBuilder work)",
+                    "symbol-less reference display (tuple renderer, M6)",
                 ));
             };
             let name = self.symbol_display_name(symbol);
@@ -2658,7 +2658,7 @@ impl<'a> CheckerState<'a> {
                         // Outer parameters render as enclosing-declaration
                         // qualification in the nodeBuilder — out of slice.
                         return Err(Unsupported::new(
-                            "reference display with outer type parameters (nodeBuilder)",
+                            "reference display with outer type parameters (nodeBuilder, T2 M8)",
                         ));
                     }
                     type_parameters.len() - outer_type_parameter_count

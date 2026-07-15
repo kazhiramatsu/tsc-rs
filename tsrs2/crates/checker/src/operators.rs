@@ -240,7 +240,7 @@ impl<'a> CheckerState<'a> {
             // with the plain-JS band; reaching here means a JS file
             // slipped past the band gate.
             return Err(Unsupported::new(
-                "binary expando analysis in a JS file (checkBinaryExpression onEnter [JSDOC])",
+                "binary expando analysis in a JS file (checkBinaryExpression onEnter [JSDOC] M8)",
             ));
         }
         self.check_nullish_coalesce_operands(node)?;
@@ -1761,7 +1761,7 @@ impl<'a> CheckerState<'a> {
         if left_str == right_str {
             return Err(Unsupported::new(
                 "operator-error display for identically-named types \
-                 (getTypeNameForErrorDisplay UseFullyQualifiedType)",
+                 (getTypeNameForErrorDisplay UseFullyQualifiedType, T2 M8)",
             ));
         }
         Ok((left_str, right_str))
@@ -2341,7 +2341,7 @@ impl<'a> CheckerState<'a> {
             NodeData::TypeAssertionExpression(data) => (data.r#type, data.expression),
             NodeData::ParenthesizedExpression(_) => {
                 return Err(Unsupported::new(
-                    "getJSDocTypeAssertionType (JS type assertion, plain-JS band)",
+                    "getJSDocTypeAssertionType (JS type assertion, plain-JS band, M8)",
                 ))
             }
             _ => (None, None),
@@ -2386,7 +2386,7 @@ impl<'a> CheckerState<'a> {
             .links
             .node(node)
             .assertion_expression_type
-            .ok_or_else(|| Unsupported::new("assertion deferred without a stashed operand type"))?;
+            .ok_or_else(|| Unsupported::new("assertion deferred without a stashed operand type (speculation-transaction seam, M6)"))?;
         let base = self.get_base_type_of_literal_type(stashed)?;
         let expr_type = self.get_regular_type_of_object_literal(base)?;
         let target_type = self.get_type_from_type_node(type_node)?;

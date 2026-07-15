@@ -122,22 +122,22 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
-            SyntaxKind::MappedType => Err(Unsupported::new(
-                "mapped types (unported family, M4-end sweep 5.8)",
-            )),
+            SyntaxKind::MappedType => {
+                Err(Unsupported::new("mapped types (unported family, M8-stub)"))
+            }
             SyntaxKind::ConditionalType => Err(Unsupported::new(
-                "conditional types (unported family, M4-end sweep 5.8)",
+                "conditional types (unported family, M8-stub)",
             )),
-            SyntaxKind::InferType => Err(Unsupported::new(
-                "infer types (unported family, M4-end sweep 5.8)",
-            )),
+            SyntaxKind::InferType => {
+                Err(Unsupported::new("infer types (unported family, M8-stub)"))
+            }
             SyntaxKind::ImportType => Err(Unsupported::new("import types (M4)")),
             // 63207: heritage ExpressionWithTypeArguments routes
             // through the same type-reference worker (getTypeReferenceName
             // reads the entity-name expression).
             SyntaxKind::ExpressionWithTypeArguments => self.get_type_from_type_reference(node),
             other => Err(Unsupported::new(format!(
-                "type node kind {other:?} outside the M3 annotation slice"
+                "type node kind {other:?} outside the M3 annotation slice (JSDoc-flavor bands, M8)"
             ))),
         }
     }
@@ -2180,7 +2180,7 @@ impl<'a> CheckerState<'a> {
         let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
             let Some(declaration) = declaration else {
                 return Err(Unsupported::new(
-                    "type alias symbol without a TypeAliasDeclaration (JSDoc aliases unmodeled)",
+                    "type alias symbol without a TypeAliasDeclaration (JSDoc aliases unmodeled, M8)",
                 ));
             };
             let NodeData::TypeAliasDeclaration(data) = state.data_of(declaration) else {
@@ -2512,7 +2512,7 @@ impl<'a> CheckerState<'a> {
             return self.resolve_anonymous_type_members(ty);
         }
         Err(Unsupported::new(format!(
-            "member resolution for object flags {object_flags:?} (M4)"
+            "member resolution for object flags {object_flags:?} (Mapped/ReverseMapped, M8)"
         )))
     }
 
@@ -5092,7 +5092,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::NumericLiteral
                 | SyntaxKind::SourceFile => Err(Unsupported::new(
                     "assignment-declaration value type \
-                     (getWidenedTypeForAssignmentDeclaration [JSDOC])",
+                     (getWidenedTypeForAssignmentDeclaration [JSDOC] M8)",
                 )),
                 SyntaxKind::PropertyAssignment => {
                     match state.try_get_type_from_effective_type_node(declaration)? {
@@ -5273,7 +5273,7 @@ impl<'a> CheckerState<'a> {
                 // `: symbol` annotations) falls through.
                 if self.is_in_js_file(declaration) {
                     return Err(Unsupported::new(
-                        "widenTypeForVariableLikeDeclaration JS ESSymbol arm ([JSDOC])",
+                        "widenTypeForVariableLikeDeclaration JS ESSymbol arm ([JSDOC] M8)",
                     ));
                 }
                 let parent_symbol = self
@@ -5558,7 +5558,7 @@ impl<'a> CheckerState<'a> {
         if has_expression_initializer {
             if self.is_in_js_file(declaration) && kind != SyntaxKind::Parameter {
                 return Err(Unsupported::new(
-                    "JS container object type (getJSContainerObjectType [JSDOC])",
+                    "JS container object type (getJSContainerObjectType [JSDOC] M8)",
                 ));
             }
             let initializer_type =

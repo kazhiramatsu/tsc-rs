@@ -122,7 +122,7 @@ impl<'a> CheckerState<'a> {
                 ))
             }
             _ => Err(Unsupported::new(
-                "entityNameToString beyond entity kinds (JSDoc/JSX)",
+                "entityNameToString beyond entity kinds (JSDoc/JSX, M8)",
             )),
         }
     }
@@ -4567,7 +4567,7 @@ impl<'a> CheckerState<'a> {
                     .intersects(tsrs2_types::ObjectFlags::MAPPED)
             {
                 return Err(Unsupported::new(
-                    "mapped-readonly write 2542 (getMappedTypeModifiers — mapped types unproduced)",
+                    "mapped-readonly write 2542 (getMappedTypeModifiers — mapped family, M8)",
                 ));
             }
             return Ok(ty);

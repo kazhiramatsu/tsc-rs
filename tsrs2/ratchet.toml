@@ -30,7 +30,13 @@ allowed_regression = 0.0
 # RECOVERY guards since 5.7b and ratchet separately below — a new
 # marked guard trips max_recovery, so re-labeling real containment
 # escapes as "recovery" cannot slip past the gate.
-max_untagged = 114
+# 5.9a: 114 -> 93 — the M4-end sweep triage re-owned 19 sites to M8
+# (JSDoc/checkJs band, conditional/mapped families, display T2 tails)
+# and 2 to M6 (assertion-deferred stash seam, tuple renderer) per the
+# m4-end-sweep-steps.md disposition table; the remainder burns down
+# via the dead-guard retires (5.9a) and the implement slices (5.9b-d),
+# reaching 0 at 5.9e close.
+max_untagged = 93
 # 5.7c: +16 genuine malformed-tree guards (JSX band tag-name/
 # attributes/attribute-symbol reads + the Debug.assert/Debug.fail
 # transcriptions of createJsxAttributesTypeFromAttributesProperty and
@@ -43,5 +49,11 @@ max_untagged = 114
 # 5.8c: +7 decorator/class-band guards (decorator/heritage/class-
 # element recovery nodes + the getEffectiveDecoratorArguments and
 # getClassElementPropertyKeyType Debug.fail transcriptions, risk #6).
-max_recovery = 108
+# 5.9a: +1 — createTypeReference-over-non-generic-interface reclassed
+# stage/5.8 -> recovery: REACHABLE input (thisless non-generic
+# interface as JSX.ElementType) on which the vendored tsc throws
+# TypeError (undefined instantiations map), so no golden can exist;
+# permanent crash-guard family (Debug.fail-transcription precedent),
+# see m4-end-sweep-steps.md.
+max_recovery = 109
 

@@ -4789,7 +4789,7 @@ impl<'a> CheckerState<'a> {
                         // the JS band; guessing either way mis-codes
                         // (conformance FP: salsa inferring fixtures).
                         return Err(Unsupported::new(
-                            "isJSConstructor probe on a JS declaration (JS band)",
+                            "isJSConstructor probe on a JS declaration (checkJs band, M8)",
                         ));
                     }
                     let return_type = self.get_return_type_of_signature(signature)?;
@@ -5562,7 +5562,7 @@ impl<'a> CheckerState<'a> {
                         // The 77625 isJSConstructor/JSDoc arms decide
                         // this band for JS declarations (JS band).
                         return Err(Unsupported::new(
-                            "isJSConstructor probe on a JS declaration (JS band)",
+                            "isJSConstructor probe on a JS declaration (checkJs band, M8)",
                         ));
                     }
                     if self

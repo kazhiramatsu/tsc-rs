@@ -1688,11 +1688,14 @@ impl<'a> CheckerState<'a> {
         if declared_params.as_ref().map_or(0, Vec::len) >= type_arguments.len() {
             if declared_params.is_none() {
                 // tsc's createTypeReference over a non-generic declared
-                // type reads an undefined `instantiations` map —
-                // crash-adjacent corner, escaped.
+                // type reads an undefined `instantiations` map and
+                // throws TypeError — a reachable tsc crash (thisless
+                // non-generic interface as JSX.ElementType), so no
+                // golden can exist; permanent guard, crash-guard
+                // family (m4-end-sweep-steps.md).
                 return Err(Unsupported::new(
                     "createTypeReference over a non-generic interface \
-                     (undefined instantiations map, tsc crash-adjacent corner; M4-end sweep 5.8)",
+                     (tsc TypeError crash guard, parse-recovery-class permanent containment)",
                 ));
             }
             let args = self
@@ -1966,12 +1969,12 @@ impl<'a> CheckerState<'a> {
             || self.options.jsx_import_source.is_some()
         {
             return Err(Unsupported::new(
-                "jsxFactory-family options (JSX namespace entity parsing, 5.8)",
+                "jsxFactory-family options (parseIsolatedEntityName unported, M8)",
             ));
         }
         if matches!(self.options.jsx, Some(4) | Some(5)) {
             return Err(Unsupported::new(
-                "react-jsx implicit import container (module resolution, 5.8)",
+                "react-jsx implicit import container (pragma+module machinery, M8)",
             ));
         }
         let source = self.binder.source_of_node(location);
@@ -1981,7 +1984,7 @@ impl<'a> CheckerState<'a> {
             // aware) — a stray "@jsx" in a string literal contains the
             // file's JSX checks (FN), never flips a namespace (FP).
             return Err(Unsupported::new(
-                "@jsx-family pragma comment (pragma collection, 5.8)",
+                "@jsx-family pragma comment (pragma collection unported, M8)",
             ));
         }
         Ok(())

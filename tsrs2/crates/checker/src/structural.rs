@@ -431,12 +431,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         if self.is_generic_mapped_type(target) && self.relation != RelationKind::Identity {
             return Err(Unsupported::new(
-                "mapped-type targets (unported family, M4-end sweep 5.8)",
+                "mapped-type targets (unported family, M8-stub)",
             ));
         }
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
             return Err(Unsupported::new(
-                "conditional targets (unported family, M4-end sweep 5.8)",
+                "conditional targets (unported family, M8-stub)",
             ));
         }
         if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -587,7 +587,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
             return Err(Unsupported::new(
-                "conditional sources (unported family, M4-end sweep 5.8)",
+                "conditional sources (unported family, M8-stub)",
             ));
         } else {
             // Stubbed guard: tsc gates this band behind
@@ -5748,8 +5748,11 @@ fn find_utf16(haystack: &[u16], needle: &[u16], from: usize) -> Option<usize> {
 /// surrogate half (JS would keep it, Rust strings cannot) escapes as
 /// Unsupported instead of fabricating U+FFFD literal text.
 fn utf16_to_string(units: &[u16]) -> CheckResult2<String> {
-    String::from_utf16(units)
-        .map_err(|_| Unsupported::new("template inference strands a surrogate half (UTF-16)"))
+    String::from_utf16(units).map_err(|_| {
+        Unsupported::new(
+            "template inference strands a surrogate half (UTF-16 WTF-16 representation, M8)",
+        )
+    })
 }
 
 /// tsc isNumericLiteralName over JS number round-trip (19205): the

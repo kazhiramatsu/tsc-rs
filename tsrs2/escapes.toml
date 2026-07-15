@@ -32,8 +32,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_indexed_access_index_type"
-reason = "mapped-readonly write 2542 (getMappedTypeModifiers — mapped types unproduced)"
-class = "untagged"
+reason = "mapped-readonly write 2542 (getMappedTypeModifiers — mapped family, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/access.rs"
@@ -128,8 +129,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "entity_name_to_string"
-reason = "entityNameToString beyond entity kinds (JSDoc/JSX)"
-class = "untagged"
+reason = "entityNameToString beyond entity kinds (JSDoc/JSX, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/access.rs"
@@ -218,8 +220,9 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_declared_type_of_type_alias"
-reason = "type alias symbol without a TypeAliasDeclaration (JSDoc aliases unmodeled)"
-class = "untagged"
+reason = "type alias symbol without a TypeAliasDeclaration (JSDoc aliases unmodeled, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -281,8 +284,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_for_variable_like_declaration"
-reason = "JS container object type (getJSContainerObjectType [JSDOC])"
-class = "untagged"
+reason = "JS container object type (getJSContainerObjectType [JSDOC] M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -400,9 +404,9 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_node"
-reason = "conditional types (unported family, M4-end sweep 5.8)"
+reason = "conditional types (unported family, M8-stub)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -413,16 +417,16 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_node"
-reason = "infer types (unported family, M4-end sweep 5.8)"
+reason = "infer types (unported family, M8-stub)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_node"
-reason = "mapped types (unported family, M4-end sweep 5.8)"
+reason = "mapped types (unported family, M8-stub)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -433,8 +437,9 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_node"
-reason = "type node kind {other:?} outside the M3 annotation slice"
-class = "untagged"
+reason = "type node kind {other:?} outside the M3 annotation slice (JSDoc-flavor bands, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -510,8 +515,9 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_of_variable_or_parameter_or_property"
-reason = "assignment-declaration value type (getWidenedTypeForAssignmentDeclaration [JSDOC])"
-class = "untagged"
+reason = "assignment-declaration value type (getWidenedTypeForAssignmentDeclaration [JSDOC] M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -575,8 +581,9 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "resolve_structured_type_members"
-reason = "member resolution for object flags {object_flags:?} (M4)"
-class = "untagged"
+reason = "member resolution for object flags {object_flags:?} (Mapped/ReverseMapped, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -587,8 +594,9 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "widen_type_for_variable_like_declaration"
-reason = "widenTypeForVariableLikeDeclaration JS ESSymbol arm ([JSDOC])"
-class = "untagged"
+reason = "widenTypeForVariableLikeDeclaration JS ESSymbol arm ([JSDOC] M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -625,8 +633,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "check_call_expression"
-reason = "isJSConstructor probe on a JS declaration (JS band)"
-class = "untagged"
+reason = "isJSConstructor probe on a JS declaration (checkJs band, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -860,8 +869,9 @@ owner = "M5"
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "resolve_new_expression"
-reason = "isJSConstructor probe on a JS declaration (JS band)"
-class = "untagged"
+reason = "isJSConstructor probe on a JS declaration (checkJs band, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -957,14 +967,16 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "type_to_string_slice_structured"
-reason = "reference display with outer type parameters (nodeBuilder)"
-class = "untagged"
+reason = "reference display with outer type parameters (nodeBuilder, T2 M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "type_to_string_slice_structured"
-reason = "symbol-less reference display (tuple shapes are nodeBuilder work)"
-class = "untagged"
+reason = "symbol-less reference display (tuple renderer, M6)"
+class = "stage"
+owner = "M6"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -1016,14 +1028,16 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/contextual.rs"
 in = "get_contextual_type"
-reason = "getContextualType parenthesized JSDoc arms ([JSDOC] band)"
-class = "untagged"
+reason = "getContextualType parenthesized JSDoc arms ([JSDOC] band, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/contextual.rs"
 in = "get_contextual_type_for_assignment_declaration"
-reason = "getContextualTypeForAssignmentDeclaration JS kinds ([JSDOC] band)"
-class = "untagged"
+reason = "getContextualTypeForAssignmentDeclaration JS kinds ([JSDOC] band, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/contextual.rs"
@@ -1290,15 +1304,16 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/functions.rs"
 in = "is_constant_reference"
-reason = "isConstantReference binding-pattern arm (destructured declarations, 5.6/5.8)"
+reason = "isConstantReference binding-pattern arm (getNarrowedTypeOfSymbol family, [FLOW M5])"
 class = "stage"
-owner = "5.8"
+owner = "M5"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
 in = "widen_type_inferred_from_initializer"
-reason = "widenTypeInferredFromInitializer JS empty-literal arms ([JSDOC])"
-class = "untagged"
+reason = "widenTypeInferredFromInitializer JS empty-literal arms ([JSDOC] M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
@@ -1485,9 +1500,8 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/jsx.rs"
 in = "instantiate_alias_or_interface_with_defaults"
-reason = "createTypeReference over a non-generic interface (undefined instantiations map, tsc crash-adjacent corner; M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"
+reason = "createTypeReference over a non-generic interface (tsc TypeError crash guard, parse-recovery-class permanent containment)"
+class = "recovery"
 
 [[site]]
 file = "crates/checker/src/jsx.rs"
@@ -1498,23 +1512,23 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/jsx.rs"
 in = "jsx_namespace_entity_guard"
-reason = "@jsx-family pragma comment (pragma collection, 5.8)"
+reason = "@jsx-family pragma comment (pragma collection unported, M8)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/jsx.rs"
 in = "jsx_namespace_entity_guard"
-reason = "jsxFactory-family options (JSX namespace entity parsing, 5.8)"
+reason = "jsxFactory-family options (parseIsolatedEntityName unported, M8)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/jsx.rs"
 in = "jsx_namespace_entity_guard"
-reason = "react-jsx implicit import container (module resolution, 5.8)"
+reason = "react-jsx implicit import container (pragma+module machinery, M8)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/jsx.rs"
@@ -1621,14 +1635,16 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "assertion_type_and_expression"
-reason = "getJSDocTypeAssertionType (JS type assertion, plain-JS band)"
-class = "untagged"
+reason = "getJSDocTypeAssertionType (JS type assertion, plain-JS band, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "binary_on_enter"
-reason = "binary expando analysis in a JS file (checkBinaryExpression onEnter [JSDOC])"
-class = "untagged"
+reason = "binary expando analysis in a JS file (checkBinaryExpression onEnter [JSDOC] M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1663,8 +1679,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "check_assertion_deferred"
-reason = "assertion deferred without a stashed operand type"
-class = "untagged"
+reason = "assertion deferred without a stashed operand type (speculation-transaction seam, M6)"
+class = "stage"
+owner = "M6"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1909,8 +1926,9 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "get_type_names_for_error_display"
-reason = "operator-error display for identically-named types (getTypeNameForErrorDisplay UseFullyQualifiedType)"
-class = "untagged"
+reason = "operator-error display for identically-named types (getTypeNameForErrorDisplay UseFullyQualifiedType, T2 M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -2031,16 +2049,16 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/structural.rs"
 in = "structured_type_related_to_worker"
-reason = "conditional sources (unported family, M4-end sweep 5.8)"
+reason = "conditional sources (unported family, M8-stub)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
 in = "structured_type_related_to_worker"
-reason = "conditional targets (unported family, M4-end sweep 5.8)"
+reason = "conditional targets (unported family, M8-stub)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
@@ -2072,15 +2090,16 @@ owner = "5.8"
 [[site]]
 file = "crates/checker/src/structural.rs"
 in = "structured_type_related_to_worker"
-reason = "mapped-type targets (unported family, M4-end sweep 5.8)"
+reason = "mapped-type targets (unported family, M8-stub)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
 in = "utf16_to_string"
-reason = "template inference strands a surrogate half (UTF-16)"
-class = "untagged"
+reason = "template inference strands a surrogate half (UTF-16 WTF-16 representation, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/variance.rs"
@@ -2091,8 +2110,9 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/widen.rs"
 in = "report_implicit_any"
-reason = "reportImplicitAny JSDoc arms ([JSDOC])"
-class = "untagged"
+reason = "reportImplicitAny JSDoc arms ([JSDOC] M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/types/src/tables.rs"
