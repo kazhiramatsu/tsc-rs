@@ -8564,6 +8564,38 @@ mod alias_instantiation_tests {
     }
 
     #[test]
+    fn generic_tuple_normalization_simplifies_variadic_indexed_access_elements() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type G<T extends { a: [unknown]; b: [unknown] }> = [...T[\"a\" | \"b\"]];\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let symbol = state
+                    .resolve_file_scope_name("G", tsrs2_types::SymbolFlags::TYPE_ALIAS)
+                    .expect("G resolves");
+                let declared = state
+                    .get_declared_type_of_symbol_slice(symbol)
+                    .expect("G's generic tuple resolves");
+                assert!(state.tables.is_generic_tuple_type(declared));
+
+                let normalized = state
+                    .get_normalized_type(declared, /*writing*/ false)
+                    .expect("generic tuple normalizes");
+                let TypeData::Union { types, .. } = &state.tables.type_of(normalized).data else {
+                    panic!("the union index should distribute the variadic tuple");
+                };
+                assert_eq!(types.len(), 2);
+                assert!(types
+                    .iter()
+                    .all(|&member| state.tables.is_generic_tuple_type(member)));
+                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+            },
+        );
+    }
+
+    #[test]
     fn alias_of_alias_restamps_the_outer_alias() {
         with_program_state(
             &[(

@@ -606,15 +606,29 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5e3b7a86845b858ca8bb7bc77565a77978ae9c5b794e1c5bf53bd572dac4bec3
     /// tsc-span: _tsc.js:64837-64841
     ///
-    /// The element getSimplifiedType calls are the M3 stub (no
-    /// Simplifiable kinds exist), so normalization reduces to the
-    /// createNormalizedTupleType re-expansion.
-    fn get_normalized_tuple_type(&mut self, ty: TypeId, _writing: bool) -> CheckResult2<TypeId> {
+    /// The checker keeps its eager re-expansion of the tuple reference,
+    /// but first simplifies every SIMPLIFIABLE element in the requested
+    /// reading/writing direction, matching tsc's sameMap step.
+    fn get_normalized_tuple_type(&mut self, ty: TypeId, writing: bool) -> CheckResult2<TypeId> {
         let target = self.tables.reference_target(ty);
         // getTypeArguments (64838) — deferred tuple references force
         // lazily; the wrapper pre-forces variadic elements for the
         // tables re-expansion.
-        let elements = self.get_type_arguments(ty)?;
+        let arity = match &self.tables.type_of(target).data {
+            TypeData::TupleTarget(data) => data.type_parameters.len(),
+            _ => unreachable!("generic tuple targets a tuple target"),
+        };
+        let mut elements = self.get_type_arguments(ty)?;
+        elements.truncate(arity);
+        for element in &mut elements {
+            if self
+                .tables
+                .flags_of(*element)
+                .intersects(TypeFlags::SIMPLIFIABLE)
+            {
+                *element = self.get_simplified_type(*element, writing)?;
+            }
+        }
         self.create_normalized_type_reference_forced(target, &elements)
     }
 
