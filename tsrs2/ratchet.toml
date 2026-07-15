@@ -1,8 +1,11 @@
 [t0]
 # rate is display-only once matched/total are present; the gate
 # compares the exact integer counts (zero-regression).
-rate = 0.376465
-matched = 18341
+# 5.9a: catch-up to the observed integers (5.8e's final run already
+# produced these; the slice recorded an earlier snapshot — the >= gate
+# never tripped, this just removes the slack).
+rate = 0.377943
+matched = 18413
 total = 48719
 allowed_regression = 0.0
 
@@ -11,8 +14,8 @@ rate = 0.0
 allowed_regression = 0.0
 
 [t0-2xxx]
-rate = 0.458596
-matched = 9592
+rate = 0.460174
+matched = 9625
 total = 20916
 allowed_regression = 0.0
 
