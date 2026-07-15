@@ -45,8 +45,10 @@ Every one of the 157 entries gets exactly one:
    malformed-tree guards would be factually weaker than the
    evidence. tsc's twin reads the field unguarded — the panic IS
    the faithful port of tsc's implicit invariant. Empirical
-   backstop: full-corpus conformance (48k fixtures) + bind corpus
-   (11k files) + invariants suite run at every slice gate.
+   backstop, all part of `cargo xtask ci` at every slice gate:
+   full-corpus conformance (5,908 fixtures / 48,719 diagnostic
+   rows), the bind-corpus smoke (11,130 files parsed+bound, added
+   to ci with this slice), and the invariants suite.
 2. **recovery** — a permanent guard for input that IS reachable
    but for which no tsc semantics exist: malformed/parse-recovery
    trees, and the tsc-CRASH family (inputs on which the vendored
