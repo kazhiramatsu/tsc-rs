@@ -866,7 +866,7 @@ impl<'a> CheckerState<'a> {
                     SymbolFlags::TYPE,
                     /*ignore_errors*/ true,
                     None,
-                );
+                )?;
                 match resolved {
                     Some(candidate)
                         if self
@@ -889,7 +889,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let first_identifier = self.first_identifier(entity_name);
                 if !self.is_this_identifier(first_identifier) {
-                    let first_identifier_symbol = self.get_resolved_symbol(first_identifier);
+                    let first_identifier_symbol = self.get_resolved_symbol(first_identifier)?;
                     let tp_symbol = self.tables.type_of(tp).symbol;
                     let tp_declaration = tp_symbol.and_then(|symbol| {
                         self.binder.symbol(symbol).declarations.first().copied()
@@ -2447,6 +2447,7 @@ mod tests {
                 false,
                 false,
             )
+            .expect("resolve_name")
             .expect("type parameter resolves");
         state.get_declared_type_of_type_parameter(symbol)
     }
@@ -2927,6 +2928,7 @@ mod class_container_tests {
                             false,
                             false,
                         )
+                        .expect("resolve_name")
                         .expect("T resolves");
                     state.get_declared_type_of_type_parameter(symbol)
                 };

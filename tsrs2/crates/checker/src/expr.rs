@@ -544,7 +544,7 @@ impl<'a> CheckerState<'a> {
         if self.is_this_in_type_query(node) {
             return self.check_this_expression(node);
         }
-        let Some(symbol) = self.get_resolved_symbol(node) else {
+        let Some(symbol) = self.get_resolved_symbol(node)? else {
             return Ok(self.tables.intrinsics.error);
         };
         self.check_identifier_calculate_node_check_flags(node, symbol);
@@ -1491,11 +1491,14 @@ impl<'a> CheckerState<'a> {
             == node_util::get_root_declaration(declaration_source, declaration)
     }
 
-    /// tsc getDeclarationOfAliasSymbol (48500): findLast over the
-    /// declarations with isAliasSymbolDeclaration. The JS arms
-    /// (assignment-declaration/require shapes) are the M2 3.4c residual
-    /// — constant-false in TS files.
-    fn get_declaration_of_alias_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
+    /// tsc-port: getDeclarationOfAliasSymbol @6.0.3
+    /// tsc-hash: 2030901db3779ce4f0290f76dbd86aa7e34226a6e9d37f488d2b5449fb3f6687
+    /// tsc-span: _tsc.js:48495-48497
+    ///
+    /// findLast over the declarations with isAliasSymbolDeclaration.
+    /// The JS arms (assignment-declaration/require shapes) are the M2
+    /// 3.4c residual — constant-false in TS files.
+    pub(crate) fn get_declaration_of_alias_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
         let declarations = self.binder.symbol(symbol).declarations.clone();
         declarations
             .into_iter()
@@ -1503,8 +1506,13 @@ impl<'a> CheckerState<'a> {
             .find(|&declaration| self.is_alias_symbol_declaration(declaration))
     }
 
-    /// tsc isAliasSymbolDeclaration (48503), TS arms.
-    fn is_alias_symbol_declaration(&self, node: NodeId) -> bool {
+    /// tsc-port: isAliasSymbolDeclaration @6.0.3
+    /// tsc-hash: 56e340e6315f9514b9b10ee2da3e5255c009cf09db1260c3198ac6088db29832
+    /// tsc-span: _tsc.js:48498-48500
+    ///
+    /// TS arms only (the JS require/assignment shapes are constant-
+    /// false in TS files).
+    pub(crate) fn is_alias_symbol_declaration(&self, node: NodeId) -> bool {
         match self.kind_of(node) {
             SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::NamespaceExportDeclaration
@@ -3145,14 +3153,15 @@ impl<'a> CheckerState<'a> {
                     // is an ALIAS symbol until resolveAlias (5.8d) —
                     // the plain VALUE meaning filter would reject it
                     // before the alias acceptance below can apply.
-                    self.resolve_entity_name(
+                    self.resolve_entity_name_ex(
                         expr,
                         SymbolFlags::from_bits(
                             SymbolFlags::VALUE.bits() | SymbolFlags::ALIAS.bits(),
                         ),
                         /*ignore_errors*/ true,
                         /*location*/ None,
-                    )
+                        /*dont_resolve_alias*/ true,
+                    )?
                 } else {
                     None
                 };

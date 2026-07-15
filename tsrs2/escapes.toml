@@ -209,13 +209,6 @@ class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_exports_of_symbol"
-reason = "module exports (getExportsOfModuleWorker export-star, M4 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_index_infos_of_index_symbol"
 reason = "late-bound computed-name index signatures (M4)"
 class = "untagged"
@@ -1655,6 +1648,25 @@ in = "is_tuple_context_constituent"
 reason = "inTupleContext generic-mapped disjunct (getHomomorphicTypeVariable, M8)"
 class = "stage"
 owner = "M8"
+
+[[site]]
+file = "crates/checker/src/modules.rs"
+in = "get_immediate_aliased_symbol"
+reason = "getImmediateAliasedSymbol without alias declaration (parse-recovery shape, tsc Debug.fail)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/modules.rs"
+in = "resolve_alias"
+reason = "resolveAlias alias symbol without alias declaration (parse-recovery shape, tsc Debug.fail)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/modules.rs"
+in = "resolve_es_module_symbol"
+reason = "resolveESModuleSymbol synthetic-default module type cloning (M4 5.8d tail)"
+class = "stage"
+owner = "5.8d"
 
 [[site]]
 file = "crates/checker/src/operators.rs"

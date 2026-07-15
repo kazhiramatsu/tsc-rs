@@ -8,6 +8,7 @@
 //! code unit — surrogate halves pass through unchanged).
 
 use tsrs2_binder::unescape_leading_underscores;
+use tsrs2_syntax::NodeId;
 use tsrs2_types::{SymbolFlags, SymbolId, TypeId};
 
 use crate::state::{CheckResult2, CheckerState};
@@ -128,9 +129,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:75579-75597
     ///
     /// The `"`-prefixed (quoted) names are rejected; the Alias-chase
-    /// arm (tryResolveAlias + meaning re-test) is elided to match
-    /// get_symbol_in_table's alias elision (M4 5.8) — FN-only, an
-    /// alias candidate never suggests.
+    /// arm (tryResolveAlias + meaning re-test) is LIVE (M4 5.8d). An
+    /// Unsupported unwind inside the chase demotes to no-suggestion
+    /// (tsc cannot fail here; the suggestion band is the only consumer
+    /// and a missing suggestion picks the plain message flavor).
     pub(crate) fn get_spelling_suggestion_for_name(
         &mut self,
         name: &str,
@@ -149,11 +151,34 @@ impl<'a> CheckerState<'a> {
                 return Some(candidate_name);
             }
             if flags.intersects(SymbolFlags::ALIAS) {
-                // (M4 5.8) tryResolveAlias chase elided.
-                return None;
+                if let Ok(Some(target)) = state.try_resolve_alias(candidate) {
+                    if state.binder.symbol(target).flags.intersects(meaning) {
+                        return Some(candidate_name);
+                    }
+                }
             }
             None
         })
+    }
+
+    /// tsc-port: getSuggestedSymbolForNonexistentModule @6.0.3
+    /// tsc-hash: 34b420727eaeb8830d4d7e53508765d37bd46e83f85a56de9bc541b5e219ee65
+    /// tsc-span: _tsc.js:75551-75553
+    pub(crate) fn get_suggested_symbol_for_nonexistent_module(
+        &mut self,
+        name: NodeId,
+        target_module: SymbolId,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let Some(name_text) = self.identifier_text_of(name).map(str::to_owned) else {
+            return Ok(None);
+        };
+        let exports = self.get_exports_of_module(target_module)?;
+        let candidates: Vec<SymbolId> = exports.values().copied().collect();
+        Ok(self.get_spelling_suggestion_for_name(
+            &name_text,
+            &candidates,
+            SymbolFlags::MODULE_MEMBER,
+        ))
     }
 
     /// tsc-port: getSuggestedSymbolForNonexistentClassMember @6.0.3

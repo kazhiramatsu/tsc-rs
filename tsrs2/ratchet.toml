@@ -43,5 +43,5 @@ max_untagged = 114
 # 5.8c: +7 decorator/class-band guards (decorator/heritage/class-
 # element recovery nodes + the getEffectiveDecoratorArguments and
 # getClassElementPropertyKeyType Debug.fail transcriptions, risk #6).
-max_recovery = 106
+max_recovery = 108
 

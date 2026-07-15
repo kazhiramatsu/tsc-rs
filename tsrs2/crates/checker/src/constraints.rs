@@ -540,6 +540,7 @@ mod tests {
                 false,
                 false,
             )
+            .expect("resolve_name")
             .or_else(|| {
                 // Type parameters live in their container's scope; walk
                 // from the first identifier inside the function body.
@@ -551,14 +552,16 @@ mod tests {
                         source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::VariableDeclaration
                     })
                     .expect("var declaration");
-                state.resolve_name(
-                    Some(inside),
-                    name,
-                    SymbolFlags::TYPE_PARAMETER,
-                    None,
-                    false,
-                    false,
-                )
+                state
+                    .resolve_name(
+                        Some(inside),
+                        name,
+                        SymbolFlags::TYPE_PARAMETER,
+                        None,
+                        false,
+                        false,
+                    )
+                    .expect("resolve_name")
             })
             .expect("type parameter resolves");
         state.get_declared_type_of_type_parameter(symbol)

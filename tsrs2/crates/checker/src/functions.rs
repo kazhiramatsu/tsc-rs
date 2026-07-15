@@ -1092,7 +1092,7 @@ impl<'a> CheckerState<'a> {
         match self.kind_of(node) {
             SyntaxKind::ThisKeyword => Ok(true),
             SyntaxKind::Identifier => {
-                let Some(symbol) = self.get_resolved_symbol(node) else {
+                let Some(symbol) = self.get_resolved_symbol(node)? else {
                     return Ok(false);
                 };
                 if self.is_constant_variable(symbol) {
@@ -2068,7 +2068,7 @@ impl<'a> CheckerState<'a> {
                 SymbolFlags::VALUE,
                 /*ignore_errors*/ true,
                 None,
-            );
+            )?;
             let promise_constructor_type = match promise_constructor_symbol {
                 Some(symbol) => self.get_type_of_symbol(symbol)?,
                 None => self.tables.intrinsics.error,

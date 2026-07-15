@@ -469,6 +469,16 @@ pub struct CheckerState<'a> {
     pub unknown_symbol: SymbolId,
     /// tsc patternAmbientModules (initializeTypeChecker 88754-88756).
     pub pattern_ambient_modules: Vec<(String, String, SymbolId)>,
+    /// tsrs-native (M4 5.8d): normalized file path → program file
+    /// index — the host.getResolvedModule seam's lookup table
+    /// (program-and-modules.md §2; later files shadow earlier
+    /// same-name entries like the program layer's last-index-by-name).
+    pub program_path_index: std::collections::HashMap<String, usize>,
+    /// tsrs-native (M4 5.8d): EVERY host input path (normalized),
+    /// including files the program layer drops (.json bodies, .js
+    /// without allowJs) — the resolver's suppression probes read this
+    /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
+    pub host_file_paths: std::collections::HashSet<String>,
     /// Lazy getGlobal*Type memos (deferredGlobal* pattern 60679 for the
     /// deferred ones; the core init block 88788+ is deliberately LAZY
     /// here — m4-checker-skeleton-steps.md 5.0 — so each global starts
@@ -623,6 +633,8 @@ impl<'a> CheckerState<'a> {
             require_symbol,
             unknown_symbol,
             pattern_ambient_modules: Vec::new(),
+            program_path_index: std::collections::HashMap::new(),
+            host_file_paths: std::collections::HashSet::new(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
             resolution_targets: Vec::new(),
@@ -641,6 +653,13 @@ impl<'a> CheckerState<'a> {
             global_this_symbol,
             CheckFlags::READONLY,
         );
+        // The module resolver's path table (M4 5.8d): later files
+        // shadow earlier same-name entries (lib.rs last_index_by_name).
+        for index in 0..state.binder.file_count() {
+            let normalized =
+                Self::normalize_program_path(&state.binder.source(index).file_name, "");
+            state.program_path_index.insert(normalized, index);
+        }
         state
             .globals
             .insert("globalThis".to_owned(), global_this_symbol);

@@ -22,6 +22,7 @@ pub mod jsx;
 pub mod links;
 pub mod literals;
 pub mod merge;
+pub mod modules;
 pub mod operators;
 mod plain_js_errors;
 pub mod program;
@@ -235,9 +236,22 @@ fn filter_by_comment_directives(
 fn filter_semantic_diagnostics(
     diagnostics: &mut tsrs2_diags::DiagnosticList,
     options: &CompilerOptions,
+    declaration_file_names: &std::collections::HashSet<&str>,
 ) {
     if options.no_emit == Some(true) {
         diagnostics.retain(|diagnostic| !diagnostic.skipped_on_no_emit);
+    }
+    // skipTypeCheckingWorker's skipLibCheck arm (18896): declaration
+    // files contribute NO bind/check diagnostics — tsc skips the whole
+    // check pass per file; the per-file diagnostic buckets make the
+    // post-filter equivalent (M4 5.8d).
+    if options.skip_lib_check == Some(true) {
+        diagnostics.retain(|diagnostic| {
+            diagnostic
+                .file_name
+                .as_deref()
+                .is_none_or(|file_name| !declaration_file_names.contains(file_name))
+        });
     }
 }
 
@@ -451,6 +465,14 @@ pub fn check_program_with_libs(
     if !binder_refs.is_empty() {
         let lib_count = lib_binders.len();
         let mut state = state::CheckerState::from_program(binder_refs, options);
+        // The resolver's host view (M4 5.8d): every INPUT path, incl.
+        // files the program dropped (.json bodies, .js without
+        // allowJs) — the suppression probes need them to keep 2307
+        // FP-free.
+        state.host_file_paths = files
+            .iter()
+            .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
+            .collect();
         for index in lib_count..state.binder.file_count() {
             state.check_source_file(index);
         }
@@ -535,7 +557,12 @@ pub fn check_program_with_libs(
         // getPreEmitDiagnostics / the oracle driver's
         // ts.sortAndDeduplicateDiagnostics; getSyntacticDiagnostics
         // stays per-file unsorted concatenation, matching tsc.
-        filter_semantic_diagnostics(&mut diagnostics, options);
+        let declaration_file_names: std::collections::HashSet<&str> = by_name
+            .values()
+            .filter(|source| source.is_declaration_file)
+            .map(|source| source.file_name.as_str())
+            .collect();
+        filter_semantic_diagnostics(&mut diagnostics, options, &declaration_file_names);
         tsrs2_diags::sort_and_dedupe_diagnostics(&mut diagnostics);
     }
 

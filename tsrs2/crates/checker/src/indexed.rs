@@ -1638,6 +1638,7 @@ mod tests {
                 false,
                 false,
             )
+            .expect("resolve_name")
             .expect("type parameter resolves");
         state.get_declared_type_of_type_parameter(symbol)
     }

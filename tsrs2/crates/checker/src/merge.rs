@@ -110,7 +110,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: cloneSymbol @6.0.3
     /// tsc-hash: 1a41af611deac3728405e13030e086a1fbdd56ccbeb7e8aea75c5489897c283c
     /// tsc-span: _tsc.js:47696-47706
-    fn clone_symbol(&mut self, symbol: SymbolId) -> SymbolId {
+    pub(crate) fn clone_symbol(&mut self, symbol: SymbolId) -> SymbolId {
         let original = self.binder.symbol(symbol);
         let flags = original.flags;
         let escaped_name = original.escaped_name.clone();

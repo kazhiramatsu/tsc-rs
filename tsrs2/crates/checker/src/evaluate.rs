@@ -475,7 +475,7 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
     ) -> CheckResult2<EvaluatorResult> {
         let Some(symbol) =
-            self.resolve_entity_name(expr, SymbolFlags::VALUE, /*ignore_errors*/ true, None)
+            self.resolve_entity_name(expr, SymbolFlags::VALUE, /*ignore_errors*/ true, None)?
         else {
             return Ok(undefined_result());
         };
@@ -586,7 +586,7 @@ impl<'a> CheckerState<'a> {
             return Ok(undefined_result());
         }
         let Some(root_symbol) =
-            self.resolve_entity_name(root, SymbolFlags::VALUE, /*ignore_errors*/ true, None)
+            self.resolve_entity_name(root, SymbolFlags::VALUE, /*ignore_errors*/ true, None)?
         else {
             return Ok(undefined_result());
         };

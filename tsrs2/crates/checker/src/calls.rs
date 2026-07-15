@@ -2817,7 +2817,7 @@ impl<'a> CheckerState<'a> {
             /*name_not_found_message*/ None,
             /*is_use*/ false,
             /*exclude_globals*/ false,
-        );
+        )?;
         let Some(namespace_symbol) = namespace_symbol else {
             return Ok(None);
         };
@@ -4103,7 +4103,7 @@ impl<'a> CheckerState<'a> {
             /*name_not_found_message*/ None,
             /*is_use*/ false,
             /*exclude_globals*/ false,
-        );
+        )?;
         let Some(symbol) = symbol else {
             return Ok(false);
         };
@@ -4148,7 +4148,7 @@ impl<'a> CheckerState<'a> {
             None,
             false,
             false,
-        );
+        )?;
         Ok(ctor_symbol == Some(global_promise))
     }
 
@@ -5613,7 +5613,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         };
         let resolved =
-            self.resolve_name(Some(left), "Symbol", SymbolFlags::VALUE, None, false, false);
+            self.resolve_name(Some(left), "Symbol", SymbolFlags::VALUE, None, false, false)?;
         Ok(resolved == Some(global_es_symbol))
     }
 }

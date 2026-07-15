@@ -12,7 +12,7 @@
 //! correction: checkNonNullNonVoidType's consumers are the 5.8
 //! variable-declaration sites, not arm 236).
 
-use tsrs2_binder::node_util;
+use tsrs2_binder::{node_util, SymbolTable};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckMode, ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeFacts, TypeFlags, TypeId,
@@ -735,17 +735,31 @@ impl<'a> CheckerState<'a> {
     /// the globals table. Misses (import aliases whose VALUE-flag
     /// chase is unported, class members, anything else) stay None,
     /// which the root match treats as "cannot distinguish".
+    /// tsrs-native: the [FLOW M5] gate's raw lexical probe — the
+    /// NO-alias-chase getSymbol flavor, deliberately frozen (PR #7
+    /// hardening): an import-alias root stays None = "cannot
+    /// distinguish", which CONTAINS. The tsc-shaped chase lives in
+    /// get_symbol_in_table for the name resolvers.
     fn resolve_lexical_value_symbol(&self, at: NodeId, name: &str) -> Option<SymbolId> {
+        let probe = |table: &SymbolTable| -> Option<SymbolId> {
+            let &symbol = table.get(name)?;
+            let symbol = self.get_merged_symbol(symbol);
+            self.binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::VALUE)
+                .then_some(symbol)
+        };
         let mut location = Some(at);
         while let Some(current) = location {
             if let Some(table) = self.binder.locals_of(current) {
-                if let Some(symbol) = self.get_symbol_in_table(table, name, SymbolFlags::VALUE) {
+                if let Some(symbol) = probe(table) {
                     return Some(symbol);
                 }
             }
             location = self.parent_of(current);
         }
-        self.get_symbol_in_table(&self.globals, name, SymbolFlags::VALUE)
+        probe(&self.globals)
     }
 
     /// Strip expression wrappers that do not change whether an
@@ -3197,7 +3211,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(first) != SyntaxKind::Identifier {
             return Ok(false);
         }
-        Ok(self.get_resolved_symbol(first) == Some(parent))
+        Ok(self.get_resolved_symbol(first)? == Some(parent))
     }
 
     /// tsc-port: checkPropertyNotUsedBeforeDeclaration @6.0.3
@@ -3417,7 +3431,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         };
         if self
-            .resolve_entity_name(expression, SymbolFlags::INTERFACE, true, None)
+            .resolve_entity_name(expression, SymbolFlags::INTERFACE, true, None)?
             .is_some()
         {
             let text = self.entity_name_to_string(expression)?;
@@ -4008,7 +4022,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(e) != SyntaxKind::Identifier {
             return Ok(false);
         }
-        let Some(symbol) = self.get_resolved_symbol(e) else {
+        let Some(symbol) = self.get_resolved_symbol(e)? else {
             return Ok(false);
         };
         if !self
@@ -4082,7 +4096,7 @@ impl<'a> CheckerState<'a> {
                 }
                 Ok(None)
             }
-            SyntaxKind::Identifier => Ok(self.get_resolved_symbol(initializer)),
+            SyntaxKind::Identifier => self.get_resolved_symbol(initializer),
             _ => Ok(None),
         }
     }

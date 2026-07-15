@@ -1075,7 +1075,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(symbol));
         }
         match self.data_of(e) {
-            NodeData::Identifier(_) => Ok(self.get_resolved_symbol(e)),
+            NodeData::Identifier(_) => self.get_resolved_symbol(e),
             NodeData::PropertyAccessExpression(data) => {
                 let (expression, name) = (data.expression, data.name);
                 let expression = expression.expect("access has an expression");
@@ -1196,7 +1196,8 @@ impl<'a> CheckerState<'a> {
                 };
                 let lhs_expression = access.expression.expect("access has an expression");
                 if let Some(id_text) = self.identifier_text_of(lhs_expression).map(str::to_owned) {
-                    let parent_symbol = self.resolve_value_name_no_report(lhs_expression, &id_text);
+                    let parent_symbol =
+                        self.resolve_value_name_no_report(lhs_expression, &id_text)?;
                     if let Some(parent_symbol) = parent_symbol {
                         let annotated = self
                             .binder
@@ -1406,7 +1407,11 @@ impl<'a> CheckerState<'a> {
 
     /// resolveName(Value, no-report, isUse) — the kind-5 parent-symbol
     /// probe (73020-73030).
-    fn resolve_value_name_no_report(&mut self, location: NodeId, name: &str) -> Option<SymbolId> {
+    fn resolve_value_name_no_report(
+        &mut self,
+        location: NodeId,
+        name: &str,
+    ) -> CheckResult2<Option<SymbolId>> {
         self.resolve_name(
             Some(location),
             name,

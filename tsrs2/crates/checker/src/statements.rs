@@ -628,7 +628,7 @@ impl<'a> CheckerState<'a> {
             /*name_not_found_message*/ None,
             /*is_use*/ false,
             /*exclude_globals*/ false,
-        );
+        )?;
         let Some(local) = local else {
             return Ok(());
         };

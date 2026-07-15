@@ -17,7 +17,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
 
-use crate::state::CheckerState;
+use crate::state::{CheckResult2, CheckerState};
 
 /// tsc maximumSuggestionCount (47424).
 const MAXIMUM_SUGGESTION_COUNT: u32 = 10;
@@ -38,27 +38,33 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bd2696712b634b49b85269b6fd5118efb5b99ad3e3986e2b7adc77ed494d4746
     /// tsc-span: _tsc.js:47904-47919
     ///
-    /// The Alias arm chases the alias TARGET's flags (getSymbolFlags);
-    /// resolveAlias is unported (import semantics, M4 5.8), so an
-    /// alias whose own flags miss `meaning` does not match. FN-only:
-    /// alias names in matching positions resolve to nothing until 5.8.
+    /// The Alias arm chases the alias TARGET's flags (getSymbolFlags,
+    /// M4 5.8d): an alias whose own flags miss `meaning` matches when
+    /// its resolved chain carries it.
     pub fn get_symbol_in_table(
-        &self,
+        &mut self,
         table: &SymbolTable,
         name: &str,
         meaning: SymbolFlags,
-    ) -> Option<SymbolId> {
+    ) -> CheckResult2<Option<SymbolId>> {
         if meaning.is_empty() {
-            return None;
+            return Ok(None);
         }
-        let &symbol = table.get(name)?;
+        let Some(&symbol) = table.get(name) else {
+            return Ok(None);
+        };
         let symbol = self.get_merged_symbol(symbol);
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(meaning) {
-            return Some(symbol);
+            return Ok(Some(symbol));
         }
-        // (M4 5.8) Alias target-flags chase elided — see doc above.
-        None
+        if flags.intersects(SymbolFlags::ALIAS) {
+            let target_flags = self.get_symbol_flags_of(symbol)?;
+            if target_flags.intersects(meaning) {
+                return Ok(Some(symbol));
+            }
+        }
+        Ok(None)
     }
 
     /// The parameterized lookup's probe half (&self): exact match or,
@@ -67,18 +73,18 @@ impl<'a> CheckerState<'a> {
     /// capitalized-primitive synthetics exist only at the GLOBALS
     /// level.
     fn lookup_probe(
-        &self,
+        &mut self,
         table: &SymbolTable,
         name: &str,
         meaning: SymbolFlags,
         suggestion: bool,
         is_globals: bool,
-    ) -> LookupProbe {
-        if let Some(found) = self.get_symbol_in_table(table, name, meaning) {
-            return LookupProbe::Found(found);
+    ) -> CheckResult2<LookupProbe> {
+        if let Some(found) = self.get_symbol_in_table(table, name, meaning)? {
+            return Ok(LookupProbe::Found(found));
         }
         if !suggestion {
-            return LookupProbe::Miss;
+            return Ok(LookupProbe::Miss);
         }
         let capitalized_primitives: Vec<&'static str> = if is_globals {
             ["string", "number", "boolean", "object", "bigint", "symbol"]
@@ -94,10 +100,10 @@ impl<'a> CheckerState<'a> {
         } else {
             Vec::new()
         };
-        LookupProbe::Suggest {
+        Ok(LookupProbe::Suggest {
             values: table.values().copied().collect(),
             capitalized_primitives,
-        }
+        })
     }
 
     /// The suggestion half (&mut self): synthetic lowercase-primitive
@@ -152,7 +158,7 @@ impl<'a> CheckerState<'a> {
         name_not_found_message: Option<&'static DiagnosticMessage>,
         is_use: bool,
         exclude_globals: bool,
-    ) -> Option<SymbolId> {
+    ) -> CheckResult2<Option<SymbolId>> {
         self.resolve_name_full(
             location,
             name,
@@ -177,7 +183,7 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
         name: &str,
         meaning: SymbolFlags,
-    ) -> Option<SymbolId> {
+    ) -> CheckResult2<Option<SymbolId>> {
         self.resolve_name_full(
             location, name, meaning, /*name_not_found_message*/ None, /*is_use*/ false,
             /*exclude_globals*/ false, /*suggestion*/ true,
@@ -194,7 +200,7 @@ impl<'a> CheckerState<'a> {
         is_use: bool,
         exclude_globals: bool,
         suggestion: bool,
-    ) -> Option<SymbolId> {
+    ) -> CheckResult2<Option<SymbolId>> {
         let original_location = location;
         let mut location = location;
         let mut result: Option<SymbolId> = None;
@@ -206,7 +212,7 @@ impl<'a> CheckerState<'a> {
 
         'walk: while let Some(loc) = location {
             if name == "const" && self.is_const_assertion(loc) {
-                return None;
+                return Ok(None);
             }
             if matches!(
                 self.kind_of(loc),
@@ -222,7 +228,8 @@ impl<'a> CheckerState<'a> {
                 && !self.binder.is_external_or_common_js_module_of_node(loc);
             if !loc_is_global_source_file {
                 if let Some(locals) = self.binder.locals_of(loc) {
-                    let probe = self.lookup_probe(locals, name, meaning, suggestion, false);
+                    let locals = locals.clone();
+                    let probe = self.lookup_probe(&locals, name, meaning, suggestion, false)?;
                     if let Some(found) = self.finish_lookup(probe, name, meaning) {
                         let mut use_result = true;
                         let result_flags = self.binder.symbol(found).flags;
@@ -363,8 +370,13 @@ impl<'a> CheckerState<'a> {
                         }
                         if name != tsrs2_types::InternalSymbolName::DEFAULT {
                             let masked = meaning & SymbolFlags::MODULE_MEMBER;
-                            let probe =
-                                self.lookup_probe(&module_exports, name, masked, suggestion, false);
+                            let probe = self.lookup_probe(
+                                &module_exports,
+                                name,
+                                masked,
+                                suggestion,
+                                false,
+                            )?;
                             if let Some(found) = self.finish_lookup(probe, name, masked) {
                                 // commonJsModuleIndicator + JSDoc type
                                 // alias exception: JSDoc unmodeled, so
@@ -392,7 +404,7 @@ impl<'a> CheckerState<'a> {
                         .map(|s| self.binder.symbol(s).exports.clone())
                         .unwrap_or_default();
                     let masked = meaning & SymbolFlags::ENUM_MEMBER;
-                    let probe = self.lookup_probe(&exports, name, masked, suggestion, false);
+                    let probe = self.lookup_probe(&exports, name, masked, suggestion, false)?;
                     if let Some(found) = self.finish_lookup(probe, name, masked) {
                         // (isolatedModules cross-file qualification
                         // error elided — option unmodeled.)
@@ -405,14 +417,15 @@ impl<'a> CheckerState<'a> {
                         if let Some(class) = self.parent_of(loc) {
                             if let Some(ctor) = self.find_constructor_declaration(class) {
                                 if let Some(ctor_locals) = self.binder.locals_of(ctor) {
+                                    let ctor_locals = ctor_locals.clone();
                                     let masked = meaning & SymbolFlags::VALUE;
                                     let probe = self.lookup_probe(
-                                        ctor_locals,
+                                        &ctor_locals,
                                         name,
                                         masked,
                                         suggestion,
                                         false,
-                                    );
+                                    )?;
                                     if self.finish_lookup(probe, name, masked).is_some() {
                                         property_with_invalid_initializer = Some(loc);
                                     }
@@ -434,7 +447,7 @@ impl<'a> CheckerState<'a> {
                         .map(|s| self.binder.symbol(s).members.clone())
                         .unwrap_or_default();
                     let masked = meaning & SymbolFlags::TYPE;
-                    let probe = self.lookup_probe(&members, name, masked, suggestion, false);
+                    let probe = self.lookup_probe(&members, name, masked, suggestion, false)?;
                     if let Some(found) = self.finish_lookup(probe, name, masked) {
                         if self.is_type_parameter_symbol_declared_in_container(found, loc) {
                             if last_location.is_some_and(|l| self.is_static_node(l)) {
@@ -445,7 +458,7 @@ impl<'a> CheckerState<'a> {
                                         &[],
                                     );
                                 }
-                                return None;
+                                return Ok(None);
                             }
                             result = Some(found);
                             break 'walk;
@@ -493,7 +506,7 @@ impl<'a> CheckerState<'a> {
                                     .unwrap_or_default();
                                 let masked = meaning & SymbolFlags::TYPE;
                                 let probe =
-                                    self.lookup_probe(&members, name, masked, suggestion, false);
+                                    self.lookup_probe(&members, name, masked, suggestion, false)?;
                                 if self.finish_lookup(probe, name, masked).is_some() {
                                     if name_not_found_message.is_some() {
                                         self.error_at(
@@ -502,7 +515,7 @@ impl<'a> CheckerState<'a> {
                                             &[],
                                         );
                                     }
-                                    return None;
+                                    return Ok(None);
                                 }
                             }
                         }
@@ -528,7 +541,7 @@ impl<'a> CheckerState<'a> {
                                 .unwrap_or_default();
                             let masked = meaning & SymbolFlags::TYPE;
                             let probe =
-                                self.lookup_probe(&members, name, masked, suggestion, false);
+                                self.lookup_probe(&members, name, masked, suggestion, false)?;
                             if self.finish_lookup(probe, name, masked).is_some() {
                                 if name_not_found_message.is_some() {
                                     self.error_at(
@@ -537,7 +550,7 @@ impl<'a> CheckerState<'a> {
                                         &[],
                                     );
                                 }
-                                return None;
+                                return Ok(None);
                             }
                         }
                     }
@@ -709,14 +722,14 @@ impl<'a> CheckerState<'a> {
                 {
                     if let Some(file_symbol) = self.binder.node_symbol(last) {
                         if self.binder.symbol(file_symbol).flags.intersects(meaning) {
-                            return Some(file_symbol);
+                            return Ok(Some(file_symbol));
                         }
                     }
                 }
             }
             if !exclude_globals {
                 let globals = self.globals.clone();
-                let probe = self.lookup_probe(&globals, name, meaning, suggestion, true);
+                let probe = self.lookup_probe(&globals, name, meaning, suggestion, true)?;
                 result = self.finish_lookup(probe, name, meaning);
             }
         }
@@ -731,7 +744,7 @@ impl<'a> CheckerState<'a> {
                     property,
                     result,
                 ) {
-                    return None;
+                    return Ok(None);
                 }
             }
             match result {
@@ -745,7 +758,7 @@ impl<'a> CheckerState<'a> {
                 ),
             }
         }
-        result
+        Ok(result)
     }
 
     fn advance_walk(
@@ -1075,11 +1088,9 @@ impl<'a> CheckerState<'a> {
         //    unported (alias resolution 5.8, alternates M8), so a
         //    quiet all-meanings re-probe finding anything means the
         //    plain form would be the wrong code.
-        if self
-            .resolve_name(error_location, name, SymbolFlags::ALL, None, false, false)
-            .is_some()
-        {
-            return;
+        match self.resolve_name(error_location, name, SymbolFlags::ALL, None, false, false) {
+            Ok(Some(_)) | Err(_) => return,
+            Ok(None) => {}
         }
         // 2. `declare global` blocks can inject arbitrary names into
         //    the global scope; global-augmentation binding is
@@ -1111,7 +1122,14 @@ impl<'a> CheckerState<'a> {
         } else {
             let mut suggestion: Option<SymbolId> = None;
             if self.suggestion_count < MAXIMUM_SUGGESTION_COUNT {
-                suggestion = self.resolve_name_for_symbol_suggestion(error_location, name, meaning);
+                // An Unsupported unwind makes plain-vs-suggested
+                // undecidable — skip the report (the failure-band
+                // discipline above).
+                suggestion =
+                    match self.resolve_name_for_symbol_suggestion(error_location, name, meaning) {
+                        Ok(suggestion) => suggestion,
+                        Err(_) => return,
+                    };
                 // The isGlobalScopeAugmentationDeclaration filter
                 // (48126-48129) is provably dead here: the
                 // program_has_global_augmentation gate above already
@@ -1453,47 +1471,63 @@ impl<'a> CheckerState<'a> {
 
     // ---- resolveEntityName ----
 
-    /// tsc-port: resolveEntityName @6.0.3
-    /// tsc-hash: 0c5ce0e5980d5548db101cd9240b04944dea6e35cde2b0b3416210816fdb85b9
-    /// tsc-span: _tsc.js:49292-49393
-    ///
-    /// Slices, each ledgered: the JS prototype-assignment secondary
-    /// lookup (JSDoc/expando — unmodeled), the CJS-require namespace
-    /// re-resolution, the three suggestion alternates in the
-    /// missing-export path (M8; the plain 2694 form is emitted), the
-    /// type-only alias marking, and the final resolveAlias hop (import
-    /// semantics — an alias symbol returns unchanged; 5.8 replaces).
-    /// getExportsOfSymbol is the plain exports table until 5.3's
-    /// late-binding.
+    /// tsrs-native: the dontResolveAlias=false default flavor of
+    /// resolve_entity_name_ex (tsc's optional-parameter default).
     pub fn resolve_entity_name(
         &mut self,
         name: NodeId,
         meaning: SymbolFlags,
         ignore_errors: bool,
         location: Option<NodeId>,
-    ) -> Option<SymbolId> {
+    ) -> CheckResult2<Option<SymbolId>> {
+        self.resolve_entity_name_ex(name, meaning, ignore_errors, location, false)
+    }
+
+    /// tsc-port: resolveEntityName @6.0.3
+    /// tsc-hash: 0c5ce0e5980d5548db101cd9240b04944dea6e35cde2b0b3416210816fdb85b9
+    /// tsc-span: _tsc.js:49292-49393
+    ///
+    /// Slices, each ledgered: the JS prototype-assignment secondary
+    /// lookup (JSDoc/expando — unmodeled), the CJS-require namespace
+    /// re-resolution (JS), and two suggestion alternates in the
+    /// missing-export path (typeof-suggestion + type-not-namespace —
+    /// the raw-hit silent-None carve-out below). The module-member
+    /// spelling suggestion, the type-only alias marking, and the final
+    /// resolveAlias hop are LIVE (M4 5.8d).
+    pub fn resolve_entity_name_ex(
+        &mut self,
+        name: NodeId,
+        meaning: SymbolFlags,
+        ignore_errors: bool,
+        location: Option<NodeId>,
+        dont_resolve_alias: bool,
+    ) -> CheckResult2<Option<SymbolId>> {
         if node_util::node_is_missing(self.binder.source_of_node(name), Some(name)) {
-            return None;
+            return Ok(None);
         }
         let namespace_meaning = SymbolFlags::NAMESPACE;
-        match self.kind_of(name) {
+        let symbol = match self.kind_of(name) {
             SyntaxKind::Identifier => {
-                let text = self.identifier_text_of(name)?.to_owned();
+                let Some(text) = self.identifier_text_of(name).map(str::to_owned) else {
+                    return Ok(None);
+                };
                 let message = if meaning == namespace_meaning {
                     &diagnostics::Cannot_find_namespace_0
                 } else {
                     self.cannot_find_name_diagnostic_for_name(name)
                 };
-                let symbol = self.resolve_name(
+                let Some(symbol) = self.resolve_name(
                     location.or(Some(name)),
                     &text,
                     meaning,
                     (!ignore_errors).then_some(message),
                     true,
                     false,
-                )?;
-                let symbol = self.get_merged_symbol(symbol);
-                self.finish_resolve_entity_name(symbol, meaning)
+                )?
+                else {
+                    return Ok(None);
+                };
+                self.get_merged_symbol(symbol)
             }
             SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression => {
                 let (left, right) = match self.data_of(name) {
@@ -1501,89 +1535,125 @@ impl<'a> CheckerState<'a> {
                     NodeData::PropertyAccessExpression(data) => (data.expression, data.name),
                     _ => unreachable!("kind implies payload"),
                 };
-                let left = left?;
-                let right = right?;
-                let namespace =
-                    self.resolve_entity_name(left, namespace_meaning, ignore_errors, location)?;
+                let (Some(left), Some(right)) = (left, right) else {
+                    return Ok(None);
+                };
+                let namespace = self.resolve_entity_name_ex(
+                    left,
+                    namespace_meaning,
+                    ignore_errors,
+                    location,
+                    /*dont_resolve_alias*/ false,
+                )?;
+                let Some(namespace) = namespace else {
+                    return Ok(None);
+                };
                 if node_util::node_is_missing(self.binder.source_of_node(right), Some(right)) {
-                    return None;
+                    return Ok(None);
                 }
                 if namespace == self.unknown_symbol {
-                    return Some(namespace);
+                    return Ok(Some(namespace));
                 }
-                // resolveAlias is unported (5.8d §9): an alias left
-                // (import q = a.b / import specifiers) returns
-                // UNRESOLVED from finish_resolve_entity_name, so its
-                // exports table below is not the aliased target's —
-                // the member read would fabricate 2694. Skip the
-                // report (silent None; the 5.8d alias protocol lifts
-                // this).
-                if self
-                    .binder
-                    .symbol(namespace)
-                    .flags
-                    .intersects(SymbolFlags::ALIAS)
-                {
-                    return None;
-                }
-                let right_text = self.identifier_text_of(right)?.to_owned();
+                let Some(right_text) = self.identifier_text_of(right).map(str::to_owned) else {
+                    return Ok(None);
+                };
                 // getExportsOfSymbol's globalThis special case (47710):
                 // globalThisSymbol's exports ARE the merged globals
                 // table (initializeTypeChecker 46492 aliases them).
                 let exports = if namespace == self.global_this_symbol {
                     self.globals.clone()
                 } else {
-                    self.binder.symbol(namespace).exports.clone()
+                    self.get_exports_of_symbol(namespace)?
                 };
-                let symbol = self
-                    .get_symbol_in_table(&exports, &right_text, meaning)
+                let mut symbol = self
+                    .get_symbol_in_table(&exports, &right_text, meaning)?
                     .map(|s| self.get_merged_symbol(s));
+                if symbol.is_none()
+                    && self
+                        .binder
+                        .symbol(namespace)
+                        .flags
+                        .intersects(SymbolFlags::ALIAS)
+                {
+                    let resolved_namespace = self.resolve_alias(namespace)?;
+                    let alias_exports = if resolved_namespace == self.global_this_symbol {
+                        self.globals.clone()
+                    } else {
+                        self.get_exports_of_symbol(resolved_namespace)?
+                    };
+                    symbol = self
+                        .get_symbol_in_table(&alias_exports, &right_text, meaning)?
+                        .map(|s| self.get_merged_symbol(s));
+                }
                 let Some(symbol) = symbol else {
-                    // A raw table hit that failed only the MEANING
-                    // filter: either an ALIAS (export import a = A —
-                    // tsc's getSymbol alias arm chases the target,
-                    // resolveAlias 5.8d) or a wrong-meaning member
-                    // (tsc's ALTERNATE forms: 2749 value-as-type /
-                    // namespace-as-type family — M8 per the module
-                    // note). Both make plain-2694-vs-alternate
-                    // undecidable — silent None (parserharness pins
-                    // 2749, not 2694).
-                    if exports.get(&right_text).is_some() {
-                        return None;
-                    }
                     if !ignore_errors {
                         let namespace_name = self.fully_qualified_name(namespace);
                         let declaration_name = node_util::declaration_name_to_string(
                             self.binder.source_of_node(right),
                             Some(right),
                         );
-                        // (M8) getSuggestedSymbolForNonexistentModule /
-                        // typeof-suggestion / type-not-namespace
-                        // alternates elided — plain form only.
+                        let suggestion =
+                            self.get_suggested_symbol_for_nonexistent_module(right, namespace)?;
+                        if let Some(suggestion) = suggestion {
+                            let suggestion_name = self.symbol_display_name(suggestion);
+                            self.error_at(
+                                Some(right),
+                                &diagnostics::_0_has_no_exported_member_named_1_Did_you_mean_2,
+                                &[&namespace_name, &declaration_name, &suggestion_name],
+                            );
+                            return Ok(None);
+                        }
+                        // A raw table hit that failed only the MEANING
+                        // filter: tsc's ALTERNATE forms (typeof
+                        // suggestion / 2713 type-not-namespace) — M8
+                        // per the module note; plain-2694-vs-alternate
+                        // undecidable — silent None (parserharness
+                        // pins 2749, not 2694).
+                        if exports.get(&right_text).is_some() {
+                            return Ok(None);
+                        }
                         self.error_at(
                             Some(right),
                             &diagnostics::Namespace_0_has_no_exported_member_1,
                             &[&namespace_name, &declaration_name],
                         );
                     }
-                    return None;
+                    return Ok(None);
                 };
-                self.finish_resolve_entity_name(symbol, meaning)
+                symbol
             }
             _ => unreachable!("Unknown entity name kind."),
+        };
+        // The type-only alias marking on entity names (49380-49391;
+        // nodeIsSynthesized is constant-false — no synthesis).
+        if matches!(
+            self.kind_of(name),
+            SyntaxKind::Identifier | SyntaxKind::QualifiedName
+        ) && (self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::ALIAS)
+            || self
+                .parent_of(name)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ExportAssignment))
+        {
+            let alias_declaration = self.get_alias_declaration_from_name(name);
+            self.mark_symbol_of_alias_declaration_if_type_only(
+                alias_declaration,
+                Some(symbol),
+                /*final_target*/ None,
+                /*overwrite_empty*/ true,
+                None,
+                None,
+            )?;
         }
-    }
-
-    /// The resolveEntityName tail: `symbol.flags & meaning ||
-    /// dontResolveAlias ? symbol : resolveAlias(symbol)` — resolveAlias
-    /// is unported (M4 5.8): alias symbols return unchanged, ledgered.
-    fn finish_resolve_entity_name(
-        &mut self,
-        symbol: SymbolId,
-        meaning: SymbolFlags,
-    ) -> Option<SymbolId> {
-        let _ = meaning;
-        Some(symbol)
+        // The resolveAlias tail (49392).
+        if self.binder.symbol(symbol).flags.intersects(meaning) || dont_resolve_alias {
+            Ok(Some(symbol))
+        } else {
+            Ok(Some(self.resolve_alias(symbol)?))
+        }
     }
 
     /// tsc-port: getCannotFindNameDiagnosticForName @6.0.3
@@ -1647,10 +1717,13 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc getFullyQualifiedName slice for the 2694 message arg: the
-    /// parent-chain dotted name (the full symbolToString display walk
-    /// is M8 tail).
-    fn fully_qualified_name(&self, symbol: SymbolId) -> String {
+    /// tsc-port: getFullyQualifiedName @6.0.3
+    /// tsc-hash: 30098265216734ac1ab039c9b23d5a0c3c8cc578a2ea153ad77edaed4461564c
+    /// tsc-span: _tsc.js:49253-49261
+    ///
+    /// The 2694/2305 message-arg slice: the parent-chain dotted name
+    /// (the full symbolToString display walk is M8 tail).
+    pub(crate) fn fully_qualified_name(&self, symbol: SymbolId) -> String {
         let mut parts = vec![self.symbol_display_name(symbol)];
         let mut current = self.binder.symbol(symbol).parent;
         while let Some(parent) = current {
@@ -1710,9 +1783,9 @@ impl<'a> CheckerState<'a> {
     /// live from 5.5a). Failure caches unknownSymbol (returned as None
     /// here) after the resolveName error path has fired, exactly once
     /// per node.
-    pub(crate) fn get_resolved_symbol(&mut self, node: NodeId) -> Option<SymbolId> {
+    pub(crate) fn get_resolved_symbol(&mut self, node: NodeId) -> CheckResult2<Option<SymbolId>> {
         if let Some(cached) = self.links.node(node).resolved_symbol.resolved() {
-            return (cached != self.unknown_symbol).then_some(cached);
+            return Ok((cached != self.unknown_symbol).then_some(cached));
         }
         let resolved = if node_util::node_is_missing(self.binder.source_of_node(node), Some(node)) {
             None
@@ -1727,12 +1800,12 @@ impl<'a> CheckerState<'a> {
                 Some(message),
                 is_use,
                 /*exclude_globals*/ false,
-            )
+            )?
         };
         let cached = resolved.unwrap_or(self.unknown_symbol);
         self.links
             .set_node_resolved_symbol(self.speculation_depth, node, cached);
-        resolved
+        Ok(resolved)
     }
 
     fn is_static_node(&self, node: NodeId) -> bool {
@@ -2052,6 +2125,7 @@ mod tests {
                 let annotation = annotation_of_var(state, "v");
                 let symbol = state
                     .resolve_name(Some(annotation), "I", SymbolFlags::TYPE, None, false, false)
+                    .expect("resolve_name")
                     .expect("inner interface resolves");
                 let declaration = state.binder.symbol(symbol).declarations[0];
                 let outer = state
@@ -2063,6 +2137,7 @@ mod tests {
                         false,
                         false,
                     )
+                    .expect("resolve_name")
                     .expect("outer interface resolves");
                 assert_ne!(symbol, outer);
                 // The inner declaration sits inside f's body.
@@ -2092,18 +2167,21 @@ mod tests {
                         false,
                         false,
                     )
+                    .expect("resolve_name")
                     .expect("arguments resolves inside f");
                 assert_eq!(resolved, state.arguments_symbol);
                 let outer = identifier_named(state, "outer");
                 assert_eq!(
-                    state.resolve_name(
-                        Some(outer),
-                        "arguments",
-                        SymbolFlags::VARIABLE,
-                        None,
-                        false,
-                        false,
-                    ),
+                    state
+                        .resolve_name(
+                            Some(outer),
+                            "arguments",
+                            SymbolFlags::VARIABLE,
+                            None,
+                            false,
+                            false,
+                        )
+                        .expect("resolve_name"),
                     None
                 );
             },
@@ -2129,6 +2207,7 @@ mod tests {
                         false,
                         false,
                     )
+                    .expect("resolve_name")
                     .expect("class type parameter resolves");
                 assert_eq!(
                     state.kind_of(state.binder.symbol(symbol).declarations[0]),
@@ -2151,14 +2230,16 @@ mod tests {
                     .find(|&id| source.arena.node(id).kind == SyntaxKind::AsExpression)
                     .expect("as expression");
                 assert_eq!(
-                    state.resolve_name(
-                        Some(as_expression),
-                        "const",
-                        SymbolFlags::TYPE,
-                        None,
-                        false,
-                        false
-                    ),
+                    state
+                        .resolve_name(
+                            Some(as_expression),
+                            "const",
+                            SymbolFlags::TYPE,
+                            None,
+                            false,
+                            false
+                        )
+                        .expect("resolve_name"),
                     None
                 );
             },
@@ -2173,14 +2254,16 @@ mod tests {
             |state| {
                 let v = identifier_named(state, "v");
                 let message = state.cannot_find_name_diagnostic_for_name(v);
-                let resolved = state.resolve_name(
-                    Some(v),
-                    "nope",
-                    SymbolFlags::VALUE,
-                    Some(message),
-                    true,
-                    false,
-                );
+                let resolved = state
+                    .resolve_name(
+                        Some(v),
+                        "nope",
+                        SymbolFlags::VALUE,
+                        Some(message),
+                        true,
+                        false,
+                    )
+                    .expect("resolve_name");
                 assert_eq!(resolved, None);
                 let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
                 assert_eq!(codes, [2304]);

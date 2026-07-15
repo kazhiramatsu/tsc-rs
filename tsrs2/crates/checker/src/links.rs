@@ -217,6 +217,33 @@ pub struct SymbolLinks {
     /// 84876) — the once-latch on multi-declaration class/interface
     /// symbols.
     pub type_parameters_checked: bool,
+    /// tsc links.aliasTarget (resolveAlias 49118): Resolving = the
+    /// resolvingSymbol sentinel — NOT write-once (the re-entrant
+    /// Circular_definition_of_import_alias_0 write and the
+    /// sentinel-on-entry unknownSymbol collapse both rewrite it; M4
+    /// 5.8d, the resolvedSignature protocol twin).
+    pub alias_target: LinkSlot<SymbolId>,
+    /// tsc links.typeOnlyDeclaration (markSymbolOfAliasDeclarationIf
+    /// TypeOnly 49182): TRI-STATE — None = unset, Some(None) = the
+    /// explicit `false` (computed, not type-only), Some(Some(node)) =
+    /// the type-only declaration.
+    pub type_only_declaration: Option<Option<NodeId>>,
+    /// tsc links.typeOnlyExportStarName (49189): the export-star name
+    /// when it differs from the source symbol's own name.
+    pub type_only_export_star_name: Option<String>,
+    /// tsc links.typeOnlyExportStarMap (getExportsOfModule 49841):
+    /// written WITH the module-flavor resolved_exports; names whose
+    /// only path in is a type-only `export type *` declaration.
+    pub type_only_export_star_map: Option<std::collections::HashMap<String, NodeId>>,
+    /// tsc links.exportsChecked (checkExternalModuleExports 86445) —
+    /// the per-module once-guard.
+    pub exports_checked: bool,
+    /// tsc links.cjsExportMerged (getCommonJsExportEquals 49697).
+    pub cjs_export_merged: Option<SymbolId>,
+    /// tsc links.immediateTarget (getImmediateAliasedSymbol 50092) —
+    /// compute-once; the inner Option is the target (None = tsc
+    /// undefined result, still computed).
+    pub immediate_target: Option<Option<SymbolId>>,
 }
 
 /// Resolved-members store — tsc keeps these directly on the type
@@ -1209,6 +1236,136 @@ impl LinksTables {
         let slot = &mut self.symbol.entry(id).or_default().resolved_exports;
         note_resolving_transition(slot.is_resolving(), false);
         *slot = LinkSlot::Vacant;
+    }
+
+    /// tsrs-native: links accessor — resolveAlias' aliasTarget slot
+    /// protocol writer (the tsc counterpart is the inline assignment
+    /// family inside resolveAlias 49118-49134).
+    ///
+    /// The resolvedSignature twin — Vacant→Resolving on entry,
+    /// resolvedSignature twin — Vacant→Resolving on entry,
+    /// Resolving→Resolved for both the normal tail write and the
+    /// re-entrant cycle collapse (the outer frame then observes
+    /// Resolved and reports 5303 without writing).
+    pub fn set_symbol_alias_target(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: LinkSlot<SymbolId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(&mut self.symbol.entry(id).or_default().alias_target, value);
+    }
+
+    /// tsrs-native: links accessor — Err-unwind twin for the alias
+    /// protocol; only the frame that wrote the sentinel reverts
+    /// (Resolved memos stay).
+    pub fn revert_symbol_alias_target(&mut self, id: SymbolId) {
+        let slot = &mut self.symbol.entry(id).or_default().alias_target;
+        if matches!(slot, LinkSlot::Resolving) {
+            note_resolving_transition(true, false);
+            *slot = LinkSlot::Vacant;
+        }
+    }
+
+    /// tsrs-native: links accessor — links.typeOnlyDeclaration writes
+    /// (49182-49201): tsc assigns
+    /// PLAINLY — the type-only-declaration arm re-stamps the same
+    /// node, getTypeOnlyAliasDeclaration pre-writes `false` then marks
+    /// with overwriteEmpty; the caller enforces the first-write-wins/
+    /// overwriteEmpty policy, this setter is the raw store.
+    pub fn set_symbol_type_only_declaration(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: Option<NodeId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().type_only_declaration = Some(value);
+    }
+
+    /// tsrs-native: links accessor — links.typeOnlyExportStarName
+    /// (49189).
+    pub fn set_symbol_type_only_export_star_name(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: String,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol
+            .entry(id)
+            .or_default()
+            .type_only_export_star_name = Some(value);
+    }
+
+    /// tsrs-native: links accessor — the MODULE flavor of
+    /// resolvedExports (getExportsOfModule 49838):
+    /// written together with typeOnlyExportStarMap. tsc's unguarded
+    /// tail assignment tolerates a deterministic re-entrant duplicate
+    /// (the worker has no sentinel), so Resolved→Resolved(equal) is
+    /// accepted; a DIFFERENT table is a protocol bug.
+    pub fn set_symbol_module_exports(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        exports: tsrs2_binder::SymbolTable,
+        type_only_export_star_map: Option<std::collections::HashMap<String, NodeId>>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        match &links.resolved_exports {
+            LinkSlot::Vacant | LinkSlot::Resolving => {
+                note_resolving_transition(links.resolved_exports.is_resolving(), false);
+                links.resolved_exports = LinkSlot::Resolved(exports);
+                links.type_only_export_star_map = type_only_export_star_map;
+            }
+            LinkSlot::Resolved(existing) if *existing == exports => {}
+            LinkSlot::Resolved(_) => {
+                panic!("module resolvedExports rewritten with a different table: {id:?}")
+            }
+        }
+    }
+
+    /// tsrs-native: links accessor — links.exportsChecked once-latch
+    /// (checkExternalModuleExports 86445); monotone.
+    pub fn set_symbol_exports_checked(&mut self, speculation_depth: u32, id: SymbolId) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().exports_checked = true;
+    }
+
+    /// tsrs-native: links accessor — links.immediateTarget
+    /// (getImmediateAliasedSymbol 50097); compute-once.
+    pub fn set_symbol_immediate_target(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: Option<SymbolId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let slot = &mut self.symbol.entry(id).or_default().immediate_target;
+        match slot {
+            None => *slot = Some(value),
+            Some(existing) if *existing == value => {}
+            _ => panic!("immediateTarget rewritten: {slot:?} -> {value:?}"),
+        }
+    }
+
+    /// tsrs-native: links accessor — links.cjsExportMerged (49697);
+    /// compute-once, the same merged symbol may be re-stamped.
+    pub fn set_symbol_cjs_export_merged(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: SymbolId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let slot = &mut self.symbol.entry(id).or_default().cjs_export_merged;
+        match slot {
+            None => *slot = Some(value),
+            Some(existing) if *existing == value => {}
+            _ => panic!("cjsExportMerged rewritten: {slot:?} -> {value:?}"),
+        }
     }
 
     /// `links.lateSymbol = ...` (addDeclarationToLateBoundSymbol 57652)
