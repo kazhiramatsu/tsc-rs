@@ -320,11 +320,6 @@ pub struct CheckerState<'a> {
 
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
-    /// (NodeFlags::GLOBAL_AUGMENTATION module declaration). Computed at
-    /// construction; the resolver's failure band treats such programs
-    /// as undecidable for missing names until augmentation binding
-    /// lands (5.8).
-    pub(crate) has_global_augmentation: bool,
     /// tsc currentNode (46448): the element/deferred-node the driver is
     /// inside — related-info anchor for depth-limiter diagnostics
     /// (instantiateTypeWithAlias's 2589).
@@ -469,6 +464,9 @@ pub struct CheckerState<'a> {
     pub unknown_symbol: SymbolId,
     /// tsc patternAmbientModules (initializeTypeChecker 88754-88756).
     pub pattern_ambient_modules: Vec<(String, String, SymbolId)>,
+    /// tsc patternAmbientModuleAugmentations (mergeModuleAugmentation
+    /// 47865): augmentation name → the unidirectionally-merged symbol.
+    pub pattern_ambient_module_augmentations: std::collections::HashMap<String, SymbolId>,
     /// tsrs-native (M4 5.8d): normalized file path → program file
     /// index — the host.getResolvedModule seam's lookup table
     /// (program-and-modules.md §2; later files shadow earlier
@@ -624,7 +622,6 @@ impl<'a> CheckerState<'a> {
             flow_type_cache: None,
             flow_invocation_count: 0,
             flow_containment_indexes: Default::default(),
-            has_global_augmentation: false,
             diagnostics: Vec::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
@@ -633,6 +630,7 @@ impl<'a> CheckerState<'a> {
             require_symbol,
             unknown_symbol,
             pattern_ambient_modules: Vec::new(),
+            pattern_ambient_module_augmentations: std::collections::HashMap::new(),
             program_path_index: std::collections::HashMap::new(),
             host_file_paths: std::collections::HashSet::new(),
             global_type_memos: Default::default(),
@@ -808,23 +806,9 @@ impl<'a> CheckerState<'a> {
         // symbol-type seeds + amalgamated-duplicate flush.
         state.initialize_program_globals();
         state.run_init_global_type_probes();
-        state.has_global_augmentation = (0..state.binder.file_count()).any(|index| {
-            let source = state.binder.source(index);
-            let tsrs2_syntax::NodeData::SourceFile(data) = &source.arena.node(source.root).data
-            else {
-                return false;
-            };
-            data.statements.is_some_and(|statements| {
-                source
-                    .arena
-                    .node_array(statements)
-                    .nodes
-                    .iter()
-                    .any(|&statement| {
-                        tsrs2_binder::node_util::is_global_scope_augmentation(source, statement)
-                    })
-            })
-        });
+        // (has_global_augmentation RETIRED 5.8d: declare-global exports
+        // merge in merge_module_augmentations; the resolver failure
+        // band and the JSX containment both lifted.)
         state
     }
 
@@ -920,10 +904,6 @@ impl<'a> CheckerState<'a> {
         let symbol = self.get_merged_symbol(symbol);
         let flags = self.binder.symbol(symbol).flags;
         flags.intersects(meaning).then_some(symbol)
-    }
-
-    pub(crate) fn program_has_global_augmentation(&self) -> bool {
-        self.has_global_augmentation
     }
 
     pub fn symbol_flags(&self, symbol: SymbolId) -> SymbolFlags {

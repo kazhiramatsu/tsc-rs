@@ -20,6 +20,7 @@ use tsrs2_types::{CheckMode, InternalSymbolName, SymbolFlags};
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult2, CheckerState, Unsupported};
+use tsrs2_types::TypeId;
 
 /// The export-star collision tracker (getExportsOfModuleWorker's
 /// lookupTable): name -> (first specifier text, exportsWithDuplicate).
@@ -394,7 +395,7 @@ impl<'a> CheckerState<'a> {
     /// allowSyntheticDefaultImports gate (TS6 default TRUE), the
     /// declaration-file syntactic-default/__esModule probe, and the
     /// TS-file hasExportAssignmentSymbol read.
-    fn can_have_synthetic_default(
+    pub(crate) fn can_have_synthetic_default(
         &mut self,
         file_index: Option<usize>,
         module_symbol: SymbolId,
@@ -1729,6 +1730,52 @@ impl<'a> CheckerState<'a> {
         Ok(target)
     }
 
+    /// tsc-port: getTypeOfAlias @6.0.3
+    /// tsc-hash: 5c80fbb8a3f77b883164000d53b9c225931e458723582d7eeb69e47b95ca997d
+    /// tsc-span: _tsc.js:56864-56884
+    ///
+    /// The commonJS duplicated-export and export=-type-annotation arms
+    /// are JS-only (dead in TS files): the live body is
+    /// resolveAlias → Value-flagged target's type, else errorType.
+    pub(crate) fn get_type_of_alias(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(cached);
+        }
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Symbol(symbol),
+            tsrs2_types::TypeSystemPropertyName::TYPE,
+        ) {
+            return Ok(self.tables.intrinsics.error);
+        }
+        let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
+            let target_symbol = state.resolve_alias(symbol)?;
+            let target_flags = state.get_symbol_flags_of(target_symbol)?;
+            if target_flags.intersects(SymbolFlags::VALUE) {
+                state.get_type_of_symbol(target_symbol)
+            } else {
+                Ok(state.tables.intrinsics.error)
+            }
+        })(self);
+        let computed = match computed {
+            Ok(computed) => computed,
+            Err(unsupported) => {
+                self.pop_type_resolution();
+                return Err(unsupported);
+            }
+        };
+        let computed = if self.pop_type_resolution() {
+            computed
+        } else {
+            self.report_circularity_error(symbol)
+        };
+        if let Some(already) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(already);
+        }
+        self.links
+            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(computed));
+        Ok(computed)
+    }
+
     /// tsc-port: getSymbolIfSameReference @6.0.3
     /// tsc-hash: 908084bf7d1f72b02a8256627f01987eb8cd0a6897b9c7027f0cac3f156f5d3d
     /// tsc-span: _tsc.js:50084-50088
@@ -1897,10 +1944,13 @@ impl<'a> CheckerState<'a> {
                         );
                     }
                 }
-            } else if resolved.resolved_using_ts_extension {
-                // allowImportingTsExtensions is unmodeled-absent →
-                // constant false; the row is LIVE for .ts/.tsx
-                // specifiers.
+            } else if resolved.resolved_using_ts_extension
+                && self.options.allow_importing_ts_extensions != Some(true)
+                && !self.binder.source_of_node(location).is_declaration_file
+            {
+                // shouldAllowImportingTsExtension: the option OR a
+                // declaration-file importer legalizes the extension
+                // (bundlerImportTsExtensions pins the .d.ts face).
                 if let Some(error_node) = error_node {
                     if !self.import_location_is_type_only(location) {
                         let ts_extension =
@@ -1930,16 +1980,51 @@ impl<'a> CheckerState<'a> {
         }
         if !self.pattern_ambient_modules.is_empty() {
             if let Some(symbol) = self.find_best_pattern_match(module_reference) {
-                // patternAmbientModuleAugmentations: merge.rs owns the
-                // augmentation map; unmerged here means the plain
-                // pattern symbol (getMergedSymbol covers the merged
-                // case).
+                if let Some(&augmentation) = self
+                    .pattern_ambient_module_augmentations
+                    .get(module_reference)
+                {
+                    return Ok(Some(self.get_merged_symbol(augmentation)));
+                }
                 return Ok(Some(self.get_merged_symbol(symbol)));
             }
         }
         let Some(error_node) = error_node else {
             return Ok(None);
         };
+        // The Node16/NodeNext ESM extensionless-relative rows
+        // (49630-49640) come BEFORE the suppression check — an
+        // extensionless relative specifier in ESM mode fails Node16+
+        // resolution unconditionally, so the row is certain. Mode
+        // reduces to the importer's extension (.mts/.d.mts = ESM
+        // always; .cts/.d.cts = ESM through import() usage; plain .ts
+        // stays CJS-defaulted without package.json modeling).
+        let module_resolution_kind = self.options.emit_module_resolution_kind();
+        if matches!(module_resolution_kind, 3 | 99)
+            && Self::is_external_module_name_relative(module_reference)
+            && !Self::has_recognized_extension(module_reference)
+            && self.extension_row_applies(location)
+            && !self
+                .host_file_paths
+                .iter()
+                .any(|path| path.ends_with("/package.json"))
+        {
+            if let Some(suggested) = self.suggested_extension_for(location, module_reference) {
+                let suggestion = format!("{module_reference}{suggested}");
+                self.error_at(
+                    Some(error_node),
+                    &diagnostics::Relative_import_paths_need_explicit_file_extensions_in_ECMAScript_imports_when_moduleResolution_is_node16_or_nodenext_Did_you_mean_0,
+                    &[&suggestion],
+                );
+            } else {
+                self.error_at(
+                    Some(error_node),
+                    &diagnostics::Relative_import_paths_need_explicit_file_extensions_in_ECMAScript_imports_when_moduleResolution_is_node16_or_nodenext_Consider_adding_an_extension_to_the_import_path,
+                    &[],
+                );
+            }
+            return Ok(None);
+        }
         if matches!(resolution, ProgramModuleResolution::Suppressed) {
             // tsrs-native FP=0 rule: the miss sits behind unmodeled
             // resolution machinery (node_modules/baseUrl-paths/allowJs
@@ -2129,6 +2214,56 @@ impl<'a> CheckerState<'a> {
             || module_reference.starts_with('/');
         if relative {
             let candidate = Self::normalize_program_path(module_reference, &importer_dir);
+            // "." / ".." / trailing-slash specifiers reference the
+            // DIRECTORY: only the index.* family resolves them
+            // (importFromDot pins "." → ./index.ts over ./<dir>.ts).
+            let directory_reference = module_reference == "."
+                || module_reference == ".."
+                || module_reference.ends_with('/');
+            let node_mode_resolution = matches!(self.options.emit_module_resolution_kind(), 3 | 99);
+            let bare_of_extension = !Self::has_recognized_extension(module_reference);
+            if node_mode_resolution && bare_of_extension {
+                // package.json among the host inputs turns the
+                // oracle's mode machinery LIVE (impliedNodeFormat via
+                // "type") — both the resolution verdict and the
+                // failure face become mode-dependent; resolving
+                // anyway could fabricate downstream member FPs and
+                // erroring could fabricate 2307/2835 — suppress
+                // (probe58d + nodeModules1; FN, ledger).
+                if self
+                    .host_file_paths
+                    .iter()
+                    .any(|path| path.ends_with("/package.json"))
+                {
+                    return ProgramModuleResolution::Suppressed;
+                }
+                // import() in a mode-bearing (.mts/.cts family) file
+                // never extension-probes — the 2834/2835 tail owns
+                // the miss (probe58d fix2/fix5/fix7; STATIC imports
+                // always probe, fix1/fix4/fix6/fix7).
+                if !directory_reference && self.extension_row_applies(location) {
+                    return ProgramModuleResolution::Missed;
+                }
+            }
+            if directory_reference {
+                if !is_classic {
+                    for extension in [".ts", ".tsx", ".d.ts"] {
+                        let probed =
+                            format!("{}/index{extension}", candidate.trim_end_matches('/'));
+                        if let Some(&index) = self.program_path_index.get(&probed) {
+                            return ProgramModuleResolution::Resolved(ResolvedProgramModule {
+                                file_index: index,
+                                resolved_using_ts_extension: false,
+                                is_tsx: probed.ends_with(".tsx"),
+                            });
+                        }
+                    }
+                }
+                if self.miss_is_undecidable(&candidate) {
+                    return ProgramModuleResolution::Suppressed;
+                }
+                return ProgramModuleResolution::Missed;
+            }
             if let Some(resolved) = self.probe_module_candidates(&candidate, is_classic) {
                 return ProgramModuleResolution::Resolved(resolved);
             }
@@ -2203,8 +2338,11 @@ impl<'a> CheckerState<'a> {
         }) {
             return true;
         }
-        // Directory index misses over the same unmodeled set.
-        if ["/index.js", "/index.jsx", "/index.json"]
+        // Directory index misses over the same unmodeled set — and a
+        // directory-local package.json (main/exports redirect) makes
+        // any directory candidate tsc-resolvable (bundlerDirectory
+        // Module / bundlerRelative1 pin the main-redirect faces).
+        if ["/index.js", "/index.jsx", "/index.json", "/package.json"]
             .iter()
             .any(|suffix| {
                 let probed = format!("{base}{suffix}");
@@ -2255,22 +2393,32 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // .js-family substitution (non-Classic resolution modes).
-        if !is_classic {
-            for (js, subs) in [
-                (".js", &[".ts", ".tsx", ".d.ts"][..]),
-                (".jsx", &[".tsx", ".d.ts"][..]),
-                (".mjs", &[".mts", ".d.mts"][..]),
-                (".cjs", &[".cts", ".d.cts"][..]),
-            ] {
-                if let Some(base) = candidate.strip_suffix(js) {
-                    for extension in subs {
-                        let probed = format!("{base}{extension}");
-                        if let Some(index) = lookup(&probed) {
-                            return Some(make(index, false, &probed));
-                        }
+        // Known-extension SUBSTITUTION (loadModuleFromFile's
+        // tryAddingExtensions over the stripped base — classic shares
+        // it): "./tsx.d.ts" resolves to tsx.tsx, "./dts.js" to
+        // dts.d.ts (allowImportingTsExtensions fixture pins all
+        // faces).
+        for (known, subs) in [
+            (".d.ts", &[".ts", ".tsx", ".d.ts"][..]),
+            (".ts", &[".ts", ".tsx", ".d.ts"][..]),
+            (".tsx", &[".ts", ".tsx", ".d.ts"][..]),
+            (".js", &[".ts", ".tsx", ".d.ts"][..]),
+            (".jsx", &[".ts", ".tsx", ".d.ts"][..]),
+            (".d.mts", &[".mts", ".d.mts"][..]),
+            (".mts", &[".mts", ".d.mts"][..]),
+            (".mjs", &[".mts", ".d.mts"][..]),
+            (".d.cts", &[".cts", ".d.cts"][..]),
+            (".cts", &[".cts", ".d.cts"][..]),
+            (".cjs", &[".cts", ".d.cts"][..]),
+        ] {
+            if let Some(base) = candidate.strip_suffix(known) {
+                for extension in subs {
+                    let probed = format!("{base}{extension}");
+                    if let Some(index) = lookup(&probed) {
+                        return Some(make(index, false, &probed));
                     }
                 }
+                break;
             }
         }
         // Extension appends (extensionless specifiers probe the plain
@@ -2320,6 +2468,77 @@ impl<'a> CheckerState<'a> {
 
     fn is_declaration_file_name(name: &str) -> bool {
         name.ends_with(".d.ts")
+    }
+
+    /// Any extension the resolver recognizes (extensionless probe
+    /// gate for the 2834/2835 rows).
+    fn has_recognized_extension(name: &str) -> bool {
+        [
+            ".ts", ".tsx", ".d.ts", ".mts", ".cts", ".d.mts", ".d.cts", ".js", ".jsx", ".mjs",
+            ".cjs", ".json",
+        ]
+        .iter()
+        .any(|extension| name.ends_with(extension))
+    }
+
+    /// The 2834/2835 arm's usage gate — ORACLE-pinned to import-call
+    /// usages only (static extensionless imports probe extensions and
+    /// report plain 2307 on a miss; probe58d fix1/fix2/fix7).
+    fn extension_row_applies(&self, location: NodeId) -> bool {
+        let file_name = &self.binder.source_of_node(location).file_name;
+        let mode_bearing = file_name.ends_with(".mts")
+            || file_name.ends_with(".d.mts")
+            || file_name.ends_with(".cts")
+            || file_name.ends_with(".d.cts");
+        mode_bearing && self.has_import_call_ancestor(location)
+    }
+
+    fn has_import_call_ancestor(&self, location: NodeId) -> bool {
+        let mut current = Some(location);
+        while let Some(node) = current {
+            if self.is_import_call(node) {
+                return true;
+            }
+            current = self.parent_of(node);
+        }
+        false
+    }
+
+    /// tsc suggestedExtensions (47456-47466) over the host set: the
+    /// first actual extension whose file exists selects the import
+    /// extension for the 2834 suggestion.
+    fn suggested_extension_for(
+        &self,
+        location: NodeId,
+        module_reference: &str,
+    ) -> Option<&'static str> {
+        let importing_index = self.binder.file_index_of_node(location);
+        let importer =
+            Self::normalize_program_path(&self.binder.source(importing_index).file_name, "");
+        let importer_dir = match importer.rfind('/') {
+            Some(position) => importer[..position].to_owned(),
+            None => String::new(),
+        };
+        let candidate = Self::normalize_program_path(module_reference, &importer_dir);
+        let jsx_preserve = self.options.jsx == Some(1);
+        let table: [(&str, &'static str); 9] = [
+            (".mts", ".mjs"),
+            (".ts", ".js"),
+            (".cts", ".cjs"),
+            (".mjs", ".mjs"),
+            (".js", ".js"),
+            (".cjs", ".cjs"),
+            (".tsx", if jsx_preserve { ".jsx" } else { ".js" }),
+            (".jsx", ".jsx"),
+            (".json", ".json"),
+        ];
+        table
+            .iter()
+            .find(|(actual, _)| {
+                let probed = format!("{candidate}{actual}");
+                self.host_file_paths.contains(&probed)
+            })
+            .map(|&(_, import_extension)| import_extension)
     }
 
     fn try_extract_ts_extension(name: &str) -> Option<&'static str> {
@@ -2564,7 +2783,7 @@ impl<'a> CheckerState<'a> {
             });
             if self.options.es_module_interop_effective() && export_equals_present {
                 return Err(Unsupported::new(
-                    "resolveESModuleSymbol synthetic-default module type cloning (M4 5.8d tail)",
+                    "resolveESModuleSymbol synthetic-default module type cloning (M4-end sweep 5.8)",
                 ));
             }
         }
@@ -2894,9 +3113,10 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// The SourceFile declaration index of a module symbol
-    /// (`moduleSymbol.declarations?.find(isSourceFile)` shape).
-    fn source_file_index_of_symbol(&self, symbol: SymbolId) -> Option<usize> {
+    /// tsrs-native: the SourceFile declaration index of a module
+    /// symbol (`moduleSymbol.declarations?.find(isSourceFile)` as a
+    /// program file index).
+    pub(crate) fn source_file_index_of_symbol(&self, symbol: SymbolId) -> Option<usize> {
         self.binder
             .symbol(symbol)
             .declarations
@@ -2937,6 +3157,519 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    // ================================================================
+    // §8 module band + §9 checker drivers
+    // ================================================================
+
+    /// tsc-port: checkModuleDeclaration @6.0.3
+    /// tsc-hash: fd08e6535aca4619488e996c96744781fbed038c3af10dcd3cc1da26b11b8ec1
+    /// tsc-span: _tsc.js:85840-85924
+    ///
+    /// addLazyDiagnostic = eager identity (5.4). Dead rows at the
+    /// modeled defaults: erasableSyntaxOnly / isolatedModules /
+    /// verbatimModuleSyntax (options unmodeled). The M7
+    /// registerForUnusedIdentifiersCheck registration is inert.
+    pub(crate) fn check_module_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        let (name, body) = match self.data_of(node) {
+            NodeData::ModuleDeclaration(data) => (data.name, data.body),
+            _ => return Ok(()),
+        };
+        if let Some(body) = body {
+            self.check_source_element(Some(body));
+        }
+        let source = self.binder.source_of_node(node);
+        let is_global_augmentation = node_util::is_global_scope_augmentation(source, node);
+        let in_ambient_context = self
+            .binder
+            .flags_of(node)
+            .intersects(tsrs2_types::NodeFlags::AMBIENT);
+        if is_global_augmentation && !in_ambient_context {
+            self.error_at(
+                name.or(Some(node)),
+                &diagnostics::Augmentations_for_the_global_scope_should_have_declare_modifier_unless_they_appear_in_already_ambient_context,
+                &[],
+            );
+        }
+        let is_ambient_external_module = node_util::is_ambient_module(source, node);
+        let context_error_message = if is_ambient_external_module {
+            &diagnostics::An_ambient_module_declaration_is_only_allowed_at_the_top_level_in_a_file
+        } else {
+            &diagnostics::A_namespace_declaration_is_only_allowed_at_the_top_level_of_a_namespace_or_module
+        };
+        if self.check_grammar_module_element_context(node, context_error_message) {
+            return Ok(());
+        }
+        let Some(name) = name else {
+            return Ok(());
+        };
+        if !self.check_grammar_modifiers(node) {
+            // The M7-stub interplay (m4-58 §0): a REAL modifier error
+            // suppresses this follower in tsc — contain when modifiers
+            // are present.
+            let has_modifiers = match self.data_of(node) {
+                NodeData::ModuleDeclaration(data) => data.modifiers.is_some(),
+                _ => false,
+            };
+            if !has_modifiers
+                && !in_ambient_context
+                && self.kind_of(name) == SyntaxKind::StringLiteral
+            {
+                self.grammar_error_on_node(
+                    name,
+                    &diagnostics::Only_ambient_modules_can_use_quoted_names,
+                    &[],
+                );
+            }
+        }
+        if self.kind_of(name) == SyntaxKind::Identifier {
+            self.check_collisions_for_declaration_name(node, Some(name));
+            if !self.binder.flags_of(node).intersects(
+                tsrs2_types::NodeFlags::NAMESPACE | tsrs2_types::NodeFlags::GLOBAL_AUGMENTATION,
+            ) {
+                self.error_at(
+                    Some(name),
+                    &diagnostics::A_namespace_declaration_should_not_be_declared_using_the_module_keyword_Please_use_the_namespace_keyword_instead,
+                    &[],
+                );
+            }
+        }
+        self.check_exports_on_merged_declarations(node)?;
+        let symbol = self.get_symbol_of_declaration(node)?;
+        let symbol_flags = self.binder.symbol(symbol).flags;
+        if symbol_flags.intersects(SymbolFlags::VALUE_MODULE)
+            && !in_ambient_context
+            && self.is_instantiated_module(node)
+        {
+            // erasableSyntaxOnly / isolatedModules global-script rows:
+            // options unmodeled — dead.
+            if self.binder.symbol(symbol).declarations.len() > 1 {
+                let first_non_ambient =
+                    self.get_first_non_ambient_class_or_function_declaration(symbol);
+                if let Some(first_non_ambient) = first_non_ambient {
+                    let node_file = self.binder.file_index_of_node(node);
+                    let other_file = self.binder.file_index_of_node(first_non_ambient);
+                    if node_file != other_file {
+                        self.error_at(
+                            Some(name),
+                            &diagnostics::A_namespace_declaration_cannot_be_in_a_different_file_from_a_class_or_function_with_which_it_is_merged,
+                            &[],
+                        );
+                    } else if self.binder.source_of_node(node).arena.node(node).pos
+                        < self
+                            .binder
+                            .source_of_node(first_non_ambient)
+                            .arena
+                            .node(first_non_ambient)
+                            .pos
+                    {
+                        self.error_at(
+                            Some(name),
+                            &diagnostics::A_namespace_declaration_cannot_be_located_prior_to_a_class_or_function_with_which_it_is_merged,
+                            &[],
+                        );
+                    }
+                }
+                let merged_class = self
+                    .binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .copied()
+                    .find(|&declaration| self.kind_of(declaration) == SyntaxKind::ClassDeclaration);
+                if let Some(merged_class) = merged_class {
+                    if self.in_same_lexical_scope(node, merged_class) {
+                        self.links.or_node_check_flags(
+                            self.speculation_depth,
+                            node,
+                            tsrs2_types::NodeCheckFlags::LEXICAL_MODULE_MERGES_WITH_CLASS,
+                        );
+                    }
+                }
+            }
+            // verbatimModuleSyntax CJS export-modifier row: dead.
+        }
+        if is_ambient_external_module {
+            let source = self.binder.source_of_node(node);
+            if node_util::is_module_augmentation_external(source, node) {
+                // External-module AUGMENTATION: check the body per
+                // element when global-augment or Transient (merged)
+                // module symbol.
+                let declaration_symbol = self.get_symbol_of_declaration(node)?;
+                let check_body = is_global_augmentation
+                    || self
+                        .binder
+                        .symbol(declaration_symbol)
+                        .flags
+                        .intersects(SymbolFlags::TRANSIENT);
+                if check_body {
+                    if let Some(body) = body {
+                        if let Some(statements) =
+                            node_util::statements_of(self.binder.source_of_node(node), body)
+                        {
+                            for statement in self.nodes_of(Some(statements)) {
+                                self.check_module_augmentation_element(
+                                    statement,
+                                    is_global_augmentation,
+                                )?;
+                            }
+                        }
+                    }
+                }
+            } else if self
+                .parent_of(node)
+                .is_some_and(|parent| self.is_global_source_file_node(parent))
+            {
+                if is_global_augmentation {
+                    self.error_at(
+                        Some(name),
+                        &diagnostics::Augmentations_for_the_global_scope_can_only_be_directly_nested_in_external_modules_or_ambient_module_declarations,
+                        &[],
+                    );
+                } else {
+                    let source = self.binder.source_of_node(node);
+                    let text = node_util::get_text_of_identifier_or_literal(source, name)
+                        .unwrap_or_default();
+                    if Self::is_external_module_name_relative(&text) {
+                        self.error_at(
+                            Some(name),
+                            &diagnostics::Ambient_module_declaration_cannot_specify_relative_module_name,
+                            &[],
+                        );
+                    }
+                }
+            } else if is_global_augmentation {
+                self.error_at(
+                    Some(name),
+                    &diagnostics::Augmentations_for_the_global_scope_can_only_be_directly_nested_in_external_modules_or_ambient_module_declarations,
+                    &[],
+                );
+            } else {
+                self.error_at(
+                    Some(name),
+                    &diagnostics::Ambient_modules_cannot_be_nested_in_other_modules_or_namespaces,
+                    &[],
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc isInstantiatedModule (85835-region):
+    /// state===Instantiated || preserveConstEnums && state===ConstEnumOnly.
+    fn is_instantiated_module(&self, node: NodeId) -> bool {
+        let state = self.module_instance_state_of(node);
+        state == tsrs2_binder::containers::ModuleInstanceState::Instantiated
+            || (self.options.should_preserve_const_enums()
+                && state == tsrs2_binder::containers::ModuleInstanceState::ConstEnumOnly)
+    }
+
+    /// tsc-port: getFirstNonAmbientClassOrFunctionDeclaration @6.0.3
+    /// tsc-hash: 39cf2e0ded5e6df45da9c09ed2f6d4b2908981478850d4d6c7a0c90be9a09e80
+    /// tsc-span: _tsc.js:85818-85828
+    fn get_first_non_ambient_class_or_function_declaration(
+        &self,
+        symbol: SymbolId,
+    ) -> Option<NodeId> {
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| {
+                let kind = self.kind_of(declaration);
+                let bodied_function = kind == SyntaxKind::FunctionDeclaration
+                    && node_util::body_of(self.binder.source_of_node(declaration), declaration)
+                        .is_some();
+                (kind == SyntaxKind::ClassDeclaration || bodied_function)
+                    && !self
+                        .binder
+                        .flags_of(declaration)
+                        .intersects(tsrs2_types::NodeFlags::AMBIENT)
+            })
+    }
+
+    /// tsc-port: inSameLexicalScope @6.0.3
+    /// tsc-hash: 2f9fc18eaf66b3da8e5e44aa670fd518998ed44a8fc6e96188080982506bd8e5
+    /// tsc-span: _tsc.js:85829-85839
+    fn in_same_lexical_scope(&self, node1: NodeId, node2: NodeId) -> bool {
+        let container1 = self.get_enclosing_block_scope_container(node1);
+        let container2 = self.get_enclosing_block_scope_container(node2);
+        let global1 =
+            container1.is_some_and(|container| self.is_global_source_file_node(container));
+        let global2 =
+            container2.is_some_and(|container| self.is_global_source_file_node(container));
+        if global1 {
+            global2
+        } else if global2 {
+            false
+        } else {
+            container1 == container2
+        }
+    }
+
+    /// tsc isGlobalSourceFile (14116): SourceFile && not external/CJS.
+    fn is_global_source_file_node(&self, node: NodeId) -> bool {
+        self.kind_of(node) == SyntaxKind::SourceFile
+            && !self.binder.is_external_or_common_js_module_of_node(node)
+    }
+
+    /// tsc-port: checkModuleAugmentationElement @6.0.3
+    /// tsc-hash: 6c143dd8955aecc6f413dd606e2213dd5aa0c917704594539eb53df32258d3ee
+    /// tsc-span: _tsc.js:85925-85963
+    ///
+    /// The isGlobalAugmentation flag only feeds recursion — in tsc
+    /// too (its `return` vs `break` arms are both fall-off-the-end).
+    #[allow(clippy::only_used_in_recursion)]
+    fn check_module_augmentation_element(
+        &mut self,
+        node: NodeId,
+        is_global_augmentation: bool,
+    ) -> CheckResult2<()> {
+        match self.kind_of(node) {
+            SyntaxKind::VariableStatement => {
+                let declarations = match self.data_of(node) {
+                    NodeData::VariableStatement(data) => {
+                        data.declaration_list
+                            .and_then(|list| match self.data_of(list) {
+                                NodeData::VariableDeclarationList(data) => data.declarations,
+                                _ => None,
+                            })
+                    }
+                    _ => None,
+                };
+                for declaration in self.nodes_of(declarations) {
+                    self.check_module_augmentation_element(declaration, is_global_augmentation)?;
+                }
+            }
+            SyntaxKind::ExportAssignment | SyntaxKind::ExportDeclaration => {
+                self.grammar_error_on_first_token(
+                    node,
+                    &diagnostics::Exports_and_export_assignments_are_not_permitted_in_module_augmentations,
+                    &[],
+                );
+            }
+            SyntaxKind::ImportEqualsDeclaration
+                if self.is_internal_module_import_equals_declaration(node) => {}
+            SyntaxKind::ImportEqualsDeclaration | SyntaxKind::ImportDeclaration => {
+                self.grammar_error_on_first_token(
+                    node,
+                    &diagnostics::Imports_are_not_permitted_in_module_augmentations_Consider_moving_them_to_the_enclosing_external_module,
+                    &[],
+                );
+            }
+            SyntaxKind::BindingElement | SyntaxKind::VariableDeclaration => {
+                let name = match self.data_of(node) {
+                    NodeData::BindingElement(data) => data.name,
+                    NodeData::VariableDeclaration(data) => data.name,
+                    _ => None,
+                };
+                if let Some(name) = name {
+                    if matches!(
+                        self.kind_of(name),
+                        SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                    ) {
+                        let elements = match self.data_of(name) {
+                            NodeData::ObjectBindingPattern(data) => data.elements,
+                            NodeData::ArrayBindingPattern(data) => data.elements,
+                            _ => None,
+                        };
+                        for element in self.nodes_of(elements) {
+                            self.check_module_augmentation_element(
+                                element,
+                                is_global_augmentation,
+                            )?;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    /// tsc-port: isInternalModuleImportEqualsDeclaration @6.0.3
+    /// tsc-hash: 932a80f8017555d577060021099a98a7f7bac95d092e28d05c9a0aa0c90e7bbf
+    /// tsc-span: _tsc.js:14877-14879
+    pub(crate) fn is_internal_module_import_equals_declaration(&self, node: NodeId) -> bool {
+        if self.kind_of(node) != SyntaxKind::ImportEqualsDeclaration {
+            return false;
+        }
+        match self.data_of(node) {
+            NodeData::ImportEqualsDeclaration(data) => {
+                data.module_reference.is_some_and(|reference| {
+                    self.kind_of(reference) != SyntaxKind::ExternalModuleReference
+                })
+            }
+            _ => false,
+        }
+    }
+
+    /// tsc-port: checkExternalImportOrExportDeclaration @6.0.3
+    /// tsc-hash: a5fb1551d6d2e65b3b5d0f9c6e6cc64473914dbc3742409fd1c3d503ea0ac33a
+    /// tsc-span: _tsc.js:85983-86018
+    fn check_external_import_or_export_declaration(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let module_name = self.get_external_module_name_of(node);
+        let Some(module_name) = module_name else {
+            return Ok(false);
+        };
+        if node_util::node_is_missing(self.binder.source_of_node(module_name), Some(module_name)) {
+            return Ok(false);
+        }
+        if self.kind_of(module_name) != SyntaxKind::StringLiteral {
+            self.error_at(
+                Some(module_name),
+                &diagnostics::String_literal_expected,
+                &[],
+            );
+            return Ok(false);
+        }
+        let parent = self.parent_of(node);
+        let in_ambient_external_module = parent.is_some_and(|parent| {
+            self.kind_of(parent) == SyntaxKind::ModuleBlock
+                && self.parent_of(parent).is_some_and(|grand| {
+                    node_util::is_ambient_module(self.binder.source_of_node(grand), grand)
+                })
+        });
+        if parent.is_some_and(|parent| self.kind_of(parent) != SyntaxKind::SourceFile)
+            && !in_ambient_external_module
+        {
+            let message = if self.kind_of(node) == SyntaxKind::ExportDeclaration {
+                &diagnostics::Export_declarations_are_not_permitted_in_a_namespace
+            } else {
+                &diagnostics::Import_declarations_in_a_namespace_cannot_reference_a_module
+            };
+            self.error_at(Some(module_name), message, &[]);
+            return Ok(false);
+        }
+        if in_ambient_external_module {
+            let text = match self.data_of(module_name) {
+                NodeData::StringLiteral(data) => data.text.clone(),
+                _ => String::new(),
+            };
+            if Self::is_external_module_name_relative(&text)
+                && !self.is_top_level_in_external_module_augmentation(node)
+            {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::Import_or_export_declaration_in_an_ambient_module_declaration_cannot_reference_module_through_relative_module_name,
+                    &[],
+                );
+                return Ok(false);
+            }
+        }
+        if self.kind_of(node) != SyntaxKind::ImportEqualsDeclaration {
+            let attributes = match self.data_of(node) {
+                NodeData::ImportDeclaration(data) => data.attributes,
+                NodeData::ExportDeclaration(data) => data.attributes,
+                _ => None,
+            };
+            if let Some(attributes) = attributes {
+                let (token, elements) = match self.data_of(attributes) {
+                    NodeData::ImportAttributes(data) => (data.token, data.elements),
+                    _ => (SyntaxKind::WithKeyword, None),
+                };
+                let message = if token == SyntaxKind::WithKeyword {
+                    &diagnostics::Import_attribute_values_must_be_string_literal_expressions
+                } else {
+                    &diagnostics::Import_assertion_values_must_be_string_literal_expressions
+                };
+                let mut has_error = false;
+                for attribute in self.nodes_of(elements) {
+                    let value = match self.data_of(attribute) {
+                        NodeData::ImportAttribute(data) => data.value,
+                        _ => None,
+                    };
+                    if let Some(value) = value {
+                        if self.kind_of(value) != SyntaxKind::StringLiteral {
+                            has_error = true;
+                            self.error_at(Some(value), message, &[]);
+                        }
+                    }
+                }
+                return Ok(!has_error);
+            }
+        }
+        Ok(true)
+    }
+
+    /// tsc getExternalModuleName: the specifier expression of an
+    /// import/export declaration or import-equals external reference.
+    fn get_external_module_name_of(&self, node: NodeId) -> Option<NodeId> {
+        match self.data_of(node) {
+            NodeData::ImportDeclaration(data) => data.module_specifier,
+            NodeData::ExportDeclaration(data) => data.module_specifier,
+            NodeData::ImportEqualsDeclaration(data) => {
+                let reference = data.module_reference?;
+                match self.data_of(reference) {
+                    NodeData::ExternalModuleReference(data) => data.expression,
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// tsc isTopLevelInExternalModuleAugmentation.
+    fn is_top_level_in_external_module_augmentation(&self, node: NodeId) -> bool {
+        let Some(parent) = self.parent_of(node) else {
+            return false;
+        };
+        if self.kind_of(parent) != SyntaxKind::ModuleBlock {
+            return false;
+        }
+        self.parent_of(parent).is_some_and(|grand| {
+            let source = self.binder.source_of_node(grand);
+            node_util::is_ambient_module(source, grand)
+                && node_util::is_module_augmentation_external(source, grand)
+        })
+    }
+
+    /// tsc-port: checkModuleExportName @6.0.3
+    /// tsc-hash: 71ca29f090ef36bd1e84610275aceb2096279520a8a204c38683ef4a157c9e5d
+    /// tsc-span: _tsc.js:86019-86028
+    fn check_module_export_name(
+        &mut self,
+        name: Option<NodeId>,
+        allow_string_literal: bool,
+    ) -> CheckResult2<()> {
+        let Some(name) = name else {
+            return Ok(());
+        };
+        if self.kind_of(name) != SyntaxKind::StringLiteral {
+            return Ok(());
+        }
+        if !allow_string_literal {
+            self.grammar_error_on_node(name, &diagnostics::Identifier_expected, &[]);
+        } else if matches!(self.options.emit_module_kind(), 5 | 6) {
+            self.grammar_error_on_node(
+                name,
+                &diagnostics::String_literal_import_and_export_names_are_not_supported_when_the_module_flag_is_set_to_es2015_or_es2020,
+                &[],
+            );
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkGrammarModuleElementContext @6.0.3
+    /// tsc-hash: a6c2a83bd6298d40a08730abc38b97f03d61518a79ca058c6c5c1f6d08ad9040
+    /// tsc-span: _tsc.js:86347-86353
+    fn check_grammar_module_element_context(
+        &mut self,
+        node: NodeId,
+        error_message: &'static DiagnosticMessage,
+    ) -> bool {
+        let in_appropriate_context = self.parent_of(node).is_some_and(|parent| {
+            matches!(
+                self.kind_of(parent),
+                SyntaxKind::SourceFile | SyntaxKind::ModuleBlock | SyntaxKind::ModuleDeclaration
+            )
+        });
+        if !in_appropriate_context {
+            self.grammar_error_on_first_token(node, error_message, &[]);
+        }
+        !in_appropriate_context
+    }
+
     /// tsc-port: getAliasDeclarationFromName @6.0.3
     /// tsc-hash: be72387554698d2058b7a2c7ef3379155a639555e57e25ec30257039bd5b5438
     /// tsc-span: _tsc.js:15712-15728
@@ -2963,5 +3696,1074 @@ impl<'a> CheckerState<'a> {
             }
             _ => None,
         }
+    }
+
+    /// tsc-port: checkAliasSymbol @6.0.3
+    /// tsc-hash: f38114c6ed2d310327581d9af646d70544ff4e4ae3434764b00d8818bf197779
+    /// tsc-span: _tsc.js:86029-86137
+    ///
+    /// The JS arm is dead (TS files only); the isolatedModules/
+    /// verbatimModuleSyntax/Preserve-CJS/ambient-const-enum faces
+    /// (86074-86128) are all behind unmodeled options — dead with this
+    /// note (getIsolatedModules = isolatedModules ||
+    /// verbatimModuleSyntax, both absent). The ImportSpecifier
+    /// deprecation walk is suggestion-band — skipped.
+    fn check_alias_symbol(&mut self, node: NodeId) -> CheckResult2<()> {
+        let symbol = self.get_symbol_of_declaration(node)?;
+        let target = self.resolve_alias(symbol)?;
+        if target == self.unknown_symbol {
+            return Ok(());
+        }
+        let export_symbol = self.binder.symbol(symbol).export_symbol.unwrap_or(symbol);
+        let symbol = self.get_merged_symbol(export_symbol);
+        let target_flags = self.get_symbol_flags_of(target)?;
+        let symbol_flags = self.binder.symbol(symbol).flags;
+        let mut excluded_meanings = SymbolFlags::NONE;
+        if symbol_flags.intersects(SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE) {
+            excluded_meanings |= SymbolFlags::VALUE;
+        }
+        if symbol_flags.intersects(SymbolFlags::TYPE) {
+            excluded_meanings |= SymbolFlags::TYPE;
+        }
+        if symbol_flags.intersects(SymbolFlags::NAMESPACE) {
+            excluded_meanings |= SymbolFlags::NAMESPACE;
+        }
+        if target_flags.intersects(excluded_meanings) {
+            let message = if self.kind_of(node) == SyntaxKind::ExportSpecifier {
+                &diagnostics::Export_declaration_conflicts_with_exported_declaration_of_0
+            } else {
+                &diagnostics::Import_declaration_conflicts_with_local_declaration_of_0
+            };
+            let display = self.symbol_display_name(symbol);
+            self.error_at(Some(node), message, &[&display]);
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkImportBinding @6.0.3
+    /// tsc-hash: bdbcb3f8fcc5ff897e583528e7557fe9192fd3fe24a8648e97734bb1539cfba8
+    /// tsc-span: _tsc.js:86163-86172
+    ///
+    /// The esModuleInterop default-import probe is
+    /// checkExternalEmitHelpers — an emit-marking no-op.
+    fn check_import_binding(&mut self, node: NodeId) -> CheckResult2<()> {
+        let name = match self.data_of(node) {
+            NodeData::ImportClause(data) => data.name,
+            NodeData::NamespaceImport(data) => data.name,
+            NodeData::ImportSpecifier(data) => data.name,
+            NodeData::ImportEqualsDeclaration(data) => data.name,
+            _ => None,
+        };
+        self.check_collisions_for_declaration_name(node, name);
+        self.check_alias_symbol(node)?;
+        if self.kind_of(node) == SyntaxKind::ImportSpecifier {
+            let property_name = match self.data_of(node) {
+                NodeData::ImportSpecifier(data) => data.property_name,
+                _ => None,
+            };
+            self.check_module_export_name(property_name, true)?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkImportAttributes @6.0.3
+    /// tsc-hash: 3364af7eedac773cdcb46f3c4f3c52e917037d11f996b2e129f1f9841f76adbb
+    /// tsc-span: _tsc.js:86173-86216
+    ///
+    /// Mode-machinery arms (Node20 assert replacement, CommonJS-emit
+    /// rows) are dead at the modeled defaults; ignoreDeprecations is
+    /// unmodeled-absent, so the assert-deprecation row IS live once
+    /// the module kind supports attributes.
+    fn check_import_attributes_of(&mut self, declaration: NodeId) -> CheckResult2<()> {
+        let attributes = match self.data_of(declaration) {
+            NodeData::ImportDeclaration(data) => data.attributes,
+            NodeData::ExportDeclaration(data) => data.attributes,
+            _ => None,
+        };
+        let Some(node) = attributes else {
+            return Ok(());
+        };
+        let import_attributes_type = self.get_global_type("ImportAttributes", 0, true)?;
+        if let Some(import_attributes_type) = import_attributes_type {
+            if import_attributes_type != self.empty_object_type {
+                let source = self.get_type_from_import_attributes(node)?;
+                let target = self.get_nullable_type(
+                    import_attributes_type,
+                    tsrs2_types::TypeFlags::UNDEFINED.bits(),
+                );
+                self.check_type_assignable_to(
+                    source,
+                    target,
+                    Some(node),
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                )?;
+            }
+        }
+        let valid_for_type_attributes = self.is_exclusively_type_only_import_or_export(declaration);
+        let overridden = self.get_resolution_mode_override(node, valid_for_type_attributes)?;
+        let (token, _) = match self.data_of(node) {
+            NodeData::ImportAttributes(data) => (data.token, data.elements),
+            _ => (SyntaxKind::WithKeyword, None),
+        };
+        let is_import_attributes = token == SyntaxKind::WithKeyword;
+        if valid_for_type_attributes && overridden {
+            return Ok(());
+        }
+        let module_kind = self.options.emit_module_kind();
+        let supports =
+            (101..=199).contains(&module_kind) || module_kind == 200 || module_kind == 99;
+        if !supports {
+            let message = if is_import_attributes {
+                &diagnostics::Import_attributes_are_only_supported_when_the_module_option_is_set_to_esnext_node18_node20_nodenext_or_preserve
+            } else {
+                &diagnostics::Import_assertions_are_only_supported_when_the_module_option_is_set_to_esnext_node18_node20_nodenext_or_preserve
+            };
+            self.grammar_error_on_node(node, message, &[]);
+            return Ok(());
+        }
+        if (102..=199).contains(&module_kind) && !is_import_attributes {
+            self.grammar_error_on_first_token(
+                node,
+                &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
+                &[],
+            );
+            return Ok(());
+        }
+        if !is_import_attributes {
+            // ignoreDeprecations !== "6.0" — the option is unmodeled-
+            // absent, so the row fires.
+            self.grammar_error_on_first_token(
+                node,
+                &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
+                &[],
+            );
+        }
+        // CommonJS-emit row: mode machinery (getEmitSyntaxFor
+        // ModuleSpecifierExpression), dead at the modeled defaults.
+        let is_type_only = match self.data_of(declaration) {
+            NodeData::ImportDeclaration(data) => {
+                data.import_clause
+                    .is_some_and(|clause| match self.data_of(clause) {
+                        NodeData::ImportClause(data) => data.is_type_only,
+                        _ => false,
+                    })
+            }
+            NodeData::ExportDeclaration(data) => data.is_type_only,
+            _ => false,
+        };
+        if is_type_only {
+            let message = if is_import_attributes {
+                &diagnostics::Import_attributes_cannot_be_used_with_type_only_imports_or_exports
+            } else {
+                &diagnostics::Import_assertions_cannot_be_used_with_type_only_imports_or_exports
+            };
+            self.grammar_error_on_node(node, message, &[]);
+            return Ok(());
+        }
+        if overridden {
+            self.grammar_error_on_node(
+                node,
+                &diagnostics::resolution_mode_can_only_be_set_for_type_only_imports,
+                &[],
+            );
+        }
+        Ok(())
+    }
+
+    /// tsc isExclusivelyTypeOnlyImportOrExport: the declaration-level
+    /// type-only flag (import type { } / export type { }).
+    fn is_exclusively_type_only_import_or_export(&self, declaration: NodeId) -> bool {
+        match self.data_of(declaration) {
+            NodeData::ExportDeclaration(data) => data.is_type_only,
+            NodeData::ImportDeclaration(data) => {
+                data.import_clause
+                    .is_some_and(|clause| match self.data_of(clause) {
+                        NodeData::ImportClause(data) => data.is_type_only,
+                        _ => false,
+                    })
+            }
+            _ => false,
+        }
+    }
+
+    /// tsc-port: getResolutionModeOverride @6.0.3
+    /// tsc-hash: cb7d87d78b2941af6b52f61b119f071d490a99d91dba856caa43f0e60ca37f34
+    /// tsc-span: _tsc.js:122309-122334
+    ///
+    /// Returns whether a VALID resolution-mode override is present
+    /// (the mode VALUE itself is mode machinery the checker does not
+    /// consume yet); reports the grammar rows when
+    /// `valid_for_type_attributes` passes the reporter through.
+    pub(crate) fn get_resolution_mode_override(
+        &mut self,
+        node: NodeId,
+        report: bool,
+    ) -> CheckResult2<bool> {
+        let (token, elements) = match self.data_of(node) {
+            NodeData::ImportAttributes(data) => (data.token, data.elements),
+            _ => return Ok(false),
+        };
+        let elements: Vec<NodeId> = self.nodes_of(elements);
+        if elements.len() != 1 {
+            if report {
+                let message = if token == SyntaxKind::WithKeyword {
+                    &diagnostics::Type_import_attributes_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
+                } else {
+                    &diagnostics::Type_import_assertions_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
+                };
+                self.grammar_error_on_node(node, message, &[]);
+            }
+            return Ok(false);
+        }
+        let element = elements[0];
+        let (name, value) = match self.data_of(element) {
+            NodeData::ImportAttribute(data) => (data.name, data.value),
+            _ => return Ok(false),
+        };
+        let Some(name) = name else { return Ok(false) };
+        let name_text = match self.data_of(name) {
+            NodeData::StringLiteral(data) => data.text.clone(),
+            _ => return Ok(false),
+        };
+        if name_text != "resolution-mode" {
+            if report {
+                let message = if token == SyntaxKind::WithKeyword {
+                    &diagnostics::resolution_mode_is_the_only_valid_key_for_type_import_attributes
+                } else {
+                    &diagnostics::resolution_mode_is_the_only_valid_key_for_type_import_assertions
+                };
+                self.grammar_error_on_node(name, message, &[]);
+            }
+            return Ok(false);
+        }
+        let Some(value) = value else { return Ok(false) };
+        let value_text = match self.data_of(value) {
+            NodeData::StringLiteral(data) => data.text.clone(),
+            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
+            _ => return Ok(false),
+        };
+        if value_text != "import" && value_text != "require" {
+            if report {
+                self.grammar_error_on_node(
+                    value,
+                    &diagnostics::resolution_mode_should_be_either_require_or_import,
+                    &[],
+                );
+            }
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: getTypeFromImportAttributes @6.0.3
+    /// tsc-hash: 230cca270e69688831e489ada99f4658563ce2394ee48cf2beae61b44380947b
+    /// tsc-span: _tsc.js:56560-56579
+    fn get_type_from_import_attributes(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+            return Ok(cached);
+        }
+        let object_symbol = self
+            .binder
+            .create_symbol(SymbolFlags::OBJECT_LITERAL, "__importAttributes".to_owned());
+        let mut members = SymbolTable::default();
+        let mut properties = Vec::new();
+        let elements = match self.data_of(node) {
+            NodeData::ImportAttributes(data) => data.elements,
+            _ => None,
+        };
+        for attribute in self.nodes_of(elements) {
+            let (name, value) = match self.data_of(attribute) {
+                NodeData::ImportAttribute(data) => (data.name, data.value),
+                _ => continue,
+            };
+            let (Some(name), Some(value)) = (name, value) else {
+                continue;
+            };
+            let source = self.binder.source_of_node(name);
+            let member_name = node_util::get_text_of_identifier_or_literal(source, name)
+                .map(|text| escape_leading_underscores(&text))
+                .unwrap_or_default();
+            let member = self
+                .binder
+                .create_symbol(SymbolFlags::PROPERTY, member_name.clone());
+            self.binder.symbol_mut(member).parent = Some(object_symbol);
+            let value_type = self.check_expression_cached(value, CheckMode::NORMAL)?;
+            let member_type = self.tables.get_regular_type_of_literal_type(value_type);
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                member,
+                crate::links::LinkSlot::Resolved(member_type),
+            );
+            self.links
+                .set_symbol_target(self.speculation_depth, member, member);
+            members.insert(member_name, member);
+            properties.push(member);
+        }
+        let ty = self.make_resolved_anonymous_type(
+            Some(object_symbol),
+            members,
+            properties,
+            Vec::new(),
+            tsrs2_types::ObjectFlags::OBJECT_LITERAL
+                | tsrs2_types::ObjectFlags::NON_INFERRABLE_TYPE,
+        );
+        self.links
+            .set_node_resolved_type(self.speculation_depth, node, LinkSlot::Resolved(ty));
+        Ok(ty)
+    }
+
+    /// tsc-port: checkImportDeclaration @6.0.3
+    /// tsc-hash: fdfed72af1f7631d13e0d945b5dce6c52fe41b4df2e38cdd7f7146bfd1c0f3e6
+    /// tsc-span: _tsc.js:86220-86261
+    ///
+    /// The An_import_declaration_cannot_have_modifiers follower rides
+    /// the M7-stub checkGrammarModifiers — contained (a real modifier
+    /// error suppresses it in tsc; emitting alongside our stub would
+    /// swap codes). Node18+ JSON default-import and
+    /// noUncheckedSideEffectImports rows are dead at the modeled
+    /// defaults.
+    pub(crate) fn check_import_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        if self.check_grammar_module_element_context(
+            node,
+            &diagnostics::An_import_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module,
+        ) {
+            return Ok(());
+        }
+        let _ = self.check_grammar_modifiers(node);
+        if self.check_external_import_or_export_declaration(node)? {
+            let import_clause = match self.data_of(node) {
+                NodeData::ImportDeclaration(data) => data.import_clause,
+                _ => None,
+            };
+            if let Some(import_clause) = import_clause {
+                if !self.check_grammar_import_clause(import_clause)? {
+                    let (name, named_bindings) = match self.data_of(import_clause) {
+                        NodeData::ImportClause(data) => (data.name, data.named_bindings),
+                        _ => (None, None),
+                    };
+                    if name.is_some() {
+                        self.check_import_binding(import_clause)?;
+                    }
+                    if let Some(named_bindings) = named_bindings {
+                        if self.kind_of(named_bindings) == SyntaxKind::NamespaceImport {
+                            self.check_import_binding(named_bindings)?;
+                        } else {
+                            let module_specifier = match self.data_of(node) {
+                                NodeData::ImportDeclaration(data) => data.module_specifier,
+                                _ => None,
+                            };
+                            if let Some(module_specifier) = module_specifier {
+                                let resolved = self.resolve_external_module_name(
+                                    node,
+                                    module_specifier,
+                                    false,
+                                )?;
+                                if resolved.is_some() {
+                                    let elements = match self.data_of(named_bindings) {
+                                        NodeData::NamedImports(data) => data.elements,
+                                        _ => None,
+                                    };
+                                    for element in self.nodes_of(elements) {
+                                        self.check_import_binding(element)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        self.check_import_attributes_of(node)
+    }
+
+    /// tsc-port: checkGrammarImportClause @6.0.3
+    /// tsc-hash: 135005635990b013ef4d869f68234202f2703dae3e7cb87768337c7a642852c3
+    /// tsc-span: _tsc.js:90396-90417
+    ///
+    /// The defer-phase arm parses onto nothing yet (import defer is
+    /// dropped by the parser's phase handling) — type-only arms only.
+    fn check_grammar_import_clause(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let (is_type_only, name, named_bindings) = match self.data_of(node) {
+            NodeData::ImportClause(data) => (data.is_type_only, data.name, data.named_bindings),
+            _ => return Ok(false),
+        };
+        if is_type_only {
+            if name.is_some() && named_bindings.is_some() {
+                return Ok(self.grammar_error_on_node(
+                    node,
+                    &diagnostics::A_type_only_import_can_specify_a_default_import_or_named_bindings_but_not_both,
+                    &[],
+                ));
+            }
+            if let Some(named_bindings) = named_bindings {
+                if self.kind_of(named_bindings) == SyntaxKind::NamedImports {
+                    return self.check_grammar_named_imports_or_exports(named_bindings);
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: checkGrammarNamedImportsOrExports @6.0.3
+    /// tsc-hash: eaaf92dfe56485390b1e6ed697a21d644959d0151d80c999953723c41ca882d4
+    /// tsc-span: _tsc.js:90418-90427
+    fn check_grammar_named_imports_or_exports(
+        &mut self,
+        named_bindings: NodeId,
+    ) -> CheckResult2<bool> {
+        let elements = match self.data_of(named_bindings) {
+            NodeData::NamedImports(data) => data.elements,
+            NodeData::NamedExports(data) => data.elements,
+            _ => None,
+        };
+        for specifier in self.nodes_of(elements) {
+            let is_type_only = match self.data_of(specifier) {
+                NodeData::ImportSpecifier(data) => data.is_type_only,
+                NodeData::ExportSpecifier(data) => data.is_type_only,
+                _ => false,
+            };
+            if is_type_only {
+                let message = if self.kind_of(specifier) == SyntaxKind::ImportSpecifier {
+                    &diagnostics::The_type_modifier_cannot_be_used_on_a_named_import_when_import_type_is_used_on_its_import_statement
+                } else {
+                    &diagnostics::The_type_modifier_cannot_be_used_on_a_named_export_when_export_type_is_used_on_its_export_statement
+                };
+                return Ok(self.grammar_error_on_first_token(specifier, message, &[]));
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: checkImportEqualsDeclaration @6.0.3
+    /// tsc-hash: 917a3ecc1c32fbf5aaef34a7341ab5a1f9ae58bd9a73123726ae69689ac60388
+    /// tsc-span: _tsc.js:86268-86302
+    ///
+    /// erasableSyntaxOnly is unmodeled-dead; markLinkedReferences is
+    /// emit machinery.
+    pub(crate) fn check_import_equals_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        if self.check_grammar_module_element_context(
+            node,
+            &diagnostics::An_import_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module,
+        ) {
+            return Ok(());
+        }
+        let _ = self.check_grammar_modifiers(node);
+        let is_internal = self.is_internal_module_import_equals_declaration(node);
+        if is_internal || self.check_external_import_or_export_declaration(node)? {
+            self.check_import_binding(node)?;
+            let (is_type_only, module_reference) = match self.data_of(node) {
+                NodeData::ImportEqualsDeclaration(data) => {
+                    (data.is_type_only, data.module_reference)
+                }
+                _ => (false, None),
+            };
+            let Some(module_reference) = module_reference else {
+                return Ok(());
+            };
+            if self.kind_of(module_reference) != SyntaxKind::ExternalModuleReference {
+                let symbol = self.get_symbol_of_declaration(node)?;
+                let target = self.resolve_alias(symbol)?;
+                if target != self.unknown_symbol {
+                    let target_flags = self.get_symbol_flags_of(target)?;
+                    if target_flags.intersects(SymbolFlags::VALUE) {
+                        let module_name = self.first_identifier(module_reference);
+                        let resolved = self.resolve_entity_name(
+                            module_name,
+                            SymbolFlags::VALUE | SymbolFlags::NAMESPACE,
+                            /*ignore_errors*/ false,
+                            None,
+                        )?;
+                        let resolved_is_namespace = resolved.is_some_and(|resolved| {
+                            self.binder
+                                .symbol(resolved)
+                                .flags
+                                .intersects(SymbolFlags::NAMESPACE)
+                        });
+                        if !resolved_is_namespace {
+                            let display = node_util::declaration_name_to_string(
+                                self.binder.source_of_node(module_name),
+                                Some(module_name),
+                            );
+                            self.error_at(
+                                Some(module_name),
+                                &diagnostics::Module_0_is_hidden_by_a_local_declaration_with_the_same_name,
+                                &[&display],
+                            );
+                        }
+                    }
+                    if target_flags.intersects(SymbolFlags::TYPE) {
+                        if let Some(name) = match self.data_of(node) {
+                            NodeData::ImportEqualsDeclaration(data) => data.name,
+                            _ => None,
+                        } {
+                            self.check_type_name_is_reserved(
+                                name,
+                                &diagnostics::Import_name_cannot_be_0,
+                            );
+                        }
+                    }
+                }
+                if is_type_only {
+                    self.grammar_error_on_node(
+                        node,
+                        &diagnostics::An_import_alias_cannot_use_import_type,
+                        &[],
+                    );
+                }
+            } else {
+                let module_kind = self.options.emit_module_kind();
+                let ambient = self
+                    .binder
+                    .flags_of(node)
+                    .intersects(tsrs2_types::NodeFlags::AMBIENT);
+                if (5..=99).contains(&module_kind) && !is_type_only && !ambient {
+                    self.grammar_error_on_node(
+                        node,
+                        &diagnostics::Import_assignment_cannot_be_used_when_targeting_ECMAScript_modules_Consider_using_import_as_ns_from_mod_import_a_from_mod_import_d_from_mod_or_another_module_format_instead,
+                        &[],
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkExportDeclaration @6.0.3
+    /// tsc-hash: f4ecd02d9c128e962482b8cf3e24b113cbf7b2cf3f377c26f9b05684f0fef49d
+    /// tsc-span: _tsc.js:86303-86339
+    ///
+    /// The An_export_declaration_cannot_have_modifiers follower rides
+    /// the M7-stub checkGrammarModifiers — contained (same as the
+    /// import flavor). Emit helpers are no-ops.
+    pub(crate) fn check_export_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+        if self.check_grammar_module_element_context(
+            node,
+            &diagnostics::An_export_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module,
+        ) {
+            return Ok(());
+        }
+        let _ = self.check_grammar_modifiers(node);
+        self.check_grammar_export_declaration(node)?;
+        let (module_specifier, export_clause) = match self.data_of(node) {
+            NodeData::ExportDeclaration(data) => (data.module_specifier, data.export_clause),
+            _ => (None, None),
+        };
+        if module_specifier.is_none() || self.check_external_import_or_export_declaration(node)? {
+            let is_namespace_export = export_clause
+                .is_some_and(|clause| self.kind_of(clause) == SyntaxKind::NamespaceExport);
+            if let (Some(export_clause), false) = (export_clause, is_namespace_export) {
+                let elements = match self.data_of(export_clause) {
+                    NodeData::NamedExports(data) => data.elements,
+                    _ => None,
+                };
+                for element in self.nodes_of(elements) {
+                    self.check_export_specifier(element)?;
+                }
+                let parent = self.parent_of(node);
+                let in_ambient_external_module = parent.is_some_and(|parent| {
+                    self.kind_of(parent) == SyntaxKind::ModuleBlock
+                        && self.parent_of(parent).is_some_and(|grand| {
+                            node_util::is_ambient_module(self.binder.source_of_node(grand), grand)
+                        })
+                });
+                let in_ambient_namespace_declaration = !in_ambient_external_module
+                    && parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ModuleBlock)
+                    && module_specifier.is_none()
+                    && self
+                        .binder
+                        .flags_of(node)
+                        .intersects(tsrs2_types::NodeFlags::AMBIENT);
+                if parent.is_some_and(|parent| self.kind_of(parent) != SyntaxKind::SourceFile)
+                    && !in_ambient_external_module
+                    && !in_ambient_namespace_declaration
+                {
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Export_declarations_are_not_permitted_in_a_namespace,
+                        &[],
+                    );
+                }
+            } else if let Some(module_specifier) = module_specifier {
+                let module_symbol =
+                    self.resolve_external_module_name(node, module_specifier, false)?;
+                if let Some(module_symbol) = module_symbol {
+                    if self.has_export_assignment_symbol(module_symbol) {
+                        let display = self.symbol_display_name(module_symbol);
+                        self.error_at(
+                            Some(module_specifier),
+                            &diagnostics::Module_0_uses_export_and_cannot_be_used_with_export,
+                            &[&display],
+                        );
+                    } else if let Some(export_clause) = export_clause {
+                        self.check_alias_symbol(export_clause)?;
+                        let clause_name = match self.data_of(export_clause) {
+                            NodeData::NamespaceExport(data) => data.name,
+                            _ => None,
+                        };
+                        self.check_module_export_name(clause_name, true)?;
+                    }
+                } else if let Some(export_clause) = export_clause {
+                    self.check_alias_symbol(export_clause)?;
+                    let clause_name = match self.data_of(export_clause) {
+                        NodeData::NamespaceExport(data) => data.name,
+                        _ => None,
+                    };
+                    self.check_module_export_name(clause_name, true)?;
+                }
+            }
+        }
+        self.check_import_attributes_of(node)
+    }
+
+    /// tsc-port: checkGrammarExportDeclaration @6.0.3
+    /// tsc-hash: 73214d3d7eb2caaa902d8aed441dbdcb290a02834dd7e14469c594bbc131b2fb
+    /// tsc-span: _tsc.js:86340-86346
+    fn check_grammar_export_declaration(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let (is_type_only, export_clause) = match self.data_of(node) {
+            NodeData::ExportDeclaration(data) => (data.is_type_only, data.export_clause),
+            _ => return Ok(false),
+        };
+        if is_type_only {
+            if let Some(export_clause) = export_clause {
+                if self.kind_of(export_clause) == SyntaxKind::NamedExports {
+                    return self.check_grammar_named_imports_or_exports(export_clause);
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: checkExportSpecifier @6.0.3
+    /// tsc-hash: 9140193d8815ff3c9aef7ceed229317e0c48d27a8badb69d6b3051e5508ae137
+    /// tsc-span: _tsc.js:86354-86390
+    ///
+    /// collectLinkedAliases/markLinkedReferences are declaration-emit
+    /// machinery (no-ops); the interop emit-helper probe too.
+    fn check_export_specifier(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_alias_symbol(node)?;
+        let (property_name, name) = match self.data_of(node) {
+            NodeData::ExportSpecifier(data) => (data.property_name, data.name),
+            _ => (None, None),
+        };
+        let has_module_specifier = self
+            .parent_of(node)
+            .and_then(|named| self.parent_of(named))
+            .is_some_and(|declaration| match self.data_of(declaration) {
+                NodeData::ExportDeclaration(data) => data.module_specifier.is_some(),
+                _ => false,
+            });
+        self.check_module_export_name(property_name, has_module_specifier)?;
+        self.check_module_export_name(name, true)?;
+        if !has_module_specifier {
+            let Some(exported_name) = property_name.or(name) else {
+                return Ok(());
+            };
+            if self.kind_of(exported_name) == SyntaxKind::StringLiteral {
+                return Ok(());
+            }
+            let text = self.module_export_name_text_escaped(exported_name);
+            let symbol = self.resolve_name(
+                Some(exported_name),
+                &text,
+                SymbolFlags::VALUE
+                    | SymbolFlags::TYPE
+                    | SymbolFlags::NAMESPACE
+                    | SymbolFlags::ALIAS,
+                /*name_not_found_message*/ None,
+                /*is_use*/ true,
+                /*exclude_globals*/ false,
+            )?;
+            if let Some(symbol) = symbol {
+                let is_global_declared = symbol != self.undefined_symbol
+                    && symbol != self.global_this_symbol
+                    && self
+                        .binder
+                        .symbol(symbol)
+                        .declarations
+                        .first()
+                        .copied()
+                        .and_then(|declaration| {
+                            self.get_enclosing_block_scope_container(declaration)
+                        })
+                        .is_some_and(|container| self.is_global_source_file_node(container));
+                if symbol == self.undefined_symbol
+                    || symbol == self.global_this_symbol
+                    || is_global_declared
+                {
+                    let display = self.module_export_name_text_unescaped(exported_name);
+                    self.error_at(
+                        Some(exported_name),
+                        &diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
+                        &[&display],
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkExportAssignment @6.0.3
+    /// tsc-hash: 2481cb70fb33663829bfdf493fafea233783acafbd6069e1e83a2f85c5cf1a19
+    /// tsc-span: _tsc.js:86391-86501
+    ///
+    /// Dead rows at the modeled defaults: erasableSyntaxOnly,
+    /// verbatimModuleSyntax faces, the isolatedModules type-only
+    /// re-export band, collectLinkedAliases (emit). The JSDoc type
+    /// annotation arm is JS-only. The export= tails read the modeled
+    /// module option (impliedNodeFormat reduces: non-ambient files
+    /// carry no format, so `!== CommonJS` holds and the ES2015+ row
+    /// fires; the ambient ESNext face never does).
+    pub(crate) fn check_export_assignment(&mut self, node: NodeId) -> CheckResult2<()> {
+        let is_export_equals = match self.data_of(node) {
+            NodeData::ExportAssignment(data) => data.is_export_equals == Some(true),
+            _ => false,
+        };
+        let illegal_context_message = if is_export_equals {
+            &diagnostics::An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration
+        } else {
+            &diagnostics::A_default_export_must_be_at_the_top_level_of_a_file_or_module_declaration
+        };
+        if self.check_grammar_module_element_context(node, illegal_context_message) {
+            return Ok(());
+        }
+        let container = match self.parent_of(node) {
+            Some(parent) if self.kind_of(parent) == SyntaxKind::SourceFile => parent,
+            Some(parent) => match self.parent_of(parent) {
+                Some(grand) => grand,
+                None => return Ok(()),
+            },
+            None => return Ok(()),
+        };
+        if self.kind_of(container) == SyntaxKind::ModuleDeclaration
+            && !node_util::is_ambient_module(self.binder.source_of_node(container), container)
+        {
+            if is_export_equals {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::An_export_assignment_cannot_be_used_in_a_namespace,
+                    &[],
+                );
+            } else {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::A_default_export_can_only_be_used_in_an_ECMAScript_style_module,
+                    &[],
+                );
+            }
+            return Ok(());
+        }
+        let _ = self.check_grammar_modifiers(node);
+        let expression = match self.data_of(node) {
+            NodeData::ExportAssignment(data) => data.expression,
+            _ => None,
+        };
+        let Some(expression) = expression else {
+            return Ok(());
+        };
+        let ambient = self
+            .binder
+            .flags_of(node)
+            .intersects(tsrs2_types::NodeFlags::AMBIENT);
+        if self.kind_of(expression) == SyntaxKind::Identifier {
+            let sym = self.resolve_entity_name_ex(
+                expression,
+                SymbolFlags::ALL,
+                /*ignore_errors*/ true,
+                /*location*/ Some(node),
+                /*dont_resolve_alias*/ true,
+            )?;
+            let sym = sym.map(|sym| self.get_export_symbol_of_value_symbol_if_exported(sym));
+            if let Some(sym) = sym {
+                if self
+                    .get_symbol_flags_of(sym)?
+                    .intersects(SymbolFlags::VALUE)
+                {
+                    // A pure-type export= does NOT check the
+                    // expression (no 2693 here).
+                    self.check_expression_cached(expression, CheckMode::NORMAL)?;
+                }
+            } else {
+                self.check_expression_cached(expression, CheckMode::NORMAL)?;
+            }
+        } else {
+            self.check_expression_cached(expression, CheckMode::NORMAL)?;
+        }
+        self.check_external_module_exports(container)?;
+        if ambient && !self.is_entity_name_expression(expression) {
+            self.grammar_error_on_node(
+                expression,
+                &diagnostics::The_expression_of_an_export_assignment_must_be_an_identifier_or_qualified_name_in_an_ambient_context,
+                &[],
+            );
+        }
+        if is_export_equals {
+            let module_kind = self.options.emit_module_kind();
+            if module_kind >= 5 && module_kind != 200 && !ambient {
+                self.grammar_error_on_node(
+                    node,
+                    &diagnostics::Export_assignment_cannot_be_used_when_targeting_ECMAScript_modules_Consider_using_export_default_or_another_module_format_instead,
+                    &[],
+                );
+            } else if module_kind == 4 && !ambient {
+                self.grammar_error_on_node(
+                    node,
+                    &diagnostics::Export_assignment_is_not_supported_when_module_flag_is_system,
+                    &[],
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkExternalModuleExports @6.0.3
+    /// tsc-hash: 2d0f81291dd10b3cf351c83edab8f11522efad0f2939cece56fa438d6e8cec05
+    /// tsc-span: _tsc.js:86505-86542
+    ///
+    /// isDuplicatedCommonJSExport is JS-only (constant-false).
+    pub(crate) fn check_external_module_exports(&mut self, container: NodeId) -> CheckResult2<()> {
+        let Some(module_symbol) = self.binder.node_symbol(container) else {
+            return Ok(());
+        };
+        let module_symbol = self.get_merged_symbol(module_symbol);
+        if self.links.symbol(module_symbol).exports_checked {
+            return Ok(());
+        }
+        let export_equals_symbol = self
+            .binder
+            .symbol(module_symbol)
+            .exports
+            .get(InternalSymbolName::EXPORT_EQUALS)
+            .copied();
+        if let Some(export_equals_symbol) = export_equals_symbol {
+            if self.has_exported_members(module_symbol) {
+                let declaration = self
+                    .get_declaration_of_alias_symbol(export_equals_symbol)
+                    .or(self.binder.symbol(export_equals_symbol).value_declaration);
+                if let Some(declaration) = declaration {
+                    if !self.is_top_level_in_external_module_augmentation(declaration) {
+                        self.error_at(
+                            Some(declaration),
+                            &diagnostics::An_export_assignment_cannot_be_used_in_a_module_with_other_exported_elements,
+                            &[],
+                        );
+                    }
+                }
+            }
+        }
+        let exports = self.get_exports_of_module(module_symbol)?;
+        for (id, &export_symbol) in &exports {
+            if id == InternalSymbolName::EXPORT_STAR {
+                continue;
+            }
+            let flags = self.binder.symbol(export_symbol).flags;
+            if flags.intersects(SymbolFlags::NAMESPACE | SymbolFlags::ENUM) {
+                continue;
+            }
+            let declarations = self.binder.symbol(export_symbol).declarations.clone();
+            let exported_declarations_count = declarations
+                .iter()
+                .filter(|&&declaration| {
+                    self.is_not_overload(declaration)
+                        && !self.is_accessor_declaration(declaration)
+                        && self.kind_of(declaration) != SyntaxKind::InterfaceDeclaration
+                })
+                .count();
+            if flags.intersects(SymbolFlags::TYPE_ALIAS) && exported_declarations_count <= 2 {
+                continue;
+            }
+            if exported_declarations_count > 1 {
+                for &declaration in &declarations {
+                    if self.is_not_overload(declaration) {
+                        self.error_at(
+                            Some(declaration),
+                            &diagnostics::Cannot_redeclare_exported_variable_0,
+                            &[unescape_leading_underscores(id)],
+                        );
+                    }
+                }
+            }
+        }
+        self.links
+            .set_symbol_exports_checked(self.speculation_depth, module_symbol);
+        Ok(())
+    }
+
+    /// tsc-port: hasExportedMembers @6.0.3
+    /// tsc-hash: 2c3014a8e3dca95c995088d8049662c89a71a6a202029c56415a030dbd32bc94
+    /// tsc-span: _tsc.js:86502-86504
+    fn has_exported_members(&self, module_symbol: SymbolId) -> bool {
+        self.binder
+            .symbol(module_symbol)
+            .exports
+            .keys()
+            .any(|id| id != InternalSymbolName::EXPORT_EQUALS)
+    }
+
+    /// tsc isNotOverload: not a bodiless function/method declaration.
+    fn is_not_overload(&self, declaration: NodeId) -> bool {
+        !matches!(
+            self.kind_of(declaration),
+            SyntaxKind::FunctionDeclaration | SyntaxKind::MethodDeclaration
+        ) || node_util::body_of(self.binder.source_of_node(declaration), declaration).is_some()
+    }
+
+    /// Accessor probe for the checkExternalModuleExports count.
+    fn is_accessor_declaration(&self, declaration: NodeId) -> bool {
+        matches!(
+            self.kind_of(declaration),
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{check_program, CompilerOptions, InputFile};
+
+    /// Driver-level multi-file rows: (file, code, start, length) for
+    /// located diagnostics (noLib artifacts are locationless and drop
+    /// with the filter — the calls.rs checked_rows discipline).
+    fn program_rows(
+        files: &[(&str, &str)],
+        options: &CompilerOptions,
+    ) -> Vec<(String, u32, u32, u32)> {
+        let inputs: Vec<InputFile> = files
+            .iter()
+            .map(|(name, text)| InputFile {
+                name: (*name).to_owned(),
+                text: (*text).to_owned(),
+            })
+            .collect();
+        let result = check_program(&inputs, options);
+        result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.file_name.is_some())
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.clone().expect("filtered"),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                )
+            })
+            .collect()
+    }
+
+    fn rows(files: &[(&str, &str)]) -> Vec<(String, u32, u32, u32)> {
+        program_rows(files, &CompilerOptions::default())
+    }
+
+    fn node16_options() -> CompilerOptions {
+        CompilerOptions {
+            module: Some(100),
+            target: Some(9),
+            ..CompilerOptions::default()
+        }
+    }
+
+    /// Oracle pins (tsc 6.0.3, scratchpad probe58d/pins, 2026-07-15).
+    #[test]
+    fn not_a_module_and_missing_member_report_2306_and_2305() {
+        let files = [
+            ("script.ts", "var g = 1;\n"),
+            ("other.ts", "export const yes = 1;\n"),
+            (
+                "amb.d.ts",
+                "declare module \"amb\" { export const a: number; }\n",
+            ),
+            (
+                "main.ts",
+                "import { a } from \"amb\";\nimport * as s from \"./script\";\nimport { nope } from \"./other\";\na; s; nope;\n",
+            ),
+        ];
+        assert_eq!(
+            rows(&files),
+            [
+                ("main.ts".to_owned(), 2306, 44, 10),
+                ("main.ts".to_owned(), 2305, 65, 4),
+            ]
+        );
+    }
+
+    #[test]
+    fn export_assignment_rows_1203_2309_1202() {
+        let files = [
+            ("m.ts", "const x = 1;\nexport = x;\nexport const y = 2;\n"),
+            ("main.ts", "import m = require(\"./m\");\nm;\n"),
+        ];
+        assert_eq!(
+            rows(&files),
+            [
+                ("m.ts".to_owned(), 1203, 13, 11),
+                ("m.ts".to_owned(), 2309, 13, 11),
+                ("main.ts".to_owned(), 1202, 0, 26),
+            ]
+        );
+    }
+
+    #[test]
+    fn module_keyword_and_quoted_name_rows_1540_1035() {
+        let files = [(
+            "a.ts",
+            "module M { export const x = 1; }\nmodule \"bad\" {}\nexport {};\n",
+        )];
+        assert_eq!(
+            rows(&files),
+            [
+                ("a.ts".to_owned(), 1540, 7, 1),
+                ("a.ts".to_owned(), 1035, 40, 5),
+            ]
+        );
+    }
+
+    #[test]
+    fn circular_import_alias_reports_2303() {
+        let files = [("c.ts", "import A = B;\nimport B = A;\nA; B;\nexport {};\n")];
+        assert_eq!(rows(&files), [("c.ts".to_owned(), 2303, 0, 13)]);
+    }
+
+    /// probe58d fix1: static extensionless imports PROBE the .ts
+    /// family; a .mts-only target misses → plain 2307 (never the
+    /// 2834/2835 mode rows).
+    #[test]
+    fn static_extensionless_miss_reports_plain_2307_under_node16() {
+        let files = [
+            ("/src/foo.mts", "export function foo() { return \"\"; }\n"),
+            (
+                "/src/bar.mts",
+                "import { foo } from \"./foo\";\nimport { baz } from \"./baz\";\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(&files, &node16_options()),
+            [
+                ("/src/bar.mts".to_owned(), 2307, 20, 7),
+                ("/src/bar.mts".to_owned(), 2307, 49, 7),
+            ]
+        );
+    }
+
+    /// probe58d fix7: the SAME extensionless specifier resolves for a
+    /// static import (extension probing) and reports 2835 for an
+    /// import() usage in a mode-bearing file (Did_you_mean "./foo.js";
+    /// the noLib Promise 2711 rides the import call like the calls.rs
+    /// pins).
+    #[test]
+    fn import_call_extensionless_reports_2835_while_static_resolves() {
+        let files = [
+            ("foo.ts", "export const x = 1;\n"),
+            (
+                "buzz.mts",
+                "import(\"./foo\");\nimport { x } from \"./foo\";\nx;\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(&files, &node16_options()),
+            [
+                ("buzz.mts".to_owned(), 2711, 0, 15),
+                ("buzz.mts".to_owned(), 2835, 7, 7),
+            ]
+        );
     }
 }

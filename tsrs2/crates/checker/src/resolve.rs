@@ -1092,13 +1092,10 @@ impl<'a> CheckerState<'a> {
             Ok(Some(_)) | Err(_) => return,
             Ok(None) => {}
         }
-        // 2. `declare global` blocks can inject arbitrary names into
-        //    the global scope; global-augmentation binding is
-        //    unported (M2 3.4c-adjacent / 5.8), so failures in such
-        //    programs are undecidable.
-        if self.program_has_global_augmentation() {
-            return;
-        }
+        // 2. (RETIRED 5.8d) `declare global` exports now merge into
+        //    globals (merge_module_augmentations pass 1), so failures
+        //    in augmented programs are decidable again — the gate
+        //    kept 2304 recovery hostage to the merge.
         // 2b. JS program files can declare types via JSDoc (@typedef/
         //     @callback — [JSDOC] unbound), so name-resolution
         //     failures in mixed-JS programs are undecidable the same
@@ -1131,9 +1128,22 @@ impl<'a> CheckerState<'a> {
                         Err(_) => return,
                     };
                 // The isGlobalScopeAugmentationDeclaration filter
-                // (48126-48129) is provably dead here: the
-                // program_has_global_augmentation gate above already
-                // returned for any program that could produce one.
+                // (48126-48129) — LIVE since 5.8d retired the
+                // global-augmentation failure gate: a `declare global`
+                // container symbol never suggests.
+                if let Some(candidate) = suggestion {
+                    let is_global_scope_augmentation_declaration =
+                        self.binder.symbol(candidate).value_declaration.is_some_and(
+                            |declaration| {
+                                let source = self.binder.source_of_node(declaration);
+                                node_util::is_ambient_module(source, declaration)
+                                    && node_util::is_global_scope_augmentation(source, declaration)
+                            },
+                        );
+                    if is_global_scope_augmentation_declaration {
+                        suggestion = None;
+                    }
+                }
                 if let Some(suggested) = suggestion {
                     let suggestion_name = self.symbol_display_name(suggested);
                     // Namespace meaning selects the 2833 flavor; the

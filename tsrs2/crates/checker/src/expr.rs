@@ -3955,17 +3955,15 @@ mod tests {
 
     #[test]
     fn this_in_namespace_body_reports_2331() {
-        // Driver reachability arrives with checkModuleDeclaration
-        // (5.8) — direct probe. Oracle also reports 2683
-        // (noImplicitThis implicit-any this): its globalThisType probe
-        // needs the VALUE_MODULE getTypeOfSymbol arm (5.8), so the
-        // check abandons after 2331 (honest FN).
+        // Driver reachability + the VALUE_MODULE getTypeOfSymbol arm
+        // (both 5.8d): 2331 plus the noImplicitThis implicit-any 2683
+        // — the full oracle pair.
         let rows = direct_expression_rows(
             "namespace N { this; }\nexport {};\n",
             SyntaxKind::ThisKeyword,
             None,
         );
-        assert_eq!(rows, [(2331, 14, 4)]);
+        assert_eq!(rows, [(2331, 14, 4), (2683, 14, 4)]);
     }
 
     #[test]

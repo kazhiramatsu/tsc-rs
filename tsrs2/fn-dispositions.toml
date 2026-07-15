@@ -991,10 +991,6 @@ name = "parse_program"
 
 [[fn]]
 file = "crates/checker/src/state.rs"
-name = "program_has_global_augmentation"
-
-[[fn]]
-file = "crates/checker/src/state.rs"
 name = "push_error_diagnostic"
 
 [[fn]]

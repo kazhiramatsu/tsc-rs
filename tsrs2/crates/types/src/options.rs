@@ -115,6 +115,10 @@ pub struct CompilerOptions {
     /// under baseUrl is tsc-undecidable → no 2307). Full baseUrl
     /// semantics (paths mapping) stay unmodeled — ledger.
     pub base_url: Option<String>,
+    /// M4 5.8d: gates the 5097 An_import_path_can_only_end_with_a_0_
+    /// extension row (shouldAllowImportingTsExtension) — a true value
+    /// legalizes .ts-family specifiers.
+    pub allow_importing_ts_extensions: Option<bool>,
     /// M4 5.8d: skipTypeCheckingWorker's first arm (18896) —
     /// declaration files produce NO bind/check diagnostics when set.
     /// 100 conformance fixtures carry the directive.

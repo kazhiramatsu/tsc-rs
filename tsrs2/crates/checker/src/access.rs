@@ -333,6 +333,11 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ThisKeyword
                 | SyntaxKind::PropertyAccessExpression
                 | SyntaxKind::ElementAccessExpression
+                // Type-query entity names narrow too (tsc
+                // getFlowTypeOfReference's QualifiedName face;
+                // typeofThis pins `typeof this.a.b` under an if-guard,
+                // M4 5.8d).
+                | SyntaxKind::QualifiedName
         )
     }
 
@@ -1261,6 +1266,15 @@ impl<'a> CheckerState<'a> {
             .flags_of(non_null_type)
             .intersects(TypeFlags::VOID)
         {
+            // [FLOW M5] narrowable-receiver containment — the same
+            // gate check_non_null_type_with_reporter applies; a
+            // guarded `this.x` chain tsc narrows past void/undefined
+            // would FP here (typeofThis pins the typeof-query face).
+            if self.receiver_may_be_flow_narrowed(node) {
+                return Err(Unsupported::new(
+                    "[FLOW M5] void receiver on a narrowable reference",
+                ));
+            }
             if self.is_entity_name_expression(node) {
                 let node_text = self.entity_name_to_string(node)?;
                 if self.kind_of(node) == SyntaxKind::Identifier && node_text == "undefined" {
@@ -4743,14 +4757,12 @@ mod tests {
 
     #[test]
     fn instance_property_used_before_initialization_stays_contained() {
-        // Oracle: 2729 at `b` (23+1). The `this` receiver contains on
-        // the strict noImplicitThis probe (globalThis reads the
-        // VALUE_MODULE getTypeOfSymbol escape, 5.8) — the row is that
-        // band's recorded FN, not the 2729 walk's; the static pin
-        // above exercises the walk end-to-end.
+        // Oracle: 2729 at `b` (23+1) — LIVE since the VALUE_MODULE
+        // getTypeOfSymbol arm landed (5.8d) un-contained the strict
+        // noImplicitThis globalThis probe on the `this` receiver.
         assert_eq!(
             checked_rows("class E {\n    a = this.b;\n    b = 1;\n}\ndeclare const e: E;\ne.a;\n"),
-            []
+            [(2729, 23, 1)]
         );
     }
 

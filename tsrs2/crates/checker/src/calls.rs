@@ -5328,13 +5328,32 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // resolveExternalModuleName (77749): the silent module-band
-        // stub — a resolved module would return the synthetic-default
-        // wrapped module type instead of Promise<any>.
-        self.source_element_stub(
-            "resolveExternalModuleName (import-call module type; Promise<any> fallback)",
-            "5.8",
-        )?;
+        // 77749-77766: the module-band worker (M4 5.8d un-silences
+        // the 5.7b stub). dontResolveAlias=TRUE skips the interop-
+        // cloning arm; getTypeWithSyntheticDefaultOnly is mode
+        // machinery (None at the modeled defaults); the synthetic-
+        // default wrap face (export= module under the TS6 default-on
+        // allowSyntheticDefaultImports) ESCAPES like
+        // resolveESModuleSymbol's cloning arm.
+        let module_symbol = self.resolve_external_module_name(node, specifier, false)?;
+        if let Some(module_symbol) = module_symbol {
+            let es_module_symbol = self.resolve_es_module_symbol(
+                Some(module_symbol),
+                specifier,
+                /*dont_resolve_alias*/ true,
+                /*suppress_interop_error*/ false,
+            )?;
+            if let Some(es_module_symbol) = es_module_symbol {
+                let file_index = self.source_file_index_of_symbol(module_symbol);
+                if self.can_have_synthetic_default(file_index, module_symbol, false)? {
+                    return Err(Unsupported::new(
+                        "getTypeWithSyntheticDefaultImportType synthetic-default wrap (M4-end sweep 5.8)",
+                    ));
+                }
+                let module_type = self.get_type_of_symbol(es_module_symbol)?;
+                return self.create_promise_return_type(node, module_type);
+            }
+        }
         let any = self.tables.intrinsics.any;
         self.create_promise_return_type(node, any)
     }
@@ -6122,10 +6141,13 @@ mod tests {
     fn import_call_reports_2711_under_no_lib() {
         // Expression-statement position (the demand caveat: an
         // unreferenced `const p = import(...)` initializer stays
-        // unchecked until 5.8). 2307 (module resolution) is the
-        // recorded silent-stub FN; the locationless Promise 2318
-        // drops.
-        assert_eq!(checked_rows("import(\"./m\");\n"), [(2711, 0, 13)]);
+        // unchecked until 5.8). The module band is LIVE (5.8d): the
+        // unresolvable "./m" reports 2307 at the specifier; the
+        // locationless Promise 2318 drops.
+        assert_eq!(
+            checked_rows("import(\"./m\");\n"),
+            [(2307, 7, 5), (2711, 0, 13)]
+        );
     }
 
     #[test]
@@ -6144,7 +6166,7 @@ mod tests {
         // esnext/node16+/preserve band, a second argument is 1324.
         assert_eq!(
             checked_rows("import(\"./m\", {});\n"),
-            [(1324, 14, 2), (2711, 0, 17)]
+            [(1324, 14, 2), (2307, 7, 5), (2711, 0, 17)]
         );
     }
 
@@ -6152,7 +6174,7 @@ mod tests {
     fn import_defer_reports_18060_at_the_default_module_kind() {
         assert_eq!(
             checked_rows("import.defer(\"./m\");\n"),
-            [(18060, 0, 19), (2711, 0, 19)]
+            [(18060, 0, 19), (2307, 13, 5), (2711, 0, 19)]
         );
     }
 
@@ -6164,7 +6186,7 @@ mod tests {
         };
         assert_eq!(
             checked_rows_with("import(\"./m\", { assert: {} });\n", &options),
-            [(2880, 16, 6), (2711, 0, 29)]
+            [(2880, 16, 6), (2307, 7, 5), (2711, 0, 29)]
         );
     }
 
@@ -6176,7 +6198,7 @@ mod tests {
         };
         assert_eq!(
             checked_rows_with("import(\"./m\");\n", &options),
-            [(1323, 0, 13), (2711, 0, 13)]
+            [(1323, 0, 13), (2307, 7, 5), (2711, 0, 13)]
         );
     }
 

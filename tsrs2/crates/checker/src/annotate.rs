@@ -5004,12 +5004,13 @@ impl<'a> CheckerState<'a> {
             return self.get_type_of_variable_or_parameter_or_property(symbol);
         }
         if flags.intersects(
-            SymbolFlags::FUNCTION | SymbolFlags::METHOD | SymbolFlags::CLASS | SymbolFlags::ENUM,
+            SymbolFlags::FUNCTION
+                | SymbolFlags::METHOD
+                | SymbolFlags::CLASS
+                | SymbolFlags::ENUM
+                | SymbolFlags::VALUE_MODULE,
         ) {
             return self.get_type_of_func_class_enum_module(symbol);
-        }
-        if flags.intersects(SymbolFlags::VALUE_MODULE) {
-            return Err(Unsupported::new("module value types (M4 5.8)"));
         }
         if flags.intersects(SymbolFlags::ENUM_MEMBER) {
             return self.get_type_of_enum_member(symbol);
@@ -5018,8 +5019,7 @@ impl<'a> CheckerState<'a> {
             return self.get_type_of_accessors(symbol);
         }
         if flags.intersects(SymbolFlags::ALIAS) {
-            // getTypeOfAlias needs alias resolution (M4 5.8).
-            return Err(Unsupported::new("alias value types (getTypeOfAlias, 5.8)"));
+            return self.get_type_of_alias(symbol);
         }
         // tsc's tail (56974): symbols with NO value arm — TypeLiteral,
         // Interface, TypeAlias, TypeParameter shells — are errorType
@@ -5226,7 +5226,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The Alias arm (Circular_definition_of_import_alias_0) waits on
     /// alias declarations (M4 5.8).
-    fn report_circularity_error(&mut self, symbol: SymbolId) -> TypeId {
+    pub(crate) fn report_circularity_error(&mut self, symbol: SymbolId) -> TypeId {
         let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
             return self.tables.intrinsics.any;
         };
@@ -5811,8 +5811,17 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         // getTypeOfFuncClassEnumModuleWorker (56828-56860): the JS
-        // assignment/expando and commonJS arms are elided project-wide;
-        // shorthand-ambient-module anyType is 5.8.
+        // assignment/expando and commonJS arms are elided project-wide.
+        // Shorthand ambient modules (`declare module "x";`) type as
+        // any (56832-56834, M4 5.8d).
+        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE)
+            && self.is_shorthand_ambient_module_symbol(symbol)
+        {
+            let any = self.tables.intrinsics.any;
+            self.links
+                .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(any));
+            return Ok(any);
+        }
         let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = Some(symbol);

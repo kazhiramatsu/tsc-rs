@@ -920,6 +920,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         allow_synthetic_default_imports: bool_option("allowSyntheticDefaultImports"),
         preserve_const_enums: bool_option("preserveConstEnums"),
         base_url: string_option(program, "baseUrl"),
+        allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
         skip_lib_check: bool_option("skipLibCheck"),
         jsx: program.options.iter().find_map(|(key, value)| {
             if key.eq_ignore_ascii_case("jsx") {

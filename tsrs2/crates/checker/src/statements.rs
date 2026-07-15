@@ -1878,8 +1878,9 @@ impl<'a> CheckerState<'a> {
         None
     }
 
-    /// getModuleInstanceState through the binder's cached walk.
-    fn module_instance_state_of(
+    /// tsrs-native: getModuleInstanceState through the binder's
+    /// cached walk (the checker-side seam).
+    pub(crate) fn module_instance_state_of(
         &self,
         node: NodeId,
     ) -> tsrs2_binder::containers::ModuleInstanceState {
@@ -3330,14 +3331,17 @@ mod tests {
     fn import_type_assert_form_reports_2880_and_with_form_stays_silent() {
         // The parser threads the consumed keyword into
         // ImportAttributesData.token (review find: the source form is
-        // unrecoverable after the parse).
+        // unrecoverable after the parse). getResolutionModeOverride
+        // is LIVE (5.8d): zero attribute entries draw the
+        // exactly-one-resolution-mode-key rows (oracle probe58d p5;
+        // the 2307s are the import-type resolution seam, still FN).
         assert_eq!(
             checked_rows("type T = typeof import(\"./m\", { assert: {} });\n"),
-            [(2880, 40, 1)]
+            [(2880, 40, 1), (1456, 40, 2)]
         );
         assert_eq!(
             checked_rows("type U = typeof import(\"./m\", { with: {} });\n"),
-            []
+            [(1464, 38, 2)]
         );
     }
 

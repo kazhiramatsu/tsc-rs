@@ -473,6 +473,10 @@ pub fn check_program_with_libs(
             .iter()
             .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
             .collect();
+        // initializeTypeChecker's augmentation passes (88769/88874)
+        // run here — AFTER the resolver's host view exists (pass 2
+        // resolves module names), BEFORE any file checks.
+        state.merge_module_augmentations();
         for index in lib_count..state.binder.file_count() {
             state.check_source_file(index);
         }

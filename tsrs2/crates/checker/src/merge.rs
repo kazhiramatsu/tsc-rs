@@ -14,7 +14,7 @@ use tsrs2_syntax::{NodeId, SyntaxKind};
 use tsrs2_types::{NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
-use crate::state::CheckerState;
+use crate::state::{CheckResult2, CheckerState};
 
 /// tsc amalgamatedDuplicates value (47767): one entry per unordered
 /// file pair, conflicting symbols keyed by display name in first-seen
@@ -642,6 +642,192 @@ impl<'a> CheckerState<'a> {
             LinkSlot::Resolved(global_this_type),
         );
         self.flush_amalgamated_duplicates();
+    }
+
+    /// tsc-port: mergeModuleAugmentation @6.0.3
+    /// tsc-hash: bc18945a0391c5bd0ccac3f41fd0c981d53173117b3a017c11a9d6eb8d6d9e61
+    /// tsc-span: _tsc.js:47830-47881
+    ///
+    /// Both initializeTypeChecker augmentation passes (88769-88776
+    /// global-scope first, 88874-88881 external-module second), driven
+    /// from the program layer AFTER the resolver's host view exists —
+    /// pass 2 resolves module names. The collector walks each file's
+    /// TOP-LEVEL statements (tsc file.moduleAugmentations also carries
+    /// augmentations nested in ambient external modules — .d.ts
+    /// bundle shapes; ledger). Per-augmentation Unsupported unwinds
+    /// contain (FN) like the check_source_element boundary.
+    pub fn merge_module_augmentations(&mut self) {
+        let file_count = self.binder.file_count();
+        let mut global_augmentations: Vec<NodeId> = Vec::new();
+        let mut module_augmentations: Vec<NodeId> = Vec::new();
+        for index in 0..file_count {
+            let source = self.binder.source(index);
+            let root = source.root;
+            let tsrs2_syntax::NodeData::SourceFile(data) = &source.arena.node(root).data else {
+                continue;
+            };
+            let Some(statements) = data.statements else {
+                continue;
+            };
+            for &statement in &source.arena.node_array(statements).nodes {
+                if source.arena.node(statement).kind != tsrs2_syntax::SyntaxKind::ModuleDeclaration
+                {
+                    continue;
+                }
+                if !tsrs2_binder::node_util::is_ambient_module(source, statement) {
+                    continue;
+                }
+                // collectModuleReferences' augmentation gate: only
+                // `declare`-modified declarations (or declaration
+                // files) register as augmentations — a bare
+                // `module "x" {}` in a .ts module is NOT collected
+                // (oracle pin: no 2664 for module_keyword_and_quoted_
+                // name_rows).
+                if !self
+                    .binder
+                    .flags_of(statement)
+                    .intersects(tsrs2_types::NodeFlags::AMBIENT)
+                    && !source.is_declaration_file
+                {
+                    continue;
+                }
+                if tsrs2_binder::node_util::is_global_scope_augmentation(source, statement) {
+                    global_augmentations.push(statement);
+                } else if tsrs2_binder::node_util::is_module_augmentation_external(
+                    source, statement,
+                ) {
+                    module_augmentations.push(statement);
+                }
+            }
+        }
+        // Pass 1: global-scope augmentations merge into globals
+        // (mergeSymbolTable(globals, augmentation.symbol.exports)).
+        for augmentation in global_augmentations {
+            let Some(symbol) = self.binder.node_symbol(augmentation) else {
+                continue;
+            };
+            // First-declaration guard (47833-47836): later merged
+            // declarations ride the first one's merge.
+            if self.binder.symbol(symbol).declarations.first().copied() != Some(augmentation) {
+                continue;
+            }
+            let exports = self.binder.symbol(symbol).exports.clone();
+            let mut globals = std::mem::take(&mut self.globals);
+            self.merge_symbol_table(&mut globals, &exports, false, None);
+            self.globals = globals;
+        }
+        // Pass 2: external-module augmentations resolve + merge.
+        for augmentation in module_augmentations {
+            if let Err(err) = self.merge_one_module_augmentation(augmentation) {
+                if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
+                    eprintln!("contained @{augmentation:?}: {}", err.reason);
+                }
+            }
+        }
+    }
+
+    fn merge_one_module_augmentation(&mut self, augmentation: NodeId) -> CheckResult2<()> {
+        let Some(augmentation_symbol) = self.binder.node_symbol(augmentation) else {
+            return Ok(());
+        };
+        if self
+            .binder
+            .symbol(augmentation_symbol)
+            .declarations
+            .first()
+            .copied()
+            != Some(augmentation)
+        {
+            return Ok(());
+        }
+        let name = match self.data_of(augmentation) {
+            tsrs2_syntax::NodeData::ModuleDeclaration(data) => data.name,
+            _ => None,
+        };
+        let Some(name) = name else {
+            return Ok(());
+        };
+        let name_text = match self.data_of(name) {
+            tsrs2_syntax::NodeData::StringLiteral(data) => data.text.clone(),
+            _ => return Ok(()),
+        };
+        // moduleName.parent.parent = the augmentation's container:
+        // non-ambient containers report the not-found face.
+        let container_ambient = self
+            .binder
+            .flags_of(augmentation)
+            .intersects(tsrs2_types::NodeFlags::AMBIENT)
+            && self.parent_of(augmentation).is_some_and(|parent| {
+                self.binder
+                    .flags_of(parent)
+                    .intersects(tsrs2_types::NodeFlags::AMBIENT)
+            });
+        let module_not_found_error = if !container_ambient {
+            Some(&diagnostics::Invalid_module_name_in_augmentation_module_0_cannot_be_found)
+        } else {
+            None
+        };
+        let main_module = self.resolve_external_module_name_worker(
+            name,
+            name,
+            module_not_found_error,
+            /*ignore_errors*/ false,
+            /*is_for_augmentation*/ true,
+        )?;
+        let Some(main_module) = main_module else {
+            return Ok(());
+        };
+        let main_module = self
+            .resolve_external_module_symbol(Some(main_module), false)?
+            .expect("resolveExternalModuleSymbol(Some) is Some");
+        if self
+            .binder
+            .symbol(main_module)
+            .flags
+            .intersects(SymbolFlags::NAMESPACE)
+        {
+            let is_pattern = self
+                .pattern_ambient_modules
+                .iter()
+                .any(|(_, _, symbol)| *symbol == main_module);
+            if is_pattern {
+                let merged = self.merge_symbol(
+                    augmentation_symbol,
+                    main_module,
+                    /*unidirectional*/ true,
+                );
+                self.pattern_ambient_module_augmentations
+                    .insert(name_text, merged);
+            } else {
+                // Export-star pre-merge (47867-47874): augmentation
+                // names that only exist through the main module's
+                // export-star walk merge into the RESOLVED table.
+                let has_export_star = self
+                    .binder
+                    .symbol(main_module)
+                    .exports
+                    .contains_key(tsrs2_types::InternalSymbolName::EXPORT_STAR);
+                let augmentation_exports = self.binder.symbol(augmentation_symbol).exports.clone();
+                if has_export_star && !augmentation_exports.is_empty() {
+                    let resolved_exports = self.get_exports_of_module(main_module)?;
+                    for (key, &value) in &augmentation_exports {
+                        if let Some(&resolved) = resolved_exports.get(key) {
+                            if !self.binder.symbol(main_module).exports.contains_key(key) {
+                                self.merge_symbol(resolved, value, false);
+                            }
+                        }
+                    }
+                }
+                self.merge_symbol(main_module, augmentation_symbol, false);
+            }
+        } else {
+            self.error_at(
+                Some(name),
+                &diagnostics::Cannot_augment_module_0_because_it_resolves_to_a_non_module_entity,
+                &[&name_text],
+            );
+        }
+        Ok(())
     }
 
     /// The amalgamatedDuplicates flush (88882-88905).

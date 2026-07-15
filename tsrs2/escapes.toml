@@ -43,6 +43,13 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/access.rs"
+in = "check_non_null_non_void_type"
+reason = "[FLOW M5] void receiver on a narrowable reference"
+class = "stage"
+owner = "M5"
+
+[[site]]
+file = "crates/checker/src/access.rs"
 in = "check_non_null_type_with_reporter"
 reason = "[FLOW M5] nullable receiver on a narrowable reference"
 class = "stage"
@@ -496,23 +503,9 @@ owner = "M6"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_of_symbol"
-reason = "alias value types (getTypeOfAlias, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_of_symbol"
 reason = "mapped symbols (getTypeOfMappedSymbol, M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_of_symbol"
-reason = "module value types (M4 5.8)"
-class = "stage"
-owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -645,7 +638,7 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "check_import_call_expression"
-reason = "resolveExternalModuleName (import-call module type; Promise<any> fallback)5.8"
+reason = "getTypeWithSyntheticDefaultImportType synthetic-default wrap (M4-end sweep 5.8)"
 class = "stage"
 owner = "5.8"
 
@@ -898,13 +891,6 @@ owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
-in = "check_import_type"
-reason = "getResolutionModeOverride5.8d"
-class = "stage"
-owner = "5.8d"
-
-[[site]]
-file = "crates/checker/src/check.rs"
 in = "check_indexed_access_type"
 reason = "checkIndexedAccessIndexType under a ConditionalTypeM8"
 class = "stage"
@@ -916,41 +902,6 @@ in = "check_mapped_type"
 reason = "checkMappedType nameType/constraint rows (getNameTypeFromMappedType — mapped types M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkExportAssignment5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkExportDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkImportDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkImportEqualsDeclaration5.8"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_source_element_worker"
-reason = "checkModuleDeclaration5.8"
-class = "stage"
-owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -1480,13 +1431,6 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/jsx.rs"
 in = "get_intrinsic_tag_symbol"
-reason = "JSX.IntrinsicElements miss in a declare-global program (augmentation merge, 5.8d)"
-class = "stage"
-owner = "5.8d"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "get_intrinsic_tag_symbol"
 reason = "index-signature-only JSX.IntrinsicElements without a symbol (instantiated container, services-only identity; M4-end sweep 5.8)"
 class = "stage"
 owner = "5.8"
@@ -1664,9 +1608,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/modules.rs"
 in = "resolve_es_module_symbol"
-reason = "resolveESModuleSymbol synthetic-default module type cloning (M4 5.8d tail)"
+reason = "resolveESModuleSymbol synthetic-default module type cloning (M4-end sweep 5.8)"
 class = "stage"
-owner = "5.8d"
+owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
