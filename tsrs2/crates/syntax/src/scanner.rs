@@ -514,7 +514,7 @@ impl<'text> Scanner<'text> {
         }
     }
 
-    /// tsc-port: scan (single-line comment arm) @6.0.3
+    /// tsc-port: scan @6.0.3 (single-line comment arm)
     /// tsc-hash: 5e22ed053f31e13697554019d0a8c2969d93c82bfb580dab7ac886a6c37c1fc8
     /// tsc-span: _tsc.js:9523-9542
     ///
@@ -531,7 +531,7 @@ impl<'text> Scanner<'text> {
         self.append_if_comment_directive(self.token_start, CommentDirectiveRegEx::SingleLine);
     }
 
-    /// tsc-port: scan (multi-line comment arm) @6.0.3
+    /// tsc-port: scan @6.0.3 (multi-line comment arm)
     /// tsc-hash: d6a25c66cf14877d656700d6c7c24f3349a1c7e08a791afba3eb19400e72ae64
     /// tsc-span: _tsc.js:9543-9576
     ///

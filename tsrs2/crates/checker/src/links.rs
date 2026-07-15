@@ -451,15 +451,18 @@ impl LinksTables {
         links.resolved_type = LinkSlot::Resolved(value);
     }
 
-    /// assignBindingElementTypes' per-element write (78455-78459) is
-    /// UNGUARDED in tsc: computing getBindingElementTypeFromParentType
-    /// can force getTypeOfSymbol on the SAME element's symbol (a
-    /// circular reference through the pattern — e.g. late-bound member
-    /// resolution reaching back into the declaration), which caches
-    /// the circularity scar; the outer assignment then REPAIRS it with
-    /// the real binding-element type. The outer result must win — the
-    /// second sanctioned write-twice site (see
-    /// overwrite_type_reference_resolution).
+    /// tsc-port: assignBindingElementTypes @6.0.3 (the unguarded write)
+    /// tsc-hash: af5b07d61441384b942c4e0e5a478d8fdcf25921dff2daae68e0ff34ba6d11a3
+    /// tsc-span: _tsc.js:78451-78467
+    ///
+    /// The per-element write is UNGUARDED in tsc: computing
+    /// getBindingElementTypeFromParentType can force getTypeOfSymbol
+    /// on the SAME element's symbol (a circular reference through the
+    /// pattern — e.g. late-bound member resolution reaching back into
+    /// the declaration), which caches the circularity scar; the outer
+    /// assignment then REPAIRS it with the real binding-element type.
+    /// The outer result must win — the second sanctioned write-twice
+    /// site (see overwrite_type_reference_resolution).
     pub fn overwrite_symbol_type_for_binding_element(
         &mut self,
         speculation_depth: u32,

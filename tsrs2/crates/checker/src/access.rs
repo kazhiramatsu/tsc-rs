@@ -2730,7 +2730,7 @@ impl<'a> CheckerState<'a> {
                     // 5.8e lift FP).
                     if self.container_symbol_declared_in_js(left_type) {
                         return Err(Unsupported::new(
-                            "property miss on a JS-declared container (assignment-declaration binding, M-JS)",
+                            "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)",
                         ));
                     }
                     let report_target = if self.is_this_type_parameter(left_type) {

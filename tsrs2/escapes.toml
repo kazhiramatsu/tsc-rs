@@ -90,6 +90,13 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_property_access_expression_or_qualified_name"
+reason = "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/access.rs"
+in = "check_property_access_expression_or_qualified_name"
 reason = "this-property-in-constructor autoType (getFlowTypeOfProperty [FLOW M5])"
 class = "stage"
 owner = "M5"
@@ -226,13 +233,6 @@ in = "get_resolved_members_or_exports_of_symbol"
 reason = "early/late member table merge (combineSymbolTables → mergeSymbol, 5.8)"
 class = "stage"
 owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_resolved_members_or_exports_of_symbol"
-reason = "late-bound INTERFACE members (lib well-known-symbol surface, M7-stub)"
-class = "stage"
-owner = "M7"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -464,6 +464,13 @@ class = "untagged"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_query_node"
+reason = "[FLOW M5] typeof this under a reaching this-guard"
+class = "stage"
+owner = "M5"
+
+[[site]]
+file = "crates/checker/src/annotate.rs"
+in = "get_type_from_type_query_node"
 reason = "typeof with missing entity name"
 class = "untagged"
 
@@ -485,13 +492,6 @@ file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_reference"
 reason = "type reference with missing name"
 class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_of_accessors"
-reason = "computed-name accessor pair (late-bound get/set pairing, 5.8e lift)"
-class = "stage"
-owner = "5.8e"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -909,6 +909,13 @@ in = "check_type_assignable_to"
 reason = "Object-source relation head selection (overrideNextErrorInfo tracking, T2)"
 class = "stage"
 owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "check_type_assignable_to"
+reason = "array-literal relation against a tuple-bearing intersection (contextual tuple arity, M6)"
+class = "stage"
+owner = "M6"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -1675,6 +1682,13 @@ owner = "M5"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
+in = "check_assignment_operator"
+reason = "expando-function member assignment (assignment-declaration binding, M8 checkJs band)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/operators.rs"
 in = "check_binary_like_expression_worker"
 reason = "checkBinaryLikeExpressionWorker unknown operator (Debug.fail arm)"
 class = "untagged"
@@ -1794,6 +1808,20 @@ file = "crates/checker/src/operators.rs"
 in = "check_satisfies_expression"
 reason = "satisfies with missing type/expression (parse-recovery tree)"
 class = "recovery"
+
+[[site]]
+file = "crates/checker/src/operators.rs"
+in = "check_satisfies_expression_worker"
+reason = "satisfies over a callable source (elaborateDidYouMeanToCallOrConstruct, T2)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/operators.rs"
+in = "check_satisfies_expression_worker"
+reason = "satisfies over a literal operand (elaborateError per-member rows, T2)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1933,6 +1961,13 @@ file = "crates/checker/src/statements.rs"
 in = "check_switch_statement"
 reason = "SwitchStatement recovery node"
 class = "recovery"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
+reason = "[FLOW M5] redeclaration comparison against an evolving-array declaration"
+class = "stage"
+owner = "M5"
 
 [[site]]
 file = "crates/checker/src/statements.rs"

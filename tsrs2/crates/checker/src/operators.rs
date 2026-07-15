@@ -1436,7 +1436,7 @@ impl<'a> CheckerState<'a> {
             // binder grows assignment-declaration binding.
             if self.assignment_target_is_expando_function_member(left) {
                 return Err(Unsupported::new(
-                    "expando-function member assignment (assignment-declaration binding, M-JS)",
+                    "expando-function member assignment (assignment-declaration binding, M8 checkJs band)",
                 ));
             }
             // checkTypeAssignableToAndOptionallyElaborate(valueType,
