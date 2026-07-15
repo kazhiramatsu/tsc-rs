@@ -19,7 +19,8 @@ use tsrs2_binder::SymbolId;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, IntersectionState, ModifierFlags,
-    ObjectFlags, RecursionFlags, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
+    ObjectFlags, RecursionFlags, SymbolFlags, Ternary, TupleTargetFlags, TypeData, TypeFlags,
+    TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
@@ -1069,9 +1070,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
     }
 
-    pub(crate) fn is_generic_mapped_type(&self, _ty: TypeId) -> bool {
-        // Mapped types are unconstructible before M4 5.2.
-        false
+    pub(crate) fn is_generic_mapped_type(&self, ty: TypeId) -> bool {
+        // Conservative until M8 can inspect mapped constraints/name
+        // types: mapped relation arms must become live fail-closed as
+        // soon as ObjectFlags::Mapped is constructible.
+        self.st
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
     }
 
     /// tsc-port: typeRelatedToDiscriminatedType @6.0.3
@@ -5361,10 +5367,11 @@ impl<'a> CheckerState<'a> {
             let rest_array = self.get_rest_array_type_of_tuple_type(ty)?;
             return match rest_array {
                 Some(array) => Ok(array),
-                None => self
-                    .tables
-                    .create_tuple_type(&[], None, false, None)
-                    .map_err(Self::unsupported_m4),
+                None => Ok(self.tables.get_tuple_target_type(
+                    TupleTargetFlags::new(&[]).expect("empty tuple is not single-rest"),
+                    false,
+                    None,
+                )),
             };
         }
         let arguments = self.get_type_arguments(ty)?;
@@ -5413,15 +5420,16 @@ impl<'a> CheckerState<'a> {
         };
         // getTupleTargetType 61146-61148: `[...E[]]` IS (readonly)
         // E[] — the checker owns the global array targets, so the
-        // collapse lives here; the tables twin's single-rest arm is a
-        // proven-dead guard (L-TWIN).
+        // collapse lives here and TupleTargetFlags excludes that shape
+        // from tables target construction (L-TWIN).
         if flags.len() == 1 && flags[0].intersects(ElementFlags::REST) {
             return self.create_array_type(element_types[0], readonly);
         }
+        let flags = TupleTargetFlags::new(flags)
+            .expect("single-rest tuples collapse before tuple-target construction");
         let target = self
             .tables
-            .get_tuple_target_type(flags, readonly, named_member_declarations)
-            .map_err(Self::unsupported_m4)?;
+            .get_tuple_target_type(flags, readonly, named_member_declarations);
         if element_types.is_empty() {
             return Ok(target);
         }

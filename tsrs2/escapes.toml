@@ -170,6 +170,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
+in = "get_conditional_flow_type_of_type"
+reason = "mapped conditional-flow substitution (homomorphic numeric-key constraint, M8-stub)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/annotate.rs"
 in = "get_declared_type_of_enum"
 reason = "late-bound enum member name (lateBindMember 57662, M7-stub)"
 class = "stage"
@@ -827,6 +834,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/constraints.rs"
+in = "get_constraint_from_indexed_access"
+reason = "indexed-access constraints over mapped types (unported family, M8-stub)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/constraints.rs"
 in = "get_constraint_from_type_parameter"
 reason = "infer-type parameter constraints (conditional types, M4 5.2/M8)"
 class = "stage"
@@ -874,6 +888,13 @@ reason = "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)
 class = "stage"
 owner = "M8"
 count = 2
+
+[[site]]
+file = "crates/checker/src/engine.rs"
+in = "get_normalized_type"
+reason = "getNormalizedType for substitution types (unported family, M8-stub)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/evaluate.rs"
@@ -1084,8 +1105,22 @@ owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
+in = "get_simplified_index_type"
+reason = "getSimplifiedIndexType for mapped types (unported family, M8-stub)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/indexed.rs"
 in = "get_simplified_type"
 reason = "getSimplifiedConditionalType (unported family, M8-stub)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/indexed.rs"
+in = "simplified_indexed_access_worker"
+reason = "simplified indexed access over mapped types (unported family, M8-stub)"
 class = "stage"
 owner = "M8"
 

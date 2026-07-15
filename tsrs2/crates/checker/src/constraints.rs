@@ -214,8 +214,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9b4db0b05453c8a4498e23b0bae23b37a34724a3f3778fd8d62391ba9cf6a2a4
     /// tsc-span: _tsc.js:58809-58825
     ///
-    /// The isMappedTypeGenericIndexedAccess head (58810-58812) is
-    /// vacuously false — mapped types are unconstructible until M8.
+    /// The isMappedTypeGenericIndexedAccess head (58810-58812) escapes
+    /// conservatively until the mapped payload lands in M8.
     fn get_constraint_from_indexed_access(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
         let TypeData::IndexedAccess {
             object_type,
@@ -225,6 +225,11 @@ impl<'a> CheckerState<'a> {
         else {
             unreachable!("indexed-access flag implies indexed-access data");
         };
+        if self.is_generic_mapped_type_state(object_type) {
+            return Err(Unsupported::new(
+                "indexed-access constraints over mapped types (unported family, M8-stub)",
+            ));
+        }
         let index_constraint = self.get_simplified_type_or_constraint(index_type)?;
         if let Some(index_constraint) = index_constraint {
             if index_constraint != index_type {

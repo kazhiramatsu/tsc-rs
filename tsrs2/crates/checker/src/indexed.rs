@@ -562,7 +562,7 @@ impl<'a> CheckerState<'a> {
                 "getSimplifiedConditionalType (unported family, M8-stub)",
             ))
         } else if flags.intersects(TypeFlags::INDEX) {
-            Ok(self.get_simplified_index_type(ty))
+            self.get_simplified_index_type(ty)
         } else {
             Ok(ty)
         }
@@ -572,11 +572,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b26e70997196efd7e1f1d3d114b5ff87f5ea045e5856d5925477022d8f4c120c
     /// tsc-span: _tsc.js:62527-62532
     ///
-    /// The whole body is the generic-mapped-with-nameType rewrite —
-    /// mapped types are unconstructible until M8, so the arm is
-    /// vacuously false and `keyof` simplifies to itself.
-    fn get_simplified_index_type(&self, ty: TypeId) -> TypeId {
-        ty
+    /// The whole body is the generic-mapped-with-nameType rewrite. The
+    /// conservative mapped gate escapes until that M8 payload lands,
+    /// rather than silently becoming an identity simplification.
+    fn get_simplified_index_type(&self, ty: TypeId) -> CheckResult2<TypeId> {
+        let TypeData::Index { ty: inner, .. } = self.tables.type_of(ty).data else {
+            unreachable!("index flag implies index data");
+        };
+        if self
+            .tables
+            .object_flags_of(inner)
+            .intersects(ObjectFlags::MAPPED)
+        {
+            return Err(Unsupported::new(
+                "getSimplifiedIndexType for mapped types (unported family, M8-stub)",
+            ));
+        }
+        Ok(ty)
     }
 
     /// tsc-port: distributeIndexOverObjectType @6.0.3
@@ -761,8 +773,11 @@ impl<'a> CheckerState<'a> {
                 return Ok(element);
             }
         }
-        // isGenericMappedType(objectType) (62500-62504): mapped types
-        // are unconstructible until M8, the arm is vacuously false.
+        if self.is_generic_mapped_type_state(object_type) {
+            return Err(Unsupported::new(
+                "simplified indexed access over mapped types (unported family, M8-stub)",
+            ));
+        }
         Ok(ty)
     }
 

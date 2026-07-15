@@ -8,8 +8,8 @@ use tsrs2_binder::{node_util, InternalSymbolName, SymbolId};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, CheckMode, ElementFlags, IntersectionFlags, LiteralValue, M4Dependency,
-    ModifierFlags, ObjectFlags, PseudoBigInt, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
+    CheckFlags, CheckMode, ElementFlags, IntersectionFlags, LiteralValue, ModifierFlags,
+    ObjectFlags, PseudoBigInt, SignatureFlags, SymbolFlags, TupleTargetFlags, TypeData, TypeFlags,
     TypeId, UnionReduction,
 };
 
@@ -50,10 +50,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    pub(crate) fn unsupported_m4(err: M4Dependency) -> Unsupported {
-        Unsupported::new(err.0)
-    }
-
     // ---- the annotation entry ----
 
     /// tsc-port: getTypeFromTypeNode @6.0.3
@@ -74,10 +70,10 @@ impl<'a> CheckerState<'a> {
     /// UNSUBSTITUTED type (the plain parameter would mis-relate:
     /// mappedTypeAsClauseRelationships pins the template-span check
     /// under `P extends string ? \`bool${P}\` : P`). The mapped-type
-    /// arm (60467-60478) contains through getTypeFromTypeNode on the
-    /// mapped parent, which escapes until M8 — an over-containment of
-    /// homomorphic template references, never an FP. The JSDoc kind
-    /// stop is vacuous (JSDoc nodes are unconstructed).
+    /// arm (60467-60478) escapes locally until its homomorphic numeric-
+    /// key constraint can be built in M8, so enabling mapped node
+    /// resolution elsewhere cannot silently turn this into identity.
+    /// The JSDoc kind stop is vacuous (JSDoc nodes are unconstructed).
     fn get_conditional_flow_type_of_type(
         &mut self,
         ty: TypeId,
@@ -128,10 +124,9 @@ impl<'a> CheckerState<'a> {
                     unreachable!("kind/data agree");
                 };
                 if data.name_type.is_none() && data.r#type == Some(node) {
-                    // 60468: reading the mapped type's parameter needs
-                    // getTypeFromTypeNode(parent) — the mapped-type
-                    // arm escapes there until M8.
-                    self.get_type_from_type_node(parent)?;
+                    return Err(Unsupported::new(
+                        "mapped conditional-flow substitution (homomorphic numeric-key constraint, M8-stub)",
+                    ));
                 }
             }
             node = parent;
@@ -587,9 +582,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:61210-61212
     ///
     /// The checker twin: tuple targets run the FULL
-    /// createNormalizedTupleType below (the tables twin is test-only
-    /// plus the live empty-tuple caller; its checker-dependent arms
-    /// are proven-dead guards — L-TWIN).
+    /// createNormalizedTupleType below. The tables twin is compiled
+    /// only for its unit tests; production tuple normalization cannot
+    /// accidentally bypass checker-dependent arms (L-TWIN).
     pub(crate) fn create_normalized_type_reference_forced(
         &mut self,
         target: TypeId,
@@ -874,9 +869,10 @@ impl<'a> CheckerState<'a> {
                 self.global_array_type()?
             }
         } else {
+            let flags = TupleTargetFlags::new(&expanded_flags)
+                .expect("single-rest tuple targets collapse in the checker twin");
             self.tables
-                .get_tuple_target_type(&expanded_flags, data.readonly, Some(&expanded_declarations))
-                .map_err(Self::unsupported_m4)?
+                .get_tuple_target_type(flags, data.readonly, Some(&expanded_declarations))
         };
         Ok(if tuple_target == self.empty_generic_type {
             self.empty_object_type
@@ -893,9 +889,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:61056-61064
     ///
     /// The single-rest tuple `[...T[]]` reaches the Array target
-    /// through getArrayElementTypeNode's unwrap — the tables
-    /// get_tuple_target_type collapse escape stays for synthesized
-    /// createTupleType callers only.
+    /// through getArrayElementTypeNode's unwrap. TupleTargetFlags then
+    /// statically excludes that shape from tables target construction.
     fn get_array_or_tuple_target_type(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let readonly = self
             .parent_of(node)
@@ -922,9 +917,11 @@ impl<'a> CheckerState<'a> {
             .iter()
             .map(|&element| self.is_named_tuple_member(element).then_some(element.0))
             .collect();
-        self.tables
-            .get_tuple_target_type(&element_flags, readonly, Some(&named))
-            .map_err(Self::unsupported_m4)
+        let flags = TupleTargetFlags::new(&element_flags)
+            .expect("single-rest tuple nodes resolve through the Array target");
+        Ok(self
+            .tables
+            .get_tuple_target_type(flags, readonly, Some(&named)))
     }
 
     fn is_named_tuple_member(&self, node: NodeId) -> bool {
@@ -1702,10 +1699,7 @@ impl<'a> CheckerState<'a> {
                 .unwrap_or_default();
             let mut type_arguments: Vec<TypeId> = type_parameters[..outer_count].to_vec();
             type_arguments.extend(filled);
-            return self
-                .tables
-                .create_normalized_type_reference(ty, &type_arguments)
-                .map_err(Self::unsupported_m4);
+            return Ok(self.tables.create_type_reference(ty, &type_arguments));
         }
         Ok(if self.check_no_type_arguments(node, Some(symbol)) {
             ty
@@ -8568,7 +8562,8 @@ mod alias_instantiation_tests {
         with_program_state(
             &[(
                 "a.ts",
-                "type G<T extends { a: [unknown]; b: [unknown] }> = [...T[\"a\" | \"b\"]];\n",
+                "interface Object {}\ninterface Array<T> { [n: number]: T; length: number }\n\
+                 type G<T extends { a: [unknown]; b: [unknown] }> = [...T[\"a\" | \"b\"]];\n",
             )],
             &CompilerOptions::default(),
             |state| {
@@ -8580,6 +8575,25 @@ mod alias_instantiation_tests {
                     .expect("G's generic tuple resolves");
                 assert!(state.tables.is_generic_tuple_type(declared));
 
+                let elements = state
+                    .get_type_arguments(declared)
+                    .expect("generic tuple elements resolve");
+                assert_eq!(elements.len(), 1);
+                let simplified_for_reading = state
+                    .get_simplified_type(elements[0], /*writing*/ false)
+                    .expect("element simplifies for reading");
+                assert!(state
+                    .tables
+                    .flags_of(simplified_for_reading)
+                    .intersects(TypeFlags::UNION));
+                let simplified_for_writing = state
+                    .get_simplified_type(elements[0], /*writing*/ true)
+                    .expect("element simplifies for writing");
+                assert!(state
+                    .tables
+                    .flags_of(simplified_for_writing)
+                    .intersects(TypeFlags::INTERSECTION));
+
                 let normalized = state
                     .get_normalized_type(declared, /*writing*/ false)
                     .expect("generic tuple normalizes");
@@ -8590,6 +8604,11 @@ mod alias_instantiation_tests {
                 assert!(types
                     .iter()
                     .all(|&member| state.tables.is_generic_tuple_type(member)));
+
+                let normalized_for_writing = state
+                    .get_normalized_type(declared, /*writing*/ true)
+                    .expect("generic tuple normalizes for writing");
+                assert_ne!(normalized_for_writing, normalized);
                 assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
             },
         );

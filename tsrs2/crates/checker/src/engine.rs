@@ -26,7 +26,7 @@ use tsrs2_types::{
 use tsrs2_syntax::NodeId;
 
 use crate::relate::RelationKind;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult2, CheckerState, Unsupported};
 
 /// stableTypeOrdering off: binary search keyed by type id over the
 /// id-sorted member list (tsc containsType 61327).
@@ -377,8 +377,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// Deferred (node-carrying) references normalize to their eager
     /// twin (createNormalizedTypeReference over the forced arguments);
-    /// the Substitution arm is M8 (those TypeFlags are unconstructible
-    /// before their type nodes land).
+    /// the Substitution arm fails closed until its base/constraint
+    /// payload and reading/writing normalization land in M8.
     pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult2<TypeId> {
         loop {
             let flags = self.tables.flags_of(ty);
@@ -405,6 +405,10 @@ impl<'a> CheckerState<'a> {
                 }
             } else if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
                 self.get_normalized_union_or_intersection_type(ty, writing)?
+            } else if flags.intersects(TypeFlags::SUBSTITUTION) {
+                return Err(Unsupported::new(
+                    "getNormalizedType for substitution types (unported family, M8-stub)",
+                ));
             } else if flags.intersects(TypeFlags::SIMPLIFIABLE) {
                 self.get_simplified_type(ty, writing)?
             } else {
@@ -2359,11 +2363,14 @@ impl<'a> CheckerState<'a> {
         Ok(result.filter(|&r| r != unknown))
     }
 
-    /// isGenericMappedType on the checker receiver (the RelationChecker
-    /// twin at structural.rs 810) — mapped types are unconstructible
-    /// until M8, so both answer false.
-    pub(crate) fn is_generic_mapped_type_state(&self, _ty: TypeId) -> bool {
-        false
+    /// Conservative pre-M8 isGenericMappedType gate. Every mapped type
+    /// is treated as generic until the mapped payload and the precise
+    /// constraint/name-type test land; this keeps the dormant mapped
+    /// branches fail-closed as soon as mapped objects become constructible.
+    pub(crate) fn is_generic_mapped_type_state(&self, ty: TypeId) -> bool {
+        self.tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
     }
 
     // ---- recursion depth (checker-key §1.3) ----

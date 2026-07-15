@@ -70,11 +70,23 @@ pub struct Intrinsics {
     pub unique_literal: TypeId,
 }
 
-/// The M4-dependency escape hatch: a constructor arm whose inputs are
-/// unconstructible before instantiation lands returns this instead of
-/// inventing a type; the relpin probe surfaces it as Unsupported.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct M4Dependency(pub &'static str);
+/// Element flags validated for tuple-target construction. A single
+/// rest element (`[...T[]]`) is an Array target in tsc and therefore
+/// must be handled by the checker, which owns the global Array types.
+/// Keeping the field private makes that layer boundary explicit for
+/// every future caller instead of relying on a runtime panic.
+#[derive(Clone, Copy, Debug)]
+pub struct TupleTargetFlags<'a>(&'a [ElementFlags]);
+
+impl<'a> TupleTargetFlags<'a> {
+    pub fn new(flags: &'a [ElementFlags]) -> Option<Self> {
+        (!(flags.len() == 1 && flags[0].intersects(ElementFlags::REST))).then_some(Self(flags))
+    }
+
+    fn as_slice(self) -> &'a [ElementFlags] {
+        self.0
+    }
+}
 
 /// tsc UnionReduction (checker-scope const enum: None=0, Literal=1,
 /// Subtype=2). Subtype stubs to Literal until stage 4.8.
@@ -1691,18 +1703,11 @@ impl TypeTables {
     ///
     pub fn get_tuple_target_type(
         &mut self,
-        element_flags: &[ElementFlags],
+        element_flags: TupleTargetFlags<'_>,
         readonly: bool,
         named_member_declarations: Option<&[Option<u32>]>,
-    ) -> Result<TypeId, M4Dependency> {
-        if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::REST) {
-            // `[...T[]]` collapses to (readonly) Array<T> (61146-61148)
-            // — the checker twin owns the collapse
-            // (create_tuple_type_forced pre-collapses before reaching
-            // here) and no tables-internal caller builds single-rest
-            // shapes (L-TWIN caller inventory, M4-end sweep).
-            unreachable!("single-rest tuple targets collapse in the checker twin (L-TWIN)");
-        }
+    ) -> TypeId {
+        let element_flags = element_flags.as_slice();
         let mut key = element_flags
             .iter()
             .map(|&flags| {
@@ -1738,11 +1743,11 @@ impl TypeTables {
             );
         }
         if let Some(&id) = self.tuple_types.get(&key) {
-            return Ok(id);
+            return id;
         }
         let id = self.create_tuple_target_type(element_flags, readonly, named);
         self.tuple_types.insert(key, id);
-        Ok(id)
+        id
     }
 
     /// tsc-port: createTupleTargetType @6.0.3
@@ -1831,13 +1836,14 @@ impl TypeTables {
     /// tsc-port: createTupleType @6.0.3
     /// tsc-hash: b2054126131f4beb527c2fc7b6ccacc23a1a2c0fecb62b02e76f01b77f1468f6
     /// tsc-span: _tsc.js:61141-61144
+    #[cfg(test)]
     pub fn create_tuple_type(
         &mut self,
         element_types: &[TypeId],
         element_flags: Option<&[ElementFlags]>,
         readonly: bool,
         named_member_declarations: Option<&[Option<u32>]>,
-    ) -> Result<TypeId, M4Dependency> {
+    ) -> Option<TypeId> {
         let default_flags;
         let element_flags = match element_flags {
             Some(flags) => flags,
@@ -1846,10 +1852,10 @@ impl TypeTables {
                 &default_flags
             }
         };
-        let target =
-            self.get_tuple_target_type(element_flags, readonly, named_member_declarations)?;
+        let flags = TupleTargetFlags::new(element_flags)?;
+        let target = self.get_tuple_target_type(flags, readonly, named_member_declarations);
         if element_types.is_empty() {
-            return Ok(target);
+            return Some(target);
         }
         self.create_normalized_type_reference(target, element_types)
     }
@@ -1857,15 +1863,16 @@ impl TypeTables {
     /// tsc-port: createNormalizedTypeReference @6.0.3
     /// tsc-hash: 32b91334e6762e8ea63ac6a9be5f6689a4d112aa1db2d59986c736ac6735e143
     /// tsc-span: _tsc.js:61210-61212
+    #[cfg(test)]
     pub fn create_normalized_type_reference(
         &mut self,
         target: TypeId,
         type_arguments: &[TypeId],
-    ) -> Result<TypeId, M4Dependency> {
+    ) -> Option<TypeId> {
         if self.object_flags_of(target).intersects(ObjectFlags::TUPLE) {
             self.create_normalized_tuple_type(target, type_arguments)
         } else {
-            Ok(self.create_type_reference(target, type_arguments))
+            Some(self.create_type_reference(target, type_arguments))
         }
     }
 
@@ -1873,25 +1880,25 @@ impl TypeTables {
     /// tsc-hash: 5b7968f648c63d88544746d841015ff7800b723dbc071b96fb4d6f7ae0b18154
     /// tsc-span: _tsc.js:61213-61287
     ///
-    /// The tables twin is test-only plus the one live empty-tuple
-    /// caller (structural.rs slice_tuple_type): the checker twin
-    /// (annotate.rs create_normalized_tuple_type_full) owns every
-    /// checker-reachable normalization, so the checker-dependent arms
+    /// The tables twin is compiled only for this crate's unit tests.
+    /// The checker twin (annotate.rs create_normalized_tuple_type_full)
+    /// owns every production normalization, so checker-dependent arms
     /// (union-in-variadic cross product 61218-61223, array-like
     /// variadic collapse 61252, variadic-in-rest-window collapse
     /// 61262, deferred-argument forcing 61240) are proven-dead guards
     /// here (L-TWIN caller inventory, M4-end sweep).
+    #[cfg(test)]
     pub fn create_normalized_tuple_type(
         &mut self,
         target: TypeId,
         element_types: &[TypeId],
-    ) -> Result<TypeId, M4Dependency> {
+    ) -> Option<TypeId> {
         let TypeData::TupleTarget(data) = self.type_of(target).data.clone() else {
             unreachable!("createNormalizedTupleType requires a tuple target");
         };
         if !data.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
             // No non-required elements: plain reference (61215-61217).
-            return Ok(self.create_type_reference(target, element_types));
+            return Some(self.create_type_reference(target, element_types));
         }
         if data.combined_flags.intersects(ElementFlags::VARIADIC) {
             let has_union_variadic = element_types.iter().enumerate().any(|(i, &t)| {
@@ -1903,9 +1910,8 @@ impl TypeTables {
             if has_union_variadic {
                 // The union/never variadic distribution (61218-61223)
                 // runs live in the checker twin
-                // (create_normalized_tuple_type_full); the only live
-                // tables caller is the empty tuple, which has no
-                // variadic elements (L-TWIN caller inventory).
+                // (create_normalized_tuple_type_full); production code
+                // cannot call this test-only twin (L-TWIN).
                 unreachable!(
                     "union/never variadic distribution lives in the checker twin (L-TWIN)"
                 );
@@ -1988,9 +1994,7 @@ impl TypeTables {
                         // tsc forces the arguments lazily here
                         // (getTypeArguments 61240); tables cannot reach
                         // the checker, so the checker twin owns every
-                        // deferred-argument path and the only live
-                        // tables caller is the empty tuple (L-TWIN
-                        // caller inventory).
+                        // production deferred-argument path (L-TWIN).
                         let Some(inner_args) = self
                             .try_type_arguments(element_type)
                             .map(<[TypeId]>::to_vec)
@@ -2025,8 +2029,8 @@ impl TypeTables {
                     } else {
                         // The array-like variadic collapse
                         // (getIndexTypeOfType, 61252) runs live in the
-                        // checker twin; the only live tables caller is
-                        // the empty tuple (L-TWIN caller inventory).
+                        // checker twin; production code cannot call
+                        // this test-only twin (L-TWIN).
                         unreachable!(
                             "array-like variadic collapse lives in the checker twin (L-TWIN)"
                         );
@@ -2066,8 +2070,8 @@ impl TypeTables {
             {
                 // The variadic-in-rest-window collapse
                 // (getIndexedAccessType, 61262) runs live in the
-                // checker twin; the only live tables caller is the
-                // empty tuple (L-TWIN caller inventory).
+                // checker twin; production code cannot call this
+                // test-only twin (L-TWIN).
                 unreachable!("variadic-in-rest-window collapse lives in the checker twin (L-TWIN)");
             }
             let window: Vec<TypeId> = expanded_types[first..=last].to_vec();
@@ -2080,11 +2084,12 @@ impl TypeTables {
             .iter()
             .any(Option::is_some)
             .then_some(expanded_declarations.as_slice());
-        let tuple_target = self.get_tuple_target_type(&expanded_flags, data.readonly, named)?;
+        let flags = TupleTargetFlags::new(&expanded_flags)?;
+        let tuple_target = self.get_tuple_target_type(flags, data.readonly, named);
         if expanded_flags.is_empty() {
-            Ok(tuple_target)
+            Some(tuple_target)
         } else {
-            Ok(self.create_type_reference(tuple_target, &expanded_types))
+            Some(self.create_type_reference(tuple_target, &expanded_types))
         }
     }
 
@@ -2925,9 +2930,10 @@ mod tests {
     fn tuple_targets_intern_by_flags_and_readonly() {
         let mut t = tables();
         let req = [ElementFlags::REQUIRED, ElementFlags::OPTIONAL];
-        let a = t.get_tuple_target_type(&req, false, None).expect("target");
-        let b = t.get_tuple_target_type(&req, false, None).expect("target");
-        let readonly = t.get_tuple_target_type(&req, true, None).expect("target");
+        let req_flags = TupleTargetFlags::new(&req).expect("not single-rest");
+        let a = t.get_tuple_target_type(req_flags, false, None);
+        let b = t.get_tuple_target_type(req_flags, false, None);
+        let readonly = t.get_tuple_target_type(req_flags, true, None);
         assert_eq!(a, b);
         assert_ne!(a, readonly);
         let TypeData::TupleTarget(data) = &t.type_of(a).data else {
@@ -2938,13 +2944,24 @@ mod tests {
         assert!(!data.has_rest_element);
 
         let rest = [ElementFlags::REQUIRED, ElementFlags::REST];
-        let with_rest = t.get_tuple_target_type(&rest, false, None).expect("target");
+        let with_rest = t.get_tuple_target_type(
+            TupleTargetFlags::new(&rest).expect("not single-rest"),
+            false,
+            None,
+        );
         let TypeData::TupleTarget(data) = &t.type_of(with_rest).data else {
             panic!("tuple target expected");
         };
         assert_eq!(data.min_length, 1);
         assert_eq!(data.fixed_length, 1);
         assert!(data.has_rest_element);
+    }
+
+    #[test]
+    fn tuple_target_flags_exclude_the_checker_owned_single_rest_shape() {
+        assert!(TupleTargetFlags::new(&[ElementFlags::REST]).is_none());
+        assert!(TupleTargetFlags::new(&[]).is_some());
+        assert!(TupleTargetFlags::new(&[ElementFlags::REQUIRED, ElementFlags::REST,]).is_some());
     }
 
     #[test]
@@ -2959,9 +2976,11 @@ mod tests {
             .expect("inner tuple");
         // [number, ...[string, boolean]] normalizes to [number, string, boolean].
         let outer_flags = [ElementFlags::REQUIRED, ElementFlags::VARIADIC];
-        let outer_target = t
-            .get_tuple_target_type(&outer_flags, false, None)
-            .expect("target");
+        let outer_target = t.get_tuple_target_type(
+            TupleTargetFlags::new(&outer_flags).expect("not single-rest"),
+            false,
+            None,
+        );
         let outer = t
             .create_normalized_tuple_type(outer_target, &[number, inner])
             .expect("normalized");
