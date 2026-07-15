@@ -633,7 +633,7 @@ impl<'a> CheckerState<'a> {
                                     /*name_not_found_message*/ None,
                                     /*is_use*/ true,
                                     /*exclude_globals*/ false,
-                                )
+                                )?
                                 .is_some();
                             let keyword_is_type_node = tsrs2_syntax::keyword_kind(&name_text)
                                 .is_some_and(|kind| self.is_type_node_kind(kind));

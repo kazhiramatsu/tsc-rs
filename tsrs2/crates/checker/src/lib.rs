@@ -22,6 +22,7 @@ pub mod jsx;
 pub mod links;
 pub mod literals;
 pub mod merge;
+pub mod modules;
 pub mod operators;
 mod plain_js_errors;
 pub mod program;
@@ -416,8 +417,9 @@ pub fn check_program_with_libs(
             .get(source_file.file_name.as_str())
             .copied()
             .flatten();
-        let include_bind_and_check =
-            can_include_bind_and_check_diagnostics(javascript_file, directive, options);
+        let include_bind_and_check = !(options.skip_lib_check == Some(true)
+            && source_file.is_declaration_file)
+            && can_include_bind_and_check_diagnostics(javascript_file, directive, options);
         if javascript_file {
             if include_bind_and_check {
                 diagnostics.extend(
@@ -451,6 +453,18 @@ pub fn check_program_with_libs(
     if !binder_refs.is_empty() {
         let lib_count = lib_binders.len();
         let mut state = state::CheckerState::from_program(binder_refs, options);
+        // The resolver's host view (M4 5.8d): every INPUT path, incl.
+        // files the program dropped (.json bodies, .js without
+        // allowJs) — the suppression probes need them to keep 2307
+        // FP-free.
+        state.host_file_paths = files
+            .iter()
+            .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
+            .collect();
+        // initializeTypeChecker's augmentation passes (88769/88874)
+        // run here — AFTER the resolver's host view exists (pass 2
+        // resolves module names), BEFORE any file checks.
+        state.merge_module_augmentations();
         for index in lib_count..state.binder.file_count() {
             state.check_source_file(index);
         }
@@ -486,6 +500,18 @@ pub fn check_program_with_libs(
             if file_name
                 .as_deref()
                 .is_some_and(|name| lib_names.contains(name))
+            {
+                continue;
+            }
+            // skipLibCheck suppresses the complete bind/check stream
+            // for declaration files, including initialization-time
+            // cross-file merge diagnostics that were produced before
+            // check_source_file had a chance to skip the file.
+            if options.skip_lib_check == Some(true)
+                && file_name
+                    .as_deref()
+                    .and_then(|name| by_name.get(name))
+                    .is_some_and(|source| source.is_declaration_file)
             {
                 continue;
             }
@@ -838,6 +864,47 @@ mod tests {
         );
 
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    }
+
+    #[test]
+    fn skip_lib_check_preserves_syntax_errors_and_skips_semantic_errors() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "bad-syntax.d.ts".to_owned(),
+                    text: "declare const x: ;\n".to_owned(),
+                },
+                InputFile {
+                    name: "bad-semantic.d.ts".to_owned(),
+                    text: "declare const y: Missing;\n".to_owned(),
+                },
+                InputFile {
+                    name: "merge-a.d.ts".to_owned(),
+                    text: "declare let merged: number;\n".to_owned(),
+                },
+                InputFile {
+                    name: "merge-b.d.ts".to_owned(),
+                    text: "declare let merged: string;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                skip_lib_check: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+
+        let pins: Vec<(String, u32, u32)> = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.clone().unwrap_or_default(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                )
+            })
+            .collect();
+        assert_eq!(pins, [("bad-syntax.d.ts".to_owned(), 1110, 17)]);
     }
 
     // ---- lib-loading L2: lib-backed programs (oracle-pinned) ----

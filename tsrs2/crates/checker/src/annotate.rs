@@ -1133,7 +1133,8 @@ impl<'a> CheckerState<'a> {
             SymbolFlags::TYPE,
             /*ignore_errors*/ false,
             None,
-        ) else {
+        )?
+        else {
             return Ok(self.tables.intrinsics.error);
         };
         let flags = self.symbol_flags(symbol);
@@ -1970,7 +1971,7 @@ impl<'a> CheckerState<'a> {
                     SymbolFlags::TYPE,
                     /*ignore_errors*/ false,
                     None,
-                );
+                )?;
                 Ok(symbol.is_some_and(|symbol| {
                     self.symbol_flags(symbol)
                         .intersects(SymbolFlags::TYPE_ALIAS)
@@ -2098,7 +2099,7 @@ impl<'a> CheckerState<'a> {
                 SymbolFlags::VALUE,
                 /*ignore_errors*/ true,
                 None,
-            ) {
+            )? {
                 Some(symbol) => self.get_type_of_symbol(symbol)?,
                 None => self.check_expression(expr_name, tsrs2_types::CheckMode::NORMAL)?,
             }
@@ -2114,7 +2115,7 @@ impl<'a> CheckerState<'a> {
                 SymbolFlags::VALUE,
                 /*ignore_errors*/ false,
                 None,
-            ) {
+            )? {
                 Some(symbol) => self.get_type_of_symbol(symbol)?,
                 None => self.tables.intrinsics.error,
             }
@@ -2400,7 +2401,7 @@ impl<'a> CheckerState<'a> {
                     SymbolFlags::TYPE,
                     /*ignore_errors*/ true,
                     None,
-                );
+                )?;
                 let Some(base_symbol) = base_symbol else {
                     return Ok(false);
                 };
@@ -3209,25 +3210,28 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// The static `resolvedExports` kind — getExportsOfSymbol's
-    /// late-binding-container route. Module symbols need
-    /// getExportsOfModuleWorker's export-star walk (5.8).
+    /// tsc-port: getExportsOfSymbol @6.0.3
+    /// tsc-hash: 6cf2cedc1589fcc5d4c304a881f88bc592a2082cb6a8ca744b32346ced32eae1
+    /// tsc-span: _tsc.js:49834-49836
+    ///
+    /// LateBindingContainer → the static `resolvedExports` late-bind
+    /// route; Module → getExportsOfModule (the export-star walk, M4
+    /// 5.8d); else the plain exports table. Both memoizing routes
+    /// share the resolved_exports slot exactly like tsc.
     pub(crate) fn get_exports_of_symbol(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult2<tsrs2_binder::SymbolTable> {
-        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
-            return Err(Unsupported::new(
-                "module exports (getExportsOfModuleWorker export-star, M4 5.8)",
-            ));
-        }
-        if !self
+        if self
             .symbol_flags(symbol)
             .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
         {
-            return Ok(self.binder.symbol(symbol).exports.clone());
+            return self.get_resolved_members_or_exports_of_symbol(symbol, /*is_static*/ true);
         }
-        self.get_resolved_members_or_exports_of_symbol(symbol, /*is_static*/ true)
+        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
+            return self.get_exports_of_module(symbol);
+        }
+        Ok(self.binder.symbol(symbol).exports.clone())
     }
 
     /// getMembersOfDeclaration (19010-ish): the member lists a
@@ -3318,7 +3322,8 @@ impl<'a> CheckerState<'a> {
             None,
             false,
             false,
-        ) else {
+        )?
+        else {
             return Ok(false);
         };
         let mut ty = self.get_type_of_symbol(root)?;
@@ -4999,12 +5004,13 @@ impl<'a> CheckerState<'a> {
             return self.get_type_of_variable_or_parameter_or_property(symbol);
         }
         if flags.intersects(
-            SymbolFlags::FUNCTION | SymbolFlags::METHOD | SymbolFlags::CLASS | SymbolFlags::ENUM,
+            SymbolFlags::FUNCTION
+                | SymbolFlags::METHOD
+                | SymbolFlags::CLASS
+                | SymbolFlags::ENUM
+                | SymbolFlags::VALUE_MODULE,
         ) {
             return self.get_type_of_func_class_enum_module(symbol);
-        }
-        if flags.intersects(SymbolFlags::VALUE_MODULE) {
-            return Err(Unsupported::new("module value types (M4 5.8)"));
         }
         if flags.intersects(SymbolFlags::ENUM_MEMBER) {
             return self.get_type_of_enum_member(symbol);
@@ -5013,8 +5019,7 @@ impl<'a> CheckerState<'a> {
             return self.get_type_of_accessors(symbol);
         }
         if flags.intersects(SymbolFlags::ALIAS) {
-            // getTypeOfAlias needs alias resolution (M4 5.8).
-            return Err(Unsupported::new("alias value types (getTypeOfAlias, 5.8)"));
+            return self.get_type_of_alias(symbol);
         }
         // tsc's tail (56974): symbols with NO value arm — TypeLiteral,
         // Interface, TypeAlias, TypeParameter shells — are errorType
@@ -5221,7 +5226,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The Alias arm (Circular_definition_of_import_alias_0) waits on
     /// alias declarations (M4 5.8).
-    fn report_circularity_error(&mut self, symbol: SymbolId) -> TypeId {
+    pub(crate) fn report_circularity_error(&mut self, symbol: SymbolId) -> TypeId {
         let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
             return self.tables.intrinsics.any;
         };
@@ -5509,7 +5514,7 @@ impl<'a> CheckerState<'a> {
                 let initializer = self.initializer_of(declaration);
                 let null_or_undefined_initializer = match initializer {
                     None => true,
-                    Some(initializer) => self.is_null_or_undefined_expr(initializer),
+                    Some(initializer) => self.is_null_or_undefined_expr(initializer)?,
                 };
                 if !constant && null_or_undefined_initializer {
                     // tsc: autoType ([FLOW M5]) — anyType stand-in.
@@ -5716,13 +5721,15 @@ impl<'a> CheckerState<'a> {
     /// isNullOrUndefined2)
     /// tsc-hash: 134b4ea51c0e63244ba9e3640b567e1455ff00b981dee40817ca46e89ef520cd
     /// tsc-span: _tsc.js:56013-56020
-    fn is_null_or_undefined_expr(&mut self, node: NodeId) -> bool {
+    fn is_null_or_undefined_expr(&mut self, node: NodeId) -> CheckResult2<bool> {
         let expr = self.skip_parentheses(node);
-        match self.kind_of(expr) {
+        Ok(match self.kind_of(expr) {
             SyntaxKind::NullKeyword => true,
-            SyntaxKind::Identifier => self.get_resolved_symbol(expr) == Some(self.undefined_symbol),
+            SyntaxKind::Identifier => {
+                self.get_resolved_symbol(expr)? == Some(self.undefined_symbol)
+            }
             _ => false,
-        }
+        })
     }
 
     /// tsc-port: isEmptyArrayLiteral @6.0.3 (the checker-local
@@ -5804,8 +5811,17 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         // getTypeOfFuncClassEnumModuleWorker (56828-56860): the JS
-        // assignment/expando and commonJS arms are elided project-wide;
-        // shorthand-ambient-module anyType is 5.8.
+        // assignment/expando and commonJS arms are elided project-wide.
+        // Shorthand ambient modules (`declare module "x";`) type as
+        // any (56832-56834, M4 5.8d).
+        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE)
+            && self.is_shorthand_ambient_module_symbol(symbol)
+        {
+            let any = self.tables.intrinsics.any;
+            self.links
+                .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(any));
+            return Ok(any);
+        }
         let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = Some(symbol);

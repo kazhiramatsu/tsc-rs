@@ -54,10 +54,6 @@ name = "data_of"
 
 [[fn]]
 file = "crates/checker/src/annotate.rs"
-name = "get_exports_of_symbol"
-
-[[fn]]
-file = "crates/checker/src/annotate.rs"
 name = "get_target_type"
 
 [[fn]]
@@ -992,10 +988,6 @@ name = "node_symbol"
 [[fn]]
 file = "crates/checker/src/state.rs"
 name = "parse_program"
-
-[[fn]]
-file = "crates/checker/src/state.rs"
-name = "program_has_global_augmentation"
 
 [[fn]]
 file = "crates/checker/src/state.rs"

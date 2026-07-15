@@ -767,6 +767,7 @@ fn directive_spec(normalized_name: &str) -> Option<DirectiveSpec> {
         "allowjs" => bool_option("allowJs"),
         "allowunreachablecode" => bool_option("allowUnreachableCode"),
         "allowumdglobalaccess" => bool_option("allowUmdGlobalAccess"),
+        "allowsyntheticdefaultimports" => bool_option("allowSyntheticDefaultImports"),
         "allowunusedlabels" => bool_option("allowUnusedLabels"),
         "alwaysstrict" => bool_option("alwaysStrict"),
         "checkjs" => bool_option("checkJs"),

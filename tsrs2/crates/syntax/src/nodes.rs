@@ -411,6 +411,7 @@ pub struct ImportDeclarationData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportEqualsDeclarationData {
+    pub is_type_only: bool,
     pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub module_reference: Option<NodeId>,
@@ -1922,6 +1923,7 @@ impl NodeData {
             }),
             SyntaxKind::ImportEqualsDeclaration => {
                 Self::ImportEqualsDeclaration(ImportEqualsDeclarationData {
+                    is_type_only: false,
                     modifiers: None,
                     name: None,
                     module_reference: None,

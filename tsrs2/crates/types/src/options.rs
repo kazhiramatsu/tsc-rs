@@ -88,6 +88,41 @@ pub struct CompilerOptions {
     /// anyType for the builtin-iterator TReturn slot. Read through
     /// strict_option_value.
     pub strict_builtin_iterator_return: Option<bool>,
+    /// M4 5.8d: tsc ModuleResolutionKind value; None when absent. Read
+    /// through emit_module_resolution_kind (computed default depends on
+    /// module). Selects the Classic 2792 face over the plain 2307 in
+    /// resolveExternalModuleName (49466). 85 conformance fixtures carry
+    /// the directive (43 classic).
+    pub module_resolution: Option<i32>,
+    /// M4 5.8d: read through es_module_interop_effective (TS6 computed
+    /// default TRUE, 18079-region). Selects interop faces in
+    /// resolveESModuleSymbol (49715) + errorNoModuleMemberSymbol
+    /// message flavors (48947). 19 conformance fixtures.
+    pub es_module_interop: Option<bool>,
+    /// M4 5.8d: read through allow_synthetic_default_imports_effective
+    /// (TS6 computed default TRUE, 18088-region). Gates the §9
+    /// default-import bands (canHaveSyntheticDefault 48609,
+    /// getTargetofModuleDefault 48658). No standalone conformance
+    /// directive observed; carried for the computed read.
+    pub allow_synthetic_default_imports: Option<bool>,
+    /// M4 5.8d: read through should_preserve_const_enums (tsc
+    /// _computedOptions.preserveConstEnums 18157: preserveConstEnums ||
+    /// computed isolatedModules). Feeds isInstantiatedModule in
+    /// checkModuleDeclaration (85840). 2 conformance fixtures.
+    pub preserve_const_enums: Option<bool>,
+    /// M4 5.8d: carried for the module resolver's suppression gate
+    /// (baseUrl-relative candidates probe the program set; a miss
+    /// under baseUrl is tsc-undecidable → no 2307). Full baseUrl
+    /// semantics (paths mapping) stay unmodeled — ledger.
+    pub base_url: Option<String>,
+    /// M4 5.8d: gates the 5097 An_import_path_can_only_end_with_a_0_
+    /// extension row (shouldAllowImportingTsExtension) — a true value
+    /// legalizes .ts-family specifiers.
+    pub allow_importing_ts_extensions: Option<bool>,
+    /// M4 5.8d: skipTypeCheckingWorker's first arm (18896) —
+    /// declaration files produce NO bind/check diagnostics when set.
+    /// 100 conformance fixtures carry the directive.
+    pub skip_lib_check: Option<bool>,
     /// jsxFactory/jsxFragmentFactory/jsxImportSource/reactNamespace:
     /// carried so the 5.5f JSX slice can ESCAPE fixtures that
     /// customize the namespace entity (pragma machinery + entity
@@ -162,5 +197,43 @@ impl CompilerOptions {
     pub fn emit_standard_class_fields(&self) -> bool {
         self.use_define_for_class_fields != Some(false)
             && self.emit_script_target() >= ScriptTarget::ES2022
+    }
+
+    /// tsc _computedOptions.moduleResolution.computeValue (18040):
+    /// explicit value wins; else None(0)/AMD(2)/UMD(3)/System(4) →
+    /// Classic(1), NodeNext(199) → NodeNext(99), Node16(100)..<199 →
+    /// Node16(3), else Bundler(100). TS6 dropped the Node10 default —
+    /// CommonJS computes Bundler.
+    pub fn emit_module_resolution_kind(&self) -> i32 {
+        if let Some(module_resolution) = self.module_resolution {
+            return module_resolution;
+        }
+        match self.emit_module_kind() {
+            0 | 2 | 3 | 4 => 1,
+            199 => 99,
+            100..=198 => 3,
+            _ => 100,
+        }
+    }
+
+    /// tsc _computedOptions.esModuleInterop.computeValue (18079-region):
+    /// explicit value wins; TS6 defaults TRUE.
+    pub fn es_module_interop_effective(&self) -> bool {
+        self.es_module_interop.unwrap_or(true)
+    }
+
+    /// tsc _computedOptions.allowSyntheticDefaultImports.computeValue
+    /// (18088-region): explicit value wins; TS6 defaults TRUE (the TS5
+    /// esModuleInterop/System derivation is gone).
+    pub fn allow_synthetic_default_imports_effective(&self) -> bool {
+        self.allow_synthetic_default_imports.unwrap_or(true)
+    }
+
+    /// tsc shouldPreserveConstEnums = _computedOptions.preserveConstEnums
+    /// .computeValue (18157): preserveConstEnums || computed
+    /// isolatedModules (isolatedModules || verbatimModuleSyntax — both
+    /// unmodeled, so the computed arm reduces to false; ledger).
+    pub fn should_preserve_const_enums(&self) -> bool {
+        self.preserve_const_enums == Some(true)
     }
 }

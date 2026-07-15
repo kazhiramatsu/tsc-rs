@@ -1,8 +1,8 @@
 [t0]
 # rate is display-only once matched/total are present; the gate
 # compares the exact integer counts (zero-regression).
-rate = 0.313590
-matched = 15232
+rate = 0.358759
+matched = 17426
 total = 48573
 allowed_regression = 0.0
 
@@ -11,8 +11,8 @@ rate = 0.0
 allowed_regression = 0.0
 
 [t0-2xxx]
-rate = 0.339833
-matched = 7076
+rate = 0.421141
+matched = 8769
 total = 20822
 allowed_regression = 0.0
 
@@ -43,5 +43,5 @@ max_untagged = 114
 # 5.8c: +7 decorator/class-band guards (decorator/heritage/class-
 # element recovery nodes + the getEffectiveDecoratorArguments and
 # getClassElementPropertyKeyType Debug.fail transcriptions, risk #6).
-max_recovery = 106
+max_recovery = 108
 

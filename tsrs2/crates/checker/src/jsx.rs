@@ -787,7 +787,7 @@ impl<'a> CheckerState<'a> {
                 jsx_factory_ref_err,
                 /*is_use*/ true,
                 /*exclude_globals*/ false,
-            );
+            )?;
         }
         Ok(())
     }
@@ -1029,16 +1029,10 @@ impl<'a> CheckerState<'a> {
                 symbol = self.unknown_symbol;
             }
         } else {
-            // `declare global` programs can declare JSX.IntrinsicElements
-            // through the augmentation merge (unported until 5.8d) —
-            // the miss is undecidable there, same rule as the resolver
-            // failure band (inlineJsxFactoryDeclarations pins the
-            // renderer.d.ts global JSX surface).
-            if self.program_has_global_augmentation() {
-                return Err(Unsupported::new(
-                    "JSX.IntrinsicElements miss in a declare-global program (augmentation merge, 5.8d)",
-                ));
-            }
+            // (5.8d) `declare global` JSX.IntrinsicElements surfaces
+            // now MERGE (merge_module_augmentations pass 1) — the old
+            // undecidability containment retired with the resolver
+            // failure-band gate.
             if self
                 .options
                 .strict_option_value(self.options.no_implicit_any)
@@ -1325,7 +1319,7 @@ impl<'a> CheckerState<'a> {
             Some(&diagnostics::Using_JSX_fragments_requires_fragment_factory_0_to_be_in_scope_but_it_could_not_be_found),
             /*is_use*/ true,
             /*exclude_globals*/ false,
-        );
+        )?;
         let Some(factory_symbol) = factory_symbol else {
             let error = self.tables.intrinsics.error;
             self.links
@@ -1884,7 +1878,7 @@ impl<'a> CheckerState<'a> {
             None,
             /*is_use*/ false,
             /*exclude_globals*/ false,
-        );
+        )?;
         if let Some(resolved_namespace) = resolved_namespace {
             if self
                 .symbol_flags(resolved_namespace)

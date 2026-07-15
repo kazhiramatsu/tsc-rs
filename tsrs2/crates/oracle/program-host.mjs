@@ -72,12 +72,12 @@ export function compilerOptionsFromProgram(program) {
 export function createHost(options, files, cwd) {
   const languageVersion = options.target ?? ts.ScriptTarget.Latest;
   return {
-    getSourceFile(fileName) {
+    getSourceFile(fileName, languageVersionOrOptions = languageVersion) {
       const normalized = absoluteProgramFileName(fileName, cwd);
       const text = files.get(normalized);
       return text === undefined
         ? undefined
-        : ts.createSourceFile(normalized, text, languageVersion, true);
+        : ts.createSourceFile(normalized, text, languageVersionOrOptions, true);
     },
     getDefaultLibFileName() {
       return "lib.d.ts";

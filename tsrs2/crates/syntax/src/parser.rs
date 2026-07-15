@@ -2145,7 +2145,12 @@ impl<'text> Parser<'text> {
             if !self.token_after_imported_identifier_definitely_produces_import_declaration()
                 && !is_defer_phase
             {
-                return self.parse_import_equals_declaration(pos, modifiers, identifier);
+                return self.parse_import_equals_declaration(
+                    pos,
+                    modifiers,
+                    identifier,
+                    is_type_only,
+                );
             }
         }
         let import_clause =
@@ -2242,12 +2247,14 @@ impl<'text> Parser<'text> {
         pos: usize,
         modifiers: Option<crate::NodeArrayId>,
         identifier: NodeId,
+        is_type_only: bool,
     ) -> NodeId {
         self.parse_expected(SyntaxKind::EqualsToken, None);
         let module_reference = self.parse_module_reference();
         self.parse_semicolon();
         self.finish_node_data(
             NodeData::ImportEqualsDeclaration(ImportEqualsDeclarationData {
+                is_type_only,
                 modifiers,
                 name: Some(identifier),
                 module_reference: Some(module_reference),

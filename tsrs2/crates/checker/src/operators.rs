@@ -1653,7 +1653,7 @@ impl<'a> CheckerState<'a> {
         let Some(global_nan) = global_nan else {
             return Ok(false);
         };
-        Ok(self.get_resolved_symbol(expr) == Some(global_nan))
+        Ok(self.get_resolved_symbol(expr)? == Some(global_nan))
     }
 
     /// tsc-port: isTypeEqualityComparableTo @6.0.3
@@ -3568,7 +3568,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::NullKeyword => SEMANTICS_ALWAYS,
             SyntaxKind::Identifier => {
-                if self.is_undefined_identifier_resolving_to_global(node) {
+                if self.is_undefined_identifier_resolving_to_global(node)? {
                     SEMANTICS_ALWAYS
                 } else {
                     SEMANTICS_SOMETIMES
@@ -3581,14 +3581,14 @@ impl<'a> CheckerState<'a> {
     /// getResolvedSymbol(node) === undefinedSymbol (79999): the global
     /// `undefined` identifier test the nullish/truthy classifiers
     /// share.
-    fn is_undefined_identifier_resolving_to_global(&mut self, node: NodeId) -> bool {
+    fn is_undefined_identifier_resolving_to_global(&mut self, node: NodeId) -> CheckResult2<bool> {
         if self.identifier_text_of(node) != Some("undefined") {
-            return false;
+            return Ok(false);
         }
-        match self.get_resolved_symbol(node) {
+        Ok(match self.get_resolved_symbol(node)? {
             Some(symbol) => symbol == self.undefined_symbol,
             None => false,
-        }
+        })
     }
 
     /// tsc-port: skipOuterExpressions @6.0.3
@@ -3736,7 +3736,7 @@ impl<'a> CheckerState<'a> {
                     | self.get_syntactic_truthy_semantics(when_false)?
             }
             SyntaxKind::Identifier => {
-                if self.is_undefined_identifier_resolving_to_global(node) {
+                if self.is_undefined_identifier_resolving_to_global(node)? {
                     SEMANTICS_NEVER
                 } else {
                     SEMANTICS_SOMETIMES
@@ -4145,14 +4145,14 @@ impl<'a> CheckerState<'a> {
                     Some(text) => text.to_owned(),
                     None => return Ok(None),
                 };
-                Ok(self.resolve_name(
+                self.resolve_name(
                     Some(name),
                     &text,
                     SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE,
                     None,
                     true,
                     false,
-                ))
+                )
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName => {
                 if let Some(cached) = self.links.node(name).resolved_symbol.resolved() {

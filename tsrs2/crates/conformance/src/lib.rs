@@ -880,6 +880,17 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
             None
         }
     });
+    let module_resolution = program.options.iter().find_map(|(key, value)| {
+        if key.eq_ignore_ascii_case("moduleResolution") {
+            match value {
+                tsrs2_harness::OptionValue::String(value) => module_resolution_option_value(value),
+                tsrs2_harness::OptionValue::Number(value) => Some(*value),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    });
     CompilerOptions {
         allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
         experimental_decorators: bool_option("experimentalDecorators").unwrap_or(false),
@@ -904,6 +915,13 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         no_emit: bool_option("noEmit"),
         downlevel_iteration: bool_option("downlevelIteration"),
         strict_builtin_iterator_return: bool_option("strictBuiltinIteratorReturn"),
+        module_resolution,
+        es_module_interop: bool_option("esModuleInterop"),
+        allow_synthetic_default_imports: bool_option("allowSyntheticDefaultImports"),
+        preserve_const_enums: bool_option("preserveConstEnums"),
+        base_url: string_option(program, "baseUrl"),
+        allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
+        skip_lib_check: bool_option("skipLibCheck"),
         jsx: program.options.iter().find_map(|(key, value)| {
             if key.eq_ignore_ascii_case("jsx") {
                 match value {
@@ -979,6 +997,20 @@ fn module_option_value(value: &str) -> Option<i32> {
         "node20" => 102,
         "nodenext" => 199,
         "preserve" => 200,
+        _ => return None,
+    })
+}
+
+/// tsc moduleResolutionOptionDeclaration.type (37337-37346) — the
+/// moduleResolution option's string→ModuleResolutionKind map (node/
+/// node10/classic survive as deprecated keys at the 6.0.3 pin).
+fn module_resolution_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "node10" | "node" => 2,
+        "classic" => 1,
+        "node16" => 3,
+        "nodenext" => 99,
+        "bundler" => 100,
         _ => return None,
     })
 }

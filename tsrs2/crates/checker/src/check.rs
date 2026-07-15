@@ -173,7 +173,17 @@ impl<'a> CheckerState<'a> {
         if !is_declaration_file {
             self.check_potential_unchecked_renamed_binding_elements_in_types();
         }
-        // (checkExternalModuleExports — 5.8d.)
+        // 87041: external/CJS module → checkExternalModuleExports
+        // (§8; the checkExportAssignment-driven run dedupes through
+        // the exportsChecked once-guard). Unsupported containment
+        // matches check_source_element's element boundary.
+        if self.binder.is_external_or_common_js_module_of_node(root) {
+            if let Err(err) = self.check_external_module_exports(root) {
+                if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
+                    eprintln!("contained @{root:?}: {}", err.reason);
+                }
+            }
+        }
         // 87042-87058: the four collision drains IN ORDER; each clears
         // its vector like tsc's clear() tail.
         let this_collisions = std::mem::take(&mut self.potential_this_collisions);
@@ -237,16 +247,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8dcc4a08f5b94c3c9ada5b6c1e86885714d7db12c71cbf857ca88531632bd0c3
     /// tsc-span: _tsc.js:18877-18903
     ///
-    /// Every disjunct is constant-false for this program shape:
-    /// skipLibCheck/skipDefaultLibCheck/noCheck/checkJs are absent from
-    /// CompilerOptions, there are no project references, and
-    /// canIncludeBindAndCheckDiagnostics answers true for TS files and
-    /// for plain JS files alike (plain JS OUTPUT filters to the
-    /// plainJSErrors allowlist at the program layer instead — lib.rs);
-    /// .json inputs never reach the checker (parsed outside the bind
-    /// program).
-    fn skip_type_checking(&self, _root: NodeId) -> bool {
-        false
+    /// The represented skipTypeCheckingWorker arm: skipLibCheck omits
+    /// semantic checking for declaration files. Bind and
+    /// initialization-time diagnostics are filtered at the program
+    /// assembly layer so the complete per-file bind/check stream is
+    /// suppressed while syntax diagnostics remain visible.
+    fn skip_type_checking(&self, root: NodeId) -> bool {
+        self.options.skip_lib_check == Some(true)
+            && self.binder.source_of_node(root).is_declaration_file
     }
 
     /// checkGrammarSourceFile (90323) — M7-stub grammar hook (ambient
@@ -443,21 +451,11 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TypeAliasDeclaration => self.check_type_alias_declaration(node),
             SyntaxKind::EnumDeclaration => self.check_enum_declaration(node),
             SyntaxKind::EnumMember => self.check_enum_member(node),
-            SyntaxKind::ModuleDeclaration => {
-                self.source_element_stub("checkModuleDeclaration", "5.8")
-            }
-            SyntaxKind::ImportDeclaration => {
-                self.source_element_stub("checkImportDeclaration", "5.8")
-            }
-            SyntaxKind::ImportEqualsDeclaration => {
-                self.source_element_stub("checkImportEqualsDeclaration", "5.8")
-            }
-            SyntaxKind::ExportDeclaration => {
-                self.source_element_stub("checkExportDeclaration", "5.8")
-            }
-            SyntaxKind::ExportAssignment => {
-                self.source_element_stub("checkExportAssignment", "5.8")
-            }
+            SyntaxKind::ModuleDeclaration => self.check_module_declaration(node),
+            SyntaxKind::ImportDeclaration => self.check_import_declaration(node),
+            SyntaxKind::ImportEqualsDeclaration => self.check_import_equals_declaration(node),
+            SyntaxKind::ExportDeclaration => self.check_export_declaration(node),
+            SyntaxKind::ExportAssignment => self.check_export_assignment(node),
             SyntaxKind::EmptyStatement | SyntaxKind::DebuggerStatement => {
                 self.check_grammar_statement_in_ambient_context(node);
                 Ok(())
@@ -1407,7 +1405,11 @@ impl<'a> CheckerState<'a> {
                     &[],
                 );
             }
-            self.source_element_stub("getResolutionModeOverride", "5.8d")?;
+            // getResolutionModeOverride (5.8d): import-type nodes are
+            // TYPE context, so the resolution-mode grammar rows report
+            // unconditionally (tsc checkImportType passes
+            // grammarErrorOnNode straight through).
+            self.get_resolution_mode_override(attributes, true)?;
         }
         self.check_type_reference_or_import(node, {
             let NodeData::ImportType(data) = self.data_of(node) else {
@@ -1830,6 +1832,13 @@ impl<'a> CheckerState<'a> {
                 // 2415/2417/2420/2430 keep their code —
                 // implementingAnInterfaceExtendingClassWithPrivates
                 // pins the 2739→2720 silence).
+                // isRelatedTo's common-property arm (65208-65235)
+                // precedes ALL structural elaboration and its early
+                // return skips the head for ANY head message
+                // (subtypingWithObjectMembers5 pins 2420→2559).
+                if self.report_no_common_properties_head(source, target, error_node)? {
+                    return Ok(related);
+                }
                 let generic_head = std::ptr::eq(
                     head_message,
                     &diagnostics::Type_0_is_not_assignable_to_type_1,
@@ -1906,6 +1915,82 @@ impl<'a> CheckerState<'a> {
     /// stays 2322). tsc stamps canonicalHead (the skipped 2322) on
     /// these for compare/dedupe; elided here — no corpus observable
     /// until the T2 error machinery.
+    /// tsc-port: isRelatedTo @6.0.3 (the common-property arm)
+    /// tsc-hash: 21866dfda91834a7e8e842080b855cb4263b1c8e88917dd30df036aff15881e4
+    /// tsc-span: _tsc.js:65208-65236
+    ///
+    /// The weak-type no-common-properties face: 2560 when the source
+    /// is callable/constructable with a target-compatible return,
+    /// else 2559. Conditions transcribe isPerformingCommonProperty
+    /// Checks at the top-level inputs (relation=assignable ⇒ the
+    /// comparable/unit clause holds; intersection state NONE at the
+    /// call boundary); when they hold the engine's arm is exactly
+    /// what failed the relation.
+    fn report_no_common_properties_head(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        error_node: NodeId,
+    ) -> CheckResult2<bool> {
+        if !self
+            .tables
+            .flags_of(source)
+            .intersects(TypeFlags::from_bits(
+                TypeFlags::PRIMITIVE.bits()
+                    | TypeFlags::OBJECT.bits()
+                    | TypeFlags::INTERSECTION.bits(),
+            ))
+        {
+            return Ok(false);
+        }
+        if source == self.global_object_type()? {
+            return Ok(false);
+        }
+        if !self
+            .tables
+            .flags_of(target)
+            .intersects(TypeFlags::from_bits(
+                TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
+            ))
+        {
+            return Ok(false);
+        }
+        if !self.is_weak_type(target)? {
+            return Ok(false);
+        }
+        let has_surface = !self.get_properties_of_type(source)?.is_empty()
+            || self.type_has_call_or_construct_signatures(source)?;
+        if !has_surface {
+            return Ok(false);
+        }
+        if self.has_common_properties(source, target)? {
+            return Ok(false);
+        }
+        let source_text = self.type_to_string_slice(source)?;
+        let target_text = self.type_to_string_slice(target)?;
+        let mut callable_face = false;
+        for kind in [
+            crate::state::SignatureKind::Call,
+            crate::state::SignatureKind::Construct,
+        ] {
+            let signatures = self.get_signatures_of_type(source, kind)?;
+            if let Some(&first) = signatures.first() {
+                let return_type = self.get_return_type_of_signature(first)?;
+                if self.is_type_assignable_to(return_type, target)? {
+                    callable_face = true;
+                    break;
+                }
+            }
+        }
+        let message = if callable_face {
+            &diagnostics::Value_of_type_0_has_no_properties_in_common_with_type_1_Did_you_mean_to_call_it
+        } else {
+            &diagnostics::Type_0_has_no_properties_in_common_with_type_1
+        };
+        self.error_at(Some(error_node), message, &[&source_text, &target_text]);
+        Ok(true)
+    }
+
     fn report_unmatched_property_head(
         &mut self,
         source: TypeId,
