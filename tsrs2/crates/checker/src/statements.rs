@@ -343,12 +343,16 @@ impl<'a> CheckerState<'a> {
                     // node (getErrorSpanForNode's VariableDeclaration
                     // arm reports at the NAME span — pinned).
                     self.declaration_initializer_flow_gate(initializer, initializer_type, ty)?;
-                    self.check_type_assignable_to(
-                        initializer_type,
-                        ty,
-                        Some(node),
-                        &diagnostics::Type_0_is_not_assignable_to_type_1,
-                    )?;
+                    let elaborated = !self.is_type_assignable_to(initializer_type, ty)?
+                        && self.elaborate_literal_assignment(initializer, ty)?;
+                    if !elaborated {
+                        self.check_type_assignable_to(
+                            initializer_type,
+                            ty,
+                            Some(node),
+                            &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        )?;
+                    }
                     let block_scope_kind =
                         node_util::get_combined_node_flags(self.binder.source_of_node(node), node)
                             .bits()
@@ -453,12 +457,15 @@ impl<'a> CheckerState<'a> {
             // tsc's declared type for the redeclaration comparison is
             // the auto-array's widened face (any[]), which rides flow
             // machinery (arrayLiteral pins `var x = []; var x = new
-            // Array(1);` clean). Contain the comparison when either
-            // declaration is an annotation-less empty-array var.
-            if self.is_annotationless_empty_array_var(node)
-                || value_declaration
-                    .is_some_and(|declaration| self.is_annotationless_empty_array_var(declaration))
-            {
+            // Array(1);` clean). Contain only when an annotation-less
+            // empty-array declaration is paired with another
+            // array-producing initializer.
+            if value_declaration.is_some_and(|value_declaration| {
+                (self.is_annotationless_empty_array_var(node)
+                    && self.has_array_producing_initializer(value_declaration))
+                    || (self.is_annotationless_empty_array_var(value_declaration)
+                        && self.has_array_producing_initializer(node))
+            }) {
                 return Err(Unsupported::new(
                     "[FLOW M5] redeclaration comparison against an evolving-array declaration",
                 ));
@@ -535,6 +542,25 @@ impl<'a> CheckerState<'a> {
         };
         match self.data_of(initializer) {
             NodeData::ArrayLiteralExpression(array) => self.nodes_of(array.elements).is_empty(),
+            _ => false,
+        }
+    }
+
+    fn has_array_producing_initializer(&self, declaration: NodeId) -> bool {
+        let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
+            return false;
+        };
+        let Some(initializer) = data.initializer else {
+            return false;
+        };
+        match self.data_of(initializer) {
+            NodeData::ArrayLiteralExpression(_) => true,
+            NodeData::CallExpression(call) => call
+                .expression
+                .is_some_and(|expression| self.identifier_text_of(expression) == Some("Array")),
+            NodeData::NewExpression(call) => call
+                .expression
+                .is_some_and(|expression| self.identifier_text_of(expression) == Some("Array")),
             _ => false,
         }
     }

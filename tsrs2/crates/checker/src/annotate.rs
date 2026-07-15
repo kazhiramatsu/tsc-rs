@@ -2109,9 +2109,9 @@ impl<'a> CheckerState<'a> {
             // [FLOW M5] gate: tsc's checkExpression here reads the
             // FLOW type of `this` — `if (this instanceof D) { const
             // d: typeof this = this; }` resolves the query to D.
-            // Contain the query when a reaching guard narrows `this`
-            // (typeofThis conformance FP, 5.8e lift).
-            if self.flow_guards_narrow_reference(node, expr_name) {
+            // Contain the query when a reaching `instanceof` guard
+            // narrows `this` (typeofThis conformance FP, 5.8e lift).
+            if self.instanceof_guard_narrows_reference(node, expr_name) {
                 return Err(Unsupported::new(
                     "[FLOW M5] typeof this under a reaching this-guard",
                 ));
@@ -2937,25 +2937,13 @@ impl<'a> CheckerState<'a> {
                     // three recorded divergence bands — comment
                     // directives (exact scanner-backed filter landed
                     // first in this slice), declare-global augment
-                    // merges (5.8d module band + the resolution
-                    // pre-flight below), and [FLOW M5] narrowing shapes
+                    // merges (5.8d module band), and [FLOW M5]
+                    // narrowing shapes
                     // (triaged to targeted report gates by the lift's
                     // full-conformance re-run).
                     let name = state
                         .name_of_named_declaration(member)
                         .expect("late-bindable AST implies a computed name");
-                    // The silent pre-flight: checkComputedPropertyName
-                    // EMITS resolution misses (2304/2339) — where OUR
-                    // resolution diverges from tsc's (declare-global
-                    // augments, module band), the emission itself would
-                    // be the FP. A chain that does not resolve contains
-                    // the container like the old stub — no diagnostic.
-                    if !state.computed_name_chain_resolves(name)? {
-                        return Err(Unsupported::new(
-                            "late-bound member name resolution miss \
-                             (declare-global augment / module band, 5.8)",
-                        ));
-                    }
                     // hasLateBindableName / hasLateBindableIndexSignature
                     // (57635-57642) dispatch on the CHECKED name type:
                     // property-usable → member; string/number/symbol
@@ -3281,63 +3269,6 @@ impl<'a> CheckerState<'a> {
         };
         data.expression
             .is_some_and(|expression| self.is_entity_name_expression(expression))
-    }
-
-    /// The silent pre-flight over a computed name's entity chain
-    /// (Identifier / dotted PropertyAccess): the leftmost name
-    /// resolves with NO diagnostic and each property hop looks up
-    /// silently. False = our resolution diverges from tsc's (a
-    /// declare-global augment / module-band member we cannot merge) —
-    /// the late-binding loop then contains WITHOUT emitting the miss
-    /// checkComputedPropertyName would fabricate.
-    fn computed_name_chain_resolves(&mut self, name: NodeId) -> CheckResult2<bool> {
-        let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
-            return Ok(false);
-        };
-        let Some(expression) = data.expression else {
-            return Ok(false);
-        };
-        let mut hops: Vec<String> = Vec::new();
-        let mut current = expression;
-        while let NodeData::PropertyAccessExpression(access) = self.data_of(current) {
-            let Some(prop) = access
-                .name
-                .and_then(|n| self.identifier_text_of(n))
-                .map(str::to_owned)
-            else {
-                return Ok(false);
-            };
-            hops.push(prop);
-            let Some(inner) = access.expression else {
-                return Ok(false);
-            };
-            current = inner;
-        }
-        if self.kind_of(current) != SyntaxKind::Identifier {
-            return Ok(false);
-        }
-        let Some(root_text) = self.identifier_text_of(current).map(str::to_owned) else {
-            return Ok(false);
-        };
-        let Some(root) = self.resolve_name(
-            Some(current),
-            &root_text,
-            SymbolFlags::VALUE,
-            None,
-            false,
-            false,
-        )?
-        else {
-            return Ok(false);
-        };
-        let mut ty = self.get_type_of_symbol(root)?;
-        for hop in hops.iter().rev() {
-            let Some(prop) = self.get_property_of_type_full(ty, hop)? else {
-                return Ok(false);
-            };
-            ty = self.get_type_of_symbol(prop)?;
-        }
-        Ok(true)
     }
 
     /// tsc isStatic (13029-13031): a static-modified class element OR

@@ -236,13 +236,6 @@ owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_resolved_members_or_exports_of_symbol"
-reason = "late-bound member name resolution miss (declare-global augment / module band, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_signature_from_declaration"
 reason = "malformed signature parameter"
 class = "untagged"
@@ -884,13 +877,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/check.rs"
-in = "check_deferred_node_worker"
-reason = "checkAccessorDeclaration (deferred object-literal accessor, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
 in = "check_indexed_access_type"
 reason = "checkIndexedAccessIndexType under a ConditionalTypeM8"
 class = "stage"
@@ -913,7 +899,7 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_type_assignable_to"
-reason = "array-literal relation against a tuple-bearing intersection (contextual tuple arity, M6)"
+reason = "array-literal relation against a tuple-bearing intersection after element elaboration (contextual tuple arity, M6)"
 class = "stage"
 owner = "M6"
 
@@ -1819,7 +1805,7 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "check_satisfies_expression_worker"
-reason = "satisfies over a literal operand (elaborateError per-member rows, T2)"
+reason = "satisfies over an arrow/JSX operand (elaborateError, T2)"
 class = "stage"
 owner = "M8"
 

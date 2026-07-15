@@ -2431,6 +2431,7 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
         target: NodeId,
     ) -> CheckResult2<TypeId> {
+        let diagnostics_before_expression = self.diagnostics.len();
         let expr_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let target_type = self.get_type_from_type_node(target)?;
         if target_type == self.tables.intrinsics.error {
@@ -2440,13 +2441,13 @@ impl<'a> CheckerState<'a> {
             .parent_of(target)
             .and_then(|start| self.find_ancestor_of_kind(start, SyntaxKind::SatisfiesExpression));
         // checkTypeAssignableToAndOptionallyElaborate: elaborateError
-        // runs FIRST over the expression — a literal/arrow/jsx operand
-        // reports per-member rows (typeSatisfaction_errorLocations1
-        // pins 2322 at the array ELEMENT) and a callable source with a
-        // target-compatible return takes the did-you-mean-to-call face
-        // — both SUPPRESS the 1360 head. Elaboration is T2 band:
-        // contain those shapes instead of emitting a head tsc omits.
+        // runs FIRST over the expression. Object and array literals
+        // report their incompatible member/element at that value and
+        // suppress the outer 1360 head when elaboration reported.
         if !self.is_type_assignable_to(expr_type, target_type)? {
+            if self.elaborated_satisfies_expressions.contains(&expression) {
+                return Ok(expr_type);
+            }
             let mut operand = expression;
             while let NodeData::ParenthesizedExpression(data) = self.data_of(operand) {
                 match data.expression {
@@ -2454,15 +2455,25 @@ impl<'a> CheckerState<'a> {
                     None => break,
                 }
             }
+            if self.literal_operand_reported_since(operand, diagnostics_before_expression)
+                && matches!(
+                    self.data_of(operand),
+                    NodeData::ObjectLiteralExpression(_) | NodeData::ArrayLiteralExpression(_)
+                )
+            {
+                self.elaborated_satisfies_expressions.insert(expression);
+                return Ok(expr_type);
+            }
+            if self.elaborate_literal_assignment(operand, target_type)? {
+                self.elaborated_satisfies_expressions.insert(expression);
+                return Ok(expr_type);
+            }
             if matches!(
                 self.data_of(operand),
-                NodeData::ObjectLiteralExpression(_)
-                    | NodeData::ArrayLiteralExpression(_)
-                    | NodeData::ArrowFunction(_)
-                    | NodeData::JsxAttributes(_)
+                NodeData::ArrowFunction(_) | NodeData::JsxAttributes(_)
             ) {
                 return Err(Unsupported::new(
-                    "satisfies over a literal operand (elaborateError per-member rows, T2)",
+                    "satisfies over an arrow/JSX operand (elaborateError, T2)",
                 ));
             }
             for kind in [
@@ -2487,6 +2498,126 @@ impl<'a> CheckerState<'a> {
             &tsrs2_diags::gen::Type_0_does_not_satisfy_the_expected_type_1,
         )?;
         Ok(expr_type)
+    }
+
+    /// Whether contextual checking already emitted a diagnostic inside
+    /// this literal operand. Relation probes may lazily emit file-less
+    /// missing-global diagnostics, so a raw diagnostic-count comparison
+    /// would incorrectly treat those as successful literal elaboration.
+    fn literal_operand_reported_since(&self, operand: NodeId, before: usize) -> bool {
+        let source = self.binder.source_of_node(operand);
+        let node = source.arena.node(operand);
+        let start_byte = tsrs2_syntax::skip_trivia(&source.text, node.pos as usize);
+        let to_utf16 = |byte: usize| -> u32 {
+            source
+                .line_map
+                .byte_to_utf16
+                .get(byte)
+                .copied()
+                .unwrap_or(byte as u32)
+        };
+        let start = to_utf16(start_byte);
+        let end = to_utf16(node.end as usize);
+        self.diagnostics[before..].iter().any(|diagnostic| {
+            diagnostic.file_name.as_deref() == Some(source.file_name.as_str())
+                && diagnostic.start.is_some_and(|diagnostic_start| {
+                    start <= diagnostic_start && diagnostic_start < end
+                })
+        })
+    }
+
+    /// tsrs-native: the literal-value rows of elaborateError used by
+    /// `satisfies`. Returning true means at least one inner relation
+    /// diagnostic was emitted, so the caller must not also emit the
+    /// outer 1360 head.
+    pub(crate) fn elaborate_literal_assignment(
+        &mut self,
+        expression: NodeId,
+        target_type: TypeId,
+    ) -> CheckResult2<bool> {
+        let before = self.diagnostics.len();
+        match self.data_of(expression) {
+            NodeData::ObjectLiteralExpression(data) => {
+                let properties = self.nodes_of(data.properties);
+                for property in properties {
+                    let (Some(name), Some(initializer)) = (match self.data_of(property) {
+                        NodeData::PropertyAssignment(data) => (data.name, data.initializer),
+                        _ => (None, None),
+                    }) else {
+                        continue;
+                    };
+                    let name_type = self.get_literal_type_from_property_name(name)?;
+                    let Some(name_text) = self.property_name_from_type_usable(name_type) else {
+                        continue;
+                    };
+                    let Some(expected_property) =
+                        self.get_property_of_type_full(target_type, &name_text)?
+                    else {
+                        continue;
+                    };
+                    let expected = self.get_type_of_symbol(expected_property)?;
+                    let actual = self.check_expression_cached(initializer, CheckMode::NORMAL)?;
+                    let error_node = self.literal_elaboration_error_node(initializer);
+                    self.check_type_assignable_to(
+                        actual,
+                        expected,
+                        Some(error_node),
+                        &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+                    )?;
+                }
+            }
+            NodeData::ArrayLiteralExpression(data) => {
+                let elements = self.nodes_of(data.elements);
+                for (index, element) in elements.into_iter().enumerate() {
+                    if matches!(
+                        self.kind_of(element),
+                        SyntaxKind::OmittedExpression | SyntaxKind::SpreadElement
+                    ) {
+                        continue;
+                    }
+                    let index_name = index.to_string();
+                    let indexed =
+                        self.get_applicable_index_info_for_name(target_type, &index_name)?;
+                    let target_is_array = self.is_array_type(target_type)?;
+                    let expected = if target_is_array {
+                        let Some(index_type) = indexed else {
+                            continue;
+                        };
+                        index_type
+                    } else {
+                        match self.get_property_of_type_full(target_type, &index_name)? {
+                            Some(property) => self.get_type_of_symbol(property)?,
+                            // A missing tuple property is an arity
+                            // mismatch. tsc reports that at the outer
+                            // assignment, not at the excess element.
+                            None => continue,
+                        }
+                    };
+                    let actual = self.check_expression_cached(element, CheckMode::NORMAL)?;
+                    let error_node = self.literal_elaboration_error_node(element);
+                    self.check_type_assignable_to(
+                        actual,
+                        expected,
+                        Some(error_node),
+                        &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+                    )?;
+                }
+            }
+            _ => {}
+        }
+        Ok(self.diagnostics.len() > before)
+    }
+
+    fn literal_elaboration_error_node(&self, mut node: NodeId) -> NodeId {
+        loop {
+            let inner = match self.data_of(node) {
+                NodeData::ParenthesizedExpression(data) => data.expression,
+                NodeData::SatisfiesExpression(data) => data.expression,
+                _ => None,
+            };
+            let Some(inner) = inner else { return node };
+            node = inner;
+        }
     }
 
     /// tsc-port: checkExpressionWithTypeArguments @6.0.3

@@ -445,6 +445,13 @@ pub struct CheckerState<'a> {
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
     pub diagnostics: DiagnosticList,
+    /// UTF-16 ranges whose semantic check stopped at an Unsupported
+    /// boundary, grouped by file. An unused `@ts-expect-error` is only
+    /// withheld when its target line intersects one of these ranges.
+    pub(crate) contained_check_ranges: std::collections::HashMap<String, Vec<(u32, u32)>>,
+    /// Literal operands whose `satisfies` elaboration already emitted
+    /// an inner diagnostic. Re-checks must not add the outer 1360.
+    pub(crate) elaborated_satisfies_expressions: std::collections::HashSet<NodeId>,
 
     // ---- M4 5.0: the global environment (initializeTypeChecker) ----
     /// tsc `globals` (46488): non-module file locals merged in program
@@ -623,6 +630,8 @@ impl<'a> CheckerState<'a> {
             flow_invocation_count: 0,
             flow_containment_indexes: Default::default(),
             diagnostics: Vec::new(),
+            contained_check_ranges: std::collections::HashMap::new(),
+            elaborated_satisfies_expressions: std::collections::HashSet::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
             global_this_symbol,

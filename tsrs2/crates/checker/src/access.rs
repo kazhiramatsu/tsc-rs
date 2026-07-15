@@ -62,6 +62,9 @@ struct FlowReferenceRoot<'a> {
     /// tsc inlines condition aliases only while `inlineLevel < 5`.
     /// Original roots are level zero; the first alias is level one.
     alias_depth: u8,
+    /// A sibling binding from the same destructuring pattern. These
+    /// only narrow dependently under a discriminant comparison/switch.
+    dependent: bool,
 }
 
 impl<'a> CheckerState<'a> {
@@ -419,6 +422,28 @@ impl<'a> CheckerState<'a> {
         gate_node: NodeId,
         reference: NodeId,
     ) -> bool {
+        self.flow_guards_narrow_reference_worker(gate_node, reference, false)
+    }
+
+    /// tsrs-native: narrow `typeof this` only for the `instanceof`
+    /// face that can actually change its flow type. A mere truthiness
+    /// test such as `if (this)` reaches the reference but leaves
+    /// `typeof this` unchanged and must not suppress downstream
+    /// relation errors.
+    pub(crate) fn instanceof_guard_narrows_reference(
+        &self,
+        gate_node: NodeId,
+        reference: NodeId,
+    ) -> bool {
+        self.flow_guards_narrow_reference_worker(gate_node, reference, true)
+    }
+
+    fn flow_guards_narrow_reference_worker(
+        &self,
+        gate_node: NodeId,
+        reference: NodeId,
+        require_instanceof: bool,
+    ) -> bool {
         let source = self.binder.source_of_node(gate_node);
         let mut roots: Vec<FlowReferenceRoot<'_>> = Vec::new();
         let mut this_root = false;
@@ -552,16 +577,49 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             let alias_depth = source_depth.saturating_add(1);
+            let dependent_source = !guard_certainty.may_narrow() && {
+                let dependent_roots: Vec<_> = roots
+                    .iter()
+                    .filter(|root| root.dependent)
+                    .copied()
+                    .collect();
+                let direct_roots: Vec<_> = roots
+                    .iter()
+                    .filter(|root| !root.dependent)
+                    .copied()
+                    .collect();
+                self.operand_root_depth(initializer, &dependent_roots, false)
+                    .is_some()
+                    && self
+                        .operand_root_depth(initializer, &direct_roots, this_root)
+                        .is_none()
+            };
             if alias_depth <= 5
                 && (property_alias
                     || destructuring_alias
                     || guard_certainty.may_narrow()
                     || condition_alias)
             {
-                self.push_alias_binding_roots(current, name, alias_depth, &mut roots);
+                self.push_alias_binding_roots(
+                    current,
+                    name,
+                    alias_depth,
+                    dependent_source,
+                    &mut roots,
+                );
             }
         }
         // Pass 2 — the guard scan proper.
+        let direct_roots: Vec<_> = roots
+            .iter()
+            .filter(|root| !root.dependent)
+            .copied()
+            .collect();
+        let dependent_roots: Vec<_> = roots
+            .iter()
+            .filter(|root| root.dependent)
+            .copied()
+            .collect();
         for &current in scoped_candidates
             .iter()
             .flat_map(|candidates| &candidates.guard_nodes)
@@ -601,7 +659,15 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             };
             if let Some(operand) = narrowing_operand {
-                if self.guard_operand_mentions_roots(operand, &roots, this_root)
+                let direct_guard =
+                    self.guard_operand_mentions_roots(operand, &direct_roots, this_root);
+                let dependent_guard = !dependent_roots.is_empty()
+                    && self.guard_operand_mentions_roots(operand, &dependent_roots, false)
+                    && (self.kind_of(current) == SyntaxKind::SwitchStatement
+                        || self.dependent_discriminant_comparison(operand, &dependent_roots));
+                if (direct_guard || dependent_guard)
+                    && (!require_instanceof
+                        || self.guard_operand_has_instanceof_root(operand, &roots, this_root))
                     && self.guard_reaches_reference(current, operand, reference)
                 {
                     return true;
@@ -645,16 +711,9 @@ impl<'a> CheckerState<'a> {
                             symbol,
                             available_from: 0,
                             alias_depth: 0,
+                            dependent: false,
                         },
                     );
-                    // Dependent destructured variables (tsc 4.6,
-                    // narrowDependentDestructured…): a guard on one
-                    // binding of a destructuring pattern narrows its
-                    // SIBLINGS (`function f({ kind, payload }: Action)
-                    // { if (kind === 'A') payload.toFixed() }`), for
-                    // parameters and declarations alike. Extend the
-                    // root set with every binding name of the whole
-                    // enclosing pattern so such guards contain.
                     if let Some(symbol) = symbol {
                         self.push_destructuring_sibling_roots(symbol, roots);
                     }
@@ -678,15 +737,44 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsrs-native: [FLOW M5] probe extension (no tsc counterpart —
-    /// tsc consults real flow types). Dependent destructured variables
-    /// (tsc 4.6): when the reference resolves to a binding-pattern
-    /// element, every binding name of the OUTERMOST enclosing pattern
-    /// joins the root set — a guard on `kind` narrows sibling
-    /// `payload` when both destructure one discriminated source, for
-    /// parameters and variable declarations alike. Pattern structure
-    /// only: property keys and default-value expressions contribute
-    /// nothing.
+    /// A dependent destructuring sibling is only a narrowing guard
+    /// when it participates in an equality-style discriminant test.
+    /// This rejects unrelated truthiness such as `{a, b}; if (a)
+    /// b.missing`, while preserving `kind === "A"` correlations.
+    fn dependent_discriminant_comparison(
+        &self,
+        operand: NodeId,
+        roots: &[FlowReferenceRoot<'_>],
+    ) -> bool {
+        let source = self.binder.source_of_node(operand);
+        let mut worklist = vec![operand];
+        while let Some(current) = worklist.pop() {
+            if let NodeData::BinaryExpression(data) = self.data_of(current) {
+                let operator = data.operator_token.map(|token| self.kind_of(token));
+                if matches!(
+                    operator,
+                    Some(
+                        SyntaxKind::EqualsEqualsToken
+                            | SyntaxKind::ExclamationEqualsToken
+                            | SyntaxKind::EqualsEqualsEqualsToken
+                            | SyntaxKind::ExclamationEqualsEqualsToken
+                    )
+                ) && [data.left, data.right]
+                    .into_iter()
+                    .flatten()
+                    .any(|side| self.guard_operand_mentions_roots(side, roots, false))
+                {
+                    return true;
+                }
+            }
+            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
+                worklist.push(child);
+                false
+            });
+        }
+        false
+    }
+
     fn push_destructuring_sibling_roots<'r>(
         &'r self,
         symbol: SymbolId,
@@ -712,14 +800,14 @@ impl<'a> CheckerState<'a> {
             let Some(top_pattern) = top_pattern else {
                 continue;
             };
-            let mut pattern_worklist = vec![top_pattern];
-            while let Some(current) = pattern_worklist.pop() {
+            let mut worklist = vec![top_pattern];
+            while let Some(current) = worklist.pop() {
                 match self.data_of(current) {
                     NodeData::ObjectBindingPattern(data) => {
-                        pattern_worklist.extend(self.nodes_of(data.elements));
+                        worklist.extend(self.nodes_of(data.elements));
                     }
                     NodeData::ArrayBindingPattern(data) => {
-                        pattern_worklist.extend(self.nodes_of(data.elements));
+                        worklist.extend(self.nodes_of(data.elements));
                     }
                     NodeData::BindingElement(data) => {
                         let Some(name) = data.name else { continue };
@@ -730,18 +818,46 @@ impl<'a> CheckerState<'a> {
                                     .resolve_lexical_value_symbol(name, &name_data.escaped_text),
                                 available_from: 0,
                                 alias_depth: 0,
+                                dependent: true,
                             };
                             if !roots.contains(&entry) {
                                 roots.push(entry);
                             }
                         } else {
-                            pattern_worklist.push(name);
+                            worklist.push(name);
                         }
                     }
                     _ => {}
                 }
             }
         }
+    }
+
+    fn guard_operand_has_instanceof_root(
+        &self,
+        operand: NodeId,
+        roots: &[FlowReferenceRoot<'_>],
+        this_root: bool,
+    ) -> bool {
+        let source = self.binder.source_of_node(operand);
+        let mut worklist = vec![operand];
+        while let Some(current) = worklist.pop() {
+            if let NodeData::BinaryExpression(data) = self.data_of(current) {
+                let operator = data.operator_token.map(|token| self.kind_of(token));
+                if operator == Some(SyntaxKind::InstanceOfKeyword)
+                    && data.left.is_some_and(|left| {
+                        self.guard_operand_mentions_roots(left, roots, this_root)
+                    })
+                {
+                    return true;
+                }
+            }
+            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
+                worklist.push(child);
+                false
+            });
+        }
+        false
     }
 
     /// Candidate-side face of the root match: text equality, with
@@ -1166,6 +1282,7 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         name: NodeId,
         alias_depth: u8,
+        dependent: bool,
         roots: &mut Vec<FlowReferenceRoot<'r>>,
     ) -> bool {
         let source = self.binder.source_of_node(name);
@@ -1182,6 +1299,7 @@ impl<'a> CheckerState<'a> {
                     symbol,
                     available_from,
                     alias_depth,
+                    dependent,
                 };
                 if !roots.contains(&entry) {
                     roots.push(entry);
@@ -2367,21 +2485,85 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    /// tsrs-native: containment probe — true when the type's symbol
-    /// carries any declaration from a .js source (salsa surface: the
-    /// binder does not yet run assignment-declaration binding, so
-    /// JS-declared containers under-report members).
-    fn container_symbol_declared_in_js(&self, ty: TypeId) -> bool {
+    /// JS object literals and values inferred from them are open-ended
+    /// in tsc. Class instances remain closed, except for the precise
+    /// static/prototype assignment members that our JS binder has not
+    /// materialized yet.
+    fn container_has_unbound_js_member(&self, ty: TypeId, property_name: &str) -> bool {
         let Some(symbol) = self.tables.type_of(ty).symbol else {
             return false;
         };
-        self.binder
-            .symbol(symbol)
-            .declarations
-            .iter()
-            .any(|&declaration| {
-                crate::is_js_file_name(&self.binder.source_of_node(declaration).file_name)
+        let symbol = self.get_merged_symbol(symbol);
+        let declarations = &self.binder.symbol(symbol).declarations;
+        let has_js_declaration = declarations.iter().any(|&declaration| {
+            crate::is_js_file_name(&self.binder.source_of_node(declaration).file_name)
+        });
+        if has_js_declaration
+            && !self
+                .binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::CLASS)
+        {
+            return true;
+        }
+        // Class value types are anonymous constructor objects; class
+        // instances are CLASS targets or REFERENCE instantiations.
+        // Static assignments must not open the instance side (or vice
+        // versa) merely because both types carry the class symbol.
+        let instance_side = !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(tsrs2_types::ObjectFlags::ANONYMOUS);
+        let container_name = self.binder.symbol(symbol).escaped_name.as_str();
+        declarations.iter().any(|&declaration| {
+            let source = self.binder.source_of_node(declaration);
+            if !crate::is_js_file_name(&source.file_name) {
+                return false;
+            }
+            source.arena.node_ids().any(|node| {
+                let NodeData::BinaryExpression(binary) = self.data_of(node) else {
+                    return false;
+                };
+                if binary
+                    .operator_token
+                    .map(|token| self.kind_of(token))
+                    != Some(SyntaxKind::EqualsToken)
+                {
+                    return false;
+                }
+                let Some(left) = binary.left else { return false };
+                let NodeData::PropertyAccessExpression(access) = self.data_of(left) else {
+                    return false;
+                };
+                if access
+                    .name
+                    .and_then(|name| self.identifier_text_of(name))
+                    != Some(property_name)
+                {
+                    return false;
+                }
+                let Some(receiver) = access.expression else {
+                    return false;
+                };
+                match self.data_of(receiver) {
+                    NodeData::Identifier(data) => {
+                        !instance_side && data.escaped_text == container_name
+                    }
+                    NodeData::PropertyAccessExpression(prototype) => {
+                        instance_side
+                            && prototype
+                            .name
+                            .and_then(|name| self.identifier_text_of(name))
+                            == Some("prototype")
+                            && prototype.expression.is_some_and(|base| {
+                                matches!(self.data_of(base), NodeData::Identifier(data) if data.escaped_text == container_name)
+                            })
+                    }
+                    _ => false,
+                }
             })
+        })
     }
 
     /// tsc-port: isThisPropertyAccessInConstructor @6.0.3
@@ -2728,7 +2910,7 @@ impl<'a> CheckerState<'a> {
                     // expando binding, not a real miss
                     // (inferringClassStaticMembersFromAssignments,
                     // 5.8e lift FP).
-                    if self.container_symbol_declared_in_js(left_type) {
+                    if self.container_has_unbound_js_member(left_type, &right_text) {
                         return Err(Unsupported::new(
                             "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)",
                         ));
@@ -3675,7 +3857,11 @@ impl<'a> CheckerState<'a> {
                     &[],
                 ));
             } else {
-                let container = self.type_to_string_slice(containing_type)?;
+                let container = if self.is_empty_anonymous_type_literal(containing_type)? {
+                    "{}".to_owned()
+                } else {
+                    self.type_to_string_slice(containing_type)?
+                };
                 let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
                     &missing_property,
                     containing_type,
@@ -3743,6 +3929,38 @@ impl<'a> CheckerState<'a> {
         }
         self.push_error_diagnostic(diagnostic);
         Ok(())
+    }
+
+    /// The one anonymous nodeBuilder spelling needed by the
+    /// missing-property head. Keeping this local avoids making `{}` a
+    /// generic relation-error display for unrelated synthesized empty
+    /// object/array fallbacks.
+    fn is_empty_anonymous_type_literal(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
+            || !self
+                .tables
+                .object_flags_of(ty)
+                .intersects(tsrs2_types::ObjectFlags::ANONYMOUS)
+        {
+            return Ok(false);
+        }
+        let Some(symbol) = self.tables.type_of(ty).symbol else {
+            return Ok(false);
+        };
+        if !self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::TYPE_LITERAL)
+        {
+            return Ok(false);
+        }
+        let resolved = self.resolve_structured_type_members(ty)?;
+        let members = self.members_of(resolved);
+        Ok(members.properties.is_empty()
+            && members.call_signatures.is_empty()
+            && members.construct_signatures.is_empty()
+            && members.index_infos.is_empty())
     }
 
     /// tsc-port: typeHasStaticProperty @6.0.3

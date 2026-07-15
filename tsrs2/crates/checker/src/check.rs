@@ -179,6 +179,7 @@ impl<'a> CheckerState<'a> {
         // matches check_source_element's element boundary.
         if self.binder.is_external_or_common_js_module_of_node(root) {
             if let Err(err) = self.check_external_module_exports(root) {
+                self.record_contained_check(root);
                 if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
                     eprintln!("contained @{root:?}: {}", err.reason);
                 }
@@ -346,6 +347,7 @@ impl<'a> CheckerState<'a> {
         // and the caller's loop continues. TSRS_TRACE_CONTAIN=1 prints
         // the swallowed reasons (debug aid).
         if let Err(err) = self.check_source_element_worker(node) {
+            self.record_contained_check(node);
             if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
                 eprintln!("contained @{node:?}: {}", err.reason);
             }
@@ -1638,10 +1640,37 @@ impl<'a> CheckerState<'a> {
         self.instantiation_count = 0;
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
-        let _ = self.check_deferred_node_worker(node);
+        if let Err(err) = self.check_deferred_node_worker(node) {
+            self.record_contained_check(node);
+            if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
+                eprintln!("contained deferred @{node:?}: {}", err.reason);
+            }
+        }
         #[cfg(debug_assertions)]
         self.assert_unwound(&unwind_entry, node, "check_deferred_node");
         self.current_node = save_current_node;
+    }
+
+    /// tsrs-native: record the full source-element/deferred-node range
+    /// abandoned by an Unsupported unwind. The driver uses these
+    /// ranges to avoid a false unused-`@ts-expect-error` report without
+    /// silencing other independent directives in the same file.
+    fn record_contained_check(&mut self, node: NodeId) {
+        let source = self.binder.source_of_node(node);
+        let raw = source.arena.node(node);
+        let to_utf16 = |byte: usize| -> u32 {
+            source
+                .line_map
+                .byte_to_utf16
+                .get(byte)
+                .copied()
+                .unwrap_or(byte as u32)
+        };
+        let range = (to_utf16(raw.pos as usize), to_utf16(raw.end as usize));
+        self.contained_check_ranges
+            .entry(source.file_name.clone())
+            .or_default()
+            .push(range);
     }
 
     fn check_deferred_node_worker(&mut self, node: NodeId) -> CheckResult2<()> {
@@ -1680,14 +1709,13 @@ impl<'a> CheckerState<'a> {
                 self.check_function_expression_or_object_literal_method_deferred(node)
             }
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                // checkObjectLiteral defers its accessor members
-                // (74263) since 5.5c; checkAccessorDeclaration itself
-                // is the 5.8 declaration band — a named escape keeps
-                // the drain panic-free (risk #6) and the accessor's
-                // diagnostics FN until then.
-                Err(crate::state::Unsupported::new(
-                    "checkAccessorDeclaration (deferred object-literal accessor, 5.8)",
-                ))
+                if self.parent_of(node).is_some_and(|parent| {
+                    self.kind_of(parent) == SyntaxKind::ObjectLiteralExpression
+                }) {
+                    self.check_object_literal_accessor_deferred(node)
+                } else {
+                    self.check_accessor_declaration(node)
+                }
             }
             SyntaxKind::ClassExpression => self.check_class_expression_deferred(node),
             SyntaxKind::TypeParameter => self.check_type_parameter_deferred(node),
@@ -1792,6 +1820,23 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
+    /// Object-literal accessors are deferred so their signature and
+    /// paired accessor type can be checked after literal construction.
+    /// Their bodies still need object-literal contextual `this`; this
+    /// stage owns the declaration/type diagnostics without forcing the
+    /// incomplete body face.
+    fn check_object_literal_accessor_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_signature_declaration(node)?;
+        if let Some(name) = self.name_of_node(node) {
+            if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                self.check_computed_property_name(name)?;
+            }
+        }
+        let symbol = self.get_symbol_of_declaration(node)?;
+        self.get_type_of_accessors(symbol)?;
+        Ok(())
+    }
+
     // ---- relation reporting (the 5.4 slice) ----
 
     /// tsc-port: checkTypeAssignableTo @6.0.3 (5.4 slice)
@@ -1821,15 +1866,11 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
-                // Contextual tuple-from-intersection: tsc types `[0, 0]`
-                // against `[...number[]] & { length: 2 }` as a TUPLE
-                // (the contextual length pins the arity), so the
-                // relation succeeds — our array-literal checking lacks
-                // that face (M6 contextual band;
-                // contextualTypeWithTuple pins it clean). A failed
-                // relation from an array-literal source against a
-                // tuple/array-bearing intersection is undecidable
-                // until then.
+                // Contextual tuple-from-intersection: literal callers
+                // elaborate element mismatches before reaching this
+                // generic relation. If no element row was reportable,
+                // the remaining verdict depends on contextual tuple
+                // arity (M6), so keep the head contained.
                 if self
                     .tables
                     .object_flags_of(source)
@@ -1847,7 +1888,7 @@ impl<'a> CheckerState<'a> {
                         if self.is_array_type(member)? || self.tables.is_tuple_type(member) {
                             return Err(Unsupported::new(
                                 "array-literal relation against a tuple-bearing intersection \
-                                 (contextual tuple arity, M6)",
+                                 after element elaboration (contextual tuple arity, M6)",
                             ));
                         }
                     }
