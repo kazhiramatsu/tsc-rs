@@ -432,8 +432,9 @@ impl LinksTables {
     /// (getResolvedTypeParameterDefault 59043) can re-enter the SAME
     /// reference node mid-computation, so the inner call caches first
     /// and the outer assignment overwrites it — the node's final
-    /// resolved type/symbol is the OUTER result. This is the only
-    /// write-twice site the memo discipline sanctions; both slots move
+    /// resolved type/symbol is the OUTER result. One of the two
+    /// write-twice sites the memo discipline sanctions (the other:
+    /// overwrite_symbol_type_for_binding_element); both slots move
     /// together.
     pub fn overwrite_type_reference_resolution(
         &mut self,
@@ -448,6 +449,27 @@ impl LinksTables {
         note_resolving_transition(links.resolved_type.is_resolving(), false);
         links.resolved_symbol = LinkSlot::Resolved(symbol);
         links.resolved_type = LinkSlot::Resolved(value);
+    }
+
+    /// assignBindingElementTypes' per-element write (78455-78459) is
+    /// UNGUARDED in tsc: computing getBindingElementTypeFromParentType
+    /// can force getTypeOfSymbol on the SAME element's symbol (a
+    /// circular reference through the pattern — e.g. late-bound member
+    /// resolution reaching back into the declaration), which caches
+    /// the circularity scar; the outer assignment then REPAIRS it with
+    /// the real binding-element type. The outer result must win — the
+    /// second sanctioned write-twice site (see
+    /// overwrite_type_reference_resolution).
+    pub fn overwrite_symbol_type_for_binding_element(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        note_resolving_transition(links.type_of_symbol.is_resolving(), false);
+        links.type_of_symbol = LinkSlot::Resolved(value);
     }
 
     pub fn set_node_context_free_type(
@@ -1100,11 +1122,37 @@ impl LinksTables {
         self.symbol.entry(id).or_default().late_symbol = None;
     }
 
+    /// The instantiation root: follow links.target (instantiated /
+    /// mapped symbols) to the underlying declaration symbol.
+    fn instantiation_root(&self, id: SymbolId) -> SymbolId {
+        let mut current = id;
+        while let Some(target) = self.symbol.get(&current).and_then(|links| links.target) {
+            if target == current {
+                break;
+            }
+            current = target;
+        }
+        current
+    }
+
     /// tsc reassigns links.resolvedSymbol unconditionally on every
     /// checkPropertyAccessExpression run — re-checks (the compound
     /// assignment writeOnly pass 80311, the condition-walker forcing
-    /// 87443) legitimately rewrite the SAME value. A different value
-    /// would break memo stability and still panics.
+    /// 87443) legitimately rewrite the SAME value. Two different-value
+    /// rewrites are sanctioned since the 5.8e interface lift, both
+    /// with tsc's last-write-wins result:
+    /// - EARLY→LATE: a property access checked DURING late-table
+    ///   construction resolves through the pre-published early table;
+    ///   the re-check resolves the member's late twin (verified via
+    ///   links.lateSymbol).
+    /// - Re-instantiation: each check run of an expression like
+    ///   `[…].concat` re-instantiates the lib member against that
+    ///   run's fresh literal type, so the two writes carry distinct
+    ///   instantiated symbols over the SAME declaration symbol
+    ///   (verified via the links.target chain).
+    ///
+    /// Any other different-value rewrite still breaks memo stability
+    /// and panics.
     pub fn set_node_resolved_symbol(
         &mut self,
         speculation_depth: u32,
@@ -1112,9 +1160,24 @@ impl LinksTables {
         value: SymbolId,
     ) {
         Self::assert_writable(speculation_depth);
+        let sanctioned_rewrite = self
+            .node
+            .get(&id)
+            .and_then(|links| links.resolved_symbol.resolved())
+            .is_some_and(|existing| {
+                existing != value
+                    && (self
+                        .symbol
+                        .get(&existing)
+                        .is_some_and(|links| links.late_symbol == Some(value))
+                        || self.instantiation_root(existing) == self.instantiation_root(value))
+            });
         let slot = &mut self.node.entry(id).or_default().resolved_symbol;
         match &*slot {
             LinkSlot::Resolved(existing) if *existing == value => {}
+            LinkSlot::Resolved(_) if sanctioned_rewrite => {
+                *slot = LinkSlot::Resolved(value);
+            }
             LinkSlot::Resolved(existing) => {
                 panic!("resolvedSymbol rewritten with a DIFFERENT value: {existing:?} -> {value:?}")
             }

@@ -1326,6 +1326,39 @@ impl<'a> CheckerState<'a> {
 
     /// checkAssignmentOperator (80306-80331): the addLazyDiagnostic
     /// wrapper is the 5.4 eager identity.
+    /// tsc-port: isFunctionSymbol @6.0.3 (the assignment-target probe)
+    /// tsc-hash: 81424c00a5b21eec003332930f1112369fd4773988af1ac4e52dce10279bd172
+    /// tsc-span: _tsc.js:15196-15202
+    ///
+    /// True when the assignment target is `<fn>.<name>` with `<fn>`
+    /// resolving to a function declaration or a function-initialized
+    /// variable — the shapes bindSpecialPropertyAssignment accepts in
+    /// .ts files (expando functions).
+    fn assignment_target_is_expando_function_member(&self, left: NodeId) -> bool {
+        let NodeData::PropertyAccessExpression(data) = self.data_of(left) else {
+            return false;
+        };
+        let Some(receiver) = data.expression else {
+            return false;
+        };
+        if self.kind_of(receiver) != SyntaxKind::Identifier {
+            return false;
+        }
+        let Some(symbol) = self.links.node(receiver).resolved_symbol.resolved() else {
+            return false;
+        };
+        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
+            return false;
+        };
+        match self.data_of(declaration) {
+            NodeData::FunctionDeclaration(_) => true,
+            NodeData::VariableDeclaration(data) => data.initializer.is_some_and(|initializer| {
+                node_util::is_function_like_kind(self.kind_of(initializer))
+            }),
+            _ => false,
+        }
+    }
+
     fn check_assignment_operator(
         &mut self,
         left: NodeId,
@@ -1391,6 +1424,19 @@ impl<'a> CheckerState<'a> {
             {
                 return Err(Unsupported::new(
                     "[FLOW M5] failed assignment from a narrowable union-typed RHS",
+                ));
+            }
+            // Expando-function member assignment: tsc's binder turns
+            // `foo.constructor = 1` on a FUNCTION symbol into a member
+            // declaration even in .ts files
+            // (bindSpecialPropertyAssignment's isFunctionSymbol arm) —
+            // the own member then shadows the apparent-type property,
+            // so relating against Function/Object members diverges
+            // (nullPropertyName, 5.8e lift FP). Contain until the
+            // binder grows assignment-declaration binding.
+            if self.assignment_target_is_expando_function_member(left) {
+                return Err(Unsupported::new(
+                    "expando-function member assignment (assignment-declaration binding, M-JS)",
                 ));
             }
             // checkTypeAssignableToAndOptionallyElaborate(valueType,
@@ -2393,6 +2439,47 @@ impl<'a> CheckerState<'a> {
         let error_node = self
             .parent_of(target)
             .and_then(|start| self.find_ancestor_of_kind(start, SyntaxKind::SatisfiesExpression));
+        // checkTypeAssignableToAndOptionallyElaborate: elaborateError
+        // runs FIRST over the expression — a literal/arrow/jsx operand
+        // reports per-member rows (typeSatisfaction_errorLocations1
+        // pins 2322 at the array ELEMENT) and a callable source with a
+        // target-compatible return takes the did-you-mean-to-call face
+        // — both SUPPRESS the 1360 head. Elaboration is T2 band:
+        // contain those shapes instead of emitting a head tsc omits.
+        if !self.is_type_assignable_to(expr_type, target_type)? {
+            let mut operand = expression;
+            while let NodeData::ParenthesizedExpression(data) = self.data_of(operand) {
+                match data.expression {
+                    Some(inner) => operand = inner,
+                    None => break,
+                }
+            }
+            if matches!(
+                self.data_of(operand),
+                NodeData::ObjectLiteralExpression(_)
+                    | NodeData::ArrayLiteralExpression(_)
+                    | NodeData::ArrowFunction(_)
+                    | NodeData::JsxAttributes(_)
+            ) {
+                return Err(Unsupported::new(
+                    "satisfies over a literal operand (elaborateError per-member rows, T2)",
+                ));
+            }
+            for kind in [
+                crate::state::SignatureKind::Call,
+                crate::state::SignatureKind::Construct,
+            ] {
+                let signatures = self.get_signatures_of_type(expr_type, kind)?;
+                if let Some(&first) = signatures.first() {
+                    let return_type = self.get_return_type_of_signature(first)?;
+                    if self.is_type_assignable_to(return_type, target_type)? {
+                        return Err(Unsupported::new(
+                            "satisfies over a callable source (elaborateDidYouMeanToCallOrConstruct, T2)",
+                        ));
+                    }
+                }
+            }
+        }
         self.check_type_assignable_to(
             expr_type,
             target_type,

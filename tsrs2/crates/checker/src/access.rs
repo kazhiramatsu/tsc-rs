@@ -631,6 +631,12 @@ impl<'a> CheckerState<'a> {
         while let Some(current) = worklist.pop() {
             match self.data_of(current) {
                 NodeData::Identifier(data) => {
+                    // `typeof this` parses its exprName as an
+                    // identifier spelled `this` — same narrowing face
+                    // as the keyword.
+                    if data.escaped_text == "this" {
+                        *this_root = true;
+                    }
                     let symbol = self.resolve_lexical_value_symbol(current, &data.escaped_text);
                     push(
                         roots,
@@ -641,6 +647,17 @@ impl<'a> CheckerState<'a> {
                             alias_depth: 0,
                         },
                     );
+                    // Dependent destructured variables (tsc 4.6,
+                    // narrowDependentDestructured…): a guard on one
+                    // binding of a destructuring pattern narrows its
+                    // SIBLINGS (`function f({ kind, payload }: Action)
+                    // { if (kind === 'A') payload.toFixed() }`), for
+                    // parameters and declarations alike. Extend the
+                    // root set with every binding name of the whole
+                    // enclosing pattern so such guards contain.
+                    if let Some(symbol) = symbol {
+                        self.push_destructuring_sibling_roots(symbol, roots);
+                    }
                 }
                 NodeData::PropertyAccessExpression(data) => {
                     if let Some(expression) = data.expression {
@@ -658,6 +675,72 @@ impl<'a> CheckerState<'a> {
                 worklist.push(child);
                 false
             });
+        }
+    }
+
+    /// tsrs-native: [FLOW M5] probe extension (no tsc counterpart —
+    /// tsc consults real flow types). Dependent destructured variables
+    /// (tsc 4.6): when the reference resolves to a binding-pattern
+    /// element, every binding name of the OUTERMOST enclosing pattern
+    /// joins the root set — a guard on `kind` narrows sibling
+    /// `payload` when both destructure one discriminated source, for
+    /// parameters and variable declarations alike. Pattern structure
+    /// only: property keys and default-value expressions contribute
+    /// nothing.
+    fn push_destructuring_sibling_roots<'r>(
+        &'r self,
+        symbol: SymbolId,
+        roots: &mut Vec<FlowReferenceRoot<'r>>,
+    ) {
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        for declaration in declarations {
+            if self.kind_of(declaration) != SyntaxKind::BindingElement {
+                continue;
+            }
+            let mut top_pattern = None;
+            let mut cursor = self.parent_of(declaration);
+            while let Some(current) = cursor {
+                match self.kind_of(current) {
+                    SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
+                        top_pattern = Some(current);
+                        cursor = self.parent_of(current);
+                    }
+                    SyntaxKind::BindingElement => cursor = self.parent_of(current),
+                    _ => break,
+                }
+            }
+            let Some(top_pattern) = top_pattern else {
+                continue;
+            };
+            let mut pattern_worklist = vec![top_pattern];
+            while let Some(current) = pattern_worklist.pop() {
+                match self.data_of(current) {
+                    NodeData::ObjectBindingPattern(data) => {
+                        pattern_worklist.extend(self.nodes_of(data.elements));
+                    }
+                    NodeData::ArrayBindingPattern(data) => {
+                        pattern_worklist.extend(self.nodes_of(data.elements));
+                    }
+                    NodeData::BindingElement(data) => {
+                        let Some(name) = data.name else { continue };
+                        if let NodeData::Identifier(name_data) = self.data_of(name) {
+                            let entry = FlowReferenceRoot {
+                                text: &name_data.escaped_text,
+                                symbol: self
+                                    .resolve_lexical_value_symbol(name, &name_data.escaped_text),
+                                available_from: 0,
+                                alias_depth: 0,
+                            };
+                            if !roots.contains(&entry) {
+                                roots.push(entry);
+                            }
+                        } else {
+                            pattern_worklist.push(name);
+                        }
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 
@@ -2284,6 +2367,23 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// tsrs-native: containment probe — true when the type's symbol
+    /// carries any declaration from a .js source (salsa surface: the
+    /// binder does not yet run assignment-declaration binding, so
+    /// JS-declared containers under-report members).
+    fn container_symbol_declared_in_js(&self, ty: TypeId) -> bool {
+        let Some(symbol) = self.tables.type_of(ty).symbol else {
+            return false;
+        };
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .any(|&declaration| {
+                crate::is_js_file_name(&self.binder.source_of_node(declaration).file_name)
+            })
+    }
+
     /// tsc-port: isThisPropertyAccessInConstructor @6.0.3
     /// tsc-hash: 5607d52a591e4970cd8b5ff02cb5ebe04d85bcf7ab6a5b16722bb6e6c4bc27be
     /// tsc-span: _tsc.js:75192-75200
@@ -2618,6 +2718,19 @@ impl<'a> CheckerState<'a> {
                     {
                         return Err(Unsupported::new(
                             "[FLOW M5] property miss on a narrowable receiver in a guarded position",
+                        ));
+                    }
+                    // JS assignment-declared members: tsc's binder
+                    // turns `C.staticProp = 0` in a .js file into a
+                    // static member declaration
+                    // (bindSpecialPropertyAssignment) — a miss against
+                    // a JS-declared container reflects our missing
+                    // expando binding, not a real miss
+                    // (inferringClassStaticMembersFromAssignments,
+                    // 5.8e lift FP).
+                    if self.container_symbol_declared_in_js(left_type) {
+                        return Err(Unsupported::new(
+                            "property miss on a JS-declared container (assignment-declaration binding, M-JS)",
                         ));
                     }
                     let report_target = if self.is_this_type_parameter(left_type) {

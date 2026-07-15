@@ -1606,6 +1606,12 @@ impl<'a> CheckerState<'a> {
             let Some(declared_prop) = self.node_symbol(member) else {
                 continue;
             };
+            // tsc reads getSymbolAtLocation(member.name), which routes
+            // computed names through getLateBoundSymbol — the member
+            // table carries `__@toPrimitive@…`, never `__computed`
+            // (symbolProperty24 pins the 2416 member row over the
+            // 2420 head).
+            let declared_prop = self.get_late_bound_symbol(declared_prop)?;
             let escaped_name = self.binder.symbol(declared_prop).escaped_name.clone();
             let prop = self.get_property_of_type_full(type_with_this, &escaped_name)?;
             let base_prop = self.get_property_of_type_full(base_with_this, &escaped_name)?;

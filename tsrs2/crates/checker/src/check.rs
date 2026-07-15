@@ -1821,6 +1821,37 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
+                // Contextual tuple-from-intersection: tsc types `[0, 0]`
+                // against `[...number[]] & { length: 2 }` as a TUPLE
+                // (the contextual length pins the arity), so the
+                // relation succeeds — our array-literal checking lacks
+                // that face (M6 contextual band;
+                // contextualTypeWithTuple pins it clean). A failed
+                // relation from an array-literal source against a
+                // tuple/array-bearing intersection is undecidable
+                // until then.
+                if self
+                    .tables
+                    .object_flags_of(source)
+                    .intersects(tsrs2_types::ObjectFlags::ARRAY_LITERAL)
+                    && self
+                        .tables
+                        .flags_of(target)
+                        .intersects(TypeFlags::INTERSECTION)
+                {
+                    let members = match &self.tables.type_of(target).data {
+                        tsrs2_types::TypeData::Intersection { types } => types.to_vec(),
+                        _ => Vec::new(),
+                    };
+                    for member in members {
+                        if self.is_array_type(member)? || self.tables.is_tuple_type(member) {
+                            return Err(Unsupported::new(
+                                "array-literal relation against a tuple-bearing intersection \
+                                 (contextual tuple arity, M6)",
+                            ));
+                        }
+                    }
+                }
                 // An EXPLICIT tsc headMessage chains OUTERMOST
                 // unconditionally (64860: errorInfo =
                 // chainDiagnosticMessages(errorInfo, headMessage)) —
@@ -1868,6 +1899,25 @@ impl<'a> CheckerState<'a> {
                     && self.report_unmatched_property_head(source, target, error_node)?
                 {
                     return Ok(related);
+                }
+                // reportErrorResults 65258 + the `!headMessage &&
+                // maybeSuppress` roll-back (65284): under the GENERIC
+                // head a readonly→mutable array/tuple failure reports
+                // 4104 and the head never lands. The suppression keys
+                // on errorInfo CHANGING — a false verdict with no
+                // report (tuple source vs non-array target) still
+                // takes the head. Explicit heads keep their code (tsc
+                // chains 4104 into the elided tail).
+                if generic_head
+                    && self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
+                    && self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
+                {
+                    let reported_before = self.diagnostics.len();
+                    if !self.try_elaborate_array_like_errors(source, target, true, error_node)?
+                        && self.diagnostics.len() > reported_before
+                    {
+                        return Ok(related);
+                    }
                 }
                 let source_text = self.type_to_string_slice(source)?;
                 let target_text = self.type_to_string_slice(target)?;
@@ -1946,6 +1996,27 @@ impl<'a> CheckerState<'a> {
         if source == self.global_object_type()? {
             return Ok(false);
         }
+        // typeRelatedToSomeType reports on the BEST-MATCHING union
+        // member, and the common-property arm fires inside that member
+        // recursion — for a nullable union (`ImportCallOptions |
+        // undefined`, the import-call options check) the object member
+        // is the best match. Other union shapes keep the generic head.
+        let target = if self.tables.flags_of(target).intersects(TypeFlags::UNION) {
+            let members = match &self.tables.type_of(target).data {
+                tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+                _ => Vec::new(),
+            };
+            let non_nullable: Vec<TypeId> = members
+                .into_iter()
+                .filter(|&member| !self.tables.flags_of(member).intersects(TypeFlags::NULLABLE))
+                .collect();
+            match non_nullable.as_slice() {
+                [only] => *only,
+                _ => return Ok(false),
+            }
+        } else {
+            target
+        };
         if !self
             .tables
             .flags_of(target)
@@ -1988,6 +2059,63 @@ impl<'a> CheckerState<'a> {
             &diagnostics::Type_0_has_no_properties_in_common_with_type_1
         };
         self.error_at(Some(error_node), message, &[&source_text, &target_text]);
+        Ok(true)
+    }
+
+    /// tsc-port: tryElaborateArrayLikeErrors @6.0.3
+    /// tsc-hash: 4d8d191f532ffe704ad74834cc079e0c2f02d50f2a1159f8bde055450d13c086
+    /// tsc-span: _tsc.js:65123-65143
+    ///
+    /// Both faces of tsc's use: with `report_errors` the
+    /// readonly-source→mutable-target failure EMITS 4104 (the
+    /// reportErrorResults call, 65258 — and under the generic head
+    /// tsc's `!headMessage && maybeSuppress` arm rolls the head back,
+    /// so 4104 stands alone); without it the boolean gates the
+    /// missing-properties head (reportUnmatchedProperty's `else if`,
+    /// 66750).
+    fn try_elaborate_array_like_errors(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        report_errors: bool,
+        error_node: NodeId,
+    ) -> CheckResult2<bool> {
+        let report_readonly_mismatch =
+            |state: &mut Self, source: TypeId, target: TypeId| -> CheckResult2<()> {
+                let source_text = state.type_to_string_slice(source)?;
+                let target_text = state.type_to_string_slice(target)?;
+                state.error_at(
+                Some(error_node),
+                &diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                &[&source_text, &target_text],
+            );
+                Ok(())
+            };
+        if self.tables.is_tuple_type(source) {
+            let tuple_readonly = {
+                let tuple_target = self.tables.reference_target(source);
+                match &self.tables.type_of(tuple_target).data {
+                    tsrs2_types::TypeData::TupleTarget(data) => data.readonly,
+                    _ => false,
+                }
+            };
+            if tuple_readonly && self.is_mutable_array_or_tuple(target)? {
+                if report_errors {
+                    report_readonly_mismatch(self, source, target)?;
+                }
+                return Ok(false);
+            }
+            return Ok(self.is_array_type(target)? || self.tables.is_tuple_type(target));
+        }
+        if self.is_readonly_array_type(source)? && self.is_mutable_array_or_tuple(target)? {
+            if report_errors {
+                report_readonly_mismatch(self, source, target)?;
+            }
+            return Ok(false);
+        }
+        if self.tables.is_tuple_type(target) {
+            return self.is_array_type(source);
+        }
         Ok(true)
     }
 
@@ -2048,6 +2176,15 @@ impl<'a> CheckerState<'a> {
             }
         }
         if unmatched.is_empty() {
+            return Ok(false);
+        }
+        // reportUnmatchedProperty 66750: the MULTI-property head runs
+        // behind tryElaborateArrayLikeErrors — a readonly-source /
+        // mutable-target mismatch reports 4104 later instead (the
+        // single-property 2741 arm is unconditional in tsc).
+        if unmatched.len() > 1
+            && !self.try_elaborate_array_like_errors(source, target, false, error_node)?
+        {
             return Ok(false);
         }
         let source_text = self.type_to_string_slice(source)?;

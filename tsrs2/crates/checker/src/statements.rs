@@ -449,6 +449,20 @@ impl<'a> CheckerState<'a> {
                     "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)",
                 ));
             }
+            // [FLOW M5] gate: `var x = []` declares an EVOLVING array —
+            // tsc's declared type for the redeclaration comparison is
+            // the auto-array's widened face (any[]), which rides flow
+            // machinery (arrayLiteral pins `var x = []; var x = new
+            // Array(1);` clean). Contain the comparison when either
+            // declaration is an annotation-less empty-array var.
+            if self.is_annotationless_empty_array_var(node)
+                || value_declaration
+                    .is_some_and(|declaration| self.is_annotationless_empty_array_var(declaration))
+            {
+                return Err(Unsupported::new(
+                    "[FLOW M5] redeclaration comparison against an evolving-array declaration",
+                ));
+            }
             if ty != error_type
                 && declaration_type != error_type
                 && !self.is_type_identical_to(ty, declaration_type)?
@@ -504,6 +518,25 @@ impl<'a> CheckerState<'a> {
             self.check_collisions_for_declaration_name(node, Some(name));
         }
         Ok(())
+    }
+
+    /// tsrs-native: [FLOW M5] containment probe — an annotation-less
+    /// `var x = []` is tsc's evolving-array shape (autoArrayType);
+    /// its declared type is flow-derived.
+    fn is_annotationless_empty_array_var(&self, declaration: NodeId) -> bool {
+        let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
+            return false;
+        };
+        if data.r#type.is_some() {
+            return false;
+        }
+        let Some(initializer) = data.initializer else {
+            return false;
+        };
+        match self.data_of(initializer) {
+            NodeData::ArrayLiteralExpression(array) => self.nodes_of(array.elements).is_empty(),
+            _ => false,
+        }
     }
 
     /// tsc-port: errorNextVariableOrPropertyDeclarationMustHaveSameType @6.0.3

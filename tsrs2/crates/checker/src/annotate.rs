@@ -2106,6 +2106,16 @@ impl<'a> CheckerState<'a> {
         } else if self.is_this_identifier(expr_name)
             || self.kind_of(expr_name) == SyntaxKind::ThisKeyword
         {
+            // [FLOW M5] gate: tsc's checkExpression here reads the
+            // FLOW type of `this` — `if (this instanceof D) { const
+            // d: typeof this = this; }` resolves the query to D.
+            // Contain the query when a reaching guard narrows `this`
+            // (typeofThis conformance FP, 5.8e lift).
+            if self.flow_guards_narrow_reference(node, expr_name) {
+                return Err(Unsupported::new(
+                    "[FLOW M5] typeof this under a reaching this-guard",
+                ));
+            }
             // `typeof this` — checkExpression routes the this-face to
             // checkThisExpression (75077's isThisIdentifier precedent).
             self.check_this_expression(expr_name)?
@@ -2922,21 +2932,15 @@ impl<'a> CheckerState<'a> {
                     if !state.has_late_bindable_ast_name(member) {
                         continue;
                     }
-                    // INTERFACE containers keep the M7-stub containment:
-                    // un-containing the lib interfaces (String/Array/
-                    // Function carry `[Symbol.iterator]`-family members
-                    // at ES2015+) unmasks [FLOW M5], comment-directive
-                    // and declare-global-augment divergences corpus-wide
-                    // (5.7b review round, FP find). Type literals,
-                    // classes and object literals late-bind for real.
-                    if state
-                        .symbol_flags(symbol)
-                        .intersects(SymbolFlags::INTERFACE)
-                    {
-                        return Err(Unsupported::new(
-                            "late-bound INTERFACE members (lib well-known-symbol surface, M7-stub)",
-                        ));
-                    }
+                    // INTERFACE containers late-bind for real since the
+                    // 5.8e lift (m4-58 §1): the 5.7b containment guarded
+                    // three recorded divergence bands — comment
+                    // directives (exact scanner-backed filter landed
+                    // first in this slice), declare-global augment
+                    // merges (5.8d module band + the resolution
+                    // pre-flight below), and [FLOW M5] narrowing shapes
+                    // (triaged to targeted report gates by the lift's
+                    // full-conformance re-run).
                     let name = state
                         .name_of_named_declaration(member)
                         .expect("late-bindable AST implies a computed name");
@@ -4482,20 +4486,39 @@ impl<'a> CheckerState<'a> {
     ///
     /// The derived-is-JS-assignment override arm (isBinaryExpression
     /// valueDeclaration) rides on JS assignment binding — elided
-    /// project-wide; isStaticPrivateIdentifierProperty is class-only
-    /// machinery live from 5.3e (private identifiers cannot appear on
-    /// interfaces).
+    /// project-wide. isStaticPrivateIdentifierProperty (57599): a
+    /// STATIC private-identifier member never inherits — `typeof
+    /// Derived` does not carry the base's `static #x`, so access
+    /// through the derived constructor reports 2339, not 18013
+    /// (privateNameStaticAccessorssDerivedClasses, 5.8e lift FP).
     fn add_inherited_members(
         &mut self,
         symbols: &mut tsrs2_binder::SymbolTable,
         base_symbols: &[SymbolId],
     ) {
         for &base in base_symbols {
+            if self.is_static_private_identifier_property(base) {
+                continue;
+            }
             let name = self.binder.symbol(base).escaped_name.clone();
             if !symbols.contains_key(&name) {
                 symbols.insert(name, base);
             }
         }
+    }
+
+    /// tsc-port: isStaticPrivateIdentifierProperty @6.0.3
+    /// tsc-hash: c7763b3f1125d6016a597248984eb7ef72ea51ea6f831d542e00f4177e87f433
+    /// tsc-span: _tsc.js:57599-57601
+    pub(crate) fn is_static_private_identifier_property(&self, symbol: SymbolId) -> bool {
+        self.binder
+            .symbol(symbol)
+            .value_declaration
+            .is_some_and(|declaration| {
+                self.name_of_node(declaration)
+                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
+                    && self.has_static_modifier(declaration)
+            })
     }
 
     /// tsc-port: isThisless @6.0.3
@@ -5985,11 +6008,21 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfEnumMember @6.0.3
     /// tsc-hash: 192449a6e0e94c96d5c45accd89b12ed9f2f371748ec65e920acd099eecace29
     /// tsc-span: _tsc.js:56860-56863
+    ///
+    /// The inner re-check is load-bearing, like the declared-type
+    /// sibling's: forcing the declared type can re-enter this symbol
+    /// (a member initializer that resolves members of a late-bound
+    /// container reaches back through checkEnumMember). tsc's
+    /// `links.type || (links.type = …)` silently overwrites on that
+    /// re-entry; the twin rule makes the second write skip instead.
     fn get_type_of_enum_member(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
         }
         let declared = self.get_declared_type_of_enum_member(symbol)?;
+        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(cached);
+        }
         self.links
             .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(declared));
         Ok(declared)

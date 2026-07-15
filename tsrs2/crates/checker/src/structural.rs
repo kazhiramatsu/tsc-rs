@@ -1449,6 +1449,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     ) -> CheckResult2<Option<SymbolId>> {
         let properties = self.st.get_properties_of_type(target)?;
         for target_prop in properties {
+            // getUnmatchedProperties (68464): static private-identifier
+            // targets never participate — `typeof Derived` relates to
+            // `typeof Base` regardless of the base's `static #x`.
+            if self.st.is_static_private_identifier_property(target_prop) {
+                continue;
+            }
             let flags = self.st.symbol_flags(target_prop);
             if require_optional_properties
                 || !(flags.intersects(SymbolFlags::OPTIONAL)
@@ -5309,6 +5315,12 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if target == self.tables.intrinsics.number {
+            // `${number}` applies to number keys (59454's
+            // numericStringType face — numericStringLiteralTypes pins
+            // `a[x]` with x: `${number}` clean).
+            if source == self.tables.intrinsics.numeric_string {
+                return Ok(true);
+            }
             if let TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
             } = &self.tables.type_of(source).data
