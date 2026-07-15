@@ -1930,13 +1930,8 @@ impl<'a> CheckerState<'a> {
                     if !self.import_location_is_type_only(location) {
                         let ts_extension =
                             Self::try_extract_ts_extension(module_reference).unwrap_or(".d.ts");
-                        let suggestion = format!(
-                            "{}{}",
-                            module_reference
-                                .strip_suffix(ts_extension)
-                                .unwrap_or(module_reference),
-                            Self::suggested_runtime_extension(ts_extension)
-                        );
+                        let suggestion =
+                            self.suggested_import_source(location, module_reference, ts_extension);
                         self.error_at(
                             Some(error_node),
                             &diagnostics::A_declaration_file_cannot_be_imported_without_import_type_Did_you_mean_to_import_an_implementation_file_0_instead,
@@ -1993,21 +1988,14 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         // The Node16/NodeNext ESM extensionless-relative rows
-        // (49630-49640) come BEFORE the suppression check — an
-        // extensionless relative specifier in ESM mode fails Node16+
-        // resolution unconditionally, so the row is certain. Mode
-        // reduces to the importer's extension (.mts/.d.mts = ESM
-        // always; .cts/.d.cts = ESM through import() usage; plain .ts
-        // stays CJS-defaulted without package.json modeling).
+        // (49630-49640) come BEFORE the suppression check. tsc's
+        // hasExtension predicate accepts any dot in the basename, not
+        // only extensions understood by the TypeScript resolver.
         let module_resolution_kind = self.options.emit_module_resolution_kind();
         if matches!(module_resolution_kind, 3 | 99)
             && Self::is_external_module_name_relative(module_reference)
-            && !Self::has_recognized_extension(module_reference)
-            && self.extension_row_applies(location)
-            && !self
-                .host_file_paths
-                .iter()
-                .any(|path| path.ends_with("/package.json"))
+            && !Self::has_extension(module_reference)
+            && self.resolution_mode_is_esm(location)
         {
             if let Some(suggested) = self.suggested_extension_for(location, module_reference) {
                 let suggestion = format!("{module_reference}{suggested}");
@@ -2221,8 +2209,15 @@ impl<'a> CheckerState<'a> {
                 || module_reference == ".."
                 || module_reference.ends_with('/');
             let node_mode_resolution = matches!(self.options.emit_module_resolution_kind(), 3 | 99);
-            let bare_of_extension = !Self::has_recognized_extension(module_reference);
-            if node_mode_resolution && bare_of_extension {
+            let extensionless = !Self::has_extension(module_reference);
+            if node_mode_resolution {
+                // Node ESM never probes an omitted extension or a
+                // directory index, for either static imports or
+                // import() calls. The failure tail selects 2834/2835
+                // for extensionless specifiers and 2307 otherwise.
+                if self.resolution_mode_is_esm(location) && (extensionless || directory_reference) {
+                    return ProgramModuleResolution::Missed;
+                }
                 // package.json among the host inputs turns the
                 // oracle's mode machinery LIVE (impliedNodeFormat via
                 // "type") — both the resolution verdict and the
@@ -2230,19 +2225,13 @@ impl<'a> CheckerState<'a> {
                 // anyway could fabricate downstream member FPs and
                 // erroring could fabricate 2307/2835 — suppress
                 // (probe58d + nodeModules1; FN, ledger).
-                if self
-                    .host_file_paths
-                    .iter()
-                    .any(|path| path.ends_with("/package.json"))
+                if extensionless
+                    && self
+                        .host_file_paths
+                        .iter()
+                        .any(|path| path.ends_with("/package.json"))
                 {
                     return ProgramModuleResolution::Suppressed;
-                }
-                // import() in a mode-bearing (.mts/.cts family) file
-                // never extension-probes — the 2834/2835 tail owns
-                // the miss (probe58d fix2/fix5/fix7; STATIC imports
-                // always probe, fix1/fix4/fix6/fix7).
-                if !directory_reference && self.extension_row_applies(location) {
-                    return ProgramModuleResolution::Missed;
                 }
             }
             if directory_reference {
@@ -2468,35 +2457,56 @@ impl<'a> CheckerState<'a> {
 
     fn is_declaration_file_name(name: &str) -> bool {
         name.ends_with(".d.ts")
+            || name.ends_with(".d.cts")
+            || name.ends_with(".d.mts")
+            || (name.ends_with(".ts")
+                && name
+                    .rsplit(['/', '\\'])
+                    .next()
+                    .unwrap_or(name)
+                    .contains(".d."))
     }
 
-    /// Any extension the resolver recognizes (extensionless probe
-    /// gate for the 2834/2835 rows).
-    fn has_recognized_extension(name: &str) -> bool {
-        [
-            ".ts", ".tsx", ".d.ts", ".mts", ".cts", ".d.mts", ".d.cts", ".js", ".jsx", ".mjs",
-            ".cjs", ".json",
-        ]
-        .iter()
-        .any(|extension| name.ends_with(extension))
+    /// tsc hasExtension: any dot in the final path component counts.
+    fn has_extension(name: &str) -> bool {
+        let trimmed = name.trim_end_matches(['/', '\\']);
+        trimmed
+            .rsplit(['/', '\\'])
+            .next()
+            .unwrap_or(trimmed)
+            .contains('.')
     }
 
-    /// The 2834/2835 arm's usage gate — ORACLE-pinned to import-call
-    /// usages only (static extensionless imports probe extensions and
-    /// report plain 2307 on a miss; probe58d fix1/fix2/fix7).
-    fn extension_row_applies(&self, location: NodeId) -> bool {
+    /// Reduced getModeForUsageLocation. Dynamic import always uses the
+    /// ESM resolution branch; `.mts`/`.mjs` also use it for static
+    /// imports. Static imports in the remaining extensions stay CJS
+    /// or undecidable until package.json modeling is available.
+    fn resolution_mode_is_esm(&self, location: NodeId) -> bool {
+        if self.has_ancestor_kind(location, SyntaxKind::ImportEqualsDeclaration) {
+            return false;
+        }
         let file_name = &self.binder.source_of_node(location).file_name;
-        let mode_bearing = file_name.ends_with(".mts")
+        self.has_import_call_ancestor(location)
+            || file_name.ends_with(".mts")
             || file_name.ends_with(".d.mts")
-            || file_name.ends_with(".cts")
-            || file_name.ends_with(".d.cts");
-        mode_bearing && self.has_import_call_ancestor(location)
+            || file_name.ends_with(".mjs")
     }
 
     fn has_import_call_ancestor(&self, location: NodeId) -> bool {
         let mut current = Some(location);
         while let Some(node) = current {
             if self.is_import_call(node) {
+                return true;
+            }
+            current = self.parent_of(node);
+        }
+        false
+    }
+
+    fn has_ancestor_kind(&self, location: NodeId, kind: SyntaxKind) -> bool {
+        let mut current = Some(location);
+        while let Some(node) = current {
+            if self.kind_of(node) == kind {
                 return true;
             }
             current = self.parent_of(node);
@@ -2544,7 +2554,7 @@ impl<'a> CheckerState<'a> {
     fn try_extract_ts_extension(name: &str) -> Option<&'static str> {
         // tsc supportedTSExtensionsForExtractExtension order: the
         // declaration extension wins over the plain one.
-        [".d.ts", ".ts", ".tsx"]
+        [".d.ts", ".d.cts", ".d.mts", ".cts", ".mts", ".ts", ".tsx"]
             .into_iter()
             .find(|extension| name.ends_with(extension))
     }
@@ -2552,11 +2562,45 @@ impl<'a> CheckerState<'a> {
     /// getSuggestedImportSource reduced: non-Node ESM emit at the
     /// modeled defaults strips the extension for CJS-ish kinds and
     /// maps .ts-family → .js under ES module kinds.
-    fn suggested_runtime_extension(ts_extension: &str) -> &'static str {
-        match ts_extension {
-            ".d.ts" | ".ts" | ".tsx" => ".js",
-            _ => ".js",
+    fn suggested_import_source(
+        &self,
+        location: NodeId,
+        module_reference: &str,
+        ts_extension: &str,
+    ) -> String {
+        let without_extension = module_reference
+            .strip_suffix(ts_extension)
+            .unwrap_or(module_reference);
+        let module_kind = self.options.emit_module_kind();
+        if !(5..=99).contains(&module_kind) && !self.resolution_mode_is_esm(location) {
+            return without_extension.to_owned();
         }
+        let prefer_ts_extension = Self::is_declaration_file_name(module_reference)
+            && self.options.allow_importing_ts_extensions == Some(true);
+        let runtime_extension = match ts_extension {
+            ".mts" | ".d.mts" => {
+                if prefer_ts_extension {
+                    ".mts"
+                } else {
+                    ".mjs"
+                }
+            }
+            ".cts" => {
+                if prefer_ts_extension {
+                    ".cts"
+                } else {
+                    ".cjs"
+                }
+            }
+            _ => {
+                if prefer_ts_extension {
+                    ".ts"
+                } else {
+                    ".js"
+                }
+            }
+        };
+        format!("{without_extension}{runtime_extension}")
     }
 
     /// The type-only probe the ts-extension rows share
@@ -4723,11 +4767,10 @@ mod tests {
         assert_eq!(rows(&files), [("c.ts".to_owned(), 2303, 0, 13)]);
     }
 
-    /// probe58d fix1: static extensionless imports PROBE the .ts
-    /// family; a .mts-only target misses → plain 2307 (never the
-    /// 2834/2835 mode rows).
+    /// Static and dynamic imports in an .mts file use Node's ESM
+    /// resolution mode and therefore never extension-probe.
     #[test]
-    fn static_extensionless_miss_reports_plain_2307_under_node16() {
+    fn static_mts_imports_require_explicit_extensions_under_node16() {
         let files = [
             ("/src/foo.mts", "export function foo() { return \"\"; }\n"),
             (
@@ -4738,19 +4781,16 @@ mod tests {
         assert_eq!(
             program_rows(&files, &node16_options()),
             [
-                ("/src/bar.mts".to_owned(), 2307, 20, 7),
-                ("/src/bar.mts".to_owned(), 2307, 49, 7),
+                ("/src/bar.mts".to_owned(), 2835, 20, 7),
+                ("/src/bar.mts".to_owned(), 2834, 49, 7),
             ]
         );
     }
 
-    /// probe58d fix7: the SAME extensionless specifier resolves for a
-    /// static import (extension probing) and reports 2835 for an
-    /// import() usage in a mode-bearing file (Did_you_mean "./foo.js";
-    /// the noLib Promise 2711 rides the import call like the calls.rs
-    /// pins).
+    /// Static imports and import() share the ESM resolution mode in an
+    /// .mts file. The noLib Promise 2711 rides the import call.
     #[test]
-    fn import_call_extensionless_reports_2835_while_static_resolves() {
+    fn static_and_dynamic_mts_imports_share_node_esm_resolution() {
         let files = [
             ("foo.ts", "export const x = 1;\n"),
             (
@@ -4763,6 +4803,96 @@ mod tests {
             [
                 ("buzz.mts".to_owned(), 2711, 0, 15),
                 ("buzz.mts".to_owned(), 2835, 7, 7),
+                ("buzz.mts".to_owned(), 2835, 35, 7),
+            ]
+        );
+    }
+
+    #[test]
+    fn dynamic_import_in_plain_ts_uses_node_esm_resolution() {
+        let files = [
+            ("foo.ts", "export const x = 1;\n"),
+            ("main.ts", "import(\"./foo\");\n"),
+        ];
+        assert_eq!(
+            program_rows(&files, &node16_options()),
+            [
+                ("main.ts".to_owned(), 2711, 0, 15),
+                ("main.ts".to_owned(), 2835, 7, 7),
+            ]
+        );
+    }
+
+    #[test]
+    fn import_equals_in_mts_uses_commonjs_resolution() {
+        let files = [("main.mts", "import foo = require(\"./foo\");\n")];
+        assert_eq!(
+            program_rows(&files, &node16_options()),
+            [("main.mts".to_owned(), 2307, 21, 7)]
+        );
+    }
+
+    #[test]
+    fn explicit_non_ts_extension_reports_plain_2307_under_node16() {
+        let files = [("/src/main.mts", "export * from \"./missing.css\";\n")];
+        assert_eq!(
+            program_rows(&files, &node16_options()),
+            [("/src/main.mts".to_owned(), 2307, 14, 15)]
+        );
+    }
+
+    #[test]
+    fn explicit_mts_cts_extensions_report_or_suggest_the_full_extension() {
+        let files = [
+            ("/main.ts", "import {} from \"./foo.d.mts\";\nimport {} from \"./bar.d.cts\";\nimport {} from \"./baz.mts\";\nimport {} from \"./qux.cts\";\n"),
+            ("/foo.d.mts", "export {};\n"),
+            ("/bar.d.cts", "export {};\n"),
+            ("/baz.mts", "export {};\n"),
+            ("/qux.cts", "export {};\n"),
+        ];
+        let inputs: Vec<InputFile> = files
+            .iter()
+            .map(|(name, text)| InputFile {
+                name: (*name).to_owned(),
+                text: (*text).to_owned(),
+            })
+            .collect();
+        let diagnostics = check_program(&inputs, &CompilerOptions::default()).diagnostics;
+        let pins: Vec<(u32, u32, String)> = diagnostics
+            .iter()
+            .filter_map(|diagnostic| {
+                diagnostic.start.map(|start| {
+                    (
+                        diagnostic.code(),
+                        start,
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+            })
+            .collect();
+        assert_eq!(
+            pins,
+            [
+                (
+                    2846,
+                    15,
+                    "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './foo.mjs' instead?".to_owned(),
+                ),
+                (
+                    2846,
+                    45,
+                    "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './bar.js' instead?".to_owned(),
+                ),
+                (
+                    5097,
+                    75,
+                    "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled.".to_owned(),
+                ),
+                (
+                    5097,
+                    103,
+                    "An import path can only end with a '.cts' extension when 'allowImportingTsExtensions' is enabled.".to_owned(),
+                ),
             ]
         );
     }

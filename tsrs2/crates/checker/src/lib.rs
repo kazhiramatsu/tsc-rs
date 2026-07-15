@@ -236,22 +236,9 @@ fn filter_by_comment_directives(
 fn filter_semantic_diagnostics(
     diagnostics: &mut tsrs2_diags::DiagnosticList,
     options: &CompilerOptions,
-    declaration_file_names: &std::collections::HashSet<&str>,
 ) {
     if options.no_emit == Some(true) {
         diagnostics.retain(|diagnostic| !diagnostic.skipped_on_no_emit);
-    }
-    // skipTypeCheckingWorker's skipLibCheck arm (18896): declaration
-    // files contribute NO bind/check diagnostics — tsc skips the whole
-    // check pass per file; the per-file diagnostic buckets make the
-    // post-filter equivalent (M4 5.8d).
-    if options.skip_lib_check == Some(true) {
-        diagnostics.retain(|diagnostic| {
-            diagnostic
-                .file_name
-                .as_deref()
-                .is_none_or(|file_name| !declaration_file_names.contains(file_name))
-        });
     }
 }
 
@@ -430,8 +417,9 @@ pub fn check_program_with_libs(
             .get(source_file.file_name.as_str())
             .copied()
             .flatten();
-        let include_bind_and_check =
-            can_include_bind_and_check_diagnostics(javascript_file, directive, options);
+        let include_bind_and_check = !(options.skip_lib_check == Some(true)
+            && source_file.is_declaration_file)
+            && can_include_bind_and_check_diagnostics(javascript_file, directive, options);
         if javascript_file {
             if include_bind_and_check {
                 diagnostics.extend(
@@ -561,12 +549,7 @@ pub fn check_program_with_libs(
         // getPreEmitDiagnostics / the oracle driver's
         // ts.sortAndDeduplicateDiagnostics; getSyntacticDiagnostics
         // stays per-file unsorted concatenation, matching tsc.
-        let declaration_file_names: std::collections::HashSet<&str> = by_name
-            .values()
-            .filter(|source| source.is_declaration_file)
-            .map(|source| source.file_name.as_str())
-            .collect();
-        filter_semantic_diagnostics(&mut diagnostics, options, &declaration_file_names);
+        filter_semantic_diagnostics(&mut diagnostics, options);
         tsrs2_diags::sort_and_dedupe_diagnostics(&mut diagnostics);
     }
 
@@ -869,6 +852,39 @@ mod tests {
         );
 
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    }
+
+    #[test]
+    fn skip_lib_check_preserves_syntax_errors_and_skips_semantic_errors() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "bad-syntax.d.ts".to_owned(),
+                    text: "declare const x: ;\n".to_owned(),
+                },
+                InputFile {
+                    name: "bad-semantic.d.ts".to_owned(),
+                    text: "declare const y: Missing;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                skip_lib_check: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+
+        let pins: Vec<(String, u32, u32)> = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.clone().unwrap_or_default(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                )
+            })
+            .collect();
+        assert_eq!(pins, [("bad-syntax.d.ts".to_owned(), 1110, 17)]);
     }
 
     // ---- lib-loading L2: lib-backed programs (oracle-pinned) ----

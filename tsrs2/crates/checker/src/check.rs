@@ -255,8 +255,9 @@ impl<'a> CheckerState<'a> {
     /// plainJSErrors allowlist at the program layer instead — lib.rs);
     /// .json inputs never reach the checker (parsed outside the bind
     /// program).
-    fn skip_type_checking(&self, _root: NodeId) -> bool {
-        false
+    fn skip_type_checking(&self, root: NodeId) -> bool {
+        self.options.skip_lib_check == Some(true)
+            && self.binder.source_of_node(root).is_declaration_file
     }
 
     /// checkGrammarSourceFile (90323) — M7-stub grammar hook (ambient

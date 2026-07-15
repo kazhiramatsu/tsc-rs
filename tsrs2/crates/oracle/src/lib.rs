@@ -295,6 +295,37 @@ mod tests {
     }
 
     #[test]
+    fn oracle_driver_preserves_implied_node_format() {
+        let dir = temp_dir();
+        fs::create_dir_all(&dir).expect("temp dir");
+        let program_json = dir.join("program.json");
+        fs::write(
+            &program_json,
+            r#"{
+  "schema": 1,
+  "cwd": "/",
+  "options": {"module": "node16", "moduleResolution": "node16", "target": "es2022"},
+  "libs": [],
+  "files": [
+    {"name": "/foo.ts", "textB64": "ZXhwb3J0IGNvbnN0IHggPSAxOwo="},
+    {"name": "/main.mts", "textB64": "aW1wb3J0IHsgeCB9IGZyb20gIi4vZm9vIjsKeDsK"}
+  ],
+  "matrixKey": ""
+}
+"#,
+        )
+        .expect("write program");
+
+        let pool = OraclePool::new(1).expect("pool");
+        let diagnostics = pool.diagnostics(&program_json).expect("diagnostics");
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic.code == 2835),
+            "{diagnostics:?}"
+        );
+        fs::remove_dir_all(dir).expect("remove temp dir");
+    }
+
+    #[test]
     fn oracle_pool_is_deterministic_and_respawns_worker() {
         let program_json = write_program_json("bGV0ID0gOwo=");
         let pool = OraclePool::new(1).expect("pool");
