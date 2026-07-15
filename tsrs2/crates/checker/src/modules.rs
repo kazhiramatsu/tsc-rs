@@ -5,11 +5,11 @@
 //! ambiguity row).
 //!
 //! Mode machinery (impliedNodeFormat / Node16..NodeNext arms /
-//! resolution-mode overrides) reduces at the modeled defaults
-//! throughout — each elision is noted at its arm. The program-layer
-//! resolver (`resolve_program_module`) is the host.getResolvedModule
-//! seam: tsrs-native over the in-memory file set per
-//! program-and-modules.md §2 (no node_modules, no package.json).
+//! resolution-mode overrides) preserves CommonJS / ESNext / unknown
+//! through the resolver. The program-layer resolver
+//! (`resolve_program_module`) is the host.getResolvedModule seam:
+//! tsrs-native over the in-memory file set per program-and-modules.md
+//! §2 (no node_modules, no package.json interpretation).
 
 use tsrs2_binder::{node_util, SymbolId, SymbolTable};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
@@ -47,6 +47,26 @@ pub(crate) enum ProgramModuleResolution {
     Resolved(ResolvedProgramModule),
     Suppressed,
     Missed,
+}
+
+/// tsc ResolutionMode at the host-resolution seam. `Unknown` is
+/// observable for Node16/NodeNext files whose implied format depends
+/// on an unmodeled package.json scope; treating it as either concrete
+/// mode would fabricate extension diagnostics or resolution hits.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ModuleResolutionMode {
+    CommonJs,
+    EsNext,
+    Unknown,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ResolutionModeOverrideParse {
+    Missing,
+    WrongCardinality { token: SyntaxKind },
+    InvalidName { token: SyntaxKind, name: NodeId },
+    InvalidValue { value: NodeId },
+    Valid(ModuleResolutionMode),
 }
 
 impl<'a> CheckerState<'a> {
@@ -1995,7 +2015,7 @@ impl<'a> CheckerState<'a> {
         if matches!(module_resolution_kind, 3 | 99)
             && Self::is_external_module_name_relative(module_reference)
             && !Self::has_extension(module_reference)
-            && self.resolution_mode_is_esm(location)
+            && self.resolution_mode_for_usage(location) == ModuleResolutionMode::EsNext
         {
             if let Some(suggested) = self.suggested_extension_for(location, module_reference) {
                 let suggestion = format!("{module_reference}{suggested}");
@@ -2211,25 +2231,29 @@ impl<'a> CheckerState<'a> {
             let node_mode_resolution = matches!(self.options.emit_module_resolution_kind(), 3 | 99);
             let extensionless = !Self::has_extension(module_reference);
             if node_mode_resolution {
+                let resolution_mode = self.resolution_mode_for_usage(location);
                 // Node ESM never probes an omitted extension or a
                 // directory index, for either static imports or
                 // import() calls. The failure tail selects 2834/2835
                 // for extensionless specifiers and 2307 otherwise.
-                if self.resolution_mode_is_esm(location) && (extensionless || directory_reference) {
+                if resolution_mode == ModuleResolutionMode::EsNext
+                    && (extensionless || directory_reference)
+                {
                     return ProgramModuleResolution::Missed;
                 }
-                // package.json among the host inputs turns the
-                // oracle's mode machinery LIVE (impliedNodeFormat via
-                // "type") — both the resolution verdict and the
-                // failure face become mode-dependent; resolving
-                // anyway could fabricate downstream member FPs and
-                // erroring could fabricate 2307/2835 — suppress
-                // (probe58d + nodeModules1; FN, ledger).
+                // package.json among the host inputs makes an unknown
+                // implied format mode-dependent. Directory references
+                // also stay undecidable in a concrete CJS mode because
+                // package `main` can redirect the index probe. Either
+                // case could fabricate a resolution target or a
+                // 2307/2835 failure face, so suppress (FN, ledger).
+                let has_package_json = self
+                    .host_file_paths
+                    .iter()
+                    .any(|path| path.ends_with("/package.json"));
                 if extensionless
-                    && self
-                        .host_file_paths
-                        .iter()
-                        .any(|path| path.ends_with("/package.json"))
+                    && has_package_json
+                    && (resolution_mode == ModuleResolutionMode::Unknown || directory_reference)
                 {
                     return ProgramModuleResolution::Suppressed;
                 }
@@ -2477,19 +2501,104 @@ impl<'a> CheckerState<'a> {
             .contains('.')
     }
 
-    /// Reduced getModeForUsageLocation. Dynamic import always uses the
-    /// ESM resolution branch; `.mts`/`.mjs` also use it for static
-    /// imports. Static imports in the remaining extensions stay CJS
-    /// or undecidable until package.json modeling is available.
-    fn resolution_mode_is_esm(&self, location: NodeId) -> bool {
-        if self.has_ancestor_kind(location, SyntaxKind::ImportEqualsDeclaration) {
-            return false;
+    /// tsc importSyntaxAffectsModuleResolution over the represented
+    /// option set. resolvePackageJsonExports/Imports have no explicit
+    /// fields yet; their computed defaults are true for Node16,
+    /// NodeNext, and Bundler.
+    fn import_syntax_affects_module_resolution(&self) -> bool {
+        matches!(self.options.emit_module_resolution_kind(), 3 | 99 | 100)
+    }
+
+    /// tsc getModeForUsageLocationWorker / getEmitSyntaxForUsageLocationWorker.
+    /// A valid type-only resolution-mode override wins before the
+    /// compiler-option gate. Plain Node16/NodeNext source files remain
+    /// unknown because their implied format is package-scope data the
+    /// in-memory host does not interpret.
+    fn resolution_mode_for_usage(&self, location: NodeId) -> ModuleResolutionMode {
+        if let Some(mode) = self.resolution_mode_override_for_usage(location) {
+            return mode;
         }
+        if !self.import_syntax_affects_module_resolution() {
+            return ModuleResolutionMode::Unknown;
+        }
+        if self.has_ancestor_kind(location, SyntaxKind::ImportEqualsDeclaration) {
+            return ModuleResolutionMode::CommonJs;
+        }
+        if self.has_import_call_ancestor(location) {
+            let module_kind = self.options.emit_module_kind();
+            if (100..=199).contains(&module_kind) || module_kind == 200 {
+                return ModuleResolutionMode::EsNext;
+            }
+            if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
+                return mode;
+            }
+            return if module_kind < 5 {
+                ModuleResolutionMode::CommonJs
+            } else {
+                ModuleResolutionMode::EsNext
+            };
+        }
+        self.static_resolution_mode_for_file(location)
+    }
+
+    fn resolution_mode_override_for_usage(&self, location: NodeId) -> Option<ModuleResolutionMode> {
+        let mut current = Some(location);
+        while let Some(node) = current {
+            let attributes = match self.data_of(node) {
+                NodeData::ImportDeclaration(data) => {
+                    if !self.is_exclusively_type_only_import_or_export(node) {
+                        return None;
+                    }
+                    data.attributes
+                }
+                NodeData::ExportDeclaration(data) => {
+                    if !self.is_exclusively_type_only_import_or_export(node) {
+                        return None;
+                    }
+                    data.attributes
+                }
+                NodeData::ImportType(data) => data.attributes,
+                _ => {
+                    current = self.parent_of(node);
+                    continue;
+                }
+            };
+            return attributes.and_then(|attributes| {
+                match self.parse_resolution_mode_override(attributes) {
+                    ResolutionModeOverrideParse::Valid(mode) => Some(mode),
+                    _ => None,
+                }
+            });
+        }
+        None
+    }
+
+    fn implied_resolution_mode_from_extension(
+        &self,
+        location: NodeId,
+    ) -> Option<ModuleResolutionMode> {
         let file_name = &self.binder.source_of_node(location).file_name;
-        self.has_import_call_ancestor(location)
-            || file_name.ends_with(".mts")
-            || file_name.ends_with(".d.mts")
-            || file_name.ends_with(".mjs")
+        if file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
+            Some(ModuleResolutionMode::EsNext)
+        } else if file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
+            Some(ModuleResolutionMode::CommonJs)
+        } else {
+            None
+        }
+    }
+
+    fn static_resolution_mode_for_file(&self, location: NodeId) -> ModuleResolutionMode {
+        if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
+            return mode;
+        }
+        let module_kind = self.options.emit_module_kind();
+        if module_kind == 1 {
+            ModuleResolutionMode::CommonJs
+        } else if (5..=99).contains(&module_kind) || module_kind == 200 {
+            ModuleResolutionMode::EsNext
+        } else {
+            ModuleResolutionMode::Unknown
+        }
     }
 
     fn has_import_call_ancestor(&self, location: NodeId) -> bool {
@@ -2572,7 +2681,9 @@ impl<'a> CheckerState<'a> {
             .strip_suffix(ts_extension)
             .unwrap_or(module_reference);
         let module_kind = self.options.emit_module_kind();
-        if !(5..=99).contains(&module_kind) && !self.resolution_mode_is_esm(location) {
+        if !(5..=99).contains(&module_kind)
+            && self.resolution_mode_for_usage(location) != ModuleResolutionMode::EsNext
+        {
             return without_extension.to_owned();
         }
         let prefer_ts_extension = Self::is_declaration_file_name(module_reference)
@@ -3934,69 +4045,89 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: cb7d87d78b2941af6b52f61b119f071d490a99d91dba856caa43f0e60ca37f34
     /// tsc-span: _tsc.js:122309-122334
     ///
-    /// Returns whether a VALID resolution-mode override is present
-    /// (the mode VALUE itself is mode machinery the checker does not
-    /// consume yet); reports the grammar rows when
-    /// `valid_for_type_attributes` passes the reporter through.
+    /// Returns whether a valid resolution-mode override is present;
+    /// the same parser feeds host resolution so grammar checking and
+    /// mode selection cannot disagree about the attribute value.
     pub(crate) fn get_resolution_mode_override(
         &mut self,
         node: NodeId,
         report: bool,
     ) -> CheckResult2<bool> {
+        match self.parse_resolution_mode_override(node) {
+            ResolutionModeOverrideParse::Valid(_) => Ok(true),
+            ResolutionModeOverrideParse::WrongCardinality { token } => {
+                if report {
+                    let message = if token == SyntaxKind::WithKeyword {
+                        &diagnostics::Type_import_attributes_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
+                    } else {
+                        &diagnostics::Type_import_assertions_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
+                    };
+                    self.grammar_error_on_node(node, message, &[]);
+                }
+                Ok(false)
+            }
+            ResolutionModeOverrideParse::InvalidName { token, name } => {
+                if report {
+                    let message = if token == SyntaxKind::WithKeyword {
+                        &diagnostics::resolution_mode_is_the_only_valid_key_for_type_import_attributes
+                    } else {
+                        &diagnostics::resolution_mode_is_the_only_valid_key_for_type_import_assertions
+                    };
+                    self.grammar_error_on_node(name, message, &[]);
+                }
+                Ok(false)
+            }
+            ResolutionModeOverrideParse::InvalidValue { value } => {
+                if report {
+                    self.grammar_error_on_node(
+                        value,
+                        &diagnostics::resolution_mode_should_be_either_require_or_import,
+                        &[],
+                    );
+                }
+                Ok(false)
+            }
+            ResolutionModeOverrideParse::Missing => Ok(false),
+        }
+    }
+
+    fn parse_resolution_mode_override(&self, node: NodeId) -> ResolutionModeOverrideParse {
         let (token, elements) = match self.data_of(node) {
             NodeData::ImportAttributes(data) => (data.token, data.elements),
-            _ => return Ok(false),
+            _ => return ResolutionModeOverrideParse::Missing,
         };
         let elements: Vec<NodeId> = self.nodes_of(elements);
         if elements.len() != 1 {
-            if report {
-                let message = if token == SyntaxKind::WithKeyword {
-                    &diagnostics::Type_import_attributes_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
-                } else {
-                    &diagnostics::Type_import_assertions_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
-                };
-                self.grammar_error_on_node(node, message, &[]);
-            }
-            return Ok(false);
+            return ResolutionModeOverrideParse::WrongCardinality { token };
         }
-        let element = elements[0];
-        let (name, value) = match self.data_of(element) {
+        let (name, value) = match self.data_of(elements[0]) {
             NodeData::ImportAttribute(data) => (data.name, data.value),
-            _ => return Ok(false),
+            _ => return ResolutionModeOverrideParse::Missing,
         };
-        let Some(name) = name else { return Ok(false) };
+        let Some(name) = name else {
+            return ResolutionModeOverrideParse::Missing;
+        };
         let name_text = match self.data_of(name) {
-            NodeData::StringLiteral(data) => data.text.clone(),
-            _ => return Ok(false),
+            NodeData::StringLiteral(data) => data.text.as_str(),
+            _ => return ResolutionModeOverrideParse::Missing,
         };
         if name_text != "resolution-mode" {
-            if report {
-                let message = if token == SyntaxKind::WithKeyword {
-                    &diagnostics::resolution_mode_is_the_only_valid_key_for_type_import_attributes
-                } else {
-                    &diagnostics::resolution_mode_is_the_only_valid_key_for_type_import_assertions
-                };
-                self.grammar_error_on_node(name, message, &[]);
-            }
-            return Ok(false);
+            return ResolutionModeOverrideParse::InvalidName { token, name };
         }
-        let Some(value) = value else { return Ok(false) };
-        let value_text = match self.data_of(value) {
-            NodeData::StringLiteral(data) => data.text.clone(),
-            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
-            _ => return Ok(false),
+        let Some(value) = value else {
+            return ResolutionModeOverrideParse::Missing;
         };
-        if value_text != "import" && value_text != "require" {
-            if report {
-                self.grammar_error_on_node(
-                    value,
-                    &diagnostics::resolution_mode_should_be_either_require_or_import,
-                    &[],
-                );
-            }
-            return Ok(false);
-        }
-        Ok(true)
+        let value_text = match self.data_of(value) {
+            NodeData::StringLiteral(data) => data.text.as_str(),
+            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.as_str(),
+            _ => return ResolutionModeOverrideParse::Missing,
+        };
+        let mode = match value_text {
+            "import" => ModuleResolutionMode::EsNext,
+            "require" => ModuleResolutionMode::CommonJs,
+            _ => return ResolutionModeOverrideParse::InvalidValue { value },
+        };
+        ResolutionModeOverrideParse::Valid(mode)
     }
 
     /// tsc-port: getTypeFromImportAttributes @6.0.3
@@ -4833,6 +4964,29 @@ mod tests {
     }
 
     #[test]
+    fn type_only_resolution_mode_override_controls_node_resolution() {
+        let files = [
+            ("foo.ts", "export type X = number;\n"),
+            ("package.json", "{}\n"),
+            (
+                "main.mts",
+                "import type { Missing } from \"./foo\" with { \"resolution-mode\": \"require\" };\n",
+            ),
+            (
+                "main.cts",
+                "import type { X } from \"./foo\" with { \"resolution-mode\": \"import\" };\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(&files, &node16_options()),
+            [
+                ("main.cts".to_owned(), 2835, 23, 7),
+                ("main.mts".to_owned(), 2305, 14, 7),
+            ]
+        );
+    }
+
+    #[test]
     fn explicit_non_ts_extension_reports_plain_2307_under_node16() {
         let files = [("/src/main.mts", "export * from \"./missing.css\";\n")];
         assert_eq!(
@@ -4894,6 +5048,93 @@ mod tests {
                     "An import path can only end with a '.cts' extension when 'allowImportingTsExtensions' is enabled.".to_owned(),
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn declaration_import_suggestion_uses_usage_emit_mode() {
+        let files = [
+            ("/main.ts", "import(\"./foo.d.mts\");\n"),
+            ("/foo.d.mts", "export {};\n"),
+        ];
+        let inputs: Vec<InputFile> = files
+            .iter()
+            .map(|(name, text)| InputFile {
+                name: (*name).to_owned(),
+                text: (*text).to_owned(),
+            })
+            .collect();
+        let diagnostics = check_program(
+            &inputs,
+            &CompilerOptions {
+                module: Some(1),
+                target: Some(9),
+                module_resolution: Some(100),
+                ..CompilerOptions::default()
+            },
+        )
+        .diagnostics;
+        let pins: Vec<(u32, u32, String)> = diagnostics
+            .iter()
+            .filter_map(|diagnostic| {
+                diagnostic.start.map(|start| {
+                    (
+                        diagnostic.code(),
+                        start,
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+            })
+            .collect();
+        assert_eq!(
+            pins,
+            [(
+                2846,
+                7,
+                "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './foo' instead?".to_owned(),
+            )]
+        );
+
+        let files = [
+            ("/main.ts", "import {} from \"./foo.d.mts\";\n"),
+            ("/foo.d.mts", "export {};\n"),
+        ];
+        let inputs: Vec<InputFile> = files
+            .iter()
+            .map(|(name, text)| InputFile {
+                name: (*name).to_owned(),
+                text: (*text).to_owned(),
+            })
+            .collect();
+        let diagnostics = check_program(
+            &inputs,
+            &CompilerOptions {
+                module: Some(200),
+                target: Some(9),
+                module_resolution: Some(100),
+                ..CompilerOptions::default()
+            },
+        )
+        .diagnostics;
+        let pins: Vec<(u32, u32, String)> = diagnostics
+            .iter()
+            .filter_map(|diagnostic| {
+                diagnostic.start.map(|start| {
+                    (
+                        diagnostic.code(),
+                        start,
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+            })
+            .collect();
+        assert_eq!(
+            pins,
+            [(
+                2846,
+                15,
+                "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './foo.mjs' instead?".to_owned(),
+            )]
         );
     }
 }

@@ -247,14 +247,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8dcc4a08f5b94c3c9ada5b6c1e86885714d7db12c71cbf857ca88531632bd0c3
     /// tsc-span: _tsc.js:18877-18903
     ///
-    /// Every disjunct is constant-false for this program shape:
-    /// skipLibCheck/skipDefaultLibCheck/noCheck/checkJs are absent from
-    /// CompilerOptions, there are no project references, and
-    /// canIncludeBindAndCheckDiagnostics answers true for TS files and
-    /// for plain JS files alike (plain JS OUTPUT filters to the
-    /// plainJSErrors allowlist at the program layer instead — lib.rs);
-    /// .json inputs never reach the checker (parsed outside the bind
-    /// program).
+    /// The represented skipTypeCheckingWorker arm: skipLibCheck omits
+    /// semantic checking for declaration files. Bind and
+    /// initialization-time diagnostics are filtered at the program
+    /// assembly layer so the complete per-file bind/check stream is
+    /// suppressed while syntax diagnostics remain visible.
     fn skip_type_checking(&self, root: NodeId) -> bool {
         self.options.skip_lib_check == Some(true)
             && self.binder.source_of_node(root).is_declaration_file

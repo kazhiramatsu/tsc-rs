@@ -503,6 +503,18 @@ pub fn check_program_with_libs(
             {
                 continue;
             }
+            // skipLibCheck suppresses the complete bind/check stream
+            // for declaration files, including initialization-time
+            // cross-file merge diagnostics that were produced before
+            // check_source_file had a chance to skip the file.
+            if options.skip_lib_check == Some(true)
+                && file_name
+                    .as_deref()
+                    .and_then(|name| by_name.get(name))
+                    .is_some_and(|source| source.is_declaration_file)
+            {
+                continue;
+            }
             let javascript_file = file_name.as_deref().is_some_and(is_js_file_name);
             if javascript_file {
                 let directive = file_name
@@ -865,6 +877,14 @@ mod tests {
                 InputFile {
                     name: "bad-semantic.d.ts".to_owned(),
                     text: "declare const y: Missing;\n".to_owned(),
+                },
+                InputFile {
+                    name: "merge-a.d.ts".to_owned(),
+                    text: "declare let merged: number;\n".to_owned(),
+                },
+                InputFile {
+                    name: "merge-b.d.ts".to_owned(),
+                    text: "declare let merged: string;\n".to_owned(),
                 },
             ],
             &CompilerOptions {
