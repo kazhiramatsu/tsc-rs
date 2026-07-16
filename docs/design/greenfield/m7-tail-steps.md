@@ -6,8 +6,11 @@ checker-foundations.md §2 (the driver slots these fill). tsc regions:
 the `checkGrammar*` family, `checkUnusedIdentifiers` (82954),
 `getSuggestionDiagnostics` (123761). Prerequisite: M6 gate green.
 
-Gate: T0 ≥ 63%; T1 (category-aware) measured and added to
-ratchet.toml.
+Gate: T0 ≥ 63% (calibration only — reachable from the unused family
+alone); T1 (category-aware) measured and added to ratchet.toml. Each
+stage below additionally closes on its own family rows
+(completion-convergence-plan.md C4, non-2xxx-first-order.md); the
+aggregate rate is never a substitute for a stage gate.
 
 ## Stage 8.1: grammar checks [M]
 
@@ -29,6 +32,9 @@ One commit per family; each with oracle-probed micro pins.
 
 Commit(s): `m7 8.1a-f: grammar check families (+rate)`.
 
+Gate: the checker-grammar family rows (semantic-pass 1XXX plus the
+grammar rows of 17XXX/18XXX) reach their family-map acceptance.
+
 ## Stage 8.2: suppression surfaces in one module [M]
 
 Per greenfield §5: centralize the ported dedup/suppression rules —
@@ -38,6 +44,9 @@ every M4-M6 emission site against this module; ad-hoc suppression
 found elsewhere moves here or is deleted.
 
 Commit: `m7 8.2: suppression surface audit`.
+
+Gate: audit complete over every M4-M6 emission site, and the
+suppression canary fixtures named in the family map match.
 
 ## Stage 8.3: unused identifiers [M]
 
@@ -57,6 +66,9 @@ errors; otherwise they surface as suggestions — which requires stage
 error-mode half first, gate, then wire the suggestion half in 8.4.
 
 Commit(s): `m7 8.3a-b: unused identifiers (+rate)`.
+
+Gate: the unused family's error-mode rows reach their family-map
+acceptance (the suggestion half closes in 8.4).
 
 ## Stage 8.4: the suggestion band, emit-free [M]
 
@@ -80,6 +92,10 @@ cargo xtask conformance --tier t1     # first measurement; record + ratchet
 
 Commit: `m7 8.4: suggestion band + T1 activation`.
 
+Gate: the suggestion-pass family rows (unused suggestion half,
+infer-from-usage residue, 80XXX, deprecations, flow-derived
+surfacing) reach acceptance; T1 active and ratcheted.
+
 ## Stage 8.5: options + program-level diagnostics [M]
 
 `getOptionsDiagnostics` port (invalid combinations, 5069/5052-family
@@ -92,10 +108,14 @@ hash — byte parity is M8's tier work; land the structure).
 
 Commit: `m7 8.5: options + program diagnostics`.
 
+Gate: the program/resolution family rows reach acceptance; the T4
+formatter structure is live (convergence plan A3).
+
 ## Final gate
 
 ```sh
 cargo xtask conformance              # expect: T0 ≥ 63%; T1 recorded
+cargo xtask families report          # expect: every M7-owned family complete
 cargo xtask invariants --suite all
 cargo xtask ledger check
 cargo xtask m8 readiness --require-ready

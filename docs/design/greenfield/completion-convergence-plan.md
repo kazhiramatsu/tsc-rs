@@ -26,6 +26,8 @@ Baseline at `main` commit `52c47bbb` (after M4 5.9c):
 | All-corpus FP / FN | 0 / 28,667 |
 | 2XXX T0 | 10,921 / 20,916 (52.2136%) |
 | 2XXX T3 shadow | 47.0214% |
+| Non-2XXX T0 | 9,131 / 27,803 (32.8418%) |
+| Non-2XXX T3 shadow | 29.6047% |
 | Relation pins | 415 / 415 |
 | Escape sites | 258 (stale 0, untagged 9, recovery 112) |
 | M8 readiness | 2 / 9 gates ready |
@@ -58,6 +60,8 @@ following ones as their producers land:
    the final T3/T4/escape/fuzzer contract.
 7. A stage marker advances only after every expiring escape has either
    been implemented or moved to a later owner with reviewed evidence.
+8. Every (code, pass) row the corpus exercises maps to exactly one
+   owner family; an unmapped row fails the family-map check.
 
 ## 3. Workstreams and dependencies
 
@@ -72,6 +76,7 @@ A: trustworthy measurement
     -> A2 exact scope identity
       -> A3 real T4 pipeline
         -> A4 executable Done gate
+    -> A5 non-2XXX family map + rollup (feeds C4 stage gates, D2 owners)
 
 C: semantic implementation
   M4 close -> M5 flow -> M6 inference/calls -> M7 tail -> M8 long tail
@@ -265,6 +270,45 @@ form fails unless all of the following are true:
 The command is added early in report-only form. Rows turn green as work
 lands; the strict form becomes the release gate only after M9.
 
+#### A5. Non-2XXX family map and rollup
+
+Branch: `infra/family-map`
+
+[non-2xxx-first-order.md](non-2xxx-first-order.md) owns the family
+decomposition; this slice turns it into machine state:
+
+- a reviewable enumerated map file assigning every corpus-exercised
+  (code, pass) row to exactly one owner family — an enumeration
+  table, never a numeric-range rule, because ownership crosses bands
+  (7027 is M5 flow surfacing as a suggestion; 6053 is program
+  machinery inside 6XXX; 6133 spans the suggestion and semantic
+  passes);
+- `cargo xtask families report`: a rollup derived from the A1
+  accepted-match artifact plus the frozen map — per family, matched /
+  total / FN at each tier, plus the canary rows. No second ratchet:
+  the global set ratchet already forbids regressions; the rollup adds
+  accounting and gate inputs;
+- adjudication of the provisional owners recorded in the family doc
+  (implicit-any, JSX, 7016, override validation), updating the doc
+  from the frozen map.
+
+Only A1's artifact is a prerequisite; the map file and doc carry no
+tooling dependency. Acceptance:
+
+```sh
+cargo xtask families report
+cargo xtask families check
+cargo xtask ci
+```
+
+Required tests:
+
+- an unmapped (code, pass) row in the corpus fails `families check`;
+- a code mapped to two families fails;
+- rollup counts recompute from the artifact, never from the map;
+- the cross-band exemplars (7027, 6053, 6133-both-passes) are
+  represented in the shipped map.
+
 ### Track B — produced evidence and differential fuzzing
 
 #### B1. Evidence artifact protocol
@@ -401,8 +445,25 @@ gate tests both cache rollback and diagnostic rollback.
 #### C4. M7 grammar, unused, suggestions, and program diagnostics
 
 Follow stages 8.1-8.5. TS6133 and TS6196 currently account for 14,266
-FNs, so the 63% calibration gate is plausible but not sufficient by
-itself.
+FNs, so the 63% aggregate gate is calibration only: it is reachable
+from the unused family alone and certifies nothing about the other
+M7 families. Each stage therefore closes on its own family rows from
+the A5 map ([non-2xxx-first-order.md](non-2xxx-first-order.md)):
+
+- 8.1 grammar — the checker-grammar family (semantic-pass 1XXX plus
+  the grammar rows of 17XXX/18XXX);
+- 8.2 suppression — behavioral, no code set: closes on the audit
+  artifact plus the suppression canaries named in the map;
+- 8.3 unused — the unused family's error-mode rows;
+- 8.4 suggestions — the suggestion-pass rows (unused suggestion half,
+  infer-from-usage residue, 80XXX, deprecations, flow-derived
+  surfacing) and T1 activation;
+- 8.5 options/program — the program/resolution family rows and the
+  T4 formatter structure (A3).
+
+A stage's gate is its family rollup reaching the acceptance recorded
+in the map (canary set complete, then supported FN = 0 for its rows);
+the aggregate rate is never a substitute.
 
 M7 cannot close until:
 
@@ -411,6 +472,7 @@ M7 cannot close until:
 - A3 formatter structure is live;
 - B1-B4 evidence producers have current artifacts;
 - D1-D3 are complete;
+- every M7-owned family reports complete in the A5 rollup;
 - `cargo xtask m8 readiness --require-ready` passes; the same command
   is re-run unchanged as the M8 entry gate.
 
@@ -419,6 +481,10 @@ M7 cannot close until:
 Replace an open-ended “top code until done” phase with bounded slices.
 Each M8 branch declares one owner family, its oracle anchors, its input
 fixture list, the expected escape/disposition removals, and its tier.
+At M8 entry the readiness report fixes the per-family residual
+snapshot — unfinished families, unowned emitters, and per-family
+T3-mismatch buckets — and every M8 slice cites its family's
+before/after against that snapshot, not against a moving top-FN list.
 
 Recommended order:
 
@@ -476,6 +542,11 @@ inventory review surface without weakening its conservative closure:
 - identify generated/runtime helper families with exact hash-pinned
   rules;
 - auto-account fresh `tsc-port` ledger names;
+- assign every direct emitter an owner (milestone, M7 stage, M8
+  family, or out-of-scope with cause) as a column in the dispositions
+  file — the initial assignment derives mechanically from the
+  emitter's site codes through the A5 family map; manual review is
+  only for cross-family helpers;
 - expand reviewed rules into exact generated entries so the frozen file
   remains identity-complete.
 
@@ -489,7 +560,8 @@ the inventory hash.
 Join B2's runtime hits to D2's static closure. Every direct emitter is
 executed or has zero-hit evidence. Every closure identity is ported,
 deferred, or not applicable. Report contradictions such as an executed
-emitter marked not applicable.
+emitter marked not applicable, or an executed emitter with no family
+owner.
 
 ### Track E — reproducible operation and current documentation
 
@@ -533,23 +605,26 @@ incorrect:
 | 1 | A1 set ratchet + syntactic CI | any further large semantic slice |
 | 2 | M4 5.9d / 5.9e close | M5 |
 | 3 | A2 exact scope identity | any scope classification/freeze |
-| 4 | E1 hosted CI + toolchain | M5 close |
-| 5 | E2 documentation cleanup | M5 close |
-| 6 | M5 flow | M6 |
-| 7 | M6 transaction precondition, then M6 | M7 |
-| 8 | B1 evidence protocol + D2 closure tooling | M7 close |
-| 9 | B2 coverage + B3 fuzzer + B4 perf | M7 close |
-| 10 | M7 including A3 formatter structure | M8 entry |
-| 11 | D1-D3 zero/complete + scope frozen | M7 close |
-| 12 | `m8 readiness --require-ready` | first M8 semantic slice |
-| 13 | A4 report-only completion gate | early M8 |
-| 14 | bounded M8 tiers + recovery zero | M9 |
-| 15 | M9 nightly steady state | `completion --require-done` |
+| 4 | A5 family map + non-2XXX rollup | M5 close |
+| 5 | E1 hosted CI + toolchain | M5 close |
+| 6 | E2 documentation cleanup | M5 close |
+| 7 | M5 flow | M6 |
+| 8 | M6 transaction precondition, then M6 | M7 |
+| 9 | B1 evidence protocol + D2 closure tooling | M7 close |
+| 10 | B2 coverage + B3 fuzzer + B4 perf | M7 close |
+| 11 | M7 including A3 formatter structure | M8 entry |
+| 12 | D1-D3 zero/complete + scope frozen | M7 close |
+| 13 | `m8 readiness --require-ready` | first M8 semantic slice |
+| 14 | A4 report-only completion gate | early M8 |
+| 15 | bounded M8 tiers + recovery zero | M9 |
+| 16 | M9 nightly steady state | `completion --require-done` |
 
 A1 is intentionally first because every later semantic result is harder
 to trust without it. A2 is early because scope data becomes expensive to
-migrate after classification starts. Evidence work begins before M7 to
-avoid turning M7 close into a large infrastructure cliff.
+migrate after classification starts. A5 sits before M5 close so the M5
+flow family rows, C4's per-stage gates, and D2's owner column consume a
+reviewed map instead of ad-hoc code lists. Evidence work begins before
+M7 to avoid turning M7 close into a large infrastructure cliff.
 
 ## 5. Per-slice review template
 
@@ -594,8 +669,8 @@ occurs:
 
 ## 7. Completion forecast and decision points
 
-With A1-A4 and B1 in place, completion becomes falsifiable and progress
-becomes set-monotone. The current architecture is then adequate for the
+With A1-A5 and B1 in place, completion becomes falsifiable and progress
+becomes set-monotone per family, not only in aggregate. The current architecture is then adequate for the
 fixed 6.0.3 batch-checker scope: M5 and M7 have large measured owner
 families, M6 has an explicit transaction prerequisite, and M8 has a
 complete tsc-side inventory rather than a guessed function list.

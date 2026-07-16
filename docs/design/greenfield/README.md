@@ -66,6 +66,16 @@ node-id-keyed cross-program caches), and the future L-track. Work a
 phase by reading: this README → 2xxx-first-order.md → the phase's
 steps doc → its impl companion → the cited parent-doc sections.
 
+**Non-2XXX companion:**
+[non-2xxx-first-order.md](non-2xxx-first-order.md) — the family map
+and scheduling skeleton for everything outside codes 2000-2999
+(2xxx-first-order.md leaves those diffs invisible by design). It
+decomposes the non-2XXX bands into implementation-owner families
+keyed by (code, pass), records their measured baselines, and defines
+the per-family acceptance that C4/M7 stage gates and the M8 residual
+snapshot consume. The convergence plan's A5 slice turns it into a
+machine map + rollup.
+
 This is a FROM-SCRATCH build (workspace `tsrs2/`). Nothing in the
 existing `src/` is consulted; the only implementation references are
 the vendored tsc and these documents.
