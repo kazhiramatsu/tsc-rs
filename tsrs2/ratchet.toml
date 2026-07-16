@@ -37,10 +37,11 @@ allowed_regression = 0.0
 # Untagged Unsupported/M4Dependency reasons (no parseable owner
 # stage). Monotone non-increasing; must reach 0 by the M4 close.
 # Owner-less reasons with an explicit recovery marker ("parse
-# recovery"/"parse-recovery"/"recovery node") classify as permanent
-# RECOVERY guards since 5.7b and ratchet separately below — a new
+# recovery"/"parse-recovery"/"recovery node") classify as milestone-stable
+# RECOVERY guards through M7 and ratchet separately below — a new
 # marked guard trips max_recovery, so re-labeling real containment
-# escapes as "recovery" cannot slip past the gate.
+# escapes as "recovery" cannot slip past the gate. Done still requires
+# these paths to leave the Unsupported channel (m8-readiness.md).
 # 5.9a: 114 -> 93 — the M4-end sweep triage re-owned 19 sites to M8
 # (JSDoc/checkJs band, conditional/mapped families, display T2 tails)
 # and 2 to M6 (assertion-deferred stash seam, tuple renderer) per the
@@ -92,4 +93,3 @@ max_untagged = 9
 # kind tail (Debug.fail transcription, 56707-56708), and the
 # export-assignment-without-expression parse-recovery guard.
 max_recovery = 112
-

@@ -49,7 +49,7 @@ Every one of the 157 entries gets exactly one:
    full-corpus conformance (5,908 fixtures / 48,719 diagnostic
    rows), the bind-corpus smoke (11,130 files parsed+bound, added
    to ci with this slice), and the invariants suite.
-2. **recovery** — a permanent guard for input that IS reachable
+2. **recovery** — a milestone-stable guard for input that IS reachable
    but for which no tsc semantics exist: malformed/parse-recovery
    trees, and the tsc-CRASH family (inputs on which the vendored
    tsc throws — Debug.fail transcriptions and implicit TypeError
@@ -62,6 +62,10 @@ Every one of the 157 entries gets exactly one:
    "parse-recovery", following the established Debug.fail
    wording); `max_recovery` bumps with a justification comment
    (the gate makes re-labeling a review surface by design).
+   This is permanent as recovery *behavior*, not as an
+   `Unsupported` implementation: the later normative Done contract
+   moves these paths to deterministic recovery values/control flow
+   before the escape-zero gate.
 3. **stage re-own (M5/M6/M7/M8)** — later-milestone semantics;
    reason gains the owner tag. Standing assignments: flow → M5;
    inference/overloads/speculation → M6; unused/grammar/suggestion

@@ -108,8 +108,8 @@ is one commit.
 | M5 flow narrowing | [m5-flow-steps.md](m5-flow-steps.md) | T0 ≥ 50%; idempotence/jobs invariants green |
 | M6 inference + overloads | [m6-inference-calls-steps.md](m6-inference-calls-steps.md) | T0 ≥ 58% |
 | M7 unused/grammar/suggestion | [m7-tail-steps.md](m7-tail-steps.md) | T0 ≥ 63%; T1 measured and ratcheted |
-| M8 long tail | no doc — the mining loop below | T0 ratchet climbs; T2/T3 activated |
-| M9 fuzzer + coverage | greenfield §7.7 + §8 | new-signature rate < 1/night |
+| M8 long tail | [m8-readiness.md](m8-readiness.md) + the mining loop below | supported-scope T2/T3 activated; all-corpus FP=0 |
+| M9 fuzzer hardening + coverage | greenfield §7.7 + §8 | the M8-entry differential loop reaches new-signature rate < 1/night |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,
@@ -153,6 +153,13 @@ from T0 to T2/T3 by turning on stricter comparators fixture-family by
 fixture-family in `ratchet.toml`. The classifier, snapshot procedure,
 and triage discipline are the same as the parent repo's
 EXECUTION-GUIDE; only the engine under test differs.
+
+M8 has an executable entry contract: see
+[m8-readiness.md](m8-readiness.md) and run `cargo xtask m8 readiness`.
+The fixed corpus is always reported whole; only exact reviewed
+host-resolution/JSDoc/emit-dependent oracle diagnostics leave the
+supported-scope T1-T4 denominator. The minimal differential fuzzer
+is running before M8 begins; M9 hardens it rather than introducing it.
 
 ## Conventions
 

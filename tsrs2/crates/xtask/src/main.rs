@@ -36,6 +36,17 @@ fn main() {
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("conformance") => run_or_exit(conformance(args)),
         Some("invariants") => run_or_exit(invariants(args)),
+        Some("m8") => match args.next().as_deref() {
+            Some("readiness") => run_or_exit(m8_readiness(args)),
+            Some(other) => {
+                eprintln!("unknown m8 command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing m8 command (readiness)");
+                std::process::exit(2);
+            }
+        },
         Some("relpin") => match args.next().as_deref() {
             Some("gen") => run_or_exit(relpin::gen(args)),
             Some("run") => run_or_exit(relpin::run(args)),
@@ -72,6 +83,7 @@ fn main() {
             Some("enums-check") => run_or_exit(codegen_enums(true)),
             Some("scanner") => run_or_exit(codegen_scanner(false)),
             Some("scanner-check") => run_or_exit(codegen_scanner(true)),
+            Some("band-inventory") => run_or_exit(codegen_band_inventory(args)),
             Some(other) => {
                 eprintln!("unknown codegen target: {other}");
                 std::process::exit(2);
@@ -86,6 +98,558 @@ fn main() {
             std::process::exit(2);
         }
     }
+}
+
+fn codegen_band_inventory(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let workspace = find_tsrs2_root()?;
+    let mut band = "all".to_owned();
+    let mut check = false;
+    let mut by_function = false;
+    let mut out = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--band" => {
+                band = args.next().ok_or("missing value after --band")?;
+                if !matches!(band.as_str(), "all" | "2xxx") {
+                    return Err(format!("unknown inventory band: {band}").into());
+                }
+            }
+            "--by-function" => by_function = true,
+            "--check" => check = true,
+            "--out" => {
+                out = Some(PathBuf::from(
+                    args.next().ok_or("missing value after --out")?,
+                ))
+            }
+            _ => return Err(format!("unexpected band-inventory argument: {arg}").into()),
+        }
+    }
+    if !by_function {
+        return Err("band-inventory requires --by-function; code-only inventory is not an M8 completeness proof".into());
+    }
+    let output = Command::new("node")
+        .arg(workspace.join("crates/oracle/emitter-inventory.mjs"))
+        .arg(workspace.join("vendor/typescript-6.0.3/lib/_tsc.js"))
+        .arg(&band)
+        .output()?;
+    if !output.status.success() {
+        return Err(format!(
+            "emitter inventory worker failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+    let _: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let target = out.unwrap_or_else(|| {
+        if band == "all" {
+            workspace.join("m8-emitter-inventory.json")
+        } else {
+            workspace.join("target/codegen/2xxx-emitter-inventory.json")
+        }
+    });
+    if check {
+        let recorded = fs::read(&target).map_err(|err| {
+            format!(
+                "missing generated emitter inventory {}: {err}; run without --check",
+                target.display()
+            )
+        })?;
+        if recorded != output.stdout {
+            return Err(format!(
+                "stale emitter inventory {}; regenerate and review the diff",
+                target.display()
+            )
+            .into());
+        }
+        println!("emitter inventory fresh: band={band} {}", target.display());
+    } else {
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&target, &output.stdout)?;
+        println!(
+            "emitter inventory written: band={band} {}",
+            target.display()
+        );
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+struct M8EmitterInventory {
+    schema: u32,
+    source_sha256: String,
+    band: String,
+    summary: M8EmitterInventorySummary,
+    functions: Vec<M8EmitterFunction>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8EmitterInventorySummary {
+    emitter_functions: usize,
+    diagnostic_references: usize,
+    closure_functions: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8EmitterFunction {
+    id: String,
+    name: String,
+    direct_emitter: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8EmitterDispositions {
+    schema: u32,
+    status: String,
+    inventory_sha256: String,
+    #[serde(default)]
+    entries: Vec<M8EmitterDisposition>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8EmitterDisposition {
+    function: String,
+    disposition: String,
+    evidence: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8Evidence {
+    schema: u32,
+    runtime_coverage: M8RuntimeCoverageEvidence,
+    fuzzer: M8FuzzerEvidence,
+    performance: M8PerformanceEvidence,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8RuntimeCoverageEvidence {
+    status: String,
+    inventory_sha256: String,
+    #[serde(default)]
+    executed_emitters: Vec<String>,
+    #[serde(default)]
+    zero_hit_emitters: Vec<M8ZeroHitEmitter>,
+    artifact: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8ZeroHitEmitter {
+    function: String,
+    evidence: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8FuzzerEvidence {
+    status: String,
+    ci_command: Option<String>,
+    generated_cases: usize,
+    oracle_comparisons: usize,
+    reducer_smoke: bool,
+    signature_dedupe: bool,
+    artifact: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8PerformanceEvidence {
+    status: String,
+    wall_seconds: Option<f64>,
+    max_rss_bytes: Option<u64>,
+    ceiling_wall_seconds: Option<f64>,
+    ceiling_rss_bytes: Option<u64>,
+    artifact: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct M8ReadinessGate {
+    name: String,
+    ready: bool,
+    detail: String,
+}
+
+#[derive(Debug, Serialize)]
+struct M8ReadinessReport {
+    schema: u32,
+    ready: bool,
+    gates: Vec<M8ReadinessGate>,
+}
+
+fn m8_readiness(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut require_ready = false;
+    for arg in args {
+        match arg.as_str() {
+            "--require-ready" => require_ready = true,
+            _ => return Err(format!("unexpected m8 readiness argument: {arg}").into()),
+        }
+    }
+
+    let workspace = find_tsrs2_root()?;
+    let out_dir = workspace.join("target/m8");
+    fs::create_dir_all(&out_dir)?;
+    ledger_check()?;
+    codegen_band_inventory(
+        ["--by-function", "--band", "all", "--check"]
+            .into_iter()
+            .map(str::to_owned),
+    )?;
+    let conformance = tsrs2_conformance::run_conformance(&tsrs2_conformance::ConformanceOptions {
+        workspace: workspace.clone(),
+        limit: None,
+        files: Vec::new(),
+        out_json: out_dir.join("conformance.json"),
+        band: tsrs2_conformance::DiagnosticBand::All,
+    })?;
+
+    let inventory_path = workspace.join("m8-emitter-inventory.json");
+    let inventory: M8EmitterInventory = read_json(&inventory_path)?;
+    if inventory.schema != 1 || inventory.band != "all" {
+        return Err("m8-emitter-inventory.json must be schema 1, band all".into());
+    }
+    let bundle_hash = sha256_file(&workspace.join("vendor/typescript-6.0.3/lib/_tsc.js"))?;
+    let inventory_fresh = inventory.source_sha256 == bundle_hash;
+    let inventory_hash = sha256_file(&inventory_path)?;
+
+    let dispositions: M8EmitterDispositions =
+        read_json(&workspace.join("m8-emitter-dispositions.json"))?;
+    if dispositions.schema != 1 {
+        return Err("m8-emitter-dispositions.json must be schema 1".into());
+    }
+    let mut explicit = BTreeMap::new();
+    for entry in &dispositions.entries {
+        if !matches!(entry.disposition.as_str(), "deferred" | "not-applicable") {
+            return Err(format!(
+                "invalid M8 emitter disposition for {}: {}",
+                entry.function, entry.disposition
+            )
+            .into());
+        }
+        if entry.evidence.trim().is_empty() {
+            return Err(format!(
+                "M8 emitter disposition for {} has no evidence",
+                entry.function
+            )
+            .into());
+        }
+        if explicit.insert(entry.function.as_str(), entry).is_some() {
+            return Err(format!("duplicate M8 emitter disposition for {}", entry.function).into());
+        }
+    }
+    let inventory_ids = inventory
+        .functions
+        .iter()
+        .map(|function| function.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let extra_dispositions = explicit
+        .keys()
+        .filter(|function| !inventory_ids.contains(**function))
+        .count();
+    let ledger_entries = collect_ledger_entries(&workspace)?;
+    let ported_names = ledger_entries
+        .iter()
+        .map(|entry| entry.port_name.as_str())
+        .collect::<BTreeSet<_>>();
+    let unaccounted_closure = inventory
+        .functions
+        .iter()
+        .filter(|function| {
+            !ported_names.contains(function.name.as_str())
+                && !explicit.contains_key(function.id.as_str())
+        })
+        .count();
+    let emitter_closure_ready = dispositions.status == "frozen"
+        && dispositions.inventory_sha256 == inventory_hash
+        && inventory_fresh
+        && unaccounted_closure == 0
+        && extra_dispositions == 0;
+
+    let evidence: M8Evidence = read_json(&workspace.join("m8-evidence.json"))?;
+    if evidence.schema != 1 {
+        return Err("m8-evidence.json must be schema 1".into());
+    }
+    let runtime = &evidence.runtime_coverage;
+    let direct_emitter_ids = inventory
+        .functions
+        .iter()
+        .filter(|function| function.direct_emitter)
+        .map(|function| function.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let executed_emitters = runtime
+        .executed_emitters
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    let mut zero_hit_emitters = BTreeSet::new();
+    let mut zero_hit_invalid_evidence = 0usize;
+    for emitter in &runtime.zero_hit_emitters {
+        if emitter.evidence.trim().is_empty()
+            || !zero_hit_emitters.insert(emitter.function.as_str())
+        {
+            zero_hit_invalid_evidence += 1;
+        }
+    }
+    let runtime_duplicates = runtime.executed_emitters.len() - executed_emitters.len()
+        + runtime.zero_hit_emitters.len()
+        - zero_hit_emitters.len();
+    let runtime_overlap = executed_emitters.intersection(&zero_hit_emitters).count();
+    let runtime_accounted = executed_emitters
+        .union(&zero_hit_emitters)
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let runtime_missing = direct_emitter_ids.difference(&runtime_accounted).count();
+    let runtime_extra = runtime_accounted.difference(&direct_emitter_ids).count();
+    let runtime_ready = runtime.status == "ready"
+        && runtime.inventory_sha256 == inventory_hash
+        && direct_emitter_ids.len() == inventory.summary.emitter_functions
+        && !executed_emitters.is_empty()
+        && runtime_missing == 0
+        && runtime_extra == 0
+        && runtime_duplicates == 0
+        && runtime_overlap == 0
+        && zero_hit_invalid_evidence == 0
+        && artifact_exists(&workspace, runtime.artifact.as_deref());
+    let fuzzer = &evidence.fuzzer;
+    let fuzzer_ready = fuzzer.status == "ready"
+        && fuzzer
+            .ci_command
+            .as_deref()
+            .is_some_and(|command| !command.trim().is_empty())
+        && fuzzer.generated_cases > 0
+        && fuzzer.oracle_comparisons == fuzzer.generated_cases
+        && fuzzer.reducer_smoke
+        && fuzzer.signature_dedupe
+        && artifact_exists(&workspace, fuzzer.artifact.as_deref());
+    let performance = &evidence.performance;
+    let performance_ready = match (
+        performance.wall_seconds,
+        performance.max_rss_bytes,
+        performance.ceiling_wall_seconds,
+        performance.ceiling_rss_bytes,
+    ) {
+        (Some(wall), Some(rss), Some(wall_ceiling), Some(rss_ceiling)) => {
+            performance.status == "ready"
+                && wall >= 0.0
+                && wall <= wall_ceiling
+                && wall_ceiling > 0.0
+                && wall_ceiling <= 60.0
+                && rss > 0
+                && rss <= rss_ceiling
+                && rss_ceiling > 0
+                && artifact_exists(&workspace, performance.artifact.as_deref())
+        }
+        _ => false,
+    };
+
+    let t1_active = ratchet_section_has_exact_counts(&workspace.join("ratchet.toml"), "t1")?;
+    let undispositioned = collect_undispositioned_checker_fns(&workspace)?.len();
+    let mut gates = Vec::new();
+    add_m8_gate(
+        &mut gates,
+        "m7-gate",
+        conformance.t0_rate >= 0.63 && conformance.false_positive_diagnostics == 0 && t1_active,
+        format!(
+            "T0={:.4}% FP={} T1-ratchet-active={t1_active}",
+            conformance.t0_rate * 100.0,
+            conformance.false_positive_diagnostics
+        ),
+    );
+    add_m8_gate(
+        &mut gates,
+        "shadow-tiers",
+        conformance.oracle_diagnostics > 0
+            && conformance.shadow_t1_matched > 0
+            && conformance.shadow_t2_matched > 0
+            && conformance.shadow_t3_matched > 0,
+        format!(
+            "T1={:.4}% T2={:.4}% T3={:.4}%",
+            conformance.shadow_t1_rate * 100.0,
+            conformance.shadow_t2_rate * 100.0,
+            conformance.shadow_t3_rate * 100.0
+        ),
+    );
+    add_m8_gate(
+        &mut gates,
+        "scope-frozen",
+        conformance.scope_status == "frozen" && conformance.scope_resolved_t0_diagnostics == 0,
+        format!(
+            "status={} entries={} excluded={} resolved-t0={}",
+            conformance.scope_status,
+            conformance.scope_manifest_entries,
+            conformance.scope_excluded_diagnostics,
+            conformance.scope_resolved_t0_diagnostics
+        ),
+    );
+    add_m8_gate(
+        &mut gates,
+        "rust-function-dispositions",
+        undispositioned == 0,
+        format!("undispositioned={undispositioned}"),
+    );
+    add_m8_gate(
+        &mut gates,
+        "emitter-inventory",
+        inventory_fresh,
+        format!(
+            "fresh={inventory_fresh} emitters={} diagnostic-refs={} closure={}",
+            inventory.summary.emitter_functions,
+            inventory.summary.diagnostic_references,
+            inventory.summary.closure_functions
+        ),
+    );
+    add_m8_gate(
+        &mut gates,
+        "emitter-dependency-closure",
+        emitter_closure_ready,
+        format!(
+            "status={} unaccounted={} extra={} inventory-match={}",
+            dispositions.status,
+            unaccounted_closure,
+            extra_dispositions,
+            dispositions.inventory_sha256 == inventory_hash
+        ),
+    );
+    add_m8_gate(
+        &mut gates,
+        "runtime-coverage",
+        runtime_ready,
+        format!(
+            "status={} accounted={}/{} executed={} zero-hit={} missing={} extra={} duplicate={} overlap={} invalid-evidence={}",
+            runtime.status,
+            runtime_accounted.intersection(&direct_emitter_ids).count(),
+            inventory.summary.emitter_functions,
+            executed_emitters.len(),
+            zero_hit_emitters.len(),
+            runtime_missing,
+            runtime_extra,
+            runtime_duplicates,
+            runtime_overlap,
+            zero_hit_invalid_evidence
+        ),
+    );
+    add_m8_gate(
+        &mut gates,
+        "differential-fuzzer",
+        fuzzer_ready,
+        format!(
+            "status={} generated={} compared={} reducer-smoke={} signature-dedupe={}",
+            fuzzer.status,
+            fuzzer.generated_cases,
+            fuzzer.oracle_comparisons,
+            fuzzer.reducer_smoke,
+            fuzzer.signature_dedupe
+        ),
+    );
+    add_m8_gate(
+        &mut gates,
+        "performance-baseline",
+        performance_ready,
+        format!(
+            "status={} wall={:?}/{:?}s rss={:?}/{:?}",
+            performance.status,
+            performance.wall_seconds,
+            performance.ceiling_wall_seconds,
+            performance.max_rss_bytes,
+            performance.ceiling_rss_bytes
+        ),
+    );
+
+    let ready = gates.iter().all(|gate| gate.ready);
+    let report = M8ReadinessReport {
+        schema: 1,
+        ready,
+        gates,
+    };
+    fs::write(
+        out_dir.join("readiness.json"),
+        serde_json::to_string_pretty(&report)?,
+    )?;
+    for gate in &report.gates {
+        println!(
+            "{} {}: {}",
+            if gate.ready { "[ok]" } else { "[ ]" },
+            gate.name,
+            gate.detail
+        );
+    }
+    println!(
+        "M8 readiness: {}/{} gates ready; report={}",
+        report.gates.iter().filter(|gate| gate.ready).count(),
+        report.gates.len(),
+        out_dir.join("readiness.json").display()
+    );
+    if require_ready && !ready {
+        return Err("M8 readiness gate is not complete".into());
+    }
+    Ok(())
+}
+
+fn add_m8_gate(gates: &mut Vec<M8ReadinessGate>, name: &str, ready: bool, detail: String) {
+    gates.push(M8ReadinessGate {
+        name: name.to_owned(),
+        ready,
+        detail,
+    });
+}
+
+fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, Box<dyn Error>> {
+    Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
+}
+
+fn sha256_file(path: &Path) -> Result<String, Box<dyn Error>> {
+    let mut hasher = Sha256::new();
+    hasher.update(fs::read(path)?);
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn artifact_exists(workspace: &Path, artifact: Option<&str>) -> bool {
+    artifact.is_some_and(|artifact| {
+        let path = PathBuf::from(artifact);
+        if path.is_absolute()
+            || path.components().any(|component| {
+                matches!(
+                    component,
+                    std::path::Component::ParentDir
+                        | std::path::Component::RootDir
+                        | std::path::Component::Prefix(_)
+                )
+            })
+        {
+            return false;
+        }
+        let Ok(workspace) = workspace.canonicalize() else {
+            return false;
+        };
+        let Ok(path) = workspace.join(path).canonicalize() else {
+            return false;
+        };
+        path.starts_with(&workspace) && path.is_file()
+    })
+}
+
+fn ratchet_section_has_exact_counts(path: &Path, section: &str) -> Result<bool, Box<dyn Error>> {
+    let text = fs::read_to_string(path)?;
+    let mut in_section = false;
+    let mut matched = None;
+    let mut total = None;
+    for raw_line in text.lines() {
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        if line.starts_with('[') && line.ends_with(']') {
+            in_section = &line[1..line.len() - 1] == section;
+            continue;
+        }
+        if !in_section {
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        match key.trim() {
+            "matched" => matched = Some(value.trim().parse::<u64>()?),
+            "total" => total = Some(value.trim().parse::<u64>()?),
+            _ => {}
+        }
+    }
+    Ok(matches!((matched, total), (Some(matched), Some(total)) if matched > 0 && total > 0))
 }
 
 fn expand_fixture(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -1190,13 +1754,28 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         summary.mismatch_cases
     );
     println!(
-        "shadow (non-gating) T1={:.4}% ({}) T2={:.4}% ({}) T3={:.4}% ({})",
+        "shadow tiers T1={:.4}% ({}, ratcheted when configured) T2={:.4}% ({}, non-gating) T3={:.4}% ({}, non-gating)",
         summary.shadow_t1_rate * 100.0,
         summary.shadow_t1_matched,
         summary.shadow_t2_rate * 100.0,
         summary.shadow_t2_matched,
         summary.shadow_t3_rate * 100.0,
         summary.shadow_t3_matched
+    );
+    println!(
+        "M8 scope={} entries={} excluded={} unresolved={} resolved-t0={} supported T0={:.4}% ({}/{}) T1={:.4}% T2={:.4}% T3={:.4}% FN={}",
+        summary.scope_status,
+        summary.scope_manifest_entries,
+        summary.scope_excluded_diagnostics,
+        summary.scope_unresolved_diagnostics,
+        summary.scope_resolved_t0_diagnostics,
+        summary.supported_t0_rate * 100.0,
+        summary.supported_matched_t0_diagnostics,
+        summary.supported_oracle_diagnostics,
+        summary.supported_t1_rate * 100.0,
+        summary.supported_t2_rate * 100.0,
+        summary.supported_t3_rate * 100.0,
+        summary.supported_false_negative_diagnostics,
     );
     println!("mismatch json: {}", out_json.display());
     Ok(())
@@ -1820,9 +2399,10 @@ struct EscapeSite {
     containing_fn: String,
     reason: String,
     owner: Option<StageKey>,
-    /// Owner-less PERMANENT guards for malformed/parse-recovery trees
-    /// — auditable as a class (they never expire), so they do not
-    /// count against the untagged ratchet. Classification is strict:
+    /// Owner-less milestone-stable guards for malformed/parse-recovery
+    /// trees — auditable as a class through M7, so they do not count
+    /// against the untagged ratchet. Done still removes Unsupported
+    /// from these paths. Classification is strict:
     /// only reasons carrying an explicit recovery marker qualify.
     recovery: bool,
 }
@@ -1934,9 +2514,9 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
 /// ARE scanned (their static text carries the owner tag); only the
 /// wrappers' own `{worker}…{owner}` templates are excluded.
 /// Owner-less reasons carrying an explicit recovery marker classify
-/// as permanent RECOVERY guards (auditable as a class, exempt from
-/// the untagged ratchet); everything else owner-less is untagged
-/// debt.
+/// as milestone-stable RECOVERY guards (auditable through M7 and
+/// exempt from the untagged ratchet); everything else owner-less is
+/// untagged debt. The final gate still removes Unsupported here.
 fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
     // Line-indexed fn-definition table for containing-fn lookup: the
     // last `fn name(` at or before an escape's line encloses it
@@ -2170,8 +2750,9 @@ struct EscapeManifestEntry {
     file: String,
     containing_fn: String,
     reason: String,
-    /// "stage" (owner-tagged deferral) | "recovery" (permanent
-    /// malformed-tree guard) | "untagged" (debt — 0 by M4 close).
+    /// "stage" (owner-tagged deferral) | "recovery" (milestone-stable
+    /// malformed-tree guard through M7) | "untagged" (debt — 0 by M4
+    /// close).
     class: String,
     /// Display owner for class == "stage" ("5.8", "5.7b", "M5"…).
     owner: Option<String>,
@@ -2228,8 +2809,9 @@ fn render_escape_manifest(entries: &[EscapeManifestEntry]) -> String {
          # a same-reason site swap WITHIN one function at unchanged count\n\
          # (function-level debt tracking by design; per-site IDs were judged\n\
          # not worth the annotation churn). Line numbers deliberately omitted.\n\
-         # class: stage (owner-tagged deferral) | recovery (permanent\n\
-         # malformed-tree guard) | untagged (debt; 0 by M4 close —\n\
+         # class: stage (owner-tagged deferral) | recovery (milestone-stable\n\
+         # malformed-tree guard through M7; leaves Unsupported before Done) |\n\
+         # untagged (debt; 0 by M4 close —\n\
          # ratchet.toml [escapes] ceilings still apply on top).\n",
     );
     for entry in entries {
@@ -3034,6 +3616,16 @@ fn ci() -> Result<(), Box<dyn Error>> {
     )?;
     run_command(Command::new("cargo").arg("build").arg("--workspace"))?;
     run_command(Command::new("cargo").arg("test").arg("--workspace"))?;
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("codegen")
+            .arg("band-inventory")
+            .arg("--by-function")
+            .arg("--band")
+            .arg("all")
+            .arg("--check"),
+    )?;
     run_command(Command::new("cargo").arg("xtask").arg("relpin").arg("run"))?;
     // Parse+bind smoke over the full corpus (~1s): the cheap panic
     // net for the parser/binder invariants the 5.9a dead-guard

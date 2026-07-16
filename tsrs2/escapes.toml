@@ -7,8 +7,9 @@
 # a same-reason site swap WITHIN one function at unchanged count
 # (function-level debt tracking by design; per-site IDs were judged
 # not worth the annotation churn). Line numbers deliberately omitted.
-# class: stage (owner-tagged deferral) | recovery (permanent
-# malformed-tree guard) | untagged (debt; 0 by M4 close —
+# class: stage (owner-tagged deferral) | recovery (milestone-stable
+# malformed-tree guard through M7; leaves Unsupported before Done) |
+# untagged (debt; 0 by M4 close —
 # ratchet.toml [escapes] ceilings still apply on top).
 
 [[site]]
