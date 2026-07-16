@@ -139,6 +139,28 @@ tombstone standing on that bucket. There is no regression
 allowlist: the oracle and corpus are fixed, so a temporarily regressing
 refactor stays off `main`.
 
+The additions-only rule must hold against history, not only against
+the file in the working tree — replacing the artifact wholesale and
+refreshing the derived summaries would otherwise delete identities
+from the left-hand side of the rejection check while the
+implementation regresses in step. The artifact therefore records its
+lineage: a `previous` field, stamped by `ratchet update`, carrying
+the commit and SHA-256 of the version it grew from, the first
+version marked as the explicit bootstrap baseline reviewed at the A1
+landing. `ratchet check` verifies that the recorded previous commit
+is an ancestor of HEAD and is the most recent commit in
+`git log HEAD -- <artifact path>` other than the change under review
+— the immediate predecessor version, so the pointer is not
+chooseable and chaining from an older version to hide a removal
+fails — that the artifact committed there hashes to the recorded
+SHA-256, and that every accepted set at that version (all
+matched-tier sets and the multiplicity-complete set) is a subset of
+the corresponding current set. A history too shallow to reach the predecessor fails rather
+than passing vacuously. This lineage is what the A2 tombstone proofs
+and the A5 rollup stand on: artifact membership stays durable even
+against a coordinated edit of artifact, summaries, and
+implementation.
+
 Partial runs (`--limit`, explicit fixture lists) compare only the
 fixtures actually executed against their accepted subsets — the
 matched-tier and multiplicity-complete sets under the same subset
@@ -167,6 +189,14 @@ Required regression tests:
 - a pure addition passes before and after `ratchet update`;
 - a bucket accepted at 2/2 regressing to 2/1 fails and names the
   bucket, even though its T0 key remains in the matched set;
+- deleting an accepted identity from the artifact while regressing
+  the implementation and refreshing the derived `ratchet.toml`
+  summaries in the same change fails: the lineage subset check
+  names the removed identity;
+- an artifact change whose recorded previous is a valid ancestor
+  but not the immediate predecessor of the artifact path fails;
+- a previous-hash mismatch fails as stale; a predecessor
+  unreachable in a shallow history fails rather than passing;
 - a syntactic FN cannot be hidden by a semantic addition;
 - a comparator or corpus hash mismatch fails as stale.
 
@@ -239,9 +269,11 @@ audit` enforces three rules from defined inputs:
   on a fresh clone without any historical build product, and
   standing: the A1 gate ratchets the matched-tier and
   multiplicity-complete sets alike (accepted minus current is empty
-  for both, partial runs included), so neither the T0 match nor the
-  bucket's completeness can silently disappear — a later regression
-  inside the bucket fails conformance itself, not merely the audit.
+  for both, partial runs included) and the artifact itself is
+  lineage-anchored against wholesale replacement, so neither the T0
+  match nor the bucket's completeness can silently disappear — a
+  later regression inside the bucket fails conformance itself, not
+  merely the audit.
   Tombstones deliberately ride A1 (§4 row 1), not B1 — B1 lands
   after the phase-9 sweep, and a `target/` artifact from a past
   commit is unverifiable from a fresh clone. A pinned band's live
@@ -734,9 +766,10 @@ Branch: `infra/hosted-ci`
 - pin the supported Node major/minor for the oracle;
 - run `cargo xtask ci` in a required GitHub Actions check;
 - check out enough git history to reach every recorded adjudication
-  commit — the scope band-freeze (A2) and family-map freeze (A5)
-  history anchors fail on a too-shallow clone rather than passing
-  vacuously;
+  commit and the A1 artifact's lineage predecessor — the set-ratchet
+  lineage (A1), scope band-freeze (A2), and family-map freeze (A5)
+  history anchors all fail on a too-shallow clone rather than
+  passing vacuously;
 - run the syntactic gate explicitly until it is folded into `ci`;
 - add a scheduled fuzz workflow when B3 lands;
 - upload mismatch, readiness, completion, and fuzz artifacts on failure.
