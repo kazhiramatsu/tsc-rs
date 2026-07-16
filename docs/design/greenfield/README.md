@@ -35,11 +35,14 @@ repairs exact scope/T4/evidence gates, and sequences M4 close through the
 final M9 completion command. It owns execution order and acceptance
 artifacts; the definition of done still owns the end state.
 
-**Scheduling authority:**
+**Band strategy (2XXX first):**
 [2xxx-first-order.md](2xxx-first-order.md) — the build is ordered
 around one goal: complete 2XXX-band parity first (phases 0-9,
-re-sequencing the milestone table below; no emitter is built). The
-impl companions carry copy-level code and port tables:
+re-sequencing the milestone table below; no emitter is built).
+Milestone landing order — including the recorded phase-7/8 swap (M5
+flow before M6 full inference) — is owned by the convergence plan's
+§4 table; this doc owns the band goal, phase content, and band gates.
+The impl companions carry copy-level code and port tables:
 [impl-nodes.md](impl-nodes.md) (the tsc-field-compatible Node
 contract: generated node structs + for_each_child from
 forEachChildTable, line map, externalModuleIndicator, the AST tree

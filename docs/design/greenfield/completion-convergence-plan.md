@@ -304,7 +304,10 @@ cargo xtask ci
 Required tests:
 
 - an unmapped (code, pass) row in the corpus fails `families check`;
-- a code mapped to two families fails;
+- the same (code, pass) row mapped to two families fails;
+- a code split across passes with different owners is accepted — the
+  map key is the row, never the bare code (1453 arrives syntactic
+  and semantic, 6133 semantic and suggestion);
 - rollup counts recompute from the artifact, never from the map;
 - the cross-band exemplars (7027, 6053, 6133-both-passes) are
   represented in the shipped map.
@@ -544,9 +547,24 @@ inventory review surface without weakening its conservative closure:
 - auto-account fresh `tsc-port` ledger names;
 - assign every direct emitter an owner (milestone, M7 stage, M8
   family, or out-of-scope with cause) as a column in the dispositions
-  file — the initial assignment derives mechanically from the
-  emitter's site codes through the A5 family map; manual review is
-  only for cross-family helpers;
+  file. The A5 join alone cannot complete the column — the 607 direct
+  emitters carry sites spanning 1,731 distinct codes, of which the
+  corpus exercises 746 (410 non-2XXX + 336 2XXX) and 985 have no
+  corpus row — so the mechanical pass is three rules, a site matching
+  none stays unassigned, and manual review is limited to cross-family
+  helpers, multi-pass sites, and `unexercised` adjudication:
+  - 2XXX site codes resolve through the 2XXX emission map
+    (impl-checker-2xxx.md, backed by the 2xxx-emitter-inventory.md
+    function-to-module table), which names the owning milestone per
+    emitter function;
+  - corpus-exercised non-2XXX codes join the A5 family map on
+    (code, pass), the pass implied when the corpus sees the code in
+    exactly one pass; a multi-pass code (1453, 6133) never
+    auto-assigns by bare code — its sites carry their candidate rows
+    into manual review;
+  - the 985 codes with no corpus row take the explicit owner
+    `unexercised`, closed by B2 zero-hit evidence plus D3
+    adjudication into a family or out-of-scope with cause;
 - expand reviewed rules into exact generated entries so the frozen file
   remains identity-complete.
 
@@ -623,8 +641,15 @@ A1 is intentionally first because every later semantic result is harder
 to trust without it. A2 is early because scope data becomes expensive to
 migrate after classification starts. A5 sits before M5 close so the M5
 flow family rows, C4's per-stage gates, and D2's owner column consume a
-reviewed map instead of ad-hoc code lists. Evidence work begins before
-M7 to avoid turning M7 close into a large infrastructure cliff.
+reviewed map instead of ad-hoc code lists. Rows 7-8 fix M5 flow before
+M6 inference, exercising the swap-back clause 2xxx-first-order.md's
+phase plan records for its phases 8/7: at the 52c47bbb baseline the
+flow-unlock family carries 4,357 of the 9,995 band FNs (2454 alone
+3,962, C2) against 477 for the calls/inference-unlock family, and M6
+additionally carries the speculation-transaction start gate; both
+orders are dependency-legal and phase numbering is unchanged. Evidence
+work begins before M7 to avoid turning M7 close into a large
+infrastructure cliff.
 
 ## 5. Per-slice review template
 

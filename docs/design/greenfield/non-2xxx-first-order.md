@@ -9,7 +9,7 @@ acceptance shape each family closes on. The A5 slice of
 [completion-convergence-plan.md](completion-convergence-plan.md)
 turns the map into a machine artifact (`diag-families` map + rollup
 derived from the A1 accepted-match artifact); until that lands, the
-numbers here are a planning baseline from the `52c47cbb` tree, not a
+numbers here are a planning baseline from the `52c47bbb` tree, not a
 ratchet.
 
 The v1 roadmap (`docs/design/non-2xxx-blockers.md`) is v1-only

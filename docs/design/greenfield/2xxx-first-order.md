@@ -81,13 +81,24 @@ what phases 5-6 can show before flow and the unused-band land.
 (Clarified 2026-07-13 after the stage-5.7a external review.)
 
 Note the resequencing vs the original milestone table: flow (old M5)
-moves AFTER calls/inference (old M6) because the call/overload 2XXX
-family is larger than the flow-dependent one and does not depend on
-narrowing; narrowing DOES improve relation/member codes, so it lands
-last before the sweep, where its effect is purely additive. If
-mid-build mining shows narrowing-blocked codes dominating earlier,
-swapping phases 7 and 8 back is allowed — both orders are
-dependency-legal; record the decision in NOTES.
+was moved AFTER calls/inference (old M6) on the planning-time bet
+that the call/overload 2XXX family was the larger one and does not
+depend on narrowing; the same note allowed swapping phases 7 and 8
+back "if mid-build mining shows narrowing-blocked codes dominating
+earlier" — both orders are dependency-legal. DECIDED 2026-07-16: the
+swap-back is exercised. At the 5.9c baseline (52c47bbb; band FN
+9,995) the phase-8 unlock family 2365/2367/2454/2564/2678 holds
+4,357 FNs — 2454 alone 3,962 — against 477 for the phase-7 unlock
+family 2554/2349/2351/2345/2769/2344, whose call half was already
+crushed by 5.7's stubbed-inference calls; 2322 (1,382) and 2339
+(558) hold further narrowing-dependent residue. M6 also gained the
+speculation-transaction start gate (2026-07-14 external review).
+Execution order is therefore phase 8 (M5 flow) then phase 7 (M6 full
+inference), fixed by completion-convergence-plan.md §4 rows 7-8, the
+execution-order authority. Phase numbers stay attached to their
+content — the impl-checker-2xxx.md §8/§9 port tables are unchanged —
+and the 75%/90% calibration priors attach to landing order (first of
+the two, then both), not to phase numbers.
 
 ## The band comparator (phase 0 addition)
 
