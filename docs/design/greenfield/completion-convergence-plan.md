@@ -460,8 +460,9 @@ gate tests both cache rollback and diagnostic rollback.
 #### C4. M7 grammar, unused, suggestions, and program diagnostics
 
 C4 begins only after the 2XXX completion sweep closes the band (§4
-row 9; the phase-9 checklist: `--band 2xxx` FP and FN zero
-corpus-wide, all matrix points). Follow stages 8.1-8.5. TS6133 and
+row 9; the phase-9 checklist: all-corpus band FP zero,
+supported-scope band FN zero, exclusions frozen as exact A2
+identities, all matrix points). Follow stages 8.1-8.5. TS6133 and
 TS6196 currently account for 14,266
 FNs, so the 63% aggregate gate is calibration only: it is reachable
 from the unused family alone and certifies nothing about the other
@@ -651,7 +652,7 @@ incorrect:
 | 6 | E2 documentation cleanup | M5 close |
 | 7 | M5 flow | M6 |
 | 8 | M6 transaction precondition, then M6 | M7 |
-| 9 | 2XXX completion sweep to T0-2xxx = 100% (2xxx-first-order.md phase 9, first half) | M7 |
+| 9 | 2XXX scope adjudication (exact A2 identities), then completion sweep — all-corpus 2XXX FP = 0, supported-scope 2XXX FN = 0 (2xxx-first-order.md phase 9, first half) | M7 |
 | 10 | B1 evidence protocol + D2 closure tooling | M7 close |
 | 11 | B2 coverage + B3 fuzzer + B4 perf | M7 close |
 | 12 | M7 including A3 formatter structure | M8 entry |
@@ -729,8 +730,9 @@ The project should continue after each checkpoint only if:
 - M4 close: T0 >= 35%, FP=0, untagged/stale zero;
 - M5 close: flow canaries and invariants green;
 - M6 start: transaction rollback proof exists;
-- M7 start: the 2XXX completion sweep is closed — band FP and FN zero
-  corpus-wide (the phase-9 checklist);
+- M7 start: the 2XXX completion sweep is closed — band FP zero
+  corpus-wide, band FN zero on the supported scope, and the band's
+  scope exclusions adjudicated and frozen (the phase-9 checklist);
 - M7 close: all nine M8 readiness rows are produced and verified;
 - M8 midpoint: accepted T0/T1 sets still grow and no repeated
   architectural ceiling is being patched locally;

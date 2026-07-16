@@ -1,10 +1,15 @@
 # 2XXX-first build order — the master plan
 
 GOAL (redefines the milestone gates): full parity on the 2XXX
-diagnostic band — every code in 2000-2999, FP = 0 and FN = 0 against
-the oracle across the corpus — BEFORE investing in the other bands.
-The metric is `T0-2xxx` (T0 comparison restricted to codes
-2000-2999); full-band T0 is tracked but secondary until phase 9.
+diagnostic band — every code in 2000-2999, FP = 0 against the oracle
+across the corpus and FN = 0 on the supported scope — BEFORE
+investing in the other bands. Scope exclusions are exact
+oracle-record identities under definition-of-done.md's out-of-scope
+contract (host-resolution, jsdoc-semantics; TS2307 host misses are
+the pinned exemplar): excluded records stay FN in the all-corpus
+visibility metric and are not chased. The metric is `T0-2xxx` (T0
+comparison restricted to codes 2000-2999); full-band T0 is tracked
+but secondary until phase 9.
 
 This doc re-sequences the m*-steps docs toward the band goal (they
 remain the stage-level instructions; the impl-*.md companions carry
@@ -65,7 +70,7 @@ reading:
 | 6 | expressions/statements/declarations/classes/enums/modules/iteration. UNLOCKS: 2322/2403/2415-class family/2461-iteration family | m4-checker-skeleton-steps.md 5.5-5.8 | impl-checker-2xxx.md §5-7 | T0-2xxx ≥ 55% |
 | 7 | calls with stubbed inference, then full inference. UNLOCKS: 2554/2349/2351 then 2345/2769/2344 | m4 5.7 + m6-inference-calls-steps.md | impl-checker-2xxx.md §8 | T0-2xxx ≥ 75% |
 | 8 | flow narrowing + operators. UNLOCKS: 2365/2367/2454/2564/2678 + removes the narrowing-dependent 2322/2339 residue | m5-flow-steps.md | impl-checker-2xxx.md §9 | T0-2xxx ≥ 90% |
-| 9 | 2XXX completion sweep: mine the band residue to zero, then expand bands (1xxx exact, 7xxx, 6xxx, suggestion, 4xxx) | README M8 loop | — | **T0-2xxx = 100%**, then full-band ratchets |
+| 9 | 2XXX completion sweep: adjudicate 2XXX scope exclusions (exact A2 identities), mine the supported-scope band residue to zero, then expand bands (1xxx exact, 7xxx, 6xxx, suggestion, 4xxx) | README M8 loop | — | **all-corpus 2XXX FP = 0, supported-scope T0-2xxx = 100%** (exclusions frozen first), then full-band ratchets |
 
 Phase-gate percentages are calibration priors (from the first
 implementation's trajectory), not physics; the hard requirements are
@@ -101,8 +106,9 @@ execution-order authority. Phase numbers stay attached to their
 content — the impl-checker-2xxx.md §8/§9 port tables are unchanged —
 and the 75%/90% calibration priors attach to landing order (first of
 the two, then both), not to phase numbers. §4 row 9 lands phase 9's
-first half (band residue to zero) between M6 and M7; the
-band-expansion half is M7/M8 themselves.
+first half (scope adjudication, then supported-scope band residue to
+zero) between M6 and M7; the band-expansion half is M7/M8
+themselves.
 
 ## The band comparator (phase 0 addition)
 
@@ -118,8 +124,13 @@ line below it keeps honesty about the rest.
 
 ## What "complete 2XXX" means concretely (the phase-9 checklist)
 
-- `xtask conformance --band 2xxx` reports 0 FP / 0 FN diagnostics
-  corpus-wide, all matrix points included.
+- `xtask conformance --band 2xxx` reports 0 FP corpus-wide and 0 FN
+  on the supported scope, all matrix points included. Every 2XXX
+  scope exclusion is an exact record identity adjudicated under
+  definition-of-done.md's out-of-scope contract (host-resolution,
+  jsdoc-semantics; TS2307 host misses are the pinned exemplar) and
+  is frozen before the sweep closes; excluded records stay FN in the
+  all-corpus metric by design.
 - Every 2XXX code the ORACLE ever emits on the corpus appears in the
   engine's ledger with its emitting function ported (the emission map
   in impl-checker-2xxx.md is the working inventory; phase 9 mines
