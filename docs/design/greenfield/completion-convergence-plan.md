@@ -299,7 +299,9 @@ green.
 | 17 | M9 14-window steady state + zero open signatures | `completion --require-done` |
 
 Rows 7-8 deliberately land flow before full inference: flow has the
-larger measured unlock family and M6 has the transaction start gate.
+larger measured unlock family and M6 has the transaction start gate. The
+baseline counts and decision record remain in the
+[2XXX phase plan](2xxx-first-order.md#phase-plan).
 Evidence begins before M7 so milestone close is not an infrastructure
 cliff.
 
