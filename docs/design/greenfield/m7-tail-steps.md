@@ -123,6 +123,7 @@ cargo xtask conformance              # expect: T0 ≥ 63%; T1 recorded
 cargo xtask families report          # expect: every M7-owned family complete (readiness row 10)
 cargo xtask invariants --suite all
 cargo xtask ledger check
+cargo xtask m8 evidence produce --all # current runtime/fuzz/perf artifacts; approved runner
 cargo xtask m8 readiness --require-ready
 ```
 

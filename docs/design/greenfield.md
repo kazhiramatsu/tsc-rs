@@ -408,13 +408,20 @@ Run on a 200-fixture rotating sample per PR; full corpus nightly.
 - Generator: grammar-based, weighted toward historically divergent
   constructs (error recovery, generics depth, template literals,
   overloads, narrowing chains); seeds mutated from corpus fixtures.
-- Executor: both engines via program.json; any T0 diff → reducer.
+- Executor: both engines via program.json; compare T0-T4 and select the
+  first failing tier before reduction.
 - Reducer: statement-level ddmin, then expression-hole shrinking
   (replace subtrees with `0`/`""`/`x`), fixpoint; emits minimal repro.
-- Triage: dedup by signature (sorted one-sided (code, msg-head)
-  pairs); new signatures filed as `fuzz/pending/NNNN.ts` with both
-  outputs; a resolved repro graduates into the conformance corpus.
-- Budget: nightly hours, not per-PR.
+- Triage: use the canonical convergence-plan B3 signature — schema,
+  first failing tier, pass, divergence side/class, and sorted one-sided
+  `(code, normalized message-head)` pairs; T4 adds its deterministic
+  renderer class and first affected diagnostic key. New signatures enter
+  the versioned open/resolved registry with both exact outputs; a resolved
+  repro graduates through the append-only corpus universe transition.
+- Budget: fixed-seed smoke per PR. Steady state is 14 consecutive UTC
+  nightly windows, each at least two hours and 100,000 completed cases,
+  with versioned history, fewer than one distinct new signature per
+  window on average, and no open signature.
 
 ### 7.8 Unit pins
 
@@ -439,9 +446,12 @@ fn get_assignment_reduced_type(…)
 - `xtask ledger coverage`: coverage-build hit counts per ported fn
   joined against the corpus → "ports with zero corpus coverage" feeds
   the fuzzer's weight table.
-- Re-vendor procedure: swap vendor/ pin → `ledger check` emits the
-  changed-port checklist → work it → re-baseline goldens in ONE
-  commit.
+- Re-vendor procedure belongs to the separate version-specific project
+  required by the completion authority: create a new vendor/oracle-input
+  universe and ratchet bootstrap, let `ledger check` emit the changed-port
+  checklist, and land that project's initial vendor+oracle baseline
+  atomically after the checklist is resolved. Never rewrite or
+  `universe-transition` the 6.0.3 lineage into another TypeScript version.
 
 ## 9. Performance & determinism budget
 
@@ -500,7 +510,7 @@ modes — written so low-capability agents can implement them) live in
 | M6 | inference (inferTypes/getInferredType full port) + generics instantiation caches | T0 ≥ 58% |
 | M7 | unused/grammar/suggestion band (emit-free rules) | T0 ≥ 63% = parity with current repo; T1 measured and ratcheted |
 | M8 | long tail by classifier mining (this playbook's normal loop) | T0 ratchet climbs; T2/T3 activated |
-| M9 | fuzzer + coverage ledger in CI | new-signature rate < 1/night before declaring steady state |
+| M9 | fuzzer + coverage ledger in CI | `fuzz steady-state --require-ready`: 14 current-fingerprint nightly windows, new-signature rate < 1/night, no open signature |
 
 The single most load-bearing scheduling fact, learned here: **M1's
 parser-with-tsc-recovery is the foundation everything else prices

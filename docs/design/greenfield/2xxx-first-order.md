@@ -134,7 +134,8 @@ line below it keeps honesty about the rest.
   anchored to its adjudication commit and shrinkable only through
   tombstoned `resolved` proofs (A1 accepted-match membership;
   duplicate T0 buckets additionally require the bucket to be
-  multiplicity-complete), machine-verified while the global manifest
+  multiplicity-complete in A1's 2XXX comparison view), machine-verified
+  while the global manifest
   stays draft until M7 close; excluded records stay FN in the
   all-corpus metric by design.
 - Every 2XXX code the ORACLE ever emits on the corpus appears in the

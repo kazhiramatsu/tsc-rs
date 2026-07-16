@@ -129,7 +129,7 @@ is one commit.
 | M6 inference + overloads | [m6-inference-calls-steps.md](m6-inference-calls-steps.md) | T0 ≥ 58% |
 | M7 unused/grammar/suggestion | [m7-tail-steps.md](m7-tail-steps.md) | T0 ≥ 63%; T1 measured and ratcheted |
 | M8 long tail | [m8-readiness.md](m8-readiness.md) + the mining loop below | supported-scope T2/T3 activated; all-corpus FP=0 |
-| M9 fuzzer hardening + coverage | greenfield §7.7 + §8 | the M8-entry differential loop reaches new-signature rate < 1/night |
+| M9 fuzzer hardening + coverage | greenfield §7.7 + convergence plan B3 | `fuzz steady-state --require-ready`: 14 current-fingerprint nightly windows, rate < 1 new signature/night, no open signature |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,
@@ -188,7 +188,9 @@ is running before M8 begins; M9 hardens it rather than introducing it.
   output; iteration over any symbol/member table uses ordered maps
   (IndexMap) or sorted keys — `cargo clippy` denies raw `HashMap`
   iteration in checker crates (M0 sets up the lint).
-- One tsc function = one Rust function, tsc's name in snake_case
-  (greenfield §5). Coalescing "for elegance" is a stop condition.
+- One exact tsc declaration identity = one Rust ported function, tsc's
+  name in snake_case with `tsc-span`/`tsc-hash` selecting the declaration
+  (greenfield §5/§8). Same-named bundle declarations are not one port;
+  coalescing "for elegance" is a stop condition.
 - Diagnostics are emitted ONLY via `&'static DiagnosticMessage`
   references from the generated table.

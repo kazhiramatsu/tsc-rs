@@ -8,7 +8,9 @@ implementation-owner families, their measured baselines, and the
 acceptance shape each family closes on. The A5 slice of
 [completion-convergence-plan.md](completion-convergence-plan.md)
 turns the map into a machine artifact (`diag-families` map + rollup
-derived from the A1 accepted-match artifact); until that lands, the
+recomputed from current full conformance after exact A2 scope selection,
+with A1 as its monotonic guard and the immutable oracle-input manifest
+and frozen family map as its other authorities); until that lands, the
 numbers here are a planning baseline from the `52c47bbb` tree, not a
 ratchet.
 
@@ -113,11 +115,15 @@ Per family, in map order of strictness:
 A family CLOSES at level 2 for its owner milestone's gate; level 3
 is tracked by the same rollup and finishes inside the M8 tier
 sweeps. The rollup is a derived view over the A1 accepted-match
-artifact plus the frozen family map — it introduces no second
-ratchet; the global set ratchet already forbids regressions
-everywhere. Unmapped non-2XXX (code, pass) rows appearing in the
-corpus fail the map check; 2XXX rows are the band family's, verified
-as a partition (convergence plan A5).
+artifact, immutable oracle-input manifest, exact A2 scope, current
+full-conformance observation, and frozen family map. Scope is applied to
+the exact oracle/tsrs record multisets before tier grading and family
+grouping; A1 summaries alone cannot supply supported counts, especially
+for partial duplicate buckets. The rollup introduces no second ratchet;
+the global set ratchet already forbids regressions everywhere. Unmapped
+non-2XXX (code, pass) rows appearing in the corpus fail the map check;
+2XXX rows are the band family's, verified as a partition (convergence
+plan A5).
 
 ## 4. Adjudication backlog (resolved by the A5 slice)
 
