@@ -209,11 +209,19 @@ audit` enforces three rules from defined inputs:
   fails; a deliberate re-pin is a baseline event with its own
   reviewed adjudication, never silent;
 - tombstoned deletion: an identity present in the pinned set but
-  absent from the current set must carry a tombstone referencing the
-  produced conformance artifact (command, commit, artifact SHA-256 —
-  B1 provenance) whose `resolved` list contains exactly that
-  identity. A pinned band's live set only ever shrinks, and every
-  shrink is proven, not asserted.
+  absent from the current set must carry a tombstone — the identity
+  plus the resolving commit, which must be an ancestor of HEAD — and
+  the identity's fixture, matrix key, and T0 key must be members of
+  the A1 accepted-match artifact, whose vendored-tsc and
+  golden-manifest pins give that claim its meaning. The proof is
+  versioned in-repo, so a fresh clone verifies it without any
+  historical build product, and it is standing: the set ratchet
+  forbids the match from silently disappearing and every full
+  conformance run re-derives it from behavior. Tombstones
+  deliberately ride A1 (§4 row 1), not B1 — B1 lands after the
+  phase-9 sweep, and a `target/` artifact from a past commit is
+  unverifiable from a fresh clone. A pinned band's live set only
+  ever shrinks, and every shrink is proven, not asserted.
 
 Unpinned bands stay mutable and the manifest status stays `draft`.
 The global `frozen` transition at M7 close re-verifies every
@@ -243,9 +251,12 @@ Required tests:
   history anchor no longer matches);
 - a record whose adjudication commit does not contain exactly the
   pinned set, or is not an ancestor of HEAD, fails;
-- a deletion in a pinned band without a tombstone — or with a
-  tombstone whose artifact does not list that exact identity as
-  `resolved` — fails; a proven tombstoned deletion passes;
+- a deletion in a pinned band without a tombstone fails; so does a
+  tombstone whose identity is absent from the A1 accepted-match
+  artifact or whose resolving commit is not an ancestor of HEAD; a
+  proven tombstoned deletion passes;
+- the audit fails outright when the A1 artifact is missing or its
+  vendored-tsc / golden-manifest pins mismatch the tree;
 - adding a non-2XXX exclusion still passes while only `2xxx` is
   pinned;
 - the global freeze fails while any band-freeze record fails

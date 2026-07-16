@@ -43,8 +43,9 @@ diff, and change it to `frozen`; the freeze re-verifies every
 band-freeze record. If tsrs later emits an excluded diagnostic at
 T0, conformance reports it as `resolved-t0`; delete the disposition
 immediately so T1-T4 begin grading it (in a pinned band, the
-deletion carries a tombstone proving that exact identity resolved;
-the pinned set itself never changes).
+deletion carries a tombstone whose proof is the identity's
+membership in the A1 accepted-match artifact; the pinned set itself
+never changes).
 
 `cargo xtask conformance` prints both metric sets and writes both to
 the mismatch JSON. The all-corpus FP gate and T0 ratchet are
