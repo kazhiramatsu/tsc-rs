@@ -5,12 +5,10 @@ Status: adopted structure (2026-07-16). Companion to
 and states that non-2XXX diffs are invisible to its metric. This doc
 owns the decomposition of everything outside codes 2000-2999 into
 implementation-owner families, their measured baselines, and the
-acceptance shape each family closes on. The A5 slice of
-[completion-convergence-plan.md](completion-convergence-plan.md)
-turns the map into a machine artifact (`diag-families` map + rollup
-recomputed from current full conformance after exact A2 scope selection,
-with A1 as its monotonic guard and the immutable oracle-input manifest
-and frozen family map as its other authorities); until that lands, the
+acceptance shape each family closes on. The completion plan's A5 slice
+turns it into the machine map and rollup defined by the
+[A5 integrity contract](measurement-integrity.md#5-a5--family-ownership-and-supported-rollup).
+Until that lands, the
 numbers here are a planning baseline from the `52c47bbb` tree, not a
 ratchet.
 
@@ -69,9 +67,9 @@ Facts the numeric-band view hides:
 ## 2. Families
 
 Owners are provisional until the A5 slice adjudicates and freezes
-the map — the freeze identity-anchors the enumerated map to its
-adjudication commit, and later owner changes are reviewed
-re-baseline events (convergence plan A5), so ownership cannot drift
+the map. Its anchor and reviewed re-baseline rules are defined once in
+the [A5 integrity contract](measurement-integrity.md#5-a5--family-ownership-and-supported-rollup),
+so ownership cannot drift
 after it becomes a gate input; "M7 8.x" refers to the stages in
 [m7-tail-steps.md](m7-tail-steps.md). FN counts are the measured
 baseline; ~ marks rows whose exact (code, pass) split the machine

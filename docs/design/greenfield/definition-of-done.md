@@ -18,8 +18,8 @@ context means THIS bundle, not tsc-at-large.
 
 On the versioned conformance corpus (`ts-tests/tests/cases/conformance`,
 matrix-expanded by the harness — 5,908 fixtures at adoption), fixed for
-each gate run and growable only through A1's append-only reviewed
-universe transition, using the
+each gate run and growable only through
+[A1's append-only reviewed universe transition](measurement-integrity.md#2-a1--accepted-conformance-state), using the
 two-view contract in [m8-readiness.md](m8-readiness.md):
 
 1. **Supported-scope T3 = 100%** for the syntactic AND semantic oracle passes:

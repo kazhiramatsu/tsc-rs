@@ -30,10 +30,14 @@ question.
 
 **Completion convergence plan:**
 [completion-convergence-plan.md](completion-convergence-plan.md) — the
-ordered remediation and delivery plan that makes progress set-monotone,
-repairs exact scope/T4/evidence gates, and sequences M4 close through the
-final M9 completion command. It owns execution order and acceptance
-artifacts; the definition of done still owns the end state.
+ordered delivery plan from M4 close through M9. It owns sequence,
+dependencies, and acceptance gates; the definition of done still owns
+the end state. Its supporting contracts are
+[measurement-integrity.md](measurement-integrity.md) for A1/A2/A3/A5
+schemas, anchors, and identities, and
+[evidence-and-steady-state.md](evidence-and-steady-state.md) for B1-B4
+producers and M9. Read the plan first; open a support contract only when
+implementing or reviewing that mechanism.
 
 **Band strategy (2XXX first):**
 [2xxx-first-order.md](2xxx-first-order.md) — the build is ordered
@@ -129,7 +133,7 @@ is one commit.
 | M6 inference + overloads | [m6-inference-calls-steps.md](m6-inference-calls-steps.md) | T0 ≥ 58% |
 | M7 unused/grammar/suggestion | [m7-tail-steps.md](m7-tail-steps.md) | T0 ≥ 63%; T1 measured and ratcheted |
 | M8 long tail | [m8-readiness.md](m8-readiness.md) + the mining loop below | supported-scope T2/T3 activated; all-corpus FP=0 |
-| M9 fuzzer hardening + coverage | greenfield §7.7 + convergence plan B3 | `fuzz steady-state --require-ready`: 14 current-fingerprint nightly windows, rate < 1 new signature/night, no open signature |
+| M9 fuzzer hardening + coverage | greenfield §7.7 + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | `fuzz steady-state --require-ready`: 14 current-fingerprint nightly windows, rate < 1 new signature/night, no open signature |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,

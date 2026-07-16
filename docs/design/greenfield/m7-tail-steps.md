@@ -6,15 +6,16 @@ checker-foundations.md §2 (the driver slots these fill). tsc regions:
 the `checkGrammar*` family, `checkUnusedIdentifiers` (82954),
 `getSuggestionDiagnostics` (123761). Prerequisites: M6 gate green
 AND the 2XXX completion sweep closed — phase 9 first half,
-completion-convergence-plan.md §4 row 9: all-corpus 2XXX FP = 0,
+[completion-convergence-plan.md](completion-convergence-plan.md) §4 row 9: all-corpus 2XXX FP = 0,
 supported-scope 2XXX FN = 0, band exclusions pinned by a verifying
-A2 `2xxx` band-freeze record. No M7 stage starts on an open 2XXX
+[A2 `2xxx` band-freeze record](measurement-integrity.md#31-draft-band-pins). No M7 stage starts on an open 2XXX
 residue.
 
 Gate: T0 ≥ 63% (calibration only — reachable from the unused family
 alone); T1 (category-aware) measured and added to ratchet.toml. Each
 stage below additionally closes on its own family rows
-(completion-convergence-plan.md C4, non-2xxx-first-order.md); the
+([completion plan C4](completion-convergence-plan.md#c4-m7-tail),
+[non-2xxx-first-order.md](non-2xxx-first-order.md)); the
 aggregate rate is never a substitute for a stage gate.
 
 ## Stage 8.1: grammar checks [M]
@@ -114,7 +115,8 @@ hash — byte parity is M8's tier work; land the structure).
 Commit: `m7 8.5: options + program diagnostics`.
 
 Gate: the program/resolution family rows reach acceptance; the T4
-formatter structure is live (convergence plan A3).
+formatter structure is live
+([measurement contract A3](measurement-integrity.md#4-a3--t4-activation)).
 
 ## Final gate
 

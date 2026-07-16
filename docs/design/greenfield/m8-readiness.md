@@ -1,76 +1,41 @@
 # M8 scope and readiness contract
 
-This is the executable contract for entering M8. The normative end
-state remains [definition-of-done.md](definition-of-done.md); this
-page defines how its supported-scope and M8-start clauses are
-measured. M5-M7 implementation is a prerequisite, not part of this
-work.
+This page is the executable M8-entry contract. It states the two metric
+views and the ten machine rows. Supporting formats are defined once in
+[measurement-integrity.md](measurement-integrity.md) and
+[evidence-and-steady-state.md](evidence-and-steady-state.md). The final
+end state remains [definition-of-done.md](definition-of-done.md).
 
-## Two views of the same corpus
+## Two views of one corpus
 
-Every conformance run reports both views. Neither is optional.
+Every conformance run reports both:
 
-1. **All-corpus visibility** is the versioned oracle-input universe
-   (5,908 fixtures at the adopted baseline, growable only by A1's
-   append-only transition). It keeps the T0 ratchet, top FN codes, and the
-   absolute `FP=0` gate. Out-of-scope work remains visible here.
-2. **Supported scope** removes only reviewed oracle diagnostics in
-   `tsrs2/m8-scope.json`. M8's T1-T4 completion target uses this
-   denominator.
+1. **All corpus** — the versioned oracle-input universe. It owns the set
+   ratchet, top-FN visibility, and absolute `FP=0`.
+2. **Supported scope** — the same universe after subtracting only exact,
+   reviewed oracle diagnostic occurrences from `tsrs2/m8-scope.json`.
+   M8's T1-T4 target uses this denominator.
 
-Scope dispositions are exact diagnostic identities in the A2
-schema-2 form:
-`fixture + matrix_key + pass + file + start + length + code +
-category + message-chain hash + related-information hash +
-occurrence`; line and column ride along as review-facing redundant
-fields verified against `start`, never as the identity. There are no
-fixture, directory, code, or glob exclusions, and schema-1 T0-key
-dispositions are rejected with a migration message. Because the
-identity distinguishes records that share a T0 key, one
-host-resolution or JSDoc diagnostic cannot hide another diagnostic
-in the same program — not even its duplicate-bucket neighbor.
-Syntactic diagnostics can never be excluded. Message-chain and
-related-information hashes use the schema-tagged canonical UTF-8
-encoding defined by convergence-plan A2 (fixed field order, observable
-array order, lowercase SHA-256); alternate Node/Rust serializations are
-not accepted as equivalent identities.
+Scope identity is A2 schema 2:
 
-The only accepted reasons are:
+```text
+fixture + matrix_key + pass + file + start + length + code + category
++ message-chain hash + related-information hash + occurrence
+```
 
-- `host-resolution`: behavior requiring node_modules/package.json,
-  paths/baseUrl host lookup, project references, or redirects;
-- `jsdoc-semantics`: checking whose result depends on a JSDoc type;
-- `emit-dependent`: a diagnostic whose observability depends on the
-  deliberately absent emitter.
+Line/column are verified review fields, not keys. Syntactic records are
+never excludable. There are no fixture, directory, code, or glob
+exclusions. The only reasons are `host-resolution`, `jsdoc-semantics`,
+and `emit-dependent`, each with non-empty evidence.
 
-Every entry needs non-empty evidence. The manifest starts `draft`.
-A band can be pinned earlier without freezing the manifest: an A2
-band-freeze record (the band's enumerated pinned identity set inside
-`m8-scope.json`, anchored to its adjudication commit) makes that
-band immutable while status stays `draft` — the `2xxx` band pins at
-the phase-9 sweep (convergence plan §4 row 9; the A2 section defines
-the subset / history-anchor / tombstone rules). At M7 close, classify
-the remaining known out-of-scope FNs and land the reviewed exact set
-while status is still `draft`. A follow-up change records the A2
-global-freeze identity set against that adjudication commit and changes
-status to `frozen`. The audit re-reads that commit, requires every live
-exclusion to belong to the anchored global set, and re-verifies every
-early band record. Thus a post-freeze addition/edit in an otherwise
-unpinned non-2XXX band fails; count/hash refresh or status downgrade
-cannot hide it. Required PR CI also compares the global-freeze record to
-the trusted base, so an add-and-reanchor pair of branch commits fails.
-If tsrs later emits an excluded diagnostic at T0,
-conformance reports it as `resolved-t0`; delete the disposition
-immediately so T1-T4 begin grading it. Every post-global-freeze deletion,
-and every earlier pinned-band deletion, carries the A1 membership
-tombstone; a duplicate T0 bucket additionally must be
-multiplicity-complete. Pinned identity sets never change.
+The [A2 contract](measurement-integrity.md#3-a2--exact-scope-state)
+defines canonical hashes, the draft `2xxx` band pin used by §4 row 9 of
+the convergence plan, the two-step global freeze at M7 close, and A1
+tombstones for resolved exclusions. Schema 1, a stale anchor, a
+post-freeze addition/edit, or an unresolved duplicate-bucket proof fails.
+Conformance writes both views to mismatch JSON.
 
-`cargo xtask conformance` prints both metric sets and writes both to
-the mismatch JSON. The all-corpus FP gate and T0 ratchet are
-unchanged.
-
-## All-band inventory and dependency closure
+## Declaration converse
 
 Run:
 
@@ -79,67 +44,30 @@ cargo xtask codegen band-inventory --by-function --band all
 cargo xtask codegen band-inventory --by-function --band all --check
 ```
 
-The generated `tsrs2/m8-emitter-inventory.json` is pinned to the
-SHA-256 of the vendored `_tsc.js`. It inventories every direct
-`Diagnostics.*` use except `.code` membership reads and computes a
-transitive, deliberately conservative identifier/property-call
-dependency closure. Schema 2 keys every named and anonymous
-function-like declaration by lexical-owner declaration path, kind,
-name-or-anonymous, start/end, and source-slice SHA-256. Duplicate bundle
-declarations with the same function name are distinct identities;
-anonymous callbacks are not attributed to their nearest named owner.
-The tsc function name remains a ledger alias only. A `tsc-port` match is
-automatic only when its `tsc-span` and `tsc-hash` select the exact
-declaration.
+`m8-emitter-inventory.json` pins the vendor and uses D2 exact declaration
+identities for named and anonymous functions. Names are aliases;
+`tsc-span` plus `tsc-hash` selects a port. Lexical calls resolve exactly;
+property calls may over-approximate but keep candidates separate.
 
-`m8-emitter-dispositions.json` is the tsc-to-Rust converse of the
-Rust function ledger:
+`m8-emitter-dispositions.json` pins the generated inventory and classifies
+every closure identity as ported, deferred, or not applicable with
+evidence. Schema-1 name-collapsed files are draft migration input only.
+The complete contract is
+[D2 declaration identity](measurement-integrity.md#6-d2--declaration-identity-and-closure).
 
-- the file pins the exact generated inventory SHA-256, so generator
-  changes require a reviewed refresh even when `_tsc.js` is unchanged;
-- a matching `tsc-port` span/hash is classified automatically; a bare
-  same-name match is not;
-- remaining closure functions require exact `deferred` or
-  `not-applicable` entries with evidence;
-- no missing or stale entry is accepted when the file is `frozen`.
+## Produced evidence
 
-Identifier calls resolve lexically to declarations. Property-call
-closure remains an over-approximation, so a dynamic-dispatch false
-dependency may be `not-applicable`, but every candidate declaration
-keeps a separate edge and disposition. Schema-1 name-collapsed inventory
-and dispositions may exist only as pre-D2 draft migration input; they
-cannot be frozen or satisfy readiness.
+`m8-evidence.json` configures producers; it does not contain editable
+readiness claims. Runtime, fuzz-smoke, performance, and RSS artifacts are
+generated under `target/` and consumed in the same workspace. Readiness
+recomputes summaries and requires current input fingerprints. Missing,
+dirty, stale, malformed, or hand-authored evidence fails.
 
-## Runtime, fuzzer, and performance evidence
-
-`tsrs2/m8-evidence.json` holds producer configuration — declared
-commands, approved runner ids, and reviewed ceilings — not editable
-`ready` booleans or copied observations. Producers write ephemeral
-artifacts under `target/`; readiness reads raw observations, recomputes
-each summary, and requires the artifact's producer-input fingerprint to
-equal the current executable/source/toolchain/vendor/corpus/oracle/scope/
-inventory/policy inputs that apply. An ancestor commit alone is not
-freshness. Relevant dirty paths and missing artifacts fail; a fresh CI
-clone runs all producers before readiness in the same workspace.
-
-- Runtime coverage pins the exact inventory SHA-256 and lists every
-  declaration-level direct-emitter identity exactly once as
-  executed or zero-hit-with-evidence and must have at least one executed
-  emitter. Same-name declarations have independent counters. Unknown,
-  duplicate, overlapping, name-collapsed, or evidence-free identities fail.
-- The differential fuzzer must run a generator against both tsrs and
-  the pinned oracle, compare every generated case, exercise its
-  reducer and signature deduper, and name the CI command that keeps it
-  running.
-- Performance records wall time, maximum RSS, reviewed ceilings, and an
-  approved reference-runner profile. The wall ceiling may not exceed 60
-  seconds, and both observations themselves must be within their
-  ceilings on that profile. Artifact paths are workspace-relative and
-  may not escape the workspace.
-
-The minimal differential loop is an **M8-start** prerequisite. M9
-does not introduce the fuzzer; it hardens the already-running loop
-to the versioned 14-window steady-state gate in convergence-plan B3.
+Runtime coverage is declaration-level, the fuzzer runs every generated
+case against tsrs and the pinned oracle with reducer/dedupe smoke, and
+wall/RSS observations must pass on an approved reference runner. See the
+[evidence contract](evidence-and-steady-state.md). M9 strengthens the
+already-running fuzzer; it does not introduce it.
 
 ## Machine gate
 
@@ -148,53 +76,36 @@ cargo xtask m8 readiness
 cargo xtask m8 readiness --require-ready
 ```
 
-The first command is a report and succeeds while work remains. The
-second is the M7-close/M8-entry gate and fails unless all ten rows
-are green:
+The first command reports. The second closes M7 and opens M8 only when
+all ten rows are green:
 
-1. M7 conformance gate (`T0 >= 63%`, `FP=0`, configured exact T1 ratchet,
-   enforced by All-band conformance);
+1. M7 conformance: `T0 >= 63%`, `FP=0`, configured exact T1 ratchet;
 2. live T1-T3 shadow metrics;
-3. globally identity-anchored, frozen, non-stale scope manifest;
+3. globally identity-anchored, frozen, fresh exact scope;
 4. zero undispositioned Rust checker functions;
-5. fresh declaration-identity schema-2 all-band emitter inventory;
+5. fresh schema-2 all-band declaration inventory;
 6. frozen and complete dependency dispositions;
-7. complete runtime coverage evidence with the current producer-input
-   fingerprint;
-8. an actually running differential fuzzer with current smoke evidence;
-9. current performance and RSS observations within the recorded ceilings
-   on an approved reference-runner profile;
-10. every M7-owned family complete in the A5 rollup — `families
-    check` green and supported FN = 0 for each family's (code, pass)
-    rows, recomputed from the same full-conformance observation after
-    applying the globally frozen exact A2 scope to the immutable oracle
-    and current tsrs multisets, then grouped by the frozen family map.
-    A1 supplies the monotonic guard, not a substitute for the current
-    supported projection. The map's base and any append-only
-    universe-extension rows are identity-anchored to their adjudication
-    commits (A5), so M7 ownership cannot shrink after the freeze to fake
-    completion.
-    Row 1's aggregate cannot substitute: 63% is reachable from the
-    unused family alone, so a red family fails this row and is
-    named.
+7. current declaration-level runtime coverage;
+8. current differential-fuzzer smoke with reducer and dedupe;
+9. current wall/RSS observations within ceilings on an approved runner;
+10. every M7-owned A5 family has all canaries and supported FN=0.
 
-Required regression test: a state meeting row 1 (`T0 >= 63%`,
-`FP=0`) while any M7-owned family row is red fails
-`--require-ready` and names the family. Row 10 also covers one wholly
-excluded bucket and one duplicate bucket with only one excluded record;
-the former contributes no supported denominator and the latter retains
-its supported neighbor. A rollup computed from A1+map without the exact
-scope/current conformance input is rejected as stale.
+Row 10 is recomputed from current full conformance after exact A2 scope,
+then grouped by the frozen A5 map. A1 is its monotonic guard, not a
+substitute for current supported grading. The aggregate 63% in row 1
+cannot hide a red family; `--require-ready` names it.
 
-The JSON report is written to `target/m8/readiness.json`. The command
-does not pretend that the current M4 branch is M8-ready; it makes the
-remaining prerequisites explicit and mechanically testable.
+Required regression coverage includes: row 1 green with one M7 family
+red; a wholly excluded bucket; a duplicate bucket with one excluded
+neighbor; a frozen owner moved to a later milestone; and stale
+conformance/scope/evidence fingerprints. Each must fail the responsible
+row rather than change the denominator silently.
+
+The report is `target/m8/readiness.json`. It describes remaining work; it
+does not claim the current branch is ready.
 
 ## Escape end state
 
-Recovery guards may remain a separately ratcheted `Unsupported`
-class through M5-M7, but they are not a permanent exception to Done.
-Before final completion they must move to deterministic recovery
-values/control flow that do not use the `Unsupported` containment
-channel. The final escape requirement remains `sites=0` and an empty
-manifest.
+`Unsupported` recovery may remain separately ratcheted through M7, but
+it is not a Done exception. Final completion requires `sites=0` and an
+empty `escapes.toml`.

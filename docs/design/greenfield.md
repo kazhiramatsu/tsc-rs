@@ -412,7 +412,9 @@ Run on a 200-fixture rotating sample per PR; full corpus nightly.
   first failing tier before reduction.
 - Reducer: statement-level ddmin, then expression-hole shrinking
   (replace subtrees with `0`/`""`/`x`), fixpoint; emits minimal repro.
-- Triage: use the canonical convergence-plan B3 signature — schema,
+- Triage: use the canonical
+  [evidence-contract B3](greenfield/evidence-and-steady-state.md#3-b3--differential-fuzzing)
+  signature — schema,
   first failing tier, pass, divergence side/class, and sorted one-sided
   `(code, normalized message-head)` pairs; T4 adds its deterministic
   renderer class and first affected diagnostic key. New signatures enter

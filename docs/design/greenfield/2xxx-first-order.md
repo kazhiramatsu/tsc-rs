@@ -4,8 +4,9 @@ GOAL (redefines the milestone gates): full parity on the 2XXX
 diagnostic band — every code in 2000-2999, FP = 0 against the oracle
 across the corpus and FN = 0 on the supported scope — BEFORE
 investing in the other bands. Scope exclusions are exact
-oracle-record identities under definition-of-done.md's out-of-scope
-contract (host-resolution, jsdoc-semantics; TS2307 host misses are
+oracle-record identities under the out-of-scope contract in
+[definition-of-done.md](definition-of-done.md)
+(host-resolution, jsdoc-semantics; TS2307 host misses are
 the pinned exemplar): excluded records stay FN in the all-corpus
 visibility metric and are not chased. The metric is `T0-2xxx` (T0
 comparison restricted to codes 2000-2999); full-band T0 is tracked
@@ -15,7 +16,7 @@ This doc re-sequences the m*-steps docs toward the band goal (they
 remain the stage-level instructions; the impl-*.md companions carry
 copy-level code). Phase numbers are content identities, not a
 landing sequence: landing order is owned by
-completion-convergence-plan.md §4 — including the recorded
+[completion-convergence-plan.md](completion-convergence-plan.md) §4 — including the recorded
 phase-8-before-7 swap — and a phase starts only after the gate of
 every phase that §4 lands before it is green.
 
@@ -70,7 +71,7 @@ reading:
 | 6 | expressions/statements/declarations/classes/enums/modules/iteration. UNLOCKS: 2322/2403/2415-class family/2461-iteration family | m4-checker-skeleton-steps.md 5.5-5.8 | impl-checker-2xxx.md §5-7 | T0-2xxx ≥ 55% |
 | 7 | calls with stubbed inference, then full inference. UNLOCKS: 2554/2349/2351 then 2345/2769/2344 | m4 5.7 + m6-inference-calls-steps.md | impl-checker-2xxx.md §8 | T0-2xxx ≥ 75% |
 | 8 | flow narrowing + operators. UNLOCKS: 2365/2367/2454/2564/2678 + removes the narrowing-dependent 2322/2339 residue | m5-flow-steps.md | impl-checker-2xxx.md §9 | T0-2xxx ≥ 90% |
-| 9 | 2XXX completion sweep: adjudicate 2XXX scope exclusions (exact A2 identities), mine the supported-scope band residue to zero, then expand bands (1xxx exact, 7xxx, 6xxx, suggestion, 4xxx) | README M8 loop | — | **all-corpus 2XXX FP = 0, supported-scope T0-2xxx = 100%** (exclusions pinned first by the A2 `2xxx` band-freeze record), then full-band ratchets |
+| 9 | 2XXX completion sweep: adjudicate 2XXX scope exclusions (exact A2 identities), mine the supported-scope band residue to zero, then expand bands (1xxx exact, 7xxx, 6xxx, suggestion, 4xxx) | README M8 loop | — | **all-corpus 2XXX FP = 0, supported-scope T0-2xxx = 100%** (exclusions pinned first by the [A2 `2xxx` band-freeze record](measurement-integrity.md#31-draft-band-pins)), then full-band ratchets |
 
 Phase-gate percentages are calibration priors (from the first
 implementation's trajectory), not physics; the hard requirements are
@@ -101,7 +102,8 @@ crushed by 5.7's stubbed-inference calls; 2322 (1,382) and 2339
 (558) hold further narrowing-dependent residue. M6 also gained the
 speculation-transaction start gate (2026-07-14 external review).
 Execution order is therefore phase 8 (M5 flow) then phase 7 (M6 full
-inference), fixed by completion-convergence-plan.md §4 rows 7-8, the
+inference), fixed by
+[completion-convergence-plan.md](completion-convergence-plan.md) §4 rows 7-8, the
 execution-order authority. Phase numbers stay attached to their
 content — the impl-checker-2xxx.md §8/§9 port tables are unchanged —
 and the 75%/90% calibration priors attach to landing order (first of
@@ -126,18 +128,16 @@ line below it keeps honesty about the rest.
 
 - `xtask conformance --band 2xxx` reports 0 FP corpus-wide and 0 FN
   on the supported scope, all matrix points included. Every 2XXX
-  scope exclusion is an exact record identity adjudicated under
-  definition-of-done.md's out-of-scope contract (host-resolution,
+  scope exclusion is an exact record identity adjudicated under the
+  out-of-scope contract in
+  [definition-of-done.md](definition-of-done.md) (host-resolution,
   jsdoc-semantics; TS2307 host misses are the pinned exemplar) and
-  is pinned before the sweep closes by the A2 `2xxx` band-freeze
-  record — the band's enumerated identity set inside `m8-scope.json`,
-  anchored to its adjudication commit and shrinkable only through
-  tombstoned `resolved` proofs (A1 accepted-match membership;
-  duplicate T0 buckets additionally require the bucket to be
-  multiplicity-complete in A1's 2XXX comparison view), machine-verified
-  while the global manifest
-  stays draft until M7 close; excluded records stay FN in the
-  all-corpus metric by design.
+  is pinned before the sweep closes by the
+  [A2 band-pin contract](measurement-integrity.md#31-draft-band-pins).
+  The global manifest stays draft until M7 close. Pinned removals need
+  an [A1 standing tombstone](measurement-integrity.md#32-resolution-tombstones),
+  including multiplicity-complete proof for duplicate buckets. Excluded
+  records remain FN in the all-corpus view.
 - Every 2XXX code the ORACLE ever emits on the corpus appears in the
   engine's ledger with its emitting function ported (the emission map
   in impl-checker-2xxx.md is the working inventory; phase 9 mines
