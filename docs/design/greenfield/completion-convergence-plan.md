@@ -126,17 +126,24 @@ the record contents; the ratchet need not duplicate message chains.
 
 ```text
 accepted_matched_tier - current_matched_tier != empty
+accepted_multiplicity_complete - current_multiplicity_complete != empty
 ```
 
-New matches are allowed. `cargo xtask ratchet update` writes additions
-only and refuses to remove accepted matches. There is no regression
+New matches and newly complete buckets are allowed. `cargo xtask
+ratchet update` writes additions only and refuses to remove accepted
+matches or accepted multiplicity-complete buckets. The complete-bucket
+set is ratcheted in its own right because the matched-tier gate cannot
+see its regressions: a bucket accepted at 2/2 that falls to 2/1 keeps
+its T0 key in the matched set, yet the fall would silently void any
+tombstone standing on that bucket. There is no regression
 allowlist: the oracle and corpus are fixed, so a temporarily regressing
 refactor stays off `main`.
 
 Partial runs (`--limit`, explicit fixture lists) compare only the
-fixtures actually executed against their accepted subsets, so a
-regression in an executed fixture still fails while unexecuted
-fixtures cannot false-positive. The full-corpus set gate remains the
+fixtures actually executed against their accepted subsets — the
+matched-tier and multiplicity-complete sets under the same subset
+rule — so a regression in an executed fixture still fails while
+unexecuted fixtures cannot false-positive. The full-corpus set gate remains the
 merge authority through `cargo xtask ci`.
 
 Add `cargo xtask conformance --syntactic-only` to `cargo xtask ci`.
@@ -158,6 +165,8 @@ Required regression tests:
 - remove one accepted match and add a different match at the same total:
   the gate fails and names the removed identity;
 - a pure addition passes before and after `ratchet update`;
+- a bucket accepted at 2/2 regressing to 2/1 fails and names the
+  bucket, even though its T0 key remains in the matched set;
 - a syntactic FN cannot be hidden by a semantic addition;
 - a comparator or corpus hash mismatch fails as stale.
 
@@ -228,14 +237,15 @@ audit` enforces three rules from defined inputs:
   tsrs emits every occurrence of the key, or no identity in that
   bucket may be deleted. The proof is versioned in-repo, verifiable
   on a fresh clone without any historical build product, and
-  standing: the set ratchet forbids the T0 match from silently
-  disappearing, and every conformance run re-derives bucket
-  completeness from behavior, so a later regression inside the
-  bucket fails the audit. Tombstones deliberately ride A1 (§4 row
-  1), not B1 — B1 lands after the phase-9 sweep, and a `target/`
-  artifact from a past commit is unverifiable from a fresh clone. A
-  pinned band's live set only ever shrinks, and every shrink is
-  proven, not asserted.
+  standing: the A1 gate ratchets the matched-tier and
+  multiplicity-complete sets alike (accepted minus current is empty
+  for both, partial runs included), so neither the T0 match nor the
+  bucket's completeness can silently disappear — a later regression
+  inside the bucket fails conformance itself, not merely the audit.
+  Tombstones deliberately ride A1 (§4 row 1), not B1 — B1 lands
+  after the phase-9 sweep, and a `target/` artifact from a past
+  commit is unverifiable from a fresh clone. A pinned band's live
+  set only ever shrinks, and every shrink is proven, not asserted.
 
 Unpinned bands stay mutable and the manifest status stays `draft`.
 The global `frozen` transition at M7 close re-verifies every
