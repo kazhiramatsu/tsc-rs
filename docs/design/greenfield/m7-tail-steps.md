@@ -120,7 +120,7 @@ formatter structure is live (convergence plan A3).
 
 ```sh
 cargo xtask conformance              # expect: T0 ≥ 63%; T1 recorded
-cargo xtask families report          # expect: every M7-owned family complete
+cargo xtask families report          # expect: every M7-owned family complete (readiness row 10)
 cargo xtask invariants --suite all
 cargo xtask ledger check
 cargo xtask m8 readiness --require-ready

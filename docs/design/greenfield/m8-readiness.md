@@ -121,7 +121,7 @@ cargo xtask m8 readiness --require-ready
 ```
 
 The first command is a report and succeeds while work remains. The
-second is the M7-close/M8-entry gate and fails unless all nine rows
+second is the M7-close/M8-entry gate and fails unless all ten rows
 are green:
 
 1. M7 conformance gate (`T0 >= 63%`, `FP=0`, configured exact T1 ratchet,
@@ -133,7 +133,17 @@ are green:
 6. frozen and complete dependency dispositions;
 7. complete runtime coverage evidence;
 8. an actually running differential fuzzer;
-9. recorded performance and RSS ceilings.
+9. recorded performance and RSS ceilings;
+10. every M7-owned family complete in the A5 rollup — `families
+    check` green and supported FN = 0 for each family's (code, pass)
+    rows, derived from the A1 artifact plus the frozen family map.
+    Row 1's aggregate cannot substitute: 63% is reachable from the
+    unused family alone, so a red family fails this row and is
+    named.
+
+Required regression test: a state meeting row 1 (`T0 >= 63%`,
+`FP=0`) while any M7-owned family row is red fails
+`--require-ready` and names the family.
 
 The JSON report is written to `target/m8/readiness.json`. The command
 does not pretend that the current M4 branch is M8-ready; it makes the

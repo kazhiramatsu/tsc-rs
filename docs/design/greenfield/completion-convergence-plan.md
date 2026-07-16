@@ -582,7 +582,9 @@ M7 cannot close until:
 - A3 formatter structure is live;
 - B1-B4 evidence producers have current artifacts;
 - D1-D3 are complete;
-- every M7-owned family reports complete in the A5 rollup;
+- every M7-owned family reports complete in the A5 rollup
+  (readiness row 10 — enforced by `--require-ready` itself, not only
+  by the separate `families report`);
 - `cargo xtask m8 readiness --require-ready` passes; the same command
   is re-run unchanged as the M8 entry gate.
 
@@ -828,7 +830,7 @@ The project should continue after each checkpoint only if:
   corpus-wide, band FN zero on the supported scope, and the band's
   scope exclusions adjudicated under a verifying A2 band-freeze
   record, the manifest still draft (the phase-9 checklist);
-- M7 close: all nine M8 readiness rows are produced and verified;
+- M7 close: all ten M8 readiness rows are produced and verified;
 - M8 midpoint: accepted T0/T1 sets still grow and no repeated
   architectural ceiling is being patched locally;
 - M9: the rolling new-signature rate is below the normative bound.
