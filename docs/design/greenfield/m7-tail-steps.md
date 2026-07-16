@@ -4,7 +4,12 @@ Parent design: greenfield.md §5 (checker organization, suppression
 surfaces), §6 (suggestion band, emit-free contract);
 checker-foundations.md §2 (the driver slots these fill). tsc regions:
 the `checkGrammar*` family, `checkUnusedIdentifiers` (82954),
-`getSuggestionDiagnostics` (123761). Prerequisite: M6 gate green.
+`getSuggestionDiagnostics` (123761). Prerequisites: M6 gate green
+AND the 2XXX completion sweep closed — phase 9 first half,
+completion-convergence-plan.md §4 row 9: all-corpus 2XXX FP = 0,
+supported-scope 2XXX FN = 0, band exclusions pinned by a verifying
+A2 `2xxx` band-freeze record. No M7 stage starts on an open 2XXX
+residue.
 
 Gate: T0 ≥ 63% (calibration only — reachable from the unused family
 alone); T1 (category-aware) measured and added to ratchet.toml. Each
