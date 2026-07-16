@@ -1606,6 +1606,21 @@ impl LinksTables {
         *slot = LinkSlot::Vacant;
     }
 
+    /// tsrs-native: Err-unwind retraction (tsc has no failure mode
+    /// here). The declared-members twin of `retract_type_members`:
+    /// the 5.9c staged publication (tsc resolveDeclaredMembers fills
+    /// the type in place) parks the table before the signature/index
+    /// walks; an Unsupported unwind must leave the slot Vacant, not
+    /// partial.
+    pub fn retract_type_declared_members(&mut self, id: TypeId) {
+        let slot = &mut self.ty.entry(id).or_default().declared_members;
+        assert!(
+            matches!(slot, LinkSlot::Resolved(_)),
+            "retract without a declared-members write for {id:?}"
+        );
+        *slot = LinkSlot::Vacant;
+    }
+
     /// createDeferredTypeReference's node/mapper stamp (60196-60197),
     /// written once when the deferred reference shell is created.
     pub fn set_type_deferred_reference_links(

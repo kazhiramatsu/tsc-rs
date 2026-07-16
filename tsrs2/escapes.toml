@@ -85,13 +85,14 @@ owner = "M5"
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_property_access_expression_or_qualified_name"
-reason = "const-enum object property lookup (skipObjectFunctionPropertyAugment — enum band residual)"
-class = "untagged"
+reason = "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_property_access_expression_or_qualified_name"
-reason = "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)"
+reason = "property miss under an unresolved module augmentation (node_modules resolver band, M8)"
 class = "stage"
 owner = "M8"
 
@@ -101,12 +102,6 @@ in = "check_property_access_expression_or_qualified_name"
 reason = "this-property-in-constructor autoType (getFlowTypeOfProperty [FLOW M5])"
 class = "stage"
 owner = "M5"
-
-[[site]]
-file = "crates/checker/src/access.rs"
-in = "check_property_accessibility_at_location"
-reason = "abstract member without declaring class (recovery)"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/access.rs"
@@ -138,14 +133,9 @@ owner = "M5"
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "get_write_type_of_symbol"
-reason = "getWriteTypeOfInstantiatedSymbol (instantiated accessor writes)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/access.rs"
-in = "get_write_type_of_symbol"
-reason = "getWriteTypeOfSymbolWithDeferredType (deferred synthetic members)"
-class = "untagged"
+reason = "deferred synthetic write types (getWriteTypeOfSymbolWithDeferredType, M6)"
+class = "stage"
+owner = "M6"
 
 [[site]]
 file = "crates/checker/src/access.rs"
@@ -184,13 +174,6 @@ owner = "M7"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_declared_type_of_symbol_slice"
-reason = "getDeclaredTypeOfAlias (resolveAlias, 5.8 modules)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_declared_type_of_type_alias"
 reason = "type alias symbol without a TypeAliasDeclaration (JSDoc aliases unmodeled, M8)"
 class = "stage"
@@ -198,23 +181,10 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_index_infos_of_index_symbol"
-reason = "late-bound computed-name index signatures (M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_resolved_members_or_exports_of_symbol"
-reason = "early/late member table merge (combineSymbolTables → mergeSymbol, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_signature_from_declaration"
-reason = "signature declaration kind {:?} (M4 5.8)"
+reason = "signature declaration kind {:?} ([JSDOC] M8)"
 class = "stage"
-owner = "5.8"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -235,21 +205,6 @@ in = "get_type_for_variable_like_declaration"
 reason = "JS container object type (getJSContainerObjectType [JSDOC] M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_for_variable_like_declaration"
-reason = "accessor this-parameter type (getAccessorThisParameter, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_for_variable_like_declaration"
-reason = "ambient property base-class type (getTypeOfPropertyInBaseClass, 5.8)"
-class = "stage"
-owner = "5.8"
-count = 2
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -327,18 +282,6 @@ owner = "M6"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_reference"
-reason = "type reference to symbol flags {flags:?} (M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_reference"
-reason = "type reference with missing name"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_type_of_symbol"
 reason = "DeferredType symbols (getTypeOfSymbolWithDeferredType, M6)"
 class = "stage"
@@ -368,9 +311,8 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_of_variable_or_parameter_or_property"
-reason = "export= value type (5.8 modules)"
-class = "stage"
-owner = "5.8"
+reason = "export assignment without expression (parse recovery)"
+class = "recovery"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -381,21 +323,14 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_of_variable_or_parameter_or_property"
-reason = "symbol without value declaration (M4 synthesis)"
-class = "untagged"
+reason = "symbol without a value declaration (Debug.assertIsDefined transcription, parse recovery)"
+class = "recovery"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_of_variable_or_parameter_or_property"
-reason = "worker declaration kind {other:?} (M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "late_bind_index_signature"
-reason = "late index signature over an early __index (cloneSymbol merge, 5.8)"
-class = "stage"
-owner = "5.8"
+reason = "worker declaration kind {other:?} (Debug.fail transcription, parse recovery)"
+class = "recovery"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -403,13 +338,6 @@ in = "parse_pseudo_bigint_text"
 reason = "non-decimal bigint literal text {text:?} (parsePseudoBigInt radix support, M6)"
 class = "stage"
 owner = "M6"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "resolve_anonymous_type_members"
-reason = "anonymous members for symbol flags {flags:?} (M4 5.3e/5.8)"
-class = "stage"
-owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -424,12 +352,6 @@ in = "resolve_structured_type_members"
 reason = "member resolution for object flags {object_flags:?} (Mapped/ReverseMapped, M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "variable_like_annotation"
-reason = "variable-like declaration kind {:?} (M4)"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -1566,12 +1488,6 @@ file = "crates/checker/src/operators.rs"
 in = "check_template_expression"
 reason = "template without head (parse-recovery tree)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "enum_literal_type_is_truthy"
-reason = "enum literal condition with a non-literal payload"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/operators.rs"

@@ -4160,9 +4160,10 @@ impl<'a> CheckerState<'a> {
                 LiteralValue::Number(value) => *value != 0.0,
                 LiteralValue::BigInt(value) => value.base10_value != "0",
             }),
-            _ => Err(Unsupported::new(
-                "enum literal condition with a non-literal payload",
-            )),
+            // 83657 reads `.value` off the type: non-Literal payloads
+            // (opaque computed enum members) carry none, and
+            // `!!undefined` is false.
+            _ => Ok(false),
         }
     }
 

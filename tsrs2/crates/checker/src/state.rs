@@ -470,6 +470,11 @@ pub struct CheckerState<'a> {
     /// tsc patternAmbientModuleAugmentations (mergeModuleAugmentation
     /// 47865): augmentation name → the unidirectionally-merged symbol.
     pub pattern_ambient_module_augmentations: std::collections::HashMap<String, SymbolId>,
+    /// A module augmentation whose target sat in the resolver's
+    /// Suppressed band (node_modules/baseUrl machinery) never merged —
+    /// tsc WOULD have merged it, so property misses must stay
+    /// contained (FP=0 posture; see the access.rs miss gate).
+    pub unresolved_module_augmentation: bool,
     /// tsrs-native (M4 5.8d): normalized file path → program file
     /// index — the host.getResolvedModule seam's lookup table
     /// (program-and-modules.md §2; later files shadow earlier
@@ -635,6 +640,7 @@ impl<'a> CheckerState<'a> {
             unknown_symbol,
             pattern_ambient_modules: Vec::new(),
             pattern_ambient_module_augmentations: std::collections::HashMap::new(),
+            unresolved_module_augmentation: false,
             program_path_index: std::collections::HashMap::new(),
             host_file_paths: std::collections::HashSet::new(),
             global_type_memos: Default::default(),

@@ -1649,11 +1649,11 @@ impl<'a> CheckerState<'a> {
                     let prop_name = self.symbol_display_name(prop);
                     let class_name = match self.get_declaring_class(prop)? {
                         Some(class) => self.type_to_string_slice(class)?,
-                        None => {
-                            return Err(Unsupported::new(
-                                "abstract member without declaring class (recovery)",
-                            ))
-                        }
+                        // PROBED (m4-end-sweep §implement-5.9c): the
+                        // vendored tsc renders typeToString(undefined)
+                        // as "any" here — TS2513 with class 'any',
+                        // no crash.
+                        None => "any".to_owned(),
                     };
                     self.error_at(
                         Some(error_node),
@@ -2601,32 +2601,87 @@ impl<'a> CheckerState<'a> {
                 let Some(receiver) = access.expression else {
                     return false;
                 };
-                let receiver_symbol = match self.data_of(receiver) {
-                    NodeData::Identifier(data) if !instance_side => {
-                        self.resolve_lexical_value_symbol(receiver, &data.escaped_text)
-                    }
-                    NodeData::PropertyAccessExpression(prototype) => {
-                        if !instance_side
-                            || prototype
-                                .name
-                                .and_then(|name| self.identifier_text_of(name))
-                                != Some("prototype")
-                        {
-                            None
-                        } else {
-                            prototype.expression.and_then(|base| {
-                                let NodeData::Identifier(data) = self.data_of(base) else {
-                                    return None;
-                                };
-                                self.resolve_lexical_value_symbol(base, &data.escaped_text)
-                            })
+                // Chain-head resolution (5.9c FP sweep): JS expando
+                // assignments write through arbitrary chains —
+                // `this.member.a = 0`, `obj.property.a = 0` — so the
+                // guard keys on the HEAD of the receiver chain. Class
+                // instance types still demand a `prototype` hop or a
+                // `this` head (static assignments must not open the
+                // instance side); anonymous containers take identifier
+                // and `this` heads.
+                let mut head = receiver;
+                let mut through_prototype = false;
+                loop {
+                    match self.data_of(head) {
+                        NodeData::PropertyAccessExpression(step) => {
+                            if step.name.and_then(|name| self.identifier_text_of(name))
+                                == Some("prototype")
+                            {
+                                through_prototype = true;
+                            }
+                            match step.expression {
+                                Some(next) => head = next,
+                                None => return false,
+                            }
                         }
+                        NodeData::ElementAccessExpression(step) => match step.expression {
+                            Some(next) => head = next,
+                            None => return false,
+                        },
+                        _ => break,
                     }
-                    _ => None,
-                };
-                receiver_symbol
-                    .map(|receiver| self.get_merged_symbol(receiver))
-                    .is_some_and(|receiver| value_symbols.contains(&receiver))
+                }
+                match self.data_of(head) {
+                    // Identifier heads: the prototype hop selects the
+                    // SIDE — a `X.prototype.<...>` chain speaks for
+                    // the instance side only, a plain chain for the
+                    // static/anonymous side only (the two do-not-open
+                    // unit pins).
+                    NodeData::Identifier(data) if instance_side == through_prototype => self
+                        .resolve_lexical_value_symbol(head, &data.escaped_text)
+                        .map(|receiver| self.get_merged_symbol(receiver))
+                        .is_some_and(|receiver| value_symbols.contains(&receiver)),
+                    _ if self.kind_of(head) == SyntaxKind::ThisKeyword => {
+                        // `this.<chain>.prop = ...`: accept when the
+                        // enclosing class-like declares one of the
+                        // value symbols, or a value symbol's
+                        // declaration sits inside that class.
+                        let mut class_like = self.parent_of(head);
+                        while let Some(current) = class_like {
+                            if matches!(
+                                self.kind_of(current),
+                                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                            ) {
+                                break;
+                            }
+                            class_like = self.parent_of(current);
+                        }
+                        let Some(class_like) = class_like else {
+                            return false;
+                        };
+                        let class_symbol = self
+                            .node_symbol(class_like)
+                            .map(|symbol| self.get_merged_symbol(symbol));
+                        if class_symbol.is_some_and(|class| value_symbols.contains(&class)) {
+                            return true;
+                        }
+                        value_symbols.iter().any(|&value_symbol| {
+                            self.binder.symbol(value_symbol).declarations.iter().any(
+                                |&value_declaration| {
+                                    let mut cursor = Some(value_declaration);
+                                    while let Some(current) = cursor {
+                                        if current == class_like {
+                                            return true;
+                                        }
+                                        cursor = self.parent_of(current);
+                                    }
+                                    false
+                                },
+                            )
+                        })
+                    }
+                    _ => false,
+                }
             })
         })
     }
@@ -2847,16 +2902,17 @@ impl<'a> CheckerState<'a> {
                     apparent_type
                 });
             }
+            // 75257-75264: const-enum receivers skip the
+            // Object/Function augment in the property lookup.
             let skip_object_function_property_augment =
                 self.is_const_enum_object_type(apparent_type);
-            if skip_object_function_property_augment {
-                return Err(Unsupported::new(
-                    "const-enum object property lookup (skipObjectFunctionPropertyAugment — enum band residual)",
-                ));
-            }
             let include_type_only_members = self.kind_of(node) == SyntaxKind::QualifiedName;
             let _ = include_type_only_members; // 5.8 modules: typeOnlyExportStarMap is empty pre-5.8.
-            prop = self.get_property_of_type_full(apparent_type, &right_text)?;
+            prop = self.get_property_of_type_ex(
+                apparent_type,
+                &right_text,
+                skip_object_function_property_augment,
+            )?;
         }
         let prop_type: TypeId;
         if let Some(prop) = prop {
@@ -2980,6 +3036,15 @@ impl<'a> CheckerState<'a> {
                             "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)",
                         ));
                     }
+                    // A module augmentation the resolver suppressed
+                    // (node_modules band) never merged its members —
+                    // tsc WOULD have merged, so the miss may be ours.
+                    if self.unresolved_module_augmentation {
+                        return Err(Unsupported::new(
+                            "property miss under an unresolved module augmentation \
+                             (node_modules resolver band, M8)",
+                        ));
+                    }
                     let report_target = if self.is_this_type_parameter(left_type) {
                         apparent_type
                     } else {
@@ -3050,8 +3115,13 @@ impl<'a> CheckerState<'a> {
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(tsrs2_types::CheckFlags::SYNTHETIC_PROPERTY) {
             if check_flags.intersects(tsrs2_types::CheckFlags::DEFERRED_TYPE) {
+                // getWriteTypeOfSymbolWithDeferredType (56920-56928):
+                // deferralWriteConstituents exist only once the M6
+                // union/intersection synthetic-property machinery
+                // mints them (createUnionOrIntersectionProperty) —
+                // same family as the M6-owned read side.
                 return Err(Unsupported::new(
-                    "getWriteTypeOfSymbolWithDeferredType (deferred synthetic members)",
+                    "deferred synthetic write types (getWriteTypeOfSymbolWithDeferredType, M6)",
                 ));
             }
             if let crate::links::LinkSlot::Resolved(write_type) =
@@ -3068,9 +3138,30 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(SymbolFlags::ACCESSOR) {
             if check_flags.intersects(tsrs2_types::CheckFlags::INSTANTIATED) {
-                return Err(Unsupported::new(
-                    "getWriteTypeOfInstantiatedSymbol (instantiated accessor writes)",
-                ));
+                // getWriteTypeOfInstantiatedSymbol (56889-56892):
+                // links.writeType ||= the target's write type through
+                // the mapper — first write wins on a recursive fill.
+                if let crate::links::LinkSlot::Resolved(write_type) =
+                    self.links.symbol(symbol).write_type
+                {
+                    return Ok(write_type);
+                }
+                let target = self
+                    .links
+                    .symbol(symbol)
+                    .target
+                    .expect("Instantiated check flag implies links.target");
+                let mapper = self.links.symbol(symbol).mapper;
+                let target_write = self.get_write_type_of_symbol(target)?;
+                let instantiated = self.instantiate_type(target_write, mapper)?;
+                if let crate::links::LinkSlot::Resolved(already) =
+                    self.links.symbol(symbol).write_type
+                {
+                    return Ok(already);
+                }
+                self.links
+                    .set_symbol_write_type(self.speculation_depth, symbol, instantiated);
+                return Ok(instantiated);
             }
             return self.get_write_type_of_accessors(symbol);
         }

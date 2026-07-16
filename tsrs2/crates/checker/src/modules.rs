@@ -266,6 +266,23 @@ impl<'a> CheckerState<'a> {
             };
             let immediate = self.resolve_external_module_name(node, expression, false)?;
             let resolved = self.resolve_external_module_symbol(immediate, false)?;
+            // 48516-48521: under node20..nodenext, `import x =
+            // require(esm)` targets the module's `"module.exports"`
+            // named export when one exists.
+            if let Some(resolved_symbol) = resolved {
+                let module_kind = self.options.emit_module_kind();
+                if (102..=199).contains(&module_kind) {
+                    let module_exports = self.get_export_of_module(
+                        resolved_symbol,
+                        "module.exports",
+                        node,
+                        dont_resolve_alias,
+                    )?;
+                    if module_exports.is_some() {
+                        return Ok(module_exports);
+                    }
+                }
+            }
             self.mark_symbol_of_alias_declaration_if_type_only(
                 Some(node),
                 immediate,
@@ -2038,6 +2055,11 @@ impl<'a> CheckerState<'a> {
             // resolution machinery (node_modules/baseUrl-paths/allowJs
             // targets) — tsc may resolve, so the 2307 tail stays
             // silent (FN-side; ledger).
+            if is_for_augmentation {
+                // The skipped merge leaves member tables thinner than
+                // tsc's — downstream property misses gate on this.
+                self.unresolved_module_augmentation = true;
+            }
             return Ok(None);
         }
         if let Some(module_not_found_error) = module_not_found_error {

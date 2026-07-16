@@ -123,6 +123,42 @@ Every one of the 157 entries gets exactly one:
   arms, type-reference unknown-symbol arm, EWTA errorType, and
   the small probed arms (abstract-member 2513, enum-literal
   condition). See the implement-5.9c list in the table.
+  **Landed amendments (recorded at implementation):** (1) the
+  deferred synthetic WRITE arm re-owned M6 instead of implemented —
+  deferralWriteConstituents are minted only by M6's
+  createUnionOrIntersectionProperty, matching the M6-owned read
+  side (CheckFlags::DEFERRED_TYPE has no M4 producer); (2) once the
+  type-of-symbol worker completed, its two tails reclassed to the
+  crash-guard family: symbol-without-a-value-declaration
+  (Debug.assertIsDefined transcription, 56662) and the
+  worker-declaration-kind tail (Debug.fail, 56707-56708) — the
+  "M4 synthesis" half of the first was the Prototype head, which
+  DID implement; (3) resolveDeclaredMembers converted to tsc's
+  staged publication (declaredProperties published before the
+  signature/index walks, in-place completion, Err retract via new
+  links fn) — the late-bound index reads walk sibling property
+  types, and the one-shot write both tripped the write-once
+  tripwire and manufactured a 7022 circularity FP
+  (parserComputedPropertyName29); (4) the node20..nodenext
+  `"module.exports"` import-equals hop (tsc 48516-48521) pulled
+  forward from the 5.9d interop band — exports-as-members exposed
+  2351 FPs on require-of-ESM fixtures (esmModuleExports1/3);
+  (5) NEW M8 escape "property miss under an unresolved module
+  augmentation": the resolver's Suppressed band (node_modules)
+  skips augmentation merges tsc performs, and the member tables
+  stay thinner than tsc's (umd-augmentation 2339 FPs); (6) the
+  JS-container property-miss guard widened from one-hop receivers
+  to chain heads (`this.<chain>.prop`, nested object chains) —
+  constructor signatures opened `new C()` routes into checkJs
+  expando shapes (salsa fixtures); (7) getExportsOfSymbol gained
+  the globalThis head (its exports ARE the checker-state globals
+  table); (8) combineSymbolTables landed as the faithful three-way
+  shape (either side empty passes through untouched; both
+  non-empty hop through getMergedSymbol and merge collisions).
+  Gates: T0 41.1585% (20052/48719, +1629) / 2xxx 52.2136%
+  (10921/20916, +1286), FP=0; escapes sites 267→258, untagged
+  20→**9** (the 5.9d rows), recovery 109→112 (+3 crash-guard
+  reclasses above); relpin 415/415.
 - **5.9d `m4/5.9d-modules-jsx`** — modules/jsx/interop band: both
   synthetic-default interop escapes, the aliased-JSX family ×8,
   super base constructors, import types, the display-presence

@@ -1269,8 +1269,21 @@ impl<'a> CheckerState<'a> {
                 .filter(|&expression| self.is_entity_name_expression(expression)),
             _ => unreachable!("type reference kinds imply payloads"),
         };
-        let type_name =
-            type_name.ok_or_else(|| Unsupported::new("type reference with missing name"))?;
+        // resolveTypeReferenceName (60372-60376): a heritage
+        // expression that is not an entity name resolves to
+        // unknownSymbol, and the reference types as errorType
+        // (getTypeReferenceType 60381-60383).
+        let Some(type_name) = type_name else {
+            let error = self.tables.intrinsics.error;
+            let unknown = self.unknown_symbol;
+            self.links.overwrite_type_reference_resolution(
+                self.speculation_depth,
+                node,
+                unknown,
+                error,
+            );
+            return Ok(error);
+        };
         // resolveEntityName reports (2304 family) and yields
         // unknownSymbol; the reference then types as errorType.
         let Some(symbol) = self.resolve_entity_name(
@@ -1314,10 +1327,22 @@ impl<'a> CheckerState<'a> {
             } else {
                 self.tables.get_regular_type_of_literal_type(declared)
             }
+        } else if flags.intersects(SymbolFlags::ALIAS) {
+            // tryGetDeclaredTypeOfSymbol's Alias arm
+            // (getDeclaredTypeOfAlias) — same checkNoTypeArguments +
+            // regular-literal tail as the other declared-type arms.
+            let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+            if !self.check_no_type_arguments(node, Some(symbol)) {
+                self.tables.intrinsics.error
+            } else {
+                self.tables.get_regular_type_of_literal_type(declared)
+            }
         } else {
-            return Err(Unsupported::new(format!(
-                "type reference to symbol flags {flags:?} (M4)"
-            )));
+            // getTypeReferenceType tail (60391-60404): no declared
+            // type and not a JSDoc value reference — errorType. (The
+            // getExpandoSymbol hop at 60384 is a JS expando shape,
+            // elided project-wide.)
+            self.tables.intrinsics.error
         };
         // links.resolvedSymbol + links.resolvedType (60587-60588):
         // written together, and deliberately OVERWRITE-capable — the
@@ -2800,21 +2825,38 @@ impl<'a> CheckerState<'a> {
             .expect("class/interface targets carry their declaring symbol");
         let members = self.get_members_of_symbol(symbol)?;
         let properties = self.get_named_members(&members);
-        let call_signatures =
-            self.get_signatures_of_symbol(members.get(InternalSymbolName::CALL).copied())?;
-        let construct_signatures =
-            self.get_signatures_of_symbol(members.get(InternalSymbolName::NEW).copied())?;
-        let index_infos = self.get_index_infos_of_symbol(symbol)?;
+        // tsc resolveDeclaredMembers publishes declaredProperties
+        // FIRST and fills signatures/index infos into the type in
+        // place (57772-57781): a nested reader reached through the
+        // signature/index walks (self-referential member types,
+        // 5.9c late-bound index reads) observes the still-empty
+        // signature/index lists instead of recursing. An Err unwind
+        // retracts the parked table.
+        let call_symbol = members.get(InternalSymbolName::CALL).copied();
+        let new_symbol = members.get(InternalSymbolName::NEW).copied();
         let id = self.alloc_members(ResolvedMembers {
             members,
             properties,
-            call_signatures,
-            construct_signatures,
-            index_infos,
+            ..ResolvedMembers::default()
         });
         self.links
             .set_type_declared_members(self.speculation_depth, target, id);
-        Ok(id)
+        let filled = (|state: &mut Self| -> CheckResult2<()> {
+            let call_signatures = state.get_signatures_of_symbol(call_symbol)?;
+            state.members_mut(id).call_signatures = call_signatures;
+            let construct_signatures = state.get_signatures_of_symbol(new_symbol)?;
+            state.members_mut(id).construct_signatures = construct_signatures;
+            let index_infos = state.get_index_infos_of_symbol(symbol)?;
+            state.members_mut(id).index_infos = index_infos;
+            Ok(())
+        })(self);
+        match filled {
+            Ok(()) => Ok(id),
+            Err(err) => {
+                self.links.retract_type_declared_members(target);
+                Err(err)
+            }
+        }
     }
 
     /// tsc-port: resolveObjectTypeMembers @6.0.3
@@ -3023,8 +3065,8 @@ impl<'a> CheckerState<'a> {
     /// slot before binding (the 57717 re-entrancy guard) and the
     /// combined table rewrites it; an Err unwind reverts to Vacant.
     /// The JS assignment-declaration and cjsExportMerged blocks are
-    /// elided project-wide. An early/late NAME COLLISION would need
-    /// mergeSymbol across the tables — escape (5.8 merge surface).
+    /// elided project-wide. Early/late name collisions merge through
+    /// combineSymbolTables → mergeSymbol (5.9c, on 5.8d machinery).
     fn get_resolved_members_or_exports_of_symbol(
         &mut self,
         symbol: SymbolId,
@@ -3111,17 +3153,28 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            // combineSymbolTables (47810): plain inserts when the key
-            // sets are disjoint; a collision needs mergeSymbol (5.8).
-            let mut resolved = early.clone();
-            for (name, member) in late.iter() {
-                if resolved.get(name).is_some() {
-                    return Err(Unsupported::new(
-                        "early/late member table merge (combineSymbolTables → mergeSymbol, 5.8)",
-                    ));
+            // combineSymbolTables (47810-47817): either side empty
+            // passes the other through untouched; otherwise both
+            // tables run through mergeSymbolTable — entries hop
+            // through getMergedSymbol, and a key collision merges via
+            // mergeSymbol (5.8d machinery).
+            let resolved = if early.is_empty() {
+                late
+            } else if late.is_empty() {
+                early
+            } else {
+                let mut combined = tsrs2_binder::SymbolTable::default();
+                for (name, &member) in early.iter().chain(late.iter()) {
+                    let merged = match combined.get(name).copied() {
+                        Some(existing) => {
+                            state.merge_symbol(existing, member, /*unidirectional*/ false)
+                        }
+                        None => state.get_merged_symbol(member),
+                    };
+                    combined.insert(name.clone(), merged);
                 }
-                resolved.insert(name.clone(), *member);
-            }
+                combined
+            };
             Ok(resolved)
         })(self, &mut freshly_bound);
         match result {
@@ -3308,12 +3361,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e4a21cba13d27d2990eb3880e9c33d4ed3b06acc26c66109960ba95799663165
     /// tsc-span: _tsc.js:57694-57711
     ///
-    /// cloneSymbol of an early __index (both computed AND declared
-    /// index members on one container) is a merge surface — escape;
+    /// An early __index (declared index signatures alongside computed
+    /// ones on one container) is CLONED and marked Late (57700-57703);
     /// the pure-late shape allocates the fresh __index symbol. The
-    /// consumer (getIndexInfosOfIndexSymbol) still escapes on
-    /// non-IndexSignature declarations, so these members stay FN
-    /// (honest containment at the read).
+    /// isReplaceableByMethod skip on the declarations push (57708) is
+    /// a JS expando-binding flag — elided project-wide.
     fn late_bind_index_signature(
         &mut self,
         early: &tsrs2_binder::SymbolTable,
@@ -3323,19 +3375,29 @@ impl<'a> CheckerState<'a> {
         let index_symbol = match late.get(InternalSymbolName::INDEX) {
             Some(&existing) => existing,
             None => {
-                if early.get(InternalSymbolName::INDEX).is_some() {
-                    return Err(Unsupported::new(
-                        "late index signature over an early __index (cloneSymbol merge, 5.8)",
-                    ));
-                }
-                let created = self
-                    .binder
-                    .create_symbol(SymbolFlags::NONE, InternalSymbolName::INDEX.to_owned());
-                self.links.set_symbol_check_flags(
-                    self.speculation_depth,
-                    created,
-                    tsrs2_types::CheckFlags::LATE,
-                );
+                let created = match early.get(InternalSymbolName::INDEX).copied() {
+                    Some(early_index) => {
+                        let cloned = self.clone_symbol(early_index);
+                        let check_flags = self.links.symbol(cloned).check_flags;
+                        self.links.set_symbol_check_flags(
+                            self.speculation_depth,
+                            cloned,
+                            check_flags | tsrs2_types::CheckFlags::LATE,
+                        );
+                        cloned
+                    }
+                    None => {
+                        let created = self
+                            .binder
+                            .create_symbol(SymbolFlags::NONE, InternalSymbolName::INDEX.to_owned());
+                        self.links.set_symbol_check_flags(
+                            self.speculation_depth,
+                            created,
+                            tsrs2_types::CheckFlags::LATE,
+                        );
+                        created
+                    }
+                };
                 late.insert(InternalSymbolName::INDEX.to_owned(), created);
                 created
             }
@@ -3361,6 +3423,12 @@ impl<'a> CheckerState<'a> {
             .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
         {
             return self.get_resolved_members_or_exports_of_symbol(symbol, /*is_static*/ true);
+        }
+        // globalThisSymbol.exports IS `globals` (46492) — the merged
+        // table lives on CheckerState, not on the binder symbol; the
+        // module walk below would answer the empty binder table.
+        if symbol == self.global_this_symbol {
+            return Ok(self.globals.clone());
         }
         if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
             return self.get_exports_of_module(symbol);
@@ -4044,8 +4112,9 @@ impl<'a> CheckerState<'a> {
     ///
     /// Covers the getDeclaredTypeOfSymbol wrapper too (57502-57504):
     /// a symbol matching no arm — e.g. a TypeLiteral in mixin base
-    /// position — is errorType, not a failure. The Alias arm needs
-    /// resolveAlias (import semantics, 5.8) and stays an escape.
+    /// position — is errorType, not a failure. The Alias arm
+    /// (getDeclaredTypeOfAlias, 57498-57501) recurses through
+    /// resolveAlias with the declaredType memo.
     pub(crate) fn get_declared_type_of_symbol_slice(
         &mut self,
         symbol: SymbolId,
@@ -4067,9 +4136,22 @@ impl<'a> CheckerState<'a> {
             return self.get_declared_type_of_enum_member(symbol);
         }
         if flags.intersects(SymbolFlags::ALIAS) {
-            return Err(Unsupported::new(
-                "getDeclaredTypeOfAlias (resolveAlias, 5.8 modules)",
-            ));
+            // getDeclaredTypeOfAlias (57498-57501): declaredType memo
+            // over the alias target's declared type.
+            if let Some(declared) = self.links.symbol(symbol).declared_type.resolved() {
+                return Ok(declared);
+            }
+            let target = self.resolve_alias(symbol)?;
+            let declared = self.get_declared_type_of_symbol_slice(target)?;
+            if let Some(already) = self.links.symbol(symbol).declared_type.resolved() {
+                return Ok(already);
+            }
+            self.links.set_symbol_declared_type(
+                self.speculation_depth,
+                symbol,
+                LinkSlot::Resolved(declared),
+            );
+            return Ok(declared);
         }
         Ok(self.tables.intrinsics.error)
     }
@@ -4775,13 +4857,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:58316-58407
     ///
     /// Live arms: instantiated targets (58317-58330), TypeLiteral
-    /// symbols (58332-58340), function/method value types with no
-    /// exports. Classes, enums, modules, globalThis and export-carrying
-    /// functions (namespace merges) are 5.3e value-side rows. Every arm
-    /// writes the EMPTY table early (tsc 58318/58333/58354) so a
-    /// re-entrant read mid-resolution observes empty members instead of
-    /// recursing — the write is completed in place, or retracted on an
-    /// Err unwind.
+    /// symbols (58332-58340), and the unconditional value-side tail
+    /// (58341-58407, complete since 5.9c): exports as members for
+    /// functions/methods/classes/enums/namespaces/globalThis, static
+    /// base inheritance, the enum number index, call/construct
+    /// signatures. Every arm writes the EMPTY table early (tsc
+    /// 58318/58333/58354) so a re-entrant read mid-resolution observes
+    /// empty members instead of recursing — the write is completed in
+    /// place, or retracted on an Err unwind.
     fn resolve_anonymous_type_members(&mut self, ty: TypeId) -> CheckResult2<MembersId> {
         let early_id = self.alloc_members(ResolvedMembers::default());
         self.links
@@ -4849,11 +4932,40 @@ impl<'a> CheckerState<'a> {
                     index_infos,
                 });
             }
-            if flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD | SymbolFlags::CLASS) {
-                // 58341-58407: the value-side tail — exports as
-                // members, static base inheritance for classes,
-                // call/construct signatures.
+            // 58341-58407: the value-side tail — exports as members,
+            // static base inheritance for classes, call/construct
+            // signatures. tsc runs this for EVERY symbol past the
+            // target/TypeLiteral heads (enums, namespaces, globalThis
+            // included) — no flags gate.
+            {
                 let mut members = state.get_exports_of_symbol(symbol)?;
+                // 58343-58352: globalThis members drop block-scoped
+                // bindings and purely-ambient value modules.
+                if symbol == state.global_this_symbol {
+                    let mut vars_only = tsrs2_binder::SymbolTable::default();
+                    for (name, &member) in members.iter() {
+                        let member_flags = state.symbol_flags(member);
+                        let declarations = &state.binder.symbol(member).declarations;
+                        let ambient_module_only = member_flags
+                            .intersects(SymbolFlags::VALUE_MODULE)
+                            && !declarations.is_empty()
+                            && declarations.iter().all(|&declaration| {
+                                node_util::is_ambient_module(
+                                    state.binder.source_of_node(declaration),
+                                    declaration,
+                                )
+                            });
+                        if !member_flags.intersects(SymbolFlags::BLOCK_SCOPED)
+                            && !ambient_module_only
+                        {
+                            vars_only.insert(name.clone(), member);
+                        }
+                    }
+                    members = vars_only;
+                }
+                // type.properties as set at 58354 (pre-class-merge
+                // table) — read by the enum number-index check below.
+                let pre_merge_properties = state.get_named_members(&members);
                 let mut base_constructor_index_info: Option<IndexInfo> = None;
                 if flags.intersects(SymbolFlags::CLASS) {
                     let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
@@ -4889,21 +5001,54 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 let index_symbol = members.get(InternalSymbolName::INDEX).copied();
-                let mut index_infos = match index_symbol {
-                    Some(index_symbol) => state.get_index_infos_of_index_symbol(index_symbol)?,
-                    None => match base_constructor_index_info {
-                        Some(info) => vec![info],
-                        // The enum number-index arm (58372-58374) rides
-                        // on enum declared types (5.3b-doc stage);
-                        // enums do not take this path yet.
-                        None => Vec::new(),
-                    },
+                let index_infos = match index_symbol {
+                    // 58366-58367: infos from the index symbol, with
+                    // the member table as the sibling list (feeds the
+                    // late-bound computed-name buckets).
+                    Some(index_symbol) => {
+                        let siblings: Vec<SymbolId> =
+                            members.iter().map(|(_, &member)| member).collect();
+                        state.get_index_infos_of_index_symbol(index_symbol, Some(siblings))?
+                    }
+                    None => {
+                        let mut infos = Vec::new();
+                        if let Some(info) = base_constructor_index_info {
+                            infos.push(info);
+                        }
+                        // 58372-58374: enums with an Enum-flagged
+                        // declared type or any number-like member get
+                        // enumNumberIndexInfo (47276): readonly
+                        // [number]: string.
+                        if flags.intersects(SymbolFlags::ENUM) {
+                            let declared = state.get_declared_type_of_enum(symbol)?;
+                            let mut enum_number_index =
+                                state.tables.flags_of(declared).intersects(TypeFlags::ENUM);
+                            if !enum_number_index {
+                                for &prop in &pre_merge_properties {
+                                    let prop_type = state.get_type_of_symbol(prop)?;
+                                    if state
+                                        .tables
+                                        .flags_of(prop_type)
+                                        .intersects(TypeFlags::NUMBER_LIKE)
+                                    {
+                                        enum_number_index = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if enum_number_index {
+                                infos.push(IndexInfo {
+                                    key_type: state.tables.intrinsics.number,
+                                    value_type: state.tables.intrinsics.string,
+                                    is_readonly: true,
+                                    declaration: None,
+                                    components: None,
+                                });
+                            }
+                        }
+                        infos
+                    }
                 };
-                if index_symbol.is_some() {
-                    // tsc computes infos from the index symbol only;
-                    // the base fallback is the None arm above.
-                    let _ = &mut index_infos;
-                }
                 let call_signatures =
                     if flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD) {
                         state.get_signatures_of_symbol(Some(symbol))?
@@ -4924,17 +5069,14 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 let properties = state.get_named_members(&members);
-                return Ok(ResolvedMembers {
+                Ok(ResolvedMembers {
                     members,
                     properties,
                     call_signatures,
                     construct_signatures,
                     index_infos,
-                });
+                })
             }
-            Err(Unsupported::new(format!(
-                "anonymous members for symbol flags {flags:?} (M4 5.3e/5.8)"
-            )))
         })(self);
         match resolved {
             Ok(resolved) => {
@@ -4988,7 +5130,9 @@ impl<'a> CheckerState<'a> {
             .get(InternalSymbolName::INDEX)
             .copied();
         match index_symbol {
-            Some(index_symbol) => self.get_index_infos_of_index_symbol(index_symbol),
+            Some(index_symbol) => {
+                self.get_index_infos_of_index_symbol(index_symbol, /*sibling_symbols*/ None)
+            }
             None => Ok(Vec::new()),
         }
     }
@@ -4997,59 +5141,173 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 860af0bebe06ec9b601dc9788cd32f2ae7a2705471665cf26e917ab689fe15a5
     /// tsc-span: _tsc.js:59996-60052
     ///
-    /// M3 slice: the isIndexSignatureDeclaration arm (60007-60017).
-    /// Late-bound computed-name index signatures (60018-60049) are M4.
+    /// The isIndexSignatureDeclaration arm (60007-60017, M3) plus the
+    /// late-bound computed-name arm (60018-60049, 5.9c). The JS
+    /// declaration shapes inside the late arm (binary-expression
+    /// declarations, element-access names) are elided project-wide.
+    /// `sibling_symbols` is tsc's default parameter: the parent's
+    /// member list when absent, evaluated eagerly like the JS default.
     fn get_index_infos_of_index_symbol(
         &mut self,
         index_symbol: SymbolId,
+        sibling_symbols: Option<Vec<SymbolId>>,
     ) -> CheckResult2<Vec<IndexInfo>> {
+        let sibling_symbols = match sibling_symbols {
+            Some(siblings) => Some(siblings),
+            None => match self.binder.symbol(index_symbol).parent {
+                Some(parent) => Some(
+                    self.get_members_of_symbol(parent)?
+                        .iter()
+                        .map(|(_, &member)| member)
+                        .collect::<Vec<SymbolId>>(),
+                ),
+                None => None,
+            },
+        };
         let declarations = self.binder.symbol(index_symbol).declarations.clone();
         let mut index_infos: Vec<IndexInfo> = Vec::new();
+        let mut has_computed_number_property = false;
+        let mut readonly_computed_number_property = true;
+        let mut has_computed_symbol_property = false;
+        let mut readonly_computed_symbol_property = true;
+        let mut has_computed_string_property = false;
+        let mut readonly_computed_string_property = true;
+        let mut computed_property_symbols: Vec<SymbolId> = Vec::new();
         for declaration in declarations {
-            let NodeData::IndexSignature(data) = self.data_of(declaration).clone() else {
-                return Err(Unsupported::new(
-                    "late-bound computed-name index signatures (M4)",
-                ));
-            };
-            let parameters = self.nodes_of(data.parameters);
-            if parameters.len() != 1 {
-                continue;
-            }
-            let NodeData::Parameter(parameter) = self.data_of(parameters[0]).clone() else {
-                continue;
-            };
-            let Some(parameter_type) = parameter.r#type else {
-                continue;
-            };
-            let key_type = self.get_type_from_type_node(parameter_type)?;
-            let value_type = match data.r#type {
-                Some(annotation) => self.get_type_from_type_node(annotation)?,
-                None => self.tables.intrinsics.any,
-            };
-            let is_readonly = self.has_readonly_modifier(data.modifiers);
-            // forEachType: union key types split into one info per
-            // constituent (60011).
-            let key_types: Vec<TypeId> =
-                if self.tables.flags_of(key_type).intersects(TypeFlags::UNION) {
-                    match &self.tables.type_of(key_type).data {
-                        TypeData::Union { types, .. } => types.to_vec(),
-                        _ => vec![key_type],
-                    }
-                } else {
-                    vec![key_type]
-                };
-            for key_type in key_types {
-                if self.is_valid_index_key_type(key_type)
-                    && !index_infos.iter().any(|info| info.key_type == key_type)
-                {
-                    index_infos.push(IndexInfo {
-                        key_type,
-                        value_type,
-                        is_readonly,
-                        declaration: Some(declaration),
-                        components: None,
-                    });
+            if let NodeData::IndexSignature(data) = self.data_of(declaration).clone() {
+                let parameters = self.nodes_of(data.parameters);
+                if parameters.len() != 1 {
+                    continue;
                 }
+                let NodeData::Parameter(parameter) = self.data_of(parameters[0]).clone() else {
+                    continue;
+                };
+                let Some(parameter_type) = parameter.r#type else {
+                    continue;
+                };
+                let key_type = self.get_type_from_type_node(parameter_type)?;
+                let value_type = match data.r#type {
+                    Some(annotation) => self.get_type_from_type_node(annotation)?,
+                    None => self.tables.intrinsics.any,
+                };
+                let is_readonly = self.has_readonly_modifier(data.modifiers);
+                // forEachType: union key types split into one info per
+                // constituent (60011).
+                let key_types: Vec<TypeId> =
+                    if self.tables.flags_of(key_type).intersects(TypeFlags::UNION) {
+                        match &self.tables.type_of(key_type).data {
+                            TypeData::Union { types, .. } => types.to_vec(),
+                            _ => vec![key_type],
+                        }
+                    } else {
+                        vec![key_type]
+                    };
+                for key_type in key_types {
+                    if self.is_valid_index_key_type(key_type)
+                        && !index_infos.iter().any(|info| info.key_type == key_type)
+                    {
+                        index_infos.push(IndexInfo {
+                            key_type,
+                            value_type,
+                            is_readonly,
+                            declaration: Some(declaration),
+                            components: None,
+                        });
+                    }
+                }
+            } else if self.has_late_bindable_ast_name(declaration) {
+                // 60018-60043: a late-bound member whose computed-name
+                // type keys an index bucket. Only lateBindIndexSignature
+                // pushes these declarations; the checks below re-run
+                // tsc's hasLateBindableIndexSignature verdict.
+                let name = self
+                    .name_of_named_declaration(declaration)
+                    .expect("late-bindable AST implies a computed name");
+                let key_type = self.check_computed_property_name(name)?;
+                if index_infos.iter().any(|info| info.key_type == key_type) {
+                    continue;
+                }
+                let string_number_symbol = self.tables.intrinsics.string_number_symbol;
+                if self.is_type_assignable_to(key_type, string_number_symbol)? {
+                    let readonly = node_util::get_combined_modifier_flags(
+                        self.binder.source_of_node(declaration),
+                        declaration,
+                    )
+                    .intersects(ModifierFlags::READONLY);
+                    let number = self.tables.intrinsics.number;
+                    let es_symbol = self.tables.intrinsics.es_symbol;
+                    if self.is_type_assignable_to(key_type, number)? {
+                        has_computed_number_property = true;
+                        if !readonly {
+                            readonly_computed_number_property = false;
+                        }
+                    } else if self.is_type_assignable_to(key_type, es_symbol)? {
+                        has_computed_symbol_property = true;
+                        if !readonly {
+                            readonly_computed_symbol_property = false;
+                        }
+                    } else {
+                        has_computed_string_property = true;
+                        if !readonly {
+                            readonly_computed_string_property = false;
+                        }
+                    }
+                    let member_symbol = self
+                        .node_symbol(declaration)
+                        .expect("late-bound members carry symbols");
+                    computed_property_symbols.push(member_symbol);
+                }
+            }
+        }
+        // 60045-60048: the computed buckets union the matching
+        // property types over computed members + siblings.
+        if has_computed_string_property
+            || has_computed_number_property
+            || has_computed_symbol_property
+        {
+            let mut all_property_symbols = computed_property_symbols;
+            if let Some(siblings) = sibling_symbols {
+                all_property_symbols.extend(
+                    siblings
+                        .into_iter()
+                        .filter(|&sibling| sibling != index_symbol),
+                );
+            }
+            let string = self.tables.intrinsics.string;
+            let number = self.tables.intrinsics.number;
+            let es_symbol = self.tables.intrinsics.es_symbol;
+            if has_computed_string_property
+                && !index_infos.iter().any(|info| info.key_type == string)
+            {
+                let info = self.get_object_literal_index_info(
+                    readonly_computed_string_property,
+                    0,
+                    &all_property_symbols,
+                    string,
+                )?;
+                index_infos.push(info);
+            }
+            if has_computed_number_property
+                && !index_infos.iter().any(|info| info.key_type == number)
+            {
+                let info = self.get_object_literal_index_info(
+                    readonly_computed_number_property,
+                    0,
+                    &all_property_symbols,
+                    number,
+                )?;
+                index_infos.push(info);
+            }
+            if has_computed_symbol_property
+                && !index_infos.iter().any(|info| info.key_type == es_symbol)
+            {
+                let info = self.get_object_literal_index_info(
+                    readonly_computed_symbol_property,
+                    0,
+                    &all_property_symbols,
+                    es_symbol,
+                )?;
+                index_infos.push(info);
             }
         }
         Ok(index_infos)
@@ -5178,21 +5436,54 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3401237074b42af69c2ceace5255cc0e405c373c4ab621f0c3e9f253791356bd
     /// tsc-span: _tsc.js:56631-56641
     ///
+    /// tsc-port: getTypeOfVariableOrParameterOrPropertyWorker @6.0.3
+    /// tsc-hash: e05c669a28c31ec155676b09be1cbc58ff6b2fe315f7d11471e9bff748d6585e
+    /// tsc-span: _tsc.js:56642-56717
+    ///
     /// tsc-port: getTypeForVariableLikeDeclaration @6.0.3
     /// tsc-hash: c0e8266ebc58c3f705777885e0cbce9e9a3452ce61f033c5e075f8f739ef624e
     /// tsc-span: _tsc.js:56032-56141
     ///
-    /// M3 slice: the declared-annotation branch (56050/56057 —
-    /// tryGetTypeFromEffectiveTypeNode + addOptionality). Initializer
-    /// inference, binding patterns, widening and reportImplicitAny are
-    /// M4/M6; the no-annotation fallback is anyType with the implicit-
-    /// any diagnostic deferred.
+    /// Worker heads: Prototype symbols and accessor-kinded value
+    /// declarations route ahead of the resolution stack (56643/56670);
+    /// requireSymbol, ModuleExports and JSON-source heads are
+    /// JS/modules shapes elided project-wide. The declaration kind
+    /// dispatch is complete for the TS band since 5.9c (export=,
+    /// class/function/enum/enum-member re-routes).
     fn get_type_of_variable_or_parameter_or_property(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
+        }
+        // 56643-56645: Prototype symbols (the class static `prototype`
+        // export) type ahead of the valueDeclaration assert and the
+        // resolution stack.
+        if self.symbol_flags(symbol).intersects(SymbolFlags::PROTOTYPE) {
+            let resolved = self.get_type_of_prototype_property(symbol)?;
+            if let Some(already) = self.links.symbol(symbol).type_of_symbol.resolved() {
+                return Ok(already);
+            }
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                symbol,
+                LinkSlot::Resolved(resolved),
+            );
+            return Ok(resolved);
+        }
+        let declaration = self.binder.symbol(symbol).value_declaration;
+        // 56670-56671: accessor-kinded value declarations route to
+        // getTypeOfAccessors ahead of the resolution stack (merged
+        // property+accessor shapes; auto-accessor PropertyDeclarations
+        // keep the worker route).
+        if let Some(accessor) = declaration {
+            if matches!(
+                self.kind_of(accessor),
+                SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+            ) {
+                return self.get_type_of_accessors(symbol);
+            }
         }
         // The (target, kind) cycle detector (56673); an Err unwind pops
         // the stack and leaves the slot Vacant, so a later query
@@ -5211,10 +5502,15 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(resolved);
         }
-        let declaration = self.binder.symbol(symbol).value_declaration;
         let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
+            // 56662: Debug.assertIsDefined(symbol.valueDeclaration) —
+            // the vendored tsc throws on this shape, so the guard is
+            // the permanent crash-guard family.
             let declaration = declaration.ok_or_else(|| {
-                Unsupported::new("symbol without value declaration (M4 synthesis)")
+                Unsupported::new(
+                    "symbol without a value declaration (Debug.assertIsDefined transcription, \
+                     parse recovery)",
+                )
             })?;
             // getTypeOfVariableOrParameterOrPropertyWorker dispatch
             // (56680-56711): the Prototype/requireSymbol/ModuleExports
@@ -5223,7 +5519,25 @@ impl<'a> CheckerState<'a> {
             // in the slice (modules 5.8, JS [JSDOC]).
             match state.kind_of(declaration) {
                 SyntaxKind::ExportAssignment => {
-                    Err(Unsupported::new("export= value type (5.8 modules)"))
+                    // 56680-56681: `export =` types as the widened
+                    // (cached) expression; the effective-type-node
+                    // read is the JS @type shape and stays None here.
+                    let expression = match state.data_of(declaration) {
+                        NodeData::ExportAssignment(data) => data.expression,
+                        _ => unreachable!("kind/data agree"),
+                    };
+                    let expression = expression.ok_or_else(|| {
+                        Unsupported::new("export assignment without expression (parse recovery)")
+                    })?;
+                    let checked = match state.try_get_type_from_effective_type_node(declaration)? {
+                        Some(declared) => declared,
+                        None => state.check_expression_cached(expression, CheckMode::NORMAL)?,
+                    };
+                    state.widen_type_for_variable_like_declaration(
+                        Some(checked),
+                        declaration,
+                        /*report_errors*/ false,
+                    )
                 }
                 SyntaxKind::BinaryExpression
                 | SyntaxKind::PropertyAccessExpression
@@ -5273,11 +5587,14 @@ impl<'a> CheckerState<'a> {
                         None => state.check_object_literal_method(declaration, CheckMode::NORMAL),
                     }
                 }
-                // 56684-56689: class-method/method-signature value
-                // declarations (merged property+method symbols) take
-                // the func-class-enum-module head when the symbol
-                // carries a callable/class/enum/module flag.
-                SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
+                // 56684-56689: class/function/method value
+                // declarations (merged symbols) take the
+                // func-class-enum-module head when the symbol carries
+                // a callable/class/enum/module flag.
+                SyntaxKind::ClassDeclaration
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::MethodSignature => {
                     if state.binder.symbol(symbol).flags.intersects(
                         SymbolFlags::FUNCTION
                             | SymbolFlags::METHOD
@@ -5301,8 +5618,14 @@ impl<'a> CheckerState<'a> {
                         declaration,
                         /*report_errors*/ true,
                     ),
+                // 56703-56706: enum containers and members re-route to
+                // their dedicated workers.
+                SyntaxKind::EnumDeclaration => state.get_type_of_func_class_enum_module(symbol),
+                SyntaxKind::EnumMember => state.get_type_of_enum_member(symbol),
+                // 56707-56708: the vendored tsc Debug.fails on any
+                // other declaration kind — permanent crash-guard.
                 other => Err(Unsupported::new(format!(
-                    "worker declaration kind {other:?} (M4)"
+                    "worker declaration kind {other:?} (Debug.fail transcription, parse recovery)"
                 ))),
             }
         })(self);
@@ -5335,6 +5658,55 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
+    /// tsc-port: getTypeOfPrototypeProperty @6.0.3
+    /// tsc-hash: 3713ca7d5ffe345496c5361d449e497d44e0510867d51b61b634364b8c1def7f
+    /// tsc-span: _tsc.js:55799-55802
+    ///
+    /// The declaring class's declared type; generic classes answer a
+    /// reference instantiated with all-any type arguments.
+    fn get_type_of_prototype_property(&mut self, prototype: SymbolId) -> CheckResult2<TypeId> {
+        let parent = self
+            .get_parent_of_symbol(prototype)
+            .expect("binder invariant: prototype symbols carry their class parent");
+        let class_type = self.get_declared_type_of_symbol_slice(parent)?;
+        let type_parameter_count = match &self.tables.type_of(class_type).data {
+            TypeData::GenericType {
+                type_parameters, ..
+            } => type_parameters.len(),
+            _ => 0,
+        };
+        if type_parameter_count == 0 {
+            return Ok(class_type);
+        }
+        let arguments = vec![self.tables.intrinsics.any; type_parameter_count];
+        Ok(self.tables.create_type_reference(class_type, &arguments))
+    }
+
+    /// tsc-port: getTypeOfPropertyInBaseClass @6.0.3
+    /// tsc-hash: 9f5fb349b821d38fa055c1f79babd10a1d813d866e9070f07b9d647d003dae9c
+    /// tsc-span: _tsc.js:67448-67452
+    ///
+    /// The FIRST base type's same-named property type, when the
+    /// declaring class, a base and the property all exist (None
+    /// otherwise — the caller falls through to its widening tail).
+    fn get_type_of_property_in_base_class(
+        &mut self,
+        property: SymbolId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let Some(class_type) = self.get_declaring_class(property)? else {
+            return Ok(None);
+        };
+        let base_types = self.get_base_types(class_type)?;
+        let Some(&base_class_type) = base_types.first() else {
+            return Ok(None);
+        };
+        let name = self.binder.symbol(property).escaped_name.clone();
+        match self.get_property_of_type_full(base_class_type, &name)? {
+            Some(base_property) => self.get_type_of_symbol(base_property).map(Some),
+            None => Ok(None),
+        }
+    }
+
     /// tsc-port: reportCircularityError @6.0.3
     /// tsc-hash: adf5723b96f6db25f0049b2c3df010cc591925e84ed5d87252a8da4b4ef5cffa
     /// tsc-span: _tsc.js:56893-56910
@@ -5345,10 +5717,10 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
             return self.tables.intrinsics.any;
         };
-        let annotation = self
-            .variable_like_annotation(declaration)
-            .ok()
-            .and_then(|(annotation, _, _)| annotation);
+        // getEffectiveTypeAnnotationNode (56896): the kind-generic
+        // `.type` read — declaration kinds without a type field
+        // simply answer None.
+        let annotation = self.effective_type_annotation_node(declaration);
         let name = self.symbol_display_name(symbol);
         if annotation.is_some() {
             self.error_at(
@@ -5652,22 +6024,46 @@ impl<'a> CheckerState<'a> {
                 let accessor_symbol = self.get_symbol_of_declaration(func)?;
                 let getter = self.get_declaration_of_kind(accessor_symbol, SyntaxKind::GetAccessor);
                 if let Some(getter) = getter {
-                    let is_this_parameter = matches!(
-                        self.data_of(declaration),
-                        NodeData::Parameter(data)
-                            if data.name.is_some_and(|name| {
-                                self.kind_of(name) == SyntaxKind::Identifier
-                                    && self
-                                        .text_of_node(name)
-                                        .is_ok_and(|text| text == "this")
-                            })
-                    );
-                    if is_this_parameter {
-                        return Err(Unsupported::new(
-                            "accessor this-parameter type (getAccessorThisParameter, 5.8)",
-                        ));
-                    }
                     let getter_signature = self.get_signature_from_declaration(getter)?;
+                    // getAccessorThisParameter (89889-89893): a setter
+                    // this-parameter exists only in the two-parameter
+                    // shape, as a first `this`-named parameter.
+                    let setter_parameters = match self.data_of(func) {
+                        NodeData::SetAccessor(data) => data.parameters,
+                        _ => None,
+                    };
+                    let setter_parameters = self.nodes_of(setter_parameters);
+                    let this_parameter = if setter_parameters.len() == 2 {
+                        setter_parameters.first().copied().filter(|&first| {
+                            matches!(
+                                self.data_of(first),
+                                NodeData::Parameter(data)
+                                    if data.name.is_some_and(|name| {
+                                        self.kind_of(name) == SyntaxKind::Identifier
+                                            && self
+                                                .text_of_node(name)
+                                                .is_ok_and(|text| text == "this")
+                                    })
+                            )
+                        })
+                    } else {
+                        None
+                    };
+                    if this_parameter == Some(declaration) {
+                        // 56078-56080: the getter signature's this
+                        // parameter (its own, or borrowed from this
+                        // very setter) types the setter's.
+                        let this_symbol = self.signature_of(getter_signature).this_parameter;
+                        return Ok(Some(match this_symbol {
+                            Some(this_symbol) => self.get_type_of_symbol(this_symbol)?,
+                            // The getter-side borrow (59618) fills the
+                            // this parameter in every tsc-constructible
+                            // shape; the late-bindable-name corner rides
+                            // the stricter borrow gate and lands on
+                            // tsc's circularity outcome (silent any).
+                            None => self.tables.intrinsics.any,
+                        }));
+                    }
                     return Ok(Some(self.get_return_type_of_signature(getter_signature)?));
                 }
             }
@@ -5726,9 +6122,16 @@ impl<'a> CheckerState<'a> {
                     ));
                 }
                 if ambient_member {
-                    return Err(Unsupported::new(
-                        "ambient property base-class type (getTypeOfPropertyInBaseClass, 5.8)",
-                    ));
+                    // 56104-56107: declared-ambient instance members
+                    // take the base class's same-named property type;
+                    // a miss returns None (the caller's widening tail
+                    // reports).
+                    let symbol = self.get_symbol_of_declaration(declaration)?;
+                    let base = self.get_type_of_property_in_base_class(symbol)?;
+                    return Ok(base.map(|base| {
+                        self.tables
+                            .add_optionality(base, /*is_property*/ true, is_optional)
+                    }));
                 }
             } else {
                 let has_static_blocks = matches!(
@@ -5750,9 +6153,14 @@ impl<'a> CheckerState<'a> {
                     ));
                 }
                 if ambient_member {
-                    return Err(Unsupported::new(
-                        "ambient property base-class type (getTypeOfPropertyInBaseClass, 5.8)",
-                    ));
+                    // 56113-56116: the static twin of the ambient
+                    // base-class arm above.
+                    let symbol = self.get_symbol_of_declaration(declaration)?;
+                    let base = self.get_type_of_property_in_base_class(symbol)?;
+                    return Ok(base.map(|base| {
+                        self.tables
+                            .add_optionality(base, /*is_property*/ true, is_optional)
+                    }));
                 }
             }
         }
@@ -5880,38 +6288,6 @@ impl<'a> CheckerState<'a> {
             NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
             NodeData::PropertySignature(data) => data.question_token.is_some(),
             _ => false,
-        }
-    }
-
-    /// The declaration shapes the M3 slice can type: property
-    /// signatures, parameters, variable declarations. Returns
-    /// (annotation, isProperty, isOptional) for addOptionality —
-    /// isOptionalDeclaration (19304): questionToken presence.
-    fn variable_like_annotation(
-        &self,
-        declaration: NodeId,
-    ) -> CheckResult2<(Option<NodeId>, bool, bool)> {
-        match self.data_of(declaration) {
-            NodeData::PropertySignature(data) => Ok((
-                data.r#type,
-                /*is_property*/ true,
-                data.question_token.is_some(),
-            )),
-            NodeData::PropertyDeclaration(data) => Ok((
-                data.r#type,
-                /*is_property*/ true,
-                data.question_token.is_some(),
-            )),
-            NodeData::Parameter(data) => Ok((
-                data.r#type,
-                /*is_property*/ false,
-                data.question_token.is_some(),
-            )),
-            NodeData::VariableDeclaration(data) => Ok((data.r#type, false, false)),
-            _ => Err(Unsupported::new(format!(
-                "variable-like declaration kind {:?} (M4)",
-                self.kind_of(declaration)
-            ))),
         }
     }
 
@@ -6205,11 +6581,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5dd5f4c5474933718e431fe1de3bb7f541e50391206aae67eb4f97fc1b7d036a
     /// tsc-span: _tsc.js:57852-57867
     ///
-    /// M3 slice + 5.2e generics: annotation-only signatures with
-    /// typeParameters (getTypeParametersFromDeclaration, 59630).
-    /// IIFE/JS/JSDoc branches and accessor this-borrowing are dead
-    /// here; the Constructor classType arm rides on class members
-    /// (5.3, kinds gate below).
+    /// M3 slice + 5.2e generics + 5.9c constructors: annotation-only
+    /// signatures with typeParameters (getTypeParametersFromDeclaration,
+    /// 59630); constructor declarations take the class's local type
+    /// parameters, re-resolve parameter properties to the ctor-local
+    /// variable, and flag ABSTRACT from the class modifier. The
+    /// IIFE arm rides the node_util walk; JS/JSDoc branches are
+    /// [JSDOC]-band.
     pub fn get_signature_from_declaration(
         &mut self,
         declaration: NodeId,
@@ -6225,24 +6603,40 @@ impl<'a> CheckerState<'a> {
             NodeData::CallSignature(data) => (data.type_parameters, data.parameters, None),
             NodeData::ConstructSignature(data) => (data.type_parameters, data.parameters, None),
             NodeData::MethodSignature(data) => (data.type_parameters, data.parameters, None),
-            // 5.5f: value function-likes (body-carrying kinds). The
-            // Constructor classType/parameter-property arms are 5.8
-            // (class declaration band).
+            // 5.5f: value function-likes (body-carrying kinds); the
+            // Constructor classType/parameter-property arms are 5.9c.
+            NodeData::Constructor(data) => (data.type_parameters, data.parameters, None),
             NodeData::FunctionDeclaration(data) => (data.type_parameters, data.parameters, None),
             NodeData::FunctionExpression(data) => (data.type_parameters, data.parameters, None),
             NodeData::ArrowFunction(data) => (data.type_parameters, data.parameters, None),
             NodeData::MethodDeclaration(data) => (data.type_parameters, data.parameters, None),
             NodeData::GetAccessor(data) => (data.type_parameters, data.parameters, None),
             NodeData::SetAccessor(data) => (data.type_parameters, data.parameters, None),
+            // 5.9c: Constructor landed above; the residue is the
+            // JSDoc signature family (JSDocFunctionType/JSDocSignature
+            // — JS-only declaration shapes).
             _ => {
                 return Err(Unsupported::new(format!(
-                    "signature declaration kind {:?} (M4 5.8)",
+                    "signature declaration kind {:?} ([JSDOC] M8)",
                     self.kind_of(declaration)
                 )))
             }
         };
-        let type_parameters = {
-            let _ = type_parameters;
+        let _ = type_parameters;
+        // 59628-59630: constructors take the CLASS's declared local
+        // type parameters (classType.localTypeParameters); their own
+        // list is ignored (constructors cannot declare type
+        // parameters, grammar 1092).
+        let type_parameters = if self.kind_of(declaration) == SyntaxKind::Constructor {
+            let class = self
+                .parent_of(declaration)
+                .expect("constructor has a class parent");
+            let class_symbol = self.get_symbol_of_declaration(class)?;
+            let class_symbol = self.get_merged_symbol(class_symbol);
+            let parameters =
+                self.get_local_type_parameters_of_class_or_interface_or_type_alias(class_symbol);
+            (!parameters.is_empty()).then_some(parameters)
+        } else {
             let declarations = self.type_parameter_declarations_of(declaration);
             let parameters = self.append_type_parameters(Vec::new(), &declarations);
             (!parameters.is_empty()).then_some(parameters)
@@ -6257,6 +6651,32 @@ impl<'a> CheckerState<'a> {
             };
             let Some(parameter_symbol) = self.node_symbol(parameter) else {
                 unreachable!("binder invariant: every parameter declaration is bound");
+            };
+            // 59592-59603: a parameter property binds the class
+            // PROPERTY as the parameter's symbol; the signature wants
+            // the constructor-local variable (resolveName Value lookup
+            // at the parameter position).
+            let parameter_symbol = if self
+                .symbol_flags(parameter_symbol)
+                .intersects(SymbolFlags::PROPERTY)
+                && !data.name.is_some_and(|name| {
+                    matches!(
+                        self.kind_of(name),
+                        SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                    )
+                }) {
+                let name = self.binder.symbol(parameter_symbol).escaped_name.clone();
+                self.resolve_name(
+                    Some(parameter),
+                    &name,
+                    SymbolFlags::VALUE,
+                    /*name_not_found_message*/ None,
+                    /*is_use*/ false,
+                    /*exclude_globals*/ false,
+                )?
+                .expect("binder invariant: a parameter property binds a constructor-local variable")
+            } else {
+                parameter_symbol
             };
             let is_this =
                 i == 0 && data.name.and_then(|name| self.identifier_text(name)) == Some("this");
@@ -6351,12 +6771,29 @@ impl<'a> CheckerState<'a> {
         if last_is_rest {
             flags |= SignatureFlags::HAS_REST_PARAMETER;
         }
-        if self.kind_of(declaration) == SyntaxKind::ConstructorType
-            && self
-                .nodes_of(modifiers)
+        // 59634-59636: `abstract new (...)` constructor types carry
+        // their own modifier; constructor declarations borrow the
+        // containing class's.
+        let is_abstract = if self.kind_of(declaration) == SyntaxKind::ConstructorType {
+            self.nodes_of(modifiers)
                 .iter()
                 .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
-        {
+        } else if self.kind_of(declaration) == SyntaxKind::Constructor {
+            let class = self
+                .parent_of(declaration)
+                .expect("constructor has a class parent");
+            let class_modifiers = match self.data_of(class) {
+                NodeData::ClassDeclaration(data) => data.modifiers,
+                NodeData::ClassExpression(data) => data.modifiers,
+                _ => None,
+            };
+            self.nodes_of(class_modifiers)
+                .iter()
+                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::AbstractKeyword)
+        } else {
+            false
+        };
+        if is_abstract {
             flags |= SignatureFlags::ABSTRACT;
         }
         let signature = Signature {
@@ -9132,13 +9569,15 @@ mod late_binding_tests {
 
     use crate::state::test_support::with_program_state;
 
-    /// 5.7b review round #2: an Err unwind mid-late-binding must leave
-    /// every touched member re-bindable — asking the same question
-    /// twice answers the same thing. Without the member-side rollback,
-    /// the retry memo-hits past lateBindMember and SUCCEEDS with the
-    /// colliding late member silently dropped from the table.
+    /// 5.7b review round #2, re-targeted 5.9c: the early/late name
+    /// collision MERGES per combineSymbolTables → mergeSymbol
+    /// (PropertyExcludes is None — declaration-type sameness is
+    /// 2717's check-time job; oracle probe: `{ x: number;
+    /// [k]: string }` reports ONLY 2717, no duplicate). The unwind
+    /// concern this test pinned remains pinned: asking the same
+    /// question twice answers the same table.
     #[test]
-    fn late_binding_err_unwind_is_idempotent() {
+    fn late_binding_merges_early_late_collisions_idempotently() {
         with_program_state(
             &[(
                 "a.ts",
@@ -9158,16 +9597,18 @@ mod late_binding_tests {
                     .binder
                     .node_symbol(type_literal)
                     .expect("type literal binds a symbol");
-                let first = state.get_members_of_symbol(symbol);
-                let second = state.get_members_of_symbol(symbol);
-                let first_reason = first.expect_err("early/late collision escapes").reason;
-                let second_reason = second
-                    .expect_err("the retry must escape the same way")
-                    .reason;
-                assert_eq!(first_reason, second_reason);
-                assert!(
-                    first_reason.contains("combineSymbolTables"),
-                    "{first_reason}"
+                let first = state
+                    .get_members_of_symbol(symbol)
+                    .expect("early/late collisions merge");
+                let second = state
+                    .get_members_of_symbol(symbol)
+                    .expect("the retry answers the same table");
+                assert_eq!(first.get("x").copied(), second.get("x").copied());
+                let merged = first.get("x").copied().expect("x survives the merge");
+                assert_eq!(
+                    state.binder.symbol(merged).declarations.len(),
+                    2,
+                    "the merged member carries the early AND late declarations"
                 );
             },
         );
