@@ -6,8 +6,12 @@
 # never tripped, this just removes the slack).
 # 5.9b: +10 — keyof/indexed-access relation arms + identity halves,
 # getSimplifiedType un-stub, tuple constraint/variadic/rest arms.
-rate = 0.378148
-matched = 18423
+# 5.9c: +1629 — the members/signatures band: constructor signatures
+# (classType arm) + exports-as-members (enum/namespace/globalThis/
+# prototype) + late-bound index reads + member-table merges + the
+# type-of-symbol worker completion.
+rate = 0.411585
+matched = 20052
 total = 48719
 allowed_regression = 0.0
 
@@ -17,8 +21,9 @@ allowed_regression = 0.0
 
 [t0-2xxx]
 # 5.9b: +10 with the relations band.
-rate = 0.460652
-matched = 9635
+# 5.9c: +1286 with the members/signatures band.
+rate = 0.522136
+matched = 10921
 total = 20916
 allowed_regression = 0.0
 
@@ -32,10 +37,11 @@ allowed_regression = 0.0
 # Untagged Unsupported/M4Dependency reasons (no parseable owner
 # stage). Monotone non-increasing; must reach 0 by the M4 close.
 # Owner-less reasons with an explicit recovery marker ("parse
-# recovery"/"parse-recovery"/"recovery node") classify as permanent
-# RECOVERY guards since 5.7b and ratchet separately below — a new
+# recovery"/"parse-recovery"/"recovery node") classify as milestone-stable
+# RECOVERY guards through M7 and ratchet separately below — a new
 # marked guard trips max_recovery, so re-labeling real containment
-# escapes as "recovery" cannot slip past the gate.
+# escapes as "recovery" cannot slip past the gate. Done still requires
+# these paths to leave the Unsupported channel (m8-readiness.md).
 # 5.9a: 114 -> 93 — the M4-end sweep triage re-owned 19 sites to M8
 # (JSDoc/checkJs band, conditional/mapped families, display T2 tails)
 # and 2 to M6 (assertion-deferred stash seam, tuple renderer) per the
@@ -54,7 +60,15 @@ allowed_regression = 0.0
 # relations, tuple rest index fallbacks) and the tables twin demotion
 # retired its 5 untagged arms (L-TWIN dead-guard conversions); the
 # remaining 20 are the 5.9c/5.9d implement rows.
-max_untagged = 20
+# 5.9c: 20 -> 9 — the members/signatures band implemented its rows
+# (const-enum lookup, abstract-2513, instantiated accessor writes,
+# late-bound index reads, type-ref unknown-symbol + EWTA errorType,
+# enum-literal condition) and adjudicated three recorded amendments:
+# deferred synthetic write types re-owned M6 (constituents are M6
+# machinery, matching the M6-owned read side); the no-value-decl and
+# worker-kind tails reclassed recovery (Debug.assertIsDefined /
+# Debug.fail transcriptions). The remaining 9 are the 5.9d rows.
+max_untagged = 9
 # 5.7c: +16 genuine malformed-tree guards (JSX band tag-name/
 # attributes/attribute-symbol reads + the Debug.assert/Debug.fail
 # transcriptions of createJsxAttributesTypeFromAttributesProperty and
@@ -73,5 +87,9 @@ max_untagged = 20
 # TypeError (undefined instantiations map), so no golden can exist;
 # permanent crash-guard family (Debug.fail-transcription precedent),
 # see m4-end-sweep-steps.md.
-max_recovery = 109
-
+# 5.9c: +3 — the type-of-symbol worker's crash-guard tails, live now
+# that the worker completes: symbol-without-a-value-declaration
+# (Debug.assertIsDefined transcription, 56662), worker-declaration-
+# kind tail (Debug.fail transcription, 56707-56708), and the
+# export-assignment-without-expression parse-recovery guard.
+max_recovery = 112

@@ -98,10 +98,12 @@ Commit: `m7 8.5: options + program diagnostics`.
 cargo xtask conformance              # expect: T0 ≥ 63%; T1 recorded
 cargo xtask invariants --suite all
 cargo xtask ledger check
+cargo xtask m8 readiness --require-ready
 ```
 
-M7 closes the build plan; M8 is the mining loop (README) and M9 the
-fuzzer (greenfield §7.7). Write `docs/NOTES-m7.md` with the T0
+M7 closes the build plan; M8 is the mining loop (README) and M9
+hardens the differential loop that the M8-readiness gate already
+requires. Write `docs/NOTES-m7.md` with the T0
 residue's top-20 codes — it is M8's opening backlog.
 
 ## Expected failure modes

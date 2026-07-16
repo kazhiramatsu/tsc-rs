@@ -266,6 +266,23 @@ impl<'a> CheckerState<'a> {
             };
             let immediate = self.resolve_external_module_name(node, expression, false)?;
             let resolved = self.resolve_external_module_symbol(immediate, false)?;
+            // 48516-48521: under node20..nodenext, `import x =
+            // require(esm)` targets the module's `"module.exports"`
+            // named export when one exists.
+            if let Some(resolved_symbol) = resolved {
+                let module_kind = self.options.emit_module_kind();
+                if (102..=199).contains(&module_kind) {
+                    let module_exports = self.get_export_of_module(
+                        resolved_symbol,
+                        "module.exports",
+                        node,
+                        dont_resolve_alias,
+                    )?;
+                    if module_exports.is_some() {
+                        return Ok(module_exports);
+                    }
+                }
+            }
             self.mark_symbol_of_alias_declaration_if_type_only(
                 Some(node),
                 immediate,
@@ -2038,6 +2055,18 @@ impl<'a> CheckerState<'a> {
             // resolution machinery (node_modules/baseUrl-paths/allowJs
             // targets) — tsc may resolve, so the 2307 tail stays
             // silent (FN-side; ledger).
+            if is_for_augmentation {
+                // The skipped merge leaves member tables thinner than
+                // tsc's. Record only members the augmentation could
+                // have supplied; downstream property misses must not
+                // suppress unrelated names program-wide.
+                if let Some(augmentation) = self
+                    .parent_of(location)
+                    .filter(|&parent| self.kind_of(parent) == SyntaxKind::ModuleDeclaration)
+                {
+                    self.record_unresolved_module_augmentation(augmentation, module_reference);
+                }
+            }
             return Ok(None);
         }
         if let Some(module_not_found_error) = module_not_found_error {
@@ -2053,6 +2082,232 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(None)
+    }
+
+    /// tsrs-native: containment scope for a resolver-suppressed module
+    /// augmentation. Preserve each augmentation container symbol
+    /// rather than flattening its members to strings: resolved member
+    /// tables then retain computed names and index signatures.
+    fn record_unresolved_module_augmentation(
+        &mut self,
+        augmentation: NodeId,
+        module_reference: &str,
+    ) {
+        let Some(root) = self.node_symbol(augmentation) else {
+            return;
+        };
+        let augmentation_file = self.binder.source_of_node(augmentation).file_name.clone();
+        let mut worklist = vec![(root, Vec::new())];
+        let mut seen = std::collections::HashSet::new();
+        while let Some((current, path)) = worklist.pop() {
+            if !seen.insert(current) {
+                continue;
+            }
+            let entry = crate::state::UnresolvedModuleAugmentation {
+                module_reference: module_reference.to_owned(),
+                augmentation_file: augmentation_file.clone(),
+                container_path: path.clone(),
+                container_symbol: current,
+            };
+            let entries = self
+                .unresolved_module_augmentations
+                .entry(path.clone())
+                .or_default();
+            if !entries.contains(&entry) {
+                entries.push(entry);
+            }
+            let children = self
+                .binder
+                .symbol(current)
+                .exports
+                .iter()
+                .map(|(name, &child)| {
+                    let mut child_path = path.clone();
+                    child_path.push(name.clone());
+                    (child, child_path)
+                })
+                .collect::<Vec<_>>();
+            worklist.extend(children);
+        }
+    }
+
+    /// tsrs-native: whether a declaration source is a plausible target
+    /// of an unresolved module reference. Bare specifiers are anchored
+    /// to their node_modules package (including DefinitelyTyped
+    /// layout); relative/baseUrl-like references compare normalized TS
+    /// stems.
+    pub(crate) fn unresolved_module_reference_matches_source(
+        &self,
+        augmentation_file: &str,
+        module_reference: &str,
+        source_file: &str,
+    ) -> bool {
+        let source = Self::normalize_program_path(source_file, "");
+        let augmentation = Self::normalize_program_path(augmentation_file, "");
+        let reference = module_reference
+            .strip_prefix("node:")
+            .unwrap_or(module_reference);
+        let bare =
+            !Self::is_external_module_name_relative(reference) && !reference.starts_with('/');
+        if bare {
+            // Node core declarations live under @types/node rather than
+            // @types/<module>. Keep the exact core submodule (`fs` vs
+            // `http`, `fs/promises` vs `timers/promises`) in the match.
+            if Self::is_node_core_module(module_reference) {
+                if let Some(root) = Self::node_modules_package_root(&source, "@types/node") {
+                    return self
+                        .nearest_visible_package_root(&augmentation, "@types/node")
+                        .is_some_and(|nearest| nearest == root)
+                        && Self::package_subpath_matches_source(&root, reference, &source);
+                }
+                return false;
+            }
+
+            let (package, subpath) = Self::bare_package_parts(reference);
+            if let Some(root) = Self::node_modules_package_root(&source, &package) {
+                if self
+                    .nearest_visible_package_root(&augmentation, &package)
+                    .is_some_and(|nearest| nearest == root)
+                    && Self::package_subpath_matches_source(&root, &subpath, &source)
+                {
+                    return true;
+                }
+            }
+            let types_package = match package.split_once('/') {
+                Some((scope, name)) if scope.starts_with('@') => {
+                    format!("@types/{}__{name}", scope.trim_start_matches('@'))
+                }
+                _ => format!("@types/{package}"),
+            };
+            if let Some(root) = Self::node_modules_package_root(&source, &types_package) {
+                if self
+                    .nearest_visible_package_root(&augmentation, &types_package)
+                    .is_some_and(|nearest| nearest == root)
+                    && Self::package_subpath_matches_source(&root, &subpath, &source)
+                {
+                    return true;
+                }
+            }
+            // Without baseUrl, a bare specifier cannot directly name a
+            // same-spelled workspace file. package.json self-name and
+            // paths mappings remain genuinely unidentified; treating
+            // every `pkg.ts` as their target recreates the name-only
+            // false-negative this provenance gate exists to prevent.
+            if self.options.base_url.is_none() {
+                return false;
+            }
+        }
+
+        let augmentation_dir = augmentation
+            .rfind('/')
+            .map_or("", |position| &augmentation[..position]);
+        let candidate =
+            if Self::is_external_module_name_relative(reference) || reference.starts_with('/') {
+                Self::normalize_program_path(reference, augmentation_dir)
+            } else if let Some(base_url) = &self.options.base_url {
+                Self::normalize_program_path(reference, base_url)
+            } else {
+                Self::normalize_program_path(reference, "")
+            };
+        Self::module_source_stem(&source) == Self::module_source_stem(&candidate)
+    }
+
+    fn bare_package_parts(reference: &str) -> (String, String) {
+        let package_segments = if reference.starts_with('@') { 2 } else { 1 };
+        let mut segments = reference.split('/');
+        let package = segments
+            .by_ref()
+            .take(package_segments)
+            .collect::<Vec<_>>()
+            .join("/");
+        (package, segments.collect::<Vec<_>>().join("/"))
+    }
+
+    fn node_modules_package_root(source: &str, package: &str) -> Option<String> {
+        let marker = format!("/node_modules/{package}");
+        source
+            .match_indices(&marker)
+            .filter(|(position, _)| {
+                source
+                    .as_bytes()
+                    .get(position + marker.len())
+                    .is_none_or(|&byte| byte == b'/')
+            })
+            .map(|(position, _)| source[..position + marker.len()].to_owned())
+            .last()
+    }
+
+    fn nearest_visible_package_root(
+        &self,
+        augmentation_file: &str,
+        package: &str,
+    ) -> Option<String> {
+        let cache_key = (augmentation_file.to_owned(), package.to_owned());
+        if let Some(cached) = self.unresolved_package_root_cache.borrow().get(&cache_key) {
+            return cached.clone();
+        }
+        let marker = format!("/node_modules/{package}");
+        let nearest = self
+            .host_file_paths
+            .iter()
+            .filter_map(|path| {
+                let root = Self::node_modules_package_root(path, package)?;
+                let owner = root.strip_suffix(&marker)?;
+                let visible = owner.is_empty()
+                    || augmentation_file == owner
+                    || augmentation_file
+                        .strip_prefix(owner)
+                        .is_some_and(|suffix| suffix.starts_with('/'));
+                visible.then_some((owner.len(), root))
+            })
+            .max_by_key(|(owner_length, _)| *owner_length)
+            .map(|(_, root)| root);
+        self.unresolved_package_root_cache
+            .borrow_mut()
+            .insert(cache_key, nearest.clone());
+        nearest
+    }
+
+    fn package_subpath_matches_source(package_root: &str, subpath: &str, source: &str) -> bool {
+        // A root entry may be redirected by package.json's types/exports
+        // field, which this resolver intentionally does not parse. The
+        // selected package instance is still authoritative. Subpaths,
+        // however, must keep their spelling so `pkg/a` cannot claim a
+        // symbol declared by `pkg/b`.
+        if subpath.is_empty() {
+            return true;
+        }
+        let Some(relative) = source.strip_prefix(package_root) else {
+            return false;
+        };
+        let relative = relative.trim_start_matches('/');
+        Self::module_source_stem(relative) == subpath
+    }
+
+    fn module_source_stem(path: &str) -> String {
+        let mut stem = path.to_owned();
+        for extension in [
+            ".d.json.ts",
+            ".d.mts",
+            ".d.cts",
+            ".d.ts",
+            ".mts",
+            ".cts",
+            ".tsx",
+            ".ts",
+            ".jsx",
+            ".js",
+            ".json",
+        ] {
+            if stem.ends_with(extension) {
+                stem.truncate(stem.len() - extension.len());
+                break;
+            }
+        }
+        if stem.ends_with("/index") {
+            stem.truncate(stem.len() - "/index".len());
+        }
+        stem
     }
 
     /// tsc-port: tryFindAmbientModule @6.0.3

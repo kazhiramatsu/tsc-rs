@@ -12,6 +12,10 @@ use tsrs2_checker::{check_program, check_program_with_libs, CompilerOptions, Inp
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
+mod scope;
+
+use scope::ScopeManifest;
+
 pub type ConformanceResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -172,6 +176,29 @@ pub struct ConformanceSummary {
     pub false_negative_diagnostics: usize,
     pub top_false_positive_codes: Vec<(u32, usize)>,
     pub top_false_negative_codes: Vec<(u32, usize)>,
+    /// M8's supported-scope view. The all-corpus fields above remain
+    /// the standing visibility metric and NEW_FP=0 gate; these fields
+    /// remove only exact, reviewed oracle diagnostics from the
+    /// denominator. A disposition therefore cannot hide a neighboring
+    /// diagnostic or a false positive in the same fixture.
+    pub scope_status: String,
+    pub scope_manifest_entries: usize,
+    pub scope_excluded_diagnostics: usize,
+    pub scope_unresolved_diagnostics: usize,
+    pub scope_resolved_t0_diagnostics: usize,
+    pub supported_oracle_diagnostics: usize,
+    pub supported_tsrs_diagnostics: usize,
+    pub supported_matched_t0_diagnostics: usize,
+    pub supported_t0_rate: f64,
+    pub supported_t1_matched: usize,
+    pub supported_t2_matched: usize,
+    pub supported_t3_matched: usize,
+    pub supported_t1_rate: f64,
+    pub supported_t2_rate: f64,
+    pub supported_t3_rate: f64,
+    pub supported_exact_match_cases: usize,
+    pub supported_mismatch_cases: usize,
+    pub supported_false_negative_diagnostics: usize,
     pub ratchet_rate: f64,
     pub ratchet_allowed_regression: f64,
     pub mismatches: Vec<MismatchEntry>,
@@ -448,7 +475,14 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     })?;
     let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
     let goldens_root = options.workspace.join("goldens");
-    let ratchet = read_ratchet(&options.workspace.join("ratchet.toml"), options.band)?;
+    let ratchet_path = options.workspace.join("ratchet.toml");
+    let ratchet = read_ratchet(&ratchet_path, options.band)?;
+    let t1_ratchet = if options.band == DiagnosticBand::All {
+        Some(read_ratchet_section(&ratchet_path, "t1")?)
+    } else {
+        None
+    };
+    let mut scope = ScopeManifest::load(&options.workspace.join("m8-scope.json"))?;
 
     let mut case_count = 0usize;
     let mut exact_match_cases = 0usize;
@@ -463,6 +497,17 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     let mut fp_codes = BTreeMap::<u32, usize>::new();
     let mut fn_codes = BTreeMap::<u32, usize>::new();
     let mut mismatches = Vec::new();
+    let mut scope_excluded_diagnostics = 0usize;
+    let mut scope_unresolved_diagnostics = 0usize;
+    let mut scope_resolved_t0_diagnostics = 0usize;
+    let mut supported_oracle_diagnostics = 0usize;
+    let mut supported_tsrs_diagnostics = 0usize;
+    let mut supported_matched_t0_diagnostics = 0usize;
+    let mut supported_t1_matched = 0usize;
+    let mut supported_t2_matched = 0usize;
+    let mut supported_t3_matched = 0usize;
+    let mut supported_exact_match_cases = 0usize;
+    let mut supported_fn_count = 0usize;
 
     for fixture in &fixtures {
         let fixture_key = fixture_key(&options.workspace, fixture)?;
@@ -489,6 +534,11 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
                     format!("missing golden case {fixture_key} [{}]", program.matrix_key)
                 })?;
             let current = current_tsrs_diagnostics(&program, &vendor_lib_dir, options.band)?;
+            let excluded = scope.exclusions_for_case(
+                &fixture_key,
+                &program.matrix_key,
+                &golden_case.oracle,
+            )?;
             let actual = t0_set(
                 current
                     .iter()
@@ -503,6 +553,26 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
 
             let fp = actual.difference(&expected).cloned().collect::<Vec<_>>();
             let fn_ = expected.difference(&actual).cloned().collect::<Vec<_>>();
+            let supported_actual = actual
+                .iter()
+                .filter(|key| !excluded.contains(*key))
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            let supported_expected = expected
+                .iter()
+                .filter(|key| !excluded.contains(*key))
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            let supported_fn = supported_expected
+                .difference(&supported_actual)
+                .cloned()
+                .collect::<Vec<_>>();
+            let excluded_expected = expected
+                .intersection(&excluded)
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            let resolved_excluded = excluded_expected.intersection(&actual).count();
+            let unresolved_excluded = excluded_expected.difference(&actual).count();
             if fp.is_empty() && fn_.is_empty() {
                 exact_match_cases += 1;
             } else {
@@ -512,6 +582,9 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
                     false_positive: fp.clone(),
                     false_negative: fn_.clone(),
                 });
+            }
+            if fp.is_empty() && supported_fn.is_empty() {
+                supported_exact_match_cases += 1;
             }
 
             for diag in &fp {
@@ -534,12 +607,37 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
             shadow_t1_matched += t1;
             shadow_t2_matched += t2;
             shadow_t3_matched += t3;
+            supported_matched_t0_diagnostics +=
+                supported_expected.intersection(&supported_actual).count();
+            let (supported_t1, supported_t2, supported_t3) = shadow_tier_matches(
+                current.iter().filter(|diagnostic| {
+                    options.band.contains(diagnostic.code)
+                        && !excluded.contains(&t0_key(diagnostic))
+                }),
+                golden_case.oracle.iter().filter(|diagnostic| {
+                    options.band.matches_oracle(diagnostic)
+                        && !excluded.contains(&t0_key(diagnostic))
+                }),
+            );
+            supported_t1_matched += supported_t1;
+            supported_t2_matched += supported_t2;
+            supported_t3_matched += supported_t3;
+            scope_excluded_diagnostics += excluded_expected.len();
+            scope_unresolved_diagnostics += unresolved_excluded;
+            scope_resolved_t0_diagnostics += resolved_excluded;
+            supported_oracle_diagnostics += supported_expected.len();
+            supported_tsrs_diagnostics += supported_actual.len();
+            supported_fn_count += supported_fn.len();
             oracle_diagnostics += expected.len();
             tsrs_diagnostics += actual.len();
             fp_count += fp.len();
             fn_count += fn_.len();
             case_count += 1;
         }
+    }
+
+    if options.limit.is_none() && options.files.is_empty() && options.band == DiagnosticBand::All {
+        scope.finish_full_validation()?;
     }
 
     let t0_rate = if oracle_diagnostics == 0 {
@@ -568,6 +666,27 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
         false_negative_diagnostics: fn_count,
         top_false_positive_codes: top_codes(fp_codes),
         top_false_negative_codes: top_codes(fn_codes),
+        scope_status: scope.status().name().to_owned(),
+        scope_manifest_entries: scope.entry_count(),
+        scope_excluded_diagnostics,
+        scope_unresolved_diagnostics,
+        scope_resolved_t0_diagnostics,
+        supported_oracle_diagnostics,
+        supported_tsrs_diagnostics,
+        supported_matched_t0_diagnostics,
+        supported_t0_rate: shadow_rate(
+            supported_matched_t0_diagnostics,
+            supported_oracle_diagnostics,
+        ),
+        supported_t1_matched,
+        supported_t2_matched,
+        supported_t3_matched,
+        supported_t1_rate: shadow_rate(supported_t1_matched, supported_oracle_diagnostics),
+        supported_t2_rate: shadow_rate(supported_t2_matched, supported_oracle_diagnostics),
+        supported_t3_rate: shadow_rate(supported_t3_matched, supported_oracle_diagnostics),
+        supported_exact_match_cases,
+        supported_mismatch_cases: case_count - supported_exact_match_cases,
+        supported_false_negative_diagnostics: supported_fn_count,
         ratchet_rate: ratchet.rate,
         ratchet_allowed_regression: ratchet.allowed_regression,
         mismatches,
@@ -599,10 +718,37 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
         )
         .into());
     }
+    if let Some(t1_ratchet) = t1_ratchet {
+        let t1_regressed = match (t1_ratchet.matched, t1_ratchet.total) {
+            (Some(matched), Some(total)) if t1_ratchet.allowed_regression == 0.0 => {
+                (summary.shadow_t1_matched as u128) * (total as u128)
+                    < (matched as u128) * (summary.oracle_diagnostics as u128)
+            }
+            _ => summary.shadow_t1_rate + t1_ratchet.allowed_regression < t1_ratchet.rate,
+        };
+        if t1_regressed {
+            return Err(format!(
+                "T1 ratchet regression: measured {:.6} ({}/{}), required {:.6} (allowed regression {:.6})",
+                summary.shadow_t1_rate,
+                summary.shadow_t1_matched,
+                summary.oracle_diagnostics,
+                t1_ratchet.rate,
+                t1_ratchet.allowed_regression
+            )
+            .into());
+        }
+    }
     if summary.false_positive_diagnostics > 0 {
         return Err(format!(
             "NEW_FP hard gate failed: {} false positive diagnostics",
             summary.false_positive_diagnostics
+        )
+        .into());
+    }
+    if summary.scope_status == "frozen" && summary.scope_resolved_t0_diagnostics > 0 {
+        return Err(format!(
+            "stale M8 scope gate failed: {} excluded diagnostic(s) now match at T0; delete their dispositions so higher tiers grade them",
+            summary.scope_resolved_t0_diagnostics
         )
         .into());
     }
@@ -618,7 +764,8 @@ fn shadow_rate(matched: usize, total: usize) -> f64 {
     }
 }
 
-/// Shadow tier grading (NON-GATING). Bucket both sides by T0 key; a
+/// Shadow tier grading. T1 becomes ratcheted when configured at M7;
+/// T2/T3 remain non-gating until M8. Bucket both sides by T0 key; a
 /// key contributes 1 to a tier only when the two buckets are equal
 /// AS MULTISETS under that tier's OWN equivalence (review round 3:
 /// tiers compare independently — T1 must not depend on how T2's
@@ -1102,7 +1249,7 @@ fn line_col_for_tsrs(
     (Some(line_col.line), Some(line_col.character))
 }
 
-fn t0_key(diag: &GoldenDiag) -> T0Key {
+pub(crate) fn t0_key(diag: &GoldenDiag) -> T0Key {
     T0Key {
         file: diag.file.clone(),
         code: diag.code,
@@ -1224,8 +1371,11 @@ struct Ratchet {
 }
 
 fn read_ratchet(path: &Path, band: DiagnosticBand) -> ConformanceResult<Ratchet> {
+    read_ratchet_section(path, band.ratchet_key())
+}
+
+fn read_ratchet_section(path: &Path, section: &str) -> ConformanceResult<Ratchet> {
     let text = fs::read_to_string(path)?;
-    let section = band.ratchet_key();
     let mut in_section = false;
     let mut rate = None;
     let mut matched = None;

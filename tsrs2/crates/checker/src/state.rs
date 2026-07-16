@@ -37,6 +37,20 @@ impl Unsupported {
 
 pub type CheckResult2<T> = Result<T, Unsupported>;
 
+/// A module augmentation whose target is behind resolver machinery the
+/// in-memory program resolver does not model. Keep the augmentation's
+/// own container symbol: its resolved member/index tables are the
+/// authoritative description of what the missing merge could add.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UnresolvedModuleAugmentation {
+    pub module_reference: String,
+    pub augmentation_file: String,
+    /// Export/member path below the augmented external module. The
+    /// module object itself is the empty path; `N.X` is `["N", "X"]`.
+    pub container_path: Vec<String>,
+    pub container_symbol: SymbolId,
+}
+
 /// One frame of the outofbandVarianceMarkerHandler save/replace chain
 /// (47113): getVariancesWorker's per-parameter closure is a Base,
 /// recursiveTypeRelatedTo's wrapper is a Propagating accumulator that
@@ -440,6 +454,13 @@ pub struct CheckerState<'a> {
     /// so each failed diagnostic need not walk the whole source again.
     pub(crate) flow_containment_indexes:
         std::cell::RefCell<std::collections::HashMap<NodeId, FlowContainmentIndex>>,
+    /// tsrs-native temporary M8/checkJs containment index. Each JS
+    /// source is scanned once, grouping simple assignment declarations
+    /// by their final property name. The receiver/scope checks remain at
+    /// the use site because they depend on the queried type.
+    pub(crate) js_assignment_containment_indexes: std::cell::RefCell<
+        std::collections::HashMap<NodeId, std::collections::HashMap<String, Vec<NodeId>>>,
+    >,
 
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
@@ -470,6 +491,17 @@ pub struct CheckerState<'a> {
     /// tsc patternAmbientModuleAugmentations (mergeModuleAugmentation
     /// 47865): augmentation name → the unidirectionally-merged symbol.
     pub pattern_ambient_module_augmentations: std::collections::HashMap<String, SymbolId>,
+    /// Module augmentations whose targets sat in the resolver's
+    /// Suppressed band (node_modules/baseUrl machinery). Receiver
+    /// provenance plus the augmentation container's own resolved
+    /// members/index infos scope downstream property-miss containment.
+    pub unresolved_module_augmentations:
+        std::collections::HashMap<Vec<String>, Vec<UnresolvedModuleAugmentation>>,
+    /// Nearest visible node_modules package root for one augmentation
+    /// source and package name. Package discovery is host-wide, so cache
+    /// it outside the property-miss hot path after the first lookup.
+    pub(crate) unresolved_package_root_cache:
+        std::cell::RefCell<std::collections::HashMap<(String, String), Option<String>>>,
     /// tsrs-native (M4 5.8d): normalized file path → program file
     /// index — the host.getResolvedModule seam's lookup table
     /// (program-and-modules.md §2; later files shadow earlier
@@ -625,6 +657,7 @@ impl<'a> CheckerState<'a> {
             flow_type_cache: None,
             flow_invocation_count: 0,
             flow_containment_indexes: Default::default(),
+            js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),
             elaborated_satisfies_expressions: std::collections::HashSet::new(),
             globals: SymbolTable::default(),
@@ -635,6 +668,8 @@ impl<'a> CheckerState<'a> {
             unknown_symbol,
             pattern_ambient_modules: Vec::new(),
             pattern_ambient_module_augmentations: std::collections::HashMap::new(),
+            unresolved_module_augmentations: std::collections::HashMap::new(),
+            unresolved_package_root_cache: Default::default(),
             program_path_index: std::collections::HashMap::new(),
             host_file_paths: std::collections::HashSet::new(),
             global_type_memos: Default::default(),

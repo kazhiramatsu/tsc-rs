@@ -518,7 +518,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getObjectLiteralIndexInfo @6.0.3
     /// tsc-hash: d08c845384a5c83bbb6a6223743e814894596219d421b832e79f7d4f7761ddb3
     /// tsc-span: _tsc.js:74098-74120
-    fn get_object_literal_index_info(
+    pub(crate) fn get_object_literal_index_info(
         &mut self,
         is_readonly: bool,
         offset: usize,

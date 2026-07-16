@@ -3,12 +3,15 @@
 GENERATED ANALYSIS (2026-07-08, tsc 6.0.3 pin) — the answer to "is
 every tsc function that emits a 2XXX diagnostic reproduced?" as a
 complete, line-ordered checklist. Regenerate on re-vendor with
-`xtask codegen band-inventory --by-function` (the tool this table
-specifies; until it exists, the analysis script lives in the
-conformance-sweep session notes and is ~40 lines: one pass over
-`_tsc.js` collecting `Diagnostics.<name>` uses joined against the
-2000-2999 message table, attributed to the nearest enclosing
-`function`, EXCLUDING `.code` reads).
+`cargo xtask codegen band-inventory --by-function --band 2xxx`.
+The implemented generator parses `_tsc.js`, collects
+`Diagnostics.<name>` references joined against the 2000-2999 message
+table, attributes them to the nearest enclosing function identity,
+excludes `.code` membership reads, and also emits the conservative
+function-name dependency closure. The hand-audited table below stays
+the review rendering; the generated JSON under `target/codegen` is
+the raw census (267 owning identities / 668 diagnostic references at
+this pin, versus the curated table's 247 functions / 623 sites).
 
 How to read:
 
@@ -25,7 +28,7 @@ How to read:
   rows — never inlined approximations). Both statuses end the same
   way: a `tsc-port` ledger entry per function.
 - **Closure criterion (phase 9)**: every row below has a ledger
-  entry or an explicit out-of-scope note. 246 functions, 593
+  entry or an explicit out-of-scope note. 247 functions, 623
   emission sites.
 - **module home** is derived from a line-band map of checker.ts
   region order — it is a NAVIGATION hint; the binding assignment is

@@ -3445,11 +3445,26 @@ impl<'a> CheckerState<'a> {
     /// tsc getEffectiveTypeAnnotationNode, TS half: the declaration's
     /// syntactic `.type` ([JSDOC] carries the JS annotations).
     pub(crate) fn effective_type_annotation_node(&self, declaration: NodeId) -> Option<NodeId> {
+        // tsc getEffectiveTypeAnnotationNode is a kind-generic `.type`
+        // read; the arms below are the declaration kinds that carry
+        // one (function-like `.type` is the return annotation, per
+        // tsc). Kinds without a type field answer None.
         match self.data_of(declaration) {
             NodeData::VariableDeclaration(data) => data.r#type,
             NodeData::Parameter(data) => data.r#type,
             NodeData::PropertyDeclaration(data) => data.r#type,
             NodeData::PropertySignature(data) => data.r#type,
+            NodeData::MethodSignature(data) => data.r#type,
+            NodeData::MethodDeclaration(data) => data.r#type,
+            NodeData::GetAccessor(data) => data.r#type,
+            NodeData::FunctionDeclaration(data) => data.r#type,
+            NodeData::FunctionExpression(data) => data.r#type,
+            NodeData::ArrowFunction(data) => data.r#type,
+            NodeData::CallSignature(data) => data.r#type,
+            NodeData::ConstructSignature(data) => data.r#type,
+            NodeData::IndexSignature(data) => data.r#type,
+            NodeData::FunctionType(data) => data.r#type,
+            NodeData::ConstructorType(data) => data.r#type,
             _ => None,
         }
     }

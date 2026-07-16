@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "runtime_coverage": {
+    "status": "draft",
+    "inventory_sha256": "25a8612d3b07a6459dc9e6fac201bf875caf1bdd278e2c90897c62c655e2998a",
+    "executed_emitters": [],
+    "zero_hit_emitters": [],
+    "artifact": null
+  },
+  "fuzzer": {
+    "status": "draft",
+    "ci_command": null,
+    "generated_cases": 0,
+    "oracle_comparisons": 0,
+    "reducer_smoke": false,
+    "signature_dedupe": false,
+    "artifact": null
+  },
+  "performance": {
+    "status": "draft",
+    "wall_seconds": null,
+    "max_rss_bytes": null,
+    "ceiling_wall_seconds": 60.0,
+    "ceiling_rss_bytes": null,
+    "artifact": null
+  }
+}

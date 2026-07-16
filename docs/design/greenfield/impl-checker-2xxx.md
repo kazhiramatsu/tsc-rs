@@ -349,7 +349,7 @@ docs; the rest are helpers inside named functions' regions
 note: that error half carries band codes 2200-2205/2322/2326-2328
 itself, so §2's "capture heads only" includes porting THESE call
 sites). The canonical regenerable list is
-`xtask codegen band-inventory --by-function`; the phase-9 closure
+`cargo xtask codegen band-inventory --by-function --band 2xxx`; the phase-9 closure
 criterion at function level: **every function on that list has a
 ledger entry or an explicit out-of-scope note.**
 
@@ -364,8 +364,8 @@ Real coverage gaps this pass found (rows added/updated below):
 external emit helpers, for-in statement checks, checker-side
 `resolveExternalModule`.
 
-**The complete, line-ordered 246-function checklist lives in
+**The complete, line-ordered 247-function checklist lives in
 [2xxx-emitter-inventory.md](2xxx-emitter-inventory.md)** (71 NAMED /
-175 helper, 593 emission sites, membership tables split out) — that
+176 helper, 623 emission sites, membership tables split out) — that
 file, regenerated per re-vendor, IS the function-level reproduction
 contract this section defines.
