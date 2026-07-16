@@ -17,11 +17,18 @@ Every conformance run reports both views. Neither is optional.
    `tsrs2/m8-scope.json`. M8's T1-T4 completion target uses this
    denominator.
 
-Scope dispositions are exact diagnostic identities:
-`fixture + matrix_key + file + code + line + col`. There are no
-fixture, directory, code, or glob exclusions. One host-resolution or
-JSDoc diagnostic therefore cannot hide another diagnostic in the
-same program. Syntactic diagnostics can never be excluded.
+Scope dispositions are exact diagnostic identities in the A2
+schema-2 form:
+`fixture + matrix_key + pass + file + start + length + code +
+category + message-chain hash + related-information hash +
+occurrence`; line and column ride along as review-facing redundant
+fields verified against `start`, never as the identity. There are no
+fixture, directory, code, or glob exclusions, and schema-1 T0-key
+dispositions are rejected with a migration message. Because the
+identity distinguishes records that share a T0 key, one
+host-resolution or JSDoc diagnostic cannot hide another diagnostic
+in the same program — not even its duplicate-bucket neighbor.
+Syntactic diagnostics can never be excluded.
 
 The only accepted reasons are:
 
