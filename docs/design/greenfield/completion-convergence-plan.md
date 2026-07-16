@@ -111,6 +111,11 @@ The artifact pins:
 - comparator schema version;
 - per fixture and matrix key, the T0 keys currently matched;
 - separate matched sets for All, 2XXX, and syntactic passes;
+- per fixture and matrix key, the multiplicity-complete T0 buckets —
+  keys where the oracle and tsrs record counts agree exactly —
+  stored from the first artifact version because they are the
+  duplicate-bucket tombstone proof (A2), independent of tier
+  activation;
 - T1/T2/T3 matched bucket sets once each tier activates.
 
 For T1-T3, the stored value is the T0 bucket identity whose complete
@@ -211,17 +216,26 @@ audit` enforces three rules from defined inputs:
 - tombstoned deletion: an identity present in the pinned set but
   absent from the current set must carry a tombstone — the identity
   plus the resolving commit, which must be an ancestor of HEAD — and
-  the identity's fixture, matrix key, and T0 key must be members of
-  the A1 accepted-match artifact, whose vendored-tsc and
-  golden-manifest pins give that claim its meaning. The proof is
-  versioned in-repo, so a fresh clone verifies it without any
-  historical build product, and it is standing: the set ratchet
-  forbids the match from silently disappearing and every full
-  conformance run re-derives it from behavior. Tombstones
-  deliberately ride A1 (§4 row 1), not B1 — B1 lands after the
-  phase-9 sweep, and a `target/` artifact from a past commit is
-  unverifiable from a fresh clone. A pinned band's live set only
-  ever shrinks, and every shrink is proven, not asserted.
+  its proof lives in the A1 accepted-match artifact, whose
+  vendored-tsc and golden-manifest pins give the claim its meaning.
+  T0-key membership alone proves resolution only for a singleton
+  bucket, where the excluded identity is the key's sole oracle
+  record. In a duplicate T0 bucket a T0 match cannot say which
+  record resolved (2XXX alone has 65 duplicate buckets carrying 99
+  extra records — TS2695 span variants, TS2537 message variants,
+  TS2343 at 35 buckets), so there the tombstone additionally
+  requires the bucket to be multiplicity-complete in the artifact:
+  tsrs emits every occurrence of the key, or no identity in that
+  bucket may be deleted. The proof is versioned in-repo, verifiable
+  on a fresh clone without any historical build product, and
+  standing: the set ratchet forbids the T0 match from silently
+  disappearing, and every conformance run re-derives bucket
+  completeness from behavior, so a later regression inside the
+  bucket fails the audit. Tombstones deliberately ride A1 (§4 row
+  1), not B1 — B1 lands after the phase-9 sweep, and a `target/`
+  artifact from a past commit is unverifiable from a fresh clone. A
+  pinned band's live set only ever shrinks, and every shrink is
+  proven, not asserted.
 
 Unpinned bands stay mutable and the manifest status stays `draft`.
 The global `frozen` transition at M7 close re-verifies every
@@ -255,6 +269,10 @@ Required tests:
   tombstone whose identity is absent from the A1 accepted-match
   artifact or whose resolving commit is not an ancestor of HEAD; a
   proven tombstoned deletion passes;
+- with two excluded records sharing one T0 key and tsrs emitting
+  only one, the tombstone for either identity fails
+  (multiplicity-incomplete bucket); with both emitted, the resolved
+  deletions pass;
 - the audit fails outright when the A1 artifact is missing or its
   vendored-tsc / golden-manifest pins mismatch the tree;
 - adding a non-2XXX exclusion still passes while only `2xxx` is
@@ -263,7 +281,9 @@ Required tests:
   re-verification.
 
 The full-corpus audit records the 68 duplicate T0 buckets as a permanent
-canary. `m8-scope.json` cannot become `frozen` until this schema is live.
+canary; the duplicate-bucket tombstone rule above is exercised against
+exactly that set (65 of the 68 sit inside the 2XXX band).
+`m8-scope.json` cannot become `frozen` until this schema is live.
 
 #### A3. Real T4 rendering and per-case comparison
 
