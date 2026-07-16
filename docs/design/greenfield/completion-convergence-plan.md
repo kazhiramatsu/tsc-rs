@@ -120,6 +120,12 @@ only and refuses to remove accepted matches. There is no regression
 allowlist: the oracle and corpus are fixed, so a temporarily regressing
 refactor stays off `main`.
 
+Partial runs (`--limit`, explicit fixture lists) compare only the
+fixtures actually executed against their accepted subsets, so a
+regression in an executed fixture still fails while unexecuted
+fixtures cannot false-positive. The full-corpus set gate remains the
+merge authority through `cargo xtask ci`.
+
 Add `cargo xtask conformance --syntactic-only` to `cargo xtask ci`.
 Retain integer counts in `ratchet.toml` as readable summaries, but derive
 and verify them against the accepted-match artifact so they cannot drift.
@@ -290,7 +296,9 @@ Branches:
 Generate an instrumented copy of `_tsc.js` under `target/`; never edit the
 vendored bundle. Instrument direct-emitter function entries using the
 same generated identities as `m8-emitter-inventory.json`, run the full
-oracle corpus, and write hit counts.
+oracle corpus, and write hit counts. The `<top>` identity is not a
+function entry; account for it with a module-evaluation marker at the
+top of the instrumented copy.
 
 The readiness reader derives `executed_emitters` from non-zero counts.
 Zero-hit emitters require explicit evidence tied to the inventory hash.
@@ -403,7 +411,8 @@ M7 cannot close until:
 - A3 formatter structure is live;
 - B1-B4 evidence producers have current artifacts;
 - D1-D3 are complete;
-- `cargo xtask m8 readiness --require-ready` passes.
+- `cargo xtask m8 readiness --require-ready` passes; the same command
+  is re-run unchanged as the M8 entry gate.
 
 #### C5. Bounded M8 mining
 
@@ -424,7 +433,7 @@ Recommended order:
 Every slice must reduce at least one exact mismatch identity or retire a
 measured escape/disposition prerequisite. If three consecutive probes in
 one family expose a shared data-model ceiling, stop local patching and
-apply the stall playbook.
+apply the [stall playbook](../stall-playbook.md).
 
 Produce `docs/NOTES-m8-<family>.md` only when the information is not
 already captured by the mismatch artifact or commit body. Avoid an
@@ -531,7 +540,7 @@ incorrect:
 | 8 | B1 evidence protocol + D2 closure tooling | M7 close |
 | 9 | B2 coverage + B3 fuzzer + B4 perf | M7 close |
 | 10 | M7 including A3 formatter structure | M8 entry |
-| 11 | D1-D3 zero/complete + scope frozen | M8 entry |
+| 11 | D1-D3 zero/complete + scope frozen | M7 close |
 | 12 | `m8 readiness --require-ready` | first M8 semantic slice |
 | 13 | A4 report-only completion gate | early M8 |
 | 14 | bounded M8 tiers + recovery zero | M9 |
