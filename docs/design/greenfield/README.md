@@ -28,6 +28,13 @@ page for WHAT "done" means (version pin, tiers, exclusions,
 go/no-go checkpoints). It wins over every other doc on that
 question.
 
+**Completion convergence plan:**
+[completion-convergence-plan.md](completion-convergence-plan.md) — the
+ordered remediation and delivery plan that makes progress set-monotone,
+repairs exact scope/T4/evidence gates, and sequences M4 close through the
+final M9 completion command. It owns execution order and acceptance
+artifacts; the definition of done still owns the end state.
+
 **Scheduling authority:**
 [2xxx-first-order.md](2xxx-first-order.md) — the build is ordered
 around one goal: complete 2XXX-band parity first (phases 0-9,
