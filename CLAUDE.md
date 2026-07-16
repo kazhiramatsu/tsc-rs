@@ -44,6 +44,13 @@ there.
 
 - Full gate suite: `cargo xtask ci` (from `tsrs2/`)
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
+  (every gating run also enforces the A1 accepted-set ratchet;
+  partial `--files`/`--limit` runs gate the executed-fixture
+  projection instead of the integer counts)
+- Accepted-set state: `cargo xtask ratchet check [--baseline
+  origin/main]` verifies `ratchets/` artifacts + lineage;
+  `cargo xtask ratchet update` re-measures and adds identities only
+  (never run it to "fix" a regression — fix the regression)
 - Escape expiry audit: `cargo xtask escapes --stale $(cat STAGE)`
   (also verifies `escapes.toml`; after adding/retiring an escape run
   `cargo xtask escapes --write-manifest` — the manifest diff is the

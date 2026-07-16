@@ -269,6 +269,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "sha2",
  "tsrs2-checker",
  "tsrs2-diags",
  "tsrs2-harness",
