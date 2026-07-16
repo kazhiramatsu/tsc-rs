@@ -5125,14 +5125,13 @@ impl<'a> CheckerState<'a> {
         // getIndexSymbol reads getMembersOfSymbol (the late-bound
         // table) — a computed-name index member surfaces here and the
         // declaration reader below keeps its honest escape.
-        let index_symbol = self
-            .get_members_of_symbol(symbol)?
-            .get(InternalSymbolName::INDEX)
-            .copied();
+        let members = self.get_members_of_symbol(symbol)?;
+        let index_symbol = members.get(InternalSymbolName::INDEX).copied();
         match index_symbol {
-            Some(index_symbol) => {
-                self.get_index_infos_of_index_symbol(index_symbol, /*sibling_symbols*/ None)
-            }
+            Some(index_symbol) => self.get_index_infos_of_index_symbol(
+                index_symbol,
+                Some(members.values().copied().collect()),
+            ),
             None => Ok(Vec::new()),
         }
     }
@@ -9565,9 +9564,10 @@ mod unique_symbol_tests {
 #[cfg(test)]
 mod late_binding_tests {
     use tsrs2_syntax::SyntaxKind;
-    use tsrs2_types::CompilerOptions;
+    use tsrs2_types::{CompilerOptions, TypeData};
 
     use crate::state::test_support::with_program_state;
+    use crate::{check_program, InputFile};
 
     /// 5.7b review round #2, re-targeted 5.9c: the early/late name
     /// collision MERGES per combineSymbolTables → mergeSymbol
@@ -9612,5 +9612,47 @@ mod late_binding_tests {
                 );
             },
         );
+    }
+
+    #[test]
+    fn late_bound_index_info_includes_sibling_property_types() {
+        let text = "declare const k: string;\n\
+                    type T = { [k]: number; x: string };\n\
+                    declare const t: T;\n\
+                    const n: number = t[\"anything\"];\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let source = state.binder.source(0);
+            let type_literal = source
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::TypeLiteral)
+                .expect("fixture contains a type literal");
+            let symbol = state
+                .node_symbol(type_literal)
+                .expect("type literal carries a symbol");
+            let infos = state
+                .get_index_infos_of_symbol(symbol)
+                .expect("late-bound index info resolves");
+            let info = infos
+                .iter()
+                .find(|info| info.key_type == state.tables.intrinsics.string)
+                .expect("string index info is synthesized");
+            let TypeData::Union { types, .. } = &state.tables.type_of(info.value_type).data else {
+                panic!("sibling property type must join the computed property type");
+            };
+            assert!(types.contains(&state.tables.intrinsics.number));
+            assert!(types.contains(&state.tables.intrinsics.string));
+        });
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: text.to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert!(!result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 2411));
     }
 }

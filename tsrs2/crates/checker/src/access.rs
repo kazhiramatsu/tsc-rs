@@ -3036,10 +3036,13 @@ impl<'a> CheckerState<'a> {
                             "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)",
                         ));
                     }
-                    // A module augmentation the resolver suppressed
-                    // (node_modules band) never merged its members —
-                    // tsc WOULD have merged, so the miss may be ours.
-                    if self.unresolved_module_augmentation {
+                    // A resolver-suppressed module augmentation never
+                    // merged its members. Contain only when that
+                    // augmentation declared this member on a
+                    // same-named container; a checker-wide gate would
+                    // hide unrelated property errors.
+                    if self.unresolved_module_augmentation_may_add_property(left_type, &right_text)
+                    {
                         return Err(Unsupported::new(
                             "property miss under an unresolved module augmentation \
                              (node_modules resolver band, M8)",
@@ -4695,6 +4698,20 @@ impl<'a> CheckerState<'a> {
             &[&index_display, &object_display],
         );
         Ok(self.tables.intrinsics.error)
+    }
+
+    fn unresolved_module_augmentation_may_add_property(
+        &self,
+        ty: TypeId,
+        property_name: &str,
+    ) -> bool {
+        let Some(symbol) = self.tables.type_of(ty).symbol else {
+            return false;
+        };
+        let symbol = self.get_merged_symbol(symbol);
+        let container_name = &self.binder.symbol(symbol).escaped_name;
+        self.unresolved_module_augmentation_properties
+            .contains(&(container_name.clone(), property_name.to_owned()))
     }
 }
 

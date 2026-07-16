@@ -938,6 +938,34 @@ mod tests {
     }
 
     #[test]
+    fn unresolved_module_augmentation_keeps_unrelated_property_miss() {
+        let diagnostics = check_program(
+            &[
+                InputFile {
+                    name: "augmentation.ts".to_owned(),
+                    text: "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\n(\"x\").missing;\n"
+                        .to_owned(),
+                },
+                // The resolver deliberately treats a bare-specifier
+                // miss as undecidable when a package.json is present.
+                InputFile {
+                    name: "package.json".to_owned(),
+                    text: "{}".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        )
+        .diagnostics;
+        assert_eq!(
+            diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [2339]
+        );
+    }
+
+    #[test]
     fn truthy_this_guard_keeps_type_query_assignment_error() {
         assert_eq!(
             codes_of_with_options(

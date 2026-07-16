@@ -2057,8 +2057,15 @@ impl<'a> CheckerState<'a> {
             // silent (FN-side; ledger).
             if is_for_augmentation {
                 // The skipped merge leaves member tables thinner than
-                // tsc's — downstream property misses gate on this.
-                self.unresolved_module_augmentation = true;
+                // tsc's. Record only members the augmentation could
+                // have supplied; downstream property misses must not
+                // suppress unrelated names program-wide.
+                if let Some(augmentation) = self
+                    .parent_of(location)
+                    .filter(|&parent| self.kind_of(parent) == SyntaxKind::ModuleDeclaration)
+                {
+                    self.record_unresolved_module_augmentation_properties(augmentation);
+                }
             }
             return Ok(None);
         }
@@ -2075,6 +2082,40 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(None)
+    }
+
+    /// tsrs-native: containment scope for a resolver-suppressed module
+    /// augmentation. The resolver cannot identify the target symbol,
+    /// but the augmentation syntax still tells us exactly which named
+    /// containers could gain which members. Keep that structural key
+    /// instead of a checker-wide boolean so an unrelated `.missing`
+    /// remains diagnosable.
+    fn record_unresolved_module_augmentation_properties(&mut self, augmentation: NodeId) {
+        let Some(root) = self.node_symbol(augmentation) else {
+            return;
+        };
+        let mut worklist = vec![root];
+        let mut seen = std::collections::HashSet::new();
+        while let Some(current) = worklist.pop() {
+            if !seen.insert(current) {
+                continue;
+            }
+            let symbol = self.binder.symbol(current);
+            let container = symbol.escaped_name.clone();
+            let member_names = symbol
+                .members
+                .keys()
+                .chain(symbol.exports.keys())
+                .cloned()
+                .collect::<Vec<_>>();
+            let children = symbol.exports.values().copied().collect::<Vec<_>>();
+            self.unresolved_module_augmentation_properties.extend(
+                member_names
+                    .into_iter()
+                    .map(|member| (container.clone(), member)),
+            );
+            worklist.extend(children);
+        }
     }
 
     /// tsc-port: tryFindAmbientModule @6.0.3
