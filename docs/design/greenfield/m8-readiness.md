@@ -136,7 +136,9 @@ are green:
 9. recorded performance and RSS ceilings;
 10. every M7-owned family complete in the A5 rollup — `families
     check` green and supported FN = 0 for each family's (code, pass)
-    rows, derived from the A1 artifact plus the frozen family map.
+    rows, derived from the A1 artifact plus the frozen family map,
+    which is identity-anchored to its adjudication commit (A5), so
+    M7 ownership cannot shrink after the freeze to fake completion.
     Row 1's aggregate cannot substitute: 63% is reachable from the
     unused family alone, so a red family fails this row and is
     named.

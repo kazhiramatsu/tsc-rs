@@ -67,7 +67,10 @@ Facts the numeric-band view hides:
 ## 2. Families
 
 Owners are provisional until the A5 slice adjudicates and freezes
-the map; "M7 8.x" refers to the stages in
+the map — the freeze identity-anchors the enumerated map to its
+adjudication commit, and later owner changes are reviewed
+re-baseline events (convergence plan A5), so ownership cannot drift
+after it becomes a gate input; "M7 8.x" refers to the stages in
 [m7-tail-steps.md](m7-tail-steps.md). FN counts are the measured
 baseline; ~ marks rows whose exact (code, pass) split the machine
 rollup will pin.

@@ -143,8 +143,8 @@ Partial runs (`--limit`, explicit fixture lists) compare only the
 fixtures actually executed against their accepted subsets — the
 matched-tier and multiplicity-complete sets under the same subset
 rule — so a regression in an executed fixture still fails while
-unexecuted fixtures cannot false-positive. The full-corpus set gate remains the
-merge authority through `cargo xtask ci`.
+unexecuted fixtures cannot false-positive. The full-corpus set gate
+remains the merge authority through `cargo xtask ci`.
 
 Add `cargo xtask conformance --syntactic-only` to `cargo xtask ci`.
 Retain integer counts in `ratchet.toml` as readable summaries, but derive
@@ -389,7 +389,24 @@ decomposition; this slice turns it into machine state:
   accounting and gate inputs;
 - adjudication of the provisional owners recorded in the family doc
   (implicit-any, JSX, 7016, override validation), updating the doc
-  from the frozen map.
+  from the frozen map;
+- the freeze itself: the map file starts `draft` while the
+  adjudication backlog resolves and turns `frozen` in the slice's
+  closing change, which records the adjudication commit. A frozen
+  map is identity-anchored the same way as the A2 band-freeze
+  record, tightened from subset to full equality because the corpus
+  is fixed and the coverage rule already pins the domain: `families
+  check` re-reads the map at the recorded adjudication commit (an
+  ancestor of HEAD) and requires the current enumerated rows and
+  canary set to be identical to those at that commit — the freeze
+  metadata itself is outside the comparison, and a status downgrade
+  back to `draft` is rejected outright — so any post-freeze owner or
+  canary edit fails even though coverage and uniqueness still hold.
+  A legitimate ownership correction is its own reviewed re-baseline
+  event recording a new adjudication commit, never an edit riding an
+  implementation slice. M8 readiness row 10 reads M7
+  ownership from this anchored map, so a red row cannot be moved
+  out of an M7 family to fake completion.
 
 Only A1's artifact is a prerequisite; the map file and doc carry no
 tooling dependency. Acceptance:
@@ -407,6 +424,15 @@ Required tests:
   partition, and a 2000-2999 code appearing in the enumerated map
   also fails — band ownership is never re-enumerated;
 - the same (code, pass) row mapped to two families fails;
+- after the freeze, changing any row's owner fails against the
+  anchored map even though coverage and uniqueness still hold — the
+  gaming case is pinned: reassigning a red M7-owned row such as
+  (1206, semantic) from checker-grammar to an M8 family fails
+  `families check`, so readiness row 10 cannot be satisfied by
+  shrinking M7 ownership;
+- post-freeze canary edits or a status downgrade back to `draft`
+  fail the same way; the only path is a re-baseline event recording
+  a new reviewed adjudication commit;
 - a code split across passes with different owners is accepted — the
   map key is the row, never the bare code (1453 arrives syntactic
   and semantic, 6133 semantic and suggestion);
@@ -708,8 +734,9 @@ Branch: `infra/hosted-ci`
 - pin the supported Node major/minor for the oracle;
 - run `cargo xtask ci` in a required GitHub Actions check;
 - check out enough git history to reach every recorded adjudication
-  commit — the scope band-freeze history anchor (A2) fails on a too-
-  shallow clone rather than passing vacuously;
+  commit — the scope band-freeze (A2) and family-map freeze (A5)
+  history anchors fail on a too-shallow clone rather than passing
+  vacuously;
 - run the syntactic gate explicitly until it is folded into `ci`;
 - add a scheduled fuzz workflow when B3 lands;
 - upload mismatch, readiness, completion, and fuzz artifacts on failure.
