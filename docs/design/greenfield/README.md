@@ -28,11 +28,25 @@ page for WHAT "done" means (version pin, tiers, exclusions,
 go/no-go checkpoints). It wins over every other doc on that
 question.
 
-**Scheduling authority:**
+**Completion convergence plan:**
+[completion-convergence-plan.md](completion-convergence-plan.md) — the
+ordered delivery plan from M4 close through M9. It owns sequence,
+dependencies, and acceptance gates; the definition of done still owns
+the end state. Its supporting contracts are
+[measurement-integrity.md](measurement-integrity.md) for A1/A2/A3/A5
+schemas, anchors, and identities, and
+[evidence-and-steady-state.md](evidence-and-steady-state.md) for B1-B4
+producers and M9. Read the plan first; open a support contract only when
+implementing or reviewing that mechanism.
+
+**Band strategy (2XXX first):**
 [2xxx-first-order.md](2xxx-first-order.md) — the build is ordered
 around one goal: complete 2XXX-band parity first (phases 0-9,
-re-sequencing the milestone table below; no emitter is built). The
-impl companions carry copy-level code and port tables:
+re-sequencing the milestone table below; no emitter is built).
+Milestone landing order — including the recorded phase-7/8 swap (M5
+flow before M6 full inference) — is owned by the convergence plan's
+§4 table; this doc owns the band goal, phase content, and band gates.
+The impl companions carry copy-level code and port tables:
 [impl-nodes.md](impl-nodes.md) (the tsc-field-compatible Node
 contract: generated node structs + for_each_child from
 forEachChildTable, line map, externalModuleIndicator, the AST tree
@@ -58,6 +72,16 @@ open (reserved cursor parameter, per-parse NodeIds, no
 node-id-keyed cross-program caches), and the future L-track. Work a
 phase by reading: this README → 2xxx-first-order.md → the phase's
 steps doc → its impl companion → the cited parent-doc sections.
+
+**Non-2XXX companion:**
+[non-2xxx-first-order.md](non-2xxx-first-order.md) — the family map
+and scheduling skeleton for everything outside codes 2000-2999
+(2xxx-first-order.md leaves those diffs invisible by design). It
+decomposes the non-2XXX bands into implementation-owner families
+keyed by (code, pass), records their measured baselines, and defines
+the per-family acceptance that C4/M7 stage gates and the M8 residual
+snapshot consume. The convergence plan's A5 slice turns it into a
+machine map + rollup.
 
 This is a FROM-SCRATCH build (workspace `tsrs2/`). Nothing in the
 existing `src/` is consulted; the only implementation references are
@@ -109,7 +133,7 @@ is one commit.
 | M6 inference + overloads | [m6-inference-calls-steps.md](m6-inference-calls-steps.md) | T0 ≥ 58% |
 | M7 unused/grammar/suggestion | [m7-tail-steps.md](m7-tail-steps.md) | T0 ≥ 63%; T1 measured and ratcheted |
 | M8 long tail | [m8-readiness.md](m8-readiness.md) + the mining loop below | supported-scope T2/T3 activated; all-corpus FP=0 |
-| M9 fuzzer hardening + coverage | greenfield §7.7 + §8 | the M8-entry differential loop reaches new-signature rate < 1/night |
+| M9 fuzzer hardening + coverage | greenfield §7.7 + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | `fuzz steady-state --require-ready`: 14 current-fingerprint nightly windows, rate < 1 new signature/night, no open signature |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,
@@ -168,7 +192,9 @@ is running before M8 begins; M9 hardens it rather than introducing it.
   output; iteration over any symbol/member table uses ordered maps
   (IndexMap) or sorted keys — `cargo clippy` denies raw `HashMap`
   iteration in checker crates (M0 sets up the lint).
-- One tsc function = one Rust function, tsc's name in snake_case
-  (greenfield §5). Coalescing "for elegance" is a stop condition.
+- One exact tsc declaration identity = one Rust ported function, tsc's
+  name in snake_case with `tsc-span`/`tsc-hash` selecting the declaration
+  (greenfield §5/§8). Same-named bundle declarations are not one port;
+  coalescing "for elegance" is a stop condition.
 - Diagnostics are emitted ONLY via `&'static DiagnosticMessage`
   references from the generated table.

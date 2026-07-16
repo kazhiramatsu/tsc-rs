@@ -32,6 +32,14 @@ roadmaps, and completed step guides live under `archive/`.
   five docs above — milestone-by-milestone (M0-M7) step guides that
   sequence the from-scratch build for implementing agents, with
   verified tsc anchors and per-stage acceptance gates.
+- [greenfield/completion-convergence-plan.md](greenfield/completion-convergence-plan.md):
+  the active cross-milestone execution plan for set-monotone ratchets,
+  exact scope identities, T4/completion gates, produced M8 evidence, and
+  the ordered path from the current M4 state through M9.
+- [greenfield/non-2xxx-first-order.md](greenfield/non-2xxx-first-order.md):
+  the non-2XXX family map — owner-based decomposition of the bands
+  outside 2000-2999 with measured baselines and per-family acceptance;
+  feeds the convergence plan's A5 slice and M7 stage gates.
 
 ## Active Deep Designs
 

@@ -1,16 +1,24 @@
 # 2XXX-first build order — the master plan
 
 GOAL (redefines the milestone gates): full parity on the 2XXX
-diagnostic band — every code in 2000-2999, FP = 0 and FN = 0 against
-the oracle across the corpus — BEFORE investing in the other bands.
-The metric is `T0-2xxx` (T0 comparison restricted to codes
-2000-2999); full-band T0 is tracked but secondary until phase 9.
+diagnostic band — every code in 2000-2999, FP = 0 against the oracle
+across the corpus and FN = 0 on the supported scope — BEFORE
+investing in the other bands. Scope exclusions are exact
+oracle-record identities under the out-of-scope contract in
+[definition-of-done.md](definition-of-done.md)
+(host-resolution, jsdoc-semantics; TS2307 host misses are
+the pinned exemplar): excluded records stay FN in the all-corpus
+visibility metric and are not chased. The metric is `T0-2xxx` (T0
+comparison restricted to codes 2000-2999); full-band T0 is tracked
+but secondary until phase 9.
 
-This doc supersedes the milestone ORDER of README.md for scheduling
-(the m*-steps docs remain the stage-level instructions; this doc
-re-sequences them, tightens their scopes toward 2XXX, and adds the
-impl-*.md companions that carry copy-level code). Phase N+1 never
-starts before phase N's gate.
+This doc re-sequences the m*-steps docs toward the band goal (they
+remain the stage-level instructions; the impl-*.md companions carry
+copy-level code). Phase numbers are content identities, not a
+landing sequence: landing order is owned by
+[completion-convergence-plan.md](completion-convergence-plan.md) §4 — including the recorded
+phase-8-before-7 swap — and a phase starts only after the gate of
+every phase that §4 lands before it is green.
 
 ## Why this order (the dependency analysis)
 
@@ -63,7 +71,7 @@ reading:
 | 6 | expressions/statements/declarations/classes/enums/modules/iteration. UNLOCKS: 2322/2403/2415-class family/2461-iteration family | m4-checker-skeleton-steps.md 5.5-5.8 | impl-checker-2xxx.md §5-7 | T0-2xxx ≥ 55% |
 | 7 | calls with stubbed inference, then full inference. UNLOCKS: 2554/2349/2351 then 2345/2769/2344 | m4 5.7 + m6-inference-calls-steps.md | impl-checker-2xxx.md §8 | T0-2xxx ≥ 75% |
 | 8 | flow narrowing + operators. UNLOCKS: 2365/2367/2454/2564/2678 + removes the narrowing-dependent 2322/2339 residue | m5-flow-steps.md | impl-checker-2xxx.md §9 | T0-2xxx ≥ 90% |
-| 9 | 2XXX completion sweep: mine the band residue to zero, then expand bands (1xxx exact, 7xxx, 6xxx, suggestion, 4xxx) | README M8 loop | — | **T0-2xxx = 100%**, then full-band ratchets |
+| 9 | 2XXX completion sweep: adjudicate 2XXX scope exclusions (exact A2 identities), mine the supported-scope band residue to zero, then expand bands (1xxx exact, 7xxx, 6xxx, suggestion, 4xxx) | README M8 loop | — | **all-corpus 2XXX FP = 0, supported-scope T0-2xxx = 100%** (exclusions pinned first by the [A2 `2xxx` band-freeze record](measurement-integrity.md#31-draft-band-pins)), then full-band ratchets |
 
 Phase-gate percentages are calibration priors (from the first
 implementation's trajectory), not physics; the hard requirements are
@@ -81,13 +89,28 @@ what phases 5-6 can show before flow and the unused-band land.
 (Clarified 2026-07-13 after the stage-5.7a external review.)
 
 Note the resequencing vs the original milestone table: flow (old M5)
-moves AFTER calls/inference (old M6) because the call/overload 2XXX
-family is larger than the flow-dependent one and does not depend on
-narrowing; narrowing DOES improve relation/member codes, so it lands
-last before the sweep, where its effect is purely additive. If
-mid-build mining shows narrowing-blocked codes dominating earlier,
-swapping phases 7 and 8 back is allowed — both orders are
-dependency-legal; record the decision in NOTES.
+was moved AFTER calls/inference (old M6) on the planning-time bet
+that the call/overload 2XXX family was the larger one and does not
+depend on narrowing; the same note allowed swapping phases 7 and 8
+back "if mid-build mining shows narrowing-blocked codes dominating
+earlier" — both orders are dependency-legal. DECIDED 2026-07-16: the
+swap-back is exercised. At the 5.9c baseline (52c47bbb; band FN
+9,995) the phase-8 unlock family 2365/2367/2454/2564/2678 holds
+4,357 FNs — 2454 alone 3,962 — against 477 for the phase-7 unlock
+family 2554/2349/2351/2345/2769/2344, whose call half was already
+crushed by 5.7's stubbed-inference calls; 2322 (1,382) and 2339
+(558) hold further narrowing-dependent residue. M6 also gained the
+speculation-transaction start gate (2026-07-14 external review).
+Execution order is therefore phase 8 (M5 flow) then phase 7 (M6 full
+inference), fixed by
+[completion-convergence-plan.md](completion-convergence-plan.md) §4 rows 7-8, the
+execution-order authority. Phase numbers stay attached to their
+content — the impl-checker-2xxx.md §8/§9 port tables are unchanged —
+and the 75%/90% calibration priors attach to landing order (first of
+the two, then both), not to phase numbers. §4 row 9 lands phase 9's
+first half (scope adjudication, then supported-scope band residue to
+zero) between M6 and M7; the band-expansion half is M7/M8
+themselves.
 
 ## The band comparator (phase 0 addition)
 
@@ -103,8 +126,18 @@ line below it keeps honesty about the rest.
 
 ## What "complete 2XXX" means concretely (the phase-9 checklist)
 
-- `xtask conformance --band 2xxx` reports 0 FP / 0 FN diagnostics
-  corpus-wide, all matrix points included.
+- `xtask conformance --band 2xxx` reports 0 FP corpus-wide and 0 FN
+  on the supported scope, all matrix points included. Every 2XXX
+  scope exclusion is an exact record identity adjudicated under the
+  out-of-scope contract in
+  [definition-of-done.md](definition-of-done.md) (host-resolution,
+  jsdoc-semantics; TS2307 host misses are the pinned exemplar) and
+  is pinned before the sweep closes by the
+  [A2 band-pin contract](measurement-integrity.md#31-draft-band-pins).
+  The global manifest stays draft until M7 close. Pinned removals need
+  an [A1 standing tombstone](measurement-integrity.md#32-resolution-tombstones),
+  including multiplicity-complete proof for duplicate buckets. Excluded
+  records remain FN in the all-corpus view.
 - Every 2XXX code the ORACLE ever emits on the corpus appears in the
   engine's ledger with its emitting function ported (the emission map
   in impl-checker-2xxx.md is the working inventory; phase 9 mines

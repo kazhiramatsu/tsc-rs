@@ -16,8 +16,10 @@ context means THIS bundle, not tsc-at-large.
 
 ## Done means
 
-On the fixed conformance corpus (`ts-tests/tests/cases/conformance`,
-matrix-expanded by the harness — 5,908 fixtures today), using the
+On the versioned conformance corpus (`ts-tests/tests/cases/conformance`,
+matrix-expanded by the harness — 5,908 fixtures at adoption), fixed for
+each gate run and growable only through
+[A1's append-only reviewed universe transition](measurement-integrity.md#2-a1--accepted-conformance-state), using the
 two-view contract in [m8-readiness.md](m8-readiness.md):
 
 1. **Supported-scope T3 = 100%** for the syntactic AND semantic oracle passes:
@@ -46,8 +48,9 @@ two-view contract in [m8-readiness.md](m8-readiness.md):
    header family / tsrs-native / tsc-deferred / tsc-not-applicable
    — the `fn-dispositions.toml` backlog allowlist admits ONLY
    deletions and empties before M8 starts); the tsc-side converse
-   (emitter inventory + dependency closure over the SAME
-   vocabulary) is the M8-start checkpoint. Parse-recovery guards may
+   (emitter inventory + dependency closure over the SAME exact
+   tsc-span/tsc-hash declaration identities; function names are aliases,
+   not keys) is the M8-start checkpoint. Parse-recovery guards may
    be separately ratcheted through M7, but must move off the
    `Unsupported` channel before this final gate.
 5. **Determinism invariants green** at full scope: idempotence,
@@ -101,7 +104,7 @@ two-view contract in [m8-readiness.md](m8-readiness.md):
 | M4 close | T0 ≥ 35% (All band), untagged escapes 0, stale 0 — first real go/no-go |
 | M5 close | flow landed with idempotence + jobs-independence still green |
 | M6 start | speculation scoped-transaction API + failed-candidate rollback tests exist ([m6-inference-calls-steps.md](m6-inference-calls-steps.md) precondition) |
-| M8 start | `cargo xtask m8 readiness --require-ready`: M7 gate, frozen exact scope, T1-T3 shadow metrics, all-band emitter inventory + dependency closure + runtime coverage, fuzzer actually running, performance/RSS evidence |
+| M8 start | `cargo xtask m8 readiness --require-ready`: M7 gate, globally identity-anchored frozen exact scope, T1-T3 shadow metrics, declaration-identity all-band emitter inventory + dependency closure + runtime coverage, current-fingerprint fuzzer evidence, and current performance/RSS evidence on an approved reference runner |
 | Done | this page's §"Done means", all six clauses |
 
 Shadow T1/T2/T3 rates are measured (non-gating) from pre-5.8a
