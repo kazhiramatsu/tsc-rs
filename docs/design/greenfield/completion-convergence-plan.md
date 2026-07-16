@@ -145,21 +145,57 @@ refreshing the derived summaries would otherwise delete identities
 from the left-hand side of the rejection check while the
 implementation regresses in step. The artifact therefore records its
 lineage: a `previous` field, stamped by `ratchet update`, carrying
-the commit and SHA-256 of the version it grew from, the first
-version marked as the explicit bootstrap baseline reviewed at the A1
-landing. `ratchet check` verifies that the recorded previous commit
-is an ancestor of HEAD and is the most recent commit in
-`git log HEAD -- <artifact path>` other than the change under review
-— the immediate predecessor version, so the pointer is not
-chooseable and chaining from an older version to hide a removal
-fails — that the artifact committed there hashes to the recorded
-SHA-256, and that every accepted set at that version (all
-matched-tier sets and the multiplicity-complete set) is a subset of
-the corresponding current set. A history too shallow to reach the predecessor fails rather
-than passing vacuously. This lineage is what the A2 tombstone proofs
-and the A5 rollup stand on: artifact membership stays durable even
-against a coordinated edit of artifact, summaries, and
-implementation.
+the commit and SHA-256 of the version it grew from. The first version
+is marked as the explicit bootstrap baseline reviewed at the A1
+landing.
+
+`ratchet check` validates the whole chain, not merely the current
+artifact's one `previous` edge. Starting at the current artifact
+version, it repeats the following until the bootstrap:
+
+```text
+current = current artifact-path version
+while current is not bootstrap:
+    expected = immediate preceding artifact-path version before current
+    require current.previous.commit == expected.commit
+    require current.previous.sha256 == SHA-256(expected bytes)
+    require every accepted set in expected ⊆ the corresponding set in current
+    current = expected
+require current is the unique oldest artifact-path version and is marked bootstrap
+```
+
+"Immediate preceding" is evaluated relative to each historical
+`current` commit, never repeatedly relative to HEAD. The subset rule
+covers every matched-tier set and the multiplicity-complete set.
+Consequently an unverified intermediate commit cannot launder a
+removal by becoming the final artifact's `previous`: the checker
+continues through that intermediate version and detects the shrinking
+edge behind it. A bootstrap marker anywhere except the unique oldest
+artifact-path version fails. Artifact-changing commits form one
+ancestry chain; concurrent ratchet updates must rebase and regenerate
+before merge. A merge commit that merely carries an unchanged artifact
+does not create a lineage version. Missing history anywhere between
+HEAD and the bootstrap fails rather than passing vacuously.
+
+Hosted merge CI adds an independent trusted-base check:
+
+```text
+every accepted set in <PR base artifact> ⊆ the corresponding set in HEAD artifact
+```
+
+The workflow passes the resolved PR base SHA (`origin/main` is the
+local shorthand) to `cargo xtask ratchet check --baseline <ref>`.
+This direct comparison is required even when the branch's recursive
+chain is internally valid, so rewriting several branch commits cannot
+manufacture a smaller self-consistent lineage. The sole missing-base
+exception is the A1 bootstrap PR itself: the base ref must contain no
+artifact, and the candidate must contain exactly the one oldest version
+marked bootstrap. Once the base contains an artifact, its absence or an
+attempt to bootstrap again fails. This recursive lineage plus the
+trusted-base comparison is what the A2 tombstone proofs and the A5
+rollup stand on: artifact membership stays durable even against a
+coordinated edit of artifact, summaries, implementation, and
+intermediate branch history.
 
 Partial runs (`--limit`, explicit fixture lists) compare only the
 fixtures actually executed against their accepted subsets — the
@@ -176,6 +212,7 @@ Acceptance:
 
 ```sh
 cargo xtask ratchet check
+cargo xtask ratchet check --baseline origin/main
 cargo xtask conformance
 cargo xtask conformance --band 2xxx
 cargo xtask conformance --syntactic-only
@@ -193,10 +230,23 @@ Required regression tests:
   the implementation and refreshing the derived `ratchet.toml`
   summaries in the same change fails: the lineage subset check
   names the removed identity;
+- deleting an identity in intermediate commit C1 and then stamping
+  C1 as C2's immediate `previous` still fails: recursive validation
+  reaches the pre-C1 edge and names the removed identity;
 - an artifact change whose recorded previous is a valid ancestor
   but not the immediate predecessor of the artifact path fails;
-- a previous-hash mismatch fails as stale; a predecessor
-  unreachable in a shallow history fails rather than passing;
+- a previous-hash mismatch fails as stale; changing a non-oldest
+  version to the bootstrap marker fails; a predecessor or the
+  bootstrap unreachable in a shallow history fails rather than
+  passing;
+- a branch-local chain that is internally self-consistent but omits
+  an identity accepted by the PR-base artifact fails the trusted-base
+  comparison and names that identity;
+- a base ref without an artifact is accepted only for the one-version
+  bootstrap creation; the same absence or a second bootstrap fails
+  after a baseline exists;
+- a multi-version chain containing additions only passes both the
+  recursive and trusted-base checks;
 - a syntactic FN cannot be hidden by a semantic addition;
 - a comparator or corpus hash mismatch fails as stale.
 
@@ -765,11 +815,14 @@ Branch: `infra/hosted-ci`
 - add `rust-toolchain.toml` with the reviewed Rust/clippy version;
 - pin the supported Node major/minor for the oracle;
 - run `cargo xtask ci` in a required GitHub Actions check;
-- check out enough git history to reach every recorded adjudication
-  commit and the A1 artifact's lineage predecessor — the set-ratchet
+- check out enough git history to reach the A1 artifact's unique
+  bootstrap and every recorded adjudication commit — the set-ratchet
   lineage (A1), scope band-freeze (A2), and family-map freeze (A5)
   history anchors all fail on a too-shallow clone rather than
   passing vacuously;
+- run `cargo xtask ratchet check --baseline <PR-base-SHA>` in the
+  required pull-request check (`origin/main` is the local shorthand),
+  independently of the recursive branch-lineage validation;
 - run the syntactic gate explicitly until it is folded into `ci`;
 - add a scheduled fuzz workflow when B3 lands;
 - upload mismatch, readiness, completion, and fuzz artifacts on failure.
