@@ -61,7 +61,10 @@ following ones as their producers land:
 7. A stage marker advances only after every expiring escape has either
    been implemented or moved to a later owner with reviewed evidence.
 8. Every (code, pass) row the corpus exercises maps to exactly one
-   owner family; an unmapped row fails the family-map check.
+   owner family; an unmapped row fails the family-map check. Non-2XXX
+   rows map through the enumerated A5 map; rows in codes 2000-2999
+   belong wholesale to the 2XXX band family, the single range-keyed
+   owner (its per-function ownership is the emission map).
 
 ## 3. Workstreams and dependencies
 
@@ -79,12 +82,12 @@ A: trustworthy measurement
     -> A5 non-2XXX family map + rollup (feeds C4 stage gates, D2 owners)
 
 C: semantic implementation
-  M4 close -> M5 flow -> M6 inference/calls -> M7 tail -> M8 long tail
-                     ^                         |
-                     |                         v
-B: produced evidence + fuzzer ----------------+
-D: ledger / emitter closure / runtime coverage+
-E: hosted CI / toolchain / current docs -------+
+  M4 close -> M5 flow -> M6 inference/calls -> 2XXX sweep -> M7 tail -> M8 long tail
+                     ^                                       |
+                     |                                       v
+B: produced evidence + fuzzer ------------------------------+
+D: ledger / emitter closure / runtime coverage -------------+
+E: hosted CI / toolchain / current docs --------------------+
 
 M8 bounded slices -> recovery zero -> T3/T4 100% -> M9 nightly steady state
 ```
@@ -278,11 +281,17 @@ Branch: `infra/family-map`
 decomposition; this slice turns it into machine state:
 
 - a reviewable enumerated map file assigning every corpus-exercised
-  (code, pass) row to exactly one owner family — an enumeration
-  table, never a numeric-range rule, because ownership crosses bands
-  (7027 is M5 flow surfacing as a suggestion; 6053 is program
-  machinery inside 6XXX; 6133 spans the suggestion and semantic
-  passes);
+  non-2XXX (code, pass) row to exactly one owner family — an
+  enumeration table, never a numeric-range rule, because ownership
+  crosses bands (7027 is M5 flow surfacing as a suggestion; 6053 is
+  program machinery inside 6XXX; 6133 spans the suggestion and
+  semantic passes). The single deliberate range key is the 2XXX band
+  boundary itself: `families check` partitions corpus rows at codes
+  2000-2999 — rows inside are owned wholesale by the band family
+  (per-function ownership lives in the 2XXX emission map, D2 rule 1),
+  rows outside must each appear exactly once in the enumerated map —
+  so the union check leaves no corpus-exercised row of any band
+  unowned;
 - `cargo xtask families report`: a rollup derived from the A1
   accepted-match artifact plus the frozen map — per family, matched /
   total / FN at each tier, plus the canary rows. No second ratchet:
@@ -303,7 +312,10 @@ cargo xtask ci
 
 Required tests:
 
-- an unmapped (code, pass) row in the corpus fails `families check`;
+- an unmapped non-2XXX (code, pass) row in the corpus fails
+  `families check`; 2XXX rows are covered wholesale by the band
+  partition, and a 2000-2999 code appearing in the enumerated map
+  also fails — band ownership is never re-enumerated;
 - the same (code, pass) row mapped to two families fails;
 - a code split across passes with different owners is accepted — the
   map key is the row, never the bare code (1453 arrives syntactic
@@ -447,7 +459,10 @@ gate tests both cache rollback and diagnostic rollback.
 
 #### C4. M7 grammar, unused, suggestions, and program diagnostics
 
-Follow stages 8.1-8.5. TS6133 and TS6196 currently account for 14,266
+C4 begins only after the 2XXX completion sweep closes the band (§4
+row 9; the phase-9 checklist: `--band 2xxx` FP and FN zero
+corpus-wide, all matrix points). Follow stages 8.1-8.5. TS6133 and
+TS6196 currently account for 14,266
 FNs, so the 63% aggregate gate is calibration only: it is reachable
 from the unused family alone and certifies nothing about the other
 M7 families. Each stage therefore closes on its own family rows from
@@ -547,12 +562,19 @@ inventory review surface without weakening its conservative closure:
 - auto-account fresh `tsc-port` ledger names;
 - assign every direct emitter an owner (milestone, M7 stage, M8
   family, or out-of-scope with cause) as a column in the dispositions
-  file. The A5 join alone cannot complete the column — the 607 direct
-  emitters carry sites spanning 1,731 distinct codes, of which the
-  corpus exercises 746 (410 non-2XXX + 336 2XXX) and 985 have no
-  corpus row — so the mechanical pass is three rules, a site matching
-  none stays unassigned, and manual review is limited to cross-family
-  helpers, multi-pass sites, and `unexercised` adjudication:
+  file. The A5 join alone cannot complete the column. Measured from
+  this inventory's `direct_emitter` sites joined to the golden oracle
+  records: the 607 direct emitters span 1,731 distinct site codes —
+  1,551 in real functions plus 180 referenced only from `<top>`, the
+  module-evaluation marker that is not an assignable function (B2).
+  The corpus exercises 746 of the 1,551 (336 2XXX + 410 non-2XXX);
+  every corpus code has at least one real-function site in this
+  inventory, and a re-vendor that breaks that property is a D3
+  contradiction report, never a silent default. The remaining 805
+  real-function codes and all 180 `<top>`-only codes have no corpus
+  row. The mechanical pass is three rules, a site matching none stays
+  unassigned, and manual review is limited to cross-family helpers,
+  multi-pass sites, and `unexercised` adjudication:
   - 2XXX site codes resolve through the 2XXX emission map
     (impl-checker-2xxx.md, backed by the 2xxx-emitter-inventory.md
     function-to-module table), which names the owning milestone per
@@ -562,7 +584,8 @@ inventory review surface without weakening its conservative closure:
     exactly one pass; a multi-pass code (1453, 6133) never
     auto-assigns by bare code — its sites carry their candidate rows
     into manual review;
-  - the 985 codes with no corpus row take the explicit owner
+  - codes with no corpus row (the 805 real-function codes and the
+    180 `<top>`-only codes above) take the explicit owner
     `unexercised`, closed by B2 zero-hit evidence plus D3
     adjudication into a family or out-of-scope with cause;
 - expand reviewed rules into exact generated entries so the frozen file
@@ -628,14 +651,15 @@ incorrect:
 | 6 | E2 documentation cleanup | M5 close |
 | 7 | M5 flow | M6 |
 | 8 | M6 transaction precondition, then M6 | M7 |
-| 9 | B1 evidence protocol + D2 closure tooling | M7 close |
-| 10 | B2 coverage + B3 fuzzer + B4 perf | M7 close |
-| 11 | M7 including A3 formatter structure | M8 entry |
-| 12 | D1-D3 zero/complete + scope frozen | M7 close |
-| 13 | `m8 readiness --require-ready` | first M8 semantic slice |
-| 14 | A4 report-only completion gate | early M8 |
-| 15 | bounded M8 tiers + recovery zero | M9 |
-| 16 | M9 nightly steady state | `completion --require-done` |
+| 9 | 2XXX completion sweep to T0-2xxx = 100% (2xxx-first-order.md phase 9, first half) | M7 |
+| 10 | B1 evidence protocol + D2 closure tooling | M7 close |
+| 11 | B2 coverage + B3 fuzzer + B4 perf | M7 close |
+| 12 | M7 including A3 formatter structure | M8 entry |
+| 13 | D1-D3 zero/complete + scope frozen | M7 close |
+| 14 | `m8 readiness --require-ready` | first M8 semantic slice |
+| 15 | A4 report-only completion gate | early M8 |
+| 16 | bounded M8 tiers + recovery zero | M9 |
+| 17 | M9 nightly steady state | `completion --require-done` |
 
 A1 is intentionally first because every later semantic result is harder
 to trust without it. A2 is early because scope data becomes expensive to
@@ -705,6 +729,8 @@ The project should continue after each checkpoint only if:
 - M4 close: T0 >= 35%, FP=0, untagged/stale zero;
 - M5 close: flow canaries and invariants green;
 - M6 start: transaction rollback proof exists;
+- M7 start: the 2XXX completion sweep is closed — band FP and FN zero
+  corpus-wide (the phase-9 checklist);
 - M7 close: all nine M8 readiness rows are produced and verified;
 - M8 midpoint: accepted T0/T1 sets still grow and no repeated
   architectural ceiling is being patched locally;

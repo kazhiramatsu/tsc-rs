@@ -112,8 +112,9 @@ is tracked by the same rollup and finishes inside the M8 tier
 sweeps. The rollup is a derived view over the A1 accepted-match
 artifact plus the frozen family map — it introduces no second
 ratchet; the global set ratchet already forbids regressions
-everywhere. Unmapped (code, pass) rows appearing in the corpus fail
-the map check.
+everywhere. Unmapped non-2XXX (code, pass) rows appearing in the
+corpus fail the map check; 2XXX rows are the band family's, verified
+as a partition (convergence plan A5).
 
 ## 4. Adjudication backlog (resolved by the A5 slice)
 

@@ -6,11 +6,13 @@ the oracle across the corpus — BEFORE investing in the other bands.
 The metric is `T0-2xxx` (T0 comparison restricted to codes
 2000-2999); full-band T0 is tracked but secondary until phase 9.
 
-This doc supersedes the milestone ORDER of README.md for scheduling
-(the m*-steps docs remain the stage-level instructions; this doc
-re-sequences them, tightens their scopes toward 2XXX, and adds the
-impl-*.md companions that carry copy-level code). Phase N+1 never
-starts before phase N's gate.
+This doc re-sequences the m*-steps docs toward the band goal (they
+remain the stage-level instructions; the impl-*.md companions carry
+copy-level code). Phase numbers are content identities, not a
+landing sequence: landing order is owned by
+completion-convergence-plan.md §4 — including the recorded
+phase-8-before-7 swap — and a phase starts only after the gate of
+every phase that §4 lands before it is green.
 
 ## Why this order (the dependency analysis)
 
@@ -98,7 +100,9 @@ inference), fixed by completion-convergence-plan.md §4 rows 7-8, the
 execution-order authority. Phase numbers stay attached to their
 content — the impl-checker-2xxx.md §8/§9 port tables are unchanged —
 and the 75%/90% calibration priors attach to landing order (first of
-the two, then both), not to phase numbers.
+the two, then both), not to phase numbers. §4 row 9 lands phase 9's
+first half (band residue to zero) between M6 and M7; the
+band-expansion half is M7/M8 themselves.
 
 ## The band comparator (phase 0 addition)
 
