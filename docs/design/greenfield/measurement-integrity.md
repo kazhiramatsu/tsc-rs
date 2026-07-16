@@ -86,7 +86,8 @@ The immutable oracle-input manifest pins fixture bytes, matrix
 expansion/options/libs, every oracle diagnostic record, genuine oracle
 T4 hashes after A3 activation, the vendored `_tsc.js` SHA-256, and each
 comparator schema version. It contains no tsrs output or accepted-tsrs
-baseline.
+baseline. An inactive tier has an explicit absent comparator entry; it
+never silently inherits an active comparator.
 
 The accepted artifact uses append-only lineage and stores, per fixture
 and matrix key:
@@ -130,8 +131,10 @@ are allowed:
   identity and byte remains unchanged. After A2 global freeze, additions
   must be supported; the transition cannot create an exclusion.
 - One A2 and one A3 `input-schema-extension` may add only their declared
-  derived identity fields or oracle T4 fields/comparator entry. Existing
-  oracle values and active comparator entries remain byte-identical.
+  derived identity fields or oracle T4 fields/comparator entry to every
+  applicable existing record. Missing and empty remain distinct;
+  existing oracle values and active comparator entries stay
+  byte-identical.
 
 A vendor upgrade or comparator-semantic change is a separate project,
 not one of these transitions.
@@ -171,7 +174,12 @@ schema extension; it is not a silent identity edit.
 
 The selector removes exact oracle records before supported comparison.
 It never removes an entire T0 bucket accidentally. Syntactic diagnostics
-are non-excludable. Schema 1 is rejected with a migration message.
+are non-excludable. Schema 1 is rejected with a migration message. For
+each live exclusion, conformance applies the resolution predicate in
+§3.2: a matched singleton, or a matched multiplicity-complete duplicate
+bucket, is reported as `resolved-t0`. Its disposition must be deleted
+with the required tombstone; a `resolved-t0` entry cannot satisfy
+readiness or completion.
 
 ### 3.1 Draft band pins
 
@@ -253,7 +261,8 @@ platform-independent paths, and CRLF input.
 
 ## 5. A5 — family ownership and supported rollup
 
-The map's domain is every corpus-exercised `(code, pass)` row:
+The `diag-families` map's domain is every corpus-exercised `(code, pass)`
+row:
 
 - codes 2000-2999 belong wholesale to the 2XXX band family and may not
   appear in the enumerated map;
@@ -341,13 +350,13 @@ The implementations must pin at least these failure classes:
 
 | Contract | Must fail |
 |---|---|
-| A1 lineage | matched or multiplicity-complete identity removed while counts, implementation, and artifact are edited together |
+| A1 lineage | matched or multiplicity-complete identity removed while counts, implementation, and artifact are edited together; failure names the removed identity |
 | A1 lineage | shrinking intermediate version; non-immediate predecessor; stale hash; second bootstrap; missing history; branch chain smaller than PR base |
-| A1 inputs | old oracle bytes edited/deleted; undeclared schema change; vendor/comparator pin drift |
+| A1 inputs | old oracle bytes edited/deleted; partial/undeclared schema extension; inactive tier lacks its absent marker; vendor/comparator pin drift |
 | A1 views | 2/2 to 2/1 regression; syntactic FN hidden by semantic gain; fixed or partial view skipping its accepted subset |
-| A2 identity | same T0 key but different span/message/occurrence conflated; Node/Rust canonical bytes differ |
+| A2 identity | same T0 key but different span/message/occurrence conflated; Node/Rust canonical bytes differ; stale, duplicate, or ambiguous exclusion accepted |
 | A2 pin | add/edit plus rewritten set/count/hash; non-ancestor or mismatching adjudication commit |
-| A2 tombstone | proof absent, partial-view only, stale A1 pin, or duplicate bucket not multiplicity-complete |
+| A2 tombstone | proof absent, partial-view only, stale A1 pin, or duplicate bucket not multiplicity-complete; a live resolved exclusion is unreported or passes readiness |
 | A2 global | unpinned-band edit after freeze; status downgrade; branch add-and-reanchor; unverified band pin |
 | A5 map | unmapped/duplicate row; enumerated 2XXX row; owner/canary change after freeze; old owner change disguised as extension |
 | A5 rollup | stale conformance/scope fingerprint; excluded duplicate neighbor lost; A1 summary substituted for current supported grading |
@@ -356,5 +365,8 @@ The implementations must pin at least these failure classes:
 Positive companions cover additions-only A1 updates, append-only universe
 extensions, proven tombstone deletions, non-2XXX draft edits while only
 2XXX is pinned, anchored A5 extensions, and a fresh-clone full check.
+Canonical-encoder canaries include Unicode, CRLF-normalized virtual
+paths, nested chains, and reordered related-information arrays; an
+observable reorder must change the identity.
 The frozen family-map canaries include cross-band ownership for 7027 and
 6053 and both passes of 6133.

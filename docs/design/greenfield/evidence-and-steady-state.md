@@ -114,10 +114,12 @@ the current B1 fingerprint.
 
 Three versioned artifacts make the final rate gate executable:
 
-- `ratchets/fuzz-steady-state-policy.toml` fixes at least 14 consecutive
-  UTC windows, each at least two hours and 100,000 completed cases, plus
-  exact generator domains and the CI attestation key/policy. Any policy
-  change changes the fingerprint and restarts the streak.
+- `ratchets/fuzz-steady-state-policy.toml` fixes 14 consecutive UTC
+  windows and the per-window minima of two hours and 100,000 completed
+  cases, plus exact generator domains and the CI attestation key/policy.
+  These three thresholds are contract constants, not tunable defaults.
+  Any other valid policy change changes the fingerprint and restarts the
+  streak.
 - `ratchets/fuzz-nightly-history.v1.json.zst` appends non-overlapping
   window records: times, seeds, cases, runtime, input fingerprint,
   artifact hash, and new signature ids. It uses append-only lineage and
@@ -139,7 +141,7 @@ hand-authored row cannot count.
 
 1. all policy, history, signature, and window artifacts verify;
 2. the last 14 windows are consecutive, current-fingerprint, successful,
-   non-overlapping, and each meets both minima;
+   non-overlapping, and each meets the two fixed minima;
 3. `distinct new signatures / 14 < 1.0` from raw membership;
 4. the signature registry has zero open entries.
 
@@ -199,5 +201,7 @@ Gate logic stays in local commands; YAML only executes it.
   classifier drift, or reducer changing signature fails;
 - a deleted/rewritten/unsigned/stale/under-budget nightly window or a
   signature entry deletion/reopen fails the M9 lineage check;
+- a policy encoding thresholds other than 14 windows, two hours, and
+  100,000 cases fails before evaluating history;
 - an unapproved runner, declared-but-unobserved ceiling, wall over 60 s,
   RSS over its ceiling, or producer fingerprint mismatch fails.

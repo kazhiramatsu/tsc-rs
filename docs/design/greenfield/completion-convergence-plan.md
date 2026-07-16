@@ -66,12 +66,13 @@ M4 -> M5 -> M6 -> 2XXX sweep -> M7 -> bounded M8 -> recovery zero -> M9
 B1 evidence -> B2 coverage ------+
             -> B3 fuzzer --------+
             -> B4 perf/RSS ------+
-D1 ledger -> D2 declarations -> D3 converse ----------------+
+D1 Rust ledger ----------------------------------------------+
+D2 declarations -> D3 runtime/static converse ---------------+
 E1 CI/toolchains + E2 current docs --------------------------+
 ```
 
-Track A lands first. Tracks B, D, and E may then run beside semantic
-work, but their readiness rows must finish before M7 closes.
+A1 lands first. Later A slices follow §4; B, D, and E may then run beside
+semantic work, but their readiness rows must finish before M7 closes.
 
 ### Track A — trustworthy measurement
 
@@ -107,7 +108,13 @@ oracle manifest through A3's one schema extension, and remain check-only
 afterwards. Accepted T4 cases grow through A1. See
 [T4 activation](measurement-integrity.md#4-a3--t4-activation).
 
-Acceptance in M7: render-hash check, report-only T4 conformance, and CI.
+M7 acceptance:
+
+```sh
+cargo xtask oracle-refresh --render-hashes --check
+cargo xtask conformance --tier t4 --report-only
+cargo xtask ci
+```
 
 #### A4. Executable completion gate
 
@@ -124,7 +131,7 @@ strict command requires:
 7. a fresh, complete Rust function ledger;
 8. a fresh, frozen declaration-identity inventory and dispositions;
 9. current B1-B4 evidence within approved performance/RSS ceilings;
-10. `invariants --suite all --full-corpus` green;
+10. `cargo xtask invariants --suite all --full-corpus` green;
 11. M9 steady state green with zero open signature.
 
 The report writes `target/completion/report.json`. A sampled PR
@@ -205,9 +212,11 @@ supported FN=0, and all ten
 
 Each branch declares one family, oracle anchors, fixtures, expected
 escape/disposition removals, and tier. The entry report fixes the family
-residual snapshot. Work in order: T0 family residue, T1 category, T2
-span/top message, T3 chain/related information, T4 rendering, recovery,
-then the final emitter/dependency converse.
+residual snapshot; every slice reports its family before/after against
+that snapshot, never against a moving top-FN list. Work in order: T0
+family residue, T1 category, T2 span/top message, T3 chain/related
+information, T4 rendering, recovery, then the final emitter/dependency
+converse.
 
 Every slice removes an exact mismatch or measured prerequisite. Three
 probes exposing the same model ceiling trigger the
