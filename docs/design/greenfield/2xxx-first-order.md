@@ -70,7 +70,7 @@ reading:
 | 6 | expressions/statements/declarations/classes/enums/modules/iteration. UNLOCKS: 2322/2403/2415-class family/2461-iteration family | m4-checker-skeleton-steps.md 5.5-5.8 | impl-checker-2xxx.md §5-7 | T0-2xxx ≥ 55% |
 | 7 | calls with stubbed inference, then full inference. UNLOCKS: 2554/2349/2351 then 2345/2769/2344 | m4 5.7 + m6-inference-calls-steps.md | impl-checker-2xxx.md §8 | T0-2xxx ≥ 75% |
 | 8 | flow narrowing + operators. UNLOCKS: 2365/2367/2454/2564/2678 + removes the narrowing-dependent 2322/2339 residue | m5-flow-steps.md | impl-checker-2xxx.md §9 | T0-2xxx ≥ 90% |
-| 9 | 2XXX completion sweep: adjudicate 2XXX scope exclusions (exact A2 identities), mine the supported-scope band residue to zero, then expand bands (1xxx exact, 7xxx, 6xxx, suggestion, 4xxx) | README M8 loop | — | **all-corpus 2XXX FP = 0, supported-scope T0-2xxx = 100%** (exclusions frozen first), then full-band ratchets |
+| 9 | 2XXX completion sweep: adjudicate 2XXX scope exclusions (exact A2 identities), mine the supported-scope band residue to zero, then expand bands (1xxx exact, 7xxx, 6xxx, suggestion, 4xxx) | README M8 loop | — | **all-corpus 2XXX FP = 0, supported-scope T0-2xxx = 100%** (exclusions pinned first by the A2 `2xxx` band-freeze record), then full-band ratchets |
 
 Phase-gate percentages are calibration priors (from the first
 implementation's trajectory), not physics; the hard requirements are
@@ -129,8 +129,11 @@ line below it keeps honesty about the rest.
   scope exclusion is an exact record identity adjudicated under
   definition-of-done.md's out-of-scope contract (host-resolution,
   jsdoc-semantics; TS2307 host misses are the pinned exemplar) and
-  is frozen before the sweep closes; excluded records stay FN in the
-  all-corpus metric by design.
+  is pinned before the sweep closes by the A2 `2xxx` band-freeze
+  record — the band's exclusion-set hash inside `m8-scope.json`,
+  machine-verified while the global manifest stays draft until M7
+  close; excluded records stay FN in the all-corpus metric by
+  design.
 - Every 2XXX code the ORACLE ever emits on the corpus appears in the
   engine's ledger with its emitting function ported (the emission map
   in impl-checker-2xxx.md is the working inventory; phase 9 mines
