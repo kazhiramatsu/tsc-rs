@@ -454,6 +454,13 @@ pub struct CheckerState<'a> {
     /// so each failed diagnostic need not walk the whole source again.
     pub(crate) flow_containment_indexes:
         std::cell::RefCell<std::collections::HashMap<NodeId, FlowContainmentIndex>>,
+    /// tsrs-native temporary M8/checkJs containment index. Each JS
+    /// source is scanned once, grouping simple assignment declarations
+    /// by their final property name. The receiver/scope checks remain at
+    /// the use site because they depend on the queried type.
+    pub(crate) js_assignment_containment_indexes: std::cell::RefCell<
+        std::collections::HashMap<NodeId, std::collections::HashMap<String, Vec<NodeId>>>,
+    >,
 
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
@@ -488,7 +495,13 @@ pub struct CheckerState<'a> {
     /// Suppressed band (node_modules/baseUrl machinery). Receiver
     /// provenance plus the augmentation container's own resolved
     /// members/index infos scope downstream property-miss containment.
-    pub unresolved_module_augmentations: Vec<UnresolvedModuleAugmentation>,
+    pub unresolved_module_augmentations:
+        std::collections::HashMap<Vec<String>, Vec<UnresolvedModuleAugmentation>>,
+    /// Nearest visible node_modules package root for one augmentation
+    /// source and package name. Package discovery is host-wide, so cache
+    /// it outside the property-miss hot path after the first lookup.
+    pub(crate) unresolved_package_root_cache:
+        std::cell::RefCell<std::collections::HashMap<(String, String), Option<String>>>,
     /// tsrs-native (M4 5.8d): normalized file path → program file
     /// index — the host.getResolvedModule seam's lookup table
     /// (program-and-modules.md §2; later files shadow earlier
@@ -644,6 +657,7 @@ impl<'a> CheckerState<'a> {
             flow_type_cache: None,
             flow_invocation_count: 0,
             flow_containment_indexes: Default::default(),
+            js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),
             elaborated_satisfies_expressions: std::collections::HashSet::new(),
             globals: SymbolTable::default(),
@@ -654,7 +668,8 @@ impl<'a> CheckerState<'a> {
             unknown_symbol,
             pattern_ambient_modules: Vec::new(),
             pattern_ambient_module_augmentations: std::collections::HashMap::new(),
-            unresolved_module_augmentations: Vec::new(),
+            unresolved_module_augmentations: std::collections::HashMap::new(),
+            unresolved_package_root_cache: Default::default(),
             program_path_index: std::collections::HashMap::new(),
             host_file_paths: std::collections::HashSet::new(),
             global_type_memos: Default::default(),

@@ -2528,6 +2528,150 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    fn js_assignment_candidates_for_property(
+        &self,
+        source: &tsrs2_syntax::SourceFile,
+        property_name: &str,
+    ) -> Vec<NodeId> {
+        if !self
+            .js_assignment_containment_indexes
+            .borrow()
+            .contains_key(&source.root)
+        {
+            let mut index: std::collections::HashMap<String, Vec<NodeId>> =
+                std::collections::HashMap::new();
+            for node in source.arena.node_ids() {
+                let NodeData::BinaryExpression(binary) = self.data_of(node) else {
+                    continue;
+                };
+                if binary.operator_token.map(|token| self.kind_of(token))
+                    != Some(SyntaxKind::EqualsToken)
+                {
+                    continue;
+                }
+                let Some(left) = binary.left else { continue };
+                let NodeData::PropertyAccessExpression(access) = self.data_of(left) else {
+                    continue;
+                };
+                let Some(name) = access.name.and_then(|name| self.identifier_text_of(name)) else {
+                    continue;
+                };
+                let Some(receiver) = access.expression else {
+                    continue;
+                };
+                index.entry(name.to_owned()).or_default().push(receiver);
+            }
+            self.js_assignment_containment_indexes
+                .borrow_mut()
+                .insert(source.root, index);
+        }
+        self.js_assignment_containment_indexes
+            .borrow()
+            .get(&source.root)
+            .and_then(|index| index.get(property_name))
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    fn js_assignment_receiver_matches_container(
+        &self,
+        source: &tsrs2_syntax::SourceFile,
+        receiver: NodeId,
+        symbol: SymbolId,
+        value_symbols: &[SymbolId],
+        instance_side: bool,
+    ) -> bool {
+        // Chain-head resolution (5.9c FP sweep): JS expando
+        // assignments write through arbitrary chains —
+        // `this.member.a = 0`, `obj.property.a = 0` — so the guard
+        // keys on the HEAD of the receiver chain.
+        let mut head = receiver;
+        let mut through_prototype = false;
+        let mut through_nested_receiver = false;
+        loop {
+            match self.data_of(head) {
+                NodeData::PropertyAccessExpression(step) => {
+                    if step.name.and_then(|name| self.identifier_text_of(name)) == Some("prototype")
+                    {
+                        through_prototype = true;
+                    } else {
+                        through_nested_receiver = true;
+                    }
+                    let Some(next) = step.expression else {
+                        return false;
+                    };
+                    head = next;
+                }
+                NodeData::ElementAccessExpression(step) => {
+                    through_nested_receiver = true;
+                    let Some(next) = step.expression else {
+                        return false;
+                    };
+                    head = next;
+                }
+                _ => break,
+            }
+        }
+        match self.data_of(head) {
+            // A prototype hop selects the instance side; a plain
+            // identifier chain selects the static/anonymous side.
+            NodeData::Identifier(data) if instance_side == through_prototype => self
+                .resolve_lexical_value_symbol(head, &data.escaped_text)
+                .map(|receiver| self.get_merged_symbol(receiver))
+                .is_some_and(|receiver| {
+                    value_symbols.contains(&receiver)
+                        && !(through_nested_receiver && receiver == symbol)
+                }),
+            _ if self.kind_of(head) == SyntaxKind::ThisKeyword => {
+                // getThisContainer skips arrows but stops at ordinary
+                // functions. Its class element also selects the side.
+                let Some(container) = node_util::get_this_container(
+                    source, head, /*include_arrow_functions*/ false,
+                ) else {
+                    return false;
+                };
+                let Some(class_like) = self.parent_of(container).filter(|&parent| {
+                    matches!(
+                        self.kind_of(parent),
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    )
+                }) else {
+                    return false;
+                };
+                let assignment_instance_side = !self.is_static_element(container);
+                if assignment_instance_side != instance_side {
+                    return false;
+                }
+                let class_symbol = self
+                    .node_symbol(class_like)
+                    .map(|symbol| self.get_merged_symbol(symbol));
+                if through_nested_receiver && class_symbol == Some(symbol) {
+                    return false;
+                }
+                if class_symbol.is_some_and(|class| value_symbols.contains(&class)) {
+                    return true;
+                }
+                value_symbols.iter().any(|&value_symbol| {
+                    self.binder
+                        .symbol(value_symbol)
+                        .declarations
+                        .iter()
+                        .any(|&value_declaration| {
+                            let mut cursor = Some(value_declaration);
+                            while let Some(current) = cursor {
+                                if current == class_like {
+                                    return true;
+                                }
+                                cursor = self.parent_of(current);
+                            }
+                            false
+                        })
+                })
+            }
+            _ => false,
+        }
+    }
+
     /// JS assignment-declared members that our binder has not
     /// materialized yet. Match the receiver's lexical symbol, not its
     /// spelling: a nested `class C` must never open the outer `C`.
@@ -2579,122 +2723,17 @@ impl<'a> CheckerState<'a> {
             if !crate::is_js_file_name(&source.file_name) {
                 return false;
             }
-            source.arena.node_ids().any(|node| {
-                let NodeData::BinaryExpression(binary) = self.data_of(node) else {
-                    return false;
-                };
-                if binary.operator_token.map(|token| self.kind_of(token))
-                    != Some(SyntaxKind::EqualsToken)
-                {
-                    return false;
-                }
-                let Some(left) = binary.left else {
-                    return false;
-                };
-                let NodeData::PropertyAccessExpression(access) = self.data_of(left) else {
-                    return false;
-                };
-                if access.name.and_then(|name| self.identifier_text_of(name)) != Some(property_name)
-                {
-                    return false;
-                }
-                let Some(receiver) = access.expression else {
-                    return false;
-                };
-                // Chain-head resolution (5.9c FP sweep): JS expando
-                // assignments write through arbitrary chains —
-                // `this.member.a = 0`, `obj.property.a = 0` — so the
-                // guard keys on the HEAD of the receiver chain. Class
-                // instance types still demand a `prototype` hop or a
-                // `this` head (static assignments must not open the
-                // instance side); anonymous containers take identifier
-                // and `this` heads.
-                let mut head = receiver;
-                let mut through_prototype = false;
-                let mut through_nested_receiver = false;
-                loop {
-                    match self.data_of(head) {
-                        NodeData::PropertyAccessExpression(step) => {
-                            if step.name.and_then(|name| self.identifier_text_of(name))
-                                == Some("prototype")
-                            {
-                                through_prototype = true;
-                            } else {
-                                through_nested_receiver = true;
-                            }
-                            match step.expression {
-                                Some(next) => head = next,
-                                None => return false,
-                            }
-                        }
-                        NodeData::ElementAccessExpression(step) => {
-                            through_nested_receiver = true;
-                            match step.expression {
-                                Some(next) => head = next,
-                                None => return false,
-                            }
-                        }
-                        _ => break,
-                    }
-                }
-                match self.data_of(head) {
-                    // Identifier heads: the prototype hop selects the
-                    // SIDE — a `X.prototype.<...>` chain speaks for
-                    // the instance side only, a plain chain for the
-                    // static/anonymous side only (the two do-not-open
-                    // unit pins).
-                    NodeData::Identifier(data) if instance_side == through_prototype => self
-                        .resolve_lexical_value_symbol(head, &data.escaped_text)
-                        .map(|receiver| self.get_merged_symbol(receiver))
-                        .is_some_and(|receiver| {
-                            value_symbols.contains(&receiver)
-                                && !(through_nested_receiver && receiver == symbol)
-                        }),
-                    _ if self.kind_of(head) == SyntaxKind::ThisKeyword => {
-                        // `this.<chain>.prop = ...`: accept when the
-                        // enclosing class-like declares one of the
-                        // value symbols, or a value symbol's
-                        // declaration sits inside that class.
-                        let mut class_like = self.parent_of(head);
-                        while let Some(current) = class_like {
-                            if matches!(
-                                self.kind_of(current),
-                                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-                            ) {
-                                break;
-                            }
-                            class_like = self.parent_of(current);
-                        }
-                        let Some(class_like) = class_like else {
-                            return false;
-                        };
-                        let class_symbol = self
-                            .node_symbol(class_like)
-                            .map(|symbol| self.get_merged_symbol(symbol));
-                        if through_nested_receiver && class_symbol == Some(symbol) {
-                            return false;
-                        }
-                        if class_symbol.is_some_and(|class| value_symbols.contains(&class)) {
-                            return true;
-                        }
-                        value_symbols.iter().any(|&value_symbol| {
-                            self.binder.symbol(value_symbol).declarations.iter().any(
-                                |&value_declaration| {
-                                    let mut cursor = Some(value_declaration);
-                                    while let Some(current) = cursor {
-                                        if current == class_like {
-                                            return true;
-                                        }
-                                        cursor = self.parent_of(current);
-                                    }
-                                    false
-                                },
-                            )
-                        })
-                    }
-                    _ => false,
-                }
-            })
+            self.js_assignment_candidates_for_property(source, property_name)
+                .into_iter()
+                .any(|receiver| {
+                    self.js_assignment_receiver_matches_container(
+                        source,
+                        receiver,
+                        symbol,
+                        &value_symbols,
+                        instance_side,
+                    )
+                })
         })
     }
 
@@ -4781,25 +4820,46 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         };
         let symbol = self.get_merged_symbol(symbol);
-        let receiver_path = self.symbol_path_below_external_module_target(symbol)?;
+        let (raw_receiver_path, _) = self.raw_symbol_path_below_source_module(symbol);
         let receiver_sources = self.symbol_declaration_sources(symbol);
-        let augmentations = self.unresolved_module_augmentations.clone();
-        for augmentation in augmentations {
-            if receiver_path != augmentation.container_path
-                || !receiver_sources.iter().any(|source| {
+        // The raw path is already exact for normal external modules.
+        // export= targets carry a prefix (`Package.X` vs augmentation
+        // path `X`), so probe only suffix keys from the path index. This
+        // keeps unrelated misses out of alias/CommonJS resolution.
+        let mut candidates = Vec::new();
+        for start in 0..=raw_receiver_path.len() {
+            let path = raw_receiver_path[start..].to_vec();
+            let Some(augmentations) = self.unresolved_module_augmentations.get(&path) else {
+                continue;
+            };
+            for augmentation in augmentations {
+                if receiver_sources.iter().any(|source| {
                     self.unresolved_module_reference_matches_source(
                         &augmentation.augmentation_file,
                         &augmentation.module_reference,
                         source,
                     )
-                })
-            {
+                }) {
+                    candidates.push((path.clone(), augmentation.container_symbol));
+                }
+            }
+        }
+        if candidates.is_empty() {
+            return Ok(false);
+        }
+        let canonical_path = if candidates
+            .iter()
+            .any(|(path, _)| path != &raw_receiver_path)
+        {
+            Some(self.symbol_path_below_external_module_target(symbol)?)
+        } else {
+            None
+        };
+        for (path, container_symbol) in candidates {
+            if path != raw_receiver_path && canonical_path.as_ref() != Some(&path) {
                 continue;
             }
-            if self.augmentation_container_supplies_property(
-                augmentation.container_symbol,
-                property_name,
-            )? {
+            if self.augmentation_container_supplies_property(container_symbol, property_name)? {
                 return Ok(true);
             }
         }

@@ -2109,8 +2109,12 @@ impl<'a> CheckerState<'a> {
                 container_path: path.clone(),
                 container_symbol: current,
             };
-            if !self.unresolved_module_augmentations.contains(&entry) {
-                self.unresolved_module_augmentations.push(entry);
+            let entries = self
+                .unresolved_module_augmentations
+                .entry(path.clone())
+                .or_default();
+            if !entries.contains(&entry) {
+                entries.push(entry);
             }
             let children = self
                 .binder
@@ -2139,29 +2143,50 @@ impl<'a> CheckerState<'a> {
         source_file: &str,
     ) -> bool {
         let source = Self::normalize_program_path(source_file, "");
+        let augmentation = Self::normalize_program_path(augmentation_file, "");
         let reference = module_reference
             .strip_prefix("node:")
             .unwrap_or(module_reference);
         let bare =
             !Self::is_external_module_name_relative(reference) && !reference.starts_with('/');
         if bare {
-            let package = if reference.starts_with('@') {
-                reference.split('/').take(2).collect::<Vec<_>>().join("/")
-            } else {
-                reference.split('/').next().unwrap_or(reference).to_owned()
-            };
-            let node_modules = format!("/node_modules/{package}/");
-            if source.contains(&node_modules) {
-                return true;
+            // Node core declarations live under @types/node rather than
+            // @types/<module>. Keep the exact core submodule (`fs` vs
+            // `http`, `fs/promises` vs `timers/promises`) in the match.
+            if Self::is_node_core_module(module_reference) {
+                if let Some(root) = Self::node_modules_package_root(&source, "@types/node") {
+                    return self
+                        .nearest_visible_package_root(&augmentation, "@types/node")
+                        .is_some_and(|nearest| nearest == root)
+                        && Self::package_subpath_matches_source(&root, reference, &source);
+                }
+                return false;
+            }
+
+            let (package, subpath) = Self::bare_package_parts(reference);
+            if let Some(root) = Self::node_modules_package_root(&source, &package) {
+                if self
+                    .nearest_visible_package_root(&augmentation, &package)
+                    .is_some_and(|nearest| nearest == root)
+                    && Self::package_subpath_matches_source(&root, &subpath, &source)
+                {
+                    return true;
+                }
             }
             let types_package = match package.split_once('/') {
                 Some((scope, name)) if scope.starts_with('@') => {
-                    format!("{}__{name}", scope.trim_start_matches('@'))
+                    format!("@types/{}__{name}", scope.trim_start_matches('@'))
                 }
-                _ => package.clone(),
+                _ => format!("@types/{package}"),
             };
-            if source.contains(&format!("/node_modules/@types/{types_package}/")) {
-                return true;
+            if let Some(root) = Self::node_modules_package_root(&source, &types_package) {
+                if self
+                    .nearest_visible_package_root(&augmentation, &types_package)
+                    .is_some_and(|nearest| nearest == root)
+                    && Self::package_subpath_matches_source(&root, &subpath, &source)
+                {
+                    return true;
+                }
             }
             // Without baseUrl, a bare specifier cannot directly name a
             // same-spelled workspace file. package.json self-name and
@@ -2173,7 +2198,6 @@ impl<'a> CheckerState<'a> {
             }
         }
 
-        let augmentation = Self::normalize_program_path(augmentation_file, "");
         let augmentation_dir = augmentation
             .rfind('/')
             .map_or("", |position| &augmentation[..position]);
@@ -2186,6 +2210,78 @@ impl<'a> CheckerState<'a> {
                 Self::normalize_program_path(reference, "")
             };
         Self::module_source_stem(&source) == Self::module_source_stem(&candidate)
+    }
+
+    fn bare_package_parts(reference: &str) -> (String, String) {
+        let package_segments = if reference.starts_with('@') { 2 } else { 1 };
+        let mut segments = reference.split('/');
+        let package = segments
+            .by_ref()
+            .take(package_segments)
+            .collect::<Vec<_>>()
+            .join("/");
+        (package, segments.collect::<Vec<_>>().join("/"))
+    }
+
+    fn node_modules_package_root(source: &str, package: &str) -> Option<String> {
+        let marker = format!("/node_modules/{package}");
+        source
+            .match_indices(&marker)
+            .filter(|(position, _)| {
+                source
+                    .as_bytes()
+                    .get(position + marker.len())
+                    .is_none_or(|&byte| byte == b'/')
+            })
+            .map(|(position, _)| source[..position + marker.len()].to_owned())
+            .last()
+    }
+
+    fn nearest_visible_package_root(
+        &self,
+        augmentation_file: &str,
+        package: &str,
+    ) -> Option<String> {
+        let cache_key = (augmentation_file.to_owned(), package.to_owned());
+        if let Some(cached) = self.unresolved_package_root_cache.borrow().get(&cache_key) {
+            return cached.clone();
+        }
+        let marker = format!("/node_modules/{package}");
+        let nearest = self
+            .host_file_paths
+            .iter()
+            .filter_map(|path| {
+                let root = Self::node_modules_package_root(path, package)?;
+                let owner = root.strip_suffix(&marker)?;
+                let visible = owner.is_empty()
+                    || augmentation_file == owner
+                    || augmentation_file
+                        .strip_prefix(owner)
+                        .is_some_and(|suffix| suffix.starts_with('/'));
+                visible.then_some((owner.len(), root))
+            })
+            .max_by_key(|(owner_length, _)| *owner_length)
+            .map(|(_, root)| root);
+        self.unresolved_package_root_cache
+            .borrow_mut()
+            .insert(cache_key, nearest.clone());
+        nearest
+    }
+
+    fn package_subpath_matches_source(package_root: &str, subpath: &str, source: &str) -> bool {
+        // A root entry may be redirected by package.json's types/exports
+        // field, which this resolver intentionally does not parse. The
+        // selected package instance is still authoritative. Subpaths,
+        // however, must keep their spelling so `pkg/a` cannot claim a
+        // symbol declared by `pkg/b`.
+        if subpath.is_empty() {
+            return true;
+        }
+        let Some(relative) = source.strip_prefix(package_root) else {
+            return false;
+        };
+        let relative = relative.trim_start_matches('/');
+        Self::module_source_stem(relative) == subpath
     }
 
     fn module_source_stem(path: &str) -> String {
