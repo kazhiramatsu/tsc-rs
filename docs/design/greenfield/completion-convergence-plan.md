@@ -186,19 +186,41 @@ loader is needed. Reject schema 1 with a migration message rather than
 silently widening an exclusion.
 
 A band can be pinned before the manifest freezes. A band-freeze
-record inside `m8-scope.json` — band, entry count, entry-set SHA-256
-over the band's exclusion entries in canonical order, adjudication
-commit — makes that band immutable while the manifest status stays
-`draft`: `scope audit` recomputes the subset hash and fails any
-addition or edit inside a pinned band, while unpinned bands remain
-mutable. The one permitted mutation under a pin is a
-`resolved`-driven deletion, which must re-pin the band hash in the
-same reviewed change (a pinned band's exclusion set only ever
-shrinks). The global `frozen` transition at M7 close re-verifies
-every band-freeze record and never retroactively blesses an unpinned
-band. §4 row 9 consumes this: the 2XXX sweep gate requires a
-verifying `2xxx` band-freeze record — machine-checked with the
-manifest still draft.
+record inside `m8-scope.json` holds the band, the adjudication
+commit, and the pinned identity set — the exact A2 identity of every
+exclusion in the band at pin time, enumerated; the aggregate SHA-256
+and count are derived fields, recomputed for coherence and never the
+authority. A hash of the current set alone cannot reject a forged
+add-and-rehash edit, so the pin is created in two steps — the
+adjudicated band exclusions land first under normal review, then a
+follow-up change records the pin against that commit — and `scope
+audit` enforces three rules from defined inputs:
+
+- subset, never equality-only: every current exclusion in a pinned
+  band must appear identity-for-identity in the pinned set; an
+  identity outside it (an addition) or one whose fields differ (an
+  edit) fails, forcing a forger to edit the pinned set itself, which
+  the next rule catches;
+- history anchor: the pinned set must equal the band subset of
+  `m8-scope.json` as committed at the recorded adjudication commit,
+  and that commit must be an ancestor of HEAD (the audit reads the
+  file at that commit; hosted CI fetches enough history). Any later
+  change to the pinned set or to the adjudication-commit field
+  fails; a deliberate re-pin is a baseline event with its own
+  reviewed adjudication, never silent;
+- tombstoned deletion: an identity present in the pinned set but
+  absent from the current set must carry a tombstone referencing the
+  produced conformance artifact (command, commit, artifact SHA-256 —
+  B1 provenance) whose `resolved` list contains exactly that
+  identity. A pinned band's live set only ever shrinks, and every
+  shrink is proven, not asserted.
+
+Unpinned bands stay mutable and the manifest status stays `draft`.
+The global `frozen` transition at M7 close re-verifies every
+band-freeze record and never retroactively blesses an unpinned band.
+§4 row 9 consumes this: the 2XXX sweep gate requires a verifying
+`2xxx` band-freeze record — machine-checked with the manifest still
+draft.
 
 Acceptance:
 
@@ -216,11 +238,18 @@ Required tests:
 - excluding one record leaves its neighbor in the supported denominator;
 - syntactic records remain non-excludable;
 - stale, duplicate, and ambiguous exclusions fail;
-- adding or editing a 2XXX exclusion after the `2xxx` band freeze
-  fails `scope audit`; adding a non-2XXX exclusion still passes;
-- a `resolved` deletion inside a pinned band passes only with the
-  band hash re-pinned in the same change;
-- the global freeze fails while any band-freeze hash is stale.
+- adding or editing a 2XXX exclusion after the `2xxx` pin fails even
+  when the change also rewrites the pinned set, count, and hash (the
+  history anchor no longer matches);
+- a record whose adjudication commit does not contain exactly the
+  pinned set, or is not an ancestor of HEAD, fails;
+- a deletion in a pinned band without a tombstone — or with a
+  tombstone whose artifact does not list that exact identity as
+  `resolved` — fails; a proven tombstoned deletion passes;
+- adding a non-2XXX exclusion still passes while only `2xxx` is
+  pinned;
+- the global freeze fails while any band-freeze record fails
+  re-verification.
 
 The full-corpus audit records the 68 duplicate T0 buckets as a permanent
 canary. `m8-scope.json` cannot become `frozen` until this schema is live.
@@ -635,6 +664,9 @@ Branch: `infra/hosted-ci`
 - add `rust-toolchain.toml` with the reviewed Rust/clippy version;
 - pin the supported Node major/minor for the oracle;
 - run `cargo xtask ci` in a required GitHub Actions check;
+- check out enough git history to reach every recorded adjudication
+  commit — the scope band-freeze history anchor (A2) fails on a too-
+  shallow clone rather than passing vacuously;
 - run the syntactic gate explicitly until it is folded into `ci`;
 - add a scheduled fuzz workflow when B3 lands;
 - upload mismatch, readiness, completion, and fuzz artifacts on failure.

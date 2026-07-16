@@ -33,16 +33,18 @@ The only accepted reasons are:
 
 Every entry needs non-empty evidence. The manifest starts `draft`.
 A band can be pinned earlier without freezing the manifest: an A2
-band-freeze record (the band's exclusion-set hash inside
-`m8-scope.json`) makes that band immutable while status stays
-`draft` — the `2xxx` band pins at the phase-9 sweep (convergence
-plan §4 row 9). At M7 close, classify the remaining known
-out-of-scope FNs, review the exact diff, and change it to `frozen`;
-the freeze re-verifies every band-freeze record. If tsrs later emits
-an excluded diagnostic at T0, conformance reports it as
-`resolved-t0`; delete the disposition immediately so T1-T4 begin
-grading it (in a pinned band, the deletion re-pins the band hash in
-the same reviewed change).
+band-freeze record (the band's enumerated pinned identity set inside
+`m8-scope.json`, anchored to its adjudication commit) makes that
+band immutable while status stays `draft` — the `2xxx` band pins at
+the phase-9 sweep (convergence plan §4 row 9; the A2 section defines
+the subset / history-anchor / tombstone rules). At M7 close,
+classify the remaining known out-of-scope FNs, review the exact
+diff, and change it to `frozen`; the freeze re-verifies every
+band-freeze record. If tsrs later emits an excluded diagnostic at
+T0, conformance reports it as `resolved-t0`; delete the disposition
+immediately so T1-T4 begin grading it (in a pinned band, the
+deletion carries a tombstone proving that exact identity resolved;
+the pinned set itself never changes).
 
 `cargo xtask conformance` prints both metric sets and writes both to
 the mismatch JSON. The all-corpus FP gate and T0 ratchet are

@@ -130,10 +130,11 @@ line below it keeps honesty about the rest.
   definition-of-done.md's out-of-scope contract (host-resolution,
   jsdoc-semantics; TS2307 host misses are the pinned exemplar) and
   is pinned before the sweep closes by the A2 `2xxx` band-freeze
-  record — the band's exclusion-set hash inside `m8-scope.json`,
-  machine-verified while the global manifest stays draft until M7
-  close; excluded records stay FN in the all-corpus metric by
-  design.
+  record — the band's enumerated identity set inside `m8-scope.json`,
+  anchored to its adjudication commit and shrinkable only through
+  tombstoned `resolved` proofs, machine-verified while the global
+  manifest stays draft until M7 close; excluded records stay FN in
+  the all-corpus metric by design.
 - Every 2XXX code the ORACLE ever emits on the corpus appears in the
   engine's ledger with its emitting function ported (the emission map
   in impl-checker-2xxx.md is the working inventory; phase 9 mines
