@@ -2064,7 +2064,7 @@ impl<'a> CheckerState<'a> {
                     .parent_of(location)
                     .filter(|&parent| self.kind_of(parent) == SyntaxKind::ModuleDeclaration)
                 {
-                    self.record_unresolved_module_augmentation_properties(augmentation);
+                    self.record_unresolved_module_augmentation(augmentation, module_reference);
                 }
             }
             return Ok(None);
@@ -2085,37 +2085,133 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsrs-native: containment scope for a resolver-suppressed module
-    /// augmentation. The resolver cannot identify the target symbol,
-    /// but the augmentation syntax still tells us exactly which named
-    /// containers could gain which members. Keep that structural key
-    /// instead of a checker-wide boolean so an unrelated `.missing`
-    /// remains diagnosable.
-    fn record_unresolved_module_augmentation_properties(&mut self, augmentation: NodeId) {
+    /// augmentation. Preserve each augmentation container symbol
+    /// rather than flattening its members to strings: resolved member
+    /// tables then retain computed names and index signatures.
+    fn record_unresolved_module_augmentation(
+        &mut self,
+        augmentation: NodeId,
+        module_reference: &str,
+    ) {
         let Some(root) = self.node_symbol(augmentation) else {
             return;
         };
-        let mut worklist = vec![root];
+        let augmentation_file = self.binder.source_of_node(augmentation).file_name.clone();
+        let mut worklist = vec![(root, Vec::new())];
         let mut seen = std::collections::HashSet::new();
-        while let Some(current) = worklist.pop() {
+        while let Some((current, path)) = worklist.pop() {
             if !seen.insert(current) {
                 continue;
             }
-            let symbol = self.binder.symbol(current);
-            let container = symbol.escaped_name.clone();
-            let member_names = symbol
-                .members
-                .keys()
-                .chain(symbol.exports.keys())
-                .cloned()
+            let entry = crate::state::UnresolvedModuleAugmentation {
+                module_reference: module_reference.to_owned(),
+                augmentation_file: augmentation_file.clone(),
+                container_path: path.clone(),
+                container_symbol: current,
+            };
+            if !self.unresolved_module_augmentations.contains(&entry) {
+                self.unresolved_module_augmentations.push(entry);
+            }
+            let children = self
+                .binder
+                .symbol(current)
+                .exports
+                .iter()
+                .map(|(name, &child)| {
+                    let mut child_path = path.clone();
+                    child_path.push(name.clone());
+                    (child, child_path)
+                })
                 .collect::<Vec<_>>();
-            let children = symbol.exports.values().copied().collect::<Vec<_>>();
-            self.unresolved_module_augmentation_properties.extend(
-                member_names
-                    .into_iter()
-                    .map(|member| (container.clone(), member)),
-            );
             worklist.extend(children);
         }
+    }
+
+    /// tsrs-native: whether a declaration source is a plausible target
+    /// of an unresolved module reference. Bare specifiers are anchored
+    /// to their node_modules package (including DefinitelyTyped
+    /// layout); relative/baseUrl-like references compare normalized TS
+    /// stems.
+    pub(crate) fn unresolved_module_reference_matches_source(
+        &self,
+        augmentation_file: &str,
+        module_reference: &str,
+        source_file: &str,
+    ) -> bool {
+        let source = Self::normalize_program_path(source_file, "");
+        let reference = module_reference
+            .strip_prefix("node:")
+            .unwrap_or(module_reference);
+        let bare =
+            !Self::is_external_module_name_relative(reference) && !reference.starts_with('/');
+        if bare {
+            let package = if reference.starts_with('@') {
+                reference.split('/').take(2).collect::<Vec<_>>().join("/")
+            } else {
+                reference.split('/').next().unwrap_or(reference).to_owned()
+            };
+            let node_modules = format!("/node_modules/{package}/");
+            if source.contains(&node_modules) {
+                return true;
+            }
+            let types_package = match package.split_once('/') {
+                Some((scope, name)) if scope.starts_with('@') => {
+                    format!("{}__{name}", scope.trim_start_matches('@'))
+                }
+                _ => package.clone(),
+            };
+            if source.contains(&format!("/node_modules/@types/{types_package}/")) {
+                return true;
+            }
+            // Without baseUrl, a bare specifier cannot directly name a
+            // same-spelled workspace file. package.json self-name and
+            // paths mappings remain genuinely unidentified; treating
+            // every `pkg.ts` as their target recreates the name-only
+            // false-negative this provenance gate exists to prevent.
+            if self.options.base_url.is_none() {
+                return false;
+            }
+        }
+
+        let augmentation = Self::normalize_program_path(augmentation_file, "");
+        let augmentation_dir = augmentation
+            .rfind('/')
+            .map_or("", |position| &augmentation[..position]);
+        let candidate =
+            if Self::is_external_module_name_relative(reference) || reference.starts_with('/') {
+                Self::normalize_program_path(reference, augmentation_dir)
+            } else if let Some(base_url) = &self.options.base_url {
+                Self::normalize_program_path(reference, base_url)
+            } else {
+                Self::normalize_program_path(reference, "")
+            };
+        Self::module_source_stem(&source) == Self::module_source_stem(&candidate)
+    }
+
+    fn module_source_stem(path: &str) -> String {
+        let mut stem = path.to_owned();
+        for extension in [
+            ".d.json.ts",
+            ".d.mts",
+            ".d.cts",
+            ".d.ts",
+            ".mts",
+            ".cts",
+            ".tsx",
+            ".ts",
+            ".jsx",
+            ".js",
+            ".json",
+        ] {
+            if stem.ends_with(extension) {
+                stem.truncate(stem.len() - extension.len());
+                break;
+            }
+        }
+        if stem.ends_with("/index") {
+            stem.truncate(stem.len() - "/index".len());
+        }
+        stem
     }
 
     /// tsc-port: tryFindAmbientModule @6.0.3

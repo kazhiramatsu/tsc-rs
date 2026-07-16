@@ -2611,6 +2611,7 @@ impl<'a> CheckerState<'a> {
                 // and `this` heads.
                 let mut head = receiver;
                 let mut through_prototype = false;
+                let mut through_nested_receiver = false;
                 loop {
                     match self.data_of(head) {
                         NodeData::PropertyAccessExpression(step) => {
@@ -2618,16 +2619,21 @@ impl<'a> CheckerState<'a> {
                                 == Some("prototype")
                             {
                                 through_prototype = true;
+                            } else {
+                                through_nested_receiver = true;
                             }
                             match step.expression {
                                 Some(next) => head = next,
                                 None => return false,
                             }
                         }
-                        NodeData::ElementAccessExpression(step) => match step.expression {
-                            Some(next) => head = next,
-                            None => return false,
-                        },
+                        NodeData::ElementAccessExpression(step) => {
+                            through_nested_receiver = true;
+                            match step.expression {
+                                Some(next) => head = next,
+                                None => return false,
+                            }
+                        }
                         _ => break,
                     }
                 }
@@ -2640,7 +2646,10 @@ impl<'a> CheckerState<'a> {
                     NodeData::Identifier(data) if instance_side == through_prototype => self
                         .resolve_lexical_value_symbol(head, &data.escaped_text)
                         .map(|receiver| self.get_merged_symbol(receiver))
-                        .is_some_and(|receiver| value_symbols.contains(&receiver)),
+                        .is_some_and(|receiver| {
+                            value_symbols.contains(&receiver)
+                                && !(through_nested_receiver && receiver == symbol)
+                        }),
                     _ if self.kind_of(head) == SyntaxKind::ThisKeyword => {
                         // `this.<chain>.prop = ...`: accept when the
                         // enclosing class-like declares one of the
@@ -2662,6 +2671,9 @@ impl<'a> CheckerState<'a> {
                         let class_symbol = self
                             .node_symbol(class_like)
                             .map(|symbol| self.get_merged_symbol(symbol));
+                        if through_nested_receiver && class_symbol == Some(symbol) {
+                            return false;
+                        }
                         if class_symbol.is_some_and(|class| value_symbols.contains(&class)) {
                             return true;
                         }
@@ -3037,11 +3049,12 @@ impl<'a> CheckerState<'a> {
                         ));
                     }
                     // A resolver-suppressed module augmentation never
-                    // merged its members. Contain only when that
-                    // augmentation declared this member on a
-                    // same-named container; a checker-wide gate would
-                    // hide unrelated property errors.
-                    if self.unresolved_module_augmentation_may_add_property(left_type, &right_text)
+                    // merged its members. Contain only when a container
+                    // from the referenced module could supply this
+                    // exact/indexed member; a checker-wide or name-only
+                    // gate would hide unrelated property errors.
+                    if self
+                        .unresolved_module_augmentation_may_add_property(left_type, &right_text)?
                     {
                         return Err(Unsupported::new(
                             "property miss under an unresolved module augmentation \
@@ -4701,17 +4714,215 @@ impl<'a> CheckerState<'a> {
     }
 
     fn unresolved_module_augmentation_may_add_property(
-        &self,
+        &mut self,
         ty: TypeId,
         property_name: &str,
-    ) -> bool {
+    ) -> CheckResult2<bool> {
+        if self.unresolved_module_augmentations.is_empty() {
+            return Ok(false);
+        }
+        let mut seen = std::collections::HashSet::new();
+        self.type_may_receive_unresolved_augmentation_property(ty, property_name, &mut seen)
+    }
+
+    fn type_may_receive_unresolved_augmentation_property(
+        &mut self,
+        ty: TypeId,
+        property_name: &str,
+        seen: &mut std::collections::HashSet<TypeId>,
+    ) -> CheckResult2<bool> {
+        if !seen.insert(ty) {
+            return Ok(false);
+        }
+        match self.tables.type_of(ty).data.clone() {
+            tsrs2_types::TypeData::TypeParameter { .. } => {
+                if let Some(constraint) = self.get_base_constraint_of_type(ty)? {
+                    if constraint != ty
+                        && self.type_may_receive_unresolved_augmentation_property(
+                            constraint,
+                            property_name,
+                            seen,
+                        )?
+                    {
+                        return Ok(true);
+                    }
+                }
+            }
+            tsrs2_types::TypeData::Intersection { types } => {
+                for constituent in types.iter().copied() {
+                    let mut branch_seen = seen.clone();
+                    if self.type_may_receive_unresolved_augmentation_property(
+                        constituent,
+                        property_name,
+                        &mut branch_seen,
+                    )? {
+                        return Ok(true);
+                    }
+                }
+            }
+            tsrs2_types::TypeData::Union { types, .. } => {
+                for constituent in types.iter().copied() {
+                    if !self.type_already_has_property_or_index(constituent, property_name)? {
+                        let mut branch_seen = seen.clone();
+                        if !self.type_may_receive_unresolved_augmentation_property(
+                            constituent,
+                            property_name,
+                            &mut branch_seen,
+                        )? {
+                            return Ok(false);
+                        }
+                    }
+                }
+                return Ok(true);
+            }
+            _ => {}
+        }
         let Some(symbol) = self.tables.type_of(ty).symbol else {
-            return false;
+            return Ok(false);
         };
         let symbol = self.get_merged_symbol(symbol);
-        let container_name = &self.binder.symbol(symbol).escaped_name;
-        self.unresolved_module_augmentation_properties
-            .contains(&(container_name.clone(), property_name.to_owned()))
+        let receiver_path = self.symbol_path_below_external_module_target(symbol)?;
+        let receiver_sources = self.symbol_declaration_sources(symbol);
+        let augmentations = self.unresolved_module_augmentations.clone();
+        for augmentation in augmentations {
+            if receiver_path != augmentation.container_path
+                || !receiver_sources.iter().any(|source| {
+                    self.unresolved_module_reference_matches_source(
+                        &augmentation.augmentation_file,
+                        &augmentation.module_reference,
+                        source,
+                    )
+                })
+            {
+                continue;
+            }
+            if self.augmentation_container_supplies_property(
+                augmentation.container_symbol,
+                property_name,
+            )? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn type_already_has_property_or_index(
+        &mut self,
+        ty: TypeId,
+        property_name: &str,
+    ) -> CheckResult2<bool> {
+        if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
+            return Ok(true);
+        }
+        let apparent = self.get_apparent_type(ty)?;
+        if self
+            .get_property_of_type_full(apparent, property_name)?
+            .is_some()
+        {
+            return Ok(true);
+        }
+        Ok(self
+            .get_applicable_index_info_for_name_info(apparent, property_name)?
+            .is_some())
+    }
+
+    fn symbol_path_below_external_module_target(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<Vec<String>> {
+        let (mut path, source_module) = self.raw_symbol_path_below_source_module(symbol);
+        if let Some(source_module) = source_module {
+            if let Some(target) = self.resolve_external_module_symbol(Some(source_module), false)? {
+                let target = self.get_merged_symbol(target);
+                if target != self.get_merged_symbol(source_module) {
+                    let (target_path, _) = self.raw_symbol_path_below_source_module(target);
+                    if path.starts_with(&target_path) {
+                        path.drain(..target_path.len());
+                    }
+                }
+            }
+        }
+        Ok(path)
+    }
+
+    fn raw_symbol_path_below_source_module(
+        &self,
+        symbol: SymbolId,
+    ) -> (Vec<String>, Option<SymbolId>) {
+        let declaration_source_module =
+            self.binder
+                .symbol(symbol)
+                .declarations
+                .first()
+                .and_then(|&declaration| {
+                    let source = self.binder.source_of_node(declaration);
+                    self.binder.node_symbol(source.root)
+                });
+        let mut path = Vec::new();
+        let mut current = Some(symbol);
+        let mut seen = std::collections::HashSet::new();
+        let mut source_module = None;
+        while let Some(symbol) = current {
+            if !seen.insert(symbol) {
+                break;
+            }
+            let data = self.binder.symbol(symbol);
+            let source_root = data
+                .declarations
+                .iter()
+                .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
+            if source_root {
+                source_module = Some(symbol);
+                break;
+            }
+            path.push(data.escaped_name.clone());
+            current = data.parent;
+        }
+        path.reverse();
+        (path, source_module.or(declaration_source_module))
+    }
+
+    fn symbol_declaration_sources(&self, symbol: SymbolId) -> Vec<String> {
+        let mut sources = Vec::new();
+        let mut current = Some(symbol);
+        let mut seen = std::collections::HashSet::new();
+        while let Some(symbol) = current {
+            if !seen.insert(symbol) {
+                break;
+            }
+            let data = self.binder.symbol(symbol);
+            for &declaration in &data.declarations {
+                let source = self.binder.source_of_node(declaration).file_name.clone();
+                if !sources.contains(&source) {
+                    sources.push(source);
+                }
+            }
+            current = data.parent;
+        }
+        sources
+    }
+
+    fn augmentation_container_supplies_property(
+        &mut self,
+        symbol: SymbolId,
+        property_name: &str,
+    ) -> CheckResult2<bool> {
+        let flags = self.symbol_flags(symbol);
+        let members = if flags.intersects(SymbolFlags::MODULE) {
+            self.get_exports_of_symbol(symbol)?
+        } else {
+            self.get_members_of_symbol(symbol)?
+        };
+        if members.contains_key(property_name) {
+            return Ok(true);
+        }
+        if flags.intersects(SymbolFlags::TYPE) {
+            let ty = self.get_declared_type_of_symbol_slice(symbol)?;
+            return Ok(self
+                .get_applicable_index_info_for_name_info(ty, property_name)?
+                .is_some());
+        }
+        Ok(false)
     }
 }
 

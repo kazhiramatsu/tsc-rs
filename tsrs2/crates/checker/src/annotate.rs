@@ -4861,10 +4861,11 @@ impl<'a> CheckerState<'a> {
     /// (58341-58407, complete since 5.9c): exports as members for
     /// functions/methods/classes/enums/namespaces/globalThis, static
     /// base inheritance, the enum number index, call/construct
-    /// signatures. Every arm writes the EMPTY table early (tsc
-    /// 58318/58333/58354) so a re-entrant read mid-resolution observes
-    /// empty members instead of recursing — the write is completed in
-    /// place, or retracted on an Err unwind.
+    /// signatures. The target/TypeLiteral arms publish EMPTY first;
+    /// the value-side arm publishes exports at 58354 before resolving
+    /// bases/index infos. Re-entrant reads therefore observe tsc's
+    /// staged table instead of recursing. Completion happens in place,
+    /// or the slot is retracted on an Err unwind.
     fn resolve_anonymous_type_members(&mut self, ty: TypeId) -> CheckResult2<MembersId> {
         let early_id = self.alloc_members(ResolvedMembers::default());
         self.links
@@ -4966,6 +4967,11 @@ impl<'a> CheckerState<'a> {
                 // type.properties as set at 58354 (pre-class-merge
                 // table) — read by the enum number-index check below.
                 let pre_merge_properties = state.get_named_members(&members);
+                *state.members_mut(early_id) = ResolvedMembers {
+                    members: members.clone(),
+                    properties: pre_merge_properties.clone(),
+                    ..ResolvedMembers::default()
+                };
                 let mut base_constructor_index_info: Option<IndexInfo> = None;
                 if flags.intersects(SymbolFlags::CLASS) {
                     let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
@@ -9564,7 +9570,7 @@ mod unique_symbol_tests {
 #[cfg(test)]
 mod late_binding_tests {
     use tsrs2_syntax::SyntaxKind;
-    use tsrs2_types::{CompilerOptions, TypeData};
+    use tsrs2_types::{CheckMode, CompilerOptions, TypeData};
 
     use crate::state::test_support::with_program_state;
     use crate::{check_program, InputFile};
@@ -9639,6 +9645,20 @@ mod late_binding_tests {
                 .expect("string index info is synthesized");
             let TypeData::Union { types, .. } = &state.tables.type_of(info.value_type).data else {
                 panic!("sibling property type must join the computed property type");
+            };
+            assert!(types.contains(&state.tables.intrinsics.number));
+            assert!(types.contains(&state.tables.intrinsics.string));
+
+            let access = source
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::ElementAccessExpression)
+                .expect("fixture contains the indexed access");
+            let access_type = state
+                .check_expression_cached(access, CheckMode::NORMAL)
+                .expect("the indexed access resolves");
+            let TypeData::Union { types, .. } = &state.tables.type_of(access_type).data else {
+                panic!("the synthesized index info must reach the access consumer");
             };
             assert!(types.contains(&state.tables.intrinsics.number));
             assert!(types.contains(&state.tables.intrinsics.string));

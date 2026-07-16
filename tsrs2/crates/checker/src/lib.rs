@@ -938,6 +938,26 @@ mod tests {
     }
 
     #[test]
+    fn nested_js_assignment_does_not_open_direct_static_member() {
+        assert_eq!(
+            js_pair_diagnostics(
+                "class C {}\nC.bucket = {};\nC.bucket.extra = 1;",
+                "C.extra;",
+            ),
+            [(2339, Some("b.ts".to_owned()))]
+        );
+    }
+
+    #[test]
+    fn nested_js_assignment_still_opens_its_actual_receiver() {
+        assert!(js_pair_diagnostics(
+            "class C {}\nC.bucket = {};\nC.bucket.extra = 1;",
+            "C.bucket.extra;",
+        )
+        .is_empty());
+    }
+
+    #[test]
     fn unresolved_module_augmentation_keeps_unrelated_property_miss() {
         let diagnostics = check_program(
             &[
@@ -962,6 +982,148 @@ mod tests {
                 .map(|diagnostic| diagnostic.code())
                 .collect::<Vec<_>>(),
             [2339]
+        );
+    }
+
+    #[test]
+    fn unresolved_module_augmentation_does_not_open_same_named_local_type() {
+        let diagnostics = check_program(
+            &[
+                InputFile {
+                    name: "node_modules/pkg/index.d.ts".to_owned(),
+                    text: "export interface X {}\n".to_owned(),
+                },
+                InputFile {
+                    name: "augmentation.ts".to_owned(),
+                    text: "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\ninterface X {}\ndeclare const local: X;\nlocal.missing;\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        )
+        .diagnostics;
+        assert_eq!(
+            diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [2339]
+        );
+    }
+
+    #[test]
+    fn unresolved_bare_augmentation_does_not_claim_same_spelled_workspace_file() {
+        let diagnostics = check_program(
+            &[
+                InputFile {
+                    name: "node_modules/other/index.d.ts".to_owned(),
+                    text: "export {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "pkg.ts".to_owned(),
+                    text: "interface X {}\ndeclare const local: X;\nlocal.missing;\n".to_owned(),
+                },
+                InputFile {
+                    name: "augmentation.ts".to_owned(),
+                    text:
+                        "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\n"
+                            .to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        )
+        .diagnostics;
+        assert_eq!(
+            diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [2339]
+        );
+    }
+
+    #[test]
+    fn unresolved_module_augmentation_contains_index_signature_property() {
+        let diagnostics = check_program(
+            &[
+                InputFile {
+                    name: "node_modules/pkg/index.d.ts".to_owned(),
+                    text: "export as namespace Pkg;\nexport interface X {}\n".to_owned(),
+                },
+                InputFile {
+                    name: "augmentation.d.ts".to_owned(),
+                    text: "import * as Pkg from \"pkg\";\ndeclare module \"pkg\" { interface X { [key: string]: unknown } }\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "use.ts".to_owned(),
+                    text: "declare const value: Pkg.X;\nvalue.anything;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        )
+        .diagnostics;
+        assert!(diagnostics.is_empty(), "{diagnostics:#?}");
+    }
+
+    #[test]
+    fn unresolved_module_augmentation_contains_computed_property() {
+        let diagnostics = check_program(
+            &[
+                InputFile {
+                    name: "node_modules/pkg/index.d.ts".to_owned(),
+                    text: "export as namespace Pkg;\nexport interface X {}\n".to_owned(),
+                },
+                InputFile {
+                    name: "augmentation.d.ts".to_owned(),
+                    text: "import * as Pkg from \"pkg\";\ndeclare const member: \"extra\";\ndeclare module \"pkg\" { interface X { [member](): void } }\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "use.ts".to_owned(),
+                    text: "declare const value: Pkg.X;\nvalue.extra();\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        )
+        .diagnostics;
+        assert!(diagnostics.is_empty(), "{diagnostics:#?}");
+    }
+
+    #[test]
+    fn unresolved_module_augmentation_matches_export_equals_namespace_target() {
+        let diagnostics = check_program(
+            &[
+                InputFile {
+                    name: "node_modules/pkg/index.d.ts".to_owned(),
+                    text: "export as namespace Pkg;\nexport = Package;\ndeclare namespace Package { class X {} }\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "augmentation.d.ts".to_owned(),
+                    text: "import * as Pkg from \"pkg\";\ndeclare module \"pkg\" { interface X { added(): void } }\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "use.ts".to_owned(),
+                    text: "declare const value: Pkg.X;\nvalue.added();\nfunction use<T extends Pkg.X>(item: T) { item.added(); }\ndeclare const mixed: Pkg.X | { added(): void };\nmixed.added();\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        )
+        .diagnostics;
+        assert!(diagnostics.is_empty(), "{diagnostics:#?}");
+    }
+
+    #[test]
+    fn value_side_member_publication_survives_reentrant_base_resolution() {
+        let diagnostics = codes_of(
+            "class B {}\nclass A extends A.make() {\n  static make(): typeof B { return B; }\n}\nA.make();\n",
+        );
+        assert!(
+            !diagnostics.contains(&2339),
+            "staged exports must stay visible during base resolution: {diagnostics:?}"
         );
     }
 
