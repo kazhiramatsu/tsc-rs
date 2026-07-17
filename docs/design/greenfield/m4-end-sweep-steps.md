@@ -266,6 +266,19 @@ Every one of the 157 entries gets exactly one:
   crates/`), write `docs/NOTES-m4.md` (top 10 one-sided codes with
   owner guesses — seeds M5/M6 verification and the M8 backlog).
   M4 close go/no-go recorded against definition-of-done.
+  LANDED (2026-07-18): STAGE→5.9 with stale=0 (the owner<=5.8 set
+  was already empty — 5.9b/5.9d retired the letterless-5.8 rows),
+  untagged 0, max_untagged 0 (tightened in-slice at 5.9d). Stub
+  audit: 40 sites — M6-stub 8 / M7-stub 16 / M8-stub 16, no
+  disallowed classes, M3 normalization stubs gone. Gates at close:
+  T0 42.7403% (20,953/49,024) / 2xxx 52.9714% / syntactic 99.8219%,
+  FP=0 all bands; escapes 227/0/0, recovery 112; relpin 415/415.
+  docs/NOTES-m4.md records the go/no-go table (**GO**), the top-10
+  one-sided codes with owners (6133 M7 12.9k; 2454 M5 4.0k; 2322
+  M5+M6; 6196 M7; 2304 M5; 2339 M5; 18050 M5; 2345 M6; 2307 M8
+  resolver; 80007 M7) and the FN evidence split (11,799 evidenced /
+  16,272 not — M5 flow ~6.7k and M6 inference ~2.3k are the seeded
+  starts; the unevidenced mass is the M7 unused band).
 
 ## Disposition table
 
