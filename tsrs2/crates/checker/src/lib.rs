@@ -1433,6 +1433,40 @@ mod tests {
         );
     }
 
+    #[test]
+    fn node20_namespace_import_uses_distinct_module_exports_export() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "dep.mts".to_owned(),
+                    text: "export default function actual(x: string): string { return x; }\n\
+                           const compat = (x: number) => x;\n\
+                           export { compat as \"module.exports\" };\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "main.cts".to_owned(),
+                    text: "import * as fn from \"./dep.mjs\";\nfn(1);\nfn(\"x\");\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(102),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+        );
+        let errors: Vec<&tsrs2_diags::Diagnostic> = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2345)
+            .collect();
+        assert_eq!(errors.len(), 1, "{:#?}", result.diagnostics);
+        assert_eq!(
+            errors[0].message_text(),
+            "Argument of type 'string' is not assignable to parameter of type 'number'."
+        );
+    }
+
     fn js_pair_diagnostics(js: &str, ts: &str) -> Vec<(u32, Option<String>)> {
         check_program(
             &[

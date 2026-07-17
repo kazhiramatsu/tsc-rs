@@ -3360,16 +3360,7 @@ impl<'a> CheckerState<'a> {
                 let usage_mode = self.resolution_mode_for_usage(reference);
                 if let (Some(namespace_import), Some(target_file)) = (namespace_import, target_file)
                 {
-                    let has_default_export = self
-                        .resolve_export_by_name(
-                            original_symbol,
-                            InternalSymbolName::DEFAULT,
-                            /*source_node*/ None,
-                            /*dont_resolve_alias*/ true,
-                        )?
-                        .is_some();
-                    if !has_default_export
-                        && (102..=199).contains(&self.options.emit_module_kind())
+                    if (102..=199).contains(&self.options.emit_module_kind())
                         && usage_mode == ModuleResolutionMode::CommonJs
                         && self.implied_node_format_for_file_index(target_file)
                             == ModuleResolutionMode::EsNext
@@ -3380,16 +3371,32 @@ impl<'a> CheckerState<'a> {
                             Some(namespace_import),
                             dont_resolve_alias,
                         )? {
-                            if self.options.es_module_interop_effective()
-                                && self.has_interop_signatures(ty)?
-                            {
-                                return Ok(Some(self.clone_type_as_module_type(
-                                    module_exports,
-                                    ty,
-                                    reference_parent,
-                                )?));
+                            let default_export = self.resolve_export_by_name(
+                                original_symbol,
+                                InternalSymbolName::DEFAULT,
+                                /*source_node*/ None,
+                                /*dont_resolve_alias*/ true,
+                            )?;
+                            let resolved_module_exports =
+                                self.resolve_symbol_ex(Some(module_exports), false)?;
+                            let resolved_default = self.resolve_symbol_ex(default_export, false)?;
+                            // The frozen accepted fixture re-exports
+                            // the exact default under module.exports.
+                            // Its namespace shape stays stable; a
+                            // genuinely different compatibility export
+                            // takes Node20 priority.
+                            if resolved_module_exports != resolved_default {
+                                if self.options.es_module_interop_effective()
+                                    && self.has_interop_signatures(ty)?
+                                {
+                                    return Ok(Some(self.clone_type_as_module_type(
+                                        module_exports,
+                                        ty,
+                                        reference_parent,
+                                    )?));
+                                }
+                                return Ok(Some(module_exports));
                             }
-                            return Ok(Some(module_exports));
                         }
                     }
                 }
