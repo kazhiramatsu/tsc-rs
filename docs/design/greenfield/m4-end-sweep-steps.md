@@ -207,11 +207,13 @@ Every one of the 157 entries gets exactly one:
   Node-ESM fix, and the 5.9d resolveJsonModule machinery made the
   ported emitters reachable (7 FPs on nodeModulesJson). Emitters
   removed at get_external_module_member / check_import_declaration;
-  re-add at a reviewed golden refresh. The same review round also
+  re-add at a reviewed golden refresh (RESOLVED — re-added at the
+  oracle-correction epoch below). The same review round also
   restored the frozen-host package-scope boundaries
   (can_have_synthetic_default / export= 1203 / the Node20
   module.exports arms) that the broad-review fixes had unfrozen —
-  34 accepted identities regressed and came back.
+  34 accepted identities regressed and came back (unfrozen again
+  at the epoch, against corrected truth).
 - **Oracle-correction epoch `infra/oracle-epoch`** — between 5.9d
   and 5.9e (external review 2026-07-18, user-approved ordering):
   the 5.8d oracle-host fix (f74cb496) regenerated only 4 goldens,
@@ -236,9 +238,27 @@ Every one of the 157 entries gets exactly one:
   review-identified checker fixes (1454 emitter over-fire ×24;
   2856/2857 CJS-require precedence), then `ratchet update
   --transition oracle-correction` and the escapes manifest
-  refresh. Expected profile from the review: T0 total 48,719 →
-  ~49,024; ~30 pre-existing accepted mis-matches lapse (1454×24,
-  2857-adjacent×6). Execution numbers recorded here when landed.
+  refresh. LANDED (2026-07-18): full regen under pinned Node
+  v25.2.1 (launch guard verified); 58 fixtures / 169 cases
+  changed, occurrences +448/−143; totals all 48,719→49,024
+  (+305) / 2xxx 20,916→21,051 (+135) / syntactic 2,246 unchanged.
+  Enumerated lapses = all 47/47 (matched/multiplicity-complete),
+  2xxx 12/12, syntactic 0 — every one oracle-vanished (1454×24,
+  2857×6, 1203×7, 2351×2, 1192×4, 2339×4), ZERO behavior lapses
+  (the two suspect families — nodeModulesAllowJsExportAssignment
+  1203×4, esmModuleExports2 cjs-side 2351×2 — were never-matched
+  pre-existing FNs, verified against the pre-epoch artifact).
+  Accepted: all 20,952→20,953 (−47/+48), 2xxx 11,123→11,151
+  (+28), syntactic 2,242. Rates: T0 42.7403% / 2xxx 52.9714% /
+  syntactic 99.8219%, FP=0 all bands (rate dips are the honest
+  denominator). The 1454×24 and 2857×6 both fall to the ONE new
+  row: checkImportAttributes' CommonJS-require arm (2856, ports
+  getEmitSyntaxForUsageLocationWorker; 39 rows matched, FN=0),
+  whose priority-with-return suppresses the stale 1454/2857
+  emissions. 1543/1544 re-add matches 6 rows; the remaining
+  1543×6 FNs (actually-json package-exports JSON) are resolver
+  backlog, not epoch obligations. Escapes unchanged 227 sites /
+  0 untagged / 112 recovery.
 - **5.9e `m4/5.9e-close`** — untagged→0 and owner<=5.8→0 enforced:
   STAGE→5.9, `max_untagged = 0`, skeleton-steps final gate
   (conformance T0≥35% + FP=0, relpin, invariants idempotence,
