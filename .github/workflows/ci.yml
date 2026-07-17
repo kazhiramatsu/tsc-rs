@@ -17,6 +17,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # The oracle producer's Node contract: every oracle launch
+      # (driver tests, refresh) must run the pinned version — the
+      # runner's default Node is whatever the image ships and would
+      # skew golden regeneration silently.
+      - name: Pin the oracle Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: tsrs2/.node-version
+
       # Full-corpus passes once peaked at ~11.5 GB RSS (option-keyed
       # lib-bundle multiplication — since fixed; ~1.7 GB now) and the
       # pressure spike made systemd-oomd kill the runner agent

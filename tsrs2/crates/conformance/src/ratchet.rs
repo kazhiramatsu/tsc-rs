@@ -50,11 +50,16 @@ const ORACLE_INPUTS_SCHEMA: u32 = 1;
 /// with pass provenance; schema 1 lacks it and cannot feed the
 /// syntactic view).
 const T0_COMPARATOR_SCHEMA: u32 = 2;
-/// The one reviewed input transition A1 knows: enumerated corpus
-/// growth where every old identity and byte stays unchanged. The A2
-/// and A3 `input-schema-extension` transitions are taught by their own
+/// Reviewed input transition: enumerated corpus growth where every
+/// old identity and byte stays unchanged. The A2 and A3
+/// `input-schema-extension` transitions are taught by their own
 /// slices; an unknown transition name always fails the walk.
 const UNIVERSE_TRANSITION: &str = "universe-transition";
+/// Reviewed one-time input transition that ADDS the producer pins
+/// (generator + normalization modules and the Node launch contract)
+/// to a manifest that predates them. Detection-only: every other
+/// input byte must stay unchanged.
+const PRODUCER_PIN_EXTENSION: &str = "producer-pin-extension";
 
 /// The fixed recorded views (measurement-integrity.md §2). A
 /// supported fixed intersection added later needs its own declared
@@ -118,6 +123,32 @@ pub struct VendorPins {
     pub lib_sha256: String,
 }
 
+/// The oracle PRODUCER pins: exactly the generator + normalization
+/// modules whose bytes determine golden oracle records, plus the Node
+/// launch contract. Deliberately this narrow — the other
+/// `crates/oracle/*.mjs` tools (ast/symbol/token dumps) never touch
+/// goldens, and an overbroad producer pin would invalidate the
+/// manifest on unrelated tooling churn.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProducerPins {
+    /// `crates/oracle/driver.mjs` — serialization/normalization of
+    /// oracle diagnostics into golden records.
+    pub driver_sha256: String,
+    /// `crates/oracle/program-host.mjs` — program construction,
+    /// option decoding, and file-name normalization.
+    pub program_host_sha256: String,
+    /// `vendor/typescript-6.0.3/lib/typescript.js` — the compiler
+    /// bundle the driver actually executes (the vendored `_tsc.js`
+    /// pin identifies the vendor snapshot, not the executed module).
+    pub typescript_js_sha256: String,
+    /// Required Node version for oracle launches that write goldens
+    /// (normalized, no leading `v`), sourced from the workspace
+    /// `.node-version`. `oracle-refresh` verifies the LAUNCHED
+    /// driver's `process.version` against the tree pin — the file
+    /// alone is a declaration, not enforcement.
+    pub node_version: String,
+}
+
 /// A tier's comparator entry. Inactive tiers must carry the explicit
 /// `"absent"` marker — they never silently inherit an active
 /// comparator (measurement-integrity.md §2).
@@ -155,6 +186,11 @@ pub struct OracleInputsArtifact {
     #[serde(default)]
     pub transition: Option<String>,
     pub vendor: VendorPins,
+    /// Producer pins. `None` only on historical pre-extension
+    /// versions; the current tree always carries `Some` (the
+    /// `producer-pin-extension` transition is one-time).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub producer: Option<ProducerPins>,
     pub comparators: BTreeMap<String, ComparatorEntry>,
     pub fixtures: BTreeMap<String, FixturePins>,
     /// Derived coherence field (never the authority): oracle T0
@@ -252,6 +288,20 @@ impl OracleInputsArtifact {
         {
             return Err(format!("oracle-inputs has an undeclared comparator entry {extra}").into());
         }
+        if let Some(producer) = &self.producer {
+            for (label, value) in [
+                ("driver_sha256", &producer.driver_sha256),
+                ("program_host_sha256", &producer.program_host_sha256),
+                ("typescript_js_sha256", &producer.typescript_js_sha256),
+                ("node_version", &producer.node_version),
+            ] {
+                if value.is_empty() {
+                    return Err(
+                        format!("oracle-inputs producer pin {label} is present but empty").into(),
+                    );
+                }
+            }
+        }
         let totals: BTreeSet<&str> = self.totals.keys().map(String::as_str).collect();
         let fixed: BTreeSet<&str> = FIXED_VIEWS.iter().map(|view| view.name()).collect();
         if totals != fixed {
@@ -267,6 +317,7 @@ impl OracleInputsArtifact {
     /// previous / transition).
     fn content_eq(&self, other: &Self) -> bool {
         self.vendor == other.vendor
+            && self.producer == other.producer
             && self.comparators == other.comparators
             && self.fixtures == other.fixtures
             && self.totals == other.totals
@@ -523,6 +574,94 @@ fn vendor_tsc_js_path(workspace: &Path) -> PathBuf {
     vendor_lib_dir(workspace).join("_tsc.js")
 }
 
+/// The golden-producing module set, workspace-relative. Everything on
+/// the oracle launch path and nothing else (see `ProducerPins`).
+fn producer_module_paths(workspace: &Path) -> [(&'static str, PathBuf); 3] {
+    [
+        (
+            "crates/oracle/driver.mjs",
+            workspace.join("crates/oracle/driver.mjs"),
+        ),
+        (
+            "crates/oracle/program-host.mjs",
+            workspace.join("crates/oracle/program-host.mjs"),
+        ),
+        (
+            "vendor/typescript-6.0.3/lib/typescript.js",
+            vendor_lib_dir(workspace).join("typescript.js"),
+        ),
+    ]
+}
+
+pub(crate) const NODE_VERSION_REL_PATH: &str = ".node-version";
+
+/// Normalized Node version: trimmed, no leading `v` (so the
+/// `.node-version` convention and `process.version` compare equal).
+pub(crate) fn normalize_node_version(raw: &str) -> String {
+    raw.trim().trim_start_matches('v').to_owned()
+}
+
+pub(crate) fn pinned_node_version(workspace: &Path) -> ConformanceResult<String> {
+    let path = workspace.join(NODE_VERSION_REL_PATH);
+    let raw = fs::read_to_string(&path).map_err(|err| {
+        format!(
+            "failed to read the producer Node pin {} ({err})",
+            path.display()
+        )
+    })?;
+    let version = normalize_node_version(&raw);
+    if !version.starts_with(|c: char| c.is_ascii_digit()) {
+        return Err(format!(
+            "{} does not contain a Node version (found {raw:?})",
+            path.display()
+        )
+        .into());
+    }
+    Ok(version)
+}
+
+fn producer_pins(workspace: &Path) -> ConformanceResult<ProducerPins> {
+    let mut hashes = Vec::with_capacity(3);
+    for (label, path) in producer_module_paths(workspace) {
+        let bytes = fs::read(&path)
+            .map_err(|err| format!("failed to read producer module {label}: {err}"))?;
+        hashes.push(sha256_hex(&bytes));
+    }
+    let [driver_sha256, program_host_sha256, typescript_js_sha256]: [String; 3] =
+        hashes.try_into().expect("three producer modules");
+    Ok(ProducerPins {
+        driver_sha256,
+        program_host_sha256,
+        typescript_js_sha256,
+        node_version: pinned_node_version(workspace)?,
+    })
+}
+
+/// Launch-time half of the producer Node pin (the manifest/tree half
+/// is `diff_oracle_inputs`): the LAUNCHED driver's `process.version`
+/// must equal the tree's `.node-version`. Called before any golden is
+/// written — goldens are the gating truth, and a version-skewed
+/// producer would silently redefine it.
+pub(crate) fn verify_launched_node(
+    workspace: &Path,
+    pool: &tsrs2_oracle::OraclePool,
+) -> ConformanceResult<()> {
+    let pinned = pinned_node_version(workspace)?;
+    let launched = pool
+        .node_version()
+        .map_err(|err| format!("failed to query the launched oracle Node version: {err}"))?;
+    let launched = normalize_node_version(&launched);
+    if launched != pinned {
+        return Err(format!(
+            "oracle launch refused: the driver is running Node v{launched} but {NODE_VERSION_REL_PATH} \
+             pins v{pinned} — install the pinned Node; changing the pin is a reviewed producer \
+             transition, never a refresh side effect"
+        )
+        .into());
+    }
+    Ok(())
+}
+
 fn vendor_pins(workspace: &Path) -> ConformanceResult<VendorPins> {
     let tsc_js = fs::read(vendor_tsc_js_path(workspace))
         .map_err(|err| format!("failed to read vendored _tsc.js: {err}"))?;
@@ -652,6 +791,7 @@ pub(crate) fn build_oracle_inputs(workspace: &Path) -> ConformanceResult<OracleI
         previous: None,
         transition: None,
         vendor: vendor_pins(workspace)?,
+        producer: Some(producer_pins(workspace)?),
         comparators: inactive_comparators(),
         fixtures: entries,
         totals,
@@ -675,6 +815,55 @@ fn diff_oracle_inputs(
         return Err(
             "vendored lib pin drift: the tree's lib.*.d.ts set is not the manifest's".into(),
         );
+    }
+    match (&stored.producer, &built.producer) {
+        (Some(stored_producer), Some(built_producer)) => {
+            for (label, stored_hash, built_hash) in [
+                (
+                    "crates/oracle/driver.mjs",
+                    &stored_producer.driver_sha256,
+                    &built_producer.driver_sha256,
+                ),
+                (
+                    "crates/oracle/program-host.mjs",
+                    &stored_producer.program_host_sha256,
+                    &built_producer.program_host_sha256,
+                ),
+                (
+                    "vendor/typescript-6.0.3/lib/typescript.js",
+                    &stored_producer.typescript_js_sha256,
+                    &built_producer.typescript_js_sha256,
+                ),
+            ] {
+                if stored_hash != built_hash {
+                    return Err(format!(
+                        "oracle producer module drifted under the pin: {label} \
+                         (a producer change is a reviewed transition, never a silent edit)"
+                    )
+                    .into());
+                }
+            }
+            if stored_producer.node_version != built_producer.node_version {
+                return Err(format!(
+                    "producer Node pin drift: manifest pins v{} but {NODE_VERSION_REL_PATH} \
+                     declares v{}",
+                    stored_producer.node_version, built_producer.node_version
+                )
+                .into());
+            }
+        }
+        (None, _) => {
+            return Err(format!(
+                "oracle-inputs manifest predates the producer pins — record them with \
+                 `cargo xtask ratchet update --transition {PRODUCER_PIN_EXTENSION}`"
+            )
+            .into());
+        }
+        (Some(_), None) => {
+            return Err("rebuilt oracle-inputs manifest lacks producer pins \
+                 (build_oracle_inputs always pins the producer)"
+                .into());
+        }
     }
     if stored.comparators != built.comparators {
         return Err(format!(
@@ -751,32 +940,43 @@ fn verify_universe_growth(
     older: &OracleInputsArtifact,
     newer: &OracleInputsArtifact,
 ) -> ConformanceResult<()> {
+    if older.producer != newer.producer {
+        return Err("universe-transition cannot change producer pins".into());
+    }
+    verify_input_growth("universe-transition", older, newer)
+}
+
+/// Growth core shared by the universe transition and the trusted-base
+/// compare: vendor/comparators byte-stable, no pinned fixture or case
+/// removed or changed, totals never shrink.
+fn verify_input_growth(
+    context: &str,
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
     if older.vendor != newer.vendor {
-        return Err("universe-transition cannot change vendor pins".into());
+        return Err(format!("{context} cannot change vendor pins").into());
     }
     if older.comparators != newer.comparators {
-        return Err("universe-transition cannot change comparator entries".into());
+        return Err(format!("{context} cannot change comparator entries").into());
     }
     for (key, older_entry) in &older.fixtures {
         let Some(newer_entry) = newer.fixtures.get(key) else {
-            return Err(format!("universe-transition removed pinned fixture {key}").into());
+            return Err(format!("{context} removed pinned fixture {key}").into());
         };
         if older_entry.fixture_sha256 != newer_entry.fixture_sha256 {
-            return Err(
-                format!("universe-transition changed pinned fixture bytes for {key}").into(),
-            );
+            return Err(format!("{context} changed pinned fixture bytes for {key}").into());
         }
         for (matrix, older_case) in &older_entry.cases {
             match newer_entry.cases.get(matrix) {
                 None => {
-                    return Err(format!(
-                        "universe-transition removed pinned matrix case {key} [{matrix}]"
-                    )
-                    .into());
+                    return Err(
+                        format!("{context} removed pinned matrix case {key} [{matrix}]").into(),
+                    );
                 }
                 Some(newer_case) if newer_case != older_case => {
                     return Err(format!(
-                        "universe-transition changed pinned matrix case {key} [{matrix}] \
+                        "{context} changed pinned matrix case {key} [{matrix}] \
                          (old identities and bytes must remain unchanged)"
                     )
                     .into());
@@ -790,13 +990,60 @@ fn verify_universe_growth(
         let newer_total = newer.totals.get(view.name()).copied().unwrap_or(0);
         if newer_total < older_total {
             return Err(format!(
-                "universe-transition shrank the {} T0 bucket total ({older_total} -> {newer_total})",
+                "{context} shrank the {} T0 bucket total ({older_total} -> {newer_total})",
                 view.name()
             )
             .into());
         }
     }
     Ok(())
+}
+
+/// `producer-pin-extension` rule: the one-time detection-only
+/// extension adds the producer pins to a manifest that lacked them;
+/// every other input — vendor, comparators, every fixture/case pin,
+/// totals — must stay byte-identical, so the extension cannot ride on
+/// any other change.
+fn verify_producer_pin_extension(
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
+    if older.producer.is_some() {
+        return Err(format!(
+            "{PRODUCER_PIN_EXTENSION} requires a predecessor without producer pins \
+             (the extension is one-time)"
+        )
+        .into());
+    }
+    if newer.producer.is_none() {
+        return Err(format!("{PRODUCER_PIN_EXTENSION} must add the producer pins").into());
+    }
+    if older.vendor != newer.vendor
+        || older.comparators != newer.comparators
+        || older.fixtures != newer.fixtures
+        || older.totals != newer.totals
+    {
+        return Err(format!(
+            "{PRODUCER_PIN_EXTENSION} may only add producer pins; every other input must \
+             stay unchanged"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+/// The trusted-base inputs compare accepts any COMPOSITION of valid
+/// transitions between base and head — the lineage walk has already
+/// verified every individual edge; this direct compare only has to
+/// reject what no composition of reviewed transitions could produce.
+fn verify_baseline_inputs(
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
+    if older.producer.is_some() && older.producer != newer.producer {
+        return Err("baseline compare: producer pins changed against the trusted base".into());
+    }
+    verify_input_growth("baseline compare", older, newer)
 }
 
 // ---------------------------------------------------------------------------
@@ -989,13 +1236,15 @@ impl LineageArtifact for MatchesArtifact {
                     .into());
                 }
             }
-            // The paired manifest edge (same commit) proves the growth
-            // itself; the accepted sets stay monotone either way.
-            Some(UNIVERSE_TRANSITION) => {}
+            // The paired manifest edge (same commit) proves the input
+            // change itself; the accepted sets stay monotone either
+            // way.
+            Some(UNIVERSE_TRANSITION) | Some(PRODUCER_PIN_EXTENSION) => {}
             Some(other) => {
                 return Err(format!(
-                    "{}: unknown transition {other:?} (A1 knows only {UNIVERSE_TRANSITION:?}; \
-                     the A2/A3 input-schema-extensions land with their own slices)",
+                    "{}: unknown transition {other:?} (A1 knows {UNIVERSE_TRANSITION:?} and \
+                     {PRODUCER_PIN_EXTENSION:?}; the A2/A3 input-schema-extensions land with \
+                     their own slices)",
                     Self::WHAT
                 )
                 .into());
@@ -1039,8 +1288,10 @@ impl LineageArtifact for OracleInputsArtifact {
                 Ok(())
             }
             Some(UNIVERSE_TRANSITION) => verify_universe_growth(older, newer),
+            Some(PRODUCER_PIN_EXTENSION) => verify_producer_pin_extension(older, newer),
             Some(other) => Err(format!(
-                "{}: unknown transition {other:?} (A1 knows only {UNIVERSE_TRANSITION:?})",
+                "{}: unknown transition {other:?} (A1 knows {UNIVERSE_TRANSITION:?} and \
+                 {PRODUCER_PIN_EXTENSION:?})",
                 Self::WHAT
             )
             .into()),
@@ -1352,7 +1603,7 @@ fn verify_baseline(
     )?;
 
     let base_inputs = OracleInputsArtifact::decode_validated(&base_inputs)?;
-    verify_universe_growth(&base_inputs, head_inputs)
+    verify_baseline_inputs(&base_inputs, head_inputs)
         .map_err(|err| format!("baseline {baseline} oracle-input compare failed: {err}"))?;
     Ok(false)
 }
@@ -1524,9 +1775,10 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
 /// artifacts plus the ratchet.toml derived summaries. Additions only.
 pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<()> {
     if let Some(transition) = transition {
-        if transition != UNIVERSE_TRANSITION {
+        if ![UNIVERSE_TRANSITION, PRODUCER_PIN_EXTENSION].contains(&transition) {
             return Err(format!(
-                "unknown transition {transition:?} (A1 knows only {UNIVERSE_TRANSITION:?})"
+                "unknown transition {transition:?} (A1 knows {UNIVERSE_TRANSITION:?} and \
+                 {PRODUCER_PIN_EXTENSION:?})"
             )
             .into());
         }
@@ -1606,13 +1858,20 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         Some(reference) => {
             let Some(transition) = transition else {
                 return Err(
-                    "oracle inputs changed (fixtures / goldens / vendor). Inputs are immutable: \
-                     enumerated corpus growth needs `ratchet update --transition \
-                     universe-transition`; a vendor or comparator change is a separate project"
+                    "oracle inputs changed (fixtures / goldens / vendor / producer). Inputs are \
+                     immutable: enumerated corpus growth needs `ratchet update --transition \
+                     universe-transition`; recording the producer pins needs `--transition \
+                     producer-pin-extension`; a vendor or comparator change is a separate project"
                         .into(),
                 );
             };
-            verify_universe_growth(reference, &built)?;
+            match transition {
+                UNIVERSE_TRANSITION => verify_universe_growth(reference, &built)?,
+                PRODUCER_PIN_EXTENSION => verify_producer_pin_extension(reference, &built)?,
+                // The allow-list at the top of `update` admits exactly
+                // the names dispatched here.
+                other => unreachable!("transition {other:?} validated above"),
+            }
             let mut artifact = built;
             match &tip_inputs {
                 Some((commit, _, bytes)) => {
@@ -2096,12 +2355,22 @@ mod tests {
                 tsc_js_sha256: "tsc".to_owned(),
                 lib_sha256: "lib".to_owned(),
             },
+            producer: None,
             comparators: inactive_comparators(),
             fixtures,
             totals: FIXED_VIEWS
                 .iter()
                 .map(|view| (view.name().to_owned(), 1u64))
                 .collect(),
+        }
+    }
+
+    fn producer_stub() -> ProducerPins {
+        ProducerPins {
+            driver_sha256: "driver".to_owned(),
+            program_host_sha256: "host".to_owned(),
+            typescript_js_sha256: "tsjs".to_owned(),
+            node_version: "25.2.1".to_owned(),
         }
     }
 
@@ -2345,7 +2614,8 @@ mod tests {
 
     #[test]
     fn inputs_diff_names_edited_oracle_records() {
-        let stored = inputs_stub();
+        let mut stored = inputs_stub();
+        stored.producer = Some(producer_stub());
         let mut built = stored.clone();
         built
             .fixtures
@@ -2362,7 +2632,8 @@ mod tests {
 
     #[test]
     fn inputs_diff_names_deleted_fixture_and_undeclared_growth() {
-        let stored = inputs_stub();
+        let mut stored = inputs_stub();
+        stored.producer = Some(producer_stub());
         let mut built = stored.clone();
         built.fixtures.clear();
         let err = diff_oracle_inputs(&stored, &built).unwrap_err().to_string();
@@ -2451,6 +2722,107 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("vendor"), "{err}");
+    }
+
+    // -- producer pins -------------------------------------------------------
+
+    #[test]
+    fn universe_transition_cannot_change_producer_pins() {
+        let mut older = inputs_stub();
+        older.producer = Some(producer_stub());
+        let mut node_changed = older.clone();
+        node_changed.producer.as_mut().unwrap().node_version = "26.0.0".to_owned();
+        let err = verify_universe_growth(&older, &node_changed)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("producer"), "{err}");
+
+        let mut dropped = older.clone();
+        dropped.producer = None;
+        let err = verify_universe_growth(&older, &dropped)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("producer"), "{err}");
+    }
+
+    #[test]
+    fn producer_pin_extension_adds_pins_and_nothing_else() {
+        let older = inputs_stub();
+        let mut extended = older.clone();
+        extended.producer = Some(producer_stub());
+        verify_producer_pin_extension(&older, &extended).unwrap();
+
+        // Riding an oracle edit on the extension fails.
+        let mut edited = extended.clone();
+        edited
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_sha256 = "edited".to_owned();
+        let err = verify_producer_pin_extension(&older, &edited)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("only add producer pins"), "{err}");
+
+        // The extension is one-time: a pinned predecessor rejects it.
+        let err = verify_producer_pin_extension(&extended, &extended)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("one-time"), "{err}");
+
+        // And it must actually add the pins.
+        let err = verify_producer_pin_extension(&older, &older)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("must add"), "{err}");
+    }
+
+    #[test]
+    fn baseline_inputs_accept_producer_extension_but_not_change() {
+        let older = inputs_stub();
+        let mut extended = older.clone();
+        extended.producer = Some(producer_stub());
+        // base predates the extension -> head may add the pins.
+        verify_baseline_inputs(&older, &extended).unwrap();
+
+        // A pinned base cannot see different pins at head.
+        let mut changed = extended.clone();
+        changed.producer.as_mut().unwrap().driver_sha256 = "other".to_owned();
+        let err = verify_baseline_inputs(&extended, &changed)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("producer pins changed"), "{err}");
+    }
+
+    #[test]
+    fn matches_edge_accepts_producer_pin_extension() {
+        let older = matches_artifact(views_with(&[100], &[]), true, None, None);
+        let mut newer = matches_artifact(
+            views_with(&[100], &[]),
+            false,
+            Some(lineage_to("c0", b"prev")),
+            Some(PRODUCER_PIN_EXTENSION.to_owned()),
+        );
+        newer.inputs.oracle_inputs_sha256 = "extended-inputs".to_owned();
+        MatchesArtifact::verify_edge(&newer, &older).unwrap();
+
+        // The extension still cannot shrink the accepted sets.
+        let mut shrunk = newer.clone();
+        shrunk.views = views_with(&[], &[]);
+        let err = MatchesArtifact::verify_edge(&shrunk, &older)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("regressed"), "{err}");
+    }
+
+    #[test]
+    fn node_version_normalization_strips_the_v_prefix() {
+        assert_eq!(normalize_node_version("v25.2.1\n"), "25.2.1");
+        assert_eq!(normalize_node_version("25.2.1"), "25.2.1");
+        assert_eq!(normalize_node_version("  v25.2.1  "), "25.2.1");
     }
 
     #[test]
@@ -3094,6 +3466,18 @@ mod tests {
         let ws = temp_dir("build-inputs");
         fs::create_dir_all(ws.join("ts-tests/tests/cases/conformance")).unwrap();
         std::os::unix::fs::symlink(real_workspace.join("vendor"), ws.join("vendor")).unwrap();
+        // Producer modules are COPIES (not symlinks): the drift case
+        // below edits them, and writing through a symlink would edit
+        // the real repository files.
+        fs::create_dir_all(ws.join("crates/oracle")).unwrap();
+        for module in ["driver.mjs", "program-host.mjs"] {
+            fs::copy(
+                real_workspace.join("crates/oracle").join(module),
+                ws.join("crates/oracle").join(module),
+            )
+            .unwrap();
+        }
+        fs::write(ws.join(NODE_VERSION_REL_PATH), "25.2.1\n").unwrap();
         fs::write(
             ws.join("ts-tests/tests/cases/conformance/probe.ts"),
             "var x: number = 1;\n",
@@ -3116,7 +3500,40 @@ mod tests {
         assert_eq!(stored.totals["all"], 1);
         assert_eq!(stored.totals["2xxx"], 1);
         assert_eq!(stored.totals["syntactic"], 0);
+        let producer = stored.producer.as_ref().expect("producer pinned");
+        assert_eq!(producer.node_version, "25.2.1");
         diff_oracle_inputs(&stored, &build_oracle_inputs(&ws).unwrap()).unwrap();
+
+        // A manifest predating the producer pins names the migration.
+        let mut unpinned = stored.clone();
+        unpinned.producer = None;
+        let err = diff_oracle_inputs(&unpinned, &build_oracle_inputs(&ws).unwrap())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("producer-pin-extension"), "{err}");
+
+        // Editing a producer module under the pin is named drift.
+        let driver_path = ws.join("crates/oracle/driver.mjs");
+        let original_driver = fs::read(&driver_path).unwrap();
+        fs::write(
+            &driver_path,
+            [original_driver.as_slice(), b"\n// x"].concat(),
+        )
+        .unwrap();
+        let err = diff_oracle_inputs(&stored, &build_oracle_inputs(&ws).unwrap())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("producer module drifted"), "{err}");
+        assert!(err.contains("driver.mjs"), "{err}");
+        fs::write(&driver_path, original_driver).unwrap();
+
+        // So is a .node-version change.
+        fs::write(ws.join(NODE_VERSION_REL_PATH), "26.0.0\n").unwrap();
+        let err = diff_oracle_inputs(&stored, &build_oracle_inputs(&ws).unwrap())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("Node pin drift"), "{err}");
+        fs::write(ws.join(NODE_VERSION_REL_PATH), "25.2.1\n").unwrap();
 
         // Edit one oracle record byte-for-byte in place: the rebuilt
         // manifest must diverge and name the case.

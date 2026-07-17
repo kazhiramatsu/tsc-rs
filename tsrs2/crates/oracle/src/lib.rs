@@ -84,10 +84,18 @@ struct DriverRequest {
     program_json_path: String,
 }
 
+#[derive(Debug, Serialize)]
+struct VersionRequest {
+    id: u64,
+    #[serde(rename = "versionProbe")]
+    version_probe: bool,
+}
+
 #[derive(Debug, Deserialize)]
 struct DriverResponse {
     id: u64,
     diagnostics: Option<Vec<OracleDiag>>,
+    version: Option<String>,
     error: Option<String>,
 }
 
@@ -138,6 +146,28 @@ impl OraclePool {
             }
         }
     }
+
+    /// `process.version` of a LAUNCHED driver worker (e.g. "v25.2.1").
+    /// This is the enforced side of the producer Node pin: a
+    /// `.node-version` file alone is a declaration that nothing
+    /// verifies, while this answer comes from the process that will
+    /// actually produce oracle records.
+    pub fn node_version(&self) -> Result<String, OracleError> {
+        let mut worker = self.workers[0]
+            .lock()
+            .map_err(|_| OracleError::new("oracle worker mutex poisoned"))?;
+        match worker.node_version() {
+            Ok(version) => Ok(version),
+            Err(first_error) => {
+                worker.restart()?;
+                worker.node_version().map_err(|second_error| {
+                    OracleError::new(format!(
+                        "oracle worker failed after restart: {second_error}; initial error: {first_error}"
+                    ))
+                })
+            }
+        }
+    }
 }
 
 struct DriverProcess {
@@ -179,7 +209,30 @@ impl DriverProcess {
             id,
             program_json_path: program_json_path.display().to_string(),
         };
-        let request = serde_json::to_string(&request).map_err(|err| {
+        let response = self.roundtrip(&request, id)?;
+        response
+            .diagnostics
+            .ok_or_else(|| OracleError::new("oracle response missing diagnostics"))
+    }
+
+    fn node_version(&mut self) -> Result<String, OracleError> {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let request = VersionRequest {
+            id,
+            version_probe: true,
+        };
+        let response = self.roundtrip(&request, id)?;
+        response
+            .version
+            .ok_or_else(|| OracleError::new("oracle response missing version"))
+    }
+
+    fn roundtrip<T: Serialize>(
+        &mut self,
+        request: &T,
+        id: u64,
+    ) -> Result<DriverResponse, OracleError> {
+        let request = serde_json::to_string(request).map_err(|err| {
             OracleError::new(format!("failed to serialize oracle request: {err}"))
         })?;
         writeln!(self.stdin, "{request}")
@@ -207,9 +260,7 @@ impl DriverProcess {
         if let Some(error) = response.error {
             return Err(OracleError::new(format!("oracle driver error: {error}")));
         }
-        response
-            .diagnostics
-            .ok_or_else(|| OracleError::new("oracle response missing diagnostics"))
+        Ok(response)
     }
 
     fn restart(&mut self) -> Result<(), OracleError> {
@@ -323,6 +374,16 @@ mod tests {
             "{diagnostics:?}"
         );
         fs::remove_dir_all(dir).expect("remove temp dir");
+    }
+
+    #[test]
+    fn oracle_driver_reports_launched_node_version() {
+        let pool = OraclePool::new(1).expect("pool");
+        let version = pool.node_version().expect("version");
+        assert!(
+            version.starts_with('v') && version.len() > 1,
+            "process.version shape: {version}"
+        );
     }
 
     #[test]
