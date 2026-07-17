@@ -625,21 +625,9 @@ owner = "M6"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_type_assignable_to"
-reason = "relation-error display for identically-named types (getTypeNameForErrorDisplay UseFullyQualifiedType)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_type_assignable_to"
 reason = "tuple-bearing intersection relation display without a directly annotated tuple (nodeBuilder work, M6)"
 class = "stage"
 owner = "M6"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_type_comparable_to"
-reason = "relation-error display for identically-named types (getTypeNameForErrorDisplay UseFullyQualifiedType)"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -656,16 +644,10 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/check.rs"
-in = "type_to_string_slice"
+in = "type_to_string_slice_ex"
 reason = "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "type_to_string_slice_structured"
-reason = "origin-union display (keyof/denormalized origins print the origin)"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/check.rs"

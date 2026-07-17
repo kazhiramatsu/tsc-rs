@@ -4814,15 +4814,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: getTypeNameForErrorDisplay @6.0.3
-    /// tsc-hash: 9e9827829d64df1cb9ed00762b4a5c872a23139bdd217fffd5c274437e7ac389
-    /// tsc-span: _tsc.js:50757-50764
-    ///
-    /// UseFullyQualifiedType rendering is nodeBuilder work (T2/M8) —
-    /// same disposition as check.rs's identically-named-types escape.
-    fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult2<String> {
-        self.type_to_string_slice(ty)
-    }
 }
 
 #[cfg(test)]

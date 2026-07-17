@@ -5547,11 +5547,18 @@ mod tests {
             .collect();
         assert_eq!(
             pins,
-            [(
-                2846,
-                7,
-                "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './foo' instead?".to_owned(),
-            )]
+            [
+                (
+                    2711,
+                    0,
+                    "A dynamic import call returns a 'Promise'. Make sure you have a declaration for 'Promise' or include 'ES2015' in your '--lib' option.".to_owned(),
+                ),
+                (
+                    2846,
+                    7,
+                    "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './foo' instead?".to_owned(),
+                ),
+            ]
         );
 
         let files = [

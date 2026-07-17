@@ -1972,13 +1972,13 @@ impl<'a> CheckerState<'a> {
                         return Ok(related);
                     }
                 }
-                let source_text = self.type_to_string_slice(source)?;
-                let target_text = self.type_to_string_slice(target)?;
+                let mut source_text = self.type_to_string_slice(source)?;
+                let mut target_text = self.type_to_string_slice(target)?;
                 if source_text == target_text {
-                    return Err(Unsupported::new(
-                        "relation-error display for identically-named types \
-                         (getTypeNameForErrorDisplay UseFullyQualifiedType)",
-                    ));
+                    // getTypeNamesForErrorDisplay (50748-50756): equal
+                    // renders re-render fully qualified.
+                    source_text = self.get_type_name_for_error_display(source)?;
+                    target_text = self.get_type_name_for_error_display(target)?;
                 }
                 // reportRelationError 65068-65072: a literal source
                 // generalizes to its base primitive unless the target
@@ -1988,7 +1988,9 @@ impl<'a> CheckerState<'a> {
                     && !self.type_could_have_top_level_singleton_types(target)?
                 {
                     let generalized = self.get_base_type_of_literal_type(source)?;
-                    self.type_to_string_slice(generalized)?
+                    // 65072: the generalized source renders through
+                    // getTypeNameForErrorDisplay.
+                    self.get_type_name_for_error_display(generalized)?
                 } else {
                     source_text
                 };
@@ -2376,20 +2378,22 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_comparable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
-                let source_text = self.type_to_string_slice(source)?;
-                let target_text = self.type_to_string_slice(target)?;
+                let mut source_text = self.type_to_string_slice(source)?;
+                let mut target_text = self.type_to_string_slice(target)?;
                 if source_text == target_text {
-                    return Err(Unsupported::new(
-                        "relation-error display for identically-named types \
-                         (getTypeNameForErrorDisplay UseFullyQualifiedType)",
-                    ));
+                    // getTypeNamesForErrorDisplay (50748-50756): equal
+                    // renders re-render fully qualified.
+                    source_text = self.get_type_name_for_error_display(source)?;
+                    target_text = self.get_type_name_for_error_display(target)?;
                 }
                 let source_text = if !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
                     && self.is_literal_type(source)
                     && !self.type_could_have_top_level_singleton_types(target)?
                 {
                     let generalized = self.get_base_type_of_literal_type(source)?;
-                    self.type_to_string_slice(generalized)?
+                    // 65072: the generalized source renders through
+                    // getTypeNameForErrorDisplay.
+                    self.get_type_name_for_error_display(generalized)?
                 } else {
                     source_text
                 };
@@ -2520,6 +2524,27 @@ impl<'a> CheckerState<'a> {
     /// and unwinds Unsupported so the caller drops the diagnostic
     /// instead of mis-printing it.
     pub(crate) fn type_to_string_slice(&mut self, ty: TypeId) -> CheckResult2<String> {
+        self.type_to_string_slice_ex(ty, /*fully_qualified*/ false)
+    }
+
+    /// tsc-port: getTypeNameForErrorDisplay @6.0.3
+    /// tsc-hash: 9e9827829d64df1cb9ed00762b4a5c872a23139bdd217fffd5c274437e7ac389
+    /// tsc-span: _tsc.js:50757-50764
+    ///
+    /// typeToString under UseFullyQualifiedType — the bounded slice:
+    /// every symbol head qualifies through getFullyQualifiedName
+    /// (import-specifier sugar is a T2 nuance under the display
+    /// curtain); shapes outside the slice keep escalating to the
+    /// structured tail's tagged escapes.
+    pub(crate) fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult2<String> {
+        self.type_to_string_slice_ex(ty, /*fully_qualified*/ true)
+    }
+
+    fn type_to_string_slice_ex(
+        &mut self,
+        ty: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
         if ty == self.marker_super_type_for_check || ty == self.marker_sub_type_for_check {
             // typeToString's type-parameter arm (51535).
             let name = self
@@ -2560,7 +2585,11 @@ impl<'a> CheckerState<'a> {
                     .object_flags_of(ty)
                     .intersects(ObjectFlags::REFERENCE)
                 {
-                    return Ok(self.symbol_display_name(symbol));
+                    return Ok(if fully_qualified {
+                        self.get_fully_qualified_name(symbol)
+                    } else {
+                        self.symbol_display_name(symbol)
+                    });
                 }
             }
         }
@@ -2581,21 +2610,29 @@ impl<'a> CheckerState<'a> {
                     "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)",
                 )),
             },
-            _ => self.type_to_string_slice_structured(ty),
+            _ => self.type_to_string_slice_structured(ty, fully_qualified),
         }
     }
 
-    fn type_to_string_slice_structured(&mut self, ty: TypeId) -> CheckResult2<String> {
+    fn type_to_string_slice_structured(
+        &mut self,
+        ty: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
         let type_of = self.tables.type_of(ty);
         if let (Some(alias_symbol), alias_arguments) =
             (type_of.alias_symbol, type_of.alias_type_arguments.clone())
         {
-            let name = self.symbol_display_name(alias_symbol);
+            let name = if fully_qualified {
+                self.get_fully_qualified_name(alias_symbol)
+            } else {
+                self.symbol_display_name(alias_symbol)
+            };
             return match alias_arguments {
                 Some(arguments) if !arguments.is_empty() => {
                     let mut rendered = Vec::new();
                     for argument in arguments.iter() {
-                        rendered.push(self.type_to_string_slice(*argument)?);
+                        rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
                     }
                     Ok(format!("{name}<{}>", rendered.join(", ")))
                 }
@@ -2609,10 +2646,22 @@ impl<'a> CheckerState<'a> {
                 TypeData::Intersection { types } => (types.to_vec(), None),
                 _ => unreachable!("union/intersection flag implies composite data"),
             };
-            if origin.is_some() {
-                return Err(Unsupported::new(
-                    "origin-union display (keyof/denormalized origins print the origin)",
-                ));
+            if let Some(origin) = origin {
+                // typeToString prints the ORIGIN of a denormalized
+                // union (nodeBuilder typeToTypeNodeHelper origin read):
+                // keyof origins render as `keyof T`; other origin
+                // shapes recurse into the slice and escalate to the
+                // structured tail when outside it.
+                let origin_flags = self.tables.flags_of(origin);
+                if origin_flags.intersects(TypeFlags::INDEX) {
+                    let inner = match self.tables.type_of(origin).data {
+                        TypeData::Index { ty: inner, .. } => inner,
+                        _ => unreachable!("INDEX flag implies Index data"),
+                    };
+                    let inner = self.type_to_string_slice_ex(inner, fully_qualified)?;
+                    return Ok(format!("keyof {inner}"));
+                }
+                return self.type_to_string_slice_ex(origin, fully_qualified);
             }
             let separator = if flags.intersects(TypeFlags::UNION) {
                 " | "
@@ -2621,7 +2670,7 @@ impl<'a> CheckerState<'a> {
             };
             let mut rendered = Vec::new();
             for member in types {
-                rendered.push(self.type_to_string_slice(member)?);
+                rendered.push(self.type_to_string_slice_ex(member, fully_qualified)?);
             }
             return Ok(rendered.join(separator));
         }
@@ -2636,12 +2685,18 @@ impl<'a> CheckerState<'a> {
                     "symbol-less reference display (tuple renderer, M6)",
                 ));
             };
-            let name = self.symbol_display_name(symbol);
+            let name = if fully_qualified {
+                self.get_fully_qualified_name(symbol)
+            } else {
+                self.symbol_display_name(symbol)
+            };
             let arguments = self.get_type_arguments(ty)?;
             // typeReferenceToTypeNode's array sugar: references to the
-            // global Array/ReadonlyArray print as element sugar.
+            // global Array/ReadonlyArray print as element sugar (the
+            // sugar probe reads the PLAIN name — lib globals are
+            // parentless, so the qualified head matches too).
             if arguments.len() == 1 && (name == "Array" || name == "ReadonlyArray") {
-                let element = self.type_to_string_slice(arguments[0])?;
+                let element = self.type_to_string_slice_ex(arguments[0], fully_qualified)?;
                 return Ok(if name == "Array" {
                     format!("{element}[]")
                 } else {
@@ -2667,7 +2722,7 @@ impl<'a> CheckerState<'a> {
             };
             let mut rendered = Vec::new();
             for argument in arguments.iter().take(local_parameter_count) {
-                rendered.push(self.type_to_string_slice(*argument)?);
+                rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
             }
             return Ok(if rendered.is_empty() {
                 name

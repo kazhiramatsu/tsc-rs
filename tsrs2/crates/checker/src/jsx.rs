@@ -2319,19 +2319,17 @@ mod tests {
     }
 
     #[test]
-    fn aliased_react_jsx_namespace_contains() {
+    fn aliased_react_jsx_namespace_reports_2339() {
         // Oracle (jsx: preserve): 2339 @143+7 — tsc resolveSymbol()s
         // the `export import JSX = Inner` alias to the real container
-        // and reports the unknown intrinsic. Alias resolution is 5.8:
-        // the walk CONTAINS (recorded FN) instead of falling through
-        // to the absent global JSX (which fabricated 7026 pre-fix —
-        // review find).
+        // and reports the unknown intrinsic. LIVE since 5.9d's
+        // getSymbol alias arm (previously a recorded FN).
         assert_eq!(
             checked_rows_with(
                 "declare namespace React { namespace Inner { interface Element { e: 1 } interface IntrinsicElements { div: {} } } export import JSX = Inner; }\n(<foo />);\n",
                 &jsx(1),
             ),
-            []
+            [(2339, 143, 7)]
         );
     }
 
