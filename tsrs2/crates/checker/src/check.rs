@@ -346,8 +346,7 @@ impl<'a> CheckerState<'a> {
         // and the caller's loop continues. TSRS_TRACE_CONTAIN=1 prints
         // the swallowed reasons (debug aid).
         if let Err(err) = self.check_source_element_worker(node) {
-            self.partially_checked_files
-                .insert(self.binder.file_index_of_node(node));
+            self.mark_partially_checked_node(node);
             if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
                 eprintln!("contained @{node:?}: {}", err.reason);
             }

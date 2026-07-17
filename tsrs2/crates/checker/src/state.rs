@@ -471,11 +471,11 @@ pub struct CheckerState<'a> {
     /// getSemanticDiagnostics. Lazy initialization diagnostics not
     /// registered here remain program-global.
     pub visible_global_diagnostics: DiagnosticList,
-    /// Files whose check was partial because an Unsupported
+    /// Syntax ranges whose check was partial because an Unsupported
     /// containment boundary or an unimplemented flow-sensitive
-    /// diagnostic was reached. Like tsc's `partialCheck` flag, these
-    /// files must not produce unused @ts-expect-error diagnostics.
-    pub(crate) partially_checked_files: std::collections::HashSet<usize>,
+    /// diagnostic was reached. Only directives targeting one of these
+    /// ranges are exempt from unused @ts-expect-error diagnostics.
+    pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
     /// Literal operands whose `satisfies` elaboration already emitted
     /// an inner diagnostic. Re-checks must not add the outer 1360.
     pub(crate) elaborated_satisfies_expressions: std::collections::HashSet<NodeId>,
@@ -674,7 +674,7 @@ impl<'a> CheckerState<'a> {
             js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),
             visible_global_diagnostics: Vec::new(),
-            partially_checked_files: std::collections::HashSet::new(),
+            partially_checked_ranges: std::collections::HashMap::new(),
             elaborated_satisfies_expressions: std::collections::HashSet::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
@@ -1146,6 +1146,21 @@ impl<'a> CheckerState<'a> {
             Some(end_utf16.saturating_sub(start_utf16)),
             MessageChain::new(message, &args),
         )
+    }
+
+    /// tsrs-native: containment bookkeeping for source ranges whose
+    /// diagnostics may be incomplete.
+    ///
+    /// The program layer exempts only directives targeting one of
+    /// these ranges instead of suppressing 2578 for the entire file.
+    pub(crate) fn mark_partially_checked_node(&mut self, node: NodeId) {
+        let file_index = self.binder.file_index_of_node(node);
+        let raw = self.binder.source_of_node(node).arena.node(node);
+        let range = (raw.pos, raw.end);
+        let ranges = self.partially_checked_ranges.entry(file_index).or_default();
+        if !ranges.contains(&range) {
+            ranges.push(range);
+        }
     }
 
     // ---- out-of-band variance marker handler (M4 5.3b) ----

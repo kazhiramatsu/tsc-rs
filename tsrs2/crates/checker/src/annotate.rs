@@ -1590,14 +1590,30 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:49253-49261
     ///
     /// The parent chain joined with "."; each link renders as the
-    /// symbol-name face of symbolToString (DoNotIncludeSymbolChain) —
-    /// nodeBuilder nuances are T2-only.
+    /// symbol-name face of symbolToString (DoNotIncludeSymbolChain).
+    /// External source-file symbols use the host's absolute normalized
+    /// path, matching the in-memory oracle host.
     pub(crate) fn get_fully_qualified_name(&self, symbol: SymbolId) -> String {
         let mut parts = Vec::new();
         let mut current = Some(symbol);
         while let Some(symbol) = current {
-            parts.push(self.symbol_display_name(symbol));
-            current = self.binder.symbol(symbol).parent;
+            let data = self.binder.symbol(symbol);
+            let mut display = self.symbol_display_name(symbol);
+            if data.parent.is_none()
+                && data
+                    .declarations
+                    .iter()
+                    .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile)
+            {
+                if let Some(module_name) = display
+                    .strip_prefix('"')
+                    .and_then(|name| name.strip_suffix('"'))
+                {
+                    display = format!("\"{}\"", Self::normalize_program_path(module_name, ""));
+                }
+            }
+            parts.push(display);
+            current = data.parent;
         }
         parts.reverse();
         parts.join(".")

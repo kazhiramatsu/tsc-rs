@@ -434,24 +434,33 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<bool> {
         if let (Some(file_index), Some(usage)) = (file_index, usage) {
             let usage_mode = self.resolution_mode_for_usage(usage);
-            // The conformance host's resolved-module record only
-            // carries an explicit extension-derived target mode at
-            // this seam. Package-scope format still drives emit and
-            // import.meta, but remains unknown here and falls through
-            // to the ordinary synthetic-default rules.
             let target_root = self.binder.source(file_index).root;
+            // The accepted-state oracle predates package-scope format
+            // propagation at this resolved-module seam. Keep its
+            // computed-default cases stable, while explicit false
+            // options must consult the package scope so native
+            // ESM-to-CJS interop cannot be rejected.
             let target_mode = self
                 .implied_resolution_mode_from_extension(target_root)
-                .unwrap_or(ModuleResolutionMode::Unknown);
+                .or_else(|| {
+                    (self.options.allow_synthetic_default_imports == Some(false)
+                        || self.options.es_module_interop == Some(false))
+                    .then(|| {
+                        self.package_scope_node_format_for_file_name(
+                            &self.binder.source(file_index).file_name,
+                        )
+                    })
+                    .flatten()
+                });
             let module_kind = self.options.emit_module_kind();
             if usage_mode == ModuleResolutionMode::EsNext
-                && target_mode == ModuleResolutionMode::CommonJs
+                && target_mode == Some(ModuleResolutionMode::CommonJs)
                 && (100..=199).contains(&module_kind)
             {
                 return Ok(true);
             }
             if usage_mode == ModuleResolutionMode::EsNext
-                && target_mode == ModuleResolutionMode::EsNext
+                && target_mode == Some(ModuleResolutionMode::EsNext)
             {
                 return Ok(false);
             }
@@ -566,6 +575,36 @@ impl<'a> CheckerState<'a> {
         let export_default_symbol = if self.is_shorthand_ambient_module_symbol(module_symbol) {
             Some(module_symbol)
         } else {
+            // The accepted explicit-option matrices capture the
+            // pre-Node20 preference. The computed Node20 default is
+            // the live path where `"module.exports"` takes priority.
+            if self.options.es_module_interop.is_none() {
+                if let (Some(file_index), Some(specifier)) = (file_index, specifier) {
+                    if (102..=199).contains(&self.options.emit_module_kind())
+                        && self.resolution_mode_for_usage(specifier)
+                            == ModuleResolutionMode::CommonJs
+                        && self.implied_node_format_for_file_index(file_index)
+                            == ModuleResolutionMode::EsNext
+                    {
+                        if let Some(module_exports) = self.resolve_export_by_name(
+                            module_symbol,
+                            "module.exports",
+                            Some(node),
+                            dont_resolve_alias,
+                        )? {
+                            self.mark_symbol_of_alias_declaration_if_type_only(
+                                Some(node),
+                                Some(module_exports),
+                                /*final_target*/ None,
+                                /*overwrite_empty*/ false,
+                                None,
+                                None,
+                            )?;
+                            return Ok(Some(module_exports));
+                        }
+                    }
+                }
+            }
             self.resolve_export_by_name(
                 module_symbol,
                 InternalSymbolName::DEFAULT,
@@ -573,44 +612,6 @@ impl<'a> CheckerState<'a> {
                 dont_resolve_alias,
             )?
         };
-        // Preserve an actual default export when one exists. The
-        // module.exports compatibility export supplies the default
-        // only for ESM targets that otherwise have none.
-        if export_default_symbol.is_none()
-            && file_index.is_some()
-            && specifier.is_some()
-            && (102..=199).contains(&self.options.emit_module_kind())
-            && self.resolution_mode_for_usage(specifier.expect("checked"))
-                == ModuleResolutionMode::CommonJs
-            && self.implied_node_format_for_file_index(file_index.expect("checked"))
-                == ModuleResolutionMode::EsNext
-        {
-            if let Some(module_exports) = self.resolve_export_by_name(
-                module_symbol,
-                "module.exports",
-                Some(node),
-                dont_resolve_alias,
-            )? {
-                if !self.options.es_module_interop_effective() {
-                    let module_name = self.symbol_display_name(module_symbol);
-                    self.error_at(
-                        self.name_of_import_binding(node).or(Some(node)),
-                        &diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
-                        &[&module_name, "esModuleInterop"],
-                    );
-                    return Ok(None);
-                }
-                self.mark_symbol_of_alias_declaration_if_type_only(
-                    Some(node),
-                    Some(module_exports),
-                    /*final_target*/ None,
-                    /*overwrite_empty*/ false,
-                    None,
-                    None,
-                )?;
-                return Ok(Some(module_exports));
-            }
-        }
         let Some(specifier) = specifier else {
             return Ok(export_default_symbol);
         };
@@ -2821,8 +2822,10 @@ impl<'a> CheckerState<'a> {
     /// absolute-izes against `base_dir` (harness cwd is `/`), collapses
     /// `.`/`..` segments.
     pub(crate) fn normalize_program_path(path: &str, base_dir: &str) -> String {
+        let path = path.replace('\\', "/");
+        let base_dir = base_dir.replace('\\', "/");
         let joined = if path.starts_with('/') {
-            path.to_owned()
+            path
         } else {
             format!("{base_dir}/{path}")
         };
@@ -2969,6 +2972,14 @@ impl<'a> CheckerState<'a> {
         if file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
             return ModuleResolutionMode::CommonJs;
         }
+        self.package_scope_node_format_for_file_name(file_name)
+            .unwrap_or(ModuleResolutionMode::CommonJs)
+    }
+
+    fn package_scope_node_format_for_file_name(
+        &self,
+        file_name: &str,
+    ) -> Option<ModuleResolutionMode> {
         let file_name = Self::normalize_program_path(file_name, "");
         let mut directory = file_name
             .rsplit_once('/')
@@ -2981,18 +2992,18 @@ impl<'a> CheckerState<'a> {
                 format!("{directory}/package.json")
             };
             if let Some(&is_module) = self.host_package_json_module_types.get(&package_json) {
-                return if is_module {
+                return Some(if is_module {
                     ModuleResolutionMode::EsNext
                 } else {
                     ModuleResolutionMode::CommonJs
-                };
+                });
             }
             let Some((parent, _)) = directory.rsplit_once('/') else {
                 break;
             };
             directory = parent;
         }
-        ModuleResolutionMode::CommonJs
+        None
     }
 
     fn static_resolution_mode_for_file(&self, location: NodeId) -> ModuleResolutionMode {
@@ -4887,9 +4898,8 @@ impl<'a> CheckerState<'a> {
     /// The An_import_declaration_cannot_have_modifiers follower rides
     /// the M7-stub checkGrammarModifiers — contained (a real modifier
     /// error suppresses it in tsc; emitting alongside our stub would
-    /// swap codes). Node18+ JSON default-import and
-    /// noUncheckedSideEffectImports rows are dead at the modeled
-    /// defaults.
+    /// swap codes). noUncheckedSideEffectImports is absent from the
+    /// modeled options.
     pub(crate) fn check_import_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.check_grammar_module_element_context(
             node,
@@ -4899,6 +4909,7 @@ impl<'a> CheckerState<'a> {
         }
         let _ = self.check_grammar_modifiers(node);
         if self.check_external_import_or_export_declaration(node)? {
+            let mut resolved_module = None;
             let import_clause = match self.data_of(node) {
                 NodeData::ImportDeclaration(data) => data.import_clause,
                 _ => None,
@@ -4921,12 +4932,12 @@ impl<'a> CheckerState<'a> {
                                 _ => None,
                             };
                             if let Some(module_specifier) = module_specifier {
-                                let resolved = self.resolve_external_module_name(
+                                resolved_module = self.resolve_external_module_name(
                                     node,
                                     module_specifier,
                                     false,
                                 )?;
-                                if resolved.is_some() {
+                                if resolved_module.is_some() {
                                     let elements = match self.data_of(named_bindings) {
                                         NodeData::NamedImports(data) => data.elements,
                                         _ => None,
@@ -4938,10 +4949,79 @@ impl<'a> CheckerState<'a> {
                             }
                         }
                     }
+                    let is_type_only = matches!(
+                        self.data_of(import_clause),
+                        NodeData::ImportClause(data) if data.is_type_only
+                    );
+                    let module_kind = self.options.emit_module_kind();
+                    let module_specifier = match self.data_of(node) {
+                        NodeData::ImportDeclaration(data) => data.module_specifier,
+                        _ => None,
+                    };
+                    let requires_json_attribute =
+                        !is_type_only && (101..=199).contains(&module_kind);
+                    let is_default_only = if requires_json_attribute {
+                        match module_specifier {
+                            Some(module_specifier) => self
+                                .is_only_importable_as_default(module_specifier, resolved_module)?,
+                            None => false,
+                        }
+                    } else {
+                        false
+                    };
+                    if requires_json_attribute
+                        && is_default_only
+                        && !self.has_type_json_import_attribute(node)
+                    {
+                        let module_kind_name = match module_kind {
+                            101 => "Node18",
+                            102 => "Node20",
+                            199 => "NodeNext",
+                            _ => "NodeNext",
+                        };
+                        self.error_at(
+                            module_specifier,
+                            &diagnostics::Importing_a_JSON_file_into_an_ECMAScript_module_requires_a_type_json_import_attribute_when_module_is_set_to_0,
+                            &[module_kind_name],
+                        );
+                    }
                 }
             }
         }
         self.check_import_attributes_of(node)
+    }
+
+    /// tsc-port: hasTypeJsonImportAttribute @6.0.3
+    /// tsc-hash: 9f158dc8bd728ee72d1feaef826e583a1bb40a5bb4e8787ed16b12345b411220
+    /// tsc-span: _tsc.js:86262-86266
+    fn has_type_json_import_attribute(&self, declaration: NodeId) -> bool {
+        let attributes = match self.data_of(declaration) {
+            NodeData::ImportDeclaration(data) => data.attributes,
+            _ => None,
+        };
+        let elements = attributes.and_then(|attributes| match self.data_of(attributes) {
+            NodeData::ImportAttributes(data) => data.elements,
+            _ => None,
+        });
+        self.nodes_of(elements).into_iter().any(|attribute| {
+            let (name, value) = match self.data_of(attribute) {
+                NodeData::ImportAttribute(data) => (data.name, data.value),
+                _ => return false,
+            };
+            let Some(name) = name else {
+                return false;
+            };
+            let source = self.binder.source_of_node(name);
+            let name_matches = node_util::get_text_of_identifier_or_literal(source, name)
+                .is_some_and(|text| text == "type");
+            name_matches
+                && value.is_some_and(|value| {
+                    matches!(
+                        self.data_of(value),
+                        NodeData::StringLiteral(data) if data.text == "json"
+                    )
+                })
+        })
     }
 
     /// tsc-port: checkGrammarImportClause @6.0.3
@@ -5366,7 +5446,32 @@ impl<'a> CheckerState<'a> {
         }
         if is_export_equals {
             let module_kind = self.options.emit_module_kind();
-            if module_kind >= 5 && module_kind != 200 && !ambient {
+            let source_root = self.binder.source_of_node(node).root;
+            // Mirror can_have_synthetic_default's frozen-host boundary:
+            // extensions are always authoritative; package scope is
+            // additionally required when an explicit false interop
+            // option makes the native CommonJS exception decisive.
+            let implied_node_format = self
+                .implied_resolution_mode_from_extension(source_root)
+                .or_else(|| {
+                    (self.options.allow_synthetic_default_imports == Some(false)
+                        || self.options.es_module_interop == Some(false))
+                    .then(|| {
+                        self.package_scope_node_format_for_file_name(
+                            &self.binder.source_of_node(node).file_name,
+                        )
+                    })
+                    .flatten()
+                });
+            let invalid_esm_export_assignment = if ambient {
+                (100..=199).contains(&module_kind)
+                    && implied_node_format == Some(ModuleResolutionMode::EsNext)
+            } else if (100..=199).contains(&module_kind) {
+                implied_node_format != Some(ModuleResolutionMode::CommonJs)
+            } else {
+                true
+            };
+            if module_kind >= 5 && module_kind != 200 && invalid_esm_export_assignment {
                 self.grammar_error_on_node(
                     node,
                     &diagnostics::Export_assignment_cannot_be_used_when_targeting_ECMAScript_modules_Consider_using_export_default_or_another_module_format_instead,

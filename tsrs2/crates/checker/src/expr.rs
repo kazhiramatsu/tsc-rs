@@ -740,10 +740,10 @@ impl<'a> CheckerState<'a> {
             && assignment_kind == AssignmentKind::None
         {
             // The M5 flow seam cannot yet tell whether this reference
-            // should produce 2454. Mark the file partial so an absent
-            // row cannot be misreported as an unused expectation.
-            self.partially_checked_files
-                .insert(self.binder.file_index_of_node(node));
+            // should produce 2454. Mark this reference partial so an
+            // absent row cannot be misreported as an unused
+            // expectation without hiding unrelated directives.
+            self.mark_partially_checked_node(node);
         }
         if type_is_automatic {
             // The 7034/7005 auto-type arm: no producer assigns

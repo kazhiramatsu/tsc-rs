@@ -175,6 +175,36 @@ fn is_plain_js_file(
 /// unlike the retired interim filter, block-comment shell lines STOP
 /// the walk, exactly as in tsc.
 ///
+fn preceding_comment_directive_line(
+    text: &str,
+    byte_line_starts: &[usize],
+    directive_lines: &std::collections::HashSet<usize>,
+    utf16_line_starts: &[u32],
+    diagnostic_start: u32,
+) -> Option<usize> {
+    let diagnostic_line = match utf16_line_starts.binary_search(&diagnostic_start) {
+        Ok(line) => line,
+        Err(insert) => insert.saturating_sub(1),
+    };
+    let mut line = diagnostic_line;
+    while line > 0 {
+        line -= 1;
+        if directive_lines.contains(&line) {
+            return Some(line);
+        }
+        let start = byte_line_starts[line];
+        let end = byte_line_starts
+            .get(line + 1)
+            .copied()
+            .unwrap_or(text.len());
+        let trimmed = text[start..end].trim_matches(tsrs2_syntax::is_js_whitespace);
+        if !trimmed.is_empty() && !trimmed.starts_with("//") {
+            break;
+        }
+    }
+    None
+}
+
 fn filter_by_comment_directives_and_mark_used(
     source: &tsrs2_syntax::SourceFile,
     diagnostics: impl Iterator<Item = tsrs2_diags::Diagnostic>,
@@ -201,47 +231,83 @@ fn filter_by_comment_directives_and_mark_used(
         .iter()
         .map(|directive| line_of_byte(directive.end as usize))
         .collect();
-    let line_text = |line: usize| -> &str {
-        let start = byte_line_starts[line];
-        let end = byte_line_starts
-            .get(line + 1)
-            .copied()
-            .unwrap_or(text.len());
-        &text[start..end]
-    };
     // Diagnostic.start is UTF-16, matching line_starts' units.
     let utf16_line_starts: &[u32] = &source.line_map.line_starts;
     let mut result = Vec::new();
-    'diagnostic: for diagnostic in diagnostics {
+    for diagnostic in diagnostics {
         let Some(start) = diagnostic.start else {
             result.push(diagnostic);
             continue;
         };
-        let diagnostic_line = match utf16_line_starts.binary_search(&start) {
-            Ok(line) => line,
-            Err(insert) => insert.saturating_sub(1),
-        };
-        let mut line = diagnostic_line;
-        while line > 0 {
-            line -= 1;
-            if directive_lines.contains(&line) {
-                if let Some(used) = used_directive_lines.as_deref_mut() {
-                    used.insert(line);
-                }
-                continue 'diagnostic;
+        if let Some(line) = preceding_comment_directive_line(
+            text,
+            &byte_line_starts,
+            &directive_lines,
+            utf16_line_starts,
+            start,
+        ) {
+            if let Some(used) = used_directive_lines.as_deref_mut() {
+                used.insert(line);
             }
-            // `lineText !== "" && !/^\s*\/\/.*$/.test(lineText)`
-            // over the trimmed slice: String.trim's set is JS
-            // whitespace, and post-trim the regex reduces to a
-            // `//` prefix test.
-            let trimmed = line_text(line).trim_matches(tsrs2_syntax::is_js_whitespace);
-            if !trimmed.is_empty() && !trimmed.starts_with("//") {
-                break;
-            }
+            continue;
         }
         result.push(diagnostic);
     }
     result
+}
+
+fn mark_comment_directives_for_partial_ranges(
+    source: &tsrs2_syntax::SourceFile,
+    partial_ranges: &[(u32, u32)],
+    used_directive_lines: &mut std::collections::HashSet<usize>,
+) {
+    if source.comment_directives.is_empty() || partial_ranges.is_empty() {
+        return;
+    }
+    let text = source.text.as_str();
+    let byte_line_starts = compute_byte_line_starts(text);
+    let line_of_byte = |offset: usize| -> usize {
+        match byte_line_starts.binary_search(&offset) {
+            Ok(line) => line,
+            Err(insert) => insert.saturating_sub(1),
+        }
+    };
+    let directive_lines: std::collections::HashSet<usize> = source
+        .comment_directives
+        .iter()
+        .map(|directive| line_of_byte(directive.end as usize))
+        .collect();
+
+    for &(start, _) in partial_ranges {
+        let start = tsrs2_syntax::skip_trivia(text, start as usize);
+        let start_utf16 = source
+            .line_map
+            .byte_to_utf16
+            .get(start)
+            .copied()
+            .unwrap_or(start as u32);
+        if let Some(line) = preceding_comment_directive_line(
+            text,
+            &byte_line_starts,
+            &directive_lines,
+            &source.line_map.line_starts,
+            start_utf16,
+        ) {
+            used_directive_lines.insert(line);
+        }
+    }
+
+    // A contained source element can include a directive below its
+    // opening token. Its remaining body was not checked, so directives
+    // physically inside that partial range must also remain exempt.
+    for directive in &source.comment_directives {
+        if partial_ranges
+            .iter()
+            .any(|&(start, end)| start <= directive.pos && directive.end <= end)
+        {
+            used_directive_lines.insert(line_of_byte(directive.end as usize));
+        }
+    }
 }
 
 fn unused_expect_error_diagnostics(
@@ -504,24 +570,31 @@ pub fn check_program_with_libs(
             if javascript_file {
                 // The checker does not model JSDoc types yet, so even
                 // checked JS must stay on the proven-safe diagnostic
-                // allowlist. Unlike plain JS it still participates in
-                // @ts-ignore/@ts-expect-error filtering.
-                let allowed = binder
-                    .bind_diagnostics
-                    .iter()
-                    .filter(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()))
-                    .cloned();
+                // allowlist. Unlike plain JS, its complete diagnostic
+                // stream still determines whether a comment directive
+                // was used.
                 if is_plain_js_file(true, directive, options) {
-                    diagnostics.extend(allowed);
+                    diagnostics.extend(
+                        binder
+                            .bind_diagnostics
+                            .iter()
+                            .filter(|diagnostic| {
+                                plain_js_errors::is_plain_js_error(diagnostic.code())
+                            })
+                            .cloned(),
+                    );
                 } else {
                     let used = used_directive_lines
                         .get_mut(source_file.file_name.as_str())
                         .expect("all parsed sources have a directive-use set");
-                    diagnostics.extend(filter_by_comment_directives_and_mark_used(
+                    let filtered = filter_by_comment_directives_and_mark_used(
                         source_file,
-                        allowed,
+                        binder.bind_diagnostics.iter().cloned(),
                         Some(used),
-                    ));
+                    );
+                    diagnostics.extend(filtered.into_iter().filter(|diagnostic| {
+                        plain_js_errors::is_plain_js_error(diagnostic.code())
+                    }));
                 }
             } else {
                 let used = used_directive_lines
@@ -646,20 +719,22 @@ pub fn check_program_with_libs(
                     .copied()
                     .flatten();
                 if can_include_bind_and_check_diagnostics(true, directive, options) {
-                    let allowed = file_diagnostics
-                        .into_iter()
-                        .filter(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()));
                     if is_plain_js_file(true, directive, options) {
-                        diagnostics.extend(allowed);
+                        diagnostics.extend(file_diagnostics.into_iter().filter(|diagnostic| {
+                            plain_js_errors::is_plain_js_error(diagnostic.code())
+                        }));
                     } else {
                         let used = used_directive_lines
                             .get_mut(source.file_name.as_str())
                             .expect("all parsed sources have a directive-use set");
-                        diagnostics.extend(filter_by_comment_directives_and_mark_used(
+                        let filtered = filter_by_comment_directives_and_mark_used(
                             source,
-                            allowed,
+                            file_diagnostics.into_iter(),
                             Some(used),
-                        ));
+                        );
+                        diagnostics.extend(filtered.into_iter().filter(|diagnostic| {
+                            plain_js_errors::is_plain_js_error(diagnostic.code())
+                        }));
                     }
                 }
                 continue;
@@ -698,15 +773,18 @@ pub fn check_program_with_libs(
             if options.skip_lib_check == Some(true) && source.is_declaration_file
                 || !can_include_bind_and_check_diagnostics(javascript_file, directive, options)
                 || is_plain_js_file(javascript_file, directive, options)
-                || state
-                    .partially_checked_files
-                    .contains(&(lib_count + source_index))
             {
                 continue;
             }
             let used = used_directive_lines
-                .get(source.file_name.as_str())
+                .get_mut(source.file_name.as_str())
                 .expect("all parsed sources have a directive-use set");
+            if let Some(partial_ranges) = state
+                .partially_checked_ranges
+                .get(&(lib_count + source_index))
+            {
+                mark_comment_directives_for_partial_ranges(source, partial_ranges, used);
+            }
             diagnostics.extend(unused_expect_error_diagnostics(source, used));
         }
         // The aggregate pass is sorted + deduplicated like tsc's
@@ -1017,6 +1095,32 @@ mod tests {
     }
 
     #[test]
+    fn import_type_missing_member_uses_absolute_module_name() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "m.ts".to_owned(),
+                    text: "export interface Present {}\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.ts".to_owned(),
+                    text: "type T = import(\"./m\").Missing;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 2694)
+            .expect("missing import-type member should report 2694");
+        assert_eq!(
+            diagnostic.message_text(),
+            "Namespace '\"/m\"' has no exported member 'Missing'."
+        );
+    }
+
+    #[test]
     fn bare_import_defer_does_not_run_import_meta_module_checks() {
         let result = check_program(
             &[InputFile {
@@ -1081,6 +1185,35 @@ mod tests {
     }
 
     #[test]
+    fn node16_windows_paths_use_package_scope_for_import_meta() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: r"C:\pkg\package.json".to_owned(),
+                    text: "{\"type\":\"module\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: r"C:\pkg\main.ts".to_owned(),
+                    text: "const x = import.meta;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(100),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            !result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 1470),
+            "Windows path separators must not hide package.json: {:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
     fn missing_import_meta_global_is_public_semantic_diagnostic() {
         assert_eq!(
             codes_of_with_options(
@@ -1121,8 +1254,47 @@ mod tests {
             .map(|diagnostic| diagnostic.code())
             .collect();
         assert!(
-            !codes.contains(&1259) && !codes.contains(&1192),
+            !codes.contains(&1259) && !codes.contains(&1192) && !codes.contains(&1203),
             "native ESM-to-CJS default interop should be accepted: {:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn node16_package_commonjs_target_has_synthetic_default() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "esm/package.json".to_owned(),
+                    text: "{\"type\":\"module\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "cjs/package.json".to_owned(),
+                    text: "{\"type\":\"commonjs\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "cjs/dep.ts".to_owned(),
+                    text: "export const ok = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "esm/main.ts".to_owned(),
+                    text: "import value from \"../cjs/dep.js\";\nvalue.ok;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(100),
+                module_resolution: Some(3),
+                allow_synthetic_default_imports: Some(false),
+                es_module_interop: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            !result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 1192),
+            "package-scoped CommonJS target should have a synthetic default: {:#?}",
             result.diagnostics
         );
     }
@@ -1154,6 +1326,53 @@ mod tests {
     }
 
     #[test]
+    fn node18_json_default_import_requires_type_attribute() {
+        let files = |main: &str| {
+            vec![
+                InputFile {
+                    name: "data.d.json.ts".to_owned(),
+                    text: "export const x: number;\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.mts".to_owned(),
+                    text: main.to_owned(),
+                },
+            ]
+        };
+        let options = CompilerOptions {
+            module: Some(101),
+            module_resolution: Some(3),
+            allow_importing_ts_extensions: Some(true),
+            ..CompilerOptions::default()
+        };
+        let missing = check_program(
+            &files("import data from \"./data.d.json.ts\";\ndata.x;\n"),
+            &options,
+        );
+        assert!(
+            missing
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 1543),
+            "Node18 JSON import without an attribute should report 1543: {:#?}",
+            missing.diagnostics
+        );
+
+        let attributed = check_program(
+            &files("import data from \"./data.d.json.ts\" with { type: \"json\" };\ndata.x;\n"),
+            &options,
+        );
+        assert!(
+            !attributed
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 1543),
+            "a type: json attribute should satisfy the Node18 requirement: {:#?}",
+            attributed.diagnostics
+        );
+    }
+
+    #[test]
     fn node20_commonjs_default_import_uses_module_exports_export() {
         let result = check_program(
             &[
@@ -1177,6 +1396,40 @@ mod tests {
             result.diagnostics.is_empty(),
             "Node20 module.exports interop should resolve the default: {:#?}",
             result.diagnostics
+        );
+    }
+
+    #[test]
+    fn node20_module_exports_precedes_syntactic_default() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "dep.mts".to_owned(),
+                    text: "export default function actual(x: string): string { return x; }\n\
+                           const compat = (x: number) => x;\n\
+                           export { compat as \"module.exports\" };\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "main.cts".to_owned(),
+                    text: "import fn from \"./dep.mjs\";\nfn(1);\nfn(\"x\");\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(102),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+        );
+        let errors: Vec<&tsrs2_diags::Diagnostic> = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2345)
+            .collect();
+        assert_eq!(errors.len(), 1, "{:#?}", result.diagnostics);
+        assert_eq!(
+            errors[0].message_text(),
+            "Argument of type 'string' is not assignable to parameter of type 'number'."
         );
     }
 
@@ -1743,8 +1996,40 @@ mod tests {
     }
 
     #[test]
+    fn partial_flow_check_does_not_hide_unrelated_unused_expect_error() {
+        assert_eq!(
+            codes_of("let x: number;\nx;\n// @ts-expect-error\nconst y = 1;\n"),
+            [2578]
+        );
+    }
+
+    #[test]
     fn unused_expect_error_reports_2578() {
         assert_eq!(codes_of("// @ts-expect-error\nconst x = 1;\n"), [2578]);
+    }
+
+    #[test]
+    fn checked_js_marks_directives_from_the_full_diagnostic_stream() {
+        let result = check_program_with_libs(
+            &[es5_lib()],
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "// @ts-check\n// @ts-expect-error\n(1)();\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            !result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2578),
+            "the suppressed checked-JS diagnostic must mark the directive used: {:#?}",
+            result.diagnostics
+        );
     }
 
     #[test]
