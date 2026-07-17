@@ -1299,11 +1299,8 @@ impl<'a> CheckerState<'a> {
             factory_symbol
         };
         let exports = self.get_exports_of_symbol(resolved_alias)?;
-        let type_symbol = self.get_symbol_in_table(
-            &exports,
-            REACT_FRAGMENT,
-            SymbolFlags::BLOCK_SCOPED_VARIABLE,
-        )?;
+        let type_symbol =
+            self.get_symbol_in_table(&exports, REACT_FRAGMENT, SymbolFlags::BLOCK_SCOPED_VARIABLE)?;
         let ty = match type_symbol {
             Some(type_symbol) => self.get_type_of_symbol(type_symbol)?,
             None => self.tables.intrinsics.error,

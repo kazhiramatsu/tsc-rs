@@ -3661,9 +3661,9 @@ impl<'a> CheckerState<'a> {
     /// unknownSymbol.
     fn get_global_omit_symbol(&mut self) -> CheckResult2<Option<SymbolId>> {
         if self.deferred_global_omit_symbol.is_none() {
-            let resolved = self.get_global_type_alias_symbol("Omit", 2, /*report_errors*/ true)?;
-            self.deferred_global_omit_symbol =
-                Some(Some(resolved.unwrap_or(self.unknown_symbol)));
+            let resolved =
+                self.get_global_type_alias_symbol("Omit", 2, /*report_errors*/ true)?;
+            self.deferred_global_omit_symbol = Some(Some(resolved.unwrap_or(self.unknown_symbol)));
         }
         let memo = self
             .deferred_global_omit_symbol
@@ -4813,7 +4813,6 @@ impl<'a> CheckerState<'a> {
             self.error_at(Some(location), message, args)
         }
     }
-
 }
 
 #[cfg(test)]

@@ -1630,18 +1630,14 @@ impl<'a> CheckerState<'a> {
             })
             .filter(|&literal| self.kind_of(literal) == SyntaxKind::StringLiteral);
         let Some(literal) = literal else {
-            let argument =
-                argument.expect("parser invariant: ImportType argument always parsed");
+            let argument = argument.expect("parser invariant: ImportType argument always parsed");
             self.error_at(Some(argument), &diagnostics::String_literal_expected, &[]);
             let unknown = self.unknown_symbol;
             self.links
                 .overwrite_import_type_resolved_symbol(self.speculation_depth, node, unknown);
             let error = self.tables.intrinsics.error;
-            self.links.overwrite_import_type_resolved_type(
-                self.speculation_depth,
-                node,
-                error,
-            );
+            self.links
+                .overwrite_import_type_resolved_type(self.speculation_depth, node, error);
             return Ok(error);
         };
         let is_type_of = self.import_type_is_type_of(node);
@@ -1656,11 +1652,8 @@ impl<'a> CheckerState<'a> {
             self.links
                 .overwrite_import_type_resolved_symbol(self.speculation_depth, node, unknown);
             let error = self.tables.intrinsics.error;
-            self.links.overwrite_import_type_resolved_type(
-                self.speculation_depth,
-                node,
-                error,
-            );
+            self.links
+                .overwrite_import_type_resolved_type(self.speculation_depth, node, error);
             return Ok(error);
         };
         // isExportEquals feeds only the isInJSFile variable probe —
@@ -1736,7 +1729,12 @@ impl<'a> CheckerState<'a> {
                 }
                 current_namespace = next;
             }
-            self.resolve_import_symbol_type(node, current_namespace, target_meaning, type_arguments)?
+            self.resolve_import_symbol_type(
+                node,
+                current_namespace,
+                target_meaning,
+                type_arguments,
+            )?
         } else if self.symbol_flags(module_symbol).intersects(target_meaning) {
             self.resolve_import_symbol_type(node, module_symbol, target_meaning, type_arguments)?
         } else {
@@ -1755,11 +1753,8 @@ impl<'a> CheckerState<'a> {
                 .overwrite_import_type_resolved_symbol(self.speculation_depth, node, unknown);
             self.tables.intrinsics.error
         };
-        self.links.overwrite_import_type_resolved_type(
-            self.speculation_depth,
-            node,
-            resolved,
-        );
+        self.links
+            .overwrite_import_type_resolved_type(self.speculation_depth, node, resolved);
         Ok(resolved)
     }
 

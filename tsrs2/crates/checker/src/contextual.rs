@@ -1080,16 +1080,16 @@ impl<'a> CheckerState<'a> {
                 let lhs_type = self.get_type_of_expression(expression)?;
                 if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
                     // tryGetPrivateIdentifierPropertyOfType (72975-72978).
-                    let Some(name_text) = self.identifier_text_of(name).map(str::to_owned)
-                    else {
+                    let Some(name_text) = self.identifier_text_of(name).map(str::to_owned) else {
                         return Ok(None);
                     };
-                    let lexically_scoped = self
-                        .lookup_symbol_for_private_identifier_declaration(&name_text, name)?;
+                    let lexically_scoped =
+                        self.lookup_symbol_for_private_identifier_declaration(&name_text, name)?;
                     let Some(lexically_scoped) = lexically_scoped else {
                         return Ok(None);
                     };
-                    return self.get_private_identifier_property_of_type(lhs_type, lexically_scoped);
+                    return self
+                        .get_private_identifier_property_of_type(lhs_type, lexically_scoped);
                 }
                 let Some(name_text) = self.identifier_text_of(name).map(str::to_owned) else {
                     return Ok(None);

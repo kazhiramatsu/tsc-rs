@@ -3919,8 +3919,7 @@ impl<'a> CheckerState<'a> {
                             // 79283-79286: a namespace-import receiver
                             // makes the whole entity readonly (the
                             // 2540 namespace-import tail).
-                            let declaration =
-                                self.get_declaration_of_alias_symbol(receiver_symbol);
+                            let declaration = self.get_declaration_of_alias_symbol(receiver_symbol);
                             return Ok(declaration.is_some_and(|declaration| {
                                 self.kind_of(declaration) == SyntaxKind::NamespaceImport
                             }));

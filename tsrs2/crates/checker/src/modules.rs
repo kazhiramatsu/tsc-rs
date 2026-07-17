@@ -3173,7 +3173,9 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(reference_parent) = self.parent_of(referencing_location) {
             let namespace_import = self.kind_of(reference_parent) == SyntaxKind::ImportDeclaration
-                && self.get_namespace_declaration_node(reference_parent).is_some();
+                && self
+                    .get_namespace_declaration_node(reference_parent)
+                    .is_some();
             if namespace_import || self.is_import_call(reference_parent) {
                 let ty = self.get_type_of_symbol(symbol)?;
                 // getTypeWithSyntheticDefaultOnly: None (mode
@@ -3318,9 +3320,10 @@ impl<'a> CheckerState<'a> {
             /*dont_resolve_alias*/ false,
         )?;
         let synthetic = if has_synthetic_default {
-            let anonymous_symbol = self
-                .binder
-                .create_symbol(SymbolFlags::TYPE_LITERAL, InternalSymbolName::TYPE.to_owned());
+            let anonymous_symbol = self.binder.create_symbol(
+                SymbolFlags::TYPE_LITERAL,
+                InternalSymbolName::TYPE.to_owned(),
+            );
             let default_containing_object = self.create_default_property_wrapper_for_module(
                 symbol,
                 Some(original_symbol),
@@ -3399,8 +3402,11 @@ impl<'a> CheckerState<'a> {
             index_infos,
             ObjectFlags::ANONYMOUS,
         );
-        self.links
-            .set_symbol_type(self.speculation_depth, result, LinkSlot::Resolved(anonymous));
+        self.links.set_symbol_type(
+            self.speculation_depth,
+            result,
+            LinkSlot::Resolved(anonymous),
+        );
         Ok(result)
     }
 
