@@ -25,31 +25,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b22ea48a736bc228a748d543706f8186374bca9aba21f2032144f7b55757e5a6
     /// tsc-span: _tsc.js:60907-60916
     ///
-    /// Same memo discipline as the Omit twin (operators.rs): the
-    /// reportErrors=true miss memoizes unknownSymbol; a lib Extract
-    /// with the wrong arity escapes rather than instantiating wrong.
+    /// Miss AND wrong-arity (2317 reported inside the shared worker)
+    /// both memoize unknownSymbol.
     fn get_global_extract_symbol(&mut self) -> CheckResult2<Option<tsrs2_binder::SymbolId>> {
-        if let Some(memo) = self.deferred_global_extract_symbol {
-            return Ok(memo.filter(|&s| s != self.unknown_symbol));
+        if self.deferred_global_extract_symbol.is_none() {
+            let resolved =
+                self.get_global_type_alias_symbol("Extract", 2, /*report_errors*/ true)?;
+            self.deferred_global_extract_symbol =
+                Some(Some(resolved.unwrap_or(self.unknown_symbol)));
         }
-        let symbol = self.get_global_symbol(
-            "Extract",
-            tsrs2_types::SymbolFlags::TYPE_ALIAS,
-            Some(&diagnostics::Cannot_find_global_type_0),
-        );
-        if let Some(symbol) = symbol {
-            let type_parameters = self.type_alias_type_parameter_count(symbol)?;
-            if type_parameters != 2 {
-                return Err(Unsupported::new(
-                    "global Extract alias with non-2 arity (user-shadowed lib arity report, M4-end sweep 5.8)",
-                ));
-            }
-            self.deferred_global_extract_symbol = Some(Some(symbol));
-            return Ok(Some(symbol));
-        }
-        let unknown = self.unknown_symbol;
-        self.deferred_global_extract_symbol = Some(Some(unknown));
-        Ok(None)
+        let memo = self
+            .deferred_global_extract_symbol
+            .expect("filled above")
+            .expect("memo holds symbol-or-unknown");
+        Ok((memo != self.unknown_symbol).then_some(memo))
     }
 
     /// tsc-port: getExtractStringType @6.0.3

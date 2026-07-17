@@ -577,6 +577,53 @@ impl<'a> CheckerState<'a> {
         Ok(self.empty_object_type)
     }
 
+    /// tsc-port: getGlobalTypeAliasSymbol @6.0.3
+    /// tsc-hash: 165af18edcd47c7cdf74a6547c56bab4849758d0e5090f0a2e19cbe771700f0a
+    /// tsc-span: _tsc.js:60638-60650
+    ///
+    /// The meaning is TYPE (not TypeAlias): an interface-shadowed
+    /// global resolves here and fails the arity probe with 2317 at
+    /// no node (interfaces carry no TypeAliasDeclaration), which is
+    /// a global diagnostic tsc's per-file pulls never surface.
+    pub(crate) fn get_global_type_alias_symbol(
+        &mut self,
+        name: &str,
+        arity: usize,
+        report_errors: bool,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let symbol = self.get_global_symbol(
+            name,
+            SymbolFlags::TYPE,
+            report_errors.then_some(&diagnostics::Cannot_find_global_type_0),
+        );
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
+        // Resolve the alias before we check its type parameters (the
+        // links.typeParameters fill).
+        self.get_declared_type_of_symbol_slice(symbol)?;
+        let type_parameter_count = self
+            .links
+            .symbol(symbol)
+            .type_parameters
+            .as_ref()
+            .map_or(0, Vec::len);
+        if type_parameter_count != arity {
+            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let decl = declarations
+                .into_iter()
+                .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
+            let name_display = self.symbol_display_name(symbol);
+            self.error_at(
+                decl,
+                &diagnostics::Global_type_0_must_have_1_type_parameter_s,
+                &[&name_display, &arity.to_string()],
+            );
+            return Ok(None);
+        }
+        Ok(Some(symbol))
+    }
+
     /// tsc-port: getGlobalImportMetaType @6.0.3
     /// tsc-hash: 5878929c2e007e01d1eaf5b52ce202d1e12280d69ab682a934be124156976afd
     /// tsc-span: _tsc.js:60697-60699

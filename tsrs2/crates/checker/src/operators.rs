@@ -3658,28 +3658,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalOmitSymbol @6.0.3
     /// tsc-hash: eef048565108e47aa85500fb2a7275defd8d8a63cd9193179c79610e42230b80
     /// tsc-span: _tsc.js:60917-60926
+    ///
+    /// Miss AND wrong-arity (2317 in the shared worker) memoize
+    /// unknownSymbol.
     fn get_global_omit_symbol(&mut self) -> CheckResult2<Option<SymbolId>> {
-        if let Some(memo) = self.deferred_global_omit_symbol {
-            return Ok(memo.filter(|&s| s != self.unknown_symbol));
+        if self.deferred_global_omit_symbol.is_none() {
+            let resolved = self.get_global_type_alias_symbol("Omit", 2, /*report_errors*/ true)?;
+            self.deferred_global_omit_symbol =
+                Some(Some(resolved.unwrap_or(self.unknown_symbol)));
         }
-        let symbol = self.get_global_symbol(
-            "Omit",
-            SymbolFlags::TYPE_ALIAS,
-            Some(&tsrs2_diags::gen::Cannot_find_global_type_0),
-        );
-        if let Some(symbol) = symbol {
-            let type_parameters = self.type_alias_type_parameter_count(symbol)?;
-            if type_parameters != 2 {
-                return Err(Unsupported::new(
-                    "global Omit alias with non-2 arity (user-shadowed lib)",
-                ));
-            }
-            self.deferred_global_omit_symbol = Some(Some(symbol));
-            return Ok(Some(symbol));
-        }
-        let unknown = self.unknown_symbol;
-        self.deferred_global_omit_symbol = Some(Some(unknown));
-        Ok(None)
+        let memo = self
+            .deferred_global_omit_symbol
+            .expect("filled above")
+            .expect("memo holds symbol-or-unknown");
+        Ok((memo != self.unknown_symbol).then_some(memo))
     }
 
     // ---- nullish-coalescing operand probes ----
@@ -4766,24 +4758,23 @@ impl<'a> CheckerState<'a> {
         if let Some(memo) = self.deferred_global_awaited_symbol {
             return Ok(memo.filter(|&s| s != self.unknown_symbol));
         }
-        let diagnostic = report_errors.then_some(&tsrs2_diags::gen::Cannot_find_global_type_0);
-        let symbol = self.get_global_symbol("Awaited", SymbolFlags::TYPE_ALIAS, diagnostic);
-        if let Some(symbol) = symbol {
-            // getGlobalTypeAliasSymbol arity check: Awaited<T> is 1.
-            let type_parameters = self.type_alias_type_parameter_count(symbol)?;
-            if type_parameters != 1 {
-                return Err(Unsupported::new(
-                    "global Awaited alias with non-1 arity (user-shadowed lib)",
-                ));
+        // Miss/wrong-arity memoize unknownSymbol only under
+        // reportErrors (`|| (reportErrors2 ? unknownSymbol : void 0)`)
+        // — the silent flavor retries per call.
+        let resolved = self.get_global_type_alias_symbol("Awaited", 1, report_errors)?;
+        match resolved {
+            Some(symbol) => {
+                self.deferred_global_awaited_symbol = Some(Some(symbol));
+                Ok(Some(symbol))
             }
-            self.deferred_global_awaited_symbol = Some(Some(symbol));
-            return Ok(Some(symbol));
+            None => {
+                if report_errors {
+                    let unknown = self.unknown_symbol;
+                    self.deferred_global_awaited_symbol = Some(Some(unknown));
+                }
+                Ok(None)
+            }
         }
-        if report_errors {
-            let unknown = self.unknown_symbol;
-            self.deferred_global_awaited_symbol = Some(Some(unknown));
-        }
-        Ok(None)
     }
 
     // ---- operator-error display + await-hint plumbing ----
@@ -4801,21 +4792,6 @@ impl<'a> CheckerState<'a> {
         }
         let base_constraint = self.get_base_constraint_or_type(ty)?;
         Ok(self.maybe_type_of_kind(base_constraint, kind))
-    }
-
-    /// tsrs-native: the getGlobalTypeAliasSymbol arity read —
-    /// declared-type forcing plus the links typeParameters length.
-    pub(crate) fn type_alias_type_parameter_count(
-        &mut self,
-        symbol: SymbolId,
-    ) -> CheckResult2<usize> {
-        self.get_declared_type_of_symbol_slice(symbol)?;
-        Ok(self
-            .links
-            .symbol(symbol)
-            .type_parameters
-            .as_ref()
-            .map_or(0, |params| params.len()))
     }
 
     /// tsc-port: errorAndMaybeSuggestAwait @6.0.3

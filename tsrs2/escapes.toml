@@ -965,13 +965,6 @@ class = "untagged"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
-in = "get_global_extract_symbol"
-reason = "global Extract alias with non-2 arity (user-shadowed lib arity report, M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/indexed.rs"
 in = "get_simplified_index_type"
 reason = "getSimplifiedIndexType for mapped types (unported family, M8-stub)"
 class = "stage"
@@ -1370,18 +1363,6 @@ file = "crates/checker/src/operators.rs"
 in = "check_template_expression"
 reason = "template without head (parse-recovery tree)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "get_global_awaited_symbol"
-reason = "global Awaited alias with non-1 arity (user-shadowed lib)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "get_global_omit_symbol"
-reason = "global Omit alias with non-2 arity (user-shadowed lib)"
-class = "untagged"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
