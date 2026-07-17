@@ -1305,13 +1305,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
-in = "check_meta_property"
-reason = "checkImportMetaProperty (module-kind machinery, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
 in = "check_object_literal_destructuring_property_assignment"
 reason = "property assignment without a name (parse-recovery tree)"
 class = "recovery"

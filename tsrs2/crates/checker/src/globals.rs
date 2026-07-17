@@ -48,6 +48,10 @@ pub(crate) struct GlobalTypeMemos {
     /// short-circuit target is NOT: tsc retries the lookup per call
     /// while the memo stays undefined, so only a SUCCESS memoizes.
     import_call_options: Option<TypeId>,
+    /// deferredGlobalImportMetaType (60697) — reportErrors=true, and
+    /// (unlike ImportCallOptions) the `|| emptyObjectType` fallback
+    /// sits INSIDE tsc's assignment, so a miss memoizes too.
+    import_meta: Option<TypeId>,
     /// deferredGlobalImportAttributesType (60727).
     import_attributes: Option<TypeId>,
     /// deferredGlobalIterableType (60820).
@@ -571,6 +575,19 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         Ok(self.empty_object_type)
+    }
+
+    /// tsc-port: getGlobalImportMetaType @6.0.3
+    /// tsc-hash: 5878929c2e007e01d1eaf5b52ce202d1e12280d69ab682a934be124156976afd
+    /// tsc-span: _tsc.js:60697-60699
+    pub(crate) fn get_global_import_meta_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.import_meta {
+            return Ok(cached);
+        }
+        let resolved = self.get_global_type("ImportMeta", 0, /*report_errors*/ true)?;
+        let result = resolved.unwrap_or(self.empty_object_type);
+        self.global_type_memos.import_meta = Some(result);
+        Ok(result)
     }
 
     /// tsc-port: getGlobalImportAttributesType @6.0.3

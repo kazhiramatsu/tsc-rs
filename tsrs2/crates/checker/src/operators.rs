@@ -3025,13 +3025,43 @@ impl<'a> CheckerState<'a> {
         if self.meta_property_is_new(node) {
             return self.check_new_target_meta_property(node);
         }
-        let name_text = self.meta_property_name_text(node);
-        if name_text.as_deref() == Some("defer") {
-            return Ok(self.tables.intrinsics.error);
+        self.check_import_meta_property(node)
+    }
+
+    /// tsc-port: checkImportMetaProperty @6.0.3
+    /// tsc-hash: 837b45a1a83e00fcbf7db00b6b18ee49dcfae4e0b12546e105bd3d1a3050becd
+    /// tsc-span: _tsc.js:78099-78111
+    ///
+    /// The Node16..NodeNext arm reads impliedNodeFormat, which the
+    /// in-memory host derives from extensions only: .cts/.cjs files
+    /// error like tsc, plain .ts stays silent (recorded FN for
+    /// true-CJS node-flavor rows — the 1378/2854 fallthrough
+    /// precedent). The PossiblyContainsImportMeta Debug.assert is a
+    /// parser-flag internal invariant (elided).
+    fn check_import_meta_property(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let module_kind = self.options.emit_module_kind();
+        if (100..=199).contains(&module_kind) {
+            if self.implied_resolution_mode_from_extension(node)
+                == Some(crate::modules::ModuleResolutionMode::CommonJs)
+            {
+                self.error_at(
+                    Some(node),
+                    &tsrs2_diags::gen::The_import_meta_meta_property_is_not_allowed_in_files_which_will_build_into_CommonJS_output,
+                    &[],
+                );
+            }
+        } else if module_kind < 6 && module_kind != 4 {
+            self.error_at(
+                Some(node),
+                &tsrs2_diags::gen::The_import_meta_meta_property_is_only_allowed_when_the_module_option_is_es2020_es2022_esnext_system_node16_node18_node20_or_nodenext,
+                &[],
+            );
         }
-        Err(Unsupported::new(
-            "checkImportMetaProperty (module-kind machinery, 5.8)",
-        ))
+        if self.meta_property_name_text(node).as_deref() == Some("meta") {
+            self.get_global_import_meta_type()
+        } else {
+            Ok(self.tables.intrinsics.error)
+        }
     }
 
     /// The keywordToken read: `new.target` vs `import.meta` via the

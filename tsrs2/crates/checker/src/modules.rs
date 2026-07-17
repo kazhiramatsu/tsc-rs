@@ -54,7 +54,7 @@ pub(crate) enum ProgramModuleResolution {
 /// on an unmodeled package.json scope; treating it as either concrete
 /// mode would fabricate extension diagnostics or resolution hits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ModuleResolutionMode {
+pub(crate) enum ModuleResolutionMode {
     CommonJs,
     EsNext,
     Unknown,
@@ -2828,7 +2828,7 @@ impl<'a> CheckerState<'a> {
         None
     }
 
-    fn implied_resolution_mode_from_extension(
+    pub(crate) fn implied_resolution_mode_from_extension(
         &self,
         location: NodeId,
     ) -> Option<ModuleResolutionMode> {
