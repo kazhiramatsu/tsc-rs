@@ -59,6 +59,18 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("ratchet") => match args.next().as_deref() {
+            Some("check") => run_or_exit(ratchet_check(args)),
+            Some("update") => run_or_exit(ratchet_update(args)),
+            Some(other) => {
+                eprintln!("unknown ratchet command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing ratchet command (check|update)");
+                std::process::exit(2);
+            }
+        },
         Some("ledger") => match args.next().as_deref() {
             Some("check") => run_or_exit(ledger_check()),
             Some("write-backlog") => run_or_exit(ledger_write_backlog()),
@@ -72,7 +84,7 @@ fn main() {
                 std::process::exit(2);
             }
         },
-        Some("ci") => run_or_exit(ci()),
+        Some("ci") => run_or_exit(ci(args)),
         Some("escapes") => run_or_exit(escapes(args)),
         Some("codegen") => match args.next().as_deref() {
             Some("diags") => run_or_exit(codegen_diags(false)),
@@ -1779,6 +1791,39 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     );
     println!("mismatch json: {}", out_json.display());
     Ok(())
+}
+
+/// A1 set-monotone conformance state (measurement-integrity.md §2):
+/// `check` verifies both `ratchets/` artifacts against the tree and
+/// their append-only lineage (plus the trusted PR-base compare with
+/// `--baseline`); `update` measures the full corpus and adds
+/// identities only.
+fn ratchet_check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut baseline = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--baseline" => {
+                baseline = Some(args.next().ok_or("missing value after --baseline")?);
+            }
+            _ => return Err(format!("unexpected ratchet check argument: {arg}").into()),
+        }
+    }
+    tsrs2_conformance::ratchet::check(&find_tsrs2_root()?, baseline.as_deref())
+}
+
+fn ratchet_update(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut transition = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--transition" => {
+                transition = Some(args.next().ok_or("missing value after --transition")?);
+            }
+            _ => return Err(format!("unexpected ratchet update argument: {arg}").into()),
+        }
+    }
+    tsrs2_conformance::ratchet::update(&find_tsrs2_root()?, transition.as_deref())
 }
 
 struct ConformanceArgs {
@@ -3597,7 +3642,18 @@ fn decode_base64_value(byte: u8) -> Result<u8, Box<dyn Error>> {
     }
 }
 
-fn ci() -> Result<(), Box<dyn Error>> {
+fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut baseline = "origin/main".to_owned();
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--baseline" => {
+                baseline = args.next().ok_or("missing value after --baseline")?;
+            }
+            _ => return Err(format!("unexpected ci argument: {arg}").into()),
+        }
+    }
+
     run_command(
         Command::new("cargo")
             .arg("fmt")
@@ -3631,6 +3687,20 @@ fn ci() -> Result<(), Box<dyn Error>> {
     // net for the parser/binder invariants the 5.9a dead-guard
     // conversions lean on (m4-end-sweep-steps.md dead-guard policy).
     run_command(Command::new("cargo").arg("xtask").arg("bind-corpus"))?;
+    // A1 accepted-state coherence: artifact/inputs/lineage verify
+    // before the behavior runs that gate against them. Hosted PR CI
+    // supplies GitHub's immutable base SHA; local runs default to the
+    // origin/main convenience ref. The direct compare prevents a
+    // rewritten branch from replacing the accepted set with a smaller
+    // self-consistent chain.
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("ratchet")
+            .arg("check")
+            .arg("--baseline")
+            .arg(&baseline),
+    )?;
     run_command(Command::new("cargo").arg("xtask").arg("conformance"))?;
     run_command(
         Command::new("cargo")
@@ -3638,6 +3708,15 @@ fn ci() -> Result<(), Box<dyn Error>> {
             .arg("conformance")
             .arg("--band")
             .arg("2xxx"),
+    )?;
+    // The permanent syntactic gate (convergence invariant 3): parser
+    // fidelity is ratcheted independently on every merge so a
+    // semantic gain can never hide a syntactic regression.
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("conformance")
+            .arg("--syntactic-only"),
     )?;
     run_command(
         Command::new("cargo")

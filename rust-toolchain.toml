@@ -1,0 +1,9 @@
+# The merge gate (`cargo xtask ci`) must be deterministic across local
+# runs and hosted PR CI: clippy's lint set and rustfmt's output change
+# between stable releases, so an unpinned toolchain lets a runner-image
+# update fail gates that passed locally (observed: clippy 1.97 vs 1.93
+# divergence on while_let_loop). Bumping this pin is a deliberate,
+# reviewed change that re-runs the full gate suite.
+[toolchain]
+channel = "1.93.0"
+components = ["clippy", "rustfmt"]

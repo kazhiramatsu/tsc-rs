@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout full lineage
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Full-corpus passes once peaked at ~11.5 GB RSS (option-keyed
+      # lib-bundle multiplication — since fixed; ~1.7 GB now) and the
+      # pressure spike made systemd-oomd kill the runner agent
+      # ("runner has received a shutdown signal"). The headroom stays
+      # as defense in depth: checker working sets grow with every
+      # milestone, and this failure signature is expensive to
+      # rediagnose. /swapfile already exists on the image, hence the
+      # distinct path.
+      - name: Provision memory headroom for full-corpus passes
+        run: |
+          sudo systemctl stop systemd-oomd.service systemd-oomd.socket || true
+          sudo fallocate -l 8G /swap-gates
+          sudo chmod 600 /swap-gates
+          sudo mkswap /swap-gates
+          sudo swapon /swap-gates
+          free -h
+          df -h /
+
+      - name: Run merge gates against trusted PR base
+        working-directory: tsrs2
+        run: cargo xtask ci --baseline "${{ github.event.pull_request.base.sha }}"

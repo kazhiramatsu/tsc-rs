@@ -8,10 +8,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
+use toml_edit::{DocumentMut, Item, Table};
 use tsrs2_checker::{check_program, check_program_with_libs, CompilerOptions, InputFile};
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
+pub mod ratchet;
 mod scope;
 
 use scope::ScopeManifest;
@@ -467,7 +469,38 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
     })
 }
 
+/// A gating conformance run: enforces the accepted-set ratchet
+/// (measurement-integrity.md §2) on top of the integer/FP gates.
 pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<ConformanceSummary> {
+    run_conformance_inner(options, SetGate::Enforce).map(|run| run.summary)
+}
+
+/// The `ratchet update` measurement path: identical run, but it
+/// RETURNS the per-view identity sets instead of gating against the
+/// accepted artifact (which may not exist yet at bootstrap).
+pub(crate) fn run_conformance_collect(
+    options: &ConformanceOptions,
+) -> ConformanceResult<ConformanceRun> {
+    run_conformance_inner(options, SetGate::Collect)
+}
+
+pub struct ConformanceRun {
+    pub summary: ConformanceSummary,
+    /// Per fixed view (all/2xxx/syntactic): matched T0 buckets and
+    /// multiplicity-complete buckets, keyed fixture -> matrix.
+    pub sets: ratchet::RunSets,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum SetGate {
+    Enforce,
+    Collect,
+}
+
+fn run_conformance_inner(
+    options: &ConformanceOptions,
+    set_gate: SetGate,
+) -> ConformanceResult<ConformanceRun> {
     let fixtures = select_fixtures(&RefreshOptions {
         workspace: options.workspace.clone(),
         limit: options.limit,
@@ -477,6 +510,13 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     let goldens_root = options.workspace.join("goldens");
     let ratchet_path = options.workspace.join("ratchet.toml");
     let ratchet = read_ratchet(&ratchet_path, options.band)?;
+    // Partial runs (`--limit`, `--files`) are gated by the accepted-set
+    // projection below, not by the full-corpus integer counts.
+    let full_run = options.limit.is_none() && options.files.is_empty();
+    let accepted = match set_gate {
+        SetGate::Enforce => Some(ratchet::load_accepted_for_gating(&options.workspace)?),
+        SetGate::Collect => None,
+    };
     let t1_ratchet = if options.band == DiagnosticBand::All {
         Some(read_ratchet_section(&ratchet_path, "t1")?)
     } else {
@@ -484,6 +524,18 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     };
     let mut scope = ScopeManifest::load(&options.workspace.join("m8-scope.json"))?;
 
+    // Updates collect every fixed view into one accepted-state version.
+    // Gating runs measure only the explicitly selected fixed view, as
+    // required by measurement-integrity.md §2.
+    let measured_views = match set_gate {
+        SetGate::Collect => ratchet::FIXED_VIEWS.to_vec(),
+        SetGate::Enforce => vec![options.band],
+    };
+    let mut run_sets = measured_views
+        .iter()
+        .map(|view| (view.name().to_owned(), Default::default()))
+        .collect::<ratchet::RunSets>();
+    let mut executed_fixtures = BTreeSet::<String>::new();
     let mut case_count = 0usize;
     let mut exact_match_cases = 0usize;
     let mut oracle_diagnostics = 0usize;
@@ -512,14 +564,17 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     for fixture in &fixtures {
         let fixture_key = fixture_key(&options.workspace, fixture)?;
         let golden = read_golden(&goldens_root, &fixture_key)?;
-        if options.band == DiagnosticBand::Syntactic && golden.schema < 2 {
+        // Pass provenance is required whenever this run records or
+        // enforces the syntactic fixed view.
+        if measured_views.contains(&DiagnosticBand::Syntactic) && golden.schema < 2 {
             return Err(format!(
                 "golden {fixture_key} has schema {} without pass provenance; \
-                 run `cargo xtask oracle-refresh` before --syntactic-only",
+                 run `cargo xtask oracle-refresh`",
                 golden.schema
             )
             .into());
         }
+        executed_fixtures.insert(fixture_key.clone());
         let golden_by_matrix = golden
             .cases
             .iter()
@@ -533,7 +588,36 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
                 .ok_or_else(|| {
                     format!("missing golden case {fixture_key} [{}]", program.matrix_key)
                 })?;
-            let current = current_tsrs_diagnostics(&program, &vendor_lib_dir, options.band)?;
+            let case_tsrs = current_case_tsrs(&program, &vendor_lib_dir)?;
+            // Collection records every fixed view from one pass; a
+            // gating run records only its selected view.
+            for view in measured_views.iter().copied() {
+                let oracle_side = golden_case
+                    .oracle
+                    .iter()
+                    .filter(|diag| view.matches_oracle(diag));
+                let case_sets = match view {
+                    DiagnosticBand::Syntactic => {
+                        ratchet::bucket_sets(oracle_side, case_tsrs.syntactic.iter())
+                    }
+                    _ => ratchet::bucket_sets(
+                        oracle_side,
+                        case_tsrs.all.iter().filter(|diag| view.contains(diag.code)),
+                    ),
+                };
+                if !case_sets.matched.is_empty() {
+                    run_sets
+                        .entry(view.name().to_owned())
+                        .or_default()
+                        .entry(fixture_key.clone())
+                        .or_default()
+                        .insert(program.matrix_key.clone(), case_sets);
+                }
+            }
+            let current = match options.band {
+                DiagnosticBand::Syntactic => &case_tsrs.syntactic,
+                _ => &case_tsrs.all,
+            };
             let excluded = scope.exclusions_for_case(
                 &fixture_key,
                 &program.matrix_key,
@@ -636,7 +720,7 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
         }
     }
 
-    if options.limit.is_none() && options.files.is_empty() && options.band == DiagnosticBand::All {
+    if full_run && options.band == DiagnosticBand::All {
         scope.finish_full_validation()?;
     }
 
@@ -697,16 +781,39 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
     }
     fs::write(&options.out_json, serde_json::to_string_pretty(&summary)?)?;
 
+    if set_gate == SetGate::Collect {
+        return Ok(ConformanceRun {
+            summary,
+            sets: run_sets,
+        });
+    }
+
+    // The set ratchet first: it names the exact regressed identity,
+    // and it catches the swap the integer gate cannot (one new match
+    // traded for one removal). Partial runs enforce the projection to
+    // the executed fixtures.
+    if let Some(accepted) = &accepted {
+        ratchet::enforce_accepted(
+            &accepted.artifact,
+            &run_sets,
+            options.band,
+            &executed_fixtures,
+            full_run,
+        )?;
+    }
+
     // With matched/total recorded the comparison is exact (cross-
     // multiplied integers): a rounded `rate` float would let up to a
-    // few diagnostics regress silently.
-    let regressed = match (ratchet.matched, ratchet.total) {
-        (Some(matched), Some(total)) if summary.ratchet_allowed_regression == 0.0 => {
-            (summary.matched_t0_diagnostics as u128) * (total as u128)
-                < (matched as u128) * (summary.oracle_diagnostics as u128)
-        }
-        _ => summary.t0_rate + summary.ratchet_allowed_regression < summary.ratchet_rate,
-    };
+    // few diagnostics regress silently. Full runs only — a partial
+    // run's denominator is not the recorded corpus.
+    let regressed = full_run
+        && match (ratchet.matched, ratchet.total) {
+            (Some(matched), Some(total)) if summary.ratchet_allowed_regression == 0.0 => {
+                (summary.matched_t0_diagnostics as u128) * (total as u128)
+                    < (matched as u128) * (summary.oracle_diagnostics as u128)
+            }
+            _ => summary.t0_rate + summary.ratchet_allowed_regression < summary.ratchet_rate,
+        };
     if regressed {
         return Err(format!(
             "T0 ratchet regression: measured {:.6} ({}/{}), required {:.6} (allowed regression {:.6})",
@@ -718,7 +825,7 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
         )
         .into());
     }
-    if let Some(t1_ratchet) = t1_ratchet {
+    if let Some(t1_ratchet) = t1_ratchet.filter(|_| full_run) {
         let t1_regressed = match (t1_ratchet.matched, t1_ratchet.total) {
             (Some(matched), Some(total)) if t1_ratchet.allowed_regression == 0.0 => {
                 (summary.shadow_t1_matched as u128) * (total as u128)
@@ -753,7 +860,10 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
         .into());
     }
 
-    Ok(summary)
+    Ok(ConformanceRun {
+        summary,
+        sets: run_sets,
+    })
 }
 
 fn shadow_rate(matched: usize, total: usize) -> f64 {
@@ -961,11 +1071,18 @@ fn read_lib_inputs(
     Ok(inputs)
 }
 
-fn current_tsrs_diagnostics(
+/// One case's tsrs diagnostic streams. A single checker execution
+/// yields both the aggregate pass (the All/2XXX source) and the
+/// syntactic pass, so one run grades every fixed view.
+struct CaseTsrs {
+    all: Vec<GoldenDiag>,
+    syntactic: Vec<GoldenDiag>,
+}
+
+fn current_case_tsrs(
     program: &tsrs2_harness::ProgramJson,
     vendor_lib_dir: &Path,
-    band: DiagnosticBand,
-) -> ConformanceResult<Vec<GoldenDiag>> {
+) -> ConformanceResult<CaseTsrs> {
     let mut files = Vec::new();
     let mut file_texts = BTreeMap::new();
 
@@ -980,14 +1097,18 @@ fn current_tsrs_diagnostics(
 
     let libs = read_lib_inputs(&program.libs, vendor_lib_dir)?;
     let result = check_program_with_libs(&libs, &files, &compiler_options_from_program(program));
-    let diagnostics = match band {
-        DiagnosticBand::Syntactic => &result.syntactic_diagnostics,
-        _ => &result.diagnostics,
-    };
-    Ok(diagnostics
-        .iter()
-        .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
-        .collect())
+    Ok(CaseTsrs {
+        all: result
+            .diagnostics
+            .iter()
+            .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+            .collect(),
+        syntactic: result
+            .syntactic_diagnostics
+            .iter()
+            .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+            .collect(),
+    })
 }
 
 /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs. Fixture directive
@@ -1374,38 +1495,79 @@ fn read_ratchet(path: &Path, band: DiagnosticBand) -> ConformanceResult<Ratchet>
     read_ratchet_section(path, band.ratchet_key())
 }
 
+fn parse_ratchet_document(path: &Path, text: &str) -> ConformanceResult<DocumentMut> {
+    text.parse::<DocumentMut>()
+        .map_err(|err| format!("invalid ratchet.toml at {}: {err}", path.display()).into())
+}
+
+fn ratchet_section<'a>(
+    document: &'a DocumentMut,
+    path: &Path,
+    section: &str,
+) -> ConformanceResult<&'a Table> {
+    document
+        .as_table()
+        .get(section)
+        .and_then(Item::as_table)
+        .ok_or_else(|| {
+            format!(
+                "missing ratchet.toml section [{section}] in {}",
+                path.display()
+            )
+            .into()
+        })
+}
+
+fn ratchet_float(
+    table: &Table,
+    path: &Path,
+    section: &str,
+    key: &str,
+) -> ConformanceResult<Option<f64>> {
+    let Some(item) = table.get(key) else {
+        return Ok(None);
+    };
+    let parsed = item
+        .as_float()
+        .or_else(|| item.as_integer().map(|value| value as f64))
+        .ok_or_else(|| format!("[{section}].{key} must be a number in {}", path.display()))?;
+    if !parsed.is_finite() {
+        return Err(format!("[{section}].{key} must be finite in {}", path.display()).into());
+    }
+    Ok(Some(parsed))
+}
+
+fn ratchet_u64(
+    table: &Table,
+    path: &Path,
+    section: &str,
+    key: &str,
+) -> ConformanceResult<Option<u64>> {
+    let Some(item) = table.get(key) else {
+        return Ok(None);
+    };
+    let value = item.as_integer().ok_or_else(|| {
+        format!(
+            "[{section}].{key} must be a non-negative integer in {}",
+            path.display()
+        )
+    })?;
+    Ok(Some(u64::try_from(value).map_err(|_| {
+        format!(
+            "[{section}].{key} must be a non-negative integer in {}",
+            path.display()
+        )
+    })?))
+}
+
 fn read_ratchet_section(path: &Path, section: &str) -> ConformanceResult<Ratchet> {
     let text = fs::read_to_string(path)?;
-    let mut in_section = false;
-    let mut rate = None;
-    let mut matched = None;
-    let mut total = None;
-    let mut allowed_regression = None;
-
-    for raw_line in text.lines() {
-        let line = raw_line.split('#').next().unwrap_or("").trim();
-        if line.is_empty() {
-            continue;
-        }
-        if line.starts_with('[') && line.ends_with(']') {
-            in_section = &line[1..line.len() - 1] == section;
-            continue;
-        }
-        if !in_section {
-            continue;
-        }
-        let Some((key, value)) = line.split_once('=') else {
-            continue;
-        };
-        let value = value.trim();
-        match key.trim() {
-            "rate" => rate = Some(value.parse::<f64>()?),
-            "matched" => matched = Some(value.parse::<u64>()?),
-            "total" => total = Some(value.parse::<u64>()?),
-            "allowed_regression" => allowed_regression = Some(value.parse::<f64>()?),
-            _ => {}
-        }
-    }
+    let document = parse_ratchet_document(path, &text)?;
+    let table = ratchet_section(&document, path, section)?;
+    let rate = ratchet_float(table, path, section, "rate")?;
+    let matched = ratchet_u64(table, path, section, "matched")?;
+    let total = ratchet_u64(table, path, section, "total")?;
+    let allowed_regression = ratchet_float(table, path, section, "allowed_regression")?;
 
     if matched.is_some() != total.is_some() {
         return Err(format!(
@@ -1624,6 +1786,84 @@ mod tests {
         let (matched, total) = (ratchet.matched.unwrap(), ratchet.total.unwrap());
         assert!((4758u128) * (total as u128) >= (matched as u128) * (48573u128));
         assert!((4757u128) * (total as u128) < (matched as u128) * (48573u128));
+        fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn ratchet_parser_rejects_duplicate_sections_and_keys() {
+        let dir = temp_root("tsrs2-ratchet-duplicates-test");
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("ratchet.toml");
+
+        fs::write(
+            &path,
+            "[t0]\nrate = 0.1\nmatched = 1\ntotal = 10\n\
+             [t0]\nrate = 0.1\nmatched = 1\ntotal = 10\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("invalid ratchet.toml"), "{err}");
+
+        fs::write(
+            &path,
+            "[t0]\nrate = 0.1\nrate = 0.1\nmatched = 1\ntotal = 10\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("invalid ratchet.toml"), "{err}");
+
+        // Quoted and bare keys are the same TOML key. A text-level
+        // duplicate checker must not let this semantic duplicate
+        // bypass validation.
+        fs::write(
+            &path,
+            "[t0]\nrate = 0.1\n\"rate\" = 0.1\nmatched = 1\ntotal = 10\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("invalid ratchet.toml"), "{err}");
+
+        // Dotted and table syntax also share one semantic namespace.
+        // The TOML parser must reject a repeated dotted path.
+        fs::write(
+            &path,
+            "t0.rate = 0.1\nt0.\"rate\" = 0.1\nt0.matched = 1\nt0.total = 10\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("invalid ratchet.toml"), "{err}");
+
+        // Valid quoted names are resolved by their TOML meaning.
+        fs::write(&path, "[\"t0\"]\n\"rate\" = 0.1\nmatched = 1\ntotal = 10\n").unwrap();
+        let ratchet = read_ratchet(&path, DiagnosticBand::All).unwrap();
+        assert_eq!(ratchet.rate, 0.1);
+        assert_eq!(ratchet.matched, Some(1));
+
+        // A section expressed entirely with dotted keys is equivalent
+        // to the table form and must be accepted too.
+        fs::write(&path, "t0.rate = 0.1\nt0.matched = 1\nt0.total = 10\n").unwrap();
+        let ratchet = read_ratchet(&path, DiagnosticBand::All).unwrap();
+        assert_eq!(ratchet.rate, 0.1);
+        assert_eq!(ratchet.total, Some(10));
+
+        fs::write(
+            &path,
+            "[t0]\nrate = 0.1\nmatched = 1\ntotal = 10\nallowed_regression = nan\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("allowed_regression must be finite"), "{err}");
+
         fs::remove_file(&path).ok();
     }
 }

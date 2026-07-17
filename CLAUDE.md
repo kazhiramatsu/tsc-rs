@@ -20,7 +20,8 @@ there.
    body).
 3. **Merge criteria** — all gates green on the branch:
    `cargo xtask ci` (fmt --check, clippy -D warnings, build, tests,
-   relpin, conformance all + 2xxx with FP=0 and integer-ratchet
+   relpin, accepted-state lineage + trusted `origin/main` comparison,
+   conformance all + 2xxx + syntactic with FP=0 and set/integer-ratchet
    non-regression, invariants, ledger check, `escapes --stale $(cat
    tsrs2/STAGE)` incl. the untagged ceiling).
 4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
@@ -36,14 +37,22 @@ there.
 6. Trivial process/docs-only changes may land directly on `main`
    and be pushed.
 7. Pushing to `origin` is allowed and expected: push the slice branch
-   with `-u` while working. The PR enforces nothing by itself (no
-   Actions CI) — the real gate stays local `cargo xtask ci`; run it
-   before opening and before merging.
+   with `-u` while working. PR Actions runs the same full gate with the
+   immutable PR-base SHA; local `cargo xtask ci` remains required before
+   opening and before merging.
 
 ## Verification quick reference
 
-- Full gate suite: `cargo xtask ci` (from `tsrs2/`)
+- Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
+  (from `tsrs2/`; PR Actions supplies the immutable base SHA)
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
+  (every gating run also enforces the A1 accepted-set ratchet;
+  partial `--files`/`--limit` runs gate the executed-fixture
+  projection instead of the integer counts)
+- Accepted-set state: `cargo xtask ratchet check [--baseline
+  origin/main]` verifies `ratchets/` artifacts + lineage;
+  `cargo xtask ratchet update` re-measures and adds identities only
+  (never run it to "fix" a regression — fix the regression)
 - Escape expiry audit: `cargo xtask escapes --stale $(cat STAGE)`
   (also verifies `escapes.toml`; after adding/retiring an escape run
   `cargo xtask escapes --write-manifest` — the manifest diff is the
