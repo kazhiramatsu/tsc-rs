@@ -3396,14 +3396,15 @@ mod tests {
         // unrecoverable after the parse). getResolutionModeOverride
         // is LIVE (5.8d): zero attribute entries draw the
         // exactly-one-resolution-mode-key rows (oracle probe58d p5;
-        // the 2307s are the import-type resolution seam, still FN).
+        // the 2307 is the import-type resolution seam, LIVE since
+        // 5.9d's getTypeFromImportTypeNode).
         assert_eq!(
             checked_rows("type T = typeof import(\"./m\", { assert: {} });\n"),
-            [(2880, 40, 1), (1456, 40, 2)]
+            [(2880, 40, 1), (1456, 40, 2), (2307, 23, 5)]
         );
         assert_eq!(
             checked_rows("type U = typeof import(\"./m\", { with: {} });\n"),
-            [(1464, 38, 2)]
+            [(1464, 38, 2), (2307, 23, 5)]
         );
     }
 

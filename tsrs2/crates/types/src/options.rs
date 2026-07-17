@@ -119,14 +119,14 @@ pub struct CompilerOptions {
     /// extension row (shouldAllowImportingTsExtension) — a true value
     /// legalizes .ts-family specifiers.
     pub allow_importing_ts_extensions: Option<bool>,
+    /// tsc resolveJsonModule computed option. TS 6 enables it by
+    /// default for Node20/NodeNext module kinds and Bundler resolution.
+    pub resolve_json_module: Option<bool>,
     /// M4 5.8d: skipTypeCheckingWorker's first arm (18896) —
     /// declaration files produce NO bind/check diagnostics when set.
     /// 100 conformance fixtures carry the directive.
     pub skip_lib_check: Option<bool>,
-    /// jsxFactory/jsxFragmentFactory/jsxImportSource/reactNamespace:
-    /// carried so the 5.5f JSX slice can ESCAPE fixtures that
-    /// customize the namespace entity (pragma machinery + entity
-    /// parsing are unported — ledger).
+    /// JSX namespace/runtime customization options.
     pub jsx_factory: Option<String>,
     pub jsx_fragment_factory: Option<String>,
     pub jsx_import_source: Option<String>,
@@ -227,6 +227,13 @@ impl CompilerOptions {
     /// esModuleInterop/System derivation is gone).
     pub fn allow_synthetic_default_imports_effective(&self) -> bool {
         self.allow_synthetic_default_imports.unwrap_or(true)
+    }
+
+    pub fn resolve_json_module_effective(&self) -> bool {
+        self.resolve_json_module.unwrap_or_else(|| {
+            matches!(self.emit_module_kind(), 102 | 199)
+                || self.emit_module_resolution_kind() == 100
+        })
     }
 
     /// tsc shouldPreserveConstEnums = _computedOptions.preserveConstEnums

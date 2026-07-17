@@ -727,6 +727,27 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_flow_type_of_reference_stub(node, ty, ty, flow_container)
         };
+        let is_uninitialized_variable_declaration =
+            immediate_declaration.is_some_and(|declaration| {
+                matches!(
+                    self.data_of(declaration),
+                    NodeData::VariableDeclaration(data)
+                        if data.initializer.is_none() && data.exclamation_token.is_none()
+                )
+            });
+        if is_uninitialized_variable_declaration
+            && !self.contains_undefined_type(ty)
+            && assignment_kind == AssignmentKind::None
+        {
+            // The M5 flow seam cannot yet tell whether this reference
+            // should produce 2454. Mark this reference partial so an
+            // absent row cannot be misreported as an unused
+            // expectation without hiding unrelated directives.
+            self.mark_partially_checked_node(
+                node,
+                "flow-sensitive use-before-assignment diagnostic (M5)",
+            );
+        }
         if type_is_automatic {
             // The 7034/7005 auto-type arm: no producer assigns
             // auto/autoArrayType to a symbol until 5.6.

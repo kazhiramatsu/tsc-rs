@@ -271,7 +271,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::InferType => {
                 Err(Unsupported::new("infer types (unported family, M8-stub)"))
             }
-            SyntaxKind::ImportType => Err(Unsupported::new("import types (M4)")),
+            SyntaxKind::ImportType => self.get_type_from_import_type_node(node),
             // 63207: heritage ExpressionWithTypeArguments routes
             // through the same type-reference worker (getTypeReferenceName
             // reads the entity-name expression).
@@ -1295,55 +1295,7 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(self.tables.intrinsics.error);
         };
-        let flags = self.symbol_flags(symbol);
-        let resolved = if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
-            // getTypeReferenceType's tryGetDeclaredTypeOfSymbol arm
-            // (60400-60403): a type-argument list on a non-generic
-            // reference is the 2315 family via checkNoTypeArguments.
-            let declared = self.get_declared_type_of_type_parameter(symbol);
-            if !self.check_no_type_arguments(node, Some(symbol)) {
-                self.tables.intrinsics.error
-            } else {
-                self.tables.get_regular_type_of_literal_type(declared)
-            }
-        } else if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
-            self.get_type_from_class_or_interface_reference(node, symbol)?
-        } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
-            self.get_type_from_type_alias_reference(node, symbol)?
-        } else if flags.intersects(SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM) {
-            // tryGetDeclaredTypeOfSymbol arm (60391-60394): enums flow
-            // through the same checkNoTypeArguments +
-            // getRegularTypeOfLiteralType tail as type parameters.
-            let declared = self.get_declared_type_of_enum(symbol)?;
-            if !self.check_no_type_arguments(node, Some(symbol)) {
-                self.tables.intrinsics.error
-            } else {
-                self.tables.get_regular_type_of_literal_type(declared)
-            }
-        } else if flags.intersects(SymbolFlags::ENUM_MEMBER) {
-            let declared = self.get_declared_type_of_enum_member(symbol)?;
-            if !self.check_no_type_arguments(node, Some(symbol)) {
-                self.tables.intrinsics.error
-            } else {
-                self.tables.get_regular_type_of_literal_type(declared)
-            }
-        } else if flags.intersects(SymbolFlags::ALIAS) {
-            // tryGetDeclaredTypeOfSymbol's Alias arm
-            // (getDeclaredTypeOfAlias) — same checkNoTypeArguments +
-            // regular-literal tail as the other declared-type arms.
-            let declared = self.get_declared_type_of_symbol_slice(symbol)?;
-            if !self.check_no_type_arguments(node, Some(symbol)) {
-                self.tables.intrinsics.error
-            } else {
-                self.tables.get_regular_type_of_literal_type(declared)
-            }
-        } else {
-            // getTypeReferenceType tail (60391-60404): no declared
-            // type and not a JSDoc value reference — errorType. (The
-            // getExpandoSymbol hop at 60384 is a JS expando shape,
-            // elided project-wide.)
-            self.tables.intrinsics.error
-        };
+        let resolved = self.get_type_reference_type(node, symbol)?;
         // links.resolvedSymbol + links.resolvedType (60587-60588):
         // written together, and deliberately OVERWRITE-capable — the
         // type-parameter-default recursion can complete an inner
@@ -1610,6 +1562,320 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc getIdentifierChain (62814-62820): the qualifier's left
+    /// spine, head-first.
+    fn identifier_chain(&self, node: NodeId) -> Vec<NodeId> {
+        let mut rights = Vec::new();
+        let mut current = Some(node);
+        while let Some(node) = current {
+            match self.data_of(node) {
+                NodeData::QualifiedName(data) => {
+                    if let Some(right) = data.right {
+                        rights.push(right);
+                    }
+                    current = data.left;
+                }
+                _ => {
+                    rights.push(node);
+                    current = None;
+                }
+            }
+        }
+        rights.reverse();
+        rights
+    }
+
+    /// tsc-port: getFullyQualifiedName @6.0.3
+    /// tsc-hash: 30098265216734ac1ab039c9b23d5a0c3c8cc578a2ea153ad77edaed4461564c
+    /// tsc-span: _tsc.js:49253-49261
+    ///
+    /// The parent chain joined with "."; each link renders as the
+    /// symbol-name face of symbolToString (DoNotIncludeSymbolChain).
+    /// External source-file symbols use the host's absolute normalized
+    /// path, matching the in-memory oracle host.
+    pub(crate) fn get_fully_qualified_name(&self, symbol: SymbolId) -> String {
+        let mut parts = Vec::new();
+        let mut current = Some(symbol);
+        while let Some(symbol) = current {
+            let data = self.binder.symbol(symbol);
+            let mut display = self.symbol_display_name(symbol);
+            if data.parent.is_none()
+                && data
+                    .declarations
+                    .iter()
+                    .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile)
+            {
+                if let Some(module_name) = display
+                    .strip_prefix('"')
+                    .and_then(|name| name.strip_suffix('"'))
+                {
+                    display = format!("\"{}\"", Self::normalize_program_path(module_name, ""));
+                }
+            }
+            parts.push(display);
+            current = data.parent;
+        }
+        parts.reverse();
+        parts.join(".")
+    }
+
+    /// tsc-port: getTypeFromImportTypeNode @6.0.3
+    /// tsc-hash: dad655f20dabdd232312b802a018d4a4a24c8b31bc04bf1eb84fad23afd7b59b
+    /// tsc-span: _tsc.js:62821-62880
+    ///
+    /// The JSDoc meaning arm (flags & JSDoc → Value|Type) and the
+    /// isInJSFile export= variable probe are JS-band ([JSDOC] policy);
+    /// TS files reduce the symbolFromVariable arm to the isTypeOf
+    /// case.
+    fn get_type_from_import_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+            return Ok(cached);
+        }
+        let NodeData::ImportType(data) = self.data_of(node) else {
+            unreachable!("kind/data agree");
+        };
+        let argument = data.argument;
+        let qualifier = data.qualifier;
+        let type_arguments = data.type_arguments;
+        // isLiteralImportTypeNode: the argument is a LiteralType over
+        // a string literal.
+        let literal = argument
+            .and_then(|argument| match self.data_of(argument) {
+                NodeData::LiteralType(data) => data.literal,
+                _ => None,
+            })
+            .filter(|&literal| self.kind_of(literal) == SyntaxKind::StringLiteral);
+        let Some(literal) = literal else {
+            let argument = argument.expect("parser invariant: ImportType argument always parsed");
+            self.error_at(Some(argument), &diagnostics::String_literal_expected, &[]);
+            let unknown = self.unknown_symbol;
+            self.links
+                .overwrite_import_type_resolved_symbol(self.speculation_depth, node, unknown);
+            let error = self.tables.intrinsics.error;
+            self.links
+                .overwrite_import_type_resolved_type(self.speculation_depth, node, error);
+            return Ok(error);
+        };
+        let is_type_of = self.import_type_is_type_of(node);
+        let target_meaning = if is_type_of {
+            SymbolFlags::VALUE
+        } else {
+            SymbolFlags::TYPE
+        };
+        let inner_module_symbol = self.resolve_external_module_name(node, literal, false)?;
+        let Some(inner_module_symbol) = inner_module_symbol else {
+            let unknown = self.unknown_symbol;
+            self.links
+                .overwrite_import_type_resolved_symbol(self.speculation_depth, node, unknown);
+            let error = self.tables.intrinsics.error;
+            self.links
+                .overwrite_import_type_resolved_type(self.speculation_depth, node, error);
+            return Ok(error);
+        };
+        // isExportEquals feeds only the isInJSFile variable probe —
+        // dead in TS files, kept out with the JS-band elision.
+        let module_symbol = self
+            .resolve_external_module_symbol(Some(inner_module_symbol), false)?
+            .expect("resolveExternalModuleSymbol of Some is Some");
+        let source = self.binder.source_of_node(node);
+        let qualifier =
+            qualifier.filter(|&qualifier| !node_util::node_is_missing(source, Some(qualifier)));
+        let resolved = if let Some(qualifier) = qualifier {
+            let mut name_stack = self.identifier_chain(qualifier);
+            name_stack.reverse(); // pop() consumes head-first
+            let mut current_namespace = module_symbol;
+            while let Some(current) = name_stack.pop() {
+                let meaning = if !name_stack.is_empty() {
+                    SymbolFlags::NAMESPACE
+                } else {
+                    target_meaning
+                };
+                let merged_resolved = {
+                    let resolved = self
+                        .resolve_symbol_ex(Some(current_namespace), false)?
+                        .expect("resolveSymbol of Some is Some");
+                    self.get_merged_symbol(resolved)
+                };
+                let current_text = self
+                    .identifier_text_of(current)
+                    .map(str::to_owned)
+                    .unwrap_or_default();
+                let symbol_from_variable = if is_type_of {
+                    let ty = self.get_type_of_symbol(merged_resolved)?;
+                    self.get_property_of_type_ex_with_include_type_only_members(
+                        ty,
+                        &current_text,
+                        /*skip_object_function_property_augment*/ false,
+                        /*include_type_only_members*/ true,
+                    )?
+                } else {
+                    None
+                };
+                let symbol_from_module = if is_type_of {
+                    None
+                } else {
+                    let exports = self.get_exports_of_symbol(merged_resolved)?;
+                    self.get_symbol_in_table(&exports, &current_text, meaning)?
+                };
+                let next = symbol_from_module.or(symbol_from_variable);
+                let Some(next) = next else {
+                    let namespace_name = self.get_fully_qualified_name(current_namespace);
+                    let declaration_name = tsrs2_binder::node_util::declaration_name_to_string(
+                        self.binder.source_of_node(current),
+                        Some(current),
+                    );
+                    self.error_at(
+                        Some(current),
+                        &diagnostics::Namespace_0_has_no_exported_member_1,
+                        &[&namespace_name, &declaration_name],
+                    );
+                    let error = self.tables.intrinsics.error;
+                    self.links.overwrite_import_type_resolved_type(
+                        self.speculation_depth,
+                        node,
+                        error,
+                    );
+                    return Ok(error);
+                };
+                self.links
+                    .set_node_resolved_symbol(self.speculation_depth, current, next);
+                if let Some(parent) = self.parent_of(current) {
+                    // For a one-deep chain the parent IS the node —
+                    // resolveImportSymbolType overwrites it below.
+                    self.links.overwrite_import_type_resolved_symbol(
+                        self.speculation_depth,
+                        parent,
+                        next,
+                    );
+                }
+                current_namespace = next;
+            }
+            self.resolve_import_symbol_type(
+                node,
+                current_namespace,
+                target_meaning,
+                type_arguments,
+            )?
+        } else if self.symbol_flags(module_symbol).intersects(target_meaning) {
+            self.resolve_import_symbol_type(node, module_symbol, target_meaning, type_arguments)?
+        } else {
+            let message = if target_meaning == SymbolFlags::VALUE {
+                &diagnostics::Module_0_does_not_refer_to_a_value_but_is_used_as_a_value_here
+            } else {
+                &diagnostics::Module_0_does_not_refer_to_a_type_but_is_used_as_a_type_here_Did_you_mean_typeof_import_0
+            };
+            let text = match self.data_of(literal) {
+                NodeData::StringLiteral(data) => data.text.clone(),
+                _ => String::new(),
+            };
+            self.error_at(Some(node), message, &[&text]);
+            let unknown = self.unknown_symbol;
+            self.links
+                .overwrite_import_type_resolved_symbol(self.speculation_depth, node, unknown);
+            self.tables.intrinsics.error
+        };
+        self.links
+            .overwrite_import_type_resolved_type(self.speculation_depth, node, resolved);
+        Ok(resolved)
+    }
+
+    /// tsc-port: resolveImportSymbolType @6.0.3
+    /// tsc-hash: 1c4e70727336c449bfa217db38b9d8c6fd6f57f3efab9e37d0b3b328494dba19
+    /// tsc-span: _tsc.js:62881-62889
+    fn resolve_import_symbol_type(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+        meaning: SymbolFlags,
+        type_arguments: Option<tsrs2_syntax::NodeArrayId>,
+    ) -> CheckResult2<TypeId> {
+        let resolved_symbol = self
+            .resolve_symbol_ex(Some(symbol), false)?
+            .expect("resolveSymbol of Some is Some");
+        self.links.overwrite_import_type_resolved_symbol(
+            self.speculation_depth,
+            node,
+            resolved_symbol,
+        );
+        if meaning == SymbolFlags::VALUE {
+            // getInstantiationExpressionType over the UNRESOLVED
+            // symbol's type (tsc passes `symbol`, not resolvedSymbol).
+            let ty = self.get_type_of_symbol(symbol)?;
+            self.get_instantiation_expression_type(ty, node, type_arguments)
+        } else {
+            self.get_type_reference_type(node, resolved_symbol)
+        }
+    }
+
+    /// tsc-port: getTypeReferenceType @6.0.3
+    /// tsc-hash: 1d3bb11d32016e858176958d0e8a751ce27e803f102fdc348b82c2faa278c6c1
+    /// tsc-span: _tsc.js:60380-60405
+    ///
+    /// The per-symbol-kind dispatch shared by type references and
+    /// import types. tryGetDeclaredTypeOfSymbol's arms are inlined
+    /// (type parameter / enums / enum member / alias — each with the
+    /// checkNoTypeArguments + getRegularTypeOfLiteralType tail). The
+    /// getExpandoSymbol hop (60384) is a JS expando shape and the
+    /// JSDoc value-reference fallback is JS-band — both elided
+    /// project-wide.
+    fn get_type_reference_type(&mut self, node: NodeId, symbol: SymbolId) -> CheckResult2<TypeId> {
+        if symbol == self.unknown_symbol {
+            // 60381-60383.
+            return Ok(self.tables.intrinsics.error);
+        }
+        let flags = self.symbol_flags(symbol);
+        if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+            // tryGetDeclaredTypeOfSymbol arm (60400-60403): a
+            // type-argument list on a non-generic reference is the
+            // 2315 family via checkNoTypeArguments.
+            let declared = self.get_declared_type_of_type_parameter(symbol);
+            return Ok(if !self.check_no_type_arguments(node, Some(symbol)) {
+                self.tables.intrinsics.error
+            } else {
+                self.tables.get_regular_type_of_literal_type(declared)
+            });
+        }
+        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
+            return self.get_type_from_class_or_interface_reference(node, symbol);
+        }
+        if flags.intersects(SymbolFlags::TYPE_ALIAS) {
+            return self.get_type_from_type_alias_reference(node, symbol);
+        }
+        if flags.intersects(SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM) {
+            // tryGetDeclaredTypeOfSymbol arm (60391-60394): enums flow
+            // through the same checkNoTypeArguments +
+            // getRegularTypeOfLiteralType tail as type parameters.
+            let declared = self.get_declared_type_of_enum(symbol)?;
+            return Ok(if !self.check_no_type_arguments(node, Some(symbol)) {
+                self.tables.intrinsics.error
+            } else {
+                self.tables.get_regular_type_of_literal_type(declared)
+            });
+        }
+        if flags.intersects(SymbolFlags::ENUM_MEMBER) {
+            let declared = self.get_declared_type_of_enum_member(symbol)?;
+            return Ok(if !self.check_no_type_arguments(node, Some(symbol)) {
+                self.tables.intrinsics.error
+            } else {
+                self.tables.get_regular_type_of_literal_type(declared)
+            });
+        }
+        if flags.intersects(SymbolFlags::ALIAS) {
+            // tryGetDeclaredTypeOfSymbol's Alias arm
+            // (getDeclaredTypeOfAlias) — same checkNoTypeArguments +
+            // regular-literal tail as the other declared-type arms.
+            let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+            return Ok(if !self.check_no_type_arguments(node, Some(symbol)) {
+                self.tables.intrinsics.error
+            } else {
+                self.tables.get_regular_type_of_literal_type(declared)
+            });
+        }
+        // getTypeReferenceType tail (60391-60404): no declared type
+        // and not a JSDoc value reference — errorType.
+        Ok(self.tables.intrinsics.error)
+    }
+
     /// tsc-port: getEffectiveTypeArguments @6.0.3
     /// tsc-hash: 6c12eff78b7503813dedde829e82b7ada2fbdded78d792dcc7da0591fe9498a2
     /// tsc-span: _tsc.js:81679-81681
@@ -1665,6 +1931,7 @@ impl<'a> CheckerState<'a> {
             let node_type_arguments = match self.data_of(node) {
                 NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
                 NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+                NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
                 _ => Vec::new(),
             };
             let num_type_arguments = node_type_arguments.len();
@@ -1812,6 +2079,7 @@ impl<'a> CheckerState<'a> {
             let node_type_arguments = match self.data_of(node) {
                 NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
                 NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+                NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
                 _ => Vec::new(),
             };
             let num_type_arguments = node_type_arguments.len();
@@ -1966,6 +2234,7 @@ impl<'a> CheckerState<'a> {
         let type_arguments = match self.data_of(node) {
             NodeData::TypeReference(data) => data.type_arguments,
             NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
+            NodeData::ImportType(data) => data.type_arguments,
             _ => None,
         };
         if type_arguments.is_some() {
@@ -5107,7 +5376,7 @@ impl<'a> CheckerState<'a> {
     /// stableTypeOrdering is off by default: insertion order (the
     /// binder's IndexMap order) is the observable order. symbolIsValue's
     /// alias-resolution branch is M4; members here are value members.
-    fn get_named_members(&self, members: &tsrs2_binder::SymbolTable) -> Vec<SymbolId> {
+    pub(crate) fn get_named_members(&self, members: &tsrs2_binder::SymbolTable) -> Vec<SymbolId> {
         members
             .iter()
             .filter(|(name, &symbol)| {
@@ -5478,6 +5747,47 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         let declaration = self.binder.symbol(symbol).value_declaration;
+        if let Some(declaration) = declaration {
+            if self.kind_of(declaration) == SyntaxKind::SourceFile
+                && self
+                    .binder
+                    .source_of_node(declaration)
+                    .file_name
+                    .ends_with(".json")
+            {
+                let statements = match self.data_of(declaration) {
+                    NodeData::SourceFile(data) => data.statements,
+                    _ => None,
+                };
+                let expression = statements
+                    .and_then(|statements| {
+                        self.binder
+                            .source_of_node(declaration)
+                            .arena
+                            .node_array(statements)
+                            .nodes
+                            .first()
+                            .copied()
+                    })
+                    .and_then(|statement| match self.data_of(statement) {
+                        NodeData::ExpressionStatement(data) => data.expression,
+                        _ => None,
+                    });
+                let resolved = if let Some(expression) = expression {
+                    let checked = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+                    let literal_widened = self.get_widened_literal_type(checked)?;
+                    self.get_widened_type(literal_widened)?
+                } else {
+                    self.empty_object_type
+                };
+                self.links.set_symbol_type(
+                    self.speculation_depth,
+                    symbol,
+                    LinkSlot::Resolved(resolved),
+                );
+                return Ok(resolved);
+            }
+        }
         // 56670-56671: accessor-kinded value declarations route to
         // getTypeOfAccessors ahead of the resolution stack (merged
         // property+accessor shapes; auto-accessor PropertyDeclarations
@@ -5870,6 +6180,141 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<TypeId>> {
         match self.effective_type_annotation_node(declaration) {
             Some(annotation) => Ok(Some(self.get_type_from_type_node(annotation)?)),
+            None => self.get_type_from_jsdoc_type_tag(declaration),
+        }
+    }
+
+    fn get_type_from_jsdoc_type_tag(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if !self.is_in_js_file(declaration) {
+            return Ok(None);
+        }
+        let source = self.binder.source_of_node(declaration);
+        let anchor = self.name_of_node(declaration).unwrap_or(declaration);
+        let anchor_pos = source.arena.node(anchor).pos as usize;
+        let prefix = &source.text[..anchor_pos.min(source.text.len())];
+        let Some(comment_start) = prefix.rfind("/**") else {
+            return Ok(None);
+        };
+        let after_start = &prefix[comment_start + 3..];
+        let Some(relative_end) = after_start.find("*/") else {
+            return Ok(None);
+        };
+        let comment_end = comment_start + 3 + relative_end + 2;
+        let between = prefix[comment_end..].trim();
+        if !matches!(between, "" | "let" | "const" | "var")
+            && !between.ends_with(" let")
+            && !between.ends_with(" const")
+            && !between.ends_with(" var")
+        {
+            return Ok(None);
+        }
+        let comment = &prefix[comment_start + 3..comment_end - 2];
+        let lower = comment.to_ascii_lowercase();
+        if lower.contains("@typedef") || lower.contains("@callback") || lower.contains("@enum") {
+            return Ok(None);
+        }
+        let Some(tag) = lower.match_indices("@type").find_map(|(index, _)| {
+            let tail = &lower[index + "@type".len()..];
+            tail.chars()
+                .next()
+                .is_none_or(|character| character.is_whitespace() || character == '{')
+                .then_some(index)
+        }) else {
+            return Ok(None);
+        };
+        let tail = &comment[tag + "@type".len()..];
+        let Some(open) = tail.find('{') else {
+            return Ok(None);
+        };
+        let Some(close) = tail[open + 1..].find('}') else {
+            return Ok(None);
+        };
+        let type_text = tail[open + 1..open + 1 + close].trim();
+        let resolved = self.get_type_from_jsdoc_text(declaration, type_text)?;
+        if resolved.is_some() {
+            self.jsdoc_typed_declarations.insert(declaration);
+        }
+        Ok(resolved)
+    }
+
+    fn get_type_from_jsdoc_text(
+        &mut self,
+        location: NodeId,
+        text: &str,
+    ) -> CheckResult2<Option<TypeId>> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Ok(None);
+        }
+        let text = text
+            .strip_prefix('(')
+            .and_then(|inner| inner.strip_suffix(')'))
+            .unwrap_or(text)
+            .trim();
+        let union_parts: Vec<&str> = text
+            .split('|')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .collect();
+        if union_parts.len() > 1 {
+            let mut types = Vec::with_capacity(union_parts.len());
+            for part in union_parts {
+                let Some(ty) = self.get_type_from_jsdoc_text(location, part)? else {
+                    return Ok(None);
+                };
+                types.push(ty);
+            }
+            return self
+                .get_union_type_ex(&types, tsrs2_types::UnionReduction::Literal)
+                .map(Some);
+        }
+        if let Some(nullable) = text.strip_prefix('?') {
+            let Some(ty) = self.get_type_from_jsdoc_text(location, nullable)? else {
+                return Ok(None);
+            };
+            let null = self.tables.intrinsics.null;
+            return self
+                .get_union_type_ex(&[ty, null], tsrs2_types::UnionReduction::Literal)
+                .map(Some);
+        }
+        let text = text.strip_prefix('!').unwrap_or(text).trim();
+        if let Some(element) = text.strip_suffix("[]") {
+            let Some(element) = self.get_type_from_jsdoc_text(location, element)? else {
+                return Ok(None);
+            };
+            return self.create_array_type(element, false).map(Some);
+        }
+        let intrinsic = match text {
+            "*" | "any" => Some(self.tables.intrinsics.any),
+            "?" | "unknown" => Some(self.tables.intrinsics.unknown),
+            "undefined" => Some(self.tables.intrinsics.undefined),
+            "null" => Some(self.tables.intrinsics.null),
+            "string" | "String" => Some(self.tables.intrinsics.string),
+            "number" | "Number" => Some(self.tables.intrinsics.number),
+            "bigint" | "BigInt" => Some(self.tables.intrinsics.bigint),
+            "boolean" | "Boolean" => Some(self.tables.intrinsics.boolean),
+            "symbol" | "Symbol" => Some(self.tables.intrinsics.es_symbol),
+            "void" => Some(self.tables.intrinsics.void),
+            "never" => Some(self.tables.intrinsics.never),
+            "object" | "Object" => Some(self.tables.intrinsics.non_primitive),
+            _ => None,
+        };
+        if intrinsic.is_some() {
+            return Ok(intrinsic);
+        }
+        let symbol = self.resolve_name(
+            Some(location),
+            text,
+            SymbolFlags::TYPE,
+            None,
+            /*is_use*/ false,
+            /*exclude_globals*/ false,
+        )?;
+        match symbol {
+            Some(symbol) => self.get_declared_type_of_symbol_slice(symbol).map(Some),
             None => Ok(None),
         }
     }
@@ -6099,11 +6544,11 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::EnumMember
         ) && self.initializer_of(declaration).is_some();
         if has_expression_initializer {
-            if self.is_in_js_file(declaration) && kind != SyntaxKind::Parameter {
-                return Err(Unsupported::new(
-                    "JS container object type (getJSContainerObjectType [JSDOC] M8)",
-                ));
-            }
+            // getJSContainerObjectType may refine this through JSDoc
+            // declarations. In their absence, the ordinary
+            // initializer inference path is the same observable
+            // fallback and keeps checked-JS declarations fully
+            // checked.
             let initializer_type =
                 self.check_declaration_initializer(declaration, check_mode, None)?;
             let widened =

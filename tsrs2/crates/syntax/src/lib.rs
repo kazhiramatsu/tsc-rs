@@ -67,6 +67,21 @@ pub fn parse_json_text(file_name: impl Into<String>, text: impl Into<String>) ->
     parser::parse_json_text(file_name.into(), text.into())
 }
 
+/// `parse_json_text` with explicit arena bases for a multi-file program.
+pub fn parse_json_text_with_bases(
+    file_name: impl Into<String>,
+    text: impl Into<String>,
+    node_id_base: u32,
+    node_array_id_base: u32,
+) -> SourceFile {
+    parser::parse_json_text_with_bases(
+        file_name.into(),
+        text.into(),
+        node_id_base,
+        node_array_id_base,
+    )
+}
+
 /// tsc stringToToken for keyword lookup (identifierToKeywordKind path):
 /// Some only for keyword kinds.
 pub fn keyword_kind(text: &str) -> Option<SyntaxKind> {

@@ -2325,17 +2325,17 @@ impl<'a> CheckerState<'a> {
         span: &DiagSpan,
         head: &'static DiagnosticMessage,
     ) -> CheckResult2<Diagnostic> {
-        if head.code
+        // 65111: the 2345→2379 head swap under
+        // exactOptionalPropertyTypes.
+        let head = if head.code
             == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
             && self.options.exact_optional_property_types.unwrap_or(false)
+            && self.has_exact_optional_unassignable_properties(source, target)?
         {
-            // 65111: the 2345→exactOptionalPropertyTypes head variant
-            // needs getExactOptionalUnassignableProperties — escape
-            // under the option rather than mis-pick the code.
-            return Err(Unsupported::new(
-                "exactOptionalPropertyTypes argument-head variant selection",
-            ));
-        }
+            &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties
+        } else {
+            head
+        };
         let source_text = self.type_to_string_slice(source)?;
         let target_text = self.type_to_string_slice(target)?;
         // 65069-65072: literal sources generalize to their base
@@ -2350,6 +2350,30 @@ impl<'a> CheckerState<'a> {
             source_text
         };
         Ok(self.diagnostic_at_span(span, MessageChain::new(head, &[source_text, target_text])))
+    }
+
+    /// tsc-port: getExactOptionalUnassignableProperties @6.0.3
+    /// tsc-hash: b8fb5d73a798dd33fc44c99fe19d5c91b0a4888656acf988ab30103a2735a1a9
+    /// tsc-span: _tsc.js:67246-67249
+    ///
+    /// Consumers read only `.length` — the boolean face.
+    fn has_exact_optional_unassignable_properties(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<bool> {
+        if self.tables.is_tuple_type(source) && self.tables.is_tuple_type(target) {
+            return Ok(false);
+        }
+        for target_prop in self.get_properties_of_type(target)? {
+            let name = self.binder.symbol(target_prop).escaped_name.clone();
+            let source_type = self.get_type_of_property_of_type(source, &name)?;
+            let target_type = self.get_type_of_symbol(target_prop)?;
+            if self.is_exact_optional_property_mismatch(source_type, Some(target_type))? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     // ---- elaboration gate ----
@@ -2807,42 +2831,66 @@ impl<'a> CheckerState<'a> {
         if tag_call_signatures.is_empty() {
             return Ok(None);
         }
+        // resolveEntityName(React.createElement, Value, ignoreErrors,
+        // dontResolveAlias=false, node) over the SYNTHESIZED factory
+        // entity, transcribed arm by arm (no arena node to hand the
+        // ported resolveEntityName). Synthesized ⇒ not a JS-file name
+        // (namespaceMeaning = 1920 exactly), no JS-prototype secondary
+        // lookup, no type-only alias marking. The CJS-require namespace
+        // re-resolution (JS valueDeclaration) is the same ledgered
+        // JS-band slice as resolve_entity_name_ex's.
         let factory_namespace = self.get_jsx_namespace_name(node);
         let namespace_symbol = self.resolve_name(
             Some(node),
             &factory_namespace,
             SymbolFlags::NAMESPACE,
             /*name_not_found_message*/ None,
-            /*is_use*/ false,
+            /*is_use*/ true,
             /*exclude_globals*/ false,
         )?;
         let Some(namespace_symbol) = namespace_symbol else {
             return Ok(None);
         };
-        if self
+        let namespace_symbol = self.get_merged_symbol(namespace_symbol);
+        // The left leg's tail hop: an alias without Namespace meaning
+        // resolves before the exports probe.
+        let namespace_symbol = if self
             .symbol_flags(namespace_symbol)
-            .intersects(SymbolFlags::ALIAS)
+            .intersects(SymbolFlags::NAMESPACE)
         {
-            return Err(Unsupported::new(
-                "aliased JSX factory namespace (alias resolution, 5.8)",
-            ));
+            namespace_symbol
+        } else {
+            self.resolve_alias(namespace_symbol)?
+        };
+        if namespace_symbol == self.unknown_symbol {
+            // tsc returns unknownSymbol through: getTypeOfSymbol answers
+            // errorType, which has no call signatures — the check passes.
+            return Ok(None);
         }
-        let exports = self.get_exports_of_jsx_factory_symbol(namespace_symbol)?;
-        let factory_symbol = match exports.get("createElement").copied() {
-            Some(symbol) => {
-                let symbol = self.get_merged_symbol(symbol);
-                let flags = self.symbol_flags(symbol);
-                if flags.intersects(SymbolFlags::VALUE) {
-                    symbol
-                } else if flags.intersects(SymbolFlags::ALIAS) {
-                    return Err(Unsupported::new(
-                        "aliased JSX factory member (alias resolution, 5.8)",
-                    ));
-                } else {
-                    return Ok(None);
-                }
-            }
-            None => return Ok(None),
+        let exports = self.get_exports_of_symbol(namespace_symbol)?;
+        let mut factory_symbol =
+            self.get_symbol_in_table(&exports, "createElement", SymbolFlags::VALUE)?;
+        if factory_symbol.is_none()
+            && self
+                .symbol_flags(namespace_symbol)
+                .intersects(SymbolFlags::ALIAS)
+        {
+            let resolved = self.resolve_alias(namespace_symbol)?;
+            let exports = self.get_exports_of_symbol(resolved)?;
+            factory_symbol =
+                self.get_symbol_in_table(&exports, "createElement", SymbolFlags::VALUE)?;
+        }
+        let Some(factory_symbol) = factory_symbol else {
+            return Ok(None);
+        };
+        // resolveEntityName's tail hop (meaning = Value).
+        let factory_symbol = if self
+            .symbol_flags(factory_symbol)
+            .intersects(SymbolFlags::VALUE)
+        {
+            factory_symbol
+        } else {
+            self.resolve_alias(factory_symbol)?
         };
         let factory_type = self.get_type_of_symbol(factory_symbol)?;
         let call_signatures = self.get_signatures_of_type(factory_type, SignatureKind::Call)?;
@@ -4542,9 +4590,25 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.any_signature);
             }
             if super_type != self.tables.intrinsics.error {
-                // getEffectiveBaseTypeNode + getInstantiatedConstructors
-                // ForTypeArguments needs constructor-body forcing.
-                return Err(Unsupported::new("super base constructors (5.8)"));
+                // getEffectiveBaseTypeNode = the extends heritage
+                // element in TS files (the JS @augments divergence is
+                // the checkClassLikeDeclaration elision).
+                let base_type_node = self
+                    .get_containing_class_of(node)
+                    .and_then(|class| self.get_class_extends_heritage_element(class));
+                if let Some(base_type_node) = base_type_node {
+                    let base_constructors = self.get_instantiated_constructors_for_type_arguments(
+                        super_type,
+                        base_type_node,
+                    )?;
+                    return self.resolve_call(
+                        node,
+                        &base_constructors,
+                        check_mode,
+                        SignatureFlags::NONE,
+                        None,
+                    );
+                }
             }
             return self.resolve_untyped_call(node);
         }
@@ -4947,6 +5011,54 @@ impl<'a> CheckerState<'a> {
 
     // ---- JSX opening-like elements ----
 
+    /// tsc elaborateJsxComponents' named-attribute slice. Attribute
+    /// mismatches are reported at the JSX attribute name (not at the
+    /// enclosing tag), preserving the elementwise 2322 span.
+    fn elaborate_jsx_named_attributes(
+        &mut self,
+        attributes: NodeId,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+    ) -> CheckResult2<bool> {
+        let properties = match self.data_of(attributes) {
+            NodeData::JsxAttributes(data) => data.properties,
+            _ => return Ok(false),
+        };
+        let mut reported = false;
+        for attribute in self.nodes_of(properties) {
+            let NodeData::JsxAttribute(data) = self.data_of(attribute).clone() else {
+                continue;
+            };
+            let Some(name_node) = data.name else {
+                continue;
+            };
+            let name = self.jsx_attribute_name_text(name_node);
+            if name.contains('-') {
+                continue;
+            }
+            let Some(source_property) = self.get_property_of_type_full(source, &name)? else {
+                continue;
+            };
+            let Some(target_property) = self.get_property_of_type_full(target, &name)? else {
+                continue;
+            };
+            let source_type = self.get_type_of_symbol(source_property)?;
+            let target_type = self.get_type_of_symbol(target_property)?;
+            if self.check_type_related_to(source_type, target_type, relation)? {
+                continue;
+            }
+            self.check_type_assignable_to(
+                source_type,
+                target_type,
+                Some(name_node),
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )?;
+            reported = true;
+        }
+        Ok(reported)
+    }
+
     /// tsc-port: resolveJsxOpeningLikeElement @6.0.3
     /// tsc-hash: de958e239f9938f6db012bfdfb5c38e1a8708ed8c5bf2a1bf4fd79c49a878fa0
     /// tsc-span: _tsc.js:77397-77444
@@ -4994,7 +5106,14 @@ impl<'a> CheckerState<'a> {
                 )?;
                 // checkTypeAssignableToAndOptionallyElaborate(attrType,
                 // result, errorNode=tagName, expr=attributes).
-                if !self.is_type_assignable_to(attr_type, result)? {
+                if !self.is_type_assignable_to(attr_type, result)?
+                    && !self.elaborate_jsx_named_attributes(
+                        attributes,
+                        attr_type,
+                        result,
+                        RelationKind::Assignable,
+                    )?
+                {
                     if self
                         .elaboration_disposition(
                             attributes,
@@ -5328,11 +5447,9 @@ impl<'a> CheckerState<'a> {
         }
         // 77749-77766: the module-band worker (M4 5.8d un-silences
         // the 5.7b stub). dontResolveAlias=TRUE skips the interop-
-        // cloning arm; getTypeWithSyntheticDefaultOnly is mode
-        // machinery (None at the modeled defaults); the synthetic-
-        // default wrap face (export= module under the TS6 default-on
-        // allowSyntheticDefaultImports) ESCAPES like
-        // resolveESModuleSymbol's cloning arm.
+        // cloning arm inside resolveESModuleSymbol; the wrap happens
+        // here instead. getTypeWithSyntheticDefaultOnly is mode
+        // machinery (None at the modeled defaults).
         let module_symbol = self.resolve_external_module_name(node, specifier, false)?;
         if let Some(module_symbol) = module_symbol {
             let es_module_symbol = self.resolve_es_module_symbol(
@@ -5342,14 +5459,22 @@ impl<'a> CheckerState<'a> {
                 /*suppress_interop_error*/ false,
             )?;
             if let Some(es_module_symbol) = es_module_symbol {
-                let file_index = self.source_file_index_of_symbol(module_symbol);
-                if self.can_have_synthetic_default(file_index, module_symbol, false)? {
-                    return Err(Unsupported::new(
-                        "getTypeWithSyntheticDefaultImportType synthetic-default wrap (M4-end sweep 5.8)",
-                    ));
-                }
                 let module_type = self.get_type_of_symbol(es_module_symbol)?;
-                return self.create_promise_return_type(node, module_type);
+                let synthetic = match self.get_type_with_synthetic_default_only(
+                    module_type,
+                    es_module_symbol,
+                    module_symbol,
+                    specifier,
+                )? {
+                    Some(default_only) => default_only,
+                    None => self.get_type_with_synthetic_default_import_type(
+                        module_type,
+                        es_module_symbol,
+                        module_symbol,
+                        specifier,
+                    )?,
+                };
+                return self.create_promise_return_type(node, synthetic);
             }
         }
         let any = self.tables.intrinsics.any;

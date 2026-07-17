@@ -48,6 +48,10 @@ pub(crate) struct GlobalTypeMemos {
     /// short-circuit target is NOT: tsc retries the lookup per call
     /// while the memo stays undefined, so only a SUCCESS memoizes.
     import_call_options: Option<TypeId>,
+    /// deferredGlobalImportMetaType (60697) — reportErrors=true, and
+    /// (unlike ImportCallOptions) the `|| emptyObjectType` fallback
+    /// sits INSIDE tsc's assignment, so a miss memoizes too.
+    import_meta: Option<TypeId>,
     /// deferredGlobalImportAttributesType (60727).
     import_attributes: Option<TypeId>,
     /// deferredGlobalIterableType (60820).
@@ -571,6 +575,73 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         Ok(self.empty_object_type)
+    }
+
+    /// tsc-port: getGlobalTypeAliasSymbol @6.0.3
+    /// tsc-hash: 9944211de98881ee33d2cd8dde97e67d4a66ee8ac095d02976abc6b92048c9be
+    /// tsc-span: _tsc.js:60638-60649
+    ///
+    /// The meaning is TYPE (not TypeAlias): an interface-shadowed
+    /// global resolves here and fails the arity probe with 2317 at
+    /// no node (interfaces carry no TypeAliasDeclaration), which is
+    /// a global diagnostic tsc's per-file pulls never surface.
+    pub(crate) fn get_global_type_alias_symbol(
+        &mut self,
+        name: &str,
+        arity: usize,
+        report_errors: bool,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let symbol = self.get_global_symbol(
+            name,
+            SymbolFlags::TYPE,
+            report_errors.then_some(&diagnostics::Cannot_find_global_type_0),
+        );
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
+        // Resolve the alias before we check its type parameters (the
+        // links.typeParameters fill).
+        self.get_declared_type_of_symbol_slice(symbol)?;
+        let type_parameter_count = self
+            .links
+            .symbol(symbol)
+            .type_parameters
+            .as_ref()
+            .map_or(0, Vec::len);
+        if type_parameter_count != arity {
+            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let decl = declarations
+                .into_iter()
+                .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
+            let name_display = self.symbol_display_name(symbol);
+            self.error_at(
+                decl,
+                &diagnostics::Global_type_0_must_have_1_type_parameter_s,
+                &[&name_display, &arity.to_string()],
+            );
+            return Ok(None);
+        }
+        Ok(Some(symbol))
+    }
+
+    /// tsc-port: getGlobalImportMetaType @6.0.3
+    /// tsc-hash: d9cb64668e7657cff3ce184045e666edf286359c9c9976767800d852e0eaaf3d
+    /// tsc-span: _tsc.js:60697-60705
+    pub(crate) fn get_global_import_meta_type(&mut self) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.global_type_memos.import_meta {
+            return Ok(cached);
+        }
+        let diagnostic_start = self.diagnostics.len();
+        let resolved = self.get_global_type("ImportMeta", 0, /*report_errors*/ true)?;
+        self.visible_global_diagnostics.extend(
+            self.diagnostics[diagnostic_start..]
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_none())
+                .cloned(),
+        );
+        let result = resolved.unwrap_or(self.empty_object_type);
+        self.global_type_memos.import_meta = Some(result);
+        Ok(result)
     }
 
     /// tsc-port: getGlobalImportAttributesType @6.0.3

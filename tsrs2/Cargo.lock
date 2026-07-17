@@ -281,6 +281,7 @@ name = "tsrs2-checker"
 version = "0.1.0"
 dependencies = [
  "indexmap",
+ "serde_json",
  "tsrs2-binder",
  "tsrs2-diags",
  "tsrs2-syntax",

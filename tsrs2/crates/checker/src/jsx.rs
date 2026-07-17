@@ -9,12 +9,8 @@
 //! elementwise elaboration (T2 machinery) and the anonymous
 //! attributes-type display rides the T2 curtain.
 //!
-//! Namespace machinery scope: the `jsx` option is modeled; fixtures
-//! that customize the namespace ENTITY (jsxFactory-family options,
-//! @jsx pragma comments, react-jsx implicit imports) ESCAPE — pragma
-//! collection and module resolution are unported (5.8), and a wrong
-//! namespace would resolve the wrong JSX.* container (FP shape), so
-//! containment wins.
+//! Namespace machinery includes jsxFactory-family options, leading
+//! @jsx pragmas, and react-jsx implicit runtime imports.
 
 use tsrs2_binder::{SymbolId, SymbolTable};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -44,6 +40,92 @@ const JSX_INTRINSIC_CLASS_ATTRIBUTES: &str = "IntrinsicClassAttributes";
 const JSX_LIBRARY_MANAGED_ATTRIBUTES: &str = "LibraryManagedAttributes";
 /// ReactNames (90927).
 const REACT_FRAGMENT: &str = "Fragment";
+
+#[derive(Clone, Debug, Default)]
+struct JsxPragmaSettings {
+    factory: Option<String>,
+    fragment_factory: Option<String>,
+    import_source: Option<String>,
+    runtime: Option<String>,
+}
+
+fn leading_jsx_pragmas(text: &str) -> JsxPragmaSettings {
+    fn collect(comment: &str, settings: &mut JsxPragmaSettings) {
+        // tsc's multiLinePragmaRegEx: one non-whitespace pragma name
+        // and a required argument extending to the end of that line.
+        // JSX pragmas are MultiLine-only; `// @jsx` is deliberately
+        // not collected.
+        for line in comment.split(['\n', '\r', '\u{2028}', '\u{2029}']) {
+            let Some(at) = line.find('@') else { continue };
+            let tail = &line[at + 1..];
+            let name_end = tail.find(char::is_whitespace).unwrap_or(tail.len());
+            let name = tail[..name_end].to_ascii_lowercase();
+            let value = tail[name_end..].trim().to_owned();
+            if !value.is_empty() {
+                match name.as_str() {
+                    "jsx" if settings.factory.is_none() => settings.factory = Some(value),
+                    "jsxfrag" if settings.fragment_factory.is_none() => {
+                        settings.fragment_factory = Some(value)
+                    }
+                    "jsximportsource" => settings.import_source = Some(value),
+                    "jsxruntime" => settings.runtime = Some(value),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    let mut settings = JsxPragmaSettings::default();
+    let mut offset = if text.starts_with("#!") {
+        text.find(['\n', '\r', '\u{2028}', '\u{2029}'])
+            .unwrap_or(text.len())
+    } else {
+        0
+    };
+    loop {
+        while let Some(character) = text[offset..].chars().next() {
+            if character.is_whitespace() || character == '\u{FEFF}' {
+                offset += character.len_utf8();
+            } else {
+                break;
+            }
+        }
+        let rest = &text[offset..];
+        if let Some(comment) = rest.strip_prefix("//") {
+            let end = comment
+                .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+                .unwrap_or(comment.len());
+            offset += 2 + end;
+            continue;
+        }
+        if let Some(comment) = rest.strip_prefix("/*") {
+            let end = comment.find("*/").unwrap_or(comment.len());
+            collect(&comment[..end], &mut settings);
+            offset += 2 + end + usize::from(end < comment.len()) * 2;
+            continue;
+        }
+        break;
+    }
+    settings
+}
+
+fn first_entity_identifier(entity: &str) -> Option<String> {
+    let valid_identifier = |part: &str| {
+        !part.is_empty()
+            && part.chars().next().is_some_and(|character| {
+                character == '_' || character == '$' || character.is_alphabetic()
+            })
+            && part.chars().all(|character| {
+                character == '_' || character == '$' || character.is_alphanumeric()
+            })
+    };
+    let mut parts = entity.split('.').map(str::trim);
+    let first = parts.next()?;
+    if !valid_identifier(first) || !parts.all(valid_identifier) {
+        return None;
+    }
+    Some(first.to_owned())
+}
 
 /// tsc JsxReferenceKind (getJsxReferenceKind 76075).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -80,11 +162,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8295e0ce6f62141e10f2947fcd1c218f0745c4f3ff4e852c7061c41e12d2def8
     /// tsc-span: _tsc.js:74324-74336
     ///
-    /// The 17016/17017 pragma-factory errors read jsxFactory/pragmas —
-    /// both are escape triggers in get_jsx_namespace_entity_guard, so
-    /// the gate reduces to constant-false here. The tail past the
-    /// opening check is dead at 5.5f (the opening check escapes at the
-    /// getResolvedSignature boundary) — it lands live with 5.7.
+    /// The 17016/17017 pragma-factory errors read jsxFactory/pragmas.
     pub(crate) fn check_jsx_fragment(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let opening_fragment = match self.data_of(node) {
             NodeData::JsxFragment(data) => data.opening_fragment,
@@ -92,6 +170,19 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(opening_fragment) = opening_fragment {
             self.check_jsx_opening_like_element_or_opening_fragment(opening_fragment)?;
+        }
+        let pragmas = leading_jsx_pragmas(&self.binder.source_of_node(node).text);
+        if matches!(self.options.jsx, Some(2) | Some(4) | Some(5))
+            && (self.options.jsx_factory.is_some() || pragmas.factory.is_some())
+            && self.options.jsx_fragment_factory.is_none()
+            && pragmas.fragment_factory.is_none()
+        {
+            let message = if self.options.jsx_factory.is_some() {
+                &diagnostics::The_jsxFragmentFactory_compiler_option_must_be_provided_to_use_JSX_fragments_with_the_jsxFactory_compiler_option
+            } else {
+                &diagnostics::An_jsxFrag_pragma_is_required_when_using_an_jsx_pragma_with_JSX_fragments
+            };
+            self.error_at(Some(node), message, &[]);
         }
         self.check_jsx_children(node, tsrs2_types::CheckMode::NORMAL)?;
         let element_type = self.get_jsx_element_type_at(node)?;
@@ -736,17 +827,15 @@ impl<'a> CheckerState<'a> {
     /// The REFERENCE bookkeeping (isReferenced, alias marking) is
     /// M7/alias-band and stays inert; the T0 face is the factory
     /// resolveName probe whose not-found message (2874) fires under
-    /// jsx===React. The implicit-import container is None behind the
-    /// entity guard; getJsxFactoryEntity's surviving face shares the
-    /// same first identifier (reactNamespace ‖ React), so the
-    /// fragment's second probe dedupes to the first (exact-duplicate
-    /// diagnostic).
+    /// jsx===React. For classic fragments the second factory probe
+    /// shares the same first identifier and dedupes when appropriate.
     fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult2<()> {
-        // The factory NAME below is the post-guard surviving face
-        // (reactNamespace ‖ React) — a pragma/jsxFactory file would
-        // resolve the WRONG entity and fabricate 2874 (FP shape), so
-        // the entity guard runs first.
-        self.jsx_namespace_entity_guard(node)?;
+        if self
+            .get_jsx_namespace_container_for_implicit_import(node)?
+            .is_some()
+        {
+            return Ok(());
+        }
         let jsx_factory_ref_err = (self.options.jsx == Some(2)).then_some(
             &diagnostics::This_JSX_tag_requires_0_to_be_in_scope_but_it_could_not_be_found,
         );
@@ -777,12 +866,10 @@ impl<'a> CheckerState<'a> {
             let _ = symbol;
         }
         if is_fragment {
-            // getJsxFactoryEntity's first identifier is the SAME
-            // surviving namespace name — the duplicate probe re-runs
-            // for its diagnostic (exact duplicates dedupe).
+            let factory_namespace = self.get_jsx_factory_namespace_name(node);
             self.resolve_name(
                 Some(jsx_factory_location),
-                &jsx_factory_namespace,
+                &factory_namespace,
                 meaning,
                 jsx_factory_ref_err,
                 /*is_use*/ true,
@@ -867,59 +954,18 @@ impl<'a> CheckerState<'a> {
         self.get_declared_type_of_symbol_slice(symbol)
     }
 
-    /// getExportsOfSymbol over the JSX namespace container: plain
-    /// namespaces read their exports table; anything needing the
-    /// export-star walk rides the 5.8 module band (annotate.rs
-    /// get_exports_of_symbol escape) — here the JSX namespace is by
-    /// construction a namespace symbol, so read the table directly.
-    fn get_exports_of_jsx_namespace(
-        &mut self,
-        namespace: SymbolId,
-    ) -> CheckResult2<tsrs2_binder::SymbolTable> {
-        Ok(self.binder.symbol(namespace).exports.clone())
-    }
-
-    /// getExportsOfSymbol over a resolved FACTORY container (the 6229
-    /// probe's React / the fragment factory): namespace-module symbols
-    /// read their raw exports table — the annotate.rs MODULE escape
-    /// guards source-file export-star walks, which namespace BODIES
-    /// cannot contain (a UMD/global module corner would only lose
-    /// members: probe-pass / errorType, FN-only). Everything else
-    /// rides the shared worker (late-bound statics included).
-    pub(crate) fn get_exports_of_jsx_factory_symbol(
-        &mut self,
-        symbol: SymbolId,
-    ) -> CheckResult2<tsrs2_binder::SymbolTable> {
-        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
-            return Ok(self.binder.symbol(symbol).exports.clone());
-        }
-        self.get_exports_of_symbol(symbol)
-    }
-
     /// getSymbol(getExportsOfSymbol(namespace), name, meaning) (50791)
-    /// over the JSX namespace: merged-symbol chase + meaning filter;
-    /// the alias arm (resolveAlias target-flag probe) escapes to 5.8.
+    /// over the JSX namespace: the shared getExportsOfSymbol worker
+    /// (late-bound statics + the export-star walk) feeding the
+    /// faithful getSymbol lookup (alias arm included, M4 5.9d).
     fn jsx_namespace_export(
         &mut self,
         namespace: SymbolId,
         name: &str,
         meaning: SymbolFlags,
     ) -> CheckResult2<Option<SymbolId>> {
-        let exports = self.get_exports_of_jsx_namespace(namespace)?;
-        let Some(&symbol) = exports.get(name) else {
-            return Ok(None);
-        };
-        let symbol = self.get_merged_symbol(symbol);
-        let flags = self.symbol_flags(symbol);
-        if flags.intersects(meaning) {
-            return Ok(Some(symbol));
-        }
-        if flags.intersects(SymbolFlags::ALIAS) {
-            return Err(Unsupported::new(
-                "aliased JSX.* namespace member (alias resolution, 5.8)",
-            ));
-        }
-        Ok(None)
+        let exports = self.get_exports_of_symbol(namespace)?;
+        self.get_symbol_in_table(&exports, name, meaning)
     }
 
     // ---- 5.7c: intrinsic tag resolution ----
@@ -1005,18 +1051,19 @@ impl<'a> CheckerState<'a> {
                     .members
                     .get(tsrs2_binder::InternalSymbolName::INDEX)
                     .copied();
+                // tsc stores `intrinsicElementsType.symbol` here, which
+                // an alias-declared IntrinsicElements leaves undefined:
+                // the memo then never fills and no T0 path reads the
+                // identity (flags are already published; the INDEXED
+                // attribute type reads the index info, not the symbol).
+                // unknownSymbol is the identity-free stand-in.
                 symbol = match index_symbol {
                     Some(index_symbol) => index_symbol,
                     None => self
                         .tables
                         .type_of(intrinsic_elements_type)
                         .symbol
-                        .ok_or_else(|| {
-                            Unsupported::new(
-                                "index-signature-only JSX.IntrinsicElements without a symbol \
-                                 (instantiated container, services-only identity; M4-end sweep 5.8)",
-                            )
-                        })?,
+                        .unwrap_or(self.unknown_symbol),
                 };
             } else {
                 let display = self.intrinsic_tag_name_to_string(tag_name)?;
@@ -1286,38 +1333,36 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7a885aaa15a865e701ecab621cb35e8cc1e9f33b5962ab7bae27d992ee703452
     /// tsc-span: _tsc.js:77372-77396
     ///
-    /// The surviving face after the entity guard: no jsxFragmentFactory
-    /// and no pragmas, so the fragment factory name is
-    /// reactNamespace ‖ "React" and shouldResolveFactoryReference
-    /// reduces to `jsx === React(2)`.
     pub(crate) fn get_jsx_fragment_type(&mut self, node: NodeId) -> CheckResult2<TypeId> {
-        // Same entity-guard discipline as getJsxNamespaceAt: the
-        // fragment factory NAME is the post-guard surviving face.
-        self.jsx_namespace_entity_guard(node)?;
         let root = self.binder.source_of_node(node).root;
         if let Some(cached) = self.links.node(root).jsx_fragment_type {
             return Ok(cached);
         }
         let fragment_factory_name = self.get_jsx_namespace_name(node);
-        let should_resolve_factory_reference =
-            self.options.jsx == Some(2) && fragment_factory_name != "null";
+        let should_resolve_factory_reference = (self.options.jsx == Some(2)
+            || self.options.jsx_fragment_factory.is_some())
+            && fragment_factory_name != "null";
         if !should_resolve_factory_reference {
             let any = self.tables.intrinsics.any;
             self.links
                 .set_node_jsx_fragment_type(self.speculation_depth, root, any);
             return Ok(any);
         }
+        let implicit = self.get_jsx_namespace_container_for_implicit_import(node)?;
         // getJsxNamespaceContainerForImplicitImport: None (the guard
         // escaped the react-jsx flavors). shouldModuleRefErr is true at
         // jsx===React, so the meaning is plain VALUE.
-        let factory_symbol = self.resolve_name(
-            Some(node),
-            &fragment_factory_name,
-            SymbolFlags::VALUE,
-            Some(&diagnostics::Using_JSX_fragments_requires_fragment_factory_0_to_be_in_scope_but_it_could_not_be_found),
-            /*is_use*/ true,
-            /*exclude_globals*/ false,
-        )?;
+        let factory_symbol = match implicit {
+            Some(symbol) => Some(symbol),
+            None => self.resolve_name(
+                Some(node),
+                &fragment_factory_name,
+                SymbolFlags::VALUE,
+                Some(&diagnostics::Using_JSX_fragments_requires_fragment_factory_0_to_be_in_scope_but_it_could_not_be_found),
+                /*is_use*/ true,
+                /*exclude_globals*/ false,
+            )?,
+        };
         let Some(factory_symbol) = factory_symbol else {
             let error = self.tables.intrinsics.error;
             self.links
@@ -1330,31 +1375,17 @@ impl<'a> CheckerState<'a> {
                 .set_node_jsx_fragment_type(self.speculation_depth, root, ty);
             return Ok(ty);
         }
-        if self
+        let resolved_alias = if self
             .symbol_flags(factory_symbol)
             .intersects(SymbolFlags::ALIAS)
         {
-            return Err(Unsupported::new(
-                "aliased JSX fragment factory (alias resolution, 5.8)",
-            ));
-        }
-        let exports = self.get_exports_of_jsx_factory_symbol(factory_symbol)?;
-        let type_symbol = match exports.get(REACT_FRAGMENT).copied() {
-            Some(symbol) => {
-                let symbol = self.get_merged_symbol(symbol);
-                let flags = self.symbol_flags(symbol);
-                if flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
-                    Some(symbol)
-                } else if flags.intersects(SymbolFlags::ALIAS) {
-                    return Err(Unsupported::new(
-                        "aliased React.Fragment member (alias resolution, 5.8)",
-                    ));
-                } else {
-                    None
-                }
-            }
-            None => None,
+            self.resolve_alias(factory_symbol)?
+        } else {
+            factory_symbol
         };
+        let exports = self.get_exports_of_symbol(resolved_alias)?;
+        let type_symbol =
+            self.get_symbol_in_table(&exports, REACT_FRAGMENT, SymbolFlags::BLOCK_SCOPED_VARIABLE)?;
         let ty = match type_symbol {
             Some(type_symbol) => self.get_type_of_symbol(type_symbol)?,
             None => self.tables.intrinsics.error,
@@ -1859,54 +1890,44 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74586-74628
     ///
     /// The links.jsxNamespace memo is elided (pure resolution — no
-    /// observable beyond repeated lookups). resolveSymbol over the
-    /// resolved names is the alias-free face (alias resolution is
-    /// 5.8; an aliased React/JSX container escapes below).
+    /// observable beyond repeated lookups).
     pub(crate) fn get_jsx_namespace_at(
         &mut self,
         location: NodeId,
     ) -> CheckResult2<Option<SymbolId>> {
-        self.jsx_namespace_entity_guard(location)?;
-        if let Some(container) = self.get_jsx_namespace_container_for_implicit_import(location)? {
-            let _ = container;
-            unreachable!("the implicit-import arm escapes in the guard");
-        }
-        let namespace_name = self.get_jsx_namespace_name(location);
-        let resolved_namespace = self.resolve_name(
-            Some(location),
-            &namespace_name,
-            SymbolFlags::NAMESPACE,
-            None,
-            /*is_use*/ false,
-            /*exclude_globals*/ false,
-        )?;
-        if let Some(resolved_namespace) = resolved_namespace {
-            if self
-                .symbol_flags(resolved_namespace)
-                .intersects(SymbolFlags::ALIAS)
-            {
-                return Err(Unsupported::new(
-                    "aliased JSX factory namespace (alias resolution, 5.8)",
-                ));
-            }
-            let exports = self.binder.symbol(resolved_namespace).exports.clone();
-            if let Some(&candidate) = exports.get(JSX_NAMESPACE_NAME) {
-                // ALIAS first: an alias carries neither MODULE meaning
-                // bit, so a meaning-first read would silently fall
-                // through to the global JSX fallback where tsc
-                // resolveSymbol()s to the target namespace (wrong
-                // 7026/2339 shapes — review find). Contain instead.
-                if self.symbol_flags(candidate).intersects(SymbolFlags::ALIAS) {
-                    return Err(Unsupported::new(
-                        "aliased JSX namespace member (alias resolution, 5.8)",
-                    ));
+        let resolved_namespace =
+            match self.get_jsx_namespace_container_for_implicit_import(location)? {
+                Some(container) => Some(container),
+                None => {
+                    let namespace_name = self.get_jsx_namespace_name(location);
+                    self.resolve_name(
+                        Some(location),
+                        &namespace_name,
+                        SymbolFlags::NAMESPACE,
+                        None,
+                        /*is_use*/ false,
+                        /*exclude_globals*/ false,
+                    )?
                 }
-                if self
-                    .symbol_flags(candidate)
-                    .intersects(SymbolFlags::NAMESPACE_MODULE | SymbolFlags::VALUE_MODULE)
-                    && candidate != self.unknown_symbol
-                {
-                    return Ok(Some(self.get_merged_symbol(candidate)));
+            };
+        if let Some(resolved_namespace) = resolved_namespace {
+            // resolveSymbol(getSymbol(getExportsOfSymbol(
+            //   resolveSymbol(resolvedNamespace)), JSX, Namespace)):
+            // the faithful composition — alias namespaces resolve
+            // through, and the getSymbol alias arm answers aliased
+            // JSX members by target flags (M4 5.9d).
+            let resolved = self.resolve_symbol_ex(Some(resolved_namespace), false)?;
+            let candidate = match resolved {
+                Some(resolved) => {
+                    let exports = self.get_exports_of_symbol(resolved)?;
+                    self.get_symbol_in_table(&exports, JSX_NAMESPACE_NAME, SymbolFlags::NAMESPACE)?
+                }
+                None => None,
+            };
+            let candidate = self.resolve_symbol_ex(candidate, false)?;
+            if let Some(candidate) = candidate {
+                if candidate != self.unknown_symbol {
+                    return Ok(Some(candidate));
                 }
             }
         }
@@ -1915,15 +1936,9 @@ impl<'a> CheckerState<'a> {
             SymbolFlags::NAMESPACE,
             /*diagnostic*/ None,
         );
-        match global {
-            Some(symbol) if symbol != self.unknown_symbol => {
-                if self.symbol_flags(symbol).intersects(SymbolFlags::ALIAS) {
-                    return Err(Unsupported::new(
-                        "aliased global JSX namespace (alias resolution, 5.8)",
-                    ));
-                }
-                Ok(Some(self.get_merged_symbol(symbol)))
-            }
+        let global = global.map(|symbol| self.get_merged_symbol(symbol));
+        match self.resolve_symbol_ex(global, false)? {
+            Some(symbol) if symbol != self.unknown_symbol => Ok(Some(symbol)),
             _ => Ok(None),
         }
     }
@@ -1938,54 +1953,113 @@ impl<'a> CheckerState<'a> {
     /// 2875 module-resolution rows ride 5.8).
     fn get_jsx_namespace_container_for_implicit_import(
         &mut self,
-        _location: NodeId,
+        location: NodeId,
     ) -> CheckResult2<Option<SymbolId>> {
-        Ok(None)
+        let file_index = self.binder.file_index_of_node(location);
+        if let Some(cached) = self.jsx_implicit_import_containers.get(&file_index) {
+            return Ok(*cached);
+        }
+        let pragmas = leading_jsx_pragmas(&self.binder.source(file_index).text);
+        let base = if pragmas.runtime.as_deref() == Some("classic") {
+            None
+        } else if matches!(self.options.jsx, Some(4) | Some(5))
+            || self.options.jsx_import_source.is_some()
+            || pragmas.import_source.is_some()
+            || pragmas.runtime.as_deref() == Some("automatic")
+        {
+            Some(
+                pragmas
+                    .import_source
+                    .or_else(|| self.options.jsx_import_source.clone())
+                    .unwrap_or_else(|| "react".to_owned()),
+            )
+        } else {
+            None
+        };
+        let Some(base) = base else {
+            self.jsx_implicit_import_containers.insert(file_index, None);
+            return Ok(None);
+        };
+        let runtime = format!(
+            "{base}/{}",
+            if self.options.jsx == Some(5) {
+                "jsx-dev-runtime"
+            } else {
+                "jsx-runtime"
+            }
+        );
+        let error_message = if self.options.emit_module_resolution_kind() == 1 {
+            &diagnostics::Cannot_find_module_0_Did_you_mean_to_set_the_moduleResolution_option_to_nodenext_or_to_add_aliases_to_the_paths_option
+        } else {
+            &diagnostics::This_JSX_tag_requires_the_module_path_0_to_exist_but_none_could_be_found_Make_sure_you_have_types_for_the_appropriate_package_installed
+        };
+        let module = self.resolve_external_module(
+            location,
+            &runtime,
+            Some(error_message),
+            Some(location),
+            /*is_for_augmentation*/ false,
+        )?;
+        let resolved = match module {
+            Some(module) if module != self.unknown_symbol => self
+                .resolve_symbol_ex(Some(module), false)?
+                .map(|symbol| self.get_merged_symbol(symbol)),
+            _ => None,
+        };
+        self.jsx_implicit_import_containers
+            .insert(file_index, resolved);
+        Ok(resolved)
     }
 
     /// tsc-port: getJsxNamespace @6.0.3
     /// tsc-hash: 8ff29aa0c80ee1a5faf4121789c901358721fcc508acdf6030ee1d23e096462a
     /// tsc-span: _tsc.js:47491-47537
     ///
-    /// The surviving face after the entity guard: reactNamespace ‖
-    /// "React" (pragma/jsxFactory shapes escaped).
-    pub(crate) fn get_jsx_namespace_name(&self, _location: NodeId) -> String {
-        self.options
-            .react_namespace
-            .clone()
-            .unwrap_or_else(|| "React".to_owned())
+    pub(crate) fn get_jsx_namespace_name(&self, location: NodeId) -> String {
+        let pragmas = leading_jsx_pragmas(&self.binder.source_of_node(location).text);
+        if matches!(
+            self.kind_of(location),
+            SyntaxKind::JsxOpeningFragment | SyntaxKind::JsxFragment
+        ) {
+            // An invalid local jsxfrag shadows the compiler option in
+            // getJsxFragmentFactoryEntity, then falls through to the
+            // ordinary JSX namespace.
+            if let Some(local) = pragmas.fragment_factory {
+                return first_entity_identifier(&local)
+                    .unwrap_or_else(|| self.global_jsx_namespace_name());
+            }
+            if let Some(option) = self.options.jsx_fragment_factory.as_deref() {
+                return first_entity_identifier(option)
+                    .unwrap_or_else(|| self.global_jsx_namespace_name());
+            }
+            return self.global_jsx_namespace_name();
+        }
+        if let Some(local) = pragmas.factory {
+            if let Some(namespace) = first_entity_identifier(&local) {
+                return namespace;
+            }
+        }
+        self.global_jsx_namespace_name()
     }
 
-    /// The FP guard for namespace-entity customization: @jsx-family
-    /// pragma comments (collected by tsc's processPragmasIntoFields —
-    /// unported) and the jsxFactory-family options change WHICH
-    /// entity resolves the JSX namespace; jsx react-jsx/react-jsxdev
-    /// adds the implicit-import module resolution (5.8). All escape.
-    fn jsx_namespace_entity_guard(&self, location: NodeId) -> CheckResult2<()> {
-        if self.options.jsx_factory.is_some()
-            || self.options.jsx_fragment_factory.is_some()
-            || self.options.jsx_import_source.is_some()
-        {
-            return Err(Unsupported::new(
-                "jsxFactory-family options (parseIsolatedEntityName unported, M8)",
-            ));
+    fn get_jsx_factory_namespace_name(&self, location: NodeId) -> String {
+        let pragmas = leading_jsx_pragmas(&self.binder.source_of_node(location).text);
+        pragmas
+            .factory
+            .as_deref()
+            .and_then(first_entity_identifier)
+            .unwrap_or_else(|| self.global_jsx_namespace_name())
+    }
+
+    fn global_jsx_namespace_name(&self) -> String {
+        match self.options.jsx_factory.as_deref() {
+            Some(factory) => first_entity_identifier(factory).unwrap_or_else(|| "React".to_owned()),
+            None => self
+                .options
+                .react_namespace
+                .clone()
+                .unwrap_or_else(|| "React".to_owned()),
         }
-        if matches!(self.options.jsx, Some(4) | Some(5)) {
-            return Err(Unsupported::new(
-                "react-jsx implicit import container (pragma+module machinery, M8)",
-            ));
-        }
-        let source = self.binder.source_of_node(location);
-        let text_lower = source.text.to_ascii_lowercase();
-        if text_lower.contains("@jsx") {
-            // Over-approximates tsc's pragma scan (comment-position
-            // aware) — a stray "@jsx" in a string literal contains the
-            // file's JSX checks (FN), never flips a namespace (FP).
-            return Err(Unsupported::new(
-                "@jsx-family pragma comment (pragma collection unported, M8)",
-            ));
-        }
-        Ok(())
     }
 
     // ---- grammar ----
@@ -2162,6 +2236,7 @@ fn is_intrinsic_jsx_name(name: &str) -> bool {
 mod tests {
     use tsrs2_types::CompilerOptions;
 
+    use super::leading_jsx_pragmas;
     use crate::state::test_support::with_program_state;
 
     /// Driver-level fixture check — oracle-pinned rows (tsc 6.0.3,
@@ -2190,6 +2265,106 @@ mod tests {
             jsx: Some(value),
             ..CompilerOptions::default()
         }
+    }
+
+    #[test]
+    fn jsx_text_inside_a_string_is_not_a_pragma() {
+        let rows = checked_rows_with(
+            "declare namespace JSX { interface Element {} interface IntrinsicElements { div: { id: string } } }\n\
+             declare var React: any;\n\
+             const marker = \"@jsx\";\n\
+             (<div id={1} />);\n",
+            &jsx(1),
+        );
+        assert!(rows.iter().any(|row| row.0 == 2322), "{rows:?}");
+    }
+
+    #[test]
+    fn jsx_pragma_collection_matches_multiline_and_precedence_rules() {
+        let pragmas = leading_jsx_pragmas(
+            "// @jsx Ignored.h\n\
+             /** @jsx First.h */\n\
+             /** @jsx Second.h\n\
+                 @jsxfrag First.Fragment\n\
+                 @jsxfrag Second.Fragment\n\
+                 @jsximportsource first\n\
+                 @jsximportsource second\n\
+                 @jsxruntime classic\n\
+                 @jsxruntime automatic */\n\
+             const value = 1;\n\
+             /** @jsx TooLate.h */",
+        );
+        assert_eq!(pragmas.factory.as_deref(), Some("First.h"));
+        assert_eq!(pragmas.fragment_factory.as_deref(), Some("First.Fragment"));
+        assert_eq!(pragmas.import_source.as_deref(), Some("second"));
+        assert_eq!(pragmas.runtime.as_deref(), Some("automatic"));
+    }
+
+    #[test]
+    fn jsx_factory_option_selects_its_namespace() {
+        let rows = checked_rows_with(
+            "declare namespace Preact { namespace JSX { interface Element {} interface IntrinsicElements { div: { id: string } } } function h(): any; }\n\
+             (<div id={1} />);\n",
+            &CompilerOptions {
+                jsx: Some(2),
+                jsx_factory: Some("Preact.h".to_owned()),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(rows.iter().any(|row| row.0 == 2322), "{rows:?}");
+        assert!(!rows.iter().any(|row| row.0 == 2874), "{rows:?}");
+    }
+
+    #[test]
+    fn invalid_jsx_factory_option_falls_back_to_react_namespace() {
+        let rows = checked_rows_with(
+            "declare namespace React { namespace JSX { interface Element {} interface IntrinsicElements { div: { id: string } } } }\n\
+             declare var React: any;\n\
+             (<div id={1} />);\n",
+            &CompilerOptions {
+                jsx: Some(2),
+                jsx_factory: Some("Preact.!".to_owned()),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(rows.iter().any(|row| row.0 == 2322), "{rows:?}");
+        assert!(!rows.iter().any(|row| row.0 == 2874), "{rows:?}");
+    }
+
+    #[test]
+    fn jsx_pragma_selects_its_namespace() {
+        let rows = checked_rows_with(
+            "/** @jsx Preact.h */\n\
+             declare namespace Preact { namespace JSX { interface Element {} interface IntrinsicElements { div: { id: string } } } function h(): any; }\n\
+             (<div id={1} />);\n",
+            &jsx(2),
+        );
+        assert!(rows.iter().any(|row| row.0 == 2322), "{rows:?}");
+        assert!(!rows.iter().any(|row| row.0 == 2874), "{rows:?}");
+    }
+
+    #[test]
+    fn automatic_jsx_runtime_reports_a_missing_runtime_module_once() {
+        let rows = checked_rows_with("(<div />);\n(<span />);\n", &jsx(4));
+        assert_eq!(
+            rows.iter().filter(|row| row.0 == 2875).count(),
+            1,
+            "{rows:?}"
+        );
+        assert!(rows.iter().any(|row| row.0 == 7026), "{rows:?}");
+    }
+
+    #[test]
+    fn automatic_jsx_runtime_uses_exported_jsx_namespace() {
+        let rows = checked_rows_with(
+            "declare module \"react/jsx-runtime\" {\n\
+               export namespace JSX { interface Element {} interface IntrinsicElements { div: { id: string } } }\n\
+             }\n\
+             (<div id={1} />);\n",
+            &jsx(4),
+        );
+        assert!(!rows.iter().any(|row| row.0 == 2875), "{rows:?}");
+        assert!(rows.iter().any(|row| row.0 == 2322), "{rows:?}");
     }
 
     #[test]
@@ -2387,19 +2562,17 @@ mod tests {
     }
 
     #[test]
-    fn aliased_react_jsx_namespace_contains() {
+    fn aliased_react_jsx_namespace_reports_2339() {
         // Oracle (jsx: preserve): 2339 @143+7 — tsc resolveSymbol()s
         // the `export import JSX = Inner` alias to the real container
-        // and reports the unknown intrinsic. Alias resolution is 5.8:
-        // the walk CONTAINS (recorded FN) instead of falling through
-        // to the absent global JSX (which fabricated 7026 pre-fix —
-        // review find).
+        // and reports the unknown intrinsic. LIVE since 5.9d's
+        // getSymbol alias arm (previously a recorded FN).
         assert_eq!(
             checked_rows_with(
                 "declare namespace React { namespace Inner { interface Element { e: 1 } interface IntrinsicElements { div: {} } } export import JSX = Inner; }\n(<foo />);\n",
                 &jsx(1),
             ),
-            []
+            [(2339, 143, 7)]
         );
     }
 

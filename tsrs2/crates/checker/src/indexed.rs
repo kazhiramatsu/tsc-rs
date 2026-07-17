@@ -25,31 +25,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b22ea48a736bc228a748d543706f8186374bca9aba21f2032144f7b55757e5a6
     /// tsc-span: _tsc.js:60907-60916
     ///
-    /// Same memo discipline as the Omit twin (operators.rs): the
-    /// reportErrors=true miss memoizes unknownSymbol; a lib Extract
-    /// with the wrong arity escapes rather than instantiating wrong.
+    /// Miss AND wrong-arity (2317 reported inside the shared worker)
+    /// both memoize unknownSymbol.
     fn get_global_extract_symbol(&mut self) -> CheckResult2<Option<tsrs2_binder::SymbolId>> {
-        if let Some(memo) = self.deferred_global_extract_symbol {
-            return Ok(memo.filter(|&s| s != self.unknown_symbol));
+        if self.deferred_global_extract_symbol.is_none() {
+            let resolved =
+                self.get_global_type_alias_symbol("Extract", 2, /*report_errors*/ true)?;
+            self.deferred_global_extract_symbol =
+                Some(Some(resolved.unwrap_or(self.unknown_symbol)));
         }
-        let symbol = self.get_global_symbol(
-            "Extract",
-            tsrs2_types::SymbolFlags::TYPE_ALIAS,
-            Some(&diagnostics::Cannot_find_global_type_0),
-        );
-        if let Some(symbol) = symbol {
-            let type_parameters = self.type_alias_type_parameter_count(symbol)?;
-            if type_parameters != 2 {
-                return Err(Unsupported::new(
-                    "global Extract alias with non-2 arity (user-shadowed lib arity report, M4-end sweep 5.8)",
-                ));
-            }
-            self.deferred_global_extract_symbol = Some(Some(symbol));
-            return Ok(Some(symbol));
-        }
-        let unknown = self.unknown_symbol;
-        self.deferred_global_extract_symbol = Some(Some(unknown));
-        Ok(None)
+        let memo = self
+            .deferred_global_extract_symbol
+            .expect("filled above")
+            .expect("memo holds symbol-or-unknown");
+        Ok((memo != self.unknown_symbol).then_some(memo))
     }
 
     /// tsc-port: getExtractStringType @6.0.3
@@ -818,6 +807,34 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult2<Option<TypeId>> {
+        self.get_indexed_access_type_or_undefined_ex(
+            object_type,
+            index_type,
+            access_flags,
+            access_node,
+            alias_symbol,
+            alias_type_arguments,
+            /*synthetic_access*/ false,
+        )
+    }
+
+    /// The synthetic_access flavor: tsc threads a SyntheticExpression
+    /// (createSyntheticExpression 76289) as the access node from the
+    /// destructuring band — its kind matches NONE of the access-node
+    /// probes, so the access-expression band (mark-referenced,
+    /// readonly, flow tail) and the getIndexNodeForAccessExpression
+    /// unwrap stay off while spans still point at the element.
+    #[allow(clippy::too_many_arguments)]
+    pub fn get_indexed_access_type_or_undefined_ex(
+        &mut self,
+        object_type: TypeId,
+        index_type: TypeId,
+        access_flags: AccessFlags,
+        access_node: Option<NodeId>,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+        synthetic_access: bool,
+    ) -> CheckResult2<Option<TypeId>> {
         if object_type == self.tables.intrinsics.wildcard
             || index_type == self.tables.intrinsics.wildcard
         {
@@ -903,13 +920,14 @@ impl<'a> CheckerState<'a> {
                             0
                         },
                 );
-                let property_type = self.get_property_type_for_index_type(
+                let property_type = self.get_property_type_for_index_type_ex(
                     object_type,
                     apparent_object_type,
                     member,
                     index_type,
                     access_node,
                     member_flags,
+                    synthetic_access,
                 )?;
                 match property_type {
                     Some(property_type) => property_types.push(property_type),
@@ -942,13 +960,14 @@ impl<'a> CheckerState<'a> {
                 | AccessFlags::CACHE_SYMBOL.bits()
                 | AccessFlags::REPORT_DEPRECATED.bits(),
         );
-        self.get_property_type_for_index_type(
+        self.get_property_type_for_index_type_ex(
             object_type,
             apparent_object_type,
             index_type,
             index_type,
             access_node,
             full_flags,
+            synthetic_access,
         )
     }
 
@@ -965,7 +984,8 @@ impl<'a> CheckerState<'a> {
     /// fallback (anyType — M6 wires the flag), autoType flow ([FLOW
     /// M5] via the caller's flow tail), unique-symbol index heads
     /// (unique symbol types unconstructible until their annotate arm).
-    fn get_property_type_for_index_type(
+    #[allow(clippy::too_many_arguments)]
+    fn get_property_type_for_index_type_ex(
         &mut self,
         original_object_type: TypeId,
         object_type: TypeId,
@@ -973,9 +993,16 @@ impl<'a> CheckerState<'a> {
         full_index_type: TypeId,
         access_node: Option<NodeId>,
         access_flags: AccessFlags,
+        synthetic_access: bool,
     ) -> CheckResult2<Option<TypeId>> {
-        let access_expression =
-            access_node.filter(|&node| self.kind_of(node) == SyntaxKind::ElementAccessExpression);
+        // A synthetic access node (tsc SyntheticExpression) matches no
+        // access-node kind probe: the element-access band stays off
+        // and index-node unwraps answer the node itself.
+        let access_expression = if synthetic_access {
+            None
+        } else {
+            access_node.filter(|&node| self.kind_of(node) == SyntaxKind::ElementAccessExpression)
+        };
         let property_name = if access_node
             .is_some_and(|node| self.kind_of(node) == SyntaxKind::PrivateIdentifier)
         {
@@ -1089,7 +1116,11 @@ impl<'a> CheckerState<'a> {
                 });
                 if let Some(node) = access_node {
                     if all_fixed && !access_flags.intersects(AccessFlags::ALLOW_MISSING) {
-                        let index_node = self.get_index_node_for_access_expression(node);
+                        let index_node = if synthetic_access {
+                            node
+                        } else {
+                            self.get_index_node_for_access_expression(node)
+                        };
                         if self.tables.is_tuple_type(object_type) {
                             if index < 0.0 {
                                 self.error_at(
@@ -1207,7 +1238,11 @@ impl<'a> CheckerState<'a> {
                             /*strict*/ false,
                         )?
                     {
-                        let index_node = self.get_index_node_for_access_expression(node);
+                        let index_node = if synthetic_access {
+                            node
+                        } else {
+                            self.get_index_node_for_access_expression(node)
+                        };
                         let index_display = self.type_to_string_slice(index_type)?;
                         self.error_at(
                             Some(index_node),
@@ -1300,7 +1335,11 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(self.tables.intrinsics.any));
         }
         if let Some(node) = access_node {
-            let index_node = self.get_index_node_for_access_expression(node);
+            let index_node = if synthetic_access {
+                node
+            } else {
+                self.get_index_node_for_access_expression(node)
+            };
             let index_flags = self.tables.flags_of(index_type);
             if self.kind_of(index_node) != SyntaxKind::BigIntLiteral
                 && index_flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
@@ -1520,12 +1559,21 @@ impl<'a> CheckerState<'a> {
                                     &[format!("[{index_display}]"), object_display],
                                 ));
                             } else if index_flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
-                                // getFullyQualifiedName over the symbol
-                                // — unique symbol types are
-                                // unconstructible (annotate arm), so
-                                // this head has no producer yet.
-                                return Err(Unsupported::new(
-                                    "unique-symbol index head (unique symbol types, annotate M4)",
+                                // 62319-62321: `[<fully-qualified>]`
+                                // over the unique symbol's symbol (the
+                                // containingLocation-relative
+                                // qualification is a T2 nuance — the
+                                // full chain renders).
+                                let symbol = self
+                                    .tables
+                                    .type_of(index_type)
+                                    .symbol
+                                    .expect("unique symbol types carry their symbol");
+                                let symbol_name = self.get_fully_qualified_name(symbol);
+                                let object_display = self.type_to_string_slice(object_type)?;
+                                tail.push(tsrs2_diags::MessageChain::new(
+                                    &diagnostics::Property_0_does_not_exist_on_type_1,
+                                    &[format!("[{symbol_name}]"), object_display],
                                 ));
                             } else if index_flags
                                 .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)

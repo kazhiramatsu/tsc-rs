@@ -8469,7 +8469,20 @@ pub fn parse_source_file(
 /// tsc Parser.parseJsonText. The JavaScriptFile/JsonFile context flags are
 /// not stamped (nothing consumes them yet).
 pub fn parse_json_text(file_name: String, text: String) -> SourceFile {
+    parse_json_text_with_bases(file_name, text, 0, 0)
+}
+
+pub fn parse_json_text_with_bases(
+    file_name: String,
+    text: String,
+    node_id_base: u32,
+    node_array_id_base: u32,
+) -> SourceFile {
     let mut parser = Parser::new(file_name, &text, LanguageVariant::Standard, false);
+    if node_id_base != 0 || node_array_id_base != 0 {
+        debug_assert!(parser.arena.is_empty());
+        parser.arena = NodeArena::with_bases(node_id_base, node_array_id_base);
+    }
     parser.next_token();
     let pos = parser.node_pos();
 

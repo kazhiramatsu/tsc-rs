@@ -1466,7 +1466,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isExactOptionalPropertyMismatch @6.0.3
     /// tsc-hash: 31db751b7f65924eb86b2f3088de7b4bf9a0a35a6e41eb948c2e175edb5ee573
     /// tsc-span: _tsc.js:67771-67773
-    fn is_exact_optional_property_mismatch(
+    pub(crate) fn is_exact_optional_property_mismatch(
         &mut self,
         source: Option<TypeId>,
         target: Option<TypeId>,
@@ -2129,11 +2129,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:79683-79715
     ///
     /// The synthetic access node (createSyntheticExpression 76289) is
-    /// threaded as the ELEMENT node itself: spans match (the synthetic
-    /// copies the element's range) and every dispatch site falls
-    /// through to the same arm — except when the element IS an
-    /// element-access expression, whose kind would take the real
-    /// element-access arm; that shape escapes.
+    /// threaded as the ELEMENT node itself plus the synthetic_access
+    /// flag: spans match (the synthetic copies the element's range)
+    /// and the flag keeps every access-node kind probe off, exactly
+    /// like tsc's SyntheticExpression kind (M4 5.9d).
     fn check_array_literal_destructuring_element_assignment(
         &mut self,
         node: NodeId,
@@ -2148,12 +2147,6 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         if self.kind_of(element) != SyntaxKind::SpreadElement {
-            if self.kind_of(element) == SyntaxKind::ElementAccessExpression {
-                return Err(Unsupported::new(
-                    "destructuring into an element access (synthetic access-node kind \
-                     collides with the element-access dispatch arm)",
-                ));
-            }
             if !self.is_array_like_type(source_type)? {
                 // 79696: non-array-like sources hand every element the
                 // iterated type.
@@ -2174,14 +2167,19 @@ impl<'a> CheckerState<'a> {
                         0
                     },
             );
+            // createSyntheticExpression(element, indexType): the
+            // element node carries the span; the synthetic flag keeps
+            // the access-node kind probes off (an element that IS an
+            // element access must not take the real access arms).
             let element_type = self
-                .get_indexed_access_type_or_undefined(
+                .get_indexed_access_type_or_undefined_ex(
                     source_type,
                     index_type,
                     access_flags,
                     Some(element),
                     None,
                     None,
+                    /*synthetic_access*/ true,
                 )?
                 .unwrap_or(self.tables.intrinsics.error);
             let assigned_type = if self.has_default_value(element) {
@@ -2669,7 +2667,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getInstantiationExpressionType @6.0.3
     /// tsc-hash: f4a1390bbeb0115467dd9705247f0eef523b5c55910f73917feb8de92a755dc8
     /// tsc-span: _tsc.js:77975-78046
-    fn get_instantiation_expression_type(
+    pub(crate) fn get_instantiation_expression_type(
         &mut self,
         expr_type: TypeId,
         node: NodeId,
@@ -3025,13 +3023,45 @@ impl<'a> CheckerState<'a> {
         if self.meta_property_is_new(node) {
             return self.check_new_target_meta_property(node);
         }
-        let name_text = self.meta_property_name_text(node);
-        if name_text.as_deref() == Some("defer") {
+        // checkMetaProperty returns errorType after the grammar check
+        // for both the valid call-form and invalid bare import.defer;
+        // it must not fall through to import.meta's module diagnostic.
+        if self.meta_property_name_text(node).as_deref() == Some("defer") {
             return Ok(self.tables.intrinsics.error);
         }
-        Err(Unsupported::new(
-            "checkImportMetaProperty (module-kind machinery, 5.8)",
-        ))
+        self.check_import_meta_property(node)
+    }
+
+    /// tsc-port: checkImportMetaProperty @6.0.3
+    /// tsc-hash: 3938f818e61319328c4132e426bb9c8a42165afb64b01a38b68d2482c2ec3bab
+    /// tsc-span: _tsc.js:78099-78110
+    ///
+    /// The PossiblyContainsImportMeta Debug.assert is a parser-flag
+    /// internal invariant (elided).
+    fn check_import_meta_property(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let module_kind = self.options.emit_module_kind();
+        if (100..=199).contains(&module_kind) {
+            if self.implied_node_format_for_file(node)
+                == crate::modules::ModuleResolutionMode::CommonJs
+            {
+                self.error_at(
+                    Some(node),
+                    &tsrs2_diags::gen::The_import_meta_meta_property_is_not_allowed_in_files_which_will_build_into_CommonJS_output,
+                    &[],
+                );
+            }
+        } else if module_kind < 6 && module_kind != 4 {
+            self.error_at(
+                Some(node),
+                &tsrs2_diags::gen::The_import_meta_meta_property_is_only_allowed_when_the_module_option_is_es2020_es2022_esnext_system_node16_node18_node20_or_nodenext,
+                &[],
+            );
+        }
+        if self.meta_property_name_text(node).as_deref() == Some("meta") {
+            self.get_global_import_meta_type()
+        } else {
+            Ok(self.tables.intrinsics.error)
+        }
     }
 
     /// The keywordToken read: `new.target` vs `import.meta` via the
@@ -3628,28 +3658,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalOmitSymbol @6.0.3
     /// tsc-hash: eef048565108e47aa85500fb2a7275defd8d8a63cd9193179c79610e42230b80
     /// tsc-span: _tsc.js:60917-60926
+    ///
+    /// Miss AND wrong-arity (2317 in the shared worker) memoize
+    /// unknownSymbol.
     fn get_global_omit_symbol(&mut self) -> CheckResult2<Option<SymbolId>> {
-        if let Some(memo) = self.deferred_global_omit_symbol {
-            return Ok(memo.filter(|&s| s != self.unknown_symbol));
+        if self.deferred_global_omit_symbol.is_none() {
+            let resolved =
+                self.get_global_type_alias_symbol("Omit", 2, /*report_errors*/ true)?;
+            self.deferred_global_omit_symbol = Some(Some(resolved.unwrap_or(self.unknown_symbol)));
         }
-        let symbol = self.get_global_symbol(
-            "Omit",
-            SymbolFlags::TYPE_ALIAS,
-            Some(&tsrs2_diags::gen::Cannot_find_global_type_0),
-        );
-        if let Some(symbol) = symbol {
-            let type_parameters = self.type_alias_type_parameter_count(symbol)?;
-            if type_parameters != 2 {
-                return Err(Unsupported::new(
-                    "global Omit alias with non-2 arity (user-shadowed lib)",
-                ));
-            }
-            self.deferred_global_omit_symbol = Some(Some(symbol));
-            return Ok(Some(symbol));
-        }
-        let unknown = self.unknown_symbol;
-        self.deferred_global_omit_symbol = Some(Some(unknown));
-        Ok(None)
+        let memo = self
+            .deferred_global_omit_symbol
+            .expect("filled above")
+            .expect("memo holds symbol-or-unknown");
+        Ok((memo != self.unknown_symbol).then_some(memo))
     }
 
     // ---- nullish-coalescing operand probes ----
@@ -4736,24 +4758,23 @@ impl<'a> CheckerState<'a> {
         if let Some(memo) = self.deferred_global_awaited_symbol {
             return Ok(memo.filter(|&s| s != self.unknown_symbol));
         }
-        let diagnostic = report_errors.then_some(&tsrs2_diags::gen::Cannot_find_global_type_0);
-        let symbol = self.get_global_symbol("Awaited", SymbolFlags::TYPE_ALIAS, diagnostic);
-        if let Some(symbol) = symbol {
-            // getGlobalTypeAliasSymbol arity check: Awaited<T> is 1.
-            let type_parameters = self.type_alias_type_parameter_count(symbol)?;
-            if type_parameters != 1 {
-                return Err(Unsupported::new(
-                    "global Awaited alias with non-1 arity (user-shadowed lib)",
-                ));
+        // Miss/wrong-arity memoize unknownSymbol only under
+        // reportErrors (`|| (reportErrors2 ? unknownSymbol : void 0)`)
+        // — the silent flavor retries per call.
+        let resolved = self.get_global_type_alias_symbol("Awaited", 1, report_errors)?;
+        match resolved {
+            Some(symbol) => {
+                self.deferred_global_awaited_symbol = Some(Some(symbol));
+                Ok(Some(symbol))
             }
-            self.deferred_global_awaited_symbol = Some(Some(symbol));
-            return Ok(Some(symbol));
+            None => {
+                if report_errors {
+                    let unknown = self.unknown_symbol;
+                    self.deferred_global_awaited_symbol = Some(Some(unknown));
+                }
+                Ok(None)
+            }
         }
-        if report_errors {
-            let unknown = self.unknown_symbol;
-            self.deferred_global_awaited_symbol = Some(Some(unknown));
-        }
-        Ok(None)
     }
 
     // ---- operator-error display + await-hint plumbing ----
@@ -4771,21 +4792,6 @@ impl<'a> CheckerState<'a> {
         }
         let base_constraint = self.get_base_constraint_or_type(ty)?;
         Ok(self.maybe_type_of_kind(base_constraint, kind))
-    }
-
-    /// tsrs-native: the getGlobalTypeAliasSymbol arity read —
-    /// declared-type forcing plus the links typeParameters length.
-    pub(crate) fn type_alias_type_parameter_count(
-        &mut self,
-        symbol: SymbolId,
-    ) -> CheckResult2<usize> {
-        self.get_declared_type_of_symbol_slice(symbol)?;
-        Ok(self
-            .links
-            .symbol(symbol)
-            .type_parameters
-            .as_ref()
-            .map_or(0, |params| params.len()))
     }
 
     /// tsc-port: errorAndMaybeSuggestAwait @6.0.3
@@ -4808,16 +4814,6 @@ impl<'a> CheckerState<'a> {
         } else {
             self.error_at(Some(location), message, args)
         }
-    }
-
-    /// tsc-port: getTypeNameForErrorDisplay @6.0.3
-    /// tsc-hash: 9e9827829d64df1cb9ed00762b4a5c872a23139bdd217fffd5c274437e7ac389
-    /// tsc-span: _tsc.js:50757-50764
-    ///
-    /// UseFullyQualifiedType rendering is nodeBuilder work (T2/M8) —
-    /// same disposition as check.rs's identically-named-types escape.
-    fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult2<String> {
-        self.type_to_string_slice(ty)
     }
 }
 

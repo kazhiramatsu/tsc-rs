@@ -2786,6 +2786,17 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<SymbolId>> {
+        self.get_property_of_object_type_with_include_type_only_members(
+            ty, name, /*include_type_only_members*/ false,
+        )
+    }
+
+    fn get_property_of_object_type_with_include_type_only_members(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+        include_type_only_members: bool,
+    ) -> CheckResult2<Option<SymbolId>> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
@@ -2793,11 +2804,42 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.members_of(members).members.get(name).copied() else {
             return Ok(None);
         };
-        if self.symbol_flags(symbol).intersects(SymbolFlags::VALUE) {
+        let hidden_type_only_export = !include_type_only_members
+            && self.tables.type_of(ty).symbol.is_some_and(|module_symbol| {
+                self.symbol_flags(module_symbol)
+                    .intersects(SymbolFlags::VALUE_MODULE)
+                    && self
+                        .links
+                        .symbol(module_symbol)
+                        .type_only_export_star_map
+                        .as_ref()
+                        .is_some_and(|map| map.contains_key(name))
+            });
+        if !hidden_type_only_export && self.symbol_is_value(symbol, include_type_only_members)? {
             Ok(Some(symbol))
         } else {
             Ok(None)
         }
+    }
+
+    /// tsc-port: symbolIsValue @6.0.3
+    /// tsc-hash: 99627f0ab0d15959cbc9fb63863a3370f651da6ac4b4a023c76a4bf90342a9b6
+    /// tsc-span: _tsc.js:59433-59437
+    fn symbol_is_value(
+        &mut self,
+        symbol: SymbolId,
+        include_type_only_members: bool,
+    ) -> CheckResult2<bool> {
+        let flags = self.symbol_flags(symbol);
+        Ok(flags.intersects(SymbolFlags::VALUE)
+            || flags.intersects(SymbolFlags::ALIAS)
+                && self
+                    .get_symbol_flags_full(
+                        symbol,
+                        /*exclude_type_only_meanings*/ !include_type_only_members,
+                        /*exclude_local_meanings*/ false,
+                    )?
+                    .intersects(SymbolFlags::VALUE))
     }
 
     /// tsc-port: getPropertiesOfUnionOrIntersectionType @6.0.3
@@ -2856,8 +2898,9 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<SymbolId>> {
-        self.get_property_of_type_ex(
+        self.get_property_of_type_ex_with_include_type_only_members(
             ty, name, /*skip_object_function_property_augment*/ false,
+            /*include_type_only_members*/ false,
         )
     }
 
@@ -2868,28 +2911,41 @@ impl<'a> CheckerState<'a> {
     /// the lazy global getters fall back to empty types so the augment
     /// is inert, while lib-loaded programs resolve `x.toString` etc.
     /// like tsc (5.5d conformance FP find: nonPrimitiveStrictNull).
-    /// symbolIsValue's alias chase is elided (5.8) — an alias member
-    /// falls through to the augment like a non-value hit.
-    /// includeTypeOnlyMembers/typeOnlyExportStarMap gate on module
-    /// symbols (5.8) — the map has no producer yet.
+    /// symbolIsValue follows aliases, and the
+    /// includeTypeOnlyMembers/typeOnlyExportStarMap gate matches the
+    /// value/type-query distinction.
     pub fn get_property_of_type_ex(
         &mut self,
         ty: TypeId,
         name: &str,
         skip_object_function_property_augment: bool,
     ) -> CheckResult2<Option<SymbolId>> {
+        self.get_property_of_type_ex_with_include_type_only_members(
+            ty,
+            name,
+            skip_object_function_property_augment,
+            /*include_type_only_members*/ false,
+        )
+    }
+
+    /// tsrs-native: include-carrying body behind the getPropertyOfType
+    /// compatibility wrappers.
+    pub(crate) fn get_property_of_type_ex_with_include_type_only_members(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+        skip_object_function_property_augment: bool,
+        include_type_only_members: bool,
+    ) -> CheckResult2<Option<SymbolId>> {
         let reduced = self.get_reduced_apparent_type(ty)?;
         let flags = self.tables.flags_of(reduced);
         if flags.intersects(TypeFlags::OBJECT) {
-            if let Some(symbol) = self.get_property_of_object_type(reduced, name)? {
-                if self
-                    .binder
-                    .symbol(symbol)
-                    .flags
-                    .intersects(SymbolFlags::VALUE)
-                {
-                    return Ok(Some(symbol));
-                }
+            if let Some(symbol) = self.get_property_of_object_type_with_include_type_only_members(
+                reduced,
+                name,
+                include_type_only_members,
+            )? {
+                return Ok(Some(symbol));
             }
             if skip_object_function_property_augment {
                 return Ok(None);
@@ -5048,7 +5104,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Both sentinels come from empty-array-literal widening (M6
     /// expression checking), so annotation-built types never match.
-    fn is_empty_literal_type(&self, ty: TypeId) -> bool {
+    pub(crate) fn is_empty_literal_type(&self, ty: TypeId) -> bool {
         if self.tables.strict_null_checks {
             ty == self.tables.intrinsics.implicit_never
         } else {

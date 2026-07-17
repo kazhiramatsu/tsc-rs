@@ -203,6 +203,11 @@ pub struct SymbolLinks {
     /// alias symbols, which is DISTINCT from the sentinel exactly as
     /// tsc's fresh `[]` differs from the shared emptyArray.
     pub variances: LinkSlot<Box<[tsrs2_types::VarianceFlags]>>,
+    /// tsc links.originatingImport (cloneTypeAsModuleType 49769) — the
+    /// import-site provenance an interop module clone carries; read by
+    /// the invocation-error related-info band (64900/77252): dormant
+    /// stores at M4 (related info is not a T0 observable).
+    pub originating_import: Option<NodeId>,
     /// tsc links.leftSpread/rightSpread (getSpreadType 63024-63025):
     /// the merged-optional-property provenance pair. Dormant stores
     /// at M4 (read by getSyntheticElementAccess-side tooling later);
@@ -270,6 +275,14 @@ pub struct TypeLinks {
     /// tsc type.immediateBaseConstraint (getImmediateBaseConstraint
     /// 58921-58951; the ImmediateBaseConstraint resolution property).
     pub immediate_base_constraint: LinkSlot<TypeId>,
+    /// tsc synthType.syntheticType (getTypeWithSyntheticDefaultImportType
+    /// 77789-77821) — the esModuleInterop default-wrap memo stamped on
+    /// the module type itself.
+    pub synthetic_type: Option<TypeId>,
+    /// tsc synthType.defaultOnlyType
+    /// (getTypeWithSyntheticDefaultOnly 77779-77787): the JSON ESM
+    /// default-only wrapper memo.
+    pub default_only_type: Option<TypeId>,
     /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
     /// (instantiateAnonymousType 63658).
     pub instantiated_target: Option<TypeId>,
@@ -455,6 +468,42 @@ impl LinksTables {
         note_resolving_transition(links.resolved_symbol.is_resolving(), false);
         note_resolving_transition(links.resolved_type.is_resolving(), false);
         links.resolved_symbol = LinkSlot::Resolved(symbol);
+        links.resolved_type = LinkSlot::Resolved(value);
+    }
+
+    /// getTypeFromImportTypeNode's resolvedSymbol writes are UNGUARDED
+    /// in tsc: the qualifier walk stamps each link's symbol on the
+    /// link and its parent (62864-62865) — for a one-deep chain the
+    /// parent IS the import-type node — and resolveImportSymbolType
+    /// (62883) then overwrites the node with the resolveSymbol'd face;
+    /// the final write wins. Self-referential aliases can also
+    /// re-enter the node mid-computation (the
+    /// overwrite_type_reference_resolution recursion class). The
+    /// import-type sanctioned overwrite pair, symbol half.
+    pub fn overwrite_import_type_resolved_symbol(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: SymbolId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.node.entry(id).or_default();
+        note_resolving_transition(links.resolved_symbol.is_resolving(), false);
+        links.resolved_symbol = LinkSlot::Resolved(value);
+    }
+
+    /// The import-type sanctioned overwrite pair, type half (see
+    /// overwrite_import_type_resolved_symbol; tsc 62828/62834/62862/
+    /// 62868-62877 all assign links.resolvedType unguarded).
+    pub fn overwrite_import_type_resolved_type(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.node.entry(id).or_default();
+        note_resolving_transition(links.resolved_type.is_resolving(), false);
         links.resolved_type = LinkSlot::Resolved(value);
     }
 
@@ -845,6 +894,18 @@ impl LinksTables {
     pub fn set_symbol_target(&mut self, speculation_depth: u32, id: SymbolId, target: SymbolId) {
         Self::assert_writable(speculation_depth);
         self.symbol.entry(id).or_default().target = Some(target);
+    }
+
+    /// `links.originatingImport = referenceParent` on a fresh interop
+    /// clone (cloneTypeAsModuleType 49769).
+    pub fn set_symbol_originating_import(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        reference_parent: NodeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().originating_import = Some(reference_parent);
     }
 
     /// `links.leftSpread/rightSpread` (getSpreadType 63024-63025).
@@ -1271,6 +1332,35 @@ impl LinksTables {
         links.target = Some(target);
         links.mapper = Some(mapper);
         links.name_type = name_type;
+    }
+
+    /// getTypeWithSyntheticDefaultImportType's synthType.syntheticType
+    /// stamp (77794/77817) — the `if (!synthType.syntheticType)` guard
+    /// makes this write-once.
+    pub fn set_type_synthetic_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.synthetic_type.is_none(),
+            "syntheticType written twice for {id:?}"
+        );
+        links.synthetic_type = Some(value);
+    }
+
+    /// tsrs-native: links-table setter for tsc's type.defaultOnlyType write.
+    pub fn set_type_default_only_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.default_only_type.is_none(),
+            "defaultOnlyType written twice for {id:?}"
+        );
+        links.default_only_type = Some(value);
     }
 
     /// instantiateAnonymousType's target/mapper seed (63658-63659),

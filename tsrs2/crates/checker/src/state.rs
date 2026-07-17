@@ -466,6 +466,20 @@ pub struct CheckerState<'a> {
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
     pub diagnostics: DiagnosticList,
+    /// File-less diagnostics that tsc adds after its
+    /// previousGlobalDiagnostics snapshot and therefore exposes from
+    /// getSemanticDiagnostics. Lazy initialization diagnostics not
+    /// registered here remain program-global.
+    pub visible_global_diagnostics: DiagnosticList,
+    /// Syntax ranges whose check was partial because an Unsupported
+    /// containment boundary or an unimplemented flow-sensitive
+    /// diagnostic was reached. Only directives targeting one of these
+    /// ranges are exempt from unused @ts-expect-error diagnostics.
+    pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
+    /// Public audit records corresponding to recognized Unsupported
+    /// containment events. Unlike the byte ranges above, these use
+    /// diagnostic-compatible UTF-16 coordinates.
+    pub(crate) partial_check_records: Vec<crate::PartialCheck>,
     /// Literal operands whose `satisfies` elaboration already emitted
     /// an inner diagnostic. Re-checks must not add the outer 1360.
     pub(crate) elaborated_satisfies_expressions: std::collections::HashSet<NodeId>,
@@ -512,6 +526,23 @@ pub struct CheckerState<'a> {
     /// without allowJs) — the resolver's suppression probes read this
     /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
     pub host_file_paths: std::collections::HashSet<String>,
+    /// Normalized package.json path → whether its `"type"` is
+    /// `"module"`. Node16/NodeNext use the nearest package scope to
+    /// determine the implied emit format of plain .ts/.js files.
+    pub host_package_json_module_types: std::collections::HashMap<String, bool>,
+    /// Normalized package.json path → its non-empty `"name"` field.
+    /// Bare self-name imports are undecidable only inside a matching
+    /// package scope; an unrelated package.json must not hide 2307.
+    pub host_package_json_names: std::collections::HashMap<String, String>,
+    /// Per-source getJsxNamespaceContainerForImplicitImport cache.
+    /// `Some(None)` records an attempted miss so repeated JSX nodes do
+    /// not duplicate the runtime-module diagnostic.
+    pub(crate) jsx_implicit_import_containers: std::collections::HashMap<usize, Option<SymbolId>>,
+    /// Variable-like declarations whose effective type came from the
+    /// modeled JSDoc @type subset. Checked-JS assembly uses their exact
+    /// diagnostic spans to expose the resulting semantic diagnostics
+    /// without admitting unrelated JSDoc-dependent approximations.
+    pub(crate) jsdoc_typed_declarations: std::collections::HashSet<NodeId>,
     /// Lazy getGlobal*Type memos (deferredGlobal* pattern 60679 for the
     /// deferred ones; the core init block 88788+ is deliberately LAZY
     /// here — m4-checker-skeleton-steps.md 5.0 — so each global starts
@@ -659,6 +690,9 @@ impl<'a> CheckerState<'a> {
             flow_containment_indexes: Default::default(),
             js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),
+            visible_global_diagnostics: Vec::new(),
+            partially_checked_ranges: std::collections::HashMap::new(),
+            partial_check_records: Vec::new(),
             elaborated_satisfies_expressions: std::collections::HashSet::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
@@ -672,6 +706,10 @@ impl<'a> CheckerState<'a> {
             unresolved_package_root_cache: Default::default(),
             program_path_index: std::collections::HashMap::new(),
             host_file_paths: std::collections::HashSet::new(),
+            host_package_json_module_types: std::collections::HashMap::new(),
+            host_package_json_names: std::collections::HashMap::new(),
+            jsx_implicit_import_containers: std::collections::HashMap::new(),
+            jsdoc_typed_declarations: std::collections::HashSet::new(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
             resolution_targets: Vec::new(),
@@ -1129,6 +1167,41 @@ impl<'a> CheckerState<'a> {
             Some(end_utf16.saturating_sub(start_utf16)),
             MessageChain::new(message, &args),
         )
+    }
+
+    /// tsrs-native: containment bookkeeping for source ranges whose
+    /// diagnostics may be incomplete.
+    ///
+    /// The program layer exempts only directives targeting one of
+    /// these ranges instead of suppressing 2578 for the entire file.
+    pub(crate) fn mark_partially_checked_node(&mut self, node: NodeId, reason: impl Into<String>) {
+        let file_index = self.binder.file_index_of_node(node);
+        let source = self.binder.source_of_node(node);
+        let raw = source.arena.node(node);
+        let range = (raw.pos, raw.end);
+        let ranges = self.partially_checked_ranges.entry(file_index).or_default();
+        if !ranges.contains(&range) {
+            ranges.push(range);
+        }
+        let to_utf16 = |byte: u32| {
+            source
+                .line_map
+                .byte_to_utf16
+                .get(byte as usize)
+                .copied()
+                .unwrap_or(byte)
+        };
+        let start = to_utf16(raw.pos);
+        let end = to_utf16(raw.end);
+        let record = crate::PartialCheck {
+            file_name: source.file_name.clone(),
+            start,
+            length: end.saturating_sub(start),
+            reason: reason.into(),
+        };
+        if !self.partial_check_records.contains(&record) {
+            self.partial_check_records.push(record);
+        }
     }
 
     // ---- out-of-band variance marker handler (M4 5.3b) ----

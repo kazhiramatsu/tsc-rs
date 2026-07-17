@@ -1766,6 +1766,10 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         summary.mismatch_cases
     );
     println!(
+        "FN partial-boundary audit: reached={} no-evidence={}",
+        summary.fn_with_partial_boundary_evidence, summary.fn_without_partial_boundary_evidence
+    );
+    println!(
         "shadow tiers T1={:.4}% ({}, ratcheted when configured) T2={:.4}% ({}, non-gating) T3={:.4}% ({}, non-gating)",
         summary.shadow_t1_rate * 100.0,
         summary.shadow_t1_matched,
