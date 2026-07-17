@@ -18,18 +18,18 @@ jobs:
           persist-credentials: false
 
       # The full-corpus measurement passes peak at ~11.5 GB RSS on a
-      # 16 GB runner; the leftover build page cache is enough pressure
-      # for systemd-oomd to kill the runner agent ("runner has received
-      # a shutdown signal"). Swap absorbs the pressure spike, and
-      # stopping the ephemeral VM's oomd removes the PSI-triggered
-      # cgroup kill entirely.
+      # 16 GB runner; even with the image's stock /swapfile active the
+      # memory-pressure spike makes systemd-oomd kill the runner agent
+      # ("runner has received a shutdown signal"). Stop oomd (PSI-
+      # triggered cgroup kill) and add swap beyond the stock file —
+      # /swapfile already exists on the image, hence the distinct path.
       - name: Provision memory headroom for full-corpus passes
         run: |
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
           sudo systemctl stop systemd-oomd.service systemd-oomd.socket || true
+          sudo fallocate -l 8G /swap-gates
+          sudo chmod 600 /swap-gates
+          sudo mkswap /swap-gates
+          sudo swapon /swap-gates
           free -h
           df -h /
 
