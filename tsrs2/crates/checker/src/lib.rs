@@ -589,6 +589,17 @@ pub fn check_program_with_libs(
         // clean: whole families such as TS2454 are still silent without
         // crossing an Unsupported boundary. Emitting 2578 here would
         // turn those known false negatives into false positives.
+        // 5.9d RE-MEASURE (2026-07-17, recorded decision: KEEP OFF):
+        // the corpus stake is 14 oracle 2578 rows across 3 fixtures
+        // (directives/ts-expect-error.ts 10, multiline.tsx 2,
+        // ts-expect-error-js.ts 2). ts-expect-error.ts and the js twin
+        // would match cleanly today (their non-2578 rows all match),
+        // but multiline.tsx consumes JSX-band 7026s under five of its
+        // directives — rows we do not emit yet — so emission would
+        // manufacture ~5 FPs there. Revisit when the M7 unused band
+        // and the JSX 7026 family close; the emitter belongs HERE (the
+        // tsc getDiagnosticsWorker tail), keyed on directives the
+        // filter above left unconsumed.
         // The aggregate pass is sorted + deduplicated like tsc's
         // getPreEmitDiagnostics / the oracle driver's
         // ts.sortAndDeduplicateDiagnostics; getSyntacticDiagnostics

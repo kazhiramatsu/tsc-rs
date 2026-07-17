@@ -169,6 +169,37 @@ Every one of the 157 entries gets exactly one:
   fixes, Extract/Omit/Awaited arity trio, remaining calls/module
   arms, and the 2578 re-measure (the 5.8e deliberate FN) with a
   recorded keep/land decision. See the implement-5.9d list.
+  LANDED (2026-07-17): all implement-5.9d rows above plus recorded
+  amendments: (1) getTypeReferenceType extracted from
+  getTypeFromTypeReference so import types share it; the
+  ImportType type-arguments arm added to checkNoTypeArguments and
+  the class/interface + type-alias reference readers (2314/2315
+  probe FP find); (2) isTypeOf re-derived from source text (the
+  parser drops the marker) — the instantiate.rs copy upgraded to
+  skip_trivia + word boundary and shared; (3) links gained the
+  import-type sanctioned overwrite pair (tsc's unguarded
+  resolvedSymbol/resolvedType writes; one-deep qualifier chains
+  stamp the node twice by design) beside the existing two
+  write-twice sites; (4) the checkImportMetaProperty Node16 arm
+  errors only on extension-implied CommonJS (.cts/.cjs) — plain
+  .ts stays a recorded FN per the 1378/2854 non-CJS fallthrough
+  precedent (no escape); (5) getGlobalTypeAliasSymbol landed with
+  TYPE meaning (not TypeAlias) — interface-shadowed globals fail
+  the arity probe with 2317; (6) the synthetic-access marker is a
+  bool flavor on getIndexedAccessTypeOrUndefined (suppresses the
+  access-expression band + the three getIndexNodeForAccessExpression
+  unwraps), not a node kind; (7) type_to_string_slice gained the
+  fully_qualified flavor (= getTypeNameForErrorDisplay) and the
+  origin-union arm prints origins (keyof rendering); the
+  operators.rs message-only twin now rides it (M8 row satisfied
+  early); (8) three unit pins refreshed to their documented oracle
+  rows (aliased-JSX 2339, import-type 2307 seam, noLib import-call
+  2711). 2578 RECORDED DECISION — KEEP OFF: stake is 14 oracle
+  rows / 3 fixtures; ts-expect-error.ts + the js twin would match
+  cleanly today, but multiline.tsx consumes JSX-band 7026s under
+  five directives we do not emit — emission would manufacture ~5
+  FPs. Revisit when M7 unused + the 7026 family close (emitter
+  spec lives in checker/src/lib.rs at the directive filter).
 - **5.9e `m4/5.9e-close`** — untagged→0 and owner<=5.8→0 enforced:
   STAGE→5.9, `max_untagged = 0`, skeleton-steps final gate
   (conformance T0≥35% + FP=0, relpin, invariants idempotence,
