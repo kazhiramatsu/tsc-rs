@@ -2129,11 +2129,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:79683-79715
     ///
     /// The synthetic access node (createSyntheticExpression 76289) is
-    /// threaded as the ELEMENT node itself: spans match (the synthetic
-    /// copies the element's range) and every dispatch site falls
-    /// through to the same arm — except when the element IS an
-    /// element-access expression, whose kind would take the real
-    /// element-access arm; that shape escapes.
+    /// threaded as the ELEMENT node itself plus the synthetic_access
+    /// flag: spans match (the synthetic copies the element's range)
+    /// and the flag keeps every access-node kind probe off, exactly
+    /// like tsc's SyntheticExpression kind (M4 5.9d).
     fn check_array_literal_destructuring_element_assignment(
         &mut self,
         node: NodeId,
@@ -2148,12 +2147,6 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         if self.kind_of(element) != SyntaxKind::SpreadElement {
-            if self.kind_of(element) == SyntaxKind::ElementAccessExpression {
-                return Err(Unsupported::new(
-                    "destructuring into an element access (synthetic access-node kind \
-                     collides with the element-access dispatch arm)",
-                ));
-            }
             if !self.is_array_like_type(source_type)? {
                 // 79696: non-array-like sources hand every element the
                 // iterated type.
@@ -2174,14 +2167,19 @@ impl<'a> CheckerState<'a> {
                         0
                     },
             );
+            // createSyntheticExpression(element, indexType): the
+            // element node carries the span; the synthetic flag keeps
+            // the access-node kind probes off (an element that IS an
+            // element access must not take the real access arms).
             let element_type = self
-                .get_indexed_access_type_or_undefined(
+                .get_indexed_access_type_or_undefined_ex(
                     source_type,
                     index_type,
                     access_flags,
                     Some(element),
                     None,
                     None,
+                    /*synthetic_access*/ true,
                 )?
                 .unwrap_or(self.tables.intrinsics.error);
             let assigned_type = if self.has_default_value(element) {

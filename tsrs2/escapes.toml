@@ -1217,12 +1217,6 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "check_array_literal_destructuring_element_assignment"
-reason = "destructuring into an element access (synthetic access-node kind collides with the element-access dispatch arm)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_array_literal_destructuring_element_assignment"
 reason = "spread element without expression (parse-recovery tree)"
 class = "recovery"
 

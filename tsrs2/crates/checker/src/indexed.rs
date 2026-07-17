@@ -807,6 +807,34 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult2<Option<TypeId>> {
+        self.get_indexed_access_type_or_undefined_ex(
+            object_type,
+            index_type,
+            access_flags,
+            access_node,
+            alias_symbol,
+            alias_type_arguments,
+            /*synthetic_access*/ false,
+        )
+    }
+
+    /// The synthetic_access flavor: tsc threads a SyntheticExpression
+    /// (createSyntheticExpression 76289) as the access node from the
+    /// destructuring band — its kind matches NONE of the access-node
+    /// probes, so the access-expression band (mark-referenced,
+    /// readonly, flow tail) and the getIndexNodeForAccessExpression
+    /// unwrap stay off while spans still point at the element.
+    #[allow(clippy::too_many_arguments)]
+    pub fn get_indexed_access_type_or_undefined_ex(
+        &mut self,
+        object_type: TypeId,
+        index_type: TypeId,
+        access_flags: AccessFlags,
+        access_node: Option<NodeId>,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+        synthetic_access: bool,
+    ) -> CheckResult2<Option<TypeId>> {
         if object_type == self.tables.intrinsics.wildcard
             || index_type == self.tables.intrinsics.wildcard
         {
@@ -892,13 +920,14 @@ impl<'a> CheckerState<'a> {
                             0
                         },
                 );
-                let property_type = self.get_property_type_for_index_type(
+                let property_type = self.get_property_type_for_index_type_ex(
                     object_type,
                     apparent_object_type,
                     member,
                     index_type,
                     access_node,
                     member_flags,
+                    synthetic_access,
                 )?;
                 match property_type {
                     Some(property_type) => property_types.push(property_type),
@@ -931,13 +960,14 @@ impl<'a> CheckerState<'a> {
                 | AccessFlags::CACHE_SYMBOL.bits()
                 | AccessFlags::REPORT_DEPRECATED.bits(),
         );
-        self.get_property_type_for_index_type(
+        self.get_property_type_for_index_type_ex(
             object_type,
             apparent_object_type,
             index_type,
             index_type,
             access_node,
             full_flags,
+            synthetic_access,
         )
     }
 
@@ -954,7 +984,8 @@ impl<'a> CheckerState<'a> {
     /// fallback (anyType — M6 wires the flag), autoType flow ([FLOW
     /// M5] via the caller's flow tail), unique-symbol index heads
     /// (unique symbol types unconstructible until their annotate arm).
-    fn get_property_type_for_index_type(
+    #[allow(clippy::too_many_arguments)]
+    fn get_property_type_for_index_type_ex(
         &mut self,
         original_object_type: TypeId,
         object_type: TypeId,
@@ -962,9 +993,16 @@ impl<'a> CheckerState<'a> {
         full_index_type: TypeId,
         access_node: Option<NodeId>,
         access_flags: AccessFlags,
+        synthetic_access: bool,
     ) -> CheckResult2<Option<TypeId>> {
-        let access_expression =
-            access_node.filter(|&node| self.kind_of(node) == SyntaxKind::ElementAccessExpression);
+        // A synthetic access node (tsc SyntheticExpression) matches no
+        // access-node kind probe: the element-access band stays off
+        // and index-node unwraps answer the node itself.
+        let access_expression = if synthetic_access {
+            None
+        } else {
+            access_node.filter(|&node| self.kind_of(node) == SyntaxKind::ElementAccessExpression)
+        };
         let property_name = if access_node
             .is_some_and(|node| self.kind_of(node) == SyntaxKind::PrivateIdentifier)
         {
@@ -1078,7 +1116,11 @@ impl<'a> CheckerState<'a> {
                 });
                 if let Some(node) = access_node {
                     if all_fixed && !access_flags.intersects(AccessFlags::ALLOW_MISSING) {
-                        let index_node = self.get_index_node_for_access_expression(node);
+                        let index_node = if synthetic_access {
+                            node
+                        } else {
+                            self.get_index_node_for_access_expression(node)
+                        };
                         if self.tables.is_tuple_type(object_type) {
                             if index < 0.0 {
                                 self.error_at(
@@ -1196,7 +1238,11 @@ impl<'a> CheckerState<'a> {
                             /*strict*/ false,
                         )?
                     {
-                        let index_node = self.get_index_node_for_access_expression(node);
+                        let index_node = if synthetic_access {
+                            node
+                        } else {
+                            self.get_index_node_for_access_expression(node)
+                        };
                         let index_display = self.type_to_string_slice(index_type)?;
                         self.error_at(
                             Some(index_node),
@@ -1289,7 +1335,11 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(self.tables.intrinsics.any));
         }
         if let Some(node) = access_node {
-            let index_node = self.get_index_node_for_access_expression(node);
+            let index_node = if synthetic_access {
+                node
+            } else {
+                self.get_index_node_for_access_expression(node)
+            };
             let index_flags = self.tables.flags_of(index_type);
             if self.kind_of(index_node) != SyntaxKind::BigIntLiteral
                 && index_flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
