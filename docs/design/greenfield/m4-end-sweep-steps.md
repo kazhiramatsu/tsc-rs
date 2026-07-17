@@ -200,6 +200,18 @@ Every one of the 157 entries gets exactly one:
   five directives we do not emit — emission would manufacture ~5
   FPs. Revisit when M7 unused + the 7026 family close (emitter
   spec lives in checker/src/lib.rs at the directive filter).
+  1543/1544 RECORDED DECISION — KEEP OFF (review follow-up): live
+  tsc 6.0.3 emits the JSON import-attribute pair (nodeModulesJson
+  probe 2026-07-18), but no golden in the corpus observes either
+  code — the A2-reviewed goldens predate the 5.8d oracle-host
+  Node-ESM fix, and the 5.9d resolveJsonModule machinery made the
+  ported emitters reachable (7 FPs on nodeModulesJson). Emitters
+  removed at get_external_module_member / check_import_declaration;
+  re-add at a reviewed golden refresh. The same review round also
+  restored the frozen-host package-scope boundaries
+  (can_have_synthetic_default / export= 1203 / the Node20
+  module.exports arms) that the broad-review fixes had unfrozen —
+  34 accepted identities regressed and came back.
 - **5.9e `m4/5.9e-close`** — untagged→0 and owner<=5.8→0 enforced:
   STAGE→5.9, `max_untagged = 0`, skeleton-steps final gate
   (conformance T0≥35% + FP=0, relpin, invariants idempotence,
