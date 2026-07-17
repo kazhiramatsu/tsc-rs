@@ -523,9 +523,14 @@ fn run_conformance_inner(
     };
     let mut scope = ScopeManifest::load(&options.workspace.join("m8-scope.json"))?;
 
-    // Every fixed view is present even when empty: the accepted
-    // artifact records exactly these three views.
-    let mut run_sets = ratchet::FIXED_VIEWS
+    // Updates collect every fixed view into one accepted-state version.
+    // Gating runs measure only the explicitly selected fixed view, as
+    // required by measurement-integrity.md §2.
+    let measured_views = match set_gate {
+        SetGate::Collect => ratchet::FIXED_VIEWS.to_vec(),
+        SetGate::Enforce => vec![options.band],
+    };
+    let mut run_sets = measured_views
         .iter()
         .map(|view| (view.name().to_owned(), Default::default()))
         .collect::<ratchet::RunSets>();
@@ -558,9 +563,9 @@ fn run_conformance_inner(
     for fixture in &fixtures {
         let fixture_key = fixture_key(&options.workspace, fixture)?;
         let golden = read_golden(&goldens_root, &fixture_key)?;
-        // Every run grades the syntactic fixed view (A1), so pass
-        // provenance is required regardless of the selected band.
-        if golden.schema < 2 {
+        // Pass provenance is required whenever this run records or
+        // enforces the syntactic fixed view.
+        if measured_views.contains(&DiagnosticBand::Syntactic) && golden.schema < 2 {
             return Err(format!(
                 "golden {fixture_key} has schema {} without pass provenance; \
                  run `cargo xtask oracle-refresh`",
@@ -583,11 +588,9 @@ fn run_conformance_inner(
                     format!("missing golden case {fixture_key} [{}]", program.matrix_key)
                 })?;
             let case_tsrs = current_case_tsrs(&program, &vendor_lib_dir)?;
-            // The accepted-set state records every fixed view from one
-            // pass — one checker execution yields both diagnostic
-            // streams, so a --band run still refreshes all three
-            // views' current sets for the subset gate.
-            for view in ratchet::FIXED_VIEWS {
+            // Collection records every fixed view from one pass; a
+            // gating run records only its selected view.
+            for view in measured_views.iter().copied() {
                 let oracle_side = golden_case
                     .oracle
                     .iter()
@@ -789,7 +792,13 @@ fn run_conformance_inner(
     // traded for one removal). Partial runs enforce the projection to
     // the executed fixtures.
     if let Some(accepted) = &accepted {
-        ratchet::enforce_accepted(&accepted.artifact, &run_sets, &executed_fixtures, full_run)?;
+        ratchet::enforce_accepted(
+            &accepted.artifact,
+            &run_sets,
+            options.band,
+            &executed_fixtures,
+            full_run,
+        )?;
     }
 
     // With matched/total recorded the comparison is exact (cross-
@@ -1485,8 +1494,67 @@ fn read_ratchet(path: &Path, band: DiagnosticBand) -> ConformanceResult<Ratchet>
     read_ratchet_section(path, band.ratchet_key())
 }
 
+fn validate_ratchet_toml_structure(path: &Path, text: &str) -> ConformanceResult<()> {
+    let mut seen_sections = BTreeSet::new();
+    let mut keys_by_section = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut current_section = String::from("<root>");
+
+    for (index, raw_line) in text.lines().enumerate() {
+        let line_number = index + 1;
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        if line.starts_with('[') && line.ends_with(']') {
+            let section = line[1..line.len() - 1].trim();
+            if section.is_empty() {
+                return Err(format!(
+                    "empty ratchet.toml section at {}:{line_number}",
+                    path.display()
+                )
+                .into());
+            }
+            if !seen_sections.insert(section.to_owned()) {
+                return Err(format!(
+                    "duplicate ratchet.toml section [{section}] at {}:{line_number}",
+                    path.display()
+                )
+                .into());
+            }
+            current_section = section.to_owned();
+            continue;
+        }
+        let Some((key, _)) = line.split_once('=') else {
+            return Err(format!(
+                "malformed ratchet.toml entry at {}:{line_number}: {line}",
+                path.display()
+            )
+            .into());
+        };
+        let key = key.trim();
+        if key.is_empty() {
+            return Err(
+                format!("empty ratchet.toml key at {}:{line_number}", path.display()).into(),
+            );
+        }
+        if !keys_by_section
+            .entry(current_section.clone())
+            .or_default()
+            .insert(key.to_owned())
+        {
+            return Err(format!(
+                "duplicate ratchet.toml key [{current_section}].{key} at {}:{line_number}",
+                path.display()
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
 fn read_ratchet_section(path: &Path, section: &str) -> ConformanceResult<Ratchet> {
     let text = fs::read_to_string(path)?;
+    validate_ratchet_toml_structure(path, &text)?;
     let mut in_section = false;
     let mut rate = None;
     let mut matched = None;
@@ -1510,10 +1578,28 @@ fn read_ratchet_section(path: &Path, section: &str) -> ConformanceResult<Ratchet
         };
         let value = value.trim();
         match key.trim() {
-            "rate" => rate = Some(value.parse::<f64>()?),
+            "rate" => {
+                let parsed = value.parse::<f64>()?;
+                if !parsed.is_finite() {
+                    return Err(
+                        format!("[{section}].rate must be finite in {}", path.display()).into(),
+                    );
+                }
+                rate = Some(parsed);
+            }
             "matched" => matched = Some(value.parse::<u64>()?),
             "total" => total = Some(value.parse::<u64>()?),
-            "allowed_regression" => allowed_regression = Some(value.parse::<f64>()?),
+            "allowed_regression" => {
+                let parsed = value.parse::<f64>()?;
+                if !parsed.is_finite() {
+                    return Err(format!(
+                        "[{section}].allowed_regression must be finite in {}",
+                        path.display()
+                    )
+                    .into());
+                }
+                allowed_regression = Some(parsed);
+            }
             _ => {}
         }
     }
@@ -1735,6 +1821,49 @@ mod tests {
         let (matched, total) = (ratchet.matched.unwrap(), ratchet.total.unwrap());
         assert!((4758u128) * (total as u128) >= (matched as u128) * (48573u128));
         assert!((4757u128) * (total as u128) < (matched as u128) * (48573u128));
+        fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn ratchet_parser_rejects_duplicate_sections_and_keys() {
+        let dir = temp_root("tsrs2-ratchet-duplicates-test");
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("ratchet.toml");
+
+        fs::write(
+            &path,
+            "[t0]\nrate = 0.1\nmatched = 1\ntotal = 10\n\
+             [t0]\nrate = 0.1\nmatched = 1\ntotal = 10\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("duplicate ratchet.toml section [t0]"), "{err}");
+
+        fs::write(
+            &path,
+            "[t0]\nrate = 0.1\nrate = 0.1\nmatched = 1\ntotal = 10\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("duplicate ratchet.toml key [t0].rate"),
+            "{err}"
+        );
+
+        fs::write(
+            &path,
+            "[t0]\nrate = 0.1\nmatched = 1\ntotal = 10\nallowed_regression = NaN\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("allowed_regression must be finite"), "{err}");
+
         fs::remove_file(&path).ok();
     }
 }

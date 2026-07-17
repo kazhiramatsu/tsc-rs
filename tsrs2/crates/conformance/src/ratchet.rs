@@ -171,7 +171,12 @@ impl MatchesArtifact {
             )
             .into());
         }
-        validate_lineage_fields("accepted-match artifact", self.bootstrap, &self.previous)?;
+        validate_lineage_fields(
+            "accepted-match artifact",
+            self.bootstrap,
+            &self.previous,
+            &self.transition,
+        )?;
         let view_names: BTreeSet<&str> = self.views.keys().map(String::as_str).collect();
         let fixed: BTreeSet<&str> = FIXED_VIEWS.iter().map(|view| view.name()).collect();
         if view_names != fixed {
@@ -205,7 +210,12 @@ impl OracleInputsArtifact {
             )
             .into());
         }
-        validate_lineage_fields("oracle-inputs artifact", self.bootstrap, &self.previous)?;
+        validate_lineage_fields(
+            "oracle-inputs artifact",
+            self.bootstrap,
+            &self.previous,
+            &self.transition,
+        )?;
         for tier in ["t0", "t1", "t2", "t3", "t4"] {
             match (tier, self.comparators.get(tier)) {
                 ("t0", Some(ComparatorEntry::Active { schema })) => {
@@ -266,7 +276,11 @@ fn validate_lineage_fields(
     what: &str,
     bootstrap: bool,
     previous: &Option<Lineage>,
+    transition: &Option<String>,
 ) -> ConformanceResult<()> {
+    if bootstrap && transition.is_some() {
+        return Err(format!("{what}: a bootstrap version cannot record a transition").into());
+    }
     match (bootstrap, previous) {
         (true, Some(_)) => {
             Err(format!("{what}: a bootstrap version cannot record a previous version").into())
@@ -456,36 +470,40 @@ pub(crate) fn load_accepted_for_gating(workspace: &Path) -> ConformanceResult<Ac
     Ok(AcceptedState { artifact })
 }
 
-/// Reject `accepted − current ≠ ∅` for both protected sets in every
-/// fixed view. Partial runs (`--limit`, `--files`) project every view
-/// to the executed fixtures and still enforce both subsets there; a
-/// full run additionally requires every accepted fixture to be
-/// present, so deleting a fixture cannot silently drop its identities.
+/// Reject `accepted − current ≠ ∅` for both protected sets in the
+/// selected fixed view. Partial runs (`--limit`, `--files`) project that
+/// view to the executed fixtures and still enforce both subsets there;
+/// a full run additionally requires every accepted fixture in the view
+/// to be present, so deleting a fixture cannot silently drop its
+/// identities.
 pub(crate) fn enforce_accepted(
     accepted: &MatchesArtifact,
     current: &RunSets,
+    selected_view: DiagnosticBand,
     executed_fixtures: &BTreeSet<String>,
     full_run: bool,
 ) -> ConformanceResult<()> {
+    let view_name = selected_view.name();
+    let accepted_view = accepted
+        .views
+        .get(view_name)
+        .ok_or_else(|| format!("accepted-match artifact lacks selected fixed view {view_name}"))?;
     if full_run {
-        for (view, fixtures) in &accepted.views {
-            if let Some(fixture) = fixtures
-                .keys()
-                .find(|fixture| !executed_fixtures.contains(*fixture))
-            {
-                return Err(format!(
-                    "accepted fixture {fixture} (view {view}) is no longer in the corpus — \
-                     accepted identities are never removed; corpus changes need a reviewed \
-                     universe transition"
-                )
-                .into());
-            }
+        if let Some(fixture) = accepted_view
+            .keys()
+            .find(|fixture| !executed_fixtures.contains(*fixture))
+        {
+            return Err(format!(
+                "accepted fixture {fixture} (view {view_name}) is no longer in the corpus — \
+                 accepted identities are never removed; corpus changes need a reviewed \
+                 universe transition"
+            )
+            .into());
         }
     }
-    let mut projected = accepted.views.clone();
-    for fixtures in projected.values_mut() {
-        fixtures.retain(|fixture, _| executed_fixtures.contains(fixture));
-    }
+    let mut selected = accepted_view.clone();
+    selected.retain(|fixture, _| executed_fixtures.contains(fixture));
+    let projected = [(view_name.to_owned(), selected)].into_iter().collect();
     removals_error(
         "set-ratchet gate failed",
         collect_set_removals(&projected, current),
@@ -1290,7 +1308,7 @@ fn verify_baseline(
     inputs_rel: &str,
     head_matches: &MatchesArtifact,
     head_inputs: &OracleInputsArtifact,
-) -> ConformanceResult<()> {
+) -> ConformanceResult<bool> {
     let spec = format!("{baseline}^{{commit}}");
     let commit = git(git_root, &["rev-parse", "--verify", &spec])
         .map_err(|err| format!("cannot resolve baseline {baseline}: {err}"))?;
@@ -1302,9 +1320,10 @@ fn verify_baseline(
         (None, None) => {
             // Initial bootstrap PR: the base has no artifact and the
             // candidate chain's unique oldest version is the bootstrap
-            // — which verify_lineage already proved. Nothing to
-            // compare against.
-            return Ok(());
+            // — which verify_lineage already proved. The caller must
+            // additionally remeasure the full corpus and require this
+            // first accepted state to be exact.
+            return Ok(true);
         }
         (Some(matches), Some(inputs)) => (matches, inputs),
         (matches, inputs) => {
@@ -1334,7 +1353,35 @@ fn verify_baseline(
     let base_inputs = OracleInputsArtifact::decode_validated(&base_inputs)?;
     verify_universe_growth(&base_inputs, head_inputs)
         .map_err(|err| format!("baseline {baseline} oracle-input compare failed: {err}"))?;
-    Ok(())
+    Ok(false)
+}
+
+fn verify_bootstrap_measurement(accepted: &RunSets, current: &RunSets) -> ConformanceResult<()> {
+    let omitted = collect_set_removals(current, accepted);
+    let stale = collect_set_removals(accepted, current);
+    if omitted.is_empty() && stale.is_empty() {
+        return Ok(());
+    }
+
+    let discrepancies = omitted
+        .iter()
+        .map(|item| format!("omitted current {item}"))
+        .chain(stale.iter().map(|item| format!("stale accepted {item}")))
+        .collect::<Vec<_>>();
+    let shown = discrepancies.iter().take(8).cloned().collect::<Vec<_>>();
+    Err(format!(
+        "initial bootstrap accepted state does not exactly match the current full measurement: \
+         {} omitted, {} stale:\n  {}{}",
+        omitted.len(),
+        stale.len(),
+        shown.join("\n  "),
+        if discrepancies.len() > shown.len() {
+            format!("\n  ... and {} more", discrepancies.len() - shown.len())
+        } else {
+            String::new()
+        }
+    )
+    .into())
 }
 
 // ---------------------------------------------------------------------------
@@ -1432,7 +1479,7 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
         verify_lineage::<OracleInputsArtifact>(&git_root, &inputs_rel, &inputs_bytes)?;
     verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
 
-    if let Some(baseline) = baseline {
+    let bootstrap_base = if let Some(baseline) = baseline {
         verify_baseline(
             &git_root,
             baseline,
@@ -1440,7 +1487,19 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
             &inputs_rel,
             &matches,
             &inputs,
-        )?;
+        )?
+    } else {
+        false
+    };
+    if bootstrap_base {
+        let run = super::run_conformance_collect(&ConformanceOptions {
+            workspace: workspace.to_owned(),
+            limit: None,
+            files: Vec::new(),
+            out_json: workspace.join("target/conformance/bootstrap-check.json"),
+            band: DiagnosticBand::All,
+        })?;
+        verify_bootstrap_measurement(&matches.views, &run.sets)?;
     }
 
     let describe = |view: DiagnosticBand| {
@@ -1811,6 +1870,7 @@ fn render_ratchet_summaries(
     totals: &BTreeMap<String, u64>,
 ) -> ConformanceResult<Option<Vec<u8>>> {
     let text = fs::read_to_string(path)?;
+    super::validate_ratchet_toml_structure(path, &text)?;
     let mut sections: BTreeMap<&str, (u64, u64)> = BTreeMap::new();
     for view in FIXED_VIEWS {
         let (matched, _) = counts.get(view.name()).copied().unwrap_or((0, 0));
@@ -2147,7 +2207,7 @@ mod tests {
         let accepted = matches_artifact(views_with(&[2322, 2345], &[2322]), true, None, None);
         let current = views_with(&[2322], &[2322]);
         let executed: BTreeSet<String> = [String::from("conformance/a.ts")].into_iter().collect();
-        let err = enforce_accepted(&accepted, &current, &executed, true)
+        let err = enforce_accepted(&accepted, &current, DiagnosticBand::All, &executed, true)
             .unwrap_err()
             .to_string();
         assert!(err.contains("matched (all)"), "{err}");
@@ -2162,7 +2222,7 @@ mod tests {
         let accepted = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
         let current = views_with(&[2322], &[]);
         let executed: BTreeSet<String> = [String::from("conformance/a.ts")].into_iter().collect();
-        let err = enforce_accepted(&accepted, &current, &executed, true)
+        let err = enforce_accepted(&accepted, &current, DiagnosticBand::All, &executed, true)
             .unwrap_err()
             .to_string();
         assert!(err.contains("multiplicity-complete (all)"), "{err}");
@@ -2189,9 +2249,16 @@ mod tests {
         let accepted = matches_artifact(accepted_views, true, None, None);
         let current = views_with(&[1005, 2322, 2345], &[1005]);
         let executed: BTreeSet<String> = [String::from("conformance/a.ts")].into_iter().collect();
-        let err = enforce_accepted(&accepted, &current, &executed, true)
-            .unwrap_err()
-            .to_string();
+        enforce_accepted(&accepted, &current, DiagnosticBand::All, &executed, true).unwrap();
+        let err = enforce_accepted(
+            &accepted,
+            &current,
+            DiagnosticBand::Syntactic,
+            &executed,
+            true,
+        )
+        .unwrap_err()
+        .to_string();
         assert!(err.contains("(syntactic)"), "{err}");
         assert!(err.contains("code 1005"), "{err}");
     }
@@ -2216,11 +2283,11 @@ mod tests {
 
         // b.ts was not executed: its accepted identity is not demanded.
         let current = views_with(&[2322], &[2322]);
-        enforce_accepted(&accepted, &current, &executed, false).unwrap();
+        enforce_accepted(&accepted, &current, DiagnosticBand::All, &executed, false).unwrap();
 
         // But the executed fixture's accepted subset still gates.
         let regressed = views_with(&[], &[]);
-        let err = enforce_accepted(&accepted, &regressed, &executed, false)
+        let err = enforce_accepted(&accepted, &regressed, DiagnosticBand::All, &executed, false)
             .unwrap_err()
             .to_string();
         assert!(err.contains("code 2322"), "{err}");
@@ -2232,11 +2299,59 @@ mod tests {
         let accepted = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
         let executed: BTreeSet<String> =
             [String::from("conformance/other.ts")].into_iter().collect();
-        let err = enforce_accepted(&accepted, &views_with(&[], &[]), &executed, true)
-            .unwrap_err()
-            .to_string();
+        let err = enforce_accepted(
+            &accepted,
+            &views_with(&[], &[]),
+            DiagnosticBand::All,
+            &executed,
+            true,
+        )
+        .unwrap_err()
+        .to_string();
         assert!(err.contains("no longer in the corpus"), "{err}");
         assert!(err.contains("conformance/a.ts"), "{err}");
+    }
+
+    #[test]
+    fn bootstrap_measurement_requires_the_exact_current_sets() {
+        let exact = views_with(&[2322, 2345], &[2322]);
+        verify_bootstrap_measurement(&exact, &exact).unwrap();
+
+        let incomplete = views_with(&[2322], &[2322]);
+        let err = verify_bootstrap_measurement(&incomplete, &exact)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("1 omitted, 0 stale"), "{err}");
+        assert!(err.contains("code 2345"), "{err}");
+
+        let err = verify_bootstrap_measurement(&exact, &incomplete)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("0 omitted, 1 stale"), "{err}");
+        assert!(err.contains("code 2345"), "{err}");
+    }
+
+    #[test]
+    fn bootstrap_artifacts_cannot_record_transitions() {
+        let matches = matches_artifact(
+            views_with(&[2322], &[2322]),
+            true,
+            None,
+            Some(UNIVERSE_TRANSITION.to_owned()),
+        );
+        let err = matches.validate().unwrap_err().to_string();
+        assert!(
+            err.contains("bootstrap version cannot record a transition"),
+            "{err}"
+        );
+
+        let mut inputs = inputs_stub();
+        inputs.transition = Some(UNIVERSE_TRANSITION.to_owned());
+        let err = inputs.validate().unwrap_err().to_string();
+        assert!(
+            err.contains("bootstrap version cannot record a transition"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -2928,9 +3043,10 @@ mod tests {
         let head_bytes = encode_artifact(&head).unwrap();
         commit_bytes(&repo, MATCHES_REL_PATH, &head_bytes, "bootstrap");
         // Base has no artifact; the candidate's unique bootstrap chain
-        // (proved by verify_lineage) makes the compare vacuously pass.
+        // permits the exception but tells the caller to perform an exact
+        // full-corpus measurement.
         verify_lineage::<MatchesArtifact>(&repo, MATCHES_REL_PATH, &head_bytes).unwrap();
-        verify_baseline(
+        let bootstrap_base = verify_baseline(
             &repo,
             "base",
             MATCHES_REL_PATH,
@@ -2939,6 +3055,7 @@ mod tests {
             &inputs_stub(),
         )
         .unwrap();
+        assert!(bootstrap_base);
     }
 
     #[test]
@@ -3083,10 +3200,20 @@ mod tests {
             "rate = 0.000000 # display-only",
             1,
         );
-        fs::write(&path, stale).unwrap();
+        fs::write(&path, &stale).unwrap();
         let err = verify_ratchet_summaries(&path, &counts, &totals)
             .unwrap_err()
             .to_string();
         assert!(err.contains("rate/matched/total"), "{err}");
+
+        let duplicate = stale.replacen("matched = 20052", "matched = 20052\nmatched = 20052", 1);
+        fs::write(&path, duplicate).unwrap();
+        let err = rewrite_ratchet_summaries(&path, &counts, &totals)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("duplicate ratchet.toml key [t0].matched"),
+            "{err}"
+        );
     }
 }
