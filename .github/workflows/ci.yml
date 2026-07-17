@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout full lineage
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run merge gates against trusted PR base
+        working-directory: tsrs2
+        run: cargo xtask ci --baseline "${{ github.event.pull_request.base.sha }}"

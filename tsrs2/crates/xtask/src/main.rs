@@ -84,7 +84,7 @@ fn main() {
                 std::process::exit(2);
             }
         },
-        Some("ci") => run_or_exit(ci()),
+        Some("ci") => run_or_exit(ci(args)),
         Some("escapes") => run_or_exit(escapes(args)),
         Some("codegen") => match args.next().as_deref() {
             Some("diags") => run_or_exit(codegen_diags(false)),
@@ -3642,7 +3642,18 @@ fn decode_base64_value(byte: u8) -> Result<u8, Box<dyn Error>> {
     }
 }
 
-fn ci() -> Result<(), Box<dyn Error>> {
+fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut baseline = "origin/main".to_owned();
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--baseline" => {
+                baseline = args.next().ok_or("missing value after --baseline")?;
+            }
+            _ => return Err(format!("unexpected ci argument: {arg}").into()),
+        }
+    }
+
     run_command(
         Command::new("cargo")
             .arg("fmt")
@@ -3677,12 +3688,18 @@ fn ci() -> Result<(), Box<dyn Error>> {
     // conversions lean on (m4-end-sweep-steps.md dead-guard policy).
     run_command(Command::new("cargo").arg("xtask").arg("bind-corpus"))?;
     // A1 accepted-state coherence: artifact/inputs/lineage verify
-    // before the behavior runs that gate against them.
+    // before the behavior runs that gate against them. Hosted PR CI
+    // supplies GitHub's immutable base SHA; local runs default to the
+    // origin/main convenience ref. The direct compare prevents a
+    // rewritten branch from replacing the accepted set with a smaller
+    // self-consistent chain.
     run_command(
         Command::new("cargo")
             .arg("xtask")
             .arg("ratchet")
-            .arg("check"),
+            .arg("check")
+            .arg("--baseline")
+            .arg(&baseline),
     )?;
     run_command(Command::new("cargo").arg("xtask").arg("conformance"))?;
     run_command(

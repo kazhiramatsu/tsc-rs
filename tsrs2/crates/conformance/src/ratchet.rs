@@ -734,12 +734,28 @@ fn verify_universe_growth(
         let Some(newer_entry) = newer.fixtures.get(key) else {
             return Err(format!("universe-transition removed pinned fixture {key}").into());
         };
-        if older_entry != newer_entry {
-            return Err(format!(
-                "universe-transition changed pinned fixture {key} (old identities and bytes \
-                 must remain unchanged)"
-            )
-            .into());
+        if older_entry.fixture_sha256 != newer_entry.fixture_sha256 {
+            return Err(
+                format!("universe-transition changed pinned fixture bytes for {key}").into(),
+            );
+        }
+        for (matrix, older_case) in &older_entry.cases {
+            match newer_entry.cases.get(matrix) {
+                None => {
+                    return Err(format!(
+                        "universe-transition removed pinned matrix case {key} [{matrix}]"
+                    )
+                    .into());
+                }
+                Some(newer_case) if newer_case != older_case => {
+                    return Err(format!(
+                        "universe-transition changed pinned matrix case {key} [{matrix}] \
+                         (old identities and bytes must remain unchanged)"
+                    )
+                    .into());
+                }
+                Some(_) => {}
+            }
         }
     }
     for view in FIXED_VIEWS {
@@ -777,17 +793,17 @@ fn git(root: &Path, args: &[&str]) -> ConformanceResult<Vec<u8>> {
     Ok(output.stdout)
 }
 
-fn git_optional(root: &Path, args: &[&str]) -> ConformanceResult<Option<Vec<u8>>> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(args)
-        .output()?;
-    if output.status.success() {
-        Ok(Some(output.stdout))
-    } else {
-        Ok(None)
+/// Read one blob from a commit, distinguishing an absent path from a
+/// real Git failure. `git show` errors must never become the bootstrap
+/// exception: missing/corrupt objects and insufficient clone data are
+/// integrity failures.
+fn git_blob_optional(root: &Path, commit: &str, rel: &str) -> ConformanceResult<Option<Vec<u8>>> {
+    let tree = git(root, &["ls-tree", "-z", commit, "--", rel])?;
+    if tree.is_empty() {
+        return Ok(None);
     }
+    let spec = format!("{commit}:{rel}");
+    Ok(Some(git(root, &["show", &spec])?))
 }
 
 fn git_root_for(workspace: &Path) -> ConformanceResult<PathBuf> {
@@ -818,8 +834,7 @@ fn committed_versions(git_root: &Path, rel: &str) -> ConformanceResult<Vec<(Stri
         if commit.is_empty() {
             continue;
         }
-        let spec = format!("{commit}:{rel}");
-        let Some(bytes) = git_optional(git_root, &["show", &spec])? else {
+        let Some(bytes) = git_blob_optional(git_root, commit, rel)? else {
             return Err(format!(
                 "artifact {rel} unreadable at commit {commit} (deleted version or shallow \
                  history — lineage requires every version back to the bootstrap)"
@@ -1026,50 +1041,44 @@ fn verify_baseline(
         .map_err(|err| format!("cannot resolve baseline {baseline}: {err}"))?;
     let commit = String::from_utf8(commit)?.trim().to_owned();
 
-    let matches_spec = format!("{commit}:{matches_rel}");
-    match git_optional(git_root, &["show", &matches_spec])? {
-        None => {
+    let base_matches = git_blob_optional(git_root, &commit, matches_rel)?;
+    let base_inputs = git_blob_optional(git_root, &commit, inputs_rel)?;
+    let (base_matches, base_inputs) = match (base_matches, base_inputs) {
+        (None, None) => {
             // Initial bootstrap PR: the base has no artifact and the
             // candidate chain's unique oldest version is the bootstrap
             // — which verify_lineage already proved. Nothing to
             // compare against.
+            return Ok(());
         }
-        Some(base_bytes) => {
-            let base = MatchesArtifact::decode_validated(&base_bytes)?;
-            removals_error(
-                &format!("baseline {baseline} accepted-match compare failed"),
-                collect_set_removals(&base.views, &head_matches.views),
-            )?;
+        (Some(matches), Some(inputs)) => (matches, inputs),
+        (matches, inputs) => {
+            return Err(format!(
+                "baseline {baseline}: incomplete ratchet artifact pair (matches={}, inputs={})",
+                if matches.is_some() {
+                    "present"
+                } else {
+                    "absent"
+                },
+                if inputs.is_some() {
+                    "present"
+                } else {
+                    "absent"
+                },
+            )
+            .into());
         }
-    }
+    };
 
-    let inputs_spec = format!("{commit}:{inputs_rel}");
-    if let Some(base_bytes) = git_optional(git_root, &["show", &inputs_spec])? {
-        let base = OracleInputsArtifact::decode_validated(&base_bytes)?;
-        if base.vendor != head_inputs.vendor {
-            return Err(format!("baseline {baseline}: vendor pins differ from HEAD").into());
-        }
-        if base.comparators != head_inputs.comparators {
-            return Err(format!("baseline {baseline}: comparator entries differ from HEAD").into());
-        }
-        for (key, base_entry) in &base.fixtures {
-            match head_inputs.fixtures.get(key) {
-                None => {
-                    return Err(format!(
-                        "baseline {baseline}: pinned fixture {key} was removed on this branch"
-                    )
-                    .into());
-                }
-                Some(head_entry) if head_entry != base_entry => {
-                    return Err(format!(
-                        "baseline {baseline}: pinned fixture {key} was edited on this branch"
-                    )
-                    .into());
-                }
-                Some(_) => {}
-            }
-        }
-    }
+    let base_matches = MatchesArtifact::decode_validated(&base_matches)?;
+    removals_error(
+        &format!("baseline {baseline} accepted-match compare failed"),
+        collect_set_removals(&base_matches.views, &head_matches.views),
+    )?;
+
+    let base_inputs = OracleInputsArtifact::decode_validated(&base_inputs)?;
+    verify_universe_growth(&base_inputs, head_inputs)
+        .map_err(|err| format!("baseline {baseline} oracle-input compare failed: {err}"))?;
     Ok(())
 }
 
@@ -1208,12 +1217,13 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     let vendor = built.vendor.clone();
     let totals = built.totals.clone();
 
-    // Oracle-inputs manifest first: the accepted artifact pins its
-    // final bytes. The growth reference is the working version when
-    // present (it may already hold uncommitted growth), else the
-    // committed tip; the lineage pointer always targets the committed
-    // tip — a discarded working intermediate is regenerated, never
-    // chained through.
+    // Plan the oracle-inputs manifest first, but do not write it yet:
+    // the accepted-set additions check below must succeed before either
+    // half of the pinned pair changes. The growth reference is the
+    // working version when present (it may already hold uncommitted
+    // growth), else the committed tip; the lineage pointer always
+    // targets the committed tip — a discarded working intermediate is
+    // regenerated, never chained through.
     let inputs_path = workspace.join(ORACLE_INPUTS_REL_PATH);
     let inputs_rel = git_rel_path(&git_root, workspace, ORACLE_INPUTS_REL_PATH)?;
     let working_inputs = match fs::read(&inputs_path) {
@@ -1236,17 +1246,26 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         .as_ref()
         .map(|(artifact, _)| artifact)
         .or(tip_inputs.as_ref().map(|(_, artifact, _)| artifact));
-    let (inputs_bytes, inputs_transition) = match reference {
+    let (inputs_bytes, inputs_transition, write_inputs) = match reference {
         Some(reference) if reference.content_eq(&built) => match &working_inputs {
-            Some((_, bytes)) => (bytes.clone(), None),
+            Some((artifact, bytes)) => {
+                // An uncommitted input transition still belongs on a
+                // subsequently enlarged accepted-match artifact. The
+                // latter points directly to its committed tip too, so
+                // dropping this marker would make that edge appear to
+                // change input pins without a transition.
+                let transition = tip_inputs
+                    .as_ref()
+                    .filter(|(_, _, tip_bytes)| tip_bytes != bytes)
+                    .and(artifact.transition.clone());
+                (bytes.clone(), transition, false)
+            }
             None => {
                 // Working file deleted but the committed tip already
-                // matches the tree: restore it instead of forging a
-                // second bootstrap.
+                // matches the tree: plan to restore it instead of
+                // forging a second bootstrap.
                 let (_, _, bytes) = tip_inputs.as_ref().expect("reference implies a version");
-                fs::create_dir_all(inputs_path.parent().expect("ratchets dir"))?;
-                fs::write(&inputs_path, bytes)?;
-                (bytes.clone(), None)
+                (bytes.clone(), None, true)
             }
         },
         Some(reference) => {
@@ -1278,15 +1297,11 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
                 }
             }
             let bytes = encode_artifact(&artifact)?;
-            fs::create_dir_all(inputs_path.parent().expect("ratchets dir"))?;
-            fs::write(&inputs_path, &bytes)?;
-            (bytes, artifact.transition)
+            (bytes, artifact.transition, true)
         }
         None => {
             let bytes = encode_artifact(&built)?;
-            fs::create_dir_all(inputs_path.parent().expect("ratchets dir"))?;
-            fs::write(&inputs_path, &bytes)?;
-            (bytes, None)
+            (bytes, None, true)
         }
     };
 
@@ -1296,17 +1311,18 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     let matches_path = workspace.join(MATCHES_REL_PATH);
     let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
     let existing_matches = match fs::read(&matches_path) {
-        Ok(bytes) => Some(decode_artifact::<MatchesArtifact>(
-            &bytes,
-            "accepted-match artifact",
-        )?),
+        Ok(bytes) => Some((
+            decode_artifact::<MatchesArtifact>(&bytes, "accepted-match artifact")?,
+            bytes,
+        )),
         Err(_) => None,
     };
     let old_counts = existing_matches
         .as_ref()
-        .map(|artifact| view_counts(&artifact.views))
+        .map(|(artifact, _)| view_counts(&artifact.views))
         .unwrap_or_default();
-    if let Some(existing) = &existing_matches {
+    if let Some((existing, _)) = &existing_matches {
+        existing.validate()?;
         removals_error(
             "ratchet update refused (updates add identities only)",
             collect_set_removals(&existing.views, &run.sets),
@@ -1318,11 +1334,23 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         tsc_js_sha256: vendor.tsc_js_sha256,
     };
     let counts = view_counts(&run.sets);
-    if let Some(existing) = &existing_matches {
+    let ratchet_path = workspace.join("ratchet.toml");
+    // Render and validate every required summary section before either
+    // artifact changes. Missing fields are repaired in the rendered
+    // value; a missing/duplicate section is an error with no mutation.
+    let ratchet_update = render_ratchet_summaries(&ratchet_path, &counts, &totals)?;
+    if let Some((existing, existing_bytes)) = &existing_matches {
         if existing.views == run.sets && existing.inputs == inputs {
+            // Validate both complete lineages before repairing any
+            // missing working file or derived summary.
+            verify_lineage::<OracleInputsArtifact>(&git_root, &inputs_rel, &inputs_bytes)?;
+            verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, existing_bytes)?;
             // Still self-heal a drifted ratchet.toml before declaring
             // the state current.
-            rewrite_ratchet_summaries(&workspace.join("ratchet.toml"), &counts, &totals)?;
+            write_rendered_ratchet(&ratchet_path, ratchet_update.as_deref())?;
+            if write_inputs {
+                atomic_write(&inputs_path, &inputs_bytes)?;
+            }
             println!("ratchet update: no additions; artifacts unchanged");
             return Ok(());
         }
@@ -1349,10 +1377,24 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     };
     artifact.validate()?;
     let matches_bytes = encode_artifact(&artifact)?;
-    fs::create_dir_all(matches_path.parent().expect("ratchets dir"))?;
-    fs::write(&matches_path, &matches_bytes)?;
 
-    rewrite_ratchet_summaries(&workspace.join("ratchet.toml"), &counts, &totals)?;
+    // Preflight the exact bytes that will be written. In particular,
+    // an additions failure or malformed transition cannot leave only
+    // oracle-inputs updated and the accepted artifact pinning the old
+    // bytes.
+    verify_lineage::<OracleInputsArtifact>(&git_root, &inputs_rel, &inputs_bytes)?;
+    verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, &matches_bytes)?;
+
+    write_artifact_pair(
+        &inputs_path,
+        working_inputs.as_ref().map(|(_, bytes)| bytes.as_slice()),
+        write_inputs,
+        &inputs_bytes,
+        &matches_path,
+        &matches_bytes,
+    )?;
+
+    write_rendered_ratchet(&ratchet_path, ratchet_update.as_deref())?;
 
     for view in FIXED_VIEWS {
         let (matched, complete) = counts.get(view.name()).copied().unwrap_or((0, 0));
@@ -1375,14 +1417,122 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     Ok(())
 }
 
+/// Replace one artifact through a sibling temporary file, so readers
+/// never observe a truncated zstd stream.
+fn atomic_write(path: &Path, bytes: &[u8]) -> ConformanceResult<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("artifact path {} has no parent", path.display()))?;
+    fs::create_dir_all(parent)?;
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| format!("artifact path {} has no file name", path.display()))?
+        .to_string_lossy();
+    let temp = parent.join(format!(".{file_name}.tmp-{}", std::process::id()));
+    fs::write(&temp, bytes)?;
+    if let Err(err) = fs::rename(&temp, path) {
+        let _ = fs::remove_file(&temp);
+        return Err(format!("failed to replace {} atomically: {err}", path.display()).into());
+    }
+    Ok(())
+}
+
+/// Commit the pinned pair after all semantic and lineage validation.
+/// If replacing the second artifact fails, restore the first artifact
+/// to its exact pre-update bytes (or remove a newly-created bootstrap)
+/// so a reported failure does not leave a stale cross-pin behind.
+fn write_artifact_pair(
+    inputs_path: &Path,
+    original_inputs: Option<&[u8]>,
+    write_inputs: bool,
+    inputs_bytes: &[u8],
+    matches_path: &Path,
+    matches_bytes: &[u8],
+) -> ConformanceResult<()> {
+    if write_inputs {
+        atomic_write(inputs_path, inputs_bytes)?;
+    }
+    if let Err(matches_err) = atomic_write(matches_path, matches_bytes) {
+        if write_inputs {
+            let rollback = match original_inputs {
+                Some(bytes) => atomic_write(inputs_path, bytes),
+                None => match fs::remove_file(inputs_path) {
+                    Ok(()) => Ok(()),
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                    Err(err) => Err(format!(
+                        "failed to remove newly-created {} during rollback: {err}",
+                        inputs_path.display()
+                    )
+                    .into()),
+                },
+            };
+            if let Err(rollback_err) = rollback {
+                return Err(format!(
+                    "{matches_err}; additionally failed to restore {}: {rollback_err}",
+                    inputs_path.display()
+                )
+                .into());
+            }
+        }
+        return Err(matches_err);
+    }
+    Ok(())
+}
+
 /// Rewrite the [t0]/[t0-2xxx]/[t0-syntactic] `rate`/`matched`/`total`
 /// value lines in place. Comments and every other line survive — the
 /// per-slice annotations in ratchet.toml are review surface.
+#[cfg(test)]
 fn rewrite_ratchet_summaries(
     path: &Path,
     counts: &BTreeMap<String, (u64, u64)>,
     totals: &BTreeMap<String, u64>,
 ) -> ConformanceResult<()> {
+    let rendered = render_ratchet_summaries(path, counts, totals)?;
+    write_rendered_ratchet(path, rendered.as_deref())
+}
+
+#[derive(Debug)]
+struct SummarySectionState {
+    matched: u64,
+    total: u64,
+    seen: BTreeSet<String>,
+}
+
+fn finish_summary_section(out: &mut Vec<String>, current: &mut Option<SummarySectionState>) {
+    let Some(state) = current.take() else {
+        return;
+    };
+    let rate = if state.total == 0 {
+        1.0
+    } else {
+        state.matched as f64 / state.total as f64
+    };
+    if !state.seen.contains("rate") {
+        out.push(format!("rate = {rate:.6}"));
+    }
+    if !state.seen.contains("matched") {
+        out.push(format!("matched = {}", state.matched));
+    }
+    if !state.seen.contains("total") {
+        out.push(format!("total = {}", state.total));
+    }
+}
+
+fn rewritten_summary_line(line: &str, value: &str) -> String {
+    let indent_len = line.len() - line.trim_start().len();
+    let indent = &line[..indent_len];
+    match line.find('#') {
+        Some(comment_start) => format!("{indent}{value} {}", &line[comment_start..]),
+        None => format!("{indent}{value}"),
+    }
+}
+
+fn render_ratchet_summaries(
+    path: &Path,
+    counts: &BTreeMap<String, (u64, u64)>,
+    totals: &BTreeMap<String, u64>,
+) -> ConformanceResult<Option<Vec<u8>>> {
     let text = fs::read_to_string(path)?;
     let mut sections: BTreeMap<&str, (u64, u64)> = BTreeMap::new();
     for view in FIXED_VIEWS {
@@ -1392,29 +1542,86 @@ fn rewrite_ratchet_summaries(
     }
 
     let mut out = Vec::new();
-    let mut current: Option<(u64, u64)> = None;
+    let mut current: Option<SummarySectionState> = None;
+    let mut seen_sections = BTreeSet::new();
     for line in text.lines() {
         let bare = line.split('#').next().unwrap_or("").trim();
         if bare.starts_with('[') && bare.ends_with(']') {
-            current = sections.get(&bare[1..bare.len() - 1]).copied();
+            finish_summary_section(&mut out, &mut current);
+            let name = &bare[1..bare.len() - 1];
+            current = match sections.get(name).copied() {
+                Some((matched, total)) => {
+                    if !seen_sections.insert(name.to_owned()) {
+                        return Err(format!(
+                            "duplicate ratchet summary section [{name}] in {}",
+                            path.display()
+                        )
+                        .into());
+                    }
+                    Some(SummarySectionState {
+                        matched,
+                        total,
+                        seen: BTreeSet::new(),
+                    })
+                }
+                None => None,
+            };
             out.push(line.to_owned());
             continue;
         }
-        let (Some((matched, total)), Some((key, _))) = (current, bare.split_once('=')) else {
+        let (Some(state), Some((key, _))) = (current.as_mut(), bare.split_once('=')) else {
             out.push(line.to_owned());
             continue;
         };
         match key.trim() {
-            "rate" => out.push(format!("rate = {:.6}", matched as f64 / total as f64)),
-            "matched" => out.push(format!("matched = {matched}")),
-            "total" => out.push(format!("total = {total}")),
+            "rate" => {
+                state.seen.insert("rate".to_owned());
+                let rate = if state.total == 0 {
+                    1.0
+                } else {
+                    state.matched as f64 / state.total as f64
+                };
+                out.push(rewritten_summary_line(line, &format!("rate = {rate:.6}")));
+            }
+            "matched" => {
+                state.seen.insert("matched".to_owned());
+                out.push(rewritten_summary_line(
+                    line,
+                    &format!("matched = {}", state.matched),
+                ));
+            }
+            "total" => {
+                state.seen.insert("total".to_owned());
+                out.push(rewritten_summary_line(
+                    line,
+                    &format!("total = {}", state.total),
+                ));
+            }
             _ => out.push(line.to_owned()),
+        }
+    }
+    finish_summary_section(&mut out, &mut current);
+    for section in sections.keys() {
+        if !seen_sections.contains(*section) {
+            return Err(format!(
+                "missing ratchet summary section [{section}] in {}",
+                path.display()
+            )
+            .into());
         }
     }
     let mut rendered = out.join("\n");
     rendered.push('\n');
     if rendered != text {
-        fs::write(path, rendered)?;
+        Ok(Some(rendered.into_bytes()))
+    } else {
+        Ok(None)
+    }
+}
+
+fn write_rendered_ratchet(path: &Path, rendered: Option<&[u8]>) -> ConformanceResult<()> {
+    if let Some(bytes) = rendered {
+        atomic_write(path, bytes)?;
     }
     Ok(())
 }
@@ -1810,6 +2017,21 @@ mod tests {
     #[test]
     fn universe_transition_adds_only() {
         let older = inputs_stub();
+        let mut case_grown = older.clone();
+        case_grown
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .insert(
+                "new-matrix".to_owned(),
+                CasePins {
+                    oracle_sha256: "new-oracle".to_owned(),
+                    program_sha256: "new-program".to_owned(),
+                },
+            );
+        verify_universe_growth(&older, &case_grown).unwrap();
+
         let mut grown = older.clone();
         grown.fixtures.insert(
             "conformance/new.ts".to_owned(),
@@ -1829,6 +2051,20 @@ mod tests {
             .to_string();
         assert!(err.contains("changed pinned fixture"), "{err}");
 
+        let mut edited_case = case_grown.clone();
+        edited_case
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_sha256 = "edited".to_owned();
+        let err = verify_universe_growth(&older, &edited_case)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("changed pinned matrix case"), "{err}");
+
         let mut removed = older.clone();
         removed.fixtures.clear();
         let err = verify_universe_growth(&older, &removed)
@@ -1842,6 +2078,30 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("vendor"), "{err}");
+    }
+
+    #[test]
+    fn artifact_pair_write_rolls_inputs_back_when_matches_replace_fails() {
+        let dir = temp_dir("pair-rollback");
+        let inputs_path = dir.join("inputs.zst");
+        let matches_path = dir.join("matches.zst");
+        fs::write(&inputs_path, b"old inputs").unwrap();
+        // An existing directory cannot be replaced by the temporary
+        // matches file, forcing the second half of the pair to fail.
+        fs::create_dir(&matches_path).unwrap();
+
+        let err = write_artifact_pair(
+            &inputs_path,
+            Some(b"old inputs"),
+            true,
+            b"new inputs",
+            &matches_path,
+            b"new matches",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("failed to replace"), "{err}");
+        assert_eq!(fs::read(&inputs_path).unwrap(), b"old inputs");
     }
 
     // -- A1 lineage --------------------------------------------------------
@@ -2174,6 +2434,32 @@ mod tests {
         )
         .unwrap();
 
+        // Input growth inside an existing fixture is additions-only too:
+        // the direct base comparison must apply the same per-case subset
+        // rule as the lineage edge.
+        let mut case_grown_inputs = base_inputs.clone();
+        case_grown_inputs
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .insert(
+                "new-matrix".to_owned(),
+                CasePins {
+                    oracle_sha256: "new-oracle".to_owned(),
+                    program_sha256: "new-program".to_owned(),
+                },
+            );
+        verify_baseline(
+            &repo,
+            "base",
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+            &head_grown,
+            &case_grown_inputs,
+        )
+        .unwrap();
+
         // A branch that removed a pinned fixture fails the inputs half.
         let mut head_inputs = base_inputs.clone();
         head_inputs.fixtures.clear();
@@ -2187,7 +2473,7 @@ mod tests {
         )
         .unwrap_err()
         .to_string();
-        assert!(err.contains("removed on this branch"), "{err}");
+        assert!(err.contains("removed pinned fixture"), "{err}");
     }
 
     #[test]
@@ -2210,6 +2496,28 @@ mod tests {
             &inputs_stub(),
         )
         .unwrap();
+    }
+
+    #[test]
+    fn baseline_rejects_an_incomplete_artifact_pair() {
+        let repo = init_repo("baseline-incomplete-pair");
+        let matches = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
+        let matches_bytes = encode_artifact(&matches).unwrap();
+        commit_bytes(&repo, MATCHES_REL_PATH, &matches_bytes, "matches only");
+        git_test(&repo, &["branch", "-q", "base"]);
+
+        let err = verify_baseline(
+            &repo,
+            "base",
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+            &matches,
+            &inputs_stub(),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("incomplete ratchet artifact pair"), "{err}");
+        assert!(err.contains("matches=present, inputs=absent"), "{err}");
     }
 
     /// End-to-end inputs pinning through the REAL build path: a
@@ -2288,10 +2596,10 @@ mod tests {
         let path = dir.join("ratchet.toml");
         fs::write(
             &path,
-            "[t0]\n# integer gate commentary\nrate = 0.1\nmatched = 1\ntotal = 10\nallowed_regression = 0.0\n\n\
+            "[t0]\n# integer gate commentary\nrate = 0.1 # display-only\nmatched = 1\ntotal = 10\nallowed_regression = 0.0\n\n\
              [t1]\nrate = 0.0\nallowed_regression = 0.0\n\n\
              [t0-2xxx]\nrate = 0.2\nmatched = 2\ntotal = 10\nallowed_regression = 0.0\n\n\
-             [t0-syntactic]\nrate = 0.3\nmatched = 3\ntotal = 10\nallowed_regression = 0.0\n\n\
+             [t0-syntactic]\nallowed_regression = 0.0\n\n\
              [escapes]\n# escape commentary\nmax_untagged = 9\n",
         )
         .unwrap();
@@ -2312,6 +2620,7 @@ mod tests {
         rewrite_ratchet_summaries(&path, &counts, &totals).unwrap();
         let text = fs::read_to_string(&path).unwrap();
         assert!(text.contains("# integer gate commentary"));
+        assert!(text.contains("rate = 0.411585 # display-only"));
         assert!(text.contains("# escape commentary"));
         assert!(text.contains("rate = 0.411585"));
         assert!(text.contains("matched = 20052"));
@@ -2319,6 +2628,7 @@ mod tests {
         assert!(text.contains("matched = 10921"));
         assert!(text.contains("rate = 0.522136"));
         assert!(text.contains("matched = 2242"));
+        assert!(text.contains("total = 2246"));
         assert!(text.contains("rate = 0.998219"));
         assert!(text.contains("max_untagged = 9"));
         // The t1 section has no matched/total and stays untouched.
