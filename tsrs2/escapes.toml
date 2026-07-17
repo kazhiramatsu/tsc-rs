@@ -652,6 +652,13 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "type_to_string_slice_structured"
+reason = "origin-union display beyond keyof origins (M5/M6 verdict shield; nodeBuilder tail, M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "type_to_string_slice_structured"
 reason = "reference display with outer type parameters (nodeBuilder, T2 M8)"
 class = "stage"
 owner = "M8"
