@@ -22,6 +22,10 @@ name = "check_qualified_name"
 
 [[fn]]
 file = "crates/checker/src/access.rs"
+name = "get_private_identifier_property_of_type"
+
+[[fn]]
+file = "crates/checker/src/access.rs"
 name = "get_promised_type_of_promise_with_this_error"
 
 [[fn]]
@@ -390,6 +394,10 @@ name = "global_this_type_alias"
 
 [[fn]]
 file = "crates/checker/src/indexed.rs"
+name = "get_indexed_access_type_or_undefined_ex"
+
+[[fn]]
+file = "crates/checker/src/indexed.rs"
 name = "get_total_fixed_element_count"
 
 [[fn]]
@@ -403,6 +411,10 @@ name = "alloc_mapper"
 [[fn]]
 file = "crates/checker/src/instantiate.rs"
 name = "children_of"
+
+[[fn]]
+file = "crates/checker/src/instantiate.rs"
+name = "import_type_is_type_of"
 
 [[fn]]
 file = "crates/checker/src/instantiate.rs"
@@ -439,10 +451,6 @@ name = "get_intersection_type_ex"
 [[fn]]
 file = "crates/checker/src/js_grammar.rs"
 name = "get_js_syntactic_diagnostics"
-
-[[fn]]
-file = "crates/checker/src/jsx.rs"
-name = "get_exports_of_jsx_factory_symbol"
 
 [[fn]]
 file = "crates/checker/src/jsx.rs"
@@ -483,6 +491,14 @@ name = "node"
 [[fn]]
 file = "crates/checker/src/links.rs"
 name = "or_node_check_flags"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "overwrite_import_type_resolved_symbol"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "overwrite_import_type_resolved_type"
 
 [[fn]]
 file = "crates/checker/src/links.rs"
@@ -607,6 +623,10 @@ name = "set_symbol_late_symbol"
 [[fn]]
 file = "crates/checker/src/links.rs"
 name = "set_symbol_name_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
+name = "set_symbol_originating_import"
 
 [[fn]]
 file = "crates/checker/src/links.rs"
@@ -758,6 +778,10 @@ name = "set_type_restrictive_instantiation"
 
 [[fn]]
 file = "crates/checker/src/links.rs"
+name = "set_type_synthetic_type"
+
+[[fn]]
+file = "crates/checker/src/links.rs"
 name = "set_type_union_key_property"
 
 [[fn]]
@@ -807,6 +831,10 @@ name = "related_for_node"
 [[fn]]
 file = "crates/checker/src/merge.rs"
 name = "symbol_display_name"
+
+[[fn]]
+file = "crates/checker/src/modules.rs"
+name = "implied_resolution_mode_from_extension"
 
 [[fn]]
 file = "crates/checker/src/operators.rs"
