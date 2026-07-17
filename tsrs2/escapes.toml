@@ -558,13 +558,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "resolve_call_expression"
-reason = "super base constructors (5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
 in = "resolve_decorator"
 reason = "decorator without an expression (parse recovery)"
 class = "recovery"

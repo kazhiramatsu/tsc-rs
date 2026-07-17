@@ -4566,9 +4566,25 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.any_signature);
             }
             if super_type != self.tables.intrinsics.error {
-                // getEffectiveBaseTypeNode + getInstantiatedConstructors
-                // ForTypeArguments needs constructor-body forcing.
-                return Err(Unsupported::new("super base constructors (5.8)"));
+                // getEffectiveBaseTypeNode = the extends heritage
+                // element in TS files (the JS @augments divergence is
+                // the checkClassLikeDeclaration elision).
+                let base_type_node = self
+                    .get_containing_class_of(node)
+                    .and_then(|class| self.get_class_extends_heritage_element(class));
+                if let Some(base_type_node) = base_type_node {
+                    let base_constructors = self.get_instantiated_constructors_for_type_arguments(
+                        super_type,
+                        base_type_node,
+                    )?;
+                    return self.resolve_call(
+                        node,
+                        &base_constructors,
+                        check_mode,
+                        SignatureFlags::NONE,
+                        None,
+                    );
+                }
             }
             return self.resolve_untyped_call(node);
         }
