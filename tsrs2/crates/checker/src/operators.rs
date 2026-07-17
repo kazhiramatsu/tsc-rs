@@ -1466,7 +1466,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isExactOptionalPropertyMismatch @6.0.3
     /// tsc-hash: 31db751b7f65924eb86b2f3088de7b4bf9a0a35a6e41eb948c2e175edb5ee573
     /// tsc-span: _tsc.js:67771-67773
-    fn is_exact_optional_property_mismatch(
+    pub(crate) fn is_exact_optional_property_mismatch(
         &mut self,
         source: Option<TypeId>,
         target: Option<TypeId>,

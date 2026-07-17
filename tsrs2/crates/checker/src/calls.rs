@@ -2325,17 +2325,17 @@ impl<'a> CheckerState<'a> {
         span: &DiagSpan,
         head: &'static DiagnosticMessage,
     ) -> CheckResult2<Diagnostic> {
-        if head.code
+        // 65111: the 2345→2379 head swap under
+        // exactOptionalPropertyTypes.
+        let head = if head.code
             == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
             && self.options.exact_optional_property_types.unwrap_or(false)
+            && self.has_exact_optional_unassignable_properties(source, target)?
         {
-            // 65111: the 2345→exactOptionalPropertyTypes head variant
-            // needs getExactOptionalUnassignableProperties — escape
-            // under the option rather than mis-pick the code.
-            return Err(Unsupported::new(
-                "exactOptionalPropertyTypes argument-head variant selection",
-            ));
-        }
+            &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties
+        } else {
+            head
+        };
         let source_text = self.type_to_string_slice(source)?;
         let target_text = self.type_to_string_slice(target)?;
         // 65069-65072: literal sources generalize to their base
@@ -2350,6 +2350,30 @@ impl<'a> CheckerState<'a> {
             source_text
         };
         Ok(self.diagnostic_at_span(span, MessageChain::new(head, &[source_text, target_text])))
+    }
+
+    /// tsc-port: getExactOptionalUnassignableProperties @6.0.3
+    /// tsc-hash: 55427654a3a9d47b6ac2c33b0dd15e0b0d21c25ec55e9cbcf9fb50cfe4014891
+    /// tsc-span: _tsc.js:67246-67249
+    ///
+    /// Consumers read only `.length` — the boolean face.
+    fn has_exact_optional_unassignable_properties(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<bool> {
+        if self.tables.is_tuple_type(source) && self.tables.is_tuple_type(target) {
+            return Ok(false);
+        }
+        for target_prop in self.get_properties_of_type(target)? {
+            let name = self.binder.symbol(target_prop).escaped_name.clone();
+            let source_type = self.get_type_of_property_of_type(source, &name)?;
+            let target_type = self.get_type_of_symbol(target_prop)?;
+            if self.is_exact_optional_property_mismatch(source_type, Some(target_type))? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     // ---- elaboration gate ----
