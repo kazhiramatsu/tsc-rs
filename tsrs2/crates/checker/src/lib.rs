@@ -623,9 +623,17 @@ struct LibBundle {
 }
 
 /// The per-lib-set bundle cache. Keyed by the ordered (name, text)
-/// list plus the FULL CompilerOptions (the binder reads options; the
-/// whole struct is small and Eq/Hash — narrow to the proven-read
-/// subset only if the option matrix measurably multiplies entries).
+/// list plus the projection of CompilerOptions onto the binder's three
+/// option observables — the only fields a cached bundle can ever
+/// expose. The binder crate reads exactly `emit_script_target()`
+/// (declare.rs language_version, bind.rs ES2015 gate),
+/// `always_strict_effective()` (bind.rs use-strict prologue) and
+/// `no_fallthrough_cases_in_switch == Some(true)` (bindCaseBlock), and
+/// `Binder.options` is read nowhere outside the binder crate. Keying
+/// the full struct rebuilt+leaked one identical bundle per matrix
+/// option combination (~11.5 GB peak over the conformance corpus);
+/// the projection restores the per-lib-set bound. A new `options.`
+/// read in the binder MUST extend this projection.
 /// `TSRS_LIB_BUNDLE_CACHE=0` bypasses the map (fresh build+leak per
 /// call) — the L3 A/B lever proving reuse changes nothing.
 fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
@@ -635,12 +643,25 @@ fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBun
     type Key = (Vec<(String, u64)>, CompilerOptions);
     static CACHE: OnceLock<Mutex<HashMap<Key, &'static LibBundle>>> = OnceLock::new();
 
+    // Each field holds the observable's canonical preimage, so the
+    // projected struct evaluates every binder read identically to the
+    // program's own options (ES3/absent targets share the computed
+    // ES2025, options.rs:139) while bind-inert fields collapse to one
+    // key. The bundle is BUILT from the projection too: whichever
+    // program builds first, the leaked options are the same struct.
+    let bundle_options = CompilerOptions {
+        target: Some(options.emit_script_target().bits()),
+        always_strict: Some(options.always_strict_effective()),
+        no_fallthrough_cases_in_switch: Some(options.no_fallthrough_cases_in_switch == Some(true)),
+        ..CompilerOptions::default()
+    };
+
     let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
     let key: Key = (
         libs.iter()
             .map(|lib| (lib.name.clone(), lib_text_fingerprint(&lib.text)))
             .collect(),
-        options.clone(),
+        bundle_options.clone(),
     );
     if cache_enabled {
         let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
@@ -648,7 +669,7 @@ fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBun
             return bundle;
         }
     }
-    let bundle = build_lib_bundle(libs, options);
+    let bundle = build_lib_bundle(libs, &bundle_options);
     if cache_enabled {
         let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
         cache.lock().expect("lib bundle cache").insert(key, bundle);
@@ -719,6 +740,55 @@ mod tests {
     fn empty_engine_returns_no_diagnostics() {
         let result = check_program(&[], &CompilerOptions::default());
         assert!(result.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn lib_bundle_key_projects_to_bind_observables() {
+        use tsrs2_types::flags::ScriptTarget;
+        // A lib name unique to this test: the cache is process-global.
+        let lib = InputFile {
+            name: "lib.bundle-key-probe.d.ts".to_owned(),
+            text: "declare const bundleKeyProbe: number;\n".to_owned(),
+        };
+        let libs = [&lib];
+        let base = CompilerOptions::default();
+        let shared = lib_bundle(&libs, &base);
+
+        // Bind-inert options reuse the bundle: the checker consumes
+        // them per program, never through the cached prefix.
+        let inert = CompilerOptions {
+            strict_null_checks: Some(false),
+            jsx: Some(2),
+            no_emit: Some(true),
+            module_resolution: Some(1),
+            ..base.clone()
+        };
+        assert!(std::ptr::eq(shared, lib_bundle(&libs, &inert)));
+
+        // ES3 and an absent target compute the same ES2025
+        // languageVersion (options.rs:139) — one bundle.
+        let es3 = CompilerOptions {
+            target: Some(ScriptTarget::ES3.bits()),
+            ..base.clone()
+        };
+        assert!(std::ptr::eq(shared, lib_bundle(&libs, &es3)));
+
+        // Each bind-time observable splits the key.
+        let es5 = CompilerOptions {
+            target: Some(ScriptTarget::ES5.bits()),
+            ..base.clone()
+        };
+        assert!(!std::ptr::eq(shared, lib_bundle(&libs, &es5)));
+        let loose = CompilerOptions {
+            always_strict: Some(false),
+            ..base.clone()
+        };
+        assert!(!std::ptr::eq(shared, lib_bundle(&libs, &loose)));
+        let fallthrough = CompilerOptions {
+            no_fallthrough_cases_in_switch: Some(true),
+            ..base.clone()
+        };
+        assert!(!std::ptr::eq(shared, lib_bundle(&libs, &fallthrough)));
     }
 
     #[test]
