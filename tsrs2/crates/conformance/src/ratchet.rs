@@ -34,6 +34,7 @@ use std::process::Command;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use toml_edit::{value as toml_value, Item, Table};
 
 use super::{
     fixture_key, read_golden, read_ratchet_section, select_fixtures, t0_key, ConformanceOptions,
@@ -1672,7 +1673,8 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     // Render and validate every required summary section before either
     // artifact changes. Missing fields are repaired in the rendered
     // value; a missing/duplicate section is an error with no mutation.
-    let ratchet_update = render_ratchet_summaries(&ratchet_path, &counts, &totals)?;
+    let (original_ratchet, ratchet_update) =
+        render_ratchet_summaries(&ratchet_path, &counts, &totals)?;
     if let Some((existing, existing_bytes)) = &existing_matches {
         if existing.views == run.sets && existing.inputs == inputs {
             // Validate both complete lineages before repairing any
@@ -1680,12 +1682,26 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
             verify_lineage::<OracleInputsArtifact>(&git_root, &inputs_rel, &inputs_bytes)?;
             verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, existing_bytes)?;
             verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
-            // Still self-heal a drifted ratchet.toml before declaring
-            // the state current.
-            write_rendered_ratchet(&ratchet_path, ratchet_update.as_deref())?;
+            // Still self-heal a missing working input or drifted
+            // ratchet.toml before declaring the state current. Treat
+            // those repairs as one transaction so a summary failure
+            // cannot leave only the input artifact changed.
+            let mut updates = Vec::new();
             if write_inputs {
-                atomic_write(&inputs_path, &inputs_bytes)?;
+                updates.push(AtomicFileUpdate {
+                    path: &inputs_path,
+                    original: working_inputs.as_ref().map(|(_, bytes)| bytes.as_slice()),
+                    replacement: &inputs_bytes,
+                });
             }
+            if let Some(rendered) = ratchet_update.as_deref() {
+                updates.push(AtomicFileUpdate {
+                    path: &ratchet_path,
+                    original: Some(&original_ratchet),
+                    replacement: rendered,
+                });
+            }
+            write_file_updates(&updates)?;
             println!("ratchet update: no additions; artifacts unchanged");
             return Ok(());
         }
@@ -1721,16 +1737,27 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, &matches_bytes)?;
     verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
 
-    write_artifact_pair(
-        &inputs_path,
-        working_inputs.as_ref().map(|(_, bytes)| bytes.as_slice()),
-        write_inputs,
-        &inputs_bytes,
-        &matches_path,
-        &matches_bytes,
-    )?;
-
-    write_rendered_ratchet(&ratchet_path, ratchet_update.as_deref())?;
+    let mut updates = Vec::new();
+    if write_inputs {
+        updates.push(AtomicFileUpdate {
+            path: &inputs_path,
+            original: working_inputs.as_ref().map(|(_, bytes)| bytes.as_slice()),
+            replacement: &inputs_bytes,
+        });
+    }
+    updates.push(AtomicFileUpdate {
+        path: &matches_path,
+        original: existing_matches.as_ref().map(|(_, bytes)| bytes.as_slice()),
+        replacement: &matches_bytes,
+    });
+    if let Some(rendered) = ratchet_update.as_deref() {
+        updates.push(AtomicFileUpdate {
+            path: &ratchet_path,
+            original: Some(&original_ratchet),
+            replacement: rendered,
+        });
+    }
+    write_file_updates(&updates)?;
 
     for view in FIXED_VIEWS {
         let (matched, complete) = counts.get(view.name()).copied().unwrap_or((0, 0));
@@ -1773,194 +1800,128 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> ConformanceResult<()> {
     Ok(())
 }
 
-/// Commit the pinned pair after all semantic and lineage validation.
-/// If replacing the second artifact fails, restore the first artifact
-/// to its exact pre-update bytes (or remove a newly-created bootstrap)
-/// so a reported failure does not leave a stale cross-pin behind.
-fn write_artifact_pair(
-    inputs_path: &Path,
-    original_inputs: Option<&[u8]>,
-    write_inputs: bool,
-    inputs_bytes: &[u8],
-    matches_path: &Path,
-    matches_bytes: &[u8],
-) -> ConformanceResult<()> {
-    if write_inputs {
-        atomic_write(inputs_path, inputs_bytes)?;
+struct AtomicFileUpdate<'a> {
+    path: &'a Path,
+    original: Option<&'a [u8]>,
+    replacement: &'a [u8],
+}
+
+fn restore_file(path: &Path, original: Option<&[u8]>) -> ConformanceResult<()> {
+    match original {
+        Some(bytes) => atomic_write(path, bytes),
+        None => match fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(err) => Err(format!(
+                "failed to remove newly-created {} during rollback: {err}",
+                path.display()
+            )
+            .into()),
+        },
     }
-    if let Err(matches_err) = atomic_write(matches_path, matches_bytes) {
-        if write_inputs {
-            let rollback = match original_inputs {
-                Some(bytes) => atomic_write(inputs_path, bytes),
-                None => match fs::remove_file(inputs_path) {
-                    Ok(()) => Ok(()),
-                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
-                    Err(err) => Err(format!(
-                        "failed to remove newly-created {} during rollback: {err}",
-                        inputs_path.display()
-                    )
-                    .into()),
-                },
-            };
-            if let Err(rollback_err) = rollback {
-                return Err(format!(
-                    "{matches_err}; additionally failed to restore {}: {rollback_err}",
-                    inputs_path.display()
-                )
-                .into());
+}
+
+/// Commit every planned update after validation. If any replacement
+/// fails, restore all earlier files to their exact pre-update bytes
+/// (or remove files created by this transaction).
+fn write_file_updates(updates: &[AtomicFileUpdate<'_>]) -> ConformanceResult<()> {
+    for (index, update) in updates.iter().enumerate() {
+        if let Err(update_err) = atomic_write(update.path, update.replacement) {
+            let mut rollback_errors = Vec::new();
+            for applied in updates[..index].iter().rev() {
+                if let Err(err) = restore_file(applied.path, applied.original) {
+                    rollback_errors.push(format!("{}: {err}", applied.path.display()));
+                }
             }
+            if rollback_errors.is_empty() {
+                return Err(update_err);
+            }
+            return Err(format!(
+                "{update_err}; additionally failed to roll back {}",
+                rollback_errors.join("; ")
+            )
+            .into());
         }
-        return Err(matches_err);
     }
     Ok(())
 }
 
 /// Rewrite the [t0]/[t0-2xxx]/[t0-syntactic] `rate`/`matched`/`total`
-/// value lines in place. Comments and every other line survive — the
-/// per-slice annotations in ratchet.toml are review surface.
+/// values in place. Comments and every unrelated value survive — the
+/// per-slice annotations are review surface.
 #[cfg(test)]
 fn rewrite_ratchet_summaries(
     path: &Path,
     counts: &BTreeMap<String, (u64, u64)>,
     totals: &BTreeMap<String, u64>,
 ) -> ConformanceResult<()> {
-    let rendered = render_ratchet_summaries(path, counts, totals)?;
-    write_rendered_ratchet(path, rendered.as_deref())
+    let (_, rendered) = render_ratchet_summaries(path, counts, totals)?;
+    if let Some(bytes) = rendered {
+        atomic_write(path, &bytes)?;
+    }
+    Ok(())
 }
 
-#[derive(Debug)]
-struct SummarySectionState {
-    matched: u64,
-    total: u64,
-    seen: BTreeSet<String>,
-}
-
-fn finish_summary_section(out: &mut Vec<String>, current: &mut Option<SummarySectionState>) {
-    let Some(state) = current.take() else {
-        return;
-    };
-    let rate = if state.total == 0 {
-        1.0
+fn set_summary_value(
+    table: &mut Table,
+    section: &str,
+    key: &str,
+    mut replacement: Item,
+) -> ConformanceResult<()> {
+    if let Some(existing) = table.get_mut(key) {
+        let decor = existing
+            .as_value()
+            .ok_or_else(|| format!("[{section}].{key} must be a scalar value"))?
+            .decor()
+            .clone();
+        *replacement
+            .as_value_mut()
+            .expect("summary replacements are scalar values")
+            .decor_mut() = decor;
+        *existing = replacement;
     } else {
-        state.matched as f64 / state.total as f64
-    };
-    if !state.seen.contains("rate") {
-        out.push(format!("rate = {rate:.6}"));
+        table.insert(key, replacement);
     }
-    if !state.seen.contains("matched") {
-        out.push(format!("matched = {}", state.matched));
-    }
-    if !state.seen.contains("total") {
-        out.push(format!("total = {}", state.total));
-    }
-}
-
-fn rewritten_summary_line(line: &str, value: &str) -> String {
-    let indent_len = line.len() - line.trim_start().len();
-    let indent = &line[..indent_len];
-    match line.find('#') {
-        Some(comment_start) => format!("{indent}{value} {}", &line[comment_start..]),
-        None => format!("{indent}{value}"),
-    }
+    Ok(())
 }
 
 fn render_ratchet_summaries(
     path: &Path,
     counts: &BTreeMap<String, (u64, u64)>,
     totals: &BTreeMap<String, u64>,
-) -> ConformanceResult<Option<Vec<u8>>> {
+) -> ConformanceResult<(Vec<u8>, Option<Vec<u8>>)> {
     let text = fs::read_to_string(path)?;
-    super::validate_ratchet_toml_structure(path, &text)?;
-    let mut sections: BTreeMap<&str, (u64, u64)> = BTreeMap::new();
+    let original = text.as_bytes().to_vec();
+    let mut document = super::parse_ratchet_document(path, &text)?;
     for view in FIXED_VIEWS {
         let (matched, _) = counts.get(view.name()).copied().unwrap_or((0, 0));
         let total = totals.get(view.name()).copied().unwrap_or(0);
-        sections.insert(view.ratchet_key(), (matched, total));
+        let section = view.ratchet_key();
+        let table = document
+            .as_table_mut()
+            .get_mut(section)
+            .and_then(Item::as_table_mut)
+            .ok_or_else(|| {
+                format!(
+                    "missing ratchet summary section [{section}] in {}",
+                    path.display()
+                )
+            })?;
+        let rate = canonical_summary_rate(matched, total);
+        let matched = i64::try_from(matched)
+            .map_err(|_| format!("[{section}].matched exceeds TOML's integer range"))?;
+        let total = i64::try_from(total)
+            .map_err(|_| format!("[{section}].total exceeds TOML's integer range"))?;
+        set_summary_value(table, section, "rate", toml_value(rate))?;
+        set_summary_value(table, section, "matched", toml_value(matched))?;
+        set_summary_value(table, section, "total", toml_value(total))?;
     }
-
-    let mut out = Vec::new();
-    let mut current: Option<SummarySectionState> = None;
-    let mut seen_sections = BTreeSet::new();
-    for line in text.lines() {
-        let bare = line.split('#').next().unwrap_or("").trim();
-        if bare.starts_with('[') && bare.ends_with(']') {
-            finish_summary_section(&mut out, &mut current);
-            let name = &bare[1..bare.len() - 1];
-            current = match sections.get(name).copied() {
-                Some((matched, total)) => {
-                    if !seen_sections.insert(name.to_owned()) {
-                        return Err(format!(
-                            "duplicate ratchet summary section [{name}] in {}",
-                            path.display()
-                        )
-                        .into());
-                    }
-                    Some(SummarySectionState {
-                        matched,
-                        total,
-                        seen: BTreeSet::new(),
-                    })
-                }
-                None => None,
-            };
-            out.push(line.to_owned());
-            continue;
-        }
-        let (Some(state), Some((key, _))) = (current.as_mut(), bare.split_once('=')) else {
-            out.push(line.to_owned());
-            continue;
-        };
-        match key.trim() {
-            "rate" => {
-                state.seen.insert("rate".to_owned());
-                let rate = if state.total == 0 {
-                    1.0
-                } else {
-                    state.matched as f64 / state.total as f64
-                };
-                out.push(rewritten_summary_line(line, &format!("rate = {rate:.6}")));
-            }
-            "matched" => {
-                state.seen.insert("matched".to_owned());
-                out.push(rewritten_summary_line(
-                    line,
-                    &format!("matched = {}", state.matched),
-                ));
-            }
-            "total" => {
-                state.seen.insert("total".to_owned());
-                out.push(rewritten_summary_line(
-                    line,
-                    &format!("total = {}", state.total),
-                ));
-            }
-            _ => out.push(line.to_owned()),
-        }
-    }
-    finish_summary_section(&mut out, &mut current);
-    for section in sections.keys() {
-        if !seen_sections.contains(*section) {
-            return Err(format!(
-                "missing ratchet summary section [{section}] in {}",
-                path.display()
-            )
-            .into());
-        }
-    }
-    let mut rendered = out.join("\n");
-    rendered.push('\n');
+    let rendered = document.to_string();
     if rendered != text {
-        Ok(Some(rendered.into_bytes()))
+        Ok((original, Some(rendered.into_bytes())))
     } else {
-        Ok(None)
+        Ok((original, None))
     }
-}
-
-fn write_rendered_ratchet(path: &Path, rendered: Option<&[u8]>) -> ConformanceResult<()> {
-    if let Some(bytes) = rendered {
-        atomic_write(path, bytes)?;
-    }
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -2493,7 +2454,7 @@ mod tests {
     }
 
     #[test]
-    fn artifact_pair_write_rolls_inputs_back_when_matches_replace_fails() {
+    fn file_transaction_rolls_inputs_back_when_matches_replace_fails() {
         let dir = temp_dir("pair-rollback");
         let inputs_path = dir.join("inputs.zst");
         let matches_path = dir.join("matches.zst");
@@ -2502,18 +2463,56 @@ mod tests {
         // matches file, forcing the second half of the pair to fail.
         fs::create_dir(&matches_path).unwrap();
 
-        let err = write_artifact_pair(
-            &inputs_path,
-            Some(b"old inputs"),
-            true,
-            b"new inputs",
-            &matches_path,
-            b"new matches",
-        )
-        .unwrap_err()
-        .to_string();
+        let updates = [
+            AtomicFileUpdate {
+                path: &inputs_path,
+                original: Some(b"old inputs"),
+                replacement: b"new inputs",
+            },
+            AtomicFileUpdate {
+                path: &matches_path,
+                original: None,
+                replacement: b"new matches",
+            },
+        ];
+        let err = write_file_updates(&updates).unwrap_err().to_string();
         assert!(err.contains("failed to replace"), "{err}");
         assert_eq!(fs::read(&inputs_path).unwrap(), b"old inputs");
+    }
+
+    #[test]
+    fn file_transaction_rolls_artifacts_back_when_ratchet_replace_fails() {
+        let dir = temp_dir("ratchet-rollback");
+        let inputs_path = dir.join("inputs.zst");
+        let matches_path = dir.join("matches.zst");
+        let ratchet_path = dir.join("ratchet.toml");
+        fs::write(&inputs_path, b"old inputs").unwrap();
+        // A directory at the final target forces the third write to
+        // fail after both artifacts have already been replaced.
+        fs::create_dir(&ratchet_path).unwrap();
+
+        let updates = [
+            AtomicFileUpdate {
+                path: &inputs_path,
+                original: Some(b"old inputs"),
+                replacement: b"new inputs",
+            },
+            AtomicFileUpdate {
+                path: &matches_path,
+                original: None,
+                replacement: b"new matches",
+            },
+            AtomicFileUpdate {
+                path: &ratchet_path,
+                original: None,
+                replacement: b"new summary",
+            },
+        ];
+        let err = write_file_updates(&updates).unwrap_err().to_string();
+        assert!(err.contains("failed to replace"), "{err}");
+        assert_eq!(fs::read(&inputs_path).unwrap(), b"old inputs");
+        assert!(!matches_path.exists());
+        assert!(ratchet_path.is_dir());
     }
 
     #[test]
@@ -3156,7 +3155,7 @@ mod tests {
         let path = dir.join("ratchet.toml");
         fs::write(
             &path,
-            "[t0]\n# integer gate commentary\nrate = 0.1 # display-only\nmatched = 1\ntotal = 10\nallowed_regression = 0.0\n\n\
+            "[\"t0\"]\n# integer gate commentary\n\"rate\" = 0.1 # display-only\nmatched = 1\ntotal = 10\nallowed_regression = 0.0\n\n\
              [t1]\nrate = 0.0\nallowed_regression = 0.0\n\n\
              [t0-2xxx]\nrate = 0.2\nmatched = 2\ntotal = 10\nallowed_regression = 0.0\n\n\
              [t0-syntactic]\nallowed_regression = 0.0\n\n\
@@ -3180,9 +3179,8 @@ mod tests {
         rewrite_ratchet_summaries(&path, &counts, &totals).unwrap();
         let text = fs::read_to_string(&path).unwrap();
         assert!(text.contains("# integer gate commentary"));
-        assert!(text.contains("rate = 0.411585 # display-only"));
+        assert!(text.contains("\"rate\" = 0.411585 # display-only"));
         assert!(text.contains("# escape commentary"));
-        assert!(text.contains("rate = 0.411585"));
         assert!(text.contains("matched = 20052"));
         assert!(text.contains("total = 48719"));
         assert!(text.contains("matched = 10921"));
@@ -3196,8 +3194,8 @@ mod tests {
 
         verify_ratchet_summaries(&path, &counts, &totals).unwrap();
         let stale = text.replacen(
-            "rate = 0.411585 # display-only",
-            "rate = 0.000000 # display-only",
+            "\"rate\" = 0.411585 # display-only",
+            "\"rate\" = 0.000000 # display-only",
             1,
         );
         fs::write(&path, &stale).unwrap();
@@ -3211,9 +3209,6 @@ mod tests {
         let err = rewrite_ratchet_summaries(&path, &counts, &totals)
             .unwrap_err()
             .to_string();
-        assert!(
-            err.contains("duplicate ratchet.toml key [t0].matched"),
-            "{err}"
-        );
+        assert!(err.contains("invalid ratchet.toml"), "{err}");
     }
 }

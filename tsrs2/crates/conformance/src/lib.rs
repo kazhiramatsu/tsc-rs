@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
+use toml_edit::{DocumentMut, Item, Table};
 use tsrs2_checker::{check_program, check_program_with_libs, CompilerOptions, InputFile};
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
@@ -1494,115 +1495,79 @@ fn read_ratchet(path: &Path, band: DiagnosticBand) -> ConformanceResult<Ratchet>
     read_ratchet_section(path, band.ratchet_key())
 }
 
-fn validate_ratchet_toml_structure(path: &Path, text: &str) -> ConformanceResult<()> {
-    let mut seen_sections = BTreeSet::new();
-    let mut keys_by_section = BTreeMap::<String, BTreeSet<String>>::new();
-    let mut current_section = String::from("<root>");
+fn parse_ratchet_document(path: &Path, text: &str) -> ConformanceResult<DocumentMut> {
+    text.parse::<DocumentMut>()
+        .map_err(|err| format!("invalid ratchet.toml at {}: {err}", path.display()).into())
+}
 
-    for (index, raw_line) in text.lines().enumerate() {
-        let line_number = index + 1;
-        let line = raw_line.split('#').next().unwrap_or("").trim();
-        if line.is_empty() {
-            continue;
-        }
-        if line.starts_with('[') && line.ends_with(']') {
-            let section = line[1..line.len() - 1].trim();
-            if section.is_empty() {
-                return Err(format!(
-                    "empty ratchet.toml section at {}:{line_number}",
-                    path.display()
-                )
-                .into());
-            }
-            if !seen_sections.insert(section.to_owned()) {
-                return Err(format!(
-                    "duplicate ratchet.toml section [{section}] at {}:{line_number}",
-                    path.display()
-                )
-                .into());
-            }
-            current_section = section.to_owned();
-            continue;
-        }
-        let Some((key, _)) = line.split_once('=') else {
-            return Err(format!(
-                "malformed ratchet.toml entry at {}:{line_number}: {line}",
+fn ratchet_section<'a>(
+    document: &'a DocumentMut,
+    path: &Path,
+    section: &str,
+) -> ConformanceResult<&'a Table> {
+    document
+        .as_table()
+        .get(section)
+        .and_then(Item::as_table)
+        .ok_or_else(|| {
+            format!(
+                "missing ratchet.toml section [{section}] in {}",
                 path.display()
             )
-            .into());
-        };
-        let key = key.trim();
-        if key.is_empty() {
-            return Err(
-                format!("empty ratchet.toml key at {}:{line_number}", path.display()).into(),
-            );
-        }
-        if !keys_by_section
-            .entry(current_section.clone())
-            .or_default()
-            .insert(key.to_owned())
-        {
-            return Err(format!(
-                "duplicate ratchet.toml key [{current_section}].{key} at {}:{line_number}",
-                path.display()
-            )
-            .into());
-        }
+            .into()
+        })
+}
+
+fn ratchet_float(
+    table: &Table,
+    path: &Path,
+    section: &str,
+    key: &str,
+) -> ConformanceResult<Option<f64>> {
+    let Some(item) = table.get(key) else {
+        return Ok(None);
+    };
+    let parsed = item
+        .as_float()
+        .or_else(|| item.as_integer().map(|value| value as f64))
+        .ok_or_else(|| format!("[{section}].{key} must be a number in {}", path.display()))?;
+    if !parsed.is_finite() {
+        return Err(format!("[{section}].{key} must be finite in {}", path.display()).into());
     }
-    Ok(())
+    Ok(Some(parsed))
+}
+
+fn ratchet_u64(
+    table: &Table,
+    path: &Path,
+    section: &str,
+    key: &str,
+) -> ConformanceResult<Option<u64>> {
+    let Some(item) = table.get(key) else {
+        return Ok(None);
+    };
+    let value = item.as_integer().ok_or_else(|| {
+        format!(
+            "[{section}].{key} must be a non-negative integer in {}",
+            path.display()
+        )
+    })?;
+    Ok(Some(u64::try_from(value).map_err(|_| {
+        format!(
+            "[{section}].{key} must be a non-negative integer in {}",
+            path.display()
+        )
+    })?))
 }
 
 fn read_ratchet_section(path: &Path, section: &str) -> ConformanceResult<Ratchet> {
     let text = fs::read_to_string(path)?;
-    validate_ratchet_toml_structure(path, &text)?;
-    let mut in_section = false;
-    let mut rate = None;
-    let mut matched = None;
-    let mut total = None;
-    let mut allowed_regression = None;
-
-    for raw_line in text.lines() {
-        let line = raw_line.split('#').next().unwrap_or("").trim();
-        if line.is_empty() {
-            continue;
-        }
-        if line.starts_with('[') && line.ends_with(']') {
-            in_section = &line[1..line.len() - 1] == section;
-            continue;
-        }
-        if !in_section {
-            continue;
-        }
-        let Some((key, value)) = line.split_once('=') else {
-            continue;
-        };
-        let value = value.trim();
-        match key.trim() {
-            "rate" => {
-                let parsed = value.parse::<f64>()?;
-                if !parsed.is_finite() {
-                    return Err(
-                        format!("[{section}].rate must be finite in {}", path.display()).into(),
-                    );
-                }
-                rate = Some(parsed);
-            }
-            "matched" => matched = Some(value.parse::<u64>()?),
-            "total" => total = Some(value.parse::<u64>()?),
-            "allowed_regression" => {
-                let parsed = value.parse::<f64>()?;
-                if !parsed.is_finite() {
-                    return Err(format!(
-                        "[{section}].allowed_regression must be finite in {}",
-                        path.display()
-                    )
-                    .into());
-                }
-                allowed_regression = Some(parsed);
-            }
-            _ => {}
-        }
-    }
+    let document = parse_ratchet_document(path, &text)?;
+    let table = ratchet_section(&document, path, section)?;
+    let rate = ratchet_float(table, path, section, "rate")?;
+    let matched = ratchet_u64(table, path, section, "matched")?;
+    let total = ratchet_u64(table, path, section, "total")?;
+    let allowed_regression = ratchet_float(table, path, section, "allowed_regression")?;
 
     if matched.is_some() != total.is_some() {
         return Err(format!(
@@ -1839,7 +1804,7 @@ mod tests {
         let err = read_ratchet(&path, DiagnosticBand::All)
             .unwrap_err()
             .to_string();
-        assert!(err.contains("duplicate ratchet.toml section [t0]"), "{err}");
+        assert!(err.contains("invalid ratchet.toml"), "{err}");
 
         fs::write(
             &path,
@@ -1849,14 +1814,49 @@ mod tests {
         let err = read_ratchet(&path, DiagnosticBand::All)
             .unwrap_err()
             .to_string();
-        assert!(
-            err.contains("duplicate ratchet.toml key [t0].rate"),
-            "{err}"
-        );
+        assert!(err.contains("invalid ratchet.toml"), "{err}");
+
+        // Quoted and bare keys are the same TOML key. A text-level
+        // duplicate checker must not let this semantic duplicate
+        // bypass validation.
+        fs::write(
+            &path,
+            "[t0]\nrate = 0.1\n\"rate\" = 0.1\nmatched = 1\ntotal = 10\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("invalid ratchet.toml"), "{err}");
+
+        // Dotted and table syntax also share one semantic namespace.
+        // The TOML parser must reject a repeated dotted path.
+        fs::write(
+            &path,
+            "t0.rate = 0.1\nt0.\"rate\" = 0.1\nt0.matched = 1\nt0.total = 10\n",
+        )
+        .unwrap();
+        let err = read_ratchet(&path, DiagnosticBand::All)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("invalid ratchet.toml"), "{err}");
+
+        // Valid quoted names are resolved by their TOML meaning.
+        fs::write(&path, "[\"t0\"]\n\"rate\" = 0.1\nmatched = 1\ntotal = 10\n").unwrap();
+        let ratchet = read_ratchet(&path, DiagnosticBand::All).unwrap();
+        assert_eq!(ratchet.rate, 0.1);
+        assert_eq!(ratchet.matched, Some(1));
+
+        // A section expressed entirely with dotted keys is equivalent
+        // to the table form and must be accepted too.
+        fs::write(&path, "t0.rate = 0.1\nt0.matched = 1\nt0.total = 10\n").unwrap();
+        let ratchet = read_ratchet(&path, DiagnosticBand::All).unwrap();
+        assert_eq!(ratchet.rate, 0.1);
+        assert_eq!(ratchet.total, Some(10));
 
         fs::write(
             &path,
-            "[t0]\nrate = 0.1\nmatched = 1\ntotal = 10\nallowed_regression = NaN\n",
+            "[t0]\nrate = 0.1\nmatched = 1\ntotal = 10\nallowed_regression = nan\n",
         )
         .unwrap();
         let err = read_ratchet(&path, DiagnosticBand::All)

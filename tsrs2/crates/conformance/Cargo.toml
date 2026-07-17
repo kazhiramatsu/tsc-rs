@@ -12,6 +12,7 @@ path = "src/lib.rs"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
+toml_edit = "0.22"
 tsrs2-checker = { path = "../checker" }
 tsrs2-diags = { path = "../diags" }
 tsrs2-harness = { path = "../harness" }
