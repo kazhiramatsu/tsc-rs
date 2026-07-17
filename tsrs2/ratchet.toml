@@ -10,8 +10,11 @@
 # (classType arm) + exports-as-members (enum/namespace/globalThis/
 # prototype) + late-bound index reads + member-table merges + the
 # type-of-symbol worker completion.
-rate = 0.411585
-matched = 20052
+# 5.9d: +115 — the modules/jsx/interop band: aliased-JSX wiring,
+# synthetic-default interop cloning, super base constructors, import
+# types, import.meta ES arms, alias tails, display-presence fixes.
+rate = 0.413945
+matched = 20167
 total = 48719
 allowed_regression = 0.0
 
@@ -22,8 +25,9 @@ allowed_regression = 0.0
 [t0-2xxx]
 # 5.9b: +10 with the relations band.
 # 5.9c: +1286 with the members/signatures band.
-rate = 0.522136
-matched = 10921
+# 5.9d: +38 with the modules/jsx/interop band.
+rate = 0.523953
+matched = 10959
 total = 20916
 allowed_regression = 0.0
 
@@ -68,7 +72,12 @@ allowed_regression = 0.0
 # machinery, matching the M6-owned read side); the no-value-decl and
 # worker-kind tails reclassed recovery (Debug.assertIsDefined /
 # Debug.fail transcriptions). The remaining 9 are the 5.9d rows.
-max_untagged = 9
+# 5.9d: 9 -> 0 — the modules/jsx/interop band implemented every
+# remaining untagged row (import types, eOPT argument head,
+# identically-named + origin displays, unique-symbol index head,
+# synthetic-access destructuring, Omit/Awaited arity guards); the
+# ceiling is now the 5.9e close invariant.
+max_untagged = 0
 # 5.7c: +16 genuine malformed-tree guards (JSX band tag-name/
 # attributes/attribute-symbol reads + the Debug.assert/Debug.fail
 # transcriptions of createJsxAttributesTypeFromAttributesProperty and

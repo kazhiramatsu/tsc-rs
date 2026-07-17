@@ -2649,9 +2649,12 @@ impl<'a> CheckerState<'a> {
             if let Some(origin) = origin {
                 // typeToString prints the ORIGIN of a denormalized
                 // union (nodeBuilder typeToTypeNodeHelper origin read):
-                // keyof origins render as `keyof T`; other origin
-                // shapes recurse into the slice and escalate to the
-                // structured tail when outside it.
+                // keyof origins render as `keyof T`. Non-keyof origins
+                // (syntactic `A | B` denormalizations) stay behind the
+                // curtain — the M5/M6 verdict bands lean on this
+                // suppression as their FP shield (5.9d re-measure:
+                // 2403/2322/2536 rows over narrowable unions fabricate
+                // without flow narrowing).
                 let origin_flags = self.tables.flags_of(origin);
                 if origin_flags.intersects(TypeFlags::INDEX) {
                     let inner = match self.tables.type_of(origin).data {
@@ -2661,7 +2664,9 @@ impl<'a> CheckerState<'a> {
                     let inner = self.type_to_string_slice_ex(inner, fully_qualified)?;
                     return Ok(format!("keyof {inner}"));
                 }
-                return self.type_to_string_slice_ex(origin, fully_qualified);
+                return Err(Unsupported::new(
+                    "origin-union display beyond keyof origins (M5/M6 verdict shield; nodeBuilder tail, M8)",
+                ));
             }
             let separator = if flags.intersects(TypeFlags::UNION) {
                 " | "
