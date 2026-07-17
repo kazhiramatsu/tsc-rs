@@ -17,9 +17,13 @@
 # Node-format/JSON interop, directive ranges, and qualified names;
 # final round re-froze the package-scope host boundaries and keeps
 # 1543/1544 off (recorded decision, m4-end-sweep-steps.md).
-rate = 0.430058
-matched = 20952
-total = 48719
+# oracle-correction epoch: goldens regenerated under the pinned
+# producer (total 48719 -> 49024; the 5.8d host fix had reached only
+# 4 goldens); 47 enumerated lapses; frozen-host boundaries unfrozen,
+# 1543/1544 emitters re-added, 2856 CJS-require row implemented.
+rate = 0.427403
+matched = 20953
+total = 49024
 allowed_regression = 0.0
 
 [t1]
@@ -30,9 +34,11 @@ allowed_regression = 0.0
 # 5.9b: +10 with the relations band.
 # 5.9c: +1286 with the members/signatures band.
 # 5.9d: +202 with the modules/jsx/interop band and review fixes.
-rate = 0.531794
-matched = 11123
-total = 20916
+# oracle-correction epoch: total 20916 -> 21051, +28 net matched
+# (12 enumerated lapses; 2856 rows and interop recoveries).
+rate = 0.529714
+matched = 11151
+total = 21051
 allowed_regression = 0.0
 
 [t0-syntactic]

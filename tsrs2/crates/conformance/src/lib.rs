@@ -15,6 +15,7 @@ use tsrs2_checker::{
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
+pub mod goldens_diff;
 pub mod ratchet;
 mod scope;
 
@@ -432,6 +433,11 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
     fs::create_dir_all(&temp_root)?;
 
     let pool = OraclePool::new(OraclePool::default_size())?;
+    // Goldens are the gating truth: refuse to write any before the
+    // LAUNCHED driver's process.version matches the tree's producer
+    // Node pin (.node-version alone is a declaration; this is the
+    // enforcement half).
+    ratchet::verify_launched_node(&options.workspace, &pool)?;
     let mut case_count = 0usize;
     let mut oracle_diag_count = 0usize;
 

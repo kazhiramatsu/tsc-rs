@@ -91,6 +91,13 @@ for await (const line of rl) {
   try {
     const request = JSON.parse(line);
     id = request.id;
+    if (request.versionProbe) {
+      // Launch-time producer verification: the harness compares the
+      // LAUNCHED process's version against the pinned .node-version
+      // before writing goldens (the file alone is a declaration).
+      process.stdout.write(`${JSON.stringify({ id, version: process.version })}\n`);
+      continue;
+    }
     const diagnostics = collectDiagnostics(request.programJsonPath);
     process.stdout.write(`${JSON.stringify({ id, diagnostics })}\n`);
   } catch (error) {
