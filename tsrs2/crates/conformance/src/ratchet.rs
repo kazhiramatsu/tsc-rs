@@ -313,6 +313,14 @@ fn read_artifact<T: DeserializeOwned>(path: &Path, what: &str) -> ConformanceRes
     Ok((value, bytes))
 }
 
+fn read_optional_bytes(path: &Path, what: &str) -> ConformanceResult<Option<Vec<u8>>> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(format!("failed to read {what} at {}: {err}", path.display()).into()),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Current-run set computation (shared with lib.rs's conformance loop)
 // ---------------------------------------------------------------------------
@@ -821,29 +829,106 @@ fn git_rel_path(git_root: &Path, workspace: &Path, rel: &str) -> ConformanceResu
     Ok(rel_to_root.to_string_lossy().replace('\\', "/"))
 }
 
-/// Committed versions of the path, newest first, as (commit, bytes).
-/// `rev-list` with a path filter applies git's history simplification:
-/// a merge whose result is TREESAME to a parent follows that parent
-/// and creates no lineage version — exactly the §1.1 "a merge that
-/// carries unchanged bytes creates no lineage version" rule.
+fn git_commit_parents(git_root: &Path, commit: &str) -> ConformanceResult<Vec<String>> {
+    let out = git(git_root, &["rev-list", "--parents", "-n", "1", commit])?;
+    let line = String::from_utf8(out)?;
+    Ok(line.split_whitespace().skip(1).map(str::to_owned).collect())
+}
+
+/// Every committed version of the path reachable from HEAD, newest
+/// first, as (commit, bytes). `--full-history` is essential: default
+/// path history simplification can discard a side branch that shrank
+/// an artifact and later restored the merge-base bytes.
+///
+/// A merge whose result merely carries one parent's bytes is filtered
+/// out after the full walk; the versions on every parent remain in the
+/// graph and are still validated.
 fn committed_versions(git_root: &Path, rel: &str) -> ConformanceResult<Vec<(String, Vec<u8>)>> {
-    let out = git(git_root, &["rev-list", "--topo-order", "HEAD", "--", rel])?;
+    let out = git(
+        git_root,
+        &[
+            "rev-list",
+            "--full-history",
+            "--topo-order",
+            "HEAD",
+            "--",
+            rel,
+        ],
+    )?;
     let mut versions = Vec::new();
     for commit in String::from_utf8(out)?.lines() {
         let commit = commit.trim();
         if commit.is_empty() {
             continue;
         }
-        let Some(bytes) = git_blob_optional(git_root, commit, rel)? else {
+        let bytes = git_blob_optional(git_root, commit, rel)?;
+        let parents = git_commit_parents(git_root, commit)?;
+        let mut carried_from_parent = false;
+        for parent in &parents {
+            if git_blob_optional(git_root, parent, rel)? == bytes {
+                carried_from_parent = true;
+                break;
+            }
+        }
+        if carried_from_parent {
+            continue;
+        }
+        let Some(bytes) = bytes else {
             return Err(format!(
-                "artifact {rel} unreadable at commit {commit} (deleted version or shallow \
-                 history — lineage requires every version back to the bootstrap)"
+                "artifact {rel} was deleted at commit {commit} (artifact versions are append-only)"
             )
             .into());
         };
         versions.push((commit.to_owned(), bytes));
     }
     Ok(versions)
+}
+
+fn version_ancestry(
+    git_root: &Path,
+    versions: &[(String, Vec<u8>)],
+) -> ConformanceResult<Vec<Vec<bool>>> {
+    let mut ancestry = vec![vec![false; versions.len()]; versions.len()];
+    let indices = versions
+        .iter()
+        .enumerate()
+        .map(|(index, (commit, _))| (commit.as_str(), index))
+        .collect::<BTreeMap<_, _>>();
+    // One ancestry walk per artifact version, rather than spawning
+    // `merge-base` for every pair (which would become quadratic in
+    // process launches as the ratchet grows).
+    for (newer, (commit, _)) in versions.iter().enumerate() {
+        let out = git(git_root, &["rev-list", commit])?;
+        for ancestor in String::from_utf8(out)?.lines() {
+            if let Some(older) = indices.get(ancestor.trim()) {
+                if *older != newer {
+                    ancestry[*older][newer] = true;
+                }
+            }
+        }
+    }
+    Ok(ancestry)
+}
+
+fn immediate_predecessors(index: usize, ancestry: &[Vec<bool>]) -> Vec<usize> {
+    let ancestors = (0..ancestry.len())
+        .filter(|candidate| ancestry[*candidate][index])
+        .collect::<Vec<_>>();
+    ancestors
+        .iter()
+        .copied()
+        .filter(|candidate| {
+            !ancestors
+                .iter()
+                .any(|other| candidate != other && ancestry[*candidate][*other])
+        })
+        .collect()
+}
+
+fn maximal_versions(ancestry: &[Vec<bool>]) -> Vec<usize> {
+    (0..ancestry.len())
+        .filter(|candidate| !(0..ancestry.len()).any(|other| ancestry[*candidate][other]))
+        .collect()
 }
 
 trait LineageArtifact: Sized {
@@ -944,84 +1029,254 @@ impl LineageArtifact for OracleInputsArtifact {
     }
 }
 
-/// Walk every version of the artifact path back to the unique oldest
-/// bootstrap version (§1.1). The chain is the committed versions plus
-/// the working-tree bytes when they differ from the committed tip.
+fn verify_version_edge<T: LineageArtifact>(
+    label: &str,
+    version: &T,
+    older_label: &str,
+    older_bytes: &[u8],
+    older: &T,
+    known_commits: impl Iterator<Item = String>,
+) -> ConformanceResult<()> {
+    if version.bootstrap() {
+        return Err(format!(
+            "{}: second bootstrap version at {label} (the bootstrap is unique)",
+            T::WHAT
+        )
+        .into());
+    }
+    let previous = version
+        .previous()
+        .ok_or_else(|| format!("{}: version at {label} lacks its previous pointer", T::WHAT))?;
+    if previous.commit != older_label {
+        let known = known_commits
+            .into_iter()
+            .any(|commit| commit == previous.commit);
+        return Err(format!(
+            "{}: version at {label} points at previous commit {} but the immediate \
+             preceding version of the path is {older_label}{}",
+            T::WHAT,
+            previous.commit,
+            if known {
+                " (an older-but-not-immediate ancestor cannot hide the versions between)"
+            } else {
+                " (unknown or unreachable previous version)"
+            }
+        )
+        .into());
+    }
+    if previous.sha256 != sha256_hex(older_bytes) {
+        return Err(format!(
+            "{}: version at {label} records a stale previous.sha256 for commit {older_label}",
+            T::WHAT
+        )
+        .into());
+    }
+    T::verify_edge(version, older)
+        .map_err(|err| format!("edge {label} -> {older_label}: {err}"))?;
+    Ok(())
+}
+
+/// Validate every version in the full reachable version DAG back to
+/// one bootstrap (§1.1). A path may have only one live maximal version:
+/// concurrent artifact updates must be rebased and regenerated, not
+/// merged by selecting one side and silently abandoning the other.
+///
+/// Working-tree bytes form one additional version when they differ
+/// from HEAD's blob.
 fn verify_lineage<T: LineageArtifact>(
     git_root: &Path,
     rel: &str,
     working_bytes: &[u8],
 ) -> ConformanceResult<usize> {
     let committed = committed_versions(git_root, rel)?;
-    let mut chain: Vec<(String, Vec<u8>)> = Vec::new();
-    match committed.first() {
-        Some((_, tip)) if tip.as_slice() == working_bytes => {}
-        _ => chain.push(("<working tree>".to_owned(), working_bytes.to_vec())),
-    }
-    chain.extend(committed);
-
-    let versions = chain
+    let versions = committed
         .iter()
         .map(|(label, bytes)| {
-            let version = T::decode_validated(bytes)
-                .map_err(|err| format!("{} version at {label}: {err}", T::WHAT))?;
-            Ok((label.as_str(), bytes, version))
+            T::decode_validated(bytes)
+                .map_err(|err| format!("{} version at {label}: {err}", T::WHAT).into())
         })
         .collect::<ConformanceResult<Vec<_>>>()?;
+    let ancestry = version_ancestry(git_root, &committed)?;
+    let roots = (0..committed.len())
+        .filter(|index| immediate_predecessors(*index, &ancestry).is_empty())
+        .collect::<Vec<_>>();
+    if committed.len() > 1 && roots.len() != 1 {
+        return Err(format!(
+            "{}: reachable history has {} bootstrap roots (expected exactly one)",
+            T::WHAT,
+            roots.len()
+        )
+        .into());
+    }
 
-    for (index, (label, _bytes, version)) in versions.iter().enumerate() {
-        let oldest = index + 1 == versions.len();
-        if oldest {
-            if !version.bootstrap() {
+    // `rev-list --topo-order` is newest-first. Reversing it reports an
+    // invalid old edge before a later restoration of the same bytes.
+    for index in (0..versions.len()).rev() {
+        let (label, _bytes) = &committed[index];
+        let version = &versions[index];
+        let predecessors = immediate_predecessors(index, &ancestry);
+        match predecessors.as_slice() {
+            [] => {
+                if !version.bootstrap() {
+                    return Err(format!(
+                        "{}: oldest reachable version at {label} is not the bootstrap \
+                         (missing history? lineage needs the full clone depth)",
+                        T::WHAT
+                    )
+                    .into());
+                }
+            }
+            [older_index] => {
+                let (older_label, older_bytes) = &committed[*older_index];
+                verify_version_edge::<T>(
+                    label,
+                    version,
+                    older_label,
+                    older_bytes,
+                    &versions[*older_index],
+                    committed.iter().map(|(commit, _)| commit.clone()),
+                )?;
+            }
+            _ => {
                 return Err(format!(
-                    "{}: oldest reachable version at {label} is not the bootstrap \
-                     (missing history? lineage needs the full clone depth)",
-                    T::WHAT
+                    "{}: version at {label} has {} concurrent preceding path versions; \
+                     rebase and regenerate the artifact before merging",
+                    T::WHAT,
+                    predecessors.len()
                 )
                 .into());
             }
-            continue;
         }
-        if version.bootstrap() {
-            return Err(format!(
-                "{}: second bootstrap version at {label} (the bootstrap is unique)",
-                T::WHAT
-            )
-            .into());
-        }
-        let previous = version
-            .previous()
-            .ok_or_else(|| format!("{}: version at {label} lacks its previous pointer", T::WHAT))?;
-        let (older_label, older_bytes, older) = &versions[index + 1];
-        if previous.commit != *older_label {
-            let known = versions
-                .iter()
-                .skip(index + 2)
-                .any(|(label, _, _)| *label == previous.commit);
-            return Err(format!(
-                "{}: version at {label} points at previous commit {} but the immediate \
-                 preceding version of the path is {older_label}{}",
-                T::WHAT,
-                previous.commit,
-                if known {
-                    " (an older-but-not-immediate ancestor cannot hide the versions between)"
-                } else {
-                    " (unknown or unreachable previous version)"
-                }
-            )
-            .into());
-        }
-        if previous.sha256 != sha256_hex(older_bytes) {
-            return Err(format!(
-                "{}: version at {label} records a stale previous.sha256 for commit {older_label}",
-                T::WHAT
-            )
-            .into());
-        }
-        T::verify_edge(version, older)
-            .map_err(|err| format!("edge {label} -> {older_label}: {err}"))?;
     }
-    Ok(versions.len())
+
+    let maxima = maximal_versions(&ancestry);
+    if committed.len() > 1 && maxima.len() != 1 {
+        return Err(format!(
+            "{}: reachable history has {} concurrent live path versions; \
+             rebase and regenerate the artifact before merging",
+            T::WHAT,
+            maxima.len()
+        )
+        .into());
+    }
+
+    let head_bytes = git_blob_optional(git_root, "HEAD", rel)?;
+    let working_is_version = head_bytes.as_deref() != Some(working_bytes);
+    if working_is_version {
+        let working = T::decode_validated(working_bytes)
+            .map_err(|err| format!("{} version at <working tree>: {err}", T::WHAT))?;
+        match maxima.as_slice() {
+            [] => {
+                if !working.bootstrap() {
+                    return Err(format!(
+                        "{}: oldest reachable version at <working tree> is not the bootstrap",
+                        T::WHAT
+                    )
+                    .into());
+                }
+            }
+            [older_index] => {
+                let (older_label, older_bytes) = &committed[*older_index];
+                verify_version_edge::<T>(
+                    "<working tree>",
+                    &working,
+                    older_label,
+                    older_bytes,
+                    &versions[*older_index],
+                    committed.iter().map(|(commit, _)| commit.clone()),
+                )?;
+            }
+            _ => {
+                return Err(format!(
+                    "{}: working version has {} concurrent committed predecessors; \
+                     rebase and regenerate the artifact",
+                    T::WHAT,
+                    maxima.len()
+                )
+                .into());
+            }
+        }
+        Ok(committed.len() + 1)
+    } else {
+        let Some(maximum) = maxima.first() else {
+            return Err(format!("{}: HEAD contains no reachable artifact version", T::WHAT).into());
+        };
+        if committed[*maximum].1.as_slice() != working_bytes {
+            return Err(format!(
+                "{}: HEAD bytes do not match the unique maximal path version {}",
+                T::WHAT,
+                committed[*maximum].0
+            )
+            .into());
+        }
+        Ok(committed.len())
+    }
+}
+
+fn verify_pair_values(
+    label: &str,
+    matches: &MatchesArtifact,
+    inputs: &OracleInputsArtifact,
+    inputs_bytes: &[u8],
+) -> ConformanceResult<()> {
+    if matches.inputs.oracle_inputs_sha256 != sha256_hex(inputs_bytes) {
+        return Err(format!(
+            "artifact pair at {label} is incoherent: accepted matches pin a different \
+             oracle-inputs blob"
+        )
+        .into());
+    }
+    if matches.inputs.tsc_js_sha256 != inputs.vendor.tsc_js_sha256 {
+        return Err(format!(
+            "artifact pair at {label} is incoherent: accepted matches and oracle inputs \
+             pin different vendored _tsc.js bytes"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+/// Every historical version commit must contain a complete coherent
+/// pair. This proves the `MatchesArtifact` transition rule's
+/// "paired manifest edge (same commit)" premise and rejects a history
+/// that updates inputs first and repairs matches in a later commit.
+fn verify_committed_artifact_pairs(
+    git_root: &Path,
+    matches_rel: &str,
+    inputs_rel: &str,
+) -> ConformanceResult<()> {
+    // Walk the combined path history, rather than only the union of
+    // each path's material versions. That also exposes a merge which
+    // carries matches from one parent and inputs from another.
+    let out = git(
+        git_root,
+        &[
+            "rev-list",
+            "--full-history",
+            "--topo-order",
+            "HEAD",
+            "--",
+            matches_rel,
+            inputs_rel,
+        ],
+    )?;
+    for commit in String::from_utf8(out)?.lines() {
+        let commit = commit.trim();
+        let matches_bytes = git_blob_optional(git_root, commit, matches_rel)?;
+        let inputs_bytes = git_blob_optional(git_root, commit, inputs_rel)?;
+        let (Some(matches_bytes), Some(inputs_bytes)) = (matches_bytes, inputs_bytes) else {
+            return Err(format!(
+                "incomplete ratchet artifact pair at historical version commit {commit}"
+            )
+            .into());
+        };
+        let matches = MatchesArtifact::decode_validated(&matches_bytes)
+            .map_err(|err| format!("accepted-match artifact at {commit}: {err}"))?;
+        let inputs = OracleInputsArtifact::decode_validated(&inputs_bytes)
+            .map_err(|err| format!("oracle-inputs artifact at {commit}: {err}"))?;
+        verify_pair_values(commit, &matches, &inputs, &inputs_bytes)?;
+    }
+    Ok(())
 }
 
 /// The trusted PR-base compare: HEAD (working) content must contain
@@ -1102,6 +1357,45 @@ fn view_counts(views: &RunSets) -> BTreeMap<String, (u64, u64)> {
     counts
 }
 
+fn canonical_summary_rate(matched: u64, total: u64) -> f64 {
+    let rate = if total == 0 {
+        1.0
+    } else {
+        matched as f64 / total as f64
+    };
+    format!("{rate:.6}")
+        .parse()
+        .expect("a formatted finite f64 parses")
+}
+
+fn verify_ratchet_summaries(
+    path: &Path,
+    counts: &BTreeMap<String, (u64, u64)>,
+    totals: &BTreeMap<String, u64>,
+) -> ConformanceResult<()> {
+    for view in FIXED_VIEWS {
+        let (matched, _) = counts.get(view.name()).copied().unwrap_or((0, 0));
+        let total = totals.get(view.name()).copied().unwrap_or(0);
+        let section = read_ratchet_section(path, view.ratchet_key())?;
+        let expected_rate = canonical_summary_rate(matched, total);
+        if section.matched != Some(matched)
+            || section.total != Some(total)
+            || section.rate != expected_rate
+        {
+            return Err(format!(
+                "ratchet.toml [{}] rate/matched/total ({:.6}/{:?}/{:?}) diverges from the \
+                 artifact ({expected_rate:.6}/{matched}/{total}) — run `cargo xtask ratchet update`",
+                view.ratchet_key(),
+                section.rate,
+                section.matched,
+                section.total
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
 /// `cargo xtask ratchet check [--baseline <ref>]`: verify both
 /// artifacts against the current tree (vendor pins, fixture bytes,
 /// expansion, golden oracle records, ratchet.toml derived summaries)
@@ -1117,13 +1411,7 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
     )?;
     inputs.validate()?;
 
-    if matches.inputs.oracle_inputs_sha256 != sha256_hex(&inputs_bytes) {
-        return Err(
-            "accepted-match artifact pins a different oracle-inputs artifact (stale pair — \
-             both are written together by `ratchet update`)"
-                .into(),
-        );
-    }
+    verify_pair_values("<working tree>", &matches, &inputs, &inputs_bytes)?;
     let built = build_oracle_inputs(workspace)?;
     if matches.inputs.tsc_js_sha256 != built.vendor.tsc_js_sha256 {
         return Err("vendored _tsc.js pin drift against the accepted-match artifact".into());
@@ -1133,21 +1421,7 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
     // ratchet.toml counts are derived summaries of the artifact, never
     // an independent authority.
     let counts = view_counts(&matches.views);
-    for view in FIXED_VIEWS {
-        let (matched, _) = counts.get(view.name()).copied().unwrap_or((0, 0));
-        let total = inputs.totals.get(view.name()).copied().unwrap_or(0);
-        let section = read_ratchet_section(&workspace.join("ratchet.toml"), view.ratchet_key())?;
-        if section.matched != Some(matched) || section.total != Some(total) {
-            return Err(format!(
-                "ratchet.toml [{}] matched/total ({:?}/{:?}) diverges from the artifact \
-                 ({matched}/{total}) — run `cargo xtask ratchet update`",
-                view.ratchet_key(),
-                section.matched,
-                section.total
-            )
-            .into());
-        }
-    }
+    verify_ratchet_summaries(&workspace.join("ratchet.toml"), &counts, &inputs.totals)?;
 
     let git_root = git_root_for(workspace)?;
     let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
@@ -1156,6 +1430,7 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
         verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, &matches_bytes)?;
     let inputs_versions =
         verify_lineage::<OracleInputsArtifact>(&git_root, &inputs_rel, &inputs_bytes)?;
+    verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
 
     if let Some(baseline) = baseline {
         verify_baseline(
@@ -1226,12 +1501,12 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     // regenerated, never chained through.
     let inputs_path = workspace.join(ORACLE_INPUTS_REL_PATH);
     let inputs_rel = git_rel_path(&git_root, workspace, ORACLE_INPUTS_REL_PATH)?;
-    let working_inputs = match fs::read(&inputs_path) {
-        Ok(bytes) => Some((
+    let working_inputs = match read_optional_bytes(&inputs_path, "oracle-inputs artifact")? {
+        Some(bytes) => Some((
             decode_artifact::<OracleInputsArtifact>(&bytes, "oracle-inputs artifact")?,
             bytes,
         )),
-        Err(_) => None,
+        None => None,
     };
     let committed_inputs = committed_versions(&git_root, &inputs_rel)?;
     let tip_inputs = match committed_inputs.first() {
@@ -1310,12 +1585,12 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     // but has not committed yet).
     let matches_path = workspace.join(MATCHES_REL_PATH);
     let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
-    let existing_matches = match fs::read(&matches_path) {
-        Ok(bytes) => Some((
+    let existing_matches = match read_optional_bytes(&matches_path, "accepted-match artifact")? {
+        Some(bytes) => Some((
             decode_artifact::<MatchesArtifact>(&bytes, "accepted-match artifact")?,
             bytes,
         )),
-        Err(_) => None,
+        None => None,
     };
     let old_counts = existing_matches
         .as_ref()
@@ -1345,6 +1620,7 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
             // missing working file or derived summary.
             verify_lineage::<OracleInputsArtifact>(&git_root, &inputs_rel, &inputs_bytes)?;
             verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, existing_bytes)?;
+            verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
             // Still self-heal a drifted ratchet.toml before declaring
             // the state current.
             write_rendered_ratchet(&ratchet_path, ratchet_update.as_deref())?;
@@ -1384,6 +1660,7 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     // bytes.
     verify_lineage::<OracleInputsArtifact>(&git_root, &inputs_rel, &inputs_bytes)?;
     verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, &matches_bytes)?;
+    verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
 
     write_artifact_pair(
         &inputs_path,
@@ -1692,6 +1969,26 @@ mod tests {
             .output()
             .unwrap();
         String::from_utf8(out.stdout).unwrap().trim().to_owned()
+    }
+
+    fn commit_artifact_pair(
+        root: &Path,
+        matches_bytes: &[u8],
+        inputs_bytes: &[u8],
+        message: &str,
+    ) -> String {
+        for (rel, bytes) in [
+            (MATCHES_REL_PATH, matches_bytes),
+            (ORACLE_INPUTS_REL_PATH, inputs_bytes),
+        ] {
+            let path = root.join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+        git_test(root, &["add", MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH]);
+        git_test(root, &["commit", "-q", "-m", message]);
+        let out = git(root, &["rev-parse", "HEAD"]).unwrap();
+        String::from_utf8(out).unwrap().trim().to_owned()
     }
 
     fn key(code: u32) -> T0Key {
@@ -2104,6 +2401,22 @@ mod tests {
         assert_eq!(fs::read(&inputs_path).unwrap(), b"old inputs");
     }
 
+    #[test]
+    fn optional_artifact_read_ignores_only_not_found() {
+        let dir = temp_dir("optional-read");
+        let missing = dir.join("missing.zst");
+        assert!(read_optional_bytes(&missing, "test artifact")
+            .unwrap()
+            .is_none());
+
+        let unreadable = dir.join("artifact-as-directory");
+        fs::create_dir(&unreadable).unwrap();
+        let err = read_optional_bytes(&unreadable, "test artifact")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("failed to read test artifact"), "{err}");
+    }
+
     // -- A1 lineage --------------------------------------------------------
 
     #[test]
@@ -2320,6 +2633,82 @@ mod tests {
     }
 
     #[test]
+    fn lineage_side_branch_shrink_then_restore_is_not_simplified_away() {
+        let repo = init_repo("merge-hidden-shrink");
+        let v1 = matches_artifact(views_with(&[2322, 2345], &[]), true, None, None);
+        let v1_bytes = encode_artifact(&v1).unwrap();
+        let c1 = commit_bytes(&repo, MATCHES_REL_PATH, &v1_bytes, "v1");
+
+        git_test(&repo, &["checkout", "-q", "-b", "feat"]);
+        let shrunk = matches_artifact(
+            views_with(&[2322], &[]),
+            false,
+            Some(lineage_to(&c1, &v1_bytes)),
+            None,
+        );
+        let shrunk_bytes = encode_artifact(&shrunk).unwrap();
+        commit_bytes(&repo, MATCHES_REL_PATH, &shrunk_bytes, "shrink");
+        // Restore the exact merge-base bytes. Default path history
+        // simplification drops both side-branch commits after the merge.
+        commit_bytes(&repo, MATCHES_REL_PATH, &v1_bytes, "restore");
+
+        git_test(&repo, &["checkout", "-q", "main"]);
+        commit_bytes(&repo, "main.txt", b"main side", "main work");
+        git_test(
+            &repo,
+            &["merge", "-q", "--no-ff", "feat", "-m", "merge feat"],
+        );
+
+        let err = verify_lineage::<MatchesArtifact>(&repo, MATCHES_REL_PATH, &v1_bytes)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("shrank"), "{err}");
+        assert!(err.contains("code 2345"), "{err}");
+    }
+
+    #[test]
+    fn lineage_rejects_concurrent_live_path_versions() {
+        let repo = init_repo("concurrent-versions");
+        let v1 = matches_artifact(views_with(&[2322], &[]), true, None, None);
+        let v1_bytes = encode_artifact(&v1).unwrap();
+        let c1 = commit_bytes(&repo, MATCHES_REL_PATH, &v1_bytes, "v1");
+
+        git_test(&repo, &["checkout", "-q", "-b", "left"]);
+        let left = matches_artifact(
+            views_with(&[2322, 2345], &[]),
+            false,
+            Some(lineage_to(&c1, &v1_bytes)),
+            None,
+        );
+        let left_bytes = encode_artifact(&left).unwrap();
+        commit_bytes(&repo, MATCHES_REL_PATH, &left_bytes, "left growth");
+
+        git_test(&repo, &["checkout", "-q", "-b", "right", &c1]);
+        let right = matches_artifact(
+            views_with(&[2322, 2454], &[]),
+            false,
+            Some(lineage_to(&c1, &v1_bytes)),
+            None,
+        );
+        let right_bytes = encode_artifact(&right).unwrap();
+        commit_bytes(&repo, MATCHES_REL_PATH, &right_bytes, "right growth");
+        // Select the current branch's bytes while retaining both path
+        // histories. The accepted state must be regenerated as their
+        // union, not silently choose either side.
+        git_test(
+            &repo,
+            &[
+                "merge", "-q", "--no-ff", "-s", "ours", "left", "-m", "merge",
+            ],
+        );
+
+        let err = verify_lineage::<MatchesArtifact>(&repo, MATCHES_REL_PATH, &right_bytes)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("concurrent live path versions"), "{err}");
+    }
+
+    #[test]
     fn lineage_undeclared_input_change_fails_and_universe_passes() {
         let repo = init_repo("inputs-lineage");
         let v1 = inputs_stub();
@@ -2386,6 +2775,60 @@ mod tests {
                 .unwrap_err()
                 .to_string();
         assert!(err.contains("unknown transition"), "{err}");
+    }
+
+    #[test]
+    fn historical_input_transition_requires_a_same_commit_matches_pin() {
+        let repo = init_repo("historical-pair");
+        let v1_inputs = inputs_stub();
+        let v1_inputs_bytes = encode_artifact(&v1_inputs).unwrap();
+        let mut v1_matches = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
+        v1_matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: sha256_hex(&v1_inputs_bytes),
+            tsc_js_sha256: v1_inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let v1_matches_bytes = encode_artifact(&v1_matches).unwrap();
+        let c1 = commit_artifact_pair(&repo, &v1_matches_bytes, &v1_inputs_bytes, "bootstrap pair");
+        verify_committed_artifact_pairs(&repo, MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH).unwrap();
+
+        let mut grown_matches = matches_artifact(
+            views_with(&[2322, 2345], &[2322]),
+            false,
+            Some(lineage_to(&c1, &v1_matches_bytes)),
+            None,
+        );
+        grown_matches.inputs = v1_matches.inputs.clone();
+        let grown_matches_bytes = encode_artifact(&grown_matches).unwrap();
+        commit_bytes(
+            &repo,
+            MATCHES_REL_PATH,
+            &grown_matches_bytes,
+            "matches-only growth",
+        );
+        verify_committed_artifact_pairs(&repo, MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH).unwrap();
+
+        let mut v2_inputs = v1_inputs.clone();
+        v2_inputs.fixtures.insert(
+            "conformance/new.ts".to_owned(),
+            v1_inputs.fixtures["conformance/a.ts"].clone(),
+        );
+        *v2_inputs.totals.get_mut("all").unwrap() += 1;
+        v2_inputs.bootstrap = false;
+        v2_inputs.previous = Some(lineage_to(&c1, &v1_inputs_bytes));
+        v2_inputs.transition = Some(UNIVERSE_TRANSITION.to_owned());
+        let v2_inputs_bytes = encode_artifact(&v2_inputs).unwrap();
+        commit_bytes(
+            &repo,
+            ORACLE_INPUTS_REL_PATH,
+            &v2_inputs_bytes,
+            "inputs only",
+        );
+
+        let err = verify_committed_artifact_pairs(&repo, MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("artifact pair"), "{err}");
+        assert!(err.contains("different oracle-inputs blob"), "{err}");
     }
 
     // -- Trusted PR-base compare --------------------------------------------
@@ -2633,5 +3076,17 @@ mod tests {
         assert!(text.contains("max_untagged = 9"));
         // The t1 section has no matched/total and stays untouched.
         assert!(text.contains("[t1]\nrate = 0.0"));
+
+        verify_ratchet_summaries(&path, &counts, &totals).unwrap();
+        let stale = text.replacen(
+            "rate = 0.411585 # display-only",
+            "rate = 0.000000 # display-only",
+            1,
+        );
+        fs::write(&path, stale).unwrap();
+        let err = verify_ratchet_summaries(&path, &counts, &totals)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("rate/matched/total"), "{err}");
     }
 }
