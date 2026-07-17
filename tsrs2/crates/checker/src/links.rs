@@ -203,6 +203,11 @@ pub struct SymbolLinks {
     /// alias symbols, which is DISTINCT from the sentinel exactly as
     /// tsc's fresh `[]` differs from the shared emptyArray.
     pub variances: LinkSlot<Box<[tsrs2_types::VarianceFlags]>>,
+    /// tsc links.originatingImport (cloneTypeAsModuleType 49769) — the
+    /// import-site provenance an interop module clone carries; read by
+    /// the invocation-error related-info band (64900/77252): dormant
+    /// stores at M4 (related info is not a T0 observable).
+    pub originating_import: Option<NodeId>,
     /// tsc links.leftSpread/rightSpread (getSpreadType 63024-63025):
     /// the merged-optional-property provenance pair. Dormant stores
     /// at M4 (read by getSyntheticElementAccess-side tooling later);
@@ -270,6 +275,10 @@ pub struct TypeLinks {
     /// tsc type.immediateBaseConstraint (getImmediateBaseConstraint
     /// 58921-58951; the ImmediateBaseConstraint resolution property).
     pub immediate_base_constraint: LinkSlot<TypeId>,
+    /// tsc synthType.syntheticType (getTypeWithSyntheticDefaultImportType
+    /// 77789-77821) — the esModuleInterop default-wrap memo stamped on
+    /// the module type itself.
+    pub synthetic_type: Option<TypeId>,
     /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
     /// (instantiateAnonymousType 63658).
     pub instantiated_target: Option<TypeId>,
@@ -847,6 +856,18 @@ impl LinksTables {
         self.symbol.entry(id).or_default().target = Some(target);
     }
 
+    /// `links.originatingImport = referenceParent` on a fresh interop
+    /// clone (cloneTypeAsModuleType 49769).
+    pub fn set_symbol_originating_import(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        reference_parent: NodeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().originating_import = Some(reference_parent);
+    }
+
     /// `links.leftSpread/rightSpread` (getSpreadType 63024-63025).
     pub fn set_symbol_spread_pair(
         &mut self,
@@ -1271,6 +1292,19 @@ impl LinksTables {
         links.target = Some(target);
         links.mapper = Some(mapper);
         links.name_type = name_type;
+    }
+
+    /// getTypeWithSyntheticDefaultImportType's synthType.syntheticType
+    /// stamp (77794/77817) — the `if (!synthType.syntheticType)` guard
+    /// makes this write-once.
+    pub fn set_type_synthetic_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.synthetic_type.is_none(),
+            "syntheticType written twice for {id:?}"
+        );
+        links.synthetic_type = Some(value);
     }
 
     /// instantiateAnonymousType's target/mapper seed (63658-63659),

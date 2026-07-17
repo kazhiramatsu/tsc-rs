@@ -402,13 +402,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "check_import_call_expression"
-reason = "getTypeWithSyntheticDefaultImportType synthetic-default wrap (M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
 in = "choose_overload"
 reason = "inferTypeArguments (M6-stub): generic call without explicit type arguments"
 class = "stage"
@@ -1242,13 +1235,6 @@ file = "crates/checker/src/modules.rs"
 in = "resolve_alias"
 reason = "resolveAlias alias symbol without alias declaration (parse-recovery shape, tsc Debug.fail)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/modules.rs"
-in = "resolve_es_module_symbol"
-reason = "resolveESModuleSymbol synthetic-default module type cloning (M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"

@@ -5107,7 +5107,7 @@ impl<'a> CheckerState<'a> {
     /// stableTypeOrdering is off by default: insertion order (the
     /// binder's IndexMap order) is the observable order. symbolIsValue's
     /// alias-resolution branch is M4; members here are value members.
-    fn get_named_members(&self, members: &tsrs2_binder::SymbolTable) -> Vec<SymbolId> {
+    pub(crate) fn get_named_members(&self, members: &tsrs2_binder::SymbolTable) -> Vec<SymbolId> {
         members
             .iter()
             .filter(|(name, &symbol)| {

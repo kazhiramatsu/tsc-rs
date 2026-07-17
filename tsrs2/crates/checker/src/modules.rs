@@ -16,7 +16,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{
     escape_leading_underscores, unescape_leading_underscores, NodeData, NodeId, SyntaxKind,
 };
-use tsrs2_types::{CheckMode, InternalSymbolName, SymbolFlags};
+use tsrs2_types::{CheckMode, InternalSymbolName, ObjectFlags, SymbolFlags, TypeFlags};
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult2, CheckerState, Unsupported};
@@ -3130,14 +3130,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f20024ad0bb1ee9307d7ca335709632fd30257dc4e437c62da4ddc46f27b1910
     /// tsc-span: _tsc.js:49715-49760
     ///
-    /// The Node20 module.exports arm and the usage-mode probes are
-    /// mode machinery (dead at the modeled defaults). The synthetic-
-    /// default MODULE TYPE cloning (getTypeWithSyntheticDefaultOnly /
-    /// getTypeWithSyntheticDefaultImportType + cloneTypeAsModuleType)
-    /// ESCAPES for now — es_module_interop defaults TRUE in TS6, so a
-    /// plain passthrough would mis-type `ns.default` reads (FP risk);
-    /// containment keeps those fixtures FN until the cloning lands
-    /// (m4-58 §9 gate note).
+    /// The Node20 module.exports arm and the usage-mode probes
+    /// (getTypeWithSyntheticDefaultOnly / isEsmCjsRef) are mode
+    /// machinery (dead at the modeled defaults — module header). The
+    /// synthetic-default interop cloning is LIVE (M4 5.9d).
     pub(crate) fn resolve_es_module_symbol(
         &mut self,
         module_symbol: Option<SymbolId>,
@@ -3175,29 +3171,237 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(Some(symbol));
         }
-        let reference_parent = self.parent_of(referencing_location);
-        let namespace_import = reference_parent.is_some_and(|parent| {
-            self.kind_of(parent) == SyntaxKind::ImportDeclaration
-                && self.get_namespace_declaration_node(parent).is_some()
-        });
-        let import_call = reference_parent.is_some_and(|parent| self.is_import_call(parent));
-        if namespace_import || import_call {
-            // The synthetic-default interop cloning: engage exactly
-            // where tsc would build a module type (export= module with
-            // callable/default-carrying type) and contain.
-            let export_equals_present = module_symbol.is_some_and(|module_symbol| {
-                self.binder
-                    .symbol(module_symbol)
-                    .exports
-                    .contains_key(InternalSymbolName::EXPORT_EQUALS)
-            });
-            if self.options.es_module_interop_effective() && export_equals_present {
-                return Err(Unsupported::new(
-                    "resolveESModuleSymbol synthetic-default module type cloning (M4-end sweep 5.8)",
-                ));
+        if let Some(reference_parent) = self.parent_of(referencing_location) {
+            let namespace_import = self.kind_of(reference_parent) == SyntaxKind::ImportDeclaration
+                && self.get_namespace_declaration_node(reference_parent).is_some();
+            if namespace_import || self.is_import_call(reference_parent) {
+                let ty = self.get_type_of_symbol(symbol)?;
+                // getTypeWithSyntheticDefaultOnly: None (mode
+                // machinery); Node20 module.exports arm + isEsmCjsRef:
+                // same family (module header).
+                if self.options.es_module_interop_effective() {
+                    let has_default_property = self
+                        .get_property_of_type_ex(
+                            ty,
+                            InternalSymbolName::DEFAULT,
+                            /*skip_object_function_property_augment*/ true,
+                        )?
+                        .is_some();
+                    if self.has_interop_signatures(ty)? || has_default_property {
+                        let module_symbol =
+                            module_symbol.expect("a resolved symbol implies a module symbol");
+                        let module_type = if self
+                            .tables
+                            .flags_of(ty)
+                            .intersects(TypeFlags::STRUCTURED_TYPE)
+                        {
+                            self.get_type_with_synthetic_default_import_type(
+                                ty,
+                                symbol,
+                                module_symbol,
+                            )?
+                        } else {
+                            let parent = self.binder.symbol(symbol).parent;
+                            self.create_default_property_wrapper_for_module(
+                                symbol, parent, /*anonymous_symbol*/ None,
+                            )?
+                        };
+                        return Ok(Some(self.clone_type_as_module_type(
+                            symbol,
+                            module_type,
+                            reference_parent,
+                        )?));
+                    }
+                }
             }
         }
         Ok(Some(symbol))
+    }
+
+    /// tsc-port: hasSignatures @6.0.3
+    /// tsc-hash: 4e5e0d5c9a2b7f0dbb02d978a4a26ac235a09e074000e13c709a3ee4bd132530
+    /// tsc-span: _tsc.js:49761-49763
+    ///
+    /// getSignaturesOfStructuredType for both kinds (no apparent-type
+    /// hop — the interop probes hand it resolved module types).
+    fn has_interop_signatures(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if !self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::STRUCTURED_TYPE)
+        {
+            return Ok(false);
+        }
+        let members = self.resolve_structured_type_members(ty)?;
+        let resolved = self.members_of(members);
+        Ok(!resolved.call_signatures.is_empty() || !resolved.construct_signatures.is_empty())
+    }
+
+    /// tsc-port: createDefaultPropertyWrapperForModule @6.0.3
+    /// tsc-hash: 42957399f2b3608bfae74a52ee8be8c17d7b473cbf6f39d80c50fc55f0f0762d
+    /// tsc-span: _tsc.js:77768-77776
+    fn create_default_property_wrapper_for_module(
+        &mut self,
+        symbol: SymbolId,
+        original_symbol: Option<SymbolId>,
+        anonymous_symbol: Option<SymbolId>,
+    ) -> CheckResult2<TypeId> {
+        let new_symbol = self
+            .binder
+            .create_symbol(SymbolFlags::ALIAS, InternalSymbolName::DEFAULT.to_owned());
+        self.binder.symbol_mut(new_symbol).parent = original_symbol;
+        let name_type = self
+            .tables
+            .get_string_literal_type(InternalSymbolName::DEFAULT);
+        self.links
+            .set_symbol_name_type(self.speculation_depth, new_symbol, Some(name_type));
+        // newSymbol.links.aliasTarget = resolveSymbol(symbol): the
+        // pre-resolved slot short-circuits future resolveAlias hops
+        // (the transient alias has no alias declaration to walk).
+        let alias_target = self
+            .resolve_symbol_ex(Some(symbol), false)?
+            .expect("resolveSymbol of Some is Some");
+        self.links.set_symbol_alias_target(
+            self.speculation_depth,
+            new_symbol,
+            LinkSlot::Resolved(alias_target),
+        );
+        let mut member_table = SymbolTable::default();
+        member_table.insert(InternalSymbolName::DEFAULT.to_owned(), new_symbol);
+        // createAnonymousType's getNamedMembers over the one-entry
+        // table: "default" is not reserved, and symbolIsValue's alias
+        // branch reads the pre-resolved target's flags (getSymbolFlags)
+        // — inlined here because the shared get_named_members models
+        // only the own-VALUE face.
+        let properties = if self
+            .get_symbol_flags_of(new_symbol)?
+            .intersects(SymbolFlags::VALUE)
+        {
+            vec![new_symbol]
+        } else {
+            Vec::new()
+        };
+        Ok(self.make_resolved_anonymous_type(
+            anonymous_symbol,
+            member_table,
+            properties,
+            Vec::new(),
+            ObjectFlags::ANONYMOUS,
+        ))
+    }
+
+    /// tsc-port: getTypeWithSyntheticDefaultImportType @6.0.3
+    /// tsc-hash: 3348a1061955a75a9e2fcf103f66a2c88f6ac47f883f4cebe0b09ff8fbde9f68
+    /// tsc-span: _tsc.js:77789-77822
+    ///
+    /// canHaveSyntheticDefault's usage-mode block rides the elided
+    /// mode machinery (its port drops the usage param), so the
+    /// moduleSpecifier parameter drops here too.
+    pub(crate) fn get_type_with_synthetic_default_import_type(
+        &mut self,
+        ty: TypeId,
+        symbol: SymbolId,
+        original_symbol: SymbolId,
+    ) -> CheckResult2<TypeId> {
+        if !self.options.allow_synthetic_default_imports_effective()
+            || self.tables.is_error_type(ty)
+        {
+            return Ok(ty);
+        }
+        if let Some(memo) = self.links.ty(ty).synthetic_type {
+            return Ok(memo);
+        }
+        let file_index = self.source_file_index_of_symbol(original_symbol);
+        let has_synthetic_default = self.can_have_synthetic_default(
+            file_index,
+            original_symbol,
+            /*dont_resolve_alias*/ false,
+        )?;
+        let synthetic = if has_synthetic_default {
+            let anonymous_symbol = self
+                .binder
+                .create_symbol(SymbolFlags::TYPE_LITERAL, InternalSymbolName::TYPE.to_owned());
+            let default_containing_object = self.create_default_property_wrapper_for_module(
+                symbol,
+                Some(original_symbol),
+                Some(anonymous_symbol),
+            )?;
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                anonymous_symbol,
+                LinkSlot::Resolved(default_containing_object),
+            );
+            if self.is_valid_spread_type(ty)? {
+                self.get_spread_type(
+                    ty,
+                    default_containing_object,
+                    Some(anonymous_symbol),
+                    ObjectFlags::NONE,
+                    /*readonly*/ false,
+                )?
+            } else {
+                default_containing_object
+            }
+        } else {
+            ty
+        };
+        self.links
+            .set_type_synthetic_type(self.speculation_depth, ty, synthetic);
+        Ok(synthetic)
+    }
+
+    /// tsc-port: cloneTypeAsModuleType @6.0.3
+    /// tsc-hash: 66a2f13029c15e0d64eb92782343ee6017b13e05eba31dd9c1a17b4dcc9088d4
+    /// tsc-span: _tsc.js:49764-49777
+    ///
+    /// The cloneSymbol copy set + links.target/originatingImport, with
+    /// the clone's type rebuilt over the module type's resolved members
+    /// and NO signatures — that drop is the observable (2349 + the
+    /// namespace-import related-info band).
+    fn clone_type_as_module_type(
+        &mut self,
+        symbol: SymbolId,
+        module_type: TypeId,
+        reference_parent: NodeId,
+    ) -> CheckResult2<SymbolId> {
+        let original = self.binder.symbol(symbol);
+        let flags = original.flags;
+        let escaped_name = original.escaped_name.clone();
+        let declarations = original.declarations.clone();
+        let parent = original.parent;
+        let value_declaration = original.value_declaration;
+        let const_enum_only_module = original.const_enum_only_module;
+        let members = original.members.clone();
+        let exports = original.exports.clone();
+        let result = self.binder.create_symbol(flags, escaped_name);
+        let cloned = self.binder.symbol_mut(result);
+        cloned.declarations = declarations;
+        cloned.parent = parent;
+        cloned.value_declaration = value_declaration;
+        if const_enum_only_module == Some(true) {
+            cloned.const_enum_only_module = Some(true);
+        }
+        cloned.members = members;
+        cloned.exports = exports;
+        self.links
+            .set_symbol_target(self.speculation_depth, result, symbol);
+        self.links
+            .set_symbol_originating_import(self.speculation_depth, result, reference_parent);
+        let members_id = self.resolve_structured_type_members(module_type)?;
+        let resolved = self.members_of(members_id);
+        let member_table = resolved.members.clone();
+        let index_infos = resolved.index_infos.clone();
+        let properties = self.get_named_members(&member_table);
+        let anonymous = self.make_resolved_anonymous_type(
+            Some(result),
+            member_table,
+            properties,
+            index_infos,
+            ObjectFlags::ANONYMOUS,
+        );
+        self.links
+            .set_symbol_type(self.speculation_depth, result, LinkSlot::Resolved(anonymous));
+        Ok(result)
     }
 
     /// tsc getNamespaceDeclarationNode: the NamespaceImport of an

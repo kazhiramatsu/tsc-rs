@@ -5352,11 +5352,9 @@ impl<'a> CheckerState<'a> {
         }
         // 77749-77766: the module-band worker (M4 5.8d un-silences
         // the 5.7b stub). dontResolveAlias=TRUE skips the interop-
-        // cloning arm; getTypeWithSyntheticDefaultOnly is mode
-        // machinery (None at the modeled defaults); the synthetic-
-        // default wrap face (export= module under the TS6 default-on
-        // allowSyntheticDefaultImports) ESCAPES like
-        // resolveESModuleSymbol's cloning arm.
+        // cloning arm inside resolveESModuleSymbol; the wrap happens
+        // here instead. getTypeWithSyntheticDefaultOnly is mode
+        // machinery (None at the modeled defaults).
         let module_symbol = self.resolve_external_module_name(node, specifier, false)?;
         if let Some(module_symbol) = module_symbol {
             let es_module_symbol = self.resolve_es_module_symbol(
@@ -5366,14 +5364,13 @@ impl<'a> CheckerState<'a> {
                 /*suppress_interop_error*/ false,
             )?;
             if let Some(es_module_symbol) = es_module_symbol {
-                let file_index = self.source_file_index_of_symbol(module_symbol);
-                if self.can_have_synthetic_default(file_index, module_symbol, false)? {
-                    return Err(Unsupported::new(
-                        "getTypeWithSyntheticDefaultImportType synthetic-default wrap (M4-end sweep 5.8)",
-                    ));
-                }
                 let module_type = self.get_type_of_symbol(es_module_symbol)?;
-                return self.create_promise_return_type(node, module_type);
+                let synthetic = self.get_type_with_synthetic_default_import_type(
+                    module_type,
+                    es_module_symbol,
+                    module_symbol,
+                )?;
+                return self.create_promise_return_type(node, synthetic);
             }
         }
         let any = self.tables.intrinsics.any;
