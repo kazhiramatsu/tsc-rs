@@ -935,12 +935,6 @@ owner = "M5"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
-in = "element_access_error_ladder"
-reason = "unique-symbol index head (unique symbol types, annotate M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/indexed.rs"
 in = "get_simplified_index_type"
 reason = "getSimplifiedIndexType for mapped types (unported family, M8-stub)"
 class = "stage"

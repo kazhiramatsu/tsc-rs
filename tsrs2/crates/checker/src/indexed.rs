@@ -1559,12 +1559,21 @@ impl<'a> CheckerState<'a> {
                                     &[format!("[{index_display}]"), object_display],
                                 ));
                             } else if index_flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
-                                // getFullyQualifiedName over the symbol
-                                // — unique symbol types are
-                                // unconstructible (annotate arm), so
-                                // this head has no producer yet.
-                                return Err(Unsupported::new(
-                                    "unique-symbol index head (unique symbol types, annotate M4)",
+                                // 62319-62321: `[<fully-qualified>]`
+                                // over the unique symbol's symbol (the
+                                // containingLocation-relative
+                                // qualification is a T2 nuance — the
+                                // full chain renders).
+                                let symbol = self
+                                    .tables
+                                    .type_of(index_type)
+                                    .symbol
+                                    .expect("unique symbol types carry their symbol");
+                                let symbol_name = self.get_fully_qualified_name(symbol);
+                                let object_display = self.type_to_string_slice(object_type)?;
+                                tail.push(tsrs2_diags::MessageChain::new(
+                                    &diagnostics::Property_0_does_not_exist_on_type_1,
+                                    &[format!("[{symbol_name}]"), object_display],
                                 ));
                             } else if index_flags
                                 .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
