@@ -10,13 +10,15 @@
 # (classType arm) + exports-as-members (enum/namespace/globalThis/
 # prototype) + late-bound index reads + member-table merges + the
 # type-of-symbol worker completion.
-# 5.9d: +178 — the modules/jsx/interop band plus review fixes:
+# 5.9d: +900 — the modules/jsx/interop band plus review fixes:
 # aliased-JSX wiring,
 # synthetic-default interop cloning, super base constructors, import
 # types, import.meta ES arms, alias tails, display-presence fixes,
-# Node-format/JSON interop, directive ranges, and qualified names.
-rate = 0.415238
-matched = 20230
+# Node-format/JSON interop, directive ranges, and qualified names;
+# final round re-froze the package-scope host boundaries and keeps
+# 1543/1544 off (recorded decision, m4-end-sweep-steps.md).
+rate = 0.430058
+matched = 20952
 total = 48719
 allowed_regression = 0.0
 
@@ -27,9 +29,9 @@ allowed_regression = 0.0
 [t0-2xxx]
 # 5.9b: +10 with the relations band.
 # 5.9c: +1286 with the members/signatures band.
-# 5.9d: +90 with the modules/jsx/interop band and review fixes.
-rate = 0.526439
-matched = 11011
+# 5.9d: +202 with the modules/jsx/interop band and review fixes.
+rate = 0.531794
+matched = 11123
 total = 20916
 allowed_regression = 0.0
 
