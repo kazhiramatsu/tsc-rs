@@ -466,6 +466,16 @@ pub struct CheckerState<'a> {
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
     pub diagnostics: DiagnosticList,
+    /// File-less diagnostics that tsc adds after its
+    /// previousGlobalDiagnostics snapshot and therefore exposes from
+    /// getSemanticDiagnostics. Lazy initialization diagnostics not
+    /// registered here remain program-global.
+    pub visible_global_diagnostics: DiagnosticList,
+    /// Files whose check was partial because an Unsupported
+    /// containment boundary or an unimplemented flow-sensitive
+    /// diagnostic was reached. Like tsc's `partialCheck` flag, these
+    /// files must not produce unused @ts-expect-error diagnostics.
+    pub(crate) partially_checked_files: std::collections::HashSet<usize>,
     /// Literal operands whose `satisfies` elaboration already emitted
     /// an inner diagnostic. Re-checks must not add the outer 1360.
     pub(crate) elaborated_satisfies_expressions: std::collections::HashSet<NodeId>,
@@ -512,6 +522,10 @@ pub struct CheckerState<'a> {
     /// without allowJs) — the resolver's suppression probes read this
     /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
     pub host_file_paths: std::collections::HashSet<String>,
+    /// Normalized package.json path → whether its `"type"` is
+    /// `"module"`. Node16/NodeNext use the nearest package scope to
+    /// determine the implied emit format of plain .ts/.js files.
+    pub host_package_json_module_types: std::collections::HashMap<String, bool>,
     /// Lazy getGlobal*Type memos (deferredGlobal* pattern 60679 for the
     /// deferred ones; the core init block 88788+ is deliberately LAZY
     /// here — m4-checker-skeleton-steps.md 5.0 — so each global starts
@@ -659,6 +673,8 @@ impl<'a> CheckerState<'a> {
             flow_containment_indexes: Default::default(),
             js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),
+            visible_global_diagnostics: Vec::new(),
+            partially_checked_files: std::collections::HashSet::new(),
             elaborated_satisfies_expressions: std::collections::HashSet::new(),
             globals: SymbolTable::default(),
             undefined_symbol,
@@ -672,6 +688,7 @@ impl<'a> CheckerState<'a> {
             unresolved_package_root_cache: Default::default(),
             program_path_index: std::collections::HashMap::new(),
             host_file_paths: std::collections::HashSet::new(),
+            host_package_json_module_types: std::collections::HashMap::new(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
             resolution_targets: Vec::new(),

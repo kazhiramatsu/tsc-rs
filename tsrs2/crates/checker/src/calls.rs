@@ -5405,11 +5405,20 @@ impl<'a> CheckerState<'a> {
             )?;
             if let Some(es_module_symbol) = es_module_symbol {
                 let module_type = self.get_type_of_symbol(es_module_symbol)?;
-                let synthetic = self.get_type_with_synthetic_default_import_type(
+                let synthetic = match self.get_type_with_synthetic_default_only(
                     module_type,
                     es_module_symbol,
                     module_symbol,
-                )?;
+                    specifier,
+                )? {
+                    Some(default_only) => default_only,
+                    None => self.get_type_with_synthetic_default_import_type(
+                        module_type,
+                        es_module_symbol,
+                        module_symbol,
+                        specifier,
+                    )?,
+                };
                 return self.create_promise_return_type(node, synthetic);
             }
         }

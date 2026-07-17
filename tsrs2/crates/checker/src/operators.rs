@@ -3023,6 +3023,12 @@ impl<'a> CheckerState<'a> {
         if self.meta_property_is_new(node) {
             return self.check_new_target_meta_property(node);
         }
+        // checkMetaProperty returns errorType after the grammar check
+        // for both the valid call-form and invalid bare import.defer;
+        // it must not fall through to import.meta's module diagnostic.
+        if self.meta_property_name_text(node).as_deref() == Some("defer") {
+            return Ok(self.tables.intrinsics.error);
+        }
         self.check_import_meta_property(node)
     }
 
@@ -3030,17 +3036,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3938f818e61319328c4132e426bb9c8a42165afb64b01a38b68d2482c2ec3bab
     /// tsc-span: _tsc.js:78099-78110
     ///
-    /// The Node16..NodeNext arm reads impliedNodeFormat, which the
-    /// in-memory host derives from extensions only: .cts/.cjs files
-    /// error like tsc, plain .ts stays silent (recorded FN for
-    /// true-CJS node-flavor rows — the 1378/2854 fallthrough
-    /// precedent). The PossiblyContainsImportMeta Debug.assert is a
-    /// parser-flag internal invariant (elided).
+    /// The PossiblyContainsImportMeta Debug.assert is a parser-flag
+    /// internal invariant (elided).
     fn check_import_meta_property(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let module_kind = self.options.emit_module_kind();
         if (100..=199).contains(&module_kind) {
-            if self.implied_resolution_mode_from_extension(node)
-                == Some(crate::modules::ModuleResolutionMode::CommonJs)
+            if self.implied_node_format_for_file(node)
+                == crate::modules::ModuleResolutionMode::CommonJs
             {
                 self.error_at(
                     Some(node),

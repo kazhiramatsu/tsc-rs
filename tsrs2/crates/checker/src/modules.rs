@@ -9,7 +9,8 @@
 //! through the resolver. The program-layer resolver
 //! (`resolve_program_module`) is the host.getResolvedModule seam:
 //! tsrs-native over the in-memory file set per program-and-modules.md
-//! §2 (no node_modules, no package.json interpretation).
+//! §2 (no node_modules; package.json `type` is interpreted for implied
+//! Node format, while exports/imports resolution remains suppressed).
 
 use tsrs2_binder::{node_util, SymbolId, SymbolTable};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
@@ -49,10 +50,8 @@ pub(crate) enum ProgramModuleResolution {
     Missed,
 }
 
-/// tsc ResolutionMode at the host-resolution seam. `Unknown` is
-/// observable for Node16/NodeNext files whose implied format depends
-/// on an unmodeled package.json scope; treating it as either concrete
-/// mode would fabricate extension diagnostics or resolution hits.
+/// tsc ResolutionMode at the host-resolution seam. `Unknown` remains
+/// observable outside contexts whose emit syntax can be determined.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ModuleResolutionMode {
     CommonJs,
@@ -426,18 +425,37 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ab3950cb39060feb59cf8e5222f00e3d321ffb96e627967ec11c760cc7a06c65
     /// tsc-span: _tsc.js:48595-48651
     ///
-    /// The usage-mode block (Node16..NodeNext ESM/CJS splits, redirect
-    /// probing) is mode machinery — dead at the modeled defaults. The
-    /// JS-file tail is JS-only. What remains: the computed
-    /// allowSyntheticDefaultImports gate (TS6 default TRUE), the
-    /// declaration-file syntactic-default/__esModule probe, and the
-    /// TS-file hasExportAssignmentSymbol read.
     pub(crate) fn can_have_synthetic_default(
         &mut self,
         file_index: Option<usize>,
         module_symbol: SymbolId,
         dont_resolve_alias: bool,
+        usage: Option<NodeId>,
     ) -> CheckResult2<bool> {
+        if let (Some(file_index), Some(usage)) = (file_index, usage) {
+            let usage_mode = self.resolution_mode_for_usage(usage);
+            // The conformance host's resolved-module record only
+            // carries an explicit extension-derived target mode at
+            // this seam. Package-scope format still drives emit and
+            // import.meta, but remains unknown here and falls through
+            // to the ordinary synthetic-default rules.
+            let target_root = self.binder.source(file_index).root;
+            let target_mode = self
+                .implied_resolution_mode_from_extension(target_root)
+                .unwrap_or(ModuleResolutionMode::Unknown);
+            let module_kind = self.options.emit_module_kind();
+            if usage_mode == ModuleResolutionMode::EsNext
+                && target_mode == ModuleResolutionMode::CommonJs
+                && (100..=199).contains(&module_kind)
+            {
+                return Ok(true);
+            }
+            if usage_mode == ModuleResolutionMode::EsNext
+                && target_mode == ModuleResolutionMode::EsNext
+            {
+                return Ok(false);
+            }
+        }
         if !self.options.allow_synthetic_default_imports_effective() {
             return Ok(false);
         }
@@ -481,6 +499,33 @@ impl<'a> CheckerState<'a> {
         Ok(self.has_export_assignment_symbol(module_symbol))
     }
 
+    /// tsc-port: isOnlyImportableAsDefault @6.0.3
+    /// tsc-hash: 29199e8c07f2bfda84ea1b03a7c257266beaf088be86674e43d95e927a0a5392
+    /// tsc-span: _tsc.js:48577-48594
+    fn is_only_importable_as_default(
+        &mut self,
+        usage: NodeId,
+        resolved_module: Option<SymbolId>,
+    ) -> CheckResult2<bool> {
+        let module_kind = self.options.emit_module_kind();
+        if !(100..=199).contains(&module_kind)
+            || self.resolution_mode_for_usage(usage) != ModuleResolutionMode::EsNext
+        {
+            return Ok(false);
+        }
+        let resolved_module = match resolved_module {
+            Some(symbol) => Some(symbol),
+            None => self.resolve_external_module_name(usage, usage, true)?,
+        };
+        let Some(file_index) =
+            resolved_module.and_then(|symbol| self.source_file_index_of_symbol(symbol))
+        else {
+            return Ok(false);
+        };
+        let file_name = &self.binder.source(file_index).file_name;
+        Ok(file_name.ends_with(".json") || file_name.ends_with(".d.json.ts"))
+    }
+
     /// tsc-port: getTargetOfImportClause @6.0.3
     /// tsc-hash: fe2fcc5056477219de5bbcfc1f88965196930b948dab81858963d126d509ff5e
     /// tsc-span: _tsc.js:48652-48657
@@ -510,10 +555,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTargetofModuleDefault @6.0.3
     /// tsc-hash: 236973afe1c81ad598a9c40070f30503b3aaa463813b9fbae8fce69c6b4e0f4a
     /// tsc-span: _tsc.js:48658-48729
-    ///
-    /// The Node20 CJS→ESM module.exports arm is mode machinery (dead
-    /// at the modeled defaults); isOnlyImportableAsDefault is
-    /// constant-false for the same reason (Node16+ JSON gate).
     fn get_target_of_module_default(
         &mut self,
         module_symbol: SymbolId,
@@ -532,12 +573,55 @@ impl<'a> CheckerState<'a> {
                 dont_resolve_alias,
             )?
         };
-        let Some(_specifier) = specifier else {
+        // Preserve an actual default export when one exists. The
+        // module.exports compatibility export supplies the default
+        // only for ESM targets that otherwise have none.
+        if export_default_symbol.is_none()
+            && file_index.is_some()
+            && specifier.is_some()
+            && (102..=199).contains(&self.options.emit_module_kind())
+            && self.resolution_mode_for_usage(specifier.expect("checked"))
+                == ModuleResolutionMode::CommonJs
+            && self.implied_node_format_for_file_index(file_index.expect("checked"))
+                == ModuleResolutionMode::EsNext
+        {
+            if let Some(module_exports) = self.resolve_export_by_name(
+                module_symbol,
+                "module.exports",
+                Some(node),
+                dont_resolve_alias,
+            )? {
+                if !self.options.es_module_interop_effective() {
+                    let module_name = self.symbol_display_name(module_symbol);
+                    self.error_at(
+                        self.name_of_import_binding(node).or(Some(node)),
+                        &diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
+                        &[&module_name, "esModuleInterop"],
+                    );
+                    return Ok(None);
+                }
+                self.mark_symbol_of_alias_declaration_if_type_only(
+                    Some(node),
+                    Some(module_exports),
+                    /*final_target*/ None,
+                    /*overwrite_empty*/ false,
+                    None,
+                    None,
+                )?;
+                return Ok(Some(module_exports));
+            }
+        }
+        let Some(specifier) = specifier else {
             return Ok(export_default_symbol);
         };
-        let has_default_only = false; // isOnlyImportableAsDefault: mode machinery
-        let has_synthetic_default =
-            self.can_have_synthetic_default(file_index, module_symbol, dont_resolve_alias)?;
+        let has_default_only =
+            self.is_only_importable_as_default(specifier, Some(module_symbol))?;
+        let has_synthetic_default = self.can_have_synthetic_default(
+            file_index,
+            module_symbol,
+            dont_resolve_alias,
+            Some(specifier),
+        )?;
         if export_default_symbol.is_none() && !has_synthetic_default && !has_default_only {
             if self.has_export_assignment_symbol(module_symbol)
                 && !self.options.allow_synthetic_default_imports_effective()
@@ -922,8 +1006,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 339bc0c293e029fb5e37d6cd2ef3973ac0de57ccea32b553357cf31853178e69
     /// tsc-span: _tsc.js:48851-48901
     ///
-    /// The require-argument arm is JS-only; the JSON named-import row
-    /// is mode machinery (isOnlyImportableAsDefault constant-false).
+    /// The require-argument arm is JS-only.
     fn get_external_module_member(
         &mut self,
         node: NodeId,
@@ -990,7 +1073,14 @@ impl<'a> CheckerState<'a> {
             self.get_export_of_module(target_symbol, &name_text, specifier, dont_resolve_alias)?;
         if symbol_from_module.is_none() && name_text == InternalSymbolName::DEFAULT {
             let file_index = self.source_file_index_of_symbol(module_symbol);
-            if self.can_have_synthetic_default(file_index, module_symbol, dont_resolve_alias)? {
+            if self.is_only_importable_as_default(module_specifier, Some(module_symbol))?
+                || self.can_have_synthetic_default(
+                    file_index,
+                    module_symbol,
+                    dont_resolve_alias,
+                    Some(module_specifier),
+                )?
+            {
                 symbol_from_module = match self
                     .resolve_external_module_symbol(Some(module_symbol), dont_resolve_alias)?
                 {
@@ -1005,7 +1095,22 @@ impl<'a> CheckerState<'a> {
             }
             (from_module, from_variable) => from_module.or(from_variable),
         };
-        if symbol.is_none() {
+        if self.is_only_importable_as_default(module_specifier, Some(module_symbol))?
+            && name_text != InternalSymbolName::DEFAULT
+        {
+            let module_kind = match self.options.emit_module_kind() {
+                100 => "Node16",
+                101 => "Node18",
+                102 => "Node20",
+                199 => "NodeNext",
+                _ => "NodeNext",
+            };
+            self.error_at(
+                Some(name),
+                &diagnostics::Named_imports_from_a_JSON_file_into_an_ECMAScript_module_are_not_allowed_when_module_is_set_to_0,
+                &[module_kind],
+            );
+        } else if symbol.is_none() {
             self.error_no_module_member_symbol(module_symbol, target_symbol, node, name)?;
         }
         Ok(symbol)
@@ -2766,9 +2871,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getModeForUsageLocationWorker / getEmitSyntaxForUsageLocationWorker.
     /// A valid type-only resolution-mode override wins before the
-    /// compiler-option gate. Plain Node16/NodeNext source files remain
-    /// unknown because their implied format is package-scope data the
-    /// in-memory host does not interpret.
+    /// compiler-option gate.
     fn resolution_mode_for_usage(&self, location: NodeId) -> ModuleResolutionMode {
         if let Some(mode) = self.resolution_mode_override_for_usage(location) {
             return mode;
@@ -2842,6 +2945,56 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsrs-native: in-memory host seam for tsc's
+    /// host.getImpliedNodeFormatForEmit.
+    ///
+    /// tsc host.getImpliedNodeFormatForEmit for the in-memory host:
+    /// explicit module extensions win; otherwise Node-flavored module
+    /// kinds use the nearest package.json scope and default to CommonJS.
+    pub(crate) fn implied_node_format_for_file(&self, location: NodeId) -> ModuleResolutionMode {
+        if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
+            return mode;
+        }
+        self.implied_node_format_for_file_name(&self.binder.source_of_node(location).file_name)
+    }
+
+    fn implied_node_format_for_file_index(&self, file_index: usize) -> ModuleResolutionMode {
+        self.implied_node_format_for_file_name(&self.binder.source(file_index).file_name)
+    }
+
+    fn implied_node_format_for_file_name(&self, file_name: &str) -> ModuleResolutionMode {
+        if file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
+            return ModuleResolutionMode::EsNext;
+        }
+        if file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
+            return ModuleResolutionMode::CommonJs;
+        }
+        let file_name = Self::normalize_program_path(file_name, "");
+        let mut directory = file_name
+            .rsplit_once('/')
+            .map(|(directory, _)| directory)
+            .unwrap_or("");
+        loop {
+            let package_json = if directory.is_empty() {
+                "/package.json".to_owned()
+            } else {
+                format!("{directory}/package.json")
+            };
+            if let Some(&is_module) = self.host_package_json_module_types.get(&package_json) {
+                return if is_module {
+                    ModuleResolutionMode::EsNext
+                } else {
+                    ModuleResolutionMode::CommonJs
+                };
+            }
+            let Some((parent, _)) = directory.rsplit_once('/') else {
+                break;
+            };
+            directory = parent;
+        }
+        ModuleResolutionMode::CommonJs
+    }
+
     fn static_resolution_mode_for_file(&self, location: NodeId) -> ModuleResolutionMode {
         if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
             return mode;
@@ -2849,6 +3002,8 @@ impl<'a> CheckerState<'a> {
         let module_kind = self.options.emit_module_kind();
         if module_kind == 1 {
             ModuleResolutionMode::CommonJs
+        } else if (100..=199).contains(&module_kind) {
+            self.implied_node_format_for_file(location)
         } else if (5..=99).contains(&module_kind) || module_kind == 200 {
             ModuleResolutionMode::EsNext
         } else {
@@ -3129,11 +3284,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: resolveESModuleSymbol @6.0.3
     /// tsc-hash: f20024ad0bb1ee9307d7ca335709632fd30257dc4e437c62da4ddc46f27b1910
     /// tsc-span: _tsc.js:49715-49760
-    ///
-    /// The Node20 module.exports arm and the usage-mode probes
-    /// (getTypeWithSyntheticDefaultOnly / isEsmCjsRef) are mode
-    /// machinery (dead at the modeled defaults — module header). The
-    /// synthetic-default interop cloning is LIVE (M4 5.9d).
     pub(crate) fn resolve_es_module_symbol(
         &mut self,
         module_symbol: Option<SymbolId>,
@@ -3172,16 +3322,72 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(symbol));
         }
         if let Some(reference_parent) = self.parent_of(referencing_location) {
-            let namespace_import = self.kind_of(reference_parent) == SyntaxKind::ImportDeclaration
-                && self
-                    .get_namespace_declaration_node(reference_parent)
-                    .is_some();
-            if namespace_import || self.is_import_call(reference_parent) {
+            let namespace_import =
+                if self.kind_of(reference_parent) == SyntaxKind::ImportDeclaration {
+                    self.get_namespace_declaration_node(reference_parent)
+                } else {
+                    None
+                };
+            if namespace_import.is_some() || self.is_import_call(reference_parent) {
+                let reference = referencing_location;
                 let ty = self.get_type_of_symbol(symbol)?;
-                // getTypeWithSyntheticDefaultOnly: None (mode
-                // machinery); Node20 module.exports arm + isEsmCjsRef:
-                // same family (module header).
-                if self.options.es_module_interop_effective() {
+                let original_symbol =
+                    module_symbol.expect("a resolved symbol implies a module symbol");
+                if let Some(default_only_type) = self.get_type_with_synthetic_default_only(
+                    ty,
+                    symbol,
+                    original_symbol,
+                    reference,
+                )? {
+                    return Ok(Some(self.clone_type_as_module_type(
+                        symbol,
+                        default_only_type,
+                        reference_parent,
+                    )?));
+                }
+                let target_file = self.source_file_index_of_symbol(original_symbol);
+                let usage_mode = self.resolution_mode_for_usage(reference);
+                if let (Some(namespace_import), Some(target_file)) = (namespace_import, target_file)
+                {
+                    let has_default_export = self
+                        .resolve_export_by_name(
+                            original_symbol,
+                            InternalSymbolName::DEFAULT,
+                            /*source_node*/ None,
+                            /*dont_resolve_alias*/ true,
+                        )?
+                        .is_some();
+                    if !has_default_export
+                        && (102..=199).contains(&self.options.emit_module_kind())
+                        && usage_mode == ModuleResolutionMode::CommonJs
+                        && self.implied_node_format_for_file_index(target_file)
+                            == ModuleResolutionMode::EsNext
+                    {
+                        if let Some(module_exports) = self.resolve_export_by_name(
+                            symbol,
+                            "module.exports",
+                            Some(namespace_import),
+                            dont_resolve_alias,
+                        )? {
+                            if self.options.es_module_interop_effective()
+                                && self.has_interop_signatures(ty)?
+                            {
+                                return Ok(Some(self.clone_type_as_module_type(
+                                    module_exports,
+                                    ty,
+                                    reference_parent,
+                                )?));
+                            }
+                            return Ok(Some(module_exports));
+                        }
+                    }
+                }
+                let is_esm_cjs_ref = target_file.is_some_and(|target_file| {
+                    usage_mode == ModuleResolutionMode::EsNext
+                        && self.implied_node_format_for_file_index(target_file)
+                            == ModuleResolutionMode::CommonJs
+                });
+                if self.options.es_module_interop_effective() || is_esm_cjs_ref {
                     let has_default_property = self
                         .get_property_of_type_ex(
                             ty,
@@ -3189,9 +3395,7 @@ impl<'a> CheckerState<'a> {
                             /*skip_object_function_property_augment*/ true,
                         )?
                         .is_some();
-                    if self.has_interop_signatures(ty)? || has_default_property {
-                        let module_symbol =
-                            module_symbol.expect("a resolved symbol implies a module symbol");
+                    if self.has_interop_signatures(ty)? || has_default_property || is_esm_cjs_ref {
                         let module_type = if self
                             .tables
                             .flags_of(ty)
@@ -3200,7 +3404,8 @@ impl<'a> CheckerState<'a> {
                             self.get_type_with_synthetic_default_import_type(
                                 ty,
                                 symbol,
-                                module_symbol,
+                                original_symbol,
+                                reference,
                             )?
                         } else {
                             let parent = self.binder.symbol(symbol).parent;
@@ -3292,18 +3497,40 @@ impl<'a> CheckerState<'a> {
         ))
     }
 
+    /// tsc-port: getTypeWithSyntheticDefaultOnly @6.0.3
+    /// tsc-hash: f0fe34a3f1bed618e0e685ea82902848b5175f760629d7588298b6546e06fbf1
+    /// tsc-span: _tsc.js:77778-77788
+    pub(crate) fn get_type_with_synthetic_default_only(
+        &mut self,
+        ty: TypeId,
+        symbol: SymbolId,
+        original_symbol: SymbolId,
+        module_specifier: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if !self.is_only_importable_as_default(module_specifier, Some(original_symbol))?
+            || self.tables.is_error_type(ty)
+        {
+            return Ok(None);
+        }
+        if let Some(memo) = self.links.ty(ty).default_only_type {
+            return Ok(Some(memo));
+        }
+        let default_only =
+            self.create_default_property_wrapper_for_module(symbol, Some(original_symbol), None)?;
+        self.links
+            .set_type_default_only_type(self.speculation_depth, ty, default_only);
+        Ok(Some(default_only))
+    }
+
     /// tsc-port: getTypeWithSyntheticDefaultImportType @6.0.3
     /// tsc-hash: 15aa12c477c71d19f9afd99525fd494140635a859a647923799ae5d335b8d913
     /// tsc-span: _tsc.js:77789-77822
-    ///
-    /// canHaveSyntheticDefault's usage-mode block rides the elided
-    /// mode machinery (its port drops the usage param), so the
-    /// moduleSpecifier parameter drops here too.
     pub(crate) fn get_type_with_synthetic_default_import_type(
         &mut self,
         ty: TypeId,
         symbol: SymbolId,
         original_symbol: SymbolId,
+        module_specifier: NodeId,
     ) -> CheckResult2<TypeId> {
         if !self.options.allow_synthetic_default_imports_effective()
             || self.tables.is_error_type(ty)
@@ -3318,6 +3545,7 @@ impl<'a> CheckerState<'a> {
             file_index,
             original_symbol,
             /*dont_resolve_alias*/ false,
+            Some(module_specifier),
         )?;
         let synthetic = if has_synthetic_default {
             let anonymous_symbol = self.binder.create_symbol(

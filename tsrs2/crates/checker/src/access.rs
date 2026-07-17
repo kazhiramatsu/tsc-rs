@@ -2958,11 +2958,11 @@ impl<'a> CheckerState<'a> {
             let skip_object_function_property_augment =
                 self.is_const_enum_object_type(apparent_type);
             let include_type_only_members = self.kind_of(node) == SyntaxKind::QualifiedName;
-            let _ = include_type_only_members; // 5.8 modules: typeOnlyExportStarMap is empty pre-5.8.
-            prop = self.get_property_of_type_ex(
+            prop = self.get_property_of_type_ex_with_include_type_only_members(
                 apparent_type,
                 &right_text,
                 skip_object_function_property_augment,
+                include_type_only_members,
             )?;
         }
         let prop_type: TypeId;

@@ -175,9 +175,10 @@ fn is_plain_js_file(
 /// unlike the retired interim filter, block-comment shell lines STOP
 /// the walk, exactly as in tsc.
 ///
-fn filter_by_comment_directives(
+fn filter_by_comment_directives_and_mark_used(
     source: &tsrs2_syntax::SourceFile,
     diagnostics: impl Iterator<Item = tsrs2_diags::Diagnostic>,
+    mut used_directive_lines: Option<&mut std::collections::HashSet<usize>>,
 ) -> Vec<tsrs2_diags::Diagnostic> {
     // getMergedBindAndCheckDiagnostics (123744): no directives, no
     // filtering.
@@ -224,6 +225,9 @@ fn filter_by_comment_directives(
         while line > 0 {
             line -= 1;
             if directive_lines.contains(&line) {
+                if let Some(used) = used_directive_lines.as_deref_mut() {
+                    used.insert(line);
+                }
                 continue 'diagnostic;
             }
             // `lineText !== "" && !/^\s*\/\/.*$/.test(lineText)`
@@ -238,6 +242,61 @@ fn filter_by_comment_directives(
         result.push(diagnostic);
     }
     result
+}
+
+fn unused_expect_error_diagnostics(
+    source: &tsrs2_syntax::SourceFile,
+    used_directive_lines: &std::collections::HashSet<usize>,
+) -> Vec<tsrs2_diags::Diagnostic> {
+    use tsrs2_syntax::CommentDirectiveKind;
+
+    if source.comment_directives.is_empty() {
+        return Vec::new();
+    }
+    let byte_line_starts = compute_byte_line_starts(&source.text);
+    let line_of_byte = |offset: usize| -> usize {
+        match byte_line_starts.binary_search(&offset) {
+            Ok(line) => line,
+            Err(insert) => insert.saturating_sub(1),
+        }
+    };
+    // createCommentDirectivesMap uses Map construction, so the last
+    // directive ending on a line replaces earlier directives there.
+    let mut directives_by_line = std::collections::BTreeMap::new();
+    for directive in &source.comment_directives {
+        directives_by_line.insert(line_of_byte(directive.end as usize), *directive);
+    }
+    directives_by_line
+        .into_iter()
+        .filter_map(|(line, directive)| {
+            if directive.kind != CommentDirectiveKind::ExpectError
+                || used_directive_lines.contains(&line)
+            {
+                return None;
+            }
+            let start = source
+                .line_map
+                .byte_to_utf16
+                .get(directive.pos as usize)
+                .copied()
+                .unwrap_or(directive.pos);
+            let end = source
+                .line_map
+                .byte_to_utf16
+                .get(directive.end as usize)
+                .copied()
+                .unwrap_or(directive.end);
+            Some(tsrs2_diags::Diagnostic::new(
+                Some(source.file_name.clone()),
+                Some(start),
+                Some(end.saturating_sub(start)),
+                tsrs2_diags::MessageChain::new(
+                    &tsrs2_diags::gen::Unused_ts_expect_error_directive,
+                    &[],
+                ),
+            ))
+        })
+        .collect()
 }
 
 /// tsc-port: filterSemanticDiagnostics @6.0.3
@@ -409,6 +468,13 @@ pub fn check_program_with_libs(
         .iter()
         .map(|source| (source.file_name.as_str(), check_directive(&source.text)))
         .collect();
+    let mut used_directive_lines: std::collections::HashMap<
+        String,
+        std::collections::HashSet<usize>,
+    > = program_sources
+        .iter()
+        .map(|source| (source.file_name.clone(), std::collections::HashSet::new()))
+        .collect();
     let mut binders: Vec<tsrs2_binder::Binder<'_>> = Vec::new();
     for source_file in &program_sources {
         let (symbol_id_seed, symbol_base) = match binders.last() {
@@ -448,12 +514,23 @@ pub fn check_program_with_libs(
                 if is_plain_js_file(true, directive, options) {
                     diagnostics.extend(allowed);
                 } else {
-                    diagnostics.extend(filter_by_comment_directives(source_file, allowed));
+                    let used = used_directive_lines
+                        .get_mut(source_file.file_name.as_str())
+                        .expect("all parsed sources have a directive-use set");
+                    diagnostics.extend(filter_by_comment_directives_and_mark_used(
+                        source_file,
+                        allowed,
+                        Some(used),
+                    ));
                 }
             } else {
-                diagnostics.extend(filter_by_comment_directives(
+                let used = used_directive_lines
+                    .get_mut(source_file.file_name.as_str())
+                    .expect("all parsed sources have a directive-use set");
+                diagnostics.extend(filter_by_comment_directives_and_mark_used(
                     source_file,
                     binder.bind_diagnostics.iter().cloned(),
+                    Some(used),
                 ));
             }
         }
@@ -480,6 +557,30 @@ pub fn check_program_with_libs(
         state.host_file_paths = files
             .iter()
             .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
+            .collect();
+        state.host_package_json_module_types = files
+            .iter()
+            .filter(|file| {
+                file.name
+                    .rsplit(['/', '\\'])
+                    .next()
+                    .is_some_and(|name| name == "package.json")
+            })
+            .map(|file| {
+                let is_module = serde_json::from_str::<serde_json::Value>(&file.text)
+                    .ok()
+                    .and_then(|value| {
+                        value
+                            .get("type")
+                            .and_then(serde_json::Value::as_str)
+                            .map(|value| value == "module")
+                    })
+                    .unwrap_or(false);
+                (
+                    state::CheckerState::normalize_program_path(&file.name, ""),
+                    is_module,
+                )
+            })
             .collect();
         // initializeTypeChecker's augmentation passes (88769/88874)
         // run here — AFTER the resolver's host view exists (pass 2
@@ -551,24 +652,21 @@ pub fn check_program_with_libs(
                     if is_plain_js_file(true, directive, options) {
                         diagnostics.extend(allowed);
                     } else {
-                        diagnostics.extend(filter_by_comment_directives(source, allowed));
+                        let used = used_directive_lines
+                            .get_mut(source.file_name.as_str())
+                            .expect("all parsed sources have a directive-use set");
+                        diagnostics.extend(filter_by_comment_directives_and_mark_used(
+                            source,
+                            allowed,
+                            Some(used),
+                        ));
                     }
                 }
                 continue;
             }
-            // No arm for the file-less case: program-level diagnostics
-            // do not join the per-file output. In tsc the only such
-            // emitters today (the missing-global 2318/2317 family) fire
-            // inside initializeTypeChecker BEFORE getDiagnosticsWorker's
-            // previousGlobalDiagnostics snapshot, so per-file
-            // getSemanticDiagnostics never surfaces them; our 5.0
-            // lazy-global architecture raises them mid-check, which
-            // would surface a diagnostic tsc keeps invisible. tsc's
-            // genuinely-visible mid-check globals are the deferred
-            // wrapper lookups, and our 5.3b port passes
-            // reportErrors=false there — nothing observable is
-            // dropped. Revisit when getGlobalDiagnostics grows a
-            // consumer (program-level API, M8).
+            if file_name.is_none() {
+                continue;
+            }
             if let Some(source) = file_name.as_deref().and_then(|name| by_name.get(name)) {
                 let directive = check_directives
                     .get(source.file_name.as_str())
@@ -577,29 +675,40 @@ pub fn check_program_with_libs(
                 if !can_include_bind_and_check_diagnostics(false, directive, options) {
                     continue;
                 }
-                diagnostics.extend(filter_by_comment_directives(
+                let used = used_directive_lines
+                    .get_mut(source.file_name.as_str())
+                    .expect("all parsed sources have a directive-use set");
+                diagnostics.extend(filter_by_comment_directives_and_mark_used(
                     source,
                     file_diagnostics.into_iter(),
+                    Some(used),
                 ));
             }
         }
-        // Unused @ts-expect-error (2578) remains deliberately
-        // unreported while semantic coverage is incomplete. Absence of
-        // an emitted diagnostic is not proof that the target line is
-        // clean: whole families such as TS2454 are still silent without
-        // crossing an Unsupported boundary. Emitting 2578 here would
-        // turn those known false negatives into false positives.
-        // 5.9d RE-MEASURE (2026-07-17, recorded decision: KEEP OFF):
-        // the corpus stake is 14 oracle 2578 rows across 3 fixtures
-        // (directives/ts-expect-error.ts 10, multiline.tsx 2,
-        // ts-expect-error-js.ts 2). ts-expect-error.ts and the js twin
-        // would match cleanly today (their non-2578 rows all match),
-        // but multiline.tsx consumes JSX-band 7026s under five of its
-        // directives — rows we do not emit yet — so emission would
-        // manufacture ~5 FPs there. Revisit when the M7 unused band
-        // and the JSX 7026 family close; the emitter belongs HERE (the
-        // tsc getDiagnosticsWorker tail), keyed on directives the
-        // filter above left unconsumed.
+        diagnostics.extend(state.visible_global_diagnostics.iter().cloned());
+        // getMergedBindAndCheckDiagnostics' non-partial tail: after the
+        // complete bind+check stream has marked directives used, emit
+        // 2578 for every remaining @ts-expect-error (never @ts-ignore).
+        for (source_index, source) in program_sources.iter().enumerate() {
+            let javascript_file = is_js_file_name(&source.file_name);
+            let directive = check_directives
+                .get(source.file_name.as_str())
+                .copied()
+                .flatten();
+            if options.skip_lib_check == Some(true) && source.is_declaration_file
+                || !can_include_bind_and_check_diagnostics(javascript_file, directive, options)
+                || is_plain_js_file(javascript_file, directive, options)
+                || state
+                    .partially_checked_files
+                    .contains(&(lib_count + source_index))
+            {
+                continue;
+            }
+            let used = used_directive_lines
+                .get(source.file_name.as_str())
+                .expect("all parsed sources have a directive-use set");
+            diagnostics.extend(unused_expect_error_diagnostics(source, used));
+        }
         // The aggregate pass is sorted + deduplicated like tsc's
         // getPreEmitDiagnostics / the oracle driver's
         // ts.sortAndDeduplicateDiagnostics; getSyntacticDiagnostics
@@ -878,6 +987,199 @@ mod tests {
         }
     }
 
+    #[test]
+    fn typeof_import_follows_value_alias_reexports() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "a.ts".to_owned(),
+                    text: "export const x = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "b.ts".to_owned(),
+                    text: "export { x } from \"./a\";\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.ts".to_owned(),
+                    text: "type T = typeof import(\"./b\").x;\nlet y: T = \"bad\";\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [2322]
+        );
+    }
+
+    #[test]
+    fn bare_import_defer_does_not_run_import_meta_module_checks() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "const x = import.defer;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                module: Some(1),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(!result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 1343));
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [1005]
+        );
+    }
+
+    #[test]
+    fn node16_plain_ts_uses_package_scope_for_import_meta() {
+        let options = CompilerOptions {
+            module: Some(100),
+            module_resolution: Some(3),
+            ..CompilerOptions::default()
+        };
+        let commonjs = check_program(
+            &[InputFile {
+                name: "src/main.ts".to_owned(),
+                text: "const x = import.meta;\n".to_owned(),
+            }],
+            &options,
+        );
+        assert!(commonjs
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 1470));
+
+        let esm = check_program(
+            &[
+                InputFile {
+                    name: "package.json".to_owned(),
+                    text: "{\"type\":\"module\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "src/main.ts".to_owned(),
+                    text: "const x = import.meta;\n".to_owned(),
+                },
+            ],
+            &options,
+        );
+        assert!(!esm
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 1470));
+    }
+
+    #[test]
+    fn missing_import_meta_global_is_public_semantic_diagnostic() {
+        assert_eq!(
+            codes_of_with_options(
+                "const x = import.meta;\n",
+                &CompilerOptions {
+                    module: Some(99),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [2318]
+        );
+    }
+
+    #[test]
+    fn node16_esm_import_of_commonjs_has_synthetic_default_even_when_option_is_false() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "dep.cts".to_owned(),
+                    text: "declare const value: { x: number };\nexport = value;\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.mts".to_owned(),
+                    text: "import value from \"./dep.cjs\";\nvalue.x;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(100),
+                module_resolution: Some(3),
+                allow_synthetic_default_imports: Some(false),
+                es_module_interop: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        let codes: Vec<u32> = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect();
+        assert!(
+            !codes.contains(&1259) && !codes.contains(&1192),
+            "native ESM-to-CJS default interop should be accepted: {:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn node16_json_declaration_rejects_named_esm_imports() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "data.d.json.ts".to_owned(),
+                    text: "export const x: number;\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.mts".to_owned(),
+                    text: "import data, { x } from \"./data.d.json.ts\";\ndata.x;\nx;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(100),
+                module_resolution: Some(3),
+                allow_importing_ts_extensions: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 1544));
+    }
+
+    #[test]
+    fn node20_commonjs_default_import_uses_module_exports_export() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "dep.mts".to_owned(),
+                    text: "const value = { a: 1 };\nexport { value as \"module.exports\" };\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "main.cts".to_owned(),
+                    text: "import value from \"./dep.mjs\";\nvalue.a;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(102),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result.diagnostics.is_empty(),
+            "Node20 module.exports interop should resolve the default: {:#?}",
+            result.diagnostics
+        );
+    }
+
     fn js_pair_diagnostics(js: &str, ts: &str) -> Vec<(u32, Option<String>)> {
         check_program(
             &[
@@ -932,7 +1234,7 @@ mod tests {
                  function f({kind,payload}:A){if(kind==='A'){payload.a;}}",
                 &strict_options(),
             ),
-            []
+            Vec::<u32>::new()
         );
     }
 
@@ -962,7 +1264,7 @@ mod tests {
                 "declare function makeArray():number[];var x=[];var x=makeArray();",
                 &strict_options(),
             ),
-            []
+            Vec::<u32>::new()
         );
     }
 
@@ -1397,7 +1699,7 @@ mod tests {
                 "const x: [...number[]] & { length: 2 } = [0, 0];",
                 &strict_options(),
             ),
-            []
+            Vec::<u32>::new()
         );
     }
 
@@ -1434,12 +1736,15 @@ mod tests {
 
     #[test]
     fn unused_expect_error_stays_silent_while_checker_is_incomplete() {
-        assert_eq!(codes_of("let x: number;\n// @ts-expect-error\nx;\n"), []);
+        assert_eq!(
+            codes_of("let x: number;\n// @ts-expect-error\nx;\n"),
+            Vec::<u32>::new()
+        );
     }
 
     #[test]
-    fn unused_expect_error_without_a_target_stays_silent() {
-        assert_eq!(codes_of("// @ts-expect-error\nconst x = 1;\n"), []);
+    fn unused_expect_error_reports_2578() {
+        assert_eq!(codes_of("// @ts-expect-error\nconst x = 1;\n"), [2578]);
     }
 
     #[test]
@@ -1449,7 +1754,7 @@ mod tests {
                 "// @ts-expect-error\n\
                  const bad = (() => 1) satisfies number;\n"
             ),
-            []
+            Vec::<u32>::new()
         );
     }
 

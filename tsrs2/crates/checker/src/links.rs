@@ -279,6 +279,10 @@ pub struct TypeLinks {
     /// 77789-77821) — the esModuleInterop default-wrap memo stamped on
     /// the module type itself.
     pub synthetic_type: Option<TypeId>,
+    /// tsc synthType.defaultOnlyType
+    /// (getTypeWithSyntheticDefaultOnly 77779-77787): the JSON ESM
+    /// default-only wrapper memo.
+    pub default_only_type: Option<TypeId>,
     /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
     /// (instantiateAnonymousType 63658).
     pub instantiated_target: Option<TypeId>,
@@ -1341,6 +1345,22 @@ impl LinksTables {
             "syntheticType written twice for {id:?}"
         );
         links.synthetic_type = Some(value);
+    }
+
+    /// tsrs-native: links-table setter for tsc's type.defaultOnlyType write.
+    pub fn set_type_default_only_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.default_only_type.is_none(),
+            "defaultOnlyType written twice for {id:?}"
+        );
+        links.default_only_type = Some(value);
     }
 
     /// instantiateAnonymousType's target/mapper seed (63658-63659),

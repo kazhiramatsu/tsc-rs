@@ -196,13 +196,6 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_for_variable_like_declaration"
-reason = "JS container object type (getJSContainerObjectType [JSDOC] M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_for_variable_like_declaration"
 reason = "constructor-assigned property type (getFlowTypeInConstructor [FLOW M5])"
 class = "stage"
 owner = "M5"
@@ -925,13 +918,6 @@ in = "is_constant_reference"
 reason = "isConstantReference binding-pattern arm (getNarrowedTypeOfSymbol family, [FLOW M5])"
 class = "stage"
 owner = "M5"
-
-[[site]]
-file = "crates/checker/src/functions.rs"
-in = "widen_type_inferred_from_initializer"
-reason = "widenTypeInferredFromInitializer JS empty-literal arms ([JSDOC] M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"

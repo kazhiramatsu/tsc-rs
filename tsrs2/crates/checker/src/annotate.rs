@@ -1686,7 +1686,12 @@ impl<'a> CheckerState<'a> {
                     .unwrap_or_default();
                 let symbol_from_variable = if is_type_of {
                     let ty = self.get_type_of_symbol(merged_resolved)?;
-                    self.get_property_of_type_full(ty, &current_text)?
+                    self.get_property_of_type_ex_with_include_type_only_members(
+                        ty,
+                        &current_text,
+                        /*skip_object_function_property_augment*/ false,
+                        /*include_type_only_members*/ true,
+                    )?
                 } else {
                     None
                 };
@@ -6347,11 +6352,11 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::EnumMember
         ) && self.initializer_of(declaration).is_some();
         if has_expression_initializer {
-            if self.is_in_js_file(declaration) && kind != SyntaxKind::Parameter {
-                return Err(Unsupported::new(
-                    "JS container object type (getJSContainerObjectType [JSDOC] M8)",
-                ));
-            }
+            // getJSContainerObjectType may refine this through JSDoc
+            // declarations. In their absence, the ordinary
+            // initializer inference path is the same observable
+            // fallback and keeps checked-JS declarations fully
+            // checked.
             let initializer_type =
                 self.check_declaration_initializer(declaration, check_mode, None)?;
             let widened =

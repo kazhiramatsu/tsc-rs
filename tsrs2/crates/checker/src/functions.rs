@@ -4815,20 +4815,26 @@ impl<'a> CheckerState<'a> {
     ///
     /// The Constant/readonly guard keeps the literal (5.6: routed
     /// through getWidenedLiteralTypeForInitializer so isDeclaration-
-    /// Readonly participates). The isInJSFile empty-literal arms
-    /// change the RESULT type (anyType/anyArrayType) even when the
-    /// checkJs report gate is off — escape rather than diverge.
+    /// Readonly participates).
     pub(crate) fn widen_type_inferred_from_initializer(
         &mut self,
         declaration: NodeId,
         ty: TypeId,
     ) -> CheckResult2<TypeId> {
+        let widened = self.get_widened_literal_type_for_initializer(declaration, ty)?;
         if self.is_in_js_file(declaration) {
-            return Err(Unsupported::new(
-                "widenTypeInferredFromInitializer JS empty-literal arms ([JSDOC] M8)",
-            ));
+            if self.is_empty_literal_type(widened) {
+                let any = self.tables.intrinsics.any;
+                self.report_implicit_any(declaration, any, None)?;
+                return Ok(any);
+            }
+            if self.is_empty_array_literal_type(widened)? {
+                let any_array = self.any_array_type()?;
+                self.report_implicit_any(declaration, any_array, None)?;
+                return Ok(any_array);
+            }
         }
-        self.get_widened_literal_type_for_initializer(declaration, ty)
+        Ok(widened)
     }
 
     /// The parameter NodeArray of a function-like (for trailing-comma

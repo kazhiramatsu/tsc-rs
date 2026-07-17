@@ -631,7 +631,14 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.import_meta {
             return Ok(cached);
         }
+        let diagnostic_start = self.diagnostics.len();
         let resolved = self.get_global_type("ImportMeta", 0, /*report_errors*/ true)?;
+        self.visible_global_diagnostics.extend(
+            self.diagnostics[diagnostic_start..]
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_none())
+                .cloned(),
+        );
         let result = resolved.unwrap_or(self.empty_object_type);
         self.global_type_memos.import_meta = Some(result);
         Ok(result)
