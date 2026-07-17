@@ -139,13 +139,6 @@ class = "stage"
 owner = "M6"
 
 [[site]]
-file = "crates/checker/src/access.rs"
-in = "is_assignment_to_readonly_entity"
-reason = "readonly-entity alias receiver (getDeclarationOfAliasSymbol, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_base_constructor_type_of_class"
 reason = "Type_0_is_not_a_constructor_function_type display (2507, T2/M8)"
@@ -758,13 +751,6 @@ owner = "M6"
 
 [[site]]
 file = "crates/checker/src/contextual.rs"
-in = "get_symbol_for_expression"
-reason = "getSymbolForExpression private-identifier arm (lookupSymbolForPrivateIdentifierDeclaration, 5.8 class band)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/contextual.rs"
 in = "get_type_of_concrete_property_of_contextual_type"
 reason = "isCircularMappedProperty (mapped-type properties, M8)"
 class = "stage"
@@ -942,14 +928,6 @@ file = "crates/checker/src/functions.rs"
 in = "get_binding_element_type_from_parent_type"
 reason = "malformed binding element (parse recovery)"
 class = "recovery"
-count = 2
-
-[[site]]
-file = "crates/checker/src/functions.rs"
-in = "get_declaration_spaces"
-reason = "getDeclarationSpaces alias target (resolveAlias, 5.8 modules)"
-class = "stage"
-owner = "5.8"
 count = 2
 
 [[site]]

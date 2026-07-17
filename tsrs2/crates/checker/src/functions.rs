@@ -3632,9 +3632,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getDeclarationSpaces (82259-82310, the worker's inner fn).
-    /// Alias-target arms (import-equals/namespace-import/import-clause
-    /// and entity-name export assignments) need resolveAlias — they
-    /// escape until the §9 module band (5.8 modules) rather than guess.
+    /// The JSDoc typedef/callback/enum-tag rows are JS-band; alias
+    /// targets resolve through resolveAlias and union their target
+    /// declarations' spaces (M4 5.9d).
     fn get_declaration_spaces(&mut self, decl: NodeId) -> CheckResult2<u32> {
         const EXPORT_VALUE: u32 = 1;
         const EXPORT_TYPE: u32 = 2;
@@ -3669,15 +3669,15 @@ impl<'a> CheckerState<'a> {
                 if !is_entity {
                     return Ok(EXPORT_VALUE);
                 }
-                Err(Unsupported::new(
-                    "getDeclarationSpaces alias target (resolveAlias, 5.8 modules)",
-                ))
+                // tsc reassigns d = expression and falls through into
+                // the alias arm.
+                self.declaration_spaces_of_alias_target(
+                    expression.expect("entity check implies Some"),
+                )
             }
             SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::NamespaceImport
-            | SyntaxKind::ImportClause => Err(Unsupported::new(
-                "getDeclarationSpaces alias target (resolveAlias, 5.8 modules)",
-            )),
+            | SyntaxKind::ImportClause => self.declaration_spaces_of_alias_target(decl),
             SyntaxKind::VariableDeclaration
             | SyntaxKind::BindingElement
             | SyntaxKind::FunctionDeclaration
@@ -3688,6 +3688,19 @@ impl<'a> CheckerState<'a> {
                 "getDeclarationSpaces unexpected declaration kind (Debug.failBadSyntaxKind, parse recovery)",
             )),
         }
+    }
+
+    /// getDeclarationSpaces' shared alias arm (82287-82295): the
+    /// resolved alias target's declarations union their spaces.
+    fn declaration_spaces_of_alias_target(&mut self, d: NodeId) -> CheckResult2<u32> {
+        let symbol = self.get_symbol_of_declaration(d)?;
+        let target = self.resolve_alias(symbol)?;
+        let declarations = self.binder.symbol(target).declarations.clone();
+        let mut result = 0u32;
+        for declaration in declarations {
+            result |= self.get_declaration_spaces(declaration)?;
+        }
+        Ok(result)
     }
 
     /// tsc-port: checkTypePredicate @6.0.3

@@ -2281,7 +2281,7 @@ impl<'a> CheckerState<'a> {
     /// the bind-time classId is a binder-private counter, so the lookup
     /// matches by the `__#` prefix + `@{text}` suffix — exact, because
     /// one class cannot declare two privates with the same text.
-    fn lookup_symbol_for_private_identifier_declaration(
+    pub(crate) fn lookup_symbol_for_private_identifier_declaration(
         &mut self,
         prop_name: &str,
         location: NodeId,
@@ -2431,7 +2431,7 @@ impl<'a> CheckerState<'a> {
         Ok(symbol)
     }
 
-    fn get_private_identifier_property_of_type(
+    pub(crate) fn get_private_identifier_property_of_type(
         &mut self,
         left_type: TypeId,
         lexically_scoped_identifier: SymbolId,
@@ -3916,9 +3916,14 @@ impl<'a> CheckerState<'a> {
                             .flags
                             .intersects(SymbolFlags::ALIAS)
                         {
-                            return Err(Unsupported::new(
-                                "readonly-entity alias receiver (getDeclarationOfAliasSymbol, 5.8)",
-                            ));
+                            // 79283-79286: a namespace-import receiver
+                            // makes the whole entity readonly (the
+                            // 2540 namespace-import tail).
+                            let declaration =
+                                self.get_declaration_of_alias_symbol(receiver_symbol);
+                            return Ok(declaration.is_some_and(|declaration| {
+                                self.kind_of(declaration) == SyntaxKind::NamespaceImport
+                            }));
                         }
                     }
                 }

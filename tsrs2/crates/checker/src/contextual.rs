@@ -1067,9 +1067,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSymbolForExpression @6.0.3
     /// tsc-hash: cc13b2e3c5958fca3589c74248091883cb95c0d39a97794192a3ee6e0674a3d6
     /// tsc-span: _tsc.js:72955-72979
-    ///
-    /// The private-identifier arm escapes ([PRIVATE → 5.5d]: the
-    /// lexical lookup lands with the access band).
     fn get_symbol_for_expression(&mut self, e: NodeId) -> CheckResult2<Option<SymbolId>> {
         if let Some(symbol) = self.node_symbol(e) {
             return Ok(Some(symbol));
@@ -1082,10 +1079,17 @@ impl<'a> CheckerState<'a> {
                 let name = name.expect("access has a name");
                 let lhs_type = self.get_type_of_expression(expression)?;
                 if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
-                    return Err(Unsupported::new(
-                        "getSymbolForExpression private-identifier arm \
-                         (lookupSymbolForPrivateIdentifierDeclaration, 5.8 class band)",
-                    ));
+                    // tryGetPrivateIdentifierPropertyOfType (72975-72978).
+                    let Some(name_text) = self.identifier_text_of(name).map(str::to_owned)
+                    else {
+                        return Ok(None);
+                    };
+                    let lexically_scoped = self
+                        .lookup_symbol_for_private_identifier_declaration(&name_text, name)?;
+                    let Some(lexically_scoped) = lexically_scoped else {
+                        return Ok(None);
+                    };
+                    return self.get_private_identifier_property_of_type(lhs_type, lexically_scoped);
                 }
                 let Some(name_text) = self.identifier_text_of(name).map(str::to_owned) else {
                     return Ok(None);
