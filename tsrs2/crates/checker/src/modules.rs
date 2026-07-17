@@ -3221,7 +3221,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: hasSignatures @6.0.3
-    /// tsc-hash: 4e5e0d5c9a2b7f0dbb02d978a4a26ac235a09e074000e13c709a3ee4bd132530
+    /// tsc-hash: 2085cf5841568be535290c3072cfba462715c318e4c09e1ccb6d9082cdc00f15
     /// tsc-span: _tsc.js:49761-49763
     ///
     /// getSignaturesOfStructuredType for both kinds (no apparent-type
@@ -3240,7 +3240,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: createDefaultPropertyWrapperForModule @6.0.3
-    /// tsc-hash: 42957399f2b3608bfae74a52ee8be8c17d7b473cbf6f39d80c50fc55f0f0762d
+    /// tsc-hash: 35e7604c38f11ec8025e4a3363b87b2adad01a4cd441a4a5481947d351e7e0d8
     /// tsc-span: _tsc.js:77768-77776
     fn create_default_property_wrapper_for_module(
         &mut self,
@@ -3293,7 +3293,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getTypeWithSyntheticDefaultImportType @6.0.3
-    /// tsc-hash: 3348a1061955a75a9e2fcf103f66a2c88f6ac47f883f4cebe0b09ff8fbde9f68
+    /// tsc-hash: 15aa12c477c71d19f9afd99525fd494140635a859a647923799ae5d335b8d913
     /// tsc-span: _tsc.js:77789-77822
     ///
     /// canHaveSyntheticDefault's usage-mode block rides the elided
@@ -3354,7 +3354,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: cloneTypeAsModuleType @6.0.3
-    /// tsc-hash: 66a2f13029c15e0d64eb92782343ee6017b13e05eba31dd9c1a17b4dcc9088d4
+    /// tsc-hash: 4556e023b03e0b161550d949218a06b9c5ae7efc98f6c9a704f3c5a3c01b4ab6
     /// tsc-span: _tsc.js:49764-49777
     ///
     /// The cloneSymbol copy set + links.target/originatingImport, with

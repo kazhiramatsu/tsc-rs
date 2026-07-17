@@ -2353,7 +2353,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getExactOptionalUnassignableProperties @6.0.3
-    /// tsc-hash: 55427654a3a9d47b6ac2c33b0dd15e0b0d21c25ec55e9cbcf9fb50cfe4014891
+    /// tsc-hash: b8fb5d73a798dd33fc44c99fe19d5c91b0a4888656acf988ab30103a2735a1a9
     /// tsc-span: _tsc.js:67246-67249
     ///
     /// Consumers read only `.length` — the boolean face.

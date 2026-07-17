@@ -1562,7 +1562,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc getIdentifierChain (62882-62887): the qualifier's left
+    /// tsc getIdentifierChain (62814-62820): the qualifier's left
     /// spine, head-first.
     fn identifier_chain(&self, node: NodeId) -> Vec<NodeId> {
         let mut rights = Vec::new();
@@ -1586,8 +1586,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getFullyQualifiedName @6.0.3
-    /// tsc-hash: 397da8a5eb2632850ea227ea9e546cc688cfae9beac1a166a3300e78cee62c05
-    /// tsc-span: _tsc.js:50040-50042
+    /// tsc-hash: 30098265216734ac1ab039c9b23d5a0c3c8cc578a2ea153ad77edaed4461564c
+    /// tsc-span: _tsc.js:49253-49261
     ///
     /// The parent chain joined with "."; each link renders as the
     /// symbol-name face of symbolToString (DoNotIncludeSymbolChain) —
@@ -1604,8 +1604,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getTypeFromImportTypeNode @6.0.3
-    /// tsc-hash: 40cb1d2b7d1ba902fefa22a0e0d5a04a6d698e1cd2c4880dc3a04d3d40b04913
-    /// tsc-span: _tsc.js:62821-62881
+    /// tsc-hash: dad655f20dabdd232312b802a018d4a4a24c8b31bc04bf1eb84fad23afd7b59b
+    /// tsc-span: _tsc.js:62821-62880
     ///
     /// The JSDoc meaning arm (flags & JSDoc → Value|Type) and the
     /// isInJSFile export= variable probe are JS-band ([JSDOC] policy);
@@ -1759,8 +1759,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: resolveImportSymbolType @6.0.3
-    /// tsc-hash: 6c00c832e8ff2be9d67d0e5f9ba7b3673d90a747aab27a3e9b2edb4718c9b7fc
-    /// tsc-span: _tsc.js:62882-62890
+    /// tsc-hash: 1c4e70727336c449bfa217db38b9d8c6fd6f57f3efab9e37d0b3b328494dba19
+    /// tsc-span: _tsc.js:62881-62889
     fn resolve_import_symbol_type(
         &mut self,
         node: NodeId,
@@ -1787,7 +1787,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getTypeReferenceType @6.0.3
-    /// tsc-hash: 828ec71cc907a5cfd77dbd3c4c470108d47cf1d95b16dc086145c536e05c6907
+    /// tsc-hash: 1d3bb11d32016e858176958d0e8a751ce27e803f102fdc348b82c2faa278c6c1
     /// tsc-span: _tsc.js:60380-60405
     ///
     /// The per-symbol-kind dispatch shared by type references and

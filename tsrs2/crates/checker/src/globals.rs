@@ -578,8 +578,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getGlobalTypeAliasSymbol @6.0.3
-    /// tsc-hash: 165af18edcd47c7cdf74a6547c56bab4849758d0e5090f0a2e19cbe771700f0a
-    /// tsc-span: _tsc.js:60638-60650
+    /// tsc-hash: 9944211de98881ee33d2cd8dde97e67d4a66ee8ac095d02976abc6b92048c9be
+    /// tsc-span: _tsc.js:60638-60649
     ///
     /// The meaning is TYPE (not TypeAlias): an interface-shadowed
     /// global resolves here and fails the arity probe with 2317 at
@@ -625,8 +625,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getGlobalImportMetaType @6.0.3
-    /// tsc-hash: 5878929c2e007e01d1eaf5b52ce202d1e12280d69ab682a934be124156976afd
-    /// tsc-span: _tsc.js:60697-60699
+    /// tsc-hash: d9cb64668e7657cff3ce184045e666edf286359c9c9976767800d852e0eaaf3d
+    /// tsc-span: _tsc.js:60697-60705
     pub(crate) fn get_global_import_meta_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.import_meta {
             return Ok(cached);

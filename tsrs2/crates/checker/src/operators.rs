@@ -3027,8 +3027,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: checkImportMetaProperty @6.0.3
-    /// tsc-hash: 837b45a1a83e00fcbf7db00b6b18ee49dcfae4e0b12546e105bd3d1a3050becd
-    /// tsc-span: _tsc.js:78099-78111
+    /// tsc-hash: 3938f818e61319328c4132e426bb9c8a42165afb64b01a38b68d2482c2ec3bab
+    /// tsc-span: _tsc.js:78099-78110
     ///
     /// The Node16..NodeNext arm reads impliedNodeFormat, which the
     /// in-memory host derives from extensions only: .cts/.cjs files
