@@ -434,33 +434,16 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<bool> {
         if let (Some(file_index), Some(usage)) = (file_index, usage) {
             let usage_mode = self.resolution_mode_for_usage(usage);
-            let target_root = self.binder.source(file_index).root;
-            // The accepted-state oracle predates package-scope format
-            // propagation at this resolved-module seam. Keep its
-            // computed-default cases stable, while explicit false
-            // options must consult the package scope so native
-            // ESM-to-CJS interop cannot be rejected.
-            let target_mode = self
-                .implied_resolution_mode_from_extension(target_root)
-                .or_else(|| {
-                    (self.options.allow_synthetic_default_imports == Some(false)
-                        || self.options.es_module_interop == Some(false))
-                    .then(|| {
-                        self.package_scope_node_format_for_file_name(
-                            &self.binder.source(file_index).file_name,
-                        )
-                    })
-                    .flatten()
-                });
+            let target_mode = self.implied_node_format_for_file_index(file_index);
             let module_kind = self.options.emit_module_kind();
             if usage_mode == ModuleResolutionMode::EsNext
-                && target_mode == Some(ModuleResolutionMode::CommonJs)
+                && target_mode == ModuleResolutionMode::CommonJs
                 && (100..=199).contains(&module_kind)
             {
                 return Ok(true);
             }
             if usage_mode == ModuleResolutionMode::EsNext
-                && target_mode == Some(ModuleResolutionMode::EsNext)
+                && target_mode == ModuleResolutionMode::EsNext
             {
                 return Ok(false);
             }
@@ -575,33 +558,36 @@ impl<'a> CheckerState<'a> {
         let export_default_symbol = if self.is_shorthand_ambient_module_symbol(module_symbol) {
             Some(module_symbol)
         } else {
-            // The accepted explicit-option matrices capture the
-            // pre-Node20 preference. The computed Node20 default is
-            // the live path where `"module.exports"` takes priority.
-            if self.options.es_module_interop.is_none() {
-                if let (Some(file_index), Some(specifier)) = (file_index, specifier) {
-                    if (102..=199).contains(&self.options.emit_module_kind())
-                        && self.resolution_mode_for_usage(specifier)
-                            == ModuleResolutionMode::CommonJs
-                        && self.implied_node_format_for_file_index(file_index)
-                            == ModuleResolutionMode::EsNext
-                    {
-                        if let Some(module_exports) = self.resolve_export_by_name(
-                            module_symbol,
-                            "module.exports",
-                            Some(node),
-                            dont_resolve_alias,
-                        )? {
-                            self.mark_symbol_of_alias_declaration_if_type_only(
-                                Some(node),
-                                Some(module_exports),
-                                /*final_target*/ None,
-                                /*overwrite_empty*/ false,
-                                None,
-                                None,
-                            )?;
-                            return Ok(Some(module_exports));
+            if let (Some(file_index), Some(specifier)) = (file_index, specifier) {
+                if (102..=199).contains(&self.options.emit_module_kind())
+                    && self.resolution_mode_for_usage(specifier) == ModuleResolutionMode::CommonJs
+                    && self.implied_node_format_for_file_index(file_index)
+                        == ModuleResolutionMode::EsNext
+                {
+                    if let Some(module_exports) = self.resolve_export_by_name(
+                        module_symbol,
+                        "module.exports",
+                        Some(node),
+                        dont_resolve_alias,
+                    )? {
+                        if !self.options.es_module_interop_effective() {
+                            let module_name = self.symbol_display_name(module_symbol);
+                            self.error_at(
+                                self.name_of_import_binding(node).or(Some(node)),
+                                &diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
+                                &[&module_name, "esModuleInterop"],
+                            );
+                            return Ok(None);
                         }
+                        self.mark_symbol_of_alias_declaration_if_type_only(
+                            Some(node),
+                            Some(module_exports),
+                            /*final_target*/ None,
+                            /*overwrite_empty*/ false,
+                            None,
+                            None,
+                        )?;
+                        return Ok(Some(module_exports));
                     }
                 }
             }
@@ -2127,6 +2113,15 @@ impl<'a> CheckerState<'a> {
                 return Ok(Some(self.get_merged_symbol(symbol)));
             }
         }
+        // Ambient external-module declarations in .d.ts files are
+        // permitted to introduce an otherwise unresolved module. A
+        // .ts module augmentation still reports 2664.
+        if is_for_augmentation
+            && matches!(resolution, ProgramModuleResolution::Missed)
+            && self.binder.source_of_node(location).is_declaration_file
+        {
+            return Ok(None);
+        }
         let Some(error_node) = error_node else {
             return Ok(None);
         };
@@ -2671,23 +2666,98 @@ impl<'a> CheckerState<'a> {
                 if let Some(resolved) = self.probe_module_candidates(&candidate, is_classic) {
                     return ProgramModuleResolution::Resolved(resolved);
                 }
-                // A baseUrl miss is tsc-undecidable (paths/rootDirs).
-                return ProgramModuleResolution::Suppressed;
+                let candidate_prefix = format!("{}/", candidate.trim_end_matches('/'));
+                if self
+                    .host_file_paths
+                    .iter()
+                    .any(|path| path.starts_with(&candidate_prefix))
+                {
+                    return ProgramModuleResolution::Suppressed;
+                }
             }
-            // node_modules or a package.json among the HOST inputs
-            // (incl. .js/.json the program dropped): tsc's
-            // node_modules walk (package.json exports/@types/
-            // typesVersions), self-name imports, and `#` package
-            // imports might resolve this bare specifier — undecidable.
-            if self
-                .host_file_paths
-                .iter()
-                .any(|path| path.contains("/node_modules/") || path.ends_with("/package.json"))
+            // Keep only genuinely plausible package-resolution misses
+            // in the undecidable band. An unrelated node_modules entry
+            // or package.json cannot resolve this specifier and must
+            // not hide tsc's 2307.
+            let package_name = Self::package_name_from_module_reference(module_reference);
+            let node_modules_marker = package_name
+                .as_deref()
+                .map(|name| format!("/node_modules/{name}/"));
+            let types_package_marker = package_name.as_deref().map(|name| {
+                let types_name = if let Some(scoped) = name.strip_prefix('@') {
+                    scoped.replace('/', "__")
+                } else {
+                    name.to_owned()
+                };
+                format!("/node_modules/@types/{types_name}/")
+            });
+            let has_matching_node_modules_package =
+                node_modules_marker.as_deref().is_some_and(|marker| {
+                    self.host_file_paths
+                        .iter()
+                        .any(|path| path.contains(marker))
+                }) || types_package_marker.as_deref().is_some_and(|marker| {
+                    self.host_file_paths
+                        .iter()
+                        .any(|path| path.contains(marker))
+                });
+            let has_matching_package_scope = self
+                .nearest_package_name_for_file(&importer)
+                .is_some_and(|name| {
+                    package_name
+                        .as_deref()
+                        .is_some_and(|package_name| name == package_name)
+                });
+            let has_package_import_scope = module_reference.starts_with('#')
+                && self.nearest_package_name_for_file(&importer).is_some();
+            if has_matching_node_modules_package
+                || has_matching_package_scope
+                || has_package_import_scope
             {
                 return ProgramModuleResolution::Suppressed;
             }
             ProgramModuleResolution::Missed
         }
+    }
+
+    fn package_name_from_module_reference(module_reference: &str) -> Option<String> {
+        if module_reference.starts_with('#') {
+            return None;
+        }
+        let mut parts = module_reference.split('/');
+        let first = parts.next()?;
+        if first.is_empty() {
+            return None;
+        }
+        if first.starts_with('@') {
+            let second = parts.next()?;
+            (!second.is_empty()).then(|| format!("{first}/{second}"))
+        } else {
+            Some(first.to_owned())
+        }
+    }
+
+    fn nearest_package_name_for_file(&self, file_name: &str) -> Option<&str> {
+        let file_name = Self::normalize_program_path(file_name, "");
+        let mut directory = file_name
+            .rsplit_once('/')
+            .map(|(directory, _)| directory)
+            .unwrap_or("");
+        loop {
+            let package_json = if directory.is_empty() {
+                "/package.json".to_owned()
+            } else {
+                format!("{directory}/package.json")
+            };
+            if let Some(name) = self.host_package_json_names.get(&package_json) {
+                return Some(name);
+            }
+            let Some((parent, _)) = directory.rsplit_once('/') else {
+                break;
+            };
+            directory = parent;
+        }
+        None
     }
 
     /// A relative-candidate miss is tsc-undecidable when the stem
@@ -2759,6 +2829,11 @@ impl<'a> CheckerState<'a> {
                 is_tsx: path.ends_with(".tsx") && !path.ends_with(".d.tsx"),
             }
         };
+        if self.options.resolve_json_module_effective() && candidate.ends_with(".json") {
+            if let Some(index) = lookup(candidate) {
+                return Some(make(index, false, candidate));
+            }
+        }
         // Exact name with a recognized TS-family extension.
         for extension in TS_EXTENSIONS {
             if candidate.ends_with(extension) {
@@ -3371,32 +3446,26 @@ impl<'a> CheckerState<'a> {
                             Some(namespace_import),
                             dont_resolve_alias,
                         )? {
-                            let default_export = self.resolve_export_by_name(
-                                original_symbol,
-                                InternalSymbolName::DEFAULT,
-                                /*source_node*/ None,
-                                /*dont_resolve_alias*/ true,
-                            )?;
-                            let resolved_module_exports =
-                                self.resolve_symbol_ex(Some(module_exports), false)?;
-                            let resolved_default = self.resolve_symbol_ex(default_export, false)?;
-                            // The frozen accepted fixture re-exports
-                            // the exact default under module.exports.
-                            // Its namespace shape stays stable; a
-                            // genuinely different compatibility export
-                            // takes Node20 priority.
-                            if resolved_module_exports != resolved_default {
-                                if self.options.es_module_interop_effective()
-                                    && self.has_interop_signatures(ty)?
-                                {
-                                    return Ok(Some(self.clone_type_as_module_type(
-                                        module_exports,
-                                        ty,
-                                        reference_parent,
-                                    )?));
-                                }
-                                return Ok(Some(module_exports));
+                            if !suppress_interop_error
+                                && !symbol_flags
+                                    .intersects(SymbolFlags::MODULE | SymbolFlags::VARIABLE)
+                            {
+                                self.error_at(
+                                    Some(referencing_location),
+                                    &diagnostics::This_module_can_only_be_referenced_with_ECMAScript_imports_exports_by_turning_on_the_0_flag_and_referencing_its_default_export,
+                                    &["esModuleInterop"],
+                                );
                             }
+                            if self.options.es_module_interop_effective()
+                                && self.has_interop_signatures(ty)?
+                            {
+                                return Ok(Some(self.clone_type_as_module_type(
+                                    module_exports,
+                                    ty,
+                                    reference_parent,
+                                )?));
+                            }
+                            return Ok(Some(module_exports));
                         }
                     }
                 }
@@ -5453,28 +5522,12 @@ impl<'a> CheckerState<'a> {
         }
         if is_export_equals {
             let module_kind = self.options.emit_module_kind();
-            let source_root = self.binder.source_of_node(node).root;
-            // Mirror can_have_synthetic_default's frozen-host boundary:
-            // extensions are always authoritative; package scope is
-            // additionally required when an explicit false interop
-            // option makes the native CommonJS exception decisive.
-            let implied_node_format = self
-                .implied_resolution_mode_from_extension(source_root)
-                .or_else(|| {
-                    (self.options.allow_synthetic_default_imports == Some(false)
-                        || self.options.es_module_interop == Some(false))
-                    .then(|| {
-                        self.package_scope_node_format_for_file_name(
-                            &self.binder.source_of_node(node).file_name,
-                        )
-                    })
-                    .flatten()
-                });
+            let implied_node_format = self.implied_node_format_for_file(node);
             let invalid_esm_export_assignment = if ambient {
                 (100..=199).contains(&module_kind)
-                    && implied_node_format == Some(ModuleResolutionMode::EsNext)
+                    && implied_node_format == ModuleResolutionMode::EsNext
             } else if (100..=199).contains(&module_kind) {
-                implied_node_format != Some(ModuleResolutionMode::CommonJs)
+                implied_node_format != ModuleResolutionMode::CommonJs
             } else {
                 true
             };

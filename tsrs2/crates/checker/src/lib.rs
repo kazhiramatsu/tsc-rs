@@ -52,6 +52,21 @@ pub struct CheckResult {
     pub diagnostics: DiagnosticList,
     /// tsc getSyntacticDiagnostics: the per-file parse diagnostics alone.
     pub syntactic_diagnostics: DiagnosticList,
+    /// Source ranges whose semantic check stopped at a deliberately
+    /// recognized `Unsupported` boundary. This is audit evidence, not a
+    /// diagnostic filter: conformance joins oracle-only rows to these
+    /// ranges so an intentional model ceiling is distinguishable from a
+    /// trigger the checker never recognized.
+    pub partial_checks: Vec<PartialCheck>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PartialCheck {
+    pub file_name: String,
+    /// UTF-16 offset, matching diagnostic and oracle coordinates.
+    pub start: u32,
+    pub length: u32,
+    pub reason: String,
 }
 
 /// tsc getSupportedExtensions: JS roots only join the program with allowJs.
@@ -148,9 +163,8 @@ fn can_include_bind_and_check_diagnostics(
 /// tsc isPlainJsFile (12876): a JS/JSX file is "plain" only when
 /// neither a per-file check directive nor the project-level checkJs
 /// option was supplied. Checked JS uses the same comment-directive
-/// merge as TypeScript files. Upstream also uses its full diagnostic
-/// stream; this checker retains the JS-safe allowlist until JSDoc type
-/// modeling lands.
+/// merge as TypeScript files; until M8 completes JS/JSDoc semantics,
+/// only the supported subset is exposed after directive matching.
 fn is_plain_js_file(
     javascript_file: bool,
     directive: Option<CheckDirective>,
@@ -296,18 +310,6 @@ fn mark_comment_directives_for_partial_ranges(
             used_directive_lines.insert(line);
         }
     }
-
-    // A contained source element can include a directive below its
-    // opening token. Its remaining body was not checked, so directives
-    // physically inside that partial range must also remain exempt.
-    for directive in &source.comment_directives {
-        if partial_ranges
-            .iter()
-            .any(|&(start, end)| start <= directive.pos && directive.end <= end)
-        {
-            used_directive_lines.insert(line_of_byte(directive.end as usize));
-        }
-    }
 }
 
 fn unused_expect_error_diagnostics(
@@ -434,6 +436,7 @@ pub fn check_program_with_libs(
 ) -> CheckResult {
     let mut diagnostics = Vec::new();
     let mut syntactic_diagnostics = Vec::new();
+    let mut partial_checks = Vec::new();
 
     // tsc host semantics: files are a name-keyed map, so a fixture
     // file sharing a lib's name provides the TEXT everywhere. The
@@ -463,9 +466,9 @@ pub fn check_program_with_libs(
 
     // Fixture parse pass (M4 5.0): files parse in program order with
     // contiguous NodeId/NodeArrayId bases CONTINUING FROM THE LIB
-    // PREFIX so the checker sees tsc's one-heap identity space; .json
-    // inputs parse as JSON values outside the bind program (semantic
-    // .json checking is a later stage — ledger note).
+    // PREFIX so the checker sees tsc's one-heap identity space. JSON
+    // files remain in that same program: the binder publishes their
+    // root value as the module's default/export= property.
     let mut program_sources: Vec<tsrs2_syntax::SourceFile> = Vec::new();
     for (index, file) in files.iter().enumerate() {
         if last_index_by_name.get(file.name.as_str()) != Some(&index) {
@@ -479,9 +482,22 @@ pub fn check_program_with_libs(
         }
         // tsc ensureScriptKind: .json programs parse as JSON values.
         if file.name.ends_with(".json") {
-            let source_file = tsrs2_syntax::parse_json_text(file.name.clone(), file.text.clone());
+            let (node_id_base, node_array_id_base) = match program_sources.last() {
+                Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
+                None => lib_sources
+                    .last()
+                    .map(|previous| (previous.arena.node_end(), previous.arena.array_end()))
+                    .unwrap_or((0, 0)),
+            };
+            let source_file = tsrs2_syntax::parse_json_text_with_bases(
+                file.name.clone(),
+                file.text.clone(),
+                node_id_base,
+                node_array_id_base,
+            );
             syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
             diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
+            program_sources.push(source_file);
             continue;
         }
         // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds.
@@ -568,11 +584,6 @@ pub fn check_program_with_libs(
             && can_include_bind_and_check_diagnostics(javascript_file, directive, options);
         if include_bind_and_check {
             if javascript_file {
-                // The checker does not model JSDoc types yet, so even
-                // checked JS must stay on the proven-safe diagnostic
-                // allowlist. Unlike plain JS, its complete diagnostic
-                // stream still determines whether a comment directive
-                // was used.
                 if is_plain_js_file(true, directive, options) {
                     diagnostics.extend(
                         binder
@@ -655,6 +666,24 @@ pub fn check_program_with_libs(
                 )
             })
             .collect();
+        state.host_package_json_names = files
+            .iter()
+            .filter_map(|file| {
+                let file_name = file.name.rsplit(['/', '\\']).next()?;
+                if file_name != "package.json" {
+                    return None;
+                }
+                let value = serde_json::from_str::<serde_json::Value>(&file.text).ok()?;
+                let name = value.get("name")?.as_str()?.trim();
+                if name.is_empty() {
+                    return None;
+                }
+                Some((
+                    state::CheckerState::normalize_program_path(&file.name, ""),
+                    name.to_owned(),
+                ))
+            })
+            .collect();
         // initializeTypeChecker's augmentation passes (88769/88874)
         // run here — AFTER the resolver's host view exists (pass 2
         // resolves module names), BEFORE any file checks.
@@ -662,6 +691,14 @@ pub fn check_program_with_libs(
         for index in lib_count..state.binder.file_count() {
             state.check_source_file(index);
         }
+        let jsdoc_diagnostic_spans: std::collections::HashSet<(String, u32, u32)> = state
+            .jsdoc_typed_declarations
+            .iter()
+            .map(|&declaration| {
+                let span = state.diag_span_of_node(declaration);
+                (span.file_name, span.start, span.length)
+            })
+            .collect();
         let lib_names: std::collections::HashSet<&str> = lib_sources
             .iter()
             .map(|source| source.file_name.as_str())
@@ -734,6 +771,20 @@ pub fn check_program_with_libs(
                         );
                         diagnostics.extend(filtered.into_iter().filter(|diagnostic| {
                             plain_js_errors::is_plain_js_error(diagnostic.code())
+                                || diagnostic.code() == 2349
+                                || (diagnostic.code() == 2322
+                                    && diagnostic
+                                        .file_name
+                                        .as_ref()
+                                        .zip(diagnostic.start)
+                                        .zip(diagnostic.length)
+                                        .is_some_and(|((file, start), length)| {
+                                            jsdoc_diagnostic_spans.contains(&(
+                                                file.clone(),
+                                                start,
+                                                length,
+                                            ))
+                                        }))
                         }));
                     }
                 }
@@ -793,6 +844,7 @@ pub fn check_program_with_libs(
         // stays per-file unsorted concatenation, matching tsc.
         filter_semantic_diagnostics(&mut diagnostics, options);
         tsrs2_diags::sort_and_dedupe_diagnostics(&mut diagnostics);
+        partial_checks = state.partial_check_records.clone();
     }
 
     debug_assert!(tsrs2_binder::is_scaffolded());
@@ -801,6 +853,7 @@ pub fn check_program_with_libs(
     CheckResult {
         diagnostics,
         syntactic_diagnostics,
+        partial_checks,
     }
 }
 
@@ -1214,6 +1267,90 @@ mod tests {
     }
 
     #[test]
+    fn node16_package_commonjs_format_applies_to_default_import_and_export_equals() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "package.json".to_owned(),
+                    text: "{\"type\":\"commonjs\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "dep.ts".to_owned(),
+                    text: "const value = { a: 1 };\nexport = value;\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.mts".to_owned(),
+                    text: "import value from \"./dep.js\";\nvalue.a;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(100),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            !result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| matches!(diagnostic.code(), 1192 | 1203)),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn unrelated_package_inputs_do_not_hide_a_bare_module_miss() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "package.json".to_owned(),
+                    text: "{\"name\":\"unrelated\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "node_modules/other/index.d.ts".to_owned(),
+                    text: "export {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.ts".to_owned(),
+                    text: "import { value } from \"definitely-missing\";\nvalue;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2307),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn base_url_miss_without_a_paths_match_reports_2307() {
+        let result = check_program(
+            &[InputFile {
+                name: "src/main.ts".to_owned(),
+                text: "import { value } from \"definitely-missing\";\nvalue;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                base_url: Some("src".to_owned()),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2307),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
     fn missing_import_meta_global_is_public_semantic_diagnostic() {
         assert_eq!(
             codes_of_with_options(
@@ -1373,6 +1510,45 @@ mod tests {
     }
 
     #[test]
+    fn node18_actual_json_module_is_resolved_and_typed() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "package.json".to_owned(),
+                    text: "{\"type\":\"module\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "data.json".to_owned(),
+                    text: "{\"count\": 1, \"label\": \"ok\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.ts".to_owned(),
+                    text: "import data from \"./data.json\";\n\
+                           let count: number;\n\
+                           count = data.count;\n\
+                           let wrong: string;\n\
+                           wrong = data.count;\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(101),
+                module_resolution: Some(3),
+                resolve_json_module: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let codes: Vec<u32> = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect();
+        assert!(codes.contains(&1543), "{:#?}", result.diagnostics);
+        assert!(codes.contains(&2322), "{:#?}", result.diagnostics);
+        assert!(!codes.contains(&2307), "{:#?}", result.diagnostics);
+    }
+
+    #[test]
     fn node20_commonjs_default_import_uses_module_exports_export() {
         let result = check_program(
             &[
@@ -1389,12 +1565,46 @@ mod tests {
             &CompilerOptions {
                 module: Some(102),
                 module_resolution: Some(3),
+                es_module_interop: Some(true),
                 ..CompilerOptions::default()
             },
         );
         assert!(
             result.diagnostics.is_empty(),
             "Node20 module.exports interop should resolve the default: {:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn node20_module_exports_default_import_requires_explicit_interop_when_disabled() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "dep.mts".to_owned(),
+                    text: "const value = { a: 1 };\nexport { value as \"module.exports\" };\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "main.cts".to_owned(),
+                    text: "import value from \"./dep.mjs\";\nvalue.a;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(102),
+                module_resolution: Some(3),
+                es_module_interop: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [1259],
+            "{:#?}",
             result.diagnostics
         );
     }
@@ -1465,6 +1675,31 @@ mod tests {
             errors[0].message_text(),
             "Argument of type 'string' is not assignable to parameter of type 'number'."
         );
+    }
+
+    #[test]
+    fn node20_namespace_import_uses_module_exports_even_when_it_aliases_default() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "dep.mts".to_owned(),
+                    text: "const compat = (x: number) => x;\n\
+                           export default compat;\n\
+                           export { compat as \"module.exports\" };\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "main.cts".to_owned(),
+                    text: "import * as fn from \"./dep.mjs\";\nfn(1);\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(102),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     }
 
     fn js_pair_diagnostics(js: &str, ts: &str) -> Vec<(u32, Option<String>)> {
@@ -1680,8 +1915,8 @@ mod tests {
                     text: "export {};\ndeclare module \"pkg\" { interface X { missing(): void } }\n(\"x\").missing;\n"
                         .to_owned(),
                 },
-                // The resolver deliberately treats a bare-specifier
-                // miss as undecidable when a package.json is present.
+                // An unrelated package scope does not make "pkg"
+                // resolvable and therefore must not hide 2664.
                 InputFile {
                     name: "package.json".to_owned(),
                     text: "{}".to_owned(),
@@ -1695,7 +1930,7 @@ mod tests {
                 .iter()
                 .map(|diagnostic| diagnostic.code())
                 .collect::<Vec<_>>(),
-            [2339]
+            [2664, 2339]
         );
     }
 
@@ -1752,7 +1987,7 @@ mod tests {
                 .iter()
                 .map(|diagnostic| diagnostic.code())
                 .collect::<Vec<_>>(),
-            [2339]
+            [2664, 2339]
         );
     }
 
@@ -1931,7 +2166,7 @@ mod tests {
                 .iter()
                 .map(|diagnostic| diagnostic.code())
                 .collect::<Vec<_>>(),
-            [2339]
+            [2591, 2339, 2339]
         );
     }
 
@@ -2038,6 +2273,26 @@ mod tests {
     }
 
     #[test]
+    fn partial_flow_check_records_its_runtime_trigger() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "let x: number;\nx;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(result.partial_checks.len(), 1);
+        assert_eq!(result.partial_checks[0].file_name, "a.ts");
+        assert_eq!(
+            result.partial_checks[0].reason,
+            "flow-sensitive use-before-assignment diagnostic (M5)"
+        );
+    }
+
+    #[test]
     fn unused_expect_error_reports_2578() {
         assert_eq!(codes_of("// @ts-expect-error\nconst x = 1;\n"), [2578]);
     }
@@ -2074,6 +2329,89 @@ mod tests {
                  const bad = (() => 1) satisfies number;\n"
             ),
             Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn directive_inside_a_checked_mapped_type_is_not_blanket_exempted() {
+        assert_eq!(
+            codes_of(
+                "type M<T> = {\n\
+                   // @ts-expect-error\n\
+                   [K in keyof T]: number;\n\
+                 };\n"
+            ),
+            [2578]
+        );
+    }
+
+    #[test]
+    fn checked_js_exposes_supported_checker_call_diagnostics() {
+        let result = check_program_with_libs(
+            &[es5_lib()],
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "// @ts-check\n(1)();\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2349),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn checked_js_jsdoc_type_checks_its_initializer() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "// @ts-check\n/** @type {number} */\nlet value = \"wrong\";\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2322),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn checked_js_does_not_treat_other_jsdoc_tags_as_type() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "// @ts-check\n/** @types {number} */\nlet value = \"ok\";\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            !result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2322),
+            "{:#?}",
+            result.diagnostics
         );
     }
 

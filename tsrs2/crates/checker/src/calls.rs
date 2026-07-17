@@ -5011,6 +5011,54 @@ impl<'a> CheckerState<'a> {
 
     // ---- JSX opening-like elements ----
 
+    /// tsc elaborateJsxComponents' named-attribute slice. Attribute
+    /// mismatches are reported at the JSX attribute name (not at the
+    /// enclosing tag), preserving the elementwise 2322 span.
+    fn elaborate_jsx_named_attributes(
+        &mut self,
+        attributes: NodeId,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+    ) -> CheckResult2<bool> {
+        let properties = match self.data_of(attributes) {
+            NodeData::JsxAttributes(data) => data.properties,
+            _ => return Ok(false),
+        };
+        let mut reported = false;
+        for attribute in self.nodes_of(properties) {
+            let NodeData::JsxAttribute(data) = self.data_of(attribute).clone() else {
+                continue;
+            };
+            let Some(name_node) = data.name else {
+                continue;
+            };
+            let name = self.jsx_attribute_name_text(name_node);
+            if name.contains('-') {
+                continue;
+            }
+            let Some(source_property) = self.get_property_of_type_full(source, &name)? else {
+                continue;
+            };
+            let Some(target_property) = self.get_property_of_type_full(target, &name)? else {
+                continue;
+            };
+            let source_type = self.get_type_of_symbol(source_property)?;
+            let target_type = self.get_type_of_symbol(target_property)?;
+            if self.check_type_related_to(source_type, target_type, relation)? {
+                continue;
+            }
+            self.check_type_assignable_to(
+                source_type,
+                target_type,
+                Some(name_node),
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )?;
+            reported = true;
+        }
+        Ok(reported)
+    }
+
     /// tsc-port: resolveJsxOpeningLikeElement @6.0.3
     /// tsc-hash: de958e239f9938f6db012bfdfb5c38e1a8708ed8c5bf2a1bf4fd79c49a878fa0
     /// tsc-span: _tsc.js:77397-77444
@@ -5058,7 +5106,14 @@ impl<'a> CheckerState<'a> {
                 )?;
                 // checkTypeAssignableToAndOptionallyElaborate(attrType,
                 // result, errorNode=tagName, expr=attributes).
-                if !self.is_type_assignable_to(attr_type, result)? {
+                if !self.is_type_assignable_to(attr_type, result)?
+                    && !self.elaborate_jsx_named_attributes(
+                        attributes,
+                        attr_type,
+                        result,
+                        RelationKind::Assignable,
+                    )?
+                {
                     if self
                         .elaboration_disposition(
                             attributes,

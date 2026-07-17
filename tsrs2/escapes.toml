@@ -1062,27 +1062,6 @@ reason = "intrinsic tag with a non-identifier name (parse recovery)"
 class = "recovery"
 
 [[site]]
-file = "crates/checker/src/jsx.rs"
-in = "jsx_namespace_entity_guard"
-reason = "@jsx-family pragma comment (pragma collection unported, M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "jsx_namespace_entity_guard"
-reason = "jsxFactory-family options (parseIsolatedEntityName unported, M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "jsx_namespace_entity_guard"
-reason = "react-jsx implicit import container (pragma+module machinery, M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
 file = "crates/checker/src/literals.rs"
 in = "check_array_literal"
 reason = "addIntraExpressionInferenceSite (inference contexts, M6)"

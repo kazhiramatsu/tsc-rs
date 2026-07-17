@@ -9,7 +9,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use toml_edit::{DocumentMut, Item, Table};
-use tsrs2_checker::{check_program, check_program_with_libs, CompilerOptions, InputFile};
+use tsrs2_checker::{
+    check_program, check_program_with_libs, CompilerOptions, InputFile, PartialCheck,
+};
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
@@ -176,6 +178,15 @@ pub struct ConformanceSummary {
     pub mismatch_cases: usize,
     pub false_positive_diagnostics: usize,
     pub false_negative_diagnostics: usize,
+    /// Oracle-only rows inside a source range where the checker
+    /// actually reached a named Unsupported/partial-check boundary.
+    /// This is evidence that a blocking semantic condition was reached,
+    /// not proof that the diagnostic's code-specific trigger was tested.
+    pub fn_with_partial_boundary_evidence: usize,
+    /// Oracle-only rows for which no reached partial-check boundary
+    /// covered the diagnostic position.
+    pub fn_without_partial_boundary_evidence: usize,
+    pub top_fn_partial_boundary_reasons: Vec<(String, usize)>,
     pub top_false_positive_codes: Vec<(u32, usize)>,
     pub top_false_negative_codes: Vec<(u32, usize)>,
     /// M8's supported-scope view. The all-corpus fields above remain
@@ -212,6 +223,16 @@ pub struct MismatchEntry {
     pub matrix_key: String,
     pub false_positive: Vec<T0Key>,
     pub false_negative: Vec<T0Key>,
+    pub fn_partial_boundary_audit: Vec<FnPartialBoundaryAudit>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct FnPartialBoundaryAudit {
+    pub diagnostic: T0Key,
+    pub reached_partial_boundary: bool,
+    /// All named partial boundaries containing this oracle diagnostic,
+    /// sorted and deduplicated for deterministic reports.
+    pub reasons: Vec<String>,
 }
 
 pub fn run_empty_engine_smoke() -> usize {
@@ -546,6 +567,9 @@ fn run_conformance_inner(
     let mut shadow_t3_matched = 0usize;
     let mut fp_count = 0usize;
     let mut fn_count = 0usize;
+    let mut fn_with_partial_boundary_count = 0usize;
+    let mut fn_without_partial_boundary_count = 0usize;
+    let mut fn_trigger_reasons = BTreeMap::<String, usize>::new();
     let mut fp_codes = BTreeMap::<u32, usize>::new();
     let mut fn_codes = BTreeMap::<u32, usize>::new();
     let mut mismatches = Vec::new();
@@ -637,6 +661,21 @@ fn run_conformance_inner(
 
             let fp = actual.difference(&expected).cloned().collect::<Vec<_>>();
             let fn_ = expected.difference(&actual).cloned().collect::<Vec<_>>();
+            let fn_partial_boundary_audit = classify_fn_partial_boundaries(
+                &fn_,
+                &golden_case.oracle,
+                &case_tsrs.partial_checks,
+            );
+            for audit in &fn_partial_boundary_audit {
+                if audit.reached_partial_boundary {
+                    fn_with_partial_boundary_count += 1;
+                    for reason in &audit.reasons {
+                        *fn_trigger_reasons.entry(reason.clone()).or_default() += 1;
+                    }
+                } else {
+                    fn_without_partial_boundary_count += 1;
+                }
+            }
             let supported_actual = actual
                 .iter()
                 .filter(|key| !excluded.contains(*key))
@@ -665,6 +704,7 @@ fn run_conformance_inner(
                     matrix_key: program.matrix_key.clone(),
                     false_positive: fp.clone(),
                     false_negative: fn_.clone(),
+                    fn_partial_boundary_audit,
                 });
             }
             if fp.is_empty() && supported_fn.is_empty() {
@@ -748,6 +788,9 @@ fn run_conformance_inner(
         mismatch_cases: case_count - exact_match_cases,
         false_positive_diagnostics: fp_count,
         false_negative_diagnostics: fn_count,
+        fn_with_partial_boundary_evidence: fn_with_partial_boundary_count,
+        fn_without_partial_boundary_evidence: fn_without_partial_boundary_count,
+        top_fn_partial_boundary_reasons: top_string_counts(fn_trigger_reasons),
         top_false_positive_codes: top_codes(fp_codes),
         top_false_negative_codes: top_codes(fn_codes),
         scope_status: scope.status().name().to_owned(),
@@ -1077,6 +1120,7 @@ fn read_lib_inputs(
 struct CaseTsrs {
     all: Vec<GoldenDiag>,
     syntactic: Vec<GoldenDiag>,
+    partial_checks: Vec<PartialCheck>,
 }
 
 fn current_case_tsrs(
@@ -1108,6 +1152,7 @@ fn current_case_tsrs(
             .iter()
             .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
             .collect(),
+        partial_checks: result.partial_checks,
     })
 }
 
@@ -1189,6 +1234,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         preserve_const_enums: bool_option("preserveConstEnums"),
         base_url: string_option(program, "baseUrl"),
         allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
+        resolve_json_module: bool_option("resolveJsonModule"),
         skip_lib_check: bool_option("skipLibCheck"),
         jsx: program.options.iter().find_map(|(key, value)| {
             if key.eq_ignore_ascii_case("jsx") {
@@ -1379,6 +1425,38 @@ pub(crate) fn t0_key(diag: &GoldenDiag) -> T0Key {
     }
 }
 
+fn classify_fn_partial_boundaries(
+    false_negatives: &[T0Key],
+    oracle: &[GoldenDiag],
+    partial_checks: &[PartialCheck],
+) -> Vec<FnPartialBoundaryAudit> {
+    false_negatives
+        .iter()
+        .map(|key| {
+            let mut reasons = BTreeSet::new();
+            for diagnostic in oracle.iter().filter(|diagnostic| {
+                diagnostic.pass.as_deref() != Some("syntactic") && t0_key(diagnostic) == *key
+            }) {
+                let (Some(file), Some(start)) = (&diagnostic.file, diagnostic.start) else {
+                    continue;
+                };
+                for partial in partial_checks.iter().filter(|partial| {
+                    partial.file_name == *file
+                        && start >= partial.start
+                        && start < partial.start.saturating_add(partial.length.max(1))
+                }) {
+                    reasons.insert(partial.reason.clone());
+                }
+            }
+            FnPartialBoundaryAudit {
+                diagnostic: key.clone(),
+                reached_partial_boundary: !reasons.is_empty(),
+                reasons: reasons.into_iter().collect(),
+            }
+        })
+        .collect()
+}
+
 fn t0_set<'a>(diagnostics: impl Iterator<Item = &'a GoldenDiag>) -> BTreeSet<T0Key> {
     diagnostics.map(t0_key).collect()
 }
@@ -1479,6 +1557,17 @@ fn top_codes(codes: BTreeMap<u32, usize>) -> Vec<(u32, usize)> {
     });
     codes.truncate(20);
     codes
+}
+
+fn top_string_counts(counts: BTreeMap<String, usize>) -> Vec<(String, usize)> {
+    let mut counts = counts.into_iter().collect::<Vec<_>>();
+    counts.sort_by(|(left_name, left_count), (right_name, right_count)| {
+        right_count
+            .cmp(left_count)
+            .then_with(|| left_name.cmp(right_name))
+    });
+    counts.truncate(20);
+    counts
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1713,6 +1802,31 @@ mod tests {
         let expected = [diag("error", 5, "A")];
         let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
         assert_eq!((t1, t2, t3), (1, 1, 0));
+    }
+
+    #[test]
+    fn fn_partial_boundary_audit_requires_a_reached_semantic_range() {
+        let mut semantic = diag("error", 5, "A");
+        semantic.pass = Some("semantic".to_owned());
+        let key = t0_key(&semantic);
+        let partial = PartialCheck {
+            file_name: "a.ts".to_owned(),
+            start: 4,
+            length: 3,
+            reason: "recognized ceiling".to_owned(),
+        };
+        let classified = classify_fn_partial_boundaries(
+            std::slice::from_ref(&key),
+            std::slice::from_ref(&semantic),
+            std::slice::from_ref(&partial),
+        );
+        assert!(classified[0].reached_partial_boundary);
+        assert_eq!(classified[0].reasons, ["recognized ceiling"]);
+
+        semantic.pass = Some("syntactic".to_owned());
+        let classified =
+            classify_fn_partial_boundaries(&[key], &[semantic], std::slice::from_ref(&partial));
+        assert!(!classified[0].reached_partial_boundary);
     }
 
     /// The harness serializes @lib as OptionValue::StringList; the

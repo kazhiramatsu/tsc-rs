@@ -5747,6 +5747,47 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         let declaration = self.binder.symbol(symbol).value_declaration;
+        if let Some(declaration) = declaration {
+            if self.kind_of(declaration) == SyntaxKind::SourceFile
+                && self
+                    .binder
+                    .source_of_node(declaration)
+                    .file_name
+                    .ends_with(".json")
+            {
+                let statements = match self.data_of(declaration) {
+                    NodeData::SourceFile(data) => data.statements,
+                    _ => None,
+                };
+                let expression = statements
+                    .and_then(|statements| {
+                        self.binder
+                            .source_of_node(declaration)
+                            .arena
+                            .node_array(statements)
+                            .nodes
+                            .first()
+                            .copied()
+                    })
+                    .and_then(|statement| match self.data_of(statement) {
+                        NodeData::ExpressionStatement(data) => data.expression,
+                        _ => None,
+                    });
+                let resolved = if let Some(expression) = expression {
+                    let checked = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+                    let literal_widened = self.get_widened_literal_type(checked)?;
+                    self.get_widened_type(literal_widened)?
+                } else {
+                    self.empty_object_type
+                };
+                self.links.set_symbol_type(
+                    self.speculation_depth,
+                    symbol,
+                    LinkSlot::Resolved(resolved),
+                );
+                return Ok(resolved);
+            }
+        }
         // 56670-56671: accessor-kinded value declarations route to
         // getTypeOfAccessors ahead of the resolution stack (merged
         // property+accessor shapes; auto-accessor PropertyDeclarations
@@ -6139,6 +6180,141 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<TypeId>> {
         match self.effective_type_annotation_node(declaration) {
             Some(annotation) => Ok(Some(self.get_type_from_type_node(annotation)?)),
+            None => self.get_type_from_jsdoc_type_tag(declaration),
+        }
+    }
+
+    fn get_type_from_jsdoc_type_tag(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if !self.is_in_js_file(declaration) {
+            return Ok(None);
+        }
+        let source = self.binder.source_of_node(declaration);
+        let anchor = self.name_of_node(declaration).unwrap_or(declaration);
+        let anchor_pos = source.arena.node(anchor).pos as usize;
+        let prefix = &source.text[..anchor_pos.min(source.text.len())];
+        let Some(comment_start) = prefix.rfind("/**") else {
+            return Ok(None);
+        };
+        let after_start = &prefix[comment_start + 3..];
+        let Some(relative_end) = after_start.find("*/") else {
+            return Ok(None);
+        };
+        let comment_end = comment_start + 3 + relative_end + 2;
+        let between = prefix[comment_end..].trim();
+        if !matches!(between, "" | "let" | "const" | "var")
+            && !between.ends_with(" let")
+            && !between.ends_with(" const")
+            && !between.ends_with(" var")
+        {
+            return Ok(None);
+        }
+        let comment = &prefix[comment_start + 3..comment_end - 2];
+        let lower = comment.to_ascii_lowercase();
+        if lower.contains("@typedef") || lower.contains("@callback") || lower.contains("@enum") {
+            return Ok(None);
+        }
+        let Some(tag) = lower.match_indices("@type").find_map(|(index, _)| {
+            let tail = &lower[index + "@type".len()..];
+            tail.chars()
+                .next()
+                .is_none_or(|character| character.is_whitespace() || character == '{')
+                .then_some(index)
+        }) else {
+            return Ok(None);
+        };
+        let tail = &comment[tag + "@type".len()..];
+        let Some(open) = tail.find('{') else {
+            return Ok(None);
+        };
+        let Some(close) = tail[open + 1..].find('}') else {
+            return Ok(None);
+        };
+        let type_text = tail[open + 1..open + 1 + close].trim();
+        let resolved = self.get_type_from_jsdoc_text(declaration, type_text)?;
+        if resolved.is_some() {
+            self.jsdoc_typed_declarations.insert(declaration);
+        }
+        Ok(resolved)
+    }
+
+    fn get_type_from_jsdoc_text(
+        &mut self,
+        location: NodeId,
+        text: &str,
+    ) -> CheckResult2<Option<TypeId>> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Ok(None);
+        }
+        let text = text
+            .strip_prefix('(')
+            .and_then(|inner| inner.strip_suffix(')'))
+            .unwrap_or(text)
+            .trim();
+        let union_parts: Vec<&str> = text
+            .split('|')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .collect();
+        if union_parts.len() > 1 {
+            let mut types = Vec::with_capacity(union_parts.len());
+            for part in union_parts {
+                let Some(ty) = self.get_type_from_jsdoc_text(location, part)? else {
+                    return Ok(None);
+                };
+                types.push(ty);
+            }
+            return self
+                .get_union_type_ex(&types, tsrs2_types::UnionReduction::Literal)
+                .map(Some);
+        }
+        if let Some(nullable) = text.strip_prefix('?') {
+            let Some(ty) = self.get_type_from_jsdoc_text(location, nullable)? else {
+                return Ok(None);
+            };
+            let null = self.tables.intrinsics.null;
+            return self
+                .get_union_type_ex(&[ty, null], tsrs2_types::UnionReduction::Literal)
+                .map(Some);
+        }
+        let text = text.strip_prefix('!').unwrap_or(text).trim();
+        if let Some(element) = text.strip_suffix("[]") {
+            let Some(element) = self.get_type_from_jsdoc_text(location, element)? else {
+                return Ok(None);
+            };
+            return self.create_array_type(element, false).map(Some);
+        }
+        let intrinsic = match text {
+            "*" | "any" => Some(self.tables.intrinsics.any),
+            "?" | "unknown" => Some(self.tables.intrinsics.unknown),
+            "undefined" => Some(self.tables.intrinsics.undefined),
+            "null" => Some(self.tables.intrinsics.null),
+            "string" | "String" => Some(self.tables.intrinsics.string),
+            "number" | "Number" => Some(self.tables.intrinsics.number),
+            "bigint" | "BigInt" => Some(self.tables.intrinsics.bigint),
+            "boolean" | "Boolean" => Some(self.tables.intrinsics.boolean),
+            "symbol" | "Symbol" => Some(self.tables.intrinsics.es_symbol),
+            "void" => Some(self.tables.intrinsics.void),
+            "never" => Some(self.tables.intrinsics.never),
+            "object" | "Object" => Some(self.tables.intrinsics.non_primitive),
+            _ => None,
+        };
+        if intrinsic.is_some() {
+            return Ok(intrinsic);
+        }
+        let symbol = self.resolve_name(
+            Some(location),
+            text,
+            SymbolFlags::TYPE,
+            None,
+            /*is_use*/ false,
+            /*exclude_globals*/ false,
+        )?;
+        match symbol {
+            Some(symbol) => self.get_declared_type_of_symbol_slice(symbol).map(Some),
             None => Ok(None),
         }
     }

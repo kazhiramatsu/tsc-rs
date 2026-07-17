@@ -743,7 +743,10 @@ impl<'a> CheckerState<'a> {
             // should produce 2454. Mark this reference partial so an
             // absent row cannot be misreported as an unused
             // expectation without hiding unrelated directives.
-            self.mark_partially_checked_node(node);
+            self.mark_partially_checked_node(
+                node,
+                "flow-sensitive use-before-assignment diagnostic (M5)",
+            );
         }
         if type_is_automatic {
             // The 7034/7005 auto-type arm: no producer assigns
