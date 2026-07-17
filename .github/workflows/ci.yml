@@ -17,6 +17,22 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # The full-corpus measurement passes peak at ~11.5 GB RSS on a
+      # 16 GB runner; the leftover build page cache is enough pressure
+      # for systemd-oomd to kill the runner agent ("runner has received
+      # a shutdown signal"). Swap absorbs the pressure spike, and
+      # stopping the ephemeral VM's oomd removes the PSI-triggered
+      # cgroup kill entirely.
+      - name: Provision memory headroom for full-corpus passes
+        run: |
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo systemctl stop systemd-oomd.service systemd-oomd.socket || true
+          free -h
+          df -h /
+
       - name: Run merge gates against trusted PR base
         working-directory: tsrs2
         run: cargo xtask ci --baseline "${{ github.event.pull_request.base.sha }}"
