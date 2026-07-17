@@ -867,59 +867,18 @@ impl<'a> CheckerState<'a> {
         self.get_declared_type_of_symbol_slice(symbol)
     }
 
-    /// getExportsOfSymbol over the JSX namespace container: plain
-    /// namespaces read their exports table; anything needing the
-    /// export-star walk rides the 5.8 module band (annotate.rs
-    /// get_exports_of_symbol escape) — here the JSX namespace is by
-    /// construction a namespace symbol, so read the table directly.
-    fn get_exports_of_jsx_namespace(
-        &mut self,
-        namespace: SymbolId,
-    ) -> CheckResult2<tsrs2_binder::SymbolTable> {
-        Ok(self.binder.symbol(namespace).exports.clone())
-    }
-
-    /// getExportsOfSymbol over a resolved FACTORY container (the 6229
-    /// probe's React / the fragment factory): namespace-module symbols
-    /// read their raw exports table — the annotate.rs MODULE escape
-    /// guards source-file export-star walks, which namespace BODIES
-    /// cannot contain (a UMD/global module corner would only lose
-    /// members: probe-pass / errorType, FN-only). Everything else
-    /// rides the shared worker (late-bound statics included).
-    pub(crate) fn get_exports_of_jsx_factory_symbol(
-        &mut self,
-        symbol: SymbolId,
-    ) -> CheckResult2<tsrs2_binder::SymbolTable> {
-        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
-            return Ok(self.binder.symbol(symbol).exports.clone());
-        }
-        self.get_exports_of_symbol(symbol)
-    }
-
     /// getSymbol(getExportsOfSymbol(namespace), name, meaning) (50791)
-    /// over the JSX namespace: merged-symbol chase + meaning filter;
-    /// the alias arm (resolveAlias target-flag probe) escapes to 5.8.
+    /// over the JSX namespace: the shared getExportsOfSymbol worker
+    /// (late-bound statics + the export-star walk) feeding the
+    /// faithful getSymbol lookup (alias arm included, M4 5.9d).
     fn jsx_namespace_export(
         &mut self,
         namespace: SymbolId,
         name: &str,
         meaning: SymbolFlags,
     ) -> CheckResult2<Option<SymbolId>> {
-        let exports = self.get_exports_of_jsx_namespace(namespace)?;
-        let Some(&symbol) = exports.get(name) else {
-            return Ok(None);
-        };
-        let symbol = self.get_merged_symbol(symbol);
-        let flags = self.symbol_flags(symbol);
-        if flags.intersects(meaning) {
-            return Ok(Some(symbol));
-        }
-        if flags.intersects(SymbolFlags::ALIAS) {
-            return Err(Unsupported::new(
-                "aliased JSX.* namespace member (alias resolution, 5.8)",
-            ));
-        }
-        Ok(None)
+        let exports = self.get_exports_of_symbol(namespace)?;
+        self.get_symbol_in_table(&exports, name, meaning)
     }
 
     // ---- 5.7c: intrinsic tag resolution ----
@@ -1005,18 +964,19 @@ impl<'a> CheckerState<'a> {
                     .members
                     .get(tsrs2_binder::InternalSymbolName::INDEX)
                     .copied();
+                // tsc stores `intrinsicElementsType.symbol` here, which
+                // an alias-declared IntrinsicElements leaves undefined:
+                // the memo then never fills and no T0 path reads the
+                // identity (flags are already published; the INDEXED
+                // attribute type reads the index info, not the symbol).
+                // unknownSymbol is the identity-free stand-in.
                 symbol = match index_symbol {
                     Some(index_symbol) => index_symbol,
                     None => self
                         .tables
                         .type_of(intrinsic_elements_type)
                         .symbol
-                        .ok_or_else(|| {
-                            Unsupported::new(
-                                "index-signature-only JSX.IntrinsicElements without a symbol \
-                                 (instantiated container, services-only identity; M4-end sweep 5.8)",
-                            )
-                        })?,
+                        .unwrap_or(self.unknown_symbol),
                 };
             } else {
                 let display = self.intrinsic_tag_name_to_string(tag_name)?;
@@ -1330,31 +1290,20 @@ impl<'a> CheckerState<'a> {
                 .set_node_jsx_fragment_type(self.speculation_depth, root, ty);
             return Ok(ty);
         }
-        if self
+        let resolved_alias = if self
             .symbol_flags(factory_symbol)
             .intersects(SymbolFlags::ALIAS)
         {
-            return Err(Unsupported::new(
-                "aliased JSX fragment factory (alias resolution, 5.8)",
-            ));
-        }
-        let exports = self.get_exports_of_jsx_factory_symbol(factory_symbol)?;
-        let type_symbol = match exports.get(REACT_FRAGMENT).copied() {
-            Some(symbol) => {
-                let symbol = self.get_merged_symbol(symbol);
-                let flags = self.symbol_flags(symbol);
-                if flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
-                    Some(symbol)
-                } else if flags.intersects(SymbolFlags::ALIAS) {
-                    return Err(Unsupported::new(
-                        "aliased React.Fragment member (alias resolution, 5.8)",
-                    ));
-                } else {
-                    None
-                }
-            }
-            None => None,
+            self.resolve_alias(factory_symbol)?
+        } else {
+            factory_symbol
         };
+        let exports = self.get_exports_of_symbol(resolved_alias)?;
+        let type_symbol = self.get_symbol_in_table(
+            &exports,
+            REACT_FRAGMENT,
+            SymbolFlags::BLOCK_SCOPED_VARIABLE,
+        )?;
         let ty = match type_symbol {
             Some(type_symbol) => self.get_type_of_symbol(type_symbol)?,
             None => self.tables.intrinsics.error,
@@ -1859,9 +1808,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74586-74628
     ///
     /// The links.jsxNamespace memo is elided (pure resolution — no
-    /// observable beyond repeated lookups). resolveSymbol over the
-    /// resolved names is the alias-free face (alias resolution is
-    /// 5.8; an aliased React/JSX container escapes below).
+    /// observable beyond repeated lookups).
     pub(crate) fn get_jsx_namespace_at(
         &mut self,
         location: NodeId,
@@ -1881,32 +1828,23 @@ impl<'a> CheckerState<'a> {
             /*exclude_globals*/ false,
         )?;
         if let Some(resolved_namespace) = resolved_namespace {
-            if self
-                .symbol_flags(resolved_namespace)
-                .intersects(SymbolFlags::ALIAS)
-            {
-                return Err(Unsupported::new(
-                    "aliased JSX factory namespace (alias resolution, 5.8)",
-                ));
-            }
-            let exports = self.binder.symbol(resolved_namespace).exports.clone();
-            if let Some(&candidate) = exports.get(JSX_NAMESPACE_NAME) {
-                // ALIAS first: an alias carries neither MODULE meaning
-                // bit, so a meaning-first read would silently fall
-                // through to the global JSX fallback where tsc
-                // resolveSymbol()s to the target namespace (wrong
-                // 7026/2339 shapes — review find). Contain instead.
-                if self.symbol_flags(candidate).intersects(SymbolFlags::ALIAS) {
-                    return Err(Unsupported::new(
-                        "aliased JSX namespace member (alias resolution, 5.8)",
-                    ));
+            // resolveSymbol(getSymbol(getExportsOfSymbol(
+            //   resolveSymbol(resolvedNamespace)), JSX, Namespace)):
+            // the faithful composition — alias namespaces resolve
+            // through, and the getSymbol alias arm answers aliased
+            // JSX members by target flags (M4 5.9d).
+            let resolved = self.resolve_symbol_ex(Some(resolved_namespace), false)?;
+            let candidate = match resolved {
+                Some(resolved) => {
+                    let exports = self.get_exports_of_symbol(resolved)?;
+                    self.get_symbol_in_table(&exports, JSX_NAMESPACE_NAME, SymbolFlags::NAMESPACE)?
                 }
-                if self
-                    .symbol_flags(candidate)
-                    .intersects(SymbolFlags::NAMESPACE_MODULE | SymbolFlags::VALUE_MODULE)
-                    && candidate != self.unknown_symbol
-                {
-                    return Ok(Some(self.get_merged_symbol(candidate)));
+                None => None,
+            };
+            let candidate = self.resolve_symbol_ex(candidate, false)?;
+            if let Some(candidate) = candidate {
+                if candidate != self.unknown_symbol {
+                    return Ok(Some(candidate));
                 }
             }
         }
@@ -1915,15 +1853,9 @@ impl<'a> CheckerState<'a> {
             SymbolFlags::NAMESPACE,
             /*diagnostic*/ None,
         );
-        match global {
-            Some(symbol) if symbol != self.unknown_symbol => {
-                if self.symbol_flags(symbol).intersects(SymbolFlags::ALIAS) {
-                    return Err(Unsupported::new(
-                        "aliased global JSX namespace (alias resolution, 5.8)",
-                    ));
-                }
-                Ok(Some(self.get_merged_symbol(symbol)))
-            }
+        let global = global.map(|symbol| self.get_merged_symbol(symbol));
+        match self.resolve_symbol_ex(global, false)? {
+            Some(symbol) if symbol != self.unknown_symbol => Ok(Some(symbol)),
             _ => Ok(None),
         }
     }

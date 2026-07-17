@@ -2807,42 +2807,66 @@ impl<'a> CheckerState<'a> {
         if tag_call_signatures.is_empty() {
             return Ok(None);
         }
+        // resolveEntityName(React.createElement, Value, ignoreErrors,
+        // dontResolveAlias=false, node) over the SYNTHESIZED factory
+        // entity, transcribed arm by arm (no arena node to hand the
+        // ported resolveEntityName). Synthesized ⇒ not a JS-file name
+        // (namespaceMeaning = 1920 exactly), no JS-prototype secondary
+        // lookup, no type-only alias marking. The CJS-require namespace
+        // re-resolution (JS valueDeclaration) is the same ledgered
+        // JS-band slice as resolve_entity_name_ex's.
         let factory_namespace = self.get_jsx_namespace_name(node);
         let namespace_symbol = self.resolve_name(
             Some(node),
             &factory_namespace,
             SymbolFlags::NAMESPACE,
             /*name_not_found_message*/ None,
-            /*is_use*/ false,
+            /*is_use*/ true,
             /*exclude_globals*/ false,
         )?;
         let Some(namespace_symbol) = namespace_symbol else {
             return Ok(None);
         };
-        if self
+        let namespace_symbol = self.get_merged_symbol(namespace_symbol);
+        // The left leg's tail hop: an alias without Namespace meaning
+        // resolves before the exports probe.
+        let namespace_symbol = if self
             .symbol_flags(namespace_symbol)
-            .intersects(SymbolFlags::ALIAS)
+            .intersects(SymbolFlags::NAMESPACE)
         {
-            return Err(Unsupported::new(
-                "aliased JSX factory namespace (alias resolution, 5.8)",
-            ));
+            namespace_symbol
+        } else {
+            self.resolve_alias(namespace_symbol)?
+        };
+        if namespace_symbol == self.unknown_symbol {
+            // tsc returns unknownSymbol through: getTypeOfSymbol answers
+            // errorType, which has no call signatures — the check passes.
+            return Ok(None);
         }
-        let exports = self.get_exports_of_jsx_factory_symbol(namespace_symbol)?;
-        let factory_symbol = match exports.get("createElement").copied() {
-            Some(symbol) => {
-                let symbol = self.get_merged_symbol(symbol);
-                let flags = self.symbol_flags(symbol);
-                if flags.intersects(SymbolFlags::VALUE) {
-                    symbol
-                } else if flags.intersects(SymbolFlags::ALIAS) {
-                    return Err(Unsupported::new(
-                        "aliased JSX factory member (alias resolution, 5.8)",
-                    ));
-                } else {
-                    return Ok(None);
-                }
-            }
-            None => return Ok(None),
+        let exports = self.get_exports_of_symbol(namespace_symbol)?;
+        let mut factory_symbol =
+            self.get_symbol_in_table(&exports, "createElement", SymbolFlags::VALUE)?;
+        if factory_symbol.is_none()
+            && self
+                .symbol_flags(namespace_symbol)
+                .intersects(SymbolFlags::ALIAS)
+        {
+            let resolved = self.resolve_alias(namespace_symbol)?;
+            let exports = self.get_exports_of_symbol(resolved)?;
+            factory_symbol =
+                self.get_symbol_in_table(&exports, "createElement", SymbolFlags::VALUE)?;
+        }
+        let Some(factory_symbol) = factory_symbol else {
+            return Ok(None);
+        };
+        // resolveEntityName's tail hop (meaning = Value).
+        let factory_symbol = if self
+            .symbol_flags(factory_symbol)
+            .intersects(SymbolFlags::VALUE)
+        {
+            factory_symbol
+        } else {
+            self.resolve_alias(factory_symbol)?
         };
         let factory_type = self.get_type_of_symbol(factory_symbol)?;
         let call_signatures = self.get_signatures_of_type(factory_type, SignatureKind::Call)?;

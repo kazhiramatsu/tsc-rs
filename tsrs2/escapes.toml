@@ -409,20 +409,6 @@ owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "check_tag_name_expects_too_many_arguments"
-reason = "aliased JSX factory member (alias resolution, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "check_tag_name_expects_too_many_arguments"
-reason = "aliased JSX factory namespace (alias resolution, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
 in = "choose_overload"
 reason = "inferTypeArguments (M6-stub): generic call without explicit type arguments"
 class = "stage"
@@ -1139,48 +1125,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/jsx.rs"
-in = "get_intrinsic_tag_symbol"
-reason = "index-signature-only JSX.IntrinsicElements without a symbol (instantiated container, services-only identity; M4-end sweep 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "get_jsx_fragment_type"
-reason = "aliased JSX fragment factory (alias resolution, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "get_jsx_fragment_type"
-reason = "aliased React.Fragment member (alias resolution, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "get_jsx_namespace_at"
-reason = "aliased JSX factory namespace (alias resolution, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "get_jsx_namespace_at"
-reason = "aliased JSX namespace member (alias resolution, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "get_jsx_namespace_at"
-reason = "aliased global JSX namespace (alias resolution, 5.8)"
-class = "stage"
-owner = "5.8"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
 in = "get_jsx_reference_kind"
 reason = "JSX opening element without a tag name (parse recovery)"
 class = "recovery"
@@ -1223,13 +1167,6 @@ in = "jsx_namespace_entity_guard"
 reason = "react-jsx implicit import container (pragma+module machinery, M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "jsx_namespace_export"
-reason = "aliased JSX.* namespace member (alias resolution, 5.8)"
-class = "stage"
-owner = "5.8"
 
 [[site]]
 file = "crates/checker/src/literals.rs"
