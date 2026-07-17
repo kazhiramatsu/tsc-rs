@@ -212,6 +212,33 @@ Every one of the 157 entries gets exactly one:
   (can_have_synthetic_default / export= 1203 / the Node20
   module.exports arms) that the broad-review fixes had unfrozen —
   34 accepted identities regressed and came back.
+- **Oracle-correction epoch `infra/oracle-epoch`** — between 5.9d
+  and 5.9e (external review 2026-07-18, user-approved ordering):
+  the 5.8d oracle-host fix (f74cb496) regenerated only 4 goldens,
+  so the rest of the corpus's goldens predate the corrected
+  producer — the gating truth itself was stale. Three parts, one
+  branch: (1) detection-only producer pins (driver.mjs /
+  program-host.mjs / executed typescript.js hashes + the
+  `.node-version` contract, enforced against the LAUNCHED driver's
+  process.version at refresh; ci.yml installs the pinned Node);
+  (2) the A1 `oracle-correction` transition
+  (measurement-integrity.md §2): same universe re-read under the
+  corrected producer, lapsed identities enumerated per view/tier
+  on the accepted-match version, epoch-aware trusted-base compare,
+  `cargo xtask goldens-diff` as the occurrence-level review
+  surface; (3) the epoch itself — full golden regeneration under
+  the pinned producer, then the recorded 5.9d flips on corrected
+  truth: 1543/1544 emitters re-added
+  (get_external_module_member / check_import_declaration), the
+  frozen-host package-scope boundaries unfrozen back to the
+  265510f2 shapes (can_have_synthetic_default target-mode, export=
+  1203 formula, Node20 module.exports arms), plus the
+  review-identified checker fixes (1454 emitter over-fire ×24;
+  2856/2857 CJS-require precedence), then `ratchet update
+  --transition oracle-correction` and the escapes manifest
+  refresh. Expected profile from the review: T0 total 48,719 →
+  ~49,024; ~30 pre-existing accepted mis-matches lapse (1454×24,
+  2857-adjacent×6). Execution numbers recorded here when landed.
 - **5.9e `m4/5.9e-close`** — untagged→0 and owner<=5.8→0 enforced:
   STAGE→5.9, `max_untagged = 0`, skeleton-steps final gate
   (conformance T0≥35% + FP=0, relpin, invariants idempotence,

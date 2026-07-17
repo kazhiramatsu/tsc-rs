@@ -60,6 +60,15 @@ const UNIVERSE_TRANSITION: &str = "universe-transition";
 /// to a manifest that predates them. Detection-only: every other
 /// input byte must stay unchanged.
 const PRODUCER_PIN_EXTENSION: &str = "producer-pin-extension";
+/// Reviewed correction epoch: the oracle producer was wrong (or its
+/// fix predates most goldens), so pinned oracle RECORDS change for
+/// the SAME fixtures under the same vendor. Fixture bytes, matrix
+/// expansion, and the corpus itself stay byte-identical; totals are
+/// remeasured; and every accepted identity the corrected truth
+/// invalidates must be enumerated in the paired accepted-match
+/// version's `lapsed` sets — the one sanctioned exception to
+/// append-only growth, exact to the identity.
+const ORACLE_CORRECTION: &str = "oracle-correction";
 
 /// The fixed recorded views (measurement-integrity.md §2). A
 /// supported fixed intersection added later needs its own declared
@@ -112,6 +121,15 @@ pub struct MatchesArtifact {
     pub transition: Option<String>,
     pub inputs: MatchesInputs,
     pub views: RunSets,
+    /// Present exactly when `transition == "oracle-correction"`: the
+    /// complete enumerated identities (per view, matched and
+    /// multiplicity-complete separately — never pooled) that lapsed
+    /// under the corrected oracle. The lineage edge requires the
+    /// actual removals to equal this set identity-for-identity; the
+    /// trusted-base compare accepts a removal only when a correction
+    /// version between base and head enumerates it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lapsed: Option<RunSets>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -230,6 +248,68 @@ impl MatchesArtifact {
                             "accepted-match artifact incoherent: {view} {fixture} [{matrix}] has a multiplicity-complete bucket outside the matched set"
                         )
                         .into());
+                    }
+                }
+            }
+        }
+        match (&self.transition, &self.lapsed) {
+            (Some(transition), Some(_)) if transition == ORACLE_CORRECTION => {}
+            (_, Some(_)) => {
+                return Err(format!(
+                    "accepted-match artifact records lapsed identities without an \
+                     {ORACLE_CORRECTION:?} transition"
+                )
+                .into());
+            }
+            (Some(transition), None) if transition == ORACLE_CORRECTION => {
+                return Err(format!(
+                    "accepted-match {ORACLE_CORRECTION:?} version lacks its lapsed enumeration \
+                     (an empty correction records empty sets, never an absent field)"
+                )
+                .into());
+            }
+            (_, None) => {}
+        }
+        if let Some(lapsed) = &self.lapsed {
+            let view_names: BTreeSet<&str> = lapsed.keys().map(String::as_str).collect();
+            let fixed: BTreeSet<&str> = FIXED_VIEWS.iter().map(|view| view.name()).collect();
+            if view_names != fixed {
+                return Err(format!(
+                    "lapsed enumeration must record exactly the fixed views {fixed:?}, found {view_names:?}"
+                )
+                .into());
+            }
+            // A lapsed identity is one the current state no longer
+            // holds; an identity in both places is incoherent. The
+            // tiers are checked separately: a 2/2 -> 2/1 correction
+            // lapses only the multiplicity-complete membership while
+            // the matched key legitimately stays.
+            for (view, fixtures) in lapsed {
+                let current_view = self.views.get(view).expect("fixed views verified above");
+                for (fixture, cases) in fixtures {
+                    for (matrix, sets) in cases {
+                        let current = current_view
+                            .get(fixture)
+                            .and_then(|cases| cases.get(matrix));
+                        let Some(current) = current else { continue };
+                        if let Some(key) = sets.matched.intersection(&current.matched).next() {
+                            return Err(format!(
+                                "lapsed identity is still accepted: matched ({view}): {fixture} [{matrix}] {}",
+                                t0_label(key)
+                            )
+                            .into());
+                        }
+                        if let Some(key) = sets
+                            .multiplicity_complete
+                            .intersection(&current.multiplicity_complete)
+                            .next()
+                        {
+                            return Err(format!(
+                                "lapsed identity is still accepted: multiplicity-complete ({view}): {fixture} [{matrix}] {}",
+                                t0_label(key)
+                            )
+                            .into());
+                        }
                     }
                 }
             }
@@ -363,7 +443,10 @@ fn encode_artifact<T: Serialize>(value: &T) -> ConformanceResult<Vec<u8>> {
     Ok(zstd::stream::encode_all(json.as_slice(), 3)?)
 }
 
-fn decode_artifact<T: DeserializeOwned>(bytes: &[u8], what: &str) -> ConformanceResult<T> {
+pub(crate) fn decode_artifact<T: DeserializeOwned>(
+    bytes: &[u8],
+    what: &str,
+) -> ConformanceResult<T> {
     let json = zstd::stream::decode_all(bytes).map_err(|err| format!("{what}: {err}"))?;
     serde_json::from_slice(&json).map_err(|err| format!("{what}: {err}").into())
 }
@@ -434,31 +517,67 @@ fn t0_label(key: &T0Key) -> String {
     )
 }
 
-/// Identities present in `older` but missing from `newer` — the
-/// removals every gate rejects. Labels carry view/fixture/matrix/key
-/// and which of the two protected sets lost the identity.
-fn collect_set_removals(older: &RunSets, newer: &RunSets) -> Vec<String> {
+/// Identities present in `older` but missing from `newer`, as
+/// structured per-view/fixture/matrix sets — the exact shape a
+/// correction's `lapsed` enumeration must equal. Empty cases are
+/// omitted; every view key of `older` is kept (so a stored lapsed
+/// enumeration always carries exactly the fixed views).
+fn collect_removal_sets(older: &RunSets, newer: &RunSets) -> RunSets {
     let empty_view = ViewSets::new();
     let empty_cases = BTreeMap::new();
     let empty_sets = CaseSets::default();
-    let mut removals = Vec::new();
+    let mut removals: RunSets = older
+        .keys()
+        .map(|view| (view.clone(), ViewSets::new()))
+        .collect();
     for (view, older_fixtures) in older {
         let newer_fixtures = newer.get(view).unwrap_or(&empty_view);
+        let removal_view = removals.get_mut(view).expect("seeded above");
         for (fixture, older_cases) in older_fixtures {
             let newer_cases = newer_fixtures.get(fixture).unwrap_or(&empty_cases);
             for (matrix, older_sets) in older_cases {
                 let newer_sets = newer_cases.get(matrix).unwrap_or(&empty_sets);
-                for key in older_sets.matched.difference(&newer_sets.matched) {
-                    removals.push(format!(
+                let matched: BTreeSet<T0Key> = older_sets
+                    .matched
+                    .difference(&newer_sets.matched)
+                    .cloned()
+                    .collect();
+                let multiplicity_complete: BTreeSet<T0Key> = older_sets
+                    .multiplicity_complete
+                    .difference(&newer_sets.multiplicity_complete)
+                    .cloned()
+                    .collect();
+                if matched.is_empty() && multiplicity_complete.is_empty() {
+                    continue;
+                }
+                removal_view.entry(fixture.clone()).or_default().insert(
+                    matrix.clone(),
+                    CaseSets {
+                        matched,
+                        multiplicity_complete,
+                    },
+                );
+            }
+        }
+    }
+    removals
+}
+
+/// Human labels for structured removals: view/fixture/matrix/key and
+/// which of the two protected sets lost the identity.
+fn removal_labels(removals: &RunSets) -> Vec<String> {
+    let mut labels = Vec::new();
+    for (view, fixtures) in removals {
+        for (fixture, cases) in fixtures {
+            for (matrix, sets) in cases {
+                for key in &sets.matched {
+                    labels.push(format!(
                         "matched ({view}): {fixture} [{matrix}] {}",
                         t0_label(key)
                     ));
                 }
-                for key in older_sets
-                    .multiplicity_complete
-                    .difference(&newer_sets.multiplicity_complete)
-                {
-                    removals.push(format!(
+                for key in &sets.multiplicity_complete {
+                    labels.push(format!(
                         "multiplicity-complete ({view}): {fixture} [{matrix}] {}",
                         t0_label(key)
                     ));
@@ -466,7 +585,30 @@ fn collect_set_removals(older: &RunSets, newer: &RunSets) -> Vec<String> {
             }
         }
     }
-    removals
+    labels
+}
+
+/// Identities present in `older` but missing from `newer` — the
+/// removals every gate rejects.
+fn collect_set_removals(older: &RunSets, newer: &RunSets) -> Vec<String> {
+    removal_labels(&collect_removal_sets(older, newer))
+}
+
+/// Merge `other` into `acc` (set union per view/fixture/matrix).
+fn merge_run_sets(acc: &mut RunSets, other: &RunSets) {
+    for (view, fixtures) in other {
+        let acc_view = acc.entry(view.clone()).or_default();
+        for (fixture, cases) in fixtures {
+            let acc_cases = acc_view.entry(fixture.clone()).or_default();
+            for (matrix, sets) in cases {
+                let acc_sets = acc_cases.entry(matrix.clone()).or_default();
+                acc_sets.matched.extend(sets.matched.iter().cloned());
+                acc_sets
+                    .multiplicity_complete
+                    .extend(sets.multiplicity_complete.iter().cloned());
+            }
+        }
+    }
 }
 
 fn removals_error(context: &str, removals: Vec<String>) -> ConformanceResult<()> {
@@ -1032,25 +1174,159 @@ fn verify_producer_pin_extension(
     Ok(())
 }
 
+/// `oracle-correction` rule, inputs half: same corpus, same vendor,
+/// same matrix expansion — only golden oracle records (and, when the
+/// fix itself changes the producer, the producer pins) may differ,
+/// and totals are remeasured rather than monotone. Corpus changes
+/// stay a separate universe transition so a correction is exactly a
+/// re-reading of the same universe under the corrected producer.
+fn verify_producer_correction(
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
+    if older.vendor != newer.vendor {
+        return Err(format!(
+            "{ORACLE_CORRECTION} cannot change vendor pins (a vendor upgrade is a separate \
+             project, never a correction)"
+        )
+        .into());
+    }
+    if older.comparators != newer.comparators {
+        return Err(format!("{ORACLE_CORRECTION} cannot change comparator entries").into());
+    }
+    if newer.producer.is_none() {
+        return Err(format!(
+            "{ORACLE_CORRECTION} requires producer pins on the corrected manifest"
+        )
+        .into());
+    }
+    if let Some(removed) = older
+        .fixtures
+        .keys()
+        .find(|key| !newer.fixtures.contains_key(*key))
+    {
+        return Err(format!(
+            "{ORACLE_CORRECTION} removed pinned fixture {removed} (corpus changes are a \
+             universe transition, never a correction)"
+        )
+        .into());
+    }
+    if let Some(added) = newer
+        .fixtures
+        .keys()
+        .find(|key| !older.fixtures.contains_key(*key))
+    {
+        return Err(format!(
+            "{ORACLE_CORRECTION} added fixture {added} (corpus growth is a universe \
+             transition, never a correction)"
+        )
+        .into());
+    }
+    for (key, older_entry) in &older.fixtures {
+        let newer_entry = &newer.fixtures[key];
+        if older_entry.fixture_sha256 != newer_entry.fixture_sha256 {
+            return Err(format!(
+                "{ORACLE_CORRECTION} changed pinned fixture bytes for {key} (a correction \
+                 re-reads the same fixtures)"
+            )
+            .into());
+        }
+        if let Some(removed) = older_entry
+            .cases
+            .keys()
+            .find(|matrix| !newer_entry.cases.contains_key(*matrix))
+        {
+            return Err(format!(
+                "{ORACLE_CORRECTION} removed pinned matrix case {key} [{removed}]"
+            )
+            .into());
+        }
+        if let Some(added) = newer_entry
+            .cases
+            .keys()
+            .find(|matrix| !older_entry.cases.contains_key(*matrix))
+        {
+            return Err(format!("{ORACLE_CORRECTION} added matrix case {key} [{added}]").into());
+        }
+        for (matrix, older_case) in &older_entry.cases {
+            let newer_case = &newer_entry.cases[matrix];
+            if older_case.program_sha256 != newer_case.program_sha256 {
+                return Err(format!(
+                    "{ORACLE_CORRECTION} changed matrix expansion/options/libs for {key} \
+                     [{matrix}] (only oracle records may change under a correction)"
+                )
+                .into());
+            }
+        }
+    }
+    Ok(())
+}
+
 /// The trusted-base inputs compare accepts any COMPOSITION of valid
 /// transitions between base and head — the lineage walk has already
 /// verified every individual edge; this direct compare only has to
 /// reject what no composition of reviewed transitions could produce.
+/// `corrected` is true when at least one oracle-correction version
+/// sits between base and head: oracle record pins and totals are
+/// then free (fixture bytes and expansion stay immutable under every
+/// composition).
 fn verify_baseline_inputs(
     older: &OracleInputsArtifact,
     newer: &OracleInputsArtifact,
+    corrected: bool,
 ) -> ConformanceResult<()> {
-    if older.producer.is_some() && older.producer != newer.producer {
-        return Err("baseline compare: producer pins changed against the trusted base".into());
+    if !corrected {
+        if older.producer.is_some() && older.producer != newer.producer {
+            return Err("baseline compare: producer pins changed against the trusted base".into());
+        }
+        return verify_input_growth("baseline compare", older, newer);
     }
-    verify_input_growth("baseline compare", older, newer)
+    if older.vendor != newer.vendor {
+        return Err("baseline compare cannot change vendor pins".into());
+    }
+    if older.comparators != newer.comparators {
+        return Err("baseline compare cannot change comparator entries".into());
+    }
+    if newer.producer.is_none() {
+        return Err(
+            "baseline compare: head manifest lacks producer pins across a correction".into(),
+        );
+    }
+    for (key, older_entry) in &older.fixtures {
+        let Some(newer_entry) = newer.fixtures.get(key) else {
+            return Err(format!("baseline compare removed pinned fixture {key}").into());
+        };
+        if older_entry.fixture_sha256 != newer_entry.fixture_sha256 {
+            return Err(format!(
+                "baseline compare changed pinned fixture bytes for {key} (immutable under \
+                 every reviewed transition)"
+            )
+            .into());
+        }
+        for (matrix, older_case) in &older_entry.cases {
+            let Some(newer_case) = newer_entry.cases.get(matrix) else {
+                return Err(format!(
+                    "baseline compare removed pinned matrix case {key} [{matrix}]"
+                )
+                .into());
+            };
+            if older_case.program_sha256 != newer_case.program_sha256 {
+                return Err(format!(
+                    "baseline compare changed matrix expansion/options/libs for {key} \
+                     [{matrix}] (immutable under every reviewed transition)"
+                )
+                .into());
+            }
+        }
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
 // Git lineage (measurement-integrity.md §1.1)
 // ---------------------------------------------------------------------------
 
-fn git(root: &Path, args: &[&str]) -> ConformanceResult<Vec<u8>> {
+pub(crate) fn git(root: &Path, args: &[&str]) -> ConformanceResult<Vec<u8>> {
     let output = Command::new("git")
         .arg("-C")
         .arg(root)
@@ -1071,7 +1347,11 @@ fn git(root: &Path, args: &[&str]) -> ConformanceResult<Vec<u8>> {
 /// real Git failure. `git show` errors must never become the bootstrap
 /// exception: missing/corrupt objects and insufficient clone data are
 /// integrity failures.
-fn git_blob_optional(root: &Path, commit: &str, rel: &str) -> ConformanceResult<Option<Vec<u8>>> {
+pub(crate) fn git_blob_optional(
+    root: &Path,
+    commit: &str,
+    rel: &str,
+) -> ConformanceResult<Option<Vec<u8>>> {
     let tree = git(root, &["ls-tree", "-z", commit, "--", rel])?;
     if tree.is_empty() {
         return Ok(None);
@@ -1080,14 +1360,18 @@ fn git_blob_optional(root: &Path, commit: &str, rel: &str) -> ConformanceResult<
     Ok(Some(git(root, &["show", &spec])?))
 }
 
-fn git_root_for(workspace: &Path) -> ConformanceResult<PathBuf> {
+pub(crate) fn git_root_for(workspace: &Path) -> ConformanceResult<PathBuf> {
     let out = git(workspace, &["rev-parse", "--show-toplevel"])?;
     Ok(PathBuf::from(String::from_utf8(out)?.trim()))
 }
 
 /// The artifact's path relative to the git root, forward-slashed
 /// (the workspace `tsrs2/` is a subdirectory of the repository).
-fn git_rel_path(git_root: &Path, workspace: &Path, rel: &str) -> ConformanceResult<String> {
+pub(crate) fn git_rel_path(
+    git_root: &Path,
+    workspace: &Path,
+    rel: &str,
+) -> ConformanceResult<String> {
     let abs = workspace.join(rel);
     let rel_to_root = abs
         .strip_prefix(git_root)
@@ -1240,11 +1524,49 @@ impl LineageArtifact for MatchesArtifact {
             // change itself; the accepted sets stay monotone either
             // way.
             Some(UNIVERSE_TRANSITION) | Some(PRODUCER_PIN_EXTENSION) => {}
+            // The one sanctioned exception to append-only growth:
+            // removals are allowed but must equal the version's
+            // lapsed enumeration identity-for-identity, and the
+            // version must ride an actually-corrected manifest.
+            Some(ORACLE_CORRECTION) => {
+                let Some(lapsed) = newer.lapsed.as_ref() else {
+                    return Err(format!(
+                        "{}: {ORACLE_CORRECTION:?} version lacks its lapsed enumeration",
+                        Self::WHAT
+                    )
+                    .into());
+                };
+                if newer.inputs.oracle_inputs_sha256 == older.inputs.oracle_inputs_sha256 {
+                    return Err(format!(
+                        "{}: an {ORACLE_CORRECTION:?} version must ride a corrected \
+                         oracle-inputs manifest (input pins are unchanged)",
+                        Self::WHAT
+                    )
+                    .into());
+                }
+                let actual = collect_removal_sets(&older.views, &newer.views);
+                removals_error(
+                    &format!("{ORACLE_CORRECTION} removal(s) missing from the lapsed enumeration"),
+                    removal_labels(&collect_removal_sets(&actual, lapsed)),
+                )?;
+                let phantom = removal_labels(&collect_removal_sets(lapsed, &actual));
+                if !phantom.is_empty() {
+                    return Err(format!(
+                        "{ORACLE_CORRECTION} lapsed enumeration claims {} identit{} that did \
+                         not lapse:\n  {}",
+                        phantom.len(),
+                        if phantom.len() == 1 { "y" } else { "ies" },
+                        phantom.join("\n  ")
+                    )
+                    .into());
+                }
+                return Ok(());
+            }
             Some(other) => {
                 return Err(format!(
-                    "{}: unknown transition {other:?} (A1 knows {UNIVERSE_TRANSITION:?} and \
-                     {PRODUCER_PIN_EXTENSION:?}; the A2/A3 input-schema-extensions land with \
-                     their own slices)",
+                    "{}: unknown transition {other:?} (A1 knows {UNIVERSE_TRANSITION:?}, \
+                     {PRODUCER_PIN_EXTENSION:?}, and {ORACLE_CORRECTION:?}; the A2/A3 \
+                     input-schema-extensions land with their own slices)",
                     Self::WHAT
                 )
                 .into());
@@ -1289,9 +1611,10 @@ impl LineageArtifact for OracleInputsArtifact {
             }
             Some(UNIVERSE_TRANSITION) => verify_universe_growth(older, newer),
             Some(PRODUCER_PIN_EXTENSION) => verify_producer_pin_extension(older, newer),
+            Some(ORACLE_CORRECTION) => verify_producer_correction(older, newer),
             Some(other) => Err(format!(
-                "{}: unknown transition {other:?} (A1 knows {UNIVERSE_TRANSITION:?} and \
-                 {PRODUCER_PIN_EXTENSION:?})",
+                "{}: unknown transition {other:?} (A1 knows {UNIVERSE_TRANSITION:?}, \
+                 {PRODUCER_PIN_EXTENSION:?}, and {ORACLE_CORRECTION:?})",
                 Self::WHAT
             )
             .into()),
@@ -1597,15 +1920,66 @@ fn verify_baseline(
     };
 
     let base_matches = MatchesArtifact::decode_validated(&base_matches)?;
-    removals_error(
-        &format!("baseline {baseline} accepted-match compare failed"),
-        collect_set_removals(&base_matches.views, &head_matches.views),
-    )?;
+    let sanctioned = correction_lapses_after_base(git_root, matches_rel, &commit, head_matches)?;
+    let removals = collect_removal_sets(&base_matches.views, &head_matches.views);
+    match &sanctioned {
+        None => removals_error(
+            &format!("baseline {baseline} accepted-match compare failed"),
+            removal_labels(&removals),
+        )?,
+        Some(sanctioned) => removals_error(
+            &format!(
+                "baseline {baseline} accepted-match compare failed (removal(s) beyond the \
+                 enumerated correction lapses)"
+            ),
+            removal_labels(&collect_removal_sets(&removals, sanctioned)),
+        )?,
+    }
 
     let base_inputs = OracleInputsArtifact::decode_validated(&base_inputs)?;
-    verify_baseline_inputs(&base_inputs, head_inputs)
+    verify_baseline_inputs(&base_inputs, head_inputs, sanctioned.is_some())
         .map_err(|err| format!("baseline {baseline} oracle-input compare failed: {err}"))?;
     Ok(false)
+}
+
+/// Union of the lapsed enumerations of every `oracle-correction`
+/// version that sits AFTER the trusted base: reachable from HEAD but
+/// not in the base's ancestry, plus the head/working version itself
+/// (which may be uncommitted during the epoch slice). `None` when no
+/// such correction exists — the strict growth compare then applies
+/// unchanged, so corrections never relax an ordinary PR.
+fn correction_lapses_after_base(
+    git_root: &Path,
+    matches_rel: &str,
+    base_commit: &str,
+    head_matches: &MatchesArtifact,
+) -> ConformanceResult<Option<RunSets>> {
+    let mut sanctioned = RunSets::new();
+    let mut found = false;
+    if head_matches.transition.as_deref() == Some(ORACLE_CORRECTION) {
+        if let Some(lapsed) = &head_matches.lapsed {
+            merge_run_sets(&mut sanctioned, lapsed);
+            found = true;
+        }
+    }
+    let base_ancestors: BTreeSet<String> =
+        String::from_utf8(git(git_root, &["rev-list", base_commit])?)?
+            .lines()
+            .map(|line| line.trim().to_owned())
+            .collect();
+    for (commit, bytes) in committed_versions(git_root, matches_rel)? {
+        if base_ancestors.contains(&commit) {
+            continue;
+        }
+        let artifact: MatchesArtifact = decode_artifact(&bytes, "accepted-match artifact")?;
+        if artifact.transition.as_deref() == Some(ORACLE_CORRECTION) {
+            if let Some(lapsed) = &artifact.lapsed {
+                merge_run_sets(&mut sanctioned, lapsed);
+                found = true;
+            }
+        }
+    }
+    Ok(found.then_some(sanctioned))
 }
 
 fn verify_bootstrap_measurement(accepted: &RunSets, current: &RunSets) -> ConformanceResult<()> {
@@ -1775,10 +2149,16 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
 /// artifacts plus the ratchet.toml derived summaries. Additions only.
 pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<()> {
     if let Some(transition) = transition {
-        if ![UNIVERSE_TRANSITION, PRODUCER_PIN_EXTENSION].contains(&transition) {
+        if ![
+            UNIVERSE_TRANSITION,
+            PRODUCER_PIN_EXTENSION,
+            ORACLE_CORRECTION,
+        ]
+        .contains(&transition)
+        {
             return Err(format!(
-                "unknown transition {transition:?} (A1 knows {UNIVERSE_TRANSITION:?} and \
-                 {PRODUCER_PIN_EXTENSION:?})"
+                "unknown transition {transition:?} (A1 knows {UNIVERSE_TRANSITION:?}, \
+                 {PRODUCER_PIN_EXTENSION:?}, and {ORACLE_CORRECTION:?})"
             )
             .into());
         }
@@ -1868,6 +2248,7 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
             match transition {
                 UNIVERSE_TRANSITION => verify_universe_growth(reference, &built)?,
                 PRODUCER_PIN_EXTENSION => verify_producer_pin_extension(reference, &built)?,
+                ORACLE_CORRECTION => verify_producer_correction(reference, &built)?,
                 // The allow-list at the top of `update` admits exactly
                 // the names dispatched here.
                 other => unreachable!("transition {other:?} validated above"),
@@ -1899,9 +2280,25 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         }
     };
 
+    // The correction that will be recorded on the accepted-match
+    // version. Effective (not just requested): an uncommitted
+    // correction manifest carries the marker through re-runs while
+    // the fixes iterate, and a REQUESTED correction with an unchanged
+    // manifest would sanction arbitrary removals — refused.
+    let effective_correction = inputs_transition.as_deref() == Some(ORACLE_CORRECTION);
+    if transition == Some(ORACLE_CORRECTION) && !effective_correction {
+        return Err(format!(
+            "{ORACLE_CORRECTION} requires corrected oracle inputs, but the manifest content \
+             is unchanged (nothing to correct)"
+        )
+        .into());
+    }
+
     // Accepted-match artifact: additions only, against the working
     // version when present (never lose an identity someone measured
-    // but has not committed yet).
+    // but has not committed yet). Under an effective correction the
+    // working floor is superseded — the committed tip is the lineage
+    // reference, and every removal against IT is enumerated below.
     let matches_path = workspace.join(MATCHES_REL_PATH);
     let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
     let existing_matches = match read_optional_bytes(&matches_path, "accepted-match artifact")? {
@@ -1917,10 +2314,12 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         .unwrap_or_default();
     if let Some((existing, _)) = &existing_matches {
         existing.validate()?;
-        removals_error(
-            "ratchet update refused (updates add identities only)",
-            collect_set_removals(&existing.views, &run.sets),
-        )?;
+        if !effective_correction {
+            removals_error(
+                "ratchet update refused (updates add identities only)",
+                collect_set_removals(&existing.views, &run.sets),
+            )?;
+        }
     }
 
     let inputs = MatchesInputs {
@@ -1977,6 +2376,53 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
             }),
         ),
     };
+    // A correction enumerates its lapses against the COMMITTED tip —
+    // the same reference the lineage edge will verify — never against
+    // a working intermediate.
+    let lapsed = if effective_correction {
+        let Some((_, tip_bytes)) = committed.first() else {
+            return Err(format!(
+                "{ORACLE_CORRECTION} has no committed accepted state to correct against \
+                 (bootstrap the ratchet instead)"
+            )
+            .into());
+        };
+        let tip: MatchesArtifact = decode_artifact(tip_bytes, "accepted-match artifact")?;
+        let sets = collect_removal_sets(&tip.views, &run.sets);
+        let labels = removal_labels(&sets);
+        for view in FIXED_VIEWS {
+            let empty = ViewSets::new();
+            let view_sets = sets.get(view.name()).unwrap_or(&empty);
+            let (mut matched, mut complete) = (0usize, 0usize);
+            for cases in view_sets.values() {
+                for case in cases.values() {
+                    matched += case.matched.len();
+                    complete += case.multiplicity_complete.len();
+                }
+            }
+            println!(
+                "ratchet update {}: {matched} matched / {complete} multiplicity-complete \
+                 identit{} lapse under the corrected oracle",
+                view.name(),
+                if matched + complete == 1 { "y" } else { "ies" },
+            );
+        }
+        let shown = labels.iter().take(12).cloned().collect::<Vec<_>>();
+        if !shown.is_empty() {
+            println!(
+                "lapsed identities:\n  {}{}",
+                shown.join("\n  "),
+                if labels.len() > shown.len() {
+                    format!("\n  ... and {} more", labels.len() - shown.len())
+                } else {
+                    String::new()
+                }
+            );
+        }
+        Some(sets)
+    } else {
+        None
+    };
     let artifact = MatchesArtifact {
         schema: MATCHES_SCHEMA,
         bootstrap,
@@ -1984,6 +2430,7 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         transition: if bootstrap { None } else { inputs_transition },
         inputs,
         views: run.sets,
+        lapsed: if bootstrap { None } else { lapsed },
     };
     artifact.validate()?;
     let matches_bytes = encode_artifact(&artifact)?;
@@ -2022,10 +2469,10 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         let (matched, complete) = counts.get(view.name()).copied().unwrap_or((0, 0));
         let (old_matched, old_complete) = old_counts.get(view.name()).copied().unwrap_or((0, 0));
         println!(
-            "ratchet update {}: matched {old_matched} -> {matched} (+{}), multiplicity-complete {old_complete} -> {complete} (+{})",
+            "ratchet update {}: matched {old_matched} -> {matched} ({:+}), multiplicity-complete {old_complete} -> {complete} ({:+})",
             view.name(),
-            matched - old_matched,
-            complete - old_complete,
+            matched as i64 - old_matched as i64,
+            complete as i64 - old_complete as i64,
         );
     }
     println!(
@@ -2319,6 +2766,7 @@ mod tests {
                 tsc_js_sha256: "tsc".to_owned(),
             },
             views,
+            lapsed: None,
         }
     }
 
@@ -2786,12 +3234,12 @@ mod tests {
         let mut extended = older.clone();
         extended.producer = Some(producer_stub());
         // base predates the extension -> head may add the pins.
-        verify_baseline_inputs(&older, &extended).unwrap();
+        verify_baseline_inputs(&older, &extended, false).unwrap();
 
         // A pinned base cannot see different pins at head.
         let mut changed = extended.clone();
         changed.producer.as_mut().unwrap().driver_sha256 = "other".to_owned();
-        let err = verify_baseline_inputs(&extended, &changed)
+        let err = verify_baseline_inputs(&extended, &changed, false)
             .unwrap_err()
             .to_string();
         assert!(err.contains("producer pins changed"), "{err}");
@@ -2823,6 +3271,289 @@ mod tests {
         assert_eq!(normalize_node_version("v25.2.1\n"), "25.2.1");
         assert_eq!(normalize_node_version("25.2.1"), "25.2.1");
         assert_eq!(normalize_node_version("  v25.2.1  "), "25.2.1");
+    }
+
+    // -- oracle correction ---------------------------------------------------
+
+    fn correction_artifact(views: RunSets, lapsed: RunSets) -> MatchesArtifact {
+        let mut artifact = matches_artifact(
+            views,
+            false,
+            Some(lineage_to("c0", b"prev")),
+            Some(ORACLE_CORRECTION.to_owned()),
+        );
+        artifact.inputs.oracle_inputs_sha256 = "corrected-inputs".to_owned();
+        artifact.lapsed = Some(lapsed);
+        artifact
+    }
+
+    #[test]
+    fn lapsed_field_pairs_exactly_with_the_correction_transition() {
+        // lapsed without the transition is invalid.
+        let mut stray = matches_artifact(views_with(&[100], &[]), true, None, None);
+        stray.lapsed = Some(views_with(&[], &[]));
+        let err = stray.validate().unwrap_err().to_string();
+        assert!(err.contains("without an"), "{err}");
+
+        // The transition without lapsed is invalid.
+        let mut missing = matches_artifact(
+            views_with(&[100], &[]),
+            false,
+            Some(lineage_to("c0", b"prev")),
+            Some(ORACLE_CORRECTION.to_owned()),
+        );
+        missing.lapsed = None;
+        let err = missing.validate().unwrap_err().to_string();
+        assert!(err.contains("lacks its lapsed enumeration"), "{err}");
+
+        // A lapsed identity still present in the accepted sets is
+        // incoherent — for either protected tier.
+        let mut incoherent = correction_artifact(views_with(&[100], &[]), views_with(&[100], &[]));
+        let err = incoherent.validate().unwrap_err().to_string();
+        assert!(err.contains("still accepted"), "{err}");
+        incoherent.lapsed = Some(views_with(&[], &[]));
+        incoherent.validate().unwrap();
+
+        let complete_overlap =
+            correction_artifact(views_with(&[100], &[100]), views_with(&[], &[100]));
+        let err = complete_overlap.validate().unwrap_err().to_string();
+        assert!(err.contains("still accepted"), "{err}");
+        assert!(err.contains("multiplicity-complete"), "{err}");
+    }
+
+    #[test]
+    fn correction_edge_requires_exact_lapse_enumeration() {
+        let older = matches_artifact(views_with(&[100, 101], &[100]), true, None, None);
+
+        // Exactly enumerated: 101 lapses from matched, 100 from the
+        // multiplicity-complete tier while its matched key stays.
+        let corrected =
+            correction_artifact(views_with(&[100, 102], &[]), views_with(&[101], &[100]));
+        MatchesArtifact::verify_edge(&corrected, &older).unwrap();
+
+        // An unenumerated removal names the identity.
+        let unenumerated =
+            correction_artifact(views_with(&[100, 102], &[]), views_with(&[], &[100]));
+        let err = MatchesArtifact::verify_edge(&unenumerated, &older)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("missing from the lapsed enumeration"), "{err}");
+        assert!(err.contains("code 101"), "{err}");
+
+        // Over-enumeration (claiming a lapse that did not happen) is
+        // rejected too — lapsed is exact, not an allowance pool.
+        let over = correction_artifact(
+            views_with(&[100, 101, 102], &[100]),
+            views_with(&[101], &[]),
+        );
+        let err = MatchesArtifact::verify_edge(&over, &older)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("did not lapse"), "{err}");
+
+        // A correction must ride a corrected manifest: same input
+        // pins as the predecessor is refused.
+        let mut same_inputs =
+            correction_artifact(views_with(&[100, 102], &[]), views_with(&[101], &[100]));
+        same_inputs.inputs = older.inputs.clone();
+        let err = MatchesArtifact::verify_edge(&same_inputs, &older)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("must ride a corrected"), "{err}");
+    }
+
+    #[test]
+    fn correction_inputs_change_records_only() {
+        let mut older = inputs_stub();
+        older.producer = Some(producer_stub());
+
+        // Only oracle record pins (and totals) move: accepted.
+        let mut corrected = older.clone();
+        corrected
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_sha256 = "corrected".to_owned();
+        *corrected.totals.get_mut("all").unwrap() = 0;
+        verify_producer_correction(&older, &corrected).unwrap();
+
+        // The producer itself may change under a correction (that is
+        // usually the point), but must stay pinned.
+        let mut producer_fixed = corrected.clone();
+        producer_fixed.producer.as_mut().unwrap().driver_sha256 = "fixed-driver".to_owned();
+        verify_producer_correction(&older, &producer_fixed).unwrap();
+        let mut unpinned = corrected.clone();
+        unpinned.producer = None;
+        let err = verify_producer_correction(&older, &unpinned)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("requires producer pins"), "{err}");
+
+        // Everything else is immutable under a correction.
+        let mut fixture_edit = corrected.clone();
+        fixture_edit
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .fixture_sha256 = "edited".to_owned();
+        let err = verify_producer_correction(&older, &fixture_edit)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("fixture bytes"), "{err}");
+
+        let mut expansion_edit = corrected.clone();
+        expansion_edit
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .program_sha256 = "edited".to_owned();
+        let err = verify_producer_correction(&older, &expansion_edit)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("matrix expansion"), "{err}");
+
+        let mut grown = corrected.clone();
+        grown.fixtures.insert(
+            "conformance/new.ts".to_owned(),
+            older.fixtures["conformance/a.ts"].clone(),
+        );
+        let err = verify_producer_correction(&older, &grown)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("universe transition"), "{err}");
+
+        let mut vendor_changed = corrected.clone();
+        vendor_changed.vendor.tsc_js_sha256 = "other".to_owned();
+        let err = verify_producer_correction(&older, &vendor_changed)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("vendor"), "{err}");
+
+        // And the universe transition still refuses oracle edits —
+        // the correction is not a loophole in the growth rule.
+        let err = verify_universe_growth(&older, &corrected)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("changed pinned matrix case"), "{err}");
+    }
+
+    #[test]
+    fn baseline_compare_across_a_correction_accepts_enumerated_lapses_only() {
+        let repo = init_repo("baseline-correction");
+        let base_matches = matches_artifact(views_with(&[2322, 2345], &[2322]), true, None, None);
+        let base_inputs = {
+            let mut inputs = inputs_stub();
+            inputs.producer = Some(producer_stub());
+            inputs
+        };
+        commit_artifact_pair(
+            &repo,
+            &encode_artifact(&base_matches).unwrap(),
+            &encode_artifact(&base_inputs).unwrap(),
+            "base pair",
+        );
+        git_test(&repo, &["branch", "-q", "base"]);
+
+        let mut head_inputs = base_inputs.clone();
+        head_inputs
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_sha256 = "corrected".to_owned();
+
+        // The corrected head lapses 2345 (enumerated) and gains 2454.
+        let head_matches =
+            correction_artifact(views_with(&[2322, 2454], &[2322]), views_with(&[2345], &[]));
+        verify_baseline(
+            &repo,
+            "base",
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+            &head_matches,
+            &head_inputs,
+        )
+        .unwrap();
+
+        // A removal beyond the enumeration still fails, naming it.
+        let head_extra_removal =
+            correction_artifact(views_with(&[2454], &[]), views_with(&[2345], &[2322]));
+        let err = verify_baseline(
+            &repo,
+            "base",
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+            &head_extra_removal,
+            &head_inputs,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("beyond the enumerated"), "{err}");
+        assert!(err.contains("code 2322"), "{err}");
+
+        // Without any correction between base and head, changed oracle
+        // pins keep failing the strict growth compare.
+        let plain_head = matches_artifact(views_with(&[2322, 2345], &[2322]), true, None, None);
+        let err = verify_baseline(
+            &repo,
+            "base",
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+            &plain_head,
+            &head_inputs,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("changed pinned matrix case"), "{err}");
+
+        // Expansion stays immutable even across a correction.
+        let mut expansion_changed = head_inputs.clone();
+        expansion_changed
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .program_sha256 = "edited".to_owned();
+        let err = verify_baseline(
+            &repo,
+            "base",
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+            &head_matches,
+            &expansion_changed,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("matrix expansion"), "{err}");
+
+        // A COMMITTED correction on the branch sanctions the lapse for
+        // every later plain version too.
+        commit_artifact_pair(
+            &repo,
+            &encode_artifact(&head_matches).unwrap(),
+            &encode_artifact(&head_inputs).unwrap(),
+            "correction pair",
+        );
+        let later = matches_artifact(views_with(&[2322, 2454, 2564], &[2322]), true, None, None);
+        verify_baseline(
+            &repo,
+            "base",
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+            &later,
+            &head_inputs,
+        )
+        .unwrap();
     }
 
     #[test]

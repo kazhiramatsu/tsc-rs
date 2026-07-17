@@ -34,6 +34,7 @@ fn main() {
         Some("parse-diags") => run_or_exit(parse_diags(args)),
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
+        Some("goldens-diff") => run_or_exit(goldens_diff(args)),
         Some("conformance") => run_or_exit(conformance(args)),
         Some("invariants") => run_or_exit(invariants(args)),
         Some("m8") => match args.next().as_deref() {
@@ -1737,6 +1738,72 @@ fn oracle_refresh(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
         "oracle refresh wrote {} fixtures / {} cases / {} oracle diagnostics under {}",
         summary.fixtures, summary.cases, summary.oracle_diagnostics, summary.goldens_root
     );
+    Ok(())
+}
+
+/// `cargo xtask goldens-diff [--baseline <ref>] [--out <path>]`: the
+/// oracle-correction review surface — old (committed at the ref) vs
+/// new (working tree) golden oracle records at occurrence
+/// granularity, per-(code, pass) deltas, per-view bucket totals, and
+/// the accepted identities guaranteed to lapse.
+fn goldens_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut baseline = "HEAD".to_owned();
+    let mut out: Option<PathBuf> = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--baseline" => {
+                baseline = args.next().ok_or("missing value after --baseline")?;
+            }
+            "--out" => {
+                out = Some(PathBuf::from(
+                    args.next().ok_or("missing value after --out")?,
+                ));
+            }
+            _ => return Err(format!("unexpected goldens-diff argument: {arg}").into()),
+        }
+    }
+    let workspace = find_tsrs2_root()?;
+    let out_json = out.unwrap_or_else(|| workspace.join("target/goldens-diff.json"));
+    let report = tsrs2_conformance::goldens_diff::goldens_diff(
+        &tsrs2_conformance::goldens_diff::GoldensDiffOptions {
+            workspace,
+            baseline,
+            out_json: out_json.clone(),
+        },
+    )?;
+    println!(
+        "goldens diff vs {}: {} of {} fixtures changed ({} cases); occurrences +{} / -{}",
+        report.baseline,
+        report.fixtures_changed,
+        report.fixtures_total,
+        report.cases_changed,
+        report.added.len(),
+        report.removed.len(),
+    );
+    for (view, totals) in &report.view_totals {
+        println!(
+            "  {view}: oracle T0 buckets {} -> {} ({:+})",
+            totals.old_buckets,
+            totals.new_buckets,
+            totals.new_buckets as i64 - totals.old_buckets as i64,
+        );
+    }
+    let mut deltas: Vec<_> = report.code_pass_deltas.iter().collect();
+    deltas.sort_by_key(|(_, delta)| std::cmp::Reverse(delta.added + delta.removed));
+    for (key, delta) in deltas.iter().take(15) {
+        println!("  code/pass {key}: +{} / -{}", delta.added, delta.removed);
+    }
+    if deltas.len() > 15 {
+        println!("  ... and {} more code/pass rows", deltas.len() - 15);
+    }
+    for (view, lapses) in &report.guaranteed_lapses {
+        println!(
+            "  guaranteed accepted-match lapses ({view}): {}",
+            lapses.len()
+        );
+    }
+    println!("full report: {}", out_json.display());
     Ok(())
 }
 

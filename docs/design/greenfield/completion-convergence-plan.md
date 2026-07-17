@@ -174,6 +174,13 @@ After A1, finish 5.9d/5.9e: modules/JSX/interop residue, zero untagged
 escapes, no owner `<= 5.8`, and the close-only `STAGE=5.9` bump. Gate:
 T0 >= 35%, FP=0, accepted sets and syntactic gate green.
 
+Between 5.9d and 5.9e sits the reviewed oracle-correction epoch
+(measurement-integrity.md §2 `oracle-correction`): the 5.8d
+oracle-host fix predates almost every golden, so the corpus is
+regenerated once under the pinned producer, lapses are enumerated,
+and the 5.9d frozen-host/emitter KEEP-OFF decisions flip on the
+corrected truth. 5.9e closes on post-epoch numbers.
+
 #### C2. M5 flow
 
 Follow [m5-flow-steps.md](m5-flow-steps.md). TS2454 and adjacent
@@ -281,7 +288,7 @@ green.
 | Order | Slice | Required before |
 |---:|---|---|
 | 1 | A1 set ratchet + syntactic CI | further large semantic work |
-| 2 | M4 5.9d / 5.9e close | M5 |
+| 2 | M4 5.9d / oracle-correction epoch / 5.9e close | M5 |
 | 3 | A2 exact scope identity | scope classification/freeze |
 | 4 | A5 family map + non-2XXX rollup | M5 close |
 | 5 | E1 hosted CI + toolchains | M5 close |

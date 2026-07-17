@@ -15,6 +15,7 @@ use tsrs2_checker::{
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
+pub mod goldens_diff;
 pub mod ratchet;
 mod scope;
 

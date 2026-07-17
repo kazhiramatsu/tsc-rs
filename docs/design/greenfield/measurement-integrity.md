@@ -89,6 +89,17 @@ comparator schema version. It contains no tsrs output or accepted-tsrs
 baseline. An inactive tier has an explicit absent comparator entry; it
 never silently inherits an active comparator.
 
+The manifest also pins the oracle PRODUCER: SHA-256 of exactly the
+generator + normalization modules on the golden-producing path —
+`crates/oracle/driver.mjs`, `crates/oracle/program-host.mjs`, and the
+executed vendor `typescript.js` — plus the Node launch contract from
+the workspace `.node-version`. Nothing broader: the other oracle
+tooling never touches goldens, and an overbroad pin would invalidate
+the manifest on unrelated churn. The Node pin is enforced at launch,
+not by declaration: `oracle-refresh` refuses to write any golden
+unless the LAUNCHED driver's `process.version` equals the tree pin,
+and hosted CI installs the pinned version.
+
 The accepted artifact uses append-only lineage and stores, per fixture
 and matrix key:
 
@@ -130,6 +141,25 @@ are allowed:
 - `universe-transition` adds enumerated fixtures/records while every old
   identity and byte remains unchanged. After A2 global freeze, additions
   must be supported; the transition cannot create an exclusion.
+- `producer-pin-extension` (one-time) adds the producer pins to a
+  manifest that predates them; every other input byte stays unchanged.
+- `oracle-correction` is the reviewed correction epoch: the producer
+  was wrong — or its fix predates most goldens — so oracle records
+  change for the SAME universe. Vendor pins, comparators, the
+  fixture/case sets, fixture bytes, and matrix expansion stay
+  byte-identical; only oracle record pins (and, when the fix itself
+  changes the producer, the producer pins) move, and totals are
+  remeasured rather than monotone. The paired accepted-match version
+  enumerates every lapsed identity in a `lapsed` block per fixed view
+  and per protected tier (matched and multiplicity-complete
+  separately, never pooled); its lineage edge requires the actual
+  removals to equal that enumeration identity-for-identity, and the
+  version must ride the corrected manifest. `ratchet update
+  --transition oracle-correction` still refuses any false positive —
+  the correction suspends only set monotonicity, and only through the
+  enumerated lapses. The epoch PR carries the `cargo xtask
+  goldens-diff` occurrence-level old→new report as its review
+  surface.
 - One A2 and one A3 `input-schema-extension` may add only their declared
   derived identity fields or oracle T4 fields/comparator entry to every
   applicable existing record. Missing and empty remain distinct;
@@ -138,6 +168,13 @@ are allowed:
 
 A vendor upgrade or comparator-semantic change is a separate project,
 not one of these transitions.
+
+The trusted-base compare accepts any composition of reviewed
+transitions between base and head: a removal against the base is
+accepted only when an `oracle-correction` version between base and
+head enumerates it, oracle record pins may differ only across such a
+correction, and fixture bytes/expansion stay immutable under every
+composition — corrections never relax an ordinary PR.
 
 Acceptance:
 
@@ -353,6 +390,8 @@ The implementations must pin at least these failure classes:
 | A1 lineage | matched or multiplicity-complete identity removed while counts, implementation, and artifact are edited together; failure names the removed identity |
 | A1 lineage | shrinking intermediate version; non-immediate predecessor; stale hash; second bootstrap; missing history; branch chain smaller than PR base |
 | A1 inputs | old oracle bytes edited/deleted; partial/undeclared schema extension; inactive tier lacks its absent marker; vendor/comparator pin drift |
+| A1 producer | pinned module or `.node-version` drift named per file; universe-transition touching producer pins; the pin extension riding any other change; a refresh under a mismatched LAUNCHED Node refused before any golden write |
+| A1 correction | unenumerated removal names the identity; over-enumeration fails; `lapsed` without the transition (and vice versa) fails; a lapsed identity still accepted fails; a correction with unchanged input pins fails; fixture bytes/expansion/vendor/corpus change under a correction fails; baseline across a correction accepts enumerated lapses only and still rejects further removals; universe-transition still refuses oracle edits |
 | A1 views | 2/2 to 2/1 regression; syntactic FN hidden by semantic gain; fixed or partial view skipping its accepted subset |
 | A2 identity | same T0 key but different span/message/occurrence conflated; Node/Rust canonical bytes differ; stale, duplicate, or ambiguous exclusion accepted |
 | A2 pin | add/edit plus rewritten set/count/hash; non-ancestor or mismatching adjudication commit |
