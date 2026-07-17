@@ -2669,7 +2669,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getInstantiationExpressionType @6.0.3
     /// tsc-hash: f4a1390bbeb0115467dd9705247f0eef523b5c55910f73917feb8de92a755dc8
     /// tsc-span: _tsc.js:77975-78046
-    fn get_instantiation_expression_type(
+    pub(crate) fn get_instantiation_expression_type(
         &mut self,
         expr_type: TypeId,
         node: NodeId,

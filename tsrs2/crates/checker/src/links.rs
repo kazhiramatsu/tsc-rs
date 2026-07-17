@@ -467,6 +467,42 @@ impl LinksTables {
         links.resolved_type = LinkSlot::Resolved(value);
     }
 
+    /// getTypeFromImportTypeNode's resolvedSymbol writes are UNGUARDED
+    /// in tsc: the qualifier walk stamps each link's symbol on the
+    /// link and its parent (62864-62865) — for a one-deep chain the
+    /// parent IS the import-type node — and resolveImportSymbolType
+    /// (62883) then overwrites the node with the resolveSymbol'd face;
+    /// the final write wins. Self-referential aliases can also
+    /// re-enter the node mid-computation (the
+    /// overwrite_type_reference_resolution recursion class). The
+    /// import-type sanctioned overwrite pair, symbol half.
+    pub fn overwrite_import_type_resolved_symbol(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: SymbolId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.node.entry(id).or_default();
+        note_resolving_transition(links.resolved_symbol.is_resolving(), false);
+        links.resolved_symbol = LinkSlot::Resolved(value);
+    }
+
+    /// The import-type sanctioned overwrite pair, type half (see
+    /// overwrite_import_type_resolved_symbol; tsc 62828/62834/62862/
+    /// 62868-62877 all assign links.resolvedType unguarded).
+    pub fn overwrite_import_type_resolved_type(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.node.entry(id).or_default();
+        note_resolving_transition(links.resolved_type.is_resolving(), false);
+        links.resolved_type = LinkSlot::Resolved(value);
+    }
+
     /// tsc-port: assignBindingElementTypes @6.0.3 (the unguarded write)
     /// tsc-hash: af5b07d61441384b942c4e0e5a478d8fdcf25921dff2daae68e0ff34ba6d11a3
     /// tsc-span: _tsc.js:78451-78467

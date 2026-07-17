@@ -237,12 +237,6 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_node_worker"
-reason = "import types (M4)"
-class = "untagged"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_node_worker"
 reason = "infer types (unported family, M8-stub)"
 class = "stage"
 owner = "M8"

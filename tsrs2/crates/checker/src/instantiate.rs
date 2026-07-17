@@ -2399,12 +2399,20 @@ impl<'a> CheckerState<'a> {
         is_class && self.heritage_clause_is_extends(clause)
     }
 
-    fn import_type_is_type_of(&self, node: NodeId) -> bool {
+    /// The ImportType node's leading `typeof` keyword, re-derived from
+    /// source text — the parser drops tsc's isTypeOf marker (its data
+    /// has no home yet), and an ImportType whose first non-trivia
+    /// token is `typeof` is exactly tsc's isTypeOf=true.
+    pub(crate) fn import_type_is_type_of(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
-        let node = source.arena.node(node);
-        source.text[node.pos as usize..node.end as usize]
-            .trim_start()
-            .starts_with("typeof")
+        let raw = source.arena.node(node);
+        let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+        let rest = &source.text[start..];
+        rest.starts_with("typeof")
+            && !rest[6..]
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '$')
     }
 }
 
