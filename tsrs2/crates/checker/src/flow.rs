@@ -20,14 +20,15 @@
 //! resume rule stays in-file by construction — so the query pins the
 //! owning file index once.
 //!
-//! Stage state (6.3): the assignment and array-mutation arms (6.2)
-//! and the branch/loop JOINs with the loop-label fixpoint (6.3) are
-//! LIVE, and both caller initialType ladders are flipped
+//! Stage state (6.4a): the assignment and array-mutation arms (6.2),
+//! the branch/loop JOINs with the loop-label fixpoint (6.3), and the
+//! condition arm with the real narrowType dispatch (6.4a, narrow.rs)
+//! are LIVE, and both caller initialType ladders are flipped
 //! (checkIdentifier + the access.rs assume-uninitialized arm). Still
 //! inert, each flagging the query (`FlowQuery::traversed_inert_arm`):
-//! - [FLOW 6.4] conditions/switch clauses pass through their
-//!   antecedent (tsc's arm with narrowType = identity); calls never
-//!   affect (no effects signatures yet).
+//! - [FLOW 6.4] the narrow.rs sub-narrowers (identity stubs retiring
+//!   one per 6.4b-g commit) and the switch-clause arm (6.4e); calls
+//!   never affect (no effects signatures until 6.4f).
 //!
 //! THE 6.2 SEAM (retires with the 6.4 narrowers): a query that
 //! crossed a still-inert arm reverts to the 6.1 answer (declared
@@ -596,8 +597,9 @@ impl<'a> CheckerState<'a> {
     }
 
     // ---- the arms (assignment + array mutation live since 6.2, the
-    // branch/loop joins since 6.3; the condition/switch arms stay
-    // inert and flag the query until 6.4) ----
+    // branch/loop joins since 6.3, the condition arm since 6.4a via
+    // the narrow.rs dispatch; the switch-clause arm stays inert and
+    // flags the query until 6.4e, calls until 6.4f) ----
 
     /// tsc-port: getTypeAtFlowAssignment @6.0.3
     /// tsc-hash: 06ef726ffa7b23b361ca0631413c45e9173551c164933920099df3bdafff5277
@@ -725,28 +727,47 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// [FLOW 6.4] tsc getTypeAtFlowCondition (70614): the real arm is
-    /// narrowType over the antecedent type; until the narrowers land
-    /// this is the arm with narrowType = identity — a pass-through of
-    /// the antecedent walk. Flags the query (6.2 seam): the
-    /// pass-through answer may be wider than tsc's narrowed one, so
-    /// the query exit reverts to the 6.1 value.
-    /// tsc-deferred: M5 (stage 6.4 — narrowType dispatch)
+    /// tsc-port: getTypeAtFlowCondition @6.0.3
+    /// tsc-hash: 328e509f8b61bcb0e868b8f29358dad7ce31deb3a0166d8f907204841274c2d7
+    /// tsc-span: _tsc.js:70614-70627
+    ///
+    /// The arm is LIVE since 6.4a (the narrow_type dispatch is real;
+    /// still-stubbed sub-narrowers flag the query themselves — see
+    /// narrow.rs). A never antecedent short-circuits (dead edge), an
+    /// identity narrowing returns the antecedent's FlowType unchanged
+    /// (preserving Incomplete-ness), and a real narrowing re-wraps
+    /// with the antecedent's completeness.
     fn get_type_at_flow_condition(
         &mut self,
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult2<FlowType> {
-        query.traversed_inert_arm = true;
         let antecedent = self.flow_antecedent(query.file, flow);
-        self.get_type_at_flow_node(query, antecedent)
+        let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+        let ty = flow_type.get_type();
+        if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
+            return Ok(flow_type);
+        }
+        let assume_true = self
+            .flow_flags_of(query.file, flow)
+            .intersects(FlowFlags::TRUE_CONDITION);
+        let non_evolving_type = self.finalize_evolving_array_type(ty)?;
+        let node = self
+            .flow_payload_node(query.file, flow)
+            .expect("Condition flows carry their expression payload (binder createFlowCondition)");
+        let narrowed_type = self.narrow_type(query, non_evolving_type, node, assume_true)?;
+        if narrowed_type == non_evolving_type {
+            return Ok(flow_type);
+        }
+        Ok(self.create_flow_type(narrowed_type, flow_type.is_incomplete()))
     }
 
-    /// [FLOW 6.4] tsc getTypeAtSwitchClause (70638) narrows by the
-    /// switch discriminant; identity until the narrowers land — a
+    /// [FLOW 6.4] tsc getTypeAtSwitchClause (70628) narrows by the
+    /// switch discriminant; identity until the switch narrowers land
+    /// (6.4d/e own switch-on-typeof and switch-on-discriminant) — a
     /// pass-through of the antecedent walk, flagging the query (6.2
-    /// seam, see get_type_at_flow_condition).
-    /// tsc-deferred: M5 (stage 6.4 — switch-clause narrowing)
+    /// seam).
+    /// tsc-deferred: M5 (stage 6.4e — switch-clause narrowing)
     fn get_type_at_switch_clause(
         &mut self,
         query: &mut FlowQuery,

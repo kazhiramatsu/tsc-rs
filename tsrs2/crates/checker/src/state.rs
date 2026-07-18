@@ -503,6 +503,11 @@ pub struct CheckerState<'a> {
     pub(crate) flow_type_cache: Option<std::collections::HashMap<NodeId, TypeId>>,
     /// tsc flowInvocationCount (47400).
     pub(crate) flow_invocation_count: u32,
+    /// tsc inlineLevel (46453): the const-variable guard-inlining
+    /// recursion depth of narrowType's Identifier arm (checker-scope
+    /// in tsc, NOT per-query — a nested flow query inherits the
+    /// in-progress depth).
+    pub(crate) inline_level: u32,
     /// tsrs-native temporary [FLOW M5] containment index. It caches
     /// syntax candidates only (per source and nearest function scope),
     /// so each failed diagnostic need not walk the whole source again.
@@ -748,6 +753,7 @@ impl<'a> CheckerState<'a> {
             flow_loop_stack: Vec::new(),
             flow_type_cache: None,
             flow_invocation_count: 0,
+            inline_level: 0,
             flow_containment_indexes: Default::default(),
             js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),

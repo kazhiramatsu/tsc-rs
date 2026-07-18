@@ -24,6 +24,7 @@ pub mod links;
 pub mod literals;
 pub mod merge;
 pub mod modules;
+pub mod narrow;
 pub mod operators;
 mod plain_js_errors;
 pub mod program;

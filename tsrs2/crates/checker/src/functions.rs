@@ -1092,7 +1092,7 @@ impl<'a> CheckerState<'a> {
     /// (isSymbolAssigned, live since 6.2). The binding-pattern arm's
     /// getNarrowedTypeOfSymbol-family consumers stay escaped
     /// ([FLOW M5]).
-    fn is_constant_reference(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn is_constant_reference(&mut self, node: NodeId) -> CheckResult2<bool> {
         match self.kind_of(node) {
             SyntaxKind::ThisKeyword => Ok(true),
             SyntaxKind::Identifier => {
