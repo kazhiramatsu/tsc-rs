@@ -1,5 +1,12 @@
 # Non-2XXX blockers roadmap
 
+> **v1-era document.** Measurements and `src/` paths refer to the
+> paused v1 codebase (tag `v1-final`); the current owner map for these
+> bands is `greenfield/non-2xxx-first-order.md`. Sibling workstream
+> docs referenced below (`type-checking-2xxx-roadmap.md`,
+> `non-2xxx-quick-wins-steps.md`, `destructuring-parameter-implicit-any*`)
+> now live under `archive/workstreams/`.
+
 This is the cross-workstream design for everything OUTSIDE the 2XXX
 band that blocks conformance convergence. It complements
 `type-checking-2xxx-roadmap.md`: that document owns the 2XXX ceiling

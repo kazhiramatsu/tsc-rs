@@ -2135,22 +2135,26 @@ commit's body.
 Grammar workers (suppression discipline per existing grammarError*
 plumbing; checkGrammarModifiers itself STAYS the M7-stub hook — 5.8
 lands only the workers named here):
-- [ ] 5.8a: checkGrammarComputedPropertyName; checkAwaitGrammar
+- [x] 5.8a: checkGrammarComputedPropertyName; checkAwaitGrammar
       (L79338 — await-using lists §2); checkGrammarTypeOperatorNode
       (§11); checkGrammarMappedType is DONE (L81941, §11).
-- [ ] 5.8b: checkGrammarFunctionLikeDeclaration; checkGrammarIndex
+      — landed @37b8b545 (§11 arms @b81ba333).
+- [x] 5.8b: checkGrammarFunctionLikeDeclaration; checkGrammarIndex
       Signature; checkGrammarForGenerator; checkGrammarMethod;
       checkGrammarProperty; checkGrammarConstructorTypeParameters +
       checkGrammarConstructorTypeAnnotation. (checkGrammarAccessor
       L89843 already read §5-adjacent.)
-- [ ] 5.8c: checkGrammarClassLikeDeclaration; checkGrammarInterface
+      — landed @212c90cf (iteration band @3cb92a97).
+- [x] 5.8c: checkGrammarClassLikeDeclaration; checkGrammarInterface
       Declaration.
-- [ ] 5.8d: checkGrammarImportClause; checkGrammarNamedImportsOr
+      — landed @7c2a15e6 (checked off in that commit's body).
+- [x] 5.8d: checkGrammarImportClause; checkGrammarNamedImportsOr
       Exports. (checkGrammarModuleElementContext L86347 +
       checkGrammarExportDeclaration L86340 already extracted §8-9.)
+      — landed @f3b1c621.
 
 Checker workers / helpers:
-- [ ] 5.8a: getErrorSpanForNode's VariableDeclaration arm (the 2322
+- [x] 5.8a: getErrorSpanForNode's VariableDeclaration arm (the 2322
       span pin, §2.12); checkExternalEmitHelpers body (verify the
       importHelpers-gated no-op claim); errorSkippedOn → the
       skippedOn filter seam beside filter_by_comment_directives;
@@ -2158,13 +2162,18 @@ Checker workers / helpers:
       State binder exposure (§2 collisions); templateConstraint
       Type / anyReadonlyArrayType / stringNumberSymbolType
       singletons verify.
-- [ ] 5.8b: createGeneratorType tail (L78842+: IterableIterator
+      — landed @28fa28d4 + @37b8b545; the emit-helpers no-op
+      verdict is recorded in-source (statements.rs top comment +
+      modules.rs "emit-marking no-op").
+- [x] 5.8b: createGeneratorType tail (L78842+: IterableIterator
       fallback when global Generator is missing);
       checkAndAggregateYieldOperandTypes (L78874) +
       checkAndAggregateReturnExpressionTypes (L78959) generator
       gates; isImplementationCompatibleWithOverload (grep anchor);
       getIndexTypeOrString/getExtractStringType verify (for-in).
-- [ ] 5.8c: calls.rs dual-mode audit — hasCorrectArity's decorator
+      — landed @3cb92a97 (§4 iteration) + @212c90cf (§5 overload);
+      the Extract kit @dd7bfffc.
+- [x] 5.8c: calls.rs dual-mode audit — hasCorrectArity's decorator
       arm reads the real experimental_decorators (not a constant);
       getThisArgumentOfCall gains the `!legacy_decorators()`
       Decorator arm (L76281); ES decorator context builders
@@ -2175,16 +2184,27 @@ Checker workers / helpers:
       getTypeWithoutSignatures; isMixinConstructorType +
       getConstructorsForTypeArguments verify; isPropertyIdenticalTo
       (compareProperties) exposure.
-- [ ] 5.8d: getSymbolOfPartOfRightHandSideOfImportEquals (L49230);
-      tryFindAmbientModule (L59499) + the ambientModulesCache /
-      patternAmbientModules initialization walk;
+      — landed @7c2a15e6 (checked off item-by-item in that
+      commit's body).
+- [x] 5.8d: getSymbolOfPartOfRightHandSideOfImportEquals (L49230);
+      tryFindAmbientModule (L59499) + the patternAmbientModules
+      initialization walk (the distinct ambientModulesCache memo was
+      NOT ported as a named cache — the walk is direct; cache shape
+      is performance-only, revisit only if B4 flags it);
       getCannotResolveModuleNameErrorForSpecificModule (L69377);
-      markExportAsReferenced (L71945 — decide emit-only no-op);
       mergeModuleAugmentation (L47830) + mergeSymbolTable (L47818)
       exact merge order (merge.rs); getResolutionDiagnostic (mostly
       option-dead); getSuggestedSymbolForNonexistentModule (spell.rs
       twin verify); _computedOptions.moduleResolution.computeValue +
       getIsolatedModules/shouldPreserveConstEnums derivations.
+      — landed @79936faf (§9 core) + @f3b1c621 (§8/§9 drivers).
+- [ ] 5.8d residue: markExportAsReferenced (L71945 — decide
+      emit-only no-op). The decision was never recorded: no port, no
+      escape, no commit-body verdict (2026-07-18 audit). It sits in
+      m8-emitter-inventory.json (direct_emitter=false, sites=[]), so
+      the D2 emitter-dependency closure forces an explicit
+      disposition before M7 close; decide it there (likely alongside
+      the M7 8.3 unused band, which owns alias-referenced marking).
 
 ## §13 Rust seam inventory + new state
 
