@@ -2388,6 +2388,67 @@ mod tests {
     }
 
     #[test]
+    fn partial_flow_check_marks_join_dependent_implicit_any() {
+        // An auto-typed variable whose flow query crosses a still-inert
+        // 6.3 branch join: the seam converts the declared auto to any,
+        // suppressing BOTH possible oracle answers (the 7034 pair or a
+        // narrowed union) — the position partial-marks so an
+        // @ts-expect-error over the suppressed row cannot misreport as
+        // unused (2578), mirroring the 2454 seam pin above.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare const c: boolean;\nlet x;\nif (c) { x = 1; }\nx;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(result.partial_checks.len(), 1);
+        assert_eq!(
+            result.partial_checks[0].reason,
+            "flow-sensitive implicit-any diagnostic (M5 6.3/6.4 seam)"
+        );
+    }
+
+    #[test]
+    fn dependent_parameter_narrowing_types_rest_tuple_slices() {
+        // getNarrowedTypeOfSymbol arm 2 (72040-72060) over a CONCRETE
+        // union-of-tuples rest type — live since the 6.2 review fix
+        // (pre-fix the whole reference contained as Unsupported; only
+        // a generic rest type still defers to M6's nonFixingMapper).
+        // kind types as the [0]-slice "a" | "b", so takeAB accepts it.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare function f(cb: (...args: [\"a\", number] | [\"b\", string]) => void): void;\ndeclare function takeAB(x: \"a\" | \"b\"): void;\nf((kind, data) => { takeAB(kind); });\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
     fn unused_expect_error_reports_2578() {
         assert_eq!(codes_of("// @ts-expect-error\nconst x = 1;\n"), [2578]);
     }

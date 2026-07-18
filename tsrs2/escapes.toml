@@ -838,7 +838,7 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/flow.rs"
 in = "get_narrowed_type_of_symbol"
-reason = "dependent-parameter narrowing (getInferenceContext nonFixingMapper, M6)"
+reason = "dependent-parameter narrowing over a generic rest type (getInferenceContext nonFixingMapper, M6)"
 class = "stage"
 owner = "M6"
 

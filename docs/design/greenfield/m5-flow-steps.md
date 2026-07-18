@@ -196,6 +196,16 @@ symbol.lastAssignmentPos) — there is no tsc function named
 `isDefinitelyAssigned`; 2454 itself falls out of checkIdentifier's
 initialType logic (6.1 caller integration), not out of reachability.
 
+ALSO OWNED HERE — the class-property flow-init family, escaped with
+owner=M5 but scheduled in no earlier stage (the 6.2 review caught the
+gap): `getFlowTypeOfProperty` (70153) / `getFlowTypeInConstructor`
+(70118) / `getFlowTypeInStaticBlocks` (70136) behind the access.rs
+`get_flow_type_of_access_expression` this-property arm and the
+annotate.rs constructor/static-block-assigned property-type arms (the
+four `[FLOW M5]` escapes). They ride reachability's stage because
+their consumers are the definite-assignment/2565 family this stage
+completes; retire the four escapes when they land.
+
 Commit: `m5 6.6: reachability + its consumer checks`.
 
 ## Final gate

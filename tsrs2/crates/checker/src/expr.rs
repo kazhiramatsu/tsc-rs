@@ -792,6 +792,18 @@ impl<'a> CheckerState<'a> {
                 }
                 return self.convert_auto_to_any(flow_type);
             }
+            if flow_query_inert {
+                // 6.2 seam: the walk crossed a still-inert arm, so the
+                // suppressed answer could have been tsc's 7034 pair OR
+                // a narrowed union — undecidable until 6.3/6.4. Keep
+                // the position partial so an @ts-expect-error over the
+                // suppressed row cannot misreport as unused (2578),
+                // mirroring the 2454/2565 arms below.
+                self.mark_partially_checked_node(
+                    node,
+                    "flow-sensitive implicit-any diagnostic (M5 6.3/6.4 seam)",
+                );
+            }
         } else if !assume_initialized
             && !self.contains_undefined_type(ty)
             && self.contains_undefined_type(flow_type)
