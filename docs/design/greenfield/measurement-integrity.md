@@ -207,7 +207,14 @@ whitespace, and observable array order. Message-chain bytes recursively
 contain text, code, category, and children. Related-information bytes
 contain the same diagnostic fields plus normalized virtual file/span.
 Hashes are lowercase SHA-256. Changing this encoding requires A2's one
-schema extension; it is not a silent identity edit.
+schema extension; it is not a silent identity edit. The reviewed
+encoder bump re-encodes the manifest wholesale in its own slice:
+identities across encoder versions are incomparable, so a historical
+anchor manifest under another encoder fails with a re-anchor message,
+and the trusted-base compare treats an older-encoder draft base as the
+migration window (like the schema-1 window). The freeze cannot ride
+the migration, a frozen base has no sanctioned bump path — the frozen
+set pins its encoder — and an encoder downgrade never occurs.
 
 The selector removes exact oracle records before supported comparison.
 It never removes an entire T0 bucket accidentally. Syntactic diagnostics
@@ -229,6 +236,11 @@ snapshot protocol. While the manifest remains `draft`:
 - the pinned set must equal the band subset at its adjudication commit;
 - a pinned identity may disappear only with a tombstone.
 
+Every manifest anchor — a pin's adjudication commit, the global-freeze
+adjudication commit, a tombstone's resolving commit — is a full 40-hex
+SHA naming the commit object directly; movable refs (branches, tags,
+HEAD) cannot anchor a reviewed snapshot.
+
 The phase-9 2XXX sweep uses this mechanism before M7 starts. Other
 unpinned bands remain reviewable.
 
@@ -248,6 +260,24 @@ A1's append-only lineage keeps this proof live on a fresh clone. A
 resolved exclusion returns to the supported denominator; no historical
 build artifact is needed. The proof is invalid unless A1's vendor,
 oracle-input, and comparator pins verify against the current tree.
+
+When a reviewed universe or oracle-correction transition removes the
+pinned occurrence itself from the goldens, the proof obligation
+lapses: the epoch slice marks the tombstone `lapsed`, and a pinned or
+frozen live exclusion that lapses is deleted and recorded as a
+`lapsed` tombstone without a resolving commit. The obligation inverts
+— a lapsed tombstone must NOT resolve against the current goldens, so
+marking a still-present occurrence fails and the flip is possible only
+in the slice whose reviewed golden change removed the occurrence
+(A1's transition rules gate that change). Against the trusted base a
+tombstone never disappears and its provenance never changes: identity
+and resolving commit are stable (a lapsed-only record may gain its
+resolving commit when the occurrence returns and resolves); `lapsed`
+is the one field a reviewed transition may flip, re-proven against the
+goldens on every audit. An occurrence a later transition reintroduces
+flips its tombstone back to active standing and must prove A1
+membership again — an unmatched reintroduced occurrence in a pinned
+band blocks the gate, by design.
 
 ### 3.3 Global freeze
 
@@ -394,8 +424,8 @@ The implementations must pin at least these failure classes:
 | A1 correction | unenumerated removal names the identity; over-enumeration fails; `lapsed` without the transition (and vice versa) fails; a lapsed identity still accepted fails; a correction with unchanged input pins fails; fixture bytes/expansion/vendor/corpus change under a correction fails; baseline across a correction accepts enumerated lapses only and still rejects further removals; universe-transition still refuses oracle edits |
 | A1 views | 2/2 to 2/1 regression; syntactic FN hidden by semantic gain; fixed or partial view skipping its accepted subset |
 | A2 identity | same T0 key but different span/message/occurrence conflated; Node/Rust canonical bytes differ; stale, duplicate, or ambiguous exclusion accepted |
-| A2 pin | add/edit plus rewritten set/count/hash; non-ancestor or mismatching adjudication commit |
-| A2 tombstone | proof absent, partial-view only, stale A1 pin, or duplicate bucket not multiplicity-complete; a live resolved exclusion is unreported or passes readiness |
+| A2 pin | add/edit plus rewritten set/count/hash; non-ancestor or mismatching adjudication commit; movable-ref or non-commit anchor; anchor manifest under another encoder version |
+| A2 tombstone | proof absent, partial-view only, stale A1 pin, or duplicate bucket not multiplicity-complete; a live resolved exclusion is unreported or passes readiness; resolving commit changed or dropped against the trusted base; marked lapsed while the occurrence still exists |
 | A2 global | unpinned-band edit after freeze; status downgrade; branch add-and-reanchor; unverified band pin |
 | A5 map | unmapped/duplicate row; enumerated 2XXX row; owner/canary change after freeze; old owner change disguised as extension |
 | A5 rollup | stale conformance/scope fingerprint; excluded duplicate neighbor lost; A1 summary substituted for current supported grading |
