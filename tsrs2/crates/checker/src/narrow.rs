@@ -3246,18 +3246,34 @@ impl<'a> CheckerState<'a> {
         }))
     }
 
-    /// [FLOW 6.4] identity stub: tsc narrowTypeByOptionality (71440)
-    /// strips/keeps undefined|null for optional-chain roots and
-    /// `??`/`??=` left operands; flags the query until 6.4g.
-    /// tsc-deferred: M5 (stage 6.4g — narrowTypeByOptionality)
+    /// tsc-port: narrowTypeByOptionality @6.0.3
+    /// tsc-hash: 275372eca5f30971df70543fde5e12283bdc3a1febb2e1d5efb8dd21017818e6
+    /// tsc-span: _tsc.js:71440-71449
+    ///
+    /// Optional-chain roots and `??`/`??=` left operands: a matching
+    /// reference keeps/sheds undefined|null by the presence face; a
+    /// non-matching one tries the discriminant-property path with the
+    /// plain facts filter.
     fn narrow_type_by_optionality(
         &mut self,
         query: &mut FlowQuery,
         ty: TypeId,
-        _expr: NodeId,
-        _assume_present: bool,
+        expr: NodeId,
+        assume_present: bool,
     ) -> CheckResult2<TypeId> {
-        query.traversed_inert_arm = true;
+        let facts = if assume_present {
+            TypeFacts::NE_UNDEFINED_OR_NULL
+        } else {
+            TypeFacts::EQ_UNDEFINED_OR_NULL
+        };
+        if self.is_matching_query_reference(query, expr)? {
+            return self.get_adjusted_type_with_facts(ty, facts);
+        }
+        if let Some(access) = self.get_discriminant_property_access(query, expr, ty)? {
+            return self.narrow_type_by_discriminant(ty, access, |state, t| {
+                state.get_type_with_facts(t, facts)
+            });
+        }
         Ok(ty)
     }
 }
