@@ -2941,6 +2941,29 @@ impl<'a> CheckerState<'a> {
         if self.get_parameter_count(signature)? == 0 {
             return Ok(false);
         }
+        // 6.6f cycle guard: this probe can run inside the SAME
+        // signature's return-type computation (functionHasImplicitReturn
+        // → isReachableFlowNode → getEffectsSignature → here; mutual
+        // recursion closes the loop — the readonlyRestParameters 7023
+        // FP face). tsc's equivalent cycle lands in getTypePredicate-
+        // FromBody's checkExpression, which circularity-breaks to NO
+        // predicate and MEMOIZES noTypePredicate — the observable is
+        // "no effects, walk past", so the in-progress answer here is a
+        // faithful FALSE, not an uncertain flag.
+        if self
+            .resolution_targets
+            .iter()
+            .zip(self.resolution_property_names.iter())
+            .any(|(target, property)| {
+                matches!(
+                    target,
+                    crate::state::ResolutionTarget::Signature(in_progress)
+                        if *in_progress == signature
+                ) && *property == tsrs2_types::TypeSystemPropertyName::RESOLVED_RETURN_TYPE
+            })
+        {
+            return Ok(false);
+        }
         // 59783 tests Boolean (256) proper, not BooleanLike: a
         // literal-typed return can never pass the body probe's own
         // Boolean gate on the return expression (79048).

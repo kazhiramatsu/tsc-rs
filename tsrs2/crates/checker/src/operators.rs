@@ -732,25 +732,9 @@ impl<'a> CheckerState<'a> {
                     // comparisons in the chain, so without flow
                     // analysis every repeat reports where tsc stays
                     // silent (equalityWithIntersectionTypes01 pins the
-                    // suppressed repeats). A failed verdict with an
-                    // intersection operand stays contained until the
-                    // narrowing lands.
-                    let comparable = self.is_type_equality_comparable_to(left_type, right_type)?
-                        || self.is_type_equality_comparable_to(right_type, left_type)?;
-                    if !comparable
-                        && (self
-                            .tables
-                            .flags_of(left_type)
-                            .intersects(TypeFlags::INTERSECTION)
-                            || self
-                                .tables
-                                .flags_of(right_type)
-                                .intersects(TypeFlags::INTERSECTION))
-                    {
-                        return Err(Unsupported::new(
-                            "equality 2367 over narrowed intersection operands (narrowTypeByEquality, [FLOW M5])",
-                        ));
-                    }
+                    // suppressed repeats). (The intersection-operand
+                    // containment retired at 6.6f: operands carry
+                    // real flow-narrowed types since 6.4.)
                     self.report_operator_error_unless(
                         operator_token,
                         left_type,
@@ -1408,25 +1392,14 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            // [FLOW M5] second face (5.5d audit list): tsc's `=`
-            // consumes the FLOW type of a reference RHS — a failed
-            // verdict over the DECLARED type of a narrowable
-            // union/unknown RHS may be tsc-clean (corpus FP:
-            // nonPrimitiveStrictNull `a = e` after `e = a`). Contain
-            // those; M5 removes the gate. Non-reference and
-            // non-union RHS verdicts cannot flip.
-            if self.operator_kind(operator_token) == SyntaxKind::EqualsToken
-                && self
-                    .tables
-                    .flags_of(value_type)
-                    .intersects(TypeFlags::from_bits(
-                        TypeFlags::UNION.bits() | TypeFlags::UNKNOWN.bits(),
-                    ))
-                && self.receiver_may_be_flow_narrowed(right)
+            // 6.6f: syntax-probe gate → flag-exact containment for
+            // the failed-assignment face.
+            if self.flow_answer_is_seam_reverted(right)
                 && !self.is_type_assignable_to(value_type, assignee_type)?
             {
                 return Err(Unsupported::new(
-                    "[FLOW M5] failed assignment from a narrowable union-typed RHS",
+                    "failed assignment over a seam-reverted flow answer \
+                     (unported narrowing dependency, M6/M8 seam)",
                 ));
             }
             // Expando-function member assignment: tsc's binder turns
@@ -2566,17 +2539,45 @@ impl<'a> CheckerState<'a> {
                     };
                     let expected = self.get_type_of_symbol(expected_property)?;
                     let actual = self.check_expression_cached(initializer, CheckMode::NORMAL)?;
-                    let error_node = self.literal_elaboration_error_node(initializer);
+                    if self.is_type_assignable_to(actual, expected)? {
+                        continue;
+                    }
+                    // elaborateElementwise (64146-64167): deep-first —
+                    // a nested literal elaborates its own members and
+                    // suppresses this member's row; otherwise the row
+                    // anchors at the PROPERTY NAME (errorNode: prop.name,
+                    // generateObjectLiteralElements 64448 — anchoring at
+                    // the value was the 6.6f span-FP face).
+                    let inner = self.literal_elaboration_error_node(initializer);
+                    if self.elaborate_literal_assignment(inner, expected)? {
+                        continue;
+                    }
                     self.check_type_assignable_to(
                         actual,
                         expected,
-                        Some(error_node),
+                        Some(name),
                         &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
                     )?;
                 }
             }
             NodeData::ArrayLiteralExpression(data) => {
                 let elements = self.nodes_of(data.elements);
+                // tsc elaborateArrayLiteral (64410) TUPLEIZES a
+                // non-tuple source (forceTuple re-check) so spread
+                // elements get positional rows — unported (M6
+                // inference band). A failing array literal WITH a
+                // spread would anchor its row wrong here (the
+                // iteratorSpreadInArray5 head-vs-element face), so it
+                // contains instead.
+                if elements
+                    .iter()
+                    .any(|&element| self.kind_of(element) == SyntaxKind::SpreadElement)
+                {
+                    return Err(Unsupported::new(
+                        "failed array-literal relation with a spread element \
+                         (elaborateArrayLiteral tupleization, M6)",
+                    ));
+                }
                 for (index, element) in elements.into_iter().enumerate() {
                     if matches!(
                         self.kind_of(element),
@@ -5414,16 +5415,14 @@ mod tests {
     }
 
     #[test]
-    fn failed_assignment_from_narrowable_union_rhs_contains_until_flow() {
-        // Oracle: 2322 'A0 | null' → 'A0'. tsc consumes the FLOW type
-        // of the reference RHS — the [FLOW M5] gate contains the
-        // declared-type verdict (corpus FP shape: nonPrimitiveStrictNull
-        // `a = e` after `e = a`).
+    fn failed_assignment_from_narrowable_union_rhs_reports_2322() {
+        // Un-gated at 6.6f: the RHS position consumes the real flow
+        // type (unnarrowed here — oracle-exact row).
         assert_eq!(
             checked_rows(
                 "interface A0 { x: number }\ndeclare let a0: A0;\ndeclare let u0: A0 | null;\na0 = u0;\n"
             ),
-            []
+            [(2322, 74, 2)]
         );
     }
 

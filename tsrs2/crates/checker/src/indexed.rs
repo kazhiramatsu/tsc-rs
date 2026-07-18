@@ -1391,24 +1391,19 @@ impl<'a> CheckerState<'a> {
         access_flags: AccessFlags,
         property_name: Option<&str>,
     ) -> CheckResult2<Option<TypeId>> {
-        // [FLOW M5] guard gate: tsc runs the ladder over the
-        // receiver's FLOW type — a narrowable receiver with a
-        // RELATED, REACHING guard may be tsc-clean once narrowing
-        // lands. Same shape as the 2339 gate (access.rs); the
-        // reference-targeted probe replaced the old position-only
-        // limb test (PR #6 review round 2).
-        let ladder_receiver = match self.data_of(access_expression) {
-            NodeData::ElementAccessExpression(data) => data.expression,
-            _ => None,
+        // 6.6f: the syntax-probe ladder gate retired; the residual
+        // containment is FLAG-EXACT — a seam-reverted receiver or
+        // index answer (an unported M6/M8 dependency crossed its
+        // walk) makes every failed ladder verdict undecidable.
+        let ladder_operands = match self.data_of(access_expression) {
+            NodeData::ElementAccessExpression(data) => (data.expression, data.argument_expression),
+            _ => (None, None),
         };
-        if let Some(receiver) = ladder_receiver {
-            // The INDEX operand narrows too (`switch (k) ...; o[k]`)
-            // — probe the whole access expression's roots.
-            if self.receiver_may_be_flow_narrowed(receiver)
-                && self.flow_guards_narrow_reference(access_expression, access_expression)
-            {
+        for operand in [ladder_operands.0, ladder_operands.1].into_iter().flatten() {
+            if self.flow_answer_is_seam_reverted(operand) {
                 return Err(Unsupported::new(
-                    "[FLOW M5] element-access ladder on a narrowable receiver in a guarded position",
+                    "element-access ladder over a seam-reverted flow answer \
+                     (unported narrowing dependency, M6/M8 seam)",
                 ));
             }
         }

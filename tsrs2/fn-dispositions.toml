@@ -14,10 +14,6 @@ name = "check_non_null_type"
 
 [[fn]]
 file = "crates/checker/src/access.rs"
-name = "check_non_null_type_with_reporter"
-
-[[fn]]
-file = "crates/checker/src/access.rs"
 name = "check_qualified_name"
 
 [[fn]]

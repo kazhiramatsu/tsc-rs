@@ -305,8 +305,13 @@ impl<'a> CheckerState<'a> {
             if let Some(parent) = parent {
                 if let NodeData::BinaryExpression(data) = self.data_of(parent) {
                     let (left, operator) = (data.left, data.operator_token);
-                    let is_assignment =
-                        operator.is_some_and(|op| self.kind_of(op) == SyntaxKind::EqualsToken);
+                    // tsc isAssignmentExpression (72671): EVERY
+                    // assignment operator counts — the `??=` prototype
+                    // -method face (thisPrototypeMethodCompound-
+                    // Assignment) was the 6.6f 2683 FP.
+                    let is_assignment = operator.is_some_and(|op| {
+                        tsrs2_binder::node_util::is_assignment_operator(self.kind_of(op))
+                    });
                     if is_assignment {
                         if let Some(target) = left {
                             if matches!(

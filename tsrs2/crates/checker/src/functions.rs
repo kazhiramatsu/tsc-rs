@@ -1082,9 +1082,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:70374-70393
     ///
     /// The Identifier arm consumes the real assignment-marking family
-    /// (isSymbolAssigned, live since 6.2). The binding-pattern arm's
-    /// getNarrowedTypeOfSymbol-family consumers stay escaped
-    /// ([FLOW M5]).
+    /// (isSymbolAssigned, live since 6.2); the binding-pattern arm
+    /// went live at 6.6f (isSomeSymbolAssigned landed with that
+    /// family).
     pub(crate) fn is_constant_reference(&mut self, node: NodeId) -> CheckResult2<bool> {
         match self.kind_of(node) {
             SyntaxKind::ThisKeyword => Ok(true),
@@ -1135,9 +1135,28 @@ impl<'a> CheckerState<'a> {
                 Ok(self.is_readonly_symbol(resolved))
             }
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
-                Err(Unsupported::new(
-                    "isConstantReference binding-pattern arm (getNarrowedTypeOfSymbol family, [FLOW M5])",
-                ))
+                // 70385-70387 (LIVE since 6.6f — isSomeSymbolAssigned
+                // landed with the definite-assignment family): a
+                // parameter/catch-variable pattern is constant iff no
+                // member symbol is ever assigned; a variable pattern
+                // iff the declaration is const-like.
+                let Some(parent) = self.parent_of(node) else {
+                    return Ok(false);
+                };
+                let source = self.binder.source_of_node(parent);
+                let root_declaration = node_util::get_root_declaration(source, parent);
+                let root_kind = self.kind_of(root_declaration);
+                let is_catch_clause_variable = root_kind == SyntaxKind::VariableDeclaration
+                    && self
+                        .parent_of(root_declaration)
+                        .is_some_and(|declaration_parent| {
+                            self.kind_of(declaration_parent) == SyntaxKind::CatchClause
+                        });
+                if root_kind == SyntaxKind::Parameter || is_catch_clause_variable {
+                    return Ok(!self.is_some_symbol_assigned(root_declaration)?);
+                }
+                Ok(root_kind == SyntaxKind::VariableDeclaration
+                    && self.is_var_const_like(root_declaration))
             }
             _ => Ok(false),
         }
@@ -1347,18 +1366,17 @@ impl<'a> CheckerState<'a> {
         } else {
             effective_expr
         };
-        // [FLOW M5] second face for returns (the 5.5e `=` precedent):
-        // tsc consumes the FLOW type of a narrowable returned
-        // reference — a failed verdict over the DECLARED union/unknown
-        // type (or one whose subtree narrows) may be tsc-clean.
-        if expr.is_some_and(|expr| {
-            self.subtree_mentions_narrowable_reference(expr)
-                && self.flow_guards_narrow_reference(node, expr)
-        }) && !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
-        {
-            return Err(Unsupported::new(
-                "[FLOW M5] failed return from a narrowable union/unknown-typed reference",
-            ));
+        // 6.6f: syntax-probe gate → flag-exact containment for the
+        // failed-return face.
+        if let Some(effective) = effective_expr {
+            if self.flow_answer_is_seam_reverted(effective)
+                && !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
+            {
+                return Err(Unsupported::new(
+                    "failed return over a seam-reverted flow answer \
+                     (unported narrowing dependency, M6/M8 seam)",
+                ));
+            }
         }
         // checkTypeAssignableToAndOptionallyElaborate — the 5.4
         // head-only slice; `effective_expr` feeds only the elided

@@ -282,11 +282,6 @@ impl<'a> CheckerState<'a> {
                         // recomputed like tsc.
                         let target =
                             self.get_widened_type_for_variable_like_declaration(node, false)?;
-                        self.declaration_initializer_flow_gate(
-                            initializer,
-                            initializer_type,
-                            target,
-                        )?;
                         self.check_type_assignable_to(
                             initializer_type,
                             target,
@@ -342,7 +337,16 @@ impl<'a> CheckerState<'a> {
                     // THE annotated-declaration 2322 row: errorNode =
                     // node (getErrorSpanForNode's VariableDeclaration
                     // arm reports at the NAME span — pinned).
-                    self.declaration_initializer_flow_gate(initializer, initializer_type, ty)?;
+                    // 6.6f: syntax-probe gate → flag-exact
+                    // containment for the failed-initializer face.
+                    if self.flow_answer_is_seam_reverted(initializer)
+                        && !self.is_type_assignable_to(initializer_type, ty)?
+                    {
+                        return Err(Unsupported::new(
+                            "failed declaration initializer over a seam-reverted flow \
+                             answer (unported narrowing dependency, M6/M8 seam)",
+                        ));
+                    }
                     let elaborated = !self.is_type_assignable_to(initializer_type, ty)?
                         && self.elaborate_literal_assignment(initializer, ty)?;
                     if !elaborated {
@@ -477,11 +481,6 @@ impl<'a> CheckerState<'a> {
             if let Some(initializer) = self.only_expression_initializer_of(node) {
                 let initializer_type =
                     self.check_expression_cached(initializer, CheckMode::NORMAL)?;
-                self.declaration_initializer_flow_gate(
-                    initializer,
-                    initializer_type,
-                    declaration_type,
-                )?;
                 self.check_type_assignable_to(
                     initializer_type,
                     declaration_type,
@@ -1712,49 +1711,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// [FLOW M5] declaration-row gate (the 5.5e second-face pattern):
-    /// tsc relates the FLOW type of the initializer — a failed verdict
-    /// over DECLARED types is tsc-clean whenever any narrowable
-    /// reference feeds the initializer (assignment/guard narrowing).
-    /// Contain those reports; M5 removes the gate.
-    fn declaration_initializer_flow_gate(
-        &mut self,
-        initializer: NodeId,
-        initializer_type: TypeId,
-        target: TypeId,
-    ) -> CheckResult2<()> {
-        if self.is_type_assignable_to(initializer_type, target)? {
-            return Ok(());
-        }
-        if self.subtree_mentions_narrowable_reference(initializer) {
-            return Err(Unsupported::new(
-                "[FLOW M5] failed declaration initializer over a narrowable reference",
-            ));
-        }
-        Ok(())
-    }
-
-    /// Any descendant (or the node itself) is a narrowable reference —
-    /// the broad FP=0-side probe feeding the declaration-row gate.
-    /// tsrs-native: [FLOW M5] containment probe (no tsc counterpart
-    /// — tsc consults real flow types).
-    pub(crate) fn subtree_mentions_narrowable_reference(&self, root: NodeId) -> bool {
-        let mut stack = vec![root];
-        while let Some(node) = stack.pop() {
-            let source = self.binder.source_of_node(node);
-            if node_util::is_narrowable_reference(source, node) {
-                return true;
-            }
-            let mut children = Vec::new();
-            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
-                children.push(child);
-                false
-            });
-            stack.extend(children);
-        }
-        false
-    }
-
     // ---- shared small helpers ----
 
     /// tsc-port: hasOnlyExpressionInitializer @6.0.3
@@ -2903,6 +2859,39 @@ mod tests {
         })
     }
 
+    #[test]
+    fn duplicate_literal_members_resolve_last_wins() {
+        // tsc: only the 1117 grammar row (an M7-band FN here); the
+        // RELATION must see the table's last-wins member — the stale
+        // first duplicate in resolved.properties was the 6.6f
+        // objectLiteralErrors 2322 FP face.
+        assert_eq!(checked_rows("var e3 = { a: 0, a: '' };\n"), []);
+    }
+
+    #[test]
+    fn probe_priv() {
+        assert_eq!(
+            checked_rows("class A { #foo = 1; }\nclass B { #foo = 1; }\nconst b: B = new A();\n"),
+            [(2322, 50, 1)]
+        );
+    }
+
+    #[test]
+    fn probe_discr() {
+        assert_eq!(
+            checked_rows("type RV = { type: 'number', value: number } | { type: 'string', value: string };\nfunction foo1(x: RV & { type: 'number' }) {\n  if (x.type === 'number') { x.value; }\n  else { x.value; }\n}\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn probe_pattern() {
+        assert_eq!(
+            checked_rows("let a: 0 | 1 = 0;\nlet b: 0 | 1 | 9;\n[{ [(a = 1)]: b } = [9, a] as const] = [];\nconst bb: 0 = b;\n"),
+            []
+        );
+    }
+
     // ---- unreachable code / fallthrough (6.6b; rows oracle-pinned
     // vs vendored tsc 6.0.3 noLib per shape, 2026-07-19) ----
 
@@ -3158,31 +3147,26 @@ mod tests {
     }
 
     #[test]
-    fn loop_back_edge_guard_contains_until_m5() {
-        // Containment pin (deliberate FN until M5): inside a shared
-        // loop the back edge can carry a later guard to an earlier
-        // read, so the reach face waives ordering. Oracle reports
-        // 2345 @111+1 here (the rejoin kills the narrowing) — M5's
-        // real flow types reclaim it.
+    fn loop_back_edge_guard_reports_2345() {
+        // Un-gated at 6.6f: the rejoin kills the narrowing, so the
+        // loop-crossing argument reports (oracle-exact row).
         assert_eq!(
             checked_rows(
                 "declare function f(n: number): void;\ndeclare const x: string | number;\ndeclare const c: boolean;\nwhile (c) { f(x); if (typeof x === \"string\") {} }\n"
             ),
-            []
+            [(2345, 111, 1)]
         );
     }
 
     #[test]
-    fn guard_before_reference_contains_until_m5() {
-        // Containment pin (deliberate FN until M5): a RELATED guard
-        // BEFORE the read stays contained — the structural reach face
-        // cannot see that the empty limb rejoins. Oracle reports 2345
-        // @103+1 here — M5's real flow types reclaim it.
+    fn guard_before_reference_reports_2345() {
+        // Un-gated at 6.6f: the empty limb rejoins, so the read past
+        // the guard keeps the union and reports (oracle-exact row).
         assert_eq!(
             checked_rows(
                 "declare function f(n: number): void;\ndeclare const x: string | number;\nif (typeof x === \"string\") {}\nf(x);\n"
             ),
-            []
+            [(2345, 103, 1)]
         );
     }
 

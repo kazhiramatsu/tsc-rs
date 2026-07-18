@@ -120,6 +120,9 @@ impl<'a> CheckerState<'a> {
         self.check_source_file_worker(root);
         // 86985: reportedUnreachableNodes resets per checked file.
         self.reported_unreachable_nodes.clear();
+        // The 6.6f flag registry is same-file-scoped like the report
+        // faces that consult it.
+        self.flow_inert_answer_nodes.clear();
     }
 
     /// tsc-port: checkSourceFileWorker @6.0.3
@@ -2420,6 +2423,46 @@ impl<'a> CheckerState<'a> {
         let target_text = self.type_to_string_slice(target)?;
         if unmatched.len() == 1 {
             let prop = unmatched[0];
+            // reportUnmatchedProperty's PRIVATE arm (66752-66765): a
+            // private-identifier member whose SOURCE class declares
+            // its own #name reports the refers-to-a-different-member
+            // chain under the PLAIN relation head (2322 row, 18015
+            // chain detail) — never the 2741 face. The twin probe
+            // matches the binder's `__#<id>@<description>` mangling by
+            // suffix (the lazily assigned id is binder-internal).
+            let private_description =
+                self.binder
+                    .symbol(prop)
+                    .value_declaration
+                    .and_then(|declaration| {
+                        let source_file = self.binder.source_of_node(declaration);
+                        let name = tsrs2_binder::node_util::get_name_of_declaration(
+                            source_file,
+                            declaration,
+                        )?;
+                        if self.kind_of(name) != SyntaxKind::PrivateIdentifier {
+                            return None;
+                        }
+                        self.escaped_text_of(Some(name)).map(str::to_owned)
+                    });
+            if let Some(description) = private_description {
+                let source_is_class = self.tables.type_of(source).symbol.is_some_and(|symbol| {
+                    self.binder
+                        .symbol(symbol)
+                        .flags
+                        .intersects(tsrs2_types::SymbolFlags::CLASS)
+                });
+                if source_is_class {
+                    let suffix = format!("@{description}");
+                    let has_twin = self.get_properties_of_type(source)?.iter().any(|&p| {
+                        let name = &self.binder.symbol(p).escaped_name;
+                        name.starts_with("__#") && name.ends_with(&suffix)
+                    });
+                    if has_twin {
+                        return Ok(false);
+                    }
+                }
+            }
             let prop_name = self.missing_property_display_name(unmatched[0]);
             let declaration = self.binder.symbol(prop).declarations.first().copied();
             let related = declaration

@@ -289,6 +289,102 @@ completes; retire the four escapes when they land.
 
 Commit: `m5 6.6: reachability + its consumer checks`.
 
+LANDED (6.6a-f, branch m5/6.6-reachability) with recorded deviations:
+
+- **The worker landed exactly at 70240-70327** (single-entry memo
+  written by the OUTER entry after the walk; the Shared arm's
+  noCacheCheck reset falls through into the same iteration; the
+  ReduceLabel arm invalidates the single-entry memo and reuses the
+  6.3 override map, restored on unwind). Fallibility is tsrs-side:
+  the Call arm's effects consult Errs on M6 body-inference
+  candidates (get_effects_signature's None-query contract — no flag
+  channel exists outside a query, and an unflagged "reachable" past
+  an undecided asserts-false/never candidate would be a
+  2534/2366-family FP face; the Err also keeps both reachability
+  memos unwritten).
+- **7027 landed error-face-only**: the binder's Unreachable node
+  flag + bind-time bookkeeping were already complete; the checker
+  side (checkSourceElementUnreachable aggregation + the
+  withinUnreachableCode save/restore + the flow consult) runs under
+  every option value, but addErrorOrSuggestion's suggestion face
+  rides the unmodeled suggestion channel — only
+  `allowUnreachableCode: false` reports (11 corpus fixtures, 30
+  semantic rows).
+- **functionHasImplicitReturn's flip un-hid a latent M4 gap**:
+  effective_return_type_node lacked every TYPE-node
+  signature-declaration arm (FunctionType/ConstructorType/Call/
+  ConstructSignature/MethodSignature/IndexSignature/SetAccessor) —
+  tsc's getEffectiveReturnTypeNode (16768) reads `.type`
+  generically, so a never-typed CALLABLE PARAMETER hid its
+  annotation from the effects consult (2366 FP,
+  neverReturningFunctions1 f12) and type-node-declared PREDICATES
+  from getTypePredicateOfSignature's annotation read.
+- **getFlowTypeInConstructor/InStaticBlocks use a this-rooted
+  synthetic chain**: the 6.4b encoding grew a root discriminator
+  (`FlowQuery::synthetic_this_root`) — `reference` holds the real
+  CONTAINER (file identity + tsc's setParent(reference, container)
+  flow-container), `synthetic_props` the single accessed name, and
+  the chain-grounding matchers test ThisKeyword kind exactly like
+  tsc's isMatchingReference this arm (69460). The cache key uses
+  the ThisKeyword arm's "0|…" base. Private names ground on the
+  `__#…@` description exactly as the factory's
+  createPrivateIdentifier does.
+- **The [FLOW M5] gates retired into a FLAG-EXACT registry, not
+  nothing**: deleting the syntax-probe gates surfaced the seam's
+  blind spot — a JOIN crossing an unported M6/M8 dependency (live
+  case: Record<K,V>'s mapped-type instantiation inside `in`
+  narrowing) seam-reverts the query to the DECLARED type, and a
+  report face consuming that deliberately-wide answer FPs (7053 on
+  controlFlowInOperator, 18048 on controlFlowOptionalChain). The
+  replacement records flagged queries per reference node
+  (CheckerState::flow_inert_answer_nodes, cleared per file) and the
+  nine report faces (unknown/nullable/void receiver, property miss,
+  element ladder, argument, assignment, return, declaration
+  initializer) contain ONLY when the probed operand's answer was
+  actually seam-reverted — the ~1100-line PR-#6 syntax-probe family
+  (FlowGuardCertainty/flow_guards_narrow_reference/…) deleted whole.
+  The registry retires with the seam flag's last producers (M6
+  body-inference, M8 mapped/generator stubs through the JOIN-SEAM).
+- **Both remaining parenthetical M5 stubs resolved**: the
+  isConstantReference binding-pattern arm went LIVE (its
+  isSomeSymbolAssigned dependency had landed with the
+  definite-assignment family), and the narrowTypeByEquality
+  intersection-operand containment retired (operands carry real
+  flow-narrowed types since 6.4).
+- The definite-assignment family (isSymbolAssignedDefinitely/
+  isSymbolAssigned/isPastLastAssignment/markNodeAssignments) needed
+  NO work — it landed complete at 6.2; this stage only re-verified
+  the hashes.
+- The 2345 flip pin landed as specified (loop_fixpoint… asserts
+  [2345], no partial marks) plus its sibling
+  (speculative_overload… asserts [2769]).
+- **The full-corpus FP sweep after retirement (27 rows) split
+  five-and-three**: the old syntax gates had been swallowing
+  UNRELATED latent divergences (their subtree probe treated property
+  -NAME identifiers as narrowable references, silencing whole
+  object-literal initializers). Five REAL fixes came out: (1)
+  resolved object-literal properties come from the TABLE (last-wins,
+  computed-name members excluded — the duplicate-member 2322 face);
+  (2) member elaborations anchor at the PROPERTY NAME with
+  deep-first nested elaboration (generateObjectLiteralElements
+  64448); (3) reportUnmatchedProperty's private arm (a source-class
+  `#name` twin reports the 2322 head, never 2741); (4)
+  getContextualThisParameterType accepts EVERY assignment operator
+  (isAssignmentExpression — the `??=` prototype-method 2683 face);
+  (5) getTypeOfPropertyOfType works over any STRUCTURED type (the
+  OBJECT-only guard broke the awaited-unwrap of overload-failure
+  Promise INTERSECTIONS — spurious 2322 beside the 2769). Plus the
+  effects-probe return-type read grew an in-progress cycle guard
+  (mutual recursion through functionHasImplicitReturn — tsc's
+  equivalent memoizes noTypePredicate, so in-progress answers
+  FALSE). Three families stayed deferred with precise owner-tagged
+  containments: computed-key destructuring assignments (the PR
+  -#41094 evaluation-order family, M6), failing array-literal
+  relations with a spread element (elaborateArrayLiteral
+  tupleization, M6), and never-narrowed receiver reports over
+  unreduced intersection members (getReducedType never-reduction,
+  M6).
+
 ## Final gate
 
 ```sh

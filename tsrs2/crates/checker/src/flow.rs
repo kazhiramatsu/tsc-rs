@@ -122,6 +122,15 @@ pub(crate) struct FlowQuery {
     /// (matching, cache keys, the Start resume rule, the postlude
     /// probes); None = a plain node reference.
     pub(crate) synthetic_props: Option<Vec<String>>,
+    /// tsc getFlowTypeInConstructor/InStaticBlocks (56195/56212): the
+    /// factory reference is `this.<accessName>` — a chain whose ROOT
+    /// is the factory `this`, not a real node. When set,
+    /// `synthetic_props` holds the single accessed name, `reference`
+    /// holds the enclosing CONTAINER (constructor/static block — a
+    /// real node for file identity only), and the chain-grounding
+    /// matchers test ThisKeyword kind like tsc's isMatchingReference
+    /// this arm (69460) instead of node matching.
+    pub(crate) synthetic_this_root: bool,
 }
 
 /// One in-progress loop-label fixpoint frame: tsc's parallel
@@ -249,6 +258,7 @@ impl<'a> CheckerState<'a> {
         self.get_flow_type_of_reference_full(
             reference,
             None,
+            /*synthetic_this_root*/ false,
             declared_type,
             initial_type,
             flow_container,
@@ -257,14 +267,19 @@ impl<'a> CheckerState<'a> {
     }
 
     /// The full-parameter body behind the plain and synthetic
-    /// (destructuring) entries; `synthetic_props` carries the
-    /// getSyntheticElementAccess chain when the reference is not a
-    /// real node.
-    /// tsrs-native: parameter split of the same tsc span.
+    /// (destructuring / this-property) entries; `synthetic_props`
+    /// carries the getSyntheticElementAccess chain when the reference
+    /// is not a real node, and `synthetic_this_root` marks the
+    /// getFlowTypeInConstructor/InStaticBlocks factory-`this` root.
+    /// tsrs-native: parameter split of the same tsc span (the extra
+    /// arms are tsc's optional parameters plus the two synthetic
+    /// encodings — a struct would just rename the call sites).
+    #[allow(clippy::too_many_arguments)]
     fn get_flow_type_of_reference_full(
         &mut self,
         reference: NodeId,
         synthetic_props: Option<Vec<String>>,
+        synthetic_this_root: bool,
         declared_type: TypeId,
         initial_type: TypeId,
         flow_container: Option<NodeId>,
@@ -291,6 +306,7 @@ impl<'a> CheckerState<'a> {
             key: None,
             traversed_inert_arm: false,
             synthetic_props,
+            synthetic_this_root,
         };
         let walk = self.get_type_at_flow_node(&mut query, flow_node);
         // sharedFlowCount = sharedFlowStart — restored BEFORE the `?`
@@ -307,7 +323,43 @@ impl<'a> CheckerState<'a> {
         // overwrites the mirror — the ladder sites must read THIS
         // query's flag.
         self.flow_last_query_inert = traversed_inert_arm;
+        // The 6.6f flag REGISTRY: unlike the single-slot mirror, the
+        // per-node record survives nested queries, so a diagnostic
+        // face reached long after this query (the receiver of a
+        // property access, an argument's operand) can still see that
+        // its answer was seam-reverted and contain instead of
+        // reporting over the deliberately-wide value.
+        if traversed_inert_arm {
+            self.flow_inert_answer_nodes.insert(reference);
+        }
         result
+    }
+
+    /// The 6.6f containment probe: this node's LAST flow answer was
+    /// seam-reverted (an unported M6/M8 dependency crossed the walk),
+    /// so a failed verdict over it is undecidable — the report faces
+    /// consult this instead of the retired syntax-probe gates.
+    /// Parens/nonnull wrappers unwrap to the queried core.
+    /// tsrs-native: flag-registry read (no tsc counterpart — tsc has
+    /// no deferral channel).
+    pub(crate) fn flow_answer_is_seam_reverted(&self, node: NodeId) -> bool {
+        let mut core = node;
+        loop {
+            if self.flow_inert_answer_nodes.contains(&core) {
+                return true;
+            }
+            match self.data_of(core) {
+                NodeData::ParenthesizedExpression(data) => match data.expression {
+                    Some(inner) => core = inner,
+                    None => return false,
+                },
+                NodeData::NonNullExpression(data) => match data.expression {
+                    Some(inner) => core = inner,
+                    None => return false,
+                },
+                _ => return false,
+            }
+        }
     }
 
     /// The getFlowTypeOfReference tail (70407-70411): the 6.2
@@ -513,22 +565,15 @@ impl<'a> CheckerState<'a> {
                 };
                 ty = match join {
                     Ok(join) => join,
-                    // Reasons PREFIXED "[FLOW M5] " are the
-                    // narrowable-containment GATES (failure-face
-                    // checks that fire on the statement path too):
-                    // they mean "tsc's answer likely differs because
-                    // of narrowing" and must keep containing the
-                    // enclosing statement — exactly what the pre-6.3
-                    // statement-path check of the same expression
-                    // did. The prefix is the discriminator: M5-owned
-                    // dependency STUBS embed the tag parenthetically
-                    // ("(... [FLOW M5])") and degrade below like the
-                    // M6/M8 stubs — their statement-path containment
-                    // stands untouched, but a join pull crossing one
-                    // must not contain a statement the 6.2 label
-                    // stubs let complete (the 6.3 review caught
-                    // `.contains` sweeping seven stub reasons into
-                    // the rethrow set).
+                    // Reasons PREFIXED "[FLOW M5] " were the
+                    // narrowable-containment GATES — all retired at
+                    // 6.6f (no producer emits the prefix today). The
+                    // rethrow arm STAYS as the documented convention
+                    // (prefix = gate, rethrow; parenthetical tag =
+                    // stub, degrade — the 6.3 review caught
+                    // `.contains` sweeping stub reasons into this
+                    // set): any future gate-class reason inherits the
+                    // containment semantics by construction.
                     Err(unsupported) if unsupported.reason.starts_with("[FLOW M5] ") => {
                         return Err(unsupported);
                     }
@@ -1240,15 +1285,27 @@ impl<'a> CheckerState<'a> {
         if let Some(key) = &query.key {
             return Ok(key.clone());
         }
-        let base_key = self.get_flow_cache_key(
-            query.reference,
-            query.declared_type,
-            query.initial_type,
-            query.flow_container,
-        )?;
         // A synthetic destructuring chain keys as tsc's synthetic
         // node does: the base access's key with each accessed name
-        // appended (getFlowCacheKey's access arm per level).
+        // appended (getFlowCacheKey's access arm per level). A
+        // this-rooted chain keys from the ThisKeyword arm's base
+        // (69414 "0|…") — the container node's own kind never keys.
+        let base_key = if query.synthetic_this_root {
+            let container_id = query
+                .flow_container
+                .map_or_else(|| "-1".to_owned(), |container| container.0.to_string());
+            Some(format!(
+                "0|{container_id}|{}|{}",
+                query.declared_type.0, query.initial_type.0
+            ))
+        } else {
+            self.get_flow_cache_key(
+                query.reference,
+                query.declared_type,
+                query.initial_type,
+                query.flow_container,
+            )?
+        };
         let key = match (&query.synthetic_props, base_key) {
             (Some(props), Some(base_key)) => Some(format!("{base_key}.{}", props.join("."))),
             (Some(_), None) => None,
@@ -1944,6 +2001,19 @@ impl<'a> CheckerState<'a> {
         let Some(name) = name else {
             return Ok(self.tables.intrinsics.error);
         };
+        // 6.6f: tsc's COMPUTED-key destructuring assignments consume
+        // PR-#41094 evaluation-order narrowing (the key expression's
+        // own assignments interleave with the element reads) — the
+        // order family is unported, and the plain
+        // getTypeOfDestructuredProperty read diverges on the
+        // controlFlowAssignmentPatternOrder faces. Contain the
+        // computed-key arm until the family lands.
+        if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+            return Err(Unsupported::new(
+                "computed-key destructuring assignment (evaluation-order narrowing \
+                 family, M6)",
+            ));
+        }
         let assigned = self.get_assigned_type(parent)?;
         self.get_type_of_destructured_property(assigned, name)
     }
@@ -2312,7 +2382,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isVarConstLike @6.0.3
     /// tsc-hash: c0803a735166c3246d683c39c34758f3f64d3bbc662a7d99ae6b7673538eb414
     /// tsc-span: _tsc.js:90557-90560
-    fn is_var_const_like(&self, node: NodeId) -> bool {
+    /// (pub(crate): isConstantReference's binding-pattern arm consumes
+    /// it since 6.6f.)
+    pub(crate) fn is_var_const_like(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         let block_scope_kind = node_util::get_combined_node_flags(source, node).bits()
             & (NodeFlags::LET.bits() | NodeFlags::CONST.bits() | NodeFlags::USING.bits());
@@ -2649,9 +2721,206 @@ impl<'a> CheckerState<'a> {
         self.get_flow_type_of_reference_full(
             base,
             Some(props),
+            /*synthetic_this_root*/ false,
             declared_type,
             declared_type,
             None,
+            flow_node,
+        )
+    }
+
+    /// tsc-port: isAutoTypedProperty @6.0.3
+    /// tsc-hash: 22db9875719e620527523222c51e406689b52a01cfb000d3bedd024fc203e521
+    /// tsc-span: _tsc.js:56159-56162
+    ///
+    /// The isInJSFile disjunct rides the checkJs band (TS sources
+    /// only reach the noImplicitAny read).
+    pub(crate) fn is_auto_typed_property(&self, symbol: SymbolId) -> bool {
+        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
+            return false;
+        };
+        let NodeData::PropertyDeclaration(data) = self.data_of(declaration) else {
+            return false;
+        };
+        data.r#type.is_none()
+            && data.initializer.is_none()
+            && self
+                .options
+                .strict_option_value(self.options.no_implicit_any)
+    }
+
+    /// The initialType of getFlowTypeOfProperty (56223): the
+    /// base-class property type for non-auto (or ambient) properties,
+    /// else undefined.
+    /// tsrs-native: shared head of the property-flow entries below.
+    fn flow_property_initial_type(&mut self, prop: Option<SymbolId>) -> CheckResult2<TypeId> {
+        let base_type = match prop {
+            Some(prop) if self.binder.symbol(prop).value_declaration.is_some() => {
+                let declaration = self
+                    .binder
+                    .symbol(prop)
+                    .value_declaration
+                    .expect("guarded above");
+                let source = self.binder.source_of_node(declaration);
+                let ambient = node_util::get_combined_modifier_flags(source, declaration)
+                    .intersects(tsrs2_types::ModifierFlags::AMBIENT);
+                if !self.is_auto_typed_property(prop) || ambient {
+                    self.get_type_of_property_in_base_class(prop)?
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        Ok(base_type.unwrap_or(self.tables.intrinsics.undefined))
+    }
+
+    /// tsc-port: getFlowTypeOfProperty @6.0.3
+    /// tsc-hash: 7aed7004de50963786cab68bc28c7de0bd4609c1d50760585af7700f1b5468cd
+    /// tsc-span: _tsc.js:56222-56225
+    ///
+    /// The REAL-reference face (getFlowTypeOfAccessExpression's
+    /// autoType route, 75350): the reference is the source
+    /// `this.x`-style access node itself.
+    pub(crate) fn get_flow_type_of_property(
+        &mut self,
+        reference: NodeId,
+        prop: Option<SymbolId>,
+    ) -> CheckResult2<TypeId> {
+        let initial_type = self.flow_property_initial_type(prop)?;
+        let auto = self.tables.intrinsics.auto;
+        self.get_flow_type_of_reference(reference, auto, initial_type, None)
+    }
+
+    /// tsc-port: getFlowTypeInConstructor @6.0.3
+    /// tsc-hash: 8ee01cd6a2c9aa0be7be68d5dd98b57a2fa868037c18f53dd837ac617b8089d4
+    /// tsc-span: _tsc.js:56210-56221
+    ///
+    /// tsc builds a factory `this.<accessName>` reference parented to
+    /// the constructor with flowNode = constructor.returnFlowNode —
+    /// here the this-rooted synthetic chain + the binder's
+    /// node_return_flow. The noImplicitAny auto/autoArray report and
+    /// the all-nullable → None fallthrough mirror 56216-56220.
+    pub(crate) fn get_flow_type_in_constructor(
+        &mut self,
+        symbol: SymbolId,
+        constructor: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let flow_type = self.get_flow_type_of_property_synthetic(symbol, constructor)?;
+        if self
+            .options
+            .strict_option_value(self.options.no_implicit_any)
+            && (flow_type == self.tables.intrinsics.auto || self.is_auto_array_type(flow_type))
+        {
+            let display = self.symbol_display_name(symbol);
+            let type_display = self.type_to_string_slice(flow_type)?;
+            let error_node = self.binder.symbol(symbol).value_declaration;
+            self.error_at(
+                error_node,
+                &diagnostics::Member_0_implicitly_has_an_1_type,
+                &[&display, &type_display],
+            );
+        }
+        if self.every_type_is_nullable(flow_type)? {
+            return Ok(None);
+        }
+        Ok(Some(self.convert_auto_to_any(flow_type)?))
+    }
+
+    /// tsc-port: getFlowTypeInStaticBlocks @6.0.3
+    /// tsc-hash: 8267304a8dff577f7578e77f4fe511a192e9c50efb4358126bf52a5c9292bb52
+    /// tsc-span: _tsc.js:56193-56209
+    ///
+    /// One synthetic query per static block (flowNode = the block's
+    /// returnFlowNode); an all-nullable answer falls through to the
+    /// NEXT block, exactly tsc's `continue`.
+    pub(crate) fn get_flow_type_in_static_blocks(
+        &mut self,
+        symbol: SymbolId,
+        static_blocks: &[NodeId],
+    ) -> CheckResult2<Option<TypeId>> {
+        for &static_block in static_blocks {
+            let flow_type = self.get_flow_type_of_property_synthetic(symbol, static_block)?;
+            if self
+                .options
+                .strict_option_value(self.options.no_implicit_any)
+                && (flow_type == self.tables.intrinsics.auto || self.is_auto_array_type(flow_type))
+            {
+                let display = self.symbol_display_name(symbol);
+                let type_display = self.type_to_string_slice(flow_type)?;
+                let error_node = self.binder.symbol(symbol).value_declaration;
+                self.error_at(
+                    error_node,
+                    &diagnostics::Member_0_implicitly_has_an_1_type,
+                    &[&display, &type_display],
+                );
+            }
+            if self.every_type_is_nullable(flow_type)? {
+                continue;
+            }
+            return Ok(Some(self.convert_auto_to_any(flow_type)?));
+        }
+        Ok(None)
+    }
+
+    /// The everyType(flowType, isNullableType) composition
+    /// (56201/56220) — the union traversal with a fallible predicate,
+    /// the every_type_is_tuple_like idiom.
+    /// tsrs-native: fallible-everyType instance.
+    fn every_type_is_nullable(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        let members: Vec<TypeId> = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
+            match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            }
+        } else {
+            vec![ty]
+        };
+        for member in members {
+            if !self.is_nullable_type(member)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    /// The factory-`this.prop` query shared by the constructor and
+    /// static-block entries (56195-56199/56212-56215): accessName =
+    /// the private description after tsc's `__#…@` mangling, else the
+    /// symbol's escaped name (the factory's unescape→escape round
+    /// trip); flowNode = the container's returnFlowNode; the
+    /// container doubles as tsc's `getControlFlowContainer` result
+    /// for the factory reference (setParent(reference, container)).
+    /// tsrs-native: this-rooted synthetic entry over the same spans.
+    fn get_flow_type_of_property_synthetic(
+        &mut self,
+        symbol: SymbolId,
+        container: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let escaped_name = self.binder.symbol(symbol).escaped_name.clone();
+        let access_name = match escaped_name.strip_prefix("__#") {
+            Some(rest) => match rest.split_once('@') {
+                Some((_, description)) => description.to_owned(),
+                None => escaped_name.clone(),
+            },
+            None => escaped_name,
+        };
+        let initial_type = self.flow_property_initial_type(Some(symbol))?;
+        let auto = self.tables.intrinsics.auto;
+        let file = self.binder.file_index_of_node(container);
+        let flow_node = self
+            .binder
+            .file(file)
+            .node_return_flow
+            .get(&container)
+            .copied();
+        self.get_flow_type_of_reference_full(
+            container,
+            Some(vec![access_name]),
+            /*synthetic_this_root*/ true,
+            auto,
+            initial_type,
+            Some(container),
             flow_node,
         )
     }
@@ -2745,7 +3014,12 @@ impl<'a> CheckerState<'a> {
             None => self.is_matching_reference(query.reference, target),
             Some(props) => {
                 let props = props.clone();
-                self.is_matching_synthetic_chain(query.reference, &props, target)
+                self.is_matching_synthetic_chain(
+                    query.reference,
+                    &props,
+                    query.synthetic_this_root,
+                    target,
+                )
             }
         }
     }
@@ -2754,15 +3028,20 @@ impl<'a> CheckerState<'a> {
     /// chain `base[p0]…[pn]`: the target-side unwrap arms mirror the
     /// plain port; the source access arm compares the outermost chain
     /// name against the target's accessed name and recurses on the
-    /// receivers (an empty chain IS the base — plain matching).
+    /// receivers (an empty chain IS the base — plain matching, or the
+    /// ThisKeyword kind test when the chain is this-rooted).
     /// tsrs-native: chain-encoded source arm of the same tsc span.
     fn is_matching_synthetic_chain(
         &mut self,
         base: NodeId,
         props: &[String],
+        this_root: bool,
         target: NodeId,
     ) -> CheckResult2<bool> {
         let Some((outer, receiver_props)) = props.split_last() else {
+            if this_root {
+                return Ok(self.is_matching_this_target(target));
+            }
             return self.is_matching_reference(base, target);
         };
         match self.kind_of(target) {
@@ -2773,7 +3052,7 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 match inner {
-                    Some(inner) => self.is_matching_synthetic_chain(base, props, inner),
+                    Some(inner) => self.is_matching_synthetic_chain(base, props, this_root, inner),
                     None => Ok(false),
                 }
             }
@@ -2782,14 +3061,14 @@ impl<'a> CheckerState<'a> {
                     let (left, right, operator) = (data.left, data.right, data.operator_token);
                     if let (Some(left), Some(operator)) = (left, operator) {
                         if node_util::is_assignment_operator(self.kind_of(operator))
-                            && self.is_matching_synthetic_chain(base, props, left)?
+                            && self.is_matching_synthetic_chain(base, props, this_root, left)?
                         {
                             return Ok(true);
                         }
                     }
                     if let (Some(right), Some(operator)) = (right, operator) {
                         if self.kind_of(operator) == SyntaxKind::CommaToken
-                            && self.is_matching_synthetic_chain(base, props, right)?
+                            && self.is_matching_synthetic_chain(base, props, this_root, right)?
                         {
                             return Ok(true);
                         }
@@ -2811,12 +3090,74 @@ impl<'a> CheckerState<'a> {
                 };
                 match receiver {
                     Some(receiver) => {
-                        self.is_matching_synthetic_chain(base, receiver_props, receiver)
+                        self.is_matching_synthetic_chain(base, receiver_props, this_root, receiver)
                     }
                     None => Ok(false),
                 }
             }
             _ => Ok(false),
+        }
+    }
+
+    /// tsc isMatchingReference's ThisKeyword source arm (69460) with
+    /// the factory `this` as source: the TARGET-side unwrap arms
+    /// (paren/nonnull/assignment-left/comma-right) still apply, then
+    /// the arm is a plain kind test.
+    /// tsrs-native: grounding of the this-rooted synthetic chain.
+    fn is_matching_this_target(&self, target: NodeId) -> bool {
+        match self.kind_of(target) {
+            SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
+                let inner = match self.data_of(target) {
+                    NodeData::ParenthesizedExpression(data) => data.expression,
+                    NodeData::NonNullExpression(data) => data.expression,
+                    _ => None,
+                };
+                inner.is_some_and(|inner| self.is_matching_this_target(inner))
+            }
+            SyntaxKind::BinaryExpression => {
+                let NodeData::BinaryExpression(data) = self.data_of(target) else {
+                    return false;
+                };
+                let (left, right, operator) = (data.left, data.right, data.operator_token);
+                let Some(operator) = operator else {
+                    return false;
+                };
+                if node_util::is_assignment_operator(self.kind_of(operator)) {
+                    if let Some(left) = left {
+                        if self.is_matching_this_target(left) {
+                            return true;
+                        }
+                    }
+                }
+                if self.kind_of(operator) == SyntaxKind::CommaToken {
+                    if let Some(right) = right {
+                        return self.is_matching_this_target(right);
+                    }
+                }
+                false
+            }
+            SyntaxKind::ThisKeyword => true,
+            _ => false,
+        }
+    }
+
+    /// The source-oriented twin (a REAL source node against the
+    /// factory `this` target): isMatchingReference's source-side
+    /// paren/nonnull unwrap, then the ThisKeyword kind test.
+    /// tsrs-native: grounding of real_node_matches_synthetic_chain
+    /// for this-rooted chains.
+    fn is_this_reference_source(&self, source: NodeId) -> bool {
+        match self.kind_of(source) {
+            SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
+                let inner = match self.data_of(source) {
+                    NodeData::ParenthesizedExpression(data) => data.expression,
+                    NodeData::NonNullExpression(data) => data.expression,
+                    _ => None,
+                };
+                inner.is_some_and(|inner| self.is_this_reference_source(inner))
+            }
+            SyntaxKind::ThisKeyword => true,
+            _ => false,
         }
     }
 
@@ -2833,9 +3174,19 @@ impl<'a> CheckerState<'a> {
             return self.contains_matching_reference(query.reference, target);
         };
         for len in (1..props.len()).rev() {
-            if self.is_matching_synthetic_chain(query.reference, &props[..len], target)? {
+            if self.is_matching_synthetic_chain(
+                query.reference,
+                &props[..len],
+                query.synthetic_this_root,
+                target,
+            )? {
                 return Ok(true);
             }
+        }
+        if query.synthetic_this_root {
+            // The stripped root IS the factory `this`; a bare `this`
+            // is not an access, so tsc's receiver loop ends here.
+            return Ok(self.is_matching_this_target(target));
         }
         if self.is_matching_reference(query.reference, target)? {
             return Ok(true);
@@ -2883,7 +3234,12 @@ impl<'a> CheckerState<'a> {
             Some(props) => {
                 let props = props.clone();
                 let receiver = &props[..props.len().saturating_sub(1)];
-                self.is_matching_synthetic_chain(query.reference, receiver, target)
+                self.is_matching_synthetic_chain(
+                    query.reference,
+                    receiver,
+                    query.synthetic_this_root,
+                    target,
+                )
             }
             None => match self.access_expression_of(query.reference) {
                 Some(receiver) => self.is_matching_reference(receiver, target),
@@ -2925,7 +3281,12 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             };
             source = next;
-            if self.real_node_matches_synthetic_chain(source, query.reference, &props)? {
+            if self.real_node_matches_synthetic_chain(
+                source,
+                query.reference,
+                &props,
+                query.synthetic_this_root,
+            )? {
                 return Ok(true);
             }
         }
@@ -2944,8 +3305,12 @@ impl<'a> CheckerState<'a> {
         source: NodeId,
         base: NodeId,
         props: &[String],
+        this_root: bool,
     ) -> CheckResult2<bool> {
         let Some((outer, receiver_props)) = props.split_last() else {
+            if this_root {
+                return Ok(self.is_this_reference_source(source));
+            }
             return self.is_matching_reference(source, base);
         };
         match self.kind_of(source) {
@@ -2956,7 +3321,9 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 match inner {
-                    Some(inner) => self.real_node_matches_synthetic_chain(inner, base, props),
+                    Some(inner) => {
+                        self.real_node_matches_synthetic_chain(inner, base, props, this_root)
+                    }
                     None => Ok(false),
                 }
             }
@@ -2973,9 +3340,12 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 match receiver {
-                    Some(receiver) => {
-                        self.real_node_matches_synthetic_chain(receiver, base, receiver_props)
-                    }
+                    Some(receiver) => self.real_node_matches_synthetic_chain(
+                        receiver,
+                        base,
+                        receiver_props,
+                        this_root,
+                    ),
                     None => Ok(false),
                 }
             }
@@ -4160,6 +4530,8 @@ impl<'a> CheckerState<'a> {
 #[cfg(test)]
 mod tests {
     use super::FlowType;
+    use crate::state::test_support::with_program_state;
+    use crate::CompilerOptions;
 
     #[test]
     fn flow_type_accessors() {
@@ -4168,5 +4540,116 @@ mod tests {
         assert_eq!(FlowType::Incomplete(ty).get_type(), ty);
         assert!(!FlowType::Type(ty).is_incomplete());
         assert!(FlowType::Incomplete(ty).is_incomplete());
+    }
+
+    fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    // ---- class-property flow init (6.6e; rows oracle-pinned vs
+    // vendored tsc 6.0.3 noLib per shape, 2026-07-19) ----
+
+    #[test]
+    fn constructor_assignments_type_auto_properties() {
+        // getFlowTypeInConstructor: the this-rooted synthetic query
+        // over returnFlowNode infers `x: number` — the misuse row is
+        // the proof the inference (not any) landed.
+        assert_eq!(
+            checked_rows(
+                "class C { x; constructor() { this.x = 1; } }\ndeclare const c: C;\nconst s: string = c.x;\n"
+            ),
+            [(2322, 71, 1)]
+        );
+        // No assignment reaches the return flow — all-nullable answer
+        // falls through to the widening tail's 7008.
+        assert_eq!(
+            checked_rows("class C { x; constructor() { } }\n"),
+            [(7008, 10, 1)]
+        );
+        // Conditional assignments union (number | string here — the
+        // misuse row proves the JOIN, not an any/单-type collapse).
+        assert_eq!(
+            checked_rows(
+                "class C { x; constructor(b: boolean) { if (b) this.x = 1; else this.x = \"s\"; const v = this.x; const n: boolean = v; } }\n"
+            ),
+            [(2322, 101, 1)]
+        );
+    }
+
+    #[test]
+    fn in_constructor_this_property_reads_flow_narrow() {
+        // The access.rs face (75319→75350): a this-property READ in
+        // the constructor routes through getFlowTypeOfProperty with
+        // the REAL access node as reference.
+        assert_eq!(
+            checked_rows(
+                "class C { x; constructor() { this.x = 1; const y: string = this.x; } }\n"
+            ),
+            [(2322, 47, 1)]
+        );
+    }
+
+    #[test]
+    fn ungated_faces_stay_clean_on_oracle_clean_shapes() {
+        // Two faces the 6.6f gate retirement UNMASKED in canaries —
+        // pinned oracle-clean (vendored tsc noLib, 2026-07-19):
+        // late-bound unique-literal computed key indexing…
+        assert_eq!(
+            checked_rows(
+                "const a = \"a\";\ntype A = { [a]: number };\ndeclare const c: A;\nc[a];\n"
+            ),
+            []
+        );
+        // …and for-in over an optional chain narrowing the chain's
+        // links in the body (tsc #51941).
+        assert_eq!(
+            checked_rows(
+                "type R = { [k: string]: T5 };\ntype T5 = { main?: { childs: R } };\nfunction f50(obj: T5) {\n  for (const key in obj.main?.childs) {\n    if (obj.main.childs[key] === obj) { return obj; }\n  }\n  return null;\n}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn in_operator_fixture_body_is_clean_without_lib() {
+        // noLib twin of the seam-registry pins: without a global
+        // Record the missing-key widening is silently skipped, no
+        // seam flag arises, and the whole fixture body checks clean.
+        let text = "const a = 'a';\nconst b = 'b';\nconst d = 'd';\n\ntype A = { [a]: number; };\ntype B = { [b]: string; };\n\ndeclare const c: A | B;\n\nif ('a' in c) {\n    c;\n    c['a'];\n}\n\nif ('d' in c) {\n    c;\n}\n\nif (a in c) {\n    c;\n    c[a];\n}\n\nif (d in c) {\n    c;\n}\n";
+        assert_eq!(checked_rows(text), []);
+    }
+
+    #[test]
+    fn static_blocks_and_privates_flow_type_auto_properties() {
+        // getFlowTypeInStaticBlocks (this = the class in a static
+        // block).
+        assert_eq!(
+            checked_rows(
+                "class C { static x; static { this.x = 1; } }\ndeclare const n: string;\nconst z: string = C.x;\n"
+            ),
+            [(2322, 76, 1)]
+        );
+        // Private identifiers: accessName = the `__#…@` description
+        // (\"#x\") matching the real `this.#x` access name.
+        assert_eq!(
+            checked_rows(
+                "class C { #x; constructor() { this.#x = \"s\"; const n: number = this.#x; } }\n"
+            ),
+            [(2322, 51, 1)]
+        );
     }
 }

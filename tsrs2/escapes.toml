@@ -46,23 +46,23 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_non_null_non_void_type"
-reason = "[FLOW M5] void receiver on a narrowable reference"
+reason = "void-receiver report over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
-owner = "M5"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_non_null_type_with_reporter"
-reason = "[FLOW M5] nullable receiver on a narrowable reference"
+reason = "nullable-receiver report over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
-owner = "M5"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_non_null_type_with_reporter"
-reason = "[FLOW M5] unknown receiver on a narrowable reference"
+reason = "unknown-receiver report over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
-owner = "M5"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/access.rs"
@@ -79,14 +79,14 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_property_access_expression_or_qualified_name"
-reason = "[FLOW M5] property miss on a narrowable receiver in a guarded position"
+reason = "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)"
 class = "stage"
-owner = "M5"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_property_access_expression_or_qualified_name"
-reason = "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)"
+reason = "property miss over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
 owner = "M8"
 
@@ -96,13 +96,6 @@ in = "check_property_access_expression_or_qualified_name"
 reason = "property miss under an unresolved module augmentation (node_modules resolver band, M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/access.rs"
-in = "check_property_access_expression_or_qualified_name"
-reason = "this-property-in-constructor autoType (getFlowTypeOfProperty [FLOW M5])"
-class = "stage"
-owner = "M5"
 
 [[site]]
 file = "crates/checker/src/access.rs"
@@ -126,15 +119,15 @@ count = 2
 
 [[site]]
 file = "crates/checker/src/access.rs"
-in = "get_flow_type_of_access_expression"
-reason = "getFlowTypeOfProperty on autoType ([FLOW M5])"
+in = "get_write_type_of_symbol"
+reason = "deferred synthetic write types (getWriteTypeOfSymbolWithDeferredType, M6)"
 class = "stage"
-owner = "M5"
+owner = "M6"
 
 [[site]]
 file = "crates/checker/src/access.rs"
-in = "get_write_type_of_symbol"
-reason = "deferred synthetic write types (getWriteTypeOfSymbolWithDeferredType, M6)"
+in = "report_nonexistent_property"
+reason = "never-narrowed receiver report over an unreduced intersection member (getReducedType never-reduction, M6)"
 class = "stage"
 owner = "M6"
 
@@ -195,20 +188,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_for_variable_like_declaration"
-reason = "constructor-assigned property type (getFlowTypeInConstructor [FLOW M5])"
-class = "stage"
-owner = "M5"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_for_variable_like_declaration"
-reason = "static-block-assigned property type (getFlowTypeInStaticBlocks [FLOW M5])"
-class = "stage"
-owner = "M5"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_type_from_binding_element"
 reason = "getTypeFromBindingElement over a non-binding-element (parse recovery)"
 class = "recovery"
@@ -246,13 +225,6 @@ file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_operator_node"
 reason = "type operator without a parent (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_query_node"
-reason = "[FLOW M5] typeof this under a reaching this-guard"
-class = "stage"
-owner = "M5"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -460,9 +432,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "get_signature_applicability_error"
-reason = "[FLOW M5] failed argument from a narrowable reference with a related narrowing construct in scope"
+reason = "failed argument over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
-owner = "M5"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -516,13 +488,6 @@ in = "pick_longest_candidate_signature"
 reason = "inferSignatureInstantiationForOverloadFailure (M6-stub): context-sensitive arguments would observe stub parameter types"
 class = "stage"
 owner = "M6"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "resolve_call_expression"
-reason = "[FLOW M5] untyped-call 2347 over an auto-typed callee (checkNonNullExpression error-face unmodeled)"
-class = "stage"
-owner = "M5"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -830,6 +795,13 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/flow.rs"
+in = "get_assigned_type_of_property_assignment"
+reason = "computed-key destructuring assignment (evaluation-order narrowing family, M6)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/flow.rs"
 in = "get_narrowed_type_of_symbol"
 reason = "dependent-parameter narrowing over a generic rest type (getInferenceContext nonFixingMapper, M6)"
 class = "stage"
@@ -863,9 +835,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/functions.rs"
 in = "check_return_expression"
-reason = "[FLOW M5] failed return from a narrowable union/unknown-typed reference"
+reason = "failed return over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
-owner = "M5"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
@@ -906,18 +878,11 @@ reason = "getDeclarationSpaces unexpected declaration kind (Debug.failBadSyntaxK
 class = "recovery"
 
 [[site]]
-file = "crates/checker/src/functions.rs"
-in = "is_constant_reference"
-reason = "isConstantReference binding-pattern arm (getNarrowedTypeOfSymbol family, [FLOW M5])"
-class = "stage"
-owner = "M5"
-
-[[site]]
 file = "crates/checker/src/indexed.rs"
 in = "element_access_error_ladder"
-reason = "[FLOW M5] element-access ladder on a narrowable receiver in a guarded position"
+reason = "element-access ladder over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
-owner = "M5"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
@@ -1179,23 +1144,16 @@ owner = "M6"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "check_assignment_operator"
-reason = "[FLOW M5] failed assignment from a narrowable union-typed RHS"
-class = "stage"
-owner = "M5"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_assignment_operator"
 reason = "expando-function member assignment (assignment-declaration binding, M8 checkJs band)"
 class = "stage"
 owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
-in = "check_binary_like_expression_worker"
-reason = "equality 2367 over narrowed intersection operands (narrowTypeByEquality, [FLOW M5])"
+in = "check_assignment_operator"
+reason = "failed assignment over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
-owner = "M5"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1303,6 +1261,13 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
+in = "elaborate_literal_assignment"
+reason = "failed array-literal relation with a spread element (elaborateArrayLiteral tupleization, M6)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/operators.rs"
 in = "get_syntactic_nullishness_semantics"
 reason = "conditional with missing branch (parse-recovery tree)"
 class = "recovery"
@@ -1347,6 +1312,13 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/statements.rs"
 in = "check_variable_like_declaration"
+reason = "failed declaration initializer over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
 reason = "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)"
 class = "stage"
 owner = "M8"
@@ -1356,13 +1328,6 @@ file = "crates/checker/src/statements.rs"
 in = "check_variable_statement"
 reason = "VariableStatement recovery node"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/statements.rs"
-in = "declaration_initializer_flow_gate"
-reason = "[FLOW M5] failed declaration initializer over a narrowable reference"
-class = "stage"
-owner = "M5"
 
 [[site]]
 file = "crates/checker/src/structural.rs"

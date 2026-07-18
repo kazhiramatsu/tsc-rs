@@ -896,16 +896,17 @@ mod tests {
 
     #[test]
     fn auto_family_renders_no_false_relations() {
-        // Oracle rows: 2339 toFixed-on-number (flow-evolved, M5 FN),
-        // 7053 on c[0] (evolving never[] index, M5 FN), 6133 ×2 (M7),
-        // 7005 ×2 (live). The pin asserts the FP face: NO 2322 from
-        // `b = 5` against a null-typed b, NO index error against a
-        // never[]-typed c — the auto arm's any stand-in.
+        // Oracle rows: 2339 toFixed-on-number (flow-evolved — LIVE
+        // since the 6.6f gate retirement), 7053 on c[0] (evolving
+        // never[] index — residual FN), 6133 ×2 (M7), 7005 ×2 (live).
+        // The pin still asserts the FP face: NO 2322 from `b = 5`
+        // against a null-typed b, NO index error against a
+        // never[]-typed c.
         assert_eq!(
             checked_rows(
                 "let b = null;\nb = 5;\nb.toFixed();\nlet c = [];\nc[0] = 1;\nexport let v1;\nv1;\ndeclare let d1;\nd1;\n"
             ),
-            [(7005, 67, 2), (7005, 87, 2)]
+            [(2339, 23, 7), (7005, 67, 2), (7005, 87, 2)]
         );
     }
 

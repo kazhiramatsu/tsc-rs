@@ -2542,16 +2542,8 @@ impl<'a> CheckerState<'a> {
         } else if self.is_this_identifier(expr_name)
             || self.kind_of(expr_name) == SyntaxKind::ThisKeyword
         {
-            // [FLOW M5] gate: tsc's checkExpression here reads the
-            // FLOW type of `this` — `if (this instanceof D) { const
-            // d: typeof this = this; }` resolves the query to D.
-            // Contain the query when a reaching `instanceof` guard
-            // narrows `this` (typeofThis conformance FP, 5.8e lift).
-            if self.instanceof_guard_narrows_reference(node, expr_name) {
-                return Err(Unsupported::new(
-                    "[FLOW M5] typeof this under a reaching this-guard",
-                ));
-            }
+            // (The [FLOW M5] typeof-this gate retired at 6.6f: the
+            // this-face consumes real flow types.)
             // `typeof this` — checkExpression routes the this-face to
             // checkThisExpression (75077's isThisIdentifier precedent).
             self.check_this_expression(expr_name)?
@@ -6004,7 +5996,9 @@ impl<'a> CheckerState<'a> {
     /// The FIRST base type's same-named property type, when the
     /// declaring class, a base and the property all exist (None
     /// otherwise — the caller falls through to its widening tail).
-    fn get_type_of_property_in_base_class(
+    /// (pub(crate): getFlowTypeOfProperty's initialType consumes it
+    /// since 6.6e.)
+    pub(crate) fn get_type_of_property_in_base_class(
         &mut self,
         property: SymbolId,
     ) -> CheckResult2<Option<TypeId>> {
@@ -6564,56 +6558,59 @@ impl<'a> CheckerState<'a> {
         if kind == SyntaxKind::PropertyDeclaration
             && (no_implicit_any || self.is_in_js_file(declaration))
         {
+            // 56107-56117 (LIVE since 6.6e): a constructor/static
+            // block wins over the ambient base-class read; a None
+            // flow answer returns None (the caller's widening tail
+            // reports the implicit any).
             let class = parent.expect("property declaration has a parent");
             let ambient_member = node_util::get_combined_modifier_flags(source, declaration)
                 .intersects(ModifierFlags::AMBIENT);
             if !self.has_static_modifier(declaration) {
-                if self.find_constructor_declaration(class).is_some() {
-                    return Err(Unsupported::new(
-                        "constructor-assigned property type (getFlowTypeInConstructor [FLOW M5])",
-                    ));
-                }
-                if ambient_member {
-                    // 56104-56107: declared-ambient instance members
-                    // take the base class's same-named property type;
-                    // a miss returns None (the caller's widening tail
-                    // reports).
+                let constructor = self.find_constructor_declaration(class);
+                let ty = if let Some(constructor) = constructor {
                     let symbol = self.get_symbol_of_declaration(declaration)?;
-                    let base = self.get_type_of_property_in_base_class(symbol)?;
-                    return Ok(base.map(|base| {
-                        self.tables
-                            .add_optionality(base, /*is_property*/ true, is_optional)
-                    }));
-                }
+                    self.get_flow_type_in_constructor(symbol, constructor)?
+                } else if ambient_member {
+                    let symbol = self.get_symbol_of_declaration(declaration)?;
+                    self.get_type_of_property_in_base_class(symbol)?
+                } else {
+                    None
+                };
+                return Ok(ty.map(|ty| {
+                    self.tables
+                        .add_optionality(ty, /*is_property*/ true, is_optional)
+                }));
             } else {
-                let has_static_blocks = matches!(
-                    self.data_of(class),
-                    NodeData::ClassDeclaration(data)
-                        if self.nodes_of(data.members).iter().any(|&member| {
+                let static_blocks: Vec<NodeId> = match self.data_of(class) {
+                    NodeData::ClassDeclaration(data) => self
+                        .nodes_of(data.members)
+                        .into_iter()
+                        .filter(|&member| {
                             self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration
                         })
-                ) || matches!(
-                    self.data_of(class),
-                    NodeData::ClassExpression(data)
-                        if self.nodes_of(data.members).iter().any(|&member| {
+                        .collect(),
+                    NodeData::ClassExpression(data) => self
+                        .nodes_of(data.members)
+                        .into_iter()
+                        .filter(|&member| {
                             self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration
                         })
-                );
-                if has_static_blocks {
-                    return Err(Unsupported::new(
-                        "static-block-assigned property type (getFlowTypeInStaticBlocks [FLOW M5])",
-                    ));
-                }
-                if ambient_member {
-                    // 56113-56116: the static twin of the ambient
-                    // base-class arm above.
+                        .collect(),
+                    _ => Vec::new(),
+                };
+                let ty = if !static_blocks.is_empty() {
                     let symbol = self.get_symbol_of_declaration(declaration)?;
-                    let base = self.get_type_of_property_in_base_class(symbol)?;
-                    return Ok(base.map(|base| {
-                        self.tables
-                            .add_optionality(base, /*is_property*/ true, is_optional)
-                    }));
-                }
+                    self.get_flow_type_in_static_blocks(symbol, &static_blocks)?
+                } else if ambient_member {
+                    let symbol = self.get_symbol_of_declaration(declaration)?;
+                    self.get_type_of_property_in_base_class(symbol)?
+                } else {
+                    None
+                };
+                return Ok(ty.map(|ty| {
+                    self.tables
+                        .add_optionality(ty, /*is_property*/ true, is_optional)
+                }));
             }
         }
         if kind == SyntaxKind::JsxAttribute {

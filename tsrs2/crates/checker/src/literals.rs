@@ -1066,10 +1066,19 @@ impl<'a> CheckerState<'a> {
         if acc.pattern_with_computed_properties {
             object_flags |= ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES;
         }
+        // tsc createAnonymousType(node.symbol, propertiesTable, …)
+        // (74290): the resolved PROPERTIES come from the TABLE —
+        // last-wins on duplicate names, computed-name members
+        // excluded (they live in the index infos above). The raw
+        // propertiesArray feeds only getObjectLiteralIndexInfo, like
+        // tsc's. (Passing the array here was the duplicate-member
+        // 2322 FP face: the stale FIRST duplicate survived into the
+        // relation walk — objectLiteralErrors e3/f3.)
+        let table_properties: Vec<SymbolId> = acc.properties_table.values().copied().collect();
         let id = self.make_resolved_anonymous_type(
             symbol,
             acc.properties_table.clone(),
-            acc.properties_array.clone(),
+            table_properties,
             index_infos,
             object_flags,
         );
