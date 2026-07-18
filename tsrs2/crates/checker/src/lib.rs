@@ -2412,6 +2412,105 @@ mod tests {
     }
 
     #[test]
+    fn destructuring_query_does_not_inline_const_guards() {
+        // The synthetic destructuring reference never const-inlines:
+        // tsc's isConstantReference reads the factory node's
+        // resolvedSymbol — never populated — and its access arm lands
+        // on isReadonlySymbol(unknownSymbol) = false (70385). The
+        // guard must NOT narrow p to string, so `p === 42` stays a
+        // legal overlap (no 2367) exactly like tsc.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare const o: { p: string | number };\nconst isStr = typeof o.p === \"string\";\nif (isStr) {\n  const { p } = o;\n  if (p === 42) {}\n}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(
+            result.partial_checks.len(),
+            0,
+            "{:?}",
+            result.partial_checks
+        );
+    }
+
+    #[test]
+    fn empty_string_typeof_case_witnesses_none() {
+        // getSwitchClauseTypeOfWitnesses (69955): `case "":` is a
+        // FALSY text — the witness is None like a default clause, the
+        // clause narrows to never (tsc's `text ? ... : neverType`),
+        // and the never-typed assignment checks clean. tsc reports
+        // ONLY the case-comparability 2678 (oracle-verified). Pre-fix
+        // the "" witness took the host-object fallback and narrowed
+        // unknown to object — a 2322 FP alongside.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare const x: unknown;\nswitch (typeof x) {\n  case \"\": {\n    const y: never = x;\n    break;\n  }\n}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            [2678]
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn multi_signature_body_inference_candidate_flags_the_query() {
+        // getEffectsSignature's some() sweep: with NO definite
+        // predicate/never member, an annotation-free boolean member
+        // could flip tsc's verdict through body inference — the
+        // selection itself is unreproducible, so the query flags and
+        // the trailing use partial-marks (the argument use reports
+        // its straight-line 2454 for real). Pre-fix the multi-
+        // signature loop skipped the probe and cached the unflagged
+        // None. Rewrite when body inference lands.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "function f(v: unknown) { return !!v; }\nfunction g(v: unknown) { return !!v; }\ndeclare const h: typeof f & typeof g;\nlet x: number;\nif (h(x)) { x = 1; }\nx;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            [2454]
+        );
+        assert_eq!(result.partial_checks.len(), 1);
+        assert_eq!(
+            result.partial_checks[0].reason,
+            "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)"
+        );
+    }
+
+    #[test]
     fn partial_flow_check_records_its_runtime_trigger() {
         // The seam's runtime trigger, retargeted at the LAST
         // still-unported narrowing family (6.4f): an annotation-free

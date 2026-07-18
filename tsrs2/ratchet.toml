@@ -35,8 +35,19 @@
 # (body-inference predicate candidates); the [FLOW M5] failure-face
 # gates stay until 6.6 closes reachability (they still shield its
 # dead-code divergence).
-rate = 0.509628
-matched = 24984
+# m5 6.4 review fixes: +95 — the 6.4 cross-check against _tsc.js:
+# synthetic references never const-inline (isConstantReference is
+# false on factory nodes), the falsy empty-string typeof witness,
+# getTypeForBindingElementParent's undefined-symbol fallthrough
+# (pattern-named declarations un-partial), the effects-signature
+# some() sweep probes body-inference candidates per member
+# (uncertain selections flag + stay unmemoized), the
+# getTypePredicateFromBody probe tightened to tsc's Boolean-only/
+# Normal-function gates, Record widening through the real
+# getGlobalTypeAliasSymbol (2318/2317), isNonLocalAlias-faithful
+# resolveSymbol, containment-orientation fix for synthetic chains.
+rate = 0.511566
+matched = 25079
 total = 49024
 allowed_regression = 0.0
 
@@ -53,8 +64,9 @@ allowed_regression = 0.0
 # m5 6.2: +3684 with flow assignments + evolving arrays.
 # m5 6.3: +4 with the joins/fixpoint (condition-free topologies).
 # m5 6.4: +323 with the narrowers a-h.
-rate = 0.720251
-matched = 15162
+# m5 6.4 review fixes: +92 (see the T0 comment).
+rate = 0.724621
+matched = 15254
 total = 21051
 allowed_regression = 0.0
 

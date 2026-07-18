@@ -30,6 +30,21 @@ use crate::flow::FlowQuery;
 use crate::state::{CheckResult2, CheckerState, SignatureId};
 
 impl<'a> CheckerState<'a> {
+    /// The narrow-family caches (switch types, exhaustiveness,
+    /// effects signatures, resolved type predicates) are state-side
+    /// stand-ins for tsc links/signature fields and follow the links
+    /// write discipline (greenfield §4.3, links.rs assert_writable):
+    /// stable verdicts only, never written during speculation. Inert
+    /// while speculation_depth is constant 0 — the M6 speculation
+    /// transaction must trip HERE, not silently memoize a
+    /// speculative value.
+    fn assert_narrow_cache_writable(&self) {
+        assert_eq!(
+            self.speculation_depth, 0,
+            "narrow-cache writes are forbidden during speculation (greenfield §4.3)"
+        );
+    }
+
     /// tsc-port: narrowType @6.0.3
     /// tsc-hash: 27ad08800fadb3f5234051fdb384cffe54850849b9ba6eca2c94f97e7979a821
     /// tsc-span: _tsc.js:71400-71439
@@ -86,18 +101,26 @@ impl<'a> CheckerState<'a> {
                                         }
                                         _ => (true, None),
                                     };
-                                    let constant_reference = if query.synthetic_props.is_some() {
-                                        // tsc's isConstantReference over the
-                                        // synthetic chain can be true (readonly
-                                        // discriminants) — assume so and let the
-                                        // inlining recursion narrow (its
-                                        // sub-narrowers self-gate on matching).
-                                        true
-                                    } else {
-                                        self.is_constant_reference(query.reference)?
-                                    };
-                                    if let Some(initializer) = initializer {
-                                        if !annotated && constant_reference {
+                                    if let (false, Some(initializer)) = (annotated, initializer) {
+                                        // tsc's && chain consults
+                                        // isConstantReference LAST — its
+                                        // binding-pattern arm is the
+                                        // Unsupported escape, so reaching it
+                                        // for annotated/initializer-less
+                                        // consts would widen that channel
+                                        // beyond tsc. A synthetic
+                                        // destructuring reference never
+                                        // inlines: the factory node carries
+                                        // no resolvedSymbol, so tsc's access
+                                        // arm is isReadonlySymbol(
+                                        // unknownSymbol) = false (70385).
+                                        let constant_reference = if query.synthetic_props.is_some()
+                                        {
+                                            false
+                                        } else {
+                                            self.is_constant_reference(query.reference)?
+                                        };
+                                        if constant_reference {
                                             // The const-variable guard INLINING
                                             // (live since 6.4h): narrow through
                                             // the const's initializer at the
@@ -1146,7 +1169,7 @@ impl<'a> CheckerState<'a> {
             });
         }
         if assume_true {
-            if let Some(record_symbol) = self.get_global_record_symbol() {
+            if let Some(record_symbol) = self.get_global_record_symbol()? {
                 let unknown = self.tables.intrinsics.unknown;
                 let record = self.get_type_alias_instantiation(
                     record_symbol,
@@ -1165,16 +1188,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7aeb5eb6fcfaffaf11a794c57c77bdf8458500f50959f897f035229637562cce
     /// tsc-span: _tsc.js:61016-61025
     ///
-    /// Silent lookup (tsc reports 2318 through this path in lib-less
-    /// programs; the narrowing consumer keeps the miss quiet like the
-    /// facts family's NonNullable — divergence bounded to no-lib
-    /// corpus rows that use `in` widening).
-    fn get_global_record_symbol(&mut self) -> Option<SymbolId> {
-        if self.deferred_global_record_symbol.is_none() {
-            let symbol = self.get_global_symbol("Record", SymbolFlags::TYPE_ALIAS, None);
-            self.deferred_global_record_symbol = Some(symbol);
+    /// getGlobalTypeAliasSymbol("Record", 2, reportErrors=true): a
+    /// noLib miss reports the locationless 2318, a non-alias or
+    /// wrong-arity global Record reports 2317 and skips the widening
+    /// — each once (the memo holds the unknownSymbol verdict; an
+    /// Unsupported unwind stays unmemoized).
+    fn get_global_record_symbol(&mut self) -> CheckResult2<Option<SymbolId>> {
+        if let Some(memo) = self.deferred_global_record_symbol {
+            return Ok(memo);
         }
-        self.deferred_global_record_symbol.expect("memoized above")
+        let symbol = self.get_global_type_alias_symbol("Record", 2, /*report_errors*/ true)?;
+        self.deferred_global_record_symbol = Some(symbol);
+        Ok(symbol)
     }
 
     /// tsc-port: narrowTypeByPrivateIdentifierInInExpression @6.0.3
@@ -1316,8 +1341,8 @@ impl<'a> CheckerState<'a> {
         self.filter_type_with(ty, |state, t| state.is_constructed_by(t, candidate))
     }
 
-    /// The inner isConstructedBy of narrowTypeByConstructor (71487-
-    /// 71492 closure): class-vs-class is symbol identity; otherwise
+    /// The inner isConstructedBy of narrowTypeByConstructor (71252-
+    /// 71257 closure): class-vs-class is symbol identity; otherwise
     /// subtype.
     /// tsrs-native: extracted inner closure (same tsc span).
     fn is_constructed_by(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
@@ -1341,14 +1366,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8035e3178ea954c51ea663da404ef8586c661bbac52bef3ea41ce263a29afc9a
     /// tsc-span: _tsc.js:71259-71297
     ///
-    /// The `[Symbol.hasInstance]` PREDICATE consult
-    /// (getEffectsSignature + getTypePredicateOfSignature) is 6.4f
-    /// machinery: until it lands, a right operand whose hasInstance
-    /// method syntactically declares a type-predicate return FLAGS
-    /// the query (tsc would narrow through the predicate; ordinary
-    /// constructors — incl. the lib `Function[Symbol.hasInstance]`
-    /// returning boolean — have no predicate in tsc either and take
-    /// the prototype path exactly).
+    /// The `[Symbol.hasInstance]` PREDICATE consult is LIVE (6.4f):
+    /// get_effects_signature resolves the hasInstance method through
+    /// its BinaryExpression arm and a first-parameter identifier
+    /// predicate narrows via getNarrowedType(checkDerived) — only the
+    /// body-inference candidate family still flags there (recorded
+    /// M6 deferral). Ordinary constructors — incl. the lib
+    /// `Function[Symbol.hasInstance]` returning boolean — have no
+    /// predicate in tsc either and take the prototype path exactly.
     fn narrow_type_by_instanceof(
         &mut self,
         query: &mut FlowQuery,
@@ -1905,6 +1930,7 @@ impl<'a> CheckerState<'a> {
         for clause in clauses {
             types.push(self.get_type_of_switch_clause(clause)?);
         }
+        self.assert_narrow_cache_writable();
         self.switch_types_cache
             .insert(switch_statement, types.clone());
         Ok(types)
@@ -1915,8 +1941,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:69948-69958
     ///
     /// None when any case expression is not a string literal; a
-    /// per-clause witness list otherwise (default clauses and
-    /// DUPLICATE texts witness None).
+    /// per-clause witness list otherwise (default clauses, DUPLICATE
+    /// texts, and the falsy EMPTY text witness None).
     pub(crate) fn get_switch_clause_type_of_witnesses(
         &mut self,
         switch_statement: NodeId,
@@ -1946,7 +1972,12 @@ impl<'a> CheckerState<'a> {
                 None
             };
             let witness = match text {
-                Some(text) if !witnesses.contains(&Some(text.clone())) => Some(text),
+                // tsc 69955 `text && !contains(...)`: the EMPTY case
+                // text (`case "":`) is falsy and witnesses None, like
+                // a default clause.
+                Some(text) if !text.is_empty() && !witnesses.contains(&Some(text.clone())) => {
+                    Some(text)
+                }
                 _ => None,
             };
             witnesses.push(witness);
@@ -2312,6 +2343,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         if self.exhaustive_switch_computing.contains(&switch_statement) {
+            self.assert_narrow_cache_writable();
             self.exhaustive_switch_cache.insert(switch_statement, false);
             return Ok(false);
         }
@@ -2319,6 +2351,7 @@ impl<'a> CheckerState<'a> {
         let computed = self.compute_exhaustive_switch_statement(switch_statement);
         self.exhaustive_switch_computing.remove(&switch_statement);
         let computed = computed?;
+        self.assert_narrow_cache_writable();
         let result = *self
             .exhaustive_switch_cache
             .entry(switch_statement)
@@ -2698,7 +2731,6 @@ impl<'a> CheckerState<'a> {
         }
         let callee = match self.data_of(call_expression) {
             NodeData::CallExpression(data) => data.expression,
-            NodeData::BinaryExpression(data) => data.right,
             _ => None,
         }?;
         let invoked = self.skip_parentheses(callee);
@@ -2715,23 +2747,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:70194-70223
     ///
     /// links.effectsSignature lives state-side (None = the memoized
-    /// unknownSignature verdict). A candidate that could carry a
+    /// unknownSignature verdict). A signature that could carry a
     /// BODY-INFERRED predicate (TS 5.5 getTypePredicateFromBody — an
-    /// M6-adjacent unported family: annotation-free function-like
-    /// declaration, boolean-ish return, parameters) FLAGS the query:
-    /// tsc might resolve a predicate there that we cannot, and the
-    /// pass-through answer would be over-wide.
+    /// M6-adjacent unported family: annotation-free normal function
+    /// with parameters and a `boolean` return) FLAGS the query — in
+    /// the some() sweep when no definite member decides the
+    /// selection, and on the selected candidate — because tsc might
+    /// resolve a predicate there that we cannot, and the pass-through
+    /// answer would be over-wide.
     pub(crate) fn get_effects_signature(
         &mut self,
         query: &mut FlowQuery,
         node: NodeId,
     ) -> CheckResult2<Option<SignatureId>> {
         if let Some(&cached) = self.effects_signature_cache.get(&node) {
-            if let Some(signature) = cached {
-                if self.signature_may_have_body_inferred_predicate(signature)? {
-                    query.traversed_inert_arm = true;
-                }
-            }
+            // Every cached entry passed the body-inference probes
+            // below at insert time (uncertain verdicts return early,
+            // unmemoized), so a hit needs no re-probe.
             return Ok(cached);
         }
         let func_type: Option<TypeId> = if self.kind_of(node) == SyntaxKind::BinaryExpression {
@@ -2782,35 +2814,52 @@ impl<'a> CheckerState<'a> {
         {
             Some(signatures[0])
         } else {
+            // tsc's `some(signatures, hasTypePredicateOrNeverReturnType)`
+            // reaches getTypePredicateOfSignature's body-inference arm
+            // PER MEMBER: a definite predicate/never member decides
+            // some() = true regardless of the uncertain ones, but with
+            // no definite member a body-inference candidate could flip
+            // the verdict — the selection itself is then unreproducible.
             let mut any_effects = false;
+            let mut any_uncertain = false;
             for &signature in &signatures {
                 if self.has_type_predicate_or_never_return_type(signature)? {
                     any_effects = true;
                     break;
                 }
+                if !any_uncertain {
+                    any_uncertain = self.signature_may_have_body_inferred_predicate(signature)?;
+                }
             }
             if any_effects {
                 Some(self.get_resolved_signature(node, CheckMode::NORMAL)?)
             } else {
+                if any_uncertain {
+                    query.traversed_inert_arm = true;
+                    return Ok(None);
+                }
                 None
             }
         };
         let mut result = None;
         if let Some(candidate) = candidate {
-            if self.has_type_predicate_or_never_return_type(candidate)? {
-                result = Some(candidate);
-            } else if self.signature_may_have_body_inferred_predicate(candidate)? {
+            if self.signature_may_have_body_inferred_predicate(candidate)? {
                 // tsc would run getTypePredicateFromBody here and may
-                // find a predicate — unreproducible until the family
-                // ports; flag (declared-type revert, FP-safe) and DO
-                // NOT memoize: the no-effects verdict is not final
-                // (a memo hit would skip this probe and leak the
-                // unflagged wide answer — caught live by the loop
-                // fixpoint pin).
+                // find a predicate (even alongside a composite verdict
+                // whose members we resolved without body inference) —
+                // unreproducible until the family ports; flag
+                // (declared-type revert, FP-safe) and DO NOT memoize:
+                // the verdict is not final (a memo hit would skip this
+                // probe and leak the unflagged wide answer — caught
+                // live by the loop fixpoint pin).
                 query.traversed_inert_arm = true;
                 return Ok(None);
             }
+            if self.has_type_predicate_or_never_return_type(candidate)? {
+                result = Some(candidate);
+            }
         }
+        self.assert_narrow_cache_writable();
         self.effects_signature_cache.insert(node, result);
         Ok(result)
     }
@@ -2834,11 +2883,13 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    /// The getTypePredicateFromBody precondition (59783-59788): an
-    /// annotation-free function-like declaration with parameters and
-    /// a boolean-ish return could carry a TS 5.5 body-inferred
-    /// predicate in tsc. Consumers FLAG when it holds (conservative
-    /// superset — over-flagging reverts to the declared type).
+    /// The getTypePredicateFromBody precondition (59783-59788 plus
+    /// the function's own bails at 79017-79028): an annotation-free
+    /// NORMAL function/method with parameters and a `boolean` return
+    /// could carry a TS 5.5 body-inferred predicate in tsc. Consumers
+    /// FLAG when it holds (conservative superset — over-flagging
+    /// reverts to the declared type; the remaining slack is the
+    /// single-return expression probe, which is the family itself).
     /// tsrs-native: temporary M6-deferral probe (retires with the
     /// body-inference port).
     fn signature_may_have_body_inferred_predicate(
@@ -2848,7 +2899,20 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = self.signature_of(signature).declaration else {
             return Ok(false);
         };
-        if !node_util::is_function_like_declaration_kind(self.kind_of(declaration)) {
+        let kind = self.kind_of(declaration);
+        if !node_util::is_function_like_declaration_kind(kind) {
+            return Ok(false);
+        }
+        // getTypePredicateFromBody bails outright on constructors and
+        // accessors (79017-79022) and on async/generator functions
+        // (getFunctionFlags !== Normal, 79028).
+        if matches!(
+            kind,
+            SyntaxKind::Constructor | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+        ) {
+            return Ok(false);
+        }
+        if self.get_function_flags(declaration) != 0 {
             return Ok(false);
         }
         if self.effective_return_type_node(declaration).is_some() {
@@ -2857,11 +2921,14 @@ impl<'a> CheckerState<'a> {
         if self.get_parameter_count(signature)? == 0 {
             return Ok(false);
         }
+        // 59783 tests Boolean (256) proper, not BooleanLike: a
+        // literal-typed return can never pass the body probe's own
+        // Boolean gate on the return expression (79048).
         let return_type = self.get_return_type_of_signature(signature)?;
         Ok(self
             .tables
             .flags_of(return_type)
-            .intersects(TypeFlags::BOOLEAN_LIKE))
+            .intersects(TypeFlags::BOOLEAN))
     }
 
     /// tsc-port: getTypeOfDottedName @6.0.3
@@ -3067,16 +3134,18 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc resolveSymbol (the alias-following prelude of
-    /// getExplicitTypeOfSymbol); non-alias symbols pass through.
+    /// tsc resolveSymbol (49113-49115, the alias-following prelude of
+    /// getExplicitTypeOfSymbol) via isNonLocalAlias (49109-49112): a
+    /// MERGED Alias|Value/Type/Namespace symbol keeps its own face
+    /// (only the assignment-declaration alias overrides, 49111's
+    /// second disjunct).
     /// tsrs-native: delegate to the modules family.
     fn resolve_symbol_shallow(&mut self, symbol: SymbolId) -> CheckResult2<SymbolId> {
-        if self
-            .binder
-            .symbol(symbol)
-            .flags
-            .intersects(SymbolFlags::ALIAS)
-        {
+        let flags = self.binder.symbol(symbol).flags;
+        let excludes = SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE;
+        let non_local_alias = (flags & (SymbolFlags::ALIAS | excludes)) == SymbolFlags::ALIAS
+            || (flags.intersects(SymbolFlags::ALIAS) && flags.intersects(SymbolFlags::ASSIGNMENT));
+        if non_local_alias {
             return self.resolve_alias(symbol);
         }
         Ok(symbol)
@@ -3103,6 +3172,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached.clone());
         }
         let result = self.compute_type_predicate_of_signature(signature)?;
+        self.assert_narrow_cache_writable();
         self.resolved_type_predicates
             .insert(signature, result.clone());
         Ok(result)
