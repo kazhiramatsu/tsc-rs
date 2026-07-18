@@ -4865,20 +4865,6 @@ impl<'a> CheckerState<'a> {
                         ));
                     }
                     let return_type = self.get_return_type_of_signature(signature)?;
-                    if return_type == self.tables.intrinsics.never {
-                        // functionHasImplicitReturn is the stub-false
-                        // face: a no-return body computes `never`
-                        // where tsc's reachability gives `void` — the
-                        // 2350 verdict hinges on it (conformance FP:
-                        // inferringClassMembersFromAssignments8). A
-                        // dependency STUB, not a narrowing gate: the
-                        // parenthetical [FLOW M5] tag keeps it out of
-                        // the join-seam rethrow set (prefix = gate)
-                        // while the escapes grep still owns it.
-                        return Err(Unsupported::new(
-                            "functionHasImplicitReturn stub under the 2350 gate (never-vs-void return, [FLOW M5])",
-                        ));
-                    }
                     if return_type != self.tables.intrinsics.void {
                         self.error_at(
                             Some(node),

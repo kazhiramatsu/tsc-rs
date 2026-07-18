@@ -893,13 +893,6 @@ impl<'a> CheckerState<'a> {
         out
     }
 
-    /// The 5.5f inference read now routes through the binder flag
-    /// (function_has_implicit_return) — kept as a named seam so the M5
-    /// flow-refined isReachableFlowNode swap has one site.
-    fn function_has_implicit_return_stub(&self, func: NodeId) -> bool {
-        self.function_has_implicit_return(func)
-    }
-
     /// tsc-port: checkAndAggregateReturnExpressionTypes @6.0.3
     /// tsc-hash: 69b5d219762f77c14a66f98a7981ba6bfa0ee5411becccc95ddf59efef3e609e
     /// tsc-span: _tsc.js:78959-79008
@@ -910,7 +903,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<Vec<TypeId>>> {
         let function_flags = self.get_function_flags(func);
         let mut aggregated_types: Vec<TypeId> = Vec::new();
-        let mut has_return_with_no_expression = self.function_has_implicit_return_stub(func);
+        let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
         let mut has_return_of_type_never = false;
         let source = self.binder.source_of_node(func);
         let body = node_util::body_of(source, func).expect("callers checked the body");
@@ -2226,24 +2219,30 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 82639fc96cdd05a5d0f6cec8552ebe828c87898536a91ec4ca88e3d2f606eec1
     /// tsc-span: _tsc.js:78956-78958
     ///
-    /// tsc reads endFlowNode reachability; the binder stamps
-    /// HAS_IMPLICIT_RETURN under the SAME reachability verdict at bind
-    /// time (containers.rs), so the flag substitutes — the residual
-    /// delta is isReachableFlowNode's checker-side refinement
-    /// (never-returning CALLS via getEffectsSignature, M5), triaged at
-    /// the FP gate. Distinct from the 5.5f inference stub
-    /// (function_has_implicit_return_stub), which stays false until M5
-    /// flips return-union inference deliberately.
-    fn function_has_implicit_return(&self, func: NodeId) -> bool {
-        NodeFlags::from_bits(self.node_flags(func)).intersects(NodeFlags::HAS_IMPLICIT_RETURN)
+    /// REAL since 6.6: `func.endFlowNode && isReachableFlowNode(...)`.
+    /// The binder records node_end_flow under the SAME bind-time
+    /// verdict tsc uses to SET endFlowNode (containers.rs — presence
+    /// here ≡ the old HAS_IMPLICIT_RETURN flag read), and the 6.6 walk
+    /// adds the checker-side refinements the M4-era flag could not
+    /// see: exhaustive switches and never-returning calls
+    /// (getEffectsSignature).
+    fn function_has_implicit_return(&mut self, func: NodeId) -> CheckResult2<bool> {
+        let file = self.binder.file_index_of_node(func);
+        let Some(&end_flow) = self.binder.file(file).node_end_flow.get(&func) else {
+            return Ok(false);
+        };
+        self.is_reachable_flow_node(file, end_flow)
     }
 
     /// tsc-port: checkAllCodePathsInNonVoidFunctionReturnOrThrow @6.0.3
     /// tsc-hash: 608b7fb1571a161314fb3aa82e2817f347b15e39244a275b890104c5423e2dc6
     /// tsc-span: _tsc.js:79075-79108
     ///
-    /// Eager (addLazyDiagnostic identity); the noImplicitReturns arm
-    /// is option-absent (dead, §13 audit).
+    /// Eager (addLazyDiagnostic identity). The 79087-79095 arms are an
+    /// else-if LADDER: an arm that ERRORS ends the chain, an arm whose
+    /// CONDITION fails falls through to the trailing noImplicitReturns
+    /// arm (79096) — a declared undefined-including return type under
+    /// noImplicitReturns still reaches the 7030 face.
     pub(crate) fn check_all_code_paths_in_non_void_function_return_or_throw(
         &mut self,
         func: NodeId,
@@ -2268,22 +2267,9 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(func) == SyntaxKind::MethodSignature
             || body.is_none()
             || body.is_some_and(|body| self.kind_of(body) != SyntaxKind::Block)
-            || !self.function_has_implicit_return(func)
+            || !self.function_has_implicit_return(func)?
         {
             return Ok(());
-        }
-        // [FLOW M5] gate: tsc's functionHasImplicitReturn consults
-        // checker-side flow reachability (isReachableFlowNode), which
-        // refines the binder's verdict through EXHAUSTIVE SWITCHES and
-        // never-returning CALLS (getEffectsSignature) — both invisible
-        // to the bind-time flag. A body containing either shape may be
-        // tsc-clean where the flag says reachable; contain those and
-        // keep the plain fall-through recoveries.
-        if self.body_contains_switch_or_statement_call(body.expect("checked above")) {
-            return Err(Unsupported::new(
-                "[FLOW M5] implicit-return verdict over a switch/call-bearing body \
-                 (isReachableFlowNode refinement)",
-            ));
         }
         let has_explicit_return =
             NodeFlags::from_bits(self.node_flags(func)).intersects(NodeFlags::HAS_EXPLICIT_RETURN);
@@ -2316,44 +2302,48 @@ impl<'a> CheckerState<'a> {
                         &diagnostics::Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined,
                         &[],
                     );
+                    return Ok(());
                 }
             }
+        }
+        if self.options.no_implicit_returns == Some(true) {
+            if ty.is_none() {
+                if !has_explicit_return {
+                    return Ok(());
+                }
+                let signature = self.get_signature_from_declaration(func)?;
+                let inferred_return_type = self.get_return_type_of_signature(signature)?;
+                if self
+                    .is_unwrapped_return_type_undefined_void_or_any(func, inferred_return_type)?
+                {
+                    return Ok(());
+                }
+            }
+            self.error_at(
+                Some(error_node),
+                &diagnostics::Not_all_code_paths_return_a_value,
+                &[],
+            );
         }
         Ok(())
     }
 
-    /// The [FLOW M5] reachability-refinement probe: any switch
-    /// statement or statement-position call in the body (stopping at
-    /// nested function boundaries).
-    fn body_contains_switch_or_statement_call(&self, body: NodeId) -> bool {
-        let source = self.binder.source_of_node(body);
-        let mut worklist = vec![body];
-        while let Some(node) = worklist.pop() {
-            match self.kind_of(node) {
-                SyntaxKind::SwitchStatement => return true,
-                SyntaxKind::ExpressionStatement => {
-                    if let NodeData::ExpressionStatement(data) = self.data_of(node) {
-                        if let Some(expression) = data.expression {
-                            if self.kind_of(expression) == SyntaxKind::CallExpression {
-                                return true;
-                            }
-                        }
-                    }
-                    tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
-                        worklist.push(child);
-                        false
-                    });
-                }
-                kind if node_util::is_function_like_kind(kind) => {}
-                _ => {
-                    tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
-                        worklist.push(child);
-                        false
-                    });
-                }
-            }
-        }
-        false
+    /// tsc-port: isUnwrappedReturnTypeUndefinedVoidOrAny @6.0.3
+    /// tsc-hash: 770b8189436fbaf4a6f320823cc2d13bfe7bcb8b367af9e97c5e4cae4cfcc480
+    /// tsc-span: _tsc.js:84512-84515
+    pub(crate) fn is_unwrapped_return_type_undefined_void_or_any(
+        &mut self,
+        func: NodeId,
+        return_type: TypeId,
+    ) -> CheckResult2<bool> {
+        let function_flags = self.get_function_flags(func);
+        let ty = self.unwrap_return_type(return_type, function_flags)?;
+        Ok(ty.is_some_and(|ty| {
+            self.maybe_type_of_kind(ty, TypeFlags::VOID)
+                || self.tables.flags_of(ty).intersects(TypeFlags::from_bits(
+                    TypeFlags::ANY.bits() | TypeFlags::UNDEFINED.bits(),
+                ))
+        }))
     }
 
     /// tsc-port: checkFunctionOrMethodDeclaration @6.0.3
@@ -4799,8 +4789,13 @@ impl<'a> CheckerState<'a> {
     }
     // ---- band-local helpers ----
 
-    /// getEffectiveReturnTypeNode (the non-JSDoc face): the declared
-    /// return annotation of a function-like declaration.
+    /// getEffectiveReturnTypeNode (16768, the non-JSDoc face):
+    /// `node.type` of ANY signature declaration — tsc reads the slot
+    /// generically, so every kind that carries one answers (the
+    /// FunctionType/signature-member arms were missing until 6.6c:
+    /// a signature whose .declaration is a TYPE node — a never-typed
+    /// callable parameter — hid its annotation from the effects
+    /// consult, the 2366-FP face the f12 pin holds).
     pub(crate) fn effective_return_type_node(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::FunctionExpression(data) => data.r#type,
@@ -4808,7 +4803,14 @@ impl<'a> CheckerState<'a> {
             NodeData::MethodDeclaration(data) => data.r#type,
             NodeData::FunctionDeclaration(data) => data.r#type,
             NodeData::GetAccessor(data) => data.r#type,
+            NodeData::SetAccessor(data) => data.r#type,
             NodeData::Constructor(data) => data.r#type,
+            NodeData::FunctionType(data) => data.r#type,
+            NodeData::ConstructorType(data) => data.r#type,
+            NodeData::CallSignature(data) => data.r#type,
+            NodeData::ConstructSignature(data) => data.r#type,
+            NodeData::MethodSignature(data) => data.r#type,
+            NodeData::IndexSignature(data) => data.r#type,
             _ => None,
         }
     }
@@ -5349,7 +5351,11 @@ mod tests {
     /// absent throughout; null-span global 2318 rows are file-less and
     /// filtered by the harness.
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
-        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        checked_rows_with(text, &CompilerOptions::default())
+    }
+
+    fn checked_rows_with(text: &str, options: &CompilerOptions) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[("a.ts", text)], options, |state| {
             state.check_source_file(0);
             state
                 .diagnostics
@@ -5364,6 +5370,108 @@ mod tests {
                 })
                 .collect()
         })
+    }
+
+    // ---- implicit returns (6.6c; rows oracle-pinned vs vendored
+    // tsc 6.0.3 noLib per shape, 2026-07-19) ----
+
+    #[test]
+    fn reachable_end_in_non_void_function_reports_the_ladder() {
+        // 2355: declared non-void, no explicit return, end reachable.
+        assert_eq!(checked_rows("function f(): number { }\n"), [(2355, 14, 6)]);
+        // 2534: declared never with a reachable end point.
+        assert_eq!(checked_rows("function f(): never { }\n"), [(2534, 14, 5)]);
+        // 2366: strictNullChecks (TS6 default-on) + explicit return
+        // present but end still reachable.
+        assert_eq!(
+            checked_rows("function f(x: boolean): number { if (x) return 1; }\n"),
+            [(2366, 24, 6)]
+        );
+        // A throw-terminated body has an unreachable end — clean.
+        assert_eq!(checked_rows("function f(): number { throw 1; }\n"), []);
+    }
+
+    #[test]
+    fn reachability_refinements_suppress_implicit_return_reports() {
+        // The three checker-side refinements the bind-time flag could
+        // not see (the retired [FLOW M5] switch/call gate's faces).
+        // Never-returning call (getEffectsSignature):
+        assert_eq!(
+            checked_rows("declare function fail(): never;\nfunction f(): number { fail(); }\n"),
+            []
+        );
+        // Exhaustive switch (SwitchClause clauseStart==clauseEnd +
+        // isExhaustiveSwitchStatement):
+        assert_eq!(
+            checked_rows(
+                "function f(x: 1 | 2): number { switch (x) { case 1: return 1; case 2: return 2; } }\n"
+            ),
+            []
+        );
+        // Non-exhaustive control: the suppression must NOT over-fire.
+        assert_eq!(
+            checked_rows("function f(x: 1 | 2): number { switch (x) { case 1: return 1; } }\n"),
+            [(2366, 22, 6)]
+        );
+        // asserts-false argument (isFalseExpression):
+        assert_eq!(
+            checked_rows(
+                "declare function assert(v: boolean): asserts v;\nfunction f(): number { assert(false); }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn no_implicit_returns_arms_report_7030() {
+        let options = CompilerOptions {
+            no_implicit_returns: Some(true),
+            ..CompilerOptions::default()
+        };
+        // Annotation-less: inferred return type is non-void with an
+        // explicit return elsewhere (79096's !type block).
+        assert_eq!(
+            checked_rows_with("function f(x: boolean) { if (x) return 1; }\n", &options),
+            [(7030, 9, 1)]
+        );
+        // Declared undefined-including type still reaches the trailing
+        // arm (the else-if LADDER: the snc arm's condition fails —
+        // undefined IS assignable — and falls through, 79087-79096).
+        assert_eq!(
+            checked_rows_with(
+                "function f(x: boolean): number | undefined { if (x) return 1; }\n",
+                &options
+            ),
+            [(7030, 24, 18)]
+        );
+        // checkReturnStatement's bare-`return;` face (84546) — only
+        // reachable with strictNullChecks off.
+        let snc_off = CompilerOptions {
+            no_implicit_returns: Some(true),
+            strict_null_checks: Some(false),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_rows_with(
+                "function f(x: boolean): number { if (x) { return; } return 1; }\n",
+                &snc_off
+            ),
+            [(7030, 42, 6)]
+        );
+    }
+
+    #[test]
+    fn never_typed_callable_parameter_suppresses_implicit_return() {
+        // The effects consult must see the FunctionTYPE declaration's
+        // never annotation (getEffectiveReturnTypeNode reads `.type`
+        // on every signature-declaration kind — the FunctionType arm
+        // was the 6.6c FP face, neverReturningFunctions1 f12).
+        assert_eq!(
+            checked_rows(
+                "function f12(x: number, fail: (message?: string) => never): number {\n    if (x >= 0) return x;\n    fail(\"negative number\");\n    x;\n}\n"
+            ),
+            []
+        );
     }
 
     // ---- fn-expression bodies (deferred pass) ----

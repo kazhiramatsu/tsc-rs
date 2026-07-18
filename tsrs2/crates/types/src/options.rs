@@ -38,6 +38,10 @@ pub struct CompilerOptions {
     pub exact_optional_property_types: Option<bool>,
     /// Consumed by bindCaseBlock (clause.fallthroughFlowNode).
     pub no_fallthrough_cases_in_switch: Option<bool>,
+    /// M5 6.6: the 7030 arms — checkAllCodePaths' trailing else-if
+    /// (79096) and checkReturnStatement's bare-return face (84546).
+    /// NOT strict-family (plain option read).
+    pub no_implicit_returns: Option<bool>,
     /// tsc allowUnreachableCode: undefined = warn-as-suggestion for
     /// unreachable statements, but the comma-operator 2695 gate reads
     /// plain falsiness (`!compilerOptions.allowUnreachableCode`).

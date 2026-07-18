@@ -564,13 +564,6 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "resolve_new_expression"
-reason = "functionHasImplicitReturn stub under the 2350 gate (never-vs-void return, [FLOW M5])"
-class = "stage"
-owner = "M5"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "resolve_new_expression"
 reason = "isJSConstructor probe on a JS declaration (checkJs band, M8)"
 class = "stage"
 owner = "M8"
@@ -841,13 +834,6 @@ in = "get_narrowed_type_of_symbol"
 reason = "dependent-parameter narrowing over a generic rest type (getInferenceContext nonFixingMapper, M6)"
 class = "stage"
 owner = "M6"
-
-[[site]]
-file = "crates/checker/src/functions.rs"
-in = "check_all_code_paths_in_non_void_function_return_or_throw"
-reason = "[FLOW M5] implicit-return verdict over a switch/call-bearing body (isReachableFlowNode refinement)"
-class = "stage"
-owner = "M5"
 
 [[site]]
 file = "crates/checker/src/functions.rs"

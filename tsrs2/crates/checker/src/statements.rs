@@ -2451,9 +2451,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkReturnStatement @6.0.3
     /// tsc-hash: c9a0f8abcefe176817b5c00491ec3ea7e140cff4d2eb807bc02a925559136718
     /// tsc-span: _tsc.js:84516-84549
-    ///
-    /// noImplicitReturns is absent from CompilerOptions — the
-    /// Not_all_code_paths_return_a_value arm stays dead (§13 audit).
     pub(crate) fn check_return_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.check_grammar_statement_in_ambient_context_reported(node) {
             return Ok(());
@@ -2533,8 +2530,18 @@ impl<'a> CheckerState<'a> {
                     /*in_conditional_expression*/ false,
                 )?;
             }
+        } else if self.kind_of(container) != SyntaxKind::Constructor
+            && self.options.no_implicit_returns == Some(true)
+            && !self.is_unwrapped_return_type_undefined_void_or_any(container, return_type)?
+        {
+            // 84546: the bare-`return;` 7030 face (reachable only with
+            // strictNullChecks off — the first condition contains it).
+            self.error_at(
+                Some(node),
+                &diagnostics::Not_all_code_paths_return_a_value,
+                &[],
+            );
         }
-        // (noImplicitReturns arm — option absent, dead.)
         Ok(())
     }
 
