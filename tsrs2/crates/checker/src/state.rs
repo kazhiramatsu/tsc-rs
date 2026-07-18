@@ -511,6 +511,18 @@ pub struct CheckerState<'a> {
     /// in tsc, NOT per-query — a nested flow query inherits the
     /// in-progress depth).
     pub(crate) inline_level: u32,
+    /// tsc links.switchTypes (getSwitchClauseTypes 69938) — state-side
+    /// (links writes are speculation-guarded; this cache is a stable
+    /// per-switch type list, written only on full success).
+    pub(crate) switch_types_cache: std::collections::HashMap<NodeId, Vec<TypeId>>,
+    /// tsc links.isExhaustive settled verdicts (isExhaustiveSwitchStatement
+    /// 78920) — state-side for the same reason.
+    pub(crate) exhaustive_switch_cache: std::collections::HashMap<NodeId, bool>,
+    /// tsc links.isExhaustive === 0 (the in-progress marker): a
+    /// re-entrant computation of the same switch settles FALSE (the
+    /// cycle protocol); unwound entries are removed before the error
+    /// escapes (the unwind invariant).
+    pub(crate) exhaustive_switch_computing: std::collections::HashSet<NodeId>,
     /// tsrs-native temporary [FLOW M5] containment index. It caches
     /// syntax candidates only (per source and nearest function scope),
     /// so each failed diagnostic need not walk the whole source again.
@@ -758,6 +770,9 @@ impl<'a> CheckerState<'a> {
             flow_type_cache: None,
             flow_invocation_count: 0,
             inline_level: 0,
+            switch_types_cache: std::collections::HashMap::new(),
+            exhaustive_switch_cache: std::collections::HashMap::new(),
+            exhaustive_switch_computing: std::collections::HashSet::new(),
             flow_containment_indexes: Default::default(),
             js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),

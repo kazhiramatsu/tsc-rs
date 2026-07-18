@@ -21,7 +21,7 @@
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
+use tsrs2_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
 use crate::flow::FlowQuery;
 use crate::state::{CheckResult2, CheckerState};
@@ -357,7 +357,7 @@ impl<'a> CheckerState<'a> {
     /// discriminant property of the union in play — the declared type
     /// when the computed type is still a subset of it, else the
     /// computed type.
-    fn get_discriminant_property_access(
+    pub(crate) fn get_discriminant_property_access(
         &mut self,
         query: &FlowQuery,
         expr: NodeId,
@@ -1875,6 +1875,531 @@ impl<'a> CheckerState<'a> {
             self.kind_of(node),
             SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
         )
+    }
+
+    /// tsc-port: getTypeOfSwitchClause @6.0.3
+    /// tsc-hash: 885262335dc0056f9bc30ef213774cdcfc8140e7a931d31853ea544c4a582ac4
+    /// tsc-span: _tsc.js:69932-69936
+    fn get_type_of_switch_clause(&mut self, clause: NodeId) -> CheckResult2<TypeId> {
+        if self.kind_of(clause) == SyntaxKind::CaseClause {
+            let expression = match self.data_of(clause) {
+                NodeData::CaseClause(data) => data.expression,
+                _ => None,
+            };
+            if let Some(expression) = expression {
+                let ty = self.get_type_of_expression(expression)?;
+                return Ok(self.tables.get_regular_type_of_literal_type(ty));
+            }
+        }
+        Ok(self.tables.intrinsics.never)
+    }
+
+    /// tsc-port: getSwitchClauseTypes @6.0.3
+    /// tsc-hash: 783f50b40607b75acd60e220899c0a66e7630d5e0291ae05c70311c80d867862
+    /// tsc-span: _tsc.js:69937-69947
+    ///
+    /// links.switchTypes lives state-side (see switch_types_cache);
+    /// written only on full success so an Unsupported unwind
+    /// recomputes.
+    pub(crate) fn get_switch_clause_types(
+        &mut self,
+        switch_statement: NodeId,
+    ) -> CheckResult2<Vec<TypeId>> {
+        if let Some(cached) = self.switch_types_cache.get(&switch_statement) {
+            return Ok(cached.clone());
+        }
+        let clauses = self.switch_clauses(switch_statement);
+        let mut types = Vec::with_capacity(clauses.len());
+        for clause in clauses {
+            types.push(self.get_type_of_switch_clause(clause)?);
+        }
+        self.switch_types_cache
+            .insert(switch_statement, types.clone());
+        Ok(types)
+    }
+
+    /// tsc-port: getSwitchClauseTypeOfWitnesses @6.0.3
+    /// tsc-hash: da25d6f411fad510614461965d2844b36e4b28030ad9c56998d102a22499a4b6
+    /// tsc-span: _tsc.js:69948-69958
+    ///
+    /// None when any case expression is not a string literal; a
+    /// per-clause witness list otherwise (default clauses and
+    /// DUPLICATE texts witness None).
+    pub(crate) fn get_switch_clause_type_of_witnesses(
+        &mut self,
+        switch_statement: NodeId,
+    ) -> Option<Vec<Option<String>>> {
+        let clauses = self.switch_clauses(switch_statement);
+        for &clause in &clauses {
+            if self.kind_of(clause) == SyntaxKind::CaseClause {
+                let expression = match self.data_of(clause) {
+                    NodeData::CaseClause(data) => data.expression,
+                    _ => None,
+                };
+                match expression {
+                    Some(expression) if self.is_string_literal_like(expression) => {}
+                    _ => return None,
+                }
+            }
+        }
+        let mut witnesses: Vec<Option<String>> = Vec::with_capacity(clauses.len());
+        for clause in clauses {
+            let text = if self.kind_of(clause) == SyntaxKind::CaseClause {
+                let expression = match self.data_of(clause) {
+                    NodeData::CaseClause(data) => data.expression,
+                    _ => None,
+                };
+                expression.and_then(|expression| self.string_literal_text(expression))
+            } else {
+                None
+            };
+            let witness = match text {
+                Some(text) if !witnesses.contains(&Some(text.clone())) => Some(text),
+                _ => None,
+            };
+            witnesses.push(witness);
+        }
+        Some(witnesses)
+    }
+
+    /// The clauses of a switch statement's case block.
+    /// tsrs-native: NodeData accessor.
+    fn switch_clauses(&self, switch_statement: NodeId) -> Vec<NodeId> {
+        let case_block = match self.data_of(switch_statement) {
+            NodeData::SwitchStatement(data) => data.case_block,
+            _ => None,
+        };
+        let clauses = case_block.and_then(|case_block| match self.data_of(case_block) {
+            NodeData::CaseBlock(data) => data.clauses,
+            _ => None,
+        });
+        match clauses {
+            Some(clauses) => self.binder.node_array(clauses).nodes.clone(),
+            None => Vec::new(),
+        }
+    }
+
+    /// tsc-port: eachTypeContainedIn @6.0.3
+    /// tsc-hash: 38e89d7291b09cb24e59a43f0f002576f5b902e58fd4e66495da58d848b2fd47
+    /// tsc-span: _tsc.js:69959-69961
+    fn each_type_contained_in(&self, source: TypeId, types: &[TypeId]) -> bool {
+        if self.tables.flags_of(source).intersects(TypeFlags::UNION) {
+            let members: Vec<TypeId> = match &self.tables.type_of(source).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            };
+            members.iter().all(|member| types.contains(member))
+        } else {
+            types.contains(&source)
+        }
+    }
+
+    /// tsc-port: narrowTypeBySwitchOptionalChainContainment @6.0.3
+    /// tsc-hash: ab5c9fd5a3c3bcabb45e4b4bf7efbd808b141c67013303cbd0bad4a539a43b0d
+    /// tsc-span: _tsc.js:71101-71104
+    pub(crate) fn narrow_type_by_switch_optional_chain_containment(
+        &mut self,
+        ty: TypeId,
+        switch_statement: NodeId,
+        clause_start: usize,
+        clause_end: usize,
+        clause_check: impl Fn(&Self, TypeId) -> bool,
+    ) -> CheckResult2<TypeId> {
+        let every_clause_checks = clause_start != clause_end && {
+            let clause_types = self.get_switch_clause_types(switch_statement)?;
+            clause_types[clause_start.min(clause_types.len())..clause_end.min(clause_types.len())]
+                .iter()
+                .all(|&t| clause_check(self, t))
+        };
+        if every_clause_checks {
+            self.get_type_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)
+        } else {
+            Ok(ty)
+        }
+    }
+
+    /// tsc-port: narrowTypeBySwitchOnDiscriminant @6.0.3
+    /// tsc-hash: 18138a5989c8f9f7e1f8bc309f39907467fdd6e9812a9053230a8de101e2693d
+    /// tsc-span: _tsc.js:71105-71138
+    ///
+    /// The switch-discriminant workhorse: unknown operands ground to
+    /// the clause types (objects widened to nonPrimitive) when no
+    /// default is in range; otherwise the comparable filter against
+    /// the clause union (re-literalized), plus the default-clause
+    /// complement that removes unit-like members hit by OTHER clauses.
+    pub(crate) fn narrow_type_by_switch_on_discriminant(
+        &mut self,
+        ty: TypeId,
+        switch_statement: NodeId,
+        clause_start: usize,
+        clause_end: usize,
+    ) -> CheckResult2<TypeId> {
+        let switch_types = self.get_switch_clause_types(switch_statement)?;
+        if switch_types.is_empty() {
+            return Ok(ty);
+        }
+        let clause_types =
+            &switch_types[clause_start.min(switch_types.len())..clause_end.min(switch_types.len())];
+        let never = self.tables.intrinsics.never;
+        let has_default_clause = clause_start == clause_end || clause_types.contains(&never);
+        if self.tables.flags_of(ty).intersects(TypeFlags::UNKNOWN) && !has_default_clause {
+            let mut ground_clause_types: Option<Vec<TypeId>> = None;
+            for (index, &t) in clause_types.iter().enumerate() {
+                if self.tables.flags_of(t).intersects(TypeFlags::from_bits(
+                    TypeFlags::PRIMITIVE.bits() | TypeFlags::NON_PRIMITIVE.bits(),
+                )) {
+                    if let Some(ground) = &mut ground_clause_types {
+                        ground.push(t);
+                    }
+                } else if self.tables.flags_of(t).intersects(TypeFlags::OBJECT) {
+                    let ground =
+                        ground_clause_types.get_or_insert_with(|| clause_types[..index].to_vec());
+                    ground.push(self.tables.intrinsics.non_primitive);
+                } else {
+                    return Ok(ty);
+                }
+            }
+            let members = ground_clause_types.unwrap_or_else(|| clause_types.to_vec());
+            return self.get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal);
+        }
+        let discriminant_type =
+            self.get_union_type_ex(clause_types, tsrs2_types::UnionReduction::Literal)?;
+        let case_type = if self
+            .tables
+            .flags_of(discriminant_type)
+            .intersects(TypeFlags::NEVER)
+        {
+            never
+        } else {
+            let filtered = self.filter_type_with(ty, |state, t| {
+                state.are_types_comparable(discriminant_type, t)
+            })?;
+            self.replace_primitives_with_literals(filtered, discriminant_type)?
+        };
+        if !has_default_clause {
+            return Ok(case_type);
+        }
+        let undefined = self.tables.intrinsics.undefined;
+        let default_type = self.filter_type_with(ty, |state, t| {
+            if !state.is_unit_like_type(t)? {
+                return Ok(true);
+            }
+            let key = if state.tables.flags_of(t).intersects(TypeFlags::UNDEFINED) {
+                undefined
+            } else {
+                let unit = state.extract_unit_type(t);
+                state.tables.get_regular_type_of_literal_type(unit)
+            };
+            for &switch_type in &switch_types {
+                if state.is_unit_type(switch_type)
+                    && state.are_types_comparable(switch_type, key)?
+                {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        })?;
+        if self.tables.flags_of(case_type).intersects(TypeFlags::NEVER) {
+            Ok(default_type)
+        } else {
+            self.get_union_type_ex(
+                &[case_type, default_type],
+                tsrs2_types::UnionReduction::Literal,
+            )
+        }
+    }
+
+    /// tsc-port: extractUnitType @6.0.3
+    /// tsc-hash: f5761c88def06490ad19b8cebf96d50a41b9a9df246fd236ed74316ade1b3016
+    /// tsc-span: _tsc.js:67749-67751
+    fn extract_unit_type(&self, ty: TypeId) -> TypeId {
+        if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
+            if let TypeData::Intersection { types } = &self.tables.type_of(ty).data {
+                for &member in types.iter() {
+                    if self.is_unit_type(member) {
+                        return member;
+                    }
+                }
+            }
+        }
+        ty
+    }
+
+    /// tsc-port: narrowTypeBySwitchOnDiscriminantProperty @6.0.3
+    /// tsc-hash: 10f991ce9ccf53a4cb15559594206fa4462dc57edffad1cf022ec2b402ca0c4a
+    /// tsc-span: _tsc.js:70845-70854
+    pub(crate) fn narrow_type_by_switch_on_discriminant_property(
+        &mut self,
+        ty: TypeId,
+        access: NodeId,
+        switch_statement: NodeId,
+        clause_start: usize,
+        clause_end: usize,
+    ) -> CheckResult2<TypeId> {
+        if clause_start < clause_end && self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
+            let key_property_name = self.get_key_property_name(ty)?;
+            if key_property_name.is_some()
+                && key_property_name == self.get_accessed_property_name(access)?
+            {
+                let clause_types = {
+                    let all = self.get_switch_clause_types(switch_statement)?;
+                    all[clause_start.min(all.len())..clause_end.min(all.len())].to_vec()
+                };
+                let unknown = self.tables.intrinsics.unknown;
+                let mut constituents = Vec::with_capacity(clause_types.len());
+                for clause_type in clause_types {
+                    let constituent = self
+                        .get_constituent_type_for_key_type(ty, clause_type)?
+                        .unwrap_or(unknown);
+                    constituents.push(constituent);
+                }
+                let candidate =
+                    self.get_union_type_ex(&constituents, tsrs2_types::UnionReduction::Literal)?;
+                if candidate != unknown {
+                    return Ok(candidate);
+                }
+            }
+        }
+        self.narrow_type_by_discriminant(ty, access, |state, t| {
+            state.narrow_type_by_switch_on_discriminant(
+                t,
+                switch_statement,
+                clause_start,
+                clause_end,
+            )
+        })
+    }
+
+    /// tsc-port: getNotEqualFactsFromTypeofSwitch @6.0.3
+    /// tsc-hash: d13615ff6fb7e7c3f5a60d7bc914e80ee8b4bd02b6d033abbab65c5fd6c26349
+    /// tsc-span: _tsc.js:78912-78919
+    fn get_not_equal_facts_from_typeof_switch(
+        &self,
+        start: usize,
+        end: usize,
+        witnesses: &[Option<String>],
+    ) -> TypeFacts {
+        let mut facts = TypeFacts::NONE;
+        for (index, witness) in witnesses.iter().enumerate() {
+            let witness = if index < start || index >= end {
+                witness.as_deref()
+            } else {
+                None
+            };
+            if let Some(witness) = witness {
+                facts |= typeof_ne_facts(witness).unwrap_or(TypeFacts::TYPEOF_NE_HOST_OBJECT);
+            }
+        }
+        facts
+    }
+
+    /// tsc-port: narrowTypeBySwitchOnTypeOf @6.0.3
+    /// tsc-hash: 62c9cbae314bc4eec676e93aa275920fad2d2cfe544133b8f0429ce58063a6ff
+    /// tsc-span: _tsc.js:71178-71191
+    pub(crate) fn narrow_type_by_switch_on_type_of(
+        &mut self,
+        ty: TypeId,
+        switch_statement: NodeId,
+        clause_start: usize,
+        clause_end: usize,
+    ) -> CheckResult2<TypeId> {
+        let Some(witnesses) = self.get_switch_clause_type_of_witnesses(switch_statement) else {
+            return Ok(ty);
+        };
+        let clauses = self.switch_clauses(switch_statement);
+        let default_index = clauses
+            .iter()
+            .position(|&clause| self.kind_of(clause) == SyntaxKind::DefaultClause);
+        let has_default_clause = clause_start == clause_end
+            || default_index.is_some_and(|index| index >= clause_start && index < clause_end);
+        if has_default_clause {
+            let not_equal_facts =
+                self.get_not_equal_facts_from_typeof_switch(clause_start, clause_end, &witnesses);
+            return self.filter_type_with(ty, |state, t| {
+                Ok(state.get_type_facts(t, not_equal_facts)? == not_equal_facts)
+            });
+        }
+        let clause_witnesses =
+            &witnesses[clause_start.min(witnesses.len())..clause_end.min(witnesses.len())];
+        let mut members = Vec::with_capacity(clause_witnesses.len());
+        for witness in clause_witnesses {
+            members.push(match witness {
+                Some(text) => {
+                    let text = text.clone();
+                    self.narrow_type_by_type_name(ty, &text)?
+                }
+                None => self.tables.intrinsics.never,
+            });
+        }
+        self.get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal)
+    }
+
+    /// tsc-port: narrowTypeBySwitchOnTrue @6.0.3
+    /// tsc-hash: 138036cce7a43cd3cdfa47338c94beda7828824a47683ead033b186010af6e24
+    /// tsc-span: _tsc.js:71192-71227
+    ///
+    /// `switch (true)`: clauses BEFORE the range narrow false; with a
+    /// default in range, clauses AFTER narrow false too; otherwise
+    /// the union of the in-range clauses each narrowed true.
+    pub(crate) fn narrow_type_by_switch_on_true(
+        &mut self,
+        query: &mut FlowQuery,
+        ty: TypeId,
+        switch_statement: NodeId,
+        clause_start: usize,
+        clause_end: usize,
+    ) -> CheckResult2<TypeId> {
+        let clauses = self.switch_clauses(switch_statement);
+        let default_index = clauses
+            .iter()
+            .position(|&clause| self.kind_of(clause) == SyntaxKind::DefaultClause);
+        let has_default_clause = clause_start == clause_end
+            || default_index.is_some_and(|index| index >= clause_start && index < clause_end);
+        let mut ty = ty;
+        for &clause in clauses.iter().take(clause_start) {
+            if self.kind_of(clause) == SyntaxKind::CaseClause {
+                let expression = match self.data_of(clause) {
+                    NodeData::CaseClause(data) => data.expression,
+                    _ => None,
+                };
+                if let Some(expression) = expression {
+                    ty = self.narrow_type(query, ty, expression, false)?;
+                }
+            }
+        }
+        if has_default_clause {
+            for &clause in clauses.iter().skip(clause_end) {
+                if self.kind_of(clause) == SyntaxKind::CaseClause {
+                    let expression = match self.data_of(clause) {
+                        NodeData::CaseClause(data) => data.expression,
+                        _ => None,
+                    };
+                    if let Some(expression) = expression {
+                        ty = self.narrow_type(query, ty, expression, false)?;
+                    }
+                }
+            }
+            return Ok(ty);
+        }
+        let range = &clauses[clause_start.min(clauses.len())..clause_end.min(clauses.len())];
+        let mut members = Vec::with_capacity(range.len());
+        for &clause in range {
+            members.push(if self.kind_of(clause) == SyntaxKind::CaseClause {
+                let expression = match self.data_of(clause) {
+                    NodeData::CaseClause(data) => data.expression,
+                    _ => None,
+                };
+                match expression {
+                    Some(expression) => self.narrow_type(query, ty, expression, true)?,
+                    None => self.tables.intrinsics.never,
+                }
+            } else {
+                self.tables.intrinsics.never
+            });
+        }
+        self.get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal)
+    }
+
+    /// tsc-port: isExhaustiveSwitchStatement @6.0.3
+    /// tsc-hash: 4632c64320e9d000229f241d8f97b9a633e9eea87743424785d86276544531b8
+    /// tsc-span: _tsc.js:78920-78932
+    ///
+    /// PULLED FORWARD from the 6.6 slot: the 6.3 branch-label bypass
+    /// consult was unobservable while the switch-clause arm reverted
+    /// every crossing query; 6.4e makes the arm live, so the
+    /// conservative-false stub would over-widen exhaustive-switch
+    /// joins (an FP face). The remaining 6.6 consumers (unreachable
+    /// code, implicit returns) stay 6.6. links.isExhaustive lives
+    /// state-side; a re-entrant computation settles FALSE (the
+    /// links.isExhaustive === 0 cycle protocol).
+    pub(crate) fn is_exhaustive_switch_statement_real(
+        &mut self,
+        switch_statement: NodeId,
+    ) -> CheckResult2<bool> {
+        if let Some(&cached) = self.exhaustive_switch_cache.get(&switch_statement) {
+            return Ok(cached);
+        }
+        if self.exhaustive_switch_computing.contains(&switch_statement) {
+            self.exhaustive_switch_cache.insert(switch_statement, false);
+            return Ok(false);
+        }
+        self.exhaustive_switch_computing.insert(switch_statement);
+        let computed = self.compute_exhaustive_switch_statement(switch_statement);
+        self.exhaustive_switch_computing.remove(&switch_statement);
+        let computed = computed?;
+        let result = *self
+            .exhaustive_switch_cache
+            .entry(switch_statement)
+            .or_insert(computed);
+        Ok(result)
+    }
+
+    /// tsc-port: computeExhaustiveSwitchStatement @6.0.3
+    /// tsc-hash: da5a07c386f5757a1953c5ba1346eee199f6d58a93e0eed75c50bd19cc937ed7
+    /// tsc-span: _tsc.js:78933-78955
+    fn compute_exhaustive_switch_statement(
+        &mut self,
+        switch_statement: NodeId,
+    ) -> CheckResult2<bool> {
+        let expression = match self.data_of(switch_statement) {
+            NodeData::SwitchStatement(data) => data.expression,
+            _ => None,
+        };
+        let Some(expression) = expression else {
+            return Ok(false);
+        };
+        if self.kind_of(expression) == SyntaxKind::TypeOfExpression {
+            let Some(witnesses) = self.get_switch_clause_type_of_witnesses(switch_statement) else {
+                return Ok(false);
+            };
+            let operand = match self.data_of(expression) {
+                NodeData::TypeOfExpression(data) => data.expression,
+                _ => None,
+            };
+            let Some(operand) = operand else {
+                return Ok(false);
+            };
+            let operand_type = self.check_expression_cached(operand, CheckMode::NORMAL)?;
+            let operand_constraint = self.get_base_constraint_or_type(operand_type)?;
+            let not_equal_facts = self.get_not_equal_facts_from_typeof_switch(0, 0, &witnesses);
+            if self
+                .tables
+                .flags_of(operand_constraint)
+                .intersects(TypeFlags::ANY_OR_UNKNOWN)
+            {
+                let all = TypeFacts::ALL_TYPEOF_NE;
+                return Ok(TypeFacts::from_bits(all.bits() & not_equal_facts.bits()) == all);
+            }
+            return Ok(!self.some_type_result(operand_constraint, |state, t| {
+                Ok(state.get_type_facts(t, not_equal_facts)? == not_equal_facts)
+            })?);
+        }
+        let expression_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+        let ty = self.get_base_constraint_or_type(expression_type)?;
+        if !self.is_literal_type(ty) {
+            return Ok(false);
+        }
+        let switch_types = self.get_switch_clause_types(switch_statement)?;
+        if switch_types.is_empty() {
+            return Ok(false);
+        }
+        for &switch_type in &switch_types {
+            let never = self
+                .tables
+                .flags_of(switch_type)
+                .intersects(TypeFlags::NEVER);
+            if !self.is_unit_type(switch_type) && !never {
+                return Ok(false);
+            }
+        }
+        let mapped = self
+            .map_type(
+                ty,
+                &mut |state, t| Ok(Some(state.tables.get_regular_type_of_literal_type(t))),
+                false,
+            )?
+            .expect("mapper is total");
+        Ok(self.each_type_contained_in(mapped, &switch_types))
     }
 
     /// tsc isBooleanLiteral (TrueKeyword | FalseKeyword).

@@ -808,20 +808,133 @@ impl<'a> CheckerState<'a> {
         Ok(self.create_flow_type(narrowed_type, flow_type.is_incomplete()))
     }
 
-    /// [FLOW 6.4] tsc getTypeAtSwitchClause (70628) narrows by the
-    /// switch discriminant; identity until the switch narrowers land
-    /// (6.4d/e own switch-on-typeof and switch-on-discriminant) — a
-    /// pass-through of the antecedent walk, flagging the query (6.2
-    /// seam).
-    /// tsc-deferred: M5 (stage 6.4e — switch-clause narrowing)
+    /// tsc-port: getTypeAtSwitchClause @6.0.3
+    /// tsc-hash: 564b6446e18668e072b934f29840f999d6fad7f2513be66bb5147bc7c158c26f
+    /// tsc-span: _tsc.js:70628-70652
+    ///
+    /// LIVE since 6.4e: a matching discriminant narrows by the clause
+    /// range, a matching typeof operand by the witnesses, a `switch
+    /// (true)` by the clause conditions; otherwise the strict
+    /// optional-chain containment strips and the discriminant-
+    /// property path apply. Completeness re-wraps the antecedent's.
     fn get_type_at_switch_clause(
         &mut self,
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult2<FlowType> {
-        query.traversed_inert_arm = true;
+        let FlowPayload::SwitchClause {
+            switch_statement,
+            clause_start,
+            clause_end,
+        } = self.binder.file(query.file).flow.flow(flow).payload
+        else {
+            unreachable!("SWITCH_CLAUSE flag implies SwitchClause payload");
+        };
+        let (clause_start, clause_end) = (clause_start as usize, clause_end as usize);
+        let switch_expression = match self.data_of(switch_statement) {
+            NodeData::SwitchStatement(data) => data.expression,
+            _ => None,
+        };
         let antecedent = self.flow_antecedent(query.file, flow);
-        self.get_type_at_flow_node(query, antecedent)
+        let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+        let mut ty = flow_type.get_type();
+        let Some(switch_expression) = switch_expression else {
+            // Parser-recovery switch without an expression —
+            // unreproducible, flag (declared-type revert).
+            query.traversed_inert_arm = true;
+            return Ok(self.create_flow_type(ty, flow_type.is_incomplete()));
+        };
+        let expr = self.skip_parentheses(switch_expression);
+        if self.is_matching_query_reference(query, expr)? {
+            ty = self.narrow_type_by_switch_on_discriminant(
+                ty,
+                switch_statement,
+                clause_start,
+                clause_end,
+            )?;
+        } else if self.kind_of(expr) == SyntaxKind::TypeOfExpression
+            && match self.data_of(expr) {
+                NodeData::TypeOfExpression(data) => match data.expression {
+                    Some(operand) => self.is_matching_query_reference(query, operand)?,
+                    None => false,
+                },
+                _ => false,
+            }
+        {
+            ty = self.narrow_type_by_switch_on_type_of(
+                ty,
+                switch_statement,
+                clause_start,
+                clause_end,
+            )?;
+        } else if self.kind_of(expr) == SyntaxKind::TrueKeyword {
+            ty = self.narrow_type_by_switch_on_true(
+                query,
+                ty,
+                switch_statement,
+                clause_start,
+                clause_end,
+            )?;
+        } else {
+            if self
+                .options
+                .strict_option_value(self.options.strict_null_checks)
+            {
+                if self.optional_chain_contains_query_reference(expr, query)? {
+                    ty = self.narrow_type_by_switch_optional_chain_containment(
+                        ty,
+                        switch_statement,
+                        clause_start,
+                        clause_end,
+                        |state, t| {
+                            !state.tables.flags_of(t).intersects(TypeFlags::from_bits(
+                                TypeFlags::UNDEFINED.bits() | TypeFlags::NEVER.bits(),
+                            ))
+                        },
+                    )?;
+                } else if self.kind_of(expr) == SyntaxKind::TypeOfExpression {
+                    let operand = match self.data_of(expr) {
+                        NodeData::TypeOfExpression(data) => data.expression,
+                        _ => None,
+                    };
+                    if let Some(operand) = operand {
+                        if self.optional_chain_contains_query_reference(operand, query)? {
+                            ty = self.narrow_type_by_switch_optional_chain_containment(
+                                ty,
+                                switch_statement,
+                                clause_start,
+                                clause_end,
+                                |state, t| {
+                                    let flags = state.tables.flags_of(t);
+                                    if flags.intersects(TypeFlags::NEVER) {
+                                        return false;
+                                    }
+                                    let is_undefined_literal = flags
+                                        .intersects(TypeFlags::STRING_LITERAL)
+                                        && matches!(
+                                            &state.tables.type_of(t).data,
+                                            TypeData::Literal {
+                                                value: tsrs2_types::LiteralValue::String(value)
+                                            } if value == "undefined"
+                                        );
+                                    !is_undefined_literal
+                                },
+                            )?;
+                        }
+                    }
+                }
+            }
+            if let Some(access) = self.get_discriminant_property_access(query, expr, ty)? {
+                ty = self.narrow_type_by_switch_on_discriminant_property(
+                    ty,
+                    access,
+                    switch_statement,
+                    clause_start,
+                    clause_end,
+                )?;
+            }
+        }
+        Ok(self.create_flow_type(ty, flow_type.is_incomplete()))
     }
 
     /// An antecedent that is an EMPTY switch clause (clauseStart ==
@@ -842,19 +955,21 @@ impl<'a> CheckerState<'a> {
             )
     }
 
-    /// tsc-deferred: M5 (stage 6.6 — switch exhaustiveness; the real
-    /// computeExhaustiveSwitchStatement needs 6.4's getTypeFacts/
-    /// getSwitchClauseTypeOfWitnesses family, and the steps doc parks
-    /// both under reachability). Conservative false = a non-never
-    /// bypass antecedent always contributes to the join, possibly
-    /// over-wide — seam-safe: the bypass walk itself crosses the
-    /// still-inert switch-clause arm, so every such query is flagged
-    /// and reverts at exit until the arm goes live.
+    /// The branch-label bypass consult — REAL since 6.4e (the
+    /// conservative-false stub became observable the moment the
+    /// switch-clause arm went live; narrow.rs carries the pulled-
+    /// forward isExhaustiveSwitchStatement/compute pair, and its
+    /// remaining consumers — unreachable code, implicit returns —
+    /// stay 6.6).
+    /// tsrs-native: Option shim over the narrow.rs port.
     fn is_exhaustive_switch_statement(
         &mut self,
-        _switch_statement: Option<NodeId>,
+        switch_statement: Option<NodeId>,
     ) -> CheckResult2<bool> {
-        Ok(false)
+        match switch_statement {
+            Some(switch_statement) => self.is_exhaustive_switch_statement_real(switch_statement),
+            None => Ok(false),
+        }
     }
 
     /// tsc-port: getTypeAtFlowBranchLabel @6.0.3
