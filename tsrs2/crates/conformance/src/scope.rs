@@ -249,7 +249,10 @@ fn validate_structure(file: &ScopeFile, origin: &str) -> ConformanceResult<()> {
         validate_identity_pass(&tombstone.identity, "tombstone")?;
         match &tombstone.resolving_commit {
             Some(commit) => {
-                validate_anchor_commit(commit, "tombstone", &tombstone.identity.label())?;
+                validate_anchor_commit(
+                    commit,
+                    &format!("M8 scope tombstone {}", tombstone.identity.label()),
+                )?;
             }
             None if !tombstone.lapsed => {
                 return Err(format!(
@@ -284,8 +287,7 @@ fn validate_structure(file: &ScopeFile, origin: &str) -> ConformanceResult<()> {
         }
         validate_anchor_commit(
             &pin.adjudication_commit,
-            "band pin",
-            &format!("{:?}", pin.band),
+            &format!("M8 scope band pin {:?}", pin.band),
         )?;
         let band_range = band_code_range(&pin.band)?;
         let mut pinned = BTreeSet::new();
@@ -352,7 +354,7 @@ fn validate_structure(file: &ScopeFile, origin: &str) -> ConformanceResult<()> {
         _ => {}
     }
     if let Some(global) = &file.global {
-        validate_anchor_commit(&global.adjudication_commit, "global-freeze record", "")?;
+        validate_anchor_commit(&global.adjudication_commit, "M8 scope global-freeze record")?;
         let mut frozen = BTreeSet::new();
         for identity in &global.identities {
             validate_identity_pass(identity, "global-freeze")?;
@@ -391,15 +393,17 @@ fn validate_structure(file: &ScopeFile, origin: &str) -> ConformanceResult<()> {
 
 /// Manifest anchors are full 40-hex commit SHAs. A movable ref
 /// ("HEAD", a branch, a tag) would let the reviewed-snapshot compare
-/// degenerate to self-compare the moment the ref moves.
-fn validate_anchor_commit(commit: &str, what: &str, label: &str) -> ConformanceResult<()> {
+/// degenerate to self-compare the moment the ref moves. Shared by the
+/// A2 and A5 reviewed-snapshot protocols; `context` names the anchor
+/// ("M8 scope band pin ...", "diag-families freeze", ...).
+pub(crate) fn validate_anchor_commit(commit: &str, context: &str) -> ConformanceResult<()> {
     let full_hex = commit.len() == 40
         && commit
             .bytes()
             .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'));
     if !full_hex {
         return Err(format!(
-            "M8 scope {what} {label} anchor {commit:?} is not a full 40-hex commit SHA; \
+            "{context} anchor {commit:?} is not a full 40-hex commit SHA; \
              movable refs (branches, tags, HEAD) cannot anchor a reviewed snapshot"
         )
         .into());
@@ -1154,16 +1158,21 @@ fn compare_reports(
 // Git anchors (measurement-integrity.md §1.2, §3.1-§3.3)
 // ---------------------------------------------------------------------------
 
-/// Resolve a manifest anchor. The recorded value is already a full
-/// 40-hex SHA (validate_structure); it must additionally name a commit
-/// object directly — a 40-hex tag object would still peel somewhere
-/// else, and an anchor that is not literally the commit would reopen
-/// the movable-ref hole.
-fn resolve_anchor(root: &Path, recorded: &str, what: &str) -> ConformanceResult<String> {
+/// Resolve a reviewed-snapshot anchor. The recorded value is already a
+/// full 40-hex SHA (each protocol's structure validation); it must
+/// additionally name a commit object directly — a 40-hex tag object
+/// would still peel somewhere else, and an anchor that is not
+/// literally the commit would reopen the movable-ref hole. Shared by
+/// A2 and A5; `context` names the anchor.
+pub(crate) fn resolve_anchor(
+    root: &Path,
+    recorded: &str,
+    context: &str,
+) -> ConformanceResult<String> {
     let commit = resolve_commit(root, recorded)?;
     if commit != recorded {
         return Err(format!(
-            "M8 scope {what} anchor {recorded} does not name a commit object directly \
+            "{context} anchor {recorded} does not name a commit object directly \
              (it resolves to {commit}); anchors are full commit SHAs"
         )
         .into());
@@ -1233,7 +1242,7 @@ fn verify_band_pin(
     let commit = resolve_anchor(
         root,
         &pin.adjudication_commit,
-        &format!("band pin {:?}", pin.band),
+        &format!("M8 scope band pin {:?}", pin.band),
     )?;
     if !is_ancestor(root, &commit, head)? {
         return Err(format!(
@@ -1300,7 +1309,11 @@ fn verify_global_freeze(
     global: &GlobalFreeze,
 ) -> ConformanceResult<()> {
     debug_assert_eq!(file.status, ScopeStatus::Frozen);
-    let commit = resolve_anchor(root, &global.adjudication_commit, "global-freeze record")?;
+    let commit = resolve_anchor(
+        root,
+        &global.adjudication_commit,
+        "M8 scope global-freeze record",
+    )?;
     if !is_ancestor(root, &commit, head)? {
         return Err(format!(
             "M8 scope global-freeze adjudication commit {} is not an ancestor of HEAD",
@@ -1361,7 +1374,11 @@ fn verify_tombstone(
             identity.label()
         )
     })?;
-    let commit = resolve_anchor(root, recorded, &format!("tombstone {}", identity.label()))?;
+    let commit = resolve_anchor(
+        root,
+        recorded,
+        &format!("M8 scope tombstone {}", identity.label()),
+    )?;
     if !is_ancestor(root, &commit, head)? {
         return Err(format!(
             "M8 scope tombstone {} resolving commit {recorded} is not an ancestor of HEAD",
@@ -1459,7 +1476,11 @@ fn verify_lapsed_tombstone_anchor(
         return Ok(());
     };
     let identity = &tombstone.identity;
-    let commit = resolve_anchor(root, recorded, &format!("tombstone {}", identity.label()))?;
+    let commit = resolve_anchor(
+        root,
+        recorded,
+        &format!("M8 scope tombstone {}", identity.label()),
+    )?;
     if !is_ancestor(root, &commit, head)? {
         return Err(format!(
             "M8 scope tombstone {} resolving commit {recorded} is not an ancestor of HEAD",
@@ -1673,54 +1694,12 @@ fn verify_scope_baseline(
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::*;
     use crate::identity::assign_case_identities;
     use crate::ratchet::{git, CaseSets, MatchesArtifact, MatchesInputs, RunSets};
+    use crate::test_git::{git_test, init_repo, temp_dir};
     use crate::GoldenMessageChain;
-
-    fn temp_dir(name: &str) -> PathBuf {
-        static COUNTER: AtomicUsize = AtomicUsize::new(0);
-        let dir = std::env::temp_dir().join(format!(
-            "tsrs2-scope-{name}-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        if dir.exists() {
-            fs::remove_dir_all(&dir).unwrap();
-        }
-        fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    fn git_test(root: &Path, args: &[&str]) {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(root)
-            .args([
-                "-c",
-                "user.name=tsrs",
-                "-c",
-                "user.email=tsrs@test",
-                "-c",
-                "commit.gpgsign=false",
-            ])
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "git {args:?}: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
-    fn init_repo(name: &str) -> PathBuf {
-        let dir = temp_dir(name);
-        git_test(&dir, &["init", "-q", "-b", "main"]);
-        dir
-    }
 
     fn commit_scope(root: &Path, file: &ScopeFile, message: &str) -> String {
         fs::write(
@@ -2729,7 +2708,7 @@ mod tests {
         );
         // An abbreviation resolves, but not to itself: the recorded
         // anchor must literally be the commit SHA.
-        let error = resolve_anchor(&root, &commit[..12], "band pin \"2xxx\"")
+        let error = resolve_anchor(&root, &commit[..12], "M8 scope band pin \"2xxx\"")
             .unwrap_err()
             .to_string();
         assert!(
@@ -2737,7 +2716,7 @@ mod tests {
             "{error}"
         );
         assert_eq!(
-            resolve_anchor(&root, &commit, "band pin \"2xxx\"").unwrap(),
+            resolve_anchor(&root, &commit, "M8 scope band pin \"2xxx\"").unwrap(),
             commit
         );
     }

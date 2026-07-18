@@ -7,9 +7,14 @@
 //! partition and may never appear as enumerated rows. The map starts
 //! `draft` and freezes through the reviewed snapshot protocol: the
 //! adjudicated content lands while `draft`, a follow-up change records
-//! the adjudication commit plus the complete enumerated row set. After
-//! the freeze, old ownership (owner strings, rows, canaries, notes) is
-//! byte-stable; the domain grows only through anchored
+//! the adjudication commit plus the complete enumerated row set. The
+//! map's introduction PR lands the DRAFT only — like A2's
+//! missing-base window, the first freeze cannot ride it; the freeze
+//! is its own reviewed change against a trusted base that already
+//! carries the draft. After the freeze, old ownership (owner strings,
+//! rows, canaries, notes) is byte-stable — the artifact parse rejects
+//! unknown fields so nothing can ride the frozen file outside the
+//! compared content — and the domain grows only through anchored
 //! `universe-extension` records that ride an A1 universe transition
 //! and add new rows (and, for new families, new owners) only.
 //!
@@ -39,12 +44,46 @@ use super::{
     fixture_key, read_golden, select_fixtures, t0_key, ConformanceResult, GoldenDiag,
     RefreshOptions, TWO_XXX_CODES,
 };
-use crate::ratchet::{git_blob_optional, git_rel_path, git_root_for, resolve_commit, sha256_hex};
-use crate::scope::is_ancestor;
+use crate::ratchet::{
+    git_blob_optional, git_rel_path, git_root_for, resolve_commit, sha256_hex, vendor_tsc_js_path,
+    MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH,
+};
+use crate::scope::{is_ancestor, resolve_anchor, validate_anchor_commit, SCOPE_REL_PATH};
 
 pub(crate) const FAMILIES_REL_PATH: &str = "diag-families.json";
 const FAMILIES_SCHEMA: u32 = 1;
-const PASSES: [&str; 3] = ["syntactic", "semantic", "suggestion"];
+
+/// Oracle pass provenance as a closed type: the map, the observation,
+/// and the rollup never carry it as a string. Variants stay in
+/// ALPHABETICAL kebab-case order so the derived `Ord` matches the
+/// string order the sorted artifact rows were authored under
+/// ("semantic" < "suggestion" < "syntactic").
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum Pass {
+    Semantic,
+    Suggestion,
+    Syntactic,
+}
+
+impl Pass {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Semantic => "semantic",
+            Self::Suggestion => "suggestion",
+            Self::Syntactic => "syntactic",
+        }
+    }
+
+    fn from_oracle(pass: &str) -> Option<Self> {
+        match pass {
+            "semantic" => Some(Self::Semantic),
+            "suggestion" => Some(Self::Suggestion),
+            "syntactic" => Some(Self::Syntactic),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -62,7 +101,11 @@ impl FamiliesStatus {
     }
 }
 
+// Every map struct rejects unknown fields: the freeze/baseline guards
+// compare parsed structs, so a field serde silently dropped would be
+// invisible to every "byte-stable after the freeze" comparison.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct FamiliesFile {
     pub(crate) schema: u32,
     pub(crate) status: FamiliesStatus,
@@ -77,6 +120,7 @@ pub(crate) struct FamiliesFile {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct BandPartition {
     pub(crate) family: String,
     pub(crate) owner: String,
@@ -84,6 +128,7 @@ pub(crate) struct BandPartition {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct Family {
     pub(crate) name: String,
     pub(crate) owner: String,
@@ -94,17 +139,21 @@ pub(crate) struct Family {
     pub(crate) rows: Vec<FamilyRow>,
     /// Sorted by (fixture, matrix_key), unique within the family. The
     /// exact fixture + matrix anchors the family's owner-stage gate
-    /// must match at T0.
+    /// must match at T0. A rowed family's canary case must contain at
+    /// least one family-owned bucket — a vacuous canary cannot anchor
+    /// anything.
     pub(crate) canaries: Vec<Canary>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct FamilyRow {
     pub(crate) code: u32,
-    pub(crate) pass: String,
+    pub(crate) pass: Pass,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct Canary {
     pub(crate) fixture: String,
     pub(crate) matrix_key: String,
@@ -115,6 +164,7 @@ pub(crate) struct Canary {
 /// map was `draft`; this record enumerates that content so an
 /// add-and-reanchor pair of branch commits cannot redefine it.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct FreezeRecord {
     pub(crate) adjudication_commit: String,
     /// Review provenance only (see module docs).
@@ -123,10 +173,11 @@ pub(crate) struct FreezeRecord {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct FrozenRow {
     pub(crate) family: String,
     pub(crate) code: u32,
-    pub(crate) pass: String,
+    pub(crate) pass: Pass,
 }
 
 /// An A1 universe transition introducing new `(code, pass)` rows adds
@@ -134,6 +185,7 @@ pub(crate) struct FrozenRow {
 /// families) land in one commit, the record naming that commit lands
 /// in a follow-up change. Every old row remains byte-identical.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct UniverseExtension {
     pub(crate) adjudication_commit: String,
     /// Review provenance only (see module docs).
@@ -144,6 +196,7 @@ pub(crate) struct UniverseExtension {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct NewFamily {
     pub(crate) name: String,
     pub(crate) owner: String,
@@ -157,19 +210,33 @@ struct SchemaProbe {
     schema: u64,
 }
 
-pub(crate) fn parse_families_bytes(bytes: &[u8], origin: &str) -> ConformanceResult<FamiliesFile> {
+/// The single probe + shape parse both entry points share; only the
+/// schema-mismatch guidance differs between the current tree and a
+/// historical anchor blob.
+fn parse_families_bytes_raw(
+    bytes: &[u8],
+    origin: &str,
+    schema_note: &str,
+) -> ConformanceResult<FamiliesFile> {
     let probe: SchemaProbe = serde_json::from_slice(bytes)
         .map_err(|err| format!("diag-families map at {origin} is not valid JSON: {err}"))?;
     if probe.schema != u64::from(FAMILIES_SCHEMA) {
         return Err(format!(
-            "diag-families map at {origin} has schema {}; this tree implements schema \
-             {FAMILIES_SCHEMA}",
+            "diag-families map at {origin} has schema {}; {schema_note}",
             probe.schema
         )
         .into());
     }
-    let file: FamiliesFile = serde_json::from_slice(bytes)
-        .map_err(|err| format!("diag-families map at {origin} failed to parse: {err}"))?;
+    serde_json::from_slice(bytes)
+        .map_err(|err| format!("diag-families map at {origin} failed to parse: {err}").into())
+}
+
+pub(crate) fn parse_families_bytes(bytes: &[u8], origin: &str) -> ConformanceResult<FamiliesFile> {
+    let file = parse_families_bytes_raw(
+        bytes,
+        origin,
+        &format!("this tree implements schema {FAMILIES_SCHEMA}"),
+    )?;
     validate_structure(&file)?;
     Ok(file)
 }
@@ -203,11 +270,13 @@ fn validate_structure(file: &FamiliesFile) -> ConformanceResult<()> {
         }
         for row in &family.rows {
             validate_row(row, &family.name)?;
-            if let Some(previous) = owners_by_row.insert(row.clone(), family.name.as_str()) {
+            if let Some(previous) = owners_by_row.insert(*row, family.name.as_str()) {
                 return Err(format!(
                     "duplicate diag-families row ({}, {}) in {:?} and {previous:?}; every \
                      corpus-exercised row has exactly one owner family",
-                    row.code, row.pass, family.name
+                    row.code,
+                    row.pass.name(),
+                    family.name
                 )
                 .into());
             }
@@ -230,10 +299,13 @@ fn validate_structure(file: &FamiliesFile) -> ConformanceResult<()> {
     }
     match (file.status, &file.freeze) {
         (FamiliesStatus::Frozen, Some(freeze)) => {
-            validate_anchor_commit(&freeze.adjudication_commit, "freeze")?;
+            validate_anchor_commit(&freeze.adjudication_commit, "diag-families freeze")?;
             require_sorted_unique(&freeze.rows, || "diag-families freeze rows".to_owned())?;
             for extension in &file.universe_extensions {
-                validate_anchor_commit(&extension.adjudication_commit, "universe extension")?;
+                validate_anchor_commit(
+                    &extension.adjudication_commit,
+                    "diag-families universe extension",
+                )?;
                 require_sorted_unique(&extension.added, || {
                     "diag-families universe-extension added rows".to_owned()
                 })?;
@@ -271,18 +343,14 @@ fn validate_structure(file: &FamiliesFile) -> ConformanceResult<()> {
 }
 
 fn validate_row(row: &FamilyRow, family: &str) -> ConformanceResult<()> {
+    // Pass validity is a parse-time guarantee (the closed `Pass`
+    // enum); only the band partition needs a semantic check.
     if TWO_XXX_CODES.contains(&row.code) {
         return Err(format!(
             "diag-families family {family:?} enumerates 2XXX row ({}, {}); codes 2000-2999 \
              belong wholesale to the band partition",
-            row.code, row.pass
-        )
-        .into());
-    }
-    if !PASSES.contains(&row.pass.as_str()) {
-        return Err(format!(
-            "diag-families family {family:?} row ({}, {:?}) has an unknown pass",
-            row.code, row.pass
+            row.code,
+            row.pass.name()
         )
         .into());
     }
@@ -301,28 +369,11 @@ fn require_sorted_unique<T: Ord>(items: &[T], what: impl Fn() -> String) -> Conf
     }
 }
 
-/// Anchors name commit objects directly; a movable ref would let the
-/// reviewed-snapshot compare degenerate to self-compare when it moves.
-fn validate_anchor_commit(commit: &str, what: &str) -> ConformanceResult<()> {
-    let full_hex = commit.len() == 40
-        && commit
-            .bytes()
-            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'));
-    if !full_hex {
-        return Err(format!(
-            "diag-families {what} anchor {commit:?} is not a full 40-hex commit SHA; movable \
-             refs (branches, tags, HEAD) cannot anchor a reviewed snapshot"
-        )
-        .into());
-    }
-    Ok(())
-}
-
 fn enumerated_rows(file: &FamiliesFile) -> BTreeMap<FamilyRow, String> {
     let mut rows = BTreeMap::new();
     for family in &file.families {
         for row in &family.rows {
-            rows.insert(row.clone(), family.name.clone());
+            rows.insert(*row, family.name.clone());
         }
     }
     rows
@@ -332,7 +383,7 @@ fn frozen_row(family: &str, row: &FamilyRow) -> FrozenRow {
     FrozenRow {
         family: family.to_owned(),
         code: row.code,
-        pass: row.pass.clone(),
+        pass: row.pass,
     }
 }
 
@@ -350,7 +401,8 @@ fn verify_frozen_row_composition(file: &FamiliesFile) -> ConformanceResult<()> {
         if !expected.insert(row.clone()) {
             return Err(format!(
                 "diag-families freeze enumerates ({}, {}) twice",
-                row.code, row.pass
+                row.code,
+                row.pass.name()
             )
             .into());
         }
@@ -360,7 +412,9 @@ fn verify_frozen_row_composition(file: &FamiliesFile) -> ConformanceResult<()> {
             if !expected.insert(row.clone()) {
                 return Err(format!(
                     "diag-families universe extension re-adds frozen row ({}, {}) of {:?}",
-                    row.code, row.pass, row.family
+                    row.code,
+                    row.pass.name(),
+                    row.family
                 )
                 .into());
             }
@@ -374,7 +428,9 @@ fn verify_frozen_row_composition(file: &FamiliesFile) -> ConformanceResult<()> {
         return Err(format!(
             "diag-families frozen row ({}, {}) of {:?} is missing from the current map; \
              old ownership is byte-stable after the freeze",
-            missing.code, missing.pass, missing.family
+            missing.code,
+            missing.pass.name(),
+            missing.family
         )
         .into());
     }
@@ -382,7 +438,9 @@ fn verify_frozen_row_composition(file: &FamiliesFile) -> ConformanceResult<()> {
         return Err(format!(
             "diag-families row ({}, {}) of {:?} is neither in the freeze enumeration nor in \
              a universe extension; additions require an anchored extension record",
-            extra.code, extra.pass, extra.family
+            extra.code,
+            extra.pass.name(),
+            extra.family
         )
         .into());
     }
@@ -392,15 +450,22 @@ fn verify_frozen_row_composition(file: &FamiliesFile) -> ConformanceResult<()> {
 /// The corpus-exercised domain: for every golden case, T0 buckets over
 /// ALL oracle records; each bucket must carry exactly one pass. The
 /// non-2XXX `(code, pass)` set is the map's required domain; the 2XXX
-/// bucket count is reported as the band partition census.
+/// bucket count is reported as the band partition census. For the
+/// cases named in `retain_rows_for`, the per-case row set is kept so
+/// canary anchoring (a rowed family's canary case must own at least
+/// one bucket) can be verified without a checker run.
 pub(crate) struct CorpusDomain {
     pub(crate) rows: BTreeSet<FamilyRow>,
     pub(crate) cases: BTreeSet<(String, String)>,
+    pub(crate) retained_case_rows: BTreeMap<(String, String), BTreeSet<FamilyRow>>,
     pub(crate) two_xxx_buckets: usize,
     pub(crate) fixtures: usize,
 }
 
-pub(crate) fn corpus_domain(workspace: &Path) -> ConformanceResult<CorpusDomain> {
+pub(crate) fn corpus_domain(
+    workspace: &Path,
+    retain_rows_for: &BTreeSet<(String, String)>,
+) -> ConformanceResult<CorpusDomain> {
     let fixtures = select_fixtures(&RefreshOptions {
         workspace: workspace.to_path_buf(),
         limit: None,
@@ -409,6 +474,7 @@ pub(crate) fn corpus_domain(workspace: &Path) -> ConformanceResult<CorpusDomain>
     let goldens_root = workspace.join("goldens");
     let mut rows = BTreeSet::new();
     let mut cases = BTreeSet::new();
+    let mut retained_case_rows = BTreeMap::new();
     let mut two_xxx_buckets = 0usize;
     for fixture in &fixtures {
         let fixture_key = fixture_key(workspace, fixture)?;
@@ -422,22 +488,34 @@ pub(crate) fn corpus_domain(workspace: &Path) -> ConformanceResult<CorpusDomain>
             .into());
         }
         for case in &golden.cases {
-            cases.insert((fixture_key.clone(), case.matrix_key.clone()));
+            let case_key = (fixture_key.clone(), case.matrix_key.clone());
+            let mut case_rows = retain_rows_for
+                .contains(&case_key)
+                .then(BTreeSet::<FamilyRow>::new);
+            cases.insert(case_key.clone());
             for (key, pass) in case_bucket_passes(&fixture_key, &case.matrix_key, &case.oracle)? {
                 if TWO_XXX_CODES.contains(&key.code) {
                     two_xxx_buckets += 1;
                 } else {
-                    rows.insert(FamilyRow {
+                    let row = FamilyRow {
                         code: key.code,
                         pass,
-                    });
+                    };
+                    rows.insert(row);
+                    if let Some(case_rows) = case_rows.as_mut() {
+                        case_rows.insert(row);
+                    }
                 }
+            }
+            if let Some(case_rows) = case_rows {
+                retained_case_rows.insert(case_key, case_rows);
             }
         }
     }
     Ok(CorpusDomain {
         rows,
         cases,
+        retained_case_rows,
         two_xxx_buckets,
         fixtures: fixtures.len(),
     })
@@ -452,14 +530,14 @@ fn case_bucket_passes(
     fixture: &str,
     matrix_key: &str,
     oracle: &[GoldenDiag],
-) -> ConformanceResult<Vec<(crate::T0Key, String)>> {
-    let mut passes = BTreeMap::<crate::T0Key, BTreeSet<&str>>::new();
+) -> ConformanceResult<Vec<(crate::T0Key, Pass)>> {
+    let mut passes = BTreeMap::<crate::T0Key, BTreeSet<Pass>>::new();
     for diag in oracle {
-        let Some(pass) = diag.pass.as_deref() else {
+        let Some(pass) = diag.pass.as_deref().and_then(Pass::from_oracle) else {
             return Err(format!(
-                "oracle record without pass provenance in {fixture} [{matrix_key}] \
-                 (code {})",
-                diag.code
+                "oracle record without recognized pass provenance in {fixture} \
+                 [{matrix_key}] (code {}, pass {:?})",
+                diag.code, diag.pass
             )
             .into());
         };
@@ -468,19 +546,22 @@ fn case_bucket_passes(
     let mut out = Vec::with_capacity(passes.len());
     for (key, bucket_passes) in passes {
         if bucket_passes.len() > 1 {
+            let names = bucket_passes
+                .iter()
+                .map(|pass| pass.name())
+                .collect::<Vec<_>>();
             return Err(format!(
                 "mixed-pass T0 bucket in {fixture} [{matrix_key}]: code {} at {:?}:{:?}:{:?} \
-                 arrives from passes {bucket_passes:?}; adjudicate the bucket at its \
-                 universe transition",
+                 arrives from passes {names:?}; adjudicate the bucket at its universe \
+                 transition",
                 key.code, key.file, key.line, key.col
             )
             .into());
         }
-        let pass = (*bucket_passes
+        let pass = *bucket_passes
             .iter()
             .next()
-            .expect("bucket has at least one record"))
-        .to_owned();
+            .expect("bucket has at least one record");
         out.push((key, pass));
     }
     Ok(out)
@@ -498,7 +579,8 @@ fn verify_domain(
         return Err(format!(
             "unmapped corpus row ({}, {}): every corpus-exercised non-2XXX (code, pass) row \
              needs exactly one owner family (a new row rides an anchored universe extension)",
-            missing.code, missing.pass
+            missing.code,
+            missing.pass.name()
         )
         .into());
     }
@@ -506,7 +588,9 @@ fn verify_domain(
         return Err(format!(
             "diag-families row ({}, {}) of {:?} is not exercised by the current corpus; a \
              domain shrink is a reviewed re-baseline event, not drift",
-            stale.code, stale.pass, map_rows[stale]
+            stale.code,
+            stale.pass.name(),
+            map_rows[*stale]
         )
         .into());
     }
@@ -529,31 +613,17 @@ fn families_file_at(
 /// extension's row-content commit legitimately precedes its own
 /// record, so full composition only holds at the chain's end.
 fn parse_families_bytes_historical(bytes: &[u8], origin: &str) -> ConformanceResult<FamiliesFile> {
-    let probe: SchemaProbe = serde_json::from_slice(bytes)
-        .map_err(|err| format!("diag-families map at {origin} is not valid JSON: {err}"))?;
-    if probe.schema != u64::from(FAMILIES_SCHEMA) {
-        return Err(format!(
-            "diag-families map at {origin} has schema {}; identities across schema versions \
-             are incomparable, so the anchor cannot verify",
-            probe.schema
-        )
-        .into());
-    }
-    serde_json::from_slice(bytes)
-        .map_err(|err| format!("diag-families map at {origin} failed to parse: {err}").into())
+    parse_families_bytes_raw(
+        bytes,
+        origin,
+        "identities across schema versions are incomparable, so the anchor cannot verify",
+    )
 }
 
 fn resolve_families_anchor(root: &Path, recorded: &str, what: &str) -> ConformanceResult<String> {
-    validate_anchor_commit(recorded, what)?;
-    let commit = resolve_commit(root, recorded)?;
-    if commit != recorded {
-        return Err(format!(
-            "diag-families {what} anchor {recorded} does not name a commit object directly \
-             (it resolves to {commit}); anchors are full commit SHAs"
-        )
-        .into());
-    }
-    Ok(commit)
+    let context = format!("diag-families {what}");
+    validate_anchor_commit(recorded, &context)?;
+    resolve_anchor(root, recorded, &context)
 }
 
 /// The reviewed snapshot anchor plus the extension chain
@@ -624,7 +694,9 @@ fn verify_freeze_anchors(
             "diag-families freeze enumeration does not equal the map at its adjudication \
              commit {commit} (first difference: ({}, {}) of {:?}); an add-and-reanchor pair \
              cannot redefine the reviewed snapshot",
-            diff.code, diff.pass, diff.family
+            diff.code,
+            diff.pass.name(),
+            diff.family
         )
         .into());
     }
@@ -653,6 +725,19 @@ fn verify_freeze_anchors(
             return Err(format!(
                 "diag-families map at {what} adjudication commit {ext_commit} does not carry \
                  the frozen base this record extends"
+            )
+            .into());
+        }
+        // The anchored commit's own recorded history must be exactly
+        // the prior extensions: rows land first, THIS record lands in
+        // the follow-up, and no other provenance may exist there —
+        // otherwise the anchor-verified audit trail and the live map
+        // could tell different extension histories.
+        if at_commit.universe_extensions != file.universe_extensions[..index] {
+            return Err(format!(
+                "diag-families map at {what} adjudication commit {ext_commit} records a \
+                 different extension history than the current chain's prefix; the anchored \
+                 provenance and the live map must agree"
             )
             .into());
         }
@@ -722,18 +807,22 @@ fn apply_extension(
             .ok_or_else(|| {
                 format!(
                     "diag-families {what} adds ({}, {}) to unknown family {:?}",
-                    row.code, row.pass, row.family
+                    row.code,
+                    row.pass.name(),
+                    row.family
                 )
             })?;
         let new_row = FamilyRow {
             code: row.code,
-            pass: row.pass.clone(),
+            pass: row.pass,
         };
         match family.rows.binary_search(&new_row) {
             Ok(_) => {
                 return Err(format!(
                     "diag-families {what} re-adds existing row ({}, {}) of {:?}",
-                    row.code, row.pass, row.family
+                    row.code,
+                    row.pass.name(),
+                    row.family
                 )
                 .into());
             }
@@ -772,8 +861,11 @@ fn first_family_difference(expected: &[Family], current: &[Family]) -> String {
 }
 
 /// Trusted-base comparison for hosted PR CI. The map's introduction PR
-/// (no base artifact) is the one missing-base window; afterwards a
-/// frozen base pins the freeze record, the extension prefix, and every
+/// (no base artifact) is the one missing-base window and admits the
+/// DRAFT only — a first freeze that rides it would be self-attested
+/// against a same-branch commit, so it is rejected exactly like A2's
+/// missing-base window rejects a frozen scope. Afterwards a frozen
+/// base pins the freeze record, the extension prefix, and every
 /// already-anchored family byte-for-byte.
 fn verify_families_baseline(
     root: &Path,
@@ -784,6 +876,14 @@ fn verify_families_baseline(
     let base_commit = resolve_commit(root, baseline)?;
     let Some(base_bytes) = git_blob_optional(root, &base_commit, rel)? else {
         // Introduction window: the trusted base predates the map.
+        if current.status == FamiliesStatus::Frozen {
+            return Err(
+                "diag-families map is frozen but the trusted base has no map; the first \
+                 freeze cannot ride the introduction PR — land the draft, then freeze \
+                 against a reviewed base in its own change"
+                    .into(),
+            );
+        }
         return Ok(());
     };
     let base = parse_families_bytes_historical(
@@ -808,7 +908,17 @@ fn verify_families_baseline(
             Ok(())
         }
         (FamiliesStatus::Frozen, FamiliesStatus::Frozen) => {
-            let base_freeze = base.freeze.as_ref().expect("validated frozen base");
+            // The base blob is historical and deliberately unvalidated
+            // (parse_families_bytes_historical): a malformed frozen
+            // base is an integrity error to report, not an invariant
+            // to assert.
+            let Some(base_freeze) = base.freeze.as_ref() else {
+                return Err(format!(
+                    "diag-families map at baseline {baseline} ({base_commit}) is frozen \
+                     without a freeze record; the trusted base is malformed"
+                )
+                .into());
+            };
             let current_freeze = current.freeze.as_ref().expect("validated frozen candidate");
             if base_freeze != current_freeze {
                 return Err(
@@ -859,38 +969,82 @@ fn verify_families_baseline(
     }
 }
 
-/// `cargo xtask families check`: structure, corpus-domain equality,
-/// canary existence, anchors, and the trusted-base comparison.
-pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> {
-    let path = workspace.join(FAMILIES_REL_PATH);
-    let bytes =
-        fs::read(&path).map_err(|err| format!("failed to read {}: {err}", path.display()))?;
-    let file = parse_families_bytes(&bytes, FAMILIES_REL_PATH)?;
-    let map_rows = enumerated_rows(&file);
-    let domain = corpus_domain(workspace)?;
-    verify_domain(&map_rows, &domain.rows)?;
+/// Every canary must name a live golden case, and a rowed family's
+/// canary case must contain at least one family-owned bucket: a
+/// vacuous canary (drifted empty at a reviewed oracle refresh) would
+/// otherwise keep "passing" while anchoring nothing, and the drift
+/// belongs to the refresh slice as a reviewed re-baseline, not to a
+/// later reader.
+fn verify_canary_anchoring(file: &FamiliesFile, domain: &CorpusDomain) -> ConformanceResult<()> {
     for family in &file.families {
+        let family_rows: BTreeSet<&FamilyRow> = family.rows.iter().collect();
         for canary in &family.canaries {
-            if !domain
-                .cases
-                .contains(&(canary.fixture.clone(), canary.matrix_key.clone()))
-            {
+            let case_key = (canary.fixture.clone(), canary.matrix_key.clone());
+            if !domain.cases.contains(&case_key) {
                 return Err(format!(
                     "diag-families family {:?} canary {} [{}] names no golden case",
                     family.name, canary.fixture, canary.matrix_key
                 )
                 .into());
             }
+            if family_rows.is_empty() {
+                continue;
+            }
+            let case_rows = domain
+                .retained_case_rows
+                .get(&case_key)
+                .expect("corpus_domain retains rows for every requested canary case");
+            if !case_rows.iter().any(|row| family_rows.contains(row)) {
+                return Err(format!(
+                    "diag-families family {:?} canary {} [{}] is vacuous: the case contains \
+                     no family-owned (code, pass) bucket, so it anchors nothing — re-anchor \
+                     the canary in the slice that changed the goldens",
+                    family.name, canary.fixture, canary.matrix_key
+                )
+                .into());
+            }
         }
     }
+    Ok(())
+}
 
+/// Anchor verification against the repository: shared by `check` and
+/// the rollup preparation, so a working-tree edit of a frozen map can
+/// never feed the report (owners/canaries/notes are pinned by the
+/// anchored content, not only by the row composition).
+fn verify_map_anchors(workspace: &Path, file: &FamiliesFile) -> ConformanceResult<()> {
+    if file.status != FamiliesStatus::Frozen {
+        return Ok(());
+    }
     let root = git_root_for(workspace)?;
     let rel = git_rel_path(&root, workspace, FAMILIES_REL_PATH)?;
     let head = resolve_commit(&root, "HEAD")?;
-    if file.status == FamiliesStatus::Frozen {
-        verify_freeze_anchors(&root, &rel, &head, &file)?;
-    }
+    verify_freeze_anchors(&root, &rel, &head, file)
+}
+
+/// `cargo xtask families check`: structure, corpus-domain equality,
+/// canary existence and anchoring, the freeze/extension anchors, and
+/// the trusted-base comparison.
+pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> {
+    let path = workspace.join(FAMILIES_REL_PATH);
+    let bytes =
+        fs::read(&path).map_err(|err| format!("failed to read {}: {err}", path.display()))?;
+    let file = parse_families_bytes(&bytes, FAMILIES_REL_PATH)?;
+    let map_rows = enumerated_rows(&file);
+    let canary_cases = file
+        .families
+        .iter()
+        .flat_map(|family| family.canaries.iter())
+        .map(|canary| (canary.fixture.clone(), canary.matrix_key.clone()))
+        .collect::<BTreeSet<_>>();
+    let domain = corpus_domain(workspace, &canary_cases)?;
+    verify_domain(&map_rows, &domain.rows)?;
+    verify_canary_anchoring(&file, &domain)?;
+
+    verify_map_anchors(workspace, &file)?;
     if let Some(baseline) = baseline {
+        let root = git_root_for(workspace)?;
+        let rel = git_rel_path(&root, workspace, FAMILIES_REL_PATH)?;
         verify_families_baseline(&root, &rel, baseline, &file)?;
     }
 
@@ -948,7 +1102,7 @@ pub(crate) struct CaseObservation {
 #[derive(Debug)]
 pub(crate) struct BucketObservation {
     pub(crate) code: u32,
-    pub(crate) pass: String,
+    pub(crate) pass: Pass,
     pub(crate) oracle_multiplicity: usize,
     pub(crate) tsrs_multiplicity: usize,
     pub(crate) excluded_occurrences: usize,
@@ -1038,7 +1192,7 @@ impl RowGrade {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub(crate) struct RowReport {
     pub(crate) code: u32,
-    pub(crate) pass: String,
+    pub(crate) pass: Pass,
     #[serde(flatten)]
     pub(crate) grade: RowGrade,
 }
@@ -1050,7 +1204,11 @@ pub(crate) struct CanaryReport {
     /// Family-scoped: every family-owned bucket in the case matched at
     /// T0 (for a row-less family: the whole case, and no false
     /// positive). Duplicate buckets additionally report completeness.
+    /// A vacuous canary (rowed family, no owned bucket in the case)
+    /// never passes — `families check` rejects it outright; the flag
+    /// here is defense in depth for the same condition.
     pub(crate) passed: bool,
+    pub(crate) vacuous: bool,
     pub(crate) family_false_negative: usize,
     pub(crate) multiplicity_incomplete: usize,
 }
@@ -1074,22 +1232,29 @@ pub(crate) struct InputFingerprints {
     pub(crate) oracle_inputs_sha256: String,
     pub(crate) conformance_matches_sha256: String,
     pub(crate) tsc_js_sha256: String,
+    /// The executable that produced the observation — the tsrs checker
+    /// is statically linked into it, so a checker rebuild (the input
+    /// no file-side hash can see) moves this pin and staleness the
+    /// other five fingerprints cannot express becomes visible.
+    pub(crate) tsrs_exe_sha256: String,
 }
 
 impl InputFingerprints {
     fn current(workspace: &Path) -> ConformanceResult<Self> {
-        let hash = |rel: &str| -> ConformanceResult<String> {
-            let path = workspace.join(rel);
-            let bytes = fs::read(&path)
+        let hash_file = |path: &Path| -> ConformanceResult<String> {
+            let bytes = fs::read(path)
                 .map_err(|err| format!("failed to read {}: {err}", path.display()))?;
             Ok(sha256_hex(&bytes))
         };
+        let exe = std::env::current_exe()
+            .map_err(|err| format!("failed to locate the running executable: {err}"))?;
         Ok(Self {
-            diag_families_sha256: hash(FAMILIES_REL_PATH)?,
-            m8_scope_sha256: hash("m8-scope.json")?,
-            oracle_inputs_sha256: hash(crate::ratchet::ORACLE_INPUTS_REL_PATH)?,
-            conformance_matches_sha256: hash(crate::ratchet::MATCHES_REL_PATH)?,
-            tsc_js_sha256: hash("vendor/typescript-6.0.3/lib/_tsc.js")?,
+            diag_families_sha256: hash_file(&workspace.join(FAMILIES_REL_PATH))?,
+            m8_scope_sha256: hash_file(&workspace.join(SCOPE_REL_PATH))?,
+            oracle_inputs_sha256: hash_file(&workspace.join(ORACLE_INPUTS_REL_PATH))?,
+            conformance_matches_sha256: hash_file(&workspace.join(MATCHES_REL_PATH))?,
+            tsc_js_sha256: hash_file(&vendor_tsc_js_path(workspace))?,
+            tsrs_exe_sha256: hash_file(&exe)?,
         })
     }
 }
@@ -1135,9 +1300,9 @@ pub(crate) fn grade(
             }
             let row = FamilyRow {
                 code: bucket.code,
-                pass: bucket.pass.clone(),
+                pass: bucket.pass,
             };
-            observed_rows.insert(row.clone());
+            observed_rows.insert(row);
             row_grades.entry(row).or_default().add(bucket);
         }
     }
@@ -1160,7 +1325,7 @@ pub(crate) fn grade(
                 grade.supported_false_negative += row_grade.supported_false_negative;
                 RowReport {
                     code: row.code,
-                    pass: row.pass.clone(),
+                    pass: row.pass,
                     grade: row_grade,
                 }
             })
@@ -1177,15 +1342,13 @@ pub(crate) fn grade(
                     )
                 })?;
             let scoped = |bucket: &&BucketObservation| -> bool {
-                if family_rows.is_empty() {
-                    true
-                } else {
-                    family_rows.contains(&FamilyRow {
+                family_rows.is_empty()
+                    || family_rows.contains(&FamilyRow {
                         code: bucket.code,
-                        pass: bucket.pass.clone(),
+                        pass: bucket.pass,
                     })
-                }
             };
+            let scoped_buckets = case.buckets.iter().filter(scoped).count();
             let family_false_negative = case
                 .buckets
                 .iter()
@@ -1201,12 +1364,17 @@ pub(crate) fn grade(
                         && bucket.tsrs_multiplicity != bucket.oracle_multiplicity
                 })
                 .count();
-            let passed = family_false_negative == 0
+            // A rowed family's canary anchors nothing when the case
+            // owns no family bucket; it can never pass vacuously.
+            let vacuous = !family_rows.is_empty() && scoped_buckets == 0;
+            let passed = !vacuous
+                && family_false_negative == 0
                 && (!family_rows.is_empty() || case.false_positives == 0);
             canaries.push(CanaryReport {
                 fixture: canary.fixture.clone(),
                 matrix_key: canary.matrix_key.clone(),
                 passed,
+                vacuous,
                 family_false_negative,
                 multiplicity_incomplete,
             });
@@ -1237,24 +1405,56 @@ pub(crate) fn grade(
     })
 }
 
-/// `cargo xtask families report`: run the gating band=all conformance
-/// observation, grade it against the map, and write the rollup.
-pub fn report(workspace: &Path, out_json: &Path) -> ConformanceResult<()> {
+/// Everything the rollup needs BEFORE the observation run: the map
+/// parsed, validated, and — when frozen — anchor-verified against the
+/// repository (a working-tree owner/canary/note edit cannot feed the
+/// report), plus the input fingerprints captured before the corpus is
+/// touched.
+#[derive(Debug)]
+pub(crate) struct ReportPreparation {
+    file: FamiliesFile,
+    inputs: InputFingerprints,
+}
+
+pub(crate) fn prepare_report(workspace: &Path) -> ConformanceResult<ReportPreparation> {
     let path = workspace.join(FAMILIES_REL_PATH);
     let bytes =
         fs::read(&path).map_err(|err| format!("failed to read {}: {err}", path.display()))?;
     let file = parse_families_bytes(&bytes, FAMILIES_REL_PATH)?;
-
-    let conformance_json = workspace.join("target/families/conformance.json");
-    let (summary, observation) = crate::run_conformance_observed(&crate::ConformanceOptions {
-        workspace: workspace.to_path_buf(),
-        limit: None,
-        files: Vec::new(),
-        out_json: conformance_json,
-        band: crate::DiagnosticBand::All,
-    })?;
+    verify_map_anchors(workspace, &file)?;
     let inputs = InputFingerprints::current(workspace)?;
-    let report = grade(&file, &observation, inputs)?;
+    Ok(ReportPreparation { file, inputs })
+}
+
+/// Fingerprint stability across the observation run: the grading is
+/// only as fresh as the inputs it was measured under, so an input
+/// moving DURING the multi-second run invalidates the rollup instead
+/// of binding new hashes to old numbers.
+fn ensure_inputs_stable(
+    before: &InputFingerprints,
+    after: &InputFingerprints,
+) -> ConformanceResult<()> {
+    if before != after {
+        return Err(
+            "families rollup inputs changed while the observation ran; the grading no \
+             longer corresponds to the recorded fingerprints — re-run `cargo xtask families \
+             report` on a quiescent tree"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
+pub(crate) fn finish_report(
+    workspace: &Path,
+    preparation: ReportPreparation,
+    summary: &crate::ConformanceSummary,
+    observation: &Observation,
+    out_json: &Path,
+) -> ConformanceResult<()> {
+    let ReportPreparation { file, inputs } = preparation;
+    ensure_inputs_stable(&inputs, &InputFingerprints::current(workspace)?)?;
+    let report = grade(&file, observation, inputs)?;
 
     if let Some(parent) = out_json.parent() {
         fs::create_dir_all(parent)?;
@@ -1290,6 +1490,25 @@ pub fn report(workspace: &Path, out_json: &Path) -> ConformanceResult<()> {
     }
     println!("families report json: {}", out_json.display());
     Ok(())
+}
+
+/// `cargo xtask families report`: run the gating band=all conformance
+/// observation, grade it against the anchor-verified map, and write
+/// the rollup. In ci the same rollup rides the band=all conformance
+/// step (`cargo xtask conformance --families-report`) so the corpus
+/// is checked once.
+pub fn report(workspace: &Path, out_json: &Path) -> ConformanceResult<()> {
+    crate::run_conformance_with_families_report(
+        &crate::ConformanceOptions {
+            workspace: workspace.to_path_buf(),
+            limit: None,
+            files: Vec::new(),
+            out_json: workspace.join("target/families/conformance.json"),
+            band: crate::DiagnosticBand::All,
+        },
+        out_json,
+    )
+    .map(|_| ())
 }
 
 /// Consumer-side freshness check: a stored rollup is only meaningful
@@ -1329,6 +1548,11 @@ pub fn verify_report_freshness(workspace: &Path, report_path: &Path) -> Conforma
             "vendor _tsc.js",
             &report.inputs.tsc_js_sha256,
             &current.tsc_js_sha256,
+        ),
+        (
+            "the tsrs checker binary",
+            &report.inputs.tsrs_exe_sha256,
+            &current.tsrs_exe_sha256,
         ),
     ];
     for (name, recorded, live) in pairs {
@@ -1386,54 +1610,11 @@ pub(crate) fn ensure_observation_eligible(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
     use std::process::Command;
-    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::*;
+    use crate::test_git::{git_test, init_repo, temp_dir};
     use crate::{GoldenMessageChain, T0Key};
-
-    fn temp_dir(name: &str) -> PathBuf {
-        static COUNTER: AtomicUsize = AtomicUsize::new(0);
-        let dir = std::env::temp_dir().join(format!(
-            "tsrs2-families-{name}-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        if dir.exists() {
-            fs::remove_dir_all(&dir).unwrap();
-        }
-        fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    fn git_test(root: &Path, args: &[&str]) {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(root)
-            .args([
-                "-c",
-                "user.name=tsrs",
-                "-c",
-                "user.email=tsrs@test",
-                "-c",
-                "commit.gpgsign=false",
-            ])
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "git {args:?}: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
-    fn init_repo(name: &str) -> PathBuf {
-        let dir = temp_dir(name);
-        git_test(&dir, &["init", "-q", "-b", "main"]);
-        dir
-    }
 
     fn commit_families(root: &Path, file: &FamiliesFile, message: &str) -> String {
         fs::write(
@@ -1460,7 +1641,7 @@ mod tests {
     fn row(code: u32, pass: &str) -> FamilyRow {
         FamilyRow {
             code,
-            pass: pass.to_owned(),
+            pass: Pass::from_oracle(pass).unwrap(),
         }
     }
 
@@ -1606,7 +1787,7 @@ mod tests {
                 added: vec![FrozenRow {
                     family: "a".to_owned(),
                     code: 7050,
-                    pass: "suggestion".to_owned(),
+                    pass: Pass::Suggestion,
                 }],
                 new_families: Vec::new(),
             });
@@ -1808,7 +1989,7 @@ mod tests {
             added: vec![FrozenRow {
                 family: "a".to_owned(),
                 code: 7028,
-                pass: "semantic".to_owned(),
+                pass: Pass::Semantic,
             }],
             new_families: Vec::new(),
         });
@@ -1865,7 +2046,7 @@ mod tests {
             added: vec![FrozenRow {
                 family: "a".to_owned(),
                 code: 7027,
-                pass: "semantic".to_owned(),
+                pass: Pass::Semantic,
             }],
             new_families: Vec::new(),
         });
@@ -1925,7 +2106,7 @@ mod tests {
                 added: vec![FrozenRow {
                     family: "a".to_owned(),
                     code: 7028,
-                    pass: "semantic".to_owned(),
+                    pass: Pass::Semantic,
                 }],
                 new_families: Vec::new(),
             });
@@ -1987,7 +2168,7 @@ mod tests {
             added: vec![FrozenRow {
                 family: "a".to_owned(),
                 code: 7028,
-                pass: "semantic".to_owned(),
+                pass: Pass::Semantic,
             }],
             new_families: Vec::new(),
         });
@@ -2071,7 +2252,7 @@ mod tests {
     ) -> BucketObservation {
         BucketObservation {
             code,
-            pass: pass.to_owned(),
+            pass: Pass::from_oracle(pass).unwrap(),
             oracle_multiplicity,
             tsrs_multiplicity: if matched { oracle_multiplicity } else { 0 },
             excluded_occurrences: excluded,
@@ -2086,6 +2267,7 @@ mod tests {
             oracle_inputs_sha256: "0".repeat(64),
             conformance_matches_sha256: "0".repeat(64),
             tsc_js_sha256: "0".repeat(64),
+            tsrs_exe_sha256: "0".repeat(64),
         }
     }
 
@@ -2295,5 +2477,312 @@ mod tests {
             .unwrap();
         assert!(!single.matched);
         assert_eq!(single.excluded_occurrences, 0);
+    }
+
+    // -- review-hardening rows (PR #23 max review) -------------------
+
+    #[test]
+    fn unknown_fields_are_rejected_everywhere() {
+        let file = draft_file(vec![family("a", "M5", &[(7027, "semantic")])]);
+        let mut value = serde_json::to_value(&file).unwrap();
+        value["families"][0]["adjudication_note"] = serde_json::json!("approved per review");
+        let message = parse_families_bytes(&serde_json::to_vec(&value).unwrap(), "test")
+            .unwrap_err()
+            .to_string();
+        assert!(message.contains("unknown field"), "{message}");
+
+        let mut value = serde_json::to_value(&file).unwrap();
+        value["ratified"] = serde_json::json!(true);
+        let message = parse_families_bytes(&serde_json::to_vec(&value).unwrap(), "test")
+            .unwrap_err()
+            .to_string();
+        assert!(message.contains("unknown field"), "{message}");
+    }
+
+    #[test]
+    fn first_freeze_cannot_ride_the_introduction_window() {
+        let root = init_repo("intro-freeze");
+        fs::write(root.join("other.txt"), b"x").unwrap();
+        git_test(&root, &["add", "other.txt"]);
+        git_test(&root, &["commit", "-q", "-m", "pre-map"]);
+        let pre_map = String::from_utf8(
+            Command::new("git")
+                .arg("-C")
+                .arg(&root)
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .unwrap()
+        .trim()
+        .to_owned();
+        let draft = draft_file(vec![family("a", "M5", &[(7027, "semantic")])]);
+        let adjudication = commit_families(&root, &draft, "draft content");
+        let frozen = frozen_from(&draft, &adjudication);
+        commit_families(&root, &frozen, "freeze anchor");
+        // The anchors themselves verify (same-branch ancestor), but the
+        // trusted-base leg must reject the self-attested first freeze.
+        let head = String::from_utf8(
+            Command::new("git")
+                .arg("-C")
+                .arg(&root)
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .unwrap()
+        .trim()
+        .to_owned();
+        verify_freeze_anchors(&root, FAMILIES_REL_PATH, &head, &frozen).unwrap();
+        let message = err(verify_families_baseline(
+            &root,
+            FAMILIES_REL_PATH,
+            &pre_map,
+            &frozen,
+        ));
+        assert!(
+            message.contains("cannot ride the introduction PR"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn extension_anchor_with_divergent_recorded_history_fails() {
+        let root = init_repo("ext-history");
+        let draft = draft_file(vec![family("a", "M5", &[(7027, "semantic")])]);
+        let adjudication = commit_families(&root, &draft, "draft content");
+        let frozen = frozen_from(&draft, &adjudication);
+        commit_families(&root, &frozen, "freeze anchor");
+
+        // The extension's content commit carries a FABRICATED prior
+        // extension record alongside the correct rows.
+        let mut fabricated = frozen.clone();
+        fabricated.families[0].rows.push(row(7028, "semantic"));
+        fabricated.families[0].rows.sort();
+        fabricated.universe_extensions.push(UniverseExtension {
+            adjudication_commit: "e".repeat(40),
+            oracle_inputs_sha256: "5".repeat(64),
+            added: vec![FrozenRow {
+                family: "a".to_owned(),
+                code: 7028,
+                pass: Pass::Semantic,
+            }],
+            new_families: Vec::new(),
+        });
+        let ext_commit = commit_families(&root, &fabricated, "extension rows + fake history");
+
+        let mut extended = frozen.clone();
+        extended.families[0].rows.push(row(7028, "semantic"));
+        extended.families[0].rows.sort();
+        extended.universe_extensions.push(UniverseExtension {
+            adjudication_commit: ext_commit,
+            oracle_inputs_sha256: "1".repeat(64),
+            added: vec![FrozenRow {
+                family: "a".to_owned(),
+                code: 7028,
+                pass: Pass::Semantic,
+            }],
+            new_families: Vec::new(),
+        });
+        let head = commit_families(&root, &extended, "extension record");
+        let message = err(verify_freeze_anchors(
+            &root,
+            FAMILIES_REL_PATH,
+            &head,
+            &extended,
+        ));
+        assert!(message.contains("different extension history"), "{message}");
+    }
+
+    #[test]
+    fn malformed_frozen_base_is_an_error_not_a_panic() {
+        let root = init_repo("bad-base");
+        // A frozen map WITHOUT a freeze record can only exist as an
+        // unvalidated historical blob; hand-craft and commit it.
+        let draft = draft_file(vec![family("a", "M5", &[(7027, "semantic")])]);
+        let mut value = serde_json::to_value(&draft).unwrap();
+        value["status"] = serde_json::json!("frozen");
+        fs::write(
+            root.join(FAMILIES_REL_PATH),
+            serde_json::to_vec_pretty(&value).unwrap(),
+        )
+        .unwrap();
+        git_test(&root, &["add", FAMILIES_REL_PATH]);
+        git_test(&root, &["commit", "-q", "-m", "malformed frozen base"]);
+        let base = String::from_utf8(
+            Command::new("git")
+                .arg("-C")
+                .arg(&root)
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .unwrap()
+        .trim()
+        .to_owned();
+        let adjudication = commit_families(&root, &draft, "draft again");
+        let frozen = frozen_from(&draft, &adjudication);
+        let message = err(verify_families_baseline(
+            &root,
+            FAMILIES_REL_PATH,
+            &base,
+            &frozen,
+        ));
+        assert!(
+            message.contains("frozen without a freeze record"),
+            "{message}"
+        );
+    }
+
+    fn domain_with_case(rows: &[FamilyRow], case_rows: &[FamilyRow]) -> CorpusDomain {
+        CorpusDomain {
+            rows: rows.iter().copied().collect(),
+            cases: [("conformance/a.ts".to_owned(), String::new())].into(),
+            retained_case_rows: [(
+                ("conformance/a.ts".to_owned(), String::new()),
+                case_rows.iter().copied().collect(),
+            )]
+            .into(),
+            two_xxx_buckets: 0,
+            fixtures: 1,
+        }
+    }
+
+    #[test]
+    fn vacuous_canary_fails_check_and_never_passes_grading() {
+        let mut file = draft_file(vec![family("a", "M5", &[(7027, "semantic")])]);
+        file.families[0].canaries.push(Canary {
+            fixture: "conformance/a.ts".to_owned(),
+            matrix_key: String::new(),
+        });
+
+        // check side: the canary case owns no family bucket.
+        let empty_case = domain_with_case(&[row(7027, "semantic")], &[row(7034, "semantic")]);
+        let message = err(verify_canary_anchoring(&file, &empty_case));
+        assert!(message.contains("vacuous"), "{message}");
+        assert!(message.contains("anchors nothing"), "{message}");
+
+        let anchored = domain_with_case(&[row(7027, "semantic")], &[row(7027, "semantic")]);
+        verify_canary_anchoring(&file, &anchored).unwrap();
+
+        // A row-less family is exempt (whole-case semantics).
+        let mut suppression = draft_file(vec![Family {
+            name: "suppression".to_owned(),
+            owner: "M7 8.2".to_owned(),
+            note: "audit".to_owned(),
+            rows: Vec::new(),
+            canaries: vec![Canary {
+                fixture: "conformance/a.ts".to_owned(),
+                matrix_key: String::new(),
+            }],
+        }]);
+        suppression.families[0].rows.clear();
+        verify_canary_anchoring(&suppression, &empty_case).unwrap();
+
+        // grade side: the same condition is defense in depth — the
+        // canary reports vacuous and cannot pass even with zero FN.
+        // Family a's canary case carries only family b's bucket; a's
+        // row is exercised elsewhere so the domain stays balanced.
+        let mut map = draft_file(vec![
+            family("a", "M5", &[(7027, "semantic")]),
+            family("b", "M6", &[(7034, "semantic")]),
+        ]);
+        map.families[0].canaries.push(Canary {
+            fixture: "conformance/a.ts".to_owned(),
+            matrix_key: String::new(),
+        });
+        let report = grade(
+            &map,
+            &Observation {
+                fixtures_total: 2,
+                cases: vec![
+                    CaseObservation {
+                        fixture: "conformance/a.ts".to_owned(),
+                        matrix_key: String::new(),
+                        false_positives: 0,
+                        buckets: vec![bucket(7034, "semantic", 1, 0, true)],
+                    },
+                    CaseObservation {
+                        fixture: "conformance/b.ts".to_owned(),
+                        matrix_key: String::new(),
+                        false_positives: 0,
+                        buckets: vec![bucket(7027, "semantic", 1, 0, true)],
+                    },
+                ],
+            },
+            dummy_inputs(),
+        )
+        .unwrap();
+        let canary = &report.families[0].canaries[0];
+        assert!(canary.vacuous);
+        assert!(!canary.passed);
+        assert_eq!(canary.family_false_negative, 0);
+    }
+
+    #[test]
+    fn inputs_moving_during_the_run_invalidate_the_rollup() {
+        let before = dummy_inputs();
+        ensure_inputs_stable(&before, &before.clone()).unwrap();
+        let mut after = before.clone();
+        after.m8_scope_sha256 = "1".repeat(64);
+        let message = err(ensure_inputs_stable(&before, &after));
+        assert!(
+            message.contains("changed while the observation ran"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn prepare_report_rejects_working_tree_tampering_of_a_frozen_map() {
+        // Canonicalize: prepare_report resolves the git toplevel,
+        // which canonicalizes macOS /var -> /private/var temp paths.
+        let root = init_repo("prepare").canonicalize().unwrap();
+        fs::create_dir_all(root.join("ratchets")).unwrap();
+        fs::create_dir_all(root.join("vendor/typescript-6.0.3/lib")).unwrap();
+        fs::write(root.join(SCOPE_REL_PATH), b"scope").unwrap();
+        fs::write(root.join(ORACLE_INPUTS_REL_PATH), b"inputs").unwrap();
+        fs::write(root.join(MATCHES_REL_PATH), b"matches").unwrap();
+        fs::write(root.join("vendor/typescript-6.0.3/lib/_tsc.js"), b"tsc").unwrap();
+
+        let draft = draft_file(vec![family("a", "M5", &[(7027, "semantic")])]);
+        let adjudication = commit_families(&root, &draft, "draft content");
+        let frozen = frozen_from(&draft, &adjudication);
+        commit_families(&root, &frozen, "freeze anchor");
+        prepare_report(&root).unwrap();
+
+        // A working-tree owner edit leaves the row composition intact;
+        // only the anchor comparison can see it — and the rollup path
+        // must run that comparison.
+        let mut tampered = frozen.clone();
+        tampered.families[0].owner = "M8".to_owned();
+        fs::write(
+            root.join(FAMILIES_REL_PATH),
+            serde_json::to_vec_pretty(&tampered).unwrap(),
+        )
+        .unwrap();
+        let message = prepare_report(&root).unwrap_err().to_string();
+        assert!(message.contains("owner changed"), "{message}");
+    }
+
+    #[test]
+    fn orphan_golden_cases_are_named() {
+        let case = |matrix_key: &str| crate::GoldenCase {
+            matrix_key: matrix_key.to_owned(),
+            tsrs: Vec::new(),
+            oracle: Vec::new(),
+            tsrs_cli_hash: String::new(),
+            oracle_cli_hash: String::new(),
+        };
+        let cases = vec![case(""), case("target=es5")];
+        let expanded: BTreeSet<&str> = ["", "target=es5"].into();
+        assert_eq!(crate::orphan_golden_case(&cases, &expanded), None);
+        let shrunk: BTreeSet<&str> = [""].into();
+        assert_eq!(
+            crate::orphan_golden_case(&cases, &shrunk),
+            Some("target=es5")
+        );
     }
 }

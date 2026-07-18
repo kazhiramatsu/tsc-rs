@@ -9,11 +9,14 @@ implementation-owner families, their measured baselines, and the
 acceptance shape each family closes on. The A5 slice turned it into
 the machine map and rollup defined by the
 [A5 integrity contract](measurement-integrity.md#5-a5--family-ownership-and-supported-rollup):
-`diag-families.json` is the frozen authority (`cargo xtask families
+`diag-families.json` is the machine authority (`cargo xtask families
 check`), `cargo xtask families report` the live rollup
-(`target/families/report.json`). The numbers below remain the
-planning baseline from the pre-oracle-correction `52c47bbb` tree, not
-a ratchet — the rollup owns current numbers.
+(`target/families/report.json`). The map lands DRAFT in its
+introduction PR — the first freeze cannot ride that PR (the audit
+rejects it, mirroring A2's missing-base window) and follows as its
+own reviewed change against the merged base. The numbers below remain
+the planning baseline from the pre-oracle-correction `52c47bbb` tree,
+not a ratchet — the rollup owns current numbers.
 
 The v1 roadmap (`docs/design/non-2xxx-blockers.md`) is v1-only
 (`src/`, EXECUTION-GUIDE, classifier discipline) and is not reused.
@@ -69,10 +72,10 @@ Facts the numeric-band view hides:
 
 ## 2. Families
 
-The A5 slice adjudicated these owners and froze them into
-`diag-families.json`; the map is the authority and this table the
-planning record. Anchor and reviewed re-baseline rules are defined
-once in the
+The A5 slice adjudicated these owners into `diag-families.json`; the
+map is the authority and this table the planning record (the freeze
+itself is the follow-up reviewed change described above). Anchor and
+reviewed re-baseline rules are defined once in the
 [A5 integrity contract](measurement-integrity.md#5-a5--family-ownership-and-supported-rollup),
 so ownership cannot drift
 after it becomes a gate input; "M7 8.x" refers to the stages in
@@ -153,8 +156,9 @@ Decisions recorded in the map's per-family notes; summary:
   `flow-strict-nullability` (**M5**) with the 18046-18050 band; the
   suggestion-pass twin stays in `flow-derived-suggestions`
   (M7 8.4 surfacing).
-- exact (code, pass) splits for every ~ row: pinned by the frozen
-  map (433 non-2XXX rows on the post-epoch corpus).
+- exact (code, pass) splits for every ~ row: enumerated by the
+  machine map (433 non-2XXX rows on the post-epoch corpus; pinned at
+  its freeze).
 - suppression surfaces (M7 8.2) have no code set: the map records a
   row-less family whose acceptance is the audit artifact plus its
   canary fixtures (`conformance/directives/ts-expect-error-nocheck`,

@@ -1836,13 +1836,22 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let out_json = parsed
         .out_json
         .unwrap_or_else(|| workspace.join("target/conformance/mismatches.json"));
-    let summary = tsrs2_conformance::run_conformance(&tsrs2_conformance::ConformanceOptions {
-        workspace,
+    let options = tsrs2_conformance::ConformanceOptions {
+        workspace: workspace.clone(),
         limit: parsed.limit,
         files: parsed.files,
         out_json: out_json.clone(),
         band: parsed.band,
-    })?;
+    };
+    // `--families-report`: the ci shape — the A5 rollup rides this
+    // gating run instead of re-checking the corpus in a second one.
+    // The library additionally refuses non-full or banded runs.
+    let summary = if parsed.families_report {
+        let report_out = workspace.join("target/families/report.json");
+        tsrs2_conformance::run_conformance_with_families_report(&options, &report_out)?
+    } else {
+        tsrs2_conformance::run_conformance(&options)?
+    };
     println!(
         "conformance band={} fixtures={} cases={} T0={:.4}% matched={}/{} FP={} FN={} mismatches={}",
         summary.band,
@@ -1992,6 +2001,7 @@ struct ConformanceArgs {
     files: Vec<PathBuf>,
     out_json: Option<PathBuf>,
     band: tsrs2_conformance::DiagnosticBand,
+    families_report: bool,
 }
 
 fn parse_conformance_args(
@@ -2001,6 +2011,7 @@ fn parse_conformance_args(
     let mut files = Vec::new();
     let mut out_json = None;
     let mut band = tsrs2_conformance::DiagnosticBand::All;
+    let mut families_report = false;
     let mut args = args.peekable();
 
     while let Some(arg) = args.next() {
@@ -2033,8 +2044,18 @@ fn parse_conformance_args(
                 };
             }
             "--syntactic-only" => band = tsrs2_conformance::DiagnosticBand::Syntactic,
+            "--families-report" => families_report = true,
             _ => return Err(format!("unexpected conformance argument: {arg}").into()),
         }
+    }
+    if families_report
+        && (band != tsrs2_conformance::DiagnosticBand::All || limit.is_some() || !files.is_empty())
+    {
+        return Err(
+            "--families-report requires the full band=all run; the A5 rollup never comes \
+             from a projection"
+                .into(),
+        );
     }
 
     Ok(ConformanceArgs {
@@ -2042,6 +2063,7 @@ fn parse_conformance_args(
         files,
         out_json,
         band,
+        families_report,
     })
 }
 
@@ -3885,7 +3907,15 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             .arg("--baseline")
             .arg(&baseline),
     )?;
-    run_command(Command::new("cargo").arg("xtask").arg("conformance"))?;
+    // The band=all gating run also carries the A5 rollup
+    // (report-only; the set ratchet and FP=0 gate the run itself) so
+    // the corpus is checked once for both artifacts.
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("conformance")
+            .arg("--families-report"),
+    )?;
     run_command(
         Command::new("cargo")
             .arg("xtask")
@@ -3901,15 +3931,6 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             .arg("xtask")
             .arg("conformance")
             .arg("--syntactic-only"),
-    )?;
-    // A5 rollup: one more full band=all gating run that collects the
-    // per-bucket observation and writes the per-family supported
-    // grading (report-only; the set ratchet and FP=0 gate the run).
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("families")
-            .arg("report"),
     )?;
     run_command(
         Command::new("cargo")
