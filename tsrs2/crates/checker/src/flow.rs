@@ -20,15 +20,15 @@
 //! resume rule stays in-file by construction — so the query pins the
 //! owning file index once.
 //!
-//! Stage state (6.4a): the assignment and array-mutation arms (6.2),
-//! the branch/loop JOINs with the loop-label fixpoint (6.3), and the
-//! condition arm with the real narrowType dispatch (6.4a, narrow.rs)
-//! are LIVE, and both caller initialType ladders are flipped
-//! (checkIdentifier + the access.rs assume-uninitialized arm). Still
-//! inert, each flagging the query (`FlowQuery::traversed_inert_arm`):
-//! - [FLOW 6.4] the narrow.rs sub-narrowers (identity stubs retiring
-//!   one per 6.4b-g commit) and the switch-clause arm (6.4e); calls
-//!   never affect (no effects signatures until 6.4f).
+//! Stage state (6.4 COMPLETE): the assignment and array-mutation
+//! arms (6.2), the branch/loop JOINs with the loop-label fixpoint
+//! (6.3), the condition/switch-clause arms with the full narrow.rs
+//! dispatch, and the call arm with effects signatures (6.4) are all
+//! LIVE, and both caller initialType ladders are flipped
+//! (checkIdentifier + the access.rs assume-uninitialized arm). The
+//! query flag (`FlowQuery::traversed_inert_arm`) remains as the
+//! narrow M6-deferral channel (see narrow.rs) until 6.6 retires the
+//! failure-face gates; reachability is the 6.6 true-stub.
 //!
 //! THE 6.2 SEAM (retires with the 6.4 narrowers): a query that
 //! crossed a still-inert arm reverts to the 6.1 answer (declared
@@ -643,10 +643,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    // ---- the arms (assignment + array mutation live since 6.2, the
-    // branch/loop joins since 6.3, the condition arm since 6.4a via
-    // the narrow.rs dispatch; the switch-clause arm stays inert and
-    // flags the query until 6.4e, calls until 6.4f) ----
+    // ---- the arms (assignment + array mutation live since 6.2,
+    // branch/loop joins since 6.3, conditions/switch clauses/calls
+    // since 6.4 via the narrow.rs dispatch + effects signatures) ----
 
     /// tsc-port: getTypeAtFlowAssignment @6.0.3
     /// tsc-hash: 06ef726ffa7b23b361ca0631413c45e9173551c164933920099df3bdafff5277

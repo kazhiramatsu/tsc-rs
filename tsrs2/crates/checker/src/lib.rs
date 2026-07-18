@@ -2384,6 +2384,34 @@ mod tests {
     }
 
     #[test]
+    fn const_variable_guard_inlines_into_the_condition() {
+        // narrowType's Identifier arm (6.4h): `if (isStr)` narrows x
+        // through the const's initializer (`typeof x === "string"`),
+        // so the fs(x) argument checks clean — no diagnostic and no
+        // containment (pre-6.4h the inline conditions flagged the
+        // query and the failed-argument gate partial-marked).
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare function fs(s: string): void;\ndeclare const x: string | number;\nconst isStr = typeof x === \"string\";\nif (isStr) { fs(x); }\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
     fn partial_flow_check_records_its_runtime_trigger() {
         // The seam's runtime trigger, retargeted at the LAST
         // still-unported narrowing family (6.4f): an annotation-free
@@ -2554,9 +2582,12 @@ mod tests {
         // (an antecedent equal to the declared type stops the walk) —
         // AND today's report surface: the failed-argument [FLOW M5]
         // gate still contains the true positive (x is narrowable and
-        // the loop-reaching `x = 1` is a related narrowing construct),
-        // so the 2345 stays a partial mark until the gate retires with
-        // the 6.4 narrowers. Flip this pin to assert [2345] then.
+        // the loop-reaching `x = 1` is a related narrowing construct).
+        // The 6.4 narrowers landed WITHOUT retiring the gate — it
+        // still shields the 6.6 reachability true-stub's dead-code
+        // divergence (m5-flow-steps.md 6.4 landing note) — so the
+        // 2345 stays a partial mark until 6.6. Flip this pin to
+        // assert [2345] then.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),

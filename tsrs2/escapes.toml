@@ -1386,13 +1386,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
-in = "get_type_predicate_of_signature"
-reason = "type predicates (M5 narrowing)"
-class = "stage"
-owner = "M5"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
 in = "is_valid_type_for_template_literal_placeholder"
 reason = "bigint template placeholders (isValidBigIntString, M6)"
 class = "stage"
@@ -1425,6 +1418,13 @@ in = "structured_type_related_to_worker"
 reason = "mapped-type targets (unported family, M8-stub)"
 class = "stage"
 owner = "M8"
+
+[[site]]
+file = "crates/checker/src/structural.rs"
+in = "type_predicate_signature_relation_gate"
+reason = "type predicates (M5 narrowing)"
+class = "stage"
+owner = "M5"
 
 [[site]]
 file = "crates/checker/src/structural.rs"

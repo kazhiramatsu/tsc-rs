@@ -1297,7 +1297,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc isGenericTypeWithUnionConstraint (71624).
+    /// tsc-port: isGenericTypeWithUnionConstraint @6.0.3
+    /// tsc-hash: 6b0ff101b255ea3663abd0a15e6b97fd748e1fb88d58a8b9013e88b5002c2a29
+    /// tsc-span: _tsc.js:71626-71628
     pub(crate) fn is_generic_type_with_union_constraint(
         &mut self,
         ty: TypeId,

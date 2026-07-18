@@ -6,18 +6,21 @@
 //! `reference` binding; the port threads the same [`FlowQuery`] the
 //! walk carries. `inlineLevel` alone is checker state (tsc 46453).
 //!
-//! Stage state (6.4b): the dispatch (6.4a) and narrowTypeByTruthiness
-//! with the discriminant-property path (6.4b) are live — expression
-//! kinds outside tsc's switch pass through unchanged (tsc's own
-//! answer, no flag), parenthesized/`!`-prefix forms recurse for real.
-//! The remaining sub-narrowers are [FLOW 6.4] identity stubs that
-//! FLAG the query (`FlowQuery::traversed_inert_arm`): tsc would
-//! narrow there, we cannot yet, so the query exit reverts the answer
-//! to the 6.2 value (declared type, auto-converted) and the ladder
-//! sites partial-mark the flagged positions. Each of 6.4c-g replaces
-//! one stub with the verbatim port and its cases stop flagging
-//! (canary/rate per commit); the const-inlining arm keeps flagging
-//! until 6.4h.
+//! Stage state (6.4 COMPLETE): every sub-narrower is live —
+//! truthiness (+ the destructuring synthetic-reference entry),
+//! equality/binary (instanceof, in, .constructor, boolean-literal,
+//! aliased &&/||), typeof, the switch family (+ exhaustiveness,
+//! pulled forward from 6.6), effects signatures + type predicates +
+//! the call arm, optionality, and the const-variable guard inlining.
+//! The query flag (`FlowQuery::traversed_inert_arm`) survives as the
+//! narrow M6-DEFERRAL channel: the TS 5.5 body-inference predicate
+//! precondition (getTypePredicateFromBody, flagged at
+//! get_effects_signature — the uncertain no-effects verdict is never
+//! memoized), the synthetic-reference generic-union-constraint
+//! guard, and parser-recovery shapes. The [FLOW M5] failure-face
+//! gates retire at 6.6 (they still shield the reachability
+//! true-stub's dead-code divergence — m5-flow-steps.md 6.4 landing
+//! note).
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -34,13 +37,10 @@ impl<'a> CheckerState<'a> {
     /// The dispatch (checker-key §4.5): optional-chain roots and
     /// `??`/`??=` left operands divert to optionality narrowing before
     /// the kind switch; parenthesized/nonnull/satisfies wrappers and
-    /// `!` recurse; kinds outside the switch narrow nothing (tsc
-    /// returns the type unchanged — real semantics, not a stub). The
-    /// Identifier arm's const-variable guard-inlining RECURSION is
-    /// 6.4h; until it lands, an identifier meeting every inlining
-    /// condition flags the query instead (the narrowing tsc performs
-    /// through the const is unreproducible, and the pass-through
-    /// answer would be over-wide).
+    /// `!` recurse; the Identifier arm inlines const-variable guards
+    /// (`if (c)` where `const c = <guard>`, inlineLevel < 5, constant
+    /// reference); kinds outside the switch narrow nothing (tsc
+    /// returns the type unchanged — real semantics, not a stub).
     pub(crate) fn narrow_type(
         &mut self,
         query: &mut FlowQuery,
@@ -89,19 +89,31 @@ impl<'a> CheckerState<'a> {
                                     let constant_reference = if query.synthetic_props.is_some() {
                                         // tsc's isConstantReference over the
                                         // synthetic chain can be true (readonly
-                                        // discriminants) — assume so and flag
-                                        // rather than miss the inlining.
+                                        // discriminants) — assume so and let the
+                                        // inlining recursion narrow (its
+                                        // sub-narrowers self-gate on matching).
                                         true
                                     } else {
                                         self.is_constant_reference(query.reference)?
                                     };
-                                    if !annotated && initializer.is_some() && constant_reference {
-                                        // [FLOW 6.4h] the inlining
-                                        // recursion into the const's
-                                        // initializer is unported —
-                                        // flag; tsc returns the
-                                        // recursion's answer here.
-                                        query.traversed_inert_arm = true;
+                                    if let Some(initializer) = initializer {
+                                        if !annotated && constant_reference {
+                                            // The const-variable guard INLINING
+                                            // (live since 6.4h): narrow through
+                                            // the const's initializer at the
+                                            // bumped inlineLevel; the
+                                            // recursion's answer IS the arm's
+                                            // answer.
+                                            self.inline_level += 1;
+                                            let result = self.narrow_type(
+                                                query,
+                                                ty,
+                                                initializer,
+                                                assume_true,
+                                            );
+                                            self.inline_level -= 1;
+                                            return result;
+                                        }
                                     }
                                 }
                             }

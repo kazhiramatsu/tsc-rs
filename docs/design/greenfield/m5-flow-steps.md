@@ -211,6 +211,39 @@ binding-pattern arms — see getNarrowedTypeOfSymbol in 6.1).
 
 Commit(s): `m5 6.4a-h: narrowers (+canary/rate per commit)`.
 
+LANDED (6.4a-h, branch m5/6.4-narrowers) with four recorded
+deviations:
+
+- **Exhaustiveness pulled FORWARD from 6.6** (isExhaustiveSwitch-
+  Statement/computeExhaustiveSwitchStatement 78920/78933): the 6.3
+  branch-label bypass consult became OBSERVABLE the moment 6.4e made
+  the switch-clause arm live, and the conservative-false stub would
+  over-widen exhaustive-switch joins (an FP face). The remaining 6.6
+  consumers (7027, implicit returns) still land at 6.6. The
+  links.isExhaustive cycle protocol and links.switchTypes live
+  state-side (links writes are speculation-guarded).
+- **Destructuring flow entry** (getFlowTypeOfDestructuring 55892 +
+  getSyntheticElementAccess/getParentElementAccess 55896/55914)
+  landed at 6.4b: the M4 identity stub was UNMASKED by the first
+  live narrower (the retired arm-level flag had been partial-marking
+  destructured positions). The checker cannot allocate synthetic
+  nodes, so the factory chain is query DATA
+  (FlowQuery::synthetic_props) and every reference-shaped probe of
+  the walk dispatches through query-aware wrappers.
+- **The seam flag does NOT go constant-off.** Remaining producers,
+  all deliberate: the TS 5.5 body-inference predicate precondition
+  (getTypePredicateFromBody is M6-adjacent; get_effects_signature
+  flags candidates and deliberately does NOT memoize the uncertain
+  no-effects verdict), the synthetic-reference
+  generic-union-constraint guard, and parser-recovery shapes. The
+  flowLoopCaches seam guard stays with it.
+- **The [FLOW M5] failure-face gates do NOT retire here.** Unflagged
+  answers are tsc-faithful modulo the 6.6 families — in particular
+  the isReachableFlowNode true-stub's dead-code divergence, which
+  the gates still shield (FP=0 depends on it). 6.6 owns their
+  retirement (with the 2345 flip pin in lib.rs), leaving the flag
+  channel as pure M6 deferral.
+
 ## Stage 6.5: isMatchingReference — MOVED INTO 6.1 [tombstone]
 
 Moved to the 6.1 prelude: 6.2's getTypeAtFlowAssignment and every
@@ -223,18 +256,26 @@ dependency inversion. Content unchanged — see 6.1.
 single-entry cache + shared-node cache, never-call gates; un-stub
 6.2's true-stub), consumed by: unreachable-code reporting (7027 with
 the within-unreachable-range suppression), switch exhaustiveness
-(`isExhaustiveSwitchStatement`/`computeExhaustiveSwitchStatement`
-78920/78933 — also consumed by 6.3's branch-label bypass; needs
-getSwitchClauseTypeOfWitnesses + checkExpressionCached) and 7029
-fallthrough (noFallthroughCasesInSwitch +
-clause.fallthroughFlowNode), implicit-return checks (2366/7030
-family, `checkAllCodePathsInNonVoidFunctionReturnOrThrow`, wrapped
-in M4's addLazyDiagnostic slot), and definite-assignment: the real
-family is `isSymbolAssignedDefinitely`/`isSymbolAssigned`/
+(landed EARLY at 6.4e — see the 6.4 landing note; only its 7027/
+implicit-return consumers remain here) and 7029 fallthrough
+(noFallthroughCasesInSwitch + clause.fallthroughFlowNode),
+implicit-return checks (2366/7030 family,
+`checkAllCodePathsInNonVoidFunctionReturnOrThrow`, wrapped in M4's
+addLazyDiagnostic slot), and definite-assignment: the real family is
+`isSymbolAssignedDefinitely`/`isSymbolAssigned`/
 `isPastLastAssignment`/`markNodeAssignments` (71480-71523,
 symbol.lastAssignmentPos) — there is no tsc function named
 `isDefinitelyAssigned`; 2454 itself falls out of checkIdentifier's
 initialType logic (6.1 caller integration), not out of reachability.
+
+INHERITED FROM 6.4 (the landing note): once the true-stub retires,
+the [FLOW M5] failure-face gates lose their last non-M6 shield and
+retire HERE — flip lib.rs's
+`loop_fixpoint_accumulates_widening_back_edge_types` pin to assert
+[2345] with them, and re-evaluate every `[FLOW M5]`-reason escape row
+(receiver/argument/return/assignment/declaration faces). The seam
+flag (`traversed_inert_arm`) then narrows to pure M6 deferral
+(body-inference predicate candidates).
 
 ALSO OWNED HERE — the class-property flow-init family, escaped with
 owner=M5 but scheduled in no earlier stage (the 6.2 review caught the

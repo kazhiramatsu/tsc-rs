@@ -4963,6 +4963,8 @@ impl<'a> CheckerState<'a> {
     /// narrowing-side materialization is live since 6.4f —
     /// narrow.rs get_type_predicate_of_signature — and does NOT
     /// retire this comparison gate.)
+    /// tsrs-native: M6-deferral containment gate (no tsc counterpart;
+    /// the escape row is the ledger surface).
     pub fn type_predicate_signature_relation_gate(
         &mut self,
         signature: SignatureId,
