@@ -5177,7 +5177,7 @@ impl<'a> CheckerState<'a> {
                         None,
                     )?
                     .unwrap_or(self.tables.intrinsics.error);
-                ty = self.get_flow_type_of_destructuring(declaration, declared);
+                ty = self.get_flow_type_of_destructuring(declaration, declared)?;
             }
         } else {
             // 55984-55996: the array-pattern arm — Destructuring use,
@@ -5261,7 +5261,7 @@ impl<'a> CheckerState<'a> {
                         None,
                     )?
                     .unwrap_or(self.tables.intrinsics.error);
-                ty = self.get_flow_type_of_destructuring(declaration, declared);
+                ty = self.get_flow_type_of_destructuring(declaration, declared)?;
             } else {
                 ty = element_type;
             }

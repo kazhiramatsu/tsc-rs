@@ -1298,7 +1298,10 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isGenericTypeWithUnionConstraint (71624).
-    fn is_generic_type_with_union_constraint(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_generic_type_with_union_constraint(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INTERSECTION) {
             let types = match &self.tables.type_of(ty).data {
