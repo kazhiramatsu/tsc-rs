@@ -222,6 +222,13 @@ pub struct SymbolLinks {
     /// 84876) — the once-latch on multi-declaration class/interface
     /// symbols.
     pub type_parameters_checked: bool,
+    /// tsc symbol.lastAssignmentPos (markNodeAssignments 71523): the
+    /// last assignment's extended position in document order; NEGATIVE
+    /// = a definite-assignment (`x!`-style or sticky), |i64::MAX| =
+    /// "assigned in another function" (unknowable). Position 0 is
+    /// treated as unmarked by isPastLastAssignment — tsc's JS
+    /// falsiness, kept faithfully there.
+    pub last_assignment_pos: Option<i64>,
     /// tsc links.aliasTarget (resolveAlias 49118): Resolving = the
     /// resolvingSymbol sentinel — NOT write-once (the re-entrant
     /// Circular_definition_of_import_alias_0 write and the
@@ -727,6 +734,40 @@ impl LinksTables {
         let links = self.node.entry(id).or_default();
         links.check_flags =
             tsrs2_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
+    }
+
+    /// tsrs-native: links-table setter (tsc plain flags mutation).
+    /// `nodeLinks.flags &= ~bits` — the sanctioned clears: tsc's
+    /// InCheckIdentifier re-entrance latch (getNarrowedTypeOfSymbol
+    /// 72012/72015 sets then clears within one computation) and the
+    /// AssignmentsMarked unwind revert (tsc cannot fail mid-marking;
+    /// our marking can unwind, and a half-marked container must not
+    /// stay latched).
+    pub fn clear_node_check_flags(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        bits: tsrs2_types::NodeCheckFlags,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.node.entry(id).or_default();
+        links.check_flags =
+            tsrs2_types::NodeCheckFlags::from_bits(links.check_flags.bits() & !bits.bits());
+    }
+
+    /// tsrs-native: links-table setter (tsc plain property write).
+    /// tsc `symbol.lastAssignmentPos = …` (markNodeAssignments) —
+    /// PLAIN ASSIGNMENT by design: the marking pass overwrites in
+    /// document order (last write wins) and flips the sign for
+    /// definite assignments within the same pass.
+    pub fn set_symbol_last_assignment_pos(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: Option<i64>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.symbol.entry(id).or_default().last_assignment_pos = value;
     }
 
     /// checkGrammarStatementInAmbientContext's once-flag (90344/90349):

@@ -3324,12 +3324,18 @@ impl<'a> CheckerState<'a> {
         // The JS assignment-declaration else-if arm requires
         // prop.valueDeclaration to be a PropertyAccessExpression —
         // impossible in TS files (JS band).
-        let initial_type = if assume_uninitialized {
+        // [FLOW 6.2] the assume-uninitialized initial type (2565's
+        // trigger) activates with the real assignment arm — until
+        // assignments terminate the walk faithfully, an
+        // undefined-bearing initial would misreport on assigned
+        // paths. The ladder still computes (it did under the M4 stub
+        // too); the walk takes the declared type as `initial`.
+        let _initial_type = if assume_uninitialized {
             self.get_optional_type(prop_type, /*is_property*/ false)?
         } else {
             prop_type
         };
-        let flow_type = self.get_flow_type_of_reference_stub(node, prop_type, initial_type, None);
+        let flow_type = self.get_flow_type_of_reference(node, prop_type, prop_type, None)?;
         if assume_uninitialized
             && !self.contains_undefined_type(prop_type)
             && self.contains_undefined_type(flow_type)

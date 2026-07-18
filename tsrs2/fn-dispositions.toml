@@ -274,10 +274,6 @@ name = "get_export_symbol_of_value_symbol_if_exported"
 
 [[fn]]
 file = "crates/checker/src/expr.rs"
-name = "get_flow_type_of_reference_stub"
-
-[[fn]]
-file = "crates/checker/src/expr.rs"
 name = "get_this_container_full"
 
 [[fn]]
@@ -303,10 +299,6 @@ name = "is_in_parameter_initializer_before_containing_function"
 [[fn]]
 file = "crates/checker/src/expr.rs"
 name = "is_in_property_initializer_or_class_static_block"
-
-[[fn]]
-file = "crates/checker/src/expr.rs"
-name = "is_symbol_assigned_definitely_stub"
 
 [[fn]]
 file = "crates/checker/src/expr.rs"

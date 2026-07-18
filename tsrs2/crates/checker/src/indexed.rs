@@ -1076,13 +1076,12 @@ impl<'a> CheckerState<'a> {
                         if self.get_assignment_target_kind(access_expression)
                             != crate::expr::AssignmentKind::Definite =>
                     {
-                        // getFlowTypeOfReference [FLOW M5 stub].
-                        self.get_flow_type_of_reference_stub(
+                        self.get_flow_type_of_reference(
                             access_expression,
                             property_type,
                             property_type,
                             None,
-                        )
+                        )?
                     }
                     _ => {
                         let type_node_missing =

@@ -836,6 +836,13 @@ reason = "class without a bound symbol (parse recovery)"
 class = "recovery"
 
 [[site]]
+file = "crates/checker/src/flow.rs"
+in = "get_narrowed_type_of_symbol"
+reason = "dependent-parameter narrowing (getInferenceContext nonFixingMapper, M6)"
+class = "stage"
+owner = "M6"
+
+[[site]]
 file = "crates/checker/src/functions.rs"
 in = "check_all_code_paths_in_non_void_function_return_or_throw"
 reason = "[FLOW M5] implicit-return verdict over a switch/call-bearing body (isReachableFlowNode refinement)"
