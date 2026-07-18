@@ -2653,7 +2653,23 @@ impl<'a> CheckerState<'a> {
             for statement in self.nodes_of(statements) {
                 self.check_source_element(Some(statement));
             }
-            // (noFallthroughCasesInSwitch arm — M5 flow, dead.)
+            // 84621: clause.fallthroughFlowNode is only recorded by
+            // the binder under the option (bindCaseBlock), and its
+            // reachability is the checker-side consult (6.6b).
+            if self.options.no_fallthrough_cases_in_switch == Some(true) {
+                let file = self.binder.file_index_of_node(clause);
+                let fallthrough = self
+                    .binder
+                    .file(file)
+                    .node_fallthrough_flow
+                    .get(&clause)
+                    .copied();
+                if let Some(fallthrough) = fallthrough {
+                    if self.is_reachable_flow_node(file, fallthrough)? {
+                        self.error_at(Some(clause), &diagnostics::Fallthrough_case_in_switch, &[]);
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -2867,6 +2883,106 @@ mod tests {
                 })
                 .collect()
         })
+    }
+
+    fn checked_rows_with(text: &str, options: &CompilerOptions) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[("a.ts", text)], options, |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    // ---- unreachable code / fallthrough (6.6b; rows oracle-pinned
+    // vs vendored tsc 6.0.3 noLib per shape, 2026-07-19) ----
+
+    #[test]
+    fn unreachable_code_reports_7027_under_explicit_false() {
+        let options = CompilerOptions {
+            allow_unreachable_code: Some(false),
+            ..CompilerOptions::default()
+        };
+        // Bind-time Unreachable flag face.
+        assert_eq!(
+            checked_rows_with("function f() { return; let x = 1; }\n", &options),
+            [(7027, 23, 10)]
+        );
+        // Aggregation: adjacent unreachable statements collapse into
+        // ONE range diagnostic (86775-86803).
+        assert_eq!(
+            checked_rows_with(
+                "declare function a(): void;\ndeclare function b(): void;\nfunction f() { return; a(); b(); }\n",
+                &options
+            ),
+            [(7027, 79, 9)]
+        );
+        // FLOW face: the binder cannot see the never-returning call —
+        // isSourceElementUnreachable's isReachableFlowNode arm drives
+        // this row (86818-86819).
+        assert_eq!(
+            checked_rows_with(
+                "declare function fail(): never;\nfunction f() { fail(); let x = 1; }\n",
+                &options
+            ),
+            [(7027, 55, 10)]
+        );
+        // A nested block reports as ONE statement; its contents stay
+        // silent (withinUnreachableCode).
+        assert_eq!(
+            checked_rows_with(
+                "function f() { return; { let a = 1; let b = 2; } }\n",
+                &options
+            ),
+            [(7027, 25, 21)]
+        );
+        // A type alias is not potentially executable: skipped AND a
+        // range breaker.
+        assert_eq!(
+            checked_rows_with(
+                "function f() { return; type T = number; let y = 1; }\n",
+                &options
+            ),
+            [(7027, 40, 10)]
+        );
+        // const enum in unreachable code: the isEnumConst arm keeps it
+        // un-reported (no preserveConstEnums).
+        assert_eq!(
+            checked_rows_with("function f() { return; const enum E { A } }\n", &options),
+            []
+        );
+    }
+
+    #[test]
+    fn unreachable_code_stays_suggestion_band_under_default_options() {
+        // addErrorOrSuggestion: absent allowUnreachableCode routes the
+        // report to the (unmodeled) suggestion collection — the error
+        // sink must stay empty.
+        assert_eq!(checked_rows("function f() { return; let x = 1; }\n"), []);
+    }
+
+    #[test]
+    fn fallthrough_case_reports_7029() {
+        let options = CompilerOptions {
+            no_fallthrough_cases_in_switch: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_rows_with(
+                "declare function g(x: number): void;\nfunction f(x: number) { switch (x) { case 0: g(0); case 1: g(1); break; } }\n",
+                &options
+            ),
+            [(7029, 74, 7)]
+        );
     }
 
     // ---- §2 variable band (oracle p1) ----

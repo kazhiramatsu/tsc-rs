@@ -4334,7 +4334,9 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isInstantiatedModule (85835-region):
     /// state===Instantiated || preserveConstEnums && state===ConstEnumOnly.
-    fn is_instantiated_module(&self, node: NodeId) -> bool {
+    /// (pub(crate): isSourceElementUnreachable's ModuleDeclaration arm
+    /// consumes it since 6.6b.)
+    pub(crate) fn is_instantiated_module(&self, node: NodeId) -> bool {
         let state = self.module_instance_state_of(node);
         state == tsrs2_binder::containers::ModuleInstanceState::Instantiated
             || (self.options.should_preserve_const_enums()

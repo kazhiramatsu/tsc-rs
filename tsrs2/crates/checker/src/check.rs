@@ -118,6 +118,8 @@ impl<'a> CheckerState<'a> {
     pub fn check_source_file(&mut self, file_index: usize) {
         let root = self.binder.source(file_index).root;
         self.check_source_file_worker(root);
+        // 86985: reportedUnreachableNodes resets per checked file.
+        self.reported_unreachable_nodes.clear();
     }
 
     /// tsc-port: checkSourceFileWorker @6.0.3
@@ -331,12 +333,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkSourceElement @6.0.3
     /// tsc-hash: c12862a5ae92efd7462578857c33c1ac3e25d6866d53c33c1166571161ecf821
     /// tsc-span: _tsc.js:86546-86556
-    ///
-    /// withinUnreachableCode save/restore rides the elided
-    /// unreachable-code slice (module note).
     pub(crate) fn check_source_element(&mut self, node: Option<NodeId>) {
         let Some(node) = node else { return };
         let save_current_node = self.current_node;
+        let save_within_unreachable_code = self.within_unreachable_code;
         self.current_node = Some(node);
         self.instantiation_count = 0;
         #[cfg(debug_assertions)]
@@ -354,6 +354,122 @@ impl<'a> CheckerState<'a> {
         #[cfg(debug_assertions)]
         self.assert_unwound(&unwind_entry, node, "check_source_element");
         self.current_node = save_current_node;
+        self.within_unreachable_code = save_within_unreachable_code;
+    }
+
+    /// tsc-port: checkSourceElementUnreachable @6.0.3
+    /// tsc-hash: 1f190f12f81e1a59e42e5348233a3c30cbc2b2562d19e0a1c3c35d5fd19811e4
+    /// tsc-span: _tsc.js:86763-86807
+    ///
+    /// The aggregation walk widens the report range over ADJACENT
+    /// unreachable statements of the same canHaveStatements parent
+    /// (marking each reported) so ONE 7027 covers the run. Only the
+    /// error face lands (addErrorOrSuggestion isError ⇔
+    /// allowUnreachableCode === false); the default-options suggestion
+    /// face stays unmodeled with the suggestion channel, but the
+    /// reported-set/return-value bookkeeping runs identically so
+    /// withinUnreachableCode suppression matches tsc under every
+    /// option value.
+    fn check_source_element_unreachable(&mut self, node: NodeId) -> CheckResult2<bool> {
+        if !tsrs2_binder::node_util::is_potentially_executable_node(
+            self.binder.source_of_node(node),
+            node,
+        ) {
+            return Ok(false);
+        }
+        if self.reported_unreachable_nodes.contains(&node) {
+            return Ok(true);
+        }
+        if !self.is_source_element_unreachable(node)? {
+            return Ok(false);
+        }
+        self.reported_unreachable_nodes.insert(node);
+        let mut start_node = node;
+        let mut end_node = node;
+        if let Some(parent) = self.parent_of(node) {
+            // canHaveStatements (20193): Block | ModuleBlock |
+            // SourceFile | CaseClause | DefaultClause.
+            let statements = match self.data_of(parent) {
+                NodeData::Block(data) => data.statements,
+                NodeData::ModuleBlock(data) => data.statements,
+                NodeData::SourceFile(data) => data.statements,
+                NodeData::CaseClause(data) => data.statements,
+                NodeData::DefaultClause(data) => data.statements,
+                _ => None,
+            };
+            let statements: Vec<NodeId> = statements
+                .map(|statements| self.binder.node_array(statements).nodes.clone())
+                .unwrap_or_default();
+            if let Some(offset) = statements.iter().position(|&statement| statement == node) {
+                let mut first = offset;
+                for index in (0..offset).rev() {
+                    let prev_node = statements[index];
+                    if !tsrs2_binder::node_util::is_potentially_executable_node(
+                        self.binder.source_of_node(prev_node),
+                        prev_node,
+                    ) || self.reported_unreachable_nodes.contains(&prev_node)
+                        || !self.is_source_element_unreachable(prev_node)?
+                    {
+                        break;
+                    }
+                    first = index;
+                    self.reported_unreachable_nodes.insert(prev_node);
+                }
+                let mut last = offset;
+                for (index, &next_node) in statements.iter().enumerate().skip(offset + 1) {
+                    if !tsrs2_binder::node_util::is_potentially_executable_node(
+                        self.binder.source_of_node(next_node),
+                        next_node,
+                    ) || !self.is_source_element_unreachable(next_node)?
+                    {
+                        break;
+                    }
+                    last = index;
+                    self.reported_unreachable_nodes.insert(next_node);
+                }
+                start_node = statements[first];
+                end_node = statements[last];
+            }
+        }
+        if self.options.allow_unreachable_code == Some(false) {
+            // getTokenPosOfNode = skipTrivia from the node's pos.
+            let start = tsrs2_syntax::skip_trivia(
+                &self.binder.source_of_node(start_node).text,
+                self.pos_of(start_node) as usize,
+            );
+            let end = self.end_of(end_node) as usize;
+            self.error_at_byte_range(
+                start_node,
+                start,
+                end,
+                &diagnostics::Unreachable_code_detected,
+            );
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: isSourceElementUnreachable @6.0.3
+    /// tsc-hash: 5f7c848932df1b81ac6c8d321b23d171a50d8818c9f3999e224f9814ee2f440e
+    /// tsc-span: _tsc.js:86808-86822
+    ///
+    /// `canHaveFlowNode(node) && node.flowNode` collapses to the
+    /// node_flow side-table probe — the binder records flow only for
+    /// canHaveFlowNode kinds.
+    fn is_source_element_unreachable(&mut self, node: NodeId) -> CheckResult2<bool> {
+        if self.node_flags(node) & tsrs2_types::NodeFlags::UNREACHABLE.bits() != 0 {
+            return Ok(match self.kind_of(node) {
+                SyntaxKind::EnumDeclaration => {
+                    !self.is_enum_const(node) || self.options.should_preserve_const_enums()
+                }
+                SyntaxKind::ModuleDeclaration => self.is_instantiated_module(node),
+                _ => true,
+            });
+        }
+        if let Some(flow) = self.flow_node_of(node) {
+            let file = self.binder.file_index_of_node(node);
+            return Ok(!self.is_reachable_flow_node(file, flow)?);
+        }
+        Ok(false)
     }
 
     /// tsc-port: checkSourceElementWorker @6.0.3
@@ -362,11 +478,17 @@ impl<'a> CheckerState<'a> {
     ///
     /// Head elisions: the PartiallyTypeChecked gate (nodesToCheck path
     /// unported), the canHaveJSDoc comment/tag walk and every JSDoc*
-    /// kind arm (JS/JSDoc checking is the M2 3.4c residual), the
-    /// cancellationToken arms, and the unreachable-code gate (module
-    /// note). Kind arms are in tsc switch order; stubs name their tsc
-    /// worker and owner stage.
+    /// kind arm (JS/JSDoc checking is the M2 3.4c residual), and the
+    /// cancellationToken arms. The unreachable-code gate (86582) is
+    /// LIVE since 6.6b. Kind arms are in tsc switch order; stubs name
+    /// their tsc worker and owner stage.
     fn check_source_element_worker(&mut self, node: NodeId) -> CheckResult2<()> {
+        if self.options.allow_unreachable_code != Some(true)
+            && !self.within_unreachable_code
+            && self.check_source_element_unreachable(node)?
+        {
+            self.within_unreachable_code = true;
+        }
         match self.kind_of(node) {
             SyntaxKind::TypeParameter => self.check_type_parameter(node),
             SyntaxKind::Parameter => self.check_parameter(node),

@@ -396,6 +396,14 @@ pub struct CheckerState<'a> {
     /// cache — unported with isPostSuperFlowNode, no M5 consumer.)
     pub(crate) flow_node_reachable:
         std::collections::HashMap<(usize, tsrs2_binder::flow::FlowId), bool>,
+    /// tsc withinUnreachableCode (46457): once one 7027 range is
+    /// reported, elements checked INSIDE it stay silent; saved and
+    /// restored by check_source_element like currentNode.
+    pub(crate) within_unreachable_code: bool,
+    /// tsc reportedUnreachableNodes (46458): statements already
+    /// covered by an aggregated 7027 range; cleared per checked file
+    /// (86985's `= void 0`).
+    pub(crate) reported_unreachable_nodes: std::collections::HashSet<NodeId>,
 
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
@@ -765,6 +773,8 @@ impl<'a> CheckerState<'a> {
             last_flow_node: None,
             last_flow_node_reachable: false,
             flow_node_reachable: std::collections::HashMap::new(),
+            within_unreachable_code: false,
+            reported_unreachable_nodes: std::collections::HashSet::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
             potential_this_collisions: Vec::new(),
@@ -1420,6 +1430,37 @@ impl<'a> CheckerState<'a> {
         }
         self.diagnostics.push(diagnostic);
         self.diagnostics.len() - 1
+    }
+
+    /// tsc createFileDiagnostic + diagnostics.add over an explicit
+    /// byte range — the aggregated 7027 span is the sole consumer
+    /// (checkSourceElementUnreachable 86804-86805); same utf16
+    /// mapping and duplicate-drop as the node-anchored path.
+    pub fn error_at_byte_range(
+        &mut self,
+        node_for_file: NodeId,
+        start_byte: usize,
+        end_byte: usize,
+        message: &'static DiagnosticMessage,
+    ) -> usize {
+        let source = self.binder.source_of_node(node_for_file);
+        let to_utf16 = |byte: usize| -> u32 {
+            source
+                .line_map
+                .byte_to_utf16
+                .get(byte)
+                .copied()
+                .unwrap_or(byte as u32)
+        };
+        let start_utf16 = to_utf16(start_byte);
+        let end_utf16 = to_utf16(end_byte);
+        let diagnostic = Diagnostic::new(
+            Some(source.file_name.clone()),
+            Some(start_utf16),
+            Some(end_utf16.saturating_sub(start_utf16)),
+            MessageChain::new(message, &[]),
+        );
+        self.push_error_diagnostic(diagnostic)
     }
 
     /// tsc-port: errorSkippedOn @6.0.3
