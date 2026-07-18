@@ -1816,10 +1816,26 @@ mod tests {
         );
     }
 
+    fn lib_codes_of_with_options(source: &str, options: &CompilerOptions) -> Vec<u32> {
+        let result = check_program_with_libs(
+            &[es5_lib()],
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: source.to_owned(),
+            }],
+            options,
+        );
+        result.diagnostics.iter().map(|d| d.code()).collect()
+    }
+
+    // The three redeclaration pins below run WITH lib.es5 — the real
+    // autoArrayType (6.2) is Array<auto>, which needs the global Array
+    // to mint and render (`any[]`). The lib-less env degrades to a
+    // display partial, matching tsc --noLib's own no-2403 output.
     #[test]
     fn empty_array_redeclaration_still_reports_incompatible_type() {
         assert_eq!(
-            codes_of_with_options("var x = [];\nvar x = 1;\n", &strict_options()),
+            lib_codes_of_with_options("var x = [];\nvar x = 1;\n", &strict_options()),
             [2403]
         );
     }
@@ -1827,7 +1843,7 @@ mod tests {
     #[test]
     fn shadowed_array_function_does_not_trigger_evolving_array_containment() {
         assert_eq!(
-            codes_of_with_options(
+            lib_codes_of_with_options(
                 "function f(){function Array():number{return 1};var x=[];var x=Array();}",
                 &strict_options(),
             ),
@@ -1836,13 +1852,16 @@ mod tests {
     }
 
     #[test]
-    fn array_returning_call_keeps_evolving_array_containment() {
+    fn array_returning_call_redeclaration_reports_2403() {
+        // Pre-6.2 this scenario was CONTAINED (the evolving-array
+        // stand-in rendered the wrong first-type face); the real
+        // autoArrayType retires the escape and matches the oracle.
         assert_eq!(
-            codes_of_with_options(
+            lib_codes_of_with_options(
                 "declare function makeArray():number[];var x=[];var x=makeArray();",
                 &strict_options(),
             ),
-            Vec::<u32>::new()
+            [2403]
         );
     }
 
@@ -2322,29 +2341,49 @@ mod tests {
 
     #[test]
     fn partial_flow_check_does_not_hide_unrelated_unused_expect_error() {
+        // The straight-line 2454 is REAL since 6.2; the seam partial
+        // now lives on join/condition-crossing queries only. A
+        // branch-dependent use stays partial-marked (see the runtime
+        // trigger pin below) without hiding the unrelated 2578.
         assert_eq!(
-            codes_of("let x: number;\nx;\n// @ts-expect-error\nconst y = 1;\n"),
+            codes_of(
+                "declare const c: boolean;\nlet x: number;\nif (c) { x = 1; }\nx;\n// @ts-expect-error\nconst y = 1;\n"
+            ),
             [2578]
         );
     }
 
     #[test]
     fn partial_flow_check_records_its_runtime_trigger() {
+        // A use whose flow query crosses a still-inert 6.3 branch
+        // join: the oracle's 2454 is undecidable until the joins land,
+        // so the position partial-marks with the seam reason. The
+        // straight-line form (`let x: number; x;`) reports the REAL
+        // 2454 since 6.2 (pinned in expr.rs).
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
-                text: "let x: number;\nx;\n".to_owned(),
+                text: "declare const c: boolean;\nlet x: number;\nif (c) { x = 1; }\nx;\n"
+                    .to_owned(),
             }],
             &CompilerOptions {
                 strict: Some(true),
                 ..CompilerOptions::default()
             },
         );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
         assert_eq!(result.partial_checks.len(), 1);
         assert_eq!(result.partial_checks[0].file_name, "a.ts");
         assert_eq!(
             result.partial_checks[0].reason,
-            "flow-sensitive use-before-assignment diagnostic (M5)"
+            "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)"
         );
     }
 

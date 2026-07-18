@@ -119,6 +119,10 @@ pub struct NodeLinks {
     pub has_reported_statement_in_ambient_context: bool,
     /// tsc links.contextFreeType (getContextFreeTypeOfExpression 80948).
     pub context_free_type: LinkSlot<TypeId>,
+    /// tsc links.parameterInitializerContainsUndefined
+    /// (parameterInitializerContainsUndefined 71602) on Parameter
+    /// nodes — the removeOptionalityFromDeclaredType input.
+    pub parameter_initializer_contains_undefined: Option<bool>,
     /// tsc links.spreadIndices (getContextualType's ArrayLiteral arm
     /// 73520): (first, last) spread element indices, computed once per
     /// array literal (getSpreadIndices 73248).
@@ -549,6 +553,23 @@ impl LinksTables {
             &mut self.node.entry(id).or_default().context_free_type,
             value,
         );
+    }
+
+    /// tsrs-native: the links-slot setter behind
+    /// `links.parameterInitializerContainsUndefined ??= ...` (71615) —
+    /// a compute-once ?? write (the caller checks is_none first, like
+    /// tsc's ??=).
+    pub fn set_node_parameter_initializer_contains_undefined(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: bool,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.node
+            .entry(id)
+            .or_default()
+            .parameter_initializer_contains_undefined = Some(value);
     }
 
     /// `links.spreadIndices ??= getSpreadIndices(...)` (73520) — a

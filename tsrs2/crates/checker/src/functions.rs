@@ -5292,7 +5292,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getNonUndefinedType @6.0.3
     /// tsc-hash: 5f29daa4407d5acb7d4db0db7a6a9828b6446830de42150fee571104eabf68ba
     /// tsc-span: _tsc.js:55888-55891
-    fn get_non_undefined_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_non_undefined_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         let has_generic_undefined_constraint = self.some_type_result(ty, |state, t| {
             // isGenericTypeWithUndefinedConstraint (55885-55887).
             if !state.tables.flags_of(t).intersects(TypeFlags::INSTANTIABLE) {
@@ -5322,9 +5322,10 @@ impl<'a> CheckerState<'a> {
         self.get_type_with_facts(type_or_constraint, tsrs2_types::TypeFacts::NE_UNDEFINED)
     }
 
-    /// getTypeOfInitializer (69889): the links resolvedType cache or a
-    /// fresh getTypeOfExpression.
-    fn get_type_of_initializer(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    /// tsc-port: getTypeOfInitializer @6.0.3
+    /// tsc-hash: a634e86b085e2c5bdf1ddba28241453f81b9b4c70d742c9a589fbe2b54d6dafc
+    /// tsc-span: _tsc.js:69889-69892
+    pub(crate) fn get_type_of_initializer(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(resolved) = self.links.node(node).resolved_type.resolved() {
             return Ok(resolved);
         }

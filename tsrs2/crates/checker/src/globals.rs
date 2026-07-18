@@ -40,7 +40,7 @@ pub(crate) struct GlobalTypeMemos {
     readonly_array: Option<TypeId>,
     this_type: Option<Option<TypeId>>,
     any_array: Option<TypeId>,
-    auto_array: Option<TypeId>,
+    pub(crate) auto_array: Option<TypeId>,
     any_readonly_array: Option<TypeId>,
     arguments_type: Option<TypeId>,
     /// deferredGlobalImportCallOptionsType (60719) — the fallback

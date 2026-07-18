@@ -21,8 +21,8 @@
 # producer (total 48719 -> 49024; the 5.8d host fix had reached only
 # 4 goldens); 47 enumerated lapses; frozen-host boundaries unfrozen,
 # 1543/1544 emitters re-added, 2856 CJS-require row implemented.
-rate = 0.427403
-matched = 20953
+rate = 0.502917
+matched = 24655
 total = 49024
 allowed_regression = 0.0
 
@@ -36,8 +36,8 @@ allowed_regression = 0.0
 # 5.9d: +202 with the modules/jsx/interop band and review fixes.
 # oracle-correction epoch: total 20916 -> 21051, +28 net matched
 # (12 enumerated lapses; 2856 rows and interop recoveries).
-rate = 0.529714
-matched = 11151
+rate = 0.704717
+matched = 14835
 total = 21051
 allowed_regression = 0.0
 

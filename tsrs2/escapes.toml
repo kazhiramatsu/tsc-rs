@@ -1353,13 +1353,6 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/statements.rs"
 in = "check_variable_like_declaration"
-reason = "[FLOW M5] redeclaration comparison against an evolving-array declaration"
-class = "stage"
-owner = "M5"
-
-[[site]]
-file = "crates/checker/src/statements.rs"
-in = "check_variable_like_declaration"
 reason = "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)"
 class = "stage"
 owner = "M8"
