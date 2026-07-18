@@ -1615,11 +1615,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:76295-76339
     ///
     /// Call/new/tagged/instanceof bands live — the decorator/JSX arms
-    /// own their slices (5.8/5.7c). Spread expansion: flowLoopCount is 0 until M5 so
-    /// the spread operand checks through checkExpressionCached; tuple
-    /// spreads expand per element into Synthetics (Rest elements wrap
-    /// in arrays, Variable bits mark spread-ness, labels ride
-    /// tuple_name_source).
+    /// own their slices (5.8/5.7c). Spread expansion: the operand
+    /// checks through checkExpressionCached EXCEPT mid-fixpoint —
+    /// 76324 branches on the RAW flowLoopCount (one of the 6.3
+    /// fixpoint's call-site invariants; not the checkExpressionCached
+    /// window, so the uncached arm applies inside a shield too);
+    /// tuple spreads expand per element into Synthetics (Rest
+    /// elements wrap in arrays, Variable bits mark spread-ness,
+    /// labels ride tuple_name_source).
     pub(crate) fn get_effective_call_arguments(
         &mut self,
         node: NodeId,
@@ -1731,10 +1734,17 @@ impl<'a> CheckerState<'a> {
                     unreachable!("kind/data agree");
                 };
                 match data.expression {
-                    // flowLoopCount == 0 until M5 → the cached arm.
-                    Some(expression) => {
-                        Some(self.check_expression_cached(expression, CheckMode::NORMAL)?)
-                    }
+                    // 76324: mid-fixpoint the operand check must not
+                    // memoize links.resolvedType — the memo outlives
+                    // the loop, and the post-loop re-resolution that
+                    // 77505 forces (the signature is never cached
+                    // mid-loop) would consume a mid-loop-era operand
+                    // type. tsc branches on the RAW flowLoopCount.
+                    Some(expression) => Some(if self.flow_loop_stack.is_empty() {
+                        self.check_expression_cached(expression, CheckMode::NORMAL)?
+                    } else {
+                        self.check_expression(expression, CheckMode::NORMAL)?
+                    }),
                     None => None,
                 }
             } else {
@@ -4856,14 +4866,17 @@ impl<'a> CheckerState<'a> {
                     }
                     let return_type = self.get_return_type_of_signature(signature)?;
                     if return_type == self.tables.intrinsics.never {
-                        // [FLOW M5] functionHasImplicitReturn is the
-                        // stub-false face: a no-return body computes
-                        // `never` where tsc's reachability gives
-                        // `void` — the 2350 verdict hinges on it
-                        // (conformance FP: inferringClassMembers-
-                        // FromAssignments8).
+                        // functionHasImplicitReturn is the stub-false
+                        // face: a no-return body computes `never`
+                        // where tsc's reachability gives `void` — the
+                        // 2350 verdict hinges on it (conformance FP:
+                        // inferringClassMembersFromAssignments8). A
+                        // dependency STUB, not a narrowing gate: the
+                        // parenthetical [FLOW M5] tag keeps it out of
+                        // the join-seam rethrow set (prefix = gate)
+                        // while the escapes grep still owns it.
                         return Err(Unsupported::new(
-                            "[FLOW M5] functionHasImplicitReturn stub (never-vs-void return under the 2350 gate)",
+                            "functionHasImplicitReturn stub under the 2350 gate (never-vs-void return, [FLOW M5])",
                         ));
                     }
                     if return_type != self.tables.intrinsics.void {

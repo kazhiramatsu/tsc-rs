@@ -104,15 +104,22 @@ back-edge resolution, and never caching while incomplete.
 declared-type identity preservation. Subtype reduction in JOINs works
 because M3 stage 4.8 landed.
 
-THE INVARIANTS NEED THREE M4-OWNED CALL-SITE EDITS — without them the
+THE INVARIANTS NEED FOUR M4-OWNED CALL-SITE EDITS — without them the
 "non-negotiables" don't actually hold: (a) `checkExpressionCached`
 (80580) saves/resets flowLoopStart + flowTypeCache around uncached
 checks; (b) `getTypeOfExpression` (80895) writes flowTypeCache +
 NodeFlags.TypeCached only when flowInvocationCount changed — this
 cache IS what the loop-label swap invalidates; (c) getResolvedSignature
 caching is guarded by `flowLoopStart === flowLoopCount` (77505) so
-signatures resolved mid-loop are never cached. Edit all three when
-this stage lands.
+signatures resolved mid-loop are never cached; (d) the
+getEffectiveCallArguments spread-operand check (76324) branches on
+the RAW flowLoopCount — mid-loop the operand runs UNCACHED
+(checkExpression, not checkExpressionCached), or its resolvedType
+memo outlives the fixpoint and feeds the post-loop re-resolution
+that (c) forces. Edit all four when this stage lands. (The 6.3
+review caught (d) missing: the vendored source has FOUR flowLoop
+consumers outside the flow family itself, not three — enumerate by
+grep, not from this list.)
 
 TWO SEAM EXTENSIONS LANDED WITH THIS STAGE (both tsrs-native, both
 retire with their dependencies):
@@ -128,7 +135,14 @@ retire with their dependencies):
   mapped-type stub from remove_subtypes inside the loop fixpoint's
   union). The exit revert makes the final answer EXACTLY the 6.2
   stub's, so the FP=0 argument is inherited from 6.2, and the flag
-  keeps the result out of flowLoopCaches.
+  keeps the result out of flowLoopCaches. The rethrow/degrade split
+  is the reason-string PREFIX: reasons prefixed `[FLOW M5] ` are the
+  narrowable-containment gates and RETHROW (containment is the
+  pre-6.3 statement-path outcome); M5-owned dependency stubs embed
+  the tag parenthetically (`(... [FLOW M5])`) and degrade like the
+  M6/M8 stubs — their statement-path containment stands untouched.
+  (The 6.3 review caught `.contains` sweeping seven stub reasons
+  into the rethrow set.)
 - **flowLoopCaches seam guard**: a fixpoint whose query crossed a
   still-inert (or seam-caught) arm is answered but never cached —
   the memo outlives the query, and a later same-key query hitting it

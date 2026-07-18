@@ -2606,6 +2606,48 @@ mod tests {
     }
 
     #[test]
+    fn flagged_loop_fixpoint_is_not_memoized_across_queries() {
+        // The flowLoopCaches seam guard, pinned DIRECTLY: both `x;`
+        // uses share the loop label AND the flow cache key. Each
+        // query's back-edge pull crosses the if's FalseCondition (the
+        // still-inert 6.4 condition arm) — flagged, so the fixpoint
+        // must NOT enter flowLoopCaches. If the first query's result
+        // leaked into the memo, the second query would hit it, skip
+        // the walk (and the flag), and its over-wide union (the
+        // initial number | undefined) would bypass the seam revert —
+        // observable as the second position losing its partial mark.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare const cond: boolean;\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (cond) { x = 1; }\n}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(
+            result
+                .partial_checks
+                .iter()
+                .map(|p| p.reason.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
+                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)"
+            ]
+        );
+    }
+
+    #[test]
     fn dependent_parameter_narrowing_types_rest_tuple_slices() {
         // getNarrowedTypeOfSymbol arm 2 (72040-72060) over a CONCRETE
         // union-of-tuples rest type — live since the 6.2 review fix

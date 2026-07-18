@@ -360,7 +360,7 @@ pub struct CheckerState<'a> {
     /// evolving→final memo — the arena Type is immutable once minted,
     /// so the per-type lazy slot lives here.
     pub(crate) final_array_types: std::collections::HashMap<TypeId, TypeId>,
-    /// tsc flowLoopCaches (46435): per-loop-label finalized-fixpoint
+    /// tsc flowLoopCaches (47428): per-loop-label finalized-fixpoint
     /// memo, `getFlowNodeId(flow)` → (flow-cache-key → type). FlowIds
     /// are per-file arena indices here, so (file, FlowId) is the
     /// stable identity tsc's lazily assigned flow.id provides. Lives
@@ -382,7 +382,7 @@ pub struct CheckerState<'a> {
 
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
-    /// tsc currentNode (46448): the element/deferred-node the driver is
+    /// tsc currentNode (46454): the element/deferred-node the driver is
     /// inside — related-info anchor for depth-limiter diagnostics
     /// (instantiateTypeWithAlias's 2589).
     pub(crate) current_node: Option<NodeId>,
@@ -395,7 +395,7 @@ pub struct CheckerState<'a> {
 
     // ---- M4 5.8a: checkSourceFileWorker's per-file accumulators ----
     // tsc potential*Collisions + potentialUnusedRenamedBindingElements
-    // InTypes (46441-46445): cleared at worker entry, drained at the
+    // InTypes (47436-47440): cleared at worker entry, drained at the
     // worker tail. Deliberately ABSENT from UnwindSnapshot: they are
     // per-FILE accumulators that legitimately grow across elements
     // (same class as widening_contexts), not transient per-element
@@ -485,23 +485,23 @@ pub struct CheckerState<'a> {
     pub(crate) cached_types: std::collections::HashMap<String, TypeId>,
 
     // ---- M5 flow state ----
-    /// tsc flowLoopStart (46436): the loop-label fixpoint stack cursor;
+    /// tsc flowLoopStart (47396): the loop-label fixpoint stack cursor;
     /// checkExpressionCached (80580) save-resets it around uncached
     /// checks so a nested check cannot see an outer in-progress
     /// fixpoint's partial unions.
     pub(crate) flow_loop_start: u32,
-    /// tsc flowLoopNodes/flowLoopKeys/flowLoopTypes + flowLoopCount
-    /// (46438-46440): the in-progress fixpoint stack, one entry per
+    /// tsc flowLoopNodes/flowLoopKeys/flowLoopTypes (47429-47431) +
+    /// flowLoopCount (47397): the in-progress fixpoint stack, one entry per
     /// loop label currently resolving a back-edge. flowLoopCount ≡
     /// `flow_loop_stack.len()` (tsc's arrays are never trimmed; the
     /// count is the logical length — Vec push/pop is the same shape).
     pub(crate) flow_loop_stack: Vec<crate::flow::FlowLoopEntry>,
-    /// tsc flowTypeCache (46434): getTypeOfExpression's TypeCached
+    /// tsc flowTypeCache (47403): getTypeOfExpression's TypeCached
     /// side table — live since 6.3 (the loop-label back-edge walk
     /// clears it; getTypeOfExpression writes it once
     /// flowInvocationCount moves).
     pub(crate) flow_type_cache: Option<std::collections::HashMap<NodeId, TypeId>>,
-    /// tsc flowInvocationCount (46433).
+    /// tsc flowInvocationCount (47400).
     pub(crate) flow_invocation_count: u32,
     /// tsrs-native temporary [FLOW M5] containment index. It caches
     /// syntax candidates only (per source and nearest function scope),

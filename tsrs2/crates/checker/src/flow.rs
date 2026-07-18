@@ -471,14 +471,23 @@ impl<'a> CheckerState<'a> {
                 };
                 ty = match join {
                     Ok(join) => join,
-                    // [FLOW M5]-marked reasons are the narrowable-
-                    // containment GATES (failure-face checks that fire
-                    // on the statement path too): they mean "tsc's
-                    // answer likely differs because of narrowing" and
-                    // must keep containing the enclosing statement —
-                    // exactly what the pre-6.3 statement-path check of
-                    // the same expression did.
-                    Err(unsupported) if unsupported.reason.contains("[FLOW M5]") => {
+                    // Reasons PREFIXED "[FLOW M5] " are the
+                    // narrowable-containment GATES (failure-face
+                    // checks that fire on the statement path too):
+                    // they mean "tsc's answer likely differs because
+                    // of narrowing" and must keep containing the
+                    // enclosing statement — exactly what the pre-6.3
+                    // statement-path check of the same expression
+                    // did. The prefix is the discriminator: M5-owned
+                    // dependency STUBS embed the tag parenthetically
+                    // ("(... [FLOW M5])") and degrade below like the
+                    // M6/M8 stubs — their statement-path containment
+                    // stands untouched, but a join pull crossing one
+                    // must not contain a statement the 6.2 label
+                    // stubs let complete (the 6.3 review caught
+                    // `.contains` sweeping seven stub reasons into
+                    // the rethrow set).
+                    Err(unsupported) if unsupported.reason.starts_with("[FLOW M5] ") => {
                         return Err(unsupported);
                     }
                     Err(_unsupported) => {
