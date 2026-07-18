@@ -47,3 +47,21 @@ jobs:
       - name: Run merge gates against trusted PR base
         working-directory: tsrs2
         run: cargo xtask ci --baseline "${{ github.event.pull_request.base.sha }}"
+
+      # E1 topology (evidence-and-steady-state.md §5): when a gate
+      # fails, the run's mismatch/readiness/rollup output leaves the
+      # runner for diagnosis instead of dying with the workspace.
+      # Completion and fuzz artifacts join this list when their
+      # producers land (B-track); the scheduled fuzz-window job and
+      # the approved-runner release job likewise land with B3/B4 —
+      # a schedule without its producer would be a standing red.
+      - name: Upload gate artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts
+          if-no-files-found: ignore
+          path: |
+            tsrs2/target/conformance/mismatches.json
+            tsrs2/target/families/report.json
+            tsrs2/target/m8/

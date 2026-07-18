@@ -3956,6 +3956,17 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             .arg("--stale")
             .arg(stage.trim()),
     )?;
+    // E1 topology (evidence-and-steady-state.md §5): readiness
+    // evidence is produced and consumed inside this same workspace on
+    // every gate run — never split across jobs where one side can go
+    // stale. Report-only until M7 close arms --require-ready
+    // (landing order row 14).
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("m8")
+            .arg("readiness"),
+    )?;
     Ok(())
 }
 
