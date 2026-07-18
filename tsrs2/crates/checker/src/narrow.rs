@@ -726,21 +726,175 @@ impl<'a> CheckerState<'a> {
         self.narrow_type(query, ty, expr, assume_true)
     }
 
-    /// [FLOW 6.4] identity stub: tsc narrowTypeByTypeof (71081)
-    /// narrows by `typeof x === "..."` comparisons; flags the query
-    /// until 6.4d.
-    /// tsc-deferred: M5 (stage 6.4d — narrowTypeByTypeof)
+    /// tsc-port: narrowTypeByTypeof @6.0.3
+    /// tsc-hash: 861a7384f0a0ca7e4843027df07ce42e1e88c9232ee15255bf4d2091984d648c
+    /// tsc-span: _tsc.js:71081-71097
+    ///
+    /// `typeof x === "s"`: a matching operand narrows by the literal;
+    /// a non-matching one still strips undefined|null when the
+    /// reference sits inside an optional chain of it (strict, and the
+    /// comparison proves the chain ran), then tries the
+    /// discriminant-property path with the literal filter.
     fn narrow_type_by_typeof(
         &mut self,
         query: &mut FlowQuery,
         ty: TypeId,
-        _typeof_expr: NodeId,
-        _operator: SyntaxKind,
-        _literal: NodeId,
-        _assume_true: bool,
+        typeof_expr: NodeId,
+        operator: SyntaxKind,
+        literal: NodeId,
+        assume_true: bool,
     ) -> CheckResult2<TypeId> {
-        query.traversed_inert_arm = true;
-        Ok(ty)
+        let assume_true = if operator == SyntaxKind::ExclamationEqualsToken
+            || operator == SyntaxKind::ExclamationEqualsEqualsToken
+        {
+            !assume_true
+        } else {
+            assume_true
+        };
+        let operand = match self.data_of(typeof_expr) {
+            NodeData::TypeOfExpression(data) => data.expression,
+            _ => None,
+        };
+        let Some(operand) = operand else {
+            query.traversed_inert_arm = true;
+            return Ok(ty);
+        };
+        let Some(literal_text) = self.string_literal_text(literal) else {
+            query.traversed_inert_arm = true;
+            return Ok(ty);
+        };
+        let target = self.get_reference_candidate(operand);
+        if !self.is_matching_query_reference(query, target)? {
+            let mut ty = ty;
+            if self
+                .options
+                .strict_option_value(self.options.strict_null_checks)
+                && self.optional_chain_contains_query_reference(target, query)?
+                && assume_true == (literal_text != "undefined")
+            {
+                ty = self.get_adjusted_type_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)?;
+            }
+            if let Some(access) = self.get_discriminant_property_access(query, target, ty)? {
+                return self.narrow_type_by_discriminant(ty, access, |state, t| {
+                    state.narrow_type_by_literal_expression(t, &literal_text, assume_true)
+                });
+            }
+            return Ok(ty);
+        }
+        self.narrow_type_by_literal_expression(ty, &literal_text, assume_true)
+    }
+
+    /// tsc-port: narrowTypeByLiteralExpression @6.0.3
+    /// tsc-hash: 21e339349711249f6b2d83a76c2cc2e8af3d4c9f4fabfe6bcea2ecf782856925
+    /// tsc-span: _tsc.js:71098-71100
+    fn narrow_type_by_literal_expression(
+        &mut self,
+        ty: TypeId,
+        literal_text: &str,
+        assume_true: bool,
+    ) -> CheckResult2<TypeId> {
+        if assume_true {
+            self.narrow_type_by_type_name(ty, literal_text)
+        } else {
+            let facts = typeof_ne_facts(literal_text).unwrap_or(TypeFacts::TYPEOF_NE_HOST_OBJECT);
+            self.get_adjusted_type_with_facts(ty, facts)
+        }
+    }
+
+    /// tsc-port: narrowTypeByTypeName @6.0.3
+    /// tsc-hash: 29c46fe87223a05c3cfdc6b4df1ff9e99d1a501589ebe39e9f2c362e6b1aa17a
+    /// tsc-span: _tsc.js:71139-71159
+    fn narrow_type_by_type_name(&mut self, ty: TypeId, type_name: &str) -> CheckResult2<TypeId> {
+        let intrinsics = &self.tables.intrinsics;
+        let (implied, facts) = match type_name {
+            "string" => (intrinsics.string, TypeFacts::TYPEOF_EQ_STRING),
+            "number" => (intrinsics.number, TypeFacts::TYPEOF_EQ_NUMBER),
+            "bigint" => (intrinsics.bigint, TypeFacts::TYPEOF_EQ_BIG_INT),
+            "boolean" => (intrinsics.boolean, TypeFacts::TYPEOF_EQ_BOOLEAN),
+            "symbol" => (intrinsics.es_symbol, TypeFacts::TYPEOF_EQ_SYMBOL),
+            "object" => {
+                if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
+                    return Ok(ty);
+                }
+                let non_primitive = self.tables.intrinsics.non_primitive;
+                let null = self.tables.intrinsics.null;
+                let object_side =
+                    self.narrow_type_by_type_facts(ty, non_primitive, TypeFacts::TYPEOF_EQ_OBJECT)?;
+                let null_side = self.narrow_type_by_type_facts(ty, null, TypeFacts::EQ_NULL)?;
+                return self.get_union_type_ex(
+                    &[object_side, null_side],
+                    tsrs2_types::UnionReduction::Literal,
+                );
+            }
+            "function" => {
+                if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
+                    return Ok(ty);
+                }
+                let global_function = self.global_function_type()?;
+                return self.narrow_type_by_type_facts(
+                    ty,
+                    global_function,
+                    TypeFacts::TYPEOF_EQ_FUNCTION,
+                );
+            }
+            "undefined" => (intrinsics.undefined, TypeFacts::EQ_UNDEFINED),
+            _ => {
+                let non_primitive = self.tables.intrinsics.non_primitive;
+                return self.narrow_type_by_type_facts(
+                    ty,
+                    non_primitive,
+                    TypeFacts::TYPEOF_EQ_HOST_OBJECT,
+                );
+            }
+        };
+        self.narrow_type_by_type_facts(ty, implied, facts)
+    }
+
+    /// tsc-port: narrowTypeByTypeFacts @6.0.3
+    /// tsc-hash: c15871d7bcc1743a8154807aab765fb80998c0618528d0464deb51fe3a4f6dd5
+    /// tsc-span: _tsc.js:71160-71177
+    ///
+    /// Per member: a strict subtype of the implied type keeps or dies
+    /// by its facts (strict because `object` <: `{}`, and function
+    /// types are `object` subtypes but typeof-classify as
+    /// "function"); a supertype of the implied type is replaced by it
+    /// (unknown/`{}`/toString-ish supertypes); overlapping domains
+    /// (unconstrained type params vs string) intersect when the facts
+    /// allow, else die.
+    fn narrow_type_by_type_facts(
+        &mut self,
+        ty: TypeId,
+        implied_type: TypeId,
+        facts: TypeFacts,
+    ) -> CheckResult2<TypeId> {
+        Ok(self
+            .map_type(
+                ty,
+                &mut |state, t| {
+                    if state.is_type_strict_subtype_of(t, implied_type)? {
+                        return Ok(Some(if state.has_type_facts(t, facts)? {
+                            t
+                        } else {
+                            state.tables.intrinsics.never
+                        }));
+                    }
+                    if state.is_type_subtype_of(implied_type, t)? {
+                        return Ok(Some(implied_type));
+                    }
+                    if state.has_type_facts(t, facts)? {
+                        state
+                            .get_intersection_type(
+                                &[t, implied_type],
+                                tsrs2_types::IntersectionFlags::NONE,
+                            )
+                            .map(Some)
+                    } else {
+                        Ok(Some(state.tables.intrinsics.never))
+                    }
+                },
+                false,
+            )?
+            .expect("mapper is total"))
     }
 
     /// tsc-port: narrowTypeByEquality @6.0.3
@@ -1786,4 +1940,21 @@ impl<'a> CheckerState<'a> {
         query.traversed_inert_arm = true;
         Ok(ty)
     }
+}
+
+/// tsc-port: typeofNEFacts @6.0.3
+/// tsc-hash: c3cfcd34c8c39a75c323f299600e780301d6788e11dd017922291e223b4b5c4d
+/// tsc-span: _tsc.js:46376-46385
+fn typeof_ne_facts(text: &str) -> Option<TypeFacts> {
+    Some(match text {
+        "string" => TypeFacts::TYPEOF_NE_STRING,
+        "number" => TypeFacts::TYPEOF_NE_NUMBER,
+        "bigint" => TypeFacts::TYPEOF_NE_BIG_INT,
+        "boolean" => TypeFacts::TYPEOF_NE_BOOLEAN,
+        "symbol" => TypeFacts::TYPEOF_NE_SYMBOL,
+        "undefined" => TypeFacts::NE_UNDEFINED,
+        "object" => TypeFacts::TYPEOF_NE_OBJECT,
+        "function" => TypeFacts::TYPEOF_NE_FUNCTION,
+        _ => return None,
+    })
 }
