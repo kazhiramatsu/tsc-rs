@@ -4252,7 +4252,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isConstructorType @6.0.3
     /// tsc-hash: 246d9586e6eb03f6969ff17e449006f018091ef62e8ff4ca713648fd174be9e5
     /// tsc-span: _tsc.js:57122-57131
-    fn is_constructor_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_constructor_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if !self
             .get_signatures_of_type(ty, crate::structural::SignatureKind::Construct)?
             .is_empty()

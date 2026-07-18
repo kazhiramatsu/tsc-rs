@@ -436,6 +436,9 @@ pub struct CheckerState<'a> {
     /// tsc deferredGlobalNonNullableTypeAlias: None = uncomputed,
     /// Some(None) = miss (unknownSymbol memo), Some(Some(_)) = alias.
     pub(crate) deferred_global_non_nullable_type_alias: Option<Option<SymbolId>>,
+    /// tsc deferredGlobalRecordSymbol (61016): the `in`-narrowing
+    /// unknown-widening alias, memoized like NonNullable above.
+    pub(crate) deferred_global_record_symbol: Option<Option<SymbolId>>,
     /// tsc deferredGlobalAwaitedSymbol (60927): None = uncomputed;
     /// the reportErrors=true miss memoizes unknownSymbol (Some(Some(
     /// unknown_symbol)) — the getter filters it back to None).
@@ -736,6 +739,7 @@ impl<'a> CheckerState<'a> {
             suggestion_count: 0,
             init_global_type_probes: std::collections::HashMap::new(),
             deferred_global_non_nullable_type_alias: None,
+            deferred_global_record_symbol: None,
             deferred_global_awaited_symbol: None,
             awaited_type_stack: Vec::new(),
             deferred_global_omit_symbol: None,

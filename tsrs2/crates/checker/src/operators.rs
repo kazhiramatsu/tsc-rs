@@ -1479,7 +1479,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// containsMissingType.
-    fn contains_missing_type(&self, ty: TypeId) -> bool {
+    pub(crate) fn contains_missing_type(&self, ty: TypeId) -> bool {
         let missing = self.tables.intrinsics.missing;
         ty == missing
             || (self.tables.flags_of(ty).intersects(TypeFlags::UNION)

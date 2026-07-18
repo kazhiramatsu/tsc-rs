@@ -2487,6 +2487,55 @@ impl<'a> CheckerState<'a> {
         self.contains_matching_reference(query.reference, target)
     }
 
+    /// tsc getAccessedPropertyName(reference), synthetic-aware: the
+    /// chain's outermost name IS the accessed name of tsc's factory
+    /// node.
+    /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    pub(crate) fn query_reference_accessed_property_name(
+        &mut self,
+        query: &FlowQuery,
+    ) -> CheckResult2<Option<String>> {
+        match &query.synthetic_props {
+            Some(props) => Ok(props.last().cloned()),
+            None => self.get_accessed_property_name(query.reference),
+        }
+    }
+
+    /// tsc isAccessExpression(reference), synthetic-aware (the
+    /// factory node is an ElementAccessExpression).
+    /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    pub(crate) fn query_reference_is_access(&self, query: &FlowQuery) -> bool {
+        match &query.synthetic_props {
+            Some(props) => !props.is_empty(),
+            None => matches!(
+                self.kind_of(query.reference),
+                SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+            ),
+        }
+    }
+
+    /// tsc isMatchingReference(reference.expression, target) for an
+    /// access-shaped reference, synthetic-aware (the chain minus its
+    /// outermost name is the receiver).
+    /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    pub(crate) fn query_reference_receiver_matches(
+        &mut self,
+        query: &FlowQuery,
+        target: NodeId,
+    ) -> CheckResult2<bool> {
+        match &query.synthetic_props {
+            Some(props) => {
+                let props = props.clone();
+                let receiver = &props[..props.len().saturating_sub(1)];
+                self.is_matching_synthetic_chain(query.reference, receiver, target)
+            }
+            None => match self.access_expression_of(query.reference) {
+                Some(receiver) => self.is_matching_reference(receiver, target),
+                None => Ok(false),
+            },
+        }
+    }
+
     /// tsc optionalChainContainsReference with the QUERY's reference
     /// on the reference side (tsc passes it as isMatchingReference's
     /// SOURCE); plain queries keep the vetted node helper.
@@ -2778,7 +2827,7 @@ impl<'a> CheckerState<'a> {
 
     /// The escaped text of an identifier-like name node.
     /// tsrs-native: NodeData accessor.
-    fn escaped_text_of(&self, node: Option<NodeId>) -> Option<&str> {
+    pub(crate) fn escaped_text_of(&self, node: Option<NodeId>) -> Option<&str> {
         let node = node?;
         match self.data_of(node) {
             NodeData::Identifier(data) => Some(data.escaped_text.as_str()),
@@ -2840,7 +2889,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryGetNameFromType @6.0.3
     /// tsc-hash: 7a5ee7d20b95577c6e5e15f5c17f14c80d0ed861a6e6f060938a60e33cd9f671
     /// tsc-span: _tsc.js:69509-69511
-    fn try_get_name_from_type(&self, ty: TypeId) -> Option<String> {
+    pub(crate) fn try_get_name_from_type(&self, ty: TypeId) -> Option<String> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
             if let TypeData::UniqueESSymbol { escaped_name } = &self.tables.type_of(ty).data {

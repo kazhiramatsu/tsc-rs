@@ -2409,7 +2409,7 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    fn get_symbol_for_private_identifier_expression(
+    pub(crate) fn get_symbol_for_private_identifier_expression(
         &mut self,
         priv_id: NodeId,
     ) -> CheckResult2<Option<SymbolId>> {

@@ -264,7 +264,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:69690-69696
     ///
     /// The EvolvingArray early-out is M5 shape (no producer yet).
-    fn is_function_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_function_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if self
             .tables
             .object_flags_of(ty)
