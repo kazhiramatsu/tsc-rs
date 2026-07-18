@@ -654,7 +654,7 @@ impl<'a> CheckerState<'a> {
     /// [FLOW M5]: the 5.6 AUTO arm already answers anyType at the
     /// declared-type level (autoType/autoArrayType never surface), so
     /// the twin is an identity — kept in slot for the M5 wiring.
-    fn convert_auto_to_any(&self, ty: TypeId) -> TypeId {
+    pub(crate) fn convert_auto_to_any(&self, ty: TypeId) -> TypeId {
         ty
     }
 

@@ -332,6 +332,28 @@ pub struct CheckerState<'a> {
     /// 59049), as a set so Err unwinds leave the links slot Vacant.
     pub(crate) type_parameter_defaults_in_progress: Vec<TypeId>,
 
+    // ---- M5 6.1: control-flow query state ----
+    /// tsc flowAnalysisDisabled (69399): latched by the depth-2000
+    /// limiter; every later query answers errorType.
+    /// (flowInvocationCount pre-exists below — M4 wired it for the
+    /// getTypeOfExpression cache gate.)
+    pub(crate) flow_analysis_disabled: bool,
+    /// tsc sharedFlowNodes/sharedFlowTypes (69395-69396): one Vec of
+    /// pairs; each getFlowTypeOfReference query scans only its own
+    /// window (sharedFlowStart..) and truncates back on exit — also on
+    /// Unsupported unwind (the unwind invariant).
+    pub(crate) shared_flow: Vec<(tsrs2_binder::flow::FlowId, crate::flow::FlowType)>,
+    /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
+    /// mutates `target.antecedent` in place during try/finally walks;
+    /// the binder graph is immutable to the checker, so the swapped
+    /// lists live here keyed by (file, label) and every label read
+    /// consults them. Entries are strictly scoped to an in-progress
+    /// ReduceLabel arm (restored on exit AND on unwind).
+    pub(crate) reduce_label_overrides: std::collections::HashMap<
+        (usize, tsrs2_binder::flow::FlowId),
+        Vec<tsrs2_binder::flow::FlowId>,
+    >,
+
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
     /// tsc currentNode (46448): the element/deferred-node the driver is
@@ -657,6 +679,9 @@ impl<'a> CheckerState<'a> {
             total_instantiation_count: 0,
             class_interface_declared_in_progress: Vec::new(),
             type_parameter_defaults_in_progress: Vec::new(),
+            flow_analysis_disabled: false,
+            shared_flow: Vec::new(),
+            reduce_label_overrides: std::collections::HashMap::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
             potential_this_collisions: Vec::new(),

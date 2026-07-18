@@ -11,6 +11,7 @@ pub mod engine;
 pub mod evaluate;
 pub mod expr;
 pub mod facts;
+pub mod flow;
 pub mod functions;
 pub mod globals;
 pub mod indexed;

@@ -1105,7 +1105,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(true);
                 }
                 if self.is_parameter_or_mutable_local_variable(symbol)
-                    && !self.is_symbol_assigned_definitely_stub(symbol)
+                    && !self.is_symbol_assigned(symbol)?
                 {
                     return Ok(true);
                 }
@@ -4858,7 +4858,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isMutableLocalVariableDeclaration @6.0.3
     /// tsc-hash: 30bf18a9c81fd230aec4c144496955920925daa53ca0b099edfff2ff459b9d6b
     /// tsc-span: _tsc.js:71599-71601
-    fn is_parameter_or_mutable_local_variable(&self, symbol: SymbolId) -> bool {
+    pub(crate) fn is_parameter_or_mutable_local_variable(&self, symbol: SymbolId) -> bool {
         let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
             return false;
         };

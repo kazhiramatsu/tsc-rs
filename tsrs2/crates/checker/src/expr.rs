@@ -10,18 +10,15 @@
 //! containment (check_source_element) turns each escape into an honest
 //! FN for that statement only.
 //!
-//! Stage-boundary stubs introduced here (m4-55-expression-extraction.md
-//! §0):
-//! - [FLOW → M5] `get_flow_type_of_reference_stub` — the ONE seam M5
-//!   replaces (getFlowTypeOfReference 70394 returns the declared type).
-//!   With it: isSymbolAssignedDefinitely/isPastLastAssignment answer
-//!   their no-marking defaults, the flow-container widening loop
-//!   (72193) is stubbed out, and checkIdentifier's auto-type (7034/
-//!   7005) and 2454 arms self-deactivate (flowType == declared type).
-//! - [FACTS → 5.5d] the initialType ladder (72198) is dead under the
-//!   [FLOW] stub — getFlowTypeOfReference ignores `initial` — so
-//!   removeOptionalityFromDeclaredType/getOptionalType ride with the
-//!   facts classifier at 5.5d rather than being half-ported here.
+//! Stage-boundary notes:
+//! - [FLOW 6.1] the M4 flow stub is REPLACED: checkIdentifier calls
+//!   the real getFlowTypeOfReference (flow.rs), the flow-container
+//!   hoisting loop (72195) and the assignment-marking family
+//!   (isPastLastAssignment/isSymbolAssignedDefinitely) are live.
+//!   `initial` still passes the declared type — the initialType
+//!   ladder (72198) activates with the real assignment arm ([FLOW
+//!   6.2]), which keeps the 2454 arm self-deactivated (flowType ==
+//!   declared type) and the 6.1 swap rate-neutral.
 //! - [CONTEXT] the getContextualType consumers
 //!   (hasContextualTypeWithNoGenericTypes, getContextualThisParameterType)
 //!   are live since 5.5b (contextual.rs owns the band).
@@ -642,12 +639,8 @@ impl<'a> CheckerState<'a> {
         let is_parameter = self.kind_of(node_util::get_root_declaration(source, declaration))
             == SyntaxKind::Parameter;
         let declaration_container = self.get_control_flow_container(declaration);
-        let flow_container = self.get_control_flow_container(node);
+        let mut flow_container = self.get_control_flow_container(node);
         let is_outer_variable = flow_container != declaration_container;
-        // [FLOW M5] the widening loop (72193) walking flowContainer
-        // outward for captured const/past-last-assignment locals is
-        // stubbed out — it only changes which container the flow
-        // analysis starts from, meaningless until M5 narrows.
         let is_spread_destructuring_assignment_target = {
             let parent = self.parent_of(node);
             let grand = parent.and_then(|parent| self.parent_of(parent));
@@ -664,28 +657,58 @@ impl<'a> CheckerState<'a> {
             && self
                 .parent_of(node)
                 .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::NonNullExpression);
-        let is_never_initialized = immediate_declaration.is_some_and(|decl| {
-            if self.kind_of(decl) != SyntaxKind::VariableDeclaration {
-                return false;
+        // tsc 72195: hoist the flow container outward while the
+        // reference reads a captured constant (or a parameter/mutable
+        // local past its last assignment) inside a
+        // function-expression-like container.
+        while let Some(container) = flow_container {
+            if flow_container == declaration_container {
+                break;
             }
-            let NodeData::VariableDeclaration(data) = self.data_of(decl) else {
-                return false;
-            };
-            let for_in_or_of = self
-                .parent_of(decl)
-                .and_then(|list| self.parent_of(list))
-                .is_some_and(|grand| {
-                    matches!(
-                        self.kind_of(grand),
-                        SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
-                    )
-                });
-            !for_in_or_of
-                && data.initializer.is_none()
-                && data.exclamation_token.is_none()
-                && self.is_mutable_local_variable_declaration(decl)
-                && !self.is_symbol_assigned_definitely_stub(symbol)
-        });
+            let kind = self.kind_of(container);
+            let source = self.binder.source_of_node(container);
+            let is_function_expression_like = kind == SyntaxKind::FunctionExpression
+                || kind == SyntaxKind::ArrowFunction
+                || node_util::is_object_literal_or_class_expression_method_or_accessor(
+                    source, container,
+                );
+            if !is_function_expression_like {
+                break;
+            }
+            let hoist = (self.is_constant_variable(local_or_export_symbol)
+                && !self.is_auto_array_type(ty))
+                || (self.is_parameter_or_mutable_local_variable(local_or_export_symbol)
+                    && self.is_past_last_assignment(local_or_export_symbol, Some(node))?);
+            if !hoist {
+                break;
+            }
+            flow_container = self.get_control_flow_container(container);
+        }
+        let is_never_initialized = match immediate_declaration {
+            Some(decl) if self.kind_of(decl) == SyntaxKind::VariableDeclaration => {
+                let (has_initializer, has_exclamation) = match self.data_of(decl) {
+                    NodeData::VariableDeclaration(data) => {
+                        (data.initializer.is_some(), data.exclamation_token.is_some())
+                    }
+                    _ => (true, true),
+                };
+                let for_in_or_of = self
+                    .parent_of(decl)
+                    .and_then(|list| self.parent_of(list))
+                    .is_some_and(|grand| {
+                        matches!(
+                            self.kind_of(grand),
+                            SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
+                        )
+                    });
+                !for_in_or_of
+                    && !has_initializer
+                    && !has_exclamation
+                    && self.is_mutable_local_variable_declaration(decl)
+                    && !self.is_symbol_assigned_definitely(symbol)?
+            }
+            _ => false,
+        };
         let strict_null_checks = self
             .options
             .strict_option_value(self.options.strict_null_checks);
@@ -715,17 +738,21 @@ impl<'a> CheckerState<'a> {
                     NodeData::VariableDeclaration(data) if data.exclamation_token.is_some()
                 ))
             || self.node_flags(declaration) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0;
-        // [FACTS 5.5d] initialType (72198): dead under the [FLOW] stub
-        // (getFlowTypeOfReference ignores `initial`); the verbatim
-        // removeOptionalityFromDeclaredType/getOptionalType ladder
-        // rides with the facts classifier.
+        // [FLOW 6.2] the initialType ladder (72198 —
+        // removeOptionalityFromDeclaredType/getOptionalType/
+        // undefinedType selection) activates WITH the real assignment
+        // arm: until assignments terminate the walk faithfully, an
+        // undefined-bearing initial type would misreport 2454 on
+        // assigned paths. `initial` stays the declared type here, so
+        // the 6.1 walk is observably the M4 stub (the stage's
+        // rate-neutrality verification).
         let flow_type = if is_automatic_type_in_non_null {
-            // getNonNullableType of the stubbed flow type — the [FACTS]
-            // strip; auto is unreachable until 5.6 evolving types, so
-            // this arm cannot fire yet.
-            unreachable!("autoType has no producer until 5.6 evolving types")
+            // getNonNullableType of the flow type; auto has no
+            // producer until 6.2 evolving arrays, so this arm cannot
+            // fire yet.
+            unreachable!("autoType has no producer until 6.2 evolving arrays")
         } else {
-            self.get_flow_type_of_reference_stub(node, ty, ty, flow_container)
+            self.get_flow_type_of_reference(node, ty, ty, flow_container)?
         };
         let is_uninitialized_variable_declaration =
             immediate_declaration.is_some_and(|declaration| {
@@ -771,27 +798,6 @@ impl<'a> CheckerState<'a> {
         } else {
             flow_type
         })
-    }
-
-    /// THE M5 SEAM — tsc getFlowTypeOfReference (70394). M5 replaces
-    /// exactly this function; every 5.5 call site threads (reference,
-    /// declared, initial, flowContainer) so the swap is local.
-    pub(crate) fn get_flow_type_of_reference_stub(
-        &mut self,
-        _reference: NodeId,
-        declared: TypeId,
-        _initial: TypeId,
-        _flow_container: Option<NodeId>,
-    ) -> TypeId {
-        declared
-    }
-
-    /// [FLOW M5] isSymbolAssignedDefinitely (71644): needs the
-    /// assignment-marking pass (symbol.lastAssignmentPos); with no
-    /// marking, lastAssignmentPos is never set and the answer is the
-    /// unmarked default.
-    pub(crate) fn is_symbol_assigned_definitely_stub(&self, _symbol: SymbolId) -> bool {
-        false
     }
 
     /// tsc-port: checkIdentifierCalculateNodeCheckFlags @6.0.3
@@ -1230,23 +1236,6 @@ impl<'a> CheckerState<'a> {
         self.get_merged_symbol(target)
     }
 
-    /// tsc-port: getNarrowedTypeOfSymbol @6.0.3 (5.5a stub slice)
-    /// tsc-hash: 22f3776b5ae1c8cd1ecef7799b03eb16ccc169f3bfe6b062b5bad3d2bce43ce9
-    /// tsc-span: _tsc.js:72001-72062
-    ///
-    /// Both special arms — the dependent-destructuring union narrowing
-    /// (InCheckIdentifier + getFlowTypeOfReference over the pattern)
-    /// and the context-sensitive rest-parameter slice — are [FLOW]/M6
-    /// machinery reading location.flowNode; the extraction doc stubs
-    /// the whole function to plain getTypeOfSymbol until M5.
-    fn get_narrowed_type_of_symbol(
-        &mut self,
-        symbol: SymbolId,
-        _location: NodeId,
-    ) -> CheckResult2<TypeId> {
-        self.get_type_of_symbol(symbol)
-    }
-
     /// tsc-port: getNarrowableTypeForReference @6.0.3
     /// tsc-hash: 08613f8018f28889de94abc11ac1bde0cf82fcae244ea2813d7674cf36969b91
     /// tsc-span: _tsc.js:71640-71646
@@ -1461,8 +1450,10 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    /// tsc isMutableLocalVariableDeclaration (71599).
-    fn is_mutable_local_variable_declaration(&self, declaration: NodeId) -> bool {
+    /// tsc-port: isMutableLocalVariableDeclaration @6.0.3
+    /// tsc-hash: 30bf18a9c81fd230aec4c144496955920925daa53ca0b099edfff2ff459b9d6b
+    /// tsc-span: _tsc.js:71599-71601
+    pub(crate) fn is_mutable_local_variable_declaration(&self, declaration: NodeId) -> bool {
         let Some(list) = self.parent_of(declaration) else {
             return false;
         };
@@ -1955,9 +1946,9 @@ impl<'a> CheckerState<'a> {
                 None => self.get_contextual_this_parameter_type(container)?,
             };
             if let Some(this_type) = this_type {
-                return Ok(Some(self.get_flow_type_of_reference_stub(
-                    node, this_type, this_type, None,
-                )));
+                return Ok(Some(
+                    self.get_flow_type_of_reference(node, this_type, this_type, None)?,
+                ));
             }
         }
         if let Some(parent) = self.parent_of(container) {
@@ -1980,9 +1971,7 @@ impl<'a> CheckerState<'a> {
                         ),
                     }
                 };
-                return Ok(Some(
-                    self.get_flow_type_of_reference_stub(node, ty, ty, None),
-                ));
+                return Ok(Some(self.get_flow_type_of_reference(node, ty, ty, None)?));
             }
         }
         if self.kind_of(container) == SyntaxKind::SourceFile {

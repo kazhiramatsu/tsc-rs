@@ -1392,7 +1392,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTextOfPropertyName @6.0.3
     /// tsc-hash: b6a070f28394bc21fdf62f528c96dee4a10060472d748602fd0bba75be70e0cd
     /// tsc-span: _tsc.js:13883-13885
-    fn get_text_of_property_name(&self, name: NodeId) -> CheckResult2<String> {
+    pub(crate) fn get_text_of_property_name(&self, name: NodeId) -> CheckResult2<String> {
         let source = self.binder.source_of_node(name);
         if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
             let expression = data
