@@ -4989,7 +4989,9 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         if annotation.is_some_and(|node| self.kind_of(node) == SyntaxKind::TypePredicate) {
-            return Err(Unsupported::new("type predicates (M5 narrowing)"));
+            return Err(Unsupported::new(
+                "type-predicate signature relations (compareTypePredicateRelatedTo, M6)",
+            ));
         }
         Ok(())
     }

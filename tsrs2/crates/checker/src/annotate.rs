@@ -6683,9 +6683,15 @@ impl<'a> CheckerState<'a> {
                 node, /*include_optionality*/ false, check_mode,
             );
         }
-        let symbol = self.get_symbol_of_declaration(node)?;
-        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
-            return Ok(Some(cached));
+        // 55830 `getSymbolOfDeclaration(node)` is undefined for
+        // pattern-named declarations (the binder hangs the symbols
+        // off the binding ELEMENTS) — the falsy probe falls through
+        // to getTypeForVariableLikeDeclaration.
+        if self.get_symbol_of_declaration_opt(node).is_some() {
+            let symbol = self.get_symbol_of_declaration(node)?;
+            if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+                return Ok(Some(cached));
+            }
         }
         self.get_type_for_variable_like_declaration(
             node, /*include_optionality*/ false, check_mode,

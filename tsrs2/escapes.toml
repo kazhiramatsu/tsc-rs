@@ -1422,9 +1422,9 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/structural.rs"
 in = "type_predicate_signature_relation_gate"
-reason = "type predicates (M5 narrowing)"
+reason = "type-predicate signature relations (compareTypePredicateRelatedTo, M6)"
 class = "stage"
-owner = "M5"
+owner = "M6"
 
 [[site]]
 file = "crates/checker/src/structural.rs"

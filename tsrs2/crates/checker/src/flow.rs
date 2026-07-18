@@ -2502,6 +2502,11 @@ impl<'a> CheckerState<'a> {
         let Some(prop_name) = self.get_destructuring_property_name(node)? else {
             return Ok(None);
         };
+        // tsc 55901 `if (propName)`: the EMPTY text (`const {"": x}`)
+        // is falsy — no synthetic access, declared type.
+        if prop_name.is_empty() {
+            return Ok(None);
+        }
         props.push(tsrs2_syntax::escape_leading_underscores(&prop_name));
         Ok(Some((base, props)))
     }
@@ -2708,9 +2713,13 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc optionalChainContainsReference with the QUERY's reference
-    /// on the reference side (tsc passes it as isMatchingReference's
-    /// SOURCE); plain queries keep the vetted node helper.
+    /// tsc optionalChainContainsReference(expr, reference): UNLIKE
+    /// every other narrowing site, the reference is isMatching-
+    /// Reference's TARGET here (69557 walks the chain on the source
+    /// side) — so the synthetic arm uses the target-oriented matcher
+    /// (no assignment/comma unwrap on the real chain parts; those
+    /// arms are target-side only). Plain queries keep the vetted node
+    /// helper.
     /// tsrs-native: dispatch over FlowQuery::synthetic_props.
     pub(crate) fn optional_chain_contains_query_reference(
         &mut self,
@@ -2737,9 +2746,61 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             };
             source = next;
-            if self.is_matching_synthetic_chain(query.reference, &props, source)? {
+            if self.real_node_matches_synthetic_chain(source, query.reference, &props)? {
                 return Ok(true);
             }
+        }
+    }
+
+    /// tsc isMatchingReference (69448) with source = a REAL node and
+    /// target = the synthetic chain: the target-side unwrap arms
+    /// (paren/nonnull/assignment/comma) are no-ops on the factory
+    /// access, so only the source-side arms run — paren/nonnull
+    /// unwrapping and the access name-and-receiver recursion. The
+    /// identifier/this/super source arms compare against an access-
+    /// shaped target and are false while chain names remain.
+    /// tsrs-native: target-oriented arm of the same tsc span.
+    fn real_node_matches_synthetic_chain(
+        &mut self,
+        source: NodeId,
+        base: NodeId,
+        props: &[String],
+    ) -> CheckResult2<bool> {
+        let Some((outer, receiver_props)) = props.split_last() else {
+            return self.is_matching_reference(source, base);
+        };
+        match self.kind_of(source) {
+            SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
+                let inner = match self.data_of(source) {
+                    NodeData::ParenthesizedExpression(data) => data.expression,
+                    NodeData::NonNullExpression(data) => data.expression,
+                    _ => None,
+                };
+                match inner {
+                    Some(inner) => self.real_node_matches_synthetic_chain(inner, base, props),
+                    None => Ok(false),
+                }
+            }
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                let Some(source_name) = self.get_accessed_property_name(source)? else {
+                    return Ok(false);
+                };
+                if &source_name != outer {
+                    return Ok(false);
+                }
+                let receiver = match self.data_of(source) {
+                    NodeData::PropertyAccessExpression(data) => data.expression,
+                    NodeData::ElementAccessExpression(data) => data.expression,
+                    _ => None,
+                };
+                match receiver {
+                    Some(receiver) => {
+                        self.real_node_matches_synthetic_chain(receiver, base, receiver_props)
+                    }
+                    None => Ok(false),
+                }
+            }
+            _ => Ok(false),
         }
     }
 }
