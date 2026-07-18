@@ -21,9 +21,10 @@ there.
 3. **Merge criteria** — all gates green on the branch:
    `cargo xtask ci` (fmt --check, clippy -D warnings, build, tests,
    relpin, accepted-state lineage + trusted `origin/main` comparison,
-   conformance all + 2xxx + syntactic with FP=0 and set/integer-ratchet
-   non-regression, invariants, ledger check, `escapes --stale $(cat
-   tsrs2/STAGE)` incl. the untagged ceiling).
+   exact-scope audit (A2) against the same base, conformance all +
+   2xxx + syntactic with FP=0 and set/integer-ratchet non-regression,
+   invariants, ledger check, `escapes --stale $(cat tsrs2/STAGE)`
+   incl. the untagged ceiling).
 4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
    gates are green, push the branch and open a PR whose body carries
    the gate summary (conformance rates + FP=0, escapes, tests). The
@@ -53,6 +54,11 @@ there.
   origin/main]` verifies `ratchets/` artifacts + lineage;
   `cargo xtask ratchet update` re-measures and adds identities only
   (never run it to "fix" a regression — fix the regression)
+- Exact scope (A2): `cargo xtask scope audit [--baseline origin/main]`
+  verifies `m8-scope.json` schema-2 identities against goldens, the
+  duplicate-bucket canaries (68/65), the Node/Rust canonical-encoder
+  cross-check (`crates/oracle/identity.mjs`), band-pin/global-freeze
+  anchors, and tombstone standing proofs
 - Escape expiry audit: `cargo xtask escapes --stale $(cat STAGE)`
   (also verifies `escapes.toml`; after adding/retiring an escape run
   `cargo xtask escapes --write-manifest` — the manifest diff is the

@@ -72,6 +72,17 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("scope") => match args.next().as_deref() {
+            Some("audit") => run_or_exit(scope_audit(args)),
+            Some(other) => {
+                eprintln!("unknown scope command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing scope command (audit)");
+                std::process::exit(2);
+            }
+        },
         Some("ledger") => match args.next().as_deref() {
             Some("check") => run_or_exit(ledger_check()),
             Some("write-backlog") => run_or_exit(ledger_write_backlog()),
@@ -1881,6 +1892,26 @@ fn ratchet_check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error
         }
     }
     tsrs2_conformance::ratchet::check(&find_tsrs2_root()?, baseline.as_deref())
+}
+
+/// `cargo xtask scope audit [--baseline <trusted-ref>]`: the A2 exact
+/// scope audit (measurement-integrity.md §3) — manifest structure,
+/// occurrence resolution against pinned goldens, duplicate-bucket
+/// canaries, the Node/Rust canonical-encoder cross-check, band-pin and
+/// global-freeze anchors, standing tombstone proofs, and the
+/// trusted-base compare.
+fn scope_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut baseline = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--baseline" => {
+                baseline = Some(args.next().ok_or("missing value after --baseline")?);
+            }
+            _ => return Err(format!("unexpected scope audit argument: {arg}").into()),
+        }
+    }
+    tsrs2_conformance::scope_audit(&find_tsrs2_root()?, baseline.as_deref())
 }
 
 fn ratchet_update(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -3769,6 +3800,18 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             .arg("xtask")
             .arg("ratchet")
             .arg("check")
+            .arg("--baseline")
+            .arg(&baseline),
+    )?;
+    // A2 exact scope coherence: manifest identities, encoder
+    // cross-check, snapshot anchors, and tombstone proofs verify
+    // against the same trusted base before the supported view that
+    // depends on them gates anything.
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("scope")
+            .arg("audit")
             .arg("--baseline")
             .arg(&baseline),
     )?;

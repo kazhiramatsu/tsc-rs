@@ -51,9 +51,13 @@ const ORACLE_INPUTS_SCHEMA: u32 = 1;
 /// syntactic view).
 const T0_COMPARATOR_SCHEMA: u32 = 2;
 /// Reviewed input transition: enumerated corpus growth where every
-/// old identity and byte stays unchanged. The A2 and A3
-/// `input-schema-extension` transitions are taught by their own
-/// slices; an unknown transition name always fails the walk.
+/// old identity and byte stays unchanged. The A3
+/// `input-schema-extension` is taught by its own slice, and A2's
+/// stays reserved: exact scope identities derive live from the pinned
+/// golden record bytes (encoder v1, `crate::identity`), so landing A2
+/// touched no manifest byte — the extension activates only if the
+/// canonical encoding itself ever changes. An unknown transition name
+/// always fails the walk.
 const UNIVERSE_TRANSITION: &str = "universe-transition";
 /// Reviewed one-time input transition that ADDS the producer pins
 /// (generator + normalization modules and the Node launch contract)
@@ -2074,7 +2078,15 @@ fn verify_ratchet_summaries(
 /// expansion, golden oracle records, ratchet.toml derived summaries)
 /// and their full append-only lineage; with `--baseline`, also the
 /// trusted PR-base direct compare.
-pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> {
+/// Read the accepted-state pair and verify it against the current
+/// tree: pair coherence, vendored `_tsc.js` pin, and the immutable
+/// oracle-input diff. This is the standing-proof precondition A2 §3.2
+/// requires before a tombstone may cite A1 membership — the proof is
+/// invalid unless the vendor, oracle-input, and comparator pins verify
+/// against the current tree.
+pub(crate) fn verify_current_pair(
+    workspace: &Path,
+) -> ConformanceResult<(MatchesArtifact, Vec<u8>, OracleInputsArtifact, Vec<u8>)> {
     let (matches, matches_bytes): (MatchesArtifact, _) =
         read_artifact(&workspace.join(MATCHES_REL_PATH), "accepted-match artifact")?;
     matches.validate()?;
@@ -2090,6 +2102,11 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
         return Err("vendored _tsc.js pin drift against the accepted-match artifact".into());
     }
     diff_oracle_inputs(&inputs, &built)?;
+    Ok((matches, matches_bytes, inputs, inputs_bytes))
+}
+
+pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> {
+    let (matches, matches_bytes, inputs, inputs_bytes) = verify_current_pair(workspace)?;
 
     // ratchet.toml counts are derived summaries of the artifact, never
     // an independent authority.

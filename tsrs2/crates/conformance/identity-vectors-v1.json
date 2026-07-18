@@ -1,0 +1,530 @@
+{
+  "encoder": 1,
+  "comment": "A2 canonical-encoder canaries (measurement-integrity.md §3, §7). Consumed byte-identically by crates/conformance/src/identity.rs tests and, through the scope audit, by crates/oracle/identity.mjs. Changing records here changes what the cross-language check proves — treat as a reviewed surface.",
+  "cases": [
+    {
+      "name": "unicode-text-and-paths",
+      "fixture": "vectors/ユニコード.ts",
+      "matrix_key": "",
+      "records": [
+        {
+          "file": "サブ/ユニコード.ts",
+          "start": 10,
+          "length": 4,
+          "line": 1,
+          "col": 2,
+          "code": 2322,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "型 'Ω' を 'string' に割り当てられません 🚫 é  line-sep 😀",
+            "code": 2322,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "name": "crlf-and-virtual-paths",
+      "fixture": "vectors/crlf.ts",
+      "matrix_key": "target=es2025",
+      "records": [
+        {
+          "file": "sub/dir/CRLF.ts",
+          "start": 0,
+          "length": 1,
+          "line": 0,
+          "col": 0,
+          "code": 2304,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "first line\r\nsecond\rthird\ntab\there",
+            "code": 2304,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        },
+        {
+          "file": "dir\\backslash.ts",
+          "start": 5,
+          "length": 2,
+          "line": 0,
+          "col": 5,
+          "code": 2304,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "path with \"quotes\" and \\backslash\\ segments",
+            "code": 2304,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "name": "nested-chains-child-order",
+      "fixture": "vectors/chains.ts",
+      "matrix_key": "",
+      "records": [
+        {
+          "file": "chains.ts",
+          "start": 42,
+          "length": 7,
+          "line": 3,
+          "col": 1,
+          "code": 2345,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "top",
+            "code": 2345,
+            "category": "error",
+            "next": [
+              {
+                "text": "child A",
+                "code": 2322,
+                "category": "error",
+                "next": [
+                  {
+                    "text": "grandchild",
+                    "code": 2326,
+                    "category": "error",
+                    "next": []
+                  }
+                ]
+              },
+              {
+                "text": "child B",
+                "code": 2328,
+                "category": "error",
+                "next": []
+              }
+            ]
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        },
+        {
+          "file": "chains.ts",
+          "start": 42,
+          "length": 7,
+          "line": 3,
+          "col": 1,
+          "code": 2345,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "top",
+            "code": 2345,
+            "category": "error",
+            "next": [
+              {
+                "text": "child B",
+                "code": 2328,
+                "category": "error",
+                "next": []
+              },
+              {
+                "text": "child A",
+                "code": 2322,
+                "category": "error",
+                "next": [
+                  {
+                    "text": "grandchild",
+                    "code": 2326,
+                    "category": "error",
+                    "next": []
+                  }
+                ]
+              }
+            ]
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "name": "reordered-related-information",
+      "fixture": "vectors/related.ts",
+      "matrix_key": "",
+      "records": [
+        {
+          "file": "related.ts",
+          "start": 100,
+          "length": 3,
+          "line": 9,
+          "col": 0,
+          "code": 2717,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "subsequent property declarations must have the same type",
+            "code": 2717,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "a.ts",
+              "start": 1,
+              "length": 1,
+              "code": 6203,
+              "category": "message",
+              "chain": {
+                "text": "'x' was also declared here",
+                "code": 6203,
+                "category": "message",
+                "next": []
+              }
+            },
+            {
+              "file": "b.ts",
+              "start": 2,
+              "length": 1,
+              "code": 6204,
+              "category": "message",
+              "chain": {
+                "text": "and here",
+                "code": 6204,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        },
+        {
+          "file": "related.ts",
+          "start": 100,
+          "length": 3,
+          "line": 9,
+          "col": 0,
+          "code": 2717,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "subsequent property declarations must have the same type",
+            "code": 2717,
+            "category": "error",
+            "next": []
+          },
+          "related": [
+            {
+              "file": "b.ts",
+              "start": 2,
+              "length": 1,
+              "code": 6204,
+              "category": "message",
+              "chain": {
+                "text": "and here",
+                "code": 6204,
+                "category": "message",
+                "next": []
+              }
+            },
+            {
+              "file": "a.ts",
+              "start": 1,
+              "length": 1,
+              "code": 6203,
+              "category": "message",
+              "chain": {
+                "text": "'x' was also declared here",
+                "code": 6203,
+                "category": "message",
+                "next": []
+              }
+            }
+          ],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "name": "byte-identical-duplicates",
+      "fixture": "vectors/duplicates.ts",
+      "matrix_key": "",
+      "records": [
+        {
+          "file": "duplicates.ts",
+          "start": 29,
+          "length": 11,
+          "line": 2,
+          "col": 4,
+          "code": 2695,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "left side of comma operator is unused and has no side effects",
+            "code": 2695,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": true,
+          "reports_deprecated": false,
+          "source": null
+        },
+        {
+          "file": "duplicates.ts",
+          "start": 29,
+          "length": 11,
+          "line": 2,
+          "col": 4,
+          "code": 2695,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "left side of comma operator is unused and has no side effects",
+            "code": 2695,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": true,
+          "reports_deprecated": false,
+          "source": null
+        },
+        {
+          "file": "duplicates.ts",
+          "start": 29,
+          "length": 11,
+          "line": 2,
+          "col": 4,
+          "code": 2695,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "left side of comma operator is unused and has no side effects",
+            "code": 2695,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": true,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "name": "same-tuple-different-source",
+      "fixture": "vectors/source.ts",
+      "matrix_key": "",
+      "records": [
+        {
+          "file": "source.ts",
+          "start": 7,
+          "length": 1,
+          "line": 0,
+          "col": 7,
+          "code": 2551,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "did you mean 'y'?",
+            "code": 2551,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        },
+        {
+          "file": "source.ts",
+          "start": 7,
+          "length": 1,
+          "line": 0,
+          "col": 7,
+          "code": 2551,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "did you mean 'y'?",
+            "code": 2551,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": "ts"
+        }
+      ]
+    },
+    {
+      "name": "same-t0-key-different-message",
+      "fixture": "vectors/t0-collision.ts",
+      "matrix_key": "",
+      "records": [
+        {
+          "file": "t0-collision.ts",
+          "start": 55,
+          "length": 3,
+          "line": 4,
+          "col": 8,
+          "code": 2769,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "no overload matches this call",
+            "code": 2769,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        },
+        {
+          "file": "t0-collision.ts",
+          "start": 55,
+          "length": 9,
+          "line": 4,
+          "col": 8,
+          "code": 2769,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "overload 2 of 3 gave the following error",
+            "code": 2769,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "name": "null-vs-empty-and-global-diagnostic",
+      "fixture": "vectors/global.ts",
+      "matrix_key": "",
+      "records": [
+        {
+          "file": null,
+          "start": null,
+          "length": null,
+          "line": null,
+          "col": null,
+          "code": 2318,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "cannot find global type 'Array'",
+            "code": 2318,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        },
+        {
+          "file": "",
+          "start": 0,
+          "length": 0,
+          "line": 0,
+          "col": 0,
+          "code": 2318,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "cannot find global type 'Array'",
+            "code": 2318,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": ""
+        }
+      ]
+    },
+    {
+      "name": "control-characters",
+      "fixture": "vectors/control.ts",
+      "matrix_key": "",
+      "records": [
+        {
+          "file": "control.ts",
+          "start": 3,
+          "length": 1,
+          "line": 0,
+          "col": 3,
+          "code": 2300,
+          "pass": "semantic",
+          "category": "error",
+          "chain": {
+            "text": "quote\" back\\slash tab\t nl\n cr\r nul\u0000 esc\u001b unit\u001f del end",
+            "code": 2300,
+            "category": "error",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": false,
+          "reports_deprecated": false,
+          "source": null
+        }
+      ]
+    },
+    {
+      "name": "suggestion-pass",
+      "fixture": "vectors/suggestion.ts",
+      "matrix_key": "",
+      "records": [
+        {
+          "file": "suggestion.ts",
+          "start": 12,
+          "length": 6,
+          "line": 1,
+          "col": 0,
+          "code": 6133,
+          "pass": "suggestion",
+          "category": "suggestion",
+          "chain": {
+            "text": "'unused' is declared but its value is never read",
+            "code": 6133,
+            "category": "suggestion",
+            "next": []
+          },
+          "related": [],
+          "reports_unnecessary": true,
+          "reports_deprecated": false,
+          "source": "ts"
+        }
+      ]
+    }
+  ]
+}

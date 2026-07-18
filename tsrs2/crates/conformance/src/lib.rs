@@ -16,9 +16,11 @@ use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnost
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
 pub mod goldens_diff;
+mod identity;
 pub mod ratchet;
 mod scope;
 
+pub use scope::audit as scope_audit;
 use scope::ScopeManifest;
 
 pub type ConformanceResult<T> = Result<T, Box<dyn Error>>;
@@ -192,13 +194,19 @@ pub struct ConformanceSummary {
     pub top_false_negative_codes: Vec<(u32, usize)>,
     /// M8's supported-scope view. The all-corpus fields above remain
     /// the standing visibility metric and NEW_FP=0 gate; these fields
-    /// remove only exact, reviewed oracle diagnostics from the
-    /// denominator. A disposition therefore cannot hide a neighboring
-    /// diagnostic or a false positive in the same fixture.
+    /// remove only exact, reviewed schema-2 oracle occurrences from
+    /// the denominator (measurement-integrity.md §3) — occurrence
+    /// counts, not T0 buckets. An exclusion therefore cannot hide a
+    /// neighboring diagnostic, another occurrence in the same bucket,
+    /// or a false positive in the same fixture.
     pub scope_status: String,
     pub scope_manifest_entries: usize,
     pub scope_excluded_diagnostics: usize,
     pub scope_unresolved_diagnostics: usize,
+    /// Excluded occurrences the resolution predicate (§3.2) proves
+    /// resolved: a matched singleton bucket or a matched
+    /// multiplicity-complete duplicate bucket. Such an entry must be
+    /// deleted with its tombstone; it can never satisfy readiness.
     pub scope_resolved_t0_diagnostics: usize,
     pub supported_oracle_diagnostics: usize,
     pub supported_tsrs_diagnostics: usize,
@@ -648,7 +656,10 @@ fn run_conformance_inner(
                 DiagnosticBand::Syntactic => &case_tsrs.syntactic,
                 _ => &case_tsrs.all,
             };
-            let excluded = scope.exclusions_for_case(
+            // Exact schema-2 exclusions: indices of the removed oracle
+            // RECORDS (measurement-integrity.md §3) — occurrence-level,
+            // never a whole T0 bucket unless every record is excluded.
+            let excluded_indices = scope.exclusions_for_case(
                 &fixture_key,
                 &program.matrix_key,
                 &golden_case.oracle,
@@ -664,6 +675,11 @@ fn run_conformance_inner(
                     .iter()
                     .filter(|diag| options.band.matches_oracle(diag)),
             );
+            let excluded_records = excluded_indices
+                .iter()
+                .copied()
+                .filter(|index| options.band.matches_oracle(&golden_case.oracle[*index]))
+                .collect::<Vec<_>>();
 
             let fp = actual.difference(&expected).cloned().collect::<Vec<_>>();
             let fn_ = expected.difference(&actual).cloned().collect::<Vec<_>>();
@@ -682,26 +698,49 @@ fn run_conformance_inner(
                     fn_without_partial_boundary_count += 1;
                 }
             }
+            // The selector removes exact oracle records before the
+            // supported comparison; a T0 bucket leaves the supported
+            // denominator only when every one of its records is
+            // excluded, so an exclusion can never hide a neighboring
+            // occurrence in the same bucket.
+            let (supported_expected, fully_excluded) =
+                scope::supported_case_view(&golden_case.oracle, options.band, &excluded_indices);
             let supported_actual = actual
                 .iter()
-                .filter(|key| !excluded.contains(*key))
-                .cloned()
-                .collect::<BTreeSet<_>>();
-            let supported_expected = expected
-                .iter()
-                .filter(|key| !excluded.contains(*key))
+                .filter(|key| !fully_excluded.contains(*key))
                 .cloned()
                 .collect::<BTreeSet<_>>();
             let supported_fn = supported_expected
                 .difference(&supported_actual)
                 .cloned()
                 .collect::<Vec<_>>();
-            let excluded_expected = expected
-                .intersection(&excluded)
-                .cloned()
-                .collect::<BTreeSet<_>>();
-            let resolved_excluded = excluded_expected.intersection(&actual).count();
-            let unresolved_excluded = excluded_expected.difference(&actual).count();
+            // Resolution predicate (measurement-integrity.md §3.2),
+            // per excluded occurrence: a resolved-t0 entry's
+            // disposition must be deleted with the required
+            // tombstone, and it can never satisfy readiness.
+            let mut resolved_excluded = 0usize;
+            let mut unresolved_excluded = 0usize;
+            for index in &excluded_records {
+                let bucket = t0_key(&golden_case.oracle[*index]);
+                let oracle_multiplicity = golden_case
+                    .oracle
+                    .iter()
+                    .filter(|diag| options.band.matches_oracle(diag) && t0_key(diag) == bucket)
+                    .count();
+                let tsrs_multiplicity = current
+                    .iter()
+                    .filter(|diag| options.band.contains(diag.code) && t0_key(diag) == bucket)
+                    .count();
+                if scope::occurrence_resolved(
+                    actual.contains(&bucket),
+                    oracle_multiplicity,
+                    tsrs_multiplicity,
+                ) {
+                    resolved_excluded += 1;
+                } else {
+                    unresolved_excluded += 1;
+                }
+            }
             if fp.is_empty() && fn_.is_empty() {
                 exact_match_cases += 1;
             } else {
@@ -739,20 +778,29 @@ fn run_conformance_inner(
             shadow_t3_matched += t3;
             supported_matched_t0_diagnostics +=
                 supported_expected.intersection(&supported_actual).count();
+            // Supported tiers remove exact oracle records; the tsrs
+            // side drops only fully-excluded buckets (tsrs records
+            // carry no occurrence identity). A partially excluded
+            // bucket therefore tier-matches only when tsrs emits
+            // exactly the remaining records.
             let (supported_t1, supported_t2, supported_t3) = shadow_tier_matches(
                 current.iter().filter(|diagnostic| {
                     options.band.contains(diagnostic.code)
-                        && !excluded.contains(&t0_key(diagnostic))
+                        && !fully_excluded.contains(&t0_key(diagnostic))
                 }),
-                golden_case.oracle.iter().filter(|diagnostic| {
-                    options.band.matches_oracle(diagnostic)
-                        && !excluded.contains(&t0_key(diagnostic))
-                }),
+                golden_case
+                    .oracle
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, diagnostic)| {
+                        options.band.matches_oracle(diagnostic) && !excluded_indices.contains(index)
+                    })
+                    .map(|(_, diagnostic)| diagnostic),
             );
             supported_t1_matched += supported_t1;
             supported_t2_matched += supported_t2;
             supported_t3_matched += supported_t3;
-            scope_excluded_diagnostics += excluded_expected.len();
+            scope_excluded_diagnostics += excluded_records.len();
             scope_unresolved_diagnostics += unresolved_excluded;
             scope_resolved_t0_diagnostics += resolved_excluded;
             supported_oracle_diagnostics += supported_expected.len();
