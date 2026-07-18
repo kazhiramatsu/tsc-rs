@@ -1478,8 +1478,10 @@ impl<'a> CheckerState<'a> {
             && self.contains_missing_type(target))
     }
 
-    /// containsMissingType.
-    fn contains_missing_type(&self, ty: TypeId) -> bool {
+    /// tsc-port: containsMissingType @6.0.3
+    /// tsc-hash: 7e0d6e0ae9e6bc78feeacabc1f160a8e8020b593453d55d682dd1df22ab6b6fb
+    /// tsc-span: _tsc.js:67886-67888
+    pub(crate) fn contains_missing_type(&self, ty: TypeId) -> bool {
         let missing = self.tables.intrinsics.missing;
         ty == missing
             || (self.tables.flags_of(ty).intersects(TypeFlags::UNION)
@@ -1719,8 +1721,14 @@ impl<'a> CheckerState<'a> {
         self.is_type_comparable_to(source, target)
     }
 
-    /// areTypesComparable (63928-63930).
-    fn are_types_comparable(&mut self, type1: TypeId, type2: TypeId) -> CheckResult2<bool> {
+    /// tsc-port: areTypesComparable @6.0.3
+    /// tsc-hash: 2a23b9204e724b986d5cc84fa5d232d29fc9f42520c62a9bd97b241dc5eea2dc
+    /// tsc-span: _tsc.js:63928-63930
+    pub(crate) fn are_types_comparable(
+        &mut self,
+        type1: TypeId,
+        type2: TypeId,
+    ) -> CheckResult2<bool> {
         Ok(
             self.is_type_comparable_to(type1, type2)?
                 || self.is_type_comparable_to(type2, type1)?,
@@ -1995,7 +2003,7 @@ impl<'a> CheckerState<'a> {
                     None,
                     None,
                 )?;
-                let ty = self.get_flow_type_of_destructuring(property, element_type);
+                let ty = self.get_flow_type_of_destructuring(property, element_type)?;
                 let target = if self.kind_of(property) == SyntaxKind::ShorthandPropertyAssignment {
                     property
                 } else {
@@ -2187,7 +2195,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 element_type
             };
-            let ty = self.get_flow_type_of_destructuring(element, assigned_type);
+            let ty = self.get_flow_type_of_destructuring(element, assigned_type)?;
             self.check_destructuring_assignment(element, ty, check_mode, false)?;
             return Ok(());
         }
@@ -3502,17 +3510,6 @@ impl<'a> CheckerState<'a> {
             });
         }
         Ok(self.tables.intrinsics.number)
-    }
-
-    /// getFlowTypeOfDestructuring (55892-55895): getFlowTypeOfReference
-    /// over a synthetic element access — the [FLOW M5] stub answers
-    /// the declared type, so the synthesis collapses to identity.
-    pub(crate) fn get_flow_type_of_destructuring(
-        &self,
-        _node: NodeId,
-        declared_type: TypeId,
-    ) -> TypeId {
-        declared_type
     }
 
     /// tsc-port: checkGrammarForDisallowedTrailingComma @6.0.3

@@ -1092,7 +1092,7 @@ impl<'a> CheckerState<'a> {
     /// (isSymbolAssigned, live since 6.2). The binding-pattern arm's
     /// getNarrowedTypeOfSymbol-family consumers stay escaped
     /// ([FLOW M5]).
-    fn is_constant_reference(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn is_constant_reference(&mut self, node: NodeId) -> CheckResult2<bool> {
         match self.kind_of(node) {
             SyntaxKind::ThisKeyword => Ok(true),
             SyntaxKind::Identifier => {
@@ -5177,7 +5177,7 @@ impl<'a> CheckerState<'a> {
                         None,
                     )?
                     .unwrap_or(self.tables.intrinsics.error);
-                ty = self.get_flow_type_of_destructuring(declaration, declared);
+                ty = self.get_flow_type_of_destructuring(declaration, declared)?;
             }
         } else {
             // 55984-55996: the array-pattern arm — Destructuring use,
@@ -5261,7 +5261,7 @@ impl<'a> CheckerState<'a> {
                         None,
                     )?
                     .unwrap_or(self.tables.intrinsics.error);
-                ty = self.get_flow_type_of_destructuring(declaration, declared);
+                ty = self.get_flow_type_of_destructuring(declaration, declared)?;
             } else {
                 ty = element_type;
             }

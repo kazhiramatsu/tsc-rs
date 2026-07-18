@@ -20,14 +20,15 @@
 //! resume rule stays in-file by construction — so the query pins the
 //! owning file index once.
 //!
-//! Stage state (6.3): the assignment and array-mutation arms (6.2)
-//! and the branch/loop JOINs with the loop-label fixpoint (6.3) are
+//! Stage state (6.4 COMPLETE): the assignment and array-mutation
+//! arms (6.2), the branch/loop JOINs with the loop-label fixpoint
+//! (6.3), the condition/switch-clause arms with the full narrow.rs
+//! dispatch, and the call arm with effects signatures (6.4) are all
 //! LIVE, and both caller initialType ladders are flipped
-//! (checkIdentifier + the access.rs assume-uninitialized arm). Still
-//! inert, each flagging the query (`FlowQuery::traversed_inert_arm`):
-//! - [FLOW 6.4] conditions/switch clauses pass through their
-//!   antecedent (tsc's arm with narrowType = identity); calls never
-//!   affect (no effects signatures yet).
+//! (checkIdentifier + the access.rs assume-uninitialized arm). The
+//! query flag (`FlowQuery::traversed_inert_arm`) remains as the
+//! narrow M6-deferral channel (see narrow.rs) until 6.6 retires the
+//! failure-face gates; reachability is the 6.6 true-stub.
 //!
 //! THE 6.2 SEAM (retires with the 6.4 narrowers): a query that
 //! crossed a still-inert arm reverts to the 6.1 answer (declared
@@ -111,6 +112,16 @@ pub(crate) struct FlowQuery {
     /// ladder sites; the loop-label fixpoint reads it to keep flagged
     /// results out of the cross-query flowLoopCaches memo.
     pub(crate) traversed_inert_arm: bool,
+    /// tsc getSyntheticElementAccess (55897): a destructuring query's
+    /// reference is the parse-node-factory access chain
+    /// `base["p0"]["p1"]…` with the base access's flowNode. The arena
+    /// is immutable to the checker, so the synthetic chain is DATA on
+    /// the query — `reference` holds the real BASE node and this
+    /// holds the accessed-name chain (outermost last, already
+    /// escaped). Every reference-shaped probe of the walk consults it
+    /// (matching, cache keys, the Start resume rule, the postlude
+    /// probes); None = a plain node reference.
+    pub(crate) synthetic_props: Option<Vec<String>>,
 }
 
 /// One in-progress loop-label fixpoint frame: tsc's parallel
@@ -235,6 +246,30 @@ impl<'a> CheckerState<'a> {
         flow_container: Option<NodeId>,
         flow_node: Option<FlowId>,
     ) -> CheckResult2<TypeId> {
+        self.get_flow_type_of_reference_full(
+            reference,
+            None,
+            declared_type,
+            initial_type,
+            flow_container,
+            flow_node,
+        )
+    }
+
+    /// The full-parameter body behind the plain and synthetic
+    /// (destructuring) entries; `synthetic_props` carries the
+    /// getSyntheticElementAccess chain when the reference is not a
+    /// real node.
+    /// tsrs-native: parameter split of the same tsc span.
+    fn get_flow_type_of_reference_full(
+        &mut self,
+        reference: NodeId,
+        synthetic_props: Option<Vec<String>>,
+        declared_type: TypeId,
+        initial_type: TypeId,
+        flow_container: Option<NodeId>,
+        flow_node: Option<FlowId>,
+    ) -> CheckResult2<TypeId> {
         if self.flow_analysis_disabled {
             self.flow_last_query_inert = false;
             return Ok(self.tables.intrinsics.error);
@@ -255,6 +290,7 @@ impl<'a> CheckerState<'a> {
             shared_flow_start,
             key: None,
             traversed_inert_arm: false,
+            synthetic_props,
         };
         let walk = self.get_type_at_flow_node(&mut query, flow_node);
         // sharedFlowCount = sharedFlowStart — restored BEFORE the `?`
@@ -302,10 +338,15 @@ impl<'a> CheckerState<'a> {
         // The getFlowTypeOfReference postlude (70408): an
         // evolving-array answer at an array-operation reference stays
         // autoArrayType; everything else finalizes.
+        // Synthetic destructuring references (6.4b) skip both node
+        // probes: tsc's factory node is never an array-operation
+        // target (its parent is the destructuring element) and never
+        // sits under a NonNullExpression.
         let result_type = if self
             .tables
             .object_flags_of(evolved_type)
             .intersects(tsrs2_types::ObjectFlags::EVOLVING_ARRAY)
+            && query.synthetic_props.is_none()
             && self.is_evolving_array_operation_target(query.reference)?
         {
             self.auto_array_type()?
@@ -315,9 +356,10 @@ impl<'a> CheckerState<'a> {
         if result_type == self.tables.intrinsics.unreachable_never {
             return Ok(query.declared_type);
         }
-        if self
-            .parent_of(query.reference)
-            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::NonNullExpression)
+        if query.synthetic_props.is_none()
+            && self
+                .parent_of(query.reference)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::NonNullExpression)
             && !self
                 .tables
                 .flags_of(result_type)
@@ -561,7 +603,13 @@ impl<'a> CheckerState<'a> {
                 // in the OUTER container's flow (funcexpr/arrow
                 // capture); accesses and non-arrow `this` do not.
                 if let Some(container) = self.flow_payload_node(query.file, flow) {
-                    let reference_kind = self.kind_of(query.reference);
+                    // A synthetic destructuring reference (6.4b) IS an
+                    // element access — accesses never resume outward.
+                    let reference_kind = if query.synthetic_props.is_some() {
+                        SyntaxKind::ElementAccessExpression
+                    } else {
+                        self.kind_of(query.reference)
+                    };
                     if Some(container) != query.flow_container
                         && reference_kind != SyntaxKind::PropertyAccessExpression
                         && reference_kind != SyntaxKind::ElementAccessExpression
@@ -595,9 +643,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    // ---- the arms (assignment + array mutation live since 6.2, the
-    // branch/loop joins since 6.3; the condition/switch arms stay
-    // inert and flag the query until 6.4) ----
+    // ---- the arms (assignment + array mutation live since 6.2,
+    // branch/loop joins since 6.3, conditions/switch clauses/calls
+    // since 6.4 via the narrow.rs dispatch + effects signatures) ----
 
     /// tsc-port: getTypeAtFlowAssignment @6.0.3
     /// tsc-hash: 06ef726ffa7b23b361ca0631413c45e9173551c164933920099df3bdafff5277
@@ -617,7 +665,7 @@ impl<'a> CheckerState<'a> {
         let node = self
             .flow_payload_node(query.file, flow)
             .expect("ASSIGNMENT flow nodes carry a node payload (binder flow.rs)");
-        if self.is_matching_reference(query.reference, node)? {
+        if self.is_matching_query_reference(query, node)? {
             if !self.is_reachable_flow_node(query.file, flow) {
                 return Ok(Some(FlowType::Type(
                     self.tables.intrinsics.unreachable_never,
@@ -658,7 +706,7 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(Some(FlowType::Type(t)));
         }
-        if self.contains_matching_reference(query.reference, node)? {
+        if self.contains_matching_query_reference(query, node)? {
             if !self.is_reachable_flow_node(query.file, flow) {
                 return Ok(Some(FlowType::Type(
                     self.tables.intrinsics.unreachable_never,
@@ -693,9 +741,8 @@ impl<'a> CheckerState<'a> {
                         _ => None,
                     };
                     if let Some(expression) = expression {
-                        if self.is_matching_reference(query.reference, expression)?
-                            || self
-                                .optional_chain_contains_reference(expression, query.reference)?
+                        if self.is_matching_query_reference(query, expression)?
+                            || self.optional_chain_contains_query_reference(expression, query)?
                         {
                             let antecedent = self.flow_antecedent(query.file, flow);
                             let walked = self.get_type_at_flow_node(query, antecedent)?;
@@ -711,50 +758,240 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// [FLOW 6.4] tsc getTypeAtFlowCall (70566) rides with the
-    /// narrowers (getEffectsSignature + assertion narrowing). Inert
-    /// form: no call affects the reference — tsc's own answer for
-    /// calls without an effects signature — so the walk continues to
-    /// the antecedent.
-    /// tsc-deferred: M5 (stage 6.4 — effects signatures + assertions)
+    /// tsc-port: getTypeAtFlowCall @6.0.3
+    /// tsc-hash: f240349f4e790dee94cb460c193cd1465c8cbe3d311eaec928c71be72425d7be
+    /// tsc-span: _tsc.js:70566-70587
+    ///
+    /// LIVE since 6.4f: an asserts-predicate signature narrows the
+    /// continuation (typed asserts through narrowTypeByTypePredicate,
+    /// bare `asserts x` through narrowTypeByAssertion over the
+    /// argument), a never-returning signature terminates it as
+    /// unreachable, and everything else walks the antecedent (None).
     fn get_type_at_flow_call(
         &mut self,
-        _query: &mut FlowQuery,
-        _flow: FlowId,
+        query: &mut FlowQuery,
+        flow: FlowId,
     ) -> CheckResult2<Option<FlowType>> {
+        let node = self
+            .flow_payload_node(query.file, flow)
+            .expect("CALL flow nodes carry a node payload (binder flow.rs)");
+        let Some(signature) = self.get_effects_signature(query, node)? else {
+            return Ok(None);
+        };
+        let predicate = self.get_type_predicate_of_signature(signature)?;
+        if let Some(predicate) = predicate {
+            if matches!(
+                predicate.kind,
+                crate::narrow::TypePredicateKind::AssertsThis
+                    | crate::narrow::TypePredicateKind::AssertsIdentifier
+            ) {
+                let antecedent = self.flow_antecedent(query.file, flow);
+                let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+                let ty = self.finalize_evolving_array_type(flow_type.get_type())?;
+                let narrowed_type = if predicate.ty.is_some() {
+                    self.narrow_type_by_type_predicate(query, ty, &predicate, node, true)?
+                } else if predicate.kind == crate::narrow::TypePredicateKind::AssertsIdentifier
+                    && predicate.parameter_index >= 0
+                {
+                    let arguments = match self.data_of(node) {
+                        NodeData::CallExpression(data) => data.arguments,
+                        _ => None,
+                    };
+                    let arguments: Vec<NodeId> = arguments
+                        .map(|arguments| self.binder.node_array(arguments).nodes.clone())
+                        .unwrap_or_default();
+                    match usize::try_from(predicate.parameter_index)
+                        .ok()
+                        .and_then(|index| arguments.get(index).copied())
+                    {
+                        Some(argument) => self.narrow_type_by_assertion(query, ty, argument)?,
+                        None => ty,
+                    }
+                } else {
+                    ty
+                };
+                return Ok(Some(if narrowed_type == ty {
+                    flow_type
+                } else {
+                    self.create_flow_type(narrowed_type, flow_type.is_incomplete())
+                }));
+            }
+        }
+        let return_type = self.get_return_type_of_signature(signature)?;
+        if self
+            .tables
+            .flags_of(return_type)
+            .intersects(TypeFlags::NEVER)
+        {
+            return Ok(Some(FlowType::Type(
+                self.tables.intrinsics.unreachable_never,
+            )));
+        }
         Ok(None)
     }
 
-    /// [FLOW 6.4] tsc getTypeAtFlowCondition (70614): the real arm is
-    /// narrowType over the antecedent type; until the narrowers land
-    /// this is the arm with narrowType = identity — a pass-through of
-    /// the antecedent walk. Flags the query (6.2 seam): the
-    /// pass-through answer may be wider than tsc's narrowed one, so
-    /// the query exit reverts to the 6.1 value.
-    /// tsc-deferred: M5 (stage 6.4 — narrowType dispatch)
+    /// tsc-port: getTypeAtFlowCondition @6.0.3
+    /// tsc-hash: 328e509f8b61bcb0e868b8f29358dad7ce31deb3a0166d8f907204841274c2d7
+    /// tsc-span: _tsc.js:70614-70627
+    ///
+    /// The arm is LIVE since 6.4a (the narrow_type dispatch is real;
+    /// still-stubbed sub-narrowers flag the query themselves — see
+    /// narrow.rs). A never antecedent short-circuits (dead edge), an
+    /// identity narrowing returns the antecedent's FlowType unchanged
+    /// (preserving Incomplete-ness), and a real narrowing re-wraps
+    /// with the antecedent's completeness.
     fn get_type_at_flow_condition(
         &mut self,
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult2<FlowType> {
-        query.traversed_inert_arm = true;
         let antecedent = self.flow_antecedent(query.file, flow);
-        self.get_type_at_flow_node(query, antecedent)
+        let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+        let ty = flow_type.get_type();
+        if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
+            return Ok(flow_type);
+        }
+        let assume_true = self
+            .flow_flags_of(query.file, flow)
+            .intersects(FlowFlags::TRUE_CONDITION);
+        let non_evolving_type = self.finalize_evolving_array_type(ty)?;
+        let node = self
+            .flow_payload_node(query.file, flow)
+            .expect("Condition flows carry their expression payload (binder createFlowCondition)");
+        let narrowed_type = self.narrow_type(query, non_evolving_type, node, assume_true)?;
+        if narrowed_type == non_evolving_type {
+            return Ok(flow_type);
+        }
+        Ok(self.create_flow_type(narrowed_type, flow_type.is_incomplete()))
     }
 
-    /// [FLOW 6.4] tsc getTypeAtSwitchClause (70638) narrows by the
-    /// switch discriminant; identity until the narrowers land — a
-    /// pass-through of the antecedent walk, flagging the query (6.2
-    /// seam, see get_type_at_flow_condition).
-    /// tsc-deferred: M5 (stage 6.4 — switch-clause narrowing)
+    /// tsc-port: getTypeAtSwitchClause @6.0.3
+    /// tsc-hash: 564b6446e18668e072b934f29840f999d6fad7f2513be66bb5147bc7c158c26f
+    /// tsc-span: _tsc.js:70628-70652
+    ///
+    /// LIVE since 6.4e: a matching discriminant narrows by the clause
+    /// range, a matching typeof operand by the witnesses, a `switch
+    /// (true)` by the clause conditions; otherwise the strict
+    /// optional-chain containment strips and the discriminant-
+    /// property path apply. Completeness re-wraps the antecedent's.
     fn get_type_at_switch_clause(
         &mut self,
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult2<FlowType> {
-        query.traversed_inert_arm = true;
+        let FlowPayload::SwitchClause {
+            switch_statement,
+            clause_start,
+            clause_end,
+        } = self.binder.file(query.file).flow.flow(flow).payload
+        else {
+            unreachable!("SWITCH_CLAUSE flag implies SwitchClause payload");
+        };
+        let (clause_start, clause_end) = (clause_start as usize, clause_end as usize);
+        let switch_expression = match self.data_of(switch_statement) {
+            NodeData::SwitchStatement(data) => data.expression,
+            _ => None,
+        };
         let antecedent = self.flow_antecedent(query.file, flow);
-        self.get_type_at_flow_node(query, antecedent)
+        let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+        let mut ty = flow_type.get_type();
+        let Some(switch_expression) = switch_expression else {
+            // Parser-recovery switch without an expression —
+            // unreproducible, flag (declared-type revert).
+            query.traversed_inert_arm = true;
+            return Ok(self.create_flow_type(ty, flow_type.is_incomplete()));
+        };
+        let expr = self.skip_parentheses(switch_expression);
+        if self.is_matching_query_reference(query, expr)? {
+            ty = self.narrow_type_by_switch_on_discriminant(
+                ty,
+                switch_statement,
+                clause_start,
+                clause_end,
+            )?;
+        } else if self.kind_of(expr) == SyntaxKind::TypeOfExpression
+            && match self.data_of(expr) {
+                NodeData::TypeOfExpression(data) => match data.expression {
+                    Some(operand) => self.is_matching_query_reference(query, operand)?,
+                    None => false,
+                },
+                _ => false,
+            }
+        {
+            ty = self.narrow_type_by_switch_on_type_of(
+                ty,
+                switch_statement,
+                clause_start,
+                clause_end,
+            )?;
+        } else if self.kind_of(expr) == SyntaxKind::TrueKeyword {
+            ty = self.narrow_type_by_switch_on_true(
+                query,
+                ty,
+                switch_statement,
+                clause_start,
+                clause_end,
+            )?;
+        } else {
+            if self
+                .options
+                .strict_option_value(self.options.strict_null_checks)
+            {
+                if self.optional_chain_contains_query_reference(expr, query)? {
+                    ty = self.narrow_type_by_switch_optional_chain_containment(
+                        ty,
+                        switch_statement,
+                        clause_start,
+                        clause_end,
+                        |state, t| {
+                            !state.tables.flags_of(t).intersects(TypeFlags::from_bits(
+                                TypeFlags::UNDEFINED.bits() | TypeFlags::NEVER.bits(),
+                            ))
+                        },
+                    )?;
+                } else if self.kind_of(expr) == SyntaxKind::TypeOfExpression {
+                    let operand = match self.data_of(expr) {
+                        NodeData::TypeOfExpression(data) => data.expression,
+                        _ => None,
+                    };
+                    if let Some(operand) = operand {
+                        if self.optional_chain_contains_query_reference(operand, query)? {
+                            ty = self.narrow_type_by_switch_optional_chain_containment(
+                                ty,
+                                switch_statement,
+                                clause_start,
+                                clause_end,
+                                |state, t| {
+                                    let flags = state.tables.flags_of(t);
+                                    if flags.intersects(TypeFlags::NEVER) {
+                                        return false;
+                                    }
+                                    let is_undefined_literal = flags
+                                        .intersects(TypeFlags::STRING_LITERAL)
+                                        && matches!(
+                                            &state.tables.type_of(t).data,
+                                            TypeData::Literal {
+                                                value: tsrs2_types::LiteralValue::String(value)
+                                            } if value == "undefined"
+                                        );
+                                    !is_undefined_literal
+                                },
+                            )?;
+                        }
+                    }
+                }
+            }
+            if let Some(access) = self.get_discriminant_property_access(query, expr, ty)? {
+                ty = self.narrow_type_by_switch_on_discriminant_property(
+                    ty,
+                    access,
+                    switch_statement,
+                    clause_start,
+                    clause_end,
+                )?;
+            }
+        }
+        Ok(self.create_flow_type(ty, flow_type.is_incomplete()))
     }
 
     /// An antecedent that is an EMPTY switch clause (clauseStart ==
@@ -775,19 +1012,21 @@ impl<'a> CheckerState<'a> {
             )
     }
 
-    /// tsc-deferred: M5 (stage 6.6 — switch exhaustiveness; the real
-    /// computeExhaustiveSwitchStatement needs 6.4's getTypeFacts/
-    /// getSwitchClauseTypeOfWitnesses family, and the steps doc parks
-    /// both under reachability). Conservative false = a non-never
-    /// bypass antecedent always contributes to the join, possibly
-    /// over-wide — seam-safe: the bypass walk itself crosses the
-    /// still-inert switch-clause arm, so every such query is flagged
-    /// and reverts at exit until the arm goes live.
+    /// The branch-label bypass consult — REAL since 6.4e (the
+    /// conservative-false stub became observable the moment the
+    /// switch-clause arm went live; narrow.rs carries the pulled-
+    /// forward isExhaustiveSwitchStatement/compute pair, and its
+    /// remaining consumers — unreachable code, implicit returns —
+    /// stay 6.6).
+    /// tsrs-native: Option shim over the narrow.rs port.
     fn is_exhaustive_switch_statement(
         &mut self,
-        _switch_statement: Option<NodeId>,
+        switch_statement: Option<NodeId>,
     ) -> CheckResult2<bool> {
-        Ok(false)
+        match switch_statement {
+            Some(switch_statement) => self.is_exhaustive_switch_statement_real(switch_statement),
+            None => Ok(false),
+        }
     }
 
     /// tsc-port: getTypeAtFlowBranchLabel @6.0.3
@@ -1001,12 +1240,20 @@ impl<'a> CheckerState<'a> {
         if let Some(key) = &query.key {
             return Ok(key.clone());
         }
-        let key = self.get_flow_cache_key(
+        let base_key = self.get_flow_cache_key(
             query.reference,
             query.declared_type,
             query.initial_type,
             query.flow_container,
         )?;
+        // A synthetic destructuring chain keys as tsc's synthetic
+        // node does: the base access's key with each accessed name
+        // appended (getFlowCacheKey's access arm per level).
+        let key = match (&query.synthetic_props, base_key) {
+            (Some(props), Some(base_key)) => Some(format!("{base_key}.{}", props.join("."))),
+            (Some(_), None) => None,
+            (None, base_key) => base_key,
+        };
         query.key = Some(key.clone());
         Ok(key)
     }
@@ -1242,7 +1489,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let candidate = self.get_reference_candidate(expr);
-        if !self.is_matching_reference(query.reference, candidate)? {
+        if !self.is_matching_query_reference(query, candidate)? {
             return Ok(None);
         }
         let antecedent = self.flow_antecedent(query.file, flow);
@@ -1301,7 +1548,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:70495-70501
     fn get_initial_or_assigned_type(
         &mut self,
-        query: &FlowQuery,
+        query: &mut FlowQuery,
         node: NodeId,
     ) -> CheckResult2<TypeId> {
         let ty = if matches!(
@@ -1312,6 +1559,23 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_assigned_type(node)?
         };
+        if query.synthetic_props.is_some() {
+            // tsc probes the synthetic node's shape here
+            // (isConstraintPosition on its parent = the destructuring
+            // element, contextual-type probes on the synthetic
+            // access): both come out false for the factory node, so
+            // the substitution never applies and tsc's answer is
+            // `ty`. The one probe we cannot mirror node-free is the
+            // synthetic access's contextual type — flag the rare
+            // generic-union-constraint candidates instead of guessing
+            // (declared-type revert, FP-safe).
+            if self.some_type_result(ty, |state, t| {
+                state.is_generic_type_with_union_constraint(t)
+            })? {
+                query.traversed_inert_arm = true;
+            }
+            return Ok(ty);
+        }
         self.get_narrowable_type_for_reference(ty, query.reference, CheckMode::NORMAL)
     }
 
@@ -1750,7 +2014,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: optionalChainContainsReference @6.0.3
     /// tsc-hash: 65b554fad85a6151c57fa295260765fcf8a0e52832d14a47c42a10e076d4205c
     /// tsc-span: _tsc.js:69553-69561
-    fn optional_chain_contains_reference(
+    pub(crate) fn optional_chain_contains_reference(
         &mut self,
         source: NodeId,
         target: NodeId,
@@ -2179,6 +2443,307 @@ impl<'a> CheckerState<'a> {
     // ---- isMatchingReference — narrowing's identity gate ----
 }
 
+/// The DESTRUCTURING FLOW ENTRY (6.4b): tsc resolves the type of a
+/// destructured element by flow-querying a parse-node-factory
+/// synthetic access chain `base["p0"]…` carrying the base access's
+/// flowNode. The checker cannot allocate nodes, so the chain is query
+/// DATA (`FlowQuery::synthetic_props`) and every reference-shaped
+/// probe of the walk goes through the `*_query_reference` wrappers
+/// below.
+impl<'a> CheckerState<'a> {
+    /// tsc-port: getFlowTypeOfDestructuring @6.0.3
+    /// tsc-hash: 59207005b9e8dbd8b079ce8e0f0701387c7c0c46c2a46dbe860407759dea31ac
+    /// tsc-span: _tsc.js:55892-55895
+    ///
+    /// Live since 6.4b (the [FLOW M5] identity stub retired with the
+    /// narrowers): no synthesizable reference means the declared type,
+    /// exactly tsc's fallback.
+    pub(crate) fn get_flow_type_of_destructuring(
+        &mut self,
+        node: NodeId,
+        declared_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let Some((base, props)) = self.synthetic_element_access_chain(node)? else {
+            return Ok(declared_type);
+        };
+        let flow_node = self.flow_node_of(base);
+        self.get_flow_type_of_reference_full(
+            base,
+            Some(props),
+            declared_type,
+            declared_type,
+            None,
+            flow_node,
+        )
+    }
+
+    /// tsc-port: getSyntheticElementAccess @6.0.3
+    /// tsc-hash: 91b4a90678ee5656dc24899f0ca95842e3a91a02fd98e8af1fee89db006bb8d0
+    /// tsc-span: _tsc.js:55896-55913
+    ///
+    /// Returns the chain encoding of tsc's synthetic node: the real
+    /// BASE expression plus the accessed-name path (outermost last,
+    /// escaped — the factory's string literal reads back through
+    /// getAccessedPropertyName as an escaped name). tsc gates on the
+    /// parent access carrying a flowNode; nested synthetic parents
+    /// inherit the base's, so the chain gate is flow_node_of(base) —
+    /// checked per level here (a REAL parent access without a flow
+    /// node bails exactly like tsc's canHaveFlowNode miss).
+    fn synthetic_element_access_chain(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<Option<(NodeId, Vec<String>)>> {
+        let Some((base, mut props)) = self.parent_element_access_chain(node)? else {
+            return Ok(None);
+        };
+        if self.flow_node_of(base).is_none() {
+            return Ok(None);
+        }
+        let Some(prop_name) = self.get_destructuring_property_name(node)? else {
+            return Ok(None);
+        };
+        props.push(tsrs2_syntax::escape_leading_underscores(&prop_name));
+        Ok(Some((base, props)))
+    }
+
+    /// tsc-port: getParentElementAccess @6.0.3
+    /// tsc-hash: abde7d7ff460d0e6b275661e9a4ab27f2aeed2c63fbf60b56b4ba926e66e4b30
+    /// tsc-span: _tsc.js:55914-55927
+    ///
+    /// The parent-access chain of a destructuring element: nested
+    /// binding elements / property assignments recurse (another
+    /// synthetic level), an enclosing array literal recurses on the
+    /// literal itself, and the roots are the declaration initializer
+    /// or the assignment RHS (real nodes, empty chain).
+    fn parent_element_access_chain(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<Option<(NodeId, Vec<String>)>> {
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(None);
+        };
+        let Some(ancestor) = self.parent_of(parent) else {
+            return Ok(None);
+        };
+        match self.kind_of(ancestor) {
+            SyntaxKind::BindingElement | SyntaxKind::PropertyAssignment => {
+                self.synthetic_element_access_chain(ancestor)
+            }
+            SyntaxKind::ArrayLiteralExpression => self.synthetic_element_access_chain(parent),
+            SyntaxKind::VariableDeclaration => {
+                let initializer = match self.data_of(ancestor) {
+                    NodeData::VariableDeclaration(data) => data.initializer,
+                    _ => None,
+                };
+                Ok(initializer.map(|initializer| (initializer, Vec::new())))
+            }
+            SyntaxKind::BinaryExpression => {
+                let right = match self.data_of(ancestor) {
+                    NodeData::BinaryExpression(data) => data.right,
+                    _ => None,
+                };
+                Ok(right.map(|right| (right, Vec::new())))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// tsc isMatchingReference with the QUERY's reference as source —
+    /// the single entry every walk/narrower site uses, so a synthetic
+    /// destructuring chain matches exactly like tsc's synthetic node.
+    /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    pub(crate) fn is_matching_query_reference(
+        &mut self,
+        query: &FlowQuery,
+        target: NodeId,
+    ) -> CheckResult2<bool> {
+        match &query.synthetic_props {
+            None => self.is_matching_reference(query.reference, target),
+            Some(props) => {
+                let props = props.clone();
+                self.is_matching_synthetic_chain(query.reference, &props, target)
+            }
+        }
+    }
+
+    /// tsc isMatchingReference (69448) with source = the synthetic
+    /// chain `base[p0]…[pn]`: the target-side unwrap arms mirror the
+    /// plain port; the source access arm compares the outermost chain
+    /// name against the target's accessed name and recurses on the
+    /// receivers (an empty chain IS the base — plain matching).
+    /// tsrs-native: chain-encoded source arm of the same tsc span.
+    fn is_matching_synthetic_chain(
+        &mut self,
+        base: NodeId,
+        props: &[String],
+        target: NodeId,
+    ) -> CheckResult2<bool> {
+        let Some((outer, receiver_props)) = props.split_last() else {
+            return self.is_matching_reference(base, target);
+        };
+        match self.kind_of(target) {
+            SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
+                let inner = match self.data_of(target) {
+                    NodeData::ParenthesizedExpression(data) => data.expression,
+                    NodeData::NonNullExpression(data) => data.expression,
+                    _ => None,
+                };
+                match inner {
+                    Some(inner) => self.is_matching_synthetic_chain(base, props, inner),
+                    None => Ok(false),
+                }
+            }
+            SyntaxKind::BinaryExpression => {
+                if let NodeData::BinaryExpression(data) = self.data_of(target) {
+                    let (left, right, operator) = (data.left, data.right, data.operator_token);
+                    if let (Some(left), Some(operator)) = (left, operator) {
+                        if node_util::is_assignment_operator(self.kind_of(operator))
+                            && self.is_matching_synthetic_chain(base, props, left)?
+                        {
+                            return Ok(true);
+                        }
+                    }
+                    if let (Some(right), Some(operator)) = (right, operator) {
+                        if self.kind_of(operator) == SyntaxKind::CommaToken
+                            && self.is_matching_synthetic_chain(base, props, right)?
+                        {
+                            return Ok(true);
+                        }
+                    }
+                }
+                Ok(false)
+            }
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                let Some(target_name) = self.get_accessed_property_name(target)? else {
+                    return Ok(false);
+                };
+                if &target_name != outer {
+                    return Ok(false);
+                }
+                let receiver = match self.data_of(target) {
+                    NodeData::PropertyAccessExpression(data) => data.expression,
+                    NodeData::ElementAccessExpression(data) => data.expression,
+                    _ => None,
+                };
+                match receiver {
+                    Some(receiver) => {
+                        self.is_matching_synthetic_chain(base, receiver_props, receiver)
+                    }
+                    None => Ok(false),
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// tsc containsMatchingReference with the QUERY's reference as
+    /// source: the synthetic chain strips one level at a time (each
+    /// prefix is "contained"), then continues into the real base.
+    /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    pub(crate) fn contains_matching_query_reference(
+        &mut self,
+        query: &FlowQuery,
+        target: NodeId,
+    ) -> CheckResult2<bool> {
+        let Some(props) = query.synthetic_props.clone() else {
+            return self.contains_matching_reference(query.reference, target);
+        };
+        for len in (1..props.len()).rev() {
+            if self.is_matching_synthetic_chain(query.reference, &props[..len], target)? {
+                return Ok(true);
+            }
+        }
+        if self.is_matching_reference(query.reference, target)? {
+            return Ok(true);
+        }
+        self.contains_matching_reference(query.reference, target)
+    }
+
+    /// tsc getAccessedPropertyName(reference), synthetic-aware: the
+    /// chain's outermost name IS the accessed name of tsc's factory
+    /// node.
+    /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    pub(crate) fn query_reference_accessed_property_name(
+        &mut self,
+        query: &FlowQuery,
+    ) -> CheckResult2<Option<String>> {
+        match &query.synthetic_props {
+            Some(props) => Ok(props.last().cloned()),
+            None => self.get_accessed_property_name(query.reference),
+        }
+    }
+
+    /// tsc isAccessExpression(reference), synthetic-aware (the
+    /// factory node is an ElementAccessExpression).
+    /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    pub(crate) fn query_reference_is_access(&self, query: &FlowQuery) -> bool {
+        match &query.synthetic_props {
+            Some(props) => !props.is_empty(),
+            None => matches!(
+                self.kind_of(query.reference),
+                SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+            ),
+        }
+    }
+
+    /// tsc isMatchingReference(reference.expression, target) for an
+    /// access-shaped reference, synthetic-aware (the chain minus its
+    /// outermost name is the receiver).
+    /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    pub(crate) fn query_reference_receiver_matches(
+        &mut self,
+        query: &FlowQuery,
+        target: NodeId,
+    ) -> CheckResult2<bool> {
+        match &query.synthetic_props {
+            Some(props) => {
+                let props = props.clone();
+                let receiver = &props[..props.len().saturating_sub(1)];
+                self.is_matching_synthetic_chain(query.reference, receiver, target)
+            }
+            None => match self.access_expression_of(query.reference) {
+                Some(receiver) => self.is_matching_reference(receiver, target),
+                None => Ok(false),
+            },
+        }
+    }
+
+    /// tsc optionalChainContainsReference with the QUERY's reference
+    /// on the reference side (tsc passes it as isMatchingReference's
+    /// SOURCE); plain queries keep the vetted node helper.
+    /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    pub(crate) fn optional_chain_contains_query_reference(
+        &mut self,
+        source: NodeId,
+        query: &FlowQuery,
+    ) -> CheckResult2<bool> {
+        let Some(props) = query.synthetic_props.clone() else {
+            return self.optional_chain_contains_reference(source, query.reference);
+        };
+        let mut source = source;
+        loop {
+            let file_source = self.binder.source_of_node(source);
+            if !node_util::is_optional_chain(file_source, source) {
+                return Ok(false);
+            }
+            let next = match self.data_of(source) {
+                NodeData::PropertyAccessExpression(data) => data.expression,
+                NodeData::ElementAccessExpression(data) => data.expression,
+                NodeData::CallExpression(data) => data.expression,
+                NodeData::NonNullExpression(data) => data.expression,
+                _ => None,
+            };
+            let Some(next) = next else {
+                return Ok(false);
+            };
+            source = next;
+            if self.is_matching_synthetic_chain(query.reference, &props, source)? {
+                return Ok(true);
+            }
+        }
+    }
+}
+
 /// The 6.1 PRELUDE UNIT (m5-flow-steps.md: isMatchingReference +
 /// getAccessedPropertyName move up from the old 6.5 slot): ported
 /// complete and DIRECT per checker-key §4.6, consumed from 6.2 on by
@@ -2407,7 +2972,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: binder node_symbol read behind the declaration
     /// merge (isMatchingReference compares against the export-mapped
     /// merged symbol, so the declaration side merges too).
-    fn get_symbol_of_declaration_opt(&self, declaration: NodeId) -> Option<SymbolId> {
+    pub(crate) fn get_symbol_of_declaration_opt(&self, declaration: NodeId) -> Option<SymbolId> {
         self.binder
             .node_symbol(declaration)
             .map(|symbol| self.get_merged_symbol(symbol))
@@ -2434,7 +2999,7 @@ impl<'a> CheckerState<'a> {
 
     /// The escaped text of an identifier-like name node.
     /// tsrs-native: NodeData accessor.
-    fn escaped_text_of(&self, node: Option<NodeId>) -> Option<&str> {
+    pub(crate) fn escaped_text_of(&self, node: Option<NodeId>) -> Option<&str> {
         let node = node?;
         match self.data_of(node) {
             NodeData::Identifier(data) => Some(data.escaped_text.as_str()),
@@ -2496,7 +3061,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryGetNameFromType @6.0.3
     /// tsc-hash: 7a5ee7d20b95577c6e5e15f5c17f14c80d0ed861a6e6f060938a60e33cd9f671
     /// tsc-span: _tsc.js:69509-69511
-    fn try_get_name_from_type(&self, ty: TypeId) -> Option<String> {
+    pub(crate) fn try_get_name_from_type(&self, ty: TypeId) -> Option<String> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
             if let TypeData::UniqueESSymbol { escaped_name } = &self.tables.type_of(ty).data {
@@ -2691,6 +3256,12 @@ impl<'a> CheckerState<'a> {
         let elements = match self.data_of(parent) {
             NodeData::ArrayBindingPattern(data) => data.elements,
             NodeData::ObjectBindingPattern(data) => data.elements,
+            // The assignment-destructuring form: an array-literal
+            // element's name is its position (`parent.elements`
+            // covers both pattern and literal parents in tsc; the
+            // 6.4b getFlowTypeOfDestructuring un-stub is the first
+            // caller to reach the literal shape).
+            NodeData::ArrayLiteralExpression(data) => data.elements,
             _ => None,
         };
         let Some(elements) = elements else {

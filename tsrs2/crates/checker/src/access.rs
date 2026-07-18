@@ -2409,7 +2409,10 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    fn get_symbol_for_private_identifier_expression(
+    /// tsc-port: getSymbolForPrivateIdentifierExpression @6.0.3
+    /// tsc-hash: 59d826bbd61e0b9323f6c244add95d7aaaf10a684b78f8a1f0f1bffee8170c29
+    /// tsc-span: _tsc.js:75126-75135
+    pub(crate) fn get_symbol_for_private_identifier_expression(
         &mut self,
         priv_id: NodeId,
     ) -> CheckResult2<Option<SymbolId>> {

@@ -24,6 +24,7 @@ pub mod links;
 pub mod literals;
 pub mod merge;
 pub mod modules;
+pub mod narrow;
 pub mod operators;
 mod plain_js_errors;
 pub mod program;
@@ -2341,28 +2342,25 @@ mod tests {
 
     #[test]
     fn partial_flow_check_does_not_hide_unrelated_unused_expect_error() {
-        // The straight-line 2454 is REAL since 6.2; the seam partial
-        // now lives on join/condition-crossing queries only. A
-        // branch-dependent use stays partial-marked (see the runtime
-        // trigger pin below) without hiding the unrelated 2578.
+        // The branch-dependent 2454 is REAL since 6.4b (the condition
+        // arm is live and a plain boolean guard narrows nothing) and
+        // no longer hides the unrelated 2578.
         assert_eq!(
             codes_of(
                 "declare const c: boolean;\nlet x: number;\nif (c) { x = 1; }\nx;\n// @ts-expect-error\nconst y = 1;\n"
             ),
-            [2578]
+            [2454, 2578]
         );
     }
 
     #[test]
-    fn partial_flow_check_records_its_runtime_trigger() {
-        // The if-without-else join is LIVE since 6.3, but its
-        // false-edge antecedent walks through the if's FalseCondition
-        // node — the still-inert 6.4 condition arm — so the oracle's
-        // 2454 stays undecidable and the position partial-marks with
-        // the seam reason. The straight-line form (`let x: number;
-        // x;`) reports the REAL 2454 since 6.2 (pinned in expr.rs);
-        // the condition-free join form (try/catch) reports it since
-        // 6.3 (pinned below).
+    fn condition_join_reports_use_before_assignment() {
+        // 6.4b flip of the old seam pin: the if-without-else join AND
+        // the condition arm are live, and a plain boolean guard
+        // narrows nothing — the join computes the REAL number ∪
+        // (number | undefined) and the ladder's 2454 fires like
+        // tsc's. (The straight-line form reports since 6.2, the
+        // condition-free try/catch join since 6.3 — pinned below.)
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -2380,7 +2378,69 @@ mod tests {
                 .iter()
                 .map(|d| d.code())
                 .collect::<Vec<_>>(),
+            [2454]
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn const_variable_guard_inlines_into_the_condition() {
+        // narrowType's Identifier arm (6.4h): `if (isStr)` narrows x
+        // through the const's initializer (`typeof x === "string"`),
+        // so the fs(x) argument checks clean — no diagnostic and no
+        // containment (pre-6.4h the inline conditions flagged the
+        // query and the failed-argument gate partial-marked).
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare function fs(s: string): void;\ndeclare const x: string | number;\nconst isStr = typeof x === \"string\";\nif (isStr) { fs(x); }\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
             Vec::<u32>::new()
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn partial_flow_check_records_its_runtime_trigger() {
+        // The seam's runtime trigger, retargeted at the LAST
+        // still-unported narrowing family (6.4f): an annotation-free
+        // boolean-returning function with parameters could carry a
+        // TS 5.5 BODY-INFERRED predicate in tsc
+        // (getTypePredicateFromBody, M6-adjacent) — a guard call
+        // whose argument IS the reference flags the query through
+        // get_effects_signature, the oracle's 2454 on the trailing
+        // use stays undecidable, and the position partial-marks. The
+        // ARGUMENT use reports its straight-line 2454 for real (both
+        // sides agree). Rewrite when body inference lands.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "function f(v: unknown) { return !!v; }\nlet x: number;\nif (f(x)) { x = 1; }\nx;\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            [2454]
         );
         assert_eq!(result.partial_checks.len(), 1);
         assert_eq!(result.partial_checks[0].file_name, "a.ts");
@@ -2391,19 +2451,48 @@ mod tests {
     }
 
     #[test]
-    fn partial_flow_check_marks_join_dependent_implicit_any() {
-        // An auto-typed variable whose flow query crosses the if's
-        // FalseCondition edge (the still-inert 6.4 condition arm; the
-        // 6.3 join itself is live): the seam converts the declared
-        // auto to any, suppressing BOTH possible oracle answers (the
-        // 7034 pair or a narrowed union) — the position partial-marks
-        // so an @ts-expect-error over the suppressed row cannot
-        // misreport as unused (2578), mirroring the 2454 seam pin
-        // above.
+    fn join_dependent_auto_type_resolves_without_implicit_any() {
+        // 6.4b flip of the old implicit-any seam pin: with the
+        // condition arm live, the auto-typed join computes number |
+        // undefined for real — no implicit-any diagnostic and no
+        // partial mark, like tsc.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
                 text: "declare const c: boolean;\nlet x;\nif (c) { x = 1; }\nx;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn partial_flow_check_marks_join_dependent_implicit_any() {
+        // The implicit-any seam trigger, retargeted like the 2454 one
+        // above (6.4f): an auto-typed variable whose flow query
+        // crosses a body-inference-candidate guard call (with the
+        // reference as argument) is flagged, the seam converts the
+        // declared auto to any, suppressing BOTH possible oracle
+        // answers (the 7034 pair or a narrowed union), and the
+        // position partial-marks so an @ts-expect-error over the
+        // suppressed row cannot misreport as unused (2578). Rewrite
+        // when body inference lands.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "function f(v: unknown) { return !!v; }\nlet x;\nif (f(x)) { x = 1; }\nx;\n"
+                    .to_owned(),
             }],
             &CompilerOptions {
                 strict: Some(true),
@@ -2493,9 +2582,12 @@ mod tests {
         // (an antecedent equal to the declared type stops the walk) —
         // AND today's report surface: the failed-argument [FLOW M5]
         // gate still contains the true positive (x is narrowable and
-        // the loop-reaching `x = 1` is a related narrowing construct),
-        // so the 2345 stays a partial mark until the gate retires with
-        // the 6.4 narrowers. Flip this pin to assert [2345] then.
+        // the loop-reaching `x = 1` is a related narrowing construct).
+        // The 6.4 narrowers landed WITHOUT retiring the gate — it
+        // still shields the 6.6 reachability true-stub's dead-code
+        // divergence (m5-flow-steps.md 6.4 landing note) — so the
+        // 2345 stays a partial mark until 6.6. Flip this pin to
+        // assert [2345] then.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -2606,20 +2698,53 @@ mod tests {
     }
 
     #[test]
-    fn flagged_loop_fixpoint_is_not_memoized_across_queries() {
-        // The flowLoopCaches seam guard, pinned DIRECTLY: both `x;`
-        // uses share the loop label AND the flow cache key. Each
-        // query's back-edge pull crosses the if's FalseCondition (the
-        // still-inert 6.4 condition arm) — flagged, so the fixpoint
-        // must NOT enter flowLoopCaches. If the first query's result
-        // leaked into the memo, the second query would hit it, skip
-        // the walk (and the flag), and its over-wide union (the
-        // initial number | undefined) would bypass the seam revert —
-        // observable as the second position losing its partial mark.
+    fn loop_fixpoint_reports_2454_through_live_conditions() {
+        // 6.4b: the fixpoint through a LIVE (non-narrowing) boolean
+        // condition computes the real per-use unions — both loop uses
+        // report 2454 like tsc, nothing partial-marks, and the
+        // second query may legitimately hit flowLoopCaches (same
+        // key, unflagged).
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
                 text: "declare const cond: boolean;\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (cond) { x = 1; }\n}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            [2454, 2454]
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn flagged_loop_fixpoint_is_not_memoized_across_queries() {
+        // The flowLoopCaches seam guard, pinned DIRECTLY: both `x;`
+        // uses share the loop label AND the flow cache key. Each
+        // query's back-edge pull crosses the if's condition, whose
+        // guard call is a body-inference candidate with the
+        // reference as argument (see the runtime-trigger pin) —
+        // flagged, so the fixpoint must NOT enter flowLoopCaches. If
+        // the first query's result leaked into the memo, the second
+        // query would hit it, skip the walk (and the flag), and its
+        // over-wide union (the initial number | undefined) would
+        // bypass the seam revert — observable as the second position
+        // losing its partial mark. The guard ARGUMENT's own query
+        // crosses the back edge too and partial-marks third. Rewrite
+        // when body inference lands (the guard itself retires at
+        // 6.4h).
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "function f(v: unknown) { return !!v; }\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (f(x)) { x = 1; }\n}\n".to_owned(),
             }],
             &CompilerOptions {
                 strict: Some(true),
@@ -2641,6 +2766,7 @@ mod tests {
                 .map(|p| p.reason.as_str())
                 .collect::<Vec<_>>(),
             [
+                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
                 "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
                 "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)"
             ]

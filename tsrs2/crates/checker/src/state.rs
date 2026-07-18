@@ -436,6 +436,9 @@ pub struct CheckerState<'a> {
     /// tsc deferredGlobalNonNullableTypeAlias: None = uncomputed,
     /// Some(None) = miss (unknownSymbol memo), Some(Some(_)) = alias.
     pub(crate) deferred_global_non_nullable_type_alias: Option<Option<SymbolId>>,
+    /// tsc deferredGlobalRecordSymbol (61016): the `in`-narrowing
+    /// unknown-widening alias, memoized like NonNullable above.
+    pub(crate) deferred_global_record_symbol: Option<Option<SymbolId>>,
     /// tsc deferredGlobalAwaitedSymbol (60927): None = uncomputed;
     /// the reportErrors=true miss memoizes unknownSymbol (Some(Some(
     /// unknown_symbol)) — the getter filters it back to None).
@@ -503,6 +506,30 @@ pub struct CheckerState<'a> {
     pub(crate) flow_type_cache: Option<std::collections::HashMap<NodeId, TypeId>>,
     /// tsc flowInvocationCount (47400).
     pub(crate) flow_invocation_count: u32,
+    /// tsc inlineLevel (46453): the const-variable guard-inlining
+    /// recursion depth of narrowType's Identifier arm (checker-scope
+    /// in tsc, NOT per-query — a nested flow query inherits the
+    /// in-progress depth).
+    pub(crate) inline_level: u32,
+    /// tsc links.switchTypes (getSwitchClauseTypes 69938) — state-side
+    /// (links writes are speculation-guarded; this cache is a stable
+    /// per-switch type list, written only on full success).
+    pub(crate) switch_types_cache: std::collections::HashMap<NodeId, Vec<TypeId>>,
+    /// tsc links.isExhaustive settled verdicts (isExhaustiveSwitchStatement
+    /// 78920) — state-side for the same reason.
+    pub(crate) exhaustive_switch_cache: std::collections::HashMap<NodeId, bool>,
+    /// tsc links.isExhaustive === 0 (the in-progress marker): a
+    /// re-entrant computation of the same switch settles FALSE (the
+    /// cycle protocol); unwound entries are removed before the error
+    /// escapes (the unwind invariant).
+    pub(crate) exhaustive_switch_computing: std::collections::HashSet<NodeId>,
+    /// tsc links.effectsSignature (getEffectsSignature 70195) —
+    /// state-side; None IS the memoized unknownSignature verdict.
+    pub(crate) effects_signature_cache: std::collections::HashMap<NodeId, Option<SignatureId>>,
+    /// tsc signature.resolvedTypePredicate (getTypePredicateOfSignature
+    /// 59765) — state-side; None IS the memoized noTypePredicate.
+    pub(crate) resolved_type_predicates:
+        std::collections::HashMap<SignatureId, Option<crate::narrow::TypePredicate>>,
     /// tsrs-native temporary [FLOW M5] containment index. It caches
     /// syntax candidates only (per source and nearest function scope),
     /// so each failed diagnostic need not walk the whole source again.
@@ -731,6 +758,7 @@ impl<'a> CheckerState<'a> {
             suggestion_count: 0,
             init_global_type_probes: std::collections::HashMap::new(),
             deferred_global_non_nullable_type_alias: None,
+            deferred_global_record_symbol: None,
             deferred_global_awaited_symbol: None,
             awaited_type_stack: Vec::new(),
             deferred_global_omit_symbol: None,
@@ -748,6 +776,12 @@ impl<'a> CheckerState<'a> {
             flow_loop_stack: Vec::new(),
             flow_type_cache: None,
             flow_invocation_count: 0,
+            inline_level: 0,
+            switch_types_cache: std::collections::HashMap::new(),
+            exhaustive_switch_cache: std::collections::HashMap::new(),
+            exhaustive_switch_computing: std::collections::HashSet::new(),
+            effects_signature_cache: std::collections::HashMap::new(),
+            resolved_type_predicates: std::collections::HashMap::new(),
             flow_containment_indexes: Default::default(),
             js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),

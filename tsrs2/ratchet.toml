@@ -26,8 +26,17 @@
 # m5 6.3: +6 — branch/loop joins + the loop fixpoint; condition-free
 # join topologies only (try/catch, while(true), for-in/of back
 # edges) — condition-crossing queries stay seam-reverted until 6.4.
-rate = 0.503039
-matched = 24661
+# m5 6.4: +323 — the narrowers a-h: live condition/switch arms +
+# narrowType dispatch, truthiness (+ destructuring synthetic
+# references), equality/instanceof/in, typeof, switch narrowers (+
+# exhaustiveness pulled forward), effects signatures + type
+# predicates + getTypeAtFlowCall, optionality, const-inlining. The
+# seam flag survives as the narrow M6-deferral channel
+# (body-inference predicate candidates); the [FLOW M5] failure-face
+# gates stay until 6.6 closes reachability (they still shield its
+# dead-code divergence).
+rate = 0.509628
+matched = 24984
 total = 49024
 allowed_regression = 0.0
 
@@ -43,8 +52,9 @@ allowed_regression = 0.0
 # (12 enumerated lapses; 2856 rows and interop recoveries).
 # m5 6.2: +3684 with flow assignments + evolving arrays.
 # m5 6.3: +4 with the joins/fixpoint (condition-free topologies).
-rate = 0.704907
-matched = 14839
+# m5 6.4: +323 with the narrowers a-h.
+rate = 0.720251
+matched = 15162
 total = 21051
 allowed_regression = 0.0
 

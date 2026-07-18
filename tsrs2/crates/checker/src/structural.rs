@@ -2133,8 +2133,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             result = ternary_and(result, related);
         }
-        self.st.get_type_predicate_of_signature(source)?;
-        self.st.get_type_predicate_of_signature(target)?;
+        self.st.type_predicate_signature_relation_gate(source)?;
+        self.st.type_predicate_signature_relation_gate(target)?;
         if ignore_return_types {
             return Ok(result);
         }
@@ -2306,8 +2306,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 };
                 let callbacks = match (source_sig, target_sig) {
                     (Some(source_sig), Some(target_sig)) => {
-                        self.st.get_type_predicate_of_signature(source_sig)?;
-                        self.st.get_type_predicate_of_signature(target_sig)?;
+                        self.st.type_predicate_signature_relation_gate(source_sig)?;
+                        self.st.type_predicate_signature_relation_gate(target_sig)?;
                         self.st.undefined_null_facts(source_type)
                             == self.st.undefined_null_facts(target_type)
                     }
@@ -2397,8 +2397,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 self.st.get_return_type_of_signature(source)?
             };
             // Type predicates report Unsupported until M5.
-            self.st.get_type_predicate_of_signature(target)?;
-            self.st.get_type_predicate_of_signature(source)?;
+            self.st.type_predicate_signature_relation_gate(target)?;
+            self.st.type_predicate_signature_relation_gate(source)?;
             let bivariant = if check_mode & check_mode::BIVARIANT_CALLBACK != 0 {
                 self.is_related_to(
                     target_return_type,
@@ -4956,11 +4956,19 @@ impl<'a> CheckerState<'a> {
         Ok(Some(self.get_type_of_symbol(this_parameter)?))
     }
 
-    /// The type-predicate gate: predicate-shaped return annotations
-    /// (createTypePredicateFromTypePredicateNode) are M5 narrowing
-    /// machinery; signatures carrying them report Unsupported instead
-    /// of comparing as plain booleans.
-    pub fn get_type_predicate_of_signature(&mut self, signature: SignatureId) -> CheckResult2<()> {
+    /// The type-predicate RELATION gate: signature comparison over
+    /// predicate-shaped return annotations is compareTypePredicate-
+    /// RelatedTo (M6 relations); signatures carrying them report
+    /// Unsupported instead of comparing as plain booleans. (The
+    /// narrowing-side materialization is live since 6.4f —
+    /// narrow.rs get_type_predicate_of_signature — and does NOT
+    /// retire this comparison gate.)
+    /// tsrs-native: M6-deferral containment gate (no tsc counterpart;
+    /// the escape row is the ledger surface).
+    pub fn type_predicate_signature_relation_gate(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<()> {
         let Some(declaration) = self.signature_of(signature).declaration else {
             // Synthesized signatures (default constructors) carry no
             // predicate.
