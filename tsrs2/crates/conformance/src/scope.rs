@@ -1171,7 +1171,11 @@ fn resolve_anchor(root: &Path, recorded: &str, what: &str) -> ConformanceResult<
     Ok(commit)
 }
 
-fn is_ancestor(root: &Path, ancestor: &str, descendant: &str) -> ConformanceResult<bool> {
+pub(crate) fn is_ancestor(
+    root: &Path,
+    ancestor: &str,
+    descendant: &str,
+) -> ConformanceResult<bool> {
     let output = Command::new("git")
         .arg("-C")
         .arg(root)

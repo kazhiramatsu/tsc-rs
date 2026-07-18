@@ -83,6 +83,18 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("families") => match args.next().as_deref() {
+            Some("check") => run_or_exit(families_check(args)),
+            Some("report") => run_or_exit(families_report(args)),
+            Some(other) => {
+                eprintln!("unknown families command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing families command (check|report)");
+                std::process::exit(2);
+            }
+        },
         Some("ledger") => match args.next().as_deref() {
             Some("check") => run_or_exit(ledger_check()),
             Some("write-backlog") => run_or_exit(ledger_write_backlog()),
@@ -1912,6 +1924,53 @@ fn scope_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         }
     }
     tsrs2_conformance::scope_audit(&find_tsrs2_root()?, baseline.as_deref())
+}
+
+/// `cargo xtask families check [--baseline <trusted-ref>]`: the A5
+/// family-map audit (measurement-integrity.md §5) — map structure and
+/// the exactly-once domain over every corpus-exercised non-2XXX
+/// (code, pass) row, canary existence, the freeze/extension reviewed
+/// snapshot anchors, and the trusted-base compare.
+fn families_check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut baseline = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--baseline" => {
+                baseline = Some(args.next().ok_or("missing value after --baseline")?);
+            }
+            _ => return Err(format!("unexpected families check argument: {arg}").into()),
+        }
+    }
+    tsrs2_conformance::families_check(&find_tsrs2_root()?, baseline.as_deref())
+}
+
+/// `cargo xtask families report [--out-json <path>] [--verify]`: the
+/// A5 supported rollup from one current full band=all gating run
+/// (never from A1 summaries). `--verify` re-checks an existing
+/// report's input fingerprints against the tree instead of running.
+fn families_report(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let root = find_tsrs2_root()?;
+    let mut out_json: Option<PathBuf> = None;
+    let mut verify = false;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--out-json" => {
+                out_json = Some(PathBuf::from(
+                    args.next().ok_or("missing value after --out-json")?,
+                ));
+            }
+            "--verify" => verify = true,
+            _ => return Err(format!("unexpected families report argument: {arg}").into()),
+        }
+    }
+    let out_json = out_json.unwrap_or_else(|| root.join("target/families/report.json"));
+    if verify {
+        tsrs2_conformance::families_verify_report(&root, &out_json)
+    } else {
+        tsrs2_conformance::families_report(&root, &out_json)
+    }
 }
 
 fn ratchet_update(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -3815,6 +3874,17 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             .arg("--baseline")
             .arg(&baseline),
     )?;
+    // A5 family-map coherence: the exactly-once (code, pass) domain,
+    // freeze/extension anchors, and the trusted-base compare — before
+    // the rollup below reads the map as a verified input.
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("families")
+            .arg("check")
+            .arg("--baseline")
+            .arg(&baseline),
+    )?;
     run_command(Command::new("cargo").arg("xtask").arg("conformance"))?;
     run_command(
         Command::new("cargo")
@@ -3831,6 +3901,15 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             .arg("xtask")
             .arg("conformance")
             .arg("--syntactic-only"),
+    )?;
+    // A5 rollup: one more full band=all gating run that collects the
+    // per-bucket observation and writes the per-family supported
+    // grading (report-only; the set ratchet and FP=0 gate the run).
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("families")
+            .arg("report"),
     )?;
     run_command(
         Command::new("cargo")

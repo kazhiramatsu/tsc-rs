@@ -1,0 +1,2037 @@
+{
+ "schema": 1,
+ "status": "draft",
+ "band_partition": {
+  "family": "2xxx-band",
+  "owner": "2XXX band phase plan (2xxx-first-order.md)",
+  "note": "Codes 2000-2999 wholesale; owned by the band partition and its phase plan, never enumerated row-by-row here."
+ },
+ "families": [
+  {
+   "name": "parser-syntactic",
+   "owner": "M1 (closed)",
+   "note": "Every syntactic-pass row except the 1453 pragma residue; the parser band is effectively closed (FN=0) and these rows are regression sentinels.",
+   "rows": [
+    {
+     "code": 1002,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1003,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1005,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1010,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1011,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1034,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1068,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1109,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1110,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1121,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1124,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1125,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1127,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1128,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1130,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1131,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1132,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1134,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1135,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1136,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1137,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1138,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1144,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1145,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1146,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1160,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1161,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1177,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1178,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1181,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1198,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1199,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1206,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1260,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1351,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1357,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1359,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1381,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1382,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1389,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1433,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1434,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1435,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1436,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1441,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1442,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1443,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1472,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1477,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1478,
+     "pass": "syntactic"
+    },
+    {
+     "code": 1489,
+     "pass": "syntactic"
+    },
+    {
+     "code": 6188,
+     "pass": "syntactic"
+    },
+    {
+     "code": 6189,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8002,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8003,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8004,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8006,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8009,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8010,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8011,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8012,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8037,
+     "pass": "syntactic"
+    },
+    {
+     "code": 8038,
+     "pass": "syntactic"
+    },
+    {
+     "code": 17002,
+     "pass": "syntactic"
+    },
+    {
+     "code": 17006,
+     "pass": "syntactic"
+    },
+    {
+     "code": 17007,
+     "pass": "syntactic"
+    },
+    {
+     "code": 17008,
+     "pass": "syntactic"
+    },
+    {
+     "code": 17014,
+     "pass": "syntactic"
+    },
+    {
+     "code": 17015,
+     "pass": "syntactic"
+    },
+    {
+     "code": 17021,
+     "pass": "syntactic"
+    },
+    {
+     "code": 18009,
+     "pass": "syntactic"
+    },
+    {
+     "code": 18029,
+     "pass": "syntactic"
+    },
+    {
+     "code": 18030,
+     "pass": "syntactic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/async/es2017/asyncArrowFunction/asyncArrowFunction6_es2017.ts",
+     "matrix_key": ""
+    }
+   ]
+  },
+  {
+   "name": "parser-pragma-residue",
+   "owner": "M8",
+   "note": "The standing syntactic FN: the 1453 pragma fixture (4 buckets), M1-classified parser residue owned by the M8 tail.",
+   "rows": [
+    {
+     "code": 1453,
+     "pass": "syntactic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/node/nodeModulesTripleSlashReferenceModeOverrideModeError.ts",
+     "matrix_key": "module=node16"
+    }
+   ]
+  },
+  {
+   "name": "checker-grammar",
+   "owner": "M7 8.1",
+   "note": "Semantic-pass grammar walk: checkGrammar* 1XXX plus the grammar rows of 17XXX/18XXX (modifiers, computed names, ES-target gates, private names, static blocks).",
+   "rows": [
+    {
+     "code": 1003,
+     "pass": "semantic"
+    },
+    {
+     "code": 1005,
+     "pass": "semantic"
+    },
+    {
+     "code": 1009,
+     "pass": "semantic"
+    },
+    {
+     "code": 1013,
+     "pass": "semantic"
+    },
+    {
+     "code": 1014,
+     "pass": "semantic"
+    },
+    {
+     "code": 1015,
+     "pass": "semantic"
+    },
+    {
+     "code": 1016,
+     "pass": "semantic"
+    },
+    {
+     "code": 1017,
+     "pass": "semantic"
+    },
+    {
+     "code": 1018,
+     "pass": "semantic"
+    },
+    {
+     "code": 1019,
+     "pass": "semantic"
+    },
+    {
+     "code": 1021,
+     "pass": "semantic"
+    },
+    {
+     "code": 1024,
+     "pass": "semantic"
+    },
+    {
+     "code": 1028,
+     "pass": "semantic"
+    },
+    {
+     "code": 1029,
+     "pass": "semantic"
+    },
+    {
+     "code": 1030,
+     "pass": "semantic"
+    },
+    {
+     "code": 1031,
+     "pass": "semantic"
+    },
+    {
+     "code": 1035,
+     "pass": "semantic"
+    },
+    {
+     "code": 1036,
+     "pass": "semantic"
+    },
+    {
+     "code": 1038,
+     "pass": "semantic"
+    },
+    {
+     "code": 1039,
+     "pass": "semantic"
+    },
+    {
+     "code": 1040,
+     "pass": "semantic"
+    },
+    {
+     "code": 1042,
+     "pass": "semantic"
+    },
+    {
+     "code": 1044,
+     "pass": "semantic"
+    },
+    {
+     "code": 1046,
+     "pass": "semantic"
+    },
+    {
+     "code": 1047,
+     "pass": "semantic"
+    },
+    {
+     "code": 1048,
+     "pass": "semantic"
+    },
+    {
+     "code": 1049,
+     "pass": "semantic"
+    },
+    {
+     "code": 1051,
+     "pass": "semantic"
+    },
+    {
+     "code": 1052,
+     "pass": "semantic"
+    },
+    {
+     "code": 1053,
+     "pass": "semantic"
+    },
+    {
+     "code": 1054,
+     "pass": "semantic"
+    },
+    {
+     "code": 1055,
+     "pass": "semantic"
+    },
+    {
+     "code": 1058,
+     "pass": "semantic"
+    },
+    {
+     "code": 1063,
+     "pass": "semantic"
+    },
+    {
+     "code": 1064,
+     "pass": "semantic"
+    },
+    {
+     "code": 1065,
+     "pass": "semantic"
+    },
+    {
+     "code": 1066,
+     "pass": "semantic"
+    },
+    {
+     "code": 1069,
+     "pass": "semantic"
+    },
+    {
+     "code": 1070,
+     "pass": "semantic"
+    },
+    {
+     "code": 1071,
+     "pass": "semantic"
+    },
+    {
+     "code": 1089,
+     "pass": "semantic"
+    },
+    {
+     "code": 1090,
+     "pass": "semantic"
+    },
+    {
+     "code": 1091,
+     "pass": "semantic"
+    },
+    {
+     "code": 1092,
+     "pass": "semantic"
+    },
+    {
+     "code": 1093,
+     "pass": "semantic"
+    },
+    {
+     "code": 1094,
+     "pass": "semantic"
+    },
+    {
+     "code": 1095,
+     "pass": "semantic"
+    },
+    {
+     "code": 1096,
+     "pass": "semantic"
+    },
+    {
+     "code": 1097,
+     "pass": "semantic"
+    },
+    {
+     "code": 1098,
+     "pass": "semantic"
+    },
+    {
+     "code": 1099,
+     "pass": "semantic"
+    },
+    {
+     "code": 1100,
+     "pass": "semantic"
+    },
+    {
+     "code": 1101,
+     "pass": "semantic"
+    },
+    {
+     "code": 1102,
+     "pass": "semantic"
+    },
+    {
+     "code": 1103,
+     "pass": "semantic"
+    },
+    {
+     "code": 1104,
+     "pass": "semantic"
+    },
+    {
+     "code": 1105,
+     "pass": "semantic"
+    },
+    {
+     "code": 1106,
+     "pass": "semantic"
+    },
+    {
+     "code": 1107,
+     "pass": "semantic"
+    },
+    {
+     "code": 1108,
+     "pass": "semantic"
+    },
+    {
+     "code": 1109,
+     "pass": "semantic"
+    },
+    {
+     "code": 1110,
+     "pass": "semantic"
+    },
+    {
+     "code": 1111,
+     "pass": "semantic"
+    },
+    {
+     "code": 1113,
+     "pass": "semantic"
+    },
+    {
+     "code": 1114,
+     "pass": "semantic"
+    },
+    {
+     "code": 1115,
+     "pass": "semantic"
+    },
+    {
+     "code": 1116,
+     "pass": "semantic"
+    },
+    {
+     "code": 1117,
+     "pass": "semantic"
+    },
+    {
+     "code": 1118,
+     "pass": "semantic"
+    },
+    {
+     "code": 1119,
+     "pass": "semantic"
+    },
+    {
+     "code": 1123,
+     "pass": "semantic"
+    },
+    {
+     "code": 1125,
+     "pass": "semantic"
+    },
+    {
+     "code": 1141,
+     "pass": "semantic"
+    },
+    {
+     "code": 1155,
+     "pass": "semantic"
+    },
+    {
+     "code": 1156,
+     "pass": "semantic"
+    },
+    {
+     "code": 1162,
+     "pass": "semantic"
+    },
+    {
+     "code": 1163,
+     "pass": "semantic"
+    },
+    {
+     "code": 1164,
+     "pass": "semantic"
+    },
+    {
+     "code": 1166,
+     "pass": "semantic"
+    },
+    {
+     "code": 1169,
+     "pass": "semantic"
+    },
+    {
+     "code": 1170,
+     "pass": "semantic"
+    },
+    {
+     "code": 1171,
+     "pass": "semantic"
+    },
+    {
+     "code": 1172,
+     "pass": "semantic"
+    },
+    {
+     "code": 1173,
+     "pass": "semantic"
+    },
+    {
+     "code": 1174,
+     "pass": "semantic"
+    },
+    {
+     "code": 1175,
+     "pass": "semantic"
+    },
+    {
+     "code": 1176,
+     "pass": "semantic"
+    },
+    {
+     "code": 1182,
+     "pass": "semantic"
+    },
+    {
+     "code": 1183,
+     "pass": "semantic"
+    },
+    {
+     "code": 1184,
+     "pass": "semantic"
+    },
+    {
+     "code": 1186,
+     "pass": "semantic"
+    },
+    {
+     "code": 1187,
+     "pass": "semantic"
+    },
+    {
+     "code": 1188,
+     "pass": "semantic"
+    },
+    {
+     "code": 1189,
+     "pass": "semantic"
+    },
+    {
+     "code": 1190,
+     "pass": "semantic"
+    },
+    {
+     "code": 1191,
+     "pass": "semantic"
+    },
+    {
+     "code": 1192,
+     "pass": "semantic"
+    },
+    {
+     "code": 1193,
+     "pass": "semantic"
+    },
+    {
+     "code": 1196,
+     "pass": "semantic"
+    },
+    {
+     "code": 1197,
+     "pass": "semantic"
+    },
+    {
+     "code": 1198,
+     "pass": "semantic"
+    },
+    {
+     "code": 1199,
+     "pass": "semantic"
+    },
+    {
+     "code": 1200,
+     "pass": "semantic"
+    },
+    {
+     "code": 1202,
+     "pass": "semantic"
+    },
+    {
+     "code": 1203,
+     "pass": "semantic"
+    },
+    {
+     "code": 1205,
+     "pass": "semantic"
+    },
+    {
+     "code": 1206,
+     "pass": "semantic"
+    },
+    {
+     "code": 1207,
+     "pass": "semantic"
+    },
+    {
+     "code": 1210,
+     "pass": "semantic"
+    },
+    {
+     "code": 1211,
+     "pass": "semantic"
+    },
+    {
+     "code": 1212,
+     "pass": "semantic"
+    },
+    {
+     "code": 1213,
+     "pass": "semantic"
+    },
+    {
+     "code": 1214,
+     "pass": "semantic"
+    },
+    {
+     "code": 1215,
+     "pass": "semantic"
+    },
+    {
+     "code": 1216,
+     "pass": "semantic"
+    },
+    {
+     "code": 1221,
+     "pass": "semantic"
+    },
+    {
+     "code": 1222,
+     "pass": "semantic"
+    },
+    {
+     "code": 1223,
+     "pass": "semantic"
+    },
+    {
+     "code": 1225,
+     "pass": "semantic"
+    },
+    {
+     "code": 1228,
+     "pass": "semantic"
+    },
+    {
+     "code": 1229,
+     "pass": "semantic"
+    },
+    {
+     "code": 1230,
+     "pass": "semantic"
+    },
+    {
+     "code": 1235,
+     "pass": "semantic"
+    },
+    {
+     "code": 1238,
+     "pass": "semantic"
+    },
+    {
+     "code": 1239,
+     "pass": "semantic"
+    },
+    {
+     "code": 1240,
+     "pass": "semantic"
+    },
+    {
+     "code": 1241,
+     "pass": "semantic"
+    },
+    {
+     "code": 1242,
+     "pass": "semantic"
+    },
+    {
+     "code": 1243,
+     "pass": "semantic"
+    },
+    {
+     "code": 1244,
+     "pass": "semantic"
+    },
+    {
+     "code": 1245,
+     "pass": "semantic"
+    },
+    {
+     "code": 1248,
+     "pass": "semantic"
+    },
+    {
+     "code": 1249,
+     "pass": "semantic"
+    },
+    {
+     "code": 1250,
+     "pass": "semantic"
+    },
+    {
+     "code": 1255,
+     "pass": "semantic"
+    },
+    {
+     "code": 1257,
+     "pass": "semantic"
+    },
+    {
+     "code": 1258,
+     "pass": "semantic"
+    },
+    {
+     "code": 1259,
+     "pass": "semantic"
+    },
+    {
+     "code": 1262,
+     "pass": "semantic"
+    },
+    {
+     "code": 1263,
+     "pass": "semantic"
+    },
+    {
+     "code": 1264,
+     "pass": "semantic"
+    },
+    {
+     "code": 1265,
+     "pass": "semantic"
+    },
+    {
+     "code": 1266,
+     "pass": "semantic"
+    },
+    {
+     "code": 1267,
+     "pass": "semantic"
+    },
+    {
+     "code": 1268,
+     "pass": "semantic"
+    },
+    {
+     "code": 1270,
+     "pass": "semantic"
+    },
+    {
+     "code": 1273,
+     "pass": "semantic"
+    },
+    {
+     "code": 1274,
+     "pass": "semantic"
+    },
+    {
+     "code": 1275,
+     "pass": "semantic"
+    },
+    {
+     "code": 1276,
+     "pass": "semantic"
+    },
+    {
+     "code": 1277,
+     "pass": "semantic"
+    },
+    {
+     "code": 1282,
+     "pass": "semantic"
+    },
+    {
+     "code": 1283,
+     "pass": "semantic"
+    },
+    {
+     "code": 1284,
+     "pass": "semantic"
+    },
+    {
+     "code": 1285,
+     "pass": "semantic"
+    },
+    {
+     "code": 1287,
+     "pass": "semantic"
+    },
+    {
+     "code": 1288,
+     "pass": "semantic"
+    },
+    {
+     "code": 1289,
+     "pass": "semantic"
+    },
+    {
+     "code": 1295,
+     "pass": "semantic"
+    },
+    {
+     "code": 1308,
+     "pass": "semantic"
+    },
+    {
+     "code": 1309,
+     "pass": "semantic"
+    },
+    {
+     "code": 1312,
+     "pass": "semantic"
+    },
+    {
+     "code": 1314,
+     "pass": "semantic"
+    },
+    {
+     "code": 1315,
+     "pass": "semantic"
+    },
+    {
+     "code": 1316,
+     "pass": "semantic"
+    },
+    {
+     "code": 1317,
+     "pass": "semantic"
+    },
+    {
+     "code": 1318,
+     "pass": "semantic"
+    },
+    {
+     "code": 1319,
+     "pass": "semantic"
+    },
+    {
+     "code": 1320,
+     "pass": "semantic"
+    },
+    {
+     "code": 1323,
+     "pass": "semantic"
+    },
+    {
+     "code": 1324,
+     "pass": "semantic"
+    },
+    {
+     "code": 1325,
+     "pass": "semantic"
+    },
+    {
+     "code": 1326,
+     "pass": "semantic"
+    },
+    {
+     "code": 1329,
+     "pass": "semantic"
+    },
+    {
+     "code": 1330,
+     "pass": "semantic"
+    },
+    {
+     "code": 1331,
+     "pass": "semantic"
+    },
+    {
+     "code": 1332,
+     "pass": "semantic"
+    },
+    {
+     "code": 1333,
+     "pass": "semantic"
+    },
+    {
+     "code": 1335,
+     "pass": "semantic"
+    },
+    {
+     "code": 1337,
+     "pass": "semantic"
+    },
+    {
+     "code": 1338,
+     "pass": "semantic"
+    },
+    {
+     "code": 1340,
+     "pass": "semantic"
+    },
+    {
+     "code": 1341,
+     "pass": "semantic"
+    },
+    {
+     "code": 1344,
+     "pass": "semantic"
+    },
+    {
+     "code": 1345,
+     "pass": "semantic"
+    },
+    {
+     "code": 1346,
+     "pass": "semantic"
+    },
+    {
+     "code": 1347,
+     "pass": "semantic"
+    },
+    {
+     "code": 1354,
+     "pass": "semantic"
+    },
+    {
+     "code": 1355,
+     "pass": "semantic"
+    },
+    {
+     "code": 1358,
+     "pass": "semantic"
+    },
+    {
+     "code": 1359,
+     "pass": "semantic"
+    },
+    {
+     "code": 1360,
+     "pass": "semantic"
+    },
+    {
+     "code": 1361,
+     "pass": "semantic"
+    },
+    {
+     "code": 1362,
+     "pass": "semantic"
+    },
+    {
+     "code": 1363,
+     "pass": "semantic"
+    },
+    {
+     "code": 1368,
+     "pass": "semantic"
+    },
+    {
+     "code": 1375,
+     "pass": "semantic"
+    },
+    {
+     "code": 1378,
+     "pass": "semantic"
+    },
+    {
+     "code": 1380,
+     "pass": "semantic"
+    },
+    {
+     "code": 1392,
+     "pass": "semantic"
+    },
+    {
+     "code": 1431,
+     "pass": "semantic"
+    },
+    {
+     "code": 1432,
+     "pass": "semantic"
+    },
+    {
+     "code": 1448,
+     "pass": "semantic"
+    },
+    {
+     "code": 1450,
+     "pass": "semantic"
+    },
+    {
+     "code": 1451,
+     "pass": "semantic"
+    },
+    {
+     "code": 1453,
+     "pass": "semantic"
+    },
+    {
+     "code": 1454,
+     "pass": "semantic"
+    },
+    {
+     "code": 1455,
+     "pass": "semantic"
+    },
+    {
+     "code": 1456,
+     "pass": "semantic"
+    },
+    {
+     "code": 1463,
+     "pass": "semantic"
+    },
+    {
+     "code": 1464,
+     "pass": "semantic"
+    },
+    {
+     "code": 1470,
+     "pass": "semantic"
+    },
+    {
+     "code": 1471,
+     "pass": "semantic"
+    },
+    {
+     "code": 1473,
+     "pass": "semantic"
+    },
+    {
+     "code": 1474,
+     "pass": "semantic"
+    },
+    {
+     "code": 1479,
+     "pass": "semantic"
+    },
+    {
+     "code": 1484,
+     "pass": "semantic"
+    },
+    {
+     "code": 1485,
+     "pass": "semantic"
+    },
+    {
+     "code": 1491,
+     "pass": "semantic"
+    },
+    {
+     "code": 1492,
+     "pass": "semantic"
+    },
+    {
+     "code": 1493,
+     "pass": "semantic"
+    },
+    {
+     "code": 1494,
+     "pass": "semantic"
+    },
+    {
+     "code": 1495,
+     "pass": "semantic"
+    },
+    {
+     "code": 1497,
+     "pass": "semantic"
+    },
+    {
+     "code": 1499,
+     "pass": "semantic"
+    },
+    {
+     "code": 1501,
+     "pass": "semantic"
+    },
+    {
+     "code": 1508,
+     "pass": "semantic"
+    },
+    {
+     "code": 1541,
+     "pass": "semantic"
+    },
+    {
+     "code": 1542,
+     "pass": "semantic"
+    },
+    {
+     "code": 1543,
+     "pass": "semantic"
+    },
+    {
+     "code": 1544,
+     "pass": "semantic"
+    },
+    {
+     "code": 1545,
+     "pass": "semantic"
+    },
+    {
+     "code": 1546,
+     "pass": "semantic"
+    },
+    {
+     "code": 1547,
+     "pass": "semantic"
+    },
+    {
+     "code": 1548,
+     "pass": "semantic"
+    },
+    {
+     "code": 17005,
+     "pass": "semantic"
+    },
+    {
+     "code": 17009,
+     "pass": "semantic"
+    },
+    {
+     "code": 17011,
+     "pass": "semantic"
+    },
+    {
+     "code": 17013,
+     "pass": "semantic"
+    },
+    {
+     "code": 17019,
+     "pass": "semantic"
+    },
+    {
+     "code": 17020,
+     "pass": "semantic"
+    },
+    {
+     "code": 18004,
+     "pass": "semantic"
+    },
+    {
+     "code": 18006,
+     "pass": "semantic"
+    },
+    {
+     "code": 18007,
+     "pass": "semantic"
+    },
+    {
+     "code": 18010,
+     "pass": "semantic"
+    },
+    {
+     "code": 18011,
+     "pass": "semantic"
+    },
+    {
+     "code": 18012,
+     "pass": "semantic"
+    },
+    {
+     "code": 18013,
+     "pass": "semantic"
+    },
+    {
+     "code": 18014,
+     "pass": "semantic"
+    },
+    {
+     "code": 18016,
+     "pass": "semantic"
+    },
+    {
+     "code": 18019,
+     "pass": "semantic"
+    },
+    {
+     "code": 18024,
+     "pass": "semantic"
+    },
+    {
+     "code": 18028,
+     "pass": "semantic"
+    },
+    {
+     "code": 18033,
+     "pass": "semantic"
+    },
+    {
+     "code": 18037,
+     "pass": "semantic"
+    },
+    {
+     "code": 18038,
+     "pass": "semantic"
+    },
+    {
+     "code": 18041,
+     "pass": "semantic"
+    },
+    {
+     "code": 18045,
+     "pass": "semantic"
+    },
+    {
+     "code": 18054,
+     "pass": "semantic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/classes/classStaticBlock/classStaticBlock19.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/classes/constructorDeclarations/constructorParameters/constructorDefaultValuesReferencingThis.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/classes/members/privateNames/privateNameBadDeclaration.ts",
+     "matrix_key": "target=es2015"
+    },
+    {
+     "fixture": "conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts",
+     "matrix_key": "module=node16"
+    }
+   ]
+  },
+  {
+   "name": "suppression-surfaces",
+   "owner": "M7 8.2",
+   "note": "No (code, pass) rows: acceptance is the M7 8.2 suppression audit artifact plus these canary fixtures (ts-expect-error / ts-ignore / ts-nocheck).",
+   "rows": [],
+   "canaries": [
+    {
+     "fixture": "conformance/directives/ts-expect-error-nocheck.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/directives/ts-ignore.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/jsdoc/tsNoCheckForTypescript.ts",
+     "matrix_key": ""
+    }
+   ]
+  },
+  {
+   "name": "unused",
+   "owner": "M7 8.3+8.4",
+   "note": "One family, two acceptance surfaces: (code, semantic) rows are the noUnused* error mode (M7 8.3); (code, suggestion) rows are the suggestion mode wired in M7 8.4.",
+   "rows": [
+    {
+     "code": 6133,
+     "pass": "semantic"
+    },
+    {
+     "code": 6133,
+     "pass": "suggestion"
+    },
+    {
+     "code": 6138,
+     "pass": "suggestion"
+    },
+    {
+     "code": 6192,
+     "pass": "semantic"
+    },
+    {
+     "code": 6192,
+     "pass": "suggestion"
+    },
+    {
+     "code": 6196,
+     "pass": "suggestion"
+    },
+    {
+     "code": 6198,
+     "pass": "suggestion"
+    },
+    {
+     "code": 6199,
+     "pass": "suggestion"
+    },
+    {
+     "code": 6205,
+     "pass": "suggestion"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/ambient/ambientDeclarationsExternal.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/ambient/ambientInsideNonAmbient.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/classes/members/privateNames/privateNameInInExpressionUnused.ts",
+     "matrix_key": "target=es2022"
+    }
+   ]
+  },
+  {
+   "name": "suggestion-band",
+   "owner": "M7 8.4",
+   "note": "Suggestion-pass residue: infer-from-usage 7043-7051 + (7032, suggestion) and 7033, await/bignum 80007/80008, deprecations 6385/6387. The infer-from-usage core is already ~matched through the widen.rs constants band.",
+   "rows": [
+    {
+     "code": 6385,
+     "pass": "suggestion"
+    },
+    {
+     "code": 6387,
+     "pass": "suggestion"
+    },
+    {
+     "code": 7032,
+     "pass": "suggestion"
+    },
+    {
+     "code": 7033,
+     "pass": "suggestion"
+    },
+    {
+     "code": 7043,
+     "pass": "suggestion"
+    },
+    {
+     "code": 7044,
+     "pass": "suggestion"
+    },
+    {
+     "code": 7045,
+     "pass": "suggestion"
+    },
+    {
+     "code": 7047,
+     "pass": "suggestion"
+    },
+    {
+     "code": 7050,
+     "pass": "suggestion"
+    },
+    {
+     "code": 7051,
+     "pass": "suggestion"
+    },
+    {
+     "code": 80007,
+     "pass": "suggestion"
+    },
+    {
+     "code": 80008,
+     "pass": "suggestion"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/ambient/ambientDeclarations.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/async/es2017/asyncArrowFunction/asyncArrowFunction9_es2017.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/async/es2017/asyncArrowFunction/asyncArrowFunctionCapturesArguments_es2017.ts",
+     "matrix_key": ""
+    }
+   ]
+  },
+  {
+   "name": "flow-strict-nullability",
+   "owner": "M5",
+   "note": "Strict-nullability flow band 18046-18050 plus (7027, semantic) \u2014 unreachable-code error mode is a flow-graph product; adjudicated to M5 with the band (its suggestion-pass twin surfaces at M7 8.4).",
+   "rows": [
+    {
+     "code": 7027,
+     "pass": "semantic"
+    },
+    {
+     "code": 18046,
+     "pass": "semantic"
+    },
+    {
+     "code": 18047,
+     "pass": "semantic"
+    },
+    {
+     "code": 18048,
+     "pass": "semantic"
+    },
+    {
+     "code": 18049,
+     "pass": "semantic"
+    },
+    {
+     "code": 18050,
+     "pass": "semantic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/controlFlow/assertionTypePredicates1.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/controlFlow/controlFlowGenericTypes.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/es7/exponentiationOperator/compoundExponentiationAssignmentLHSCanBeAssigned1.ts",
+     "matrix_key": ""
+    }
+   ]
+  },
+  {
+   "name": "flow-derived-suggestions",
+   "owner": "M7 8.4 (M5 mechanism)",
+   "note": "7027/7028 suggestion-pass rows: the reachability/unused-label mechanism lands with M5 flow; the suggestion surfacing lands at M7 8.4.",
+   "rows": [
+    {
+     "code": 7027,
+     "pass": "suggestion"
+    },
+    {
+     "code": 7028,
+     "pass": "suggestion"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/es6/moduleExportsSystem/topLevelVarHoistingSystem.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/es7/exponentiationOperator/compoundExponentiationAssignmentLHSIsValue.ts",
+     "matrix_key": ""
+    }
+   ]
+  },
+  {
+   "name": "implicit-any",
+   "owner": "M6",
+   "note": "Backlog resolution: one family under M6 \u2014 reporting rides inference results. 7034/7057 additionally lean on M5 evolving-array flow, which lands earlier and is caught by the later M6 gate. (7032, semantic) is the noImplicitAny error surface; its suggestion twin is infer-from-usage.",
+   "rows": [
+    {
+     "code": 7005,
+     "pass": "semantic"
+    },
+    {
+     "code": 7006,
+     "pass": "semantic"
+    },
+    {
+     "code": 7008,
+     "pass": "semantic"
+    },
+    {
+     "code": 7009,
+     "pass": "semantic"
+    },
+    {
+     "code": 7010,
+     "pass": "semantic"
+    },
+    {
+     "code": 7014,
+     "pass": "semantic"
+    },
+    {
+     "code": 7015,
+     "pass": "semantic"
+    },
+    {
+     "code": 7017,
+     "pass": "semantic"
+    },
+    {
+     "code": 7018,
+     "pass": "semantic"
+    },
+    {
+     "code": 7019,
+     "pass": "semantic"
+    },
+    {
+     "code": 7022,
+     "pass": "semantic"
+    },
+    {
+     "code": 7023,
+     "pass": "semantic"
+    },
+    {
+     "code": 7025,
+     "pass": "semantic"
+    },
+    {
+     "code": 7031,
+     "pass": "semantic"
+    },
+    {
+     "code": 7032,
+     "pass": "semantic"
+    },
+    {
+     "code": 7034,
+     "pass": "semantic"
+    },
+    {
+     "code": 7036,
+     "pass": "semantic"
+    },
+    {
+     "code": 7041,
+     "pass": "semantic"
+    },
+    {
+     "code": 7053,
+     "pass": "semantic"
+    },
+    {
+     "code": 7055,
+     "pass": "semantic"
+    },
+    {
+     "code": 7057,
+     "pass": "semantic"
+    },
+    {
+     "code": 7061,
+     "pass": "semantic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/controlFlow/dependentDestructuredVariables.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/es2019/globalThisUnknownNoImplicitAny.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/es6/yieldExpressions/yieldExpressionInControlFlow.ts",
+     "matrix_key": ""
+    }
+   ]
+  },
+  {
+   "name": "jsx-mode",
+   "owner": "M8",
+   "note": "Backlog resolution: 17004 (options plumbing) and 7026 (JSX noImplicitAny) stay one family \u2014 both nearly closed by the 5.8/5.9 JSX interop work; the residue is a bounded M8 mining family.",
+   "rows": [
+    {
+     "code": 7026,
+     "pass": "semantic"
+    },
+    {
+     "code": 17004,
+     "pass": "semantic"
+    },
+    {
+     "code": 17017,
+     "pass": "semantic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/controlFlow/controlFlowOptionalChain3.tsx",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/jsx/tsxErrorRecovery1.tsx",
+     "matrix_key": ""
+    }
+   ]
+  },
+  {
+   "name": "program-resolution-options",
+   "owner": "M7 8.5",
+   "note": "Options/program/resolution surface: 5XXX semantic, 6053 file-not-found, 6142/6263 module-format diagnostics; closes with the getOptionsDiagnostics port and program-level plumbing.",
+   "rows": [
+    {
+     "code": 5061,
+     "pass": "semantic"
+    },
+    {
+     "code": 5076,
+     "pass": "semantic"
+    },
+    {
+     "code": 5085,
+     "pass": "semantic"
+    },
+    {
+     "code": 5086,
+     "pass": "semantic"
+    },
+    {
+     "code": 5087,
+     "pass": "semantic"
+    },
+    {
+     "code": 5097,
+     "pass": "semantic"
+    },
+    {
+     "code": 6053,
+     "pass": "semantic"
+    },
+    {
+     "code": 6142,
+     "pass": "semantic"
+    },
+    {
+     "code": 6263,
+     "pass": "semantic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/controlFlow/controlFlowOptionalChain3.tsx",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/decorators/class/constructor/decoratorOnClassConstructor2.ts",
+     "matrix_key": "target=es2015"
+    },
+    {
+     "fixture": "conformance/nonjsExtensions/declarationFileForHtmlImport.ts",
+     "matrix_key": "allowArbitraryExtensions=false"
+    }
+   ]
+  },
+  {
+   "name": "checkjs-jsdoc",
+   "owner": "M8",
+   "note": "Backlog resolution: checkJs/JSDoc surface 8020-8039 + 18042/18043, and 7016 placed here in BOTH its modes \u2014 (semantic) error and (suggestion) twin \u2014 since the declaration-file lookup surfaces with checkJs; pulls the standing [JSDOC] M2 policy.",
+   "rows": [
+    {
+     "code": 7016,
+     "pass": "semantic"
+    },
+    {
+     "code": 7016,
+     "pass": "suggestion"
+    },
+    {
+     "code": 8020,
+     "pass": "semantic"
+    },
+    {
+     "code": 8021,
+     "pass": "semantic"
+    },
+    {
+     "code": 8022,
+     "pass": "semantic"
+    },
+    {
+     "code": 8023,
+     "pass": "semantic"
+    },
+    {
+     "code": 8024,
+     "pass": "semantic"
+    },
+    {
+     "code": 8029,
+     "pass": "semantic"
+    },
+    {
+     "code": 8030,
+     "pass": "semantic"
+    },
+    {
+     "code": 8032,
+     "pass": "semantic"
+    },
+    {
+     "code": 8033,
+     "pass": "semantic"
+    },
+    {
+     "code": 8038,
+     "pass": "semantic"
+    },
+    {
+     "code": 8039,
+     "pass": "semantic"
+    },
+    {
+     "code": 18042,
+     "pass": "semantic"
+    },
+    {
+     "code": 18043,
+     "pass": "semantic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/jsdoc/checkJsdocParamOnVariableDeclaredFunctionExpression.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/jsdoc/declarations/jsDeclarationsInterfaces.ts",
+     "matrix_key": "target=es2015"
+    },
+    {
+     "fixture": "conformance/moduleResolution/declarationNotFoundPackageBundlesTypes.ts",
+     "matrix_key": ""
+    }
+   ]
+  },
+  {
+   "name": "override-validation",
+   "owner": "M8",
+   "note": "Backlog resolution: M8 owns the residue (M4 closed with these open). 4112 belongs with 4113-4127 \u2014 the same checkOverrideModifier walk.",
+   "rows": [
+    {
+     "code": 4112,
+     "pass": "semantic"
+    },
+    {
+     "code": 4113,
+     "pass": "semantic"
+    },
+    {
+     "code": 4114,
+     "pass": "semantic"
+    },
+    {
+     "code": 4115,
+     "pass": "semantic"
+    },
+    {
+     "code": 4116,
+     "pass": "semantic"
+    },
+    {
+     "code": 4117,
+     "pass": "semantic"
+    },
+    {
+     "code": 4119,
+     "pass": "semantic"
+    },
+    {
+     "code": 4121,
+     "pass": "semantic"
+    },
+    {
+     "code": 4122,
+     "pass": "semantic"
+    },
+    {
+     "code": 4123,
+     "pass": "semantic"
+    },
+    {
+     "code": 4127,
+     "pass": "semantic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/override/override1.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/override/overrideDynamicName1.ts",
+     "matrix_key": "noImplicitOverride=false"
+    }
+   ]
+  },
+  {
+   "name": "relations-stragglers",
+   "owner": "M8",
+   "note": "4104/6234 relations-layer stragglers; 4111 (index-signature member access, option-gated, matched) adjudicated here rather than a one-row family.",
+   "rows": [
+    {
+     "code": 4104,
+     "pass": "semantic"
+    },
+    {
+     "code": 4111,
+     "pass": "semantic"
+    },
+    {
+     "code": 6234,
+     "pass": "semantic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/additionalChecks/noPropertyAccessFromIndexSignature1.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/classes/members/classTypes/instancePropertiesInheritedIntoClassType.ts",
+     "matrix_key": ""
+    },
+    {
+     "fixture": "conformance/types/tuple/readonlyArraysAndTuples.ts",
+     "matrix_key": ""
+    }
+   ]
+  },
+  {
+   "name": "module-semantics-tail",
+   "owner": "M8",
+   "note": "Module-semantics residue adjacent to the 5.8d/5.9d host work: 18057-18061, 7059/7060, 17012.",
+   "rows": [
+    {
+     "code": 7059,
+     "pass": "semantic"
+    },
+    {
+     "code": 7060,
+     "pass": "semantic"
+    },
+    {
+     "code": 17012,
+     "pass": "semantic"
+    },
+    {
+     "code": 18057,
+     "pass": "semantic"
+    },
+    {
+     "code": 18058,
+     "pass": "semantic"
+    },
+    {
+     "code": 18059,
+     "pass": "semantic"
+    },
+    {
+     "code": 18060,
+     "pass": "semantic"
+    },
+    {
+     "code": 18061,
+     "pass": "semantic"
+    }
+   ],
+   "canaries": [
+    {
+     "fixture": "conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts",
+     "matrix_key": "module=es2015"
+    },
+    {
+     "fixture": "conformance/importDefer/importDeferNamespace.ts",
+     "matrix_key": "module=commonjs"
+    },
+    {
+     "fixture": "conformance/node/nodeModulesForbidenSyntax.ts",
+     "matrix_key": "module=node16"
+    }
+   ]
+  }
+ ]
+}

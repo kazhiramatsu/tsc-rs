@@ -16,11 +16,16 @@ use tsrs2_checker::{
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
+pub mod families;
 pub mod goldens_diff;
 mod identity;
 pub mod ratchet;
 mod scope;
 
+pub use families::{
+    check as families_check, report as families_report,
+    verify_report_freshness as families_verify_report,
+};
 pub use scope::audit as scope_audit;
 use scope::ScopeManifest;
 
@@ -512,7 +517,21 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 /// A gating conformance run: enforces the accepted-set ratchet
 /// (measurement-integrity.md §2) on top of the integer/FP gates.
 pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<ConformanceSummary> {
-    run_conformance_inner(options, SetGate::Enforce).map(|run| run.summary)
+    run_conformance_inner(options, SetGate::Enforce, false).map(|run| run.summary)
+}
+
+/// The A5 rollup path: the identical gating run, additionally
+/// collecting the per-bucket families observation. Full band=all runs
+/// only — the observation must never come from a projection or an A1
+/// summary (measurement-integrity.md §5).
+pub(crate) fn run_conformance_observed(
+    options: &ConformanceOptions,
+) -> ConformanceResult<(ConformanceSummary, families::Observation)> {
+    let run = run_conformance_inner(options, SetGate::Enforce, true)?;
+    let observation = run
+        .observation
+        .expect("observing run collects an observation");
+    Ok((run.summary, observation))
 }
 
 /// The `ratchet update` measurement path: identical run, but it
@@ -521,7 +540,7 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
 pub(crate) fn run_conformance_collect(
     options: &ConformanceOptions,
 ) -> ConformanceResult<ConformanceRun> {
-    run_conformance_inner(options, SetGate::Collect)
+    run_conformance_inner(options, SetGate::Collect, false)
 }
 
 pub struct ConformanceRun {
@@ -529,6 +548,8 @@ pub struct ConformanceRun {
     /// Per fixed view (all/2xxx/syntactic): matched T0 buckets and
     /// multiplicity-complete buckets, keyed fixture -> matrix.
     pub sets: ratchet::RunSets,
+    /// The A5 per-bucket observation, when requested.
+    pub observation: Option<families::Observation>,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -540,6 +561,7 @@ pub(crate) enum SetGate {
 fn run_conformance_inner(
     options: &ConformanceOptions,
     set_gate: SetGate,
+    families_observe: bool,
 ) -> ConformanceResult<ConformanceRun> {
     let fixtures = select_fixtures(&RefreshOptions {
         workspace: options.workspace.clone(),
@@ -553,6 +575,10 @@ fn run_conformance_inner(
     // Partial runs (`--limit`, `--files`) are gated by the accepted-set
     // projection below, not by the full-corpus integer counts.
     let full_run = options.limit.is_none() && options.files.is_empty();
+    if families_observe {
+        families::ensure_observation_eligible(options.band, full_run)?;
+    }
+    let mut observation = families_observe.then(families::Observation::default);
     let accepted = match set_gate {
         SetGate::Enforce => Some(ratchet::load_accepted_for_gating(&options.workspace)?),
         SetGate::Collect => None,
@@ -763,6 +789,17 @@ fn run_conformance_inner(
                     unresolved_excluded += 1;
                 }
             }
+            if let Some(observation) = observation.as_mut() {
+                observation.cases.push(families::CaseObservation::collect(
+                    &fixture_key,
+                    &program.matrix_key,
+                    &golden_case.oracle,
+                    &case_tsrs.all,
+                    &excluded_indices,
+                    &actual,
+                    fp.len(),
+                )?);
+            }
             if fp.is_empty() && fn_.is_empty() {
                 exact_match_cases += 1;
             } else {
@@ -900,10 +937,14 @@ fn run_conformance_inner(
     }
     fs::write(&options.out_json, serde_json::to_string_pretty(&summary)?)?;
 
+    if let Some(observation) = observation.as_mut() {
+        observation.fixtures_total = fixtures.len();
+    }
     if set_gate == SetGate::Collect {
         return Ok(ConformanceRun {
             summary,
             sets: run_sets,
+            observation,
         });
     }
 
@@ -982,6 +1023,7 @@ fn run_conformance_inner(
     Ok(ConformanceRun {
         summary,
         sets: run_sets,
+        observation,
     })
 }
 

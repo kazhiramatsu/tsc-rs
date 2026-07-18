@@ -21,8 +21,9 @@ there.
 3. **Merge criteria** — all gates green on the branch:
    `cargo xtask ci` (fmt --check, clippy -D warnings, build, tests,
    relpin, accepted-state lineage + trusted `origin/main` comparison,
-   exact-scope audit (A2) against the same base, conformance all +
-   2xxx + syntactic with FP=0 and set/integer-ratchet non-regression,
+   exact-scope audit (A2) + family-map check (A5) against the same
+   base, conformance all + 2xxx + syntactic with FP=0 and
+   set/integer-ratchet non-regression, the A5 families rollup,
    invariants, ledger check, `escapes --stale $(cat tsrs2/STAGE)`
    incl. the untagged ceiling).
 4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
@@ -59,6 +60,14 @@ there.
   duplicate-bucket canaries (68/65), the Node/Rust canonical-encoder
   cross-check (`crates/oracle/identity.mjs`), band-pin/global-freeze
   anchors, and tombstone standing proofs
+- Family map (A5): `cargo xtask families check [--baseline
+  origin/main]` verifies `diag-families.json` — every corpus-exercised
+  non-2XXX (code, pass) row mapped exactly once, canary existence,
+  freeze/universe-extension anchors, trusted-base compare;
+  `cargo xtask families report` writes the per-family supported
+  rollup (`target/families/report.json`) from one full gating
+  band=all run (`--verify` re-checks a stored report's input
+  fingerprints)
 - Escape expiry audit: `cargo xtask escapes --stale $(cat STAGE)`
   (also verifies `escapes.toml`; after adding/retiring an escape run
   `cargo xtask escapes --write-manifest` — the manifest diff is the
