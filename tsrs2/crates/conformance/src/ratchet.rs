@@ -1347,6 +1347,15 @@ pub(crate) fn git(root: &Path, args: &[&str]) -> ConformanceResult<Vec<u8>> {
     Ok(output.stdout)
 }
 
+/// Resolve a revision to its full commit SHA, peeling annotated tags
+/// to the commit they name.
+pub(crate) fn resolve_commit(root: &Path, reference: &str) -> ConformanceResult<String> {
+    let spec = format!("{reference}^{{commit}}");
+    let commit = git(root, &["rev-parse", "--verify", &spec])
+        .map_err(|err| format!("cannot resolve {reference}: {err}"))?;
+    Ok(String::from_utf8(commit)?.trim().to_owned())
+}
+
 /// Read one blob from a commit, distinguishing an absent path from a
 /// real Git failure. `git show` errors must never become the bootstrap
 /// exception: missing/corrupt objects and insufficient clone data are
@@ -1888,10 +1897,8 @@ fn verify_baseline(
     head_matches: &MatchesArtifact,
     head_inputs: &OracleInputsArtifact,
 ) -> ConformanceResult<bool> {
-    let spec = format!("{baseline}^{{commit}}");
-    let commit = git(git_root, &["rev-parse", "--verify", &spec])
-        .map_err(|err| format!("cannot resolve baseline {baseline}: {err}"))?;
-    let commit = String::from_utf8(commit)?.trim().to_owned();
+    let commit =
+        resolve_commit(git_root, baseline).map_err(|err| format!("baseline compare: {err}"))?;
 
     let base_matches = git_blob_optional(git_root, &commit, matches_rel)?;
     let base_inputs = git_blob_optional(git_root, &commit, inputs_rel)?;
@@ -2073,11 +2080,6 @@ fn verify_ratchet_summaries(
     Ok(())
 }
 
-/// `cargo xtask ratchet check [--baseline <ref>]`: verify both
-/// artifacts against the current tree (vendor pins, fixture bytes,
-/// expansion, golden oracle records, ratchet.toml derived summaries)
-/// and their full append-only lineage; with `--baseline`, also the
-/// trusted PR-base direct compare.
 /// Read the accepted-state pair and verify it against the current
 /// tree: pair coherence, vendored `_tsc.js` pin, and the immutable
 /// oracle-input diff. This is the standing-proof precondition A2 §3.2
@@ -2105,6 +2107,11 @@ pub(crate) fn verify_current_pair(
     Ok((matches, matches_bytes, inputs, inputs_bytes))
 }
 
+/// `cargo xtask ratchet check [--baseline <ref>]`: verify both
+/// artifacts against the current tree (vendor pins, fixture bytes,
+/// expansion, golden oracle records, ratchet.toml derived summaries)
+/// and their full append-only lineage; with `--baseline`, also the
+/// trusted PR-base direct compare.
 pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> {
     let (matches, matches_bytes, inputs, inputs_bytes) = verify_current_pair(workspace)?;
 

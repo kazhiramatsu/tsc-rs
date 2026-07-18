@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fs;
@@ -25,6 +26,10 @@ use scope::ScopeManifest;
 
 pub type ConformanceResult<T> = Result<T, Box<dyn Error>>;
 
+/// The 2XXX diagnostic code range — the single source for the A1
+/// `2xxx` view and the A2 band pin/census code checks.
+pub(crate) const TWO_XXX_CODES: std::ops::Range<u32> = 2000..3000;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DiagnosticBand {
     All,
@@ -46,7 +51,7 @@ impl DiagnosticBand {
     fn contains(self, code: u32) -> bool {
         match self {
             Self::All | Self::Syntactic => true,
-            Self::TwoXxx => (2000..3000).contains(&code),
+            Self::TwoXxx => TWO_XXX_CODES.contains(&code),
         }
     }
 
@@ -702,14 +707,31 @@ fn run_conformance_inner(
             // supported comparison; a T0 bucket leaves the supported
             // denominator only when every one of its records is
             // excluded, so an exclusion can never hide a neighboring
-            // occurrence in the same bucket.
-            let (supported_expected, fully_excluded) =
-                scope::supported_case_view(&golden_case.oracle, options.band, &excluded_indices);
-            let supported_actual = actual
-                .iter()
-                .filter(|key| !fully_excluded.contains(*key))
-                .cloned()
-                .collect::<BTreeSet<_>>();
+            // occurrence in the same bucket. An empty selection (the
+            // common case, per case) leaves the band views untouched —
+            // borrow them instead of rebuilding both sets in this hot
+            // loop.
+            let (supported_expected, fully_excluded) = if excluded_indices.is_empty() {
+                (Cow::Borrowed(&expected), BTreeSet::new())
+            } else {
+                let (supported_expected, fully_excluded) = scope::supported_case_view(
+                    &golden_case.oracle,
+                    options.band,
+                    &excluded_indices,
+                );
+                (Cow::Owned(supported_expected), fully_excluded)
+            };
+            let supported_actual = if fully_excluded.is_empty() {
+                Cow::Borrowed(&actual)
+            } else {
+                Cow::Owned(
+                    actual
+                        .iter()
+                        .filter(|key| !fully_excluded.contains(*key))
+                        .cloned()
+                        .collect::<BTreeSet<_>>(),
+                )
+            };
             let supported_fn = supported_expected
                 .difference(&supported_actual)
                 .cloned()

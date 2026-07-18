@@ -176,5 +176,8 @@ async function main() {
 
 main().catch((error) => {
   console.error(String(error?.stack ?? error));
-  process.exit(1);
+  // exitCode, not exit(): exit() can tear down the process before a
+  // piped stderr flushes, and the Rust side would report an empty
+  // failure instead of this diagnostic.
+  process.exitCode = 1;
 });

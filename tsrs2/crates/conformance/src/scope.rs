@@ -20,13 +20,13 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     fixture_key, read_golden, select_fixtures, t0_key, t0_set, ConformanceResult, DiagnosticBand,
-    GoldenCase, GoldenDiag, RefreshOptions, T0Key,
+    GoldenCase, GoldenDiag, RefreshOptions, T0Key, TWO_XXX_CODES,
 };
 use crate::identity::{
     assign_case_identities, case_identity_report, CaseIdentityReport, ExactIdentity,
     ENCODER_VERSION,
 };
-use crate::ratchet::{self, git, git_blob_optional, git_rel_path, git_root_for};
+use crate::ratchet::{self, git_blob_optional, git_rel_path, git_root_for, resolve_commit};
 
 pub(crate) const SCOPE_REL_PATH: &str = "m8-scope.json";
 const SCOPE_SCHEMA: u32 = 2;
@@ -106,12 +106,26 @@ struct BandPin {
 
 /// A resolution tombstone (measurement-integrity.md §3.2): the exact
 /// deleted identity and the resolving commit. Its standing proof is
-/// A1 membership under the applicable full-corpus fixed view.
+/// A1 membership under the applicable full-corpus fixed view — unless
+/// it is `lapsed`, in which case the proof obligation inverts: the
+/// occurrence itself left the pinned goldens under a reviewed
+/// universe/oracle-correction transition, so the identity must NOT
+/// resolve anymore.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Tombstone {
     #[serde(flatten)]
     identity: ExactIdentity,
-    resolving_commit: String,
+    /// The ancestor commit whose change resolved the occurrence.
+    /// `None` only on a lapsed tombstone recording an occurrence a
+    /// reviewed transition removed while it was still excluded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    resolving_commit: Option<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    lapsed: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// The one global-freeze record (measurement-integrity.md §3.3),
@@ -127,7 +141,7 @@ struct GlobalFreeze {
 /// membership in that view.
 fn band_code_range(band: &str) -> ConformanceResult<std::ops::Range<u32>> {
     match band {
-        "2xxx" => Ok(2000..3000),
+        "2xxx" => Ok(TWO_XXX_CODES),
         other => Err(format!(
             "unsupported scope pin band {other:?}: band pins are declared per fixed A1 view \
              and only \"2xxx\" has one (a new band needs its own declared view first)"
@@ -136,9 +150,14 @@ fn band_code_range(band: &str) -> ConformanceResult<std::ops::Range<u32>> {
     }
 }
 
-fn ratchet_view_for_band(band: &str) -> DiagnosticBand {
-    debug_assert_eq!(band, "2xxx");
-    DiagnosticBand::TwoXxx
+/// The A1 fixed view a band pin reads for tombstone standing proofs.
+/// A hard error for unknown bands — never a fallback view, which would
+/// silently prove a tombstone against the wrong accepted subset.
+fn ratchet_view_for_band(band: &str) -> ConformanceResult<DiagnosticBand> {
+    match band {
+        "2xxx" => Ok(DiagnosticBand::TwoXxx),
+        other => Err(format!("no fixed A1 view declared for scope pin band {other:?}").into()),
+    }
 }
 
 /// Probe only the schema number, so retired/unknown schemas report
@@ -150,6 +169,30 @@ fn scope_schema_of(bytes: &[u8], origin: &str) -> ConformanceResult<u64> {
         .get("schema")
         .and_then(serde_json::Value::as_u64)
         .ok_or_else(|| format!("M8 scope manifest {origin} lacks a schema number").into())
+}
+
+/// Probe only the encoder pin, so a manifest written under another
+/// encoder version reports its migration path instead of a parse
+/// error (identities across encoder versions are incomparable).
+fn scope_encoder_of(bytes: &[u8], origin: &str) -> ConformanceResult<u64> {
+    let value: serde_json::Value = serde_json::from_slice(bytes)
+        .map_err(|err| format!("failed to parse M8 scope manifest {origin}: {err}"))?;
+    value
+        .get("encoder")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| format!("M8 scope manifest {origin} lacks an encoder pin").into())
+}
+
+/// Probe only the status, for manifests that cannot fully parse under
+/// this tree's encoder (the baseline side of an encoder migration).
+fn scope_status_of(bytes: &[u8], origin: &str) -> ConformanceResult<ScopeStatus> {
+    let value: serde_json::Value = serde_json::from_slice(bytes)
+        .map_err(|err| format!("failed to parse M8 scope manifest {origin}: {err}"))?;
+    match value.get("status").and_then(serde_json::Value::as_str) {
+        Some("draft") => Ok(ScopeStatus::Draft),
+        Some("frozen") => Ok(ScopeStatus::Frozen),
+        other => Err(format!("M8 scope manifest {origin} has unknown status {other:?}").into()),
+    }
 }
 
 fn parse_scope_bytes(bytes: &[u8], origin: &str) -> ConformanceResult<ScopeFile> {
@@ -204,12 +247,18 @@ fn validate_structure(file: &ScopeFile, origin: &str) -> ConformanceResult<()> {
     let mut tombstoned = BTreeSet::new();
     for tombstone in &file.tombstones {
         validate_identity_pass(&tombstone.identity, "tombstone")?;
-        if tombstone.resolving_commit.trim().is_empty() {
-            return Err(format!(
-                "M8 scope tombstone {} has no resolving commit",
-                tombstone.identity.label()
-            )
-            .into());
+        match &tombstone.resolving_commit {
+            Some(commit) => {
+                validate_anchor_commit(commit, "tombstone", &tombstone.identity.label())?;
+            }
+            None if !tombstone.lapsed => {
+                return Err(format!(
+                    "M8 scope tombstone {} has no resolving commit",
+                    tombstone.identity.label()
+                )
+                .into());
+            }
+            None => {}
         }
         if live.contains(&tombstone.identity) {
             return Err(format!(
@@ -233,13 +282,11 @@ fn validate_structure(file: &ScopeFile, origin: &str) -> ConformanceResult<()> {
         if !bands.insert(pin.band.clone()) {
             return Err(format!("duplicate M8 scope band pin for {:?}", pin.band).into());
         }
-        if pin.adjudication_commit.trim().is_empty() {
-            return Err(format!(
-                "M8 scope band pin {:?} has no adjudication commit",
-                pin.band
-            )
-            .into());
-        }
+        validate_anchor_commit(
+            &pin.adjudication_commit,
+            "band pin",
+            &format!("{:?}", pin.band),
+        )?;
         let band_range = band_code_range(&pin.band)?;
         let mut pinned = BTreeSet::new();
         for identity in &pin.identities {
@@ -305,9 +352,7 @@ fn validate_structure(file: &ScopeFile, origin: &str) -> ConformanceResult<()> {
         _ => {}
     }
     if let Some(global) = &file.global {
-        if global.adjudication_commit.trim().is_empty() {
-            return Err("M8 scope global-freeze record has no adjudication commit".into());
-        }
+        validate_anchor_commit(&global.adjudication_commit, "global-freeze record", "")?;
         let mut frozen = BTreeSet::new();
         for identity in &global.identities {
             validate_identity_pass(identity, "global-freeze")?;
@@ -342,6 +387,59 @@ fn validate_structure(file: &ScopeFile, origin: &str) -> ConformanceResult<()> {
         }
     }
     Ok(())
+}
+
+/// Manifest anchors are full 40-hex commit SHAs. A movable ref
+/// ("HEAD", a branch, a tag) would let the reviewed-snapshot compare
+/// degenerate to self-compare the moment the ref moves.
+fn validate_anchor_commit(commit: &str, what: &str, label: &str) -> ConformanceResult<()> {
+    let full_hex = commit.len() == 40
+        && commit
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'));
+    if !full_hex {
+        return Err(format!(
+            "M8 scope {what} {label} anchor {commit:?} is not a full 40-hex commit SHA; \
+             movable refs (branches, tags, HEAD) cannot anchor a reviewed snapshot"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+/// Resolve one manifest identity to its oracle record index: exactly
+/// one occurrence must carry it. Zero matches is the stale error; two
+/// or more is unreachable by construction (occurrence numbering makes
+/// case identities unique), guarded so a canonical-encoder bug cannot
+/// silently widen a selection or a proof.
+fn resolve_identity_index(
+    identities: &[ExactIdentity],
+    identity: &ExactIdentity,
+    what: &str,
+) -> ConformanceResult<usize> {
+    let mut matches = identities
+        .iter()
+        .enumerate()
+        .filter(|(_, entry)| *entry == identity);
+    let Some((record_index, _)) = matches.next() else {
+        return Err(format!(
+            "stale M8 scope {what} {}: no oracle occurrence carries this identity under \
+             encoder v{ENCODER_VERSION}",
+            identity.label()
+        )
+        .into());
+    };
+    let extra = matches.count();
+    if extra > 0 {
+        return Err(format!(
+            "ambiguous M8 scope {what} {}: {} oracle occurrences share the identity \
+             (canonical encoder bug)",
+            identity.label(),
+            extra + 1
+        )
+        .into());
+    }
+    Ok(record_index)
 }
 
 fn validate_identity_pass(identity: &ExactIdentity, what: &str) -> ConformanceResult<()> {
@@ -421,44 +519,12 @@ impl ScopeManifest {
         let mut excluded = BTreeSet::new();
         for exclusion_index in indices {
             let exclusion = &self.file.exclusions[exclusion_index];
-            let matches = identities
-                .iter()
-                .enumerate()
-                .filter(|(_, identity)| **identity == exclusion.identity)
-                .map(|(index, _)| index)
-                .collect::<Vec<_>>();
-            let record_index = match matches.as_slice() {
-                [index] => *index,
-                [] => {
-                    return Err(format!(
-                        "stale M8 scope exclusion {}: no oracle occurrence carries this \
-                         identity under encoder v{ENCODER_VERSION}",
-                        exclusion.identity.label()
-                    )
-                    .into());
-                }
-                _ => {
-                    // Unreachable by construction: occurrence numbering
-                    // makes case identities unique. Keep the guard so an
-                    // encoder bug cannot silently widen an exclusion.
-                    return Err(format!(
-                        "ambiguous M8 scope exclusion {}: {} oracle occurrences share the \
-                         identity (canonical encoder bug)",
-                        exclusion.identity.label(),
-                        matches.len()
-                    )
-                    .into());
-                }
-            };
+            let record_index =
+                resolve_identity_index(&identities, &exclusion.identity, "exclusion")?;
+            // No syntactic re-check here: an identity match implies the
+            // record's pass equals the exclusion's, and syntactic
+            // exclusions never load (validate_identity_pass).
             let record = &oracle[record_index];
-            if record.pass.as_deref() == Some("syntactic") {
-                return Err(format!(
-                    "M8 scope exclusion {} targets a syntactic diagnostic; parser fidelity \
-                     is always supported scope",
-                    exclusion.identity.label()
-                )
-                .into());
-            }
             if exclusion.line != record.line || exclusion.col != record.col {
                 return Err(format!(
                     "M8 scope exclusion {} review fields line={:?} col={:?} do not match the \
@@ -588,6 +654,27 @@ struct CrossCheckCase {
     records: Vec<GoldenDiag>,
 }
 
+/// What the corpus scan must establish for one manifest-referenced
+/// identity.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum ReferenceNeed {
+    /// Live selection: exactly one occurrence, review fields agree.
+    Exclusion,
+    /// Pin/global membership: exactly one occurrence, unless a lapsed
+    /// tombstone records that a reviewed transition removed it.
+    Anchored,
+    /// Active tombstone: exactly one occurrence (its bucket feeds the
+    /// A1 standing proof).
+    Resolved,
+    /// Lapsed tombstone: no occurrence — the identity must have left
+    /// the pinned goldens.
+    Lapsed,
+}
+
+/// One manifest reference for the corpus scan: the manifest section it
+/// came from, what the scan must establish, and the identity.
+type ScopeReference = (&'static str, ReferenceNeed, ExactIdentity);
+
 /// The A2 scope audit: structural manifest validation, occurrence
 /// resolution against the pinned goldens, the duplicate-bucket
 /// canaries, the Node/Rust canonical-encoder cross-check, the
@@ -608,41 +695,53 @@ pub fn audit(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
     let goldens_root = workspace.join("goldens");
 
     // Identities the manifest references, grouped per (fixture, case).
-    let mut referenced: BTreeMap<(String, String), Vec<(&'static str, ExactIdentity)>> =
-        BTreeMap::new();
-    let mut reference = |what: &'static str, identity: &ExactIdentity| {
+    let mut referenced: BTreeMap<(String, String), Vec<ScopeReference>> = BTreeMap::new();
+    let mut reference = |what: &'static str, need: ReferenceNeed, identity: &ExactIdentity| {
         referenced
             .entry((identity.fixture.clone(), identity.matrix_key.clone()))
             .or_default()
-            .push((what, identity.clone()));
+            .push((what, need, identity.clone()));
     };
     for exclusion in &file.exclusions {
-        reference("exclusion", &exclusion.identity);
+        reference("exclusion", ReferenceNeed::Exclusion, &exclusion.identity);
     }
     for pin in &file.band_pins {
         for identity in &pin.identities {
-            reference("band-pin identity", identity);
+            reference("band-pin identity", ReferenceNeed::Anchored, identity);
         }
     }
     for tombstone in &file.tombstones {
-        reference("tombstone", &tombstone.identity);
+        let need = if tombstone.lapsed {
+            ReferenceNeed::Lapsed
+        } else {
+            ReferenceNeed::Resolved
+        };
+        reference("tombstone", need, &tombstone.identity);
     }
     if let Some(global) = &file.global {
         for identity in &global.identities {
-            reference("global-freeze identity", identity);
+            reference("global-freeze identity", ReferenceNeed::Anchored, identity);
         }
     }
+    let lapsed_identities = file
+        .tombstones
+        .iter()
+        .filter(|tombstone| tombstone.lapsed)
+        .map(|tombstone| tombstone.identity.clone())
+        .collect::<BTreeSet<_>>();
 
     let mut dup_buckets = 0usize;
     let mut dup_buckets_2xxx = 0usize;
     let mut cross_cases = Vec::new();
     let mut resolved_case_ids = BTreeSet::new();
-    // Per-case bucket multiplicities for every case a tombstone
-    // references, per applicable fixed view.
+    // Per-case bucket multiplicities for every case an ACTIVE tombstone
+    // references, per applicable fixed view (a lapsed tombstone has no
+    // A1 proof to feed).
     let mut tombstone_cases: BTreeMap<(String, String), GoldenCase> = BTreeMap::new();
     let tombstone_case_keys = file
         .tombstones
         .iter()
+        .filter(|tombstone| !tombstone.lapsed)
         .map(|tombstone| {
             (
                 tombstone.identity.fixture.clone(),
@@ -665,7 +764,7 @@ pub fn audit(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
                 dup_buckets += case_dups;
                 dup_buckets_2xxx += buckets
                     .iter()
-                    .filter(|(bucket, count)| **count >= 2 && (2000..3000).contains(&bucket.code))
+                    .filter(|(bucket, count)| **count >= 2 && TWO_XXX_CODES.contains(&bucket.code))
                     .count();
                 // Exercise the canary: occurrence assignment must
                 // yield distinct identities across the whole case.
@@ -690,7 +789,7 @@ pub fn audit(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
             }
             let case_id = (key.clone(), case.matrix_key.clone());
             if let Some(entries) = referenced.get(&case_id) {
-                resolve_referenced(&key, case, entries, &file)?;
+                resolve_referenced(&key, case, entries, &file, &lapsed_identities)?;
                 resolved_case_ids.insert(case_id.clone());
             }
             if tombstone_case_keys.contains(&case_id) {
@@ -699,15 +798,28 @@ pub fn audit(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
         }
     }
     for (case_id, entries) in &referenced {
-        if !resolved_case_ids.contains(case_id) {
-            return Err(format!(
-                "M8 scope {} {} references fixture {} [{}] outside the pinned corpus",
-                entries[0].0,
-                entries[0].1.label(),
-                case_id.0,
-                case_id.1
-            )
-            .into());
+        if resolved_case_ids.contains(case_id) {
+            continue;
+        }
+        for (what, need, identity) in entries {
+            // A whole case may leave the corpus under a reviewed
+            // universe transition: that is a lapse, so only entries
+            // that must (or may, via a lapsed tombstone) be absent
+            // tolerate the missing case.
+            let tolerated = match need {
+                ReferenceNeed::Lapsed => true,
+                ReferenceNeed::Anchored => lapsed_identities.contains(identity),
+                ReferenceNeed::Exclusion | ReferenceNeed::Resolved => false,
+            };
+            if !tolerated {
+                return Err(format!(
+                    "M8 scope {what} {} references fixture {} [{}] outside the pinned corpus",
+                    identity.label(),
+                    case_id.0,
+                    case_id.1
+                )
+                .into());
+            }
         }
     }
     if (dup_buckets, dup_buckets_2xxx) != DUP_BUCKET_CANARIES {
@@ -742,22 +854,7 @@ pub fn audit(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
             records: case.records.clone(),
         });
     }
-    // Reorder canaries: an observable reorder must change the identity.
-    for name in ["nested-chains-child-order", "reordered-related-information"] {
-        let case = vectors
-            .cases
-            .iter()
-            .find(|case| case.name == name)
-            .ok_or_else(|| format!("identity vector file lacks required canary {name:?}"))?;
-        let identities = assign_case_identities(&case.fixture, &case.matrix_key, &case.records)?;
-        if identities[0] == identities[1] {
-            return Err(format!(
-                "encoder canary {name:?} failed: an observable reorder must change the \
-                 identity, but both records encode identically"
-            )
-            .into());
-        }
-    }
+    verify_reorder_canaries(&vectors)?;
     let cross_checked = run_cross_language_check(workspace, &cross_cases)?;
 
     // -- Reviewed-snapshot anchors + tombstone standing proofs.
@@ -771,12 +868,12 @@ pub fn audit(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
     if let Some(global) = &file.global {
         verify_global_freeze(&git_root, &scope_rel, &head, &file, global)?;
     }
-    if !file.tombstones.is_empty() {
+    if file.tombstones.iter().any(|tombstone| !tombstone.lapsed) {
         // The standing proof is invalid unless A1's vendor,
         // oracle-input, and comparator pins verify against the
         // current tree.
         let (matches, _, _, _) = ratchet::verify_current_pair(workspace)?;
-        for tombstone in &file.tombstones {
+        for tombstone in file.tombstones.iter().filter(|tombstone| !tombstone.lapsed) {
             verify_tombstone(
                 &git_root,
                 &head,
@@ -787,6 +884,11 @@ pub fn audit(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
             )?;
         }
     }
+    // A lapsed tombstone's absence proof ran in the corpus scan; its
+    // historical resolving commit (when one exists) must still anchor.
+    for tombstone in file.tombstones.iter().filter(|tombstone| tombstone.lapsed) {
+        verify_lapsed_tombstone_anchor(&git_root, &head, tombstone)?;
+    }
 
     // -- Trusted-base compare.
     if let Some(baseline) = baseline {
@@ -795,13 +897,14 @@ pub fn audit(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
 
     println!(
         "scope audit ok: status={} encoder=v{} exclusions={} band-pins={} tombstones={} \
-         global={} dup-canaries={dup_buckets}/{dup_buckets_2xxx} cross-checked={cross_checked} \
-         baseline={}",
+         lapsed={} global={} dup-canaries={dup_buckets}/{dup_buckets_2xxx} \
+         cross-checked={cross_checked} baseline={}",
         file.status.name(),
         ENCODER_VERSION,
         file.exclusions.len(),
         file.band_pins.len(),
         file.tombstones.len(),
+        lapsed_identities.len(),
         if file.global.is_some() {
             "frozen"
         } else {
@@ -812,44 +915,102 @@ pub fn audit(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
     Ok(())
 }
 
-/// Resolve every manifest-referenced identity for one golden case:
-/// each must denote exactly one oracle occurrence; live exclusions
-/// additionally verify their redundant review fields.
+/// Resolve every manifest-referenced identity for one golden case
+/// against its declared need: live exclusions and active tombstones
+/// must denote exactly one oracle occurrence (exclusions additionally
+/// verify their redundant review fields); pin/global members may
+/// instead be covered by a lapsed tombstone; a lapsed tombstone's
+/// occurrence must be gone.
 fn resolve_referenced(
     fixture: &str,
     case: &GoldenCase,
-    entries: &[(&'static str, ExactIdentity)],
+    entries: &[ScopeReference],
     file: &ScopeFile,
+    lapsed_identities: &BTreeSet<ExactIdentity>,
 ) -> ConformanceResult<()> {
     let identities = assign_case_identities(fixture, &case.matrix_key, &case.oracle)?;
-    for (what, identity) in entries {
-        let Some(record_index) = identities.iter().position(|entry| entry == identity) else {
+    for (what, need, identity) in entries {
+        match need {
+            ReferenceNeed::Exclusion => {
+                let record_index = resolve_identity_index(&identities, identity, what)?;
+                let record = &case.oracle[record_index];
+                let exclusion = file
+                    .exclusions
+                    .iter()
+                    .find(|exclusion| exclusion.identity == *identity)
+                    .expect("referenced exclusion exists");
+                if exclusion.line != record.line || exclusion.col != record.col {
+                    return Err(format!(
+                        "M8 scope exclusion {} review fields line={:?} col={:?} do not match \
+                         the pinned oracle record's line={:?} col={:?}",
+                        identity.label(),
+                        exclusion.line,
+                        exclusion.col,
+                        record.line,
+                        record.col
+                    )
+                    .into());
+                }
+            }
+            ReferenceNeed::Resolved => {
+                resolve_identity_index(&identities, identity, what)?;
+            }
+            ReferenceNeed::Anchored => {
+                // The lapsed tombstone's own entry proves the absence.
+                if !lapsed_identities.contains(identity) {
+                    resolve_identity_index(&identities, identity, what)?;
+                }
+            }
+            ReferenceNeed::Lapsed => {
+                if identities.iter().any(|entry| entry == identity) {
+                    return Err(format!(
+                        "M8 scope tombstone {} is marked lapsed but its occurrence still \
+                         exists in the pinned goldens (a lapse records a reviewed \
+                         transition that removed the occurrence)",
+                        identity.label()
+                    )
+                    .into());
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Reorder canaries: an observable reorder must change the encoded
+/// hash the reorder targets. Whole-identity inequality would be
+/// vacuous here — occurrence numbering disambiguates even identical
+/// tuples — so the hash comparison is the real check.
+fn verify_reorder_canaries(vectors: &VectorFile) -> ConformanceResult<()> {
+    for (name, hash_name) in [
+        ("nested-chains-child-order", "chain_sha256"),
+        ("reordered-related-information", "related_sha256"),
+    ] {
+        let case = vectors
+            .cases
+            .iter()
+            .find(|case| case.name == name)
+            .ok_or_else(|| format!("identity vector file lacks required canary {name:?}"))?;
+        let identities = assign_case_identities(&case.fixture, &case.matrix_key, &case.records)?;
+        let [first, second] = identities.as_slice() else {
             return Err(format!(
-                "stale M8 scope {what} {}: no oracle occurrence carries this identity under \
-                 encoder v{ENCODER_VERSION}",
-                identity.label()
+                "encoder canary {name:?} must hold exactly two records (one observable \
+                 reorder), found {}",
+                identities.len()
             )
             .into());
         };
-        if *what == "exclusion" {
-            let record = &case.oracle[record_index];
-            let exclusion = file
-                .exclusions
-                .iter()
-                .find(|exclusion| exclusion.identity == *identity)
-                .expect("referenced exclusion exists");
-            if exclusion.line != record.line || exclusion.col != record.col {
-                return Err(format!(
-                    "M8 scope exclusion {} review fields line={:?} col={:?} do not match the \
-                     pinned oracle record's line={:?} col={:?}",
-                    identity.label(),
-                    exclusion.line,
-                    exclusion.col,
-                    record.line,
-                    record.col
-                )
-                .into());
-            }
+        let hashes = if hash_name == "chain_sha256" {
+            (&first.chain_sha256, &second.chain_sha256)
+        } else {
+            (&first.related_sha256, &second.related_sha256)
+        };
+        if hashes.0 == hashes.1 {
+            return Err(format!(
+                "encoder canary {name:?} failed: an observable reorder must change \
+                 {hash_name}, but both records hash identically"
+            )
+            .into());
         }
     }
     Ok(())
@@ -890,11 +1051,13 @@ fn run_cross_language_check(
                 script.display()
             )
         })?;
-    child
-        .stdin
-        .take()
-        .expect("piped stdin")
-        .write_all(&serde_json::to_vec(&input)?)?;
+    // A node-side startup failure exits before draining stdin, which
+    // surfaces here as a broken pipe. Absorb the write error until the
+    // child is reaped, so the failure reports node's stderr instead of
+    // a bare EPIPE.
+    let mut stdin = child.stdin.take().expect("piped stdin");
+    let write_result = stdin.write_all(&serde_json::to_vec(&input)?);
+    drop(stdin);
     let output = child.wait_with_output()?;
     if !output.status.success() {
         return Err(format!(
@@ -903,6 +1066,7 @@ fn run_cross_language_check(
         )
         .into());
     }
+    write_result.map_err(|err| format!("node encoder cross-check: stdin write failed: {err}"))?;
     let node: EncoderOutput = serde_json::from_slice(&output.stdout)
         .map_err(|err| format!("node encoder output unparsable: {err}"))?;
     if node.encoder != ENCODER_VERSION {
@@ -990,11 +1154,21 @@ fn compare_reports(
 // Git anchors (measurement-integrity.md §1.2, §3.1-§3.3)
 // ---------------------------------------------------------------------------
 
-fn resolve_commit(root: &Path, reference: &str) -> ConformanceResult<String> {
-    let spec = format!("{reference}^{{commit}}");
-    let commit = git(root, &["rev-parse", "--verify", &spec])
-        .map_err(|err| format!("cannot resolve {reference}: {err}"))?;
-    Ok(String::from_utf8(commit)?.trim().to_owned())
+/// Resolve a manifest anchor. The recorded value is already a full
+/// 40-hex SHA (validate_structure); it must additionally name a commit
+/// object directly — a 40-hex tag object would still peel somewhere
+/// else, and an anchor that is not literally the commit would reopen
+/// the movable-ref hole.
+fn resolve_anchor(root: &Path, recorded: &str, what: &str) -> ConformanceResult<String> {
+    let commit = resolve_commit(root, recorded)?;
+    if commit != recorded {
+        return Err(format!(
+            "M8 scope {what} anchor {recorded} does not name a commit object directly \
+             (it resolves to {commit}); anchors are full commit SHAs"
+        )
+        .into());
+    }
+    Ok(commit)
 }
 
 fn is_ancestor(root: &Path, ancestor: &str, descendant: &str) -> ConformanceResult<bool> {
@@ -1022,6 +1196,22 @@ fn scope_file_at(
 ) -> ConformanceResult<ScopeFile> {
     let bytes = git_blob_optional(root, commit, rel)?
         .ok_or_else(|| format!("no M8 scope manifest at {origin}"))?;
+    // A historical manifest written under another encoder version can
+    // never satisfy this tree's anchor comparison — say so, instead of
+    // failing as a parse error with no migration path.
+    if scope_schema_of(&bytes, origin)? == u64::from(SCOPE_SCHEMA) {
+        let encoder = scope_encoder_of(&bytes, origin)?;
+        if encoder != u64::from(ENCODER_VERSION) {
+            return Err(format!(
+                "M8 scope manifest at {origin} was written under canonical encoder \
+                 v{encoder} but this tree implements v{ENCODER_VERSION}; identities across \
+                 encoder versions are incomparable, so the anchor cannot verify — re-anchor \
+                 on a manifest re-encoded under the current encoder (the reviewed \
+                 encoder-bump slice)"
+            )
+            .into());
+        }
+    }
     parse_scope_bytes(&bytes, origin)
 }
 
@@ -1036,7 +1226,11 @@ fn verify_band_pin(
     head: &str,
     pin: &BandPin,
 ) -> ConformanceResult<()> {
-    let commit = resolve_commit(root, &pin.adjudication_commit)?;
+    let commit = resolve_anchor(
+        root,
+        &pin.adjudication_commit,
+        &format!("band pin {:?}", pin.band),
+    )?;
     if !is_ancestor(root, &commit, head)? {
         return Err(format!(
             "M8 scope band pin {:?} adjudication commit {} is not an ancestor of HEAD",
@@ -1102,7 +1296,7 @@ fn verify_global_freeze(
     global: &GlobalFreeze,
 ) -> ConformanceResult<()> {
     debug_assert_eq!(file.status, ScopeStatus::Frozen);
-    let commit = resolve_commit(root, &global.adjudication_commit)?;
+    let commit = resolve_anchor(root, &global.adjudication_commit, "global-freeze record")?;
     if !is_ancestor(root, &commit, head)? {
         return Err(format!(
             "M8 scope global-freeze adjudication commit {} is not an ancestor of HEAD",
@@ -1141,11 +1335,13 @@ fn verify_global_freeze(
     Ok(())
 }
 
-/// §3.2 — the standing tombstone proof: the resolving commit is an
-/// ancestor of HEAD, the identity still denotes a pinned oracle
-/// occurrence, and A1 membership in every applicable full-corpus
-/// fixed view proves the resolution (T0 membership for a singleton
-/// bucket; a duplicate bucket must also be multiplicity-complete).
+/// §3.2 — the standing proof of an ACTIVE tombstone: the resolving
+/// commit is an ancestor of HEAD, the identity still denotes a pinned
+/// oracle occurrence, and A1 membership in every applicable
+/// full-corpus fixed view proves the resolution (T0 membership for a
+/// singleton bucket; a duplicate bucket must also be
+/// multiplicity-complete). Lapsed tombstones prove the opposite in
+/// the corpus scan and only anchor-check here.
 fn verify_tombstone(
     root: &Path,
     head: &str,
@@ -1155,12 +1351,17 @@ fn verify_tombstone(
     matches: &ratchet::MatchesArtifact,
 ) -> ConformanceResult<()> {
     let identity = &tombstone.identity;
-    let commit = resolve_commit(root, &tombstone.resolving_commit)?;
+    let recorded = tombstone.resolving_commit.as_deref().ok_or_else(|| {
+        format!(
+            "M8 scope tombstone {} is active but has no resolving commit",
+            identity.label()
+        )
+    })?;
+    let commit = resolve_anchor(root, recorded, &format!("tombstone {}", identity.label()))?;
     if !is_ancestor(root, &commit, head)? {
         return Err(format!(
-            "M8 scope tombstone {} resolving commit {} is not an ancestor of HEAD",
+            "M8 scope tombstone {} resolving commit {recorded} is not an ancestor of HEAD",
             identity.label(),
-            tombstone.resolving_commit
         )
         .into());
     }
@@ -1174,15 +1375,7 @@ fn verify_tombstone(
             )
         })?;
     let identities = assign_case_identities(&identity.fixture, &identity.matrix_key, &case.oracle)?;
-    let record_index = identities
-        .iter()
-        .position(|entry| entry == identity)
-        .ok_or_else(|| {
-            format!(
-                "stale M8 scope tombstone {}: no oracle occurrence carries this identity",
-                identity.label()
-            )
-        })?;
+    let record_index = resolve_identity_index(&identities, identity, "tombstone")?;
     let bucket = t0_key(&case.oracle[record_index]);
 
     // The applicable full-corpus fixed views: the early band pin reads
@@ -1193,7 +1386,7 @@ fn verify_tombstone(
     let mut views = Vec::new();
     for pin in &file.band_pins {
         if pin.identities.contains(identity) {
-            views.push(ratchet_view_for_band(&pin.band));
+            views.push(ratchet_view_for_band(&pin.band)?);
         }
     }
     if file
@@ -1249,6 +1442,30 @@ fn verify_tombstone(
     Ok(())
 }
 
+/// §3.2 — a lapsed tombstone's occurrence left the pinned goldens (the
+/// corpus scan proved the absence); the historical resolving commit,
+/// when the tombstone had resolved before the lapse, must still be a
+/// real ancestor anchor.
+fn verify_lapsed_tombstone_anchor(
+    root: &Path,
+    head: &str,
+    tombstone: &Tombstone,
+) -> ConformanceResult<()> {
+    let Some(recorded) = tombstone.resolving_commit.as_deref() else {
+        return Ok(());
+    };
+    let identity = &tombstone.identity;
+    let commit = resolve_anchor(root, recorded, &format!("tombstone {}", identity.label()))?;
+    if !is_ancestor(root, &commit, head)? {
+        return Err(format!(
+            "M8 scope tombstone {} resolving commit {recorded} is not an ancestor of HEAD",
+            identity.label(),
+        )
+        .into());
+    }
+    Ok(())
+}
+
 /// The trusted-base compare (hosted PR CI passes the immutable PR
 /// base). After the first valid freeze transition the global records
 /// must be byte-identical; band pins never reanchor against the base;
@@ -1279,6 +1496,38 @@ fn verify_scope_baseline(
             return Err(format!(
                 "baseline {baseline} holds the retired schema-1 manifest; the freeze \
                  transition requires a schema-2 draft trusted base"
+            )
+            .into());
+        }
+        return Ok(());
+    }
+    // An older-encoder base is the encoder-bump migration window:
+    // identities across encoder versions are incomparable, so the
+    // reviewed bump slice re-encodes the manifest wholesale and
+    // re-anchors its pins. The freeze cannot ride the migration, and a
+    // frozen base has no sanctioned bump path — the frozen set pins
+    // its encoder.
+    let base_encoder = scope_encoder_of(&bytes, &format!("baseline {baseline}"))?;
+    if base_encoder != u64::from(ENCODER_VERSION) {
+        if base_encoder > u64::from(ENCODER_VERSION) {
+            return Err(format!(
+                "baseline {baseline} pins canonical encoder v{base_encoder} but this tree \
+                 implements v{ENCODER_VERSION}: an encoder downgrade never occurs"
+            )
+            .into());
+        }
+        if scope_status_of(&bytes, &format!("baseline {baseline}"))? == ScopeStatus::Frozen {
+            return Err(format!(
+                "baseline {baseline} holds a frozen manifest under canonical encoder \
+                 v{base_encoder}; an encoder bump after the global freeze has no sanctioned \
+                 path"
+            )
+            .into());
+        }
+        if head.status == ScopeStatus::Frozen {
+            return Err(format!(
+                "baseline {baseline} pins canonical encoder v{base_encoder}; the freeze \
+                 transition cannot ride the encoder migration"
             )
             .into());
         }
@@ -1369,17 +1618,39 @@ fn verify_scope_baseline(
     }
 
     // Tombstones are proofs of record: they never disappear against
-    // the trusted base.
-    let head_tombstones = head
+    // the trusted base, and their provenance never changes — the
+    // lapsed flag is the one field a reviewed transition may flip
+    // (its truth is re-proven against the goldens on every audit).
+    let head_tombstones: BTreeMap<&ExactIdentity, &Tombstone> = head
         .tombstones
         .iter()
-        .map(|tombstone| tombstone.identity.clone())
-        .collect::<BTreeSet<_>>();
-    for tombstone in &base.tombstones {
-        if !head_tombstones.contains(&tombstone.identity) {
+        .map(|tombstone| (&tombstone.identity, tombstone))
+        .collect();
+    for base_tombstone in &base.tombstones {
+        let Some(head_tombstone) = head_tombstones.get(&base_tombstone.identity) else {
             return Err(format!(
                 "baseline {baseline} scope compare failed: tombstone {} was removed",
-                tombstone.identity.label()
+                base_tombstone.identity.label()
+            )
+            .into());
+        };
+        // A lapsed-only record (no commit) may gain its resolving
+        // commit if the occurrence returns and resolves; a recorded
+        // commit never changes or disappears.
+        let commit_stable = match (
+            &base_tombstone.resolving_commit,
+            &head_tombstone.resolving_commit,
+        ) {
+            (Some(base_commit), Some(head_commit)) => base_commit == head_commit,
+            (Some(_), None) => false,
+            (None, _) => true,
+        };
+        if !commit_stable {
+            return Err(format!(
+                "baseline {baseline} scope compare failed: tombstone {} resolving commit \
+                 changed against the trusted base (provenance is part of the proof of \
+                 record)",
+                base_tombstone.identity.label()
             )
             .into());
         }
@@ -1402,7 +1673,7 @@ mod tests {
 
     use super::*;
     use crate::identity::assign_case_identities;
-    use crate::ratchet::{CaseSets, MatchesArtifact, MatchesInputs, RunSets};
+    use crate::ratchet::{git, CaseSets, MatchesArtifact, MatchesInputs, RunSets};
     use crate::GoldenMessageChain;
 
     fn temp_dir(name: &str) -> PathBuf {
@@ -1522,10 +1793,23 @@ mod tests {
         load_file(name, file).map(|_| ()).unwrap_err().to_string()
     }
 
+    /// 40-hex fake anchors for structural tests (never resolved).
+    const FAKE_SHA: &str = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+    const FAKE_SHA_2: &str = "cafebabecafebabecafebabecafebabecafebabe";
+
     fn tombstone_of(identity: ExactIdentity, resolving_commit: &str) -> Tombstone {
         Tombstone {
             identity,
-            resolving_commit: resolving_commit.to_owned(),
+            resolving_commit: Some(resolving_commit.to_owned()),
+            lapsed: false,
+        }
+    }
+
+    fn lapsed_tombstone_of(identity: ExactIdentity, resolving_commit: Option<&str>) -> Tombstone {
+        Tombstone {
+            identity,
+            resolving_commit: resolving_commit.map(str::to_owned),
+            lapsed: true,
         }
     }
 
@@ -1796,7 +2080,7 @@ mod tests {
             ScopeStatus::Draft,
             vec![exclusion_of(&oracle, 0), exclusion_of(&oracle, 1)],
         );
-        file.band_pins = vec![pin_of("2xxx", "deadbeef", vec![identity_at(&oracle, 0)])];
+        file.band_pins = vec![pin_of("2xxx", FAKE_SHA, vec![identity_at(&oracle, 0)])];
         let error = load_err("pin-add", &file);
         assert!(error.contains("not in its pinned identity set"), "{error}");
     }
@@ -1805,11 +2089,11 @@ mod tests {
     fn pinned_identity_disappearance_needs_a_tombstone() {
         let oracle = in_band_oracle();
         let mut file = scope_file(ScopeStatus::Draft, Vec::new());
-        file.band_pins = vec![pin_of("2xxx", "deadbeef", vec![identity_at(&oracle, 0)])];
+        file.band_pins = vec![pin_of("2xxx", FAKE_SHA, vec![identity_at(&oracle, 0)])];
         let error = load_err("pin-gone", &file);
         assert!(error.contains("disappeared without a tombstone"), "{error}");
 
-        file.tombstones = vec![tombstone_of(identity_at(&oracle, 0), "deadbeef")];
+        file.tombstones = vec![tombstone_of(identity_at(&oracle, 0), FAKE_SHA)];
         load_file("pin-tombstoned", &file).unwrap();
     }
 
@@ -1817,7 +2101,7 @@ mod tests {
     fn out_of_band_pin_identity_is_rejected() {
         let oracle = vec![diag(6133, 0, "suggestion", "unused")];
         let mut file = scope_file(ScopeStatus::Draft, vec![exclusion_of(&oracle, 0)]);
-        file.band_pins = vec![pin_of("2xxx", "deadbeef", vec![identity_at(&oracle, 0)])];
+        file.band_pins = vec![pin_of("2xxx", FAKE_SHA, vec![identity_at(&oracle, 0)])];
         let error = load_err("pin-band", &file);
         assert!(error.contains("out-of-band identity"), "{error}");
     }
@@ -1825,7 +2109,7 @@ mod tests {
     #[test]
     fn unknown_pin_band_is_rejected() {
         let mut file = scope_file(ScopeStatus::Draft, Vec::new());
-        file.band_pins = vec![pin_of("5xxx", "deadbeef", Vec::new())];
+        file.band_pins = vec![pin_of("5xxx", FAKE_SHA, Vec::new())];
         let error = load_err("pin-unknown", &file);
         assert!(error.contains("only \"2xxx\""), "{error}");
     }
@@ -1932,7 +2216,7 @@ mod tests {
         let oracle = in_band_oracle();
         let mut frozen = scope_file(ScopeStatus::Frozen, vec![exclusion_of(&oracle, 0)]);
         frozen.global = Some(GlobalFreeze {
-            adjudication_commit: "deadbeef".to_owned(),
+            adjudication_commit: FAKE_SHA.to_owned(),
             identities: vec![identity_at(&oracle, 0)],
         });
         let commit = commit_scope(&root, &frozen, "frozen commit");
@@ -2061,7 +2345,7 @@ mod tests {
             bucket,
             identity,
         } = tombstone_fixture(oracle);
-        file.band_pins = vec![pin_of("2xxx", "deadbeef", vec![identity])];
+        file.band_pins = vec![pin_of("2xxx", FAKE_SHA, vec![identity])];
         let matches = matches_stub(views_with("all", &bucket, false));
         let error = verify_tombstone(&root, &head, &file, &file.tombstones[0], &cases, &matches)
             .unwrap_err()
@@ -2103,7 +2387,7 @@ mod tests {
     fn tombstone_still_live_is_rejected() {
         let oracle = vec![diag(2307, 0, "semantic", "missing")];
         let mut file = scope_file(ScopeStatus::Draft, vec![exclusion_of(&oracle, 0)]);
-        file.tombstones = vec![tombstone_of(identity_at(&oracle, 0), "deadbeef")];
+        file.tombstones = vec![tombstone_of(identity_at(&oracle, 0), FAKE_SHA)];
         let error = load_err("tombstone-live", &file);
         assert!(error.contains("still a live exclusion"), "{error}");
     }
@@ -2121,7 +2405,7 @@ mod tests {
     fn draft_with_global_record_is_rejected() {
         let mut file = scope_file(ScopeStatus::Draft, Vec::new());
         file.global = Some(GlobalFreeze {
-            adjudication_commit: "deadbeef".to_owned(),
+            adjudication_commit: FAKE_SHA.to_owned(),
             identities: Vec::new(),
         });
         let error = load_err("draft-global", &file);
@@ -2138,7 +2422,7 @@ mod tests {
             vec![exclusion_of(&oracle, 0), exclusion_of(&oracle, 1)],
         );
         file.global = Some(GlobalFreeze {
-            adjudication_commit: "deadbeef".to_owned(),
+            adjudication_commit: FAKE_SHA.to_owned(),
             identities: vec![identity_at(&oracle, 0)],
         });
         let error = load_err("frozen-add", &file);
@@ -2150,13 +2434,13 @@ mod tests {
         let oracle = in_band_oracle();
         let mut file = scope_file(ScopeStatus::Frozen, vec![exclusion_of(&oracle, 0)]);
         file.global = Some(GlobalFreeze {
-            adjudication_commit: "deadbeef".to_owned(),
+            adjudication_commit: FAKE_SHA.to_owned(),
             identities: vec![identity_at(&oracle, 0), identity_at(&oracle, 1)],
         });
         let error = load_err("frozen-gone", &file);
         assert!(error.contains("disappeared without a tombstone"), "{error}");
 
-        file.tombstones = vec![tombstone_of(identity_at(&oracle, 1), "deadbeef")];
+        file.tombstones = vec![tombstone_of(identity_at(&oracle, 1), FAKE_SHA)];
         load_file("frozen-tombstoned", &file).unwrap();
     }
 
@@ -2235,7 +2519,7 @@ mod tests {
         let oracle = in_band_oracle();
         let mut frozen = scope_file(ScopeStatus::Frozen, vec![exclusion_of(&oracle, 0)]);
         frozen.global = Some(GlobalFreeze {
-            adjudication_commit: "deadbeef".to_owned(),
+            adjudication_commit: FAKE_SHA.to_owned(),
             identities: vec![identity_at(&oracle, 0)],
         });
         let error = verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &frozen)
@@ -2261,7 +2545,7 @@ mod tests {
         let oracle = in_band_oracle();
         let mut frozen = scope_file(ScopeStatus::Frozen, vec![exclusion_of(&oracle, 0)]);
         frozen.global = Some(GlobalFreeze {
-            adjudication_commit: "deadbeef".to_owned(),
+            adjudication_commit: FAKE_SHA.to_owned(),
             identities: vec![identity_at(&oracle, 0)],
         });
         let error = verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &frozen)
@@ -2285,7 +2569,7 @@ mod tests {
         let oracle = in_band_oracle();
         let mut base = scope_file(ScopeStatus::Frozen, vec![exclusion_of(&oracle, 0)]);
         base.global = Some(GlobalFreeze {
-            adjudication_commit: "deadbeef".to_owned(),
+            adjudication_commit: FAKE_SHA.to_owned(),
             identities: vec![identity_at(&oracle, 0)],
         });
         let (root, _) = baseline_repo(&base);
@@ -2304,14 +2588,14 @@ mod tests {
         let oracle = in_band_oracle();
         let mut base = scope_file(ScopeStatus::Frozen, vec![exclusion_of(&oracle, 0)]);
         base.global = Some(GlobalFreeze {
-            adjudication_commit: "deadbeef".to_owned(),
+            adjudication_commit: FAKE_SHA.to_owned(),
             identities: vec![identity_at(&oracle, 0)],
         });
         let (root, _) = baseline_repo(&base);
 
         let mut head = base.clone();
         head.global = Some(GlobalFreeze {
-            adjudication_commit: "cafebabe".to_owned(),
+            adjudication_commit: FAKE_SHA_2.to_owned(),
             identities: vec![identity_at(&oracle, 0)],
         });
         let error = verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &head)
@@ -2326,12 +2610,12 @@ mod tests {
         // on a branch: the head exclusion does not exist at the base.
         let oracle = in_band_oracle();
         let global = GlobalFreeze {
-            adjudication_commit: "deadbeef".to_owned(),
+            adjudication_commit: FAKE_SHA.to_owned(),
             identities: vec![identity_at(&oracle, 0), identity_at(&oracle, 1)],
         };
         let mut base = scope_file(ScopeStatus::Frozen, vec![exclusion_of(&oracle, 0)]);
         base.global = Some(global.clone());
-        base.tombstones = vec![tombstone_of(identity_at(&oracle, 1), "deadbeef")];
+        base.tombstones = vec![tombstone_of(identity_at(&oracle, 1), FAKE_SHA)];
         let (root, _) = baseline_repo(&base);
 
         let mut head = scope_file(
@@ -2352,12 +2636,12 @@ mod tests {
     fn baseline_band_pin_mutation_and_removal_are_rejected() {
         let oracle = in_band_oracle();
         let mut base = scope_file(ScopeStatus::Draft, vec![exclusion_of(&oracle, 0)]);
-        base.band_pins = vec![pin_of("2xxx", "deadbeef", vec![identity_at(&oracle, 0)])];
+        base.band_pins = vec![pin_of("2xxx", FAKE_SHA, vec![identity_at(&oracle, 0)])];
         let (root, _) = baseline_repo(&base);
 
         // Mutation: same band, different anchor (add-and-reanchor).
         let mut head = base.clone();
-        head.band_pins = vec![pin_of("2xxx", "cafebabe", vec![identity_at(&oracle, 0)])];
+        head.band_pins = vec![pin_of("2xxx", FAKE_SHA_2, vec![identity_at(&oracle, 0)])];
         let error = verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &head)
             .unwrap_err()
             .to_string();
@@ -2381,7 +2665,7 @@ mod tests {
     fn baseline_tombstone_removal_is_rejected() {
         let oracle = in_band_oracle();
         let mut base = scope_file(ScopeStatus::Draft, Vec::new());
-        base.tombstones = vec![tombstone_of(identity_at(&oracle, 0), "deadbeef")];
+        base.tombstones = vec![tombstone_of(identity_at(&oracle, 0), FAKE_SHA)];
         let (root, _) = baseline_repo(&base);
 
         let head = scope_file(ScopeStatus::Draft, Vec::new());
@@ -2404,5 +2688,348 @@ mod tests {
             identities: vec![identity_at(&oracle, 0)],
         });
         verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &head).unwrap();
+    }
+
+    // -- anchors are full commit SHAs -----------------------------------------
+
+    #[test]
+    fn movable_ref_anchors_are_rejected_structurally() {
+        let oracle = in_band_oracle();
+        let mut file = scope_file(ScopeStatus::Draft, vec![exclusion_of(&oracle, 0)]);
+        file.band_pins = vec![pin_of("2xxx", "HEAD", vec![identity_at(&oracle, 0)])];
+        let error = load_err("pin-movable", &file);
+        assert!(error.contains("full 40-hex commit SHA"), "{error}");
+
+        let mut file = scope_file(ScopeStatus::Draft, Vec::new());
+        file.tombstones = vec![tombstone_of(identity_at(&oracle, 0), "main")];
+        let error = load_err("tombstone-movable", &file);
+        assert!(error.contains("full 40-hex commit SHA"), "{error}");
+
+        let mut file = scope_file(ScopeStatus::Frozen, Vec::new());
+        file.global = Some(GlobalFreeze {
+            adjudication_commit: "v1.0".to_owned(),
+            identities: Vec::new(),
+        });
+        let error = load_err("global-movable", &file);
+        assert!(error.contains("full 40-hex commit SHA"), "{error}");
+    }
+
+    #[test]
+    fn anchor_must_name_the_commit_directly() {
+        let root = init_repo("anchor-direct");
+        let oracle = in_band_oracle();
+        let commit = commit_scope(
+            &root,
+            &scope_file(ScopeStatus::Draft, vec![exclusion_of(&oracle, 0)]),
+            "content",
+        );
+        // An abbreviation resolves, but not to itself: the recorded
+        // anchor must literally be the commit SHA.
+        let error = resolve_anchor(&root, &commit[..12], "band pin \"2xxx\"")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("does not name a commit object directly"),
+            "{error}"
+        );
+        assert_eq!(
+            resolve_anchor(&root, &commit, "band pin \"2xxx\"").unwrap(),
+            commit
+        );
+    }
+
+    // -- lapsed tombstones (reviewed-transition window) -----------------------
+
+    #[test]
+    fn active_tombstone_without_resolving_commit_is_rejected() {
+        let oracle = in_band_oracle();
+        let mut file = scope_file(ScopeStatus::Draft, Vec::new());
+        file.tombstones = vec![Tombstone {
+            identity: identity_at(&oracle, 0),
+            resolving_commit: None,
+            lapsed: false,
+        }];
+        let error = load_err("tombstone-no-commit", &file);
+        assert!(error.contains("no resolving commit"), "{error}");
+    }
+
+    #[test]
+    fn lapsed_tombstone_satisfies_a_pinned_disappearance() {
+        // The wedge this unblocks: a pinned occurrence removed by a
+        // reviewed transition can never prove A1 membership again, so
+        // its record is a lapsed tombstone (here without a resolving
+        // commit — it lapsed while still excluded).
+        let oracle = in_band_oracle();
+        let mut file = scope_file(ScopeStatus::Draft, Vec::new());
+        file.band_pins = vec![pin_of("2xxx", FAKE_SHA, vec![identity_at(&oracle, 0)])];
+        file.tombstones = vec![lapsed_tombstone_of(identity_at(&oracle, 0), None)];
+        load_file("pin-lapsed", &file).unwrap();
+    }
+
+    #[test]
+    fn lapsed_tombstone_with_surviving_occurrence_is_rejected() {
+        let oracle = vec![diag(2307, 0, "semantic", "missing")];
+        let identity = identity_at(&oracle, 0);
+        let mut file = scope_file(ScopeStatus::Draft, Vec::new());
+        file.tombstones = vec![lapsed_tombstone_of(identity.clone(), None)];
+        let lapsed = [identity.clone()].into_iter().collect::<BTreeSet<_>>();
+        let entries = vec![("tombstone", ReferenceNeed::Lapsed, identity)];
+        let error = resolve_referenced(FIXTURE, &golden_case(oracle), &entries, &file, &lapsed)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("marked lapsed but its occurrence still exists"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn lapsed_coverage_spares_pin_members_but_not_exclusions() {
+        // A pinned identity covered by a lapsed tombstone tolerates the
+        // vanished occurrence; a live exclusion never does.
+        let present = vec![diag(2307, 0, "semantic", "missing")];
+        let vanished_identity = {
+            let gone = vec![diag(2322, 5, "semantic", "not assignable")];
+            identity_at(&gone, 0)
+        };
+        let file = scope_file(ScopeStatus::Draft, Vec::new());
+        let lapsed = [vanished_identity.clone()]
+            .into_iter()
+            .collect::<BTreeSet<_>>();
+        let entries = vec![(
+            "band-pin identity",
+            ReferenceNeed::Anchored,
+            vanished_identity.clone(),
+        )];
+        resolve_referenced(
+            FIXTURE,
+            &golden_case(present.clone()),
+            &entries,
+            &file,
+            &lapsed,
+        )
+        .unwrap();
+
+        let entries = vec![(
+            "band-pin identity",
+            ReferenceNeed::Anchored,
+            vanished_identity,
+        )];
+        let error = resolve_referenced(
+            FIXTURE,
+            &golden_case(present),
+            &entries,
+            &file,
+            &BTreeSet::new(),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.contains("stale M8 scope band-pin identity"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn lapsed_tombstone_anchor_still_verifies() {
+        let oracle = vec![diag(2307, 0, "semantic", "missing")];
+        let root = init_repo("lapsed-anchor");
+        let resolving = commit_scope(&root, &scope_file(ScopeStatus::Draft, Vec::new()), "base");
+        git_test(&root, &["checkout", "-q", "-b", "side"]);
+        let mut side_content = scope_file(ScopeStatus::Draft, vec![exclusion_of(&oracle, 0)]);
+        side_content.exclusions[0].evidence = "side variant".to_owned();
+        let side = commit_scope(&root, &side_content, "side");
+        git_test(&root, &["checkout", "-q", "main"]);
+        let mut main_content = scope_file(ScopeStatus::Draft, vec![exclusion_of(&oracle, 0)]);
+        main_content.exclusions[0].evidence = "main variant".to_owned();
+        commit_scope(&root, &main_content, "main");
+        let head = resolve_commit(&root, "HEAD").unwrap();
+        let identity = identity_at(&oracle, 0);
+
+        verify_lapsed_tombstone_anchor(&root, &head, &lapsed_tombstone_of(identity.clone(), None))
+            .unwrap();
+        verify_lapsed_tombstone_anchor(
+            &root,
+            &head,
+            &lapsed_tombstone_of(identity.clone(), Some(&resolving)),
+        )
+        .unwrap();
+        let error = verify_lapsed_tombstone_anchor(
+            &root,
+            &head,
+            &lapsed_tombstone_of(identity, Some(&side)),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("not an ancestor of HEAD"), "{error}");
+    }
+
+    #[test]
+    fn baseline_tombstone_provenance_mutation_is_rejected() {
+        let oracle = in_band_oracle();
+        let mut base = scope_file(ScopeStatus::Draft, Vec::new());
+        base.tombstones = vec![tombstone_of(identity_at(&oracle, 0), FAKE_SHA)];
+        let (root, _) = baseline_repo(&base);
+
+        // Provenance mutation fails even though the identity survives.
+        let mut head = scope_file(ScopeStatus::Draft, Vec::new());
+        head.tombstones = vec![tombstone_of(identity_at(&oracle, 0), FAKE_SHA_2)];
+        let error = verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &head)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("resolving commit changed"), "{error}");
+
+        // Dropping the recorded commit fails the same way.
+        let mut head = scope_file(ScopeStatus::Draft, Vec::new());
+        head.tombstones = vec![lapsed_tombstone_of(identity_at(&oracle, 0), None)];
+        let error = verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &head)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("resolving commit changed"), "{error}");
+
+        // The lapsed flip with preserved provenance passes.
+        let mut head = scope_file(ScopeStatus::Draft, Vec::new());
+        head.tombstones = vec![lapsed_tombstone_of(identity_at(&oracle, 0), Some(FAKE_SHA))];
+        verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &head).unwrap();
+    }
+
+    // -- encoder migration windows -------------------------------------------
+
+    fn commit_raw_scope(root: &Path, bytes: &[u8], message: &str) -> String {
+        fs::write(root.join(SCOPE_REL_PATH), bytes).unwrap();
+        git_test(root, &["add", SCOPE_REL_PATH]);
+        git_test(root, &["commit", "-q", "-m", message]);
+        String::from_utf8(git(root, &["rev-parse", "HEAD"]).unwrap())
+            .unwrap()
+            .trim()
+            .to_owned()
+    }
+
+    #[test]
+    fn baseline_older_encoder_base_is_the_migration_window() {
+        let root = init_repo("baseline-encoder");
+        commit_raw_scope(
+            &root,
+            br#"{"schema":2,"encoder":0,"status":"draft","exclusions":[]}"#,
+            "old-encoder base",
+        );
+        let draft = scope_file(ScopeStatus::Draft, Vec::new());
+        verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &draft).unwrap();
+
+        let oracle = in_band_oracle();
+        let mut frozen = scope_file(ScopeStatus::Frozen, vec![exclusion_of(&oracle, 0)]);
+        frozen.global = Some(GlobalFreeze {
+            adjudication_commit: FAKE_SHA.to_owned(),
+            identities: vec![identity_at(&oracle, 0)],
+        });
+        let error = verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &frozen)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("cannot ride the encoder migration"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn baseline_frozen_base_has_no_encoder_bump_path() {
+        let root = init_repo("baseline-encoder-frozen");
+        commit_raw_scope(
+            &root,
+            br#"{"schema":2,"encoder":0,"status":"frozen","exclusions":[]}"#,
+            "frozen old-encoder base",
+        );
+        let draft = scope_file(ScopeStatus::Draft, Vec::new());
+        let error = verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &draft)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("no sanctioned path"), "{error}");
+    }
+
+    #[test]
+    fn baseline_encoder_downgrade_is_rejected() {
+        let root = init_repo("baseline-encoder-downgrade");
+        commit_raw_scope(
+            &root,
+            br#"{"schema":2,"encoder":99,"status":"draft","exclusions":[]}"#,
+            "future-encoder base",
+        );
+        let draft = scope_file(ScopeStatus::Draft, Vec::new());
+        let error = verify_scope_baseline(&root, SCOPE_REL_PATH, "HEAD", &draft)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("downgrade never occurs"), "{error}");
+    }
+
+    #[test]
+    fn band_pin_anchor_under_another_encoder_reports_the_migration() {
+        let root = init_repo("pin-encoder");
+        let adjudication = commit_raw_scope(
+            &root,
+            br#"{"schema":2,"encoder":0,"status":"draft","exclusions":[]}"#,
+            "old-encoder adjudication",
+        );
+        let oracle = in_band_oracle();
+        commit_scope(
+            &root,
+            &scope_file(ScopeStatus::Draft, vec![exclusion_of(&oracle, 0)]),
+            "current-encoder content",
+        );
+        let head = resolve_commit(&root, "HEAD").unwrap();
+        let pin = pin_of("2xxx", &adjudication, vec![identity_at(&oracle, 0)]);
+        let error = verify_band_pin(&root, SCOPE_REL_PATH, &head, &pin)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("incomparable"), "{error}");
+        assert!(error.contains("re-anchor"), "{error}");
+    }
+
+    // -- shared resolution / canary / view helpers ---------------------------
+
+    #[test]
+    fn ambiguous_identity_resolution_is_a_hard_error() {
+        let oracle = vec![diag(2307, 0, "semantic", "missing")];
+        let identity = identity_at(&oracle, 0);
+        let duplicated = vec![identity.clone(), identity.clone()];
+        let error = resolve_identity_index(&duplicated, &identity, "exclusion")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("canonical encoder bug"), "{error}");
+        assert!(error.contains("2 oracle occurrences"), "{error}");
+    }
+
+    #[test]
+    fn unknown_band_has_no_ratchet_view() {
+        let error = ratchet_view_for_band("5xxx").unwrap_err().to_string();
+        assert!(error.contains("no fixed A1 view"), "{error}");
+    }
+
+    #[test]
+    fn reorder_canary_shape_and_vacuity_are_hard_errors() {
+        let canary_file = |records: Vec<GoldenDiag>| VectorFile {
+            encoder: ENCODER_VERSION,
+            cases: vec![VectorCase {
+                name: "nested-chains-child-order".to_owned(),
+                fixture: FIXTURE.to_owned(),
+                matrix_key: String::new(),
+                records,
+            }],
+        };
+        // Wrong shape is an error, not an index panic.
+        let error = verify_reorder_canaries(&canary_file(vec![diag(2307, 0, "semantic", "m")]))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("exactly two records"), "{error}");
+
+        // Two records whose reorder-target hash is identical fail even
+        // though their identities differ (start differs) — the check
+        // the vacuous whole-identity comparison would have passed.
+        let error = verify_reorder_canaries(&canary_file(vec![
+            diag(2307, 0, "semantic", "m"),
+            diag(2307, 5, "semantic", "m"),
+        ]))
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("hash identically"), "{error}");
     }
 }
