@@ -666,7 +666,7 @@ impl<'a> CheckerState<'a> {
             .flow_payload_node(query.file, flow)
             .expect("ASSIGNMENT flow nodes carry a node payload (binder flow.rs)");
         if self.is_matching_query_reference(query, node)? {
-            if !self.is_reachable_flow_node(query.file, flow) {
+            if !self.is_reachable_flow_node(query.file, flow)? {
                 return Ok(Some(FlowType::Type(
                     self.tables.intrinsics.unreachable_never,
                 )));
@@ -707,7 +707,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(FlowType::Type(t)));
         }
         if self.contains_matching_query_reference(query, node)? {
-            if !self.is_reachable_flow_node(query.file, flow) {
+            if !self.is_reachable_flow_node(query.file, flow)? {
                 return Ok(Some(FlowType::Type(
                     self.tables.intrinsics.unreachable_never,
                 )));
@@ -775,7 +775,7 @@ impl<'a> CheckerState<'a> {
         let node = self
             .flow_payload_node(query.file, flow)
             .expect("CALL flow nodes carry a node payload (binder flow.rs)");
-        let Some(signature) = self.get_effects_signature(query, node)? else {
+        let Some(signature) = self.get_effects_signature(Some(query), node)? else {
             return Ok(None);
         };
         let predicate = self.get_type_predicate_of_signature(signature)?;
@@ -1528,17 +1528,196 @@ impl<'a> CheckerState<'a> {
         }))
     }
 
-    // ---- reachability (6.6 stage; true-stub here) ----
+    // ---- reachability (6.6) ----
 
-    /// tsc isReachableFlowNode (70240) — [FLOW 6.6] true-stub,
-    /// ledgered: an assignment in unreachable code terminates the walk
-    /// with its assigned type instead of tsc's
-    /// unreachableNever→declared answer (dead-code-only divergence;
-    /// the real single-entry/shared caches and never-call gates are
-    /// the 6.6 stage).
-    /// tsc-deferred: M5 (stage 6.6 — reachability)
-    fn is_reachable_flow_node(&mut self, _file: usize, _flow: FlowId) -> bool {
-        true
+    /// tsc-port: isReachableFlowNode @6.0.3
+    /// tsc-hash: 53516d2070f9cc88e8f8628e42da319584859572a57db01f35d0307a0a90a354
+    /// tsc-span: _tsc.js:70240-70249
+    ///
+    /// The worker + the single-entry memo update (tsc writes
+    /// lastFlowNode AFTER the walk — the worker's own top-of-loop
+    /// consult sees the PREVIOUS query's entry). Fallible tsrs-side:
+    /// the Call arm's effects consult can defer (M6 body-inference
+    /// candidates — narrow.rs get_effects_signature's None-query
+    /// contract) and its signature resolution can unwind; Err leaves
+    /// both memos unwritten, so no undecided verdict outlives the
+    /// failed walk.
+    pub(crate) fn is_reachable_flow_node(
+        &mut self,
+        file: usize,
+        flow: FlowId,
+    ) -> CheckResult2<bool> {
+        let result = self.is_reachable_flow_node_worker(file, flow, false)?;
+        self.last_flow_node = Some((file, flow));
+        self.last_flow_node_reachable = result;
+        Ok(result)
+    }
+
+    /// tsc-port: isFalseExpression @6.0.3
+    /// tsc-hash: 51793c17d5ebe4d6c317e3702da5258a5b39749dacdf78398b78acc35f4c019f
+    /// tsc-span: _tsc.js:70250-70257
+    ///
+    /// tsc passes skipParentheses excludeJSDocTypeAssertions=true; the
+    /// evaluator's paren-only skip is exact for TS sources (a JSDoc
+    /// type assertion is a JS-file parse shape, and the checked band
+    /// is TS) — same collapse as the evaluator's own header notes.
+    fn is_false_expression(&self, expr: NodeId) -> bool {
+        let node = self.skip_parentheses(expr);
+        match self.kind_of(node) {
+            SyntaxKind::FalseKeyword => true,
+            SyntaxKind::BinaryExpression => {
+                let NodeData::BinaryExpression(data) = self.data_of(node) else {
+                    return false;
+                };
+                let (Some(left), Some(operator), Some(right)) =
+                    (data.left, data.operator_token, data.right)
+                else {
+                    return false;
+                };
+                match self.kind_of(operator) {
+                    SyntaxKind::AmpersandAmpersandToken => {
+                        self.is_false_expression(left) || self.is_false_expression(right)
+                    }
+                    SyntaxKind::BarBarToken => {
+                        self.is_false_expression(left) && self.is_false_expression(right)
+                    }
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// tsc-port: isReachableFlowNodeWorker @6.0.3
+    /// tsc-hash: ecda265059756d8e54e8674c4147c48d359376f41a068ab76ceb5bafd6c70775
+    /// tsc-span: _tsc.js:70258-70327
+    ///
+    /// Straight-line runs iterate; BranchLabel antecedents and the
+    /// Shared-memo compute recurse like tsc (depth is branch-nesting,
+    /// not statement count — the 6.3 join walk set the precedent).
+    /// LOOP_LABEL takes antecedents[0], the entry edge, so back-edges
+    /// never cycle the walk (and the Shared miss-compute cannot
+    /// re-enter itself). Label reads are override-aware
+    /// (flow_label_antecedents); the ReduceLabel arm invalidates the
+    /// single-entry memo like tsc (70312) and restores the swap on Ok
+    /// AND on unwind. The Shared arm's noCacheCheck reset falls
+    /// through into the SAME iteration's arm dispatch (tsc 70272 —
+    /// only the NEXT shared node consults the memo again).
+    fn is_reachable_flow_node_worker(
+        &mut self,
+        file: usize,
+        mut flow: FlowId,
+        mut no_cache_check: bool,
+    ) -> CheckResult2<bool> {
+        loop {
+            if self.last_flow_node == Some((file, flow)) {
+                return Ok(self.last_flow_node_reachable);
+            }
+            let flags = self.flow_flags_of(file, flow);
+            if flags.intersects(FlowFlags::SHARED) {
+                if !no_cache_check {
+                    if let Some(&reachable) = self.flow_node_reachable.get(&(file, flow)) {
+                        return Ok(reachable);
+                    }
+                    let reachable = self.is_reachable_flow_node_worker(file, flow, true)?;
+                    self.flow_node_reachable.insert((file, flow), reachable);
+                    return Ok(reachable);
+                }
+                no_cache_check = false;
+            }
+            if flags.intersects(
+                FlowFlags::ASSIGNMENT | FlowFlags::CONDITION | FlowFlags::ARRAY_MUTATION,
+            ) {
+                flow = self.flow_antecedent(file, flow);
+            } else if flags.intersects(FlowFlags::CALL) {
+                let node = self
+                    .flow_payload_node(file, flow)
+                    .expect("CALL flow nodes carry a node payload (binder flow.rs)");
+                if let Some(signature) = self.get_effects_signature(None, node)? {
+                    if let Some(predicate) = self.get_type_predicate_of_signature(signature)? {
+                        if predicate.kind == crate::narrow::TypePredicateKind::AssertsIdentifier
+                            && predicate.ty.is_none()
+                        {
+                            let arguments = match self.data_of(node) {
+                                NodeData::CallExpression(data) => data.arguments,
+                                _ => None,
+                            };
+                            let argument = usize::try_from(predicate.parameter_index)
+                                .ok()
+                                .and_then(|index| {
+                                    arguments.and_then(|arguments| {
+                                        self.binder.node_array(arguments).nodes.get(index).copied()
+                                    })
+                                });
+                            if argument.is_some_and(|argument| self.is_false_expression(argument)) {
+                                return Ok(false);
+                            }
+                        }
+                    }
+                    let return_type = self.get_return_type_of_signature(signature)?;
+                    if self
+                        .tables
+                        .flags_of(return_type)
+                        .intersects(TypeFlags::NEVER)
+                    {
+                        return Ok(false);
+                    }
+                }
+                flow = self.flow_antecedent(file, flow);
+            } else if flags.intersects(FlowFlags::BRANCH_LABEL) {
+                for antecedent in self.flow_label_antecedents(file, flow) {
+                    if self.is_reachable_flow_node_worker(file, antecedent, false)? {
+                        return Ok(true);
+                    }
+                }
+                return Ok(false);
+            } else if flags.intersects(FlowFlags::LOOP_LABEL) {
+                let antecedents = self.flow_label_antecedents(file, flow);
+                match antecedents.first() {
+                    Some(&entry_edge) => flow = entry_edge,
+                    None => return Ok(false),
+                }
+            } else if flags.intersects(FlowFlags::SWITCH_CLAUSE) {
+                let FlowPayload::SwitchClause {
+                    switch_statement,
+                    clause_start,
+                    clause_end,
+                } = self.binder.file(file).flow.flow(flow).payload
+                else {
+                    unreachable!("SWITCH_CLAUSE flag implies SwitchClause payload");
+                };
+                if clause_start == clause_end
+                    && self.is_exhaustive_switch_statement(Some(switch_statement))?
+                {
+                    return Ok(false);
+                }
+                flow = self.flow_antecedent(file, flow);
+            } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
+                self.last_flow_node = None;
+                let FlowPayload::ReduceLabel {
+                    target,
+                    ref antecedents,
+                } = self.binder.file(file).flow.flow(flow).payload
+                else {
+                    unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
+                };
+                let swapped = antecedents.clone();
+                let antecedent = self.flow_antecedent(file, flow);
+                let saved = self.reduce_label_overrides.insert((file, target), swapped);
+                let result = self.is_reachable_flow_node_worker(file, antecedent, false);
+                match saved {
+                    Some(previous) => {
+                        self.reduce_label_overrides.insert((file, target), previous);
+                    }
+                    None => {
+                        self.reduce_label_overrides.remove(&(file, target));
+                    }
+                }
+                return result;
+            } else {
+                return Ok(!flags.intersects(FlowFlags::UNREACHABLE));
+            }
+        }
     }
 
     // ---- initial/assigned types (the assignment arm's inputs) ----

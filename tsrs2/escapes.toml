@@ -1144,6 +1144,14 @@ reason = "resolveAlias alias symbol without alias declaration (parse-recovery sh
 class = "recovery"
 
 [[site]]
+file = "crates/checker/src/narrow.rs"
+in = "get_effects_signature"
+reason = "body-inferred type predicate candidate in a reachability effects consult (getTypePredicateFromBody, M6)"
+class = "stage"
+owner = "M6"
+count = 2
+
+[[site]]
 file = "crates/checker/src/operators.rs"
 in = "assertion_type_and_expression"
 reason = "assertion with missing type/expression (parse-recovery tree)"

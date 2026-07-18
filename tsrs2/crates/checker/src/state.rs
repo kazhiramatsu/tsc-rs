@@ -379,6 +379,23 @@ pub struct CheckerState<'a> {
     /// get_flow_type_of_reference call to keep the 2454/2565 seam
     /// partial-marked instead of misreporting on stub-traversed paths.
     pub(crate) flow_last_query_inert: bool,
+    /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
+    /// single-entry reachability memo — the immediately previous
+    /// isReachableFlowNode query (reachability is asked per statement
+    /// in source order, so the repeat rate is high). (file, FlowId) is
+    /// the stable identity for tsc's object equality. Invalidated by
+    /// the worker's ReduceLabel arm (70312) exactly like tsc; never
+    /// trimmed otherwise.
+    pub(crate) last_flow_node: Option<(usize, tsrs2_binder::flow::FlowId)>,
+    pub(crate) last_flow_node_reachable: bool,
+    /// tsc flowNodeReachable (47434): the per-SHARED-node reachability
+    /// memo (a getFlowNodeId-indexed sparse array there; (file, FlowId)
+    /// here like flowLoopCaches). Lives across queries. Err unwinds
+    /// leave it unwritten — no undecided verdict outlives its walk.
+    /// (flowNodePostSuper 47435 is the super()-ordering family's twin
+    /// cache — unported with isPostSuperFlowNode, no M5 consumer.)
+    pub(crate) flow_node_reachable:
+        std::collections::HashMap<(usize, tsrs2_binder::flow::FlowId), bool>,
 
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
@@ -745,6 +762,9 @@ impl<'a> CheckerState<'a> {
             final_array_types: std::collections::HashMap::new(),
             flow_loop_caches: std::collections::HashMap::new(),
             flow_last_query_inert: false,
+            last_flow_node: None,
+            last_flow_node_reachable: false,
+            flow_node_reachable: std::collections::HashMap::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
             potential_this_collisions: Vec::new(),
