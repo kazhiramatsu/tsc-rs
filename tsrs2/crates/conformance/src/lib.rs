@@ -16,11 +16,16 @@ use tsrs2_checker::{
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
+pub mod families;
 pub mod goldens_diff;
 mod identity;
 pub mod ratchet;
 mod scope;
 
+pub use families::{
+    check as families_check, report as families_report,
+    verify_report_freshness as families_verify_report,
+};
 pub use scope::audit as scope_audit;
 use scope::ScopeManifest;
 
@@ -512,7 +517,34 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 /// A gating conformance run: enforces the accepted-set ratchet
 /// (measurement-integrity.md §2) on top of the integer/FP gates.
 pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<ConformanceSummary> {
-    run_conformance_inner(options, SetGate::Enforce).map(|run| run.summary)
+    run_conformance_inner(options, SetGate::Enforce, false).map(|run| run.summary)
+}
+
+/// The A5 rollup path: the identical gating run, additionally
+/// collecting the per-bucket families observation and finishing the
+/// rollup from it — the corpus is checked ONCE for both artifacts.
+/// Full band=all runs only: the observation must never come from a
+/// projection or an A1 summary (measurement-integrity.md §5). Map
+/// validation, anchor verification, and the before-run input
+/// fingerprints happen in `prepare_report` BEFORE the run; the
+/// after-run fingerprint equality happens in `finish_report`.
+pub fn run_conformance_with_families_report(
+    options: &ConformanceOptions,
+    report_out: &Path,
+) -> ConformanceResult<ConformanceSummary> {
+    let preparation = families::prepare_report(&options.workspace)?;
+    let run = run_conformance_inner(options, SetGate::Enforce, true)?;
+    let observation = run
+        .observation
+        .expect("observing run collects an observation");
+    families::finish_report(
+        &options.workspace,
+        preparation,
+        &run.summary,
+        &observation,
+        report_out,
+    )?;
+    Ok(run.summary)
 }
 
 /// The `ratchet update` measurement path: identical run, but it
@@ -521,7 +553,7 @@ pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<Confor
 pub(crate) fn run_conformance_collect(
     options: &ConformanceOptions,
 ) -> ConformanceResult<ConformanceRun> {
-    run_conformance_inner(options, SetGate::Collect)
+    run_conformance_inner(options, SetGate::Collect, false)
 }
 
 pub struct ConformanceRun {
@@ -529,6 +561,8 @@ pub struct ConformanceRun {
     /// Per fixed view (all/2xxx/syntactic): matched T0 buckets and
     /// multiplicity-complete buckets, keyed fixture -> matrix.
     pub sets: ratchet::RunSets,
+    /// The A5 per-bucket observation, when requested.
+    pub observation: Option<families::Observation>,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -540,6 +574,7 @@ pub(crate) enum SetGate {
 fn run_conformance_inner(
     options: &ConformanceOptions,
     set_gate: SetGate,
+    families_observe: bool,
 ) -> ConformanceResult<ConformanceRun> {
     let fixtures = select_fixtures(&RefreshOptions {
         workspace: options.workspace.clone(),
@@ -553,6 +588,10 @@ fn run_conformance_inner(
     // Partial runs (`--limit`, `--files`) are gated by the accepted-set
     // projection below, not by the full-corpus integer counts.
     let full_run = options.limit.is_none() && options.files.is_empty();
+    if families_observe {
+        families::ensure_observation_eligible(options.band, full_run)?;
+    }
+    let mut observation = families_observe.then(families::Observation::default);
     let accepted = match set_gate {
         SetGate::Enforce => Some(ratchet::load_accepted_for_gating(&options.workspace)?),
         SetGate::Collect => None,
@@ -624,6 +663,18 @@ fn run_conformance_inner(
             .map(|case| (case.matrix_key.as_str(), case))
             .collect::<BTreeMap<_, _>>();
         let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let expanded_keys = programs
+            .iter()
+            .map(|program| program.matrix_key.as_str())
+            .collect::<BTreeSet<_>>();
+        if let Some(orphan) = orphan_golden_case(&golden.cases, &expanded_keys) {
+            return Err(format!(
+                "golden case {fixture_key} [{orphan}] has no expanded program; the goldens \
+                 and the expansion matrix have drifted — refresh the goldens under a \
+                 reviewed transition before gating on them"
+            )
+            .into());
+        }
 
         for program in programs {
             let golden_case = golden_by_matrix
@@ -763,6 +814,17 @@ fn run_conformance_inner(
                     unresolved_excluded += 1;
                 }
             }
+            if let Some(observation) = observation.as_mut() {
+                observation.cases.push(families::CaseObservation::collect(
+                    &fixture_key,
+                    &program.matrix_key,
+                    &golden_case.oracle,
+                    &case_tsrs.all,
+                    &excluded_indices,
+                    &actual,
+                    fp.len(),
+                )?);
+            }
             if fp.is_empty() && fn_.is_empty() {
                 exact_match_cases += 1;
             } else {
@@ -900,10 +962,14 @@ fn run_conformance_inner(
     }
     fs::write(&options.out_json, serde_json::to_string_pretty(&summary)?)?;
 
+    if let Some(observation) = observation.as_mut() {
+        observation.fixtures_total = fixtures.len();
+    }
     if set_gate == SetGate::Collect {
         return Ok(ConformanceRun {
             summary,
             sets: run_sets,
+            observation,
         });
     }
 
@@ -982,7 +1048,23 @@ fn run_conformance_inner(
     Ok(ConformanceRun {
         summary,
         sets: run_sets,
+        observation,
     })
+}
+
+/// A golden case whose matrix key no expanded program carries. Both
+/// sides come from the same fixture in a coherent tree; a mismatch
+/// means a harness/expansion change landed without an oracle refresh,
+/// and the A5 domain (golden-derived) would silently disagree with
+/// the run observation (expansion-derived) if this were let through.
+fn orphan_golden_case<'a>(
+    cases: &'a [GoldenCase],
+    expanded_keys: &BTreeSet<&str>,
+) -> Option<&'a str> {
+    cases
+        .iter()
+        .map(|case| case.matrix_key.as_str())
+        .find(|key| !expanded_keys.contains(key))
 }
 
 fn shadow_rate(matched: usize, total: usize) -> f64 {
@@ -1812,6 +1894,60 @@ fn decode_base64_value(byte: u8) -> ConformanceResult<u8> {
 
 fn temp_root(prefix: &str) -> PathBuf {
     std::env::temp_dir().join(format!("{prefix}-{}", std::process::id()))
+}
+
+/// Shared git harness for the A1/A2/A5 artifact tests: real
+/// repositories in temp directories. One process-wide counter keeps
+/// paths unique across the three test modules, and environment fixes
+/// (like the commit.gpgsign guard) live in exactly one place.
+#[cfg(test)]
+pub(crate) mod test_git {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    pub(crate) fn temp_dir(name: &str) -> PathBuf {
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "tsrs2-test-{name}-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        if dir.exists() {
+            fs::remove_dir_all(&dir).unwrap();
+        }
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    pub(crate) fn git_test(root: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args([
+                "-c",
+                "user.name=tsrs",
+                "-c",
+                "user.email=tsrs@test",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {args:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    pub(crate) fn init_repo(name: &str) -> PathBuf {
+        let dir = temp_dir(name);
+        git_test(&dir, &["init", "-q", "-b", "main"]);
+        dir
+    }
 }
 
 #[cfg(test)]

@@ -83,6 +83,18 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("families") => match args.next().as_deref() {
+            Some("check") => run_or_exit(families_check(args)),
+            Some("report") => run_or_exit(families_report(args)),
+            Some(other) => {
+                eprintln!("unknown families command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing families command (check|report)");
+                std::process::exit(2);
+            }
+        },
         Some("ledger") => match args.next().as_deref() {
             Some("check") => run_or_exit(ledger_check()),
             Some("write-backlog") => run_or_exit(ledger_write_backlog()),
@@ -1824,13 +1836,22 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let out_json = parsed
         .out_json
         .unwrap_or_else(|| workspace.join("target/conformance/mismatches.json"));
-    let summary = tsrs2_conformance::run_conformance(&tsrs2_conformance::ConformanceOptions {
-        workspace,
+    let options = tsrs2_conformance::ConformanceOptions {
+        workspace: workspace.clone(),
         limit: parsed.limit,
         files: parsed.files,
         out_json: out_json.clone(),
         band: parsed.band,
-    })?;
+    };
+    // `--families-report`: the ci shape — the A5 rollup rides this
+    // gating run instead of re-checking the corpus in a second one.
+    // The library additionally refuses non-full or banded runs.
+    let summary = if parsed.families_report {
+        let report_out = workspace.join("target/families/report.json");
+        tsrs2_conformance::run_conformance_with_families_report(&options, &report_out)?
+    } else {
+        tsrs2_conformance::run_conformance(&options)?
+    };
     println!(
         "conformance band={} fixtures={} cases={} T0={:.4}% matched={}/{} FP={} FN={} mismatches={}",
         summary.band,
@@ -1914,6 +1935,53 @@ fn scope_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     tsrs2_conformance::scope_audit(&find_tsrs2_root()?, baseline.as_deref())
 }
 
+/// `cargo xtask families check [--baseline <trusted-ref>]`: the A5
+/// family-map audit (measurement-integrity.md §5) — map structure and
+/// the exactly-once domain over every corpus-exercised non-2XXX
+/// (code, pass) row, canary existence, the freeze/extension reviewed
+/// snapshot anchors, and the trusted-base compare.
+fn families_check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut baseline = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--baseline" => {
+                baseline = Some(args.next().ok_or("missing value after --baseline")?);
+            }
+            _ => return Err(format!("unexpected families check argument: {arg}").into()),
+        }
+    }
+    tsrs2_conformance::families_check(&find_tsrs2_root()?, baseline.as_deref())
+}
+
+/// `cargo xtask families report [--out-json <path>] [--verify]`: the
+/// A5 supported rollup from one current full band=all gating run
+/// (never from A1 summaries). `--verify` re-checks an existing
+/// report's input fingerprints against the tree instead of running.
+fn families_report(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let root = find_tsrs2_root()?;
+    let mut out_json: Option<PathBuf> = None;
+    let mut verify = false;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--out-json" => {
+                out_json = Some(PathBuf::from(
+                    args.next().ok_or("missing value after --out-json")?,
+                ));
+            }
+            "--verify" => verify = true,
+            _ => return Err(format!("unexpected families report argument: {arg}").into()),
+        }
+    }
+    let out_json = out_json.unwrap_or_else(|| root.join("target/families/report.json"));
+    if verify {
+        tsrs2_conformance::families_verify_report(&root, &out_json)
+    } else {
+        tsrs2_conformance::families_report(&root, &out_json)
+    }
+}
+
 fn ratchet_update(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut transition = None;
     let mut args = args.peekable();
@@ -1933,6 +2001,7 @@ struct ConformanceArgs {
     files: Vec<PathBuf>,
     out_json: Option<PathBuf>,
     band: tsrs2_conformance::DiagnosticBand,
+    families_report: bool,
 }
 
 fn parse_conformance_args(
@@ -1942,6 +2011,7 @@ fn parse_conformance_args(
     let mut files = Vec::new();
     let mut out_json = None;
     let mut band = tsrs2_conformance::DiagnosticBand::All;
+    let mut families_report = false;
     let mut args = args.peekable();
 
     while let Some(arg) = args.next() {
@@ -1974,8 +2044,18 @@ fn parse_conformance_args(
                 };
             }
             "--syntactic-only" => band = tsrs2_conformance::DiagnosticBand::Syntactic,
+            "--families-report" => families_report = true,
             _ => return Err(format!("unexpected conformance argument: {arg}").into()),
         }
+    }
+    if families_report
+        && (band != tsrs2_conformance::DiagnosticBand::All || limit.is_some() || !files.is_empty())
+    {
+        return Err(
+            "--families-report requires the full band=all run; the A5 rollup never comes \
+             from a projection"
+                .into(),
+        );
     }
 
     Ok(ConformanceArgs {
@@ -1983,6 +2063,7 @@ fn parse_conformance_args(
         files,
         out_json,
         band,
+        families_report,
     })
 }
 
@@ -3815,7 +3896,26 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             .arg("--baseline")
             .arg(&baseline),
     )?;
-    run_command(Command::new("cargo").arg("xtask").arg("conformance"))?;
+    // A5 family-map coherence: the exactly-once (code, pass) domain,
+    // freeze/extension anchors, and the trusted-base compare — before
+    // the rollup below reads the map as a verified input.
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("families")
+            .arg("check")
+            .arg("--baseline")
+            .arg(&baseline),
+    )?;
+    // The band=all gating run also carries the A5 rollup
+    // (report-only; the set ratchet and FP=0 gate the run itself) so
+    // the corpus is checked once for both artifacts.
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("conformance")
+            .arg("--families-report"),
+    )?;
     run_command(
         Command::new("cargo")
             .arg("xtask")

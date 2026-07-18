@@ -716,7 +716,7 @@ fn vendor_lib_dir(workspace: &Path) -> PathBuf {
     workspace.join("vendor/typescript-6.0.3/lib")
 }
 
-fn vendor_tsc_js_path(workspace: &Path) -> PathBuf {
+pub(crate) fn vendor_tsc_js_path(workspace: &Path) -> PathBuf {
     vendor_lib_dir(workspace).join("_tsc.js")
 }
 
@@ -2660,52 +2660,9 @@ fn render_ratchet_summaries(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
     use super::*;
+    use crate::test_git::{git_test, init_repo, temp_dir};
     use crate::GoldenMessageChain;
-
-    fn temp_dir(name: &str) -> PathBuf {
-        static COUNTER: AtomicUsize = AtomicUsize::new(0);
-        let dir = std::env::temp_dir().join(format!(
-            "tsrs2-ratchet-{name}-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        if dir.exists() {
-            fs::remove_dir_all(&dir).unwrap();
-        }
-        fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    fn git_test(root: &Path, args: &[&str]) {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(root)
-            .args([
-                "-c",
-                "user.name=tsrs",
-                "-c",
-                "user.email=tsrs@test",
-                "-c",
-                "commit.gpgsign=false",
-            ])
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "git {args:?}: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
-    fn init_repo(name: &str) -> PathBuf {
-        let dir = temp_dir(name);
-        git_test(&dir, &["init", "-q", "-b", "main"]);
-        dir
-    }
 
     fn commit_bytes(root: &Path, rel: &str, bytes: &[u8], message: &str) -> String {
         let path = root.join(rel);

@@ -1,16 +1,22 @@
 # Non-2XXX first order — family map and scheduling skeleton
 
-Status: adopted structure (2026-07-16). Companion to
+Status: adopted structure (2026-07-16); machine map landed by the A5
+slice (2026-07-18). Companion to
 [2xxx-first-order.md](2xxx-first-order.md), which owns the 2XXX band
 and states that non-2XXX diffs are invisible to its metric. This doc
 owns the decomposition of everything outside codes 2000-2999 into
 implementation-owner families, their measured baselines, and the
-acceptance shape each family closes on. The completion plan's A5 slice
-turns it into the machine map and rollup defined by the
-[A5 integrity contract](measurement-integrity.md#5-a5--family-ownership-and-supported-rollup).
-Until that lands, the
-numbers here are a planning baseline from the `52c47bbb` tree, not a
-ratchet.
+acceptance shape each family closes on. The A5 slice turned it into
+the machine map and rollup defined by the
+[A5 integrity contract](measurement-integrity.md#5-a5--family-ownership-and-supported-rollup):
+`diag-families.json` is the machine authority (`cargo xtask families
+check`), `cargo xtask families report` the live rollup
+(`target/families/report.json`). The map lands DRAFT in its
+introduction PR — the first freeze cannot ride that PR (the audit
+rejects it, mirroring A2's missing-base window) and follows as its
+own reviewed change against the merged base. The numbers below remain
+the planning baseline from the pre-oracle-correction `52c47bbb` tree,
+not a ratchet — the rollup owns current numbers.
 
 The v1 roadmap (`docs/design/non-2xxx-blockers.md`) is v1-only
 (`src/`, EXECUTION-GUIDE, classifier discipline) and is not reused.
@@ -66,14 +72,16 @@ Facts the numeric-band view hides:
 
 ## 2. Families
 
-Owners are provisional until the A5 slice adjudicates and freezes
-the map. Its anchor and reviewed re-baseline rules are defined once in
-the [A5 integrity contract](measurement-integrity.md#5-a5--family-ownership-and-supported-rollup),
+The A5 slice adjudicated these owners into `diag-families.json`; the
+map is the authority and this table the planning record (the freeze
+itself is the follow-up reviewed change described above). Anchor and
+reviewed re-baseline rules are defined once in the
+[A5 integrity contract](measurement-integrity.md#5-a5--family-ownership-and-supported-rollup),
 so ownership cannot drift
 after it becomes a gate input; "M7 8.x" refers to the stages in
 [m7-tail-steps.md](m7-tail-steps.md). FN counts are the measured
 baseline; ~ marks rows whose exact (code, pass) split the machine
-rollup will pin.
+map now pins.
 
 | Family | Provisional owner | Anchor codes (FN) | FN |
 |---|---|---|---:|
@@ -123,24 +131,44 @@ non-2XXX (code, pass) rows appearing in the corpus fail the map check;
 2XXX rows are the band family's, verified as a partition (convergence
 plan A5).
 
-## 4. Adjudication backlog (resolved by the A5 slice)
+## 4. Adjudication backlog — RESOLVED (A5 slice, 2026-07-18)
 
-- implicit-any semantic errors: M6-adjacent (reporting rides
-  inference results) vs M8 family — decide per code.
-- JSX family owner: options plumbing (17004) vs JSX checking mode
-  (7026) may split.
-- 7016 placement: declaration-file resolution vs checkJs family.
-- override validation (4113-4127): class-checking owner (M4 residue
-  vs M8).
-- exact (code, pass) splits for every ~ row above.
-- suppression surfaces (M7 8.2) have no code set: acceptance is the
-  audit artifact plus named canary fixtures — the map records the
-  canaries.
+Decisions recorded in the map's per-family notes; summary:
+
+- implicit-any semantic errors → one `implicit-any` family under
+  **M6** (reporting rides inference results; 7034/7057 additionally
+  lean on M5 evolving-array flow, caught by the later M6 gate).
+  (7032, semantic) is the noImplicitAny error surface and stays here;
+  its suggestion twin is infer-from-usage.
+- JSX family → one `jsx-mode` family under **M8**: 17004 (options
+  plumbing) and 7026 (JSX noImplicitAny) do not split — both nearly
+  closed by the 5.8/5.9 JSX interop work; residue is a bounded M8
+  mining family.
+- 7016 → `checkjs-jsdoc` (**M8**), in BOTH its modes: the corpus
+  exercises (7016, semantic) 30 and (7016, suggestion) 9, and the
+  declaration-file lookup surfaces with checkJs.
+- override validation → `override-validation` (**M8**; M4 closed with
+  these open). 4112 belongs with 4113-4127 — the same
+  checkOverrideModifier walk.
+- 4111 (index-signature member access, option-gated, matched) →
+  `relations-stragglers`, avoiding a one-row family.
+- (7027, semantic) — unreachable-code error mode — →
+  `flow-strict-nullability` (**M5**) with the 18046-18050 band; the
+  suggestion-pass twin stays in `flow-derived-suggestions`
+  (M7 8.4 surfacing).
+- exact (code, pass) splits for every ~ row: enumerated by the
+  machine map (433 non-2XXX rows on the post-epoch corpus; pinned at
+  its freeze).
+- suppression surfaces (M7 8.2) have no code set: the map records a
+  row-less family whose acceptance is the audit artifact plus its
+  canary fixtures (`conformance/directives/ts-expect-error-nocheck`,
+  `ts-ignore`, `jsdoc/tsNoCheckForTypescript`).
 
 ## 5. Regeneration
 
-Until `cargo xtask families report` (A5) exists, the numbers above
-reproduce from the all-band artifact + goldens:
+`cargo xtask families report` produces the live rollup
+(`target/families/report.json`). The manual recipe below remains the
+independent cross-check of the same numbers:
 
 - run `cargo xtask m8 readiness` (writes
   `target/m8/conformance.json`);
