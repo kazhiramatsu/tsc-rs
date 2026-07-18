@@ -1742,6 +1742,11 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 }
+                // tsc's target arm RETURNS here (69455): a binary
+                // target that matches through neither its assignment
+                // left nor its comma right matches nothing — the
+                // source switch is not consulted.
+                return Ok(false);
             }
             _ => {}
         }
@@ -2620,9 +2625,13 @@ impl<'a> CheckerState<'a> {
     /// pattern) is LIVE: it re-resolves the binding element from the
     /// parent's constraint through getFlowTypeOfReference at the
     /// reference's flow node. Arm 2 (context-sensitive rest-parameter
-    /// slices) reads `getInferenceContext(func).nonFixingMapper` —
-    /// M6-deferred, guarded as a named Unsupported at the point the
-    /// arm would fire.
+    /// slices) is LIVE for concrete rest types: tsc's only
+    /// M6-dependent read is `getInferenceContext(func)?.nonFixingMapper`
+    /// (72044) inside the restType computation, and no inference
+    /// context can exist before M6 (instantiateType(T, undefined) = T)
+    /// — a rest type that could still contain type variables is the
+    /// one shape where the mapper would matter, and stays a named
+    /// Unsupported.
     pub(crate) fn get_narrowed_type_of_symbol(
         &mut self,
         symbol: SymbolId,
@@ -2648,39 +2657,101 @@ impl<'a> CheckerState<'a> {
                 let Some(func) = self.parent_of(declaration) else {
                     return Ok(ty);
                 };
-                let parameter_count = match self.data_of(func) {
+                let parameters: Vec<NodeId> = match self.data_of(func) {
                     NodeData::FunctionExpression(f) => f.parameters,
                     NodeData::ArrowFunction(f) => f.parameters,
                     NodeData::FunctionDeclaration(f) => f.parameters,
                     NodeData::MethodDeclaration(f) => f.parameters,
                     _ => None,
                 }
-                .map(|parameters| self.binder.node_array(parameters).nodes.len())
-                .unwrap_or(0);
-                if parameter_count >= 2
+                .map(|list| self.binder.node_array(list).nodes.clone())
+                .unwrap_or_default();
+                if parameters.len() >= 2
                     && self.is_context_sensitive_function_or_object_literal_method(func)?
                 {
                     let contextual_signature = self.get_contextual_signature(func)?;
                     if let Some(contextual_signature) = contextual_signature {
-                        let signature = self.signature_of(contextual_signature);
-                        if signature.parameters.len() == 1
-                            && signature
-                                .flags
-                                .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
-                        {
-                            // The dependent-parameter narrowing slice
-                            // instantiates the rest type under the
-                            // inference context's nonFixingMapper —
-                            // M6 machinery.
-                            return Err(Unsupported::new(
-                                "dependent-parameter narrowing (getInferenceContext nonFixingMapper, M6)",
-                            ));
+                        let (rest_parameter, has_rest) = {
+                            let signature = self.signature_of(contextual_signature);
+                            (
+                                (signature.parameters.len() == 1).then(|| signature.parameters[0]),
+                                signature
+                                    .flags
+                                    .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER),
+                            )
+                        };
+                        if let (Some(rest_parameter), true) = (rest_parameter, has_rest) {
+                            let rest_symbol_type = self.get_type_of_symbol(rest_parameter)?;
+                            let rest_type = self.get_reduced_apparent_type(rest_symbol_type)?;
+                            if self.could_contain_type_variables(rest_type) {
+                                // 72044: tsc instantiates the rest type
+                                // under getInferenceContext(func)
+                                // ?.nonFixingMapper before the tuple
+                                // gate — the M6 slice.
+                                return Err(Unsupported::new(
+                                    "dependent-parameter narrowing over a generic rest type (getInferenceContext nonFixingMapper, M6)",
+                                ));
+                            }
+                            let is_union_of_tuples =
+                                self.tables.flags_of(rest_type).intersects(TypeFlags::UNION)
+                                    && self.every_type(rest_type, |state, t| {
+                                        state.tables.is_tuple_type(t)
+                                    });
+                            // Gate order is tsc's: the isSomeSymbolAssigned
+                            // sweep (a marking pass with side effects) runs
+                            // only behind the union-of-tuples test.
+                            if is_union_of_tuples && !self.some_parameter_assigned(&parameters)? {
+                                let location_flow = self.flow_node_of(location);
+                                let narrowed_type = self.get_flow_type_of_reference_with_flow(
+                                    func,
+                                    rest_type,
+                                    rest_type,
+                                    None,
+                                    location_flow,
+                                )?;
+                                let has_this_parameter = parameters
+                                    .first()
+                                    .and_then(|&first| match self.data_of(first) {
+                                        NodeData::Parameter(parameter) => parameter.name,
+                                        _ => None,
+                                    })
+                                    .is_some_and(|name| self.is_this_identifier(name));
+                                let Some(position) =
+                                    parameters.iter().position(|&p| p == declaration)
+                                else {
+                                    return Ok(ty);
+                                };
+                                let index =
+                                    position as i64 - if has_this_parameter { 1 } else { 0 };
+                                let index_type = self.tables.get_number_literal_type(index as f64);
+                                return self.get_indexed_access_type(
+                                    narrowed_type,
+                                    index_type,
+                                    tsrs2_types::AccessFlags::NONE,
+                                    None,
+                                    None,
+                                    None,
+                                );
+                            }
                         }
                     }
                 }
             }
         }
         Ok(ty)
+    }
+
+    /// The `some(func.parameters, isSomeSymbolAssigned)` composition
+    /// (getNarrowedTypeOfSymbol 72045) — the fallible-some over the
+    /// parameter list.
+    /// tsrs-native: fallible-some instance.
+    fn some_parameter_assigned(&mut self, parameters: &[NodeId]) -> CheckResult2<bool> {
+        for &parameter in parameters {
+            if self.is_some_symbol_assigned(parameter)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// Arm 1 of getNarrowedTypeOfSymbol (72006-72039): a

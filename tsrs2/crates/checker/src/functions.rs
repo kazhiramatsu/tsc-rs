@@ -1088,16 +1088,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 63298ed7776bb8e07259b2d8bb0051c1ce8c9e2f1e4be5517b1c15c6eca65e81
     /// tsc-span: _tsc.js:70374-70393
     ///
-    /// The Identifier arm's isSymbolAssigned read is [FLOW M5]-adjacent
-    /// (post-assignment analysis); the 5.5a definite-assignment stub
-    /// (false = never assigned) keeps parameters/mutable locals
-    /// constant, matching tsc whenever the symbol is in fact never
-    /// written between declaration and use. The binding-pattern arm's
-    /// consumers are destructured declarations (5.6/5.8) — escape.
+    /// The Identifier arm consumes the real assignment-marking family
+    /// (isSymbolAssigned, live since 6.2). The binding-pattern arm's
+    /// getNarrowedTypeOfSymbol-family consumers stay escaped
+    /// ([FLOW M5]).
     fn is_constant_reference(&mut self, node: NodeId) -> CheckResult2<bool> {
         match self.kind_of(node) {
             SyntaxKind::ThisKeyword => Ok(true),
             SyntaxKind::Identifier => {
+                // 70379: a type-query `this` identifier falls out of
+                // tsc's switch (the !isThisInTypeQuery guard) — not a
+                // constant reference.
+                if self.is_this_in_type_query(node) {
+                    return Ok(false);
+                }
                 let Some(symbol) = self.get_resolved_symbol(node)? else {
                     return Ok(false);
                 };

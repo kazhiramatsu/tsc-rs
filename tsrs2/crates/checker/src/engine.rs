@@ -2028,7 +2028,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e640160f7bf31f88a27cfa98387ab7365e3b441e08e33396b3121f5d9461ecaf
     /// tsc-span: _tsc.js:69965-69978
     ///
-    /// The EnumLike base-type arm is dead until M4 enums.
+    /// The EnumLike base-type arm (69974-69976) is deliberately
+    /// DEFERRED to the 6.3 joins: getBaseTypeOfEnumLikeType resolves
+    /// the parent enum's declared type (&mut + fallible), so porting
+    /// it makes this fn fallible — do that with its first load-bearing
+    /// consumer (the join family's subtypeReduction test). Today's
+    /// consumers (addEvolvingArrayElementType, the weak-type probe)
+    /// never hit the arm.
     pub fn is_type_subset_of(&self, source: TypeId, target: TypeId) -> bool {
         if source == target || self.tables.flags_of(source).intersects(TypeFlags::NEVER) {
             return true;
