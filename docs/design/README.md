@@ -1,9 +1,13 @@
 # Design index
 
 `docs/design` is the place for durable design: north-star architecture,
-deep checker seams, and active designs that should guide future
-implementation. Tactical workstream plans, old snapshot-specific
-roadmaps, and completed step guides live under `archive/`.
+deep checker seams, and the active greenfield build. Tactical
+workstream plans, old snapshot-specific roadmaps, completed step
+guides, and v1-era operating instructions live under `archive/`.
+
+**The authoritative execution docs for active work are under
+[greenfield/](greenfield/README.md)** — implementers start from the
+stage step docs referenced there.
 
 ## How to Use This Directory
 
@@ -12,8 +16,6 @@ roadmaps, and completed step guides live under `archive/`.
 - Read the referenced tsc anchors and probe before changing behavior.
 - Keep implementation checklists close to the design while they are
   active, then move stale or completed checklists into `archive/`.
-- Do not add broad local patches to 2XXX behavior without reading the
-  2XXX roadmap first.
 
 ## Core Architecture
 
@@ -28,70 +30,55 @@ roadmaps, and completed step guides live under `archive/`.
   instantiation, and member access.
 - [checker-key-functions.md](checker-key-functions.md): relation,
   inference, overload, and flow algorithms.
+
+## Active Execution (greenfield)
+
 - [greenfield/](greenfield/README.md): the execution companion to the
-  five docs above — milestone-by-milestone (M0-M7) step guides that
+  five docs above — milestone-by-milestone (M0-M9) step guides that
   sequence the from-scratch build for implementing agents, with
   verified tsc anchors and per-stage acceptance gates.
 - [greenfield/completion-convergence-plan.md](greenfield/completion-convergence-plan.md):
-  the active cross-milestone execution plan for set-monotone ratchets,
-  exact scope identities, T4/completion gates, produced M8 evidence, and
-  the ordered path from the current M4 state through M9.
+  the active cross-milestone execution plan — workstreams, required
+  landing order, and stop conditions from the current state through M9.
+- [greenfield/measurement-integrity.md](greenfield/measurement-integrity.md):
+  the A1/A2/A3/A5 + D2 measurement contracts — artifact schemas,
+  anchors, and adversarial tests.
+- [greenfield/evidence-and-steady-state.md](greenfield/evidence-and-steady-state.md):
+  the B1-B4 evidence contracts, required CI topology, and the M9
+  steady-state window.
+- [greenfield/2xxx-first-order.md](greenfield/2xxx-first-order.md):
+  first-order decomposition of the 2XXX band with measured baselines;
+  owns the M5/M6-before-sweep phase plan.
 - [greenfield/non-2xxx-first-order.md](greenfield/non-2xxx-first-order.md):
   the non-2XXX family map — owner-based decomposition of the bands
-  outside 2000-2999 with measured baselines and per-family acceptance;
-  feeds the convergence plan's A5 slice and M7 stage gates.
+  outside 2000-2999; feeds the A5 family rollup and M7 stage gates.
 
-## Active Deep Designs
+## Reference (v1-era, kept in place)
 
-- [type-checking-2xxx-roadmap.md](type-checking-2xxx-roadmap.md):
-  cross-workstream design for 2XXX diagnostics and the local-vs-deep
-  architecture decision boundary.
-- [type-checking-2xxx-execution-plan.md](type-checking-2xxx-execution-plan.md):
-  readiness checks, dependency order, and stop conditions for entering
-  central 2XXX behavior work.
-- [non-2xxx-blockers.md](non-2xxx-blockers.md): the blocker map for
-  everything outside the 2XXX band — parser recovery/parse-error gate
-  residue, implicit-any 7XXX, unused band, 18XXX sub-families,
-  override 4XXX, 17XXX, suggestion families, lib axis, and infra.
-- [non-2xxx-quick-wins-steps.md](non-2xxx-quick-wins-steps.md):
-  implementation steps for the five N0 quick wins (enum constant
-  evaluation, regex-validator wiring, scanner dedup, static-block
-  grammar, `new.target`). Move to `archive/` as workstreams land.
-- [relation-kind-facade-steps.md](relation-kind-facade-steps.md):
-  byte-identical implementation steps for the `RelationKind` facade
-  scaffold. Move to `archive/` when it lands.
-- [candidate-boundary-steps.md](candidate-boundary-steps.md):
-  byte-identical implementation steps for the call-candidate
-  speculation boundary scaffold. Move to `archive/` when it lands.
-- [candidate-call-resolution.md](candidate-call-resolution.md):
-  transactional call-candidate design for `TS2345`, `TS2554`,
-  `TS2769`, and `TS2349`.
-- [destructuring-parameter-implicit-any.md](destructuring-parameter-implicit-any.md):
-  leaf-level `TS7031` design for destructuring parameters.
-- [destructuring-parameter-implicit-any-steps.md](destructuring-parameter-implicit-any-steps.md):
-  current implementation steps for the `TS7031` design. Move this to
-  `archive/` when the workstream lands or becomes stale.
-- [architectural-debt.md](architectural-debt.md): targeted debt items
-  that should be implemented only when a workstream proves they block
-  meaningful progress.
-- [stall-playbook.md](stall-playbook.md): how to detect an architecture
-  stall and choose the right deeper migration.
+These were written against the paused v1 codebase (tag `v1-final`) and
+are still cited from the docs above for durable facts; their command
+lines and `src/` paths only work at that tag.
 
-## Reference and Process
-
-- [EXECUTION-GUIDE.md](EXECUTION-GUIDE.md): implementation loop,
-  verification rules, and FP/FN triage procedure.
 - [knowledge-base.md](knowledge-base.md): pinned non-obvious facts and
-  standing pitfalls.
+  standing pitfalls (oracle behavior, corpus quirks, tsc internals).
 - [tsc-source-guide.md](tsc-source-guide.md): how to navigate the
   vendored `_tsc.js` source.
+- [stall-playbook.md](stall-playbook.md): how to detect an architecture
+  stall and choose the right deeper migration; the refactor house
+  style.
+- [EXECUTION-GUIDE.md](EXECUTION-GUIDE.md): the v1 implementation loop
+  and FP/FN triage procedure (the greenfield equivalents are the
+  per-stage gates in `greenfield/`).
+- [non-2xxx-blockers.md](non-2xxx-blockers.md): the v1 blocker map for
+  the bands outside 2XXX; provenance input to
+  `greenfield/non-2xxx-first-order.md`.
+- [architectural-debt.md](architectural-debt.md): v1 debt items,
+  referenced by `checker-key-functions.md` for context.
 
 ## Archive
 
-- [archive/README.md](archive/README.md): archived roadmaps and
-  snapshot-specific workstreams.
-- [archive/convergence-roadmap-2026-07.md](archive/convergence-roadmap-2026-07.md):
-  old 2026-07 convergence roadmap and priority table.
+- [archive/README.md](archive/README.md): archived roadmaps,
+  workstreams (v1 and superseded), and v1 operating instructions.
 
-Archived documents are preserved for context, not treated as the current
-source of design truth.
+Archived documents are preserved for context, not treated as the
+current source of design truth.
