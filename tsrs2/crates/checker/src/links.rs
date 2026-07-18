@@ -719,6 +719,25 @@ impl LinksTables {
         }
     }
 
+    /// tsrs-native: the mid-fixpoint twin of tsc 77505's `: cached`
+    /// exit write (getResolvedSignature's guard-fail arm) — tsc
+    /// expresses it as one unconditional slot assignment; the typed
+    /// LinkSlot protocol needs an explicit clear. A signature resolved
+    /// while a flow loop fixpoint is in progress must leave NO memo
+    /// behind — INCLUDING resolveCall's overload-failure stash
+    /// (76629), which tsc's exit write clobbers back to `cached` in
+    /// exactly this case. Clears Resolving AND Resolved back to
+    /// Vacant (M5 6.3; the FP class it kills: a failure-stash
+    /// poisoning the later statement-path check into skipping
+    /// argument checking).
+    pub fn clear_node_resolved_signature_call(&mut self, id: NodeId) {
+        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        if !matches!(slot, LinkSlot::Vacant) {
+            note_resolving_transition(slot.is_resolving(), false);
+            *slot = LinkSlot::Vacant;
+        }
+    }
+
     pub fn set_symbol_variances(
         &mut self,
         speculation_depth: u32,

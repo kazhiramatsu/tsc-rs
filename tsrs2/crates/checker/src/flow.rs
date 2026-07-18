@@ -20,25 +20,28 @@
 //! resume rule stays in-file by construction — so the query pins the
 //! owning file index once.
 //!
-//! Stage state (6.2): the assignment and array-mutation arms are LIVE
-//! (getTypeAtFlowAssignment + evolving arrays + the initial/assigned
-//! type family), and both caller initialType ladders are flipped
+//! Stage state (6.3): the assignment and array-mutation arms (6.2)
+//! and the branch/loop JOINs with the loop-label fixpoint (6.3) are
+//! LIVE, and both caller initialType ladders are flipped
 //! (checkIdentifier + the access.rs assume-uninitialized arm). Still
 //! inert, each flagging the query (`FlowQuery::traversed_inert_arm`):
-//! - [FLOW 6.3] branch/loop joins return the declared type.
 //! - [FLOW 6.4] conditions/switch clauses pass through their
 //!   antecedent (tsc's arm with narrowType = identity); calls never
 //!   affect (no effects signatures yet).
 //!
-//! THE 6.2 SEAM: a query that crossed an inert arm reverts to the 6.1
-//! answer (declared type, auto-converted) at query exit — the inert
-//! arms cannot reproduce tsc's narrowing, and letting their over-wide
+//! THE 6.2 SEAM (retires with the 6.4 narrowers): a query that
+//! crossed a still-inert arm reverts to the 6.1 answer (declared
+//! type, auto-converted) at query exit — the inert arms cannot
+//! reproduce tsc's narrowing, and letting their over-wide
 //! pass-through answer out would misreport 2454/2565 (an initial-type
 //! undefined tsc narrows away) and misfire the 7034 auto-identity
-//! test. Straight-line queries (start/assignment/mutation paths) get
-//! the full 6.2 semantics; the ladder sites partial-mark the
-//! flagged-and-suppressed diagnostic positions. The seam retires
-//! arm-by-arm as 6.3/6.4 land.
+//! test. Queries whose walk meets only live arms (start/assignment/
+//! mutation/join paths) get the full semantics; the ladder sites
+//! partial-mark the flagged-and-suppressed diagnostic positions. The
+//! loop-label fixpoint additionally refuses to CACHE a result whose
+//! query is flagged: the flowLoopCaches memo outlives the query, and
+//! a later same-key query hitting the memo would skip the walk — and
+//! with it the flag — leaking the over-wide answer past the seam.
 
 use tsrs2_binder::flow::{FlowId, FlowPayload};
 use tsrs2_binder::{node_util, SymbolId};
@@ -57,9 +60,10 @@ use crate::state::{CheckResult2, CheckerState, Unsupported};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum FlowType {
     Type(TypeId),
-    // Constructible via create_flow_type since 6.2 (the Compound and
-    // array-mutation arms re-wrap their antecedent's completeness);
-    // first actually produced by the 6.3 loop-label fixpoint.
+    // Produced by the 6.3 loop-label fixpoint (the in-progress
+    // back-edge answer and the incomplete-first-antecedent result);
+    // the Compound/array-mutation arms and the branch join re-wrap
+    // their antecedents' completeness.
     Incomplete(TypeId),
 }
 
@@ -83,8 +87,8 @@ impl FlowType {
 
 /// The per-query locals of tsc getFlowTypeOfReference (70394): the
 /// reference bindings plus `flowDepth` (reset per query — NOT checker
-/// state) and this query's window into the shared-flow cache. The
-/// loop-label cache `key`/`isKeySet` pair joins at 6.3.
+/// state), this query's window into the shared-flow cache, and the
+/// loop-label cache `key`/`isKeySet` memo pair (70395/70413).
 pub(crate) struct FlowQuery {
     pub(crate) reference: NodeId,
     pub(crate) declared_type: TypeId,
@@ -95,13 +99,30 @@ pub(crate) struct FlowQuery {
     pub(crate) file: usize,
     pub(crate) flow_depth: u32,
     pub(crate) shared_flow_start: usize,
-    /// tsrs-native 6.2 SEAM (retires with 6.3 joins + 6.4 narrowers):
-    /// set when the walk crosses a still-inert arm (condition/switch/
-    /// branch-label/loop-label) — the query exit forces such answers
-    /// back to the 6.1 value (declared, auto-converted) and mirrors
-    /// the flag into `CheckerState::flow_last_query_inert` for the
-    /// initialType ladder sites.
+    /// tsc `key`/`isKeySet` (70395-70396): the lazily computed flow
+    /// cache key — outer None = not computed yet (isKeySet false),
+    /// Some(None) = computed, reference has no key.
+    pub(crate) key: Option<Option<String>>,
+    /// tsrs-native 6.2 SEAM (retires with the 6.4 narrowers): set
+    /// when the walk crosses a still-inert arm (condition/switch) —
+    /// the query exit forces such answers back to the 6.1 value
+    /// (declared, auto-converted) and mirrors the flag into
+    /// `CheckerState::flow_last_query_inert` for the initialType
+    /// ladder sites; the loop-label fixpoint reads it to keep flagged
+    /// results out of the cross-query flowLoopCaches memo.
     pub(crate) traversed_inert_arm: bool,
+}
+
+/// One in-progress loop-label fixpoint frame: tsc's parallel
+/// flowLoopNodes[i]/flowLoopKeys[i]/flowLoopTypes[i] entry at index
+/// i < flowLoopCount (the Vec length here). Published before a
+/// back-edge walk so a self-referencing inner query returns the
+/// partial union tagged incomplete; popped when the walk returns.
+pub(crate) struct FlowLoopEntry {
+    pub(crate) file: usize,
+    pub(crate) flow: FlowId,
+    pub(crate) key: String,
+    pub(crate) types: Vec<TypeId>,
 }
 
 impl<'a> CheckerState<'a> {
@@ -232,6 +253,7 @@ impl<'a> CheckerState<'a> {
             file: self.binder.file_index_of_node(reference),
             flow_depth: 0,
             shared_flow_start,
+            key: None,
             traversed_inert_arm: false,
         };
         let walk = self.get_type_at_flow_node(&mut query, flow_node);
@@ -263,14 +285,15 @@ impl<'a> CheckerState<'a> {
         evolved_type: TypeId,
         traversed_inert_arm: bool,
     ) -> CheckResult2<TypeId> {
-        // 6.2 SEAM (retires with 6.3 joins + 6.4 narrowers): a query
-        // that crossed a still-inert arm answers the 6.1 value — the
-        // declared type, auto-converted — because the inert arms
-        // cannot reproduce tsc's narrowing and their pass-through
-        // answer may be over-wide (an initial-type undefined tsc
-        // would have narrowed away must not leak into diagnostics).
-        // Straight-line queries (start/assignment/array-mutation
-        // paths only) get the full 6.2 semantics.
+        // 6.2 SEAM (retires with the 6.4 narrowers): a query that
+        // crossed a still-inert condition/switch arm answers the 6.1
+        // value — the declared type, auto-converted — because the
+        // inert arms cannot reproduce tsc's narrowing and their
+        // pass-through answer may be over-wide (an initial-type
+        // undefined tsc would have narrowed away must not leak into
+        // diagnostics). Queries meeting only live arms (start/
+        // assignment/array-mutation/join paths) get the full
+        // semantics.
         let evolved_type = if traversed_inert_arm {
             self.convert_auto_to_any(query.declared_type)?
         } else {
@@ -440,10 +463,61 @@ impl<'a> CheckerState<'a> {
                     flow = antecedents[0];
                     continue;
                 }
-                ty = if flags.intersects(FlowFlags::BRANCH_LABEL) {
-                    self.get_type_at_flow_branch_label(query, flow)?
+                let saved_flow_depth = query.flow_depth;
+                let join = if flags.intersects(FlowFlags::BRANCH_LABEL) {
+                    self.get_type_at_flow_branch_label(query, flow)
                 } else {
-                    self.get_type_at_flow_loop_label(query, flow)?
+                    self.get_type_at_flow_loop_label(query, flow)
+                };
+                ty = match join {
+                    Ok(join) => join,
+                    // Reasons PREFIXED "[FLOW M5] " are the
+                    // narrowable-containment GATES (failure-face
+                    // checks that fire on the statement path too):
+                    // they mean "tsc's answer likely differs because
+                    // of narrowing" and must keep containing the
+                    // enclosing statement — exactly what the pre-6.3
+                    // statement-path check of the same expression
+                    // did. The prefix is the discriminator: M5-owned
+                    // dependency STUBS embed the tag parenthetically
+                    // ("(... [FLOW M5])") and degrade below like the
+                    // M6/M8 stubs — their statement-path containment
+                    // stands untouched, but a join pull crossing one
+                    // must not contain a statement the 6.2 label
+                    // stubs let complete (the 6.3 review caught
+                    // `.contains` sweeping seven stub reasons into
+                    // the rethrow set).
+                    Err(unsupported) if unsupported.reason.starts_with("[FLOW M5] ") => {
+                        return Err(unsupported);
+                    }
+                    Err(_unsupported) => {
+                        // [FLOW 6.3 JOIN-SEAM] Any other Unsupported
+                        // inside a JOIN computation — an antecedent
+                        // walk pulling a back-edge RHS, or the union's
+                        // Subtype reduction relating members, through
+                        // an unported M6/M8 dependency stub (e.g.
+                        // lib-esnext generator machinery hitting the
+                        // mapped-type stub) — degrades to the 6.2 seam
+                        // instead of containing the enclosing
+                        // statement: the label stubs this stage
+                        // replaced never computed any of this, so
+                        // statements they let complete must not
+                        // regress. The flag makes the query-exit
+                        // revert answer EXACTLY the 6.2 stub's value
+                        // (declared, auto-converted) — every
+                        // downstream diagnostic is the FP-vetted 6.2
+                        // one — and keeps the flagged result out of
+                        // flowLoopCaches. flow_depth rewinds to its
+                        // pre-label value (the failed chain's `?`
+                        // returns skip the decrements). Retires with
+                        // the unported dependencies. All loop-label
+                        // stack frames are popped before its Err
+                        // escapes (the unwind invariant), so no state
+                        // survives the catch.
+                        query.flow_depth = saved_flow_depth;
+                        query.traversed_inert_arm = true;
+                        FlowType::Type(query.declared_type)
+                    }
                 };
             } else if flags.intersects(FlowFlags::ARRAY_MUTATION) {
                 match self.get_type_at_flow_array_mutation(query, flow)? {
@@ -521,8 +595,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    // ---- the arms (6.2: assignment + array mutation live; the
-    // condition/switch/join arms stay inert and flag the query) ----
+    // ---- the arms (assignment + array mutation live since 6.2, the
+    // branch/loop joins since 6.3; the condition/switch arms stay
+    // inert and flag the query until 6.4) ----
 
     /// tsc-port: getTypeAtFlowAssignment @6.0.3
     /// tsc-hash: 06ef726ffa7b23b361ca0631413c45e9173551c164933920099df3bdafff5277
@@ -682,32 +757,451 @@ impl<'a> CheckerState<'a> {
         self.get_type_at_flow_node(query, antecedent)
     }
 
-    /// [FLOW 6.3] tsc getTypeAtFlowBranchLabel (70653): the JOIN.
-    /// Until it lands, a multi-antecedent branch answers the declared
-    /// type (the widest join — never narrower than any real union)
-    /// and flags the query (6.2 seam: the query exit converts
-    /// auto/autoArray so the 7034 identity test cannot misfire).
-    /// tsc-deferred: M5 (stage 6.3 — branch joins)
+    /// An antecedent that is an EMPTY switch clause (clauseStart ==
+    /// clauseEnd — the binder's artificial no-clause-matched edge) is
+    /// deferred as the branch label's bypassFlow.
+    /// tsrs-native: the inline antecedent test of
+    /// getTypeAtFlowBranchLabel (70659).
+    fn is_empty_switch_clause_flow(&self, file: usize, flow: FlowId) -> bool {
+        self.flow_flags_of(file, flow)
+            .intersects(FlowFlags::SWITCH_CLAUSE)
+            && matches!(
+                self.binder.file(file).flow.flow(flow).payload,
+                FlowPayload::SwitchClause {
+                    clause_start,
+                    clause_end,
+                    ..
+                } if clause_start == clause_end
+            )
+    }
+
+    /// tsc-deferred: M5 (stage 6.6 — switch exhaustiveness; the real
+    /// computeExhaustiveSwitchStatement needs 6.4's getTypeFacts/
+    /// getSwitchClauseTypeOfWitnesses family, and the steps doc parks
+    /// both under reachability). Conservative false = a non-never
+    /// bypass antecedent always contributes to the join, possibly
+    /// over-wide — seam-safe: the bypass walk itself crosses the
+    /// still-inert switch-clause arm, so every such query is flagged
+    /// and reverts at exit until the arm goes live.
+    fn is_exhaustive_switch_statement(
+        &mut self,
+        _switch_statement: Option<NodeId>,
+    ) -> CheckResult2<bool> {
+        Ok(false)
+    }
+
+    /// tsc-port: getTypeAtFlowBranchLabel @6.0.3
+    /// tsc-hash: 42a133e73000df9b5c537b6d2ea51a69a62e9fc2599264e382f1130505a81263
+    /// tsc-span: _tsc.js:70653-70693
+    ///
+    /// The JOIN: union of the antecedent walks, with the
+    /// empty-switch-clause bypass (deferred to after the loop, skipped
+    /// when never/duplicate/exhaustive) and the declared-type
+    /// short-circuit (an antecedent equal to an unnarrowed declared
+    /// type makes the whole join that type).
     fn get_type_at_flow_branch_label(
         &mut self,
         query: &mut FlowQuery,
-        _flow: FlowId,
+        flow: FlowId,
     ) -> CheckResult2<FlowType> {
-        query.traversed_inert_arm = true;
-        Ok(FlowType::Type(query.declared_type))
+        let mut antecedent_types: Vec<TypeId> = Vec::new();
+        let mut subtype_reduction = false;
+        let mut seen_incomplete = false;
+        let mut bypass_flow: Option<FlowId> = None;
+        for antecedent in self.flow_label_antecedents(query.file, flow) {
+            if bypass_flow.is_none() && self.is_empty_switch_clause_flow(query.file, antecedent) {
+                bypass_flow = Some(antecedent);
+                continue;
+            }
+            let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+            let ty = flow_type.get_type();
+            if ty == query.declared_type && query.declared_type == query.initial_type {
+                return Ok(FlowType::Type(ty));
+            }
+            if !antecedent_types.contains(&ty) {
+                antecedent_types.push(ty);
+            }
+            if !self.is_type_subset_of(ty, query.initial_type)? {
+                subtype_reduction = true;
+            }
+            if flow_type.is_incomplete() {
+                seen_incomplete = true;
+            }
+        }
+        if let Some(bypass) = bypass_flow {
+            // The default/no-match path of a non-exhaustive switch
+            // rejoins here.
+            let flow_type = self.get_type_at_flow_node(query, bypass)?;
+            let ty = flow_type.get_type();
+            let switch_statement = match self.binder.file(query.file).flow.flow(bypass).payload {
+                FlowPayload::SwitchClause {
+                    switch_statement, ..
+                } => Some(switch_statement),
+                _ => None,
+            };
+            if !self.tables.flags_of(ty).intersects(TypeFlags::NEVER)
+                && !antecedent_types.contains(&ty)
+                && !self.is_exhaustive_switch_statement(switch_statement)?
+            {
+                if ty == query.declared_type && query.declared_type == query.initial_type {
+                    return Ok(FlowType::Type(ty));
+                }
+                antecedent_types.push(ty);
+                if !self.is_type_subset_of(ty, query.initial_type)? {
+                    subtype_reduction = true;
+                }
+                if flow_type.is_incomplete() {
+                    seen_incomplete = true;
+                }
+            }
+        }
+        let union = self.get_union_or_evolving_array_type(
+            query,
+            &antecedent_types,
+            if subtype_reduction {
+                tsrs2_types::UnionReduction::Subtype
+            } else {
+                tsrs2_types::UnionReduction::Literal
+            },
+        )?;
+        Ok(self.create_flow_type(union, seen_incomplete))
     }
 
-    /// [FLOW 6.3] tsc getTypeAtFlowLoopLabel (70694): the fixpoint.
-    /// Until it lands, a loop join answers the declared type and
-    /// flags the query (6.2 seam, see get_type_at_flow_branch_label).
-    /// tsc-deferred: M5 (stage 6.3 — the loop fixpoint)
+    /// tsc-port: getTypeAtFlowLoopLabel @6.0.3
+    /// tsc-hash: e2be2f0eb5db01a25e38653a320096d0e34cef40629baedbbc0c1c53445bc027
+    /// tsc-span: _tsc.js:70694-70755
+    ///
+    /// THE fixpoint (checker-key §4.4). The first antecedent (loop
+    /// entry) resolves normally; back-edge antecedents resolve with
+    /// the current partial union published on the flow-loop stack, so
+    /// a self-reference returns the accumulated-so-far union tagged
+    /// INCOMPLETE. Terminates because each pass only adds members.
+    /// Its two non-negotiables:
+    /// - the flowTypeCache swap during back-edge resolution (partial
+    ///   results must not enter getTypeOfExpression's cache);
+    /// - never caching while the first antecedent is incomplete.
+    ///
+    /// 6.2-SEAM EXTENSION (tsrs-native, retires with 6.4): a result
+    /// computed through a still-inert arm (`query.traversed_inert_arm`)
+    /// is answered but NOT cached — flowLoopCaches outlives the query,
+    /// and a later same-key query hitting the memo would skip the
+    /// walk (and the flag), leaking the over-wide answer past the
+    /// query-exit revert. The query-global flag over-approximates the
+    /// fixpoint's own subtree, so the guard never caches a dirty
+    /// result; once 6.4 retires the flag it is constant-false and the
+    /// tsc shape is exact.
     fn get_type_at_flow_loop_label(
         &mut self,
         query: &mut FlowQuery,
-        _flow: FlowId,
+        flow: FlowId,
     ) -> CheckResult2<FlowType> {
-        query.traversed_inert_arm = true;
-        Ok(FlowType::Type(query.declared_type))
+        // getFlowNodeId(flow) → flowLoopCaches[id]: FlowIds are
+        // per-file, so (file, FlowId) is the cache identity.
+        let Some(key) = self.get_or_set_cache_key(query)? else {
+            return Ok(FlowType::Type(query.declared_type));
+        };
+        if let Some(cache) = self.flow_loop_caches.get(&(query.file, flow)) {
+            if let Some(&cached) = cache.get(&key) {
+                return Ok(FlowType::Type(cached));
+            }
+        }
+        // An in-progress back-edge resolution of this same label+key:
+        // answer the partial union as INCOMPLETE.
+        for index in self.flow_loop_start as usize..self.flow_loop_stack.len() {
+            let entry = &self.flow_loop_stack[index];
+            if entry.file == query.file
+                && entry.flow == flow
+                && entry.key == key
+                && !entry.types.is_empty()
+            {
+                let types = entry.types.clone();
+                let union = self.get_union_or_evolving_array_type(
+                    query,
+                    &types,
+                    tsrs2_types::UnionReduction::Literal,
+                )?;
+                return Ok(self.create_flow_type(union, true));
+            }
+        }
+        let mut antecedent_types: Vec<TypeId> = Vec::new();
+        let mut subtype_reduction = false;
+        let mut first_antecedent_type: Option<FlowType> = None;
+        for antecedent in self.flow_label_antecedents(query.file, flow) {
+            let flow_type = if first_antecedent_type.is_none() {
+                let first = self.get_type_at_flow_node(query, antecedent)?;
+                first_antecedent_type = Some(first);
+                first
+            } else {
+                // Publish the partial union for the back-edge walk and
+                // clear the flow-type cache: types computed mid-loop
+                // are lower bounds and must not be cached (the first
+                // non-negotiable). Pop + restore BEFORE `?` so an
+                // Unsupported unwind leaves no frame behind (the
+                // unwind invariant) — the walk dispatch's join-seam
+                // catch relies on it.
+                self.flow_loop_stack.push(FlowLoopEntry {
+                    file: query.file,
+                    flow,
+                    key: key.clone(),
+                    types: antecedent_types.clone(),
+                });
+                let save_flow_type_cache = self.flow_type_cache.take();
+                let walked = self.get_type_at_flow_node(query, antecedent);
+                self.flow_type_cache = save_flow_type_cache;
+                self.flow_loop_stack.pop();
+                let flow_type = walked?;
+                // The fixpoint may have been finalized during the
+                // recursive walk (a nested query completed it).
+                if let Some(cache) = self.flow_loop_caches.get(&(query.file, flow)) {
+                    if let Some(&cached) = cache.get(&key) {
+                        return Ok(FlowType::Type(cached));
+                    }
+                }
+                flow_type
+            };
+            let ty = flow_type.get_type();
+            if !antecedent_types.contains(&ty) {
+                antecedent_types.push(ty);
+            }
+            if !self.is_type_subset_of(ty, query.initial_type)? {
+                subtype_reduction = true;
+            }
+            // Reached the widest possible answer; no further pass can
+            // widen it.
+            if ty == query.declared_type {
+                break;
+            }
+        }
+        let result = self.get_union_or_evolving_array_type(
+            query,
+            &antecedent_types,
+            if subtype_reduction {
+                tsrs2_types::UnionReduction::Subtype
+            } else {
+                tsrs2_types::UnionReduction::Literal
+            },
+        )?;
+        if first_antecedent_type.is_some_and(FlowType::is_incomplete) {
+            // The second non-negotiable: never cache while incomplete.
+            return Ok(self.create_flow_type(result, true));
+        }
+        if !query.traversed_inert_arm {
+            self.flow_loop_caches
+                .entry((query.file, flow))
+                .or_default()
+                .insert(key, result);
+        }
+        Ok(FlowType::Type(result))
+    }
+
+    /// tsc-port: getOrSetCacheKey @6.0.3
+    /// tsc-hash: e224dd54f074c1f3304e88be454bdbbd8ae9105ce337bfb6b83b6d39ce4beef7
+    /// tsc-span: _tsc.js:70413-70419
+    fn get_or_set_cache_key(&mut self, query: &mut FlowQuery) -> CheckResult2<Option<String>> {
+        if let Some(key) = &query.key {
+            return Ok(key.clone());
+        }
+        let key = self.get_flow_cache_key(
+            query.reference,
+            query.declared_type,
+            query.initial_type,
+            query.flow_container,
+        )?;
+        query.key = Some(key.clone());
+        Ok(key)
+    }
+
+    /// tsc-port: getFlowCacheKey @6.0.3
+    /// tsc-hash: 680d4522c23b10729b148621ff3f5b43e22e5a17351b666d2ef862ede1d455ed
+    /// tsc-span: _tsc.js:69407-69447
+    ///
+    /// The key strings mirror tsc's exactly, with tsrs2's stable ids
+    /// standing in for tsc's lazily assigned node/type/symbol ids
+    /// (the key only needs identity, not any particular numbering).
+    fn get_flow_cache_key(
+        &mut self,
+        node: NodeId,
+        declared_type: TypeId,
+        initial_type: TypeId,
+        flow_container: Option<NodeId>,
+    ) -> CheckResult2<Option<String>> {
+        let container_id = flow_container.map_or_else(|| "-1".to_owned(), |c| c.0.to_string());
+        match self.kind_of(node) {
+            SyntaxKind::Identifier if !self.is_this_in_type_query(node) => {
+                Ok(self.get_resolved_symbol(node)?.map(|symbol| {
+                    format!(
+                        "{container_id}|{}|{}|{}",
+                        declared_type.0, initial_type.0, symbol.0
+                    )
+                }))
+            }
+            // The this-in-type-query Identifier falls through to the
+            // ThisKeyword arm, exactly as tsc's switch does.
+            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => Ok(Some(format!(
+                "0|{container_id}|{}|{}",
+                declared_type.0, initial_type.0
+            ))),
+            SyntaxKind::NonNullExpression => {
+                let NodeData::NonNullExpression(data) = self.data_of(node) else {
+                    return Ok(None);
+                };
+                match data.expression {
+                    Some(expression) => self.get_flow_cache_key(
+                        expression,
+                        declared_type,
+                        initial_type,
+                        flow_container,
+                    ),
+                    None => Ok(None),
+                }
+            }
+            SyntaxKind::ParenthesizedExpression => {
+                let NodeData::ParenthesizedExpression(data) = self.data_of(node) else {
+                    return Ok(None);
+                };
+                match data.expression {
+                    Some(expression) => self.get_flow_cache_key(
+                        expression,
+                        declared_type,
+                        initial_type,
+                        flow_container,
+                    ),
+                    None => Ok(None),
+                }
+            }
+            SyntaxKind::QualifiedName => {
+                let NodeData::QualifiedName(data) = self.data_of(node) else {
+                    return Ok(None);
+                };
+                let (Some(left), Some(right)) = (data.left, data.right) else {
+                    return Ok(None);
+                };
+                let Some(left_key) =
+                    self.get_flow_cache_key(left, declared_type, initial_type, flow_container)?
+                else {
+                    return Ok(None);
+                };
+                let Some(right_text) = self.escaped_text_of(Some(right)) else {
+                    return Ok(None);
+                };
+                Ok(Some(format!("{left_key}.{right_text}")))
+            }
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                let expression = match self.data_of(node) {
+                    NodeData::PropertyAccessExpression(data) => data.expression,
+                    NodeData::ElementAccessExpression(data) => data.expression,
+                    _ => None,
+                };
+                let Some(expression) = expression else {
+                    return Ok(None);
+                };
+                if let Some(prop_name) = self.get_accessed_property_name(node)? {
+                    let Some(key) = self.get_flow_cache_key(
+                        expression,
+                        declared_type,
+                        initial_type,
+                        flow_container,
+                    )?
+                    else {
+                        return Ok(None);
+                    };
+                    return Ok(Some(format!("{key}.{prop_name}")));
+                }
+                if self.kind_of(node) == SyntaxKind::ElementAccessExpression {
+                    let argument = match self.data_of(node) {
+                        NodeData::ElementAccessExpression(data) => data.argument_expression,
+                        _ => None,
+                    };
+                    if let Some(argument) = argument {
+                        if self.kind_of(argument) == SyntaxKind::Identifier {
+                            if let Some(symbol) = self.get_resolved_symbol(argument)? {
+                                if self.is_constant_variable(symbol)
+                                    || (self.is_parameter_or_mutable_local_variable(symbol)
+                                        && !self.is_symbol_assigned(symbol)?)
+                                {
+                                    let Some(key) = self.get_flow_cache_key(
+                                        expression,
+                                        declared_type,
+                                        initial_type,
+                                        flow_container,
+                                    )?
+                                    else {
+                                        return Ok(None);
+                                    };
+                                    return Ok(Some(format!("{key}.@{}", symbol.0)));
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(None)
+            }
+            SyntaxKind::ObjectBindingPattern
+            | SyntaxKind::ArrayBindingPattern
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::MethodDeclaration => Ok(Some(format!("{}#{}", node.0, declared_type.0))),
+            _ => Ok(None),
+        }
+    }
+
+    /// tsc-port: getUnionOrEvolvingArrayType @6.0.3
+    /// tsc-hash: 1bcdcc9a640a41919d106cc96d516819da508516e1aeb44c9d4117a555b4a9df
+    /// tsc-span: _tsc.js:70756-70765
+    ///
+    /// The JOIN's union: an all-evolving-array list joins element
+    /// types into one evolving array; otherwise the members finalize,
+    /// union, recombine `{}|null|undefined` back to unknown, and a
+    /// member-identical union answers the IDENTICAL declaredType
+    /// object (identity preservation feeds the branch short-circuit).
+    fn get_union_or_evolving_array_type(
+        &mut self,
+        query: &FlowQuery,
+        types: &[TypeId],
+        subtype_reduction: tsrs2_types::UnionReduction,
+    ) -> CheckResult2<TypeId> {
+        if self.is_evolving_array_type_list(types) {
+            let element_types: Vec<TypeId> = types
+                .iter()
+                .map(|&ty| self.get_element_type_of_evolving_array_type(ty))
+                .collect();
+            let union =
+                self.get_union_type_ex(&element_types, tsrs2_types::UnionReduction::Literal)?;
+            return Ok(self.get_evolving_array_type(union));
+        }
+        let mut finalized = Vec::with_capacity(types.len());
+        for &ty in types {
+            finalized.push(self.finalize_evolving_array_type(ty)?);
+        }
+        let union = self.get_union_type_ex(&finalized, subtype_reduction)?;
+        let result = self.recombine_unknown_type(union);
+        if result != query.declared_type
+            && self.tables.flags_of(result).intersects(TypeFlags::UNION)
+            && self
+                .tables
+                .flags_of(query.declared_type)
+                .intersects(TypeFlags::UNION)
+        {
+            let TypeData::Union {
+                types: result_types,
+                ..
+            } = &self.tables.type_of(result).data
+            else {
+                unreachable!("union flag implies union data");
+            };
+            let TypeData::Union {
+                types: declared_types,
+                ..
+            } = &self.tables.type_of(query.declared_type).data
+            else {
+                unreachable!("union flag implies union data");
+            };
+            if result_types == declared_types {
+                return Ok(query.declared_type);
+            }
+        }
+        Ok(result)
     }
 
     /// tsc-port: getTypeAtFlowArrayMutation @6.0.3
@@ -1426,7 +1920,7 @@ impl<'a> CheckerState<'a> {
         else {
             unreachable!("add_evolving_array_element_type takes an evolving array");
         };
-        if self.is_type_subset_of(element_type, current) {
+        if self.is_type_subset_of(element_type, current)? {
             return Ok(evolving);
         }
         let union = self.get_union_type_ex(
@@ -1496,9 +1990,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getElementTypeOfEvolvingArrayType @6.0.3
     /// tsc-hash: 751aa5f1b4fa3e3c9e832085dddee81f03359bbfaa568d3e7bcf1a6391d2d94a
     /// tsc-span: _tsc.js:70096-70098
-    ///
-    /// [FLOW 6.3] first consumed by getUnionOrEvolvingArrayType.
-    #[allow(dead_code)]
     pub(crate) fn get_element_type_of_evolving_array_type(&self, ty: TypeId) -> TypeId {
         if let TypeData::EvolvingArray { element_type } = self.tables.type_of(ty).data {
             element_type
@@ -1510,9 +2001,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isEvolvingArrayTypeList @6.0.3
     /// tsc-hash: b93ff435c92bb04a9225f07ba1f069517107c5a8d42957d9bbe12ddc7945c4f4
     /// tsc-span: _tsc.js:70099-70110
-    ///
-    /// [FLOW 6.3] first consumed by getUnionOrEvolvingArrayType.
-    #[allow(dead_code)]
     pub(crate) fn is_evolving_array_type_list(&self, types: &[TypeId]) -> bool {
         let mut has_evolving_array_type = false;
         for &ty in types {

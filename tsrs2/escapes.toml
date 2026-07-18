@@ -564,7 +564,7 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "resolve_new_expression"
-reason = "[FLOW M5] functionHasImplicitReturn stub (never-vs-void return under the 2350 gate)"
+reason = "functionHasImplicitReturn stub under the 2350 gate (never-vs-void return, [FLOW M5])"
 class = "stage"
 owner = "M5"
 

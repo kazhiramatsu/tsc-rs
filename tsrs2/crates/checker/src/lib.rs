@@ -2355,11 +2355,14 @@ mod tests {
 
     #[test]
     fn partial_flow_check_records_its_runtime_trigger() {
-        // A use whose flow query crosses a still-inert 6.3 branch
-        // join: the oracle's 2454 is undecidable until the joins land,
-        // so the position partial-marks with the seam reason. The
-        // straight-line form (`let x: number; x;`) reports the REAL
-        // 2454 since 6.2 (pinned in expr.rs).
+        // The if-without-else join is LIVE since 6.3, but its
+        // false-edge antecedent walks through the if's FalseCondition
+        // node — the still-inert 6.4 condition arm — so the oracle's
+        // 2454 stays undecidable and the position partial-marks with
+        // the seam reason. The straight-line form (`let x: number;
+        // x;`) reports the REAL 2454 since 6.2 (pinned in expr.rs);
+        // the condition-free join form (try/catch) reports it since
+        // 6.3 (pinned below).
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -2389,12 +2392,14 @@ mod tests {
 
     #[test]
     fn partial_flow_check_marks_join_dependent_implicit_any() {
-        // An auto-typed variable whose flow query crosses a still-inert
-        // 6.3 branch join: the seam converts the declared auto to any,
-        // suppressing BOTH possible oracle answers (the 7034 pair or a
-        // narrowed union) — the position partial-marks so an
-        // @ts-expect-error over the suppressed row cannot misreport as
-        // unused (2578), mirroring the 2454 seam pin above.
+        // An auto-typed variable whose flow query crosses the if's
+        // FalseCondition edge (the still-inert 6.4 condition arm; the
+        // 6.3 join itself is live): the seam converts the declared
+        // auto to any, suppressing BOTH possible oracle answers (the
+        // 7034 pair or a narrowed union) — the position partial-marks
+        // so an @ts-expect-error over the suppressed row cannot
+        // misreport as unused (2578), mirroring the 2454 seam pin
+        // above.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -2417,6 +2422,228 @@ mod tests {
         assert_eq!(
             result.partial_checks[0].reason,
             "flow-sensitive implicit-any diagnostic (M5 6.3/6.4 seam)"
+        );
+    }
+
+    #[test]
+    fn branch_join_reports_use_before_assignment_across_try_catch() {
+        // try/catch joins carry no condition nodes (the try-path
+        // antecedent terminates at the x=1 assignment arm; the
+        // catch-path runs to Start), so the 6.3 branch label computes
+        // the REAL union: number ∪ (number | undefined) → the ladder's
+        // 2454 fires like tsc's — previously this position was seam
+        // partial-marked.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "let x: number;\ntry { x = 1; } catch {}\nx;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            [2454]
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn loop_fixpoint_converges_across_back_edges() {
+        // The 6.3 loop-label fixpoint: `while (true)` binds no
+        // condition node (the binder's literal-condition passthrough),
+        // so both antecedents resolve through live arms. Entry assigns
+        // "a" → string; the back edge re-assigns "b" → string; the
+        // fixpoint converges to string and fs(x) is clean — the 6.2
+        // seam answered the declared string | number here, a
+        // tsc-divergent 2345.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare function fs(s: string): void;\nlet x: string | number = \"a\";\nwhile (true) {\n  fs(x);\n  x = \"b\";\n}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn loop_fixpoint_accumulates_widening_back_edge_types() {
+        // The divergent twin of the pin above: the back edge assigns a
+        // NUMBER, so the fixpoint's second pass adds it and the union
+        // reaches the declared string | number — fs(x) genuinely fails
+        // under tsc (2345). Pins the accumulate-then-break direction
+        // (an antecedent equal to the declared type stops the walk) —
+        // AND today's report surface: the failed-argument [FLOW M5]
+        // gate still contains the true positive (x is narrowable and
+        // the loop-reaching `x = 1` is a related narrowing construct),
+        // so the 2345 stays a partial mark until the gate retires with
+        // the 6.4 narrowers. Flip this pin to assert [2345] then.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare function fs(s: string): void;\nlet x: string | number = \"a\";\nwhile (true) {\n  fs(x);\n  x = 1;\n}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(
+            result
+                .partial_checks
+                .iter()
+                .map(|p| p.reason.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "[FLOW M5] failed argument from a narrowable reference with a related \
+              narrowing construct in scope"
+            ]
+        );
+    }
+
+    #[test]
+    fn speculative_overload_failure_in_fixpoint_leaves_no_signature_memo() {
+        // The g2 shape of controlFlowIterationErrorsAsync: the bare
+        // `x;` query's back-edge pull speculatively resolves foo(x),
+        // whose overload failure BOTH stashes a failure-face
+        // resolvedSignature (resolveCall 76629) AND raises the
+        // [FLOW M5] failed-argument gate. The mid-fixpoint exit must
+        // clear that stash (tsc 77505's `: cached`): if it survived,
+        // the later assignment-statement check would hit the memo,
+        // skip argument checking (so the gate never fires), and let
+        // the failure-face return type reach the assignment relation —
+        // a 2322 tsc never emits. Expected: both flow-crossing
+        // statements contain (no diagnostics), evidenced by the gate's
+        // partial marks.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare function foo(x: string): number;\ndeclare function foo(x: number): string;\ndeclare const cond: boolean;\nlet x: string | number | boolean;\nx = \"\";\nwhile (cond) {\n  x;\n  x = foo(x);\n}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert!(
+            result
+                .partial_checks
+                .iter()
+                .any(|p| p.reason.contains("[FLOW M5] failed argument")),
+            "the failed-argument gate should contain the overload failure; got {:?}",
+            result
+                .partial_checks
+                .iter()
+                .map(|p| p.reason.as_str())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn loop_fixpoint_joins_evolving_arrays_incomplete_first_pass() {
+        // Evolving arrays THROUGH the fixpoint: at tn(a) the loop
+        // label joins {entry: evolving[never], back edge:
+        // ArrayMutation(push 1)}. The mutation's input walk re-enters
+        // this same label mid-back-edge and takes the in-progress arm
+        // (the partial union tagged INCOMPLETE); the join then unions
+        // element types into evolving[number], finalized to number[]
+        // at the use — clean, like tsc. The 6.2 seam partial-marked
+        // this position (auto-array declared type).
+        let result = check_program_with_libs(
+            &[es5_lib()],
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare function tn(ns: number[]): void;\nlet a = [];\nwhile (true) {\n  tn(a);\n  a.push(1);\n}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn flagged_loop_fixpoint_is_not_memoized_across_queries() {
+        // The flowLoopCaches seam guard, pinned DIRECTLY: both `x;`
+        // uses share the loop label AND the flow cache key. Each
+        // query's back-edge pull crosses the if's FalseCondition (the
+        // still-inert 6.4 condition arm) — flagged, so the fixpoint
+        // must NOT enter flowLoopCaches. If the first query's result
+        // leaked into the memo, the second query would hit it, skip
+        // the walk (and the flag), and its over-wide union (the
+        // initial number | undefined) would bypass the seam revert —
+        // observable as the second position losing its partial mark.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare const cond: boolean;\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (cond) { x = 1; }\n}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(
+            result
+                .partial_checks
+                .iter()
+                .map(|p| p.reason.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
+                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)"
+            ]
         );
     }
 

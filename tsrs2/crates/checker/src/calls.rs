@@ -1615,11 +1615,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:76295-76339
     ///
     /// Call/new/tagged/instanceof bands live — the decorator/JSX arms
-    /// own their slices (5.8/5.7c). Spread expansion: flowLoopCount is 0 until M5 so
-    /// the spread operand checks through checkExpressionCached; tuple
-    /// spreads expand per element into Synthetics (Rest elements wrap
-    /// in arrays, Variable bits mark spread-ness, labels ride
-    /// tuple_name_source).
+    /// own their slices (5.8/5.7c). Spread expansion: the operand
+    /// checks through checkExpressionCached EXCEPT mid-fixpoint —
+    /// 76324 branches on the RAW flowLoopCount (one of the 6.3
+    /// fixpoint's call-site invariants; not the checkExpressionCached
+    /// window, so the uncached arm applies inside a shield too);
+    /// tuple spreads expand per element into Synthetics (Rest
+    /// elements wrap in arrays, Variable bits mark spread-ness,
+    /// labels ride tuple_name_source).
     pub(crate) fn get_effective_call_arguments(
         &mut self,
         node: NodeId,
@@ -1731,10 +1734,17 @@ impl<'a> CheckerState<'a> {
                     unreachable!("kind/data agree");
                 };
                 match data.expression {
-                    // flowLoopCount == 0 until M5 → the cached arm.
-                    Some(expression) => {
-                        Some(self.check_expression_cached(expression, CheckMode::NORMAL)?)
-                    }
+                    // 76324: mid-fixpoint the operand check must not
+                    // memoize links.resolvedType — the memo outlives
+                    // the loop, and the post-loop re-resolution that
+                    // 77505 forces (the signature is never cached
+                    // mid-loop) would consume a mid-loop-era operand
+                    // type. tsc branches on the RAW flowLoopCount.
+                    Some(expression) => Some(if self.flow_loop_stack.is_empty() {
+                        self.check_expression_cached(expression, CheckMode::NORMAL)?
+                    } else {
+                        self.check_expression(expression, CheckMode::NORMAL)?
+                    }),
                     None => None,
                 }
             } else {
@@ -4856,14 +4866,17 @@ impl<'a> CheckerState<'a> {
                     }
                     let return_type = self.get_return_type_of_signature(signature)?;
                     if return_type == self.tables.intrinsics.never {
-                        // [FLOW M5] functionHasImplicitReturn is the
-                        // stub-false face: a no-return body computes
-                        // `never` where tsc's reachability gives
-                        // `void` — the 2350 verdict hinges on it
-                        // (conformance FP: inferringClassMembers-
-                        // FromAssignments8).
+                        // functionHasImplicitReturn is the stub-false
+                        // face: a no-return body computes `never`
+                        // where tsc's reachability gives `void` — the
+                        // 2350 verdict hinges on it (conformance FP:
+                        // inferringClassMembersFromAssignments8). A
+                        // dependency STUB, not a narrowing gate: the
+                        // parenthetical [FLOW M5] tag keeps it out of
+                        // the join-seam rethrow set (prefix = gate)
+                        // while the escapes grep still owns it.
                         return Err(Unsupported::new(
-                            "[FLOW M5] functionHasImplicitReturn stub (never-vs-void return under the 2350 gate)",
+                            "functionHasImplicitReturn stub under the 2350 gate (never-vs-void return, [FLOW M5])",
                         ));
                     }
                     if return_type != self.tables.intrinsics.void {
@@ -5591,11 +5604,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77491-77508
     ///
     /// candidatesOutArray is LSP-only (always None): the cached
-    /// early-return needs no re-run arm. flowLoopStart == flowLoopCount
-    /// (both 0) until M5 — the final write always takes the result
-    /// [FLOW M5]. An Unsupported unwind reverts the sentinel THIS
-    /// frame wrote so later queries re-resolve (tsc has no failure
-    /// channel here); Resolved stashes survive as real memos.
+    /// early-return needs no re-run arm. The final write is guarded
+    /// by `flowLoopStart === flowLoopCount` (77505, a 6.3 fixpoint
+    /// call-site invariant): a signature resolved while a loop
+    /// fixpoint is mid-resolution saw partial narrowed types and must
+    /// not be memoized — the slot reverts to its pre-call value
+    /// (tsc's `: cached`) so a post-loop call re-resolves. An
+    /// Unsupported unwind reverts the sentinel THIS frame wrote so
+    /// later queries re-resolve (tsc has no failure channel here);
+    /// Resolved stashes survive as real memos.
     pub(crate) fn get_resolved_signature(
         &mut self,
         node: NodeId,
@@ -5619,17 +5636,41 @@ impl<'a> CheckerState<'a> {
         self.resolution_start = save_resolution_start;
         match result {
             Ok(result) => {
-                debug_assert_eq!(self.flow_loop_start, self.flow_loop_count, "[FLOW M5]");
-                self.links.set_node_resolved_signature_call_protocol(
-                    self.speculation_depth,
-                    node,
-                    LinkSlot::Resolved(result),
-                );
+                if self.flow_loop_start as usize == self.flow_loop_stack.len() {
+                    self.links.set_node_resolved_signature_call_protocol(
+                        self.speculation_depth,
+                        node,
+                        LinkSlot::Resolved(result),
+                    );
+                } else if wrote_sentinel {
+                    // Mid-fixpoint: tsc's `: cached` (Vacant here) —
+                    // the slot must return to its pre-call value even
+                    // when resolveCall's overload-failure tail stashed
+                    // Resolved (76629): tsc's unconditional exit write
+                    // clobbers that stash in exactly this case, and
+                    // keeping it would let a later statement-path
+                    // check skip argument checking against a
+                    // failure-face signature resolved from mid-loop
+                    // types.
+                    self.links.clear_node_resolved_signature_call(node);
+                }
                 Ok(result)
             }
             Err(err) => {
                 if wrote_sentinel {
-                    self.links.revert_node_resolved_signature_call(node);
+                    if self.flow_loop_start as usize == self.flow_loop_stack.len() {
+                        // Resolving-gated: a COMPLETED failure stash
+                        // survives an Err raised after it (tsc
+                        // memoizes the failure-face signature; the
+                        // gate's containment only suppressed the
+                        // report).
+                        self.links.revert_node_resolved_signature_call(node);
+                    } else {
+                        // Mid-fixpoint Err: like the Ok guard-fail arm
+                        // above, NOTHING from this resolution may
+                        // outlive the fixpoint — the stash included.
+                        self.links.clear_node_resolved_signature_call(node);
+                    }
                 }
                 Err(err)
             }

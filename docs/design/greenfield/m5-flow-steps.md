@@ -104,15 +104,55 @@ back-edge resolution, and never caching while incomplete.
 declared-type identity preservation. Subtype reduction in JOINs works
 because M3 stage 4.8 landed.
 
-THE INVARIANTS NEED THREE M4-OWNED CALL-SITE EDITS — without them the
+THE INVARIANTS NEED FOUR M4-OWNED CALL-SITE EDITS — without them the
 "non-negotiables" don't actually hold: (a) `checkExpressionCached`
 (80580) saves/resets flowLoopStart + flowTypeCache around uncached
 checks; (b) `getTypeOfExpression` (80895) writes flowTypeCache +
 NodeFlags.TypeCached only when flowInvocationCount changed — this
 cache IS what the loop-label swap invalidates; (c) getResolvedSignature
 caching is guarded by `flowLoopStart === flowLoopCount` (77505) so
-signatures resolved mid-loop are never cached. Edit all three when
-this stage lands.
+signatures resolved mid-loop are never cached; (d) the
+getEffectiveCallArguments spread-operand check (76324) branches on
+the RAW flowLoopCount — mid-loop the operand runs UNCACHED
+(checkExpression, not checkExpressionCached), or its resolvedType
+memo outlives the fixpoint and feeds the post-loop re-resolution
+that (c) forces. Edit all four when this stage lands. (The 6.3
+review caught (d) missing: the vendored source has FOUR flowLoop
+consumers outside the flow family itself, not three — enumerate by
+grep, not from this list.)
+
+TWO SEAM EXTENSIONS LANDED WITH THIS STAGE (both tsrs-native, both
+retire with their dependencies):
+- **JOIN-SEAM catch** (walk dispatch, `[FLOW 6.3 JOIN-SEAM]`): an
+  Unsupported unwind anywhere inside a join computation — an
+  antecedent walk pulling a back-edge RHS, or the union's Subtype
+  reduction relating members through an unported M6/M8 family —
+  degrades to the 6.2 seam (flag + declared type) instead of
+  containing the enclosing statement. Rationale: the 6.2 label stubs
+  never computed any of this, so statements they let complete must
+  not regress to containment (caught live: lib-esnext generator
+  machinery under `yieldExpressionInControlFlow.ts` hits the
+  mapped-type stub from remove_subtypes inside the loop fixpoint's
+  union). The exit revert makes the final answer EXACTLY the 6.2
+  stub's, so the FP=0 argument is inherited from 6.2, and the flag
+  keeps the result out of flowLoopCaches. The rethrow/degrade split
+  is the reason-string PREFIX: reasons prefixed `[FLOW M5] ` are the
+  narrowable-containment gates and RETHROW (containment is the
+  pre-6.3 statement-path outcome); M5-owned dependency stubs embed
+  the tag parenthetically (`(... [FLOW M5])`) and degrade like the
+  M6/M8 stubs — their statement-path containment stands untouched.
+  (The 6.3 review caught `.contains` sweeping seven stub reasons
+  into the rethrow set.)
+- **flowLoopCaches seam guard**: a fixpoint whose query crossed a
+  still-inert (or seam-caught) arm is answered but never cached —
+  the memo outlives the query, and a later same-key query hitting it
+  would skip the walk (and the flag), leaking the over-wide answer
+  past the query-exit revert. Constant-off once 6.4 retires the flag.
+
+`isExhaustiveSwitchStatement` (consumed by the branch bypass) stays a
+conservative `false` stub — 6.6 owns the real computation; every
+bypass walk crosses the still-inert switch-clause arm and reverts, so
+the stub value is unobservable this stage.
 
 Commit: `m5 6.3: branch/loop joins + fixpoint`.
 
