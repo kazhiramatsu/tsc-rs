@@ -3362,11 +3362,13 @@ impl<'a> CheckerState<'a> {
             return Ok(prop_type);
         }
         if assume_uninitialized && !self.contains_undefined_type(prop_type) && flow_query_inert {
-            // 6.2 seam: the walk crossed a still-inert arm (flow.rs
-            // reverted its answer to the declared type), so a
-            // join/condition-dependent 2565 is undecidable until
-            // 6.3/6.4 — keep the position partial instead of
-            // misreporting in either direction.
+            // 6.2 seam: the walk crossed a still-inert condition/
+            // switch arm (flow.rs reverted its answer to the declared
+            // type; joins are live since 6.3), so a condition-
+            // dependent 2565 is undecidable until 6.4 — keep the
+            // position partial instead of misreporting in either
+            // direction. (The reason string is a stable seam-era
+            // label; it retires whole with the flag at 6.4.)
             self.mark_partially_checked_node(
                 node,
                 "flow-sensitive property use-before-assignment diagnostic (M5 6.3/6.4 seam)",

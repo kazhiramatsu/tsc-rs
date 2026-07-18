@@ -68,7 +68,7 @@ struct UnwindSnapshot {
     in_variance_computation: bool,
     variance_type_parameter: Option<TypeId>,
     flow_loop_start: u32,
-    flow_loop_count: u32,
+    flow_loop_stack: usize,
     resolving_open: i64,
 }
 
@@ -97,7 +97,7 @@ impl<'a> CheckerState<'a> {
             in_variance_computation: self.in_variance_computation,
             variance_type_parameter: self.variance_type_parameter,
             flow_loop_start: self.flow_loop_start,
-            flow_loop_count: self.flow_loop_count,
+            flow_loop_stack: self.flow_loop_stack.len(),
             resolving_open: crate::links::debug_resolving_open(),
         }
     }
@@ -231,7 +231,7 @@ impl<'a> CheckerState<'a> {
                 in_variance_computation: false,
                 variance_type_parameter: None,
                 flow_loop_start: 0,
-                flow_loop_count: 0,
+                flow_loop_stack: 0,
                 resolving_open: 0,
             };
             assert_eq!(

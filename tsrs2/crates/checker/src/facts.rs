@@ -444,7 +444,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: recombineUnknownType @6.0.3
     /// tsc-hash: 183a60fa027c58fd5e71c37f15f0c07e12dbb906b989fa8e8e4405adaa7cc76f
     /// tsc-span: _tsc.js:69807-69809
-    fn recombine_unknown_type(&self, ty: TypeId) -> TypeId {
+    pub(crate) fn recombine_unknown_type(&self, ty: TypeId) -> TypeId {
         if ty == self.unknown_union_type {
             self.tables.intrinsics.unknown
         } else {

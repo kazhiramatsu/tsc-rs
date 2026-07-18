@@ -5591,11 +5591,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77491-77508
     ///
     /// candidatesOutArray is LSP-only (always None): the cached
-    /// early-return needs no re-run arm. flowLoopStart == flowLoopCount
-    /// (both 0) until M5 — the final write always takes the result
-    /// [FLOW M5]. An Unsupported unwind reverts the sentinel THIS
-    /// frame wrote so later queries re-resolve (tsc has no failure
-    /// channel here); Resolved stashes survive as real memos.
+    /// early-return needs no re-run arm. The final write is guarded
+    /// by `flowLoopStart === flowLoopCount` (77505, a 6.3 fixpoint
+    /// call-site invariant): a signature resolved while a loop
+    /// fixpoint is mid-resolution saw partial narrowed types and must
+    /// not be memoized — the slot reverts to its pre-call value
+    /// (tsc's `: cached`) so a post-loop call re-resolves. An
+    /// Unsupported unwind reverts the sentinel THIS frame wrote so
+    /// later queries re-resolve (tsc has no failure channel here);
+    /// Resolved stashes survive as real memos.
     pub(crate) fn get_resolved_signature(
         &mut self,
         node: NodeId,
@@ -5619,17 +5623,41 @@ impl<'a> CheckerState<'a> {
         self.resolution_start = save_resolution_start;
         match result {
             Ok(result) => {
-                debug_assert_eq!(self.flow_loop_start, self.flow_loop_count, "[FLOW M5]");
-                self.links.set_node_resolved_signature_call_protocol(
-                    self.speculation_depth,
-                    node,
-                    LinkSlot::Resolved(result),
-                );
+                if self.flow_loop_start as usize == self.flow_loop_stack.len() {
+                    self.links.set_node_resolved_signature_call_protocol(
+                        self.speculation_depth,
+                        node,
+                        LinkSlot::Resolved(result),
+                    );
+                } else if wrote_sentinel {
+                    // Mid-fixpoint: tsc's `: cached` (Vacant here) —
+                    // the slot must return to its pre-call value even
+                    // when resolveCall's overload-failure tail stashed
+                    // Resolved (76629): tsc's unconditional exit write
+                    // clobbers that stash in exactly this case, and
+                    // keeping it would let a later statement-path
+                    // check skip argument checking against a
+                    // failure-face signature resolved from mid-loop
+                    // types.
+                    self.links.clear_node_resolved_signature_call(node);
+                }
                 Ok(result)
             }
             Err(err) => {
                 if wrote_sentinel {
-                    self.links.revert_node_resolved_signature_call(node);
+                    if self.flow_loop_start as usize == self.flow_loop_stack.len() {
+                        // Resolving-gated: a COMPLETED failure stash
+                        // survives an Err raised after it (tsc
+                        // memoizes the failure-face signature; the
+                        // gate's containment only suppressed the
+                        // report).
+                        self.links.revert_node_resolved_signature_call(node);
+                    } else {
+                        // Mid-fixpoint Err: like the Ok guard-fail arm
+                        // above, NOTHING from this resolution may
+                        // outlive the fixpoint — the stash included.
+                        self.links.clear_node_resolved_signature_call(node);
+                    }
                 }
                 Err(err)
             }

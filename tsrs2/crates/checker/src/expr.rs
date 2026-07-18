@@ -765,9 +765,10 @@ impl<'a> CheckerState<'a> {
         // can run nested flow queries that overwrite the mirror.
         let flow_query_inert = self.flow_last_query_inert;
         // 72203-72212: the auto-arm / 2454 else-if chain. A query that
-        // crossed an inert 6.3/6.4 arm answered the declared type
-        // (flow.rs 6.2 seam), so neither arm can fire from it — the
-        // added third arm partial-marks that undecidable position.
+        // crossed an inert 6.4 condition/switch arm answered the
+        // declared type (flow.rs 6.2 seam), so neither arm can fire
+        // from it — the added third arm partial-marks that
+        // undecidable position.
         if !self.is_evolving_array_operation_target(node)? && type_is_automatic {
             if flow_type == self.tables.intrinsics.auto || self.is_auto_array_type(flow_type) {
                 let no_implicit_any = self
@@ -793,12 +794,13 @@ impl<'a> CheckerState<'a> {
                 return self.convert_auto_to_any(flow_type);
             }
             if flow_query_inert {
-                // 6.2 seam: the walk crossed a still-inert arm, so the
-                // suppressed answer could have been tsc's 7034 pair OR
-                // a narrowed union — undecidable until 6.3/6.4. Keep
-                // the position partial so an @ts-expect-error over the
-                // suppressed row cannot misreport as unused (2578),
-                // mirroring the 2454/2565 arms below.
+                // 6.2 seam: the walk crossed a still-inert condition/
+                // switch arm, so the suppressed answer could have been
+                // tsc's 7034 pair OR a narrowed union — undecidable
+                // until 6.4. Keep the position partial so an
+                // @ts-expect-error over the suppressed row cannot
+                // misreport as unused (2578), mirroring the 2454/2565
+                // arms below.
                 self.mark_partially_checked_node(
                     node,
                     "flow-sensitive implicit-any diagnostic (M5 6.3/6.4 seam)",
@@ -816,10 +818,12 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(ty);
         } else if !assume_initialized && !self.contains_undefined_type(ty) && flow_query_inert {
-            // 6.2 seam: the walk crossed a still-inert arm, so a
-            // join/condition-dependent 2454 is undecidable until
-            // 6.3/6.4 — keep the position partial instead of
-            // misreporting in either direction.
+            // 6.2 seam: the walk crossed a still-inert condition/
+            // switch arm (joins are live since 6.3), so a
+            // condition-dependent 2454 is undecidable until 6.4 —
+            // keep the position partial instead of misreporting in
+            // either direction. (The reason string is a stable seam-
+            // era label; it retires whole with the flag at 6.4.)
             self.mark_partially_checked_node(
                 node,
                 "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
@@ -2745,12 +2749,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d53b8def69286cea6beb2fdadf985dcd3c6d0dec3ef171f10eda495f50485178
     /// tsc-span: _tsc.js:80580-80595
     ///
-    /// The flowLoopStart/flowTypeCache save-reset-restore is the M5
-    /// fixpoint shape, wired now (both fields are dormant until M5).
-    /// Unlike tsc's unconditional `links.resolvedType = ...`, a
+    /// The flowLoopStart/flowTypeCache save-reset-restore is one of
+    /// the 6.3 fixpoint's call-site invariants: an uncached check must
+    /// not see an outer in-progress loop fixpoint's partial unions
+    /// (flowLoopStart jumps to the current count) nor its flow-type
+    /// cache. Unlike tsc's unconditional `links.resolvedType = ...`, a
     /// re-entrant inner resolution that already filled the slot wins
     /// the CACHE while this call still returns its own result — the
-    /// two computations agree while flow state is dormant.
+    /// two computations agree (both run outside any loop window).
     pub(crate) fn check_expression_cached(
         &mut self,
         node: NodeId,
@@ -2764,7 +2770,7 @@ impl<'a> CheckerState<'a> {
         }
         let save_flow_loop_start = self.flow_loop_start;
         let save_flow_type_cache = self.flow_type_cache.take();
-        self.flow_loop_start = self.flow_loop_count;
+        self.flow_loop_start = self.flow_loop_stack.len() as u32;
         let result = self.check_expression(node, check_mode);
         self.flow_type_cache = save_flow_type_cache;
         self.flow_loop_start = save_flow_loop_start;

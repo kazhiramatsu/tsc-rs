@@ -114,6 +114,32 @@ caching is guarded by `flowLoopStart === flowLoopCount` (77505) so
 signatures resolved mid-loop are never cached. Edit all three when
 this stage lands.
 
+TWO SEAM EXTENSIONS LANDED WITH THIS STAGE (both tsrs-native, both
+retire with their dependencies):
+- **JOIN-SEAM catch** (walk dispatch, `[FLOW 6.3 JOIN-SEAM]`): an
+  Unsupported unwind anywhere inside a join computation — an
+  antecedent walk pulling a back-edge RHS, or the union's Subtype
+  reduction relating members through an unported M6/M8 family —
+  degrades to the 6.2 seam (flag + declared type) instead of
+  containing the enclosing statement. Rationale: the 6.2 label stubs
+  never computed any of this, so statements they let complete must
+  not regress to containment (caught live: lib-esnext generator
+  machinery under `yieldExpressionInControlFlow.ts` hits the
+  mapped-type stub from remove_subtypes inside the loop fixpoint's
+  union). The exit revert makes the final answer EXACTLY the 6.2
+  stub's, so the FP=0 argument is inherited from 6.2, and the flag
+  keeps the result out of flowLoopCaches.
+- **flowLoopCaches seam guard**: a fixpoint whose query crossed a
+  still-inert (or seam-caught) arm is answered but never cached —
+  the memo outlives the query, and a later same-key query hitting it
+  would skip the walk (and the flag), leaking the over-wide answer
+  past the query-exit revert. Constant-off once 6.4 retires the flag.
+
+`isExhaustiveSwitchStatement` (consumed by the branch bypass) stays a
+conservative `false` stub — 6.6 owns the real computation; every
+bypass walk crosses the still-inert switch-clause arm and reverts, so
+the stub value is unobservable this stage.
+
 Commit: `m5 6.3: branch/loop joins + fixpoint`.
 
 ## Stage 6.4: conditions + the narrowers [M]

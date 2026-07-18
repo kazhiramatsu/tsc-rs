@@ -938,7 +938,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(false);
         }
         if (self.relation == RelationKind::Assignable || self.relation == RelationKind::Comparable)
-            && (self.st.is_type_subset_of(self.st.empty_object_type, target)
+            && (self
+                .st
+                .is_type_subset_of(self.st.empty_object_type, target)?
                 || self.st.is_empty_object_type(target)?)
         {
             return Ok(false);
@@ -2028,19 +2030,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e640160f7bf31f88a27cfa98387ab7365e3b441e08e33396b3121f5d9461ecaf
     /// tsc-span: _tsc.js:69965-69978
     ///
-    /// The EnumLike base-type arm (69974-69976) is deliberately
-    /// DEFERRED to the 6.3 joins: getBaseTypeOfEnumLikeType resolves
-    /// the parent enum's declared type (&mut + fallible), so porting
-    /// it makes this fn fallible — do that with its first load-bearing
-    /// consumer (the join family's subtypeReduction test). Today's
-    /// consumers (addEvolvingArrayElementType, the weak-type probe)
-    /// never hit the arm.
-    pub fn is_type_subset_of(&self, source: TypeId, target: TypeId) -> bool {
+    /// Fallible since the 6.3 joins (their subtypeReduction test is
+    /// the first load-bearing consumer): the EnumLike base-type arm
+    /// (69974-69976) resolves the parent enum's declared type through
+    /// getBaseTypeOfEnumLikeType (&mut + fallible).
+    pub fn is_type_subset_of(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
         if source == target || self.tables.flags_of(source).intersects(TypeFlags::NEVER) {
-            return true;
+            return Ok(true);
         }
         if !self.tables.flags_of(target).intersects(TypeFlags::UNION) {
-            return false;
+            return Ok(false);
         }
         let TypeData::Union {
             types: target_types,
@@ -2057,9 +2056,24 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("union flag implies union data");
             };
-            return source_types.iter().all(|&t| contains_type(target_types, t));
+            return Ok(source_types.iter().all(|&t| contains_type(target_types, t)));
         }
-        contains_type(target_types, source)
+        if self
+            .tables
+            .flags_of(source)
+            .intersects(TypeFlags::ENUM_LIKE)
+            && self.get_base_type_of_enum_like_type(source)? == target
+        {
+            return Ok(true);
+        }
+        let TypeData::Union {
+            types: target_types,
+            ..
+        } = &self.tables.type_of(target).data
+        else {
+            unreachable!("union flag implies union data");
+        };
+        Ok(contains_type(target_types, source))
     }
 
     /// tsc-port: isEmptyObjectType @6.0.3
