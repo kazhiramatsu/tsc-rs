@@ -759,17 +759,75 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// [FLOW 6.4] tsc getTypeAtFlowCall (70566) rides with the
-    /// narrowers (getEffectsSignature + assertion narrowing). Inert
-    /// form: no call affects the reference — tsc's own answer for
-    /// calls without an effects signature — so the walk continues to
-    /// the antecedent.
-    /// tsc-deferred: M5 (stage 6.4 — effects signatures + assertions)
+    /// tsc-port: getTypeAtFlowCall @6.0.3
+    /// tsc-hash: f240349f4e790dee94cb460c193cd1465c8cbe3d311eaec928c71be72425d7be
+    /// tsc-span: _tsc.js:70566-70587
+    ///
+    /// LIVE since 6.4f: an asserts-predicate signature narrows the
+    /// continuation (typed asserts through narrowTypeByTypePredicate,
+    /// bare `asserts x` through narrowTypeByAssertion over the
+    /// argument), a never-returning signature terminates it as
+    /// unreachable, and everything else walks the antecedent (None).
     fn get_type_at_flow_call(
         &mut self,
-        _query: &mut FlowQuery,
-        _flow: FlowId,
+        query: &mut FlowQuery,
+        flow: FlowId,
     ) -> CheckResult2<Option<FlowType>> {
+        let node = self
+            .flow_payload_node(query.file, flow)
+            .expect("CALL flow nodes carry a node payload (binder flow.rs)");
+        let Some(signature) = self.get_effects_signature(query, node)? else {
+            return Ok(None);
+        };
+        let predicate = self.get_type_predicate_of_signature(signature)?;
+        if let Some(predicate) = predicate {
+            if matches!(
+                predicate.kind,
+                crate::narrow::TypePredicateKind::AssertsThis
+                    | crate::narrow::TypePredicateKind::AssertsIdentifier
+            ) {
+                let antecedent = self.flow_antecedent(query.file, flow);
+                let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+                let ty = self.finalize_evolving_array_type(flow_type.get_type())?;
+                let narrowed_type = if predicate.ty.is_some() {
+                    self.narrow_type_by_type_predicate(query, ty, &predicate, node, true)?
+                } else if predicate.kind == crate::narrow::TypePredicateKind::AssertsIdentifier
+                    && predicate.parameter_index >= 0
+                {
+                    let arguments = match self.data_of(node) {
+                        NodeData::CallExpression(data) => data.arguments,
+                        _ => None,
+                    };
+                    let arguments: Vec<NodeId> = arguments
+                        .map(|arguments| self.binder.node_array(arguments).nodes.clone())
+                        .unwrap_or_default();
+                    match usize::try_from(predicate.parameter_index)
+                        .ok()
+                        .and_then(|index| arguments.get(index).copied())
+                    {
+                        Some(argument) => self.narrow_type_by_assertion(query, ty, argument)?,
+                        None => ty,
+                    }
+                } else {
+                    ty
+                };
+                return Ok(Some(if narrowed_type == ty {
+                    flow_type
+                } else {
+                    self.create_flow_type(narrowed_type, flow_type.is_incomplete())
+                }));
+            }
+        }
+        let return_type = self.get_return_type_of_signature(signature)?;
+        if self
+            .tables
+            .flags_of(return_type)
+            .intersects(TypeFlags::NEVER)
+        {
+            return Ok(Some(FlowType::Type(
+                self.tables.intrinsics.unreachable_never,
+            )));
+        }
         Ok(None)
     }
 
@@ -2915,7 +2973,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: binder node_symbol read behind the declaration
     /// merge (isMatchingReference compares against the export-mapped
     /// merged symbol, so the declaration side merges too).
-    fn get_symbol_of_declaration_opt(&self, declaration: NodeId) -> Option<SymbolId> {
+    pub(crate) fn get_symbol_of_declaration_opt(&self, declaration: NodeId) -> Option<SymbolId> {
         self.binder
             .node_symbol(declaration)
             .map(|symbol| self.get_merged_symbol(symbol))

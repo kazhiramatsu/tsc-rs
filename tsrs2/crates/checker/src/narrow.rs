@@ -24,7 +24,7 @@ use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
 use crate::flow::FlowQuery;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult2, CheckerState, SignatureId};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: narrowType @6.0.3
@@ -1368,11 +1368,22 @@ impl<'a> CheckerState<'a> {
         if !self.is_type_derived_from(right_type, global_object)? {
             return Ok(ty);
         }
-        if self.has_instance_predicate_signature(right_type)? {
-            // [FLOW 6.4f] the predicate-based narrowing is
-            // unreproducible until effects signatures land — flag.
-            query.traversed_inert_arm = true;
-            return Ok(ty);
+        let signature = self.get_effects_signature(query, expr)?;
+        let predicate = match signature {
+            Some(signature) => self.get_type_predicate_of_signature(signature)?,
+            None => None,
+        };
+        if let Some(predicate) = predicate {
+            if predicate.kind == TypePredicateKind::Identifier && predicate.parameter_index == 0 {
+                if let Some(predicate_type) = predicate.ty {
+                    return self.get_narrowed_type(
+                        ty,
+                        predicate_type,
+                        assume_true,
+                        /*check_derived*/ true,
+                    );
+                }
+            }
         }
         let global_function = self.global_function_type()?;
         if !self.is_type_derived_from(right_type, global_function)? {
@@ -1397,37 +1408,6 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         self.get_narrowed_type(ty, instance_type, assume_true, /*check_derived*/ true)
-    }
-
-    /// The 6.4c stand-in for the instanceof effects-signature
-    /// consult: does the right type carry a [Symbol.hasInstance]
-    /// method whose declaration syntactically returns a type
-    /// predicate? (tsc narrows through the RESOLVED predicate; a
-    /// syntactic probe over the call signatures' declared return
-    /// types is the conservative superset — over-flagging degrades
-    /// to the declared type, never misnarrows.)
-    /// tsrs-native: temporary 6.4f gate (retires with
-    /// narrowTypeByCallExpression's getEffectsSignature).
-    fn has_instance_predicate_signature(&mut self, right_type: TypeId) -> CheckResult2<bool> {
-        let Some(has_instance_type) =
-            self.get_symbol_has_instance_method_of_object_type(right_type)?
-        else {
-            return Ok(false);
-        };
-        let apparent = self.get_apparent_type(has_instance_type)?;
-        let signatures =
-            self.get_signatures_of_type(apparent, crate::structural::SignatureKind::Call)?;
-        for signature in signatures {
-            let Some(declaration) = self.signature_of(signature).declaration else {
-                continue;
-            };
-            let return_type_node = self.effective_return_type_node(declaration);
-            if return_type_node.is_some_and(|node| self.kind_of(node) == SyntaxKind::TypePredicate)
-            {
-                return Ok(true);
-            }
-        }
-        Ok(false)
     }
 
     /// tsc-port: getInstanceType @6.0.3
@@ -2436,19 +2416,834 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// [FLOW 6.4] identity stub: tsc narrowTypeByCallExpression
-    /// (71351) narrows by type predicates (`x is T`, `asserts x`);
-    /// flags the query until 6.4f.
-    /// tsc-deferred: M5 (stage 6.4f — narrowTypeByCallExpression)
+    /// tsc-port: narrowTypeByCallExpression @6.0.3
+    /// tsc-hash: 20a4999b28c285ad522470273a870cc8cb07e37f9c4d1bd09d0aa288dd8de23f
+    /// tsc-span: _tsc.js:71351-71369
+    ///
+    /// A call with a matching argument consults its effects signature
+    /// for a this/identifier predicate; separately, the
+    /// `x.hasOwnProperty("p")` facts arm applies to missing-type
+    /// access references.
     fn narrow_type_by_call_expression(
         &mut self,
         query: &mut FlowQuery,
         ty: TypeId,
-        _expr: NodeId,
-        _assume_true: bool,
+        call_expression: NodeId,
+        assume_true: bool,
     ) -> CheckResult2<TypeId> {
-        query.traversed_inert_arm = true;
+        if self.has_matching_argument(query, call_expression)? {
+            let source = self.binder.source_of_node(call_expression);
+            let is_call_chain = node_util::is_optional_chain(source, call_expression);
+            let signature = if assume_true || !is_call_chain {
+                self.get_effects_signature(query, call_expression)?
+            } else {
+                None
+            };
+            if let Some(signature) = signature {
+                let predicate = self.get_type_predicate_of_signature(signature)?;
+                if let Some(predicate) = predicate {
+                    if matches!(
+                        predicate.kind,
+                        TypePredicateKind::This | TypePredicateKind::Identifier
+                    ) {
+                        return self.narrow_type_by_type_predicate(
+                            query,
+                            ty,
+                            &predicate,
+                            call_expression,
+                            assume_true,
+                        );
+                    }
+                }
+            }
+        }
+        if self.contains_missing_type(ty) && self.query_reference_is_access(query) {
+            let callee = match self.data_of(call_expression) {
+                NodeData::CallExpression(data) => data.expression,
+                _ => None,
+            };
+            if let Some(callee) = callee {
+                if self.kind_of(callee) == SyntaxKind::PropertyAccessExpression {
+                    let (callee_receiver, callee_name) = match self.data_of(callee) {
+                        NodeData::PropertyAccessExpression(data) => (data.expression, data.name),
+                        _ => (None, None),
+                    };
+                    let arguments = match self.data_of(call_expression) {
+                        NodeData::CallExpression(data) => data.arguments,
+                        _ => None,
+                    };
+                    let arguments: Vec<NodeId> = arguments
+                        .map(|arguments| self.binder.node_array(arguments).nodes.clone())
+                        .unwrap_or_default();
+                    if let Some(callee_receiver) = callee_receiver {
+                        let candidate = self.get_reference_candidate(callee_receiver);
+                        if self.query_reference_receiver_matches(query, candidate)?
+                            && self.escaped_text_of(callee_name) == Some("hasOwnProperty")
+                            && arguments.len() == 1
+                            && self.is_string_literal_like(arguments[0])
+                        {
+                            let argument_text = self.string_literal_text(arguments[0]);
+                            let reference_name =
+                                self.query_reference_accessed_property_name(query)?;
+                            if reference_name.is_some()
+                                && reference_name
+                                    == argument_text
+                                        .map(|text| tsrs2_syntax::escape_leading_underscores(&text))
+                            {
+                                return self.get_type_with_facts(
+                                    ty,
+                                    if assume_true {
+                                        TypeFacts::NE_UNDEFINED
+                                    } else {
+                                        TypeFacts::EQ_UNDEFINED
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
         Ok(ty)
+    }
+
+    /// tsc-port: narrowTypeByTypePredicate @6.0.3
+    /// tsc-hash: d834c36c0a182f4d20f8ab06111ad6096a30a04fedce5efce70534d1f192a968
+    /// tsc-span: _tsc.js:71370-71399
+    pub(crate) fn narrow_type_by_type_predicate(
+        &mut self,
+        query: &mut FlowQuery,
+        ty: TypeId,
+        predicate: &TypePredicate,
+        call_expression: NodeId,
+        assume_true: bool,
+    ) -> CheckResult2<TypeId> {
+        let Some(predicate_type) = predicate.ty else {
+            return Ok(ty);
+        };
+        let global_object = self.global_object_type()?;
+        let global_function = self.global_function_type()?;
+        if self.tables.flags_of(ty).intersects(TypeFlags::ANY)
+            && (predicate_type == global_object || predicate_type == global_function)
+        {
+            return Ok(ty);
+        }
+        let Some(predicate_argument) = self.get_type_predicate_argument(predicate, call_expression)
+        else {
+            return Ok(ty);
+        };
+        if self.is_matching_query_reference(query, predicate_argument)? {
+            return self.get_narrowed_type(ty, predicate_type, assume_true, false);
+        }
+        let mut ty = ty;
+        let strict_null_checks = self
+            .options
+            .strict_option_value(self.options.strict_null_checks);
+        if strict_null_checks
+            && self.optional_chain_contains_query_reference(predicate_argument, query)?
+        {
+            let strip = if assume_true {
+                !self.has_type_facts(predicate_type, TypeFacts::EQ_UNDEFINED)?
+            } else {
+                let mut all_nullable = true;
+                let members: Vec<TypeId> = if self
+                    .tables
+                    .flags_of(predicate_type)
+                    .intersects(TypeFlags::UNION)
+                {
+                    match &self.tables.type_of(predicate_type).data {
+                        TypeData::Union { types, .. } => types.to_vec(),
+                        _ => unreachable!("union flag implies union data"),
+                    }
+                } else {
+                    vec![predicate_type]
+                };
+                for member in members {
+                    if !self.is_nullable_type(member)? {
+                        all_nullable = false;
+                        break;
+                    }
+                }
+                all_nullable
+            };
+            if strip {
+                ty = self.get_adjusted_type_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)?;
+            }
+        }
+        if let Some(access) =
+            self.get_discriminant_property_access(query, predicate_argument, ty)?
+        {
+            return self.narrow_type_by_discriminant(ty, access, |state, t| {
+                state.get_narrowed_type(t, predicate_type, assume_true, false)
+            });
+        }
+        Ok(ty)
+    }
+
+    /// tsc-port: narrowTypeByAssertion @6.0.3
+    /// tsc-hash: f5fe27f124d8565cfe13ce6c3004a15ff860098f0d7add8381ef8c820884325e
+    /// tsc-span: _tsc.js:70542-70565
+    ///
+    /// `asserts x` with a bare condition argument: false literals
+    /// make the continuation unreachable; &&/|| recurse; everything
+    /// else narrows true.
+    pub(crate) fn narrow_type_by_assertion(
+        &mut self,
+        query: &mut FlowQuery,
+        ty: TypeId,
+        expr: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let node = self.skip_parentheses(expr);
+        if self.kind_of(node) == SyntaxKind::FalseKeyword {
+            return Ok(self.tables.intrinsics.unreachable_never);
+        }
+        if self.kind_of(node) == SyntaxKind::BinaryExpression {
+            let (left, operator_token, right) = match self.data_of(node) {
+                NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
+                _ => (None, None, None),
+            };
+            if let (Some(left), Some(operator_token), Some(right)) = (left, operator_token, right) {
+                match self.kind_of(operator_token) {
+                    SyntaxKind::AmpersandAmpersandToken => {
+                        let narrowed = self.narrow_type_by_assertion(query, ty, left)?;
+                        return self.narrow_type_by_assertion(query, narrowed, right);
+                    }
+                    SyntaxKind::BarBarToken => {
+                        let left_narrowed = self.narrow_type_by_assertion(query, ty, left)?;
+                        let right_narrowed = self.narrow_type_by_assertion(query, ty, right)?;
+                        return self.get_union_type_ex(
+                            &[left_narrowed, right_narrowed],
+                            tsrs2_types::UnionReduction::Literal,
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+        self.narrow_type(query, ty, node, true)
+    }
+
+    /// tsc-port: hasMatchingArgument @6.0.3
+    /// tsc-hash: 62e36f5de476aec1cb78fd1c0a1747c9aa7d29c411df0363fc3b09ab4888ffe1
+    /// tsc-span: _tsc.js:69644-69656
+    fn has_matching_argument(
+        &mut self,
+        query: &FlowQuery,
+        expression: NodeId,
+    ) -> CheckResult2<bool> {
+        let (callee, arguments) = match self.data_of(expression) {
+            NodeData::CallExpression(data) => (data.expression, data.arguments),
+            _ => (None, None),
+        };
+        let arguments: Vec<NodeId> = arguments
+            .map(|arguments| self.binder.node_array(arguments).nodes.clone())
+            .unwrap_or_default();
+        for argument in arguments {
+            if self.is_matching_query_reference(query, argument)?
+                || self.contains_matching_query_reference(query, argument)?
+                || self.optional_chain_contains_query_reference(argument, query)?
+            {
+                return Ok(true);
+            }
+        }
+        if let Some(callee) = callee {
+            if self.kind_of(callee) == SyntaxKind::PropertyAccessExpression {
+                let receiver = match self.data_of(callee) {
+                    NodeData::PropertyAccessExpression(data) => data.expression,
+                    _ => None,
+                };
+                if let Some(receiver) = receiver {
+                    if self.is_matching_query_reference(query, receiver)?
+                        || self.contains_matching_query_reference(query, receiver)?
+                    {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: getTypePredicateArgument @6.0.3
+    /// tsc-hash: 4f754a799784bbbbf763fae79dadffab5714969bdb8e4b88c87e44babe0415ad
+    /// tsc-span: _tsc.js:70227-70233
+    fn get_type_predicate_argument(
+        &self,
+        predicate: &TypePredicate,
+        call_expression: NodeId,
+    ) -> Option<NodeId> {
+        if matches!(
+            predicate.kind,
+            TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
+        ) {
+            let arguments = match self.data_of(call_expression) {
+                NodeData::CallExpression(data) => data.arguments,
+                _ => None,
+            }?;
+            let nodes = &self.binder.node_array(arguments).nodes;
+            let index = usize::try_from(predicate.parameter_index).ok()?;
+            return nodes.get(index).copied();
+        }
+        let callee = match self.data_of(call_expression) {
+            NodeData::CallExpression(data) => data.expression,
+            NodeData::BinaryExpression(data) => data.right,
+            _ => None,
+        }?;
+        let invoked = self.skip_parentheses(callee);
+        let receiver = match self.data_of(invoked) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        }?;
+        Some(self.skip_parentheses(receiver))
+    }
+
+    /// tsc-port: getEffectsSignature @6.0.3
+    /// tsc-hash: d1f2f2cc1da46e57b21e670fbcbc943d53197784afedc259759faf408d802e08
+    /// tsc-span: _tsc.js:70194-70223
+    ///
+    /// links.effectsSignature lives state-side (None = the memoized
+    /// unknownSignature verdict). A candidate that could carry a
+    /// BODY-INFERRED predicate (TS 5.5 getTypePredicateFromBody — an
+    /// M6-adjacent unported family: annotation-free function-like
+    /// declaration, boolean-ish return, parameters) FLAGS the query:
+    /// tsc might resolve a predicate there that we cannot, and the
+    /// pass-through answer would be over-wide.
+    pub(crate) fn get_effects_signature(
+        &mut self,
+        query: &mut FlowQuery,
+        node: NodeId,
+    ) -> CheckResult2<Option<SignatureId>> {
+        if let Some(&cached) = self.effects_signature_cache.get(&node) {
+            if let Some(signature) = cached {
+                if self.signature_may_have_body_inferred_predicate(signature)? {
+                    query.traversed_inert_arm = true;
+                }
+            }
+            return Ok(cached);
+        }
+        let func_type: Option<TypeId> = if self.kind_of(node) == SyntaxKind::BinaryExpression {
+            let right = match self.data_of(node) {
+                NodeData::BinaryExpression(data) => data.right,
+                _ => None,
+            };
+            match right {
+                Some(right) => {
+                    let right_type = self.check_non_null_expression(right)?;
+                    self.get_symbol_has_instance_method_of_object_type(right_type)?
+                }
+                None => None,
+            }
+        } else {
+            let parent_is_expression_statement = self
+                .parent_of(node)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ExpressionStatement);
+            let callee = match self.data_of(node) {
+                NodeData::CallExpression(data) => data.expression,
+                _ => None,
+            };
+            match callee {
+                Some(callee) if parent_is_expression_statement => {
+                    self.get_type_of_dotted_name(callee)?
+                }
+                Some(callee) if self.kind_of(callee) != SyntaxKind::SuperKeyword => {
+                    let source = self.binder.source_of_node(node);
+                    if node_util::is_optional_chain(source, node) {
+                        let checked = self.check_expression(callee, CheckMode::NORMAL)?;
+                        let optional = self.get_optional_expression_type(checked, callee)?;
+                        Some(self.check_non_null_type(optional, callee)?)
+                    } else {
+                        Some(self.check_non_null_expression(callee)?)
+                    }
+                }
+                _ => None,
+            }
+        };
+        let apparent = match func_type {
+            Some(func_type) => self.get_apparent_type(func_type)?,
+            None => self.tables.intrinsics.unknown,
+        };
+        let signatures =
+            self.get_signatures_of_type(apparent, crate::structural::SignatureKind::Call)?;
+        let candidate = if signatures.len() == 1
+            && self.signature_of(signatures[0]).type_parameters.is_none()
+        {
+            Some(signatures[0])
+        } else {
+            let mut any_effects = false;
+            for &signature in &signatures {
+                if self.has_type_predicate_or_never_return_type(signature)? {
+                    any_effects = true;
+                    break;
+                }
+            }
+            if any_effects {
+                Some(self.get_resolved_signature(node, CheckMode::NORMAL)?)
+            } else {
+                None
+            }
+        };
+        let mut result = None;
+        if let Some(candidate) = candidate {
+            if self.has_type_predicate_or_never_return_type(candidate)? {
+                result = Some(candidate);
+            } else if self.signature_may_have_body_inferred_predicate(candidate)? {
+                // tsc would run getTypePredicateFromBody here and may
+                // find a predicate — unreproducible until the family
+                // ports; flag (declared-type revert, FP-safe) and DO
+                // NOT memoize: the no-effects verdict is not final
+                // (a memo hit would skip this probe and leak the
+                // unflagged wide answer — caught live by the loop
+                // fixpoint pin).
+                query.traversed_inert_arm = true;
+                return Ok(None);
+            }
+        }
+        self.effects_signature_cache.insert(node, result);
+        Ok(result)
+    }
+
+    /// tsc-port: hasTypePredicateOrNeverReturnType @6.0.3
+    /// tsc-hash: edea2a64243c8de82922422ee9ae3abbc46b81fb3d084d0fc2c78d883c9e5fb8
+    /// tsc-span: _tsc.js:70224-70226
+    fn has_type_predicate_or_never_return_type(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<bool> {
+        if self.get_type_predicate_of_signature(signature)?.is_some() {
+            return Ok(true);
+        }
+        if let Some(declaration) = self.signature_of(signature).declaration {
+            if let Some(return_type_node) = self.effective_return_type_node(declaration) {
+                let annotated = self.get_type_from_type_node(return_type_node)?;
+                return Ok(self.tables.flags_of(annotated).intersects(TypeFlags::NEVER));
+            }
+        }
+        Ok(false)
+    }
+
+    /// The getTypePredicateFromBody precondition (59783-59788): an
+    /// annotation-free function-like declaration with parameters and
+    /// a boolean-ish return could carry a TS 5.5 body-inferred
+    /// predicate in tsc. Consumers FLAG when it holds (conservative
+    /// superset — over-flagging reverts to the declared type).
+    /// tsrs-native: temporary M6-deferral probe (retires with the
+    /// body-inference port).
+    fn signature_may_have_body_inferred_predicate(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<bool> {
+        let Some(declaration) = self.signature_of(signature).declaration else {
+            return Ok(false);
+        };
+        if !node_util::is_function_like_declaration_kind(self.kind_of(declaration)) {
+            return Ok(false);
+        }
+        if self.effective_return_type_node(declaration).is_some() {
+            return Ok(false);
+        }
+        if self.get_parameter_count(signature)? == 0 {
+            return Ok(false);
+        }
+        let return_type = self.get_return_type_of_signature(signature)?;
+        Ok(self
+            .tables
+            .flags_of(return_type)
+            .intersects(TypeFlags::BOOLEAN_LIKE))
+    }
+
+    /// tsc-port: getTypeOfDottedName @6.0.3
+    /// tsc-hash: 38b49cbcd2c8cfb7bf9ce191be44619ba9196ed6e9180795f9e1dc6f0141fc48
+    /// tsc-span: _tsc.js:70162-70193
+    ///
+    /// The diagnostic parameter is the assertion-signature
+    /// elaboration (2775 family) — every flow consumer passes none,
+    /// so the related-info arm is elided with it.
+    fn get_type_of_dotted_name(&mut self, node: NodeId) -> CheckResult2<Option<TypeId>> {
+        if self.node_flags(node) & tsrs2_types::NodeFlags::IN_WITH_STATEMENT.bits() != 0 {
+            return Ok(None);
+        }
+        match self.kind_of(node) {
+            SyntaxKind::Identifier => {
+                let Some(symbol) = self.get_resolved_symbol(node)? else {
+                    return Ok(None);
+                };
+                let export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+                self.get_explicit_type_of_symbol(export_symbol)
+            }
+            SyntaxKind::ThisKeyword => self.get_explicit_this_type(node),
+            SyntaxKind::SuperKeyword => self.check_super_expression(node).map(Some),
+            SyntaxKind::PropertyAccessExpression => {
+                let (receiver, name) = match self.data_of(node) {
+                    NodeData::PropertyAccessExpression(data) => (data.expression, data.name),
+                    _ => (None, None),
+                };
+                let (Some(receiver), Some(name)) = (receiver, name) else {
+                    return Ok(None);
+                };
+                let Some(receiver_type) = self.get_type_of_dotted_name(receiver)? else {
+                    return Ok(None);
+                };
+                let prop = if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
+                    let Some(type_symbol) = self.tables.type_of(receiver_type).symbol else {
+                        return Ok(None);
+                    };
+                    let Some(text) = self.escaped_text_of(Some(name)).map(str::to_owned) else {
+                        return Ok(None);
+                    };
+                    // tsc getSymbolNameForPrivateIdentifier (15905):
+                    // `__#{symbolId}@{description}`.
+                    let lookup = format!("__#{}@{}", type_symbol.0, text);
+                    self.get_property_of_type_full(receiver_type, &lookup)?
+                } else {
+                    let Some(text) = self.escaped_text_of(Some(name)).map(str::to_owned) else {
+                        return Ok(None);
+                    };
+                    self.get_property_of_type_full(receiver_type, &text)?
+                };
+                match prop {
+                    Some(prop) => self.get_explicit_type_of_symbol(prop),
+                    None => Ok(None),
+                }
+            }
+            SyntaxKind::ParenthesizedExpression => {
+                let inner = match self.data_of(node) {
+                    NodeData::ParenthesizedExpression(data) => data.expression,
+                    _ => None,
+                };
+                match inner {
+                    Some(inner) => self.get_type_of_dotted_name(inner),
+                    None => Ok(None),
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// tsc-port: isDeclarationWithExplicitTypeAnnotation @6.0.3
+    /// tsc-hash: 1ce22ff5fa71bee60fc931c39179d1552c778f61d4e1fecaba74c9f4a9c54b63
+    /// tsc-span: _tsc.js:70118-70120
+    ///
+    /// The JS-file initializer arm is checkJs band — elided with it.
+    fn is_declaration_with_explicit_type_annotation(&self, node: NodeId) -> bool {
+        matches!(
+            self.kind_of(node),
+            SyntaxKind::VariableDeclaration
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::PropertySignature
+                | SyntaxKind::Parameter
+        ) && self.effective_type_annotation_node(node).is_some()
+    }
+
+    /// tsc-port: getExplicitTypeOfSymbol @6.0.3
+    /// tsc-hash: e746c3000673eed6afae1fa9727123a0a6bca22174a94bcd656ccd7cb6ee876c
+    /// tsc-span: _tsc.js:70121-70161
+    ///
+    /// The diagnostic-related-info arm rides with the elided
+    /// assertion elaboration (see get_type_of_dotted_name).
+    fn get_explicit_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<Option<TypeId>> {
+        let symbol = self.resolve_symbol_shallow(symbol)?;
+        let flags = self.binder.symbol(symbol).flags;
+        if flags.intersects(
+            SymbolFlags::FUNCTION
+                | SymbolFlags::METHOD
+                | SymbolFlags::CLASS
+                | SymbolFlags::VALUE_MODULE,
+        ) {
+            return self.get_type_of_symbol(symbol).map(Some);
+        }
+        if flags.intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY) {
+            if self
+                .get_check_flags(symbol)
+                .intersects(tsrs2_types::CheckFlags::MAPPED)
+            {
+                let origin = self.links.symbol(symbol).synthetic_origin;
+                if let Some(origin) = origin {
+                    if self.get_explicit_type_of_symbol(origin)?.is_some() {
+                        return self.get_type_of_symbol(symbol).map(Some);
+                    }
+                }
+                return Ok(None);
+            }
+            let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
+                return Ok(None);
+            };
+            if self.is_declaration_with_explicit_type_annotation(declaration) {
+                return self.get_type_of_symbol(symbol).map(Some);
+            }
+            if self.kind_of(declaration) == SyntaxKind::VariableDeclaration {
+                let statement = self
+                    .parent_of(declaration)
+                    .and_then(|parent| self.parent_of(parent));
+                if let Some(statement) = statement {
+                    if self.kind_of(statement) == SyntaxKind::ForOfStatement {
+                        let (expression, await_modifier) = match self.data_of(statement) {
+                            NodeData::ForOfStatement(data) => {
+                                (data.expression, data.await_modifier)
+                            }
+                            _ => (None, None),
+                        };
+                        if let Some(expression) = expression {
+                            if let Some(expression_type) =
+                                self.get_type_of_dotted_name(expression)?
+                            {
+                                let use_flags = if await_modifier.is_some() {
+                                    tsrs2_types::IterationUse::FOR_AWAIT_OF
+                                } else {
+                                    tsrs2_types::IterationUse::FOR_OF
+                                };
+                                let undefined = self.tables.intrinsics.undefined;
+                                return self
+                                    .check_iterated_type_or_element_type(
+                                        use_flags,
+                                        expression_type,
+                                        undefined,
+                                        None,
+                                    )
+                                    .map(Some);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: getExplicitThisType @6.0.3
+    /// tsc-hash: 0052ddcf8fe3e397778fc1edb69a5ba3298660e29f1eb9d2d63116370c84dd02
+    /// tsc-span: _tsc.js:72464-72482
+    fn get_explicit_this_type(&mut self, node: NodeId) -> CheckResult2<Option<TypeId>> {
+        let source = self.binder.source_of_node(node);
+        let Some(container) =
+            node_util::get_this_container(source, node, /*include_arrow_functions*/ false)
+        else {
+            return Ok(None);
+        };
+        if node_util::is_function_like_kind(self.kind_of(container)) {
+            let signature = self.get_signature_from_declaration(container)?;
+            if let Some(this_parameter) = self.signature_of(signature).this_parameter {
+                return self.get_explicit_type_of_symbol(this_parameter);
+            }
+        }
+        let parent = self.parent_of(container);
+        if let Some(parent) = parent {
+            if matches!(
+                self.kind_of(parent),
+                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+            ) {
+                let Some(symbol) = self.get_symbol_of_declaration_opt(parent) else {
+                    return Ok(None);
+                };
+                if self.is_static_element(container) {
+                    return self.get_type_of_symbol(symbol).map(Some);
+                }
+                let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+                return Ok(self.this_type_of_interface(declared));
+            }
+        }
+        Ok(None)
+    }
+
+    /// The declared class/interface's thisType read (tsc
+    /// getDeclaredTypeOfSymbol(...).thisType).
+    /// tsrs-native: TypeData accessor (GenericType stamp).
+    fn this_type_of_interface(&self, ty: TypeId) -> Option<TypeId> {
+        match &self.tables.type_of(ty).data {
+            TypeData::GenericType { this_type, .. } => Some(*this_type),
+            _ => None,
+        }
+    }
+
+    /// tsc resolveSymbol (the alias-following prelude of
+    /// getExplicitTypeOfSymbol); non-alias symbols pass through.
+    /// tsrs-native: delegate to the modules family.
+    fn resolve_symbol_shallow(&mut self, symbol: SymbolId) -> CheckResult2<SymbolId> {
+        if self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::ALIAS)
+        {
+            return self.resolve_alias(symbol);
+        }
+        Ok(symbol)
+    }
+
+    /// tsc-port: getTypePredicateOfSignature @6.0.3
+    /// tsc-hash: e0ff01ec0d9d97ea4232841d047e9ab5431b4b3e969c445c4e712c4be1eb44b5
+    /// tsc-span: _tsc.js:59765-59794
+    ///
+    /// signature.resolvedTypePredicate lives state-side (None = the
+    /// memoized noTypePredicate). Instantiated signatures propagate
+    /// their target's predicate through the mapper; composite
+    /// signatures combine member predicates; declared predicates
+    /// materialize from the TypePredicate return node. The
+    /// getTypePredicateFromBody arm (TS 5.5 inferred predicates) is
+    /// M6-adjacent and unported — its precondition FLAGS at the
+    /// consumers (see get_effects_signature); the jsdoc arm is
+    /// checkJs band.
+    pub(crate) fn get_type_predicate_of_signature(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<Option<TypePredicate>> {
+        if let Some(cached) = self.resolved_type_predicates.get(&signature) {
+            return Ok(cached.clone());
+        }
+        let result = self.compute_type_predicate_of_signature(signature)?;
+        self.resolved_type_predicates
+            .insert(signature, result.clone());
+        Ok(result)
+    }
+
+    /// The computation behind the memo (same tsc span).
+    /// tsrs-native: memo split of getTypePredicateOfSignature.
+    fn compute_type_predicate_of_signature(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<Option<TypePredicate>> {
+        let sig = self.signature_of(signature);
+        if let Some(target) = sig.target {
+            let mapper = sig.mapper;
+            let Some(target_predicate) = self.get_type_predicate_of_signature(target)? else {
+                return Ok(None);
+            };
+            let ty = match target_predicate.ty {
+                Some(ty) => Some(self.instantiate_type(ty, mapper)?),
+                None => None,
+            };
+            return Ok(Some(TypePredicate {
+                ty,
+                ..target_predicate
+            }));
+        }
+        if let Some(composite_signatures) = sig.composite_signatures.clone() {
+            let composite_kind = sig.composite_kind;
+            return self
+                .get_union_or_intersection_type_predicate(&composite_signatures, composite_kind);
+        }
+        let Some(declaration) = sig.declaration else {
+            return Ok(None);
+        };
+        let Some(return_type_node) = self.effective_return_type_node(declaration) else {
+            return Ok(None);
+        };
+        if self.kind_of(return_type_node) != SyntaxKind::TypePredicate {
+            return Ok(None);
+        }
+        self.create_type_predicate_from_type_predicate_node(return_type_node, signature)
+            .map(Some)
+    }
+
+    /// tsc-port: createTypePredicateFromTypePredicateNode @6.0.3
+    /// tsc-hash: 8c1568e0a9c1f385ca2c68d11b9a8567819284d4e115854d507a5b4a6ba0c8b7
+    /// tsc-span: _tsc.js:59795-59806
+    fn create_type_predicate_from_type_predicate_node(
+        &mut self,
+        node: NodeId,
+        signature: SignatureId,
+    ) -> CheckResult2<TypePredicate> {
+        let (asserts_modifier, parameter_name, type_node) = match self.data_of(node) {
+            NodeData::TypePredicate(data) => {
+                (data.asserts_modifier, data.parameter_name, data.r#type)
+            }
+            _ => (None, None, None),
+        };
+        let ty = match type_node {
+            Some(type_node) => Some(self.get_type_from_type_node(type_node)?),
+            None => None,
+        };
+        let asserts = asserts_modifier.is_some();
+        let is_this = parameter_name
+            .is_some_and(|parameter_name| self.kind_of(parameter_name) == SyntaxKind::ThisType);
+        if is_this {
+            return Ok(TypePredicate {
+                kind: if asserts {
+                    TypePredicateKind::AssertsThis
+                } else {
+                    TypePredicateKind::This
+                },
+                parameter_name: None,
+                parameter_index: -1,
+                ty,
+            });
+        }
+        let name = parameter_name
+            .and_then(|parameter_name| self.escaped_text_of(Some(parameter_name)))
+            .map(str::to_owned);
+        let parameter_index = match &name {
+            Some(name) => {
+                let parameters = self.signature_of(signature).parameters.clone();
+                parameters
+                    .iter()
+                    .position(|&parameter| self.binder.symbol(parameter).escaped_name == *name)
+                    .map_or(-1, |index| index as i64)
+            }
+            None => -1,
+        };
+        Ok(TypePredicate {
+            kind: if asserts {
+                TypePredicateKind::AssertsIdentifier
+            } else {
+                TypePredicateKind::Identifier
+            },
+            parameter_name: name,
+            parameter_index,
+            ty,
+        })
+    }
+
+    /// tsc-port: getUnionOrIntersectionTypePredicate @6.0.3
+    /// tsc-hash: 648edf0fb2d4d64618af102ff294ebff3e93525fb11def6efbfe04bacd3d9103
+    /// tsc-span: _tsc.js:61586-61608
+    fn get_union_or_intersection_type_predicate(
+        &mut self,
+        signatures: &[SignatureId],
+        kind: Option<TypeFlags>,
+    ) -> CheckResult2<Option<TypePredicate>> {
+        let mut last: Option<TypePredicate> = None;
+        let mut types: Vec<TypeId> = Vec::new();
+        let is_intersection = kind == Some(TypeFlags::INTERSECTION);
+        for &sig in signatures {
+            if let Some(pred) = self.get_type_predicate_of_signature(sig)? {
+                let kinds_match = last.as_ref().is_none_or(|last| {
+                    last.kind == pred.kind && last.parameter_index == pred.parameter_index
+                });
+                if !matches!(
+                    pred.kind,
+                    TypePredicateKind::This | TypePredicateKind::Identifier
+                ) || !kinds_match
+                {
+                    return Ok(None);
+                }
+                if let Some(ty) = pred.ty {
+                    types.push(ty);
+                }
+                last = Some(pred);
+            } else {
+                if !is_intersection {
+                    let return_type = self.get_return_type_of_signature(sig)?;
+                    let false_fresh = self.tables.intrinsics.false_fresh;
+                    let false_regular = self.tables.intrinsics.false_regular;
+                    if return_type == false_fresh || return_type == false_regular {
+                        continue;
+                    }
+                }
+                return Ok(None);
+            }
+        }
+        let Some(last) = last else {
+            return Ok(None);
+        };
+        let composite_type = if is_intersection {
+            self.get_intersection_type(&types, tsrs2_types::IntersectionFlags::NONE)?
+        } else {
+            self.get_union_type_ex(&types, tsrs2_types::UnionReduction::Literal)?
+        };
+        Ok(Some(TypePredicate {
+            ty: Some(composite_type),
+            ..last
+        }))
     }
 
     /// [FLOW 6.4] identity stub: tsc narrowTypeByOptionality (71440)
@@ -2465,6 +3260,31 @@ impl<'a> CheckerState<'a> {
         query.traversed_inert_arm = true;
         Ok(ty)
     }
+}
+
+/// tsc TypePredicateKind (This=0 | Identifier=1 | AssertsThis=2 |
+/// AssertsIdentifier=3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TypePredicateKind {
+    This,
+    Identifier,
+    AssertsThis,
+    AssertsIdentifier,
+}
+
+/// tsc-port: createTypePredicate @6.0.3
+/// tsc-hash: 717a030e43a47be7075488eb54a1efe7aec3f542134f16e4cbe6666f19dd4e69
+/// tsc-span: _tsc.js:59531-59533
+///
+/// The struct IS the factory (no behavior beyond field storage);
+/// parameter_index mirrors tsc's findIndex result, -1 included.
+#[derive(Clone, Debug)]
+pub(crate) struct TypePredicate {
+    pub(crate) kind: TypePredicateKind,
+    #[allow(dead_code)]
+    pub(crate) parameter_name: Option<String>,
+    pub(crate) parameter_index: i64,
+    pub(crate) ty: Option<TypeId>,
 }
 
 /// tsc-port: typeofNEFacts @6.0.3

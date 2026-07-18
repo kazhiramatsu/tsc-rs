@@ -523,6 +523,13 @@ pub struct CheckerState<'a> {
     /// cycle protocol); unwound entries are removed before the error
     /// escapes (the unwind invariant).
     pub(crate) exhaustive_switch_computing: std::collections::HashSet<NodeId>,
+    /// tsc links.effectsSignature (getEffectsSignature 70195) —
+    /// state-side; None IS the memoized unknownSignature verdict.
+    pub(crate) effects_signature_cache: std::collections::HashMap<NodeId, Option<SignatureId>>,
+    /// tsc signature.resolvedTypePredicate (getTypePredicateOfSignature
+    /// 59765) — state-side; None IS the memoized noTypePredicate.
+    pub(crate) resolved_type_predicates:
+        std::collections::HashMap<SignatureId, Option<crate::narrow::TypePredicate>>,
     /// tsrs-native temporary [FLOW M5] containment index. It caches
     /// syntax candidates only (per source and nearest function scope),
     /// so each failed diagnostic need not walk the whole source again.
@@ -773,6 +780,8 @@ impl<'a> CheckerState<'a> {
             switch_types_cache: std::collections::HashMap::new(),
             exhaustive_switch_cache: std::collections::HashMap::new(),
             exhaustive_switch_computing: std::collections::HashSet::new(),
+            effects_signature_cache: std::collections::HashMap::new(),
+            resolved_type_predicates: std::collections::HashMap::new(),
             flow_containment_indexes: Default::default(),
             js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),

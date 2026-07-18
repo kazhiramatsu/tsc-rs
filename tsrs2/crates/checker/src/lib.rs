@@ -2385,21 +2385,20 @@ mod tests {
 
     #[test]
     fn partial_flow_check_records_its_runtime_trigger() {
-        // The seam's runtime trigger, retargeted at a STILL-stubbed
-        // narrower (6.4b): a call-expression condition (with a
-        // narrowable argument — an argument-free call is not an
-        // isNarrowingExpression and binds NO condition nodes; the
-        // argument is a DIFFERENT, definitely-assigned const so the
-        // argument position itself cannot report) dispatches into
-        // the narrowTypeByCallExpression identity stub (6.4f), which
-        // flags the query — the oracle's 2454 stays undecidable and
-        // the position partial-marks with the seam reason. Rewrite
-        // when 6.4f lands (as 6.4b rewrote the boolean-guard form
-        // into condition_join_reports_use_before_assignment above).
+        // The seam's runtime trigger, retargeted at the LAST
+        // still-unported narrowing family (6.4f): an annotation-free
+        // boolean-returning function with parameters could carry a
+        // TS 5.5 BODY-INFERRED predicate in tsc
+        // (getTypePredicateFromBody, M6-adjacent) — a guard call
+        // whose argument IS the reference flags the query through
+        // get_effects_signature, the oracle's 2454 on the trailing
+        // use stays undecidable, and the position partial-marks. The
+        // ARGUMENT use reports its straight-line 2454 for real (both
+        // sides agree). Rewrite when body inference lands.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
-                text: "declare function f(v: unknown): boolean;\ndeclare const y: number;\nlet x: number;\nif (f(y)) { x = 1; }\nx;\n"
+                text: "function f(v: unknown) { return !!v; }\nlet x: number;\nif (f(x)) { x = 1; }\nx;\n"
                     .to_owned(),
             }],
             &CompilerOptions {
@@ -2413,7 +2412,7 @@ mod tests {
                 .iter()
                 .map(|d| d.code())
                 .collect::<Vec<_>>(),
-            Vec::<u32>::new()
+            [2454]
         );
         assert_eq!(result.partial_checks.len(), 1);
         assert_eq!(result.partial_checks[0].file_name, "a.ts");
@@ -2453,17 +2452,18 @@ mod tests {
     #[test]
     fn partial_flow_check_marks_join_dependent_implicit_any() {
         // The implicit-any seam trigger, retargeted like the 2454 one
-        // above (6.4b): an auto-typed variable whose flow query
-        // crosses a call-expression condition hits the 6.4f identity
-        // stub — flagged, the seam converts the declared auto to any,
-        // suppressing BOTH possible oracle answers (the 7034 pair or
-        // a narrowed union), and the position partial-marks so an
-        // @ts-expect-error over the suppressed row cannot misreport
-        // as unused (2578). Rewrite when 6.4f lands.
+        // above (6.4f): an auto-typed variable whose flow query
+        // crosses a body-inference-candidate guard call (with the
+        // reference as argument) is flagged, the seam converts the
+        // declared auto to any, suppressing BOTH possible oracle
+        // answers (the 7034 pair or a narrowed union), and the
+        // position partial-marks so an @ts-expect-error over the
+        // suppressed row cannot misreport as unused (2578). Rewrite
+        // when body inference lands.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
-                text: "declare function f(v: unknown): boolean;\ndeclare const y: number;\nlet x;\nif (f(y)) { x = 1; }\nx;\n"
+                text: "function f(v: unknown) { return !!v; }\nlet x;\nif (f(x)) { x = 1; }\nx;\n"
                     .to_owned(),
             }],
             &CompilerOptions {
@@ -2699,18 +2699,21 @@ mod tests {
         // The flowLoopCaches seam guard, pinned DIRECTLY: both `x;`
         // uses share the loop label AND the flow cache key. Each
         // query's back-edge pull crosses the if's condition, whose
-        // call expression dispatches into the narrowTypeByCall-
-        // Expression identity stub (6.4f) — flagged, so the fixpoint
-        // must NOT enter flowLoopCaches. If the first query's result
-        // leaked into the memo, the second query would hit it, skip
-        // the walk (and the flag), and its over-wide union (the
-        // initial number | undefined) would bypass the seam revert —
-        // observable as the second position losing its partial mark.
-        // Rewrite when 6.4f lands (the guard itself retires at 6.4h).
+        // guard call is a body-inference candidate with the
+        // reference as argument (see the runtime-trigger pin) —
+        // flagged, so the fixpoint must NOT enter flowLoopCaches. If
+        // the first query's result leaked into the memo, the second
+        // query would hit it, skip the walk (and the flag), and its
+        // over-wide union (the initial number | undefined) would
+        // bypass the seam revert — observable as the second position
+        // losing its partial mark. The guard ARGUMENT's own query
+        // crosses the back edge too and partial-marks third. Rewrite
+        // when body inference lands (the guard itself retires at
+        // 6.4h).
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
-                text: "declare function f(v: unknown): boolean;\ndeclare const y: number;\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (f(y)) { x = 1; }\n}\n".to_owned(),
+                text: "function f(v: unknown) { return !!v; }\nlet x: number;\nwhile (true) {\n  x;\n  x;\n  if (f(x)) { x = 1; }\n}\n".to_owned(),
             }],
             &CompilerOptions {
                 strict: Some(true),
@@ -2732,6 +2735,7 @@ mod tests {
                 .map(|p| p.reason.as_str())
                 .collect::<Vec<_>>(),
             [
+                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
                 "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
                 "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)"
             ]
