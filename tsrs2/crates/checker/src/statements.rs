@@ -325,7 +325,7 @@ impl<'a> CheckerState<'a> {
         // Step 11.
         let ty = {
             let raw = self.get_type_of_symbol(symbol)?;
-            self.convert_auto_to_any(raw)
+            self.convert_auto_to_any(raw)?
         };
         let value_declaration = self.binder.symbol(symbol).value_declaration;
         let parent_parent_kind = self
@@ -434,7 +434,7 @@ impl<'a> CheckerState<'a> {
             // Step 13: the merged-declaration face.
             let declaration_type = {
                 let widened = self.get_widened_type_for_variable_like_declaration(node, false)?;
-                self.convert_auto_to_any(widened)
+                self.convert_auto_to_any(widened)?
             };
             let error_type = self.tables.intrinsics.error;
             // [JSDOC] gate: a merged declaration living in a JS file
@@ -453,26 +453,11 @@ impl<'a> CheckerState<'a> {
                     "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)",
                 ));
             }
-            // [FLOW M5] gate: `var x = []` declares an EVOLVING array —
-            // tsc's declared type for the redeclaration comparison is
-            // the auto-array's widened face (any[]), which rides flow
-            // machinery (arrayLiteral pins `var x = []; var x = new
-            // Array(1);` clean). Contain only when an annotation-less
-            // empty-array declaration is paired with another
-            // array-producing initializer.
-            let evolving_array_pair = if let Some(value_declaration) = value_declaration {
-                (self.is_annotationless_empty_array_var(node)
-                    && self.has_array_producing_initializer(value_declaration)?)
-                    || (self.is_annotationless_empty_array_var(value_declaration)
-                        && self.has_array_producing_initializer(node)?)
-            } else {
-                false
-            };
-            if evolving_array_pair {
-                return Err(Unsupported::new(
-                    "[FLOW M5] redeclaration comparison against an evolving-array declaration",
-                ));
-            }
+            // (The pre-6.2 [FLOW M5] evolving-array containment gate
+            // retired here: with the real autoArrayType producer the
+            // comparison face IS tsc's — `var x = []` types as
+            // Array<auto>, convertAutoToAny renders `any[]`, and the
+            // 2403 report matches the oracle byte-for-byte.)
             if ty != error_type
                 && declaration_type != error_type
                 && !self.is_type_identical_to(ty, declaration_type)?
@@ -528,44 +513,6 @@ impl<'a> CheckerState<'a> {
             self.check_collisions_for_declaration_name(node, Some(name));
         }
         Ok(())
-    }
-
-    /// tsrs-native: [FLOW M5] containment probe — an annotation-less
-    /// `var x = []` is tsc's evolving-array shape (autoArrayType);
-    /// its declared type is flow-derived.
-    fn is_annotationless_empty_array_var(&self, declaration: NodeId) -> bool {
-        let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
-            return false;
-        };
-        if data.r#type.is_some() {
-            return false;
-        }
-        let Some(initializer) = data.initializer else {
-            return false;
-        };
-        match self.data_of(initializer) {
-            NodeData::ArrayLiteralExpression(array) => self.nodes_of(array.elements).is_empty(),
-            _ => false,
-        }
-    }
-
-    fn has_array_producing_initializer(&mut self, declaration: NodeId) -> CheckResult2<bool> {
-        let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
-            return Ok(false);
-        };
-        let Some(initializer) = data.initializer else {
-            return Ok(false);
-        };
-        match self.data_of(initializer) {
-            NodeData::ArrayLiteralExpression(_) => Ok(true),
-            NodeData::CallExpression(_) | NodeData::NewExpression(_) => {
-                let initializer_type =
-                    self.check_expression_cached(initializer, CheckMode::NORMAL)?;
-                Ok(self.is_array_type(initializer_type)?
-                    || self.tables.is_tuple_type(initializer_type))
-            }
-            _ => Ok(false),
-        }
     }
 
     /// tsc-port: errorNextVariableOrPropertyDeclarationMustHaveSameType @6.0.3
@@ -650,12 +597,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: convertAutoToAny @6.0.3
     /// tsc-hash: a9e79a9777e78396f826a6c1016b49f68afd58a183500c99f293dbf849b6f35f
     /// tsc-span: _tsc.js:83400-83402
-    ///
-    /// [FLOW M5]: the 5.6 AUTO arm already answers anyType at the
-    /// declared-type level (autoType/autoArrayType never surface), so
-    /// the twin is an identity — kept in slot for the M5 wiring.
-    pub(crate) fn convert_auto_to_any(&self, ty: TypeId) -> TypeId {
-        ty
+    pub(crate) fn convert_auto_to_any(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        if ty == self.tables.intrinsics.auto {
+            return Ok(self.tables.intrinsics.any);
+        }
+        if self.is_auto_array_type(ty) {
+            return self.any_array_type();
+        }
+        Ok(ty)
     }
 
     /// tsc-port: checkVarDeclaredNamesNotShadowed @6.0.3
@@ -3240,11 +3189,14 @@ mod tests {
 
     #[test]
     fn later_var_alias_does_not_retroactively_narrow() {
+        // 2454 on `ok` rides along since 6.2 (flipped initialType
+        // ladder; oracle parity — the alias read precedes its
+        // assignment).
         assert_eq!(
             checked_rows(
                 "declare function take(s: string): void;\ndeclare const x: unknown;\nif (ok) { take(x); }\nvar ok = typeof x === \"string\";\n"
             ),
-            [(2345, 81, 1)]
+            [(2454, 70, 2), (2345, 81, 1)]
         );
     }
 

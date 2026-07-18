@@ -124,6 +124,17 @@ pub enum TypeData {
     /// distinguished by object_flags (Anonymous vs Class/Interface).
     /// Members resolve lazily in the checker (resolveStructuredTypeMembers).
     Object,
+    /// Evolving (auto) array types (createEvolvingArrayType 70073,
+    /// object_flags EvolvingArray): the element-type accumulator for
+    /// `push`/`unshift`/index writes on an autoArrayType variable
+    /// inside the flow walk; finalized to a real array type at the
+    /// query postlude (finalizeEvolvingArrayType). Never structurally
+    /// resolved. The checker memoizes elementType→evolving and
+    /// evolving→finalArrayType maps (tsc evolvingArrayTypes /
+    /// EvolvingArrayType.finalArrayType).
+    EvolvingArray {
+        element_type: TypeId,
+    },
     /// createTypeReference (60169): an instantiation-free reference —
     /// tuple values like `[number, string]` point at a TupleTarget.
     /// `resolved_type_arguments` is `Some` from creation for plain

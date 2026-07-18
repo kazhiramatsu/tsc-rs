@@ -6454,14 +6454,16 @@ impl<'a> CheckerState<'a> {
                     Some(initializer) => self.is_null_or_undefined_expr(initializer)?,
                 };
                 if !constant && null_or_undefined_initializer {
-                    // tsc: autoType ([FLOW M5]) — anyType stand-in.
-                    return Ok(Some(self.tables.intrinsics.any));
+                    // 56060-56062: the evolving autoType (live from
+                    // 6.2 — the flow ladder consumes it).
+                    return Ok(Some(self.tables.intrinsics.auto));
                 }
                 if initializer
                     .is_some_and(|initializer| self.is_empty_array_literal_expr(initializer))
                 {
-                    // tsc: autoArrayType ([FLOW M5]) — anyType stand-in.
-                    return Ok(Some(self.tables.intrinsics.any));
+                    // 56063-56065: the evolving autoArrayType (live
+                    // from 6.2 — evolving arrays consume it).
+                    return Ok(Some(self.auto_array_type()?));
                 }
             }
         }
@@ -6709,7 +6711,7 @@ impl<'a> CheckerState<'a> {
     /// isEmptyArrayLiteral2)
     /// tsc-hash: aec39287153052d13f54374113ffbec58c92de043b2c6f6ff1bad85399baf420
     /// tsc-span: _tsc.js:56021-56028
-    fn is_empty_array_literal_expr(&self, node: NodeId) -> bool {
+    pub(crate) fn is_empty_array_literal_expr(&self, node: NodeId) -> bool {
         let expr = self.skip_parentheses(node);
         matches!(
             self.data_of(expr),

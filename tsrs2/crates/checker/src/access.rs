@@ -3292,10 +3292,20 @@ impl<'a> CheckerState<'a> {
         {
             let declaration = prop.and_then(|prop| self.binder.symbol(prop).value_declaration);
             if let Some(declaration) = declaration {
+                // isPropertyWithoutInitializer (85499): abstract
+                // properties and definite-assignment assertions (`a!`)
+                // opt OUT of the assume-uninitialized 2565 arm.
                 let is_property_without_initializer = self.kind_of(declaration)
                     == SyntaxKind::PropertyDeclaration
+                    && !tsrs2_binder::node_util::has_syntactic_modifier(
+                        self.binder.source_of_node(declaration),
+                        declaration,
+                        ModifierFlags::ABSTRACT,
+                    )
                     && match self.data_of(declaration) {
-                        NodeData::PropertyDeclaration(data) => data.initializer.is_none(),
+                        NodeData::PropertyDeclaration(data) => {
+                            data.initializer.is_none() && data.exclamation_token.is_none()
+                        }
                         _ => false,
                     };
                 if is_property_without_initializer {
@@ -3324,18 +3334,18 @@ impl<'a> CheckerState<'a> {
         // The JS assignment-declaration else-if arm requires
         // prop.valueDeclaration to be a PropertyAccessExpression —
         // impossible in TS files (JS band).
-        // [FLOW 6.2] the assume-uninitialized initial type (2565's
-        // trigger) activates with the real assignment arm — until
-        // assignments terminate the walk faithfully, an
-        // undefined-bearing initial would misreport on assigned
-        // paths. The ladder still computes (it did under the M4 stub
-        // too); the walk takes the declared type as `initial`.
-        let _initial_type = if assume_uninitialized {
+        // The assume-uninitialized initial type (2565's trigger):
+        // live from 6.2 — the real assignment arm terminates walks
+        // before the initial type can resurrect at assigned uses.
+        let initial_type = if assume_uninitialized {
             self.get_optional_type(prop_type, /*is_property*/ false)?
         } else {
             prop_type
         };
-        let flow_type = self.get_flow_type_of_reference(node, prop_type, prop_type, None)?;
+        let flow_type = self.get_flow_type_of_reference(node, prop_type, initial_type, None)?;
+        // Captured IMMEDIATELY (see check_identifier: nested queries
+        // overwrite the mirror).
+        let flow_query_inert = self.flow_last_query_inert;
         if assume_uninitialized
             && !self.contains_undefined_type(prop_type)
             && self.contains_undefined_type(flow_type)
@@ -3350,6 +3360,17 @@ impl<'a> CheckerState<'a> {
                 &[&display],
             );
             return Ok(prop_type);
+        }
+        if assume_uninitialized && !self.contains_undefined_type(prop_type) && flow_query_inert {
+            // 6.2 seam: the walk crossed a still-inert arm (flow.rs
+            // reverted its answer to the declared type), so a
+            // join/condition-dependent 2565 is undecidable until
+            // 6.3/6.4 — keep the position partial instead of
+            // misreporting in either direction.
+            self.mark_partially_checked_node(
+                node,
+                "flow-sensitive property use-before-assignment diagnostic (M5 6.3/6.4 seam)",
+            );
         }
         if assignment_kind != crate::expr::AssignmentKind::None {
             self.get_base_type_of_literal_type(flow_type)

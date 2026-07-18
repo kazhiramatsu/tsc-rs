@@ -20,22 +20,25 @@
 //! resume rule stays in-file by construction — so the query pins the
 //! owning file index once.
 //!
-//! Stage state (6.1): the walk skeleton is live and REPLACES
-//! `get_flow_type_of_reference_stub`; the arms are inert —
-//! - [FLOW 6.2] assignment/array-mutation: an assignment terminates
-//!   with the declared type (opaque write; walking PAST it would
-//!   resurrect an undefined-bearing initial type at uses the
-//!   assignment kills); mutations never affect (no evolving arrays).
+//! Stage state (6.2): the assignment and array-mutation arms are LIVE
+//! (getTypeAtFlowAssignment + evolving arrays + the initial/assigned
+//! type family), and both caller initialType ladders are flipped
+//! (checkIdentifier + the access.rs assume-uninitialized arm). Still
+//! inert, each flagging the query (`FlowQuery::traversed_inert_arm`):
 //! - [FLOW 6.3] branch/loop joins return the declared type.
 //! - [FLOW 6.4] conditions/switch clauses pass through their
 //!   antecedent (tsc's arm with narrowType = identity); calls never
 //!   affect (no effects signatures yet).
 //!
-//! With `initialType` still passed as the declared type by every
-//! caller (the checkIdentifier initialType ladder activates with the
-//! real assignment arm, 6.2), every query resolves to the declared
-//! type — the stub swap is observably null, which is this stage's
-//! verification.
+//! THE 6.2 SEAM: a query that crossed an inert arm reverts to the 6.1
+//! answer (declared type, auto-converted) at query exit — the inert
+//! arms cannot reproduce tsc's narrowing, and letting their over-wide
+//! pass-through answer out would misreport 2454/2565 (an initial-type
+//! undefined tsc narrows away) and misfire the 7034 auto-identity
+//! test. Straight-line queries (start/assignment/mutation paths) get
+//! the full 6.2 semantics; the ladder sites partial-mark the
+//! flagged-and-suppressed diagnostic positions. The seam retires
+//! arm-by-arm as 6.3/6.4 land.
 
 use tsrs2_binder::flow::{FlowId, FlowPayload};
 use tsrs2_binder::{node_util, SymbolId};
@@ -54,8 +57,9 @@ use crate::state::{CheckResult2, CheckerState, Unsupported};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum FlowType {
     Type(TypeId),
-    // [FLOW 6.3] first constructed by the loop-label fixpoint.
-    #[allow(dead_code)]
+    // Constructible via create_flow_type since 6.2 (the Compound and
+    // array-mutation arms re-wrap their antecedent's completeness);
+    // first actually produced by the 6.3 loop-label fixpoint.
     Incomplete(TypeId),
 }
 
@@ -72,9 +76,6 @@ impl FlowType {
     /// tsc-port: isIncomplete @6.0.3
     /// tsc-hash: c858fa411b18f0051d3bf4547d2599fcec6882bc07fc14e3cd8f63c87577f3a5
     /// tsc-span: _tsc.js:70064-70066
-    ///
-    /// [FLOW 6.3] first consumed by the join/fixpoint arms.
-    #[allow(dead_code)]
     pub(crate) fn is_incomplete(self) -> bool {
         matches!(self, FlowType::Incomplete(_))
     }
@@ -94,6 +95,13 @@ pub(crate) struct FlowQuery {
     pub(crate) file: usize,
     pub(crate) flow_depth: u32,
     pub(crate) shared_flow_start: usize,
+    /// tsrs-native 6.2 SEAM (retires with 6.3 joins + 6.4 narrowers):
+    /// set when the walk crosses a still-inert arm (condition/switch/
+    /// branch-label/loop-label) — the query exit forces such answers
+    /// back to the 6.1 value (declared, auto-converted) and mirrors
+    /// the flag into `CheckerState::flow_last_query_inert` for the
+    /// initialType ladder sites.
+    pub(crate) traversed_inert_arm: bool,
 }
 
 impl<'a> CheckerState<'a> {
@@ -104,10 +112,6 @@ impl<'a> CheckerState<'a> {
     /// `never` is replaced by silentNeverType INSIDE incomplete
     /// wrappers — "back-edge unresolved" must stay distinguishable
     /// from a real never.
-    ///
-    /// [FLOW 6.3] first consumed by the condition/join arms once
-    /// incomplete types circulate.
-    #[allow(dead_code)]
     pub(crate) fn create_flow_type(&self, ty: TypeId, incomplete: bool) -> FlowType {
         if incomplete {
             FlowType::Incomplete(if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
@@ -211,9 +215,11 @@ impl<'a> CheckerState<'a> {
         flow_node: Option<FlowId>,
     ) -> CheckResult2<TypeId> {
         if self.flow_analysis_disabled {
+            self.flow_last_query_inert = false;
             return Ok(self.tables.intrinsics.error);
         }
         let Some(flow_node) = flow_node else {
+            self.flow_last_query_inert = false;
             return Ok(declared_type);
         };
         self.flow_invocation_count += 1;
@@ -226,34 +232,83 @@ impl<'a> CheckerState<'a> {
             file: self.binder.file_index_of_node(reference),
             flow_depth: 0,
             shared_flow_start,
+            traversed_inert_arm: false,
         };
         let walk = self.get_type_at_flow_node(&mut query, flow_node);
         // sharedFlowCount = sharedFlowStart — restored BEFORE the `?`
         // so an Unsupported unwind leaves no shared-cache residue (the
         // unwind invariant).
         self.shared_flow.truncate(shared_flow_start);
-        let evolved_type = walk?.get_type();
-        // [FLOW 6.2] the evolving-array postlude
-        // (isEvolvingArrayOperationTarget ? autoArrayType :
-        // finalizeEvolvingArrayType) is identity until evolving arrays
-        // land — no EvolvingArray type has a producer yet.
-        let result_type = evolved_type;
+        let traversed_inert_arm = query.traversed_inert_arm;
+        let result = walk.and_then(|flow_type| {
+            self.flow_query_postlude(&query, flow_type.get_type(), traversed_inert_arm)
+        });
+        // The state mirror writes LAST: the postlude itself can run
+        // NESTED flow queries (isEvolvingArrayOperationTarget types
+        // the element-write index expression), and each nested query
+        // overwrites the mirror — the ladder sites must read THIS
+        // query's flag.
+        self.flow_last_query_inert = traversed_inert_arm;
+        result
+    }
+
+    /// The getFlowTypeOfReference tail (70407-70411): the 6.2
+    /// inert-arm override, the evolving-array finalization, and the
+    /// unreachable/NonNull declared-type reverts.
+    /// tsrs-native: extracted tail of
+    /// get_flow_type_of_reference_with_flow (same tsc span).
+    fn flow_query_postlude(
+        &mut self,
+        query: &FlowQuery,
+        evolved_type: TypeId,
+        traversed_inert_arm: bool,
+    ) -> CheckResult2<TypeId> {
+        // 6.2 SEAM (retires with 6.3 joins + 6.4 narrowers): a query
+        // that crossed a still-inert arm answers the 6.1 value — the
+        // declared type, auto-converted — because the inert arms
+        // cannot reproduce tsc's narrowing and their pass-through
+        // answer may be over-wide (an initial-type undefined tsc
+        // would have narrowed away must not leak into diagnostics).
+        // Straight-line queries (start/assignment/array-mutation
+        // paths only) get the full 6.2 semantics.
+        let evolved_type = if traversed_inert_arm {
+            self.convert_auto_to_any(query.declared_type)?
+        } else {
+            evolved_type
+        };
+        // The getFlowTypeOfReference postlude (70408): an
+        // evolving-array answer at an array-operation reference stays
+        // autoArrayType; everything else finalizes.
+        let result_type = if self
+            .tables
+            .object_flags_of(evolved_type)
+            .intersects(tsrs2_types::ObjectFlags::EVOLVING_ARRAY)
+            && self.is_evolving_array_operation_target(query.reference)?
+        {
+            self.auto_array_type()?
+        } else {
+            self.finalize_evolving_array_type(evolved_type)?
+        };
         if result_type == self.tables.intrinsics.unreachable_never {
-            return Ok(declared_type);
+            return Ok(query.declared_type);
         }
         if self
-            .parent_of(reference)
+            .parent_of(query.reference)
             .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::NonNullExpression)
             && !self
                 .tables
                 .flags_of(result_type)
                 .intersects(TypeFlags::NEVER)
         {
-            // [FLOW 6.4] tsc filters `getTypeWithFacts(resultType,
-            // NEUndefinedOrNull).flags & Never ⇒ declaredType` here;
-            // the facts filter joins the narrowers' stage — in 6.1 the
-            // walk returns the declared type for every query, so the
-            // filter's outcome is the identity either way.
+            // 70409: an all-nullable answer under a NonNullExpression
+            // parent reverts to the declared type (live from 6.2 on —
+            // the flipped initialType ladder sends real undefined
+            // through straight-line queries).
+            let filtered = self
+                .get_type_with_facts(result_type, tsrs2_types::TypeFacts::NE_UNDEFINED_OR_NULL)?;
+            if self.tables.flags_of(filtered).intersects(TypeFlags::NEVER) {
+                return Ok(query.declared_type);
+            }
         }
         Ok(result_type)
     }
@@ -456,7 +511,7 @@ impl<'a> CheckerState<'a> {
                 ty = FlowType::Type(query.initial_type);
             } else {
                 // Unreachable terminus.
-                ty = FlowType::Type(self.convert_auto_to_any(query.declared_type));
+                ty = FlowType::Type(self.convert_auto_to_any(query.declared_type)?);
             }
             if let Some(shared_node) = shared {
                 self.shared_flow.push((shared_node, ty));
@@ -466,20 +521,119 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    // ---- the arms (6.1: inert stubs; see the module doc) ----
+    // ---- the arms (6.2: assignment + array mutation live; the
+    // condition/switch/join arms stay inert and flag the query) ----
 
-    /// [FLOW 6.2] tsc getTypeAtFlowAssignment (70502) lands next
-    /// stage. Inert form: any assignment on the path is an opaque
-    /// write restoring the declared type — the FP-safe direction
-    /// (walking past an assignment would resurrect an
-    /// undefined-bearing initial type at uses the assignment kills).
-    /// tsc-deferred: M5 (stage 6.2 — assignment/initial-type analysis)
+    /// tsc-port: getTypeAtFlowAssignment @6.0.3
+    /// tsc-hash: 06ef726ffa7b23b361ca0631413c45e9173551c164933920099df3bdafff5277
+    /// tsc-span: _tsc.js:70502-70541
+    ///
+    /// The TS-band collapse of the containsMatchingReference
+    /// expando-hoist test (70530-70535): getDeclaredExpandoInitializer
+    /// reduces to the declaration's own initializer, and the only
+    /// getExpandoInitializer returns surviving the caller's kind check
+    /// are a DIRECT FunctionExpression/ArrowFunction initializer (the
+    /// call/class/object-literal returns fail it).
     fn get_type_at_flow_assignment(
         &mut self,
         query: &mut FlowQuery,
-        _flow: FlowId,
+        flow: FlowId,
     ) -> CheckResult2<Option<FlowType>> {
-        Ok(Some(FlowType::Type(query.declared_type)))
+        let node = self
+            .flow_payload_node(query.file, flow)
+            .expect("ASSIGNMENT flow nodes carry a node payload (binder flow.rs)");
+        if self.is_matching_reference(query.reference, node)? {
+            if !self.is_reachable_flow_node(query.file, flow) {
+                return Ok(Some(FlowType::Type(
+                    self.tables.intrinsics.unreachable_never,
+                )));
+            }
+            if self.get_assignment_target_kind(node) == crate::expr::AssignmentKind::Compound {
+                let antecedent = self.flow_antecedent(query.file, flow);
+                let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+                let base = self.get_base_type_of_literal_type(flow_type.get_type())?;
+                return Ok(Some(self.create_flow_type(base, flow_type.is_incomplete())));
+            }
+            if query.declared_type == self.tables.intrinsics.auto
+                || self.is_auto_array_type(query.declared_type)
+            {
+                if self.is_empty_array_assignment(node) {
+                    let never = self.tables.intrinsics.never;
+                    return Ok(Some(FlowType::Type(self.get_evolving_array_type(never))));
+                }
+                let initial_or_assigned = self.get_initial_or_assigned_type(query, node)?;
+                let assigned_type = self.get_widened_literal_type(initial_or_assigned)?;
+                let assignable = self.is_type_assignable_to(assigned_type, query.declared_type)?;
+                return Ok(Some(FlowType::Type(if assignable {
+                    assigned_type
+                } else {
+                    self.any_array_type()?
+                })));
+            }
+            let t = if self.is_in_compound_like_assignment(node) {
+                self.get_base_type_of_literal_type(query.declared_type)?
+            } else {
+                query.declared_type
+            };
+            if self.tables.flags_of(t).intersects(TypeFlags::UNION) {
+                let assigned = self.get_initial_or_assigned_type(query, node)?;
+                return Ok(Some(FlowType::Type(
+                    self.get_assignment_reduced_type(t, assigned)?,
+                )));
+            }
+            return Ok(Some(FlowType::Type(t)));
+        }
+        if self.contains_matching_reference(query.reference, node)? {
+            if !self.is_reachable_flow_node(query.file, flow) {
+                return Ok(Some(FlowType::Type(
+                    self.tables.intrinsics.unreachable_never,
+                )));
+            }
+            if self.kind_of(node) == SyntaxKind::VariableDeclaration && self.is_var_const_like(node)
+            {
+                let initializer = match self.data_of(node) {
+                    NodeData::VariableDeclaration(data) => data.initializer,
+                    _ => None,
+                };
+                if initializer.is_some_and(|init| {
+                    matches!(
+                        self.kind_of(init),
+                        SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+                    )
+                }) {
+                    let antecedent = self.flow_antecedent(query.file, flow);
+                    return Ok(Some(self.get_type_at_flow_node(query, antecedent)?));
+                }
+            }
+            return Ok(Some(FlowType::Type(query.declared_type)));
+        }
+        if self.kind_of(node) == SyntaxKind::VariableDeclaration {
+            let grand = self
+                .parent_of(node)
+                .and_then(|parent| self.parent_of(parent));
+            if let Some(grand) = grand {
+                if self.kind_of(grand) == SyntaxKind::ForInStatement {
+                    let expression = match self.data_of(grand) {
+                        NodeData::ForInStatement(data) => data.expression,
+                        _ => None,
+                    };
+                    if let Some(expression) = expression {
+                        if self.is_matching_reference(query.reference, expression)?
+                            || self
+                                .optional_chain_contains_reference(expression, query.reference)?
+                        {
+                            let antecedent = self.flow_antecedent(query.file, flow);
+                            let walked = self.get_type_at_flow_node(query, antecedent)?;
+                            let finalized = self.finalize_evolving_array_type(walked.get_type())?;
+                            return Ok(Some(FlowType::Type(
+                                self.get_non_nullable_type_if_needed(finalized)?,
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(None)
     }
 
     /// [FLOW 6.4] tsc getTypeAtFlowCall (70566) rides with the
@@ -499,65 +653,1039 @@ impl<'a> CheckerState<'a> {
     /// [FLOW 6.4] tsc getTypeAtFlowCondition (70614): the real arm is
     /// narrowType over the antecedent type; until the narrowers land
     /// this is the arm with narrowType = identity — a pass-through of
-    /// the antecedent walk.
+    /// the antecedent walk. Flags the query (6.2 seam): the
+    /// pass-through answer may be wider than tsc's narrowed one, so
+    /// the query exit reverts to the 6.1 value.
     /// tsc-deferred: M5 (stage 6.4 — narrowType dispatch)
     fn get_type_at_flow_condition(
         &mut self,
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult2<FlowType> {
+        query.traversed_inert_arm = true;
         let antecedent = self.flow_antecedent(query.file, flow);
         self.get_type_at_flow_node(query, antecedent)
     }
 
     /// [FLOW 6.4] tsc getTypeAtSwitchClause (70638) narrows by the
     /// switch discriminant; identity until the narrowers land — a
-    /// pass-through of the antecedent walk.
+    /// pass-through of the antecedent walk, flagging the query (6.2
+    /// seam, see get_type_at_flow_condition).
     /// tsc-deferred: M5 (stage 6.4 — switch-clause narrowing)
     fn get_type_at_switch_clause(
         &mut self,
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult2<FlowType> {
+        query.traversed_inert_arm = true;
         let antecedent = self.flow_antecedent(query.file, flow);
         self.get_type_at_flow_node(query, antecedent)
     }
 
     /// [FLOW 6.3] tsc getTypeAtFlowBranchLabel (70653): the JOIN.
     /// Until it lands, a multi-antecedent branch answers the declared
-    /// type (the widest join — never narrower than any real union).
+    /// type (the widest join — never narrower than any real union)
+    /// and flags the query (6.2 seam: the query exit converts
+    /// auto/autoArray so the 7034 identity test cannot misfire).
     /// tsc-deferred: M5 (stage 6.3 — branch joins)
     fn get_type_at_flow_branch_label(
         &mut self,
         query: &mut FlowQuery,
         _flow: FlowId,
     ) -> CheckResult2<FlowType> {
+        query.traversed_inert_arm = true;
         Ok(FlowType::Type(query.declared_type))
     }
 
     /// [FLOW 6.3] tsc getTypeAtFlowLoopLabel (70694): the fixpoint.
-    /// Until it lands, a loop join answers the declared type.
+    /// Until it lands, a loop join answers the declared type and
+    /// flags the query (6.2 seam, see get_type_at_flow_branch_label).
     /// tsc-deferred: M5 (stage 6.3 — the loop fixpoint)
     fn get_type_at_flow_loop_label(
         &mut self,
         query: &mut FlowQuery,
         _flow: FlowId,
     ) -> CheckResult2<FlowType> {
+        query.traversed_inert_arm = true;
         Ok(FlowType::Type(query.declared_type))
     }
 
-    /// [FLOW 6.2] tsc getTypeAtFlowArrayMutation (70588): only
-    /// auto/evolving-array references are affected — neither has a
-    /// producer until evolving arrays land, so no mutation affects any
-    /// reference and the walk continues to the antecedent (tsc's own
-    /// answer for non-evolving references).
-    /// tsc-deferred: M5 (stage 6.2 — evolving arrays)
+    /// tsc-port: getTypeAtFlowArrayMutation @6.0.3
+    /// tsc-hash: deb98a2cbf7993883c992363c63d80d5c290ac8fbaddae91e5ddfb9c684730b3
+    /// tsc-span: _tsc.js:70588-70613
     fn get_type_at_flow_array_mutation(
         &mut self,
-        _query: &mut FlowQuery,
-        _flow: FlowId,
+        query: &mut FlowQuery,
+        flow: FlowId,
     ) -> CheckResult2<Option<FlowType>> {
+        if query.declared_type != self.tables.intrinsics.auto
+            && !self.is_auto_array_type(query.declared_type)
+        {
+            return Ok(None);
+        }
+        let node = self
+            .flow_payload_node(query.file, flow)
+            .expect("ARRAY_MUTATION flow nodes carry a node payload (binder flow.rs)");
+        // CallExpression: `a.push(...)`/`a.unshift(...)` — the
+        // receiver is node.expression.expression; otherwise the
+        // element write `a[i] = ...` — node.left.expression.
+        let (expr, call_arguments, element_write) = match self.data_of(node) {
+            NodeData::CallExpression(data) => {
+                let receiver = data
+                    .expression
+                    .and_then(|callee| self.access_expression_of(callee));
+                (receiver, data.arguments, None)
+            }
+            NodeData::BinaryExpression(data) => {
+                let left = data.left;
+                let receiver = left.and_then(|left| self.access_expression_of(left));
+                let argument = left.and_then(|left| self.element_access_argument_of(left));
+                (receiver, None, Some((argument, data.right)))
+            }
+            _ => (None, None, None),
+        };
+        let Some(expr) = expr else {
+            return Ok(None);
+        };
+        let candidate = self.get_reference_candidate(expr);
+        if !self.is_matching_reference(query.reference, candidate)? {
+            return Ok(None);
+        }
+        let antecedent = self.flow_antecedent(query.file, flow);
+        let flow_type = self.get_type_at_flow_node(query, antecedent)?;
+        let ty = flow_type.get_type();
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(tsrs2_types::ObjectFlags::EVOLVING_ARRAY)
+        {
+            return Ok(Some(flow_type));
+        }
+        let mut evolved = ty;
+        if let Some(arguments) = call_arguments {
+            let arguments: Vec<NodeId> = self.binder.node_array(arguments).nodes.clone();
+            for argument in arguments {
+                evolved = self.add_evolving_array_element_type(evolved, argument)?;
+            }
+        } else if let Some((argument, right)) = element_write {
+            let (Some(argument), Some(right)) = (argument, right) else {
+                return Ok(Some(flow_type));
+            };
+            let index_type = self.get_context_free_type_of_expression(argument)?;
+            if self.is_type_assignable_to_kind(
+                index_type,
+                TypeFlags::NUMBER_LIKE,
+                /*strict*/ false,
+            )? {
+                evolved = self.add_evolving_array_element_type(evolved, right)?;
+            }
+        }
+        Ok(Some(if evolved == ty {
+            flow_type
+        } else {
+            self.create_flow_type(evolved, flow_type.is_incomplete())
+        }))
+    }
+
+    // ---- reachability (6.6 stage; true-stub here) ----
+
+    /// tsc isReachableFlowNode (70240) — [FLOW 6.6] true-stub,
+    /// ledgered: an assignment in unreachable code terminates the walk
+    /// with its assigned type instead of tsc's
+    /// unreachableNever→declared answer (dead-code-only divergence;
+    /// the real single-entry/shared caches and never-call gates are
+    /// the 6.6 stage).
+    /// tsc-deferred: M5 (stage 6.6 — reachability)
+    fn is_reachable_flow_node(&mut self, _file: usize, _flow: FlowId) -> bool {
+        true
+    }
+
+    // ---- initial/assigned types (the assignment arm's inputs) ----
+
+    /// tsc-port: getInitialOrAssignedType @6.0.3
+    /// tsc-hash: e3070980824824baba9d0cf8ac38e6320def32d5a76c367122e85d4ec9d61ab8
+    /// tsc-span: _tsc.js:70495-70501
+    fn get_initial_or_assigned_type(
+        &mut self,
+        query: &FlowQuery,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let ty = if matches!(
+            self.kind_of(node),
+            SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
+        ) {
+            self.get_initial_type(node)?
+        } else {
+            self.get_assigned_type(node)?
+        };
+        self.get_narrowable_type_for_reference(ty, query.reference, CheckMode::NORMAL)
+    }
+
+    /// tsc-port: getInitialType @6.0.3
+    /// tsc-hash: 63033c68f243136b5462ad09aaf856d03ec8fd66970c852a4e68c3ad3e30b8b1
+    /// tsc-span: _tsc.js:69905-69907
+    fn get_initial_type(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if self.kind_of(node) == SyntaxKind::VariableDeclaration {
+            self.get_initial_type_of_variable_declaration(node)
+        } else {
+            self.get_initial_type_of_binding_element(node)
+        }
+    }
+
+    /// tsc-port: getInitialTypeOfVariableDeclaration @6.0.3
+    /// tsc-hash: 5c0b40fb58b0730526a9d0f16bc128e96ad5aec0ac305aadabe5d69de62515a0
+    /// tsc-span: _tsc.js:69893-69904
+    fn get_initial_type_of_variable_declaration(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let initializer = match self.data_of(node) {
+            NodeData::VariableDeclaration(data) => data.initializer,
+            _ => None,
+        };
+        if let Some(initializer) = initializer {
+            return self.get_type_of_initializer(initializer);
+        }
+        let grand = self
+            .parent_of(node)
+            .and_then(|parent| self.parent_of(parent));
+        match grand.map(|grand| self.kind_of(grand)) {
+            Some(SyntaxKind::ForInStatement) => Ok(self.tables.intrinsics.string),
+            Some(SyntaxKind::ForOfStatement) => {
+                self.check_right_hand_side_of_for_of(grand.expect("matched Some above"))
+            }
+            _ => Ok(self.tables.intrinsics.error),
+        }
+    }
+
+    // (getTypeOfInitializer lives in functions.rs — the 5.x
+    // definite-assignment family landed it; consumed as-is.)
+
+    /// tsc-port: getInitialTypeOfBindingElement @6.0.3
+    /// tsc-hash: 82b8468d8756e72241395057d7afda23261a7eaf66b366e487a69a7c69d65c04
+    /// tsc-span: _tsc.js:69883-69888
+    fn get_initial_type_of_binding_element(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let Some(pattern) = self.parent_of(node) else {
+            return Ok(self.tables.intrinsics.error);
+        };
+        let Some(pattern_parent) = self.parent_of(pattern) else {
+            return Ok(self.tables.intrinsics.error);
+        };
+        let parent_type = self.get_initial_type(pattern_parent)?;
+        let (property_name, name, dot_dot_dot, initializer) = match self.data_of(node) {
+            NodeData::BindingElement(data) => (
+                data.property_name,
+                data.name,
+                data.dot_dot_dot_token.is_some(),
+                data.initializer,
+            ),
+            _ => (None, None, false, None),
+        };
+        let ty = if self.kind_of(pattern) == SyntaxKind::ObjectBindingPattern {
+            let Some(name) = property_name.or(name) else {
+                return Ok(self.tables.intrinsics.error);
+            };
+            self.get_type_of_destructured_property(parent_type, name)?
+        } else if !dot_dot_dot {
+            let elements = match self.data_of(pattern) {
+                NodeData::ArrayBindingPattern(data) => data.elements,
+                NodeData::ObjectBindingPattern(data) => data.elements,
+                _ => None,
+            };
+            let index = elements
+                .map(|elements| self.binder.node_array(elements).nodes.clone())
+                .and_then(|nodes| nodes.iter().position(|&element| element == node));
+            let Some(index) = index else {
+                return Ok(self.tables.intrinsics.error);
+            };
+            self.get_type_of_destructured_array_element(parent_type, index)?
+        } else {
+            self.get_type_of_destructured_spread_expression(parent_type)?
+        };
+        self.get_type_with_default(ty, initializer)
+    }
+
+    /// tsc-port: getAssignedType @6.0.3
+    /// tsc-hash: b4b5f7b8b74b9996686651b4ad2a673a3725780eac0b37b285203430a9074a34
+    /// tsc-span: _tsc.js:69861-69882
+    fn get_assigned_type(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(self.tables.intrinsics.error);
+        };
+        match self.kind_of(parent) {
+            SyntaxKind::ForInStatement => Ok(self.tables.intrinsics.string),
+            SyntaxKind::ForOfStatement => self.check_right_hand_side_of_for_of(parent),
+            SyntaxKind::BinaryExpression => self.get_assigned_type_of_binary_expression(parent),
+            SyntaxKind::DeleteExpression => Ok(self.tables.intrinsics.undefined),
+            SyntaxKind::ArrayLiteralExpression => {
+                self.get_assigned_type_of_array_literal_element(parent, node)
+            }
+            SyntaxKind::SpreadElement => self.get_assigned_type_of_spread_expression(parent),
+            SyntaxKind::PropertyAssignment => self.get_assigned_type_of_property_assignment(parent),
+            SyntaxKind::ShorthandPropertyAssignment => {
+                self.get_assigned_type_of_shorthand_property_assignment(parent)
+            }
+            _ => Ok(self.tables.intrinsics.error),
+        }
+    }
+
+    /// tsc-port: getAssignedTypeOfBinaryExpression @6.0.3
+    /// tsc-hash: 6e0d133270223aacd7bb19fb670e68264e38741db9a130f01e77113ecb5ada3d
+    /// tsc-span: _tsc.js:69842-69845
+    fn get_assigned_type_of_binary_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let parent = self.parent_of(node);
+        let is_destructuring_default_assignment = match parent.map(|parent| self.kind_of(parent)) {
+            Some(SyntaxKind::ArrayLiteralExpression) => {
+                self.is_destructuring_assignment_target(parent.expect("matched Some above"))
+            }
+            Some(SyntaxKind::PropertyAssignment) => {
+                let grand = parent.and_then(|parent| self.parent_of(parent));
+                grand.is_some_and(|grand| self.is_destructuring_assignment_target(grand))
+            }
+            _ => false,
+        };
+        let right = match self.data_of(node) {
+            NodeData::BinaryExpression(data) => data.right,
+            _ => None,
+        };
+        let Some(right) = right else {
+            return Ok(self.tables.intrinsics.error);
+        };
+        if is_destructuring_default_assignment {
+            let assigned = self.get_assigned_type(node)?;
+            self.get_type_with_default(assigned, Some(right))
+        } else {
+            self.get_type_of_expression(right)
+        }
+    }
+
+    // (isDestructuringAssignmentTarget lives in expr.rs — consumed
+    // as-is.)
+
+    /// tsc-port: getAssignedTypeOfArrayLiteralElement @6.0.3
+    /// tsc-hash: 81098c3c6834de6d1de1ff1195bd70b934988966adfa1864ae6f331ccfe03fda
+    /// tsc-span: _tsc.js:69849-69851
+    fn get_assigned_type_of_array_literal_element(
+        &mut self,
+        node: NodeId,
+        element: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let elements = match self.data_of(node) {
+            NodeData::ArrayLiteralExpression(data) => data.elements,
+            _ => None,
+        };
+        let index = elements
+            .map(|elements| self.binder.node_array(elements).nodes.clone())
+            .and_then(|nodes| nodes.iter().position(|&e| e == element));
+        let Some(index) = index else {
+            return Ok(self.tables.intrinsics.error);
+        };
+        let assigned = self.get_assigned_type(node)?;
+        self.get_type_of_destructured_array_element(assigned, index)
+    }
+
+    /// tsc-port: getAssignedTypeOfSpreadExpression @6.0.3
+    /// tsc-hash: e93d0e7815a6cd70a1eb5b2205b04f19c38e2564059de6fcf55e4b3e8e64c601
+    /// tsc-span: _tsc.js:69852-69854
+    fn get_assigned_type_of_spread_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(self.tables.intrinsics.error);
+        };
+        let assigned = self.get_assigned_type(parent)?;
+        self.get_type_of_destructured_spread_expression(assigned)
+    }
+
+    /// tsc-port: getAssignedTypeOfPropertyAssignment @6.0.3
+    /// tsc-hash: 1244de4b452537a0da4b8aa1c154266e9e8df9afc185d59c45ea739dbdb0d6b6
+    /// tsc-span: _tsc.js:69855-69857
+    fn get_assigned_type_of_property_assignment(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(self.tables.intrinsics.error);
+        };
+        let name = match self.data_of(node) {
+            NodeData::PropertyAssignment(data) => data.name,
+            NodeData::ShorthandPropertyAssignment(data) => data.name,
+            _ => None,
+        };
+        let Some(name) = name else {
+            return Ok(self.tables.intrinsics.error);
+        };
+        let assigned = self.get_assigned_type(parent)?;
+        self.get_type_of_destructured_property(assigned, name)
+    }
+
+    /// tsc-port: getAssignedTypeOfShorthandPropertyAssignment @6.0.3
+    /// tsc-hash: c048892f3d80b805148217d97d9c203adb1822c18a5c8bc555f35abb9affb571
+    /// tsc-span: _tsc.js:69858-69860
+    fn get_assigned_type_of_shorthand_property_assignment(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let ty = self.get_assigned_type_of_property_assignment(node)?;
+        let initializer = match self.data_of(node) {
+            NodeData::ShorthandPropertyAssignment(data) => data.object_assignment_initializer,
+            _ => None,
+        };
+        self.get_type_with_default(ty, initializer)
+    }
+
+    /// tsc-port: getTypeOfDestructuredProperty @6.0.3
+    /// tsc-hash: b326b9dbfb5842004b39a1ff1fa66676ee9e5a8b507ee9a9f1bba7e56a5e2c0f
+    /// tsc-span: _tsc.js:69813-69819
+    fn get_type_of_destructured_property(
+        &mut self,
+        ty: TypeId,
+        name: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let name_type = self.get_literal_type_from_property_name(name)?;
+        let Some(text) = self.property_name_from_type_usable(name_type) else {
+            return Ok(self.tables.intrinsics.error);
+        };
+        if let Some(prop_type) = self.get_type_of_property_of_type(ty, &text)? {
+            return Ok(prop_type);
+        }
+        let index_type = self.get_applicable_index_info_for_name(ty, &text)?;
+        let included = self.include_undefined_in_index_signature(index_type)?;
+        Ok(included.unwrap_or(self.tables.intrinsics.error))
+    }
+
+    /// tsc-port: getTypeOfDestructuredArrayElement @6.0.3
+    /// tsc-hash: 8c9781fd85428bafe766792b3ffa3a80e5e3eec826bf0dbfd4860fa83aa119e6
+    /// tsc-span: _tsc.js:69820-69828
+    fn get_type_of_destructured_array_element(
+        &mut self,
+        ty: TypeId,
+        index: usize,
+    ) -> CheckResult2<TypeId> {
+        if self.every_type_is_tuple_like(ty)? {
+            if let Some(element) = self.get_tuple_element_type_for_flow(ty, index)? {
+                return Ok(element);
+            }
+        }
+        let undefined = self.tables.intrinsics.undefined;
+        let iterated = self.check_iterated_type_or_element_type(
+            tsrs2_types::IterationUse::DESTRUCTURING,
+            ty,
+            undefined,
+            /*error_node*/ None,
+        )?;
+        let included = self.include_undefined_in_index_signature(Some(iterated))?;
+        Ok(included.unwrap_or(self.tables.intrinsics.error))
+    }
+
+    /// The everyType(type, isTupleLikeType) composition — the union
+    /// traversal with a fallible predicate (constraints.rs every_type
+    /// takes an infallible one).
+    /// tsrs-native: fallible-everyType instance.
+    fn every_type_is_tuple_like(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        let members: Vec<TypeId> = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
+            match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            }
+        } else {
+            vec![ty]
+        };
+        for member in members {
+            if !self.is_tuple_like_type(member)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: getTupleElementType @6.0.3
+    /// tsc-hash: ef850f27e6c5dbe9558b5edb4dfefe99f3f78ee1f7eaa8d04549fd5b092c579f
+    /// tsc-span: _tsc.js:67729-67738
+    fn get_tuple_element_type_for_flow(
+        &mut self,
+        ty: TypeId,
+        index: usize,
+    ) -> CheckResult2<Option<TypeId>> {
+        let prop_type = self.get_type_of_property_of_type(ty, &index.to_string())?;
+        if prop_type.is_some() {
+            return Ok(prop_type);
+        }
+        if self.every_type(ty, |state, t| state.tables.is_tuple_type(t)) {
+            let undefined_or_missing = self
+                .options
+                .no_unchecked_indexed_access
+                .unwrap_or(false)
+                .then_some(self.tables.intrinsics.undefined);
+            return Ok(Some(self.get_tuple_element_type_out_of_start_count(
+                ty,
+                index,
+                undefined_or_missing,
+            )?));
+        }
         Ok(None)
+    }
+
+    /// tsc-port: getTypeOfDestructuredSpreadExpression @6.0.3
+    /// tsc-hash: d0d427e2d9e3fd54b82e148d1cb828841e27fb2904880c204460f11a9183c9a9
+    /// tsc-span: _tsc.js:69833-69841
+    fn get_type_of_destructured_spread_expression(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        let undefined = self.tables.intrinsics.undefined;
+        let iterated = self.check_iterated_type_or_element_type(
+            tsrs2_types::IterationUse::DESTRUCTURING,
+            ty,
+            undefined,
+            /*error_node*/ None,
+        )?;
+        self.create_array_type(iterated, /*readonly*/ false)
+    }
+
+    /// tsc-port: getTypeWithDefault @6.0.3
+    /// tsc-hash: c4b4fcb6572b5b2c45c647b0069654038cb5e114051e6dc0603a205e9e58fc1c
+    /// tsc-span: _tsc.js:69810-69812
+    fn get_type_with_default(
+        &mut self,
+        ty: TypeId,
+        default_expression: Option<NodeId>,
+    ) -> CheckResult2<TypeId> {
+        let Some(default_expression) = default_expression else {
+            return Ok(ty);
+        };
+        let non_undefined = self.get_non_undefined_type(ty)?;
+        let default_type = self.get_type_of_expression(default_expression)?;
+        self.get_union_type_ex(
+            &[non_undefined, default_type],
+            tsrs2_types::UnionReduction::Literal,
+        )
+    }
+
+    // ---- the assignment-reduced-type rule ----
+
+    /// tsc-port: getAssignmentReducedType @6.0.3
+    /// tsc-hash: 9c2e79d09c42d5e9a69ef07cc7808ea2716a843a2d049b1f61265e17fc7f09b9
+    /// tsc-span: _tsc.js:69675-69684
+    fn get_assignment_reduced_type(
+        &mut self,
+        declared: TypeId,
+        assigned: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if declared == assigned {
+            return Ok(declared);
+        }
+        if self.tables.flags_of(assigned).intersects(TypeFlags::NEVER) {
+            return Ok(assigned);
+        }
+        let key = format!("A{},{}", declared.0, assigned.0);
+        if let Some(cached) = self.get_cached_type(&key) {
+            return Ok(cached);
+        }
+        let reduced = self.get_assignment_reduced_type_worker(declared, assigned)?;
+        Ok(self.set_cached_type(key, reduced))
+    }
+
+    /// tsc-port: getAssignmentReducedTypeWorker @6.0.3
+    /// tsc-hash: c70539bf7e2c687bfb647f0e23e68d527b658f555794d2b1335ab76c899a2b0e
+    /// tsc-span: _tsc.js:69685-69689
+    fn get_assignment_reduced_type_worker(
+        &mut self,
+        declared: TypeId,
+        assigned: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let filtered = self.filter_type_with(declared, |state, t| {
+            state.type_maybe_assignable_to(assigned, t)
+        })?;
+        let fresh_boolean = self
+            .tables
+            .flags_of(assigned)
+            .intersects(TypeFlags::BOOLEAN_LITERAL)
+            && self.tables.is_fresh_literal_type(assigned);
+        let reduced = if fresh_boolean {
+            self.map_type(
+                filtered,
+                &mut |state, t| Ok(Some(state.tables.get_fresh_type_of_literal_type(t))),
+                /*no_reductions*/ false,
+            )?
+            .unwrap_or(filtered)
+        } else {
+            filtered
+        };
+        if self.is_type_assignable_to(assigned, reduced)? {
+            Ok(reduced)
+        } else {
+            Ok(declared)
+        }
+    }
+
+    /// tsc-port: typeMaybeAssignableTo @6.0.3
+    /// tsc-hash: 28e858bc4a5c15238844526ffeaeb89e515bf1abf827546d148919d9cc33c71c
+    /// tsc-span: _tsc.js:69664-69674
+    fn type_maybe_assignable_to(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+        if !self.tables.flags_of(source).intersects(TypeFlags::UNION) {
+            return self.is_type_assignable_to(source, target);
+        }
+        let members: Vec<TypeId> = match &self.tables.type_of(source).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => unreachable!("union flag implies union data"),
+        };
+        for member in members {
+            if self.is_type_assignable_to(member, target)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    // ---- reference containment + candidates ----
+
+    /// tsc-port: containsMatchingReference @6.0.3
+    /// tsc-hash: 792f946d12e93e4bda7e12ed10bd21472ebfa560d5a58ca4d3798e674475d22c
+    /// tsc-span: _tsc.js:69544-69552
+    fn contains_matching_reference(
+        &mut self,
+        source: NodeId,
+        target: NodeId,
+    ) -> CheckResult2<bool> {
+        let mut source = source;
+        while matches!(
+            self.kind_of(source),
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+        ) {
+            let Some(expression) = self.access_expression_of(source) else {
+                return Ok(false);
+            };
+            source = expression;
+            if self.is_matching_reference(source, target)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: optionalChainContainsReference @6.0.3
+    /// tsc-hash: 65b554fad85a6151c57fa295260765fcf8a0e52832d14a47c42a10e076d4205c
+    /// tsc-span: _tsc.js:69553-69561
+    fn optional_chain_contains_reference(
+        &mut self,
+        source: NodeId,
+        target: NodeId,
+    ) -> CheckResult2<bool> {
+        let mut source = source;
+        loop {
+            let file_source = self.binder.source_of_node(source);
+            if !node_util::is_optional_chain(file_source, source) {
+                return Ok(false);
+            }
+            let next = match self.data_of(source) {
+                NodeData::PropertyAccessExpression(data) => data.expression,
+                NodeData::ElementAccessExpression(data) => data.expression,
+                NodeData::CallExpression(data) => data.expression,
+                NodeData::NonNullExpression(data) => data.expression,
+                _ => None,
+            };
+            let Some(next) = next else {
+                return Ok(false);
+            };
+            source = next;
+            if self.is_matching_reference(source, target)? {
+                return Ok(true);
+            }
+        }
+    }
+
+    /// tsc-port: getReferenceCandidate @6.0.3
+    /// tsc-hash: a2fb9d33d108f37f4cc17852884a58bc8ff23e81302c72d6c17d16f274694f3c
+    /// tsc-span: _tsc.js:69911-69927
+    pub(crate) fn get_reference_candidate(&self, node: NodeId) -> NodeId {
+        match self.data_of(node) {
+            NodeData::ParenthesizedExpression(data) => {
+                let Some(inner) = data.expression else {
+                    return node;
+                };
+                self.get_reference_candidate(inner)
+            }
+            NodeData::BinaryExpression(data) => {
+                let (left, right, operator) = (data.left, data.right, data.operator_token);
+                let Some(operator) = operator else {
+                    return node;
+                };
+                match self.kind_of(operator) {
+                    SyntaxKind::EqualsToken
+                    | SyntaxKind::BarBarEqualsToken
+                    | SyntaxKind::AmpersandAmpersandEqualsToken
+                    | SyntaxKind::QuestionQuestionEqualsToken => match left {
+                        Some(left) => self.get_reference_candidate(left),
+                        None => node,
+                    },
+                    SyntaxKind::CommaToken => match right {
+                        Some(right) => self.get_reference_candidate(right),
+                        None => node,
+                    },
+                    _ => node,
+                }
+            }
+            _ => node,
+        }
+    }
+
+    /// tsc-port: getReferenceRoot @6.0.3
+    /// tsc-hash: 20b35236e728c6c99463ecf9e08b756b5bdd371bea4cddde41072c860d2a6fb5
+    /// tsc-span: _tsc.js:69928-69931
+    fn get_reference_root(&self, node: NodeId) -> NodeId {
+        let Some(parent) = self.parent_of(node) else {
+            return node;
+        };
+        let hop = match self.data_of(parent) {
+            NodeData::ParenthesizedExpression(_) => true,
+            NodeData::BinaryExpression(data) => {
+                let (left, right, operator) = (data.left, data.right, data.operator_token);
+                match operator.map(|operator| self.kind_of(operator)) {
+                    Some(SyntaxKind::EqualsToken) => left == Some(node),
+                    Some(SyntaxKind::CommaToken) => right == Some(node),
+                    _ => false,
+                }
+            }
+            _ => false,
+        };
+        if hop {
+            self.get_reference_root(parent)
+        } else {
+            node
+        }
+    }
+
+    // ---- assignment-shape predicates ----
+
+    /// tsc-port: isEmptyArrayAssignment @6.0.3
+    /// tsc-hash: 0c0f3358c610a8cb1df1fb9e6b9ec4978a9f7eab447a635a34840ba1b5953483
+    /// tsc-span: _tsc.js:69908-69910
+    fn is_empty_array_assignment(&self, node: NodeId) -> bool {
+        if self.kind_of(node) == SyntaxKind::VariableDeclaration {
+            let initializer = match self.data_of(node) {
+                NodeData::VariableDeclaration(data) => data.initializer,
+                _ => None,
+            };
+            return initializer
+                .is_some_and(|initializer| self.is_empty_array_literal_expr(initializer));
+        }
+        if self.kind_of(node) == SyntaxKind::BindingElement {
+            return false;
+        }
+        let Some(parent) = self.parent_of(node) else {
+            return false;
+        };
+        let right = match self.data_of(parent) {
+            NodeData::BinaryExpression(data) => data.right,
+            _ => None,
+        };
+        right.is_some_and(|right| self.is_empty_array_literal_expr(right))
+    }
+
+    /// tsc-port: isVarConstLike @6.0.3
+    /// tsc-hash: c0803a735166c3246d683c39c34758f3f64d3bbc662a7d99ae6b7673538eb414
+    /// tsc-span: _tsc.js:90557-90560
+    fn is_var_const_like(&self, node: NodeId) -> bool {
+        let source = self.binder.source_of_node(node);
+        let block_scope_kind = node_util::get_combined_node_flags(source, node).bits()
+            & (NodeFlags::LET.bits() | NodeFlags::CONST.bits() | NodeFlags::USING.bits());
+        block_scope_kind == NodeFlags::CONST.bits()
+            || block_scope_kind == NodeFlags::USING.bits()
+            || block_scope_kind == NodeFlags::AWAIT_USING.bits()
+    }
+
+    // ---- evolving (auto) arrays ----
+
+    /// tsc-port: createEvolvingArrayType @6.0.3
+    /// tsc-hash: e2b07f4bd3fcbc2966f008c395f9287c6f5761711cf2fff52b24ad4194d7b3b3
+    /// tsc-span: _tsc.js:70073-70077
+    fn create_evolving_array_type(&mut self, element_type: TypeId) -> TypeId {
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::EvolvingArray { element_type });
+        self.tables.type_mut(id).object_flags = tsrs2_types::ObjectFlags::EVOLVING_ARRAY;
+        id
+    }
+
+    /// tsc-port: getEvolvingArrayType @6.0.3
+    /// tsc-hash: e149735ee643cecc431c10f545d8809562de0b184eedfdded03f1aa112fa8e4d
+    /// tsc-span: _tsc.js:70078-70080
+    pub(crate) fn get_evolving_array_type(&mut self, element_type: TypeId) -> TypeId {
+        if let Some(&cached) = self.evolving_array_types.get(&element_type) {
+            return cached;
+        }
+        let created = self.create_evolving_array_type(element_type);
+        self.evolving_array_types.insert(element_type, created);
+        created
+    }
+
+    /// tsc-port: addEvolvingArrayElementType @6.0.3
+    /// tsc-hash: 32a4fd3e4e26bfd2e736d04db7d89cbbe155c3cf49c02f7573eecc8b9fd2e38b
+    /// tsc-span: _tsc.js:70081-70084
+    fn add_evolving_array_element_type(
+        &mut self,
+        evolving: TypeId,
+        node: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let context_free = self.get_context_free_type_of_expression(node)?;
+        let base = self.get_base_type_of_literal_type(context_free)?;
+        let element_type = self.get_regular_type_of_object_literal(base)?;
+        let TypeData::EvolvingArray {
+            element_type: current,
+        } = self.tables.type_of(evolving).data
+        else {
+            unreachable!("add_evolving_array_element_type takes an evolving array");
+        };
+        if self.is_type_subset_of(element_type, current) {
+            return Ok(evolving);
+        }
+        let union = self.get_union_type_ex(
+            &[current, element_type],
+            tsrs2_types::UnionReduction::Literal,
+        )?;
+        Ok(self.get_evolving_array_type(union))
+    }
+
+    /// tsc-port: createFinalArrayType @6.0.3
+    /// tsc-hash: 38e822f7ad2f07312da4c233c5a17c089b61164ad3b8f2cbaae7e0e4cbb99b69
+    /// tsc-span: _tsc.js:70085-70089
+    fn create_final_array_type(&mut self, element_type: TypeId) -> CheckResult2<TypeId> {
+        if self
+            .tables
+            .flags_of(element_type)
+            .intersects(TypeFlags::NEVER)
+        {
+            return self.auto_array_type();
+        }
+        let element = if self
+            .tables
+            .flags_of(element_type)
+            .intersects(TypeFlags::UNION)
+        {
+            let members: Vec<TypeId> = match &self.tables.type_of(element_type).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            };
+            self.get_union_type_ex(&members, tsrs2_types::UnionReduction::Subtype)?
+        } else {
+            element_type
+        };
+        self.create_array_type(element, /*readonly*/ false)
+    }
+
+    /// tsc-port: getFinalArrayType @6.0.3
+    /// tsc-hash: 5de7069cbb107051b983ecbefcd3d6e654c367fc7b19efe74f11fec3ebb767af
+    /// tsc-span: _tsc.js:70090-70092
+    fn get_final_array_type(&mut self, evolving: TypeId) -> CheckResult2<TypeId> {
+        if let Some(&cached) = self.final_array_types.get(&evolving) {
+            return Ok(cached);
+        }
+        let TypeData::EvolvingArray { element_type } = self.tables.type_of(evolving).data else {
+            unreachable!("get_final_array_type takes an evolving array");
+        };
+        let created = self.create_final_array_type(element_type)?;
+        self.final_array_types.insert(evolving, created);
+        Ok(created)
+    }
+
+    /// tsc-port: finalizeEvolvingArrayType @6.0.3
+    /// tsc-hash: 478346dca64679cb33da37deb844a147fcacbc763ccdc822558e1ecfcfca6901
+    /// tsc-span: _tsc.js:70093-70095
+    pub(crate) fn finalize_evolving_array_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(tsrs2_types::ObjectFlags::EVOLVING_ARRAY)
+        {
+            self.get_final_array_type(ty)
+        } else {
+            Ok(ty)
+        }
+    }
+
+    /// tsc-port: getElementTypeOfEvolvingArrayType @6.0.3
+    /// tsc-hash: 751aa5f1b4fa3e3c9e832085dddee81f03359bbfaa568d3e7bcf1a6391d2d94a
+    /// tsc-span: _tsc.js:70096-70098
+    ///
+    /// [FLOW 6.3] first consumed by getUnionOrEvolvingArrayType.
+    #[allow(dead_code)]
+    pub(crate) fn get_element_type_of_evolving_array_type(&self, ty: TypeId) -> TypeId {
+        if let TypeData::EvolvingArray { element_type } = self.tables.type_of(ty).data {
+            element_type
+        } else {
+            self.tables.intrinsics.never
+        }
+    }
+
+    /// tsc-port: isEvolvingArrayTypeList @6.0.3
+    /// tsc-hash: b93ff435c92bb04a9225f07ba1f069517107c5a8d42957d9bbe12ddc7945c4f4
+    /// tsc-span: _tsc.js:70099-70110
+    ///
+    /// [FLOW 6.3] first consumed by getUnionOrEvolvingArrayType.
+    #[allow(dead_code)]
+    pub(crate) fn is_evolving_array_type_list(&self, types: &[TypeId]) -> bool {
+        let mut has_evolving_array_type = false;
+        for &ty in types {
+            if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
+                continue;
+            }
+            if !self
+                .tables
+                .object_flags_of(ty)
+                .intersects(tsrs2_types::ObjectFlags::EVOLVING_ARRAY)
+            {
+                return false;
+            }
+            has_evolving_array_type = true;
+        }
+        has_evolving_array_type
+    }
+
+    /// tsc-port: isEvolvingArrayOperationTarget @6.0.3
+    /// tsc-hash: 952c9cdadcc0204fcaa726dfc86ec9b7259039a58ab7349b77718a4e145f0875
+    /// tsc-span: _tsc.js:70111-70117
+    pub(crate) fn is_evolving_array_operation_target(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<bool> {
+        let root = self.get_reference_root(node);
+        let Some(parent) = self.parent_of(root) else {
+            return Ok(false);
+        };
+        if self.kind_of(parent) == SyntaxKind::PropertyAccessExpression {
+            let name = match self.data_of(parent) {
+                NodeData::PropertyAccessExpression(data) => data.name,
+                _ => None,
+            };
+            let name_is_identifier =
+                name.is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier);
+            let name_text = self.escaped_text_of(name).map(str::to_owned);
+            let grand_is_call = self
+                .parent_of(parent)
+                .is_some_and(|grand| self.kind_of(grand) == SyntaxKind::CallExpression);
+            // isPushOrUnshiftIdentifier (15983) folded into the match.
+            let is_length_push_or_unshift = name_text.as_deref() == Some("length")
+                || (grand_is_call
+                    && name_is_identifier
+                    && matches!(name_text.as_deref(), Some("push") | Some("unshift")));
+            if is_length_push_or_unshift {
+                return Ok(true);
+            }
+        }
+        if self.kind_of(parent) == SyntaxKind::ElementAccessExpression {
+            let (expression, argument) = match self.data_of(parent) {
+                NodeData::ElementAccessExpression(data) => {
+                    (data.expression, data.argument_expression)
+                }
+                _ => (None, None),
+            };
+            if expression == Some(root) {
+                let Some(grand) = self.parent_of(parent) else {
+                    return Ok(false);
+                };
+                let (left, operator) = match self.data_of(grand) {
+                    NodeData::BinaryExpression(data) => (data.left, data.operator_token),
+                    _ => (None, None),
+                };
+                if operator
+                    .is_some_and(|operator| self.kind_of(operator) == SyntaxKind::EqualsToken)
+                    && left == Some(parent)
+                    && self.get_assignment_target_kind(grand) == crate::expr::AssignmentKind::None
+                {
+                    if let Some(argument) = argument {
+                        let index_type = self.get_type_of_expression(argument)?;
+                        return self.is_type_assignable_to_kind(
+                            index_type,
+                            TypeFlags::NUMBER_LIKE,
+                            /*strict*/ false,
+                        );
+                    }
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    // ---- declared-type optionality (the checkIdentifier ladder) ----
+
+    /// tsc-port: removeOptionalityFromDeclaredType @6.0.3
+    /// tsc-hash: bf6f7efd9a22cf9d77a9e882414496b8dafc82e6dd53d3307c400084a7d1103c
+    /// tsc-span: _tsc.js:71618-71621
+    pub(crate) fn remove_optionality_from_declared_type(
+        &mut self,
+        declared_type: TypeId,
+        declaration: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let strict_null_checks = self
+            .options
+            .strict_option_value(self.options.strict_null_checks);
+        let has_initializer = matches!(
+            self.data_of(declaration),
+            NodeData::Parameter(data) if data.initializer.is_some()
+        );
+        let remove_undefined = strict_null_checks
+            && self.kind_of(declaration) == SyntaxKind::Parameter
+            && has_initializer
+            && self.has_type_facts(declared_type, tsrs2_types::TypeFacts::IS_UNDEFINED)?
+            && !self.parameter_initializer_contains_undefined(declaration)?;
+        if remove_undefined {
+            self.get_type_with_facts(declared_type, tsrs2_types::TypeFacts::NE_UNDEFINED)
+        } else {
+            Ok(declared_type)
+        }
+    }
+
+    /// tsc-port: parameterInitializerContainsUndefined @6.0.3
+    /// tsc-hash: 63964a337ce0197adec292e2db7bdd00b0ce4cdf7033fb39ddecc833bd35cb35
+    /// tsc-span: _tsc.js:71602-71617
+    ///
+    /// tsc cannot fail mid-resolution; ours can unwind
+    /// (checkDeclarationInitializer), so the pushed resolution entry
+    /// pops on the Err path too (the unwind invariant).
+    fn parameter_initializer_contains_undefined(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult2<bool> {
+        if let Some(cached) = self
+            .links
+            .node(declaration)
+            .parameter_initializer_contains_undefined
+        {
+            return Ok(cached);
+        }
+        if !self.push_type_resolution(
+            crate::state::ResolutionTarget::Node(declaration),
+            tsrs2_types::TypeSystemPropertyName::PARAMETER_INITIALIZER_CONTAINS_UNDEFINED,
+        ) {
+            let symbol = self.get_symbol_of_declaration(declaration)?;
+            self.report_circularity_error(symbol);
+            return Ok(true);
+        }
+        let initializer_type =
+            match self.check_declaration_initializer(declaration, CheckMode::NORMAL, None) {
+                Ok(ty) => ty,
+                Err(unwind) => {
+                    self.pop_type_resolution();
+                    return Err(unwind);
+                }
+            };
+        let contains =
+            match self.has_type_facts(initializer_type, tsrs2_types::TypeFacts::IS_UNDEFINED) {
+                Ok(contains) => contains,
+                Err(unwind) => {
+                    self.pop_type_resolution();
+                    return Err(unwind);
+                }
+            };
+        if !self.pop_type_resolution() {
+            let symbol = self.get_symbol_of_declaration(declaration)?;
+            self.report_circularity_error(symbol);
+            return Ok(true);
+        }
+        if self
+            .links
+            .node(declaration)
+            .parameter_initializer_contains_undefined
+            .is_none()
+        {
+            self.links
+                .set_node_parameter_initializer_contains_undefined(
+                    self.speculation_depth,
+                    declaration,
+                    contains,
+                );
+        }
+        Ok(contains)
     }
 
     // ---- isMatchingReference — narrowing's identity gate ----
@@ -565,10 +1693,8 @@ impl<'a> CheckerState<'a> {
 
 /// The 6.1 PRELUDE UNIT (m5-flow-steps.md: isMatchingReference +
 /// getAccessedPropertyName move up from the old 6.5 slot): ported
-/// complete and DIRECT per checker-key §4.6, first consumed by the
-/// 6.2 assignment arm and every 6.4 narrower — the allow comes off
-/// with the first consumer.
-#[allow(dead_code)]
+/// complete and DIRECT per checker-key §4.6, consumed from 6.2 on by
+/// the assignment/array-mutation arms (the 6.4 narrowers join later).
 impl<'a> CheckerState<'a> {
     /// tsc-port: isMatchingReference @6.0.3
     /// tsc-hash: bfcd27bb28aba7f547933de9d45ca18c2e2882c8be48e69afead82e127fca6b7

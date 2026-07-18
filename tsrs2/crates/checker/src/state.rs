@@ -353,6 +353,23 @@ pub struct CheckerState<'a> {
         (usize, tsrs2_binder::flow::FlowId),
         Vec<tsrs2_binder::flow::FlowId>,
     >,
+    /// tsc evolvingArrayTypes (70079): elementType→evolving-array memo
+    /// (tsc indexes a sparse array by elementType.id).
+    pub(crate) evolving_array_types: std::collections::HashMap<TypeId, TypeId>,
+    /// tsc EvolvingArrayType.finalArrayType (getFinalArrayType 70091):
+    /// evolving→final memo — the arena Type is immutable once minted,
+    /// so the per-type lazy slot lives here.
+    pub(crate) final_array_types: std::collections::HashMap<TypeId, TypeId>,
+    /// tsrs-native 6.2 SEAM (retires when 6.3 joins + 6.4 narrowers
+    /// land): true iff the most recently COMPLETED top-level flow
+    /// query walked through a still-inert arm (condition/switch/
+    /// branch-label/loop-label). Such a query's answer was forced back
+    /// to the 6.1 behavior (declared type, auto-converted) because the
+    /// inert arms cannot reproduce tsc's narrowing; the initialType
+    /// ladder sites read this flag IMMEDIATELY after their
+    /// get_flow_type_of_reference call to keep the 2454/2565 seam
+    /// partial-marked instead of misreporting on stub-traversed paths.
+    pub(crate) flow_last_query_inert: bool,
 
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
@@ -682,6 +699,9 @@ impl<'a> CheckerState<'a> {
             flow_analysis_disabled: false,
             shared_flow: Vec::new(),
             reduce_label_overrides: std::collections::HashMap::new(),
+            evolving_array_types: std::collections::HashMap::new(),
+            final_array_types: std::collections::HashMap::new(),
+            flow_last_query_inert: false,
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
             potential_this_collisions: Vec::new(),
@@ -1144,7 +1164,19 @@ impl<'a> CheckerState<'a> {
                 };
                 self.links.symbol(symbol).write_type.resolved().is_some()
             }
-            // ParameterInitializerContainsUndefined lands with 5.8.
+            TypeSystemPropertyName::PARAMETER_INITIALIZER_CONTAINS_UNDEFINED => {
+                let ResolutionTarget::Node(node) = target else {
+                    unreachable!(
+                        "ParameterInitializerContainsUndefined resolution targets are nodes"
+                    );
+                };
+                // `links.parameterInitializerContainsUndefined !== undefined`
+                // (55773).
+                self.links
+                    .node(node)
+                    .parameter_initializer_contains_undefined
+                    .is_some()
+            }
             _ => unreachable!(
                 "no pushTypeResolution call site passes {property_name:?} yet (owning stage per M4 doc)"
             ),

@@ -738,53 +738,64 @@ impl<'a> CheckerState<'a> {
                     NodeData::VariableDeclaration(data) if data.exclamation_token.is_some()
                 ))
             || self.node_flags(declaration) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0;
-        // [FLOW 6.2] the initialType ladder (72198 —
-        // removeOptionalityFromDeclaredType/getOptionalType/
-        // undefinedType selection) activates WITH the real assignment
-        // arm: until assignments terminate the walk faithfully, an
-        // undefined-bearing initial type would misreport 2454 on
-        // assigned paths. `initial` stays the declared type here, so
-        // the 6.1 walk is observably the M4 stub (the stage's
-        // rate-neutrality verification).
-        let flow_type = if is_automatic_type_in_non_null {
-            // getNonNullableType of the flow type; auto has no
-            // producer until 6.2 evolving arrays, so this arm cannot
-            // fire yet.
-            unreachable!("autoType has no producer until 6.2 evolving arrays")
+        // The initialType ladder (72198): live from 6.2 — the real
+        // assignment arm terminates walks before the initial type can
+        // resurrect at assigned uses.
+        let initial_type = if is_automatic_type_in_non_null {
+            self.tables.intrinsics.undefined
+        } else if assume_initialized {
+            if is_parameter {
+                self.remove_optionality_from_declared_type(ty, declaration)?
+            } else {
+                ty
+            }
+        } else if type_is_automatic {
+            self.tables.intrinsics.undefined
         } else {
-            self.get_flow_type_of_reference(node, ty, ty, flow_container)?
+            self.get_optional_type(ty, /*is_property*/ false)?
         };
-        let is_uninitialized_variable_declaration =
-            immediate_declaration.is_some_and(|declaration| {
-                matches!(
-                    self.data_of(declaration),
-                    NodeData::VariableDeclaration(data)
-                        if data.initializer.is_none() && data.exclamation_token.is_none()
-                )
-            });
-        if is_uninitialized_variable_declaration
-            && !self.contains_undefined_type(ty)
-            && assignment_kind == AssignmentKind::None
-        {
-            // The M5 flow seam cannot yet tell whether this reference
-            // should produce 2454. Mark this reference partial so an
-            // absent row cannot be misreported as an unused
-            // expectation without hiding unrelated directives.
-            self.mark_partially_checked_node(
-                node,
-                "flow-sensitive use-before-assignment diagnostic (M5)",
-            );
-        }
-        if type_is_automatic {
-            // The 7034/7005 auto-type arm: no producer assigns
-            // auto/autoArrayType to a symbol until 5.6.
-            unreachable!("autoType has no producer until 5.6 evolving types");
+        let flow_type = if is_automatic_type_in_non_null {
+            let flowed = self.get_flow_type_of_reference(node, ty, initial_type, flow_container)?;
+            self.get_non_nullable_type(flowed)?
+        } else {
+            self.get_flow_type_of_reference(node, ty, initial_type, flow_container)?
+        };
+        // Captured IMMEDIATELY: later calls in this chain
+        // (isEvolvingArrayOperationTarget types the index expression)
+        // can run nested flow queries that overwrite the mirror.
+        let flow_query_inert = self.flow_last_query_inert;
+        // 72203-72212: the auto-arm / 2454 else-if chain. A query that
+        // crossed an inert 6.3/6.4 arm answered the declared type
+        // (flow.rs 6.2 seam), so neither arm can fire from it — the
+        // added third arm partial-marks that undecidable position.
+        if !self.is_evolving_array_operation_target(node)? && type_is_automatic {
+            if flow_type == self.tables.intrinsics.auto || self.is_auto_array_type(flow_type) {
+                let no_implicit_any = self
+                    .options
+                    .strict_option_value(self.options.no_implicit_any);
+                if no_implicit_any {
+                    let display = self.symbol_display_name(symbol);
+                    let type_display = self.type_to_string_slice(flow_type)?;
+                    let source = self.binder.source_of_node(declaration);
+                    let name = node_util::get_name_of_declaration(source, declaration)
+                        .unwrap_or(declaration);
+                    self.error_at(
+                        Some(name),
+                        &diagnostics::Variable_0_implicitly_has_type_1_in_some_locations_where_its_type_cannot_be_determined,
+                        &[&display, &type_display],
+                    );
+                    self.error_at(
+                        Some(node),
+                        &diagnostics::Variable_0_implicitly_has_an_1_type,
+                        &[&display, &type_display],
+                    );
+                }
+                return self.convert_auto_to_any(flow_type);
+            }
         } else if !assume_initialized
             && !self.contains_undefined_type(ty)
             && self.contains_undefined_type(flow_type)
         {
-            // 2454 — self-deactivated under the [FLOW] stub
-            // (flowType == type); M5 activates.
             let display = self.symbol_display_name(symbol);
             self.error_at(
                 Some(node),
@@ -792,6 +803,15 @@ impl<'a> CheckerState<'a> {
                 &[&display],
             );
             return Ok(ty);
+        } else if !assume_initialized && !self.contains_undefined_type(ty) && flow_query_inert {
+            // 6.2 seam: the walk crossed a still-inert arm, so a
+            // join/condition-dependent 2454 is undecidable until
+            // 6.3/6.4 — keep the position partial instead of
+            // misreporting in either direction.
+            self.mark_partially_checked_node(
+                node,
+                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
+            );
         }
         Ok(if assignment_kind != AssignmentKind::None {
             self.get_base_type_of_literal_type(flow_type)?
@@ -1646,9 +1666,10 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc isDestructuringAssignmentTarget (76226-adjacent usage site):
-    /// `parent.parent` participates in a destructuring assignment.
-    fn is_destructuring_assignment_target(&self, parent: NodeId) -> bool {
+    /// tsc-port: isDestructuringAssignmentTarget @6.0.3
+    /// tsc-hash: a5e71af9eecaf08aeb0732f21d8c1df825eff9e387c27bc8e3df4ac293ecb691
+    /// tsc-span: _tsc.js:69846-69848
+    pub(crate) fn is_destructuring_assignment_target(&self, parent: NodeId) -> bool {
         let Some(grand) = self.parent_of(parent) else {
             return false;
         };
@@ -1659,9 +1680,10 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc isCompoundLikeAssignment + isInCompoundLikeAssignment
-    /// (15600-15611).
-    fn is_in_compound_like_assignment(&self, node: NodeId) -> bool {
+    /// tsc-port: isInCompoundLikeAssignment @6.0.3 (isCompoundLikeAssignment inlined)
+    /// tsc-hash: e1131cae2e76fffc1d384567e249fa5884420b859b6e4168ec7184b35bf2402a
+    /// tsc-span: _tsc.js:15600-15611
+    pub(crate) fn is_in_compound_like_assignment(&self, node: NodeId) -> bool {
         let Some(target) = self.get_assignment_target(node) else {
             return false;
         };
@@ -1705,13 +1727,11 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::UNDEFINED)
     }
 
-    /// globals.rs auto_array_type is lazily minted; identity-test
-    /// without forcing it (an unminted auto-array cannot equal `ty`).
-    fn is_auto_array_type(&self, _ty: TypeId) -> bool {
-        // autoArrayType has no producer until 5.6 evolving types; the
-        // memoized global is never minted by 5.5a paths, so the
-        // identity test is constant-false.
-        false
+    /// tsrs-native: the `type === autoArrayType` identity test over
+    /// the lazily-minted globals.rs memo — an unminted auto-array
+    /// cannot equal `ty`, so the probe never forces the mint.
+    pub(crate) fn is_auto_array_type(&self, ty: TypeId) -> bool {
+        self.global_type_memos.auto_array == Some(ty)
     }
 
     // ---- access kind (isWriteOnlyAccess for getResolvedSymbol) ----
@@ -3886,9 +3906,9 @@ mod tests {
             &CompilerOptions::default(),
             |state| {
                 state.check_source_file(0);
-                // Oracle also reports 2454 (used before being
-                // assigned) — flow analysis, M5 FN.
-                assert_eq!(rows(state), [(2448, 0, 1)]);
+                // 2454 rides along since 6.2 (the flipped initialType
+                // ladder + real assignment arm) — oracle parity.
+                assert_eq!(rows(state), [(2448, 0, 1), (2454, 0, 1)]);
                 let diag = &state.diagnostics[0];
                 assert_eq!(diag.related.len(), 1);
                 assert_eq!(diag.related[0].message.code, 2728);
@@ -3920,8 +3940,9 @@ mod tests {
 
     #[test]
     fn var_used_before_declaration_is_not_tdz() {
-        // Oracle reports 2454 (flow, M5 FN); no TDZ for var.
-        assert_eq!(checked_rows("v;\nvar v: number;\n"), []);
+        // No TDZ for var; the oracle's 2454 fires since 6.2 (flipped
+        // initialType ladder + real assignment arm).
+        assert_eq!(checked_rows("v;\nvar v: number;\n"), [(2454, 0, 1)]);
     }
 
     // ---- ambient statement grammar — oracle-pinned ----
