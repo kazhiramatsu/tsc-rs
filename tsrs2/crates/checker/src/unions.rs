@@ -329,9 +329,14 @@ impl<'a> CheckerState<'a> {
     ///
     /// Returns None on the complexity overflow (the caller yields
     /// errorType; the 2799-family diagnostic is deferred with error
-    /// reporting). M4 rows report Unsupported: type parameters with
-    /// union constraints, class-derivation checks (getTargetType/
-    /// isTypeDerivedFrom never fire — no class references exist).
+    /// reporting). KNOWN-GAP since M4 (m4-review B5) — silently
+    /// absent, not escaped: the TypeParameter-with-union-constraint
+    /// arm (61386: probe source against the union of the others) and
+    /// the class-derivation exception on the removal guard (61411:
+    /// two Class targets only reduce via isTypeDerivedFrom). Class
+    /// references and constrained type parameters are constructible
+    /// since M4 — the old "never fire" justification is false — so
+    /// Subtype-reduced union composition diverges on those shapes.
     fn remove_subtypes(
         &mut self,
         mut types: Vec<TypeId>,
@@ -426,9 +431,11 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                     if self.is_type_strict_subtype_of(source, target)? {
-                        // Class-derivation exception (61407): class
-                        // references are unconstructible before M4, so
-                        // the guard passes.
+                        // KNOWN-GAP (m4-review B5): tsc 61411 also
+                        // requires `!(Class source) || !(Class target)
+                        // || isTypeDerivedFrom` before removing —
+                        // class references exist since M4 and this
+                        // unguarded removal over-reduces them.
                         types.remove(i);
                         break;
                     }

@@ -274,7 +274,7 @@ fn filter_by_comment_directives_and_mark_used(
 
 fn mark_comment_directives_for_partial_ranges(
     source: &tsrs2_syntax::SourceFile,
-    partial_ranges: &[(u32, u32, bool)],
+    partial_ranges: &[(u32, u32)],
     used_directive_lines: &mut std::collections::HashSet<usize>,
 ) {
     if source.comment_directives.is_empty() || partial_ranges.is_empty() {
@@ -294,25 +294,7 @@ fn mark_comment_directives_for_partial_ranges(
         .map(|directive| line_of_byte(directive.end as usize))
         .collect();
 
-    // A directive INSIDE a wholly-unchecked subtree (exempt_inner
-    // ranges — a body the port never entered) guards code that was
-    // never looked at, so it is exempt from 2578 (m4-review S8: the
-    // obj-literal accessor body face). Plain containment ranges keep
-    // the preceding-directive-only rule below — their inner rows
-    // fired before the unwind (the mapped-type pin).
-    for directive in &source.comment_directives {
-        let end = directive.end as usize;
-        if partial_ranges
-            .iter()
-            .any(|&(start, range_end, exempt_inner)| {
-                exempt_inner && ((start as usize)..(range_end as usize)).contains(&end)
-            })
-        {
-            used_directive_lines.insert(line_of_byte(end));
-        }
-    }
-
-    for &(start, _, _) in partial_ranges {
+    for &(start, _) in partial_ranges {
         let start = tsrs2_syntax::skip_trivia(text, start as usize);
         let start_utf16 = source
             .line_map
@@ -3209,10 +3191,11 @@ mod tests {
     fn expect_error_inside_contained_object_accessor_body_is_exempt() {
         // m4-review S8 (oracle: vendored tsc 6.0.3, noLib, strict,
         // 2026-07-19): clean — the directive consumes the body's
-        // 2322. The obj-literal accessor's deferred subset contains
-        // (get_type_of_accessors is M6 territory) and must record its
-        // partial range so the directive is exempted; pre-fix the
-        // unrecorded containment surfaced a 2578.
+        // 2322. Since the A2 routing (checkAccessorDeclaration owns
+        // the deferred obj-literal accessor) the body is genuinely
+        // checked and the suppression marks the directive used —
+        // tsc's own mechanism; the S8-era wholly-unchecked-subtree
+        // exemption is retired.
         assert_eq!(
             codes_of(
                 "const o = {\n    get x() {\n        // @ts-expect-error\n        let a: number = \"s\";\n        return 1;\n    },\n};\n"

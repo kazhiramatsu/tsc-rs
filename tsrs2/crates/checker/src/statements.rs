@@ -960,9 +960,11 @@ impl<'a> CheckerState<'a> {
         );
         if !in_for_in_or_of {
             if node_flags.intersects(NodeFlags::AMBIENT) {
-                if self.check_ambient_initializer(node)? {
-                    return Ok(true);
-                }
+                // 90076: the ambient-initializer report neither
+                // short-circuits nor feeds the did-report result —
+                // the exclamation/ESModule/let-name tails still run
+                // (m4-review B28).
+                self.check_ambient_initializer(node)?;
             } else if initializer.is_none() {
                 if name_is_pattern
                     && !self.parent_of(node).is_some_and(|parent| {
@@ -3695,6 +3697,42 @@ mod tests {
                 "interface Array<T> { length: number }\ntype T1 = [...string[], number?];\ntype T2 = [number?, string];\ntype T3 = [...number, string];\n"
             ),
             [(1266, 62, 7), (1257, 92, 6), (2574, 112, 9)]
+        );
+    }
+
+    // ---- m4-review B28: checkGrammarVariableDeclaration's ambient
+    // report falls through (oracle: vendored tsc 6.0.3, noLib,
+    // strict, 2026-07-19) — the let-name 2480 and the
+    // definite-assignment 1263 tails still run after 1039.
+
+    #[test]
+    fn ambient_initializer_falls_through_to_let_name_2480() {
+        // Insertion order: the ambient 1039 lands before the let-name
+        // tail; the program layer sorts by position like tsc.
+        assert_eq!(
+            checked_rows("declare const let: number = 1;\n"),
+            [(1039, 28, 1), (2480, 14, 3)]
+        );
+    }
+
+    #[test]
+    fn ambient_initializer_falls_through_to_definite_assignment_1263() {
+        assert_eq!(
+            checked_rows("declare let x!: string = \"a\";\n"),
+            [(1039, 25, 3), (1263, 13, 1)]
+        );
+    }
+
+    #[test]
+    fn ambient_definite_assignment_without_initializer_reports_1255() {
+        assert_eq!(checked_rows("declare var v!: number;\n"), [(1255, 13, 1)]);
+    }
+
+    #[test]
+    fn ambient_export_initializer_reports_1039_only() {
+        assert_eq!(
+            checked_rows("namespace N { export declare let w: string = \"x\"; }\n"),
+            [(1039, 45, 3)]
         );
     }
 }

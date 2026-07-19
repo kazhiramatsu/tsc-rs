@@ -3405,9 +3405,13 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// tsc parameterIsThisKeyword: parameter whose name is the `this`
-    /// identifier.
-    fn parameter_is_this_keyword(&self, parameter: NodeId) -> bool {
+    /// tsc-port: parameterIsThisKeyword @6.0.3
+    /// tsc-hash: 3215829ad60b623fc69b5eeadd41463c7bfa4b908d89b2414b42611f2b09ecca
+    /// tsc-span: _tsc.js:16695-16697
+    ///
+    /// isThisIdentifier folded in: a parameter whose name is the
+    /// `this` identifier.
+    pub(crate) fn parameter_is_this_keyword(&self, parameter: NodeId) -> bool {
         matches!(
             self.data_of(parameter),
             NodeData::Parameter(data)
@@ -3450,6 +3454,21 @@ impl<'a> CheckerState<'a> {
             .first()
             .copied()
             .filter(|&p| self.parameter_is_this_keyword(p))
+    }
+
+    /// tsc-port: getSetAccessorValueParameter @6.0.3
+    /// tsc-hash: d12a93790d1e56b73f20ac27e670c2f318a1f18ae0abc802a1318c43ab253818
+    /// tsc-span: _tsc.js:16677-16682
+    ///
+    /// The value parameter skips a leading `this` only in the exact
+    /// two-parameter shape (obj-literal accessors may declare one).
+    pub(crate) fn set_accessor_value_parameter(&self, accessor: NodeId) -> Option<NodeId> {
+        let parameters = self.parameters_of_function(accessor);
+        if parameters.is_empty() {
+            return None;
+        }
+        let has_this = parameters.len() == 2 && self.parameter_is_this_keyword(parameters[0]);
+        parameters.get(usize::from(has_this)).copied()
     }
 
     /// tsc getEffectiveTypeAnnotationNode, TS half: the declaration's
@@ -3548,10 +3567,12 @@ impl<'a> CheckerState<'a> {
                     .copied()
                     .find(|&d| self.kind_of(d) == SyntaxKind::SetAccessor);
                 if let Some(setter) = setter {
+                    // getAnnotatedAccessorType(setter) rides
+                    // getSetAccessorValueParameter — a leading `this`
+                    // parameter is skipped (the A2-exposed FP root).
                     let annotated = self
-                        .parameters_of_function(setter)
-                        .first()
-                        .and_then(|&p| self.effective_type_annotation_node(p));
+                        .set_accessor_value_parameter(setter)
+                        .and_then(|p| self.effective_type_annotation_node(p));
                     if let Some(annotated) = annotated {
                         return Ok(Some(self.get_type_from_type_node(annotated)?));
                     }

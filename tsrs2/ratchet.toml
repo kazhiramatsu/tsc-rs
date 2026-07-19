@@ -81,8 +81,15 @@
 # leg), static-private assertion targets (exports-side mangled-key
 # recovery), and the seam-registry face-coverage fixes (bounded
 # composite probe; see m5-flow-steps.md post-close section).
-rate = 0.537288
-matched = 26340
+# m4 post-review slice 2 (a-class FN): +105 — checkSignatureDeclaration
+# wired for expression forms (2677/2505/1064/2370 bands), obj-literal
+# accessor bodies route through the whole checkAccessorDeclaration
+# (+ the getSetAccessorValueParameter this-skip the routing exposed),
+# the auto-accessor type ladder (annotation/widened-initializer/
+# implicit-any + write type), bigint radix literal types, and the
+# ambient variable-declaration grammar fall-through (2480/1263).
+rate = 0.53943
+matched = 26445
 total = 49024
 allowed_regression = 0.0
 
@@ -105,8 +112,9 @@ allowed_regression = 0.0
 # m5 6.6g review fixes: +10 (see the T0 comment).
 # m5 close: +8 with the checkTypePredicate tail (see the T0 comment).
 # m5 post-close review: +100 (see the T0 comment).
-rate = 0.755736
-matched = 15909
+# m4 post-review slice 2 (a-class FN): +85 (see the T0 comment).
+rate = 0.759774
+matched = 15994
 total = 21051
 allowed_regression = 0.0
 

@@ -1873,9 +1873,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if source_is_abstract && !target_is_abstract {
                 return Ok(Ternary::FALSE);
             }
-            // constructorVisibilitiesAreCompatible: accessibility
-            // modifiers on constructors are M4 class members; type
-            // annotation constructors are always public.
+            // KNOWN-GAP since M4 (m4-review B4):
+            // constructorVisibilitiesAreCompatible is skipped —
+            // private/protected constructors are constructible class
+            // members since M4 (the "always public" claim is false),
+            // so a private-ctor class assigned to a construct
+            // signature misses its 2322 (probed).
         }
         let mut result = Ternary::TRUE;
         if source_signatures.len() == 1 && target_signatures.len() == 1 {
@@ -3323,12 +3326,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 21791f74b0558b599db3de8950d26bd93152bbb62c3e250727503334167bf713
     /// tsc-span: _tsc.js:59101-59245
     ///
-    /// M3 slice: no accessors, no private/protected/static members, no
-    /// instantiation merging, no write types; the >2-constituent
-    /// DeferredType branch computes eagerly (semantics identical, the
-    /// deferral is a perf cache). Index fallbacks for union members
-    /// route through the applicable-index machinery; tuple rest types
-    /// are M4.
+    /// M3-slice residue, KNOWN-DIVERGENT since M4 (m4-review A5,
+    /// M6-start bar): tsc 59144-59152 folds each member's modifiers
+    /// into ContainsPublic/Protected/Private/Static — this port sets
+    /// CONTAINS_PUBLIC unconditionally, so the private/protected
+    /// union bail-out, the never-reduction arm, and the synthetic
+    /// modifier reader downstream never see the non-public flags;
+    /// the same tsc region's mergedInstantiations / writeTypes /
+    /// nameType propagation is dropped too. Still true: the DeferredType
+    /// branch (over two constituents) computes eagerly — semantics
+    /// identical, the deferral is a perf cache — and union-member
+    /// index fallbacks route through the applicable-index machinery.
     fn create_union_or_intersection_property(
         &mut self,
         containing_type: TypeId,
@@ -3763,7 +3771,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fcdbe6c1dadf0af5c346ddc29a02ffa65512065b6bc19855678ad12c7585ea04
     /// tsc-span: _tsc.js:67895-67898
     ///
-    /// Enum/ValueModule/ObjectRestType/ReverseMapped arms are M4.
+    /// KNOWN-GAP since M4 (m4-review B6): tsc's symbol-flag mask also
+    /// accepts Enum | ValueModule — enums and namespaces are
+    /// constructible since M4 (the old "arms are M4" framing lapsed),
+    /// so a namespace value assigned against an index-signature
+    /// target misses the inferable-index path (probed 2322 FP class).
+    /// The ObjectRestType / ReverseMapped disjuncts stay out with
+    /// their unconstructed producers.
     fn is_object_type_with_inferable_index(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
