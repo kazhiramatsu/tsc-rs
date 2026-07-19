@@ -262,6 +262,16 @@ impl<'a> CheckerState<'a> {
     /// initialization-time diagnostics are filtered at the program
     /// assembly layer so the complete per-file bind/check stream is
     /// suppressed while syntax diagnostics remain visible.
+    ///
+    /// KNOWN-GAP since M4 (m4-review B31): the other worker arms —
+    /// @ts-nocheck, checkJs-off JS files, noCheck — are missing, so
+    /// those files are CHECKED and their rows dropped at the output
+    /// stage, where tsc never checks them at all. Two exposures: any
+    /// file-less diagnostic such a check produces becomes an FP once
+    /// the B30 global-merge regime lands (the two land together —
+    /// m7-tail-steps.md 8.5), and checking files tsc skips writes
+    /// shared caches in an order tsc never runs (an M6-era
+    /// order-sensitivity risk).
     fn skip_type_checking(&self, root: NodeId) -> bool {
         self.options.skip_lib_check == Some(true)
             && self.binder.source_of_node(root).is_declaration_file

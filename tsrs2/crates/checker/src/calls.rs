@@ -5358,10 +5358,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77718-77767
     ///
     /// Serves `import(...)` AND `import.defer(...)` (the meta-property
-    /// callee flavor). Module resolution is unmodeled: the
-    /// resolveExternalModuleName read is a SILENT None stub (marked
-    /// below) — fabricating 2307 here would FP on multi-file fixtures,
-    /// and resolvable-module return types stay Promise<any> (FN-safe).
+    /// callee flavor). Module resolution is LIVE: the
+    /// resolveExternalModuleName read below is the real M4 5.8d
+    /// worker (the "SILENT None stub" era ended there; the stale
+    /// header outlived it — m4-review F8), and resolved modules
+    /// produce real Promise-wrapped module types.
     pub(crate) fn check_import_call_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         self.check_grammar_import_call_expression(node);
         let NodeData::CallExpression(data) = self.data_of(node) else {

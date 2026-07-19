@@ -312,15 +312,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 496749dd0e04e2129dd7349f4799f3f91892cca966e406f1ac715496704e4071
     /// tsc-span: _tsc.js:67987-67996
     ///
-    /// undefinedOrMissingType = undefinedType (exactOptionalPropertyTypes
-    /// is unmodeled — absent from CompilerOptions, default false).
+    /// undefinedOrMissingType, like the sister consumers
+    /// (literals.rs tuple elements, facts.rs) — the missing flavor is
+    /// what keeps a widened absent property assignable under
+    /// exactOptionalPropertyTypes (m4-review A13; the old
+    /// "eOPT is unmodeled" justification was false — options.rs
+    /// carries it and tables.rs computes the intrinsic from it).
     fn get_undefined_property(&mut self, prop: SymbolId) -> SymbolId {
         let name = self.binder.symbol(prop).escaped_name.clone();
         if let Some(&cached) = self.undefined_properties.get(&name) {
             return cached;
         }
-        let undefined = self.tables.intrinsics.undefined;
-        let result = self.create_symbol_with_type(prop, Some(undefined));
+        let undefined_or_missing = self.tables.intrinsics.undefined_or_missing;
+        let result = self.create_symbol_with_type(prop, Some(undefined_or_missing));
         self.binder.symbol_mut(result).flags |= SymbolFlags::OPTIONAL;
         self.undefined_properties.insert(name, result);
         result

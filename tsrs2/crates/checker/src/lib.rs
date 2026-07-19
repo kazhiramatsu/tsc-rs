@@ -272,6 +272,13 @@ fn filter_by_comment_directives_and_mark_used(
     result
 }
 
+/// Recorded intent (b0cd3802; m4-review DR-F6): only the START face of
+/// each partial range consumes a preceding directive. Containments are
+/// SHELL-shaped — rows elsewhere in the bracketed region still fire —
+/// so a blanket interior exemption would silence unused-directive
+/// 2578s the oracle reports (the
+/// directive_inside_a_checked_mapped_type_is_not_blanket_exempted pin
+/// forces this split).
 fn mark_comment_directives_for_partial_ranges(
     source: &tsrs2_syntax::SourceFile,
     partial_ranges: &[(u32, u32)],
@@ -712,8 +719,18 @@ pub fn check_program_with_libs(
         // Per-file assembly (getBindAndCheckDiagnosticsForFileNoCache
         // 123717): plain JS files filter check diagnostics to the
         // plainJSErrors allowlist and skip the directive merge;
-        // TypeScript and checked JS run the comment-directive filter;
-        // file-less program-level diagnostics pass through.
+        // TypeScript and checked JS run the comment-directive filter.
+        // KNOWN-GAP since M4 (m4-review B30): file-less diagnostics
+        // are DROPPED below except the ImportMeta carve-out
+        // (visible_global_diagnostics) — tsc has no drop: its
+        // getDiagnosticsWorker merges global diagnostics into the
+        // per-file pull that first observes them (the
+        // previous/current global-snapshot compare, incl. the
+        // empty-previous concatenate arm; probed). M7-owned
+        // (m7-tail-steps.md 8.5 driver-band note); lands only
+        // together with the B31 skipTypeCheckingWorker arms —
+        // surfacing globals while @ts-nocheck files still run
+        // manufactures the file-less-2318 FP face.
         let mut checker_diagnostics_by_file: std::collections::BTreeMap<
             Option<String>,
             Vec<tsrs2_diags::Diagnostic>,
@@ -2572,6 +2589,38 @@ mod tests {
             codes_of("let x: number;\n// @ts-expect-error\nx;\n"),
             Vec::<u32>::new()
         );
+    }
+
+    #[test]
+    fn eopt_widened_absent_property_takes_the_missing_flavor() {
+        // m4-review A13: getUndefinedProperty types the context-added
+        // absent property undefinedOrMissingType (tsc 67990). Under
+        // exactOptionalPropertyTypes the widened first branch stays
+        // assignable to `c?: string` (missing ⊂ string|missing where
+        // plain undefined is not), the directive has nothing to
+        // consume, and the unused 2578 surfaces — oracle row
+        // (2578, 69, 19), probed vs vendored 6.0.3 (eOPT + strict,
+        // noLib). The undefined flavor instead made the relation
+        // reject, and the display-band containment of that report
+        // marked the directive used — silence where the oracle
+        // reports.
+        let options = CompilerOptions {
+            exact_optional_property_types: Some(true),
+            ..CompilerOptions::default()
+        };
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare const b: boolean;\nconst o = b ? { a: 1 } : { a: 2, c: \"x\" };\n// @ts-expect-error\nconst t: { a: number; c?: string } = o;\n".to_owned(),
+            }],
+            &options,
+        );
+        let rows: Vec<(u32, Option<u32>, Option<u32>)> = result
+            .diagnostics
+            .iter()
+            .map(|d| (d.code(), d.start, d.length))
+            .collect();
+        assert_eq!(rows, [(2578, Some(69), Some(19))]);
     }
 
     #[test]
