@@ -200,6 +200,18 @@ Every one of the 157 entries gets exactly one:
   five directives we do not emit — emission would manufacture ~5
   FPs. Revisit when M7 unused + the 7026 family close (emitter
   spec lives in checker/src/lib.rs at the directive filter).
+  LAPSED — AMENDED 2026-07-19 (M4-review B32): the emitter went
+  LIVE the same day in 5.9d @4b6f87c4 without this paragraph being
+  amended. The 7026 objection dissolved because used-marking is
+  computed from the FULL pre-filter diagnostic stream AND from
+  partial-containment ranges (mark_comment_directives_for_
+  partial_ranges) — a directive over a contained JSX region counts
+  as used, so multiline.tsx manufactures no 2578; FP=0 held at
+  4b6f87c4 and since. The KEEP-OFF-era unit pin
+  (unused_expect_error_stays_silent_while_checker_is_incomplete)
+  was renamed with this amendment: its shape stays silent today
+  because the directive consumes the now-real 2454, not because
+  the emitter is off.
   1543/1544 RECORDED DECISION — KEEP OFF (review follow-up): live
   tsc 6.0.3 emits the JSON import-attribute pair (nodeModulesJson
   probe 2026-07-18), but no golden in the corpus observes either

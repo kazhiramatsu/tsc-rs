@@ -71,6 +71,15 @@ errors; otherwise they surface as suggestions — which requires stage
 8.4's band to exist for the suggestion half. Land 8.3 emitting the
 error-mode half first, gate, then wire the suggestion half in 8.4.
 
+PREREQUISITE (recorded 2026-07-19, M4-review B18 — resolves the
+5.8d residue in m4-58): the markAliasReferenced (L71909) /
+markExportAsReferenced (L71945) family is entirely unported and
+diagnostic-inert through M6 — 8.3 ports it FIRST. The unused band's
+import rows (6133/6192 family) read the referenced flags that
+family writes, and its resolveName(isUse) side-effects are the
+marking discipline: landing the workers without the marking family
+manufactures unused-import FPs on every used-via-alias name.
+
 Commit(s): `m7 8.3a-b: unused identifiers (+rate)`.
 
 Gate: the unused family's error-mode rows reach their family-map

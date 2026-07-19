@@ -2561,7 +2561,13 @@ mod tests {
     }
 
     #[test]
-    fn unused_expect_error_stays_silent_while_checker_is_incomplete() {
+    fn used_expect_error_consuming_a_real_row_stays_silent() {
+        // Named for the KEEP-OFF era ("stays silent while checker is
+        // incomplete") until the 2026-07-19 B32 amendment: the 2578
+        // emitter is LIVE since 5.9d, and this shape is silent
+        // because the directive consumes the real straight-line 2454
+        // (use before assignment, live since 6.2) — a USED directive
+        // reports nothing.
         assert_eq!(
             codes_of("let x: number;\n// @ts-expect-error\nx;\n"),
             Vec::<u32>::new()

@@ -545,6 +545,47 @@ tsc + tsrs2-executed probes) after the close. Fixes landed:
   `noFallthroughCasesInSwitch` added to the harness directive
   vocabulary (was expansion-rejected; 7029 corpus-untestable).
 
+### Declined post-close findings (reviewed, deliberately not fixed)
+
+Written 2026-07-19 with the M4-review docs slice — PR #36's body
+claimed this list was already recorded here; it was not (M4-review
+B33). Live-bug status of all five re-verified negative 2026-07-19;
+each row names its re-check trigger.
+
+- **A1 — synthetic-query cache-key unification**: the
+  strictPropertyInitialization synthetic this-queries omit
+  flowContainer (the `"-1"` key slot, tsc-exact) while the 5619x
+  family keys its container slot explicitly. No collision today —
+  the key tuples stay distinct via their container-slot components —
+  but the two conventions coexist. Re-check when M6 adds any third
+  synthetic-query flavor: pick ONE convention at that point instead
+  of a third variant.
+- **A2 — nested-query seam-flag non-propagation**: a nested flow
+  query's seam-revert flag does not propagate into the outer query's
+  answer. Unproducible today — constructing a nested flagged answer
+  needs an M6 body-inference or M8 JOIN-SEAM producer. Re-check at
+  M6 body inference and at the M8 JOIN-SEAM retirement of the 6.6f
+  registry.
+- **D3 — getNarrowedTypeOfSymbol registration keying**: the review
+  flagged the registration keying as divergence-prone once
+  currently-unproducible producers exist; like A2 it cannot be
+  exercised until the M6/M8 dependencies land. Re-check alongside
+  A2 at M6 body inference.
+- **E5 — effects-signature predicate memo (M6 landmine)**: declined
+  as ALREADY DEFUSED — get_effects_signature's
+  body-inferred-predicate probe (narrow.rs) flags the declared-type
+  revert and does NOT memoize the non-final verdict (a memo hit
+  would leak the unflagged wide answer; the loop-fixpoint pin
+  caught exactly that live). M6's getTypePredicateFromBody port
+  retires the probe.
+- **C5 — checkMode dropped on the overload-failure path**:
+  get_candidate_for_overload_failure receives check_mode and drops
+  it (`let _ = check_mode;`, calls.rs) — tsc threads it into
+  inferSignatureInstantiationForOverloadFailure's argument walk.
+  Inert while the M6 stub runs no argument walk; the M6 inference
+  port MUST thread check_mode through this path when it replaces
+  the stub fill.
+
 ## Expected failure modes
 
 | Symptom | Diagnosis | Fix |

@@ -20,9 +20,16 @@ inferSignatureInstantiationForOverloadFailure (L76946-76954, reached
 from pickLongestCandidateSignature L76932).
 
 **M4 stub value**: per type parameter, default → constraint →
-`unknownType`. Ledger `/// M6-stub` on BOTH sites, with the note: tsc's
-real no-inference fallback is default → unknown; the constraint step is
-an M4-only enrichment M6 MUST REMOVE, not preserve. The stub does NOT
+`unknownType`. Ledger `/// M6-stub` on BOTH sites. CORRECTED
+2026-07-19 (M4-review S6 — the original note here claimed tsc's real
+no-inference fallback is default → unknown and called the constraint
+step an M4-only enrichment M6 must remove; that is a tsc-fact error):
+getInferredType (69271-69313) constraint-clamps its fallback, so the
+stub ladder matches the shape tsc's zero-candidate path bottoms out
+at, and **the constraint step STAYS when M6 replaces the fill with
+inference** (m6-inference-calls-steps.md's getInferredType row — the
+three-outcome clamp — is authoritative; the calls.rs M6-STUB headers
+carry the corrected fact since slice 1). The stub does NOT
 run tsc's argument walk (no checkExpressionWithContextualType with an
 inference context — 5.5b's uninhabited InferenceContextPlaceholder
 SURVIVES 5.7), no JSX-attributes inference, no this-type/return-type
