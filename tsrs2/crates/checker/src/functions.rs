@@ -214,11 +214,7 @@ impl<'a> CheckerState<'a> {
                     LinkSlot::Resolved(return_type);
             }
         }
-        // checkSignatureDeclaration (86971) — 5.8-DECL no-op hook:
-        // its grammar walks and 2378/1057-family live with the
-        // declaration checkers.
-        self.check_signature_declaration_stub(node);
-        Ok(())
+        self.check_signature_declaration(node)
     }
 
     /// tsc-port: checkFunctionExpressionOrObjectLiteralMethodDeferred @6.0.3
@@ -272,9 +268,6 @@ impl<'a> CheckerState<'a> {
         }
         Ok(())
     }
-
-    /// checkSignatureDeclaration (86971) — 5.8-DECL no-op hook.
-    fn check_signature_declaration_stub(&mut self, _node: NodeId) {}
 
     // ---- contextual parameter assignment ----
 
@@ -2446,7 +2439,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isPrivateWithinAmbient @6.0.3
     /// tsc-hash: ef8656cf63ef4572437e31c6e94657e5d7347469b8186a82faf2194ccf706b59
     /// tsc-span: _tsc.js:82010-82012
-    fn is_private_within_ambient(&self, node: NodeId) -> bool {
+    pub(crate) fn is_private_within_ambient(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         (node_util::has_syntactic_modifier(source, node, tsrs2_types::ModifierFlags::PRIVATE)
             || self.is_private_identifier_class_element(node))
@@ -5791,11 +5784,13 @@ mod tests {
 
     #[test]
     fn optional_rest_reports_1047() {
-        // Oracle also shows 2370 (rest must be array) from
-        // checkSignatureDeclaration — the 5.8-DECL hook (recorded FN).
+        // Both oracle rows since the A3 wiring: the grammar 1047 and
+        // checkSignatureDeclaration's 2370 (`number[] | undefined`
+        // fails the readonly-array relation) — the recorded FN is
+        // resolved.
         assert_eq!(
             checked_rows("(function (...rest?: number[]) {});\n"),
-            [(1047, 18, 1)]
+            [(1047, 18, 1), (2370, 11, 18)]
         );
     }
 
@@ -5899,6 +5894,72 @@ mod tests {
         assert_eq!(
             checked_rows("class C { declare m<>(): void {} }\n"),
             [(1183, 30, 1)]
+        );
+    }
+
+    // ---- m4-review A3: checkSignatureDeclaration on expression
+    // forms (oracle: vendored tsc 6.0.3, noLib, strict, 2026-07-19).
+    // The contextual once-path used to end in a no-op stub, so every
+    // signature-declaration row was FN for fn-exprs/arrows/obj-methods.
+
+    #[test]
+    fn arrow_type_predicate_unassignable_reports_2677() {
+        assert_eq!(
+            checked_rows("const p = (x: number): x is string => typeof x === \"string\";\n"),
+            [(2677, 28, 6)]
+        );
+    }
+
+    #[test]
+    fn generator_function_expression_void_annotation_reports_2505() {
+        assert_eq!(
+            checked_rows("const g = function* (): void {};\n"),
+            [(2505, 24, 4)]
+        );
+    }
+
+    #[test]
+    fn async_arrow_non_promise_annotation_reports_1064() {
+        assert_eq!(
+            checked_rows(
+                "interface Promise<T> { p: T }\ndeclare const a: any;\nconst h = async (): number => a;\n"
+            ),
+            [(1064, 72, 6)]
+        );
+    }
+
+    #[test]
+    fn arrow_non_array_rest_parameter_reports_2370() {
+        assert_eq!(
+            checked_rows(
+                "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }\ninterface ConcatArray<T> { length: number }\nconst f = (...r: number) => r;\n"
+            ),
+            [(2370, 139, 12)]
+        );
+    }
+
+    // ---- m4-review A2: obj-literal accessors defer to the whole
+    // checkAccessorDeclaration (oracle: vendored tsc 6.0.3, noLib,
+    // strict, 2026-07-19). The subset route checked signature +
+    // accessor types but never entered the body.
+
+    #[test]
+    fn obj_literal_getter_body_is_checked() {
+        assert_eq!(
+            checked_rows(
+                "const o = {\n    get x() {\n        let a: number = \"s\";\n        return 1;\n    },\n};\n"
+            ),
+            [(2322, 38, 1)]
+        );
+    }
+
+    #[test]
+    fn obj_literal_accessor_grammar_and_setter_body_rows() {
+        assert_eq!(
+            checked_rows(
+                "const o = {\n    get x(this: void, extra: number) {\n        return 1;\n    },\n    set y(v: string) {\n        let b: string = 123;\n    },\n};\n"
+            ),
+            [(1054, 20, 1), (2784, 22, 10), (2322, 111, 1)]
         );
     }
 }

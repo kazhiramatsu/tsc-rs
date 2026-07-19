@@ -82,9 +82,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bad6eb4e0a2eee658a8d5b50043703843f725626829e75c2c1380bf0d392f281
     /// tsc-span: _tsc.js:67385-67387
     ///
-    /// getConstraintOfTypeParameter reduces to the TypeParameter's
-    /// stored constraint until M4 declared type parameters (M3's only
-    /// type parameters are tuple-target synthetics and thisTypes).
+    /// KNOWN-WRONG since M4 (m4-review A1, M6-start bar): declared
+    /// type parameters keep their constraint in the LINKS slot
+    /// (constraints.rs — the inline field stays None), so this
+    /// inline-only read calls every `T extends X` "unconstrained":
+    /// `=N` backref keys collide across distinct constrained
+    /// parameters (order-dependent cached misjudgments), and the `*`
+    /// broadest-key marker never fires, deadening the Maybe-recheck
+    /// arm in engine.rs. The fix is tsc-shaped forcing (a fallible
+    /// get_relation_key through getConstraintOfTypeParameter) — a
+    /// non-forcing links read would make the key depend on resolution
+    /// order.
     fn is_unconstrained_type_parameter(&self, ty: TypeId) -> bool {
         matches!(
             &self.tables.type_of(ty).data,

@@ -2412,28 +2412,7 @@ impl<'a> CheckerState<'a> {
                 self.check_function_expression_or_object_literal_method_deferred(node)
             }
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                if self.parent_of(node).is_some_and(|parent| {
-                    self.kind_of(parent) == SyntaxKind::ObjectLiteralExpression
-                }) {
-                    // The subset route is a containment-by-design: it
-                    // checks the signature + accessor types but never
-                    // ENTERS the body (m4-review A2 — tsc routes the
-                    // whole checkAccessorDeclaration). Record the body
-                    // as a wholly-unchecked subtree so directives
-                    // inside it are 2578-exempt; the A2 routing
-                    // retires this marker (S8).
-                    let source = self.binder.source_of_node(node);
-                    if let Some(body) = node_util::body_of(source, node) {
-                        self.mark_unchecked_subtree(
-                            body,
-                            "obj-literal accessor deferred subset — body unchecked \
-                             (m4-review A2, checkAccessorDeclaration routing)",
-                        );
-                    }
-                    self.check_object_literal_accessor_deferred(node)
-                } else {
-                    self.check_accessor_declaration(node)
-                }
+                self.check_accessor_declaration(node)
             }
             SyntaxKind::ClassExpression => self.check_class_expression_deferred(node),
             SyntaxKind::TypeParameter => self.check_type_parameter_deferred(node),
@@ -2535,23 +2514,6 @@ impl<'a> CheckerState<'a> {
             self.variance_type_parameter = save_variance_type_parameter;
             result?;
         }
-        Ok(())
-    }
-
-    /// Object-literal accessors are deferred so their signature and
-    /// paired accessor type can be checked after literal construction.
-    /// Their bodies still need object-literal contextual `this`; this
-    /// stage owns the declaration/type diagnostics without forcing the
-    /// incomplete body face.
-    fn check_object_literal_accessor_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
-        self.check_signature_declaration(node)?;
-        if let Some(name) = self.name_of_node(node) {
-            if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-                self.check_computed_property_name(name)?;
-            }
-        }
-        let symbol = self.get_symbol_of_declaration(node)?;
-        self.get_type_of_accessors(symbol)?;
         Ok(())
     }
 

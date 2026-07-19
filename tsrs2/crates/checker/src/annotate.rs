@@ -330,7 +330,7 @@ impl<'a> CheckerState<'a> {
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
             }
             NodeData::BigIntLiteral(data) => {
-                let value = parse_pseudo_bigint_text(&data.text, /*negative*/ false)?;
+                let value = crate::expr::parse_pseudo_big_int(&data.text)?;
                 let regular = self.tables.get_bigint_literal_type(value);
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
             }
@@ -348,8 +348,11 @@ impl<'a> CheckerState<'a> {
                         Ok(self.tables.get_fresh_type_of_literal_type(regular))
                     }
                     NodeData::BigIntLiteral(data) => {
-                        let value = parse_pseudo_bigint_text(&data.text, /*negative*/ true)?;
-                        let regular = self.tables.get_bigint_literal_type(value);
+                        let parsed = crate::expr::parse_pseudo_big_int(&data.text)?;
+                        let regular = self.tables.get_bigint_literal_type(PseudoBigInt {
+                            negative: true,
+                            base10_value: parsed.base10_value,
+                        });
                         Ok(self.tables.get_fresh_type_of_literal_type(regular))
                     }
                     _ => unreachable!(
@@ -4694,9 +4697,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:56746-56786
     ///
     /// Un-annotated getter bodies infer via getReturnTypeFromBody
-    /// (live since 5.5f); auto-accessor property declarations ride the
-    /// `accessor` modifier (M7 class checking) — that arm escapes; the
-    /// annotated slice plus the noImplicitAny arms are live.
+    /// (live since 5.5f); the auto-accessor PropertyDeclaration arms
+    /// (annotation / widened-initializer / implicit-any — m4-review
+    /// A6) are live; the getter JSDoc head is JS-only.
+    /// errorOrSuggestion runs error-only (suggestions unported).
     pub(crate) fn get_type_of_accessors(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
@@ -4709,10 +4713,23 @@ impl<'a> CheckerState<'a> {
         }
         let getter = self.declaration_of_kind(symbol, SyntaxKind::GetAccessor);
         let setter = self.declaration_of_kind(symbol, SyntaxKind::SetAccessor);
+        // 56753: tryCast(..., isAutoAccessorPropertyDeclaration).
+        let accessor = self
+            .declaration_of_kind(symbol, SyntaxKind::PropertyDeclaration)
+            .filter(|&declaration| {
+                node_util::is_auto_accessor_property_declaration(
+                    self.binder.source_of_node(declaration),
+                    declaration,
+                )
+            });
         let computed = (|state: &mut Self| -> CheckResult2<Option<TypeId>> {
             let getter_annotation = state.annotated_accessor_type_node(getter);
             let setter_annotation = state.annotated_accessor_type_node(setter);
-            if let Some(annotation) = getter_annotation.or(setter_annotation) {
+            let accessor_annotation = state.annotated_accessor_type_node(accessor);
+            if let Some(annotation) = getter_annotation
+                .or(setter_annotation)
+                .or(accessor_annotation)
+            {
                 return Ok(Some(state.get_type_from_type_node(annotation)?));
             }
             if let Some(getter) = getter {
@@ -4728,6 +4745,15 @@ impl<'a> CheckerState<'a> {
                         tsrs2_types::CheckMode::NORMAL,
                     )?));
                 }
+            }
+            if let Some(accessor) = accessor {
+                // 56756 tail: getWidenedTypeForVariableLikeDeclaration
+                // (reportErrors: true) — the widening path owns the
+                // 7008 implicit-any report for an initializer-less
+                // auto-accessor, so this arm never yields None.
+                return Ok(Some(state.get_widened_type_for_variable_like_declaration(
+                    accessor, /*report_errors*/ true,
+                )?));
             }
             Ok(None)
         })(self);
@@ -4748,31 +4774,47 @@ impl<'a> CheckerState<'a> {
                 // report is undecidable — escape. Re-owned 5.8c→5.8e:
                 // the pairing IS the late-binding lift (m4-58 §15
                 // 5.8e), not class-band wiring.
-                // 56761-56769: the noImplicitAny suggestions. The
-                // 5.8c-era computed-name escape is lifted: the caller
-                // reaches accessors through getSymbolOfDeclaration's
-                // getLateBoundSymbol hop, so get/set pairs under one
-                // [Symbol.x] name share the LATE symbol and the
-                // annotation ladder above sees both halves. tsc's
-                // symbolToString renders a late symbol as its
-                // declaration name's source text (`[Symbol.iterator]`,
-                // never the internal `__@iterator@n`).
+                // 56761-56769: the noImplicitAny suggestions, WITH
+                // tsc's isPrivateWithinAmbient guards (m4-review B21:
+                // an ambient private accessor half suppresses the
+                // report but still falls through the else-if chain).
+                // The 5.8c-era computed-name escape is lifted: the
+                // caller reaches accessors through
+                // getSymbolOfDeclaration's getLateBoundSymbol hop, so
+                // get/set pairs under one [Symbol.x] name share the
+                // LATE symbol and the annotation ladder above sees
+                // both halves. tsc's symbolToString renders a late
+                // symbol as its declaration name's source text
+                // (`[Symbol.iterator]`, never the internal
+                // `__@iterator@n`).
                 if self
                     .options
                     .strict_option_value(self.options.no_implicit_any)
                 {
                     let name = self.accessor_symbol_display_name(symbol);
-                    if let Some(setter) = setter {
+                    if let Some(setter) =
+                        setter.filter(|&setter| !self.is_private_within_ambient(setter))
+                    {
                         self.error_at(
                             Some(setter),
                             &diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
                             &[&name],
                         );
-                    } else if let Some(getter) = getter {
+                    } else if let Some(getter) =
+                        getter.filter(|&getter| !self.is_private_within_ambient(getter))
+                    {
                         self.error_at(
                             Some(getter),
                             &diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation,
                             &[&name],
+                        );
+                    } else if let Some(accessor) =
+                        accessor.filter(|&accessor| !self.is_private_within_ambient(accessor))
+                    {
+                        self.error_at(
+                            Some(accessor),
+                            &diagnostics::Member_0_implicitly_has_an_1_type,
+                            &[&name, "any"],
                         );
                     }
                 }
@@ -4782,19 +4824,37 @@ impl<'a> CheckerState<'a> {
         let resolved = if self.pop_type_resolution() {
             ty
         } else {
-            // 56771-56783: circular accessor annotations.
+            // 56771-56783: circular accessor annotations. The
+            // annotated-auto-accessor arm anchors at tsc's literal
+            // `setter` argument (56779) — None for a lone
+            // auto-accessor, a tsc quirk kept verbatim (the row goes
+            // file-less); the un-annotated tail is the noImplicitAny
+            // circular-getter report.
             let name = self.accessor_symbol_display_name(symbol);
-            let location = self
-                .annotated_accessor_type_node(getter)
-                .map(|_| getter.expect("annotated getter"))
-                .or_else(|| {
-                    self.annotated_accessor_type_node(setter)
-                        .map(|_| setter.expect("annotated setter"))
-                });
-            if let Some(location) = location {
+            if self.annotated_accessor_type_node(getter).is_some() {
                 self.error_at(
-                    Some(location),
+                    getter,
                     &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
+                    &[&name],
+                );
+            } else if self.annotated_accessor_type_node(setter).is_some()
+                || self.annotated_accessor_type_node(accessor).is_some()
+            {
+                // tsc's setter and accessor arms both anchor at
+                // `setter` — collapsed into one branch here.
+                self.error_at(
+                    setter,
+                    &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
+                    &[&name],
+                );
+            } else if getter.is_some()
+                && self
+                    .options
+                    .strict_option_value(self.options.no_implicit_any)
+            {
+                self.error_at(
+                    getter,
+                    &diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
                     &[&name],
                 );
             }
@@ -4834,7 +4894,20 @@ impl<'a> CheckerState<'a> {
         ) {
             return Ok(self.tables.intrinsics.error);
         }
-        let setter = self.declaration_of_kind(symbol, SyntaxKind::SetAccessor);
+        // 56794: setter ?? tryCast(PropertyDeclaration,
+        // isAutoAccessorPropertyDeclaration) — an auto-accessor's
+        // write type reads its own annotation (m4-review A6).
+        let setter = self
+            .declaration_of_kind(symbol, SyntaxKind::SetAccessor)
+            .or_else(|| {
+                self.declaration_of_kind(symbol, SyntaxKind::PropertyDeclaration)
+                    .filter(|&declaration| {
+                        node_util::is_auto_accessor_property_declaration(
+                            self.binder.source_of_node(declaration),
+                            declaration,
+                        )
+                    })
+            });
         let annotation = self.annotated_accessor_type_node(setter);
         let computed = match annotation {
             Some(annotation) => self.get_type_from_type_node(annotation).map(Some),
@@ -4876,19 +4949,30 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getAnnotatedAccessorTypeNode (56718-56734): getter return
-    /// annotation / setter first-parameter annotation (the
-    /// auto-accessor PropertyDeclaration arm is M7).
+    /// annotation / setter first-parameter annotation / auto-accessor
+    /// property annotation (the PropertyDeclaration arm asserts the
+    /// accessor modifier like tsc).
     fn annotated_accessor_type_node(&self, accessor: Option<NodeId>) -> Option<NodeId> {
         let accessor = accessor?;
         match self.data_of(accessor) {
             NodeData::GetAccessor(data) => data.r#type,
-            NodeData::SetAccessor(data) => {
-                let parameters = self.nodes_of(data.parameters);
-                let parameter = parameters.first().copied()?;
+            NodeData::SetAccessor(_) => {
+                // getEffectiveSetAccessorTypeAnnotationNode: the
+                // VALUE parameter's annotation — a leading `this`
+                // parameter is skipped (the A2-exposed FP root).
+                let parameter = self.set_accessor_value_parameter(accessor)?;
                 match self.data_of(parameter) {
                     NodeData::Parameter(data) => data.r#type,
                     _ => None,
                 }
+            }
+            NodeData::PropertyDeclaration(data) => {
+                debug_assert!(node_util::has_syntactic_modifier(
+                    self.binder.source_of_node(accessor),
+                    accessor,
+                    ModifierFlags::ACCESSOR,
+                ));
+                data.r#type
             }
             _ => None,
         }
@@ -7544,24 +7628,6 @@ pub(crate) fn parse_numeric_literal_text(text: &str) -> CheckResult2<f64> {
     }))
 }
 
-/// The decimal slice of parsePseudoBigInt (18909-18964): annotation
-/// literals reach the checker in decimal form; other radixes arrive
-/// with expression checking (M6).
-fn parse_pseudo_bigint_text(text: &str, negative: bool) -> CheckResult2<PseudoBigInt> {
-    let digits = text.strip_suffix('n').unwrap_or(text);
-    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Err(Unsupported::new(format!(
-            "non-decimal bigint literal text {text:?} (parsePseudoBigInt radix support, M6)"
-        )));
-    }
-    let trimmed = digits.trim_start_matches('0');
-    let base10_value = if trimmed.is_empty() { "0" } else { trimmed };
-    Ok(PseudoBigInt {
-        negative: negative && base10_value != "0",
-        base10_value: base10_value.to_owned(),
-    })
-}
-
 // ---- M4 5.5b: binding-pattern types (L56468-56552) ----
 
 impl<'a> CheckerState<'a> {
@@ -10134,5 +10200,167 @@ mod late_binding_tests {
             .diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code() == 2411));
+    }
+}
+
+#[cfg(test)]
+mod accessor_ladder_tests {
+    use tsrs2_types::CompilerOptions;
+
+    use crate::state::test_support::with_program_state;
+
+    // m4-review A6 (oracle: vendored tsc 6.0.3, noLib, strict,
+    // 2026-07-19): the auto-accessor arms of the getTypeOfAccessors
+    // ladder — annotation, widened initializer, implicit-any — plus
+    // the B21 isPrivateWithinAmbient guards and the circular-getter
+    // tail. Pre-fix the PropertyDeclaration arms were missing and an
+    // auto-accessor was silently `any`.
+
+    fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    #[test]
+    fn auto_accessor_widens_its_initializer() {
+        assert_eq!(
+            checked_rows(
+                "class C { accessor x = 1; }\ndeclare const c: C;\nconst s: string = c.x;\n"
+            ),
+            [(2322, 54, 1)]
+        );
+    }
+
+    #[test]
+    fn auto_accessor_annotation_checks_its_initializer() {
+        assert_eq!(
+            checked_rows("class C { accessor x: number = \"s\"; }\n"),
+            [(2322, 19, 1)]
+        );
+    }
+
+    #[test]
+    fn any_initialized_auto_accessor_stays_clean() {
+        assert_eq!(
+            checked_rows(
+                "declare const d: any;\nclass C { accessor x = d; }\ndeclare const c2: C;\nc2.x = \"ok\";\nconst n2: number = c2.x;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn auto_accessor_write_type_reads_its_annotation() {
+        assert_eq!(
+            checked_rows(
+                "class C { accessor x: number = 1; }\ndeclare const c: C;\nc.x = \"s\";\n"
+            ),
+            [(2322, 56, 3)]
+        );
+    }
+
+    #[test]
+    fn bare_auto_accessor_reports_7008_member_implicit_any() {
+        assert_eq!(checked_rows("class C { accessor x; }\n"), [(7008, 19, 1)]);
+    }
+
+    #[test]
+    fn ambient_private_setter_suppresses_implicit_any() {
+        // m4-review B21: tsc's isPrivateWithinAmbient guard — no 7032.
+        assert_eq!(checked_rows("declare class A { private set x(v); }\n"), []);
+    }
+
+    #[test]
+    fn circular_unannotated_getter_reports_7023() {
+        assert_eq!(
+            checked_rows("class C { get x() { return this.x; } }\n"),
+            [(7023, 14, 1)]
+        );
+    }
+
+    #[test]
+    fn setter_this_parameter_is_not_the_value_parameter() {
+        // The A2-exposed FP root: getSetAccessorValueParameter skips
+        // a leading `this` in the two-parameter shape, so the paired
+        // getter's inferred type comes from the VALUE parameter (tsc
+        // 16677-16682; thisTypeInAccessors corpus face). tsc 6.0.3
+        // reports only the accessor-this 2784 here — no 2322.
+        assert_eq!(
+            checked_rows(
+                "const copied = {\n    n: 15,\n    get x() { return this.n },\n    set x(this: { n: number }, m: number) { this.n = m; }\n};\n"
+            ),
+            [(2784, 69, 19)]
+        );
+    }
+
+    #[test]
+    fn annotated_bare_auto_accessor_reports_2564() {
+        // The M5 strictPropertyInitialization face sees the
+        // annotation through the A6 ladder.
+        assert_eq!(
+            checked_rows("class C { accessor x: number; }\n"),
+            [(2564, 19, 1)]
+        );
+    }
+}
+
+#[cfg(test)]
+mod bigint_annotation_tests {
+    use tsrs2_types::CompilerOptions;
+
+    use crate::state::test_support::with_program_state;
+
+    // m4-review A14: non-decimal bigint literal types resolve through
+    // the full parsePseudoBigInt port (oracle: vendored tsc 6.0.3,
+    // noLib, strict, 2026-07-19). The "radix is M6" escape reason was
+    // false — `type A = 0x2n` is legal tsc and the parser was already
+    // live for expressions.
+
+    fn rows_and_partials(text: &str) -> (Vec<(u32, u32, u32)>, usize) {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let rows = state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect();
+            (rows, state.partial_check_records.len())
+        })
+    }
+
+    #[test]
+    fn hex_bigint_literal_type_resolves_and_relates() {
+        assert_eq!(
+            rows_and_partials("type A = 0x2n;\ndeclare const v: A;\nconst w: 2n = v;\n"),
+            (vec![], 0)
+        );
+    }
+
+    #[test]
+    fn negative_binary_bigint_literal_type_resolves() {
+        assert_eq!(
+            rows_and_partials("type N = -0b101n;\ndeclare const q: N;\nconst r: -5n = q;\n"),
+            (vec![], 0)
+        );
     }
 }

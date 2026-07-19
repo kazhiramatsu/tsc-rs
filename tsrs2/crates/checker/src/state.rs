@@ -594,13 +594,10 @@ pub struct CheckerState<'a> {
     /// Syntax ranges whose check was partial because an Unsupported
     /// containment boundary or an unimplemented flow-sensitive
     /// diagnostic was reached. Only directives targeting one of these
-    /// ranges are exempt from unused @ts-expect-error diagnostics.
-    /// (pos, end, exempt_inner): exempt_inner marks a subtree the
-    /// port never ENTERED (a body skipped by design) — directives
-    /// INSIDE it are 2578-exempt too; plain containments keep the
-    /// preceding-directive-only exemption (the mapped-type
-    /// blanket-exemption pin).
-    pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32, bool)>>,
+    /// (pos, end) ranges are exempt from unused @ts-expect-error
+    /// diagnostics — the preceding-directive-only rule (the
+    /// mapped-type blanket-exemption pin).
+    pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
     /// Public audit records corresponding to recognized Unsupported
     /// containment events. Unlike the byte ranges above, these use
     /// diagnostic-compatible UTF-16 coordinates.
@@ -1332,24 +1329,10 @@ impl<'a> CheckerState<'a> {
     /// The program layer exempts only directives targeting one of
     /// these ranges instead of suppressing 2578 for the entire file.
     pub(crate) fn mark_partially_checked_node(&mut self, node: NodeId, reason: impl Into<String>) {
-        self.mark_partial_range(node, reason, /*exempt_inner*/ false);
-    }
-
-    /// tsrs-native: the wholly-unchecked flavor (m4-review S8) — the
-    /// port never ENTERED this subtree (a body skipped by design, not
-    /// a mid-flight unwind), so comment directives INSIDE the range
-    /// are exempt from 2578 as well (their suppression target was
-    /// never looked at). Shell containments must NOT use this: their
-    /// inner rows still fired before the unwind.
-    pub(crate) fn mark_unchecked_subtree(&mut self, node: NodeId, reason: impl Into<String>) {
-        self.mark_partial_range(node, reason, /*exempt_inner*/ true);
-    }
-
-    fn mark_partial_range(&mut self, node: NodeId, reason: impl Into<String>, exempt_inner: bool) {
         let file_index = self.binder.file_index_of_node(node);
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
-        let range = (raw.pos, raw.end, exempt_inner);
+        let range = (raw.pos, raw.end);
         let ranges = self.partially_checked_ranges.entry(file_index).or_default();
         if !ranges.contains(&range) {
             ranges.push(range);

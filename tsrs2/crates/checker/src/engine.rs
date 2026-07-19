@@ -923,10 +923,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: c8dc3058980bc1ec2f14c28bd887a86aa6b6419cef8d42dbebc1728006d1ec6d
     /// tsc-span: _tsc.js:65411-65413
     ///
-    /// globalObjectType is the empty anonymous object under noLib —
-    /// the probe world matches the noLib oracle fixtures, so
-    /// empty_object_type stands in until M4 lib loading. JSX arms are
-    /// dead (the probe never checks JSX).
+    /// The subset-of head consults the synthesized empty anonymous
+    /// type where tsc reads globalObjectType (an M3 noLib-probe
+    /// stand-in that outlived M4 lib loading — the "until M4"
+    /// justification lapsed). KNOWN-GAP since M4 (m4-review B2): the
+    /// JSX arms (isComparingJsxAttributes + the JSX-flavored reports)
+    /// are missing while jsx.rs constructs JSX_ATTRIBUTES types and
+    /// feeds them to the relation machinery — the old "JSX arms are
+    /// dead" claim is false.
     fn has_excess_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
         if !self.st.is_excess_property_check_target(target)
             || self
@@ -1949,7 +1953,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c928c9606661159d5023fee7846acf04060c6eb8ce6e98256afb823214df19ba
     /// tsc-span: _tsc.js:74826-74843
     ///
-    /// JSX and Substitution arms are dead in M3.
+    /// KNOWN-GAP since M4 (m4-review B2): the
+    /// `isLateBoundName(name) && getIndexInfoOfType(target, string)`
+    /// disjunct, the isComparingJsxAttributes parameter (hyphenated
+    /// JSX names), and the Substitution recursion arm are missing —
+    /// late-bound names and JSX attribute types are constructible
+    /// since M4, so the old "dead in M3" claim is false.
     pub fn is_known_property(&mut self, target: TypeId, name: &str) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(target);
         if flags.intersects(TypeFlags::OBJECT) {
@@ -2452,8 +2461,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67507-67532
     ///
     /// tsc's identity is a node/symbol/type object; here it is a
-    /// discriminated key. Deferred-reference nodes, class anonymous
-    /// exceptions, IndexedAccess/Conditional arms are M4 rows.
+    /// discriminated key. KNOWN-GAP since M4 (m4-review B3): the
+    /// symbol arm lacks tsc's `!(Anonymous && Class)` exclusion, and
+    /// the TypeParameter arm returns the TYPE where tsc returns
+    /// type.symbol — M4 declared type parameters carry symbols
+    /// (constraints.rs attaches them; the old "symbol-less
+    /// synthetics" claim is false), so instantiation clones never
+    /// unify and deep generic recursion can overflow into a wrong
+    /// False. The Conditional arm (type.root) stays out with
+    /// conditional types themselves.
     pub(crate) fn get_recursion_identity(&self, ty: TypeId) -> RecursionIdentity {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) && !self.is_object_or_array_literal_type(ty) {
@@ -2474,8 +2490,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            // M3 type parameters are symbol-less synthetics; fall
-            // through to type identity.
+            // KNOWN-GAP (m4-review B3): tsc returns type.symbol here;
+            // declared type parameters have carried symbols since M4.
             return RecursionIdentity::Type(ty);
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {

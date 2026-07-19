@@ -287,13 +287,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "parse_pseudo_bigint_text"
-reason = "non-decimal bigint literal text {text:?} (parsePseudoBigInt radix support, M6)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "resolve_base_types_of_class"
 reason = "Base_constructor_return_type_0_is_not_an_object_type display (2509, T2/M8)"
 class = "stage"
