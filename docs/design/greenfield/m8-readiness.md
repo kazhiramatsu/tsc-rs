@@ -69,6 +69,39 @@ wall/RSS observations must pass on an approved reference runner. See the
 [evidence contract](evidence-and-steady-state.md). M9 strengthens the
 already-running fuzzer; it does not introduce it.
 
+### Recorded tsc 6.0.3 crash deviations (differential classification)
+
+The pinned oracle can crash where the port reports. A crashed oracle
+run has no classifiable output, so these shapes cannot carry corpus
+goldens, and the shadow/fuzzer differential must classify an
+oracle-side crash matching a recorded row as that deviation — the
+port's report stands; it is not a mismatch. Recorded rows
+(M4-review B29, both re-executed 2026-07-19):
+
+1. `for await` over a **sync** iterable whose yield type is a
+   non-promise thenable (callable `then`, non-callable callback
+   param).
+2. `yield*` of such a sync iterable inside an async generator. (The
+   non-delegated `yield thenable;` does NOT crash — tsc reports 1321
+   normally; only the async-from-sync synthesis path is affected.)
+
+   Shared root: `getAsyncFromSyncIterationTypes` (84113-84128) passes
+   an errorNode to `getAwaitedType` WITHOUT a diagnosticMessage, and
+   `getAwaitedTypeNoAlias` (82435) hits
+   `Debug.assertIsDefined(diagnosticMessage)` (82486) on the thenable
+   arm — Debug Failure. The port's synthesis
+   (`get_async_from_sync_iteration_types`, checker/src/iterate.rs)
+   passes the 1320 pair explicitly, so it reports where tsc dies.
+   Under the corpus lib regime both trigger shapes currently contain
+   upstream as conditional-type (`Awaited`/`BuiltinIteratorReturn`
+   machinery) M8-stub partials, so the deviation is corpus-inert
+   today and goes observable when M8 ports conditional types.
+
+3. The static-block `strictPropertyInitialization` probe under
+   `strictNullChecks: false` — `getOptionalType` Debug assert; the
+   port keeps the pre-swap declared-type reduction for that regime
+   only. Recorded at m5-flow-steps.md (post-close review).
+
 ## Machine gate
 
 ```sh

@@ -776,7 +776,9 @@ impl TypeTables {
     ///   (template-literal distribution, tuple rest-window), which can
     ///   carry literal ∪ template mixes and then intern an unreduced
     ///   set — a known identity divergence until those constructors
-    ///   move checker-side (M4); they never take the unionOfUnionTypes
+    ///   move checker-side (M8 — re-owned 2026-07-19, review R14:
+    ///   M4 5.3 closed without moving them; the divergence class is
+    ///   unchanged); they never take the unionOfUnionTypes
     ///   fast path with such mixes today, so the shared cache stays
     ///   consistent between the twins.
     /// - removeConstrainedTypeVariables (61550-61552) is unreachable:
@@ -844,7 +846,9 @@ impl TypeTables {
             // tuple rest-window, e.g. `[...(T & string)[]]` elements)
             // interns unreduced — same ledgered identity-divergence
             // class as the removeStringLiterals skip above, until those
-            // constructors move checker-side (M4 5.3).
+            // constructors move checker-side (M8 — re-owned
+            // 2026-07-19, review R14: M4 5.3 closed without moving
+            // them).
             if type_set.is_empty() {
                 return if includes & TypeFlags::NULL.bits() != 0 {
                     if includes & TypeFlags::INCLUDES_NON_WIDENING_TYPE.bits() != 0 {

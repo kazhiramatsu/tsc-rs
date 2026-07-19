@@ -2198,13 +2198,20 @@ Checker workers / helpers:
       twin verify); _computedOptions.moduleResolution.computeValue +
       getIsolatedModules/shouldPreserveConstEnums derivations.
       — landed @79936faf (§9 core) + @f3b1c621 (§8/§9 drivers).
-- [ ] 5.8d residue: markExportAsReferenced (L71945 — decide
-      emit-only no-op). The decision was never recorded: no port, no
-      escape, no commit-body verdict (2026-07-18 audit). It sits in
-      m8-emitter-inventory.json (direct_emitter=false, sites=[]), so
-      the D2 emitter-dependency closure forces an explicit
-      disposition before M7 close; decide it there (likely alongside
-      the M7 8.3 unused band, which owns alias-referenced marking).
+- [x] 5.8d residue RESOLVED (2026-07-19, M4-review B18): the
+      markAliasReferenced (L71909) / markExportAsReferenced (L71945)
+      family is **M7-OWNED** — port it with the 8.3 unused band,
+      which owns alias-referenced marking (prerequisite recorded at
+      m7-tail-steps.md §8.3). Disposition grounds: the family is
+      entirely unported today and diagnostic-INERT (review-confirmed
+      — no current consumer reads the referenced flags), so M4-M6
+      carry no port and no marker; but its resolveName(isUse)
+      side-effects are the marking discipline the unused band's
+      6133/6192 rows depend on, so 8.3 cannot land without it. The
+      D2 emitter-dependency closure disposition for
+      markExportAsReferenced is "deferred: M7 8.3" (emit-only no-op
+      was considered and REJECTED — the isReferenced marking half is
+      checker-observable through the unused band).
 
 ## §13 Rust seam inventory + new state
 

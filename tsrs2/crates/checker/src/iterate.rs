@@ -813,6 +813,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getAsyncFromSyncIterationTypes @6.0.3
     /// tsc-hash: 3c35e85c7d8e414d2bb973ae4c6c25a607d14f4bfc8d14b1414bee938399633f
     /// tsc-span: _tsc.js:84113-84128
+    ///
+    /// RECORDED DEVIATION (m8-readiness.md, crash row 1/2): tsc
+    /// passes errorNode to getAwaitedType here WITHOUT a
+    /// diagnosticMessage (84123-84126), so a non-promise thenable
+    /// yield type Debug-fails in getAwaitedTypeNoAlias's
+    /// assertIsDefined(diagnosticMessage) (82486) — tsc 6.0.3
+    /// crashes on `for await` / async `yield*` over sync iterables
+    /// of such thenables. We pass the 1320 pair below and report
+    /// where tsc dies.
     fn get_async_from_sync_iteration_types(
         &mut self,
         iteration_types: IterationTypesResult,
