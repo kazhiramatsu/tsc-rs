@@ -1881,35 +1881,25 @@ impl<'a> CheckerState<'a> {
         self.get_properties_of_type_full(ty)
     }
 
-    /// The object-member slice of getTypeOfPropertyOfType.
+    /// tsc-port: getTypeOfPropertyOfType @6.0.3
+    /// tsc-hash: ddd47344f8b1b3d0de20c2241560a370790f21248f978ea95d10914e91566057
+    /// tsc-span: _tsc.js:55803-55806
+    ///
+    /// A bare getPropertyOfType → getTypeOfSymbol with NO
+    /// receiver-flags guard — getPropertyOfType itself hops through
+    /// getReducedApparentType, so primitives and other non-structured
+    /// receivers resolve their APPARENT-type members (string.length —
+    /// the 6.6-review destructuring-assignment FP face: the old
+    /// OBJECT|UNION|INTERSECTION pre-guard degraded the assigned type
+    /// and manufactured a 2322 tsc never reports). The binder-flags
+    /// VALUE re-filter is gone too: symbolIsValue already gates
+    /// inside the property lookup.
     pub fn get_type_of_property_of_type(
         &mut self,
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<TypeId>> {
-        // tsc getTypeOfPropertyOfType = getPropertyOfType over any
-        // STRUCTURED type — the OBJECT-only guard dropped
-        // union/intersection receivers (the awaited-unwrap of the
-        // overload-failure Promise INTERSECTION was the 6.6f
-        // controlFlowIterationErrorsAsync 2322 FP face: `then` never
-        // resolved, so the await passed the promise through).
-        if !self.tables.flags_of(ty).intersects(TypeFlags::from_bits(
-            TypeFlags::OBJECT.bits() | TypeFlags::UNION.bits() | TypeFlags::INTERSECTION.bits(),
-        )) {
-            return Ok(None);
-        }
-        let Some(symbol) = self.get_property_of_type_full(ty, name)? else {
-            return Ok(None);
-        };
-        if !self
-            .binder
-            .symbol(symbol)
-            .flags
-            .intersects(tsrs2_types::SymbolFlags::VALUE)
-        {
-            return Ok(None);
-        }
-        Ok(Some(self.get_type_of_symbol(symbol)?))
+        self.get_type_of_property_of_type_full(ty, name)
     }
 
     pub fn type_has_call_or_construct_signatures(&mut self, ty: TypeId) -> CheckResult2<bool> {

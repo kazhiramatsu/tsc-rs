@@ -178,10 +178,6 @@ name = "get_properties_of_type"
 
 [[fn]]
 file = "crates/checker/src/engine.rs"
-name = "get_type_of_property_of_type"
-
-[[fn]]
-file = "crates/checker/src/engine.rs"
 name = "is_false"
 
 [[fn]]

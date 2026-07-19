@@ -2017,6 +2017,34 @@ mod tests {
         );
     }
 
+    #[test]
+    fn destructuring_assignment_reads_apparent_type_members() {
+        // getTypeOfPropertyOfType has no receiver-flags guard (55803;
+        // 6.6 review A1) — string.length resolves via the reduced
+        // apparent type and the assigned type narrows; tsc is clean.
+        assert_eq!(
+            lib_codes_of_with_options(
+                "let n: number | string = 0;\n({ length: n } = \"abc\");\nconst m: number = n;\n",
+                &strict_options()
+            ),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn compound_return_operand_contains_over_seam_reverted_ref() {
+        // The return face's SUBTREE consult (6.6 review A3): `[u]`
+        // inherits the seam-reverted `u`'s wideness — contain, never
+        // the 2322 tsc doesn't report.
+        assert_eq!(
+            lib_codes_of_with_options(
+                "function isNum(x: string | number) { return typeof x === \"number\"; }\nfunction g(u: string | number): number[] { if (isNum(u)) { return [u]; } return [0]; }\n",
+                &strict_options()
+            ),
+            Vec::<u32>::new()
+        );
+    }
+
     fn lib_codes_of_with_options(source: &str, options: &CompilerOptions) -> Vec<u32> {
         let result = check_program_with_libs(
             &[es5_lib()],

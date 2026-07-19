@@ -2756,8 +2756,8 @@ impl<'a> CheckerState<'a> {
     /// resolve a predicate there that we cannot, and the pass-through
     /// answer would be over-wide.
     ///
-    /// `query: None` is the reachability walk (isReachableFlowNode
-    /// 70280 — 6.6): there is no flag channel there, so the uncertain
+    /// `query: None` is the reachability walk (isReachableFlowNodeWorker
+    /// 70279 — 6.6): there is no flag channel there, so the uncertain
     /// verdict Errs instead — a "reachable" answer computed past an
     /// undecided asserts-false/never candidate could surface as a
     /// 2534/2366-family FP once the dead-code gates are gone, and an
@@ -3013,10 +3013,26 @@ impl<'a> CheckerState<'a> {
                     let Some(text) = self.escaped_text_of(Some(name)).map(str::to_owned) else {
                         return Ok(None);
                     };
-                    // tsc getSymbolNameForPrivateIdentifier (15905):
-                    // `__#{symbolId}@{description}`.
-                    let lookup = format!("__#{}@{}", type_symbol.0, text);
-                    self.get_property_of_type_full(receiver_type, &lookup)?
+                    // tsc getSymbolNameForPrivateIdentifier (15905)
+                    // keys `__#<symbolId>@<description>` with the
+                    // binder's lazily-assigned symbol id — a
+                    // checker-side numeric reconstruction sits in the
+                    // wrong id space (the 6.6-review 2775 FP face:
+                    // `this.#p1(v)` never resolved). Only an OWN
+                    // member of the receiver's class can carry that
+                    // class's id, so recover the exact mangled key
+                    // from the class's own members table and route
+                    // the typed lookup through it.
+                    let suffix = format!("@{text}");
+                    let lookup = self
+                        .get_members_of_symbol(type_symbol)?
+                        .keys()
+                        .find(|name| name.starts_with("__#") && name.ends_with(&suffix))
+                        .cloned();
+                    match lookup {
+                        Some(lookup) => self.get_property_of_type_full(receiver_type, &lookup)?,
+                        None => None,
+                    }
                 } else {
                     let Some(text) = self.escaped_text_of(Some(name)).map(str::to_owned) else {
                         return Ok(None);

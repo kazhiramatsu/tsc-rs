@@ -3526,15 +3526,12 @@ impl<'a> CheckerState<'a> {
                 .get_declared_type_of_class_or_interface(symbol)
                 .map(Some);
         }
-        let type_node = match self.data_of(declaration) {
-            NodeData::FunctionDeclaration(data) => data.r#type,
-            NodeData::FunctionExpression(data) => data.r#type,
-            NodeData::ArrowFunction(data) => data.r#type,
-            NodeData::MethodDeclaration(data) => data.r#type,
-            NodeData::GetAccessor(data) => data.r#type,
-            NodeData::SetAccessor(_) => None,
-            _ => None,
-        };
+        // getEffectiveReturnTypeNode reads `.type` generically
+        // (16768) — a set accessor's grammatically-illegal (1095) but
+        // PARSED annotation still feeds the signature return type;
+        // tsc's bare-return 7030 face consults exactly that (the 6.6
+        // review's p9 face).
+        let type_node = self.effective_return_type_node(declaration);
         if let Some(type_node) = type_node {
             return Ok(Some(self.get_type_from_type_node(type_node)?));
         }

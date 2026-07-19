@@ -6314,21 +6314,19 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getTypeForVariableLikeDeclaration @6.0.3
-    /// tsc-hash: 109205c923753ffa4729ddda5d05745808a37dba0474c79e15e7da5a9e0bb8df
-    /// tsc-span: _tsc.js:56032-56144
+    /// tsc-hash: c0e8266ebc58c3f705777885e0cbce9e9a3452ce61f033c5e075f8f739ef624e
+    /// tsc-span: _tsc.js:56032-56141
     ///
-    /// Escaped arms: the JSDoc/JS container arms ([JSDOC]), the
-    /// property-declaration constructor/static-block flow arms
-    /// ([FLOW M5]) and its ambient getTypeOfPropertyInBaseClass tail
-    /// (5.8). The for-in/for-of variable arms are live since 5.8b.
+    /// Escaped arms: the JSDoc/JS container arms ([JSDOC]). The
+    /// property-declaration constructor/static-block flow arms and
+    /// the ambient getTypeOfPropertyInBaseClass tail went LIVE at
+    /// 6.6e (the 56107-56117 ladder below); the for-in/for-of
+    /// variable arms are live since 5.8b.
     ///
-    /// The AUTO ARM ([FLOW M5]): tsc returns autoType/autoArrayType and
-    /// lets control-flow analysis evolve the type. Oracle-pinned
-    /// (2026-07-13): `let x;` / `let x = null;` / `let x = [];` /
-    /// `const x = [];` all check clean at uses under strict — the M4
-    /// stand-in is anyType (falling through to the initializer arm
-    /// would render null/never[] relations tsc never sees: FP), with
-    /// the flow rows (18048/2454/7034) recorded FN until M5.
+    /// The AUTO ARM: tsc returns autoType/autoArrayType and lets
+    /// control-flow analysis evolve the type — LIVE since 6.2/6.6
+    /// (the flow rows 18048/2454/7034 report through the walk; the
+    /// M4 anyType stand-in retired with the auto producers).
     fn get_type_for_variable_like_declaration(
         &mut self,
         declaration: NodeId,
@@ -7316,7 +7314,12 @@ impl<'a> CheckerState<'a> {
             NodeData::ArrowFunction(data) => data.r#type,
             NodeData::MethodDeclaration(data) => data.r#type,
             NodeData::GetAccessor(data) => data.r#type,
-            NodeData::SetAccessor(_) => None,
+            // getEffectiveReturnTypeNode reads `.type` generically
+            // (16768): a set accessor's grammatically-illegal (1095)
+            // but PARSED annotation still feeds the signature return
+            // type — tsc's bare-return 7030 face consults it (the
+            // 6.6-review p9 face).
+            NodeData::SetAccessor(data) => data.r#type,
             _ => None,
         });
         let target = self.signature_of(id).target;

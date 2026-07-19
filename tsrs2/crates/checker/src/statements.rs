@@ -275,6 +275,25 @@ impl<'a> CheckerState<'a> {
                     let initializer_type =
                         self.check_expression_cached(initializer, CheckMode::NORMAL)?;
                     if strict_null_checks && need_check_widened_type {
+                        // 6.6-review containment: the empty-pattern
+                        // non-null face (`const {} = u`) reports over
+                        // the initializer's flow answer, but its
+                        // internal seam consult keys the DECLARATION
+                        // node — probe the initializer here (2531/
+                        // 2532-family FP over a seam-reverted `u`).
+                        if self.flow_answer_is_seam_reverted_within(initializer)
+                            && self.maybe_type_of_kind(
+                                initializer_type,
+                                TypeFlags::from_bits(
+                                    TypeFlags::NULLABLE.bits() | TypeFlags::VOID.bits(),
+                                ),
+                            )
+                        {
+                            return Err(Unsupported::new(
+                                "empty-pattern non-null report over a seam-reverted flow \
+                                 answer (unported narrowing dependency, M6/M8 seam)",
+                            ));
+                        }
                         self.check_non_null_non_void_type(initializer_type, node)?;
                     } else {
                         // checkTypeAssignableToAndOptionallyElaborate
@@ -282,6 +301,20 @@ impl<'a> CheckerState<'a> {
                         // recomputed like tsc.
                         let target =
                             self.get_widened_type_for_variable_like_declaration(node, false)?;
+                        // 6.6-review containment: the binding-pattern
+                        // initializer row was the review's first
+                        // un-consulted declaration row (`const { a }:
+                        // T = u` over a seam-reverted `u` fabricated
+                        // a 2322) — same flag-exact registry as the
+                        // Step-12 main row.
+                        if self.flow_answer_is_seam_reverted_within(initializer)
+                            && !self.is_type_assignable_to(initializer_type, target)?
+                        {
+                            return Err(Unsupported::new(
+                                "failed binding-pattern initializer over a seam-reverted \
+                                 flow answer (unported narrowing dependency, M6/M8 seam)",
+                            ));
+                        }
                         self.check_type_assignable_to(
                             initializer_type,
                             target,
@@ -339,7 +372,11 @@ impl<'a> CheckerState<'a> {
                     // arm reports at the NAME span — pinned).
                     // 6.6f: syntax-probe gate → flag-exact
                     // containment for the failed-initializer face.
-                    if self.flow_answer_is_seam_reverted(initializer)
+                    // SUBTREE probe (6.6 review): a compound
+                    // initializer (`= [u]`, `= { a: u }`) inherits a
+                    // seam-reverted descendant's wideness — the old
+                    // subtree gate's coverage keeps its strength.
+                    if self.flow_answer_is_seam_reverted_within(initializer)
                         && !self.is_type_assignable_to(initializer_type, ty)?
                     {
                         return Err(Unsupported::new(
@@ -471,6 +508,23 @@ impl<'a> CheckerState<'a> {
                     .flags
                     .intersects(SymbolFlags::ASSIGNMENT)
             {
+                // 6.6-review containment: an annotation-less merged
+                // declaration DERIVES declaration_type from its
+                // initializer's flow answer — a seam-reverted answer
+                // widens it and fabricates a 2403 tsc never reports
+                // (`var v: T; var v = w;` under an unported-narrowing
+                // guard). Same flag-exact registry, derived-type face.
+                if self
+                    .only_expression_initializer_of(node)
+                    .is_some_and(|initializer| {
+                        self.flow_answer_is_seam_reverted_within(initializer)
+                    })
+                {
+                    return Err(Unsupported::new(
+                        "merged-declaration type comparison over a seam-reverted flow \
+                         answer (unported narrowing dependency, M6/M8 seam)",
+                    ));
+                }
                 self.error_next_variable_or_property_declaration_must_have_same_type(
                     value_declaration,
                     ty,
@@ -481,6 +535,18 @@ impl<'a> CheckerState<'a> {
             if let Some(initializer) = self.only_expression_initializer_of(node) {
                 let initializer_type =
                     self.check_expression_cached(initializer, CheckMode::NORMAL)?;
+                // 6.6-review: the merged row's initializer relation
+                // takes the same flag-exact containment as the main
+                // row (the review's third un-consulted declaration
+                // row).
+                if self.flow_answer_is_seam_reverted_within(initializer)
+                    && !self.is_type_assignable_to(initializer_type, declaration_type)?
+                {
+                    return Err(Unsupported::new(
+                        "failed declaration initializer over a seam-reverted flow \
+                         answer (unported narrowing dependency, M6/M8 seam)",
+                    ));
+                }
                 self.check_type_assignable_to(
                     initializer_type,
                     declaration_type,
@@ -2889,6 +2955,106 @@ mod tests {
         assert_eq!(
             checked_rows("let a: 0 | 1 = 0;\nlet b: 0 | 1 | 9;\n[{ [(a = 1)]: b } = [9, a] as const] = [];\nconst bb: 0 = b;\n"),
             []
+        );
+    }
+
+    // ---- private-twin heads + the non-augmenting substitution
+    // (6.6 review; rows oracle-pinned vs vendored tsc 6.0.3 noLib,
+    // 2026-07-19) ----
+
+    #[test]
+    fn private_twin_first_unmatched_beside_others_keeps_2322() {
+        // reportUnmatchedProperty's private arm precedes the
+        // props-count dispatch (66710-66724) — and an EMPTY subclass
+        // hits its base's twin through the non-augmenting
+        // substitution (getNormalizedType 64809).
+        assert_eq!(
+            checked_rows(
+                "class A { #x = 1; }\nclass B extends A { }\nclass C { #x = 2; y = 0; }\ndeclare const b: B;\nconst c: C = b;\n"
+            ),
+            [(2322, 95, 1)]
+        );
+    }
+
+    #[test]
+    fn inherited_private_of_augmenting_subclass_keeps_2741() {
+        // An AUGMENTING subclass is never substituted and the keyed
+        // twin lookup cannot see the base's private — 2741 like tsc.
+        assert_eq!(
+            checked_rows(
+                "class A { #x = 1; }\nclass B extends A { y = 0; }\nclass C { #x = 2; }\ndeclare const b: B;\nconst c: C = b;\n"
+            ),
+            [(2741, 95, 1)]
+        );
+    }
+
+    #[test]
+    fn empty_subclass_missing_property_reports_base_display() {
+        // The 2741 walk and display run over the substituted BASE
+        // ('A'); only the plain relation head keeps the original name
+        // (reportErrorResults 65250-65253).
+        let text = "class A { z = 1; }\nclass B extends A { }\nclass C { y = 0; }\ndeclare const b: B;\nconst c: C = b;\n";
+        assert_eq!(checked_rows(text), [(2741, 86, 1)]);
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let message = &state.diagnostics.last().expect("2741 row").message;
+            assert!(
+                message.text.contains("in type 'A'"),
+                "substituted display: {}",
+                message.text
+            );
+        });
+    }
+
+    // ---- seam-reverted declaration rows contain (6.6 review; tsc
+    // 6.0.3 noLib is CLEAN on each — the body-inferred predicate
+    // narrows) ----
+
+    #[test]
+    fn pattern_row_contains_over_seam_reverted_initializer() {
+        assert_eq!(
+            checked_rows(
+                "interface T { a: string }\nfunction isObj(x: T | null) { return x !== null; }\ndeclare const u: T | null;\nif (isObj(u)) { const { a }: T = u; }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn merged_row_contains_over_seam_reverted_initializer() {
+        assert_eq!(
+            checked_rows(
+                "interface T { a: string }\nfunction isObj(x: T | null) { return x !== null; }\ndeclare const w: T | null;\nfunction h() { if (isObj(w)) { var v: T; var v = w; } }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn empty_pattern_contains_over_seam_reverted_initializer() {
+        assert_eq!(
+            checked_rows(
+                "interface T { a: string }\nfunction isObj(x: T | null) { return x !== null; }\ndeclare const u: T | null;\nif (isObj(u)) { const {} = u; }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn unreachable_const_enum_under_isolated_modules_reports_7027() {
+        // shouldPreserveConstEnums' computed isolatedModules arm
+        // (18157 + 18160-18162; 6.6-review D4).
+        let options = CompilerOptions {
+            isolated_modules: Some(true),
+            allow_unreachable_code: Some(false),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_rows_with(
+                "function f() {\n    return;\n    const enum E { A }\n}\n",
+                &options
+            ),
+            [(7027, 31, 18)]
         );
     }
 

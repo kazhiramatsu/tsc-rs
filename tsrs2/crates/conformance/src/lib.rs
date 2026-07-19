@@ -1391,6 +1391,8 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         es_module_interop: bool_option("esModuleInterop"),
         allow_synthetic_default_imports: bool_option("allowSyntheticDefaultImports"),
         preserve_const_enums: bool_option("preserveConstEnums"),
+        isolated_modules: bool_option("isolatedModules"),
+        verbatim_module_syntax: bool_option("verbatimModuleSyntax"),
         base_url: string_option(program, "baseUrl"),
         allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
         resolve_json_module: bool_option("resolveJsonModule"),

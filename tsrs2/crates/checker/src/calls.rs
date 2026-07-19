@@ -5633,10 +5633,10 @@ impl<'a> CheckerState<'a> {
     /// Serves Call AND New (tsc dispatches both here).
     /// checkDeprecatedSignature is a no-op: the Deprecated node flag
     /// only ever comes from JSDoc `@deprecated` parsing (unmodeled).
-    /// The void-return type-predicate assertion band (2775/2776) is
-    /// provably dead — signature type predicates are unmodeled at M4
-    /// (predicate-shaped annotations already unwind in the return-type
-    /// resolver); the arm ports with M5's getEffectsSignature work.
+    /// The void-return type-predicate assertion band (2775/2776)
+    /// landed with the 6.6 review (its M4 "provably dead" residual
+    /// lapsed when 6.6a/c made getEffectsSignature and
+    /// getTypePredicateOfSignature real).
     /// JS arms (require, expando) are JS-file-gated.
     pub(crate) fn check_call_expression(
         &mut self,
@@ -5706,7 +5706,80 @@ impl<'a> CheckerState<'a> {
             let target = self.walk_up_parenthesized_expressions(parent);
             return self.get_es_symbol_like_type_for_node(target);
         }
+        // 77639-77646: the assertion-position checks. A plain
+        // (non-optional-chain) call STATEMENT whose signature is
+        // void-returning and carries a type predicate must sit on a
+        // dotted name (2776), and every name in that target must
+        // carry an explicit type annotation — i.e. the
+        // effects-signature resolution must succeed (2775).
+        // Body-inference uncertainty cannot reach the predicate read:
+        // inferred predicates are boolean-valued `x is T`, never
+        // void/asserts, so the VOID filter keeps it
+        // annotation-driven. getTypeOfDottedName's related-info
+        // attachment on the 2775 diagnostic (77644) rides the T2/T3
+        // display band with the rest of the elided assertion
+        // elaboration.
+        if self.kind_of(node) == SyntaxKind::CallExpression {
+            let question_dot_token = match self.data_of(node) {
+                NodeData::CallExpression(data) => data.question_dot_token,
+                _ => None,
+            };
+            if question_dot_token.is_none()
+                && self
+                    .parent_of(node)
+                    .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ExpressionStatement)
+                && self
+                    .tables
+                    .flags_of(return_type)
+                    .intersects(TypeFlags::VOID)
+                && self.get_type_predicate_of_signature(signature)?.is_some()
+            {
+                if let Some(expression) = expression {
+                    if !self.is_dotted_name(expression) {
+                        self.error_at(
+                            Some(expression),
+                            &diagnostics::Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name,
+                            &[],
+                        );
+                    } else if self.get_effects_signature(/*query*/ None, node)?.is_none() {
+                        self.error_at(
+                            Some(expression),
+                            &diagnostics::Assertions_require_every_name_in_the_call_target_to_be_declared_with_an_explicit_type_annotation,
+                            &[],
+                        );
+                    }
+                }
+            }
+        }
         Ok(return_type)
+    }
+
+    /// tsc-port: isDottedName @6.0.3
+    /// tsc-hash: ec6ff8964b04776720f7c9510ace6f55a714e4d3555762f938fdc934060e35c2
+    /// tsc-span: _tsc.js:17147-17149
+    ///
+    /// Identifier / this / super / meta-property roots through
+    /// property-access and parenthesized links.
+    fn is_dotted_name(&self, node: NodeId) -> bool {
+        match self.kind_of(node) {
+            SyntaxKind::Identifier
+            | SyntaxKind::ThisKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::MetaProperty => true,
+            SyntaxKind::PropertyAccessExpression => match self.data_of(node) {
+                NodeData::PropertyAccessExpression(data) => data
+                    .expression
+                    .is_some_and(|expression| self.is_dotted_name(expression)),
+                _ => false,
+            },
+            SyntaxKind::ParenthesizedExpression => match self.data_of(node) {
+                NodeData::ParenthesizedExpression(data) => data
+                    .expression
+                    .is_some_and(|expression| self.is_dotted_name(expression)),
+                _ => false,
+            },
+            _ => false,
+        }
     }
 
     /// tsc-port: isSymbolOrSymbolForCall @6.0.3
@@ -5760,6 +5833,36 @@ mod tests {
     /// Driver-level fixture check (operators.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options {} unless stated) — scratchpad
     /// pins/{p,q,r}*.ts probes, 2026-07-13.
+    // ---- assertion-position checks (6.6 review D1; oracle-pinned
+    // vs vendored tsc 6.0.3 noLib, 2026-07-19) ----
+
+    #[test]
+    fn assertion_position_checks_report_2775_and_2776() {
+        // 77639-77646: a void-returning predicate call statement over
+        // a non-annotated dotted name (2775) / a non-dotted target
+        // (2776).
+        assert_eq!(
+            checked_rows(
+                "function assert(value: unknown): asserts value {}\nconst helpers = { assert };\nfunction g(x: unknown) {\n    helpers.assert(typeof x === \"string\");\n    (0, assert)(typeof x === \"string\");\n}\n"
+            ),
+            [(2775, 107, 14), (2695, 151, 1), (2776, 150, 11)]
+        );
+    }
+
+    #[test]
+    fn private_dotted_assertion_target_resolves_clean() {
+        // getTypeOfDottedName's private arm recovers the binder's
+        // mangled key from the class's OWN members table — the
+        // numeric-reconstruction id-space bug was the 6.6-review
+        // privateNamesAssertion 2775 FP face.
+        assert_eq!(
+            checked_rows(
+                "class Foo {\n    #p1: (v: any) => asserts v is string = (v) => {};\n    m1(v: unknown) {\n        this.#p1(v);\n        v;\n    }\n}\nclass Foo2 {\n    #p2(v: any): asserts v is string {}\n    m1(v: unknown) {\n        this.#p2(v);\n        v;\n    }\n}\n"
+            ),
+            []
+        );
+    }
+
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
         checked_rows_with(text, &CompilerOptions::default())
     }

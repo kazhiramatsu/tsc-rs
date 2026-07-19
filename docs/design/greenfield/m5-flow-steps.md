@@ -385,6 +385,48 @@ LANDED (6.6a-f, branch m5/6.6-reachability) with recorded deviations:
   unreduced intersection members (getReducedType never-reduction,
   M6).
 
+REVIEW FIXES (6.6g, branch fix/m5-6.6-review) — the post-merge 6.6
+review (six-way tsc cross-check + oracle probes) closed:
+
+- **Four flag-exact containment omissions** (live FPs outside the
+  corpus, all fed by the M6 body-inferred-predicate seam): the
+  binding-pattern initializer row, the merged-declaration initializer
+  row AND its derived-type 2403 face, the empty-pattern non-null
+  face, plus SUBTREE consults (`flow_answer_is_seam_reverted_within`)
+  for compound return/declaration operands — restoring the retired
+  subtree gates' containment strength at flag-exact precision.
+- **getTypeOfPropertyOfType guardless** (55803): the STRUCTURED
+  pre-guard degraded primitive receivers' apparent-type members
+  (`({ length: n } = "abc")` manufactured a 2322).
+- **reportUnmatchedProperty tsc-exact**: the private-twin arm probes
+  the FIRST unmatched property BEFORE the count dispatch, keyed to
+  the source class's OWN members; the walk and 2741/2739 displays run
+  over the getSingleBaseForNonAugmentingSubtype-substituted pair
+  (64809/65250 — the substitution existed but the reporter received
+  the originals).
+- **Elaboration parity**: elaborateError's paren/const-as/`=`,comma
+  recursion arms (63968-63983), array-element deep-first rows
+  (64406-64407), satisfies STOPS the member descent (no tsc arm),
+  and the 2418 computed-property message (64449).
+- **The lapsed 2775/2776 M4 residual ported** (77639-77646) — its
+  first canary exposed getTypeOfDottedName's private lookup
+  reconstructing the mangled key in the wrong id space
+  (privateNamesAssertion FP); the key now recovers from the class's
+  own members table.
+- **SetAccessor return annotations** reach both signature-return
+  readers (16768 generic `.type` read — the bare-return 7030 face);
+  **computed shouldPreserveConstEnums** (isolatedModules ‖
+  verbatimModuleSyntax, 18157) with the conformance mapper keys;
+  the **never-2339 containment narrowed to intersection-bearing
+  declared types** (the double-typeof never face reports like tsc);
+  the flow-side **7008 prints declaration names** (never the
+  `__#<id>@` mangling); stale [FLOW M5] comments and off-by-a-few
+  tsc cites cleaned.
+
+Gates: T0 53.4636→53.4840% (+10), 2xxx 75.0131→75.0606% (+10),
+FP=0 all bands; checker tests 629→646 (17 new oracle-verified pins);
+escapes 226/0/0/112 (+4 seam-containment sites, all owner-tagged).
+
 ## Final gate
 
 ```sh

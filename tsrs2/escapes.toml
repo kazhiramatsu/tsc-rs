@@ -1312,14 +1312,36 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/statements.rs"
 in = "check_variable_like_declaration"
-reason = "failed declaration initializer over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
+reason = "empty-pattern non-null report over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
 owner = "M8"
 
 [[site]]
 file = "crates/checker/src/statements.rs"
 in = "check_variable_like_declaration"
+reason = "failed binding-pattern initializer over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
+reason = "failed declaration initializer over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
+class = "stage"
+owner = "M8"
+count = 2
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
 reason = "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
+reason = "merged-declaration type comparison over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
 owner = "M8"
 
