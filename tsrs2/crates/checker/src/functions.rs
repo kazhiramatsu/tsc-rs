@@ -5,10 +5,10 @@
 //! the await family's error paths (the probe half landed errorNode-less
 //! at 5.5e in operators.rs), and the yield grammar slice.
 //!
-//! Stage seams live where the extraction doc (§0/§8) puts them:
-//! [FLOW M5] functionHasImplicitReturn → false;
-//! checkAllCodePathsInNonVoidFunctionReturnOrThrow → no-op (FN on
-//! 2355/2366/2534/7030); [ITER 5.8] generator bodies and
+//! Stage seams live where the extraction doc (§0/§8) puts them —
+//! the [FLOW M5] pair retired at 6.6c (functionHasImplicitReturn and
+//! checkAllCodePathsInNonVoidFunctionReturnOrThrow are real; the
+//! 2355/2366/2534/7030 band is live); [ITER 5.8] generator bodies and
 //! yield aggregation escape Unsupported; [INFER M6] the Inferential
 //! checkMode arms are dead (no producer sets the bit at M4).
 
@@ -1367,9 +1367,12 @@ impl<'a> CheckerState<'a> {
             effective_expr
         };
         // 6.6f: syntax-probe gate → flag-exact containment for the
-        // failed-return face.
+        // failed-return face. SUBTREE probe (6.6 review): a compound
+        // operand (`return { a: u }` / `return [u]`) inherits a
+        // seam-reverted descendant's wideness into its own type, so
+        // the old subtree gate's coverage keeps its strength here.
         if let Some(effective) = effective_expr {
-            if self.flow_answer_is_seam_reverted(effective)
+            if self.flow_answer_is_seam_reverted_within(effective)
                 && !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
             {
                 return Err(Unsupported::new(
@@ -5368,6 +5371,26 @@ mod tests {
     /// 2026-07-13. Suggestion-band rows (6133/80007) are unmodeled and
     /// absent throughout; null-span global 2318 rows are file-less and
     /// filtered by the harness.
+    #[test]
+    fn setter_return_annotation_feeds_the_bare_return_7030() {
+        // getEffectiveReturnTypeNode reads a set accessor's parsed
+        // (grammatically-illegal, 1095) annotation generically
+        // (16768) — the bare-return face still consults it (6.6
+        // review D2; oracle-pinned vs vendored tsc 6.0.3 noLib).
+        let options = CompilerOptions {
+            no_implicit_returns: Some(true),
+            strict_null_checks: Some(false),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_rows_with(
+                "class C { set p(v: number): number { if (v) { return; } } }\n",
+                &options
+            ),
+            [(1095, 14, 1), (7030, 46, 6)]
+        );
+    }
+
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
         checked_rows_with(text, &CompilerOptions::default())
     }

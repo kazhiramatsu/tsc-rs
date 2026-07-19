@@ -1856,8 +1856,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4bb1d606ce7add8c32a4814bc6aa54920c45065ab7d23907e88804c33da36d27
     /// tsc-span: _tsc.js:72348-72421
     ///
-    /// checkThisBeforeSuper's isPostSuperFlowNode is [FLOW] M5 — the
-    /// stub answers "past super" so 17009 stays FN (extraction doc §0).
+    /// checkThisBeforeSuper's isPostSuperFlowNode stays unported (M7,
+    /// checker-grammar 8.1) — the stub answers "past super" so 17009
+    /// stays FN.
     pub(crate) fn check_this_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let is_node_in_type_query = self.is_in_type_query(node);
         let mut container = get_this_container_full(self, node, true, true)
@@ -2138,8 +2139,10 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// [FLOW M5] checkThisBeforeSuper (72340): needs isPostSuperFlowNode
-    /// over the binder's flow graph — 17009/17011 are FN until M5.
+    /// checkThisBeforeSuper (72330-72342): needs isPostSuperFlowNode
+    /// (flowNodePostSuper — deliberately unported at M5: its only
+    /// consumer is this check). 17009/17011 stay FN, family-mapped
+    /// under checker-grammar, owner M7 stage 8.1 (diag-families.json).
     fn check_this_before_super_stub(&mut self, _node: NodeId, _container: NodeId) {}
 
     /// tsc checkThisInStaticClassFieldInitializerInDecoratedClass

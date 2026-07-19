@@ -2357,6 +2357,29 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         error_node: NodeId,
     ) -> CheckResult2<bool> {
+        // reportUnmatchedProperty runs over the isRelatedTo-NORMALIZED
+        // pair: getNormalizedType's non-augmenting-subtype arm (64809)
+        // substitutes an EMPTY single-base subclass with its base for
+        // the property walk AND the missing-property displays (the
+        // 2741 face of `class B extends A {}` prints 'A'), while
+        // reportErrorResults keeps the ORIGINAL types for the plain
+        // relation head only (65250-65253). The head-shaping caller
+        // hands us the originals, so the substitution loop reruns
+        // here (fixpoint, like getNormalizedType's while-true).
+        let source = {
+            let mut ty = source;
+            while let Some(base) = self.get_single_base_for_non_augmenting_subtype(ty)? {
+                ty = base;
+            }
+            ty
+        };
+        let target = {
+            let mut ty = target;
+            while let Some(base) = self.get_single_base_for_non_augmenting_subtype(ty)? {
+                ty = base;
+            }
+            ty
+        };
         // Object AND intersection sources reach tsc's properties walk
         // (getUnmatchedProperties works over getPropertiesOfType);
         // unions/primitives keep the generic head (5.4 pin: unionDE =
@@ -2410,6 +2433,55 @@ impl<'a> CheckerState<'a> {
         if unmatched.is_empty() {
             return Ok(false);
         }
+        // reportUnmatchedProperty's PRIVATE arm (66710-66724): probed
+        // on the FIRST unmatched property BEFORE the props-count
+        // dispatch (a #name twin beside other missing members still
+        // takes this arm; a non-private FIRST unmatched skips it even
+        // when a later one is private — both faces oracle-pinned). A
+        // private-identifier member whose SOURCE class declares its
+        // OWN #name twin reports the refers-to-a-different-member
+        // chain under the PLAIN relation head (2322 row; the 18015
+        // chain detail rides the unmodeled chain tail) — never a
+        // missing-property head. tsc's twin lookup keys
+        // getSymbolNameForPrivateIdentifier(source.symbol, desc) into
+        // getPropertyOfType — only a member declared by the source
+        // class itself can carry the source class's id, so the OWN
+        // members table probe below is key-lookup-equivalent
+        // (inherited privates carry the base class's id and never
+        // match; the non-augmenting substitution above is what lets
+        // an empty subclass hit its base's twin).
+        let first_unmatched = unmatched[0];
+        let private_description = self
+            .binder
+            .symbol(first_unmatched)
+            .value_declaration
+            .and_then(|declaration| {
+                let source_file = self.binder.source_of_node(declaration);
+                let name =
+                    tsrs2_binder::node_util::get_name_of_declaration(source_file, declaration)?;
+                if self.kind_of(name) != SyntaxKind::PrivateIdentifier {
+                    return None;
+                }
+                self.escaped_text_of(Some(name)).map(str::to_owned)
+            });
+        if let Some(description) = private_description {
+            let source_class_symbol = self.tables.type_of(source).symbol.filter(|&symbol| {
+                self.binder
+                    .symbol(symbol)
+                    .flags
+                    .intersects(tsrs2_types::SymbolFlags::CLASS)
+            });
+            if let Some(class_symbol) = source_class_symbol {
+                let suffix = format!("@{description}");
+                let has_own_twin = self
+                    .get_members_of_symbol(class_symbol)?
+                    .keys()
+                    .any(|name| name.starts_with("__#") && name.ends_with(&suffix));
+                if has_own_twin {
+                    return Ok(false);
+                }
+            }
+        }
         // reportUnmatchedProperty 66750: the MULTI-property head runs
         // behind tryElaborateArrayLikeErrors — a readonly-source /
         // mutable-target mismatch reports 4104 later instead (the
@@ -2423,46 +2495,6 @@ impl<'a> CheckerState<'a> {
         let target_text = self.type_to_string_slice(target)?;
         if unmatched.len() == 1 {
             let prop = unmatched[0];
-            // reportUnmatchedProperty's PRIVATE arm (66752-66765): a
-            // private-identifier member whose SOURCE class declares
-            // its own #name reports the refers-to-a-different-member
-            // chain under the PLAIN relation head (2322 row, 18015
-            // chain detail) — never the 2741 face. The twin probe
-            // matches the binder's `__#<id>@<description>` mangling by
-            // suffix (the lazily assigned id is binder-internal).
-            let private_description =
-                self.binder
-                    .symbol(prop)
-                    .value_declaration
-                    .and_then(|declaration| {
-                        let source_file = self.binder.source_of_node(declaration);
-                        let name = tsrs2_binder::node_util::get_name_of_declaration(
-                            source_file,
-                            declaration,
-                        )?;
-                        if self.kind_of(name) != SyntaxKind::PrivateIdentifier {
-                            return None;
-                        }
-                        self.escaped_text_of(Some(name)).map(str::to_owned)
-                    });
-            if let Some(description) = private_description {
-                let source_is_class = self.tables.type_of(source).symbol.is_some_and(|symbol| {
-                    self.binder
-                        .symbol(symbol)
-                        .flags
-                        .intersects(tsrs2_types::SymbolFlags::CLASS)
-                });
-                if source_is_class {
-                    let suffix = format!("@{description}");
-                    let has_twin = self.get_properties_of_type(source)?.iter().any(|&p| {
-                        let name = &self.binder.symbol(p).escaped_name;
-                        name.starts_with("__#") && name.ends_with(&suffix)
-                    });
-                    if has_twin {
-                        return Ok(false);
-                    }
-                }
-            }
             let prop_name = self.missing_property_display_name(unmatched[0]);
             let declaration = self.binder.symbol(prop).declarations.first().copied();
             let related = declaration

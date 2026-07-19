@@ -129,7 +129,7 @@ pub(crate) struct FlowQuery {
     /// holds the enclosing CONTAINER (constructor/static block — a
     /// real node for file identity only), and the chain-grounding
     /// matchers test ThisKeyword kind like tsc's isMatchingReference
-    /// this arm (69460) instead of node matching.
+    /// this arm (69462-69463) instead of node matching.
     pub(crate) synthetic_this_root: bool,
 }
 
@@ -360,6 +360,37 @@ impl<'a> CheckerState<'a> {
                 _ => return false,
             }
         }
+    }
+
+    /// The 6.6-review SUBTREE containment probe: the node itself or
+    /// any descendant carries a seam-reverted flow answer. The
+    /// compound report faces (return operands, declaration
+    /// initializers) consult this instead of the node-identity probe:
+    /// a seam-wide answer for `u` inside `return { a: u }` or `= [u]`
+    /// inherits into the literal's type, so a failed relation over
+    /// the CONTAINER is as undecidable as one over the reference
+    /// itself. The retired PR-#6 gates contained these faces through
+    /// their syntactic subtree sweep — the flag-exact registry must
+    /// not be narrower on them (the p12/p13 corpus-external FP
+    /// faces).
+    /// tsrs-native: flag-registry read (no tsc counterpart — tsc has
+    /// no deferral channel).
+    pub(crate) fn flow_answer_is_seam_reverted_within(&self, node: NodeId) -> bool {
+        if self.flow_inert_answer_nodes.is_empty() {
+            return false;
+        }
+        let source = self.binder.source_of_node(node);
+        let mut stack = vec![node];
+        while let Some(current) = stack.pop() {
+            if self.flow_inert_answer_nodes.contains(&current) {
+                return true;
+            }
+            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        false
     }
 
     /// The getFlowTypeOfReference tail (70407-70411): the 6.2
@@ -1658,7 +1689,7 @@ impl<'a> CheckerState<'a> {
     /// (flow_label_antecedents); the ReduceLabel arm invalidates the
     /// single-entry memo like tsc (70312) and restores the swap on Ok
     /// AND on unwind. The Shared arm's noCacheCheck reset falls
-    /// through into the SAME iteration's arm dispatch (tsc 70272 —
+    /// through into the SAME iteration's arm dispatch (tsc 70274 —
     /// only the NEXT shared node consults the memo again).
     fn is_reachable_flow_node_worker(
         &mut self,
@@ -2780,7 +2811,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:56222-56225
     ///
     /// The REAL-reference face (getFlowTypeOfAccessExpression's
-    /// autoType route, 75350): the reference is the source
+    /// autoType route, 75347-75349): the reference is the source
     /// `this.x`-style access node itself.
     pub(crate) fn get_flow_type_of_property(
         &mut self,
@@ -2790,6 +2821,24 @@ impl<'a> CheckerState<'a> {
         let initial_type = self.flow_property_initial_type(prop)?;
         let auto = self.tables.intrinsics.auto;
         self.get_flow_type_of_reference(reference, auto, initial_type, None)
+    }
+
+    /// tsc symbolToString for the 7008 member argument
+    /// (56202/56218): the declaration NAME text
+    /// (declarationNameToString — a private prints `#p`, a
+    /// string-literal name keeps its quotes), never the internal
+    /// `__#<id>@` mangling. Nameless declarations fall back to the
+    /// unescaped symbol name.
+    fn member_implicit_any_display_name(&mut self, symbol: SymbolId) -> CheckResult2<String> {
+        if let Some(declaration) = self.binder.symbol(symbol).value_declaration {
+            let source = self.binder.source_of_node(declaration);
+            if let Some(name) =
+                tsrs2_binder::node_util::get_name_of_declaration(source, declaration)
+            {
+                return self.text_of_node(name);
+            }
+        }
+        Ok(self.symbol_display_name(symbol))
     }
 
     /// tsc-port: getFlowTypeInConstructor @6.0.3
@@ -2812,7 +2861,7 @@ impl<'a> CheckerState<'a> {
             .strict_option_value(self.options.no_implicit_any)
             && (flow_type == self.tables.intrinsics.auto || self.is_auto_array_type(flow_type))
         {
-            let display = self.symbol_display_name(symbol);
+            let display = self.member_implicit_any_display_name(symbol)?;
             let type_display = self.type_to_string_slice(flow_type)?;
             let error_node = self.binder.symbol(symbol).value_declaration;
             self.error_at(
@@ -2846,7 +2895,7 @@ impl<'a> CheckerState<'a> {
                 .strict_option_value(self.options.no_implicit_any)
                 && (flow_type == self.tables.intrinsics.auto || self.is_auto_array_type(flow_type))
             {
-                let display = self.symbol_display_name(symbol);
+                let display = self.member_implicit_any_display_name(symbol)?;
                 let type_display = self.type_to_string_slice(flow_type)?;
                 let error_node = self.binder.symbol(symbol).value_declaration;
                 self.error_at(
@@ -4542,6 +4591,26 @@ mod tests {
         assert!(FlowType::Incomplete(ty).is_incomplete());
     }
 
+    #[test]
+    fn class_property_implicit_any_prints_the_declaration_name() {
+        // symbolToString prints the declaration name (`#p`), never
+        // the `__#<id>@` mangling (56202/56218; 6.6 review C1;
+        // oracle-pinned vs vendored tsc 6.0.3 noLib — the
+        // no-assignment auto face; the `= []` autoArray flavor needs
+        // the Array global and rides the lib-backed band).
+        let text = "class C { #p; constructor() { } }\n";
+        assert_eq!(checked_rows(text), [(7008, 10, 2)]);
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let message = &state.diagnostics.last().expect("7008 row").message;
+            assert!(
+                message.text.contains("'#p'"),
+                "declaration-name display: {}",
+                message.text
+            );
+        });
+    }
+
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
         with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
             state.check_source_file(0);
@@ -4592,7 +4661,7 @@ mod tests {
 
     #[test]
     fn in_constructor_this_property_reads_flow_narrow() {
-        // The access.rs face (75319→75350): a this-property READ in
+        // The access.rs face (75319→75347): a this-property READ in
         // the constructor routes through getFlowTypeOfProperty with
         // the REAL access node as reference.
         assert_eq!(

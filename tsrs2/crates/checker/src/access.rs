@@ -422,7 +422,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:75022-75027
     ///
     /// The Invoke reporter flavor (resolveCallExpression 77002) — the
-    /// [FLOW M5] narrowable-receiver containment gate rides in
+    /// flag-exact seam containment (6.6f, ex-[FLOW M5] gate) rides in
     /// check_non_null_type_with_reporter unchanged.
     pub(crate) fn report_cannot_invoke_possibly_null_or_undefined_error(
         &mut self,
@@ -2084,9 +2084,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 89b88c4b38664b752c7090e6f02f3c71f568da24ad7dfa014ba9c7fa329b9aee
     /// tsc-span: _tsc.js:75339-75371
     ///
-    /// [FLOW M5]: getFlowTypeOfReference is the 5.5a stub (declared
-    /// type back), so the 2565 comparison self-deactivates (the stub
-    /// cannot add `undefined`) — transcribed verbatim per §6.
+    /// LIVE since 6.6e: getFlowTypeOfReference is real (the 5.5a
+    /// declared-type stub retired with M5), the autoType arm routes
+    /// into getFlowTypeOfProperty (75347-75349), and the 2565
+    /// comparison runs against genuinely flow-narrowed answers.
     fn get_flow_type_of_access_expression(
         &mut self,
         node: NodeId,
@@ -2116,7 +2117,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if prop_type == self.tables.intrinsics.auto {
-            // 75350: the autoType route — the reference is the real
+            // 75347-75349: the autoType route — the reference is the real
             // source access node (the synthetic-`this` faces live on
             // the annotate.rs entries).
             return self.get_flow_type_of_property(node, prop);
@@ -2894,14 +2895,18 @@ impl<'a> CheckerState<'a> {
         // (conflicting discriminants reduce lazily in tsc's
         // getReducedType, unported — discriminatedUnionTypes2's else
         // face). Genuinely-never receivers (declared never) still
-        // report; the flow-never face contains until the reduction
-        // family lands.
+        // report, and — 6.6 review — so does a declared type with NO
+        // intersection constituent anywhere: the reduction family
+        // cannot be involved, and tsc reports 2339 on the correctly-
+        // narrowed never (the double-typeof face). Only an
+        // intersection-bearing declared type contains until the
+        // reduction lands.
         if self
             .tables
             .flags_of(containing_type)
             .intersects(TypeFlags::NEVER)
         {
-            let declared_non_never = self
+            let declared = self
                 .parent_of(prop_node)
                 .and_then(|access| match self.data_of(access) {
                     NodeData::PropertyAccessExpression(data) => data.expression,
@@ -2910,11 +2915,29 @@ impl<'a> CheckerState<'a> {
                 })
                 .and_then(|receiver| self.links.node(receiver).resolved_symbol.resolved())
                 .map(|symbol| self.get_type_of_symbol(symbol))
-                .transpose()?
-                .is_some_and(|declared| {
-                    !self.tables.flags_of(declared).intersects(TypeFlags::NEVER)
-                });
-            if declared_non_never {
+                .transpose()?;
+            let contains = declared.is_some_and(|declared| {
+                let flags = self.tables.flags_of(declared);
+                if flags.intersects(TypeFlags::NEVER) {
+                    return false;
+                }
+                if flags.intersects(TypeFlags::INTERSECTION) {
+                    return true;
+                }
+                if flags.intersects(TypeFlags::UNION) {
+                    if let tsrs2_types::TypeData::Union { types, .. } =
+                        &self.tables.type_of(declared).data
+                    {
+                        return types.iter().any(|&member| {
+                            self.tables
+                                .flags_of(member)
+                                .intersects(TypeFlags::INTERSECTION)
+                        });
+                    }
+                }
+                false
+            });
+            if contains {
                 return Err(Unsupported::new(
                     "never-narrowed receiver report over an unreduced intersection \
                      member (getReducedType never-reduction, M6)",
@@ -3920,6 +3943,20 @@ mod tests {
     /// Driver-level fixture check (literals.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options {} unless stated) — scratchpad
     /// matrix-risk{1,4}.out, 2026-07-12.
+    #[test]
+    fn double_narrowed_never_receiver_reports_2339() {
+        // reportNonexistentProperty reports on never receivers
+        // (75416); only intersection-bearing declared types defer to
+        // the M6 getReducedType containment (6.6 review D3;
+        // oracle-pinned vs vendored tsc 6.0.3 noLib).
+        assert_eq!(
+            checked_rows(
+                "declare const x: string | number;\nif (typeof x === \"string\") { if (typeof x === \"number\") { x.toFixed; } }\n"
+            ),
+            [(2339, 94, 7)]
+        );
+    }
+
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
         with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
             state.check_source_file(0);

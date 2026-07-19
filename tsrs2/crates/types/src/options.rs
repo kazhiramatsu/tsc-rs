@@ -114,6 +114,14 @@ pub struct CompilerOptions {
     /// computed isolatedModules). Feeds isInstantiatedModule in
     /// checkModuleDeclaration (85840). 2 conformance fixtures.
     pub preserve_const_enums: Option<bool>,
+    /// 6.6 review: feeds ONLY the computed preserveConstEnums read
+    /// (18157) — the isolatedModules diagnostic band itself (1208/
+    /// 2748-family) stays unmodeled. Checker-side reads only (the
+    /// lib-bundle key projects binder observables exclusively).
+    pub isolated_modules: Option<bool>,
+    /// 6.6 review: second disjunct of tsc's computed isolatedModules
+    /// (18160-18162). Its own diagnostic band stays unmodeled.
+    pub verbatim_module_syntax: Option<bool>,
     /// M4 5.8d: carried for the module resolver's suppression gate
     /// (baseUrl-relative candidates probe the program set; a miss
     /// under baseUrl is tsc-undecidable → no 2307). Full baseUrl
@@ -242,9 +250,14 @@ impl CompilerOptions {
 
     /// tsc shouldPreserveConstEnums = _computedOptions.preserveConstEnums
     /// .computeValue (18157): preserveConstEnums || computed
-    /// isolatedModules (isolatedModules || verbatimModuleSyntax — both
-    /// unmodeled, so the computed arm reduces to false; ledger).
+    /// isolatedModules, where computed isolatedModules =
+    /// isolatedModules || verbatimModuleSyntax (18160-18162). An
+    /// unreachable const enum under `@isolatedModules` reports 7027
+    /// like tsc (the 6.6-review const-enum face); the options' own
+    /// diagnostic bands stay unmodeled.
     pub fn should_preserve_const_enums(&self) -> bool {
         self.preserve_const_enums == Some(true)
+            || self.isolated_modules == Some(true)
+            || self.verbatim_module_syntax == Some(true)
     }
 }

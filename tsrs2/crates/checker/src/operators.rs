@@ -2517,6 +2517,40 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
         target_type: TypeId,
     ) -> CheckResult2<bool> {
+        // elaborateError's recursion arms (63968-63983): parens and
+        // const-assertions descend into the operand, `=`/comma
+        // binaries descend into the RIGHT operand. Satisfies has NO
+        // arm — a satisfies-wrapped member initializer stops the
+        // descent and its row anchors at the outer property name
+        // (only array-element anchors strip satisfies, via
+        // getEffectiveCheckNode). The JSX arms ride the JSX band.
+        match self.data_of(expression) {
+            NodeData::ParenthesizedExpression(data) => {
+                if let Some(inner) = data.expression {
+                    return self.elaborate_literal_assignment(inner, target_type);
+                }
+            }
+            NodeData::AsExpression(data) => {
+                if let (Some(inner), Some(type_node)) = (data.expression, data.r#type) {
+                    // isConstAssertion (63969-63972): only `as const`
+                    // falls through into the operand.
+                    if self.is_const_type_reference(type_node) {
+                        return self.elaborate_literal_assignment(inner, target_type);
+                    }
+                }
+            }
+            NodeData::BinaryExpression(data) => {
+                if let (Some(operator), Some(right)) = (data.operator_token, data.right) {
+                    if matches!(
+                        self.kind_of(operator),
+                        SyntaxKind::EqualsToken | SyntaxKind::CommaToken
+                    ) {
+                        return self.elaborate_literal_assignment(right, target_type);
+                    }
+                }
+            }
+            _ => {}
+        }
         let before = self.diagnostics.len();
         match self.data_of(expression) {
             NodeData::ObjectLiteralExpression(data) => {
@@ -2547,17 +2581,38 @@ impl<'a> CheckerState<'a> {
                     // suppresses this member's row; otherwise the row
                     // anchors at the PROPERTY NAME (errorNode: prop.name,
                     // generateObjectLiteralElements 64448 — anchoring at
-                    // the value was the 6.6f span-FP face).
-                    let inner = self.literal_elaboration_error_node(initializer);
-                    if self.elaborate_literal_assignment(inner, expected)? {
+                    // the value was the 6.6f span-FP face). The inner
+                    // recursion takes the RAW initializer (64449
+                    // innerExpression: prop.initializer) — parens
+                    // descend through the entry arm, satisfies does
+                    // not.
+                    if self.elaborate_literal_assignment(initializer, expected)? {
                         continue;
                     }
-                    self.check_type_assignable_to(
-                        actual,
-                        expected,
-                        Some(name),
-                        &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
-                    )?;
+                    // 64449: a syntactically computed name with a
+                    // semantically literal key swaps the row message
+                    // for the 2418 computed-property face
+                    // (isComputedNonLiteralName — string/numeric
+                    // literal keys keep the plain 2322).
+                    let computed_non_literal = match self.data_of(name) {
+                        NodeData::ComputedPropertyName(data) => {
+                            data.expression.is_some_and(|expression| {
+                                !matches!(
+                                    self.kind_of(expression),
+                                    SyntaxKind::StringLiteral
+                                        | SyntaxKind::NoSubstitutionTemplateLiteral
+                                        | SyntaxKind::NumericLiteral
+                                )
+                            })
+                        }
+                        _ => false,
+                    };
+                    let message = if computed_non_literal {
+                        &tsrs2_diags::gen::Type_of_computed_property_s_value_is_0_which_is_not_assignable_to_type_1
+                    } else {
+                        &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1
+                    };
+                    self.check_type_assignable_to(actual, expected, Some(name), message)?;
                 }
             }
             NodeData::ArrayLiteralExpression(data) => {
@@ -2604,7 +2659,19 @@ impl<'a> CheckerState<'a> {
                         }
                     };
                     let actual = self.check_expression_cached(element, CheckMode::NORMAL)?;
+                    if self.is_type_assignable_to(actual, expected)? {
+                        continue;
+                    }
+                    // generateLimitedTupleElements (64406-64407): both
+                    // the anchor AND the inner recursion take the
+                    // effective check node (paren+satisfies stripped);
+                    // deep-first like the object arm — a nested
+                    // literal element elaborates its own rows and
+                    // suppresses this element's row (64146-64157).
                     let error_node = self.literal_elaboration_error_node(element);
+                    if self.elaborate_literal_assignment(error_node, expected)? {
+                        continue;
+                    }
                     self.check_type_assignable_to(
                         actual,
                         expected,
@@ -2618,6 +2685,10 @@ impl<'a> CheckerState<'a> {
         Ok(self.diagnostics.len() > before)
     }
 
+    /// tsc getEffectiveCheckNode (76190-76193): outer parens and
+    /// satisfies strip off. Array-element rows anchor and recurse
+    /// here; object-member rows do NOT (their inner recursion is the
+    /// raw initializer through elaborateError's paren arm).
     fn literal_elaboration_error_node(&self, mut node: NodeId) -> NodeId {
         loop {
             let inner = match self.data_of(node) {
@@ -4825,6 +4896,37 @@ mod tests {
     /// Driver-level fixture check (access.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options {} unless stated) — scratchpad
     /// ops{1,2,3}.ts probes, 2026-07-13.
+    // ---- elaboration rows (6.6 review; oracle-pinned vs vendored
+    // tsc 6.0.3 noLib, 2026-07-19) ----
+
+    #[test]
+    fn computed_nonliteral_key_member_row_reports_2418() {
+        // isComputedNonLiteralName selects the 2418 message (64449).
+        assert_eq!(
+            checked_rows("const k = \"a\";\nconst t: { a: number } = { [k]: \"s\" };\n"),
+            [(2418, 42, 3)]
+        );
+    }
+
+    #[test]
+    fn paren_wrapped_initializer_elaborates_the_member_row() {
+        // elaborateError's ParenthesizedExpression arm (63975).
+        assert_eq!(
+            checked_rows("const x: { a: number } = ({ a: \"s\" });\n"),
+            [(2322, 28, 1)]
+        );
+    }
+
+    #[test]
+    fn array_element_deep_first_elaboration_anchors_inner_member() {
+        // generateLimitedTupleElements feeds the element back through
+        // elaborateError (64406-64407) — the row lands on `b`.
+        assert_eq!(
+            checked_rows("const t: [{ b: number }] = [{ b: \"s\" }];\n"),
+            [(2322, 30, 1)]
+        );
+    }
+
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
         with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
             state.check_source_file(0);
