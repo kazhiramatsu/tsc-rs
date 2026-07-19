@@ -2734,7 +2734,7 @@ mod tests {
         assert_eq!(result.partial_checks.len(), 1);
         assert_eq!(
             result.partial_checks[0].reason,
-            "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)"
+            "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)"
         );
     }
 
@@ -2773,7 +2773,7 @@ mod tests {
         assert_eq!(result.partial_checks[0].file_name, "a.ts");
         assert_eq!(
             result.partial_checks[0].reason,
-            "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)"
+            "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)"
         );
     }
 
@@ -2837,7 +2837,7 @@ mod tests {
         assert_eq!(result.partial_checks.len(), 1);
         assert_eq!(
             result.partial_checks[0].reason,
-            "flow-sensitive implicit-any diagnostic (M5 6.3/6.4 seam)"
+            "flow-sensitive implicit-any diagnostic (M6/M8 seam)"
         );
     }
 
@@ -3080,10 +3080,77 @@ mod tests {
                 .map(|p| p.reason.as_str())
                 .collect::<Vec<_>>(),
             [
-                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
-                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
-                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)"
+                "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)",
+                "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)",
+                "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)"
             ]
+        );
+    }
+
+    #[test]
+    fn arithmetic_face_contains_over_seam_reverted_answer() {
+        // M5 post-close review D2: tsc narrows `u` via the TS 5.5
+        // body-inferred predicate (isNum) — unported (M6), so the
+        // seam reverts u to string|number and the 2362 face must
+        // consult the flag-exact registry and contain, never report.
+        // Oracle: tsc 6.0.3 clean (verify/d2_operator_face.ts,
+        // 2026-07-19) — pre-fix this shape reported 2362.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "function isNum(x: unknown) { return typeof x === \"number\"; }\nfunction f(u: string | number) {\n    if (isNum(u)) {\n        const a = u * 2;\n    }\n}\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(
+            result
+                .partial_checks
+                .iter()
+                .map(|p| p.reason.as_str())
+                .collect::<Vec<_>>(),
+            ["arithmetic operand face over a seam-reverted flow answer \
+              (unported narrowing dependency, M6/M8 seam)"]
+        );
+    }
+
+    #[test]
+    fn assignment_face_subtree_probe_contains_compound_rhs() {
+        // M5 post-close review D1: the seam-reverted node is `u`
+        // INSIDE the object literal — the assignment face's SUBTREE
+        // consult must see it (the node-identity probe missed it and
+        // the failed relation leaked to the report path). Oracle:
+        // tsc 6.0.3 clean (verify/d1_assignment_face.ts, 2026-07-19).
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "function isNum(x: unknown) { return typeof x === \"number\"; }\nfunction g(u: string | number) {\n    let t: { p: number };\n    if (isNum(u)) {\n        t = { p: u };\n    }\n}\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(
+            result
+                .partial_checks
+                .iter()
+                .map(|p| p.reason.as_str())
+                .collect::<Vec<_>>(),
+            ["failed assignment over a seam-reverted flow answer \
+              (unported narrowing dependency, M6/M8 seam)"]
         );
     }
 

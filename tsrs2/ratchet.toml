@@ -75,8 +75,14 @@
 # every failure face land the chain head — no display slice needed),
 # 1229 rest-reference, 1225 cannot-find-parameter, 1230
 # binding-pattern walk; STAGE moves 5.9 -> M5 (whole-M5 due, M6 not).
-rate = 0.535248
-matched = 26240
+# m5 post-close review: +100 — the lapsed strictPropertyInitialization
+# swap (isPropertyInitializedInConstructor/InStaticBlocks: the 2564
+# constructor face, the 2612 fifth disjunct, the 2729 static-block
+# leg), static-private assertion targets (exports-side mangled-key
+# recovery), and the seam-registry face-coverage fixes (bounded
+# composite probe; see m5-flow-steps.md post-close section).
+rate = 0.537288
+matched = 26340
 total = 49024
 allowed_regression = 0.0
 
@@ -98,8 +104,9 @@ allowed_regression = 0.0
 # comment).
 # m5 6.6g review fixes: +10 (see the T0 comment).
 # m5 close: +8 with the checkTypePredicate tail (see the T0 comment).
-rate = 0.750986
-matched = 15809
+# m5 post-close review: +100 (see the T0 comment).
+rate = 0.755736
+matched = 15909
 total = 21051
 allowed_regression = 0.0
 

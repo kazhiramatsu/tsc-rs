@@ -20,29 +20,29 @@
 //! resume rule stays in-file by construction — so the query pins the
 //! owning file index once.
 //!
-//! Stage state (6.4 COMPLETE): the assignment and array-mutation
-//! arms (6.2), the branch/loop JOINs with the loop-label fixpoint
-//! (6.3), the condition/switch-clause arms with the full narrow.rs
-//! dispatch, and the call arm with effects signatures (6.4) are all
-//! LIVE, and both caller initialType ladders are flipped
-//! (checkIdentifier + the access.rs assume-uninitialized arm). The
-//! query flag (`FlowQuery::traversed_inert_arm`) remains as the
-//! narrow M6-deferral channel (see narrow.rs) until 6.6 retires the
-//! failure-face gates; reachability is the 6.6 true-stub.
+//! Stage state (M5 COMPLETE): every walk arm — assignment,
+//! array-mutation (6.2), branch/loop JOINs with the loop-label
+//! fixpoint (6.3), condition/switch with the full narrow.rs dispatch,
+//! the call arm with effects signatures (6.4), and reachability
+//! (6.6) — is LIVE, and both caller initialType ladders are flipped
+//! (checkIdentifier + the access.rs assume-uninitialized arm).
 //!
-//! THE 6.2 SEAM (retires with the 6.4 narrowers): a query that
-//! crossed a still-inert arm reverts to the 6.1 answer (declared
-//! type, auto-converted) at query exit — the inert arms cannot
+//! THE SEAM (retires with its last producers — M6 body-inference,
+//! M8-dependency unwinds through the JOIN-SEAM, parser recovery): a
+//! query whose walk crossed such an arm reverts to the declared-type
+//! answer (auto-converted) at query exit — the deferred arms cannot
 //! reproduce tsc's narrowing, and letting their over-wide
 //! pass-through answer out would misreport 2454/2565 (an initial-type
 //! undefined tsc narrows away) and misfire the 7034 auto-identity
-//! test. Queries whose walk meets only live arms (start/assignment/
-//! mutation/join paths) get the full semantics; the ladder sites
-//! partial-mark the flagged-and-suppressed diagnostic positions. The
-//! loop-label fixpoint additionally refuses to CACHE a result whose
-//! query is flagged: the flowLoopCaches memo outlives the query, and
-//! a later same-key query hitting the memo would skip the walk — and
-//! with it the flag — leaking the over-wide answer past the seam.
+//! test. Queries whose walk meets only live arms get the full
+//! semantics; the ladder sites partial-mark the flagged-and-
+//! suppressed diagnostic positions, and the 6.6f flag-exact registry
+//! (`CheckerState::flow_inert_answer_nodes`) carries the flag to the
+//! report faces. The loop-label fixpoint additionally refuses to
+//! CACHE a result whose query is flagged: the flowLoopCaches memo
+//! outlives the query, and a later same-key query hitting the memo
+//! would skip the walk — and with it the flag — leaking the
+//! over-wide answer past the seam.
 
 use tsrs2_binder::flow::{FlowId, FlowPayload};
 use tsrs2_binder::{node_util, SymbolId};
@@ -104,13 +104,15 @@ pub(crate) struct FlowQuery {
     /// cache key — outer None = not computed yet (isKeySet false),
     /// Some(None) = computed, reference has no key.
     pub(crate) key: Option<Option<String>>,
-    /// tsrs-native 6.2 SEAM (retires with the 6.4 narrowers): set
-    /// when the walk crosses a still-inert arm (condition/switch) —
-    /// the query exit forces such answers back to the 6.1 value
-    /// (declared, auto-converted) and mirrors the flag into
-    /// `CheckerState::flow_last_query_inert` for the initialType
-    /// ladder sites; the loop-label fixpoint reads it to keep flagged
-    /// results out of the cross-query flowLoopCaches memo.
+    /// tsrs-native SEAM flag (retires with its last producers — M6
+    /// body-inference, M8-dependency unwinds, parser recovery): set
+    /// when the walk crosses a deferred arm — the query exit forces
+    /// such answers back to the declared-type value (auto-converted),
+    /// mirrors the flag into `CheckerState::flow_last_query_inert`
+    /// for the initialType ladder sites, and records the reference in
+    /// the 6.6f flag-exact registry; the loop-label fixpoint reads it
+    /// to keep flagged results out of the cross-query flowLoopCaches
+    /// memo.
     pub(crate) traversed_inert_arm: bool,
     /// tsc getSyntheticElementAccess (55897): a destructuring query's
     /// reference is the parse-node-factory access chain
@@ -389,6 +391,64 @@ impl<'a> CheckerState<'a> {
                 stack.push(child);
                 false
             });
+        }
+        false
+    }
+
+    /// The BOUNDED composite probe (M5 post-close review): like
+    /// `flow_answer_is_seam_reverted_within` but descends only
+    /// through nodes whose type structurally EMBEDS constituent
+    /// types — object/array literals (and their property/spread
+    /// carriers), conditional branches, parens/non-null — and stops
+    /// at machinery nodes (calls, yield, await, accesses), whose
+    /// answers do not inherit a descendant's seam-wide answer
+    /// verbatim. The assignment/argument/operator/iteration faces
+    /// consult THIS probe: the full-subtree walk over-contains there
+    /// (it swallowed the tsc-real `o = yield* o` 2322 of
+    /// yieldExpressionInControlFlow.ts — an A1 accepted-identity
+    /// regression), while the compound-literal FP shapes it was
+    /// added for stay covered. The 6.6g return/declaration consults
+    /// keep the full walk (shipped containment surface).
+    /// tsrs-native: flag-registry read (no tsc counterpart — tsc has
+    /// no deferral channel).
+    pub(crate) fn flow_answer_is_seam_reverted_in_composite(&self, node: NodeId) -> bool {
+        if self.flow_inert_answer_nodes.is_empty() {
+            return false;
+        }
+        let source = self.binder.source_of_node(node);
+        let mut stack = vec![node];
+        while let Some(current) = stack.pop() {
+            if self.flow_answer_is_seam_reverted(current) {
+                return true;
+            }
+            match &source.arena.node(current).data {
+                NodeData::ObjectLiteralExpression(_)
+                | NodeData::ArrayLiteralExpression(_)
+                | NodeData::PropertyAssignment(_)
+                | NodeData::ShorthandPropertyAssignment(_)
+                | NodeData::SpreadAssignment(_)
+                | NodeData::SpreadElement(_)
+                | NodeData::ParenthesizedExpression(_)
+                | NodeData::NonNullExpression(_) => {
+                    tsrs2_syntax::for_each_child(
+                        &source.arena,
+                        source.arena.node(current),
+                        |child| {
+                            stack.push(child);
+                            false
+                        },
+                    );
+                }
+                NodeData::ConditionalExpression(data) => {
+                    if let Some(when_true) = data.when_true {
+                        stack.push(when_true);
+                    }
+                    if let Some(when_false) = data.when_false {
+                        stack.push(when_false);
+                    }
+                }
+                _ => {}
+            }
         }
         false
     }
@@ -2970,6 +3030,97 @@ impl<'a> CheckerState<'a> {
             auto,
             initial_type,
             Some(container),
+            flow_node,
+        )
+    }
+
+    /// tsc-port: isPropertyInitializedInConstructor @6.0.3
+    /// tsc-hash: edaabb7aee7ea30fa93514e56c90059b342cbba630ab8a075cf426af25b80444
+    /// tsc-span: _tsc.js:85517-85525
+    ///
+    /// The 2564/2612 constructor probe: tsc fabricates a
+    /// `this.<prop>` reference parented to the CONSTRUCTOR with
+    /// flowNode = constructor.returnFlowNode and asks whether
+    /// undefined survived the body's assignments. The declared type
+    /// is the CALLER's second argument verbatim —
+    /// checkPropertyInitialization passes the property type (85491),
+    /// the 2612 face passes the DERIVED CLASS type (85370, a tsc
+    /// quirk preserved as-is). Computed names ride the same chain:
+    /// the element-access factory form (85518) reads back through
+    /// getAccessedPropertyName as the symbol's late-bound name, which
+    /// is what the synthetic chain matches on.
+    pub(crate) fn is_property_initialized_in_constructor(
+        &mut self,
+        symbol: SymbolId,
+        prop_type: TypeId,
+        constructor: NodeId,
+    ) -> CheckResult2<bool> {
+        let flow_type = self.property_initialization_flow_type(symbol, prop_type, constructor)?;
+        Ok(!self.contains_undefined_type(flow_type))
+    }
+
+    /// tsc-port: isPropertyInitializedInStaticBlocks @6.0.3
+    /// tsc-hash: 391d2cdaf50aeca1fbbfca25191e370ea5e2651803cc5fac9ac8a3ba75dea4fa
+    /// tsc-span: _tsc.js:85502-85516
+    ///
+    /// One probe per static block (flowNode = the block's
+    /// returnFlowNode); the caller supplies the pos-range-filtered
+    /// block list (48036 passes `declaration.parent.pos ..
+    /// current.pos`). Any block that proves undefined gone answers
+    /// true.
+    pub(crate) fn is_property_initialized_in_static_blocks(
+        &mut self,
+        symbol: SymbolId,
+        prop_type: TypeId,
+        static_blocks: &[NodeId],
+    ) -> CheckResult2<bool> {
+        for &static_block in static_blocks {
+            let flow_type =
+                self.property_initialization_flow_type(symbol, prop_type, static_block)?;
+            if !self.contains_undefined_type(flow_type) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// The factory-`this.prop` query shared by the two
+    /// property-initialization probes (85506-85511/85518-85523):
+    /// the same this-rooted synthetic chain as
+    /// get_flow_type_of_property_synthetic, but with the caller's
+    /// declared type + getOptionalType initial, and NO flowContainer
+    /// — tsc's getFlowTypeOfReference call omits it (the "-1" cache
+    /// key slot), unlike the 5619x family.
+    /// tsrs-native: this-rooted synthetic entry over the same spans.
+    fn property_initialization_flow_type(
+        &mut self,
+        symbol: SymbolId,
+        prop_type: TypeId,
+        container: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let escaped_name = self.binder.symbol(symbol).escaped_name.clone();
+        let access_name = match escaped_name.strip_prefix("__#") {
+            Some(rest) => match rest.split_once('@') {
+                Some((_, description)) => description.to_owned(),
+                None => escaped_name.clone(),
+            },
+            None => escaped_name,
+        };
+        let initial_type = self.get_optional_type(prop_type, false)?;
+        let file = self.binder.file_index_of_node(container);
+        let flow_node = self
+            .binder
+            .file(file)
+            .node_return_flow
+            .get(&container)
+            .copied();
+        self.get_flow_type_of_reference_full(
+            container,
+            Some(vec![access_name]),
+            /*synthetic_this_root*/ true,
+            prop_type,
+            initial_type,
+            None,
             flow_node,
         )
     }

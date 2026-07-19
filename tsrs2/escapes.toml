@@ -934,6 +934,20 @@ class = "stage"
 owner = "M8"
 
 [[site]]
+file = "crates/checker/src/iterate.rs"
+in = "get_iterated_type_or_element_type"
+reason = "iteration face over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/iterate.rs"
+in = "report_type_not_iterable_error"
+reason = "not-iterable face over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
+class = "stage"
+owner = "M8"
+
+[[site]]
 file = "crates/checker/src/jsx.rs"
 in = "check_jsx_attributes"
 reason = "JSX attributes without an element (parse recovery)"
@@ -1123,6 +1137,13 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
+in = "check_arithmetic_operand_type"
+reason = "arithmetic operand face over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/operators.rs"
 in = "check_array_literal_destructuring_element_assignment"
 reason = "spread element without expression (parse-recovery tree)"
 class = "recovery"
@@ -1275,6 +1296,13 @@ class = "recovery"
 file = "crates/checker/src/operators.rs"
 in = "get_type_names_for_error_display"
 reason = "operator-error display for identically-named types (getTypeNameForErrorDisplay UseFullyQualifiedType, T2 M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/operators.rs"
+in = "report_operator_error"
+reason = "operator face over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
 owner = "M8"
 

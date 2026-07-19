@@ -279,8 +279,8 @@ flag (`traversed_inert_arm`) then narrows to pure M6 deferral
 
 ALSO OWNED HERE — the class-property flow-init family, escaped with
 owner=M5 but scheduled in no earlier stage (the 6.2 review caught the
-gap): `getFlowTypeOfProperty` (70153) / `getFlowTypeInConstructor`
-(70118) / `getFlowTypeInStaticBlocks` (70136) behind the access.rs
+gap): `getFlowTypeOfProperty` (56222) / `getFlowTypeInConstructor`
+(56210) / `getFlowTypeInStaticBlocks` (56193) behind the access.rs
 `get_flow_type_of_access_expression` this-property arm and the
 annotate.rs constructor/static-block-assigned property-type arms (the
 four `[FLOW M5]` escapes). They ride reachability's stage because
@@ -485,6 +485,65 @@ M5 total (6.1 → close): T0 42.7403% → 53.5248%, 2xxx 52.9714% →
 75.0986%. Next: M6 speculation transaction (convergence plan §4;
 the M6-start bar is the scoped-transaction API + failed-candidate
 rollback tests precondition).
+
+## M5 post-close review (branch fix/m5-post-close-review)
+
+A six-agent full-milestone review (line-diffed against the vendored
+tsc + tsrs2-executed probes) after the close. Fixes landed:
+
+- **The lapsed strictPropertyInitialization swap** — the M4 doc's
+  "the M5 swap lifts it" promise (m4-58 §2564 band) was neither
+  landed nor re-owned, invisible to `escapes --stale` (silent
+  no-call suppressions carry no owner row). Landed:
+  isPropertyInitializedInConstructor (85517-85525) +
+  isPropertyInitializedInStaticBlocks (85502-85516) as
+  this-rooted synthetic queries (flowContainer OMITTED — the "-1"
+  key slot, unlike the 5619x family), wired into the 2564
+  constructor face, the 2612 fifth disjunct (85370 — the probe's
+  declared type is the DERIVED CLASS type, tsc quirk preserved),
+  and the 2729 static-block leg (48024-48040). DEVIATION: under
+  `strictNullChecks: false` tsc 6.0.3 CRASHES in the static-block
+  probe (48036 is not strict-gated; getOptionalType 67853 asserts —
+  reproduced); the pre-swap declared-type reduction stays for that
+  regime only.
+- **Seam-registry face coverage** (the review's executed FP faces):
+  arithmetic-operand (2362 probe FP), operator, and
+  iteration/not-iterable faces now consult the flag-exact registry;
+  the assignment/argument faces' node-identity probes grew composite
+  coverage. All via a BOUNDED probe
+  (`flow_answer_is_seam_reverted_in_composite`): descends only
+  type-embedding composites (object/array literals + carriers,
+  conditional branches, paren/non-null) — the full-subtree walk
+  over-contained (it swallowed yieldExpressionInControlFlow's
+  tsc-real `o = yield* o` 2322, an A1 identity regression). The
+  6.6g return/declaration consults keep the full walk (shipped).
+- **Static-private assertion targets** (`S.#m(v)` — executed
+  2775+2322 double FP): the mangled-key recovery searches the
+  class's exports table too (statics land there; the binder mangles
+  both flavors identically).
+- **The predicate relation gate reads effective_return_type_node**
+  — the 5-kind TYPE-node match let FunctionDeclaration/Expression/
+  Arrow/MethodDeclaration predicate signatures compare as plain
+  booleans (unledgered silent FN; tsc-probed 2322 divergence). Now
+  a containment superset of tsc's predicate arm; the target-only
+  split restores with compareTypePredicateRelatedTo (registered in
+  m6 7.5).
+- **Composite body-inference probe** — a union callee whose FIRST
+  member is annotated cloned that declaration into the composite
+  signature, so a LATER unannotated candidate escaped the seam flag
+  (unflagged over-wide answer); the probe now sweeps every
+  constituent.
+- **isDiscriminantProperty's `!isGenericType` term** (69565) landed
+  (the "generic types are M4" comment had lapsed); executed probes
+  showed no observable divergence on the four narrower faces, but
+  the memoized verdict also feeds M3's relation-side
+  discrimination.
+- Hygiene: the `(M5 6.3/6.4 seam)` partial-mark reason strings and
+  stale stub-era comments (checkIdentifier header, flow.rs/state.rs
+  seam docs, functions/widen/expr notes) renamed to the M6/M8
+  producer set; the 5619x line cites above corrected;
+  `noFallthroughCasesInSwitch` added to the harness directive
+  vocabulary (was expansion-rejected; 7029 corpus-untestable).
 
 ## Expected failure modes
 
