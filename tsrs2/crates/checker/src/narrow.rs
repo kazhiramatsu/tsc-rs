@@ -2916,6 +2916,20 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
     ) -> CheckResult2<bool> {
+        // Composite (union/intersection) signatures clone the FIRST
+        // member's declaration; probing only it under-flags when a
+        // LATER member is the candidate (tsc's composite predicate
+        // arm, 59770-59772, consults every member). Any candidate
+        // member flags the composite — over-flagging is the FP-safe
+        // direction.
+        if let Some(constituents) = self.signature_of(signature).composite_signatures.clone() {
+            for constituent in constituents {
+                if self.signature_may_have_body_inferred_predicate(constituent)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
         let Some(declaration) = self.signature_of(signature).declaration else {
             return Ok(false);
         };
@@ -3021,7 +3035,10 @@ impl<'a> CheckerState<'a> {
                     // `this.#p1(v)` never resolved). Only an OWN
                     // member of the receiver's class can carry that
                     // class's id, so recover the exact mangled key
-                    // from the class's own members table and route
+                    // from the class's own tables — members for
+                    // instance privates, exports for STATIC privates
+                    // (`S.#m(v)` assertion targets; the binder
+                    // mangles both flavors identically) — and route
                     // the typed lookup through it.
                     let suffix = format!("@{text}");
                     let lookup = self
@@ -3029,6 +3046,14 @@ impl<'a> CheckerState<'a> {
                         .keys()
                         .find(|name| name.starts_with("__#") && name.ends_with(&suffix))
                         .cloned();
+                    let lookup = match lookup {
+                        Some(lookup) => Some(lookup),
+                        None => self
+                            .get_exports_of_symbol(type_symbol)?
+                            .keys()
+                            .find(|name| name.starts_with("__#") && name.ends_with(&suffix))
+                            .cloned(),
+                    };
                     match lookup {
                         Some(lookup) => self.get_property_of_type_full(receiver_type, &lookup)?,
                         None => None,

@@ -2230,7 +2230,7 @@ impl<'a> CheckerState<'a> {
             // label; it retires whole with the flag at 6.4.)
             self.mark_partially_checked_node(
                 node,
-                "flow-sensitive property use-before-assignment diagnostic (M5 6.3/6.4 seam)",
+                "flow-sensitive property use-before-assignment diagnostic (M6/M8 seam)",
             );
         }
         if assignment_kind != crate::expr::AssignmentKind::None {
@@ -4497,6 +4497,41 @@ mod tests {
         assert_eq!(
             checked_rows("class E {\n    a = this.b;\n    b = 1;\n}\ndeclare const e: E;\ne.a;\n"),
             [(2729, 23, 1)]
+        );
+    }
+
+    #[test]
+    fn static_block_initialization_probe_is_flow_exact() {
+        // emitStandardClassFields=false regime (useDefineForClassFields
+        // off): the static-block probe's verdict solely decides the
+        // 2729 walk (M5 post-close review — the declared-type stub
+        // diverged both ways here). Oracle: tsc 6.0.3, probes
+        // c3_static_block_{fn,fp}.ts 2026-07-19.
+        let udfcf_off = CompilerOptions {
+            use_define_for_class_fields: Some(false),
+            ..CompilerOptions::default()
+        };
+        // FN face: the empty block initializes nothing — 2729 at the
+        // S7.a read in b's initializer (offset 43).
+        let fn_shape =
+            "class S7 {\n    static {}\n    static b = S7.a + 1;\n    static a: number;\n}\n";
+        assert_eq!(
+            with_program_state(&[("a.ts", fn_shape)], &udfcf_off, |state| {
+                state.check_source_file(0);
+                rows(state)
+            }),
+            [(2729, 43, 1)]
+        );
+        // FP face: the block's `this.a = 1` write proves
+        // initialization for the S8.a! read (no second 2729); the
+        // write itself still reports (2,19 → offset 29).
+        let fp_shape = "class S8 {\n    static { this.a = 1; }\n    static b = S8.a! + 1;\n    static a: number | undefined;\n}\n";
+        assert_eq!(
+            with_program_state(&[("a.ts", fp_shape)], &udfcf_off, |state| {
+                state.check_source_file(0);
+                rows(state)
+            }),
+            [(2729, 29, 1)]
         );
     }
 

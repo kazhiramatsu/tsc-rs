@@ -10,7 +10,9 @@
 //! property-initializer / decorator usage sub-arms) and closed at 5.7b
 //! (2729 band: property / parameter-property declarations, the
 //! positional isPropertyImmediatelyReferencedWithinDeclaration walk,
-//! and the static-block probe's [FLOW M5] stub reduction).
+//! and the static-block probe — flow-live since the M5 post-close
+//! review swap, strict-null-checks regime only; see the leg's
+//! header for the tsc crash in the other regime).
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::gen as diagnostics;
@@ -948,22 +950,20 @@ impl<'a> CheckerState<'a> {
         node_util::get_containing_class(self.binder.source_of_node(node), node)
     }
 
-    /// tsc-port: isPropertyInitializedInStaticBlocks @6.0.3 (the
-    /// flow-stub reduction)
-    /// tsc-hash: 391d2cdaf50aeca1fbbfca25191e370ea5e2651803cc5fac9ac8a3ba75dea4fa
-    /// tsc-span: _tsc.js:85502-85516
+    /// The 48024-48040 static-block leg of the 2729 walk: the
+    /// identifier/private-identifier name guard (48032), the
+    /// class-members block filter over `declaration.parent.pos ..
+    /// current.pos` (48036), and the per-block flow probe
+    /// (isPropertyInitializedInStaticBlocks, flow.rs).
     ///
-    /// tsc fabricates a `this.<prop>` reference wired to each block's
-    /// returnFlowNode and asks getFlowTypeOfReference(ref, propType,
-    /// getOptionalType(propType)) whether undefined survived. Under
-    /// the M4 flow stub ([FLOW M5]: declared type), the per-block read
-    /// collapses to `!containsUndefinedType(propType)` — a block that
-    /// does NOT initialize the property diverges (stub answers
-    /// "initialized"), but the reachable downstream shapes converge:
-    /// the caller's stop-at-property positional walk re-derives the
-    /// same 2729 verdict either way. The identifier/private-identifier
-    /// name guard from the call site (48032) is folded in.
-    fn is_property_initialized_in_static_blocks(
+    /// Under `strictNullChecks: false` tsc 6.0.3 CRASHES here —
+    /// 48036 is not strict-gated but getOptionalType (67853) asserts
+    /// strictNullChecks (Debug Failure, reproduced on this exact
+    /// shape). A crash is unportable; the pre-swap declared-type
+    /// reduction is kept for that regime only (no oracle row can
+    /// exist for it).
+    /// tsrs-native: call-site composition of the flow.rs probe.
+    fn is_property_initialized_in_static_blocks_leg(
         &mut self,
         declaration: NodeId,
         current: NodeId,
@@ -990,19 +990,30 @@ impl<'a> CheckerState<'a> {
         };
         let start_pos = self.pos_of(class);
         let end_pos = self.pos_of(current);
-        let block_in_range = self.nodes_of(members).into_iter().any(|member| {
-            self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration && {
-                let pos = self.pos_of(member);
-                pos >= start_pos && pos <= end_pos
-            }
-        });
-        if !block_in_range {
+        let blocks: Vec<NodeId> = self
+            .nodes_of(members)
+            .into_iter()
+            .filter(|&member| {
+                self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration && {
+                    let pos = self.pos_of(member);
+                    pos >= start_pos && pos <= end_pos
+                }
+            })
+            .collect();
+        if blocks.is_empty() {
             return Ok(false);
         }
         let symbol = self.get_symbol_of_declaration(declaration)?;
         let prop_type = self.get_type_of_symbol(symbol)?;
-        // [FLOW M5] getFlowTypeOfReference stub → declared type.
-        Ok(!self.contains_undefined_type(prop_type))
+        if !self
+            .options
+            .strict_option_value(self.options.strict_null_checks)
+        {
+            // tsc crashes in this regime (see the header); keep the
+            // declared-type reduction.
+            return Ok(!self.contains_undefined_type(prop_type));
+        }
+        self.is_property_initialized_in_static_blocks(symbol, prop_type, &blocks)
     }
 
     /// tsc getAncestor (12654) — nearest ancestor OR SELF of `kind`.
@@ -1123,8 +1134,10 @@ impl<'a> CheckerState<'a> {
                             if self.kind_of(declaration) == SyntaxKind::PropertyDeclaration
                                 && self.containing_class_of(usage)
                                     == self.containing_class_of(declaration)
-                                && self
-                                    .is_property_initialized_in_static_blocks(declaration, node)?
+                                && self.is_property_initialized_in_static_blocks_leg(
+                                    declaration,
+                                    node,
+                                )?
                             {
                                 return Ok(true);
                             }

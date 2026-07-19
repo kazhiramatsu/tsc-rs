@@ -5236,7 +5236,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:55952-56005
     ///
     /// Array patterns run the §4 iteration protocol (5.8b).
-    /// getFlowTypeOfDestructuring is the 5.5e [FLOW M5] identity stub.
+    /// getFlowTypeOfDestructuring is live since 6.4b (flow.rs).
     pub(crate) fn get_binding_element_type_from_parent_type(
         &mut self,
         declaration: NodeId,

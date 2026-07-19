@@ -517,6 +517,8 @@ impl<'a> CheckerState<'a> {
                         | SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken => {
                             self.report_operator_error(
                                 operator_token,
+                                left,
+                                right,
                                 left_type,
                                 right_type,
                                 error_node,
@@ -541,6 +543,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.report_operator_error(
                         operator_token,
+                        left,
+                        right,
                         left_type,
                         right_type,
                         error_node,
@@ -646,6 +650,8 @@ impl<'a> CheckerState<'a> {
                     );
                     self.report_operator_error(
                         operator_token,
+                        left,
+                        right,
                         left_type,
                         right_type,
                         error_node,
@@ -682,6 +688,8 @@ impl<'a> CheckerState<'a> {
                         self.get_base_type_of_literal_type_for_comparison(right_nonnull)?;
                     self.report_operator_error_unless(
                         operator_token,
+                        left,
+                        right,
                         left_cmp,
                         right_cmp,
                         error_node,
@@ -737,6 +745,8 @@ impl<'a> CheckerState<'a> {
                     // real flow-narrowed types since 6.4.)
                     self.report_operator_error_unless(
                         operator_token,
+                        left,
+                        right,
                         left_type,
                         right_type,
                         error_node,
@@ -1296,6 +1306,15 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<bool> {
         let number_or_bigint = self.tables.intrinsics.number_or_bigint;
         if !self.is_type_assignable_to(ty, number_or_bigint)? {
+            // 6.6f family: flag-exact containment for the arithmetic
+            // operand face — the operand may be failing only because
+            // its flow answer seam-reverted to the declared type.
+            if self.flow_answer_is_seam_reverted_in_composite(operand) {
+                return Err(Unsupported::new(
+                    "arithmetic operand face over a seam-reverted flow answer \
+                     (unported narrowing dependency, M6/M8 seam)",
+                ));
+            }
             let awaited = if is_await_valid {
                 self.get_awaited_type_of_promise(ty)?
             } else {
@@ -1393,8 +1412,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
             // 6.6f: syntax-probe gate → flag-exact containment for
-            // the failed-assignment face.
-            if self.flow_answer_is_seam_reverted(right)
+            // the failed-assignment face. SUBTREE consult: a compound
+            // RHS (object/array literal, conditional) inherits the
+            // wide type from a seam-reverted descendant that the
+            // node-identity probe cannot see.
+            if self.flow_answer_is_seam_reverted_in_composite(right)
                 && !self.is_type_assignable_to(value_type, assignee_type)?
             {
                 return Err(Unsupported::new(
@@ -1498,9 +1520,12 @@ impl<'a> CheckerState<'a> {
 
     /// reportOperatorErrorUnless (80332-80338).
     #[allow(clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     fn report_operator_error_unless(
         &mut self,
         operator_token: NodeId,
+        left: NodeId,
+        right: NodeId,
         left_type: TypeId,
         right_type: TypeId,
         error_node: Option<NodeId>,
@@ -1509,6 +1534,8 @@ impl<'a> CheckerState<'a> {
         if !types_are_compatible(self, left_type, right_type)? {
             self.report_operator_error(
                 operator_token,
+                left,
+                right,
                 left_type,
                 right_type,
                 error_node,
@@ -1523,14 +1550,28 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4cd1ff851ea94f2471ba78b4e315d9474715205ac4cf4ea0cc0ec1ee30b900a8
     /// tsc-span: _tsc.js:80374-80397
     #[allow(clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     fn report_operator_error(
         &mut self,
         operator_token: NodeId,
+        left: NodeId,
+        right: NodeId,
         left_type: TypeId,
         right_type: TypeId,
         error_node: Option<NodeId>,
         mut is_related: Option<&mut dyn FnMut(&mut Self, TypeId, TypeId) -> CheckResult2<bool>>,
     ) -> CheckResult2<()> {
+        // 6.6f family: flag-exact containment for the operator face —
+        // a failing operator check whose operand answer was
+        // seam-reverted reports over the deliberately-wide type.
+        if self.flow_answer_is_seam_reverted_in_composite(left)
+            || self.flow_answer_is_seam_reverted_in_composite(right)
+        {
+            return Err(Unsupported::new(
+                "operator face over a seam-reverted flow answer \
+                 (unported narrowing dependency, M6/M8 seam)",
+            ));
+        }
         let err_node = error_node.unwrap_or(operator_token);
         let mut would_work_with_await = false;
         if let Some(is_related) = is_related.as_deref_mut() {

@@ -3710,8 +3710,12 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let check_flags = self.get_check_flags(prop);
-        let is_discriminant = check_flags.contains(CheckFlags::DISCRIMINANT);
-        // !isGenericType(getTypeOfSymbol(prop)): generic types are M4.
+        let is_discriminant = if check_flags.contains(CheckFlags::DISCRIMINANT) {
+            let prop_type = self.get_type_of_symbol(prop)?;
+            !self.tables.is_generic_type(prop_type)
+        } else {
+            false
+        };
         self.links.set_symbol_is_discriminant(prop, is_discriminant);
         Ok(is_discriminant)
     }
@@ -4974,20 +4978,13 @@ impl<'a> CheckerState<'a> {
             // predicate.
             return Ok(());
         };
-        let annotation = match &self
-            .binder
-            .source_of_node(declaration)
-            .arena
-            .node(declaration)
-            .data
-        {
-            NodeData::FunctionType(data) => data.r#type,
-            NodeData::ConstructorType(data) => data.r#type,
-            NodeData::CallSignature(data) => data.r#type,
-            NodeData::ConstructSignature(data) => data.r#type,
-            NodeData::MethodSignature(data) => data.r#type,
-            _ => None,
-        };
+        // The annotation read is effective_return_type_node — the
+        // SAME reader the predicate materialization uses
+        // (narrow.rs get_type_predicate_of_signature), so the gate
+        // covers every declaration kind that can carry a predicate
+        // (function/method declarations and expressions included, not
+        // just the TYPE-node signature kinds).
+        let annotation = self.effective_return_type_node(declaration);
         if annotation.is_some_and(|node| self.kind_of(node) == SyntaxKind::TypePredicate) {
             return Err(Unsupported::new(
                 "type-predicate signature relations (compareTypePredicateRelatedTo, M6)",

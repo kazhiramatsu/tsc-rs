@@ -516,7 +516,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9fe9fcc0b033367436dd525613db28f5705a42f8428a97215ce75bef6e985875
     /// tsc-span: _tsc.js:72126-72213
     ///
-    /// Elisions/stubs, each per the extraction doc §3:
+    /// Elisions, each per the extraction doc §3:
     /// - shouldMarkIdentifierAliasReferenced → markLinkedReferences:
     ///   alias-reference marking is emit/unused bookkeeping (5.8/M7) —
     ///   whole call elided.
@@ -524,15 +524,12 @@ impl<'a> CheckerState<'a> {
     ///   by getTypeFromBindingPattern (5.5b); empty until then, so the
     ///   nonInferrableAnyType arm cannot fire — ported over the state
     ///   field that 5.5b starts pushing.
-    /// - the flow-container widening loop (72193) needs
-    ///   isPastLastAssignment ([FLOW] M5) — stubbed out, flowContainer
-    ///   keeps its computed value.
-    /// - isNeverInitialized reads isSymbolAssignedDefinitely — the M5
-    ///   no-marking default (lastAssignmentPos unset → false) is what
-    ///   the stub answers.
-    /// - initialType (72198): dead under the [FLOW] stub (module note);
-    ///   the auto-type arm (7034/7005) and the 2454 arm are ported
-    ///   verbatim and self-deactivate (flowType == type).
+    ///
+    /// The flow block is LIVE since 6.1-6.6: the flow-container
+    /// widening loop (72193, isPastLastAssignment), isNeverInitialized
+    /// (isSymbolAssignedDefinitely), the initialType ladder (72198),
+    /// the auto-type arm (7034/7005), and the 2454 arm are all real
+    /// below.
     pub(crate) fn check_identifier(
         &mut self,
         node: NodeId,
@@ -794,16 +791,16 @@ impl<'a> CheckerState<'a> {
                 return self.convert_auto_to_any(flow_type);
             }
             if flow_query_inert {
-                // 6.2 seam: the walk crossed a still-inert condition/
-                // switch arm, so the suppressed answer could have been
-                // tsc's 7034 pair OR a narrowed union — undecidable
-                // until 6.4. Keep the position partial so an
-                // @ts-expect-error over the suppressed row cannot
-                // misreport as unused (2578), mirroring the 2454/2565
-                // arms below.
+                // Seam flag (M6/M8 producers): the walk crossed a
+                // body-inference candidate or an unported-dependency
+                // arm, so the suppressed answer could have been tsc's
+                // 7034 pair OR a narrowed union. Keep the position
+                // partial so an @ts-expect-error over the suppressed
+                // row cannot misreport as unused (2578), mirroring
+                // the 2454/2565 arms below.
                 self.mark_partially_checked_node(
                     node,
-                    "flow-sensitive implicit-any diagnostic (M5 6.3/6.4 seam)",
+                    "flow-sensitive implicit-any diagnostic (M6/M8 seam)",
                 );
             }
         } else if !assume_initialized
@@ -818,15 +815,14 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(ty);
         } else if !assume_initialized && !self.contains_undefined_type(ty) && flow_query_inert {
-            // 6.2 seam: the walk crossed a still-inert condition/
-            // switch arm (joins are live since 6.3), so a
-            // condition-dependent 2454 is undecidable until 6.4 —
-            // keep the position partial instead of misreporting in
-            // either direction. (The reason string is a stable seam-
-            // era label; it retires whole with the flag at 6.4.)
+            // Seam flag (M6/M8 producers): a condition-dependent 2454
+            // over a seam-flagged answer is undecidable until the
+            // producers port — keep the position partial instead of
+            // misreporting in either direction. (The reason string
+            // retires with the flag's last producers.)
             self.mark_partially_checked_node(
                 node,
-                "flow-sensitive use-before-assignment diagnostic (M5 6.3/6.4 seam)",
+                "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)",
             );
         }
         Ok(if assignment_kind != AssignmentKind::None {
@@ -4245,9 +4241,9 @@ mod tests {
     fn quick_call_chain_initializer_keeps_undefined() {
         // Chain flavor rides getReturnTypeOfSingleNonGenericSignature-
         // OfCallChain: the optional marker propagates into `y`. The
-        // demand is an argument check (2345, live since 5.7a) — a
-        // `sink = y` demand would hit the 5.5e [FLOW M5] narrowable-
-        // union assignment gate and contain.
+        // demand is an argument check (2345, live since 5.7a; the
+        // assignment face is live too since the 6.6f gate
+        // retirement).
         assert_eq!(
             checked_rows(
                 "declare const g: (() => number) | undefined;\nconst y = g?.();\ndeclare function take(n: number): void;\ntake(y);\n"

@@ -785,6 +785,7 @@ fn directive_spec(normalized_name: &str) -> Option<DirectiveSpec> {
         "noemit" => bool_option("noEmit"),
         "noemithelpers" => bool_option("noEmitHelpers"),
         "noemitonerror" => bool_option("noEmitOnError"),
+        "nofallthroughcasesinswitch" => bool_option("noFallthroughCasesInSwitch"),
         "noimplicitany" => bool_option("noImplicitAny"),
         "noimplicitoverride" => bool_option("noImplicitOverride"),
         "noimplicitreturns" => bool_option("noImplicitReturns"),

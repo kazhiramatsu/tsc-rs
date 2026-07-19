@@ -3062,9 +3062,12 @@ impl<'a> CheckerState<'a> {
                     EffectiveArg::Synthetic { .. } => None,
                 };
                 // 6.6f: syntax-probe gate → flag-exact containment
-                // for the failed-argument face.
+                // for the failed-argument face. SUBTREE consult: a
+                // compound argument inherits the wide type from a
+                // seam-reverted descendant the node-identity probe
+                // cannot see.
                 if let Some(effective) = effective {
-                    if self.flow_answer_is_seam_reverted(effective) {
+                    if self.flow_answer_is_seam_reverted_in_composite(effective) {
                         return Err(Unsupported::new(
                             "failed argument over a seam-reverted flow answer \
                              (unported narrowing dependency, M6/M8 seam)",
@@ -5858,6 +5861,22 @@ mod tests {
         assert_eq!(
             checked_rows(
                 "class Foo {\n    #p1: (v: any) => asserts v is string = (v) => {};\n    m1(v: unknown) {\n        this.#p1(v);\n        v;\n    }\n}\nclass Foo2 {\n    #p2(v: any): asserts v is string {}\n    m1(v: unknown) {\n        this.#p2(v);\n        v;\n    }\n}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn static_private_dotted_assertion_target_resolves_clean() {
+        // M5 post-close review E2: STATIC privates land in the
+        // class's exports table (the binder mangles both flavors
+        // identically), so the mangled-key recovery searches members
+        // AND exports. Oracle: tsc 6.0.3 clean
+        // (verify/e2_static_private_assert.ts, 2026-07-19) — pre-fix
+        // this shape reported 2775 + a downstream 2322.
+        assert_eq!(
+            checked_rows(
+                "class S {\n    static #check(v: unknown): asserts v is string {}\n    static m(v: unknown) {\n        S.#check(v);\n        const s: string = v;\n    }\n}\n"
             ),
             []
         );

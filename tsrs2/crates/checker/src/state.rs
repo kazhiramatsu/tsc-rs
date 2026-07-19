@@ -360,15 +360,16 @@ pub struct CheckerState<'a> {
         (usize, tsrs2_binder::flow::FlowId),
         std::collections::HashMap<String, TypeId>,
     >,
-    /// tsrs-native 6.2 SEAM (retires when the 6.4 narrowers land):
-    /// true iff the most recently COMPLETED top-level flow
-    /// query walked through a still-inert arm (condition/switch —
-    /// the 6.3 joins are live). Such a query's answer was forced back
-    /// to the 6.1 behavior (declared type, auto-converted) because the
-    /// inert arms cannot reproduce tsc's narrowing; the initialType
-    /// ladder sites read this flag IMMEDIATELY after their
-    /// get_flow_type_of_reference call to keep the 2454/2565 seam
-    /// partial-marked instead of misreporting on stub-traversed paths.
+    /// tsrs-native SEAM mirror (retires with the seam flag's last
+    /// producers — M6 body-inference, M8-dependency unwinds, parser
+    /// recovery): true iff the most recently COMPLETED top-level flow
+    /// query walked through a deferred arm. Such a query's answer was
+    /// forced back to the declared-type behavior (auto-converted)
+    /// because the deferred arms cannot reproduce tsc's narrowing;
+    /// the initialType ladder sites read this flag IMMEDIATELY after
+    /// their get_flow_type_of_reference call to keep the 2454/2565
+    /// seam partial-marked instead of misreporting on seam-traversed
+    /// paths.
     pub(crate) flow_last_query_inert: bool,
     /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
     /// single-entry reachability memo — the immediately previous

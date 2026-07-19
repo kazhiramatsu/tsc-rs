@@ -179,8 +179,16 @@ markers say M6; no other milestone schedules them): full-radix
 annotate.rs) and `isValidBigIntString` (18973) for bigint
 template-literal placeholders
 (isValidTypeForTemplateLiteralPlaceholder's bigint arm is a live
-Unsupported in structural.rs). Re-probe the M4 NOTES top-10
-list; retire entries this milestone fixed.
+Unsupported in structural.rs). Also owned here (escaped at M5 6.4f
+with owner="M6"; scheduled in no earlier stage — the M5 post-close
+review flagged the missing doc backing): `compareTypePredicateRelatedTo`
+(64606) + the compareSignaturesRelated predicate arm (64577-64592,
+incl. the 1224/1226-family reporting) — retire structural.rs's
+`type_predicate_signature_relation_gate` with it (the gate reads
+effective_return_type_node, so it contains EVERY predicate-bearing
+declaration kind; tsc only needs the predicate path when the TARGET
+signature carries one — restore that split when porting). Re-probe
+the M4 NOTES top-10 list; retire entries this milestone fixed.
 
 Commit: `m6 7.5: inference consumers (+rate)`.
 

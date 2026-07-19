@@ -30,7 +30,7 @@ use tsrs2_types::{
     UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult2, CheckerState, Unsupported};
 
 /// tsc IterationTypes triple (the non-poison shape). Copy value
 /// semantics; see the module note on the interning deviation.
@@ -542,6 +542,16 @@ impl<'a> CheckerState<'a> {
         }
         if !self.is_array_like_type(array_type)? {
             if let Some(error_node) = error_node {
+                // 6.6f family: flag-exact containment for the
+                // iteration face — the iterated operand may fail only
+                // because its flow answer seam-reverted to the
+                // declared type.
+                if self.flow_answer_is_seam_reverted_in_composite(error_node) {
+                    return Err(Unsupported::new(
+                        "iteration face over a seam-reverted flow answer \
+                         (unported narrowing dependency, M6/M8 seam)",
+                    ));
+                }
                 let allows_strings = use_.intersects(IterationUse::ALLOWS_STRING_INPUT_FLAG)
                     && !has_string_constituent;
                 let (default_diagnostic, maybe_missing_await) = self
@@ -1129,6 +1139,15 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         allow_async_iterables: bool,
     ) -> CheckResult2<usize> {
+        // 6.6f family: flag-exact containment for the not-iterable
+        // face — the operand may fail only because its flow answer
+        // seam-reverted to the declared type.
+        if self.flow_answer_is_seam_reverted_in_composite(error_node) {
+            return Err(Unsupported::new(
+                "not-iterable face over a seam-reverted flow answer \
+                 (unported narrowing dependency, M6/M8 seam)",
+            ));
+        }
         let message = if allow_async_iterables {
             &diagnostics::Type_0_must_have_a_Symbol_asyncIterator_method_that_returns_an_async_iterator
         } else {

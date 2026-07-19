@@ -892,7 +892,7 @@ mod tests {
     }
 
     // ---- the auto-type family (getTypeForVariableLikeDeclaration
-    // auto arm — [FLOW M5] anyType stand-in) ----
+    // auto arm — flow-evolved, live since 6.2/6.6) ----
 
     #[test]
     fn auto_family_renders_no_false_relations() {

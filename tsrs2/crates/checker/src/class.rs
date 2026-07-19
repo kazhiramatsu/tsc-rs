@@ -1699,10 +1699,9 @@ impl<'a> CheckerState<'a> {
     ///
     /// The derived-is-binary-expression skip is JS-only (dead in TS
     /// files but ported). The useDefineForClassFields overwrite row
-    /// reports its FLOW-FREE faces only: exclamationToken / no
-    /// constructor / non-identifier name / !strictNullChecks — the
-    /// constructor-present probe (isPropertyInitializedInConstructor)
-    /// is [FLOW M5], its faces recorded FNs until the swap.
+    /// reports all five faces: exclamationToken / no constructor /
+    /// non-identifier name / !strictNullChecks / not initialized in
+    /// the constructor (the flow probe, 85370).
     fn check_kinds_of_property_member_overrides(
         &mut self,
         ty: TypeId,
@@ -1892,15 +1891,22 @@ impl<'a> CheckerState<'a> {
                                 let strict_null_checks = self
                                     .options
                                     .strict_option_value(self.options.strict_null_checks);
-                                // Flow-free faces report; the
-                                // constructor-present strict face needs
-                                // isPropertyInitializedInConstructor —
-                                // [FLOW M5], suppressed (recorded FN).
-                                let flow_free_report = exclamation
+                                // 85370: the probe's declared type is
+                                // the DERIVED CLASS type (`type`), not
+                                // the property type — tsc quirk,
+                                // preserved.
+                                let mut report = exclamation
                                     || constructor.is_none()
                                     || !prop_name_is_identifier
                                     || !strict_null_checks;
-                                if flow_free_report {
+                                if !report {
+                                    let ctor =
+                                        constructor.expect("non-report arm implies constructor");
+                                    report = !self.is_property_initialized_in_constructor(
+                                        derived, ty, ctor,
+                                    )?;
+                                }
+                                if report {
                                     let base_name = self.symbol_display_name(base);
                                     let base_type_text = self.type_to_string_slice(base_type)?;
                                     let error_node = self.derived_error_node(derived);
@@ -2117,11 +2123,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkPropertyInitialization @6.0.3
     /// tsc-hash: ddc03688d84d2f003730db1971a6cd5aa2c31bbab0362f9e58138c771a001ce6
     /// tsc-span: _tsc.js:85477-85498
-    ///
-    /// The no-constructor face is FLOW-FREE and LIVE; the
-    /// constructor-present face needs isPropertyInitializedInConstructor
-    /// (getFlowTypeOfReference) — [FLOW M5], recorded FN until the
-    /// swap (isPropertyInitializedInStaticBlocks rides the same lift).
     pub(crate) fn check_property_initialization(&mut self, node: NodeId) -> CheckResult2<()> {
         let strict_null_checks = self
             .options
@@ -2176,7 +2177,13 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            if constructor.is_none() {
+            let initialized = match constructor {
+                Some(ctor) => {
+                    self.is_property_initialized_in_constructor(member_symbol, member_type, ctor)?
+                }
+                None => false,
+            };
+            if !initialized {
                 let display = self.declaration_name_display(prop_name);
                 self.error_at(
                     Some(prop_name),
@@ -2184,7 +2191,6 @@ impl<'a> CheckerState<'a> {
                     &[&display],
                 );
             }
-            // constructor present → [FLOW M5] probe, suppressed.
         }
         Ok(())
     }
@@ -2239,14 +2245,72 @@ mod tests {
     }
 
     #[test]
-    fn strict_property_initialization_constructor_face_stays_flow_gated() {
+    fn strict_property_initialization_constructor_face_reports_2564() {
         // Oracle: (2564, 10, 1) — the empty constructor never assigns
-        // p. The constructor-present face needs
-        // isPropertyInitializedInConstructor ([FLOW M5]) — recorded FN
-        // until the swap; the no-constructor face is pinned live in
-        // check.rs (class_property_out_annotation_reports_2636).
+        // p; the flow probe (isPropertyInitializedInConstructor,
+        // M5 post-close review) proves undefined survived. The
+        // no-constructor face is pinned live in check.rs
+        // (class_property_out_annotation_reports_2636).
         assert_eq!(
             checked_rows("class C { p: string; constructor() {} }\n"),
+            [(2564, 10, 1)]
+        );
+        // Oracle: clean — a straight-line constructor assignment
+        // proves initialization.
+        assert_eq!(
+            checked_rows("class C { p: string; constructor() { this.p = \"x\"; } }\n"),
+            []
+        );
+        // Oracle: (2564, 10, 1) — a single-branch assignment is not
+        // definite (the JOIN keeps undefined).
+        assert_eq!(
+            checked_rows(
+                "class C { p: string; constructor(b: boolean) { if (b) { this.p = \"x\"; } } }\n"
+            ),
+            [(2564, 10, 1)]
+        );
+        // Oracle: clean — both branches assign.
+        assert_eq!(
+            checked_rows(
+                "class C { p: string; constructor(b: boolean) { if (b) { this.p = \"x\"; } else { this.p = \"y\"; } } }\n"
+            ),
+            []
+        );
+        // Oracle: (2564, 10, 2) / clean — the private flavor grounds
+        // on the `__#…@` description through the same synthetic
+        // chain.
+        assert_eq!(
+            checked_rows("class C { #p: string; constructor() {} }\n"),
+            [(2564, 10, 2)]
+        );
+        assert_eq!(
+            checked_rows("class C { #p: string; constructor() { this.#p = \"x\"; } }\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn overwrite_base_property_fifth_face_reports_2612() {
+        // Oracle: (2564, 38, 1) + (2612, 38, 1) — constructor present
+        // but the property is NOT assigned in it: the fifth 2612
+        // disjunct (85370, !isPropertyInitializedInConstructor) fires
+        // alongside the 2564 face. The probe's declared type is the
+        // DERIVED CLASS type (tsc quirk, preserved). Raw emission
+        // order here (override checks run before property
+        // initialization); the program layer's sort restores tsc's
+        // 2564-first order at equal spans.
+        assert_eq!(
+            checked_rows(
+                "class B { p = 1 }\nclass D extends B { p: number; constructor() { super(); } }\n"
+            ),
+            [(2612, 38, 1), (2564, 38, 1)]
+        );
+        // Oracle: clean — the constructor assignment clears BOTH
+        // faces.
+        assert_eq!(
+            checked_rows(
+                "class B { p = 1 }\nclass D extends B { p: number; constructor() { super(); this.p = 2; } }\n"
+            ),
             []
         );
     }
