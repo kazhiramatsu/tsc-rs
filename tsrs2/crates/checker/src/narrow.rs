@@ -3438,7 +3438,6 @@ pub(crate) enum TypePredicateKind {
 #[derive(Clone, Debug)]
 pub(crate) struct TypePredicate {
     pub(crate) kind: TypePredicateKind,
-    #[allow(dead_code)]
     pub(crate) parameter_name: Option<String>,
     pub(crate) parameter_index: i64,
     pub(crate) ty: Option<TypeId>,

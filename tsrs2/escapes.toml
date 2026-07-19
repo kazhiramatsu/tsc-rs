@@ -841,13 +841,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
-in = "check_type_predicate"
-reason = "checkTypePredicate tail (signature type predicates, getEffectsSignature M5)"
-class = "stage"
-owner = "M5"
-
-[[site]]
-file = "crates/checker/src/functions.rs"
 in = "get_binding_element_type_from_parent_type"
 reason = "binding element outside its pattern (parse recovery)"
 class = "recovery"

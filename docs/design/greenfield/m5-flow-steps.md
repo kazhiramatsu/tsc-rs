@@ -427,6 +427,37 @@ Gates: T0 53.4636→53.4840% (+10), 2xxx 75.0131→75.0606% (+10),
 FP=0 all bands; checker tests 629→646 (17 new oracle-verified pins);
 escapes 226/0/0/112 (+4 seam-containment sites, all owner-tagged).
 
+## M5 close (branch m5/close)
+
+The two close blockers the 6.6g review left, then the final gate:
+
+- **checkTypePredicate tail ported** (81206-81253) — the last
+  `owner="M5"` escape. The 2677 assignability face rides tsc's
+  leadingError as a containingMessageChain, and checkTypeRelatedTo
+  wraps errorInfo under that chain UNCONDITIONALLY (64890-64896):
+  every relation-failure path (generic 2322, no-common-properties
+  2559, missing-property, readonly 4104) lands the SAME outer code
+  2677 at node.type with no arguments — so the head-only slice
+  needs no display rendering and none of check_type_assignable_to's
+  head overrides (oracle-pinned: the weak-target shape reports
+  2677, never a bare 2559). Direction is predicate→parameter
+  (width subtyping: extra predicate members are fine). Plus the
+  1229 rest-reference row, the 1225 cannot-find-parameter row, and
+  the 1230 checkIfTypePredicateVariableIsDeclaredInBindingPattern
+  walk (81269-81288, recursive over nested patterns). 15
+  oracle-pinned unit shapes (2 tests), escapes 226 → 225.
+  typeGuardFunctionErrors' remaining 1228×3 (constructor/accessor
+  return positions) are contained by the pre-existing
+  overload-band parse-recovery escape, not this family.
+- **STAGE reconciliation** — the marker moves `5.9` → `M5`, NOT a
+  6.x token: parse_stage_key has no 6.x arm by design (M5+ escapes
+  are owner-tagged at milestone granularity; 6.x lives only in doc
+  stage numbering). The stale rule is `owner <= STAGE`, so `M5`
+  makes the whole M5 band due (now vacuously green: zero M5 owners
+  remain) while M6 owners stay live — the exact analogue of `5.9`
+  marking the whole-M4 band due through M5. `escapes --stale M5`:
+  sites=225 stale=0 untagged=0 recovery=112.
+
 ## Final gate
 
 ```sh
@@ -435,6 +466,25 @@ cargo xtask invariants --suite idempotence
 cargo xtask invariants --suite jobs-independence
 cargo xtask ledger check
 ```
+
+CLOSED 2026-07-19 (definition-of-done M5 bar: flow landed with
+idempotence + jobs-independence still green):
+
+| Gate | Result |
+|---|---|
+| conformance all | T0 **53.5248%** (26,240/49,024) FP=0 — bar ≥ 50% |
+| conformance 2xxx | T0 **75.0986%** (15,809/21,051) FP=0 |
+| conformance syntactic | T0 99.8219% (2,242/2,246) FP=0 |
+| invariants idempotence | ok (programs=275) |
+| invariants jobs-independence | ok (programs=275) |
+| ledger check | entries=1601 stale=0 |
+| escapes --stale M5 | sites=225 stale=0 untagged=0 recovery=112 |
+| checker tests | 648 |
+
+M5 total (6.1 → close): T0 42.7403% → 53.5248%, 2xxx 52.9714% →
+75.0986%. Next: M6 speculation transaction (convergence plan §4;
+the M6-start bar is the scoped-transaction API + failed-candidate
+rollback tests precondition).
 
 ## Expected failure modes
 

@@ -21,6 +21,7 @@ use tsrs2_types::{
 };
 
 use crate::links::LinkSlot;
+use crate::narrow::TypePredicateKind;
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 use crate::structural::SignatureKind;
 use tsrs2_diags::gen as diagnostics;
@@ -3723,15 +3724,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:81206-81253
     /// (covers getTypePredicateParent 81254-81268)
     ///
-    /// Signature type predicates are UNMODELED until M5
-    /// (getEffectsSignature): getTypePredicateOfSignature would answer
-    /// None for every signature we build, so the tail past the 1228
-    /// row (2677/1230/1225-family) is provably dead — a named escape
-    /// keeps the containment honest rather than silently skipping
-    /// (risk §14.15: do not fabricate the tail's shapes).
+    /// The 2677 assignability face carries tsc's leadingError as a
+    /// containingMessageChain, and checkTypeRelatedTo wraps errorInfo
+    /// under that chain UNCONDITIONALLY (64890-64896) — every relation
+    /// failure path (generic 2322, no-common-properties 2559, missing
+    /// property, readonly 4104) lands the SAME outer code 2677 at
+    /// node.type with no arguments; the varying part is only the
+    /// elided T2 chain tail. So the head-only slice needs no display
+    /// rendering and none of check_type_assignable_to's head
+    /// overrides here.
     pub(crate) fn check_type_predicate(&mut self, node: NodeId) -> CheckResult2<()> {
-        let parent = self.parent_of(node);
-        let is_return_position = parent.is_some_and(|parent| {
+        // getTypePredicateParent (81254-81268): the seven signature
+        // kinds whose return-type slot may carry a predicate.
+        let parent = self.parent_of(node).filter(|&parent| {
             let parent_type = match self.data_of(parent) {
                 NodeData::ArrowFunction(data) => data.r#type,
                 NodeData::CallSignature(data) => data.r#type,
@@ -3744,17 +3749,145 @@ impl<'a> CheckerState<'a> {
             };
             parent_type == Some(node)
         });
-        if !is_return_position {
+        let Some(parent) = parent else {
             self.error_at(
                 Some(node),
                 &diagnostics::A_type_predicate_is_only_allowed_in_return_type_position_for_functions_and_methods,
                 &[],
             );
             return Ok(());
+        };
+        let signature = self.get_signature_from_declaration(parent)?;
+        let Some(type_predicate) = self.get_type_predicate_of_signature(signature)? else {
+            return Ok(());
+        };
+        let (parameter_name_node, type_node) = match self.data_of(node) {
+            NodeData::TypePredicate(data) => (data.parameter_name, data.r#type),
+            _ => (None, None),
+        };
+        self.check_source_element(type_node);
+        if matches!(
+            type_predicate.kind,
+            TypePredicateKind::This | TypePredicateKind::AssertsThis
+        ) {
+            return Ok(());
         }
-        Err(Unsupported::new(
-            "checkTypePredicate tail (signature type predicates, getEffectsSignature M5)",
-        ))
+        if type_predicate.parameter_index >= 0 {
+            let index = type_predicate.parameter_index as usize;
+            let signature_data = self.signature_of(signature);
+            let has_rest = signature_data
+                .flags
+                .intersects(SignatureFlags::HAS_REST_PARAMETER);
+            let is_last = index == signature_data.parameters.len() - 1;
+            // The declared signature's own parameter list produced
+            // parameter_index (createTypePredicateFromTypePredicateNode
+            // findIndex), so the index is always in bounds here.
+            let parameter = signature_data.parameters[index];
+            if has_rest && is_last {
+                self.error_at(
+                    parameter_name_node,
+                    &diagnostics::A_type_predicate_cannot_reference_a_rest_parameter,
+                    &[],
+                );
+            } else if let Some(predicate_type) = type_predicate.ty {
+                let parameter_type = self.get_type_of_symbol(parameter)?;
+                if !self.is_type_assignable_to(predicate_type, parameter_type)? {
+                    self.error_at(
+                        type_node,
+                        &diagnostics::A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type,
+                        &[],
+                    );
+                }
+            }
+        } else if let Some(parameter_name_node) = parameter_name_node {
+            let predicate_variable_name = type_predicate.parameter_name.clone().unwrap_or_default();
+            let parameters = match self.data_of(parent) {
+                NodeData::ArrowFunction(data) => data.parameters,
+                NodeData::CallSignature(data) => data.parameters,
+                NodeData::FunctionDeclaration(data) => data.parameters,
+                NodeData::FunctionExpression(data) => data.parameters,
+                NodeData::FunctionType(data) => data.parameters,
+                NodeData::MethodDeclaration(data) => data.parameters,
+                NodeData::MethodSignature(data) => data.parameters,
+                _ => None,
+            };
+            let mut has_reported_error = false;
+            for parameter in self.nodes_of(parameters) {
+                let name = match self.data_of(parameter) {
+                    NodeData::Parameter(data) => data.name,
+                    _ => None,
+                };
+                let Some(name) = name else { continue };
+                if matches!(
+                    self.kind_of(name),
+                    SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                ) && self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
+                    name,
+                    parameter_name_node,
+                    &predicate_variable_name,
+                ) {
+                    has_reported_error = true;
+                    break;
+                }
+            }
+            if !has_reported_error {
+                self.error_at(
+                    Some(parameter_name_node),
+                    &diagnostics::Cannot_find_parameter_0,
+                    &[&predicate_variable_name],
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: checkIfTypePredicateVariableIsDeclaredInBindingPattern @6.0.3
+    /// tsc-hash: dd7f9d7772f812ac15d0104b5950068275a485f8a3a4a6837c844502a5a94a8a
+    /// tsc-span: _tsc.js:81269-81288
+    fn check_if_type_predicate_variable_is_declared_in_binding_pattern(
+        &mut self,
+        pattern: NodeId,
+        predicate_variable_node: NodeId,
+        predicate_variable_name: &str,
+    ) -> bool {
+        let elements = match self.data_of(pattern) {
+            NodeData::ObjectBindingPattern(data) => data.elements,
+            NodeData::ArrayBindingPattern(data) => data.elements,
+            _ => None,
+        };
+        for element in self.nodes_of(elements) {
+            if self.kind_of(element) == SyntaxKind::OmittedExpression {
+                continue;
+            }
+            let name = match self.data_of(element) {
+                NodeData::BindingElement(data) => data.name,
+                _ => None,
+            };
+            let Some(name) = name else { continue };
+            match self.kind_of(name) {
+                SyntaxKind::Identifier => {
+                    if self.escaped_text_of(Some(name)) == Some(predicate_variable_name) {
+                        self.error_at(
+                            Some(predicate_variable_node),
+                            &diagnostics::A_type_predicate_cannot_reference_element_0_in_a_binding_pattern,
+                            &[predicate_variable_name],
+                        );
+                        return true;
+                    }
+                }
+                SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => {
+                    if self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
+                        name,
+                        predicate_variable_node,
+                        predicate_variable_name,
+                    ) {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
     }
 
     // ---- grammar (fn-like declaration band) ----
@@ -5411,6 +5544,94 @@ mod tests {
                 })
                 .collect()
         })
+    }
+
+    // ---- checkTypePredicate tail (M5 close; rows oracle-pinned vs
+    // vendored tsc 6.0.3 noLib per shape, 2026-07-19) ----
+
+    #[test]
+    fn type_predicate_type_must_be_assignable_to_its_parameter() {
+        // 2677 at node.type; the chain tail is elided (T2).
+        assert_eq!(
+            checked_rows("function f(x: string): x is number {\n    return true;\n}\n"),
+            [(2677, 28, 6)]
+        );
+        // The containingMessageChain wrap (64890-64896) folds the
+        // no-common-properties face under the SAME 2677 head — never
+        // a bare 2559.
+        assert_eq!(
+            checked_rows("declare function w(x: { a(): void }): x is { b?: number };\n"),
+            [(2677, 43, 14)]
+        );
+        // Width subtyping runs predicate→parameter: extra predicate
+        // members are fine.
+        assert_eq!(
+            checked_rows("declare function m(x: { a: number }): x is { a: number, b: number };\n"),
+            []
+        );
+        assert_eq!(
+            checked_rows("declare function ok(x: number | string): x is string;\n"),
+            []
+        );
+        // asserts-identifier predicates take the same tail; a bare
+        // asserts (no type) checks nothing.
+        assert_eq!(
+            checked_rows("declare function a1(x: string): asserts x is number;\n"),
+            [(2677, 45, 6)]
+        );
+        assert_eq!(
+            checked_rows("declare function a2(x: string): asserts x;\n"),
+            []
+        );
+        // This/AssertsThis kinds skip the identifier tail entirely.
+        assert_eq!(
+            checked_rows("class C { m(): this is C { return true; } }\n"),
+            []
+        );
+        // MethodSignature and FunctionType parents reach the same
+        // check (getTypePredicateParent kinds).
+        assert_eq!(
+            checked_rows("interface I { p(x: string): x is number; }\n"),
+            [(2677, 33, 6)]
+        );
+        assert_eq!(
+            checked_rows("let ft: (x: string) => x is number;\n"),
+            [(2677, 28, 6)]
+        );
+    }
+
+    #[test]
+    fn type_predicate_parameter_reference_errors() {
+        // 1229: the predicate references the rest parameter itself.
+        assert_eq!(
+            checked_rows("declare function b4(...a: any[]): a is number;\n"),
+            [(1229, 34, 1)]
+        );
+        // A rest parameter elsewhere in the list doesn't gate the
+        // named parameter's assignability face.
+        assert_eq!(
+            checked_rows("declare function r(x: string, ...rest: any[]): x is number;\n"),
+            [(2677, 52, 6)]
+        );
+        // 1225: no parameter of that name.
+        assert_eq!(
+            checked_rows("declare function h(y: string): x is number;\n"),
+            [(1225, 31, 1)]
+        );
+        // 1230: the name lives inside a binding pattern (object,
+        // nested, and the no-match fallback to 1225).
+        assert_eq!(
+            checked_rows("declare function b5({ a, b, p1 }: any, p2: any): p1 is number;\n"),
+            [(1230, 49, 2)]
+        );
+        assert_eq!(
+            checked_rows("declare function b7({ a, c: { p1 } }: any, p2: any): p1 is number;\n"),
+            [(1230, 53, 2)]
+        );
+        assert_eq!(
+            checked_rows("declare function b8({ a, b }: any, p2: any): q is number;\n"),
+            [(1225, 45, 1)]
+        );
     }
 
     // ---- implicit returns (6.6c; rows oracle-pinned vs vendored
