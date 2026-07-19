@@ -186,15 +186,6 @@ pub enum ResolutionTarget {
     Node(NodeId),
 }
 
-#[derive(Clone, Debug, Default)]
-pub(crate) struct FlowContainmentCandidates {
-    pub alias_declarations: Vec<NodeId>,
-    pub guard_nodes: Vec<NodeId>,
-}
-
-pub(crate) type FlowContainmentIndex =
-    std::collections::HashMap<Option<NodeId>, FlowContainmentCandidates>;
-
 pub struct CheckerState<'a> {
     pub binder: ProgramBinder<'a>,
     pub options: &'a CompilerOptions,
@@ -379,6 +370,40 @@ pub struct CheckerState<'a> {
     /// get_flow_type_of_reference call to keep the 2454/2565 seam
     /// partial-marked instead of misreporting on stub-traversed paths.
     pub(crate) flow_last_query_inert: bool,
+    /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
+    /// single-entry reachability memo — the immediately previous
+    /// isReachableFlowNode query (reachability is asked per statement
+    /// in source order, so the repeat rate is high). (file, FlowId) is
+    /// the stable identity for tsc's object equality. Invalidated by
+    /// the worker's ReduceLabel arm (70312) exactly like tsc; never
+    /// trimmed otherwise.
+    pub(crate) last_flow_node: Option<(usize, tsrs2_binder::flow::FlowId)>,
+    pub(crate) last_flow_node_reachable: bool,
+    /// tsc flowNodeReachable (47434): the per-SHARED-node reachability
+    /// memo (a getFlowNodeId-indexed sparse array there; (file, FlowId)
+    /// here like flowLoopCaches). Lives across queries. Err unwinds
+    /// leave it unwritten — no undecided verdict outlives its walk.
+    /// (flowNodePostSuper 47435 is the super()-ordering family's twin
+    /// cache — unported with isPostSuperFlowNode, no M5 consumer.)
+    pub(crate) flow_node_reachable:
+        std::collections::HashMap<(usize, tsrs2_binder::flow::FlowId), bool>,
+    /// tsc withinUnreachableCode (46457): once one 7027 range is
+    /// reported, elements checked INSIDE it stay silent; saved and
+    /// restored by check_source_element like currentNode.
+    pub(crate) within_unreachable_code: bool,
+    /// tsc reportedUnreachableNodes (46458): statements already
+    /// covered by an aggregated 7027 range; cleared per checked file
+    /// (86985's `= void 0`).
+    pub(crate) reported_unreachable_nodes: std::collections::HashSet<NodeId>,
+    /// tsrs-native 6.6f: reference nodes whose flow query exited
+    /// FLAGGED (seam-reverted to the declared type — an unported
+    /// M6/M8 dependency was crossed, so the answer is deliberately
+    /// wider than tsc's). Diagnostic faces that would REPORT over
+    /// such an answer consult this registry and contain instead —
+    /// the flag-exact replacement for the retired [FLOW M5]
+    /// syntax-probe gates. Cleared per checked file; retires with the
+    /// seam flag's last producers.
+    pub(crate) flow_inert_answer_nodes: std::collections::HashSet<NodeId>,
 
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
@@ -530,11 +555,6 @@ pub struct CheckerState<'a> {
     /// 59765) — state-side; None IS the memoized noTypePredicate.
     pub(crate) resolved_type_predicates:
         std::collections::HashMap<SignatureId, Option<crate::narrow::TypePredicate>>,
-    /// tsrs-native temporary [FLOW M5] containment index. It caches
-    /// syntax candidates only (per source and nearest function scope),
-    /// so each failed diagnostic need not walk the whole source again.
-    pub(crate) flow_containment_indexes:
-        std::cell::RefCell<std::collections::HashMap<NodeId, FlowContainmentIndex>>,
     /// tsrs-native temporary M8/checkJs containment index. Each JS
     /// source is scanned once, grouping simple assignment declarations
     /// by their final property name. The receiver/scope checks remain at
@@ -745,6 +765,12 @@ impl<'a> CheckerState<'a> {
             final_array_types: std::collections::HashMap::new(),
             flow_loop_caches: std::collections::HashMap::new(),
             flow_last_query_inert: false,
+            last_flow_node: None,
+            last_flow_node_reachable: false,
+            flow_node_reachable: std::collections::HashMap::new(),
+            within_unreachable_code: false,
+            reported_unreachable_nodes: std::collections::HashSet::new(),
+            flow_inert_answer_nodes: std::collections::HashSet::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
             potential_this_collisions: Vec::new(),
@@ -782,7 +808,6 @@ impl<'a> CheckerState<'a> {
             exhaustive_switch_computing: std::collections::HashSet::new(),
             effects_signature_cache: std::collections::HashMap::new(),
             resolved_type_predicates: std::collections::HashMap::new(),
-            flow_containment_indexes: Default::default(),
             js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),
             visible_global_diagnostics: Vec::new(),
@@ -1400,6 +1425,38 @@ impl<'a> CheckerState<'a> {
         }
         self.diagnostics.push(diagnostic);
         self.diagnostics.len() - 1
+    }
+
+    /// tsc createFileDiagnostic + diagnostics.add over an explicit
+    /// byte range — the aggregated 7027 span is the sole consumer
+    /// (checkSourceElementUnreachable 86804-86805); same utf16
+    /// mapping and duplicate-drop as the node-anchored path.
+    /// tsrs-native: explicit-span twin of diagnostic_for_node.
+    pub fn error_at_byte_range(
+        &mut self,
+        node_for_file: NodeId,
+        start_byte: usize,
+        end_byte: usize,
+        message: &'static DiagnosticMessage,
+    ) -> usize {
+        let source = self.binder.source_of_node(node_for_file);
+        let to_utf16 = |byte: usize| -> u32 {
+            source
+                .line_map
+                .byte_to_utf16
+                .get(byte)
+                .copied()
+                .unwrap_or(byte as u32)
+        };
+        let start_utf16 = to_utf16(start_byte);
+        let end_utf16 = to_utf16(end_byte);
+        let diagnostic = Diagnostic::new(
+            Some(source.file_name.clone()),
+            Some(start_utf16),
+            Some(end_utf16.saturating_sub(start_utf16)),
+            MessageChain::new(message, &[]),
+        );
+        self.push_error_diagnostic(diagnostic)
     }
 
     /// tsc-port: errorSkippedOn @6.0.3

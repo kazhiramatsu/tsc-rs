@@ -46,8 +46,21 @@
 # Normal-function gates, Record widening through the real
 # getGlobalTypeAliasSymbol (2318/2317), isNonLocalAlias-faithful
 # resolveSymbol, containment-orientation fix for synthetic chains.
-rate = 0.511566
-matched = 25079
+# m5 6.6: +1131 — reachability (isReachableFlowNode + caches) with
+# its consumers: implicit returns real (endFlowNode + the
+# exhaustive-switch/never-call refinements; noImplicitReturns lands),
+# 7027 error-face + 7029, class-property flow init (this-rooted
+# synthetic chains over returnFlowNode), and the [FLOW M5]
+# failure-face gate retirement — replaced by the flag-exact
+# seam-reverted-answer registry; the FP sweep fixed five latent
+# divergences the old syntax gates had hidden (object-literal
+# properties table, elaboration name anchors, private-twin heads,
+# all-assignment-ops contextual this, structured
+# getTypeOfPropertyOfType) and deferred three families with precise
+# M6 containments (computed-key destructuring order, array-spread
+# elaboration, intersection never-reduction).
+rate = 0.534636
+matched = 26210
 total = 49024
 allowed_regression = 0.0
 
@@ -65,8 +78,10 @@ allowed_regression = 0.0
 # m5 6.3: +4 with the joins/fixpoint (condition-free topologies).
 # m5 6.4: +323 with the narrowers a-h.
 # m5 6.4 review fixes: +92 (see the T0 comment).
-rate = 0.724621
-matched = 15254
+# m5 6.6: +537 with reachability + the gate retirement (see the T0
+# comment).
+rate = 0.750131
+matched = 15791
 total = 21051
 allowed_regression = 0.0
 

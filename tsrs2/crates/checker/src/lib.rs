@@ -1817,6 +1817,206 @@ mod tests {
         );
     }
 
+    fn full_lib_bundle(target_libs: &[&str]) -> Vec<InputFile> {
+        let base = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../vendor/typescript-6.0.3/lib/"
+        );
+        target_libs
+            .iter()
+            .map(|name| InputFile {
+                name: (*name).to_owned(),
+                text: std::fs::read_to_string(format!("{base}{name}")).expect("vendored lib"),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn seam_reverted_answers_contain_the_ladder_face() {
+        // The 6.6f flag-registry pin (canary FP controlFlowInOperator):
+        // the `'d' in c` walk crosses the Record mapped-type M8 stub
+        // inside a JOIN, seam-reverting c's answers — the later `c[a]`
+        // ladder must CONTAIN (partial), never 7053 over the
+        // deliberately-wide A | B.
+        let libs = full_lib_bundle(&[
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.dom.d.ts",
+            "lib.dom.iterable.d.ts",
+            "lib.webworker.importscripts.d.ts",
+            "lib.scripthost.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts",
+        ]);
+        let options = CompilerOptions {
+            strict: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        let result = check_program_with_libs(
+            &libs,
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "const a = 'a';\nconst b = 'b';\nconst d = 'd';\ntype A = { [a]: number; };\ntype B = { [b]: string; };\ndeclare const c: A | B;\nif ('d' in c) {\n    c;\n}\nif (a in c) {\n    c;\n    c[a];\n}\n".to_owned(),
+            }],
+            &options,
+        );
+        let rows: Vec<(String, u32)> = result
+            .diagnostics
+            .iter()
+            .filter(|d| d.file_name.as_deref() == Some("a.ts"))
+            .map(|d| (d.file_name.clone().unwrap_or_default(), d.code()))
+            .collect();
+        assert_eq!(rows, Vec::<(String, u32)>::new());
+    }
+
+    #[test]
+    fn const_key_in_narrowing_indexes_late_bound_members() {
+        // Un-poisoned baseline of the seam pin: no missing-key block,
+        // so `a in c` narrows to A and `c[a]` resolves (oracle-clean).
+        let text = "const a = 'a';\nconst b = 'b';\nconst d = 'd';\ntype A = { [a]: number; };\ntype B = { [b]: string; };\ndeclare const c: A | B;\nif (a in c) {\n    c;\n    c[a];\n}\n";
+        assert_eq!(
+            lib_codes_of_with_options(text, &strict_options()),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn for_in_over_optional_chain_stays_clean() {
+        // tsc #51941 (canary FP controlFlowOptionalChain f50): the
+        // body's obj.main read must not 18048 — the chain narrowing
+        // lands, or the Record-stub seam contains.
+        let text = "type Test5 = {\n  main?: {\n    childs: Record<string, Test5>;\n  };\n};\nfunction f50(obj: Test5) {\n   for (const key in obj.main?.childs) {\n      if (obj.main.childs[key] === obj) {\n        return obj;\n      }\n   }\n   return null;\n}\n";
+        assert_eq!(
+            lib_codes_of_with_options(text, &strict_options()),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn overload_failure_promise_intersection_awaits_to_never() {
+        // The combined overload-failure signature returns the
+        // INTERSECTION of candidate returns (tsc 76907); awaiting it
+        // unwraps through the intersected structural `then` to never,
+        // so the loop-carried assignment stays silent — only the 2769
+        // reports (oracle-exact; the un-unwrapped promise was the
+        // 6.6f 2322 FP face).
+        let libs = full_lib_bundle(&[
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts",
+        ]);
+        let options = CompilerOptions {
+            strict: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        let result = check_program_with_libs(
+            &libs,
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare const cond: boolean;\ndeclare function foo(x: string): Promise<number>;\ndeclare function foo(x: number): Promise<string>;\nasync function g1() {\n    let x: string | number | boolean;\n    x = \"\";\n    while (cond) {\n        x = await foo(x);\n        x;\n    }\n    x;\n}\n".to_owned(),
+            }],
+            &options,
+        );
+        let rows: Vec<(u32, u32)> = result
+            .diagnostics
+            .iter()
+            .filter(|d| d.file_name.as_deref() == Some("a.ts"))
+            .map(|d| (d.code(), d.start.unwrap_or(0)))
+            .collect();
+        assert_eq!(rows, [(2769, 242)]);
+    }
+
+    #[test]
+    fn async_iteration_fixture_reports_no_spurious_2322() {
+        let libs = full_lib_bundle(&[
+            "lib.es6.d.ts",
+            "lib.es5.d.ts",
+            "lib.es2015.d.ts",
+            "lib.es2015.core.d.ts",
+            "lib.es2015.collection.d.ts",
+            "lib.es2015.generator.d.ts",
+            "lib.es2015.iterable.d.ts",
+            "lib.es2015.promise.d.ts",
+            "lib.es2015.proxy.d.ts",
+            "lib.es2015.reflect.d.ts",
+            "lib.es2015.symbol.d.ts",
+            "lib.es2015.symbol.wellknown.d.ts",
+            "lib.es2018.asynciterable.d.ts",
+            "lib.decorators.d.ts",
+            "lib.decorators.legacy.d.ts",
+        ]);
+        let options = CompilerOptions {
+            strict: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        let text = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../ts-tests/tests/cases/conformance/controlFlow/controlFlowIterationErrorsAsync.ts"
+        ))
+        .expect("fixture")
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("// @"))
+        .collect::<Vec<_>>()
+        .join("\n");
+        let result = check_program_with_libs(
+            &libs,
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text,
+            }],
+            &options,
+        );
+        let rows: Vec<u32> = result
+            .diagnostics
+            .iter()
+            .filter(|d| d.file_name.as_deref() == Some("a.ts"))
+            .map(|d| d.code())
+            .collect();
+        assert_eq!(
+            rows.iter().filter(|&&c| c == 2322).count(),
+            0,
+            "rows: {rows:?}"
+        );
+    }
+
+    #[test]
+    fn computed_key_destructuring_assignment_contains() {
+        // The evaluation-order family (tsc PR #41094) defers to M6 —
+        // the const-bb rows partial-mark instead of misreporting
+        // (controlFlowAssignmentPatternOrder).
+        let text = "let a: 0 | 1 = 0;\nlet b: 0 | 1 | 8 | 9;\n[{ [(a = 1)]: b } = [9, a] as const] = [[9, 8] as const];\nconst bb: 0 | 8 = b;\n";
+        assert_eq!(
+            lib_codes_of_with_options(text, &strict_options()),
+            Vec::<u32>::new()
+        );
+    }
+
     fn lib_codes_of_with_options(source: &str, options: &CompilerOptions) -> Vec<u32> {
         let result = check_program_with_libs(
             &[es5_lib()],
@@ -2679,14 +2879,9 @@ mod tests {
         // reaches the declared string | number — fs(x) genuinely fails
         // under tsc (2345). Pins the accumulate-then-break direction
         // (an antecedent equal to the declared type stops the walk) —
-        // AND today's report surface: the failed-argument [FLOW M5]
-        // gate still contains the true positive (x is narrowable and
-        // the loop-reaching `x = 1` is a related narrowing construct).
-        // The 6.4 narrowers landed WITHOUT retiring the gate — it
-        // still shields the 6.6 reachability true-stub's dead-code
-        // divergence (m5-flow-steps.md 6.4 landing note) — so the
-        // 2345 stays a partial mark until 6.6. Flip this pin to
-        // assert [2345] then.
+        // AND the report surface: with the [FLOW M5] failure-face
+        // gates retired at 6.6f, the true positive REPORTS
+        // (oracle-exact: 2345 at the argument).
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -2703,7 +2898,7 @@ mod tests {
                 .iter()
                 .map(|d| d.code())
                 .collect::<Vec<_>>(),
-            Vec::<u32>::new()
+            [2345]
         );
         assert_eq!(
             result
@@ -2711,10 +2906,7 @@ mod tests {
                 .iter()
                 .map(|p| p.reason.as_str())
                 .collect::<Vec<_>>(),
-            [
-                "[FLOW M5] failed argument from a narrowable reference with a related \
-              narrowing construct in scope"
-            ]
+            Vec::<&str>::new()
         );
     }
 
@@ -2722,15 +2914,14 @@ mod tests {
     fn speculative_overload_failure_in_fixpoint_leaves_no_signature_memo() {
         // The g2 shape of controlFlowIterationErrorsAsync: the bare
         // `x;` query's back-edge pull speculatively resolves foo(x),
-        // whose overload failure BOTH stashes a failure-face
-        // resolvedSignature (resolveCall 76629) AND raises the
-        // [FLOW M5] failed-argument gate. The mid-fixpoint exit must
-        // clear that stash (tsc 77505's `: cached`): if it survived,
-        // the later assignment-statement check would hit the memo,
-        // skip argument checking (so the gate never fires), and let
-        // the failure-face return type reach the assignment relation —
-        // a 2322 tsc never emits. Expected: both flow-crossing
-        // statements contain (no diagnostics), evidenced by the gate's
+        // whose overload failure stashes a failure-face
+        // resolvedSignature (resolveCall 76629). The mid-fixpoint exit
+        // must clear that stash (tsc 77505's `: cached`): if it
+        // survived, the later assignment-statement check would hit the
+        // memo, skip argument checking, and let the failure-face
+        // return type reach the assignment relation — a 2322 tsc never
+        // emits. Post-6.6f expected (oracle-exact): ONE 2769 (the
+        // overload failure at the real call check), no 2322, no
         // partial marks.
         let result = check_program(
             &[InputFile {
@@ -2748,19 +2939,15 @@ mod tests {
                 .iter()
                 .map(|d| d.code())
                 .collect::<Vec<_>>(),
-            Vec::<u32>::new()
+            [2769]
         );
-        assert!(
-            result
-                .partial_checks
-                .iter()
-                .any(|p| p.reason.contains("[FLOW M5] failed argument")),
-            "the failed-argument gate should contain the overload failure; got {:?}",
+        assert_eq!(
             result
                 .partial_checks
                 .iter()
                 .map(|p| p.reason.as_str())
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>(),
+            Vec::<&str>::new()
         );
     }
 

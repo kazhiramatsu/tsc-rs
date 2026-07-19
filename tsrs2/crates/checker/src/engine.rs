@@ -1887,11 +1887,18 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<TypeId>> {
-        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
+        // tsc getTypeOfPropertyOfType = getPropertyOfType over any
+        // STRUCTURED type — the OBJECT-only guard dropped
+        // union/intersection receivers (the awaited-unwrap of the
+        // overload-failure Promise INTERSECTION was the 6.6f
+        // controlFlowIterationErrorsAsync 2322 FP face: `then` never
+        // resolved, so the await passed the promise through).
+        if !self.tables.flags_of(ty).intersects(TypeFlags::from_bits(
+            TypeFlags::OBJECT.bits() | TypeFlags::UNION.bits() | TypeFlags::INTERSECTION.bits(),
+        )) {
             return Ok(None);
         }
-        let members = self.resolve_structured_type_members(ty)?;
-        let Some(symbol) = self.members_of(members).members.get(name).copied() else {
+        let Some(symbol) = self.get_property_of_type_full(ty, name)? else {
             return Ok(None);
         };
         if !self

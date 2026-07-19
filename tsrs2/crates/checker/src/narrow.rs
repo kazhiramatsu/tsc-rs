@@ -27,7 +27,7 @@ use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
 use crate::flow::FlowQuery;
-use crate::state::{CheckResult2, CheckerState, SignatureId};
+use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
 
 impl<'a> CheckerState<'a> {
     /// The narrow-family caches (switch types, exhaustiveness,
@@ -1405,7 +1405,7 @@ impl<'a> CheckerState<'a> {
         if !self.is_type_derived_from(right_type, global_object)? {
             return Ok(ty);
         }
-        let signature = self.get_effects_signature(query, expr)?;
+        let signature = self.get_effects_signature(Some(query), expr)?;
         let predicate = match signature {
             Some(signature) => self.get_type_predicate_of_signature(signature)?,
             None => None,
@@ -2480,7 +2480,7 @@ impl<'a> CheckerState<'a> {
             let source = self.binder.source_of_node(call_expression);
             let is_call_chain = node_util::is_optional_chain(source, call_expression);
             let signature = if assume_true || !is_call_chain {
-                self.get_effects_signature(query, call_expression)?
+                self.get_effects_signature(Some(query), call_expression)?
             } else {
                 None
             };
@@ -2755,9 +2755,17 @@ impl<'a> CheckerState<'a> {
     /// selection, and on the selected candidate — because tsc might
     /// resolve a predicate there that we cannot, and the pass-through
     /// answer would be over-wide.
+    ///
+    /// `query: None` is the reachability walk (isReachableFlowNode
+    /// 70280 — 6.6): there is no flag channel there, so the uncertain
+    /// verdict Errs instead — a "reachable" answer computed past an
+    /// undecided asserts-false/never candidate could surface as a
+    /// 2534/2366-family FP once the dead-code gates are gone, and an
+    /// Err also keeps both reachability caches unwritten (the memo
+    /// outlives the walk; an unflagged undecided verdict must not).
     pub(crate) fn get_effects_signature(
         &mut self,
-        query: &mut FlowQuery,
+        mut query: Option<&mut FlowQuery>,
         node: NodeId,
     ) -> CheckResult2<Option<SignatureId>> {
         if let Some(&cached) = self.effects_signature_cache.get(&node) {
@@ -2835,6 +2843,12 @@ impl<'a> CheckerState<'a> {
                 Some(self.get_resolved_signature(node, CheckMode::NORMAL)?)
             } else {
                 if any_uncertain {
+                    let Some(query) = query.as_deref_mut() else {
+                        return Err(Unsupported::new(
+                            "body-inferred type predicate candidate in a reachability \
+                             effects consult (getTypePredicateFromBody, M6)",
+                        ));
+                    };
                     query.traversed_inert_arm = true;
                     return Ok(None);
                 }
@@ -2852,6 +2866,12 @@ impl<'a> CheckerState<'a> {
                 // the verdict is not final (a memo hit would skip this
                 // probe and leak the unflagged wide answer — caught
                 // live by the loop fixpoint pin).
+                let Some(query) = query else {
+                    return Err(Unsupported::new(
+                        "body-inferred type predicate candidate in a reachability \
+                         effects consult (getTypePredicateFromBody, M6)",
+                    ));
+                };
                 query.traversed_inert_arm = true;
                 return Ok(None);
             }
@@ -2919,6 +2939,29 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         if self.get_parameter_count(signature)? == 0 {
+            return Ok(false);
+        }
+        // 6.6f cycle guard: this probe can run inside the SAME
+        // signature's return-type computation (functionHasImplicitReturn
+        // → isReachableFlowNode → getEffectsSignature → here; mutual
+        // recursion closes the loop — the readonlyRestParameters 7023
+        // FP face). tsc's equivalent cycle lands in getTypePredicate-
+        // FromBody's checkExpression, which circularity-breaks to NO
+        // predicate and MEMOIZES noTypePredicate — the observable is
+        // "no effects, walk past", so the in-progress answer here is a
+        // faithful FALSE, not an uncertain flag.
+        if self
+            .resolution_targets
+            .iter()
+            .zip(self.resolution_property_names.iter())
+            .any(|(target, property)| {
+                matches!(
+                    target,
+                    crate::state::ResolutionTarget::Signature(in_progress)
+                        if *in_progress == signature
+                ) && *property == tsrs2_types::TypeSystemPropertyName::RESOLVED_RETURN_TYPE
+            })
+        {
             return Ok(false);
         }
         // 59783 tests Boolean (256) proper, not BooleanLike: a

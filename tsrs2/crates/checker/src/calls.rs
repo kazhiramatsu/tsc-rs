@@ -3061,24 +3061,13 @@ impl<'a> CheckerState<'a> {
                     EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
                     EffectiveArg::Synthetic { .. } => None,
                 };
-                // [FLOW M5] second face for arguments (the 5.5e `=`
-                // precedent): tsc consumes the FLOW type of a
-                // narrowable-reference argument — a failed verdict
-                // over the DECLARED union/unknown type may be
-                // tsc-clean. Contain those; M5 removes the gate.
+                // 6.6f: syntax-probe gate → flag-exact containment
+                // for the failed-argument face.
                 if let Some(effective) = effective {
-                    // [FLOW M5]: predicates/typeof/switch narrowing
-                    // can change ANY reference's type, so no flag
-                    // filter — a failed verdict over a narrowable
-                    // reference with a RELATED narrowing construct in
-                    // scope may be tsc-clean; unrelated guards never
-                    // suppress (PR #6 review P1).
-                    if self.receiver_may_be_flow_narrowed(effective)
-                        && self.flow_guards_narrow_reference(node, effective)
-                    {
+                    if self.flow_answer_is_seam_reverted(effective) {
                         return Err(Unsupported::new(
-                            "[FLOW M5] failed argument from a narrowable reference with a \
-                             related narrowing construct in scope",
+                            "failed argument over a seam-reverted flow answer \
+                             (unported narrowing dependency, M6/M8 seam)",
                         ));
                     }
                 }
@@ -4666,38 +4655,10 @@ impl<'a> CheckerState<'a> {
             call_signatures.len(),
             num_construct_signatures,
         )? {
-            // [FLOW M5] auto-callee gate: `var a;` callees flow-type
-            // to undefined in tsc — checkNonNullExpression yields
-            // errorType (2722 + no 2347); our auto stand-in is anyType
-            // (annotate.rs AUTO ARM), so the error-face never forms.
-            // Contain rather than fabricate 2347 beside tsc's 2722.
-            if type_arguments.is_some() {
-                let auto_callee = {
-                    let core = self.skip_outer_expressions(expression, OuterExpressionKinds::ALL);
-                    (self.kind_of(core) == SyntaxKind::Identifier)
-                        .then(|| self.links.node(core).resolved_symbol.resolved())
-                        .flatten()
-                };
-                if let Some(symbol) = auto_callee {
-                    let is_auto_var =
-                        self.binder
-                            .symbol(symbol)
-                            .value_declaration
-                            .is_some_and(|declaration| {
-                                matches!(
-                                    self.data_of(declaration),
-                                    NodeData::VariableDeclaration(data)
-                                        if data.r#type.is_none() && data.initializer.is_none()
-                                )
-                            });
-                    if is_auto_var {
-                        return Err(Unsupported::new(
-                            "[FLOW M5] untyped-call 2347 over an auto-typed callee \
-                             (checkNonNullExpression error-face unmodeled)",
-                        ));
-                    }
-                }
-            }
+            // (The [FLOW M5] auto-callee gate retired at 6.6f: the
+            // flipped initialType ladders flow `var a;` callees to
+            // real undefined, so checkNonNullExpression's 2722 face
+            // forms exactly like tsc's.)
             // 77014-77016: 2347 on non-error targets with typeArguments.
             if func_type != self.tables.intrinsics.error && type_arguments.is_some() {
                 self.error_at(
@@ -4865,20 +4826,6 @@ impl<'a> CheckerState<'a> {
                         ));
                     }
                     let return_type = self.get_return_type_of_signature(signature)?;
-                    if return_type == self.tables.intrinsics.never {
-                        // functionHasImplicitReturn is the stub-false
-                        // face: a no-return body computes `never`
-                        // where tsc's reachability gives `void` — the
-                        // 2350 verdict hinges on it (conformance FP:
-                        // inferringClassMembersFromAssignments8). A
-                        // dependency STUB, not a narrowing gate: the
-                        // parenthetical [FLOW M5] tag keeps it out of
-                        // the join-seam rethrow set (prefix = gate)
-                        // while the escapes grep still owns it.
-                        return Err(Unsupported::new(
-                            "functionHasImplicitReturn stub under the 2350 gate (never-vs-void return, [FLOW M5])",
-                        ));
-                    }
                     if return_type != self.tables.intrinsics.void {
                         self.error_at(
                             Some(node),
@@ -6077,14 +6024,11 @@ mod tests {
     // ---- the Invoke non-null reporter ----
 
     #[test]
-    fn nullable_narrowable_callee_contains_until_flow() {
-        // Oracle: 2721 at `nf` — the receiver is a narrowable
-        // identifier, so the [FLOW M5] gate contains (tsc reports on
-        // the FLOW type; the declared-type stand-in would FP once
-        // narrowing exists).
+    fn nullable_narrowable_callee_reports_2721() {
+        // Un-gated at 6.6f (oracle-exact row).
         assert_eq!(
             checked_rows("declare const nf: (() => void) | null;\nnf();\n"),
-            []
+            [(2721, 39, 2)]
         );
     }
 
@@ -6166,12 +6110,11 @@ mod tests {
     }
 
     #[test]
-    fn optional_method_chain_call_contains_until_flow() {
-        // Oracle: 2722 at `om.m` — property-access receivers are
-        // narrowable ([FLOW M5] gate).
+    fn optional_method_chain_call_reports_2722() {
+        // Un-gated at 6.6f (oracle-exact row).
         assert_eq!(
             checked_rows("declare const om: { m?(): void };\nom.m();\n"),
-            []
+            [(2722, 34, 4)]
         );
     }
 

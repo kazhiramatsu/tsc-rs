@@ -282,11 +282,6 @@ impl<'a> CheckerState<'a> {
                         // recomputed like tsc.
                         let target =
                             self.get_widened_type_for_variable_like_declaration(node, false)?;
-                        self.declaration_initializer_flow_gate(
-                            initializer,
-                            initializer_type,
-                            target,
-                        )?;
                         self.check_type_assignable_to(
                             initializer_type,
                             target,
@@ -342,7 +337,16 @@ impl<'a> CheckerState<'a> {
                     // THE annotated-declaration 2322 row: errorNode =
                     // node (getErrorSpanForNode's VariableDeclaration
                     // arm reports at the NAME span — pinned).
-                    self.declaration_initializer_flow_gate(initializer, initializer_type, ty)?;
+                    // 6.6f: syntax-probe gate → flag-exact
+                    // containment for the failed-initializer face.
+                    if self.flow_answer_is_seam_reverted(initializer)
+                        && !self.is_type_assignable_to(initializer_type, ty)?
+                    {
+                        return Err(Unsupported::new(
+                            "failed declaration initializer over a seam-reverted flow \
+                             answer (unported narrowing dependency, M6/M8 seam)",
+                        ));
+                    }
                     let elaborated = !self.is_type_assignable_to(initializer_type, ty)?
                         && self.elaborate_literal_assignment(initializer, ty)?;
                     if !elaborated {
@@ -477,11 +481,6 @@ impl<'a> CheckerState<'a> {
             if let Some(initializer) = self.only_expression_initializer_of(node) {
                 let initializer_type =
                     self.check_expression_cached(initializer, CheckMode::NORMAL)?;
-                self.declaration_initializer_flow_gate(
-                    initializer,
-                    initializer_type,
-                    declaration_type,
-                )?;
                 self.check_type_assignable_to(
                     initializer_type,
                     declaration_type,
@@ -1712,49 +1711,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// [FLOW M5] declaration-row gate (the 5.5e second-face pattern):
-    /// tsc relates the FLOW type of the initializer — a failed verdict
-    /// over DECLARED types is tsc-clean whenever any narrowable
-    /// reference feeds the initializer (assignment/guard narrowing).
-    /// Contain those reports; M5 removes the gate.
-    fn declaration_initializer_flow_gate(
-        &mut self,
-        initializer: NodeId,
-        initializer_type: TypeId,
-        target: TypeId,
-    ) -> CheckResult2<()> {
-        if self.is_type_assignable_to(initializer_type, target)? {
-            return Ok(());
-        }
-        if self.subtree_mentions_narrowable_reference(initializer) {
-            return Err(Unsupported::new(
-                "[FLOW M5] failed declaration initializer over a narrowable reference",
-            ));
-        }
-        Ok(())
-    }
-
-    /// Any descendant (or the node itself) is a narrowable reference —
-    /// the broad FP=0-side probe feeding the declaration-row gate.
-    /// tsrs-native: [FLOW M5] containment probe (no tsc counterpart
-    /// — tsc consults real flow types).
-    pub(crate) fn subtree_mentions_narrowable_reference(&self, root: NodeId) -> bool {
-        let mut stack = vec![root];
-        while let Some(node) = stack.pop() {
-            let source = self.binder.source_of_node(node);
-            if node_util::is_narrowable_reference(source, node) {
-                return true;
-            }
-            let mut children = Vec::new();
-            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
-                children.push(child);
-                false
-            });
-            stack.extend(children);
-        }
-        false
-    }
-
     // ---- shared small helpers ----
 
     /// tsc-port: hasOnlyExpressionInitializer @6.0.3
@@ -2451,9 +2407,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkReturnStatement @6.0.3
     /// tsc-hash: c9a0f8abcefe176817b5c00491ec3ea7e140cff4d2eb807bc02a925559136718
     /// tsc-span: _tsc.js:84516-84549
-    ///
-    /// noImplicitReturns is absent from CompilerOptions — the
-    /// Not_all_code_paths_return_a_value arm stays dead (§13 audit).
     pub(crate) fn check_return_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.check_grammar_statement_in_ambient_context_reported(node) {
             return Ok(());
@@ -2533,8 +2486,18 @@ impl<'a> CheckerState<'a> {
                     /*in_conditional_expression*/ false,
                 )?;
             }
+        } else if self.kind_of(container) != SyntaxKind::Constructor
+            && self.options.no_implicit_returns == Some(true)
+            && !self.is_unwrapped_return_type_undefined_void_or_any(container, return_type)?
+        {
+            // 84546: the bare-`return;` 7030 face (reachable only with
+            // strictNullChecks off — the first condition contains it).
+            self.error_at(
+                Some(node),
+                &diagnostics::Not_all_code_paths_return_a_value,
+                &[],
+            );
         }
-        // (noImplicitReturns arm — option absent, dead.)
         Ok(())
     }
 
@@ -2646,7 +2609,23 @@ impl<'a> CheckerState<'a> {
             for statement in self.nodes_of(statements) {
                 self.check_source_element(Some(statement));
             }
-            // (noFallthroughCasesInSwitch arm — M5 flow, dead.)
+            // 84621: clause.fallthroughFlowNode is only recorded by
+            // the binder under the option (bindCaseBlock), and its
+            // reachability is the checker-side consult (6.6b).
+            if self.options.no_fallthrough_cases_in_switch == Some(true) {
+                let file = self.binder.file_index_of_node(clause);
+                let fallthrough = self
+                    .binder
+                    .file(file)
+                    .node_fallthrough_flow
+                    .get(&clause)
+                    .copied();
+                if let Some(fallthrough) = fallthrough {
+                    if self.is_reachable_flow_node(file, fallthrough)? {
+                        self.error_at(Some(clause), &diagnostics::Fallthrough_case_in_switch, &[]);
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -2862,6 +2841,139 @@ mod tests {
         })
     }
 
+    fn checked_rows_with(text: &str, options: &CompilerOptions) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[("a.ts", text)], options, |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    #[test]
+    fn duplicate_literal_members_resolve_last_wins() {
+        // tsc: only the 1117 grammar row (an M7-band FN here); the
+        // RELATION must see the table's last-wins member — the stale
+        // first duplicate in resolved.properties was the 6.6f
+        // objectLiteralErrors 2322 FP face.
+        assert_eq!(checked_rows("var e3 = { a: 0, a: '' };\n"), []);
+    }
+
+    #[test]
+    fn probe_priv() {
+        assert_eq!(
+            checked_rows("class A { #foo = 1; }\nclass B { #foo = 1; }\nconst b: B = new A();\n"),
+            [(2322, 50, 1)]
+        );
+    }
+
+    #[test]
+    fn probe_discr() {
+        assert_eq!(
+            checked_rows("type RV = { type: 'number', value: number } | { type: 'string', value: string };\nfunction foo1(x: RV & { type: 'number' }) {\n  if (x.type === 'number') { x.value; }\n  else { x.value; }\n}\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn probe_pattern() {
+        assert_eq!(
+            checked_rows("let a: 0 | 1 = 0;\nlet b: 0 | 1 | 9;\n[{ [(a = 1)]: b } = [9, a] as const] = [];\nconst bb: 0 = b;\n"),
+            []
+        );
+    }
+
+    // ---- unreachable code / fallthrough (6.6b; rows oracle-pinned
+    // vs vendored tsc 6.0.3 noLib per shape, 2026-07-19) ----
+
+    #[test]
+    fn unreachable_code_reports_7027_under_explicit_false() {
+        let options = CompilerOptions {
+            allow_unreachable_code: Some(false),
+            ..CompilerOptions::default()
+        };
+        // Bind-time Unreachable flag face.
+        assert_eq!(
+            checked_rows_with("function f() { return; let x = 1; }\n", &options),
+            [(7027, 23, 10)]
+        );
+        // Aggregation: adjacent unreachable statements collapse into
+        // ONE range diagnostic (86775-86803).
+        assert_eq!(
+            checked_rows_with(
+                "declare function a(): void;\ndeclare function b(): void;\nfunction f() { return; a(); b(); }\n",
+                &options
+            ),
+            [(7027, 79, 9)]
+        );
+        // FLOW face: the binder cannot see the never-returning call —
+        // isSourceElementUnreachable's isReachableFlowNode arm drives
+        // this row (86818-86819).
+        assert_eq!(
+            checked_rows_with(
+                "declare function fail(): never;\nfunction f() { fail(); let x = 1; }\n",
+                &options
+            ),
+            [(7027, 55, 10)]
+        );
+        // A nested block reports as ONE statement; its contents stay
+        // silent (withinUnreachableCode).
+        assert_eq!(
+            checked_rows_with(
+                "function f() { return; { let a = 1; let b = 2; } }\n",
+                &options
+            ),
+            [(7027, 25, 21)]
+        );
+        // A type alias is not potentially executable: skipped AND a
+        // range breaker.
+        assert_eq!(
+            checked_rows_with(
+                "function f() { return; type T = number; let y = 1; }\n",
+                &options
+            ),
+            [(7027, 40, 10)]
+        );
+        // const enum in unreachable code: the isEnumConst arm keeps it
+        // un-reported (no preserveConstEnums).
+        assert_eq!(
+            checked_rows_with("function f() { return; const enum E { A } }\n", &options),
+            []
+        );
+    }
+
+    #[test]
+    fn unreachable_code_stays_suggestion_band_under_default_options() {
+        // addErrorOrSuggestion: absent allowUnreachableCode routes the
+        // report to the (unmodeled) suggestion collection — the error
+        // sink must stay empty.
+        assert_eq!(checked_rows("function f() { return; let x = 1; }\n"), []);
+    }
+
+    #[test]
+    fn fallthrough_case_reports_7029() {
+        let options = CompilerOptions {
+            no_fallthrough_cases_in_switch: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_rows_with(
+                "declare function g(x: number): void;\nfunction f(x: number) { switch (x) { case 0: g(0); case 1: g(1); break; } }\n",
+                &options
+            ),
+            [(7029, 74, 7)]
+        );
+    }
+
     // ---- §2 variable band (oracle p1) ----
 
     #[test]
@@ -3035,31 +3147,26 @@ mod tests {
     }
 
     #[test]
-    fn loop_back_edge_guard_contains_until_m5() {
-        // Containment pin (deliberate FN until M5): inside a shared
-        // loop the back edge can carry a later guard to an earlier
-        // read, so the reach face waives ordering. Oracle reports
-        // 2345 @111+1 here (the rejoin kills the narrowing) — M5's
-        // real flow types reclaim it.
+    fn loop_back_edge_guard_reports_2345() {
+        // Un-gated at 6.6f: the rejoin kills the narrowing, so the
+        // loop-crossing argument reports (oracle-exact row).
         assert_eq!(
             checked_rows(
                 "declare function f(n: number): void;\ndeclare const x: string | number;\ndeclare const c: boolean;\nwhile (c) { f(x); if (typeof x === \"string\") {} }\n"
             ),
-            []
+            [(2345, 111, 1)]
         );
     }
 
     #[test]
-    fn guard_before_reference_contains_until_m5() {
-        // Containment pin (deliberate FN until M5): a RELATED guard
-        // BEFORE the read stays contained — the structural reach face
-        // cannot see that the empty limb rejoins. Oracle reports 2345
-        // @103+1 here — M5's real flow types reclaim it.
+    fn guard_before_reference_reports_2345() {
+        // Un-gated at 6.6f: the empty limb rejoins, so the read past
+        // the guard keeps the union and reports (oracle-exact row).
         assert_eq!(
             checked_rows(
                 "declare function f(n: number): void;\ndeclare const x: string | number;\nif (typeof x === \"string\") {}\nf(x);\n"
             ),
-            []
+            [(2345, 103, 1)]
         );
     }
 
