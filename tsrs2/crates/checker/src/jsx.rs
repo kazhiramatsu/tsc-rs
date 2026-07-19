@@ -1220,6 +1220,7 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: Some(SignatureKind::Construct),
             isolated_signature_type: None,
+            overload_failure_stub: false,
         }))
     }
 

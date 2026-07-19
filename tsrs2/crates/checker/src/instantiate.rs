@@ -452,6 +452,8 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: source.isolated_signature_kind,
             isolated_signature_type: None,
+            // An instantiation OF the failure stub stays stub-derived.
+            overload_failure_stub: source.overload_failure_stub,
         };
         Ok(self.alloc_signature(result))
     }
@@ -1312,6 +1314,7 @@ impl<'a> CheckerState<'a> {
             is_readonly: info.is_readonly,
             declaration: info.declaration,
             components: None,
+            is_enum_number_index_info: false,
         })
     }
 

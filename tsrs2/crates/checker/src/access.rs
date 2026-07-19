@@ -1179,33 +1179,43 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// getContainingClassExcludingClassDecorators (17520-ish): like
+    /// getContainingClassExcludingClassDecorators (14455-14458): like
     /// getContainingClass but a decorator's class does not contain its
     /// own decorator expressions.
     fn get_containing_class_excluding_class_decorators(&self, node: NodeId) -> Option<NodeId> {
-        // Walk up past a class's OWN decorators: find the decorator
-        // ancestor first; when its parent is class-like, start the
-        // containing-class walk from the class's parent.
+        // findAncestor(node.parent, n => isClassLike(n) ? "quit" :
+        // isDecorator(n)): a class-like hit BEFORE any decorator quits
+        // the walk — a class expression inside a decorator argument
+        // contains its own body's references.
         let source = self.binder.source_of_node(node);
-        let mut decorator_class: Option<NodeId> = None;
-        let mut probe = node;
-        while let Some(parent) = self.parent_of(probe) {
-            if self.kind_of(probe) == SyntaxKind::Decorator
-                && matches!(
+        let mut decorator: Option<NodeId> = None;
+        let mut probe = self.parent_of(node);
+        while let Some(current) = probe {
+            if matches!(
+                self.kind_of(current),
+                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+            ) {
+                break;
+            }
+            if self.kind_of(current) == SyntaxKind::Decorator {
+                decorator = Some(current);
+                break;
+            }
+            probe = self.parent_of(current);
+        }
+        let decorated_class = decorator.and_then(|decorator| {
+            self.parent_of(decorator).filter(|&parent| {
+                matches!(
                     self.kind_of(parent),
                     SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
                 )
-            {
-                decorator_class = Some(parent);
-                break;
-            }
-            probe = parent;
+            })
+        });
+        match (decorated_class, decorator) {
+            (Some(class), _) => node_util::get_containing_class(source, class),
+            (None, Some(decorator)) => node_util::get_containing_class(source, decorator),
+            (None, None) => node_util::get_containing_class(source, node),
         }
-        let start = match decorator_class {
-            Some(class) => self.parent_of(class)?,
-            None => node,
-        };
-        node_util::get_containing_class(source, start)
     }
 
     /// tsc-port: checkPrivateIdentifierExpression @6.0.3
@@ -4541,6 +4551,20 @@ mod tests {
         // the receiver stays this-free).
         assert_eq!(
             checked_rows("class G {\n    static b = 1;\n    static a = G.b;\n}\nG.a;\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn decorator_argument_class_expression_contains_its_privates() {
+        // m4-review S2 (oracle: vendored tsc 6.0.3, noLib, strict,
+        // 2026-07-19): clean — findAncestor's isClassLike "quit"
+        // keeps Inner as the containing class for `this.#p`. Pre-fix
+        // the walk escaped past Inner to Outer's decorator → 18013.
+        assert_eq!(
+            checked_rows(
+                "function dec(x: any): any { return undefined; }\n@dec(class Inner { #p = 1; m() { return this.#p; } })\nclass Outer {}\n"
+            ),
             []
         );
     }

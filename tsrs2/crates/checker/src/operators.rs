@@ -906,6 +906,7 @@ impl<'a> CheckerState<'a> {
             // 79568-79570: M6-dead (SkipGenericFunctions producer).
             return Ok(silent_never);
         }
+        self.ensure_not_overload_failure_stub(signature)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         let boolean = self.tables.intrinsics.boolean;
         self.check_type_assignable_to(
@@ -4121,21 +4122,20 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(());
         }
-        self.truthy_callable_both_helper(cond_expr, cond_expr, cond_type, body)
+        self.truthy_callable_both_helper(cond_expr, cond_type, body)
     }
 
     /// bothHelper (83639-83646): the condition plus every `||`/`??`
     /// left successively.
     fn truthy_callable_both_helper(
         &mut self,
-        cond_expr: NodeId,
         walk: NodeId,
         cond_type: TypeId,
         body: Option<NodeId>,
     ) -> CheckResult2<()> {
         let source = self.binder.source_of_node(walk);
         let mut cond_expr2 = node_util::skip_parentheses_pub(source, walk);
-        self.truthy_callable_helper(cond_expr, cond_expr2, cond_type, body)?;
+        self.truthy_callable_helper(cond_expr2, cond_type, body)?;
         while self.kind_of(cond_expr2) == SyntaxKind::BinaryExpression {
             let (left, operator_token, _) = self.binary_parts(cond_expr2)?;
             if !matches!(
@@ -4145,16 +4145,17 @@ impl<'a> CheckerState<'a> {
                 break;
             }
             cond_expr2 = node_util::skip_parentheses_pub(self.binder.source_of_node(left), left);
-            self.truthy_callable_helper(cond_expr, cond_expr2, cond_type, body)?;
+            self.truthy_callable_helper(cond_expr2, cond_type, body)?;
         }
         Ok(())
     }
 
-    /// helper (83647-83689). `location === condExpr2` reuses condType;
-    /// every other location re-checks its expression.
+    /// helper (83647-83689). `location === condExpr2` reuses condType —
+    /// including every walked `||`/`??` LEFT from bothHelper's loop
+    /// (83657 has no other condition); only a logical binary's right
+    /// side re-checks its expression.
     fn truthy_callable_helper(
         &mut self,
-        original_cond: NodeId,
         cond_expr2: NodeId,
         cond_type: TypeId,
         body: Option<NodeId>,
@@ -4172,14 +4173,10 @@ impl<'a> CheckerState<'a> {
         // are band-gated. The test reduces to false.
         let location_source = self.binder.source_of_node(location);
         if node_util::is_logical_or_coalescing_binary_expression(location_source, location) {
-            return self.truthy_callable_both_helper(original_cond, location, cond_type, body);
+            return self.truthy_callable_both_helper(location, cond_type, body);
         }
-        let ty = if location == cond_expr2 && location == original_cond {
+        let ty = if location == cond_expr2 {
             cond_type
-        } else if location == cond_expr2 {
-            // A `||`-left walked to by bothHelper: its type was not
-            // stashed — tsc re-checks the expression.
-            self.check_expression(location, CheckMode::NORMAL)?
         } else {
             self.check_expression(location, CheckMode::NORMAL)?
         };
@@ -4521,6 +4518,31 @@ impl<'a> CheckerState<'a> {
                 }
                 let resolved = self.links.node(name).resolved_symbol.resolved();
                 Ok(resolved.filter(|&s| s != self.unknown_symbol))
+            }
+            SyntaxKind::ThisKeyword => {
+                // 87574-87589: the function-like container's explicit
+                // this-parameter symbol wins; otherwise the
+                // isInExpressionContext arm reads
+                // checkExpression(this).symbol — realized quietly as
+                // tryGetThisTypeAt's type symbol (the walker's chains
+                // only reach expression-position `this`, where
+                // checkThisExpression reduces to tryGetThisTypeAt; its
+                // error band cannot fire on a receiver whose property
+                // resolved). The ThisType fallthrough is type-position
+                // only — unreachable here.
+                let Some(container) =
+                    crate::expr::get_this_container_full(self, name, false, false)
+                else {
+                    return Ok(None);
+                };
+                if node_util::is_function_like_kind(self.kind_of(container)) {
+                    let signature = self.get_signature_from_declaration(container)?;
+                    if let Some(this_parameter) = self.signature_of(signature).this_parameter {
+                        return Ok(Some(this_parameter));
+                    }
+                }
+                let ty = self.try_get_this_type_at(name, true, container)?;
+                Ok(ty.and_then(|ty| self.tables.type_of(ty).symbol))
             }
             _ => Ok(None),
         }
@@ -5579,5 +5601,45 @@ mod tests {
             ),
             [(2322, 74, 3)]
         );
+    }
+
+    // ---- m4-review S4/S5 pins (oracle: vendored tsc 6.0.3, noLib,
+    // strict defaults, 2026-07-19) ----
+
+    #[test]
+    fn this_property_condition_used_in_body_suppresses_2774() {
+        // S4: tsc clean — getSymbolAtLocation(this) answers the
+        // this-type's symbol on BOTH chain sides, so the body use
+        // matches. Pre-fix the walker answered None for ThisKeyword
+        // → 2774 @35.
+        assert_eq!(
+            checked_rows("class C { f() {} m() { if (this.f) { this.f(); } } }\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn walked_or_left_reuses_cond_type() {
+        // S5: tsc clean — the walked `||` LEFT reuses condType
+        // (83657 has no other condition), so E.Zero is never re-typed
+        // as the enum literal. Pre-fix re-checking produced 2845 @55.
+        assert_eq!(
+            checked_rows(
+                "enum E { Zero = 0 }\ndeclare const b: number;\nconst r = E.Zero || b ? 1 : 2;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn or_left_function_condition_reports_both_2774() {
+        // S5 FN flavor: tsc 2774 @81 (right g, checked directly) AND
+        // @76 (left f via condType — the union's own call-signature
+        // read is empty, so only the condType route reports it).
+        let mut rows = checked_rows(
+            "declare const f: (() => void) | undefined;\ndeclare const g: () => void;\nif (f || g) {}\n"
+        );
+        rows.sort_unstable_by_key(|&(_, start, _)| start);
+        assert_eq!(rows, [(2774, 76, 1), (2774, 81, 1)]);
     }
 }
