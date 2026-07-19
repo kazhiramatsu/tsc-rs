@@ -204,15 +204,7 @@ impl<'a> CheckerState<'a> {
                 .is_none()
         {
             let return_type = self.get_return_type_from_body(node, check_mode)?;
-            if self
-                .signature_of(signature)
-                .resolved_return_type
-                .resolved()
-                .is_none()
-            {
-                self.signatures[signature.0 as usize].resolved_return_type =
-                    LinkSlot::Resolved(return_type);
-            }
+            self.seal_signature_return_type(signature, return_type);
         }
         self.check_signature_declaration(node)
     }

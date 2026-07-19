@@ -15,13 +15,138 @@ its unit tests; candidate trials during overload/inference need a
 production `begin_speculation()` guard whose drop/abort rolls back
 the contextual/inference stacks, temporary caches, and collected
 diagnostics, with commit-on-success — plus failed-candidate rollback
-tests. Design and land that (a 7.0-adjacent stage) before 7.1; the
+tests. The full state-surface inventory the transaction must cover is
+Stage 7.0t below. Design and land that before 7.1; the
 alternative — candidate state leaking through links or blanket
 panics mid-resolution — is the exact failure mode the M4 5.7a
 deferred re-check protocol only papered over for calls.
 
 Gate: T0 ≥ 58%. Inference moves 2345/2322/2769/2339 together — run
 the full gate per stage, not just call fixtures.
+
+## Stage 7.0t: speculation scoped-transaction — STATE-SURFACE INVENTORY [M]
+
+Spec input for the `begin_speculation()` transaction (the START
+PRECONDITION above). Transcribed from the 2026-07-19 M4 review
+(m4-review-2026-07-19.md 付録A, items B34/B35) — the engine-band
+agents' full-state audit. Legend: (a) = today's Unsupported-unwind
+restoration, (b) = M6 rollback requirement, (c) = residue risk.
+
+**Already closed by the `m6/0-start-bar` slice (read the code, not
+the risk column, for these):** A1 relation-key forcing
+(get_relation_key is fallible and constraint-forcing; the `*`
+broadest-key Maybe recheck is live), A4 resolved_return_type
+(`seal_signature_return_type`: `??=` + speculation assert), B10
+(union_property_cache / subtype_reduction_cache /
+set_symbol_is_discriminant / ty_mut_cached_equivalent_base_type all
+assert speculation_depth == 0), B15 (parameters of context-sensitive
+signatures never cache their type).
+
+### A. Transient stacks (must be at entry depth after any unwind — all in UnwindSnapshot unless noted)
+
+| Field (state.rs) | today | M6 need | risk |
+|---|---|---|---|
+| `resolution_targets/results/property_names` (659-661) + `resolution_start` (664) | every pusher pops via captured-result pattern; snapshot-checked | save/restore lengths + `resolution_start`; results VALUES below the mark are mutated by cycle flagging — truncate is enough since entries above mark are popped | LOW |
+| `contextual_type_nodes/types/is_cache` (502-504) | push/pop paired | truncate to mark | LOW |
+| `inference_context_nodes/contexts` (509-510) | exists-but-empty (M6 payload pending) | THE new M6 stack — define rollback with it | — |
+| `contextual_binding_patterns` (495) | paired | truncate | LOW |
+| `awaited_type_stack` (474) | paired | truncate | LOW |
+| `active_type_mappers(+caches)` (306-307) | pushed frames popped on Err (instantiate.rs:1091-1096) | truncate stack; ALSO port `clearActiveMapperCaches` on inference fixing; entries in SURVIVING outer frames computed during a failed candidate stay structurally true — but under a mutable inference mapper they are stale unless cleared | **HIGH** |
+| `variance_handler_stack` (303) | popped on Err (engine.rs:1692-1699) | truncate | LOW |
+| `class_interface_declared_in_progress` (320), `type_parameter_defaults_in_progress` (324) | popped before `?` | truncate | LOW |
+| `flow_loop_stack` (527) + `flow_loop_start` (521) | paired; snapshot-checked | truncate/restore | LOW |
+| `shared_flow` (336) | truncate-before-`?` (flow.rs:317) — **NOT snapshot-checked** | truncate to mark; add to UnwindSnapshot | MED |
+| `reduce_label_overrides` (343) | restore-before-return (flow.rs:1856-1863) — **NOT snapshot-checked** | snapshot map or forbid across speculation | MED |
+| `exhaustive_switch_computing` (551) | remove-before-`?` (narrow.rs:2352) — **NOT snapshot-checked** | must be empty across the boundary | MED |
+| RelationChecker maybe stack (engine.rs:707-720) | per-call local struct; Err arm pops its frame's keys (1707-1718); every early return precedes the pushes | nothing — cannot leak by construction | NONE |
+
+### B. Counters / cursors / flags
+
+`speculation_depth` (203): the transaction's own guard — RAII
+increment/decrement. `instantiation_depth` (311): restored on Err;
+snapshot-checked. `instantiation_count` (312): monotone per element,
+reset at the three entry points (check.rs:344 / check.rs:1764 /
+expr.rs:102 = tsc 86551/86921/80965) — do NOT restore on rollback
+(tsc doesn't). `inline_level` (539): NOT snapshot-checked.
+`in_variance_computation` (295) / `variance_type_parameter` (291):
+save/restore exists. `flow_analysis_disabled` (331): one-way latch
+even in tsc — leave. `is_inference_partially_blocked` (247):
+M6-owned, part of the transaction. `suggestion_count` (454): **must
+be snapshot/restored or consumption-gated under speculation** — tsc
+consumes the did-you-mean budget only on reporting paths.
+
+### C. Caches — permanent-truth (keep across failed speculation, keyed structurally)
+
+`relations` (5 maps + enum_relation) — keep (A1 key collisions are
+FIXED); entries referencing speculation-minted types stay internally
+consistent (types are permanent interned objects; tsc doesn't roll
+relation caches back either). `subtype_reduction_cache`,
+`cached_types`, `tables.instantiation_*`, `links.alias_instantiations`,
+`links.union_property_cache`, `Signature.instantiations`/
+`erased_signature_cache`/`optional_call_signature_cache`/
+`isolated_signature_type`, `decorator_context_override_type_cache`,
+`undefined_properties`, `evolving_array_types`/`final_array_types`,
+`flow_loop_caches`, `flow_node_reachable`, `last_flow_node(+reachable)`,
+`switch_types_cache`/`exhaustive_switch_cache`/`effects_signature_cache`/
+`resolved_type_predicates`, deferred-global memos,
+`init_global_type_probes`, `jsx_implicit_import_containers`,
+`js_assignment_containment_indexes`, `unresolved_package_root_cache`,
+`merged_symbols` — all compute-once truths; no rollback needed
+PROVIDED no M6 inference-placeholder type can be an input key (in tsc
+the only inference-sensitive cache is the active-mapper cache).
+**Verify this property for each new M6 cache.**
+
+Links tables: write-once/protocol slots; the four Resolving-sentinel
+protocols each have paired Err-reverts (variances / simplified /
+resolvedSignature call protocol / aliasTarget) — verified. Late-bind
+revert annotate.rs:3460-3467; members retracts
+annotate.rs:3117/3263/4360/5354. The A4/B10 discipline bypasses are
+CLOSED (asserts in place), so "no permanent writes under speculation"
+now holds mechanically — any new raw cache field must join the assert
+net before 7.1 lands.
+
+### D. Diagnostics sinks (transaction must truncate)
+
+`diagnostics` (570) — truncate to mark (push-dedupe is order-safe
+under truncation). `visible_global_diagnostics` (575).
+`partially_checked_ranges` (580) + `partial_check_records` (584) — a
+speculative containment permanently marks a range (affects
+@ts-expect-error exemption) → must roll back.
+`elaborated_satisfies_expressions` (587), the five `potential_*`
+per-file accumulators (431-435) — speculative pushes must roll back
+or double-drain. `deferred_nodes` (420) — tsc DOES still check nodes
+registered under speculative checkMode; verify against tsc
+checkNodeDeferred before deciding to roll back. `suggestion_count` —
+see B.
+
+### E. Interners / arenas (append-only, never rolled back — garbage is safe)
+
+`tables` types (object-flag memos:
+COULD_CONTAIN_TYPE_VARIABLES_COMPUTED / IS_UNKNOWN_LIKE_UNION_COMPUTED
+written only after the fallible region — verified;
+IDENTICAL_BASE_TYPE_CALCULATED is the exception = review B1, still
+open), `signatures` (196; the A4 raw-field bypass is closed),
+`members` (197; staged-publication in-place mutation has Err retract
+twins), `mappers` (262), `widening_contexts` (482).
+
+### Additional M6-start requirements (review B35)
+
+- Port `clearActiveMapperCaches` (tsc 73624-73629, invoked from
+  getInferredType 69310) WITH the inference port.
+- Decide ONE revert-twin convention:
+  `revert_node_enum_values_computed` (links.rs:861-864) asserts
+  speculation_depth while every other revert twin deliberately does
+  not — an unwind DURING speculation panics there via
+  evaluate.rs:112. Resolve before 7.1.
+- Extend the speculation_depth assert net to any remaining raw
+  Signature fields and the D-sinks above as the transaction lands.
+- `suggestion_count` budget needs rollback (see B).
+
+Field line numbers are review-HEAD (43432368) state.rs coordinates —
+re-derive when the struct shifts; the FIELD LIST is the contract.
+
+Commit: `m6 7.0t: speculation transaction` (API + rollback tests
+BEFORE 7.1).
 
 ## Stage 7.0: canaries [P]
 

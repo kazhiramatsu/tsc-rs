@@ -3565,6 +3565,10 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::Duplicate_property_0,
                 &[&display],
             );
+            // 57680: only the LOCAL binding is replaced — the late
+            // table keeps the FIRST symbol (member types resolve
+            // first-wins); the detached fresh symbol just carries this
+            // declaration.
             let fresh = self
                 .binder
                 .create_symbol(SymbolFlags::NONE, member_name.clone());
@@ -3573,7 +3577,6 @@ impl<'a> CheckerState<'a> {
                 fresh,
                 tsrs2_types::CheckFlags::LATE,
             );
-            late.insert(member_name.clone(), fresh);
             late_symbol = fresh;
         }
         self.links
@@ -6040,18 +6043,55 @@ impl<'a> CheckerState<'a> {
             // module symbols do not take this worker in the slice).
             self.report_circularity_error(symbol)
         };
-        // tsc 56668-56672: the DOUBLE-CHECKED write — a nested
+        // tsc 56632-56641: the DOUBLE-CHECKED write — a nested
         // resolution (declaration-site forcing recursing through the
         // initializer, live from 5.8a) may have filled the slot while
-        // the worker ran; the FIRST write wins and the outer frame
-        // returns the cached value (`if (!links.type) links.type =
-        // type; return links.type`).
-        if let Some(already) = self.links.symbol(symbol).type_of_symbol.resolved() {
-            return Ok(already);
+        // the worker ran (first write wins), and parameters of
+        // context-sensitive signatures NEVER cache (their type
+        // re-computes under contextual inference; a cached read would
+        // poison M6 — m4-review B15). Either way the frame returns
+        // ITS OWN computation (`return type`, not the slot).
+        if self
+            .links
+            .symbol(symbol)
+            .type_of_symbol
+            .resolved()
+            .is_none()
+            && !self.is_parameter_of_context_sensitive_signature(symbol)?
+        {
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                symbol,
+                LinkSlot::Resolved(resolved),
+            );
         }
-        self.links
-            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(resolved));
         Ok(resolved)
+    }
+
+    /// tsc-port: isParameterOfContextSensitiveSignature @6.0.3
+    /// tsc-hash: 5077e4d88eb4d632afed3ea9e520ff5815ca6ae3dfd397f4532535dccb378de2
+    /// tsc-span: _tsc.js:56618-56630
+    fn is_parameter_of_context_sensitive_signature(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<bool> {
+        let Some(mut decl) = self.binder.symbol(symbol).value_declaration else {
+            return Ok(false);
+        };
+        if self.kind_of(decl) == SyntaxKind::BindingElement {
+            let source = self.binder.source_of_node(decl);
+            match tsrs2_binder::node_util::walk_up_binding_elements_and_patterns(source, decl) {
+                Some(walked) => decl = walked,
+                None => return Ok(false),
+            }
+        }
+        if self.kind_of(decl) == SyntaxKind::Parameter {
+            let Some(parent) = self.parent_of(decl) else {
+                return Ok(false);
+            };
+            return self.is_context_sensitive_function_or_object_literal_method(parent);
+        }
+        Ok(false)
     }
 
     /// tsc-port: getTypeOfPrototypeProperty @6.0.3
@@ -7535,8 +7575,9 @@ impl<'a> CheckerState<'a> {
             }
             self.tables.intrinsics.any
         };
-        self.signatures[id.0 as usize].resolved_return_type = LinkSlot::Resolved(resolved);
-        Ok(resolved)
+        // 59839: `??=` — an inner recursive frame's fill wins and IS
+        // the returned value.
+        Ok(self.seal_signature_return_type(id, resolved))
     }
 }
 
@@ -10143,6 +10184,54 @@ mod late_binding_tests {
                     "the merged member carries the early AND late declarations"
                 );
             },
+        );
+    }
+
+    fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    // m4-review A7: the duplicate arm keeps the FIRST table symbol
+    // (tsc 57680 replaces only the local binding). tsc-probed rows,
+    // vendored 6.0.3 noLib.
+
+    #[test]
+    fn duplicate_late_bound_member_type_is_first_wins() {
+        // The dup arm reports 2733+2718 and the table keeps the FIRST
+        // symbol (i.x = number, verified via get_type_of_symbol; the
+        // tail assignment itself escapes as a recorded partial, so no
+        // assignability row appears either way).
+        assert_eq!(
+            checked_rows(
+                "const k = \"x\" as const;\ninterface I { [k]: number; [k](): void; }\ndeclare const i: I;\nconst n: number = i.x;\n"
+            ),
+            [(2733, 38, 3), (2718, 51, 3)]
+        );
+    }
+
+    #[test]
+    fn triple_duplicate_late_bound_member_reports_against_the_first() {
+        // The third (boolean) declaration merges into and compares
+        // against number — the FIRST symbol — for 2717.
+        assert_eq!(
+            checked_rows(
+                "const k = \"x\" as const;\ninterface I { [k]: number; [k](): void; [k]: boolean; }\ndeclare const i: I;\nconst n: number = i.x;\n"
+            ),
+            [(2733, 38, 3), (2718, 51, 3), (2717, 64, 3)]
         );
     }
 

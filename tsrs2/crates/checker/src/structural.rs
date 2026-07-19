@@ -3312,12 +3312,13 @@ impl<'a> CheckerState<'a> {
         skip: bool,
     ) -> CheckResult2<Option<SymbolId>> {
         let key = (ty, name.to_owned(), skip);
-        if let Some(&cached) = self.links.union_property_cache.get(&key) {
+        if let Some(cached) = self.links.union_property(&key) {
             return Ok(Some(cached));
         }
         let property = self.create_union_or_intersection_property(ty, name, skip)?;
         if let Some(property) = property {
-            self.links.union_property_cache.insert(key, property);
+            self.links
+                .set_union_property(self.speculation_depth, key, property);
         }
         Ok(property)
     }
@@ -3326,17 +3327,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 21791f74b0558b599db3de8950d26bd93152bbb62c3e250727503334167bf713
     /// tsc-span: _tsc.js:59101-59245
     ///
-    /// M3-slice residue, KNOWN-DIVERGENT since M4 (m4-review A5,
-    /// M6-start bar): tsc 59144-59152 folds each member's modifiers
-    /// into ContainsPublic/Protected/Private/Static — this port sets
-    /// CONTAINS_PUBLIC unconditionally, so the private/protected
-    /// union bail-out, the never-reduction arm, and the synthetic
-    /// modifier reader downstream never see the non-public flags;
-    /// the same tsc region's mergedInstantiations / writeTypes /
-    /// nameType propagation is dropped too. Still true: the DeferredType
-    /// branch (over two constituents) computes eagerly — semantics
-    /// identical, the deferral is a perf cache — and union-member
-    /// index fallbacks route through the applicable-index machinery.
+    /// Full port (A5 closed the M3-slice residue: per-member modifier
+    /// folding into ContainsPublic/Protected/Private/Static, the
+    /// identical-instantiation clone, accessor propFlags tracking,
+    /// writeTypes and nameType propagation). One documented
+    /// divergence stands: the DeferredType branch (over two
+    /// constituents, 59231-59235) computes eagerly — semantics
+    /// identical, the deferral is a perf cache — so
+    /// deferralConstituents/deferralWriteConstituents have no port
+    /// fields.
     fn create_union_or_intersection_property(
         &mut self,
         containing_type: TypeId,
@@ -3351,6 +3350,7 @@ impl<'a> CheckerState<'a> {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
             _ => unreachable!("union/intersection flag implies member data"),
         };
+        let mut prop_flags = SymbolFlags::from_bits(0);
         let mut single_prop: Option<SymbolId> = None;
         let mut prop_set: Vec<SymbolId> = Vec::new();
         let mut index_types: Vec<TypeId> = Vec::new();
@@ -3361,6 +3361,7 @@ impl<'a> CheckerState<'a> {
             CheckFlags::READONLY.bits()
         };
         let mut syntactic_flag = CheckFlags::SYNTHETIC_METHOD;
+        let mut merged_instantiations = false;
         for current in members {
             let ty = self.get_apparent_type(current)?;
             if self.tables.is_error_type(ty)
@@ -3383,6 +3384,7 @@ impl<'a> CheckerState<'a> {
                 self.get_property_of_type_ex(ty, name, skip)?
             };
             if let Some(prop) = prop {
+                let modifiers = self.get_declaration_modifier_flags_from_symbol(prop);
                 let prop_symbol_flags = self.symbol_flags(prop);
                 if prop_symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
                     let base = optional_flag.unwrap_or(if is_union {
@@ -3399,13 +3401,50 @@ impl<'a> CheckerState<'a> {
                     });
                 }
                 match single_prop {
-                    None => single_prop = Some(prop),
+                    None => {
+                        single_prop = Some(prop);
+                        // 59124: `prop.flags & Accessor || Property`.
+                        let accessor = prop_symbol_flags.bits() & SymbolFlags::ACCESSOR.bits();
+                        prop_flags = SymbolFlags::from_bits(if accessor != 0 {
+                            accessor
+                        } else {
+                            SymbolFlags::PROPERTY.bits()
+                        });
+                    }
                     Some(existing) if existing != prop => {
-                        if prop_set.is_empty() {
-                            prop_set.push(existing);
+                        // 59126-59136: identical instantiations of one
+                        // generic parent merge into a clone instead of
+                        // a propSet.
+                        let is_instantiation =
+                            self.get_target_symbol(prop) == self.get_target_symbol(existing);
+                        if is_instantiation && self.compare_properties_identical(existing, prop)? {
+                            merged_instantiations = match self.binder.symbol(existing).parent {
+                                Some(parent) => !self
+                                    .get_local_type_parameters_of_class_or_interface_or_type_alias(
+                                        parent,
+                                    )
+                                    .is_empty(),
+                                None => false,
+                            };
+                        } else {
+                            if prop_set.is_empty() {
+                                prop_set.push(existing);
+                            }
+                            if !prop_set.contains(&prop) {
+                                prop_set.push(prop);
+                            }
                         }
-                        if !prop_set.contains(&prop) {
-                            prop_set.push(prop);
+                        // 59137-59139: mixed accessor/non-accessor
+                        // members downgrade to a plain property.
+                        let flags_accessor = prop_flags.bits() & SymbolFlags::ACCESSOR.bits();
+                        if flags_accessor != 0
+                            && prop_symbol_flags.bits() & SymbolFlags::ACCESSOR.bits()
+                                != flags_accessor
+                        {
+                            prop_flags = SymbolFlags::from_bits(
+                                (prop_flags.bits() & !SymbolFlags::ACCESSOR.bits())
+                                    | SymbolFlags::PROPERTY.bits(),
+                            );
                         }
                     }
                     _ => {}
@@ -3415,13 +3454,36 @@ impl<'a> CheckerState<'a> {
                 } else if !is_union && !self.is_readonly_symbol(prop) {
                     check_flags &= !CheckFlags::READONLY.bits();
                 }
-                check_flags |= CheckFlags::CONTAINS_PUBLIC.bits();
+                // 59148-59152: fold the member's declared modifiers.
+                check_flags |=
+                    if !modifiers.intersects(ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER) {
+                        CheckFlags::CONTAINS_PUBLIC.bits()
+                    } else {
+                        0
+                    } | if modifiers.intersects(ModifierFlags::PROTECTED) {
+                        CheckFlags::CONTAINS_PROTECTED.bits()
+                    } else {
+                        0
+                    } | if modifiers.intersects(ModifierFlags::PRIVATE) {
+                        CheckFlags::CONTAINS_PRIVATE.bits()
+                    } else {
+                        0
+                    } | if modifiers.intersects(ModifierFlags::STATIC) {
+                        CheckFlags::CONTAINS_STATIC.bits()
+                    } else {
+                        0
+                    };
                 if !self.is_prototype_property(prop) {
                     syntactic_flag = CheckFlags::SYNTHETIC_PROPERTY;
                 }
             } else if is_union {
                 let index_info = self.get_applicable_index_info_for_name_info(ty, name)?;
                 if let Some(index_info) = index_info {
+                    // 59156: an index substitute is a plain property.
+                    prop_flags = SymbolFlags::from_bits(
+                        (prop_flags.bits() & !SymbolFlags::ACCESSOR.bits())
+                            | SymbolFlags::PROPERTY.bits(),
+                    );
                     check_flags |= CheckFlags::WRITE_PARTIAL.bits()
                         | if index_info.is_readonly {
                             CheckFlags::READONLY.bits()
@@ -3453,6 +3515,7 @@ impl<'a> CheckerState<'a> {
             && check_flags
                 & (CheckFlags::CONTAINS_PRIVATE.bits() | CheckFlags::CONTAINS_PROTECTED.bits())
                 != 0
+            && (prop_set.is_empty() || !self.common_declarations_of_symbols(&prop_set))
         {
             return Ok(None);
         }
@@ -3460,6 +3523,46 @@ impl<'a> CheckerState<'a> {
             && check_flags & CheckFlags::READ_PARTIAL.bits() == 0
             && index_types.is_empty()
         {
+            if merged_instantiations {
+                // 59176-59186: identical instantiations of one generic
+                // parent answer a fresh clone carrying containingType,
+                // the transient source's resolved type/mapper, and the
+                // write type. The fallible write-type read fires
+                // before any clone write.
+                let transient = self
+                    .symbol_flags(single_prop)
+                    .intersects(SymbolFlags::TRANSIENT);
+                let links_type = if transient {
+                    self.links.symbol(single_prop).type_of_symbol.resolved()
+                } else {
+                    None
+                };
+                let links_mapper = if transient {
+                    self.links.symbol(single_prop).mapper
+                } else {
+                    None
+                };
+                let write_type = self.get_write_type_of_symbol(single_prop)?;
+                let clone = self.create_symbol_with_type(single_prop, links_type);
+                // 59180: parent comes from the VALUE declaration's
+                // symbol (overwriting createSymbolWithType's copy).
+                let parent = self
+                    .binder
+                    .symbol(single_prop)
+                    .value_declaration
+                    .and_then(|declaration| self.binder.node_symbol(declaration))
+                    .and_then(|symbol| self.binder.symbol(symbol).parent);
+                self.binder.symbol_mut(clone).parent = parent;
+                self.links.set_symbol_union_clone_links(
+                    self.speculation_depth,
+                    clone,
+                    containing_type,
+                    links_mapper,
+                );
+                self.links
+                    .set_symbol_write_type(self.speculation_depth, clone, write_type);
+                return Ok(Some(clone));
+            }
             return Ok(Some(single_prop));
         }
         let props = if prop_set.is_empty() {
@@ -3469,7 +3572,9 @@ impl<'a> CheckerState<'a> {
         };
         let mut declarations: Vec<tsrs2_syntax::NodeId> = Vec::new();
         let mut first_type: Option<TypeId> = None;
+        let mut name_type: Option<TypeId> = None;
         let mut prop_types: Vec<TypeId> = Vec::new();
+        let mut write_types: Option<Vec<TypeId>> = None;
         let mut first_value_declaration: Option<tsrs2_syntax::NodeId> = None;
         let mut has_non_uniform_value_declaration = false;
         for &prop in &props {
@@ -3485,6 +3590,17 @@ impl<'a> CheckerState<'a> {
             let ty = self.get_type_of_symbol(prop)?;
             if first_type.is_none() {
                 first_type = Some(ty);
+                // 59206: nameType rides the FIRST member.
+                name_type = self.links.symbol(prop).name_type;
+            }
+            // 59209-59213: writeTypes materializes (seeded with the
+            // read types so far) as soon as any member's write type
+            // differs.
+            let write_type = self.get_write_type_of_symbol(prop)?;
+            if write_types.is_some() || write_type != ty {
+                write_types
+                    .get_or_insert_with(|| prop_types.clone())
+                    .push(write_type);
             }
             if first_type != Some(ty) {
                 check_flags |= CheckFlags::HAS_NON_UNIFORM_TYPE.bits();
@@ -3501,20 +3617,42 @@ impl<'a> CheckerState<'a> {
         }
         prop_types.extend(index_types);
         let flags = SymbolFlags::from_bits(
-            SymbolFlags::PROPERTY.bits() | optional_flag.map(|f| f.bits()).unwrap_or(0),
+            prop_flags.bits() | optional_flag.map(|f| f.bits()).unwrap_or(0),
         );
         let result = self.binder.create_symbol(flags, name.to_owned());
+        // 59224-59227: value declaration + its symbol's parent when
+        // uniform.
+        let parent = match (has_non_uniform_value_declaration, first_value_declaration) {
+            (false, Some(declaration)) => self
+                .binder
+                .node_symbol(declaration)
+                .and_then(|symbol| self.binder.symbol(symbol).parent),
+            _ => None,
+        };
         {
             let symbol = self.binder.symbol_mut(result);
             symbol.declarations = declarations;
             if !has_non_uniform_value_declaration {
                 symbol.value_declaration = first_value_declaration;
+                if parent.is_some() {
+                    symbol.parent = parent;
+                }
             }
         }
+        // Eager equivalent of the DeferredType branch (59228-59239):
+        // both combined types compute before any links write.
         let combined = if is_union {
             self.get_union_type_ex(&prop_types, UnionReduction::Literal)?
         } else {
             self.get_intersection_type(&prop_types, tsrs2_types::IntersectionFlags::NONE)?
+        };
+        let combined_write = match &write_types {
+            Some(write_types) => Some(if is_union {
+                self.get_union_type_ex(write_types, UnionReduction::Literal)?
+            } else {
+                self.get_intersection_type(write_types, tsrs2_types::IntersectionFlags::NONE)?
+            }),
+            None => None,
         };
         self.links.set_symbol_synthetic(
             self.speculation_depth,
@@ -3523,7 +3661,89 @@ impl<'a> CheckerState<'a> {
             containing_type,
             combined,
         );
+        self.links
+            .set_symbol_name_type(self.speculation_depth, result, name_type);
+        if let Some(write_type) = combined_write {
+            self.links
+                .set_symbol_write_type(self.speculation_depth, result, write_type);
+        }
         Ok(Some(result))
+    }
+
+    /// tsc-port: compareProperties @6.0.3
+    /// tsc-hash: 42f04303574ccb64448bdeda07e716852dbca284333cf3f172159a566c991bb9
+    /// tsc-span: _tsc.js:67536-67558
+    ///
+    /// The identity-comparator instantiation
+    /// (createUnionOrIntersectionProperty 59127 passes
+    /// `(a, b) => a === b ? True : False`); the relation-engine
+    /// instantiation lives on RelationChecker.
+    fn compare_properties_identical(
+        &mut self,
+        source_prop: SymbolId,
+        target_prop: SymbolId,
+    ) -> CheckResult2<bool> {
+        if source_prop == target_prop {
+            return Ok(true);
+        }
+        let source_accessibility = self
+            .get_declaration_modifier_flags_from_symbol(source_prop)
+            .bits()
+            & ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.bits();
+        let target_accessibility = self
+            .get_declaration_modifier_flags_from_symbol(target_prop)
+            .bits()
+            & ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.bits();
+        if source_accessibility != target_accessibility {
+            return Ok(false);
+        }
+        if source_accessibility != 0 {
+            if self.get_target_symbol(source_prop) != self.get_target_symbol(target_prop) {
+                return Ok(false);
+            }
+        } else if self
+            .symbol_flags(source_prop)
+            .intersects(SymbolFlags::OPTIONAL)
+            != self
+                .symbol_flags(target_prop)
+                .intersects(SymbolFlags::OPTIONAL)
+        {
+            return Ok(false);
+        }
+        if self.is_readonly_symbol(source_prop) != self.is_readonly_symbol(target_prop) {
+            return Ok(false);
+        }
+        let source_type = self.get_non_missing_type_of_symbol(source_prop)?;
+        let target_type = self.get_non_missing_type_of_symbol(target_prop)?;
+        Ok(source_type == target_type)
+    }
+
+    /// tsc-port: getCommonDeclarationsOfSymbols @6.0.3
+    /// tsc-hash: 2519f1e0ae6b4266cd11c98f1ae3204d467c94db7dd960c17fc4e7ca1a20781a
+    /// tsc-span: _tsc.js:59262-59281
+    ///
+    /// Truthiness only — the caller (59172) tests the set, never
+    /// reads it. A declaration-less symbol answers false (tsc's
+    /// undefined `symbol.declarations`; the port models both that and
+    /// the empty array as an empty Vec).
+    fn common_declarations_of_symbols(&self, symbols: &[SymbolId]) -> bool {
+        let mut common: Option<Vec<tsrs2_syntax::NodeId>> = None;
+        for &symbol in symbols {
+            let declarations = &self.binder.symbol(symbol).declarations;
+            if declarations.is_empty() {
+                return false;
+            }
+            match &mut common {
+                None => common = Some(declarations.clone()),
+                Some(common) => {
+                    common.retain(|declaration| declarations.contains(declaration));
+                    if common.is_empty() {
+                        return false;
+                    }
+                }
+            }
+        }
+        common.is_some()
     }
 
     /// tsc-port: isPrototypeProperty @6.0.3
@@ -3724,7 +3944,8 @@ impl<'a> CheckerState<'a> {
         } else {
             false
         };
-        self.links.set_symbol_is_discriminant(prop, is_discriminant);
+        self.links
+            .set_symbol_is_discriminant(self.speculation_depth, prop, is_discriminant);
         Ok(is_discriminant)
     }
 
@@ -3952,7 +4173,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createSymbolWithType @6.0.3
     /// tsc-hash: 6f9c4ebd31cbdba03af7db5474a8867a0d798e87df6e7dd8c7268f7acc6d7c0d
     /// tsc-span: _tsc.js:67899-67913
-    pub(crate) fn create_symbol_with_type(&mut self, source: SymbolId, ty: TypeId) -> SymbolId {
+    ///
+    /// `type` is optional (67901): the identical-instantiation clone
+    /// passes a non-transient source's vacant slot through, and the
+    /// clone then computes lazily from its copied declarations.
+    pub(crate) fn create_symbol_with_type(
+        &mut self,
+        source: SymbolId,
+        ty: Option<TypeId>,
+    ) -> SymbolId {
         let source_flags = self.symbol_flags(source);
         let name = self.binder.symbol(source).escaped_name.clone();
         let symbol = self.binder.create_symbol(source_flags, name);
@@ -3961,11 +4190,13 @@ impl<'a> CheckerState<'a> {
         );
         self.links
             .set_symbol_check_flags(self.speculation_depth, symbol, readonly);
-        self.links.set_symbol_type(
-            self.speculation_depth,
-            symbol,
-            crate::links::LinkSlot::Resolved(ty),
-        );
+        if let Some(ty) = ty {
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                symbol,
+                crate::links::LinkSlot::Resolved(ty),
+            );
+        }
         self.links
             .set_symbol_target(self.speculation_depth, symbol, source);
         let declarations = self.binder.symbol(source).declarations.clone();
@@ -4145,7 +4376,8 @@ impl<'a> CheckerState<'a> {
                             &this_types,
                             tsrs2_types::IntersectionFlags::NONE,
                         )?;
-                        this_parameter = Some(self.create_symbol_with_type(first_this, this_type));
+                        this_parameter =
+                            Some(self.create_symbol_with_type(first_this, Some(this_type)));
                     }
                     s = self.create_union_signature(signature, union_signatures);
                     self.signature_mut(s).this_parameter = this_parameter;
@@ -4367,7 +4599,7 @@ impl<'a> CheckerState<'a> {
             &[left_type, right_type],
             tsrs2_types::IntersectionFlags::NONE,
         )?;
-        Ok(Some(self.create_symbol_with_type(left, this_type)))
+        Ok(Some(self.create_symbol_with_type(left, Some(this_type))))
     }
 
     /// tsc-port: combineUnionParameters @6.0.3
@@ -6297,5 +6529,80 @@ mod tests {
             ),
             RelpinVerdict::Related
         ));
+    }
+
+    // ---- m4-review A5: createUnionOrIntersectionProperty modifier /
+    // writeTypes propagation (tsc-probed rows, vendored 6.0.3 noLib,
+    // strict defaults) ----
+
+    fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        crate::state::test_support::with_program_state(
+            &[("a.ts", text)],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diag| diag.file_name.is_some())
+                    .map(|diag| {
+                        (
+                            diag.code(),
+                            diag.start.unwrap_or(u32::MAX),
+                            diag.length.unwrap_or(u32::MAX),
+                        )
+                    })
+                    .collect()
+            },
+        )
+    }
+
+    #[test]
+    fn conflicting_private_union_property_bails_out() {
+        // ContainsPrivate now folds per member (59148-59152): distinct
+        // private declarations kill the union property -> 2339.
+        assert_eq!(
+            checked_rows(
+                "class A { private x: number = 1; m() { return this.x } }\nclass B { private x: number = 2; m() { return this.x } }\ndeclare const u: A | B;\nu.x;\n"
+            ),
+            [(2339, 140, 1)]
+        );
+    }
+
+    #[test]
+    fn conflicting_private_intersection_reduces_to_never() {
+        // The never-reduction consumer reads CONTAINS_PRIVATE off the
+        // synthetic: A & B collapses, so the never assignment is clean.
+        assert_eq!(
+            checked_rows(
+                "class A { private x: number = 1; m() { return this.x } }\nclass B { private x: number = 2; m() { return this.x } }\ndeclare const i: A & B;\nconst n: never = i;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn union_accessor_write_type_is_the_setter_union() {
+        // writeTypes propagation (59209-59213/59237-59239): both
+        // assignments target (number | string) | (number | boolean).
+        assert_eq!(
+            checked_rows(
+                "class A { get p(): number { return 1 } set p(v: number | string) {} }\nclass B { get p(): number { return 2 } set p(v: number | boolean) {} }\ndeclare const u: A | B;\nu.p = true;\nu.p = 3;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn same_declaration_private_instantiations_survive_the_bailout() {
+        // getCommonDeclarationsOfSymbols carve-out (59172): C<string>
+        // and C<number> share the one `x` declaration, so the union
+        // property survives and in-class access stays legal.
+        assert_eq!(
+            checked_rows(
+                "class C<T> { private x: T; constructor(v: T) { this.x = v } m(o: C<string> | C<number>) { return o.x; } }\n"
+            ),
+            []
+        );
     }
 }
