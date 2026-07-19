@@ -70,8 +70,13 @@
 # intersection-only never-2339 containment, and four flag-exact
 # containment omissions closed (pattern/merged/2403/empty-pattern
 # rows + subtree consults for compound return/declaration operands).
-rate = 0.53484
-matched = 26220
+# m5 close: +20 — the checkTypePredicate tail (the last owner=M5
+# escape): 2677 assignability (the containingMessageChain wrap makes
+# every failure face land the chain head — no display slice needed),
+# 1229 rest-reference, 1225 cannot-find-parameter, 1230
+# binding-pattern walk; STAGE moves 5.9 -> M5 (whole-M5 due, M6 not).
+rate = 0.535248
+matched = 26240
 total = 49024
 allowed_regression = 0.0
 
@@ -92,8 +97,9 @@ allowed_regression = 0.0
 # m5 6.6: +537 with reachability + the gate retirement (see the T0
 # comment).
 # m5 6.6g review fixes: +10 (see the T0 comment).
-rate = 0.750606
-matched = 15801
+# m5 close: +8 with the checkTypePredicate tail (see the T0 comment).
+rate = 0.750986
+matched = 15809
 total = 21051
 allowed_regression = 0.0
 
