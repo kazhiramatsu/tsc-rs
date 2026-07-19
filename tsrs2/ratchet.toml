@@ -88,8 +88,17 @@
 # the auto-accessor type ladder (annotation/widened-initializer/
 # implicit-any + write type), bigint radix literal types, and the
 # ambient variable-declaration grammar fall-through (2480/1263).
-rate = 0.53943
-matched = 26445
+# m4 post-review slice 3 (M6-start bar): +16 — relation-key
+# constraint forcing (A1: `T extends X` keys stop colliding, the `*`
+# broadest-key Maybe recheck goes live), the full
+# createUnionOrIntersectionProperty port (A5: Contains* modifier
+# folding, identical-instantiation clones, writeTypes/nameType),
+# lateBindMember first-wins (A7), the post-augmentation
+# amalgamated-duplicates flush + immediate mode (A8), the script-file
+# `declare global` collector gate (A9), and the B15 no-cache guard
+# for context-sensitive-signature parameters.
+rate = 0.539756
+matched = 26461
 total = 49024
 allowed_regression = 0.0
 
@@ -113,8 +122,9 @@ allowed_regression = 0.0
 # m5 close: +8 with the checkTypePredicate tail (see the T0 comment).
 # m5 post-close review: +100 (see the T0 comment).
 # m4 post-review slice 2 (a-class FN): +85 (see the T0 comment).
-rate = 0.759774
-matched = 15994
+# m4 post-review slice 3 (M6-start bar): +16 (see the T0 comment).
+rate = 0.760534
+matched = 16010
 total = 21051
 allowed_regression = 0.0
 

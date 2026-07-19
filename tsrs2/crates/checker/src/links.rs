@@ -411,7 +411,9 @@ pub struct LinksTables {
     /// tsc unionType.propertyCache / propertyCacheWithoutObjectFunctionPropertyAugment
     /// (getUnionOrIntersectionProperty 59246) — a monotone cache, not a
     /// one-write slot; only successful synthesis is cached, like tsc.
-    pub union_property_cache: HashMap<(TypeId, String, bool), SymbolId>,
+    /// Private since m4-review B10: the write goes through
+    /// set_union_property (speculation assert).
+    union_property_cache: HashMap<(TypeId, String, bool), SymbolId>,
     /// tsc type-alias links.instantiations (getDeclaredTypeOfTypeAlias
     /// 57417 seed + getTypeAliasInstantiation 60271), keyed by
     /// getTypeListId + getAliasId — a monotone cache like tsc's map.
@@ -930,8 +932,33 @@ impl LinksTables {
         );
     }
 
-    pub fn set_symbol_is_discriminant(&mut self, id: SymbolId, value: bool) {
+    pub fn set_symbol_is_discriminant(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: bool,
+    ) {
+        Self::assert_writable(speculation_depth);
         self.symbol.entry(id).or_default().is_discriminant_property = Some(value);
+    }
+
+    /// tsrs-native: getUnionOrIntersectionProperty's propertyCache
+    /// read (59248).
+    pub fn union_property(&self, key: &(TypeId, String, bool)) -> Option<SymbolId> {
+        self.union_property_cache.get(key).copied()
+    }
+
+    /// tsrs-native: getUnionOrIntersectionProperty's propertyCache
+    /// write (59252) — under the speculation assert since m4-review
+    /// B10 (the payload symbol's links writes already were).
+    pub fn set_union_property(
+        &mut self,
+        speculation_depth: u32,
+        key: (TypeId, String, bool),
+        value: SymbolId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        self.union_property_cache.insert(key, value);
     }
 
     /// `links.uniqueESSymbolType = ...` (getESSymbolLikeTypeForNode
@@ -1394,6 +1421,23 @@ impl LinksTables {
         );
     }
 
+    /// tsrs-native: createUnionOrIntersectionProperty's identical-
+    /// instantiation clone links (59179-59182) as one asserted setter —
+    /// containingType + the source's mapper (unconditional in tsc;
+    /// None clears nothing because the clone is fresh).
+    pub fn set_symbol_union_clone_links(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        containing_type: TypeId,
+        mapper: Option<MapperId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        links.containing_type = Some(containing_type);
+        links.mapper = mapper;
+    }
+
     /// instantiateSymbol's transient-links seed (63455-63461): target +
     /// mapper (+ the nameType copy) written once at creation.
     pub fn set_symbol_instantiation_links(
@@ -1754,7 +1798,13 @@ impl LinksTables {
 
     /// getSingleBaseForNonAugmentingSubtype's cachedEquivalentBaseType
     /// stamp (67713), guarded by IdenticalBaseTypeCalculated.
-    pub fn ty_mut_cached_equivalent_base_type(&mut self, id: TypeId, value: TypeId) {
+    pub fn ty_mut_cached_equivalent_base_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
         let links = self.ty.entry(id).or_default();
         assert!(
             links.cached_equivalent_base_type.is_none(),

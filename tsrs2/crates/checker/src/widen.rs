@@ -304,7 +304,7 @@ impl<'a> CheckerState<'a> {
         Ok(if widened == original {
             prop
         } else {
-            self.create_symbol_with_type(prop, widened)
+            self.create_symbol_with_type(prop, Some(widened))
         })
     }
 
@@ -320,7 +320,7 @@ impl<'a> CheckerState<'a> {
             return cached;
         }
         let undefined = self.tables.intrinsics.undefined;
-        let result = self.create_symbol_with_type(prop, undefined);
+        let result = self.create_symbol_with_type(prop, Some(undefined));
         self.binder.symbol_mut(result).flags |= SymbolFlags::OPTIONAL;
         self.undefined_properties.insert(name, result);
         result

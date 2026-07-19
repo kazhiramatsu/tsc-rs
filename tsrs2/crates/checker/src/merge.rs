@@ -351,8 +351,13 @@ impl<'a> CheckerState<'a> {
         let is_target_plain_js = target_file.as_deref().is_some_and(is_js_file_name);
         let symbol_name = self.symbol_display_name(source);
         match (source_file, target_file) {
+            // 47764: the defer arm requires the amalgamated map to be
+            // LIVE — after the post-augmentation flush it is None and
+            // cross-file conflicts report immediately (A8).
             (Some(source_file), Some(target_file))
-                if !is_either_enum && source_file != target_file =>
+                if self.amalgamated_duplicates.is_some()
+                    && !is_either_enum
+                    && source_file != target_file =>
             {
                 // comparePaths slice: harness file names are flat
                 // relative names, so plain string order decides the
@@ -364,6 +369,8 @@ impl<'a> CheckerState<'a> {
                 };
                 let info = self
                     .amalgamated_duplicates
+                    .as_mut()
+                    .expect("guard checked liveness")
                     .entry((first_file, second_file))
                     .or_default()
                     .conflicting_symbols
@@ -641,7 +648,9 @@ impl<'a> CheckerState<'a> {
             self.global_this_symbol,
             LinkSlot::Resolved(global_this_type),
         );
-        self.flush_amalgamated_duplicates();
+        // The amalgamated-duplicates flush happens AFTER the
+        // augmentation passes (tsc 88882 follows 88874-88881) — see
+        // merge_module_augmentations (A8).
     }
 
     /// tsc-port: mergeModuleAugmentation @6.0.3
@@ -692,7 +701,14 @@ impl<'a> CheckerState<'a> {
                     continue;
                 }
                 if tsrs2_binder::node_util::is_global_scope_augmentation(source, statement) {
-                    global_augmentations.push(statement);
+                    // collectModuleReferences 124144: a top-level
+                    // augmentation registers only from an EXTERNAL
+                    // MODULE file — a script-file `declare global`
+                    // is a plain ambient declaration (tsc reports
+                    // 2669 and never merges it into globals; A9).
+                    if source.external_module_indicator.is_some() {
+                        global_augmentations.push(statement);
+                    }
                 } else if tsrs2_binder::node_util::is_module_augmentation_external(
                     source, statement,
                 ) {
@@ -724,6 +740,10 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        // 88882-88905: flush AFTER both augmentation passes; the map
+        // goes dead (None) and later cross-file conflicts report
+        // immediately (A8).
+        self.flush_amalgamated_duplicates();
     }
 
     fn merge_one_module_augmentation(&mut self, augmentation: NodeId) -> CheckResult2<()> {
@@ -802,6 +822,12 @@ impl<'a> CheckerState<'a> {
                 // Export-star pre-merge (47867-47874): augmentation
                 // names that only exist through the main module's
                 // export-star walk merge into the RESOLVED table.
+                // m4-review B24 disposition: vendored 6.0.3 calls
+                // mergeSymbol(resolved, value) with NO unidirectional
+                // flag (default false) — upstream main passes
+                // /*unidirectional*/ true here; re-audit on any tsc
+                // upgrade, but 6.0.3 is the port authority and this
+                // bidirectional call matches it.
                 let has_export_star = self
                     .binder
                     .symbol(main_module)
@@ -832,7 +858,11 @@ impl<'a> CheckerState<'a> {
 
     /// The amalgamatedDuplicates flush (88882-88905).
     fn flush_amalgamated_duplicates(&mut self) {
-        let amalgamated = std::mem::take(&mut self.amalgamated_duplicates);
+        // take() leaves None — tsc's `amalgamatedDuplicates = void 0`
+        // (88905): the defer arm in merge_symbol goes dead from here.
+        let Some(amalgamated) = self.amalgamated_duplicates.take() else {
+            return;
+        };
         for ((first_file, second_file), files_duplicates) in amalgamated {
             if files_duplicates.conflicting_symbols.len() < 8 {
                 for (symbol_name, info) in files_duplicates.conflicting_symbols {
@@ -964,6 +994,81 @@ mod tests {
     use tsrs2_types::{CompilerOptions, SymbolFlags};
 
     use crate::state::test_support::with_program_state;
+
+    fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    #[test]
+    fn script_file_declare_global_is_not_an_augmentation() {
+        // m4-review A9 (tsc collectModuleReferences 124144): a
+        // script-file `declare global` never merges into globals —
+        // tsc-probed rows (vendored 6.0.3 noLib): 2669 only, no
+        // duplicate against the sibling var.
+        assert_eq!(
+            checked_rows("declare global { var gv: number; }\nvar gv: string;\n"),
+            [(2669, 8, 6)]
+        );
+    }
+
+    #[test]
+    fn script_file_declare_global_does_not_pollute_globals() {
+        // tsc-probed: the member never lands in globals, so the use
+        // reports 2304 (pre-fix the port suppressed it).
+        assert_eq!(
+            checked_rows("declare global { var gv2: number; }\nconst use: number = gv2;\n"),
+            [(2669, 8, 6), (2304, 56, 3)]
+        );
+    }
+
+    #[test]
+    fn augmentation_conflicts_survive_to_the_post_pass_flush() {
+        // m4-review A8: the flush runs AFTER the augmentation passes
+        // (tsc 88882 follows 88874-88881) — a `declare global` class
+        // colliding with a script-file global records DURING pass 1
+        // and still reports. Pre-fix the map was already flushed and
+        // the records died silently. tsc-probed rows (vendored 6.0.3
+        // noLib): 2300 in both files.
+        with_program_state(
+            &[
+                (
+                    "a.ts",
+                    "export {};\ndeclare global { class G { g(): void } }\n",
+                ),
+                ("b.ts", "class G { s(): void {} }\n"),
+            ],
+            &CompilerOptions::default(),
+            |state| {
+                let mut pins: Vec<(u32, Option<String>, u32)> = state
+                    .diagnostics
+                    .iter()
+                    .map(|d| (d.code(), d.file_name.clone(), d.start.unwrap_or(u32::MAX)))
+                    .collect();
+                pins.sort();
+                assert_eq!(
+                    pins,
+                    [
+                        (2300, Some("a.ts".to_owned()), 34),
+                        (2300, Some("b.ts".to_owned()), 6),
+                    ]
+                );
+            },
+        );
+    }
 
     #[test]
     fn cross_file_duplicate_classes_report_2300_on_both_files() {

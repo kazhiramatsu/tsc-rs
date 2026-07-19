@@ -4009,7 +4009,7 @@ impl<'a> CheckerState<'a> {
                 types.push(self.get_type_of_parameter(parameter)?);
             }
             let unioned = self.get_union_type_ex(&types, UnionReduction::Subtype)?;
-            this_parameter = Some(self.create_symbol_with_type(this_parameters[0], unioned));
+            this_parameter = Some(self.create_symbol_with_type(this_parameters[0], Some(unioned)));
         }
         let num_non_rest: Vec<usize> = candidates
             .iter()
@@ -4052,7 +4052,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             let unioned = self.get_union_type_ex(&types, UnionReduction::Subtype)?;
-            parameters.push(self.create_symbol_with_type(symbols[0], unioned));
+            parameters.push(self.create_symbol_with_type(symbols[0], Some(unioned)));
         }
         let rest_parameter_symbols: Vec<SymbolId> = candidates
             .iter()
@@ -4075,7 +4075,7 @@ impl<'a> CheckerState<'a> {
             }
             let unioned = self.get_union_type_ex(&rest_types, UnionReduction::Subtype)?;
             let array = self.create_array_type(unioned, /*readonly*/ false)?;
-            parameters.push(self.create_symbol_with_type(rest_parameter_symbols[0], array));
+            parameters.push(self.create_symbol_with_type(rest_parameter_symbols[0], Some(array)));
             flags =
                 SignatureFlags::from_bits(flags.bits() | SignatureFlags::HAS_REST_PARAMETER.bits());
         }

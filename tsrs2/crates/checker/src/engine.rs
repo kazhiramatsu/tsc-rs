@@ -139,7 +139,7 @@ impl<'a> CheckerState<'a> {
                 IntersectionState::NONE,
                 relation,
                 /*ignore_constraints*/ false,
-            );
+            )?;
             if let Some(&related) = self.relations.cache(relation).get(&key) {
                 return Ok(related.intersects(RelationComparisonResult::SUCCEEDED));
             }
@@ -538,8 +538,11 @@ impl<'a> CheckerState<'a> {
         let with_exists =
             self.tables.object_flags_of(ty).bits() | ObjectFlags::IDENTICAL_BASE_TYPE_EXISTS.bits();
         self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(with_exists);
-        self.links
-            .ty_mut_cached_equivalent_base_type(ty, instantiated_base);
+        self.links.ty_mut_cached_equivalent_base_type(
+            self.speculation_depth,
+            ty,
+            instantiated_base,
+        );
         Ok(Some(instantiated_base))
     }
 
@@ -687,7 +690,7 @@ impl<'a> CheckerState<'a> {
                 IntersectionState::NONE,
                 relation,
                 /*ignore_constraints*/ false,
-            );
+            )?;
             self.relations.cache_mut(relation).insert(
                 id,
                 RelationComparisonResult::from_bits(
@@ -1582,7 +1585,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             intersection_state,
             self.relation,
             /*ignore_constraints*/ false,
-        );
+        )?;
         if let Some(&entry) = self.st.relations.cache(self.relation).get(&id) {
             // The reportErrors && Failed && !Overflow recompute
             // (65740) and the overflow error emission (65751-65755)
@@ -1622,7 +1625,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     intersection_state,
                     self.relation,
                     /*ignore_constraints*/ true,
-                );
+                )?;
                 if self.maybe_keys_set.contains(&broadest) {
                     return Ok(Ternary::MAYBE);
                 }
@@ -2184,7 +2187,7 @@ impl<'a> CheckerState<'a> {
             let member = if updated == original {
                 property
             } else {
-                self.create_symbol_with_type(property, updated)
+                self.create_symbol_with_type(property, Some(updated))
             };
             let name = self.binder.symbol(member).escaped_name.clone();
             members.insert(name, member);

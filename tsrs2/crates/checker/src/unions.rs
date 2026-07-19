@@ -442,6 +442,13 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        // m4-review B10: state-owned caches share the links write
+        // discipline — no permanent writes during speculation
+        // (greenfield §4.3).
+        assert_eq!(
+            self.speculation_depth, 0,
+            "links writes are forbidden during speculation (greenfield §4.3)"
+        );
         self.subtype_reduction_cache.insert(id, types.clone());
         Ok(Some(types))
     }

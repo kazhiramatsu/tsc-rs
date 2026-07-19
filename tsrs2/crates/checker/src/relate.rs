@@ -16,8 +16,7 @@ use std::collections::HashMap;
 
 use tsrs2_syntax::SyntaxKind;
 use tsrs2_types::{
-    IntersectionState, ObjectFlags, RelationComparisonResult, SymbolFlags, TypeData, TypeFlags,
-    TypeId,
+    IntersectionState, ObjectFlags, RelationComparisonResult, SymbolFlags, TypeFlags, TypeId,
 };
 
 use crate::evaluate::EvalValue;
@@ -82,25 +81,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bad6eb4e0a2eee658a8d5b50043703843f725626829e75c2c1380bf0d392f281
     /// tsc-span: _tsc.js:67385-67387
     ///
-    /// KNOWN-WRONG since M4 (m4-review A1, M6-start bar): declared
-    /// type parameters keep their constraint in the LINKS slot
-    /// (constraints.rs — the inline field stays None), so this
-    /// inline-only read calls every `T extends X` "unconstrained":
-    /// `=N` backref keys collide across distinct constrained
-    /// parameters (order-dependent cached misjudgments), and the `*`
-    /// broadest-key marker never fires, deadening the Maybe-recheck
-    /// arm in engine.rs. The fix is tsc-shaped forcing (a fallible
-    /// get_relation_key through getConstraintOfTypeParameter) — a
-    /// non-forcing links read would make the key depend on resolution
-    /// order.
-    fn is_unconstrained_type_parameter(&self, ty: TypeId) -> bool {
-        matches!(
-            &self.tables.type_of(ty).data,
-            TypeData::TypeParameter {
-                constraint: None,
-                ..
-            }
-        )
+    /// getConstraintOfTypeParameter FORCES constraint resolution
+    /// (declared parameters keep theirs in the lazy links slot; the
+    /// inline TypeData field belongs to tables-synthesized tuple
+    /// parameters only), so the whole relation-key computation is
+    /// fallible and `&mut`. A non-forcing links read would make the
+    /// key depend on resolution order.
+    fn is_unconstrained_type_parameter(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        Ok(self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::TYPE_PARAMETER)
+            && self.get_constraint_of_type_parameter(ty)?.is_none())
     }
 
     /// tsc-port: isNonDeferredTypeReference @6.0.3
@@ -137,12 +129,12 @@ impl<'a> CheckerState<'a> {
     /// The `*` constraint-broadened marker and `=N` type-parameter
     /// backrefs; type-parameter indices are shared across BOTH sides.
     fn get_generic_type_reference_relation_key(
-        &self,
+        &mut self,
         source: TypeId,
         target: TypeId,
         post_fix: &str,
         ignore_constraints: bool,
-    ) -> String {
+    ) -> CheckResult2<String> {
         let mut type_parameters: Vec<TypeId> = Vec::new();
         let mut constraint_marker = "";
         let source_id = self.get_type_reference_id(
@@ -151,33 +143,36 @@ impl<'a> CheckerState<'a> {
             ignore_constraints,
             &mut type_parameters,
             &mut constraint_marker,
-        );
+        )?;
         let target_id = self.get_type_reference_id(
             target,
             0,
             ignore_constraints,
             &mut type_parameters,
             &mut constraint_marker,
-        );
-        format!("{constraint_marker}{source_id},{target_id}{post_fix}")
+        )?;
+        Ok(format!(
+            "{constraint_marker}{source_id},{target_id}{post_fix}"
+        ))
     }
 
     fn get_type_reference_id(
-        &self,
+        &mut self,
         ty: TypeId,
         depth: u32,
         ignore_constraints: bool,
         type_parameters: &mut Vec<TypeId>,
         constraint_marker: &mut &'static str,
-    ) -> String {
+    ) -> CheckResult2<String> {
         let mut result = self.tables.reference_target(ty).0.to_string();
-        for &t in self.tables.type_arguments(ty) {
+        let arguments = self.tables.type_arguments(ty).to_vec();
+        for t in arguments {
             if self
                 .tables
                 .flags_of(t)
                 .intersects(TypeFlags::TYPE_PARAMETER)
             {
-                if ignore_constraints || self.is_unconstrained_type_parameter(t) {
+                if ignore_constraints || self.is_unconstrained_type_parameter(t)? {
                     let index = match type_parameters.iter().position(|&p| p == t) {
                         Some(index) => index,
                         None => {
@@ -198,14 +193,14 @@ impl<'a> CheckerState<'a> {
                     ignore_constraints,
                     type_parameters,
                     constraint_marker,
-                ));
+                )?);
                 result.push('>');
                 continue;
             }
             result.push('-');
             result.push_str(&t.0.to_string());
         }
-        result
+        Ok(result)
     }
 
     /// tsc-port: getRelationKey @6.0.3
@@ -216,13 +211,13 @@ impl<'a> CheckerState<'a> {
     /// only; `:intersectionState` suffix when nonzero; NO alias
     /// context.
     pub fn get_relation_key(
-        &self,
+        &mut self,
         source: TypeId,
         target: TypeId,
         intersection_state: IntersectionState,
         relation: RelationKind,
         ignore_constraints: bool,
-    ) -> String {
+    ) -> CheckResult2<String> {
         let (source, target) = if relation == RelationKind::Identity && source.0 > target.0 {
             (target, source)
         } else {
@@ -243,7 +238,7 @@ impl<'a> CheckerState<'a> {
                 ignore_constraints,
             );
         }
-        format!("{},{}{post_fix}", source.0, target.0)
+        Ok(format!("{},{}{post_fix}", source.0, target.0))
     }
 
     /// tsc-port: isEnumTypeRelatedTo @6.0.3
@@ -411,29 +406,35 @@ mod tests {
             } else {
                 (number, string)
             };
-            let identity = state.get_relation_key(
-                large,
-                small,
-                IntersectionState::NONE,
-                RelationKind::Identity,
-                false,
-            );
+            let identity = state
+                .get_relation_key(
+                    large,
+                    small,
+                    IntersectionState::NONE,
+                    RelationKind::Identity,
+                    false,
+                )
+                .expect("relation key");
             assert_eq!(identity, format!("{},{}", small.0, large.0));
-            let assignable = state.get_relation_key(
-                large,
-                small,
-                IntersectionState::NONE,
-                RelationKind::Assignable,
-                false,
-            );
+            let assignable = state
+                .get_relation_key(
+                    large,
+                    small,
+                    IntersectionState::NONE,
+                    RelationKind::Assignable,
+                    false,
+                )
+                .expect("relation key");
             assert_eq!(assignable, format!("{},{}", large.0, small.0));
-            let suffixed = state.get_relation_key(
-                small,
-                large,
-                IntersectionState::TARGET,
-                RelationKind::Assignable,
-                false,
-            );
+            let suffixed = state
+                .get_relation_key(
+                    small,
+                    large,
+                    IntersectionState::TARGET,
+                    RelationKind::Assignable,
+                    false,
+                )
+                .expect("relation key");
             assert_eq!(suffixed, format!("{},{}:2", small.0, large.0));
         });
     }
@@ -450,13 +451,15 @@ mod tests {
                 false,
                 None,
             );
-            let key = state.get_relation_key(
-                target,
-                target,
-                IntersectionState::NONE,
-                RelationKind::Assignable,
-                false,
-            );
+            let key = state
+                .get_relation_key(
+                    target,
+                    target,
+                    IntersectionState::NONE,
+                    RelationKind::Assignable,
+                    false,
+                )
+                .expect("relation key");
             // Shared type-parameter indices across both sides.
             assert_eq!(key, format!("{}=0=1,{}=0=1", target.0, target.0));
             // A concrete tuple reference is NOT a generic reference:
@@ -466,13 +469,15 @@ mod tests {
             let concrete = state
                 .create_normalized_type_reference_forced(target, &[number, string])
                 .expect("tuple reference");
-            let key = state.get_relation_key(
-                concrete,
-                concrete,
-                IntersectionState::NONE,
-                RelationKind::Assignable,
-                false,
-            );
+            let key = state
+                .get_relation_key(
+                    concrete,
+                    concrete,
+                    IntersectionState::NONE,
+                    RelationKind::Assignable,
+                    false,
+                )
+                .expect("relation key");
             assert_eq!(key, format!("{},{}", concrete.0, concrete.0));
         });
     }
@@ -487,5 +492,38 @@ mod tests {
                 .is_enum_type_related_to(symbol, symbol)
                 .expect("identity path never escapes"));
         });
+    }
+
+    #[test]
+    fn constrained_type_parameters_do_not_share_backref_keys() {
+        // m4-review A1: isUnconstrainedTypeParameter must FORCE
+        // getConstraintOfTypeParameter (declared parameters keep the
+        // constraint in the links slot). An inline-only read keys BOTH
+        // generic-reference pairs below as `{Box}=0,{Box}=1`, so
+        // `good`'s cached success swallows `bad`'s 2322 (tsc-probed:
+        // 2322@151+3 on `bad` only, vendored 6.0.3 noLib).
+        crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "interface Box<T> { value: T }\nfunction pair<T extends string, V extends T, U extends number>(a: Box<V>, b: Box<U>) {\n  const good: Box<T> = a;\n  const bad: Box<T> = b;\n}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let rows: Vec<(u32, u32, u32)> = state
+                    .diagnostics
+                    .iter()
+                    .filter(|diag| diag.file_name.is_some())
+                    .map(|diag| {
+                        (
+                            diag.code(),
+                            diag.start.unwrap_or(u32::MAX),
+                            diag.length.unwrap_or(u32::MAX),
+                        )
+                    })
+                    .collect();
+                assert_eq!(rows, [(2322, 151, 3)]);
+            },
+        );
     }
 }

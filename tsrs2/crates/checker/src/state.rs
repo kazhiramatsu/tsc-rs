@@ -691,9 +691,12 @@ pub struct CheckerState<'a> {
 
     // ---- M4 5.0: cross-file duplicate grouping ----
     /// tsc amalgamatedDuplicates (initializeTypeChecker 88736; flushed
-    /// at 88882-88905). Keyed by the ordered file-name pair.
+    /// AFTER both augmentation passes at 88882-88905, then set to
+    /// undefined — None here — so later cross-file conflicts report
+    /// immediately; m4-review A8). Keyed by the ordered file-name
+    /// pair.
     pub(crate) amalgamated_duplicates:
-        indexmap::IndexMap<(String, String), crate::merge::FilesDuplicates>,
+        Option<indexmap::IndexMap<(String, String), crate::merge::FilesDuplicates>>,
 }
 
 impl<'a> CheckerState<'a> {
@@ -858,7 +861,7 @@ impl<'a> CheckerState<'a> {
             resolution_property_names: Vec::new(),
             resolution_start: 0,
             merged_symbols: std::collections::HashMap::new(),
-            amalgamated_duplicates: indexmap::IndexMap::new(),
+            amalgamated_duplicates: Some(indexmap::IndexMap::new()),
         };
         // undefinedSymbol.declarations = [] (46490); globalThisSymbol
         // is Readonly (46491) and its exports are `globals` (46492) —
@@ -1101,6 +1104,26 @@ impl<'a> CheckerState<'a> {
 
     pub fn signature_of(&self, id: SignatureId) -> &Signature {
         &self.signatures[id.0 as usize]
+    }
+
+    /// tsrs-native: tsc 59839 `signature.resolvedReturnType ??= type`
+    /// as an asserted helper — first write
+    /// wins — a re-entrant fill keeps the INNER frame's value and the
+    /// caller must consume the returned slot value, not its own
+    /// computation. Sealing follows the links write discipline (no
+    /// permanent writes during speculation, greenfield §4.3; the raw
+    /// Signature field sat outside that net — m4-review A4).
+    pub fn seal_signature_return_type(&mut self, id: SignatureId, resolved: TypeId) -> TypeId {
+        assert_eq!(
+            self.speculation_depth, 0,
+            "links writes are forbidden during speculation (greenfield §4.3)"
+        );
+        let slot = &mut self.signatures[id.0 as usize].resolved_return_type;
+        if let Some(existing) = slot.resolved() {
+            return existing;
+        }
+        *slot = LinkSlot::Resolved(resolved);
+        resolved
     }
 
     /// Empty member table shared by symbols that never had one.
@@ -1630,6 +1653,10 @@ pub(crate) mod test_support {
         }
         let binder_refs: Vec<&Binder<'_>> = binders.iter().collect();
         let mut state = CheckerState::from_program(binder_refs, options);
+        // Mirror the driver (lib.rs): the augmentation passes and the
+        // amalgamated-duplicates flush run between construction and
+        // the file checks (A8 moved the flush there).
+        state.merge_module_augmentations();
         run(&mut state)
     }
 }
@@ -1740,5 +1767,20 @@ mod resolution_unwind_tests {
                 assert_eq!(state.resolution_targets.len(), 0);
             },
         );
+    }
+
+    #[test]
+    fn signature_return_type_seal_is_first_write_wins() {
+        // tsc 59839 `signature.resolvedReturnType ??= type` (m4-review
+        // A4): the second (outer-frame) fill loses and receives the
+        // first frame's value back.
+        with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+            let signature = state.clone_signature(state.unknown_signature);
+            state.signature_mut(signature).resolved_return_type = crate::links::LinkSlot::Vacant;
+            let string = state.tables.intrinsics.string;
+            let number = state.tables.intrinsics.number;
+            assert_eq!(state.seal_signature_return_type(signature, string), string);
+            assert_eq!(state.seal_signature_return_type(signature, number), string);
+        });
     }
 }

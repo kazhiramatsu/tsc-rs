@@ -2762,7 +2762,7 @@ impl<'a> CheckerState<'a> {
         let right_type = self.instantiate_type(right_type, mapper)?;
         let this_type =
             self.get_union_type_ex(&[left_type, right_type], UnionReduction::Literal)?;
-        Ok(Some(self.create_symbol_with_type(left, this_type)))
+        Ok(Some(self.create_symbol_with_type(left, Some(this_type))))
     }
 
     /// tsc-port: combineIntersectionParameters @6.0.3
