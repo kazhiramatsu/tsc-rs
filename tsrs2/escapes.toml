@@ -389,6 +389,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
+in = "ensure_not_overload_failure_stub"
+reason = "overload-failure stub instantiation as an observable call result (inferSignatureInstantiationForOverloadFailure, M6)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/calls.rs"
 in = "get_class_element_property_key_type"
 reason = "class element without a name (parse recovery)"
 class = "recovery"

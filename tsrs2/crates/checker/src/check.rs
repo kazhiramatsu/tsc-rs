@@ -24,7 +24,7 @@
 //! from CompilerOptions), and its flow arm needs M5's
 //! isReachableFlowNode — it lands with M5.
 
-use tsrs2_binder::SymbolId;
+use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFlags, TypeId};
@@ -184,6 +184,11 @@ impl<'a> CheckerState<'a> {
         // matches check_source_element's element boundary.
         if self.binder.is_external_or_common_js_module_of_node(root) {
             if let Err(err) = self.check_external_module_exports(root) {
+                // The exports walk spans the whole module — a
+                // contained run leaves an unknown subset unchecked, so
+                // the file's comment-directive exemption (2578) must
+                // see the gap (S8).
+                self.mark_partially_checked_node(root, err.reason.clone());
                 if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
                     eprintln!("contained @{root:?}: {}", err.reason);
                 }
@@ -266,10 +271,599 @@ impl<'a> CheckerState<'a> {
     /// top-level declare-modifier grammar).
     fn check_grammar_source_file(&mut self, _root: NodeId) {}
 
-    /// checkGrammarModifiers (89164) — M7-stub grammar hook; the
+    /// checkGrammarModifiers (89010) — M7-stub grammar hook; the
     /// false return feeds callers' && chains (checkVariableStatement's
-    /// grammar ladder sits in tsc's slots).
+    /// grammar ladder sits in tsc's slots). Callers whose FOLLOWERS
+    /// tsc suppresses behind a true verdict consult
+    /// check_grammar_modifiers_would_report instead.
     pub(crate) fn check_grammar_modifiers(&mut self, _node: NodeId) -> bool {
+        false
+    }
+
+    /// tsrs-native: checkGrammarModifiers (89010-89325) — the
+    /// WOULD-REPORT boolean skeleton: tsc's exact verdict with every
+    /// diagnostic elided.
+    /// The reported modifier rows themselves stay M7 FNs; this twin
+    /// only keeps follower grammar checks in tsc's `||` slots
+    /// (heritage-clause walk, type-parameter/parameter lists). Elided
+    /// faces, each impossible or options-dead in the conformance
+    /// domain: the JSDoc in/out host hop (TS band), and export's
+    /// verbatimModuleSyntax-CJS arm (needs the emit-format surface;
+    /// a miss there under-suppresses only when the same node ALSO
+    /// carries a follower grammar error).
+    pub(crate) fn check_grammar_modifiers_would_report(&mut self, node: NodeId) -> bool {
+        let source = self.binder.source_of_node(node);
+        let node_kind = self.kind_of(node);
+        let parent = self.parent_of(node);
+        let parent_kind = parent.map(|parent| self.kind_of(parent));
+        let modifiers: Vec<NodeId> = self.nodes_of(node_util::modifiers_of(source, node));
+        // reportObviousDecoratorErrors (89384): kinds that can never
+        // be decorated report on the first decorator.
+        let can_have_illegal_decorators = matches!(
+            node_kind,
+            SyntaxKind::PropertyAssignment
+                | SyntaxKind::ShorthandPropertyAssignment
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::Constructor
+                | SyntaxKind::IndexSignature
+                | SyntaxKind::ClassStaticBlockDeclaration
+                | SyntaxKind::MissingDeclaration
+                | SyntaxKind::VariableStatement
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::EnumDeclaration
+                | SyntaxKind::ModuleDeclaration
+                | SyntaxKind::ImportEqualsDeclaration
+                | SyntaxKind::ImportDeclaration
+                | SyntaxKind::NamespaceExportDeclaration
+                | SyntaxKind::ExportDeclaration
+                | SyntaxKind::ExportAssignment
+        );
+        if can_have_illegal_decorators
+            && modifiers
+                .iter()
+                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
+        {
+            return true;
+        }
+        // reportObviousModifierErrors (89326): no modifier list →
+        // false without the walk; an obviously-illegal first modifier
+        // reports; otherwise fall through.
+        if modifiers.is_empty() {
+            // `!node.modifiers` and the empty array behave alike: the
+            // walk below has nothing to do and every tail check needs
+            // a flag.
+            return false;
+        }
+        let modifier_kinds: Vec<SyntaxKind> = modifiers
+            .iter()
+            .map(|&modifier| self.kind_of(modifier))
+            .collect();
+        // findFirstModifierExcept (89164): the FIRST plain modifier
+        // decides — a leading allowed modifier defers to the walk even
+        // when an illegal one follows.
+        let first_plain_modifier = |except: Option<SyntaxKind>| -> bool {
+            modifier_kinds
+                .iter()
+                .copied()
+                .find(|&kind| kind != SyntaxKind::Decorator)
+                .is_some_and(|kind| Some(kind) != except)
+        };
+        match node_kind {
+            SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::Constructor
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::Parameter
+            | SyntaxKind::TypeParameter => {}
+            SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::NamespaceExportDeclaration
+            | SyntaxKind::MissingDeclaration => {
+                if first_plain_modifier(None) {
+                    return true;
+                }
+            }
+            _ => {
+                if !matches!(
+                    parent_kind,
+                    Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
+                ) {
+                    let illegal = match node_kind {
+                        SyntaxKind::FunctionDeclaration => {
+                            first_plain_modifier(Some(SyntaxKind::AsyncKeyword))
+                        }
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ConstructorType => {
+                            first_plain_modifier(Some(SyntaxKind::AbstractKeyword))
+                        }
+                        SyntaxKind::ClassExpression
+                        | SyntaxKind::InterfaceDeclaration
+                        | SyntaxKind::TypeAliasDeclaration => first_plain_modifier(None),
+                        SyntaxKind::VariableStatement => {
+                            let using = match self.data_of(node) {
+                                NodeData::VariableStatement(data) => {
+                                    data.declaration_list.is_some_and(|list| {
+                                        self.node_flags(list) & tsrs2_types::NodeFlags::USING.bits()
+                                            != 0
+                                    })
+                                }
+                                _ => false,
+                            };
+                            if using {
+                                first_plain_modifier(Some(SyntaxKind::AwaitKeyword))
+                            } else {
+                                first_plain_modifier(None)
+                            }
+                        }
+                        SyntaxKind::EnumDeclaration => {
+                            first_plain_modifier(Some(SyntaxKind::ConstKeyword))
+                        }
+                        // Debug.assertNever domain — parse-recovery
+                        // shapes answer "no obvious error" and take
+                        // the walk.
+                        _ => false,
+                    };
+                    if illegal {
+                        return true;
+                    }
+                }
+            }
+        }
+        // isParameter(node) && parameterIsThisKeyword(node) (89016).
+        if node_kind == SyntaxKind::Parameter {
+            let is_this = match self.data_of(node) {
+                NodeData::Parameter(data) => data
+                    .name
+                    .is_some_and(|name| self.identifier_text_of(name) == Some("this")),
+                _ => false,
+            };
+            if is_this {
+                return true;
+            }
+        }
+        let block_scope_kind = if node_kind == SyntaxKind::VariableStatement {
+            match self.data_of(node) {
+                NodeData::VariableStatement(data) => data
+                    .declaration_list
+                    .map(|list| self.node_flags(list) & tsrs2_types::NodeFlags::BLOCK_SCOPED.bits())
+                    .unwrap_or(0),
+                _ => 0,
+            }
+        } else {
+            0
+        };
+        let using_kinds = (
+            tsrs2_types::NodeFlags::USING.bits(),
+            tsrs2_types::NodeFlags::AWAIT_USING.bits(),
+        );
+        let parent_is_class_like = matches!(
+            parent_kind,
+            Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
+        );
+        let name_is_private_identifier = self
+            .name_of_node(node)
+            .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier);
+        let parent_is_ambient = parent.is_some_and(|parent| {
+            self.node_flags(parent) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0
+        });
+        let mut flags = ModifierFlags::from_bits(0);
+        let mut has_leading_decorators = false;
+        let mut saw_export_before_decorators = false;
+        for &modifier in &modifiers {
+            let modifier_kind = self.kind_of(modifier);
+            if modifier_kind == SyntaxKind::Decorator {
+                let grandparent = parent.and_then(|parent| self.parent_of(parent));
+                if !self.node_can_be_decorated(
+                    self.options.experimental_decorators,
+                    node,
+                    parent,
+                    grandparent,
+                ) {
+                    // Both message flavors (overload 1249 / 1206)
+                    // report.
+                    return true;
+                }
+                if self.options.experimental_decorators
+                    && matches!(node_kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor)
+                {
+                    // getAllAccessorDeclarationsForDeclaration off the
+                    // symbol: decorators on the SECOND accessor of a
+                    // decorated pair report.
+                    if let Some(symbol) = self.node_symbol(node) {
+                        let accessors: Vec<NodeId> = self
+                            .binder
+                            .symbol(symbol)
+                            .declarations
+                            .iter()
+                            .copied()
+                            .filter(|&declaration| {
+                                matches!(
+                                    self.kind_of(declaration),
+                                    SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+                                )
+                            })
+                            .collect();
+                        if accessors.len() >= 2 && node == accessors[1] {
+                            let first_source = self.binder.source_of_node(accessors[0]);
+                            let first_has_decorators = self
+                                .nodes_of(node_util::modifiers_of(first_source, accessors[0]))
+                                .iter()
+                                .any(|&m| self.kind_of(m) == SyntaxKind::Decorator);
+                            if first_has_decorators {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                if flags.bits()
+                    & !(ModifierFlags::EXPORT_DEFAULT.bits() | ModifierFlags::DECORATOR.bits())
+                    != 0
+                {
+                    return true;
+                }
+                if has_leading_decorators && flags.intersects(ModifierFlags::MODIFIER) {
+                    // Decorators before AND after export: reports only
+                    // when the file has no parse diagnostics.
+                    return !self.has_parse_diagnostics(node);
+                }
+                flags |= ModifierFlags::DECORATOR;
+                if !flags.intersects(ModifierFlags::MODIFIER) {
+                    has_leading_decorators = true;
+                } else if flags.intersects(ModifierFlags::EXPORT) {
+                    saw_export_before_decorators = true;
+                }
+                continue;
+            }
+            if modifier_kind != SyntaxKind::ReadonlyKeyword {
+                if matches!(
+                    node_kind,
+                    SyntaxKind::PropertySignature | SyntaxKind::MethodSignature
+                ) {
+                    return true;
+                }
+                if node_kind == SyntaxKind::IndexSignature
+                    && (modifier_kind != SyntaxKind::StaticKeyword || !parent_is_class_like)
+                {
+                    return true;
+                }
+            }
+            if !matches!(
+                modifier_kind,
+                SyntaxKind::InKeyword | SyntaxKind::OutKeyword | SyntaxKind::ConstKeyword
+            ) && node_kind == SyntaxKind::TypeParameter
+            {
+                return true;
+            }
+            match modifier_kind {
+                SyntaxKind::ConstKeyword => {
+                    if !matches!(
+                        node_kind,
+                        SyntaxKind::EnumDeclaration | SyntaxKind::TypeParameter
+                    ) {
+                        return true;
+                    }
+                    if node_kind == SyntaxKind::TypeParameter
+                        && !matches!(
+                            parent_kind,
+                            Some(SyntaxKind::FunctionDeclaration)
+                                | Some(SyntaxKind::FunctionExpression)
+                                | Some(SyntaxKind::ArrowFunction)
+                                | Some(SyntaxKind::MethodDeclaration)
+                                | Some(SyntaxKind::Constructor)
+                                | Some(SyntaxKind::GetAccessor)
+                                | Some(SyntaxKind::SetAccessor)
+                                | Some(SyntaxKind::ClassDeclaration)
+                                | Some(SyntaxKind::ClassExpression)
+                                | Some(SyntaxKind::FunctionType)
+                                | Some(SyntaxKind::ConstructorType)
+                                | Some(SyntaxKind::CallSignature)
+                                | Some(SyntaxKind::ConstructSignature)
+                                | Some(SyntaxKind::MethodSignature)
+                        )
+                    {
+                        return true;
+                    }
+                }
+                SyntaxKind::OverrideKeyword => {
+                    if flags.intersects(
+                        ModifierFlags::OVERRIDE
+                            | ModifierFlags::AMBIENT
+                            | ModifierFlags::READONLY
+                            | ModifierFlags::ACCESSOR
+                            | ModifierFlags::ASYNC,
+                    ) {
+                        return true;
+                    }
+                    flags |= ModifierFlags::OVERRIDE;
+                }
+                SyntaxKind::PublicKeyword
+                | SyntaxKind::ProtectedKeyword
+                | SyntaxKind::PrivateKeyword => {
+                    if flags.intersects(
+                        ModifierFlags::ACCESSIBILITY_MODIFIER
+                            | ModifierFlags::OVERRIDE
+                            | ModifierFlags::STATIC
+                            | ModifierFlags::ACCESSOR
+                            | ModifierFlags::READONLY
+                            | ModifierFlags::ASYNC
+                            | ModifierFlags::ABSTRACT,
+                    ) {
+                        return true;
+                    }
+                    if matches!(
+                        parent_kind,
+                        Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
+                    ) {
+                        return true;
+                    }
+                    if name_is_private_identifier {
+                        return true;
+                    }
+                    flags |= match modifier_kind {
+                        SyntaxKind::PublicKeyword => ModifierFlags::PUBLIC,
+                        SyntaxKind::ProtectedKeyword => ModifierFlags::PROTECTED,
+                        _ => ModifierFlags::PRIVATE,
+                    };
+                }
+                SyntaxKind::StaticKeyword => {
+                    if flags.intersects(
+                        ModifierFlags::STATIC
+                            | ModifierFlags::READONLY
+                            | ModifierFlags::ASYNC
+                            | ModifierFlags::ACCESSOR
+                            | ModifierFlags::ABSTRACT
+                            | ModifierFlags::OVERRIDE,
+                    ) {
+                        return true;
+                    }
+                    if matches!(
+                        parent_kind,
+                        Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
+                    ) || node_kind == SyntaxKind::Parameter
+                    {
+                        return true;
+                    }
+                    flags |= ModifierFlags::STATIC;
+                }
+                SyntaxKind::AccessorKeyword => {
+                    if flags.intersects(
+                        ModifierFlags::ACCESSOR | ModifierFlags::READONLY | ModifierFlags::AMBIENT,
+                    ) || node_kind != SyntaxKind::PropertyDeclaration
+                    {
+                        return true;
+                    }
+                    flags |= ModifierFlags::ACCESSOR;
+                }
+                SyntaxKind::ReadonlyKeyword => {
+                    if flags.intersects(ModifierFlags::READONLY | ModifierFlags::ACCESSOR) {
+                        return true;
+                    }
+                    if !matches!(
+                        node_kind,
+                        SyntaxKind::PropertyDeclaration
+                            | SyntaxKind::PropertySignature
+                            | SyntaxKind::IndexSignature
+                            | SyntaxKind::Parameter
+                    ) {
+                        return true;
+                    }
+                    flags |= ModifierFlags::READONLY;
+                }
+                SyntaxKind::ExportKeyword => {
+                    // The verbatimModuleSyntax CommonJS arm is elided
+                    // (emit-format surface); see the fn header.
+                    if flags.intersects(
+                        ModifierFlags::EXPORT
+                            | ModifierFlags::AMBIENT
+                            | ModifierFlags::ABSTRACT
+                            | ModifierFlags::ASYNC,
+                    ) {
+                        return true;
+                    }
+                    if parent_is_class_like
+                        || node_kind == SyntaxKind::Parameter
+                        || block_scope_kind == using_kinds.0
+                        || block_scope_kind == using_kinds.1
+                    {
+                        return true;
+                    }
+                    flags |= ModifierFlags::EXPORT;
+                }
+                SyntaxKind::DefaultKeyword => {
+                    let container = match parent_kind {
+                        Some(SyntaxKind::SourceFile) => parent,
+                        _ => parent.and_then(|parent| self.parent_of(parent)),
+                    };
+                    if let Some(container) = container {
+                        if self.kind_of(container) == SyntaxKind::ModuleDeclaration
+                            && !node_util::is_ambient_module(
+                                self.binder.source_of_node(container),
+                                container,
+                            )
+                        {
+                            return true;
+                        }
+                    }
+                    if block_scope_kind == using_kinds.0 || block_scope_kind == using_kinds.1 {
+                        return true;
+                    }
+                    if !flags.intersects(ModifierFlags::EXPORT) {
+                        return true;
+                    }
+                    if saw_export_before_decorators {
+                        return true;
+                    }
+                    flags |= ModifierFlags::DEFAULT;
+                }
+                SyntaxKind::DeclareKeyword => {
+                    if flags.intersects(
+                        ModifierFlags::AMBIENT
+                            | ModifierFlags::ASYNC
+                            | ModifierFlags::OVERRIDE
+                            | ModifierFlags::ACCESSOR,
+                    ) {
+                        return true;
+                    }
+                    if parent_is_class_like && node_kind != SyntaxKind::PropertyDeclaration {
+                        return true;
+                    }
+                    if node_kind == SyntaxKind::Parameter
+                        || block_scope_kind == using_kinds.0
+                        || block_scope_kind == using_kinds.1
+                    {
+                        return true;
+                    }
+                    if parent_is_ambient && parent_kind == Some(SyntaxKind::ModuleBlock) {
+                        return true;
+                    }
+                    if parent_is_class_like && name_is_private_identifier {
+                        return true;
+                    }
+                    flags |= ModifierFlags::AMBIENT;
+                }
+                SyntaxKind::AbstractKeyword => {
+                    if flags.intersects(ModifierFlags::ABSTRACT) {
+                        return true;
+                    }
+                    if !matches!(
+                        node_kind,
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ConstructorType
+                    ) {
+                        if !matches!(
+                            node_kind,
+                            SyntaxKind::MethodDeclaration
+                                | SyntaxKind::PropertyDeclaration
+                                | SyntaxKind::GetAccessor
+                                | SyntaxKind::SetAccessor
+                        ) {
+                            return true;
+                        }
+                        let parent_is_abstract_class = parent.is_some_and(|parent| {
+                            self.kind_of(parent) == SyntaxKind::ClassDeclaration
+                                && node_util::has_syntactic_modifier(
+                                    self.binder.source_of_node(parent),
+                                    parent,
+                                    ModifierFlags::ABSTRACT,
+                                )
+                        });
+                        if !parent_is_abstract_class {
+                            return true;
+                        }
+                        if flags.intersects(
+                            ModifierFlags::STATIC
+                                | ModifierFlags::PRIVATE
+                                | ModifierFlags::ASYNC
+                                | ModifierFlags::OVERRIDE
+                                | ModifierFlags::ACCESSOR,
+                        ) {
+                            return true;
+                        }
+                    }
+                    if name_is_private_identifier {
+                        return true;
+                    }
+                    flags |= ModifierFlags::ABSTRACT;
+                }
+                SyntaxKind::AsyncKeyword => {
+                    if flags.intersects(ModifierFlags::ASYNC | ModifierFlags::AMBIENT)
+                        || parent_is_ambient
+                    {
+                        return true;
+                    }
+                    if node_kind == SyntaxKind::Parameter {
+                        return true;
+                    }
+                    if flags.intersects(ModifierFlags::ABSTRACT) {
+                        return true;
+                    }
+                    flags |= ModifierFlags::ASYNC;
+                }
+                SyntaxKind::InKeyword | SyntaxKind::OutKeyword => {
+                    let in_out_flag = if modifier_kind == SyntaxKind::InKeyword {
+                        ModifierFlags::IN
+                    } else {
+                        ModifierFlags::OUT
+                    };
+                    // `node.kind !== TypeParameter || parent && !(...)`:
+                    // a parentless type parameter does NOT report.
+                    if node_kind != SyntaxKind::TypeParameter
+                        || parent_kind.is_some_and(|kind| {
+                            !matches!(
+                                kind,
+                                SyntaxKind::InterfaceDeclaration
+                                    | SyntaxKind::ClassDeclaration
+                                    | SyntaxKind::ClassExpression
+                                    | SyntaxKind::TypeAliasDeclaration
+                            )
+                        })
+                    {
+                        return true;
+                    }
+                    if flags.intersects(in_out_flag) {
+                        return true;
+                    }
+                    if in_out_flag == ModifierFlags::IN && flags.intersects(ModifierFlags::OUT) {
+                        return true;
+                    }
+                    flags |= in_out_flag;
+                }
+                _ => {}
+            }
+        }
+        if node_kind == SyntaxKind::Constructor {
+            return flags.intersects(
+                ModifierFlags::STATIC | ModifierFlags::OVERRIDE | ModifierFlags::ASYNC,
+            );
+        }
+        if matches!(
+            node_kind,
+            SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
+        ) && flags.intersects(ModifierFlags::AMBIENT)
+        {
+            return true;
+        }
+        if node_kind == SyntaxKind::Parameter
+            && flags.intersects(ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+        {
+            let (name_is_pattern, has_dot_dot_dot) = match self.data_of(node) {
+                NodeData::Parameter(data) => (
+                    data.name.is_some_and(|name| {
+                        matches!(
+                            self.kind_of(name),
+                            SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+                        )
+                    }),
+                    data.dot_dot_dot_token.is_some(),
+                ),
+                _ => (false, false),
+            };
+            if name_is_pattern || has_dot_dot_dot {
+                return true;
+            }
+        }
+        if flags.intersects(ModifierFlags::ASYNC) {
+            // checkGrammarAsyncModifier (89391): async is legal only
+            // on these four kinds.
+            return !matches!(
+                node_kind,
+                SyntaxKind::MethodDeclaration
+                    | SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::FunctionExpression
+                    | SyntaxKind::ArrowFunction
+            );
+        }
         false
     }
 
@@ -824,7 +1418,10 @@ impl<'a> CheckerState<'a> {
     /// registerForUnusedIdentifiersCheck is inert until M7. A missing
     /// name (parse recovery) skips the name-anchored lazy block.
     fn check_interface_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
-        if !self.check_grammar_modifiers(node) {
+        // A modifier grammar error suppresses the interface grammar
+        // walk (duplicate-extends family) — the would-report skeleton
+        // supplies tsc's verdict (the modifier row stays the M7 FN).
+        if !self.check_grammar_modifiers_would_report(node) {
             self.check_grammar_interface_declaration(node);
         }
         let NodeData::InterfaceDeclaration(data) = self.data_of(node) else {
@@ -1765,6 +2362,11 @@ impl<'a> CheckerState<'a> {
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
         if let Err(err) = self.check_deferred_node_worker(node) {
+            // A contained deferred check leaves this node's range
+            // unverified — record it so the comment-directive
+            // exemption (2578) does not report a directive whose
+            // suppression target was never checked (S8).
+            self.mark_partially_checked_node(node, err.reason.clone());
             if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
                 eprintln!("contained deferred @{node:?}: {}", err.reason);
             }
@@ -1813,6 +2415,21 @@ impl<'a> CheckerState<'a> {
                 if self.parent_of(node).is_some_and(|parent| {
                     self.kind_of(parent) == SyntaxKind::ObjectLiteralExpression
                 }) {
+                    // The subset route is a containment-by-design: it
+                    // checks the signature + accessor types but never
+                    // ENTERS the body (m4-review A2 — tsc routes the
+                    // whole checkAccessorDeclaration). Record the body
+                    // as a wholly-unchecked subtree so directives
+                    // inside it are 2578-exempt; the A2 routing
+                    // retires this marker (S8).
+                    let source = self.binder.source_of_node(node);
+                    if let Some(body) = node_util::body_of(source, node) {
+                        self.mark_unchecked_subtree(
+                            body,
+                            "obj-literal accessor deferred subset — body unchecked \
+                             (m4-review A2, checkAccessorDeclaration routing)",
+                        );
+                    }
                     self.check_object_literal_accessor_deferred(node)
                 } else {
                     self.check_accessor_declaration(node)

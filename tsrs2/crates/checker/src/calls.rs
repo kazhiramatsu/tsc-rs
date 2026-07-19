@@ -188,7 +188,7 @@ impl<'a> CheckerState<'a> {
     /// The legacy flavor admits PARAMETER positions the ES flavor
     /// rejects and rejects private-named/class-expression targets the
     /// ES flavor admits — never hardcode either mode (risk #14).
-    fn node_can_be_decorated(
+    pub(crate) fn node_can_be_decorated(
         &self,
         use_legacy_decorators: bool,
         node: NodeId,
@@ -354,6 +354,7 @@ impl<'a> CheckerState<'a> {
     fn check_decorator(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_decorator(node);
         let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
+        self.ensure_not_overload_failure_stub(signature)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         if self.tables.flags_of(return_type).intersects(TypeFlags::ANY) {
             return Ok(());
@@ -1280,6 +1281,7 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: Some(SignatureKind::Call),
             isolated_signature_type: None,
+            overload_failure_stub: false,
         })
     }
 
@@ -3077,7 +3079,14 @@ impl<'a> CheckerState<'a> {
                 // The elaboration gate: elementwise elaborations move
                 // the code/span (Err); the did-you-mean flavor keeps
                 // the head but reports at the walked node.
-                let mut span = self.diag_span_of_effective_arg(node, &arg);
+                //
+                // 76229: errorNode = effectiveCheckArgumentNode — the
+                // span skips parentheses/satisfies exactly like the
+                // rest branch below.
+                let mut span = match effective {
+                    Some(effective) => self.diag_span_of_node(effective),
+                    None => self.diag_span_of_effective_arg(node, &arg),
+                };
                 let mut related: Vec<RelatedInfo> = Vec::new();
                 if let Some(effective) = effective {
                     if let Some((walked, did_you_mean)) = self.elaboration_disposition(
@@ -3856,13 +3865,17 @@ impl<'a> CheckerState<'a> {
     ///
     /// M6-STUB SITE #2 (inferSignatureInstantiationForOverloadFailure
     /// 76946-76954): the stub fills default → constraint → unknown per
-    /// parameter with NO argument walk. The stash feeds error
-    /// selection and the deferred contextual reads only; stub values
-    /// that would become observable escape — context-sensitive raw
-    /// arguments (their parameters would take stub-typed contextual
-    /// assignments) and tuple-rest arity reads (stub-typed counts).
-    /// tsc's real fallback is default → unknown; the constraint step
-    /// is an M4-only enrichment M6 MUST REMOVE.
+    /// parameter with NO argument walk — the same ladder tsc's real
+    /// inference bottoms out at (getInferredType 69271-69313
+    /// constraint-clamps its fallback; the constraint step STAYS when
+    /// M6 replaces the fill with inference). The stash feeds error
+    /// selection and the deferred contextual reads; escapes guard
+    /// every channel where a stub value would become observable:
+    /// context-sensitive raw arguments and tuple-rest arity reads at
+    /// fill time, and — via the overload_failure_stub marker on the
+    /// stash's private clone — the result-producing consumers
+    /// (checkCallExpression and friends), where tsc's inferred return
+    /// type and the stub's diverge.
     fn pick_longest_candidate_signature(
         &mut self,
         _node: NodeId,
@@ -3905,7 +3918,16 @@ impl<'a> CheckerState<'a> {
                 };
                 stub_types.push(ty);
             }
-            self.create_signature_instantiation(candidate, Some(&stub_types))?
+            let instantiated = self.create_signature_instantiation(candidate, Some(&stub_types))?;
+            // The shared instantiation cache keeps the CLEAN copy (an
+            // explicit `f<unknown>(...)` elsewhere may hit the same
+            // key) and error display reads candidates; the stash gets
+            // a marked private clone so result-type reads can tell
+            // the stub fill from a real instantiation.
+            ctx.candidates[best_index] = instantiated;
+            let mut marked = self.signature_of(instantiated).clone();
+            marked.overload_failure_stub = true;
+            return Ok(self.alloc_signature(marked));
         };
         ctx.candidates[best_index] = instantiated;
         Ok(instantiated)
@@ -4090,6 +4112,7 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: first.isolated_signature_kind,
             isolated_signature_type: None,
+            overload_failure_stub: false,
         }))
     }
 
@@ -5235,6 +5258,7 @@ impl<'a> CheckerState<'a> {
             self.check_grammar_type_arguments(node, type_arguments);
         }
         let signature = self.get_resolved_signature(node, check_mode)?;
+        self.ensure_not_overload_failure_stub(signature)?;
         self.get_return_type_of_signature(signature)
     }
 
@@ -5629,6 +5653,26 @@ impl<'a> CheckerState<'a> {
 
     // ---- the checkCallExpression worker ----
 
+    /// tsrs-native: M6-STUB SITE #2 leak guard — the overload-failure
+    /// stash may carry pick_longest_candidate_signature's stub-filled
+    /// clone (marked overload_failure_stub). tsc runs real argument
+    /// inference for that candidate
+    /// (inferSignatureInstantiationForOverloadFailure 76946-76954),
+    /// so a result type produced from the stub diverges — consumers
+    /// that would surface it escape instead.
+    pub(crate) fn ensure_not_overload_failure_stub(
+        &self,
+        signature: SignatureId,
+    ) -> CheckResult2<()> {
+        if self.signature_of(signature).overload_failure_stub {
+            return Err(Unsupported::new(
+                "overload-failure stub instantiation as an observable call result \
+                 (inferSignatureInstantiationForOverloadFailure, M6)",
+            ));
+        }
+        Ok(())
+    }
+
     /// tsc-port: checkCallExpression @6.0.3
     /// tsc-hash: 3459b258ce93da62aaf8212b10d3765e2f130715cb86f663d60d438cecfb09a1
     /// tsc-span: _tsc.js:77607-77660
@@ -5693,6 +5737,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        self.ensure_not_overload_failure_stub(signature)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         if self
             .tables
@@ -6611,5 +6656,33 @@ mod tests {
             rows(state)
         });
         assert_eq!(actual, [(2339, 32, 11)]);
+    }
+
+    // ---- m4-review S6/A12 pins (oracle: vendored tsc 6.0.3, noLib,
+    // strict defaults, 2026-07-19) ----
+
+    #[test]
+    fn arity_failed_generic_call_result_contains_not_18046() {
+        // S6: tsc reports 2554 @48 and types r as the INFERRED '1'
+        // (inferSignatureInstantiationForOverloadFailure runs real
+        // inference; its noLib follow-up is a 2339 on toFixed). The
+        // stub port contains the result read instead — that 2339
+        // stays an honest M6 FN — and pre-fix the stub-filled
+        // `unknown` leaked into r → 18046 FP.
+        assert_eq!(
+            checked_rows("declare function f<T>(x: T, y: T): T;\nconst r = f(1);\nr.toFixed();\n"),
+            [(2554, 48, 1)]
+        );
+    }
+
+    #[test]
+    fn argument_error_span_skips_parentheses() {
+        // A12: tsc 2345 @40 len1 — errorNode =
+        // getEffectiveCheckNode(arg) (76229) unwraps the parens;
+        // pre-fix the span covered `(1)`.
+        assert_eq!(
+            checked_rows("declare function g(x: string): void;\ng((1));\n"),
+            [(2345, 40, 1)]
+        );
     }
 }

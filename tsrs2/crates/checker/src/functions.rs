@@ -84,6 +84,7 @@ impl<'a> CheckerState<'a> {
                             optional_call_signature_cache: (None, None),
                             isolated_signature_kind: Some(SignatureKind::Call),
                             isolated_signature_type: None,
+                            overload_failure_stub: false,
                         };
                         let signature = self.alloc_signature(return_only_signature);
                         let symbol = self.node_symbol(node);
@@ -3896,15 +3897,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c9f0c6623f0bb6fdff9dac448b23075eff0bf20954d1f4acd38520ea0a84081f
     /// tsc-span: _tsc.js:89466-89469
     ///
-    /// checkGrammarModifiers rides the existing M7-stub hook (fn
-    /// expressions admit only `async`; other modifiers are parse
-    /// errors, so the gate cannot misfire). The arrow-function 1200
-    /// walk and the use-strict 1347 walk port live below.
+    /// checkGrammarModifiers heads tsc's `||` ladder — a modifier
+    /// grammar error suppresses EVERY follower (type-parameter list,
+    /// parameter list, arrow 1200, use-strict 1347). The would-report
+    /// skeleton supplies the verdict; the modifier row itself stays
+    /// the M7 FN.
     pub(crate) fn check_grammar_function_like_declaration(
         &mut self,
         node: NodeId,
     ) -> CheckResult2<bool> {
-        self.check_grammar_modifiers(node);
+        if self.check_grammar_modifiers_would_report(node) {
+            return Ok(true);
+        }
         let type_parameters = match self.data_of(node) {
             NodeData::FunctionExpression(data) => data.type_parameters,
             NodeData::ArrowFunction(data) => data.type_parameters,
@@ -5882,6 +5886,19 @@ mod tests {
                 "declare const th: { then: number };\ndeclare let r: () => void;\nr = async () => { await th; };\n"
             ),
             [(2697, 67, 25)]
+        );
+    }
+
+    #[test]
+    fn method_modifier_error_suppresses_type_parameter_grammar() {
+        // m4-review S7 (oracle: vendored tsc 6.0.3, noLib, strict,
+        // 2026-07-19): tsc 1031 @10 (the M7-FN modifier row) + 1183
+        // @30 — the declare verdict heads the `||` ladder and
+        // suppresses the empty-type-parameter-list 1098 the port
+        // reported pre-fix.
+        assert_eq!(
+            checked_rows("class C { declare m<>(): void {} }\n"),
+            [(1183, 30, 1)]
         );
     }
 }

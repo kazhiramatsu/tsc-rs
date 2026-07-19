@@ -3246,6 +3246,7 @@ impl<'a> CheckerState<'a> {
                                 is_readonly: false,
                                 declaration: None,
                                 components: None,
+                                is_enum_number_index_info: false,
                             }]
                         };
                     for info in inherited_index_infos {
@@ -4569,6 +4570,7 @@ impl<'a> CheckerState<'a> {
                 optional_call_signature_cache: (None, None),
                 isolated_signature_kind: Some(crate::state::SignatureKind::Construct),
                 isolated_signature_type: None,
+                overload_failure_stub: false,
             };
             return Ok(vec![self.alloc_signature(signature)]);
         }
@@ -5264,6 +5266,7 @@ impl<'a> CheckerState<'a> {
                             is_readonly: false,
                             declaration: None,
                             components: None,
+                            is_enum_number_index_info: false,
                         });
                     }
                 }
@@ -5310,6 +5313,7 @@ impl<'a> CheckerState<'a> {
                                     is_readonly: true,
                                     declaration: None,
                                     components: None,
+                                    is_enum_number_index_info: true,
                                 });
                             }
                         }
@@ -5478,6 +5482,7 @@ impl<'a> CheckerState<'a> {
                             is_readonly,
                             declaration: Some(declaration),
                             components: None,
+                            is_enum_number_index_info: false,
                         });
                     }
                 }
@@ -7267,6 +7272,7 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: None,
             isolated_signature_type: None,
+            overload_failure_stub: false,
         };
         let id = self.alloc_signature(signature);
         self.links.set_node_resolved_signature(
@@ -7653,6 +7659,7 @@ impl<'a> CheckerState<'a> {
                     is_readonly: false,
                     declaration: None,
                     components: None,
+                    is_enum_number_index_info: false,
                 });
                 continue;
             }

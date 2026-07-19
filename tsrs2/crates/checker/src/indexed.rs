@@ -258,8 +258,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 6a5c07650014a8132dd7320001039548749a26888d4f112fe898f13f8388e793
     /// tsc-span: _tsc.js:61999-62012
     ///
-    /// enumNumberIndexInfo is a 5.3b enum sentinel — no index info can
-    /// be it before enums construct.
+    /// The `info !== enumNumberIndexInfo` exclusion keeps the enum
+    /// reverse-mapping `[number]: string` row out of `keyof typeof E`
+    /// (the synthesis is resolve-enum's is_enum_number_index_info
+    /// marker — the port has no singleton to compare against).
     fn get_literal_type_from_properties(
         &mut self,
         ty: TypeId,
@@ -291,7 +293,8 @@ impl<'a> CheckerState<'a> {
             )?);
         }
         for info in self.get_index_infos_of_type(ty)? {
-            let included = self.is_key_type_included(info.key_type, include);
+            let included = !info.is_enum_number_index_info
+                && self.is_key_type_included(info.key_type, include);
             key_types.push(if included {
                 if info.key_type == self.tables.intrinsics.string
                     && include.intersects(TypeFlags::NUMBER)
@@ -1343,7 +1346,9 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(index_node) != SyntaxKind::BigIntLiteral
                 && index_flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
             {
-                let value = self.property_name_from_type(index_type).unwrap_or_default();
+                let value = self
+                    .index_literal_value_display(index_type)
+                    .unwrap_or_default();
                 let object_display = self.type_to_string_slice(object_type)?;
                 self.error_at(
                     Some(index_node),
@@ -1419,7 +1424,9 @@ impl<'a> CheckerState<'a> {
             if no_implicit_any
                 && index_flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
             {
-                let value = self.property_name_from_type(index_type).unwrap_or_default();
+                let value = self
+                    .index_literal_value_display(index_type)
+                    .unwrap_or_default();
                 let object_display = self.type_to_string_slice(object_type)?;
                 self.error_at(
                     Some(access_expression),
@@ -1572,8 +1579,9 @@ impl<'a> CheckerState<'a> {
                             } else if index_flags
                                 .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
                             {
-                                let value =
-                                    self.property_name_from_type(index_type).unwrap_or_default();
+                                let value = self
+                                    .index_literal_value_display(index_type)
+                                    .unwrap_or_default();
                                 let object_display = self.type_to_string_slice(object_type)?;
                                 tail.push(tsrs2_diags::MessageChain::new(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
@@ -1748,15 +1756,35 @@ impl<'a> CheckerState<'a> {
 
     fn property_name_from_type(&self, ty: TypeId) -> Option<String> {
         match &self.tables.type_of(ty).data {
+            // escapeLeadingUnderscores("" + type.value): the member
+            // tables are escaped-keyed, so the propName leaves this
+            // boundary escaped. Display rows that render the raw
+            // literal value (tsc passes `indexType.value` there) use
+            // index_literal_value_display instead.
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
-            } => Some(value.clone()),
+            } => Some(tsrs2_syntax::escape_leading_underscores(value)),
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::Number(value),
             } => Some(tsrs2_types::tables::js_number_to_string(*value)),
             // getPropertyNameFromType's UniqueESSymbol arm: the
             // late-bound `__@<name>@<id>` member name.
             TypeData::UniqueESSymbol { escaped_name } => Some(escaped_name.clone()),
+            _ => None,
+        }
+    }
+
+    /// The `"" + indexType.value` rendering the 2339/7053 display rows
+    /// pass (62295/62343/62388) — the raw literal value, NOT the
+    /// escaped propName.
+    fn index_literal_value_display(&self, ty: TypeId) -> Option<String> {
+        match &self.tables.type_of(ty).data {
+            TypeData::Literal {
+                value: tsrs2_types::LiteralValue::String(value),
+            } => Some(value.clone()),
+            TypeData::Literal {
+                value: tsrs2_types::LiteralValue::Number(value),
+            } => Some(tsrs2_types::tables::js_number_to_string(*value)),
             _ => None,
         }
     }
@@ -2146,6 +2174,103 @@ mod tests {
                 let expected = annotation_type(state, "u");
                 assert_eq!(of_intersection, expected);
             },
+        );
+    }
+
+    // ---- m4-review S1/S3 pins (oracle: vendored tsc 6.0.3, noLib,
+    // strict defaults, 2026-07-19) ----
+
+    fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    #[test]
+    fn double_underscore_element_access_resolves() {
+        // S1: tsc clean. Pre-fix the raw `__x` propName missed the
+        // escaped-keyed member table → 7053.
+        assert_eq!(
+            checked_rows("interface O { __x: number }\ndeclare const o: O;\no[\"__x\"];\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn double_underscore_indexed_access_type_resolves() {
+        // S1: tsc clean — V is number (pre-fix: 2339 + errorType, so
+        // the assignment below would misreport).
+        assert_eq!(
+            checked_rows(
+                "interface O { __x: number }\ntype V = O[\"__x\"];\ndeclare const v: V;\nconst n: number = v;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn double_underscore_suggestion_args_stay_escaped() {
+        // S1: tsc 2551 @54 len8 with arg0 = '___helo' — the ESCAPED
+        // propName VERBATIM (tsc passes the __String straight through)
+        // — and the suggestion '__hello' unescaped.
+        let text = "interface P { __hello: number }\ndeclare const p: P;\np[\"__helo\"];\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let rows: Vec<_> = state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .collect();
+            assert_eq!(rows.len(), 1, "{rows:#?}");
+            let diagnostic = rows[0];
+            assert_eq!(
+                (diagnostic.code(), diagnostic.start, diagnostic.length),
+                (2551, Some(54), Some(8))
+            );
+            assert!(
+                diagnostic.message.text.contains("'___helo'")
+                    && diagnostic.message.text.contains("'__hello'"),
+                "{}",
+                diagnostic.message.text
+            );
+        });
+    }
+
+    #[test]
+    fn keyof_typeof_enum_excludes_the_reverse_map_number() {
+        // S3: tsc clean — enumNumberIndexInfo is excluded from
+        // getLiteralTypeFromProperties, so K = "A" | "B" and the
+        // string assignment holds.
+        assert_eq!(
+            checked_rows(
+                "enum E { A, B }\ntype K = keyof typeof E;\ndeclare const k: K;\nconst s: string = k;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn keyof_typeof_enum_rejects_number() {
+        // S3 reverse direction: tsc 2322 @72 len2 (Type 'number' is
+        // not assignable to type '"A" | "B"') — pre-fix the leaked
+        // number index made this assignment pass.
+        assert_eq!(
+            checked_rows(
+                "enum E { A, B }\ntype K = keyof typeof E;\ndeclare const n: number;\nconst k2: K = n;\n"
+            ),
+            [(2322, 72, 2)]
         );
     }
 }

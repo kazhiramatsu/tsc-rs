@@ -560,6 +560,7 @@ impl<'a> CheckerState<'a> {
             is_readonly,
             declaration: None,
             components,
+            is_enum_number_index_info: false,
         })
     }
 
@@ -1618,6 +1619,9 @@ impl<'a> CheckerState<'a> {
         if info.is_readonly != readonly {
             IndexInfo {
                 is_readonly: readonly,
+                // createIndexInfo makes a NEW object — the
+                // enumNumberIndexInfo identity does not survive.
+                is_enum_number_index_info: false,
                 ..info
             }
         } else {

@@ -829,11 +829,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a0759d7c8c63919858e1b9c255d6cc22fe5f49d9c205c5c86812e43655ac0765
     /// tsc-span: _tsc.js:89563-89589
     ///
-    /// checkGrammarModifiers stays the M7-stub hook (returns false) —
-    /// its would-have-reported faces suppress in tsc; the follower
-    /// rows here run instead (heritage grammar errors alongside
-    /// modifier errors would need the same fixture — conformance FP=0
-    /// is the tripwire).
+    /// The modifier gate consults the would-report skeleton
+    /// (check_grammar_modifiers_would_report): a modifier grammar
+    /// error suppresses the heritage walk in tsc exactly like this
+    /// `if` (the modifier row itself stays the M7 FN). NOTE tsc's
+    /// suppression covers ONLY the walk — the fn returns undefined
+    /// (falsy) either way, so checkGrammarTypeParameterList still
+    /// runs after a modifier error.
     fn check_grammar_class_declaration_heritage_clauses(&mut self, node: NodeId) -> bool {
         let mut seen_extends_clause = false;
         let mut seen_implements_clause = false;
@@ -842,7 +844,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ClassExpression(data) => data.heritage_clauses,
             _ => None,
         };
-        if !self.check_grammar_modifiers(node) {
+        if !self.check_grammar_modifiers_would_report(node) {
             for clause in self.nodes_of(heritage_clauses) {
                 let NodeData::HeritageClause(clause_data) = self.data_of(clause) else {
                     continue;
@@ -2367,6 +2369,19 @@ mod tests {
         assert_eq!(
             checked_rows("abstract class AB { abstract m(): void; }\nclass CC extends AB {}\n"),
             [(2515, 48, 2)]
+        );
+    }
+
+    #[test]
+    fn class_modifier_error_suppresses_heritage_grammar() {
+        // m4-review S7 (oracle: vendored tsc 6.0.3, noLib, strict,
+        // 2026-07-19): tsc reports 1042 ONLY — checkGrammarModifiers'
+        // async verdict suppresses the duplicate-extends walk (1172).
+        // The 1042 row itself stays the M7 FN, so the port answers
+        // clean; pre-fix it reported the 1172.
+        assert_eq!(
+            checked_rows("declare const A: any, B: any;\nasync class C extends A extends B {}\n"),
+            []
         );
     }
 }

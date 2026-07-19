@@ -1969,7 +1969,7 @@ impl<'a> CheckerState<'a> {
     /// getClassNameFromPrototypeMethod, isJSConstructor, commonjs
     /// SourceFile arm) per the plain-JS band; the
     /// getContextualThisParameterType fallback is live (5.5b).
-    fn try_get_this_type_at(
+    pub(crate) fn try_get_this_type_at(
         &mut self,
         node: NodeId,
         include_global_this: bool,

@@ -3912,6 +3912,8 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: source.isolated_signature_kind,
             isolated_signature_type: None,
+            // Clones of the failure stub stay stub-derived.
+            overload_failure_stub: source.overload_failure_stub,
         };
         self.alloc_signature(result)
     }
@@ -4607,6 +4609,7 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: left_data.isolated_signature_kind,
             isolated_signature_type: None,
+            overload_failure_stub: false,
         };
         Ok(self.alloc_signature(result))
     }
@@ -4639,6 +4642,7 @@ impl<'a> CheckerState<'a> {
                 is_readonly,
                 declaration: None,
                 components: None,
+                is_enum_number_index_info: false,
             });
         }
         Ok(result)
@@ -4907,6 +4911,7 @@ impl<'a> CheckerState<'a> {
                     is_readonly,
                     declaration: None,
                     components: None,
+                    is_enum_number_index_info: false,
                 };
                 return Ok(());
             }
@@ -5619,6 +5624,7 @@ impl<'a> CheckerState<'a> {
                 is_readonly,
                 declaration,
                 components: None,
+                is_enum_number_index_info: false,
             }));
         }
         if let Some(info) = applicable.into_iter().next() {

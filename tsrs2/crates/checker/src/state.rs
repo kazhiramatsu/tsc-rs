@@ -130,6 +130,16 @@ pub struct Signature {
     /// tsc signature.isolatedSignatureType (getOrCreateTypeFromSignature
     /// 60287): the single-signature anonymous object type memo.
     pub isolated_signature_type: Option<TypeId>,
+    /// tsrs-native M6-STUB marker: this signature is resolveCall's
+    /// overload-failure stash filled by
+    /// pick_longest_candidate_signature's default→constraint→unknown
+    /// stub (tsc runs real inference there,
+    /// inferSignatureInstantiationForOverloadFailure 76946-76954).
+    /// Set ONLY on the stash's private clone — the shared
+    /// instantiation cache keeps a clean copy — and read by the
+    /// result-producing consumers, which escape instead of letting
+    /// stub values become an observable node type.
+    pub overload_failure_stub: bool,
 }
 
 /// tsc IndexInfo (createIndexInfo 59989).
@@ -145,6 +155,14 @@ pub struct IndexInfo {
     /// index synthesis (getObjectLiteralIndexInfo 74110-74117).
     /// Dormant at M4 (index-constraint related spans consume later).
     pub components: Option<Vec<NodeId>>,
+    /// Identity marker for tsc's enumNumberIndexInfo singleton
+    /// (47276): getLiteralTypeFromProperties (62002) and
+    /// inferToMappedType (69005, M6) exclude that ONE object by `!==`.
+    /// The port synthesizes the info fresh per enum, so the marker
+    /// carries the identity; every other construction — including
+    /// tsc-visible copies (createIndexInfo clones like
+    /// getIndexInfoWithReadonly / instantiateIndexInfo) — is false.
+    pub is_enum_number_index_info: bool,
 }
 
 /// tsc-port: createWideningContext @6.0.3
@@ -577,7 +595,12 @@ pub struct CheckerState<'a> {
     /// containment boundary or an unimplemented flow-sensitive
     /// diagnostic was reached. Only directives targeting one of these
     /// ranges are exempt from unused @ts-expect-error diagnostics.
-    pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
+    /// (pos, end, exempt_inner): exempt_inner marks a subtree the
+    /// port never ENTERED (a body skipped by design) — directives
+    /// INSIDE it are 2578-exempt too; plain containments keep the
+    /// preceding-directive-only exemption (the mapped-type
+    /// blanket-exemption pin).
+    pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32, bool)>>,
     /// Public audit records corresponding to recognized Unsupported
     /// containment events. Unlike the byte ranges above, these use
     /// diagnostic-compatible UTF-16 coordinates.
@@ -1031,6 +1054,7 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: Some(SignatureKind::Construct),
             isolated_signature_type: None,
+            overload_failure_stub: false,
         })
     }
 
@@ -1308,10 +1332,24 @@ impl<'a> CheckerState<'a> {
     /// The program layer exempts only directives targeting one of
     /// these ranges instead of suppressing 2578 for the entire file.
     pub(crate) fn mark_partially_checked_node(&mut self, node: NodeId, reason: impl Into<String>) {
+        self.mark_partial_range(node, reason, /*exempt_inner*/ false);
+    }
+
+    /// tsrs-native: the wholly-unchecked flavor (m4-review S8) — the
+    /// port never ENTERED this subtree (a body skipped by design, not
+    /// a mid-flight unwind), so comment directives INSIDE the range
+    /// are exempt from 2578 as well (their suppression target was
+    /// never looked at). Shell containments must NOT use this: their
+    /// inner rows still fired before the unwind.
+    pub(crate) fn mark_unchecked_subtree(&mut self, node: NodeId, reason: impl Into<String>) {
+        self.mark_partial_range(node, reason, /*exempt_inner*/ true);
+    }
+
+    fn mark_partial_range(&mut self, node: NodeId, reason: impl Into<String>, exempt_inner: bool) {
         let file_index = self.binder.file_index_of_node(node);
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
-        let range = (raw.pos, raw.end);
+        let range = (raw.pos, raw.end, exempt_inner);
         let ranges = self.partially_checked_ranges.entry(file_index).or_default();
         if !ranges.contains(&range) {
             ranges.push(range);
