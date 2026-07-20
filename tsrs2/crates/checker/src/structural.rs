@@ -3911,13 +3911,30 @@ impl<'a> CheckerState<'a> {
         }
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::SYNTHETIC) {
-            if check_flags.intersects(CheckFlags::CONTAINS_PRIVATE) {
-                return ModifierFlags::PRIVATE;
-            }
-            if check_flags.intersects(CheckFlags::CONTAINS_PUBLIC) {
-                return ModifierFlags::PUBLIC;
-            }
-            return ModifierFlags::PROTECTED;
+            // 17445-17447: accessModifier | staticModifier — the
+            // STATIC OR-in is load-bearing for synthesized protected
+            // statics (a mixin `typeof A & typeof B` static otherwise
+            // walks the INSTANCE-protected path and fabricates 2446
+            // inside its own class — the mixinAccessModifiers FP).
+            let access_modifier = if check_flags.intersects(CheckFlags::CONTAINS_PRIVATE) {
+                ModifierFlags::PRIVATE
+            } else if check_flags.intersects(CheckFlags::CONTAINS_PUBLIC) {
+                ModifierFlags::PUBLIC
+            } else {
+                ModifierFlags::PROTECTED
+            };
+            let static_modifier = if check_flags.intersects(CheckFlags::CONTAINS_STATIC) {
+                ModifierFlags::STATIC
+            } else {
+                ModifierFlags::from_bits(0)
+            };
+            return ModifierFlags::from_bits(access_modifier.bits() | static_modifier.bits());
+        }
+        // 17449-17451: prototype properties are public statics.
+        if self.symbol_flags(symbol).intersects(SymbolFlags::PROTOTYPE) {
+            return ModifierFlags::from_bits(
+                ModifierFlags::PUBLIC.bits() | ModifierFlags::STATIC.bits(),
+            );
         }
         ModifierFlags::from_bits(0)
     }
@@ -4311,7 +4328,6 @@ impl<'a> CheckerState<'a> {
             isolated_signature_kind: source.isolated_signature_kind,
             isolated_signature_type: None,
             // Clones of the failure stub stay stub-derived.
-            overload_failure_stub: source.overload_failure_stub,
         };
         self.alloc_signature(result)
     }
@@ -5019,7 +5035,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: left_data.isolated_signature_kind,
             isolated_signature_type: None,
-            overload_failure_stub: false,
         };
         Ok(self.alloc_signature(result))
     }
@@ -5853,15 +5868,20 @@ impl<'a> CheckerState<'a> {
         // 61290 slices with JS Array.prototype.slice semantics: an end
         // before the start yields the empty slice (reachable from
         // inferFromObjectTypes' middle-arm bounds when the source
-        // tuple is shorter than the target's fixed parts — pinned).
-        // JS's from-end reading of a NEGATIVE end (skip > arity) is
-        // deliberately not modeled — every caller passes skip <= arity
-        // today; 7.4's impliedArity wiring must re-audit.
-        let end_index = data
-            .type_parameters
-            .len()
-            .saturating_sub(end_skip_count)
-            .max(index);
+        // tuple is shorter than the target's fixed parts — pinned),
+        // and a NEGATIVE end argument (skip > arity) counts from the
+        // END — `max(len - (skip - len), 0)`. The from-end window
+        // became REACHABLE at 7.4: the both-variadic impliedArity arm
+        // (69114) passes endLength + sourceArity - impliedArity, which
+        // exceeds the source arity whenever impliedArity < endLength
+        // (7.2d re-audit item, resolved — pinned below).
+        let len = data.type_parameters.len();
+        let end_index = if end_skip_count <= len {
+            len - end_skip_count
+        } else {
+            len.saturating_sub(end_skip_count - len)
+        }
+        .max(index);
         if index > data.fixed_length {
             let rest_array = self.get_rest_array_type_of_tuple_type(ty)?;
             return match rest_array {
@@ -6127,6 +6147,19 @@ impl<'a> CheckerState<'a> {
     /// exactly as tsc cuts it.
     pub fn get_single_call_signature(&mut self, ty: TypeId) -> CheckResult2<Option<SignatureId>> {
         self.get_single_signature(ty, SignatureKind::Call, false)
+    }
+
+    /// tsc-port: getSingleCallOrConstructSignature @6.0.3
+    /// tsc-hash: d7af02d36c16f7a647b4f19bc1eba0d59125afe42cfc70f7e290753a11ea2bf8
+    /// tsc-span: _tsc.js:75883-75895
+    pub(crate) fn get_single_call_or_construct_signature(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<SignatureId>> {
+        if let Some(call) = self.get_single_signature(ty, SignatureKind::Call, false)? {
+            return Ok(Some(call));
+        }
+        self.get_single_signature(ty, SignatureKind::Construct, false)
     }
 
     /// tsc-port: getSingleSignature @6.0.3
@@ -6667,6 +6700,46 @@ mod tests {
             relation,
             options: &options,
         })
+    }
+
+    #[test]
+    fn slice_tuple_type_negative_end_counts_from_the_end() {
+        // 61290 + JS Array.prototype.slice: endSkipCount beyond the
+        // arity turns the slice end NEGATIVE and JS re-reads it from
+        // the END — max(2*len - skip, 0). Reachable since 7.4's
+        // impliedArity record (the 69114 both-variadic arm passes
+        // endLength + sourceArity - impliedArity, which exceeds
+        // sourceArity whenever impliedArity < endLength; fixture
+        // corroborated against vendored tsc, scratchpad probe74k.mjs).
+        // Pre-fix the port clamped the whole window to empty.
+        crate::state::test_support::with_program_state(
+            &[("a.ts", "var v: [string, number, boolean];\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), "v").expect("annotated var");
+                let tuple = state
+                    .get_type_from_type_node(annotation)
+                    .expect("tuple type");
+                // len 3, skip 4: JS slice(0, -1) → [0, 2).
+                let sliced = state.slice_tuple_type(tuple, 0, 4).expect("slice succeeds");
+                let elements = state.get_type_arguments(sliced).expect("elements");
+                assert_eq!(
+                    elements.len(),
+                    2,
+                    "negative end counts from the end (2*3 - 4)"
+                );
+                // len 3, skip 7 (beyond 2*len): floored to empty.
+                let floored = state.slice_tuple_type(tuple, 0, 7).expect("slice succeeds");
+                let none = state.get_type_arguments(floored).expect("elements");
+                assert_eq!(none.len(), 0, "max(2*len - skip, 0) floors at zero");
+                // The inverted-range clamp is unchanged: skip 2 puts
+                // the end (1) below the start (2) — still empty.
+                let inverted = state.slice_tuple_type(tuple, 2, 2).expect("slice succeeds");
+                let inv = state.get_type_arguments(inverted).expect("elements");
+                assert_eq!(inv.len(), 0, "end before start clamps to empty");
+            },
+        );
     }
 
     #[test]

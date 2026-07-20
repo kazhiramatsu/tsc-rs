@@ -341,13 +341,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "choose_overload"
-reason = "inferTypeArguments (M6-stub): generic call without explicit type arguments"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
 in = "create_class_member_decorator_context_type_for_node"
 reason = "class element without a name (parse recovery)"
 class = "recovery"
@@ -379,13 +372,6 @@ in = "elaboration_disposition"
 reason = "elaborateObjectLiteral (elementwise elaboration, T2)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "ensure_not_overload_failure_stub"
-reason = "overload-failure stub instantiation as an observable call result (inferSignatureInstantiationForOverloadFailure, M6)"
-class = "stage"
-owner = "M6"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -471,23 +457,15 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "is_constructor_accessible"
-reason = "constructor without a class (parse recovery)"
+in = "infer_jsx_type_arguments"
+reason = "JSX opening element without attributes (parse recovery)"
 class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "pick_longest_candidate_signature"
-reason = "inferSignatureInstantiationForOverloadFailure (M6-stub): arity selection reads a stub-instantiated rest tuple"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "pick_longest_candidate_signature"
-reason = "inferSignatureInstantiationForOverloadFailure (M6-stub): context-sensitive arguments would observe stub parameter types"
-class = "stage"
-owner = "M6"
+in = "is_constructor_accessible"
+reason = "constructor without a class (parse recovery)"
+class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -678,13 +656,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/contextual.rs"
-in = "get_contextually_typed_parameter_type"
-reason = "[INFER M6] context-sensitive parameter under an unresolved contextual signature"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/contextual.rs"
 in = "get_type_of_concrete_property_of_contextual_type"
 reason = "isCircularMappedProperty (mapped-type properties, M8)"
 class = "stage"
@@ -782,13 +753,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/expr.rs"
-in = "instantiate_type_with_single_generic_call_signature"
-reason = "single-generic-signature higher-order inference (M6 7.4)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/expr.rs"
 in = "parse_pseudo_big_int"
 reason = "unparsable bigint literal text {text:?} (parse recovery)"
 class = "recovery"
@@ -845,14 +809,6 @@ in = "check_return_expression"
 reason = "failed return over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/functions.rs"
-in = "contextually_check_function_expression_or_object_literal_method"
-reason = "inferFromAnnotatedParametersAndReturn (M6 7.4)"
-class = "stage"
-owner = "M6"
-count = 2
 
 [[site]]
 file = "crates/checker/src/functions.rs"
@@ -977,13 +933,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/instantiate.rs"
-in = "get_signature_instantiation"
-reason = "instantiation-expression signatures (inferredTypeParameters, M6)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/instantiate.rs"
 in = "instantiate_type_worker"
 reason = "conditional-type instantiation (getConditionalTypeInstantiation, M8)"
 class = "stage"
@@ -1032,6 +981,12 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/jsx.rs"
 in = "create_jsx_attributes_type_from_attributes_property"
+reason = "JSX attribute inference site without an initializer expression (parse recovery)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/jsx.rs"
+in = "create_jsx_attributes_type_from_attributes_property"
 reason = "JSX attribute without a bound symbol (parse recovery)"
 class = "recovery"
 
@@ -1046,13 +1001,6 @@ file = "crates/checker/src/jsx.rs"
 in = "create_jsx_attributes_type_from_attributes_property"
 reason = "JSX spread without an expression (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/jsx.rs"
-in = "create_jsx_attributes_type_from_attributes_property"
-reason = "addIntraExpressionInferenceSite (inference contexts, M6)"
-class = "stage"
-owner = "M6"
 
 [[site]]
 file = "crates/checker/src/jsx.rs"
@@ -1099,13 +1047,6 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/literals.rs"
 in = "check_array_literal"
-reason = "addIntraExpressionInferenceSite (inference contexts, M6)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/literals.rs"
-in = "check_array_literal"
 reason = "spread element without expression (parse recovery)"
 class = "recovery"
 
@@ -1118,13 +1059,6 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/literals.rs"
 in = "check_object_literal_members"
-reason = "addIntraExpressionInferenceSite (inference contexts, M6)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/literals.rs"
-in = "check_object_literal_members"
 reason = "object accessor without a bound symbol (parse recovery)"
 class = "recovery"
 
@@ -1132,6 +1066,12 @@ class = "recovery"
 file = "crates/checker/src/literals.rs"
 in = "check_object_literal_members"
 reason = "object member without a bound symbol (parse recovery)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/literals.rs"
+in = "check_object_literal_members"
+reason = "property assignment without initializer (parse recovery)"
 class = "recovery"
 
 [[site]]

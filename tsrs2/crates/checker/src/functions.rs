@@ -85,7 +85,6 @@ impl<'a> CheckerState<'a> {
                             optional_call_signature_cache: (None, None),
                             isolated_signature_kind: Some(SignatureKind::Call),
                             isolated_signature_type: None,
-                            overload_failure_stub: false,
                         };
                         let signature = self.alloc_signature(return_only_signature);
                         let symbol = self.node_symbol(node);
@@ -167,24 +166,49 @@ impl<'a> CheckerState<'a> {
             match contextual_signature {
                 Some(contextual_signature) => {
                     let inference_context = self.get_inference_context(node);
+                    // 79166-79172 (live at 7.4): Inferential mode first
+                    // infers from the ANNOTATED parameters/return, then
+                    // a generic-rest contextual signature instantiates
+                    // through the NON-fixing mapper (fresh inferences
+                    // stay unfixed for the re-run).
+                    let mut instantiated_contextual_signature: Option<crate::state::SignatureId> =
+                        None;
                     if check_mode.intersects(CheckMode::INFERENTIAL) {
-                        // 79166-79173: inferFromAnnotatedParametersAndReturn
-                        // + the generic-rest nonFixingMapper
-                        // instantiation are 7.4 wiring; production
-                        // check modes cannot carry Inferential until
-                        // then (only Some-context pushes set it).
-                        return Err(Unsupported::new(
-                            "inferFromAnnotatedParametersAndReturn (M6 7.4)",
-                        ));
-                    }
-                    // 79174: instantiate through the context's fixing
-                    // mapper when a context is in scope.
-                    let instantiated_contextual_signature = match inference_context {
-                        Some(context) => {
-                            let mapper = self.inference_context(context).mapper;
-                            self.instantiate_signature(contextual_signature, mapper, false)?
+                        let context = inference_context
+                            .expect("Inferential check mode implies an inference context (79167)");
+                        self.infer_from_annotated_parameters_and_return(
+                            signature,
+                            contextual_signature,
+                            context,
+                        )?;
+                        let rest_type = self.get_effective_rest_type(contextual_signature)?;
+                        if rest_type.is_some_and(|rest_type| {
+                            self.tables
+                                .flags_of(rest_type)
+                                .intersects(TypeFlags::TYPE_PARAMETER)
+                        }) {
+                            let non_fixing_mapper =
+                                self.inference_context(context).non_fixing_mapper;
+                            instantiated_contextual_signature = Some(self.instantiate_signature(
+                                contextual_signature,
+                                non_fixing_mapper,
+                                false,
+                            )?);
                         }
-                        None => contextual_signature,
+                    }
+                    // 79174: otherwise instantiate through the
+                    // context's fixing mapper when a context is in
+                    // scope.
+                    let instantiated_contextual_signature = match instantiated_contextual_signature
+                    {
+                        Some(instantiated) => instantiated,
+                        None => match inference_context {
+                            Some(context) => {
+                                let mapper = self.inference_context(context).mapper;
+                                self.instantiate_signature(contextual_signature, mapper, false)?
+                            }
+                            None => contextual_signature,
+                        },
                     };
                     self.assign_contextual_parameter_types(
                         signature,
@@ -206,14 +230,18 @@ impl<'a> CheckerState<'a> {
                 self.signature_of(contextual_signature).parameters.len();
             let own_parameter_count = self.parameters_of_function(node).len();
             if !has_type_parameters && contextual_parameter_count > own_parameter_count {
-                // 79179-79182: the body is Inferential-mode-only —
-                // inferFromAnnotatedParametersAndReturn over the annotated
-                // parameters/return is 7.4 wiring; Inferential is
-                // producible since 7.1 (only Some-context pushes set it).
+                // 79184-79187 (live at 7.4): a WIDER non-context-
+                // sensitive function still feeds its annotated
+                // parameters/return into the inference context.
                 if check_mode.intersects(CheckMode::INFERENTIAL) {
-                    return Err(Unsupported::new(
-                        "inferFromAnnotatedParametersAndReturn (M6 7.4)",
-                    ));
+                    let context = self
+                        .get_inference_context(node)
+                        .expect("Inferential check mode implies an inference context (79185)");
+                    self.infer_from_annotated_parameters_and_return(
+                        signature,
+                        contextual_signature,
+                        context,
+                    )?;
                 }
             }
         }
@@ -381,6 +409,67 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: assignNonContextualParameterTypes @6.0.3
     /// tsc-hash: 44abc1cf2e72182c295966e0b728eb120f09f047e0c7da327405b665ac388f3b
     /// tsc-span: _tsc.js:78418-78425
+    /// tsc-port: inferFromAnnotatedParametersAndReturn @6.0.3
+    /// tsc-hash: f2ea611b9352712aab08666e375e665345ab679d5e59c236ad63344eb60db4eb
+    /// tsc-span: _tsc.js:78351-78373
+    ///
+    /// tsc reads `inferenceContext.inferences` unchecked — both call
+    /// sites (79168/79186) sit behind the Inferential guard, which
+    /// only Some-context pushes produce.
+    fn infer_from_annotated_parameters_and_return(
+        &mut self,
+        signature: crate::state::SignatureId,
+        context_signature: crate::state::SignatureId,
+        inference_context: crate::inference::InferenceContextId,
+    ) -> CheckResult2<()> {
+        let parameters = self.signature_of(signature).parameters.clone();
+        let has_rest = self
+            .signature_of(signature)
+            .flags
+            .intersects(SignatureFlags::HAS_REST_PARAMETER);
+        let len = parameters.len() - usize::from(has_rest);
+        for (index, &parameter) in parameters.iter().enumerate().take(len) {
+            let declaration = self
+                .binder
+                .symbol(parameter)
+                .value_declaration
+                .expect("own-signature parameters carry their declaration (78354)");
+            if let Some(type_node) = self.effective_type_annotation_node(declaration) {
+                let annotated = self.get_type_from_type_node(type_node)?;
+                let is_optional = self.is_optional_declaration(declaration);
+                let source =
+                    self.tables
+                        .add_optionality(annotated, /*is_property*/ false, is_optional);
+                let target = self.get_type_at_position(context_signature, index)?;
+                let inferences = self.inference_context(inference_context).inferences.clone();
+                self.infer_types(
+                    &inferences,
+                    source,
+                    target,
+                    tsrs2_types::InferencePriority::NONE,
+                    false,
+                )?;
+            }
+        }
+        let return_type_node = self
+            .signature_of(signature)
+            .declaration
+            .and_then(|declaration| self.effective_return_type_node(declaration));
+        if let Some(return_type_node) = return_type_node {
+            let source = self.get_type_from_type_node(return_type_node)?;
+            let target = self.get_return_type_of_signature(context_signature)?;
+            let inferences = self.inference_context(inference_context).inferences.clone();
+            self.infer_types(
+                &inferences,
+                source,
+                target,
+                tsrs2_types::InferencePriority::NONE,
+                false,
+            )?;
+        }
+        Ok(())
+    }
+
     fn assign_non_contextual_parameter_types(
         &mut self,
         signature: crate::state::SignatureId,

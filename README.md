@@ -21,12 +21,12 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **53.9756%** (26,461 / 49,024) |
-| 2xxx band | **76.0534%** (16,010 / 21,051) |
+| All bands | **54.7385%** (26,835 / 49,024) |
+| 2xxx band | **77.2172%** (16,255 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 
 False positives are a hard gate: 0 on every merge. Escape
-ceilings: untagged 0, recovery 113. Non-2XXX family
+ceilings: untagged 0, recovery 116. Non-2XXX family
 map: frozen, 15 families / 433 rows.
 
 M8 readiness (report-only until M7 close): 2/9 gates ready.

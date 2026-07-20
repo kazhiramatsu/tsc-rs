@@ -27,8 +27,8 @@ use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain, RelatedInfo};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckMode, ModifierFlags, NodeCheckFlags, ObjectFlags, PseudoBigInt, ScriptTarget, SymbolFlags,
-    TypeData, TypeFlags, TypeId,
+    CheckMode, ContextFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, PseudoBigInt,
+    ScriptTarget, SymbolFlags, TypeData, TypeFlags, TypeId,
 };
 
 use crate::state::{CheckResult2, CheckerState, Unsupported};
@@ -117,39 +117,274 @@ impl<'a> CheckerState<'a> {
         result
     }
 
-    /// tsc-port: instantiateTypeWithSingleGenericCallSignature @6.0.3 (5.5a gate slice)
+    /// tsc-port: instantiateTypeWithSingleGenericCallSignature @6.0.3
     /// tsc-hash: 3fb3555fc3869377868f1a5f6f9d67871b494538220dd568554ee287b7e2882a
     /// tsc-span: _tsc.js:80751-80815
     ///
-    /// Inferential became producible at M6 7.1
-    /// (checkExpressionWithContextualType ORs it in for Some
-    /// contexts), so the M4 `unreachable!` gate is gone: the
-    /// 80753-80766 single-generic-signature probe is live, and the
-    /// body it guards (the SkipGenericFunctions defer + the
-    /// 80767-80815 higher-order inference path) stays a named
-    /// Unsupported until the 7.4 consumer-side slice. Non-generic
-    /// results reduce to the identity exactly as in tsc.
+    /// The 7.4c live higher-order path: under SkipGenericFunctions the
+    /// generic function DEFERS (skippedGenericFunction + the
+    /// anyFunctionType placeholder); under Inferential with a
+    /// non-generic contextual signature it either lifts its type
+    /// parameters into the OUTER context (unique-renamed, detached
+    /// contravariant parameter inference, merged into the live slots
+    /// when no overlap — inferredTypeParameters feeds chooseOverload's
+    /// 76844 instantiation) or instantiates against the contextual
+    /// signature in the context of the outer inference.
     fn instantiate_type_with_single_generic_call_signature(
         &mut self,
         node: NodeId,
         ty: TypeId,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
-        let _ = node;
-        if check_mode.intersects(CheckMode::INFERENTIAL | CheckMode::SKIP_GENERIC_FUNCTIONS) {
-            let call_signature = self.get_single_signature(ty, SignatureKind::Call, true)?;
-            let construct_signature =
-                self.get_single_signature(ty, SignatureKind::Construct, true)?;
-            let signature = call_signature.or(construct_signature);
-            if let Some(signature) = signature {
-                if self.signature_of(signature).type_parameters.is_some() {
-                    return Err(Unsupported::new(
-                        "single-generic-signature higher-order inference (M6 7.4)",
-                    ));
+        if !check_mode.intersects(CheckMode::INFERENTIAL | CheckMode::SKIP_GENERIC_FUNCTIONS) {
+            return Ok(ty);
+        }
+        let call_signature = self.get_single_signature(ty, SignatureKind::Call, true)?;
+        let construct_signature = self.get_single_signature(ty, SignatureKind::Construct, true)?;
+        let Some(signature) = call_signature.or(construct_signature) else {
+            return Ok(ty);
+        };
+        let Some(type_parameters) = self.signature_of(signature).type_parameters.clone() else {
+            return Ok(ty);
+        };
+        let contextual_type =
+            self.get_apparent_type_of_contextual_type(node, ContextFlags::NO_CONSTRAINTS)?;
+        let Some(contextual_type) = contextual_type else {
+            return Ok(ty);
+        };
+        let non_nullable = self.get_non_nullable_type(contextual_type)?;
+        let contextual_signature = self.get_single_signature(
+            non_nullable,
+            if call_signature.is_some() {
+                SignatureKind::Call
+            } else {
+                SignatureKind::Construct
+            },
+            /*allow_members*/ false,
+        )?;
+        let Some(contextual_signature) = contextual_signature else {
+            return Ok(ty);
+        };
+        if self
+            .signature_of(contextual_signature)
+            .type_parameters
+            .is_some()
+        {
+            return Ok(ty);
+        }
+        if check_mode.intersects(CheckMode::SKIP_GENERIC_FUNCTIONS) {
+            // 80767-80769: defer — the sentinel type is the signal
+            // chooseOverload's 76816 feedback reads via the context
+            // flag.
+            self.skipped_generic_function(node, check_mode);
+            return Ok(self.any_function_type);
+        }
+        let context = self
+            .get_inference_context(node)
+            .expect("Inferential check mode implies an inference context (80780)");
+        let return_type = match self.inference_context(context).signature {
+            Some(context_signature) => Some(self.get_return_type_of_signature(context_signature)?),
+            None => None,
+        };
+        let return_signature = match return_type {
+            Some(return_type) => self.get_single_call_or_construct_signature(return_type)?,
+            None => None,
+        };
+        if let Some(return_signature) = return_signature {
+            let return_signature_generic = self
+                .signature_of(return_signature)
+                .type_parameters
+                .is_some();
+            let all_have_candidates = self
+                .inference_context(context)
+                .inferences
+                .iter()
+                .all(|&slot| crate::inference::has_inference_candidates(self.inference_info(slot)));
+            if !return_signature_generic && !all_have_candidates {
+                let unique_type_parameters =
+                    self.get_unique_type_parameters(context, &type_parameters)?;
+                let instantiated_signature = self
+                    .get_signature_instantiation_without_filling_in_type_arguments(
+                        signature,
+                        Some(&unique_type_parameters),
+                    )?;
+                // 80786: a DETACHED inference row per live slot —
+                // fresh infos over the live slots' type parameters.
+                let live_slots = self.inference_context(context).inferences.clone();
+                let inferences: Vec<crate::inference::InferenceInfoId> = live_slots
+                    .iter()
+                    .map(|&slot| {
+                        let type_parameter = self.inference_info(slot).type_parameter;
+                        self.alloc_inference_info(crate::inference::create_inference_info(
+                            type_parameter,
+                        ))
+                    })
+                    .collect();
+                self.apply_to_parameter_types_with_inferences(
+                    &inferences,
+                    instantiated_signature,
+                    contextual_signature,
+                    tsrs2_types::InferencePriority::NONE,
+                    /*contravariant*/ true,
+                )?;
+                let some_have_candidates = inferences.iter().any(|&slot| {
+                    crate::inference::has_inference_candidates(self.inference_info(slot))
+                });
+                if some_have_candidates {
+                    self.apply_to_return_types_with_inferences(
+                        &inferences,
+                        instantiated_signature,
+                        contextual_signature,
+                        tsrs2_types::InferencePriority::NONE,
+                    )?;
+                    if !self.has_overlapping_inferences(&live_slots, &inferences) {
+                        self.merge_inferences(context, &inferences);
+                        let mut inferred = self
+                            .inference_context(context)
+                            .inferred_type_parameters
+                            .clone()
+                            .unwrap_or_default();
+                        inferred.extend_from_slice(&unique_type_parameters);
+                        self.inference_context_mut(context).inferred_type_parameters =
+                            Some(inferred);
+                        return self.get_or_create_type_from_signature(instantiated_signature);
+                    }
                 }
             }
         }
-        Ok(ty)
+        let instantiated = self.instantiate_signature_in_context_of(
+            signature,
+            contextual_signature,
+            Some(context),
+        )?;
+        self.get_or_create_type_from_signature(instantiated)
+    }
+
+    /// tsc-port: getUniqueTypeParameters @6.0.3
+    /// tsc-hash: c13d1fa553a649d86c0fa6ded442cc2061e50efc29c55a1786ac0c05b986a732
+    /// tsc-span: _tsc.js:80843-80868
+    ///
+    /// Name collisions against the context's accumulated
+    /// inferredTypeParameters (and this batch) mint FRESH type
+    /// parameters: new TypeParameter symbol under the augmented name,
+    /// `target` = the original, and one shared old→new mapper stamped
+    /// on every renamed parameter (the links twin slots).
+    fn get_unique_type_parameters(
+        &mut self,
+        context: crate::inference::InferenceContextId,
+        type_parameters: &[TypeId],
+    ) -> CheckResult2<Vec<TypeId>> {
+        let inferred_type_parameters = self
+            .inference_context(context)
+            .inferred_type_parameters
+            .clone()
+            .unwrap_or_default();
+        let mut result: Vec<TypeId> = Vec::with_capacity(type_parameters.len());
+        let mut old_type_parameters: Vec<TypeId> = Vec::new();
+        let mut new_type_parameters: Vec<TypeId> = Vec::new();
+        for &tp in type_parameters {
+            let name = self
+                .tables
+                .type_of(tp)
+                .symbol
+                .map(|symbol| self.binder.symbol(symbol).escaped_name.clone())
+                .unwrap_or_default();
+            if self.has_type_parameter_by_name(&inferred_type_parameters, &name)
+                || self.has_type_parameter_by_name(&result, &name)
+            {
+                let mut taken = inferred_type_parameters.clone();
+                taken.extend_from_slice(&result);
+                let new_name = self.get_unique_type_parameter_name(&taken, &name);
+                let symbol = self
+                    .binder
+                    .create_symbol(SymbolFlags::TYPE_PARAMETER, new_name);
+                let new_type_parameter = self.tables.create_type(
+                    TypeFlags::TYPE_PARAMETER,
+                    tsrs2_types::TypeData::TypeParameter {
+                        is_this_type: false,
+                        constraint: None,
+                    },
+                );
+                self.tables.type_mut(new_type_parameter).symbol = Some(symbol);
+                self.links.set_type_parameter_target(
+                    self.speculation_depth,
+                    new_type_parameter,
+                    tp,
+                );
+                old_type_parameters.push(tp);
+                new_type_parameters.push(new_type_parameter);
+                result.push(new_type_parameter);
+            } else {
+                result.push(tp);
+            }
+        }
+        if !new_type_parameters.is_empty() {
+            let mapper =
+                self.create_type_mapper(old_type_parameters, Some(new_type_parameters.clone()));
+            for tp in new_type_parameters {
+                self.links
+                    .set_type_parameter_mapper(self.speculation_depth, tp, mapper);
+            }
+        }
+        Ok(result)
+    }
+
+    /// tsc-port: hasTypeParameterByName @6.0.3
+    /// tsc-hash: 3f96646170d07720fc6bd7e82550afd20e96e2ae8160e0705729c9bba6782a8d
+    /// tsc-span: _tsc.js:80869-80871
+    fn has_type_parameter_by_name(&self, type_parameters: &[TypeId], name: &str) -> bool {
+        type_parameters.iter().any(|&tp| {
+            self.tables
+                .type_of(tp)
+                .symbol
+                .is_some_and(|symbol| self.binder.symbol(symbol).escaped_name == name)
+        })
+    }
+
+    /// tsc-port: getUniqueTypeParameterName @6.0.3
+    /// tsc-hash: af99cac2e2fee51d97a6a842a168927ad1889eb6de834da088343471408d81ed
+    /// tsc-span: _tsc.js:80872-80882
+    fn get_unique_type_parameter_name(
+        &self,
+        type_parameters: &[TypeId],
+        base_name: &str,
+    ) -> String {
+        let mut len = base_name.len();
+        while len > 1
+            && base_name
+                .as_bytes()
+                .get(len - 1)
+                .is_some_and(u8::is_ascii_digit)
+        {
+            len -= 1;
+        }
+        let stem = &base_name[..len];
+        let mut index: u64 = 1;
+        loop {
+            let augmented = format!("{stem}{index}");
+            if !self.has_type_parameter_by_name(type_parameters, &augmented) {
+                return augmented;
+            }
+            index += 1;
+        }
+    }
+
+    /// tsc-port: skippedGenericFunction @6.0.3
+    /// tsc-hash: 78b9b3ac6313c9939adb9dc8549ab0d710562b7e1bd8573ba9387fb7cbe404ae
+    /// tsc-span: _tsc.js:80816-80821
+    ///
+    /// tsc reads `getInferenceContext(node)` unchecked (80818):
+    /// Inferential check mode is only ever produced by
+    /// checkExpressionWithContextualType's Some-context arm, so a
+    /// context is on the stack by construction.
+    pub(crate) fn skipped_generic_function(&mut self, node: NodeId, check_mode: CheckMode) {
+        if check_mode.intersects(CheckMode::INFERENTIAL) {
+            let context = self
+                .get_inference_context(node)
+                .expect("Inferential check mode implies an inference context (80817)");
+            self.inference_context_mut(context).flags |=
+                tsrs2_types::InferenceFlags::SKIPPED_GENERIC_FUNCTION;
+        }
     }
 
     /// tsc-port: isConstEnumObjectType @6.0.3
@@ -333,7 +568,7 @@ impl<'a> CheckerState<'a> {
                 "SyntheticExpression is checker-synthesized (5.5e destructuring); \
                  parsed trees never contain one"
             ),
-            SyntaxKind::JsxExpression => self.check_jsx_expression(node),
+            SyntaxKind::JsxExpression => self.check_jsx_expression(node, check_mode),
             SyntaxKind::JsxElement => self.check_jsx_element(node),
             SyntaxKind::JsxSelfClosingElement => self.check_jsx_self_closing_element(node),
             SyntaxKind::JsxFragment => self.check_jsx_fragment(node),
@@ -2732,11 +2967,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ce6d50e4b09ba21d3b8b1caca81f0a8e01957b7acd2195417c37b205adb69cc5
     /// tsc-span: _tsc.js:80557-80579
     ///
-    /// Production callers still pass a None inference context until
-    /// M6 7.4 wires inferTypeArguments (argument checking is the 5.7
-    /// band); the Inferential check-mode OR-in and the
-    /// intraExpressionInferenceSites clear (80566-80569) are live for
-    /// Some contexts since 7.1.
+    /// The production Some-context producers (since 7.4) are
+    /// inferTypeArguments' phase-b argument checks and
+    /// inferJsxTypeArguments (75982/75927) — chooseOverload's
+    /// per-candidate context and the overload-failure inference both
+    /// route here; the Inferential check-mode OR-in and the
+    /// intraExpressionInferenceSites clear (80566-80569) have been
+    /// live since 7.1.
     pub(crate) fn check_expression_with_contextual_type(
         &mut self,
         node: NodeId,
@@ -4292,13 +4529,36 @@ mod tests {
     }
 
     #[test]
-    fn quick_call_generic_initializer_still_contains() {
-        // M6-stub observability rule: a generic no-typearg call still
-        // contains the element — the oracle's 2339 @52 (`.bad` on
-        // type '1') is a recorded FN until M6 inference lands.
+    fn higher_order_generic_argument_lifts_type_parameters() {
+        // 7.4c FRONTIER pin (oracle-probed 2026-07-20, scratchpad
+        // probe74i.mjs, vendored 6.0.3 noLib — tsc: f is the lifted
+        // generic `<T>(a: T) => {}` and `n` reports [(2322, 148, 1)]).
+        // pipe(list, list) drives the 80767-80815 higher-order path:
+        // pass-1 defers via SkipGenericFunctions, the re-run lifts
+        // `list`'s T (getUniqueTypeParameters + mergeInferences +
+        // inferredTypeParameters -> chooseOverload 76844). TODAY the
+        // re-run's applicability walk still contains at
+        // compareSignaturesRelated's generic-source arm (64505-64514,
+        // the M6 7.5 B8 head rebuild — its iSICO dependency landed
+        // this slice), so the statement set is EMPTY. Flip this pin to
+        // [(2322, 148, 1)] when 7.5 lands the arm.
+        assert_eq!(
+            checked_rows(
+                "declare function pipe<A, B, C>(f: (a: A) => B, g: (b: B) => C): (a: A) => C;\ndeclare function list<T>(x: T): T[];\nconst f = pipe(list, list);\nconst n: number = f(1);\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn quick_call_generic_initializer_resolves_live() {
+        // LIVE since 7.4b (the stub era contained this element and the
+        // 2339 was a recorded FN): inference types y as '1', so `.bad`
+        // reports 2339 @52 exactly as the oracle. Oracle-pinned
+        // 2026-07-20 (scratchpad probe74.mjs, vendored 6.0.3 noLib).
         assert_eq!(
             checked_rows("declare function id<T>(x: T): T;\nconst y = id(1);\ny.bad;\n"),
-            []
+            [(2339, 52, 3)]
         );
     }
 

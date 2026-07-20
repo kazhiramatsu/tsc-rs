@@ -2376,12 +2376,118 @@ impl<'a> CheckerState<'a> {
         self.deferred_nodes.remove(&root);
     }
 
+    /// tsrs-native (7.4b, precision reworked by the 7.4 review): the
+    /// three-signal containment test for a deferred FUNCTION-kind
+    /// node — see check_deferred_node's comment for the rationale.
+    /// The slot-bearing node for a call-like ancestor is usually the
+    /// ancestor itself, but JSX CHILDREN hang off JsxElement /
+    /// JsxFragment whose resolvedSignature lives on the OPENING node
+    /// — a sibling subtree, never an ancestor of the children — so
+    /// those kinds resolve through opening_element/opening_fragment
+    /// (the pre-review walk listed JsxOpeningFragment directly, which
+    /// is a leaf and therefore dead as an ancestor). instanceof
+    /// resolutions stash on the BinaryExpression itself
+    /// (operators.rs).
+    fn deferred_context_call_reverted(&self, node: NodeId) -> bool {
+        let is_function_kind = matches!(
+            self.kind_of(node),
+            SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::MethodSignature
+        );
+        if !is_function_kind {
+            return false;
+        }
+        let file_index = self.binder.file_index_of_node(node);
+        let (pos, end) = {
+            let raw = self.binder.source_of_node(node).arena.node(node);
+            (raw.pos, raw.end)
+        };
+        let inside_contained =
+            self.partially_checked_ranges
+                .get(&file_index)
+                .is_some_and(|ranges| {
+                    ranges
+                        .iter()
+                        .any(|&(range_pos, range_end)| range_pos <= pos && end <= range_end)
+                });
+        if !inside_contained {
+            return false;
+        }
+        let mut current = node;
+        while let Some(parent) = self.parent_of(current) {
+            let slot_node = match self.kind_of(parent) {
+                SyntaxKind::CallExpression
+                | SyntaxKind::NewExpression
+                | SyntaxKind::TaggedTemplateExpression
+                | SyntaxKind::Decorator
+                | SyntaxKind::JsxOpeningElement
+                | SyntaxKind::JsxSelfClosingElement
+                | SyntaxKind::BinaryExpression => Some(parent),
+                SyntaxKind::JsxElement => match self.data_of(parent) {
+                    NodeData::JsxElement(data) => data.opening_element,
+                    _ => None,
+                },
+                SyntaxKind::JsxFragment => match self.data_of(parent) {
+                    NodeData::JsxFragment(data) => data.opening_fragment,
+                    _ => None,
+                },
+                _ => None,
+            };
+            if let Some(slot_node) = slot_node {
+                if matches!(
+                    self.links.node(slot_node).resolved_signature,
+                    crate::links::LinkSlot::Vacant
+                ) && self.contained_call_resolutions.contains(&slot_node)
+                {
+                    return true;
+                }
+            }
+            current = parent;
+        }
+        false
+    }
+
     /// checkDeferredNode (86916), tracing elided. Every arm except
     /// TypeParameter is unreachable TODAY: the only checkNodeDeferred
     /// call site is checkTypeParameter (grep check_node_deferred) —
     /// the expression/call registrations arrive with 5.5/5.7, whose
     /// stages replace the unreachable!()s with their workers.
     fn check_deferred_node(&mut self, node: NodeId) {
+        // tsrs-native (7.4b): a deferred node whose CONTEXT hangs off
+        // a CONTAINED resolution cannot be checked faithfully (tsc,
+        // with no failure channel, resolves those fully) — checking it
+        // contextless FABRICATES implicit-any/unknown rows tsc never
+        // emits (the intraExpressionInferencesJsx 7006/18046 FP face,
+        // reachable once 7.4 registers trial-checked functions). The
+        // test is ALL THREE signals (deferred_context_call_reverted):
+        // the node sits inside an already-contained range, some
+        // call-like ancestor's resolvedSignature slot is Vacant, AND
+        // that Vacant was left by a containment unwind (the
+        // contained_call_resolutions record) — a call that was
+        // ATTEMPTED (it visited this argument) but whose sentinel the
+        // containment reverted. Range-inclusion alone is too broad
+        // (the first cut regressed 164 accepted identities whose
+        // containment was unrelated to their context — the set-ratchet
+        // caught it live); a Resolved slot (success or failure-face
+        // stash) feeds contextual reads exactly like tsc, so those
+        // still check; a Vacant WITHOUT the containment record is the
+        // benign mid-fixpoint clear (tsc 77505 `: cached` on a
+        // loop-dirty fresh frame) — fully re-resolvable, so its
+        // deferred functions still check too (7.4 review fix).
+        // Scope: FUNCTION kinds only — the fabrication class is
+        // contextless PARAMETER typing (7006/7044/18046). Other
+        // deferred kinds (assertions, calls) carry their own operands
+        // and still check — the first kind-blind cut regressed a
+        // deferred assertion's 2352 (subtypingWithCallSignatures3).
+        if self.deferred_context_call_reverted(node) {
+            self.mark_partially_checked_node(
+                node,
+                "deferred check under a contained call resolution (context unavailable)",
+            );
+            return;
+        }
         let save_current_node = self.current_node;
         self.current_node = Some(node);
         self.instantiation_count = 0;
@@ -3578,6 +3684,117 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // ---- deferred containment (tsrs-native, 7.4 review rework) ----
+
+    fn node_of_kind(state: &CheckerState, kind: tsrs2_syntax::SyntaxKind) -> tsrs2_syntax::NodeId {
+        let source = state.binder.source(0);
+        source
+            .arena
+            .node_ids()
+            .find(|&id| source.arena.node(id).kind == kind)
+            .unwrap_or_else(|| panic!("no {kind:?} in fixture"))
+    }
+
+    #[test]
+    fn deferred_containment_skip_requires_the_containment_record() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function outer(f: (x: number) => void): void;\nouter(x => {});\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let arrow = node_of_kind(state, tsrs2_syntax::SyntaxKind::ArrowFunction);
+                let call = node_of_kind(state, tsrs2_syntax::SyntaxKind::CallExpression);
+                state
+                    .partially_checked_ranges
+                    .entry(0)
+                    .or_default()
+                    .push((0, u32::MAX));
+                // A Vacant ancestor slot WITHOUT the containment record
+                // is the benign mid-fixpoint clear (tsc 77505 `: cached`
+                // on a loop-dirty fresh frame) — fully re-resolvable, so
+                // the deferred check must run.
+                assert!(
+                    !state.deferred_context_call_reverted(arrow),
+                    "benign Vacant must not trigger the containment skip"
+                );
+                state.contained_call_resolutions.insert(call);
+                assert!(
+                    state.deferred_context_call_reverted(arrow),
+                    "containment-reverted Vacant triggers the skip"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn deferred_containment_sees_jsx_children_through_the_opening_element() {
+        let options = CompilerOptions {
+            jsx: Some(2),
+            ..CompilerOptions::default()
+        };
+        with_program_state(
+            &[(
+                "a.tsx",
+                "declare var React: any;\nconst e = <div>{() => 1}</div>;\n",
+            )],
+            &options,
+            |state| {
+                let arrow = node_of_kind(state, tsrs2_syntax::SyntaxKind::ArrowFunction);
+                let opening = node_of_kind(state, tsrs2_syntax::SyntaxKind::JsxOpeningElement);
+                state
+                    .partially_checked_ranges
+                    .entry(0)
+                    .or_default()
+                    .push((0, u32::MAX));
+                assert!(!state.deferred_context_call_reverted(arrow));
+                // The resolvedSignature slot lives on the OPENING
+                // element — a SIBLING subtree of the children, which an
+                // ancestor walk can only reach through the JsxElement
+                // hop (the pre-review walk missed it).
+                state.contained_call_resolutions.insert(opening);
+                assert!(
+                    state.deferred_context_call_reverted(arrow),
+                    "children resolve the slot through JsxElement.opening_element"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn deferred_containment_sees_jsx_fragment_children_through_the_opening_fragment() {
+        let options = CompilerOptions {
+            jsx: Some(2),
+            ..CompilerOptions::default()
+        };
+        with_program_state(
+            &[(
+                "a.tsx",
+                "declare var React: any;\nconst e = <>{() => 1}</>;\n",
+            )],
+            &options,
+            |state| {
+                let arrow = node_of_kind(state, tsrs2_syntax::SyntaxKind::ArrowFunction);
+                let opening = node_of_kind(state, tsrs2_syntax::SyntaxKind::JsxOpeningFragment);
+                state
+                    .partially_checked_ranges
+                    .entry(0)
+                    .or_default()
+                    .push((0, u32::MAX));
+                assert!(!state.deferred_context_call_reverted(arrow));
+                // JsxOpeningFragment is a LEAF — the pre-review walk
+                // listed it directly and could never match; the
+                // JsxFragment hop is the reachable route.
+                state.contained_call_resolutions.insert(opening);
+                assert!(
+                    state.deferred_context_call_reverted(arrow),
+                    "fragment children resolve the slot through JsxFragment.opening_fragment"
+                );
+            },
+        );
     }
 
     // ---- 2636 / 2637 (checkTypeParameterDeferred) — oracle-pinned ----

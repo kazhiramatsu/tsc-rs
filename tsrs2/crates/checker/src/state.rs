@@ -132,16 +132,6 @@ pub struct Signature {
     /// tsc signature.isolatedSignatureType (getOrCreateTypeFromSignature
     /// 60287): the single-signature anonymous object type memo.
     pub isolated_signature_type: Option<TypeId>,
-    /// tsrs-native M6-STUB marker: this signature is resolveCall's
-    /// overload-failure stash filled by
-    /// pick_longest_candidate_signature's default→constraint→unknown
-    /// stub (tsc runs real inference there,
-    /// inferSignatureInstantiationForOverloadFailure 76946-76954).
-    /// Set ONLY on the stash's private clone — the shared
-    /// instantiation cache keeps a clean copy — and read by the
-    /// result-producing consumers, which escape instead of letting
-    /// stub values become an observable node type.
-    pub overload_failure_stub: bool,
 }
 
 /// tsc IndexInfo (createIndexInfo 59989).
@@ -523,11 +513,12 @@ pub struct CheckerState<'a> {
     pub(crate) contextual_types: Vec<Option<TypeId>>,
     pub(crate) contextual_is_cache: Vec<bool>,
     /// tsc inferenceContextNodes/inferenceContexts (47401-47402) —
-    /// the parallel-array inference-context stack. Every production
-    /// push site still passes None until M6 7.4 wires
-    /// inferTypeArguments into resolveCall, so getInferenceContext
-    /// answers None in production (7.1 made contexts constructible;
-    /// only tests exercise Some so far).
+    /// the parallel-array inference-context stack. Production Some
+    /// pushes are live since 7.4: chooseOverload's per-candidate
+    /// context reaches checkExpressionWithContextualType's push site
+    /// (80565) through inferTypeArguments' phase-b argument checks
+    /// (and the overload-failure inference); None pushes still shadow
+    /// outer contexts for context-free checks, tsc-exactly.
     pub(crate) inference_context_nodes: Vec<NodeId>,
     pub(crate) inference_contexts: Vec<Option<crate::inference::InferenceContextId>>,
     /// M6 7.1: the InferenceContext arena — InferenceContextId
@@ -618,6 +609,15 @@ pub struct CheckerState<'a> {
     /// diagnostics — the preceding-directive-only rule (the
     /// mapped-type blanket-exemption pin).
     pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
+    /// tsrs-native: call-like nodes whose getResolvedSignature frame
+    /// unwound as Unsupported and left the resolved_signature slot
+    /// Vacant. check_deferred_node's containment skip keys on this to
+    /// tell a containment-reverted Vacant from the benign mid-fixpoint
+    /// clear (tsc 77505's `: cached` on a loop-dirty fresh frame),
+    /// which is fully re-resolvable and must keep its deferred checks.
+    /// A stale entry whose slot later resolves is inert (the skip
+    /// requires the slot to still be Vacant).
+    pub(crate) contained_call_resolutions: std::collections::HashSet<NodeId>,
     /// Public audit records corresponding to recognized Unsupported
     /// containment events. Unlike the byte ranges above, these use
     /// diagnostic-compatible UTF-16 coordinates.
@@ -858,6 +858,7 @@ impl<'a> CheckerState<'a> {
             diagnostics: Vec::new(),
             visible_global_diagnostics: Vec::new(),
             partially_checked_ranges: std::collections::HashMap::new(),
+            contained_call_resolutions: std::collections::HashSet::new(),
             partial_check_records: Vec::new(),
             elaborated_satisfies_expressions: std::collections::HashSet::new(),
             globals: SymbolTable::default(),
@@ -1077,7 +1078,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: Some(SignatureKind::Construct),
             isolated_signature_type: None,
-            overload_failure_stub: false,
         })
     }
 

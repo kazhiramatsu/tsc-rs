@@ -241,19 +241,19 @@ impl<'a> CheckerState<'a> {
                     } else {
                         ElementFlags::REQUIRED
                     });
-                    // inTupleContext && checkMode & Inferential && …:
-                    // addIntraExpressionInferenceSite — [INFER] live
-                    // named escape (Inferential producible since M6
-                    // 7.1; the site recording itself is 7.4 wiring).
+                    // 74010-74014: the intra-expression inference-site
+                    // record (7.4) — the RAW element type, pre-
+                    // optionality, exactly as tsc captures it.
                     if in_tuple_context
                         && !check_mode.is_empty()
                         && check_mode.intersects(CheckMode::INFERENTIAL)
                         && !check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
                         && state.is_context_sensitive(e)
                     {
-                        return Err(Unsupported::new(
-                            "addIntraExpressionInferenceSite (inference contexts, M6)",
-                        ));
+                        let inference_context = state
+                            .get_inference_context(node)
+                            .expect("Inferential check mode implies an inference context (74012)");
+                        state.add_intra_expression_inference_site(inference_context, e, ty);
                     }
                 }
             }
@@ -907,10 +907,9 @@ impl<'a> CheckerState<'a> {
                     let name = self.binder.symbol(prop).escaped_name.clone();
                     all.insert(name, prop);
                 }
-                // contextualType && checkMode & Inferential && …:
-                // addIntraExpressionInferenceSite — [INFER] live
-                // named escape (Inferential producible since M6 7.1;
-                // the site recording itself is 7.4 wiring).
+                // 74206-74213: the intra-expression inference-site
+                // record (7.4) — a PropertyAssignment records its
+                // INITIALIZER, a method records the declaration node.
                 if acc.contextual_type.is_some()
                     && check_mode.intersects(CheckMode::INFERENTIAL)
                     && !check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
@@ -920,9 +919,24 @@ impl<'a> CheckerState<'a> {
                     )
                     && self.is_context_sensitive(member_decl)
                 {
-                    return Err(Unsupported::new(
-                        "addIntraExpressionInferenceSite (inference contexts, M6)",
-                    ));
+                    let inference_context = self
+                        .get_inference_context(node)
+                        .expect("Inferential check mode implies an inference context (74208)");
+                    let inference_node = if kind == SyntaxKind::PropertyAssignment {
+                        match self.data_of(member_decl) {
+                            NodeData::PropertyAssignment(data) => {
+                                data.initializer.ok_or_else(|| {
+                                    Unsupported::new(
+                                        "property assignment without initializer (parse recovery)",
+                                    )
+                                })?
+                            }
+                            _ => member_decl,
+                        }
+                    } else {
+                        member_decl
+                    };
+                    self.add_intra_expression_inference_site(inference_context, inference_node, ty);
                 }
             } else if kind == SyntaxKind::SpreadAssignment {
                 // languageVersion < ObjectAssign:

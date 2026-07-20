@@ -4577,7 +4577,6 @@ impl<'a> CheckerState<'a> {
                 optional_call_signature_cache: (None, None),
                 isolated_signature_kind: Some(crate::state::SignatureKind::Construct),
                 isolated_signature_type: None,
-                overload_failure_stub: false,
             };
             return Ok(vec![self.alloc_signature(signature)]);
         }
@@ -6863,9 +6862,14 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause)
     }
 
-    /// isOptionalDeclaration (19304): questionToken presence on
-    /// parameter/property shapes.
-    fn is_optional_declaration(&self, declaration: NodeId) -> bool {
+    /// tsc-port: isOptionalDeclaration @6.0.3
+    /// tsc-hash: 966ba2d8905e417aa6ddef847b03fa8a61f9ca0f82a09503ca09a73ca8a31293
+    /// tsc-span: _tsc.js:19304-19317
+    ///
+    /// questionToken presence on parameter/property shapes
+    /// (pub(crate) since 7.4b: inferFromAnnotatedParametersAndReturn's
+    /// addOptionality read).
+    pub(crate) fn is_optional_declaration(&self, declaration: NodeId) -> bool {
         match self.data_of(declaration) {
             NodeData::Parameter(data) => data.question_token.is_some(),
             NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
@@ -7398,7 +7402,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: None,
             isolated_signature_type: None,
-            overload_failure_stub: false,
         };
         let id = self.alloc_signature(signature);
         self.links.set_node_resolved_signature(

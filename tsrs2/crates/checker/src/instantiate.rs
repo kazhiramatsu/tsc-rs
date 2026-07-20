@@ -16,8 +16,8 @@ use tsrs2_binder::SymbolId;
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, IntersectionFlags, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
-    TypeId, UnionReduction,
+    CheckFlags, InferenceFlags, InferencePriority, IntersectionFlags, ObjectFlags, SignatureFlags,
+    SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::links::LinkSlot;
@@ -482,7 +482,6 @@ impl<'a> CheckerState<'a> {
             isolated_signature_kind: source.isolated_signature_kind,
             isolated_signature_type: None,
             // An instantiation OF the failure stub stays stub-derived.
-            overload_failure_stub: source.overload_failure_stub,
         };
         Ok(self.alloc_signature(result))
     }
@@ -732,16 +731,19 @@ impl<'a> CheckerState<'a> {
         }
         let mut new_mapper =
             self.create_type_mapper(type_parameters.clone(), Some(type_arguments.clone()));
-        // SingleSignatureType targets (63495-63497) are unconstructible
-        // before M6 instantiation expressions.
-        assert!(
-            !self
-                .tables
-                .object_flags_of(target)
-                .intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE),
-            "SingleSignatureType is unconstructible before M6"
-        );
-        let _ = &mut new_mapper;
+        // 63496-63498: a SingleSignatureType target (isolated
+        // signature types — constructible since 7.4's contextual
+        // re-key and higher-order paths made getOrCreateTypeFrom-
+        // Signature reachable) chains the INCOMING mapper behind the
+        // fresh pair mapper (tsc's `&& mapper` guard is vacuous here:
+        // instantiateType never dispatches without one).
+        if self
+            .tables
+            .object_flags_of(target)
+            .intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE)
+        {
+            new_mapper = self.combine_type_mappers(Some(new_mapper), mapper);
+        }
         let target_object_flags = self.tables.object_flags_of(target);
         let result = if target_object_flags.intersects(ObjectFlags::REFERENCE) {
             // 63499: a fresh deferred reference over the SAME node with
@@ -1730,9 +1732,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 524fd5c11b79aba2d61c5d34ecf53ed5cad179d6d26bdbeed44c4a3bfcbee4a1
     /// tsc-span: _tsc.js:59886-59901
     ///
-    /// `inferred_type_parameters` (instantiation-expression signatures)
-    /// unwinds as Unsupported — its only producers are M6 inference
-    /// contexts.
+    /// The `inferredTypeParameters` arm (59888-59899, live since 7.4b's
+    /// higher-order consumer): a single call-or-construct signature in
+    /// the instantiated return type is re-published as a fresh generic
+    /// signature over the inferred type parameters — both clones are
+    /// per-call fresh (never cached), so the raw-field writes here are
+    /// construction, not mutation. `newReturnType.mapper =
+    /// instantiatedSignature.mapper` (59894) rides the dedicated links
+    /// twin; the cloned outer signature seals the new return type into
+    /// its Vacant slot.
     pub fn get_signature_instantiation(
         &mut self,
         signature: SignatureId,
@@ -1752,10 +1760,26 @@ impl<'a> CheckerState<'a> {
             signature,
             filled.as_deref(),
         )?;
-        if inferred_type_parameters.is_some() {
-            return Err(Unsupported::new(
-                "instantiation-expression signatures (inferredTypeParameters, M6)",
-            ));
+        if let Some(inferred_type_parameters) = inferred_type_parameters {
+            let return_type = self.get_return_type_of_signature(instantiated)?;
+            let return_signature = self.get_single_call_or_construct_signature(return_type)?;
+            if let Some(return_signature) = return_signature {
+                let new_return_signature = self.clone_signature(return_signature);
+                self.signature_mut(new_return_signature).type_parameters =
+                    Some(inferred_type_parameters.to_vec());
+                let new_return_type =
+                    self.get_or_create_type_from_signature(new_return_signature)?;
+                if let Some(mapper) = self.signature_of(instantiated).mapper {
+                    self.links.set_type_isolated_signature_mapper(
+                        self.speculation_depth,
+                        new_return_type,
+                        mapper,
+                    );
+                }
+                let new_instantiated_signature = self.clone_signature(instantiated);
+                self.seal_signature_return_type(new_instantiated_signature, new_return_type);
+                return Ok(new_instantiated_signature);
+            }
         }
         Ok(instantiated)
     }
@@ -1795,6 +1819,70 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<SignatureId> {
         let mapper = self.create_signature_type_mapper(signature, type_arguments)?;
         self.instantiate_signature(signature, mapper, /*erase_type_parameters*/ true)
+    }
+
+    /// tsc-port: instantiateSignatureInContextOf @6.0.3
+    /// tsc-hash: afb072970e29fe1a61ec1ebcf9012610a61312d3fa91b4aa44fd4799ff6672ce
+    /// tsc-span: _tsc.js:75910-75924
+    ///
+    /// `compareTypes` stays the Assignable default until the M6 7.5
+    /// compareSignaturesRelated head rebuild passes its relation-frame
+    /// worker (64507). A generic-rest contextual signature
+    /// instantiates through the NON-fixing mapper; the ReturnType-
+    /// priority return inference runs only for context-LESS callers
+    /// (75917-75921).
+    pub(crate) fn instantiate_signature_in_context_of(
+        &mut self,
+        signature: SignatureId,
+        contextual_signature: SignatureId,
+        inference_context: Option<crate::inference::InferenceContextId>,
+    ) -> CheckResult2<SignatureId> {
+        let type_parameters = self.get_type_parameters_for_mapper(signature)?;
+        let context = self.create_inference_context(
+            &type_parameters,
+            Some(signature),
+            InferenceFlags::NONE,
+            None,
+        );
+        let rest_type = self.get_effective_rest_type(contextual_signature)?;
+        let generic_rest = rest_type.is_some_and(|rest_type| {
+            self.tables
+                .flags_of(rest_type)
+                .intersects(TypeFlags::TYPE_PARAMETER)
+        });
+        let mapper = inference_context.map(|inference_context| {
+            if generic_rest {
+                self.inference_context(inference_context).non_fixing_mapper
+            } else {
+                self.inference_context(inference_context).mapper
+            }
+        });
+        let source_signature = match mapper {
+            Some(mapper) => self.instantiate_signature(contextual_signature, mapper, false)?,
+            None => contextual_signature,
+        };
+        let inferences = self.inference_context(context).inferences.clone();
+        self.apply_to_parameter_types_with_inferences(
+            &inferences,
+            source_signature,
+            signature,
+            InferencePriority::NONE,
+            false,
+        )?;
+        if inference_context.is_none() {
+            self.apply_to_return_types_with_inferences(
+                &inferences,
+                contextual_signature,
+                signature,
+                InferencePriority::RETURN_TYPE,
+            )?;
+        }
+        let inferred_types = self.get_inferred_types(context)?;
+        let is_javascript = self
+            .signature_of(contextual_signature)
+            .declaration
+            .is_some_and(|declaration| self.is_in_js_file(declaration));
+        self.get_signature_instantiation(signature, Some(&inferred_types), is_javascript, None)
     }
 
     /// tsc-port: getTypeParametersForMapper @6.0.3

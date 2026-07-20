@@ -196,7 +196,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJsxExpression @6.0.3
     /// tsc-hash: 0cbbb4729f6068be0372dc86ca60643a2454d1588f8b1395380e8867a2a26dfd
     /// tsc-span: _tsc.js:74847-74858
-    pub(crate) fn check_jsx_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_jsx_expression(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult2<TypeId> {
         self.check_grammar_jsx_expression(node);
         let NodeData::JsxExpression(data) = self.data_of(node).clone() else {
             return Ok(self.tables.intrinsics.error);
@@ -204,7 +208,14 @@ impl<'a> CheckerState<'a> {
         let Some(expression) = data.expression else {
             return Ok(self.tables.intrinsics.error);
         };
-        let ty = self.check_expression(expression, tsrs2_types::CheckMode::NORMAL)?;
+        // 74494 threads checkMode into the inner expression — a
+        // NORMAL hardcode here dropped SkipContextSensitive during
+        // 7.4's inference trials, so context-sensitive attribute
+        // functions assigned their parameters through the FIXING
+        // mapper mid-pass-1 and pinned type parameters before any
+        // candidate landed (the intraExpressionInferencesJsx 18046
+        // face).
+        let ty = self.check_expression(expression, check_mode)?;
         if data.dot_dot_dot_token.is_some()
             && ty != self.tables.intrinsics.any
             && !self.is_array_type(ty)?
@@ -351,14 +362,38 @@ impl<'a> CheckerState<'a> {
                     // 74381-74386: addDeprecatedSuggestion — the
                     // suggestion band rides JSDoc @deprecated
                     // (unmodeled); elided like access.rs.
+                    // 74387-74392: the intra-expression inference-site
+                    // record (7.4) — the attribute INITIALIZER'S
+                    // expression, against the ATTRIBUTES context node.
                     if contextual_type.is_some()
                         && check_mode.intersects(CheckMode::INFERENTIAL)
                         && !check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
                         && self.is_context_sensitive(attribute_decl)
                     {
-                        return Err(Unsupported::new(
-                            "addIntraExpressionInferenceSite (inference contexts, M6)",
-                        ));
+                        let inference_context = self
+                            .get_inference_context(attributes)
+                            .expect("Inferential check mode implies an inference context (74389)");
+                        let initializer_expression = match self.data_of(attribute_decl) {
+                            NodeData::JsxAttribute(data) => {
+                                data.initializer.and_then(|initializer| {
+                                    match self.data_of(initializer) {
+                                        NodeData::JsxExpression(data) => data.expression,
+                                        _ => None,
+                                    }
+                                })
+                            }
+                            _ => None,
+                        }
+                        .ok_or_else(|| {
+                            Unsupported::new(
+                                "JSX attribute inference site without an initializer expression (parse recovery)",
+                            )
+                        })?;
+                        self.add_intra_expression_inference_site(
+                            inference_context,
+                            initializer_expression,
+                            expr_type,
+                        );
                     }
                 } else {
                     // Debug.assert(JsxSpreadAttribute) — recovery kinds
@@ -1221,7 +1256,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: Some(SignatureKind::Construct),
             isolated_signature_type: None,
-            overload_failure_stub: false,
         }))
     }
 

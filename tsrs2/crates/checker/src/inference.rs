@@ -69,7 +69,6 @@ pub(crate) struct InferenceInfo {
     pub(crate) priority: Option<InferencePriority>,
     pub(crate) top_level: bool,
     pub(crate) is_fixed: bool,
-    #[allow(dead_code)] // consumer: 7.2 tuple-element inference (69113) + 7.4 (75969)
     pub(crate) implied_arity: Option<usize>,
 }
 
@@ -93,7 +92,6 @@ pub(crate) struct IntraExpressionInferenceSite {
 pub(crate) enum CompareTypesFn {
     /// compareTypesAssignable — consumed by getInferredType's
     /// constraint clamp (69300-69306, stage 7.3).
-    #[allow(dead_code)] // constructed by the 7.4 createInferenceContext callers
     Assignable,
 }
 
@@ -135,7 +133,6 @@ pub(crate) struct InferenceContext {
     pub(crate) mapper: MapperId,
     pub(crate) non_fixing_mapper: MapperId,
     pub(crate) return_mapper: Option<MapperId>,
-    #[allow(dead_code)] // consumer: 7.4 chooseOverload via getSignatureInstantiation (76844)
     pub(crate) inferred_type_parameters: Option<Vec<TypeId>>,
     pub(crate) intra_expression_inference_sites: Option<Vec<IntraExpressionInferenceSite>>,
     pub(crate) outer_return_mapper: Option<MapperId>,
@@ -227,7 +224,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createInferenceContext @6.0.3
     /// tsc-hash: ad626687cae0e25a4f4a7bc1207da6be3340a2c91cd19e5cdcf1ab2925a8990b
     /// tsc-span: _tsc.js:68238-68240
-    #[allow(dead_code)] // consumer: 7.4 inferTypeArguments/chooseOverload (75911/75957/76809/76947)
     pub(crate) fn create_inference_context(
         &mut self,
         type_parameters: &[TypeId],
@@ -328,7 +324,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: cloneInferredPartOfContext @6.0.3
     /// tsc-hash: 275f26e3b1cc4ba518c7c218ced080fb34355ed6486b60ae64631a4095d185b6
     /// tsc-span: _tsc.js:68324-68327
-    #[allow(dead_code)] // consumer: 7.4 returnMapper derivation (75960)
     pub(crate) fn clone_inferred_part_of_context(
         &mut self,
         context: InferenceContextId,
@@ -528,7 +523,6 @@ impl<'a> CheckerState<'a> {
     /// cached on the context. Lives here rather than instantiate.rs
     /// because it is context-cache machinery (consumed by
     /// inferTypeArguments' phase-a2 return inference, 75958).
-    #[allow(dead_code)] // consumer: 7.4 inferTypeArguments phase-a2 (75958)
     pub(crate) fn create_outer_return_mapper(&mut self, context: InferenceContextId) -> MapperId {
         if let Some(cached) = self.inference_context(context).outer_return_mapper {
             return cached;
@@ -1188,7 +1182,6 @@ impl<'a> CheckerState<'a> {
     /// Slot order = type-parameter order; resolution of slot i can
     /// re-enter later slots through the non-fixing mapper, so the
     /// loop's per-index call rides the memo.
-    #[allow(dead_code)] // consumer: 7.4 inferTypeArguments / chooseOverload (76841)
     pub(crate) fn get_inferred_types(
         &mut self,
         context: InferenceContextId,
@@ -1199,6 +1192,180 @@ impl<'a> CheckerState<'a> {
             result.push(self.get_inferred_type(context, index)?);
         }
         Ok(result)
+    }
+
+    /// tsc-port: applyToParameterTypes @6.0.3
+    /// tsc-hash: 95daf9e8bfe59dd9deb8b5b454837cd07bf3d0d1a3119f554a2d6e316135be3c
+    /// tsc-span: _tsc.js:68198-68223
+    ///
+    /// The STATE-LEVEL twin of the walker method (7.2d decision: the
+    /// walker's copy is hard-bound to its 69199 callback; the 7.4
+    /// callers — instantiateSignatureInContextOf 75915 and the
+    /// higher-order path 80788 — run OUTSIDE a walker and parameterize
+    /// the callback as (inferences, priority, contravariant) instead).
+    pub(crate) fn apply_to_parameter_types_with_inferences(
+        &mut self,
+        inferences: &[InferenceInfoId],
+        source: SignatureId,
+        target: SignatureId,
+        priority: InferencePriority,
+        contravariant: bool,
+    ) -> CheckResult2<()> {
+        let source_count = self.get_parameter_count(source)?;
+        let target_count = self.get_parameter_count(target)?;
+        let source_rest_type = self.get_effective_rest_type(source)?;
+        let target_rest_type = self.get_effective_rest_type(target)?;
+        let target_non_rest_count = if target_rest_type.is_some() {
+            target_count - 1
+        } else {
+            target_count
+        };
+        let param_count = if source_rest_type.is_some() {
+            target_non_rest_count
+        } else {
+            source_count.min(target_non_rest_count)
+        };
+        if let Some(source_this_type) = self.get_this_type_of_signature(source)? {
+            if let Some(target_this_type) = self.get_this_type_of_signature(target)? {
+                self.infer_types(
+                    inferences,
+                    source_this_type,
+                    target_this_type,
+                    priority,
+                    contravariant,
+                )?;
+            }
+        }
+        for i in 0..param_count {
+            let source_type = self.get_type_at_position(source, i)?;
+            let target_type = self.get_type_at_position(target, i)?;
+            self.infer_types(
+                inferences,
+                source_type,
+                target_type,
+                priority,
+                contravariant,
+            )?;
+        }
+        if let Some(target_rest_type) = target_rest_type {
+            // 68215-68221: readonly when the rest variable is const
+            // and nothing in it is a mutable array shape.
+            let readonly = self.is_const_type_variable(Some(target_rest_type), 0) && {
+                let members = if self
+                    .tables
+                    .flags_of(target_rest_type)
+                    .intersects(TypeFlags::UNION)
+                {
+                    match &self.tables.type_of(target_rest_type).data {
+                        TypeData::Union { types, .. } => types.to_vec(),
+                        _ => vec![target_rest_type],
+                    }
+                } else {
+                    vec![target_rest_type]
+                };
+                let mut some_mutable = false;
+                for member in members {
+                    if self.is_mutable_array_like_type(member)? {
+                        some_mutable = true;
+                        break;
+                    }
+                }
+                !some_mutable
+            };
+            let source_rest = self.get_rest_type_at_position(source, param_count, readonly)?;
+            self.infer_types(
+                inferences,
+                source_rest,
+                target_rest_type,
+                priority,
+                contravariant,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: applyToReturnTypes @6.0.3
+    /// tsc-hash: 1bb818de205cee65e351fad046065911d45a080a9f63dffde44b2a5b45e42edb
+    /// tsc-span: _tsc.js:68224-68237
+    ///
+    /// State-level twin — see applyToParameterTypes above.
+    pub(crate) fn apply_to_return_types_with_inferences(
+        &mut self,
+        inferences: &[InferenceInfoId],
+        source: SignatureId,
+        target: SignatureId,
+        priority: InferencePriority,
+    ) -> CheckResult2<()> {
+        if let Some(target_predicate) = self.get_type_predicate_of_signature(target)? {
+            if let Some(source_predicate) = self.get_type_predicate_of_signature(source)? {
+                if std::mem::discriminant(&source_predicate.kind)
+                    == std::mem::discriminant(&target_predicate.kind)
+                    && source_predicate.parameter_index == target_predicate.parameter_index
+                {
+                    if let (Some(source_type), Some(target_type)) =
+                        (source_predicate.ty, target_predicate.ty)
+                    {
+                        self.infer_types(inferences, source_type, target_type, priority, false)?;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        let target_return_type = self.get_return_type_of_signature(target)?;
+        if self.could_contain_type_variables(target_return_type) {
+            let source_return_type = self.get_return_type_of_signature(source)?;
+            self.infer_types(
+                inferences,
+                source_return_type,
+                target_return_type,
+                priority,
+                false,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: hasOverlappingInferences @6.0.3
+    /// tsc-hash: fc4f59c2527192297325fd8ea05ad66315c384dded4e7d01a4ddbaf30d9cfd64
+    /// tsc-span: _tsc.js:80828-80835
+    pub(crate) fn has_overlapping_inferences(
+        &self,
+        a: &[InferenceInfoId],
+        b: &[InferenceInfoId],
+    ) -> bool {
+        for i in 0..a.len() {
+            if has_inference_candidates(self.inference_info(a[i]))
+                && has_inference_candidates(self.inference_info(b[i]))
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// tsc-port: mergeInferences @6.0.3
+    /// tsc-hash: 58ff430f5184937cd04bc91b54663733c9696afb72987a748affb5865b3c8aea
+    /// tsc-span: _tsc.js:80836-80842
+    ///
+    /// The LIVE-slot id rewrite (7.1 identity model): the context's
+    /// `inferences[i]` takes the detached row's id while the mapper
+    /// capture keeps the creation-time infos — tsc's post-merge split
+    /// (detached thunk stays fixed, fresh live row unfixed) holds by
+    /// construction (pinned:
+    /// fixing_dispatch_consults_creation_capture_after_slot_replacement).
+    pub(crate) fn merge_inferences(
+        &mut self,
+        context: InferenceContextId,
+        source: &[InferenceInfoId],
+    ) {
+        for (i, &source_slot) in source.iter().enumerate() {
+            let target_slot = self.inference_context(context).inferences[i];
+            if !has_inference_candidates(self.inference_info(target_slot))
+                && has_inference_candidates(self.inference_info(source_slot))
+            {
+                self.inference_context_mut(context).inferences[i] = source_slot;
+            }
+        }
     }
 }
 
@@ -2740,11 +2907,15 @@ impl InferTypesWalker<'_, '_> {
     }
 
     /// tsc passes an undefined middle slice straight into
-    /// inferFromTypes, which survives ONLY when the target has no type
-    /// variables (the couldContainTypeVariables early return) and
-    /// TypeErrors otherwise — the recorded tsc-crash deviation
+    /// inferFromTypes, which survives ONLY on the 68647 head guard —
+    /// `!couldContainTypeVariables(target) || isNoInferType(target)`
+    /// — and TypeErrors otherwise: the recorded tsc-crash deviation
     /// (m8-readiness row 4, probe-tuple.mjs f6). The port skips the
-    /// harmless shape and reports the crash shape.
+    /// harmless shape and reports the crash shape. The isNoInferType
+    /// disjunct is not yet modeled here: NoInfer rides Substitution
+    /// types, unconstructible until M8 (see infer_from_types'
+    /// Substitution escape) — M8 must widen this guard when they
+    /// land, or a NoInfer rest target contains where tsc no-ops.
     fn infer_from_middle_slice(
         &mut self,
         source: Option<TypeId>,
@@ -3523,11 +3694,11 @@ mod tests {
     }
 
     #[test]
-    fn inferential_annotated_arity_arm_unwinds_named_unsupported() {
+    fn inferential_annotated_arity_arm_infers_live() {
         with_program_state(
             &[(
                 "a.ts",
-                "function f<T>() { var target: (a: number, b: string) => void; var g = (x: number) => 1; }\n",
+                "function f<T>() { var target: (a: T, b: string) => void; var g = (x: number) => 1; }\n",
             )],
             &CompilerOptions::default(),
             |state| {
@@ -3536,32 +3707,35 @@ mod tests {
                 let contextual = state.get_type_from_type_node(annotation).expect("fn type");
                 let arrow = node_of_kind(state, tsrs2_syntax::SyntaxKind::ArrowFunction);
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
-                // 79179-79182: non-context-sensitive, no own type
-                // parameters, contextual arity 2 > own arity 1 — under
-                // the 7.1-producible Inferential bit the arm is a
-                // named 7.4 escape, not a silent no-op.
+                // 79184-79187, LIVE since 7.4b (the 7.1-era pin
+                // asserted the named escape): non-context-sensitive,
+                // no own type parameters, contextual arity 2 > own
+                // arity 1 — the Inferential bit now feeds the
+                // ANNOTATED parameter types into the inference context
+                // (inferFromAnnotatedParametersAndReturn): x's
+                // `number` annotation lands as a candidate for T from
+                // the contextual `(a: T, ...)`.
                 //
-                // The sibling context-sensitive arm shares the same
-                // reason string, so pin the arm selection too: a fully
-                // annotated arrow is NOT context-sensitive, making the
-                // 79166 arm (and its identical Unsupported) unreachable
-                // — the Err below can only come from the 79178 arm.
+                // The sibling context-sensitive arm is unreachable for
+                // a fully annotated arrow — pin the arm selection.
                 assert!(
                     !state.is_context_sensitive(arrow),
-                    "fully annotated arrow must take the 79178 arity arm"
+                    "fully annotated arrow must take the 79184 arity arm"
                 );
-                let err = state
+                state
                     .check_expression_with_contextual_type(
                         arrow,
                         contextual,
                         Some(ctx),
                         tsrs2_types::CheckMode::NORMAL,
                     )
-                    .expect_err("7.4 escape");
-                assert!(
-                    err.reason.contains("inferFromAnnotatedParametersAndReturn"),
-                    "{}",
-                    err.reason
+                    .expect("live inference completes");
+                let number = state.tables.intrinsics.number;
+                let slot = state.inference_context(ctx).inferences[0];
+                assert_eq!(
+                    state.inference_info(slot).candidates.as_deref(),
+                    Some(&[number][..]),
+                    "annotated parameter inference records number for T"
                 );
             },
         );

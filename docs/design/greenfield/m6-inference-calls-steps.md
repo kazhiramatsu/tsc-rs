@@ -533,6 +533,105 @@ Commit: `m6 7.3: covariant/contravariant inference + clamp`.
 
 Commit: `m6 7.4: inferTypeArguments + chooseOverload re-run`.
 
+**Decisions of record (7.4a-d, 2026-07-20):**
+
+- **Speculation discipline (the 7.0t/7.2 carry-in, RESOLVED):
+  candidate trials are NOT speculation-wrapped.** tsc shares every
+  trial-time write with the surrounding check: inference contexts are
+  E-class and deliberately reused across the re-run, signature
+  instantiation caches are structural truths, and argument links
+  memos are legit once-only. Blanket wrapping is untenable anyway —
+  legit links writes during phase-b argument checks would trip
+  assert_writable. The 7.0t depth-0 assert net stands UNTOUCHED
+  (nothing trips at depth 0; the predicted base/erased trips never
+  materialize because trials never raise the depth). speculate()
+  remains the harness for port-specific probes and M8 seams.
+- **F7 (re-derived against 77500-77507):** the exit write restores
+  the frame-ENTRY value on every non-memoizing exit. A re-entrant
+  frame (entry value = the outer Resolving sentinel) restores THAT
+  sentinel via a dedicated links twin
+  (restore_node_resolved_signature_call_resolving) instead of leaking
+  an inner stash; the Err channel mirrors the discipline. The one
+  deliberate deviation stands: a loop-clean fresh frame keeps a
+  COMPLETED failure stash (Resolving-gated revert) — tsc memoizes the
+  failure face. A resolvingSignature RESULT skips the exit write
+  entirely (77504) — the sentinel is load-bearing for the 72918/77616
+  skip-arm consumers; a sentinel left by a resolution the port later
+  contains can survive to file end, where the debug Resolving census
+  would flag it (accepted risk — none observed across the corpus).
+- **Fabrication wall (the FP=0 debugging round; every rule
+  tsc-probed):** (1) getContextuallyTypedParameterType's [INFER M6]
+  apparent-type escape RETIRED — tsc falls through to undefined and
+  the implicit-any face is the REAL outcome (a probe-pushed `any`
+  contextual burns ContextChecked with no assignment and the
+  parameter pins exactly like tsc). (2) T2 display containment runs
+  the implementation probe's argument checks (burn/pin side effects)
+  BEFORE re-propagating — tsc's sink order has probe pushes precede
+  the main diagnostic, so parity improves. (3) checkJsxExpression
+  threads checkMode (74494) — the NORMAL hardcode dropped
+  SkipContextSensitive during trials and pinned type parameters via
+  premature fixing. (4) Deferred FUNCTION-kind nodes re-checking
+  under a contained call resolution (range-contained AND an ancestor
+  call-like's resolvedSignature reverted to Vacant) skip and extend
+  the containment — a contextless re-check fabricates 7006/18046
+  rows tsc never emits. The rule is deliberately narrow: the
+  kind-blind and Vacant-blind cuts each regressed accepted
+  identities (164 and 2) and the set-ratchet caught both live.
+- **Selection-loop fidelity finds:** getSignatureInstantiation now
+  reads isInJSFile(candidate.declaration) on BOTH type-argument
+  sources (76821 — the stub era passed false; dormant JS-file
+  deviation). getDeclarationModifierFlagsFromSymbol's synthetic arm
+  gained the 17446 staticModifier OR-in + the Prototype arm — a
+  synthesized mixin protected STATIC otherwise walked the
+  instance-protected path (mixinAccessModifiers 2446 FP).
+  isContextSensitive's JsxAttributes/JsxAttribute arms went live
+  (63853-63857; the 5.5f-era constant-false was a stale stub).
+  getObjectTypeInstantiation's SingleSignatureType arm (63496-63498)
+  replaced the "unconstructible before M6" assert — 7.4a's
+  contextual re-key constructs them.
+- **Carry-in audits closed:** the eOPT overload-selection divergence
+  no longer reproduces after the rebuild (probe74j; pinned). The
+  impliedArity re-audit found the 7.2d from-end slice window
+  (endSkipCount > arity) REACHABLE via 69114's `endLength +
+  sourceArity - impliedArity`; sliceTupleType now models JS's
+  negative-end re-read `max(2*len - skip, 0)` (probe74k
+  reachability; pinned).
+- **Higher-order frontier (7.4c):** the 80751-80815 path is fully
+  live but corpus-neutral — its RESULT still contains at
+  compareSignaturesRelated's generic-source arm (64505-64514), which
+  is the 7.5 B8 head-rebuild item; this slice supplies its
+  instantiateSignatureInContextOf dependency (75910-75924,
+  compareTypes = Assignable default until 7.5 passes the
+  relation-frame worker). Frontier pin records the oracle-probed
+  flip target. applyToParameterTypes/applyToReturnTypes gained
+  STATE-LEVEL twins per the 7.2d decision (walker copies stay
+  hard-bound).
+- **Intra-expression recording sites** (74010/74206/74387) landed
+  with the raw pre-optionality member types, PropertyAssignment →
+  initializer node mapping, and the JSX attributes context node.
+- isInferencePartiallyBlocked stays constant-false: all three tsc
+  producers (46681/46909/46920) are services-API wrappers; the
+  resolveCall debug_assert survives 7.4.
+
+**7.4 review fixes (2026-07-20, same branch):** the deferred-node
+containment test gained its THIRD signal — a containment-reverted
+Vacant is now recorded (`contained_call_resolutions`) at
+getResolvedSignature's Err unwind, so the benign mid-fixpoint clear
+(77505 `: cached` on a loop-dirty fresh frame) no longer co-triggers
+the skip under an unrelated enclosing range — and the ancestor walk
+resolves JSX CHILDREN through JsxElement.opening_element /
+JsxFragment.opening_fragment (the slot lives on the OPENING node, a
+sibling subtree of the children; the direct JsxOpeningFragment
+listing was leaf-dead) plus the BinaryExpression instanceof slot.
+getTypeArgumentsFromNodes threads isInJSFile(node) (76931) into its
+getDefaultTypeArgumentType padding (any in JS — dormant until
+checkJs/M8, the 76821 twin). addImplementationSuccessElaboration's
+probe now seeds AND writes back resolveCall's live argCheckMode (tsc
+restores only the three error-candidate vars, 76746-76761). Comment
+debt: the four "production passes None until 7.4" residues updated;
+68647's isNoInferType disjunct noted at infer_from_middle_slice
+(NoInfer rides Substitution types — M8 widens the guard).
+
 ## Stage 7.5: consumers cleanup [M]
 
 Ripple sites that were declared-type-only until now: contextual
@@ -568,7 +667,10 @@ matching, callback pre-gates) consults no predicate at all. The three
 port gate sites carry matching notes.
 
 Also here (M4-review B8): rebuild compareSignaturesRelated's HEAD in
-tsc order when porting instantiateSignatureInContextOf — tsc
+tsc order — its instantiateSignatureInContextOf dependency LANDED at
+7.4c (instantiate.rs, Assignable-default compareTypes; this stage
+passes the relation-frame worker and flips the 7.4c higher-order
+frontier pin to its oracle face) — tsc
 (64487-64514) decides same-reference identity, the top-signature
 pair, and sourceHasMoreParameters arity BEFORE generic instantiation,
 where the port's early gate contains all of it; make
