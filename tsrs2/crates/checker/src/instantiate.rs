@@ -16,8 +16,8 @@ use tsrs2_binder::SymbolId;
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, IntersectionFlags, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
-    TypeId, UnionReduction,
+    CheckFlags, InferenceFlags, InferencePriority, IntersectionFlags, ObjectFlags, SignatureFlags,
+    SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::links::LinkSlot;
@@ -1819,6 +1819,70 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<SignatureId> {
         let mapper = self.create_signature_type_mapper(signature, type_arguments)?;
         self.instantiate_signature(signature, mapper, /*erase_type_parameters*/ true)
+    }
+
+    /// tsc-port: instantiateSignatureInContextOf @6.0.3
+    /// tsc-hash: afb072970e29fe1a61ec1ebcf9012610a61312d3fa91b4aa44fd4799ff6672ce
+    /// tsc-span: _tsc.js:75910-75924
+    ///
+    /// `compareTypes` stays the Assignable default until the M6 7.5
+    /// compareSignaturesRelated head rebuild passes its relation-frame
+    /// worker (64507). A generic-rest contextual signature
+    /// instantiates through the NON-fixing mapper; the ReturnType-
+    /// priority return inference runs only for context-LESS callers
+    /// (75917-75921).
+    pub(crate) fn instantiate_signature_in_context_of(
+        &mut self,
+        signature: SignatureId,
+        contextual_signature: SignatureId,
+        inference_context: Option<crate::inference::InferenceContextId>,
+    ) -> CheckResult2<SignatureId> {
+        let type_parameters = self.get_type_parameters_for_mapper(signature)?;
+        let context = self.create_inference_context(
+            &type_parameters,
+            Some(signature),
+            InferenceFlags::NONE,
+            None,
+        );
+        let rest_type = self.get_effective_rest_type(contextual_signature)?;
+        let generic_rest = rest_type.is_some_and(|rest_type| {
+            self.tables
+                .flags_of(rest_type)
+                .intersects(TypeFlags::TYPE_PARAMETER)
+        });
+        let mapper = inference_context.map(|inference_context| {
+            if generic_rest {
+                self.inference_context(inference_context).non_fixing_mapper
+            } else {
+                self.inference_context(inference_context).mapper
+            }
+        });
+        let source_signature = match mapper {
+            Some(mapper) => self.instantiate_signature(contextual_signature, mapper, false)?,
+            None => contextual_signature,
+        };
+        let inferences = self.inference_context(context).inferences.clone();
+        self.apply_to_parameter_types_with_inferences(
+            &inferences,
+            source_signature,
+            signature,
+            InferencePriority::NONE,
+            false,
+        )?;
+        if inference_context.is_none() {
+            self.apply_to_return_types_with_inferences(
+                &inferences,
+                contextual_signature,
+                signature,
+                InferencePriority::RETURN_TYPE,
+            )?;
+        }
+        let inferred_types = self.get_inferred_types(context)?;
+        let is_javascript = self
+            .signature_of(contextual_signature)
+            .declaration
+            .is_some_and(|declaration| self.is_in_js_file(declaration));
+        self.get_signature_instantiation(signature, Some(&inferred_types), is_javascript, None)
     }
 
     /// tsc-port: getTypeParametersForMapper @6.0.3

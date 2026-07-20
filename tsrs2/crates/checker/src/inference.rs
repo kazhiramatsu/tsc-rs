@@ -1193,6 +1193,180 @@ impl<'a> CheckerState<'a> {
         }
         Ok(result)
     }
+
+    /// tsc-port: applyToParameterTypes @6.0.3
+    /// tsc-hash: 95daf9e8bfe59dd9deb8b5b454837cd07bf3d0d1a3119f554a2d6e316135be3c
+    /// tsc-span: _tsc.js:68198-68223
+    ///
+    /// The STATE-LEVEL twin of the walker method (7.2d decision: the
+    /// walker's copy is hard-bound to its 69199 callback; the 7.4
+    /// callers — instantiateSignatureInContextOf 75915 and the
+    /// higher-order path 80788 — run OUTSIDE a walker and parameterize
+    /// the callback as (inferences, priority, contravariant) instead).
+    pub(crate) fn apply_to_parameter_types_with_inferences(
+        &mut self,
+        inferences: &[InferenceInfoId],
+        source: SignatureId,
+        target: SignatureId,
+        priority: InferencePriority,
+        contravariant: bool,
+    ) -> CheckResult2<()> {
+        let source_count = self.get_parameter_count(source)?;
+        let target_count = self.get_parameter_count(target)?;
+        let source_rest_type = self.get_effective_rest_type(source)?;
+        let target_rest_type = self.get_effective_rest_type(target)?;
+        let target_non_rest_count = if target_rest_type.is_some() {
+            target_count - 1
+        } else {
+            target_count
+        };
+        let param_count = if source_rest_type.is_some() {
+            target_non_rest_count
+        } else {
+            source_count.min(target_non_rest_count)
+        };
+        if let Some(source_this_type) = self.get_this_type_of_signature(source)? {
+            if let Some(target_this_type) = self.get_this_type_of_signature(target)? {
+                self.infer_types(
+                    inferences,
+                    source_this_type,
+                    target_this_type,
+                    priority,
+                    contravariant,
+                )?;
+            }
+        }
+        for i in 0..param_count {
+            let source_type = self.get_type_at_position(source, i)?;
+            let target_type = self.get_type_at_position(target, i)?;
+            self.infer_types(
+                inferences,
+                source_type,
+                target_type,
+                priority,
+                contravariant,
+            )?;
+        }
+        if let Some(target_rest_type) = target_rest_type {
+            // 68215-68221: readonly when the rest variable is const
+            // and nothing in it is a mutable array shape.
+            let readonly = self.is_const_type_variable(Some(target_rest_type), 0) && {
+                let members = if self
+                    .tables
+                    .flags_of(target_rest_type)
+                    .intersects(TypeFlags::UNION)
+                {
+                    match &self.tables.type_of(target_rest_type).data {
+                        TypeData::Union { types, .. } => types.to_vec(),
+                        _ => vec![target_rest_type],
+                    }
+                } else {
+                    vec![target_rest_type]
+                };
+                let mut some_mutable = false;
+                for member in members {
+                    if self.is_mutable_array_like_type(member)? {
+                        some_mutable = true;
+                        break;
+                    }
+                }
+                !some_mutable
+            };
+            let source_rest = self.get_rest_type_at_position(source, param_count, readonly)?;
+            self.infer_types(
+                inferences,
+                source_rest,
+                target_rest_type,
+                priority,
+                contravariant,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: applyToReturnTypes @6.0.3
+    /// tsc-hash: 1bb818de205cee65e351fad046065911d45a080a9f63dffde44b2a5b45e42edb
+    /// tsc-span: _tsc.js:68224-68237
+    ///
+    /// State-level twin — see applyToParameterTypes above.
+    pub(crate) fn apply_to_return_types_with_inferences(
+        &mut self,
+        inferences: &[InferenceInfoId],
+        source: SignatureId,
+        target: SignatureId,
+        priority: InferencePriority,
+    ) -> CheckResult2<()> {
+        if let Some(target_predicate) = self.get_type_predicate_of_signature(target)? {
+            if let Some(source_predicate) = self.get_type_predicate_of_signature(source)? {
+                if std::mem::discriminant(&source_predicate.kind)
+                    == std::mem::discriminant(&target_predicate.kind)
+                    && source_predicate.parameter_index == target_predicate.parameter_index
+                {
+                    if let (Some(source_type), Some(target_type)) =
+                        (source_predicate.ty, target_predicate.ty)
+                    {
+                        self.infer_types(inferences, source_type, target_type, priority, false)?;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        let target_return_type = self.get_return_type_of_signature(target)?;
+        if self.could_contain_type_variables(target_return_type) {
+            let source_return_type = self.get_return_type_of_signature(source)?;
+            self.infer_types(
+                inferences,
+                source_return_type,
+                target_return_type,
+                priority,
+                false,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: hasOverlappingInferences @6.0.3
+    /// tsc-hash: fc4f59c2527192297325fd8ea05ad66315c384dded4e7d01a4ddbaf30d9cfd64
+    /// tsc-span: _tsc.js:80828-80835
+    pub(crate) fn has_overlapping_inferences(
+        &self,
+        a: &[InferenceInfoId],
+        b: &[InferenceInfoId],
+    ) -> bool {
+        for i in 0..a.len() {
+            if has_inference_candidates(self.inference_info(a[i]))
+                && has_inference_candidates(self.inference_info(b[i]))
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// tsc-port: mergeInferences @6.0.3
+    /// tsc-hash: 58ff430f5184937cd04bc91b54663733c9696afb72987a748affb5865b3c8aea
+    /// tsc-span: _tsc.js:80836-80842
+    ///
+    /// The LIVE-slot id rewrite (7.1 identity model): the context's
+    /// `inferences[i]` takes the detached row's id while the mapper
+    /// capture keeps the creation-time infos — tsc's post-merge split
+    /// (detached thunk stays fixed, fresh live row unfixed) holds by
+    /// construction (pinned:
+    /// fixing_dispatch_consults_creation_capture_after_slot_replacement).
+    pub(crate) fn merge_inferences(
+        &mut self,
+        context: InferenceContextId,
+        source: &[InferenceInfoId],
+    ) {
+        for (i, &source_slot) in source.iter().enumerate() {
+            let target_slot = self.inference_context(context).inferences[i];
+            if !has_inference_candidates(self.inference_info(target_slot))
+                && has_inference_candidates(self.inference_info(source_slot))
+            {
+                self.inference_context_mut(context).inferences[i] = source_slot;
+            }
+        }
+    }
 }
 
 /// The inferFromMatchingTypes `matches` parameter (68859): tsc passes
