@@ -2525,7 +2525,10 @@ impl<'a> CheckerState<'a> {
         RecursionIdentity::Type(ty)
     }
 
-    fn is_object_or_array_literal_type(&self, ty: TypeId) -> bool {
+    /// tsc-port: isObjectOrArrayLiteralType @6.0.3
+    /// tsc-hash: 2f6e12ed8f0ca0b50d8b2fabfa434997cb2255b1a32dde6bb48f35f60df0bc59
+    /// tsc-span: _tsc.js:69247-69249
+    pub(crate) fn is_object_or_array_literal_type(&self, ty: TypeId) -> bool {
         self.tables
             .object_flags_of(ty)
             .intersects(ObjectFlags::from_bits(

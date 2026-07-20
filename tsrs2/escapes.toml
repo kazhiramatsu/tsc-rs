@@ -922,10 +922,10 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
-in = "get_inferred_type"
-reason = "getInferredType resolution and constraint clamp (M6 7.3)"
+in = "has_primitive_constraint"
+reason = "hasPrimitiveConstraint conditional-constraint arm (M8 — Conditional constraint flags are unconstructible before conditional types land)"
 class = "stage"
-owner = "M6"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/inference.rs"

@@ -1419,6 +1419,21 @@ impl<'a> CheckerState<'a> {
             .rposition(|&active| active == mapper)
     }
 
+    /// tsc-port: clearActiveMapperCaches @6.0.3
+    /// tsc-hash: 539854d51a7890365bc0b09ce9824c96bd99c58af56d39259310500e282d6a60
+    /// tsc-span: _tsc.js:73624-73628
+    ///
+    /// getInferredType's exit invalidation (69310): a freshly resolved
+    /// inference changes what the non-fixing/fixing mappers produce,
+    /// so every in-flight active-mapper instantiation cache on the
+    /// stack is dropped — stale entries there are a silent-wrong-type
+    /// source, not a crash.
+    pub(crate) fn clear_active_mapper_caches(&mut self) {
+        for cache in self.active_type_mappers_caches.iter_mut() {
+            cache.clear();
+        }
+    }
+
     // ---- couldContainTypeVariables ----
 
     /// tsc-port: couldContainTypeVariables @6.0.3
@@ -1995,7 +2010,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getDefaultTypeArgumentType @6.0.3
     /// tsc-hash: 9fc8c6ef773571fb9228871cebd6ec4a0b7769bc7f6c55dd8ada3443b8d81687
     /// tsc-span: _tsc.js:69314-69316
-    fn get_default_type_argument_type(&self, is_in_javascript_file: bool) -> TypeId {
+    ///
+    /// pub(crate) for getInferredType's default fold (69296), where
+    /// the `isInJavaScriptFile` argument is the context's AnyDefault
+    /// flag — no file probe involved.
+    pub(crate) fn get_default_type_argument_type(&self, is_in_javascript_file: bool) -> TypeId {
         if is_in_javascript_file {
             self.tables.intrinsics.any
         } else {

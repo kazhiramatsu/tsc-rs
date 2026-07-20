@@ -13,11 +13,11 @@
 //! re-run reuses the SAME context (76842-76844), so candidate
 //! accumulation across trials is by design, not a leak.
 //!
-//! Frontier stubs behind this model (production-unreachable until 7.4
-//! wires inferTypeArguments into resolveCall — every production
-//! pushInferenceContext site still passes None): `infer_types` lands
-//! at 7.2 (the candidate collector), `get_inferred_type` at 7.3
-//! (resolution + the constraint clamp).
+//! The collector (`infer_types`, 7.2) and the resolver
+//! (`get_inferred_type` + the constraint clamp, 7.3) are live; 7.4
+//! wires inferTypeArguments/chooseOverload on top of them (every
+//! production pushInferenceContext site still passes None until
+//! then).
 
 use std::collections::HashMap;
 
@@ -66,9 +66,7 @@ pub(crate) struct InferenceInfo {
     pub(crate) candidates: Option<Vec<TypeId>>,
     pub(crate) contra_candidates: Option<Vec<TypeId>>,
     pub(crate) inferred_type: Option<TypeId>,
-    #[allow(dead_code)] // consumer: 7.2 candidate recording (inferWithPriority)
     pub(crate) priority: Option<InferencePriority>,
-    #[allow(dead_code)] // consumer: 7.2 isTypeParameterAtTopLevel record + 7.3 widen split
     pub(crate) top_level: bool,
     pub(crate) is_fixed: bool,
     #[allow(dead_code)] // consumer: 7.2 tuple-element inference (69113) + 7.4 (75969)
@@ -131,12 +129,8 @@ pub(crate) struct InferenceContext {
     pub(crate) mapper_sources: Vec<TypeId>,
     /// ... and the thunk-captured info objects, one per slot.
     pub(crate) mapper_infos: Vec<InferenceInfoId>,
-    #[allow(dead_code)] // consumer: 7.4 inferTypeArguments (context.signature, 80781)
     pub(crate) signature: Option<SignatureId>,
-    #[allow(dead_code)]
-    // consumer: 7.3 NoDefault/AnyDefault resolution + 7.4 SkippedGenericFunction
     pub(crate) flags: InferenceFlags,
-    #[allow(dead_code)] // consumer: 7.3 constraint clamp (69300-69306)
     pub(crate) compare_types: CompareTypesFn,
     pub(crate) mapper: MapperId,
     pub(crate) non_fixing_mapper: MapperId,
@@ -502,6 +496,30 @@ impl<'a> CheckerState<'a> {
         self.get_inferred_type(context, index)
     }
 
+    /// tsc-port: createBackreferenceMapper @6.0.3
+    /// tsc-hash: 39eeb2ff24d79f21daf1e82c48acf5c5600a14e982f49d1be0275188c3f8760f
+    /// tsc-span: _tsc.js:63381-63384
+    ///
+    /// The default-instantiation shield (getInferredType 69289): every
+    /// type parameter at or after `index` maps to unknown, so a
+    /// parameter default can only see the inferences BEFORE it —
+    /// forward references collapse instead of recursing. Reads the
+    /// LIVE slots (`context.inferences`), not the creation capture.
+    fn create_backreference_mapper(
+        &mut self,
+        context: InferenceContextId,
+        index: usize,
+    ) -> MapperId {
+        let forward_inferences: Vec<InferenceInfoId> =
+            self.inference_context(context).inferences[index..].to_vec();
+        let sources: Vec<TypeId> = forward_inferences
+            .iter()
+            .map(|&info| self.inference_info(info).type_parameter)
+            .collect();
+        let targets = vec![self.tables.intrinsics.unknown; sources.len()];
+        self.create_type_mapper(sources, Some(targets))
+    }
+
     /// tsc-port: createOuterReturnMapper @6.0.3
     /// tsc-hash: dbf215149bf9450aedc8e51f8166a45bc93be51494c3b370b4273b05f4e529dd
     /// tsc-span: _tsc.js:63385-63387
@@ -601,6 +619,30 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// tsc-port: isTypeParameterAtTopLevelInReturnType @6.0.3
+    /// tsc-hash: d3223619e7c24199528e5f9f3485c0b57cc298794abef84767a3fd97576a8aca
+    /// tsc-span: _tsc.js:68352-68355
+    ///
+    /// The widen-literals gate's syntactic probe: a predicate signature
+    /// walks the predicate's type (None type → false), everything else
+    /// walks the return type.
+    fn is_type_parameter_at_top_level_in_return_type(
+        &mut self,
+        signature: SignatureId,
+        type_parameter: TypeId,
+    ) -> CheckResult2<bool> {
+        if let Some(type_predicate) = self.get_type_predicate_of_signature(signature)? {
+            return match type_predicate.ty {
+                Some(predicate_type) => {
+                    self.is_type_parameter_at_top_level(predicate_type, type_parameter, 0)
+                }
+                None => Ok(false),
+            };
+        }
+        let return_type = self.get_return_type_of_signature(signature)?;
+        self.is_type_parameter_at_top_level(return_type, type_parameter, 0)
+    }
+
     /// tsc-port: createEmptyObjectTypeFromStringLiteral @6.0.3
     /// tsc-hash: db0404479692e816441b1bbbe284f68806d6e11a3a0bf7977006a948be35372d
     /// tsc-span: _tsc.js:68356-68385
@@ -687,6 +729,33 @@ impl<'a> CheckerState<'a> {
         id
     }
 
+    /// tsc-port: getTypeFromInference @6.0.3
+    /// tsc-hash: 78fc093a33fc40d4cd89c737b1115002b1cdaff32c2d7448de73181a06503317
+    /// tsc-span: _tsc.js:68506-68508
+    ///
+    /// The signature-less resolution arm (getInferredType 69293):
+    /// covariant candidates union under Subtype reduction,
+    /// contravariant candidates intersect, neither → None (JS
+    /// undefined, folded to the AnyDefault/unknown default by the
+    /// caller).
+    fn get_type_from_inference(
+        &mut self,
+        inference: InferenceInfoId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let Some(candidates) = self.inference_info(inference).candidates.clone() {
+            return Ok(Some(
+                self.get_union_type_ex(&candidates, UnionReduction::Subtype)?,
+            ));
+        }
+        if let Some(contra_candidates) = self.inference_info(inference).contra_candidates.clone() {
+            return Ok(Some(self.get_intersection_type(
+                &contra_candidates,
+                IntersectionFlags::NONE,
+            )?));
+        }
+        Ok(None)
+    }
+
     /// tsc-port: hasSkipDirectInferenceFlag @6.0.3
     /// tsc-hash: acf0e7bd86bab58da75c3a803292e066114e5df6b23cfa64ebff9bacb7805004
     /// tsc-span: _tsc.js:68509-68511
@@ -749,18 +818,387 @@ impl<'a> CheckerState<'a> {
         walker.infer_from_types(original_source, original_target)
     }
 
-    /// tsc-deferred: M6 — getInferredType (69271), the stage 7.3
-    /// resolution + constraint clamp; until then any deferred-mapper
-    /// dispatch that reaches resolution unwinds.
+    /// tsc-port: hasPrimitiveConstraint @6.0.3
+    /// tsc-hash: c32a05bffced6341169f55c1becde664b444f157943fb77ed7b653ff9e09ef16
+    /// tsc-span: _tsc.js:69240-69243
+    fn has_primitive_constraint(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        let Some(constraint) = self.get_constraint_of_type_parameter(ty)? else {
+            return Ok(false);
+        };
+        if self
+            .tables
+            .flags_of(constraint)
+            .intersects(TypeFlags::CONDITIONAL)
+        {
+            // 69242: getDefaultConstraintOfConditionalType projection.
+            return Err(Unsupported::new(
+                "hasPrimitiveConstraint conditional-constraint arm (M8 — Conditional \
+                 constraint flags are unconstructible before conditional types land)",
+            ));
+        }
+        Ok(self.maybe_type_of_kind(
+            constraint,
+            TypeFlags::PRIMITIVE
+                | TypeFlags::INDEX
+                | TypeFlags::TEMPLATE_LITERAL
+                | TypeFlags::STRING_MAPPING,
+        ))
+    }
+
+    /// tsc-port: unionObjectAndArrayLiteralCandidates @6.0.3
+    /// tsc-hash: 1050c7b9b9828a62971f26f442fe29df1b33e2127f62d6633b03b2ac8a7440af
+    /// tsc-span: _tsc.js:69250-69259
+    ///
+    /// Order is observable: the merged subtype-union of the literal
+    /// candidates lands AFTER every non-literal candidate
+    /// (concatenate(filter(...), [literalsType])).
+    fn union_object_and_array_literal_candidates(
+        &mut self,
+        candidates: Vec<TypeId>,
+    ) -> CheckResult2<Vec<TypeId>> {
+        if candidates.len() > 1 {
+            let object_literals: Vec<TypeId> = candidates
+                .iter()
+                .copied()
+                .filter(|&t| self.is_object_or_array_literal_type(t))
+                .collect();
+            if !object_literals.is_empty() {
+                let literals_type =
+                    self.get_union_type_ex(&object_literals, UnionReduction::Subtype)?;
+                let mut result: Vec<TypeId> = candidates
+                    .iter()
+                    .copied()
+                    .filter(|&t| !self.is_object_or_array_literal_type(t))
+                    .collect();
+                result.push(literals_type);
+                return Ok(result);
+            }
+        }
+        Ok(candidates)
+    }
+
+    /// tsc-port: getContravariantInference @6.0.3
+    /// tsc-hash: b0c99208df0211cd206c6aff8b10cb54f167138438899d9f58fbcc92696501ad
+    /// tsc-span: _tsc.js:69260-69262
+    fn get_contravariant_inference(&mut self, inference: InferenceInfoId) -> CheckResult2<TypeId> {
+        let contra_candidates = self
+            .inference_info(inference)
+            .contra_candidates
+            .clone()
+            .expect("caller-guarded (69279: contraCandidates checked before the call)");
+        if self
+            .inference_info(inference)
+            .priority
+            .unwrap_or(InferencePriority::NONE)
+            .intersects(InferencePriority::PRIORITY_IMPLIES_COMBINATION)
+        {
+            self.get_intersection_type(&contra_candidates, IntersectionFlags::NONE)
+        } else {
+            self.get_common_subtype(&contra_candidates)
+        }
+    }
+
+    /// tsc-port: getCovariantInference @6.0.3
+    /// tsc-hash: 223befe28c7043cabe04b0e85f88d1cc00d8e64919565301fec6cd60d4ceb42d
+    /// tsc-span: _tsc.js:69263-69270
+    ///
+    /// The widen-literals RULE (checker-key §2.1): a primitive-ish (or
+    /// const) constraint keeps literals at their regular form; a
+    /// top-level inference widens unless the parameter sits at top
+    /// level of an unfixed signature's return type. Evaluation order
+    /// preserved — the return-type walk only runs when the fixed bit
+    /// is clear.
+    fn get_covariant_inference(
+        &mut self,
+        inference: InferenceInfoId,
+        signature: SignatureId,
+    ) -> CheckResult2<TypeId> {
+        let raw_candidates = self
+            .inference_info(inference)
+            .candidates
+            .clone()
+            .expect("caller-guarded (69277: candidates checked before the call)");
+        let candidates = self.union_object_and_array_literal_candidates(raw_candidates)?;
+        let type_parameter = self.inference_info(inference).type_parameter;
+        let primitive_constraint = self.has_primitive_constraint(type_parameter)?
+            || self.is_const_type_variable(Some(type_parameter), 0);
+        let widen_literal_types = !primitive_constraint
+            && self.inference_info(inference).top_level
+            && (self.inference_info(inference).is_fixed
+                || !self
+                    .is_type_parameter_at_top_level_in_return_type(signature, type_parameter)?);
+        let base_candidates = if primitive_constraint {
+            candidates
+                .iter()
+                .map(|&t| self.tables.get_regular_type_of_literal_type(t))
+                .collect::<Vec<_>>()
+        } else if widen_literal_types {
+            let mut widened = Vec::with_capacity(candidates.len());
+            for &t in &candidates {
+                widened.push(self.get_widened_literal_type(t)?);
+            }
+            widened
+        } else {
+            candidates
+        };
+        let unwidened_type = if self
+            .inference_info(inference)
+            .priority
+            .unwrap_or(InferencePriority::NONE)
+            .intersects(InferencePriority::PRIORITY_IMPLIES_COMBINATION)
+        {
+            self.get_union_type_ex(&base_candidates, UnionReduction::Subtype)?
+        } else {
+            self.get_common_supertype(&base_candidates)?
+        };
+        self.get_widened_type(unwidened_type)
+    }
+
+    /// tsrs-native: `context.compareTypes(...)` dispatch over the
+    /// CompareTypesFn closed set (see the enum): tsc stores a function
+    /// reference on the context; the only constructible member today
+    /// is compareTypesAssignable (68239), whose Ternary truthiness is
+    /// exactly isTypeAssignableTo.
+    fn compare_inference_types(
+        &mut self,
+        context: InferenceContextId,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<bool> {
+        match self.inference_context(context).compare_types {
+            CompareTypesFn::Assignable => self.is_type_assignable_to(source, target),
+        }
+    }
+
+    /// tsc-port: getInferredType @6.0.3
+    /// tsc-hash: d2c8c7eb89a8492d264bf6b61f2df05e3f930e7fb580cec3d3693b9907ab3f25
+    /// tsc-span: _tsc.js:69271-69313
+    ///
+    /// Resolution of ONE live slot, memoized on the info. Write order
+    /// is load-bearing: the pre-clamp memo (69296) lands BEFORE the
+    /// constraint work so a re-entrant resolution through the
+    /// non-fixing mapper (constraint/default instantiation below) sees
+    /// the unclamped value instead of recursing forever; the clamp
+    /// then overwrites (69309). ReturnType-priority violations FILTER
+    /// to the compatible part (priority EQUALITY, not mask); all
+    /// others go never → fallback → instantiated constraint.
+    /// clearActiveMapperCaches (69310) runs on every miss — a fresh
+    /// resolution invalidates every in-flight active-mapper cache.
     pub(crate) fn get_inferred_type(
         &mut self,
         context: InferenceContextId,
         index: usize,
     ) -> CheckResult2<TypeId> {
-        let _ = (context, index);
-        Err(Unsupported::new(
-            "getInferredType resolution and constraint clamp (M6 7.3)",
-        ))
+        let inference = self.inference_context(context).inferences[index];
+        if let Some(cached) = self.inference_info(inference).inferred_type {
+            return Ok(cached);
+        }
+        let mut inferred_type: Option<TypeId> = None;
+        let mut fallback_type: Option<TypeId> = None;
+        if let Some(signature) = self.inference_context(context).signature {
+            let inferred_covariant_type = if self.inference_info(inference).candidates.is_some() {
+                Some(self.get_covariant_inference(inference, signature)?)
+            } else {
+                None
+            };
+            let inferred_contravariant_type =
+                if self.inference_info(inference).contra_candidates.is_some() {
+                    Some(self.get_contravariant_inference(inference)?)
+                } else {
+                    None
+                };
+            if inferred_covariant_type.is_some() || inferred_contravariant_type.is_some() {
+                // 69281: preferCovariantType — JS precedence groups as
+                // cov && (!contra || (!(cov & Never|Any) && some(...)
+                // && every(...))).
+                let prefer_covariant_type = match inferred_covariant_type {
+                    None => false,
+                    Some(cov) => {
+                        if inferred_contravariant_type.is_none() {
+                            true
+                        } else if self
+                            .tables
+                            .flags_of(cov)
+                            .intersects(TypeFlags::NEVER | TypeFlags::ANY)
+                        {
+                            false
+                        } else {
+                            // some(inference.contraCandidates, t =>
+                            // isTypeAssignableTo(cov, t))
+                            let contra_candidates = self
+                                .inference_info(inference)
+                                .contra_candidates
+                                .clone()
+                                .unwrap_or_default();
+                            let mut some_contra_assignable = false;
+                            for t in contra_candidates {
+                                if self.is_type_assignable_to(cov, t)? {
+                                    some_contra_assignable = true;
+                                    break;
+                                }
+                            }
+                            if !some_contra_assignable {
+                                false
+                            } else {
+                                // every(context.inferences, other =>
+                                //   (other !== inference &&
+                                //    constraintOf(other.tp) !== inf.tp)
+                                //   || every(other.candidates, t =>
+                                //        isTypeAssignableTo(t, cov)))
+                                // — && short-circuits: the constraint
+                                // probe never runs on the row itself;
+                                // None candidates ⇒ vacuous true
+                                // (helper `every`, _tsc.js:80).
+                                let inference_type_parameter =
+                                    self.inference_info(inference).type_parameter;
+                                let all_inferences: Vec<InferenceInfoId> =
+                                    self.inference_context(context).inferences.clone();
+                                let mut every_sibling_compatible = true;
+                                'siblings: for other in all_inferences {
+                                    if other != inference {
+                                        let other_type_parameter =
+                                            self.inference_info(other).type_parameter;
+                                        if self.get_constraint_of_type_parameter(
+                                            other_type_parameter,
+                                        )? != Some(inference_type_parameter)
+                                        {
+                                            continue;
+                                        }
+                                    }
+                                    if let Some(other_candidates) =
+                                        self.inference_info(other).candidates.clone()
+                                    {
+                                        for t in other_candidates {
+                                            if !self.is_type_assignable_to(t, cov)? {
+                                                every_sibling_compatible = false;
+                                                break 'siblings;
+                                            }
+                                        }
+                                    }
+                                }
+                                every_sibling_compatible
+                            }
+                        }
+                    }
+                };
+                inferred_type = if prefer_covariant_type {
+                    inferred_covariant_type
+                } else {
+                    inferred_contravariant_type
+                };
+                fallback_type = if prefer_covariant_type {
+                    inferred_contravariant_type
+                } else {
+                    inferred_covariant_type
+                };
+            } else if self
+                .inference_context(context)
+                .flags
+                .intersects(InferenceFlags::NO_DEFAULT)
+            {
+                // 69285: silentNeverType carries NonInferrableType, so
+                // the placeholder can never become a candidate later.
+                inferred_type = Some(self.tables.intrinsics.silent_never);
+            } else {
+                let type_parameter = self.inference_info(inference).type_parameter;
+                if let Some(default_type) = self.get_default_from_type_parameter(type_parameter)? {
+                    // 69289: defaults instantiate under the
+                    // backreference mapper merged with the non-fixing
+                    // mapper — forward parameters collapse to unknown.
+                    let backreference = self.create_backreference_mapper(context, index);
+                    let non_fixing_mapper = self.inference_context(context).non_fixing_mapper;
+                    let merged = self.merge_type_mappers(Some(backreference), non_fixing_mapper);
+                    inferred_type = Some(self.instantiate_type(default_type, Some(merged))?);
+                }
+            }
+        } else {
+            inferred_type = self.get_type_from_inference(inference)?;
+        }
+        // 69296: the pre-clamp memo write (see the fn comment).
+        let memo = match inferred_type {
+            Some(t) => t,
+            None => {
+                let any_default = self
+                    .inference_context(context)
+                    .flags
+                    .intersects(InferenceFlags::ANY_DEFAULT);
+                self.get_default_type_argument_type(any_default)
+            }
+        };
+        self.inference_info_mut(inference).inferred_type = Some(memo);
+        let type_parameter = self.inference_info(inference).type_parameter;
+        if let Some(constraint) = self.get_constraint_of_type_parameter(type_parameter)? {
+            let non_fixing_mapper = self.inference_context(context).non_fixing_mapper;
+            let instantiated_constraint =
+                self.instantiate_type(constraint, Some(non_fixing_mapper))?;
+            if let Some(t) = inferred_type {
+                let constraint_with_this =
+                    self.get_type_with_this_argument(instantiated_constraint, Some(t), false)?;
+                if !self.compare_inference_types(context, t, constraint_with_this)? {
+                    let filtered_by_constraint = if self.inference_info(inference).priority
+                        == Some(InferencePriority::RETURN_TYPE)
+                    {
+                        self.filter_type_with(t, |state, member| {
+                            state.compare_inference_types(context, member, constraint_with_this)
+                        })?
+                    } else {
+                        self.tables.intrinsics.never
+                    };
+                    inferred_type = if !self
+                        .tables
+                        .flags_of(filtered_by_constraint)
+                        .intersects(TypeFlags::NEVER)
+                    {
+                        Some(filtered_by_constraint)
+                    } else {
+                        None
+                    };
+                }
+            }
+            if inferred_type.is_none() {
+                inferred_type = Some(match fallback_type {
+                    Some(fallback) => {
+                        let fallback_with_this = self.get_type_with_this_argument(
+                            instantiated_constraint,
+                            Some(fallback),
+                            false,
+                        )?;
+                        if self.compare_inference_types(context, fallback, fallback_with_this)? {
+                            fallback
+                        } else {
+                            instantiated_constraint
+                        }
+                    }
+                    None => instantiated_constraint,
+                });
+            }
+            self.inference_info_mut(inference).inferred_type = inferred_type;
+        }
+        self.clear_active_mapper_caches();
+        Ok(self
+            .inference_info(inference)
+            .inferred_type
+            .expect("memo written above (69296/69309)"))
+    }
+
+    /// tsc-port: getInferredTypes @6.0.3
+    /// tsc-hash: d08f983f8d34190b05cc662bae55c77da341bccf5e43a9b8aeae1ae186d961f5
+    /// tsc-span: _tsc.js:69317-69323
+    ///
+    /// Slot order = type-parameter order; resolution of slot i can
+    /// re-enter later slots through the non-fixing mapper, so the
+    /// loop's per-index call rides the memo.
+    #[allow(dead_code)] // consumer: 7.4 inferTypeArguments / chooseOverload (76841)
+    pub(crate) fn get_inferred_types(
+        &mut self,
+        context: InferenceContextId,
+    ) -> CheckResult2<Vec<TypeId>> {
+        let len = self.inference_context(context).inferences.len();
+        let mut result = Vec::with_capacity(len);
+        for index in 0..len {
+            result.push(self.get_inferred_type(context, index)?);
+        }
+        Ok(result)
     }
 }
 
@@ -2861,13 +3299,14 @@ mod tests {
     }
 
     #[test]
-    fn deferred_dispatch_identity_and_stub_frontier() {
+    fn deferred_dispatch_identity_and_live_resolution() {
         with_program_state(
             &[("a.ts", GENERIC_SRC)],
             &CompilerOptions::default(),
             |state| {
                 let t = declared_type_parameter(state, "T");
                 let string = state.tables.intrinsics.string;
+                let unknown = state.tables.intrinsics.unknown;
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 let non_fixing = state.inference_context(ctx).non_fixing_mapper;
                 // 63348: non-member types map to themselves.
@@ -2875,9 +3314,14 @@ mod tests {
                     .get_mapped_type(string, non_fixing)
                     .expect("identity on non-member");
                 assert_eq!(mapped, string);
-                // A member dispatches into the 7.3 resolution stub.
-                let err = state.get_mapped_type(t, non_fixing).expect_err("7.3 stub");
-                assert!(err.reason.contains("getInferredType"), "{}", err.reason);
+                // A member dispatches into 7.3 resolution: no
+                // signature, no candidates → getTypeFromInference is
+                // undefined and the 69296 fold lands unknownType.
+                let resolved = state
+                    .get_mapped_type(t, non_fixing)
+                    .expect("live resolution");
+                assert_eq!(resolved, unknown);
+                assert_eq!(slot(state, ctx, 0).inferred_type, Some(unknown));
                 // The non-fixing thunk never fixes (68274-68275).
                 assert!(!slot(state, ctx, 0).is_fixed);
             },
@@ -2893,27 +3337,29 @@ mod tests {
                 let t = declared_type_parameter(state, "T");
                 let u = declared_type_parameter(state, "U");
                 let string = state.tables.intrinsics.string;
+                let unknown = state.tables.intrinsics.unknown;
                 let ctx = state.create_inference_context(&[t, u], None, InferenceFlags::NONE, None);
                 slot_mut(state, ctx, 0).inferred_type = Some(string);
                 slot_mut(state, ctx, 1).inferred_type = Some(string);
                 let fixing = state.inference_context(ctx).mapper;
-                let err = state.get_mapped_type(t, fixing).expect_err("7.3 stub");
-                assert!(err.reason.contains("getInferredType"), "{}", err.reason);
+                let resolved = state.get_mapped_type(t, fixing).expect("live resolution");
                 // 68263-68265 order: clearCachedInferences runs while
-                // the row is still unfixed (its own stale cache
-                // drops), THEN isFixed is set, THEN resolution.
+                // the row is still unfixed (its own STALE Some(string)
+                // cache drops — resolution then re-memoizes unknown),
+                // THEN isFixed is set, THEN resolution.
+                assert_eq!(resolved, unknown);
                 assert!(slot(state, ctx, 0).is_fixed);
-                assert!(slot(state, ctx, 0).inferred_type.is_none());
-                // Other unfixed rows lose their cache too.
+                assert_eq!(slot(state, ctx, 0).inferred_type, Some(unknown));
+                // Other unfixed rows lose their cache too — and stay
+                // unresolved (only slot 0 was dispatched).
                 assert!(!slot(state, ctx, 1).is_fixed);
                 assert!(slot(state, ctx, 1).inferred_type.is_none());
                 // A second dispatch on the SAME (now fixed) row skips
-                // the drain/clear preamble entirely (68262 guard).
+                // the drain/clear preamble entirely (68262 guard) and
+                // memo-hits.
                 slot_mut(state, ctx, 1).inferred_type = Some(string);
-                let err = state
-                    .get_mapped_type(t, fixing)
-                    .expect_err("7.3 stub again");
-                assert!(err.reason.contains("getInferredType"), "{}", err.reason);
+                let resolved_again = state.get_mapped_type(t, fixing).expect("memo hit");
+                assert_eq!(resolved_again, unknown);
                 assert_eq!(
                     slot(state, ctx, 1).inferred_type,
                     Some(string),
@@ -2938,9 +3384,11 @@ mod tests {
             |state| {
                 let t = declared_type_parameter(state, "T");
                 let string = state.tables.intrinsics.string;
+                let unknown = state.tables.intrinsics.unknown;
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 let fixing = state.inference_context(ctx).mapper;
-                let _ = state.get_mapped_type(t, fixing).expect_err("7.3 stub");
+                let first = state.get_mapped_type(t, fixing).expect("live resolution");
+                assert_eq!(first, unknown);
                 assert!(slot(state, ctx, 0).is_fixed);
                 // 80786: a fresh candidate-bearing info replaces the
                 // slot (isFixed starts false).
@@ -2949,7 +3397,11 @@ mod tests {
                 fresh.inferred_type = Some(string);
                 let fresh_id = state.alloc_inference_info(fresh);
                 state.inference_context_mut(ctx).inferences[0] = fresh_id;
-                let _ = state.get_mapped_type(t, fixing).expect_err("7.3 stub");
+                // The thunk-captured info stays fixed → preamble
+                // skipped; resolution reads the LIVE slot and
+                // memo-hits its Some(string).
+                let second = state.get_mapped_type(t, fixing).expect("live-slot memo");
+                assert_eq!(second, string);
                 assert!(
                     !slot(state, ctx, 0).is_fixed,
                     "live merged row stays unfixed — tsc's detached capture absorbs the fix"
@@ -2989,9 +3441,10 @@ mod tests {
                 // `var w = 1` has no contextual type at the
                 // initializer, so the drain loop completes without
                 // touching inferTypes and clears the list (68297),
-                // then resolution hits the 7.3 stub.
-                let err = state.get_mapped_type(t, fixing).expect_err("7.3 stub");
-                assert!(err.reason.contains("getInferredType"), "{}", err.reason);
+                // then resolution runs live (no candidates →
+                // unknown).
+                let resolved = state.get_mapped_type(t, fixing).expect("live resolution");
+                assert_eq!(resolved, state.tables.intrinsics.unknown);
                 assert!(state
                     .inference_context(ctx)
                     .intra_expression_inference_sites
@@ -3231,12 +3684,13 @@ mod tests {
                 slot_mut(state, ctx, 0).candidates = Some(vec![string]);
                 state.push_inference_context(var_decl, Some(ctx));
                 // 73444-73445: Signature flags + a candidate-bearing
-                // row instantiate through the NON-fixing mapper,
-                // whose resolution is the 7.3 stub today.
-                let err = state
+                // row instantiate through the NON-fixing mapper —
+                // resolution unions the candidates (getTypeFromInference,
+                // no context signature) without fixing the row.
+                let out = state
                     .instantiate_contextual_type(Some(t), var_decl, ContextFlags::SIGNATURE)
-                    .expect_err("reaches the 7.3 stub through the non-fixing mapper");
-                assert!(err.reason.contains("getInferredType"), "{}", err.reason);
+                    .expect("resolves through the non-fixing mapper");
+                assert_eq!(out, Some(string));
                 assert!(
                     !slot(state, ctx, 0).is_fixed,
                     "the Signature branch must NOT fix"
@@ -3265,6 +3719,479 @@ mod tests {
                 assert!(state.inference_contexts.is_empty());
                 assert_eq!(state.inference_context_arena.len(), 1);
                 assert_eq!(state.inference_context(ctx).inferences.len(), 1);
+            },
+        );
+    }
+
+    // ---- 7.3: getInferredType resolution + constraint clamp ----
+
+    /// The declared function's call signature — the realistic
+    /// `context.signature` for resolution tests (return-type position
+    /// and constraints come from the declaration).
+    fn call_signature_of(state: &mut CheckerState, name: &str) -> crate::state::SignatureId {
+        let inside = node_of_kind(state, tsrs2_syntax::SyntaxKind::VariableDeclaration);
+        let symbol = state
+            .resolve_name(Some(inside), name, SymbolFlags::VALUE, None, false, false)
+            .expect("resolve_name")
+            .expect("function resolves");
+        let ty = state.get_type_of_symbol(symbol).expect("function type");
+        state
+            .get_signatures_of_type(ty, crate::state::SignatureKind::Call)
+            .expect("signatures")[0]
+    }
+
+    fn fresh_string_literal(state: &mut CheckerState, value: &str) -> TypeId {
+        let regular = state.tables.get_string_literal_type(value);
+        state.tables.get_fresh_type_of_literal_type(regular)
+    }
+
+    #[test]
+    fn resolution_keeps_literal_when_parameter_tops_return_type() {
+        with_program_state(
+            &[("a.ts", "function fr<T>(x: T): T { var v = 1; return x; }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let signature = call_signature_of(state, "fr");
+                let fresh_a = fresh_string_literal(state, "a");
+                let ctx = state.create_inference_context(
+                    &[t],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+                // 69265: topLevel + unfixed + T at top level of the
+                // return type → widenLiteralTypes stays false; the
+                // fresh literal survives (getWidenedType widens object
+                // literals, not fresh primitives).
+                let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved, fresh_a);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_widens_literal_off_return_position() {
+        with_program_state(
+            &[("a.ts", "function fv<T>(x: T): void { var v = 1; }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let signature = call_signature_of(state, "fv");
+                let fresh_a = fresh_string_literal(state, "a");
+                let string = state.tables.intrinsics.string;
+                let ctx = state.create_inference_context(
+                    &[t],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+                let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved, string);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_fixed_row_widens_even_in_return_position() {
+        with_program_state(
+            &[("a.ts", "function fr<T>(x: T): T { var v = 1; return x; }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let signature = call_signature_of(state, "fr");
+                let fresh_a = fresh_string_literal(state, "a");
+                let string = state.tables.intrinsics.string;
+                let ctx = state.create_inference_context(
+                    &[t],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+                slot_mut(state, ctx, 0).is_fixed = true;
+                // 69265: isFixed short-circuits the return-type probe.
+                let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved, string);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_primitive_constraint_keeps_regular_literal() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function fc<T extends string>(x: T): T { var v = 1; return x; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let signature = call_signature_of(state, "fc");
+                let regular_a = state.tables.get_string_literal_type("a");
+                let fresh_a = state.tables.get_fresh_type_of_literal_type(regular_a);
+                let ctx = state.create_inference_context(
+                    &[t],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+                // 69266: a primitive constraint maps candidates to
+                // their REGULAR form instead of widening — the literal
+                // survives at its regular identity even though T also
+                // tops the return type (primitiveConstraint wins the
+                // split before widenLiteralTypes is consulted).
+                let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved, regular_a);
+                assert_ne!(resolved, fresh_a);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_no_default_flag_yields_silent_never() {
+        with_program_state(
+            &[("a.ts", "function fr<T>(x: T): T { var v = 1; return x; }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let signature = call_signature_of(state, "fr");
+                let ctx = state.create_inference_context(
+                    &[t],
+                    Some(signature),
+                    InferenceFlags::NO_DEFAULT,
+                    None,
+                );
+                // 69285: no candidates + NoDefault → silentNeverType
+                // (NonInferrableType-flagged so it can never be
+                // recorded as a candidate later).
+                let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved, state.tables.intrinsics.silent_never);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_default_pulls_earlier_slot_through_non_fixing_mapper() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function fd<T, U = T>(x: T, y?: U): void { var v = 1; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let u = declared_type_parameter(state, "U");
+                let signature = call_signature_of(state, "fd");
+                let fresh_a = fresh_string_literal(state, "a");
+                let string = state.tables.intrinsics.string;
+                let ctx = state.create_inference_context(
+                    &[t, u],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+                // 69289: U's default (T) instantiates under
+                // backreference+nonFixing — T is BEFORE the resolving
+                // index, so it routes through the non-fixing mapper
+                // and resolves for real (widened off return position).
+                let resolved_u = state.get_inferred_type(ctx, 1).expect("resolves");
+                assert_eq!(resolved_u, string);
+                assert_eq!(slot(state, ctx, 0).inferred_type, Some(string));
+                assert!(!slot(state, ctx, 0).is_fixed, "non-fixing route");
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_forward_default_collapses_to_unknown_via_backreference() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function fe<T = U, U> (x: U): void { var v = 1; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let u = declared_type_parameter(state, "U");
+                let signature = call_signature_of(state, "fe");
+                let unknown = state.tables.intrinsics.unknown;
+                let ctx = state.create_inference_context(
+                    &[t, u],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                // 63381: the backreference mapper covers every slot AT
+                // or AFTER the resolving index — the forward reference
+                // U inside T's default collapses to unknown and the
+                // non-fixing mapper is never consulted for U.
+                let resolved_t = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved_t, unknown);
+                assert!(
+                    slot(state, ctx, 1).inferred_type.is_none(),
+                    "backreference must shadow the non-fixing mapper for forward slots"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_clamp_filters_return_type_priority_to_compatible_part() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function ff<T extends \"a\" | \"b\">(x: T): T { var v = 1; return x; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let signature = call_signature_of(state, "ff");
+                let regular_a = state.tables.get_string_literal_type("a");
+                let number = state.tables.intrinsics.number;
+                let violating = state
+                    .get_union_type_ex(&[regular_a, number], UnionReduction::Literal)
+                    .expect("union");
+                let ctx = state.create_inference_context(
+                    &[t],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx, 0).candidates = Some(vec![violating]);
+                slot_mut(state, ctx, 0).priority = Some(InferencePriority::RETURN_TYPE);
+                // 69302: ReturnType-priority (EQUALITY, not mask)
+                // violations FILTER the inference to the part
+                // compatible with the instantiated constraint.
+                let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved, regular_a);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_clamp_non_return_priority_replaces_with_constraint() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function ff<T extends \"a\" | \"b\">(x: T): T { var v = 1; return x; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let signature = call_signature_of(state, "ff");
+                let regular_a = state.tables.get_string_literal_type("a");
+                let number = state.tables.intrinsics.number;
+                let violating = state
+                    .get_union_type_ex(&[regular_a, number], UnionReduction::Literal)
+                    .expect("union");
+                let constraint = state
+                    .get_constraint_of_type_parameter(t)
+                    .expect("constraint lookup")
+                    .expect("declared constraint");
+                let ctx = state.create_inference_context(
+                    &[t],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx, 0).candidates = Some(vec![violating]);
+                // priority None: the filter arm is neverType, no
+                // fallback exists → the instantiated constraint wins
+                // (69303-69307).
+                let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved, constraint);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_clamp_falls_back_to_contravariant_inference() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function fs<T extends string>(x: T): void { var v = 1; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let signature = call_signature_of(state, "fs");
+                let string = state.tables.intrinsics.string;
+                let number = state.tables.intrinsics.number;
+                let string_or_number = state
+                    .get_union_type_ex(&[string, number], UnionReduction::Literal)
+                    .expect("union");
+                let ctx = state.create_inference_context(
+                    &[t],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                // Covariant string|number is preferred (assignable to
+                // the string|number contra candidate; sibling clause
+                // vacuous) but violates the string constraint; the
+                // never-filtered result falls back to the
+                // CONTRAVARIANT inference — commonSubtype([string,
+                // string|number]) = string — which satisfies it
+                // (69306).
+                slot_mut(state, ctx, 0).candidates = Some(vec![string_or_number]);
+                slot_mut(state, ctx, 0).contra_candidates = Some(vec![string, string_or_number]);
+                let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved, string);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_prefer_covariant_vetoed_by_constrained_sibling_candidates() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function fg<T, U extends T>(x: T, y: U): void { var v = 1; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let u = declared_type_parameter(state, "U");
+                let string = state.tables.intrinsics.string;
+                let number = state.tables.intrinsics.number;
+                let unknown = state.tables.intrinsics.unknown;
+                let signature = call_signature_of(state, "fg");
+                // Veto: U is constrained to T and carries a candidate
+                // NOT assignable to T's covariant inference — the
+                // 69281 every-clause rejects covariant preference and
+                // the contravariant inference wins.
+                let ctx = state.create_inference_context(
+                    &[t, u],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx, 0).candidates = Some(vec![string]);
+                slot_mut(state, ctx, 0).contra_candidates = Some(vec![unknown]);
+                slot_mut(state, ctx, 1).candidates = Some(vec![number]);
+                let vetoed = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(vetoed, unknown);
+                // Control: same shape, no sibling candidates → the
+                // every-clause is vacuous and covariant wins.
+                let ctx2 = state.create_inference_context(
+                    &[t, u],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx2, 0).candidates = Some(vec![string]);
+                slot_mut(state, ctx2, 0).contra_candidates = Some(vec![unknown]);
+                let preferred = state.get_inferred_type(ctx2, 0).expect("resolves");
+                assert_eq!(preferred, string);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_without_signature_intersects_contra_candidates() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+                slot_mut(state, ctx, 0).contra_candidates = Some(vec![string]);
+                // 68507: no context signature → getTypeFromInference's
+                // contra arm intersects.
+                let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
+                assert_eq!(resolved, string);
+            },
+        );
+    }
+
+    #[test]
+    fn get_inferred_types_resolves_slots_in_order() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function fd<T, U = T>(x: T, y?: U): void { var v = 1; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let u = declared_type_parameter(state, "U");
+                let signature = call_signature_of(state, "fd");
+                let fresh_a = fresh_string_literal(state, "a");
+                let string = state.tables.intrinsics.string;
+                let ctx = state.create_inference_context(
+                    &[t, u],
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    None,
+                );
+                slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+                let resolved = state.get_inferred_types(ctx).expect("resolves");
+                assert_eq!(resolved, vec![string, string]);
+            },
+        );
+    }
+
+    #[test]
+    fn get_common_subtype_reduces_left_keeping_deepest() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let string = state.tables.intrinsics.string;
+                let number = state.tables.intrinsics.number;
+                let string_or_number = state
+                    .get_union_type_ex(&[string, number], UnionReduction::Literal)
+                    .expect("union");
+                let common = state
+                    .get_common_subtype(&[string_or_number, string])
+                    .expect("common subtype");
+                assert_eq!(common, string);
+                // Ties keep the EARLIER element (strict `?:` — the
+                // later one wins only when it IS a subtype).
+                let common_rev = state
+                    .get_common_subtype(&[string, string_or_number])
+                    .expect("common subtype");
+                assert_eq!(common_rev, string);
+            },
+        );
+    }
+
+    #[test]
+    fn resolution_clears_active_mapper_caches_on_every_miss() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let any = state.tables.intrinsics.any;
+                let string = state.tables.intrinsics.string;
+                let mapper = state.make_unary_type_mapper(t, any);
+                // Simulate an in-flight instantiation frame (73607):
+                // one active mapper with a warm cache row.
+                state.active_type_mappers.push(mapper);
+                state
+                    .active_type_mappers_caches
+                    .push(std::collections::HashMap::new());
+                state.active_type_mappers_caches[0].insert("probe".to_string(), string);
+                let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+                let _ = state.get_inferred_type(ctx, 0).expect("resolves");
+                // 69310: a fresh resolution invalidates every level of
+                // the active-mapper cache stack (depth preserved).
+                assert_eq!(state.active_type_mappers.len(), 1);
+                assert!(state.active_type_mappers_caches[0].is_empty());
+                // A memo HIT does not re-clear (the 69272 early
+                // return).
+                state.active_type_mappers_caches[0].insert("probe".to_string(), string);
+                let _ = state.get_inferred_type(ctx, 0).expect("memo");
+                assert_eq!(state.active_type_mappers_caches[0].len(), 1);
+                state.active_type_mappers.pop();
+                state.active_type_mappers_caches.pop();
             },
         );
     }

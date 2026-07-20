@@ -553,6 +553,23 @@ impl<'a> CheckerState<'a> {
         flags
     }
 
+    /// tsc-port: getCommonSubtype @6.0.3
+    /// tsc-hash: 639fa26669d4d46366e1fdcb6936be42a2ae38844510987464c7d23df3558f3f
+    /// tsc-span: _tsc.js:67662-67664
+    ///
+    /// reduceLeft over the Subtype relation (M3 4.8) — first element
+    /// seeds; ties keep the earlier element (strict `?:` on the later
+    /// one winning only when it IS a subtype).
+    pub(crate) fn get_common_subtype(&mut self, types: &[TypeId]) -> CheckResult2<TypeId> {
+        let mut candidate = types[0];
+        for &t in &types[1..] {
+            if self.is_type_subtype_of(t, candidate)? {
+                candidate = t;
+            }
+        }
+        Ok(candidate)
+    }
+
     /// tsc-port: getNullableType @6.0.3
     /// tsc-hash: e51ab12c29ed98598d2d368c3bd905b09fb8e31de0a718389a894ad5d7677537
     /// tsc-span: _tsc.js:67848-67851
