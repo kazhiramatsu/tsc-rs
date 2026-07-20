@@ -1426,13 +1426,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
-in = "type_predicate_signature_relation_gate"
-reason = "type-predicate signature relations (compareTypePredicateRelatedTo, M6)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
 in = "utf16_to_string"
 reason = "template inference strands a surrogate half (UTF-16 WTF-16 representation, M8)"
 class = "stage"

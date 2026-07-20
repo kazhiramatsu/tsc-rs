@@ -2122,27 +2122,69 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             result = ternary_and(result, related);
         }
-        // Type-predicate containment (M6 7.5). Over-contained: the
-        // gate fires BEFORE the ignoreReturnTypes early return, but
-        // tsc's identical-path predicate consult
-        // (compareTypePredicatesIdentical) lives INSIDE the
-        // !ignoreReturnTypes region — union signature matching pays
-        // containment tsc never computes (m4-review B7).
-        self.st.type_predicate_signature_relation_gate(source)?;
-        self.st.type_predicate_signature_relation_gate(target)?;
         if ignore_return_types {
             return Ok(result);
         }
-        let source_return = self.st.get_return_type_of_signature(source)?;
-        let target_return = self.st.get_return_type_of_signature(target)?;
-        let related = self.is_related_to(
-            source_return,
-            target_return,
-            RecursionFlags::BOTH,
-            /*report_errors*/ false,
-            IntersectionState::NONE,
-        )?;
+        // 67624-67628: the predicate consult REPLACES the return-type
+        // comparison when either side carries one, and only inside
+        // !ignoreReturnTypes — the ignoreReturnTypes cells (union
+        // signature matching via findMatchingSignature) consult no
+        // predicate machinery at all (m4-review B7 restored the
+        // decision table; the old gate over-contained them).
+        let source_type_predicate = self.st.get_type_predicate_of_signature(source)?;
+        let target_type_predicate = self.st.get_type_predicate_of_signature(target)?;
+        let related = if source_type_predicate.is_some() || target_type_predicate.is_some() {
+            self.compare_type_predicates_identical(
+                source_type_predicate.as_ref(),
+                target_type_predicate.as_ref(),
+            )?
+        } else {
+            let source_return = self.st.get_return_type_of_signature(source)?;
+            let target_return = self.st.get_return_type_of_signature(target)?;
+            self.is_related_to(
+                source_return,
+                target_return,
+                RecursionFlags::BOTH,
+                /*report_errors*/ false,
+                IntersectionState::NONE,
+            )?
+        };
         Ok(ternary_and(result, related))
+    }
+
+    /// tsc-port: compareTypePredicatesIdentical @6.0.3
+    /// tsc-hash: 5315184a82be50f8baa530ea5ef8f83a9be9e5a183949ebaaa2afb97ee192428
+    /// tsc-span: _tsc.js:67631-67633
+    ///
+    /// typePredicateKindsMatch (61610-61612) inlined: kind AND
+    /// parameterIndex equality. `source.type === target.type` covers
+    /// the both-None cell (asserts-form pairs); a one-sided type is
+    /// False. compareTypes = the ambient relation's worker, exactly
+    /// like the sibling identical-path calls.
+    fn compare_type_predicates_identical(
+        &mut self,
+        source: Option<&crate::narrow::TypePredicate>,
+        target: Option<&crate::narrow::TypePredicate>,
+    ) -> CheckResult2<Ternary> {
+        let (Some(source), Some(target)) = (source, target) else {
+            return Ok(Ternary::FALSE);
+        };
+        if source.kind != target.kind || source.parameter_index != target.parameter_index {
+            return Ok(Ternary::FALSE);
+        }
+        if source.ty == target.ty {
+            return Ok(Ternary::TRUE);
+        }
+        if let (Some(source_type), Some(target_type)) = (source.ty, target.ty) {
+            return self.is_related_to(
+                source_type,
+                target_type,
+                RecursionFlags::BOTH,
+                /*report_errors*/ false,
+                IntersectionState::NONE,
+            );
+        }
+        Ok(Ternary::FALSE)
     }
 
     /// tsc-port: compareSignaturesRelated @6.0.3
@@ -2309,14 +2351,22 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 };
                 let callbacks = match (source_sig, target_sig) {
                     (Some(source_sig), Some(target_sig)) => {
-                        // Over-contained pre-gate (m4-review B7): tsc
-                        // has no predicate consult in the callback
-                        // cell — the recursive
-                        // compareSignaturesRelated tail decides.
-                        self.st.type_predicate_signature_relation_gate(source_sig)?;
-                        self.st.type_predicate_signature_relation_gate(target_sig)?;
-                        self.st.undefined_null_facts(source_type)
-                            == self.st.undefined_null_facts(target_type)
+                        // 64550: the callback cell requires BOTH
+                        // signatures predicate-free — a predicate on
+                        // either side just falls to the plain
+                        // bivariant compare below (m4-review B7
+                        // retired the over-contained pre-gate).
+                        // Consult order (short-circuit): source
+                        // predicate, target predicate, then facts.
+                        self.st
+                            .get_type_predicate_of_signature(source_sig)?
+                            .is_none()
+                            && self
+                                .st
+                                .get_type_predicate_of_signature(target_sig)?
+                                .is_none()
+                            && self.st.undefined_null_facts(source_type)
+                                == self.st.undefined_null_facts(target_type)
                     }
                     _ => false,
                 };
@@ -2403,13 +2453,42 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             } else {
                 self.st.get_return_type_of_signature(source)?
             };
-            // Type-predicate containment (M6 7.5). Over-contained on
-            // the source side: tsc's 64577-64592 arm consults the
-            // predicate machinery only when the TARGET carries one
-            // (a predicate-bearing SOURCE against a plain target is
-            // an ordinary return-type comparison) — m4-review B7.
-            self.st.type_predicate_signature_relation_gate(target)?;
-            self.st.type_predicate_signature_relation_gate(source)?;
+            // 64577-64592: the type-predicate arm (m4-review B7
+            // restored tsc's decision table). The machinery
+            // (compareTypePredicateRelatedTo) runs only when BOTH
+            // sides carry predicates; a target-only identifier/this
+            // predicate is a hard False (tsc's Signature_0_must_be_a_
+            // type_predicate chain rides the T2 elaboration
+            // containment); an asserts-form target alone falls
+            // through with NO return-type comparison (in practice
+            // the void-target early return above already caught it —
+            // probed b7_target_only_asserts); a predicate-free
+            // target takes the plain return comparison whatever the
+            // source carries (a source-only is-predicate compares as
+            // boolean, an asserts-source as void — probed
+            // b7_source_only / b7_source_only_asserts).
+            let target_type_predicate = self.st.get_type_predicate_of_signature(target)?;
+            if let Some(target_type_predicate) = target_type_predicate {
+                let source_type_predicate = self.st.get_type_predicate_of_signature(source)?;
+                if let Some(source_type_predicate) = source_type_predicate {
+                    // 64580: result &= — a False verdict falls to the
+                    // tail return, not an early exit (tsc has none
+                    // here).
+                    let related = self.compare_type_predicate_related_to(
+                        &source_type_predicate,
+                        &target_type_predicate,
+                        intersection_state,
+                    )?;
+                    result = ternary_and(result, related);
+                } else if matches!(
+                    target_type_predicate.kind,
+                    crate::narrow::TypePredicateKind::Identifier
+                        | crate::narrow::TypePredicateKind::This
+                ) {
+                    return Ok(Ternary::FALSE);
+                }
+                return Ok(result);
+            }
             let bivariant = if check_mode & check_mode::BIVARIANT_CALLBACK != 0 {
                 self.is_related_to(
                     target_return_type,
@@ -2435,6 +2514,53 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             result = ternary_and(result, related);
         }
         Ok(result)
+    }
+
+    /// tsc-port: compareTypePredicateRelatedTo @6.0.3
+    /// tsc-hash: 6eebe74bc78f1d45a4471365a7ce2ec3ef940b92c4d5dd79542dd1a14280f72b
+    /// tsc-span: _tsc.js:64606-64628
+    ///
+    /// Verdicts only — every reporting cell (the this-based-guard
+    /// 2518 + 1226 pair, the 1227 + 1226 parameter-position pair, and
+    /// the bare 1226 wrap) feeds tsc's elaboration chain under the
+    /// outer head and rides the port's T2 containment. compareTypes =
+    /// the frame worker
+    /// (isRelatedToWorker2 captures the caller's intersectionState;
+    /// the clamp-style two-arg call means reportErrors=false).
+    /// `source.type === target.type` covers the both-None cell
+    /// (asserts-form pairs — probed b7_asserts_both reaches the void
+    /// early return first, but identifier pairs with equal types land
+    /// here); a one-sided type is False.
+    fn compare_type_predicate_related_to(
+        &mut self,
+        source: &crate::narrow::TypePredicate,
+        target: &crate::narrow::TypePredicate,
+        intersection_state: IntersectionState,
+    ) -> CheckResult2<Ternary> {
+        if source.kind != target.kind {
+            return Ok(Ternary::FALSE);
+        }
+        if matches!(
+            source.kind,
+            crate::narrow::TypePredicateKind::Identifier
+                | crate::narrow::TypePredicateKind::AssertsIdentifier
+        ) && source.parameter_index != target.parameter_index
+        {
+            return Ok(Ternary::FALSE);
+        }
+        if source.ty == target.ty {
+            return Ok(Ternary::TRUE);
+        }
+        if let (Some(source_type), Some(target_type)) = (source.ty, target.ty) {
+            return self.is_related_to(
+                source_type,
+                target_type,
+                RecursionFlags::BOTH,
+                /*report_errors*/ false,
+                intersection_state,
+            );
+        }
+        Ok(Ternary::FALSE)
     }
 
     /// tsc-port: membersRelatedToIndexInfo @6.0.3
@@ -5390,49 +5516,6 @@ impl<'a> CheckerState<'a> {
         Ok(Some(self.get_type_of_symbol(this_parameter)?))
     }
 
-    /// The type-predicate RELATION gate: signature comparison over
-    /// predicate-shaped return annotations is compareTypePredicate-
-    /// RelatedTo (M6 relations); signatures carrying them report
-    /// Unsupported instead of comparing as plain booleans. (The
-    /// narrowing-side materialization is live since 6.4f —
-    /// narrow.rs get_type_predicate_of_signature — and does NOT
-    /// retire this comparison gate.)
-    /// tsrs-native: M6-deferral containment gate (no tsc counterpart;
-    /// the escape row is the ledger surface).
-    ///
-    /// OVER-CONTAINMENT (m4-review B7 — the escape reason is accurate
-    /// for one decision cell in four): tsc needs compareTypePredicate-
-    /// RelatedTo only when BOTH the related-path sides carry
-    /// predicates; a target-only predicate is the 1224-family
-    /// report/False verdict, a source-only predicate is a plain
-    /// return-type comparison, and every ignoreReturnTypes cell needs
-    /// nothing. The three call sites (related tail, identical tail,
-    /// callback pre-gate) each note their over-contained cells; the
-    /// M6 7.5 split restores tsc's decision table (m6 steps doc).
-    pub fn type_predicate_signature_relation_gate(
-        &mut self,
-        signature: SignatureId,
-    ) -> CheckResult2<()> {
-        let Some(declaration) = self.signature_of(signature).declaration else {
-            // Synthesized signatures (default constructors) carry no
-            // predicate.
-            return Ok(());
-        };
-        // The annotation read is effective_return_type_node — the
-        // SAME reader the predicate materialization uses
-        // (narrow.rs get_type_predicate_of_signature), so the gate
-        // covers every declaration kind that can carry a predicate
-        // (function/method declarations and expressions included, not
-        // just the TYPE-node signature kinds).
-        let annotation = self.effective_return_type_node(declaration);
-        if annotation.is_some_and(|node| self.kind_of(node) == SyntaxKind::TypePredicate) {
-            return Err(Unsupported::new(
-                "type-predicate signature relations (compareTypePredicateRelatedTo, M6)",
-            ));
-        }
-        Ok(())
-    }
-
     /// tsc-port: isTopSignature @6.0.3
     /// tsc-hash: 2deef363c847c3d8dd816c49efdf631572c8bd5cd017402e80809d986d917197
     /// tsc-span: _tsc.js:64479-64486
@@ -6938,6 +7021,244 @@ mod tests {
                 "class C<T> { private x: T; constructor(v: T) { this.x = v } m(o: C<string> | C<number>) { return o.x; } }\n"
             ),
             []
+        );
+    }
+
+    // ---- M6 7.5 B7: the compareTypePredicateRelatedTo decision
+    // table (64577-64628). All rows oracle-pinned 2026-07-21
+    // (scratchpad probe75.mjs / probe75b.mjs / probe75c.mjs,
+    // vendored 6.0.3 noLib, strict defaults). Verdict pins whose tsc
+    // head args sit behind the display curtain ride the
+    // @ts-expect-error band, which lives in the PROGRAM driver
+    // (directive filtering + 2578 synthesis + the S8 partial-check
+    // exemption) — those use program_rows, not checked_rows. ----
+
+    fn program_rows(text: &str) -> Vec<(u32, Option<u32>, Option<u32>)> {
+        let result = crate::check_program(
+            &[crate::InputFile {
+                name: "a.ts".to_owned(),
+                text: text.to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        result
+            .diagnostics
+            .iter()
+            .map(|d| (d.code(), d.start, d.length))
+            .collect()
+    }
+
+    #[test]
+    fn predicate_both_sides_mismatched_types_fail_the_relation() {
+        // Both sides carry identifier predicates; string vs number
+        // fails compareTypePredicateRelatedTo's type compare. tsc
+        // reports the 2322 head (1226 chain) — the head's
+        // function-type args sit behind the display curtain
+        // (typeToString 5.4 slice, T2/M8), so the verdict is pinned
+        // via the @ts-expect-error band: a used directive is []
+        // on both sides, a wrong TRUE verdict would surface 2578,
+        // and the display-Err containment path stays exempt (S8).
+        assert_eq!(
+            program_rows(
+                "declare function isCat(x: unknown): x is string;\n// @ts-expect-error\nconst f: (x: unknown) => x is number = isCat;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_expect_error_control_reports_unused_2578() {
+        // CONTROL for the verdict pins above/below: when the
+        // predicate relation SUCCEEDS, the directive goes unused and
+        // the 2578 row fires — proving the [] pins observe verdicts,
+        // not blanket suppression.
+        assert_eq!(
+            program_rows(
+                "declare function isCat(x: unknown): x is string;\n// @ts-expect-error\nconst f: (x: unknown) => x is string = isCat;\n"
+            ),
+            [(2578, Some(49), Some(19))]
+        );
+    }
+
+    #[test]
+    fn predicate_both_sides_equal_types_relate() {
+        assert_eq!(
+            checked_rows(
+                "declare function isCat(x: unknown): x is string;\nconst f: (x: unknown) => x is string = isCat;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_target_only_identifier_fails_the_relation() {
+        // Target-only identifier predicate = the 1224-family cell: a
+        // plain boolean source can never satisfy `x is string`
+        // (verdict via the expect-error band; head display is T2/M8).
+        assert_eq!(
+            program_rows(
+                "declare function plain(x: unknown): boolean;\n// @ts-expect-error\nconst g: (x: unknown) => x is string = plain;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_target_only_asserts_falls_through_silently() {
+        // Asserts-form target alone: the void-return early return
+        // (64570) catches it before the predicate arm — no error.
+        assert_eq!(
+            checked_rows(
+                "declare function plain2(x: unknown): void;\nconst h: (x: unknown) => asserts x is string = plain2;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_source_only_compares_as_boolean_return() {
+        // Source-only is-predicate: plain return comparison — the
+        // predicate signature's return type is boolean.
+        assert_eq!(
+            checked_rows(
+                "declare function isNum(x: unknown): x is number;\nconst k: (x: unknown) => boolean = isNum;\n"
+            ),
+            []
+        );
+        assert_eq!(
+            program_rows(
+                "declare function isNum(x: unknown): x is number;\n// @ts-expect-error\nconst k2: (x: unknown) => string = isNum;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_source_only_asserts_compares_as_void_return() {
+        // Asserts-source vs plain boolean target: the plain return
+        // comparison sees VOID (not boolean) and fails; a void target
+        // takes the 64570 early return instead.
+        assert_eq!(
+            program_rows(
+                "declare function aStr(x: unknown): asserts x is string;\n// @ts-expect-error\nconst z: (x: unknown) => boolean = aStr;\n"
+            ),
+            []
+        );
+        assert_eq!(
+            checked_rows(
+                "declare function aStr2(x: unknown): asserts x is string;\nconst z2: (x: unknown) => void = aStr2;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_parameter_index_mismatch_fails_the_relation() {
+        // Identifier predicates on different parameter positions fail
+        // the 64614 parameterIndex check (1227 chain, T2; verdict via
+        // the expect-error band).
+        assert_eq!(
+            program_rows(
+                "declare function isA(a: unknown, b: unknown): a is string;\n// @ts-expect-error\nconst m: (a: unknown, b: unknown) => b is string = isA;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_kind_mismatch_fails_the_relation() {
+        // Identifier source vs this-based target (and asserts vs
+        // plain is-form) fail the 64607 kind check (2518 chain, T2;
+        // verdicts via the expect-error band).
+        assert_eq!(
+            program_rows(
+                "declare function isThis(this: object, x: unknown): boolean;\ndeclare const src: (x: unknown) => x is string;\n// @ts-expect-error\nconst n: { (x: unknown): this is object } = src;\n"
+            ),
+            []
+        );
+        assert_eq!(
+            program_rows(
+                "declare function assertIsStr2(x: unknown): asserts x is string;\n// @ts-expect-error\nconst q: (x: unknown) => x is string = assertIsStr2;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_union_signature_matching_consults_no_predicate() {
+        // findMatchingSignature runs ignoreReturnTypes=true — the
+        // identical-path predicate consult sits INSIDE
+        // !ignoreReturnTypes (67624-67628), so predicate-carrying
+        // union members produce a callable union signature (the old
+        // gate over-contained this cell).
+        assert_eq!(
+            checked_rows(
+                "declare const u: ((x: unknown) => x is string) | ((x: unknown) => x is string);\nif (u(3)) {}\n"
+            ),
+            []
+        );
+        assert_eq!(
+            checked_rows(
+                "declare const u2: ((x: unknown) => x is string) | ((x: unknown) => boolean);\nif (u2(3)) {}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn predicate_comparable_relation_fails() {
+        // The comparable path reaches the predicate arm (boolean
+        // return, not void): unrelated predicate types are not
+        // comparable either way — tsc's 2352 head args are behind
+        // the display curtain, so the verdict rides the expect-error
+        // band.
+        assert_eq!(
+            program_rows(
+                "declare const src2: (x: unknown) => x is string;\n// @ts-expect-error\nconst c0 = src2 as (x: unknown) => x is number;\n"
+            ),
+            []
+        );
+    }
+
+    // ---- B7 positive movers: statements the old gate contained
+    // wholesale now check through and surface their OTHER rows
+    // (renderable args). Oracle-pinned 2026-07-21 (probe75c.mjs). ----
+
+    #[test]
+    fn predicate_relation_unblocks_sibling_declarator_row() {
+        // Declarator 1's predicate relation now succeeds instead of
+        // Err-containing the whole statement; declarator 2's plain
+        // string→number mismatch surfaces.
+        assert_eq!(
+            checked_rows(
+                "declare function isCat(x: unknown): x is string;\nconst f: (x: unknown) => x is string = isCat, bad: number = \"s\";\n"
+            ),
+            [(2322, 95, 3)]
+        );
+    }
+
+    #[test]
+    fn predicate_union_call_result_row_surfaces() {
+        // findMatchingSignature (ignoreReturnTypes=true) consults no
+        // predicate: the union signature resolves and the boolean
+        // call result fails the number annotation.
+        assert_eq!(
+            checked_rows(
+                "declare const u2: ((x: unknown) => x is string) | ((x: unknown) => boolean);\nconst r: number = u2(3);\n"
+            ),
+            [(2322, 83, 1)]
+        );
+    }
+
+    #[test]
+    fn predicate_argument_passthrough_row_surfaces() {
+        // The argument check's predicate relation succeeds; the call
+        // types and the return-annotation mismatch surfaces.
+        assert_eq!(
+            checked_rows(
+                "declare function isCat(x: unknown): x is string;\ndeclare function take(p: (x: unknown) => x is string): number;\nconst ok: string = take(isCat);\n"
+            ),
+            [(2322, 118, 2)]
         );
     }
 }
