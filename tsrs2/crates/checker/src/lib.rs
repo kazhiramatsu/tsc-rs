@@ -31,6 +31,7 @@ pub mod program;
 pub mod relate;
 pub mod relpin;
 pub mod resolve;
+pub mod speculate;
 pub mod spell;
 pub mod state;
 pub mod statements;

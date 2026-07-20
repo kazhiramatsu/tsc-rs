@@ -1729,6 +1729,12 @@ impl<'a> CheckerState<'a> {
             return Ok(existing);
         }
         let instantiation = self.create_signature_instantiation(signature, type_arguments)?;
+        // Raw Signature cache — in the speculation assert net (7.0t,
+        // m4-review B35) like the links slots.
+        assert_eq!(
+            self.speculation_depth, 0,
+            "links writes are forbidden during speculation (greenfield §4.3)"
+        );
         self.signatures[signature.0 as usize]
             .instantiations
             .insert(key, instantiation);
@@ -1790,6 +1796,12 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let erased = self.create_erased_signature(signature)?;
+        // Raw Signature cache — in the speculation assert net (7.0t,
+        // m4-review B35) like the links slots.
+        assert_eq!(
+            self.speculation_depth, 0,
+            "links writes are forbidden during speculation (greenfield §4.3)"
+        );
         self.signatures[signature.0 as usize].erased_signature_cache = Some(erased);
         Ok(erased)
     }

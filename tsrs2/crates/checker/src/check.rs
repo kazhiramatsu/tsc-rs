@@ -69,6 +69,14 @@ struct UnwindSnapshot {
     variance_type_parameter: Option<TypeId>,
     flow_loop_start: u32,
     flow_loop_stack: usize,
+    // The m4-review B34 blind spots — transient state the census
+    // missed until 7.0t widened it: the shared-flow window, the
+    // ReduceLabel override map, the exhaustive-switch cycle set, and
+    // the inlineLevel budget counter.
+    shared_flow: usize,
+    reduce_label_overrides: usize,
+    exhaustive_switch_computing: usize,
+    inline_level: u32,
     resolving_open: i64,
 }
 
@@ -98,6 +106,10 @@ impl<'a> CheckerState<'a> {
             variance_type_parameter: self.variance_type_parameter,
             flow_loop_start: self.flow_loop_start,
             flow_loop_stack: self.flow_loop_stack.len(),
+            shared_flow: self.shared_flow.len(),
+            reduce_label_overrides: self.reduce_label_overrides.len(),
+            exhaustive_switch_computing: self.exhaustive_switch_computing.len(),
+            inline_level: self.inline_level,
             resolving_open: crate::links::debug_resolving_open(),
         }
     }
@@ -242,6 +254,10 @@ impl<'a> CheckerState<'a> {
                 variance_type_parameter: None,
                 flow_loop_start: 0,
                 flow_loop_stack: 0,
+                shared_flow: 0,
+                reduce_label_overrides: 0,
+                exhaustive_switch_computing: 0,
+                inline_level: 0,
                 resolving_open: 0,
             };
             assert_eq!(

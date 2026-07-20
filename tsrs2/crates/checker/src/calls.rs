@@ -1526,6 +1526,12 @@ impl<'a> CheckerState<'a> {
         let result = self.clone_signature(signature);
         let data = self.signature_mut(result);
         data.flags = SignatureFlags::from_bits(data.flags.bits() | call_chain_flags.bits());
+        // Raw Signature cache — in the speculation assert net (7.0t,
+        // m4-review B35) like the links slots.
+        assert_eq!(
+            self.speculation_depth, 0,
+            "links writes are forbidden during speculation (greenfield §4.3)"
+        );
         let cache = &mut self.signature_mut(signature).optional_call_signature_cache;
         if inner {
             cache.0 = Some(result);
