@@ -19,8 +19,8 @@ use tsrs2_binder::SymbolId;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, IntersectionState, ModifierFlags,
-    ObjectFlags, RecursionFlags, SymbolFlags, Ternary, TupleTargetFlags, TypeData, TypeFlags,
-    TypeId, UnionReduction,
+    ObjectFlags, PseudoBigInt, RecursionFlags, SymbolFlags, Ternary, TupleTargetFlags, TypeData,
+    TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
@@ -6089,7 +6089,7 @@ impl<'a> CheckerState<'a> {
     /// The JS `+s` coercion slice for annotation-reachable strings:
     /// whitespace-trimmed decimal/exponent/hex forms; roundTripOnly
     /// compares against JS number formatting.
-    fn is_valid_number_string(&self, s: &str, round_trip_only: bool) -> bool {
+    pub(crate) fn is_valid_number_string(&self, s: &str, round_trip_only: bool) -> bool {
         if s.is_empty() {
             return false;
         }
@@ -6100,6 +6100,60 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         !round_trip_only || js_number_to_string(n) == s
+    }
+
+    /// tsc-port: isValidBigIntString @6.0.3
+    /// tsc-hash: 976d424ef636dd348576f49fa283c5a8b92988960b470c6038e4cc813de41f7e
+    /// tsc-span: _tsc.js:18973-18989
+    ///
+    /// The scan half (probe scanner over `s + "n"`, minus handling,
+    /// whole-input + no-separator gates) lives in the syntax crate as
+    /// `scan_big_int_string`; this side owns the roundTripOnly
+    /// comparison through parsePseudoBigInt. The scanner normalizes
+    /// binary/octal values at scan time (tsc defers that to
+    /// parsePseudoBigInt) — same composition, one conversion.
+    pub(crate) fn is_valid_big_int_string(&self, s: &str, round_trip_only: bool) -> bool {
+        if s.is_empty() {
+            return false;
+        }
+        let Some(scan) = tsrs2_syntax::scan_big_int_string(s) else {
+            return false;
+        };
+        if scan.contains_separator {
+            return false;
+        }
+        if !round_trip_only {
+            return true;
+        }
+        let Ok(parsed) = crate::expr::parse_pseudo_big_int(&scan.token_value) else {
+            return false;
+        };
+        s == PseudoBigInt {
+            negative: scan.negative,
+            base10_value: parsed.base10_value,
+        }
+        .to_base10_string()
+    }
+
+    /// tsc-port: parseBigIntLiteralType @6.0.3
+    /// tsc-hash: 40e215218d563af7d0b96ce431a11b999b9a0da89c5831c672392b34d7375f45
+    /// tsc-span: _tsc.js:68529-68531
+    ///
+    /// tsc-port: parseValidBigInt @6.0.3
+    /// tsc-hash: cfa855ea7fa2cac2b04dc12d6bc5565366853afaf7ecb25bf4c904f51666f843
+    /// tsc-span: _tsc.js:18969-18972
+    ///
+    /// Callers guard with isValidBigIntString, so the parse-recovery
+    /// Err inside parsePseudoBigInt is unreachable here — propagated
+    /// rather than asserted all the same.
+    pub(crate) fn parse_big_int_literal_type(&mut self, text: &str) -> CheckResult2<TypeId> {
+        let negative = text.starts_with('-');
+        let digits = if negative { &text[1..] } else { text };
+        let parsed = crate::expr::parse_pseudo_big_int(&format!("{digits}n"))?;
+        Ok(self.tables.get_bigint_literal_type(PseudoBigInt {
+            negative,
+            base10_value: parsed.base10_value,
+        }))
     }
 
     /// tsc-port: isTypeMatchedByTemplateLiteralType @6.0.3
@@ -6126,7 +6180,7 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
-    fn infer_types_from_template_literal_type(
+    pub(crate) fn infer_types_from_template_literal_type(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -6148,9 +6202,13 @@ impl<'a> CheckerState<'a> {
                 let mut mapped = Vec::with_capacity(source_types.len());
                 let (_, target_types) = self.template_parts_of(target);
                 for (i, &s) in source_types.iter().enumerate() {
-                    // getBaseConstraintOrType is the identity for
-                    // non-instantiable types (M3).
-                    if self.is_type_assignable_to(s, target_types[i])? {
+                    // 68577 compares the BASE CONSTRAINTS on both
+                    // sides (an M3-era identity shortcut here went
+                    // stale once M4 made instantiable placeholder
+                    // types constructible — pinned).
+                    let source_base = self.get_base_constraint_or_type(s)?;
+                    let target_base = self.get_base_constraint_or_type(target_types[i])?;
+                    if self.is_type_assignable_to(source_base, target_base)? {
                         mapped.push(s);
                     } else {
                         mapped.push(self.get_string_like_type_for_type(s));
@@ -6185,9 +6243,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 6de8a2d259eac2128f6d433d0b28171ed84d87f387ad1fa45f45f90d75bdc941
     /// tsc-span: _tsc.js:68550-68574
     ///
-    /// The bigint arm needs scanner-grade isValidBigIntString — M6
-    /// expression machinery; bigint placeholders report Unsupported.
-    /// StringMapping arms are M4.
+    /// The tsc OR-chain rendered as early returns — equivalent
+    /// because the arm guards are disjoint type kinds. Bigint arm live
+    /// since M6 7.2c (isValidBigIntString); StringMapping arms are M4.
     fn is_valid_type_for_template_literal_placeholder(
         &mut self,
         source: TypeId,
@@ -6233,10 +6291,10 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(true);
             }
-            if target_flags.intersects(TypeFlags::BIG_INT) {
-                return Err(Unsupported::new(
-                    "bigint template placeholders (isValidBigIntString, M6)",
-                ));
+            if target_flags.intersects(TypeFlags::BIG_INT)
+                && self.is_valid_big_int_string(&value, /*round_trip_only*/ false)
+            {
+                return Ok(true);
             }
             if target_flags.intersects(TypeFlags::from_bits(
                 TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
@@ -6414,7 +6472,7 @@ fn is_numeric_literal_name_js(name: &str) -> bool {
 
 /// The `+s` coercion slice: trimmed decimal/exponent/hex/infinity
 /// forms (full JS ToNumber is M6 with expression checking).
-fn js_string_to_number(s: &str) -> Option<f64> {
+pub(crate) fn js_string_to_number(s: &str) -> Option<f64> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
         return Some(0.0);

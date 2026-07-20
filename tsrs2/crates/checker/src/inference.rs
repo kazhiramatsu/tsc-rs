@@ -1280,7 +1280,8 @@ impl InferTypesWalker<'_, '_> {
                 self.infer_from_types(source_type, target)?;
             }
         } else if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-            return Err(Unsupported::new("inferToTemplateLiteralType (M6 7.2c)"));
+            // 68796-68797.
+            self.infer_to_template_literal_type(source, target)?;
         } else {
             return Err(Unsupported::new(
                 "inferFromTypes object tail — getReducedType/getApparentType + \
@@ -1652,13 +1653,277 @@ impl InferTypesWalker<'_, '_> {
              before conditional type nodes land)",
         ))
     }
+
+    /// tsc-port: inferToTemplateLiteralType @6.0.3
+    /// tsc-hash: 61f1cdc14dd0966d118f1069e70acc8930804fc7510291af95b4a6b11ce84e81
+    /// tsc-span: _tsc.js:69022-69060
+    ///
+    /// Placeholder-wise inference from the inferTypesFromTemplateLiteralType
+    /// match list (never-filled when unmatched but the target is all
+    /// placeholders). A string-literal match against a type-variable
+    /// placeholder consults the variable's base constraint and infers
+    /// the COERCED form (number/bigint/boolean/enum literal, or the
+    /// constraint member itself) when exactly the constraint admits it
+    /// — the 69051 reduceLeft fold, split out as
+    /// `template_constraint_match`.
+    fn infer_to_template_literal_type(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<()> {
+        let matches = self
+            .st
+            .infer_types_from_template_literal_type(source, target)?;
+        let TypeData::TemplateLiteral { texts, types } =
+            self.st.tables.type_of(target).data.clone()
+        else {
+            unreachable!("TemplateLiteral flag implies data");
+        };
+        if matches.is_none() && !texts.iter().all(|s| s.is_empty()) {
+            return Ok(());
+        }
+        for (i, &target2) in types.iter().enumerate() {
+            let source2 = match &matches {
+                Some(matches) => matches[i],
+                None => self.st.tables.intrinsics.never,
+            };
+            if self
+                .st
+                .tables
+                .flags_of(source2)
+                .intersects(TypeFlags::STRING_LITERAL)
+                && self
+                    .st
+                    .tables
+                    .flags_of(target2)
+                    .intersects(TypeFlags::TYPE_VARIABLE)
+            {
+                // 69030-69031: the constraint comes from the matched
+                // inference slot's type parameter.
+                let constraint = match self.get_inference_info_for_type(target2) {
+                    Some(info_id) => {
+                        let type_parameter = self.st.inference_info(info_id).type_parameter;
+                        self.st.get_base_constraint_of_type(type_parameter)?
+                    }
+                    None => None,
+                };
+                if let Some(constraint) = constraint {
+                    if !self
+                        .st
+                        .tables
+                        .flags_of(constraint)
+                        .intersects(TypeFlags::ANY)
+                    {
+                        let constraint_types = if self
+                            .st
+                            .tables
+                            .flags_of(constraint)
+                            .intersects(TypeFlags::UNION)
+                        {
+                            self.types_of(constraint)
+                        } else {
+                            vec![constraint]
+                        };
+                        let mut all_type_flags = TypeFlags::from_bits(0);
+                        for &t in &constraint_types {
+                            all_type_flags = TypeFlags::from_bits(
+                                all_type_flags.bits() | self.st.tables.flags_of(t).bits(),
+                            );
+                        }
+                        if !all_type_flags.intersects(TypeFlags::STRING) {
+                            let TypeData::Literal {
+                                value: LiteralValue::String(str_value),
+                            } = self.st.tables.type_of(source2).data.clone()
+                            else {
+                                unreachable!("StringLiteral flag implies string data");
+                            };
+                            // 69038-69050: coercion families the string
+                            // can never round-trip through drop out.
+                            if all_type_flags.intersects(TypeFlags::NUMBER_LIKE)
+                                && !self.st.is_valid_number_string(&str_value, true)
+                            {
+                                all_type_flags = TypeFlags::from_bits(
+                                    all_type_flags.bits() & !TypeFlags::NUMBER_LIKE.bits(),
+                                );
+                            }
+                            if all_type_flags.intersects(TypeFlags::BIG_INT_LIKE)
+                                && !self.st.is_valid_big_int_string(&str_value, true)
+                            {
+                                all_type_flags = TypeFlags::from_bits(
+                                    all_type_flags.bits() & !TypeFlags::BIG_INT_LIKE.bits(),
+                                );
+                            }
+                            let mut matching_type = self.st.tables.intrinsics.never;
+                            for &right in &constraint_types {
+                                matching_type = self.template_constraint_match(
+                                    matching_type,
+                                    right,
+                                    source2,
+                                    &str_value,
+                                    all_type_flags,
+                                )?;
+                            }
+                            if !self
+                                .st
+                                .tables
+                                .flags_of(matching_type)
+                                .intersects(TypeFlags::NEVER)
+                            {
+                                self.infer_from_types(matching_type, target2)?;
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+            self.infer_from_types(source2, target2)?;
+        }
+        Ok(())
+    }
+
+    /// The 69051 reduceLeft step: `left` is the best match so far
+    /// (never = none), `right` the next constraint member. Each
+    /// left-check keeps an earlier win of a MORE-preferred family;
+    /// each right-check admits `right`'s family if the literal text
+    /// round-trips into it. Written as the same ordered chain.
+    fn template_constraint_match(
+        &mut self,
+        left: TypeId,
+        right: TypeId,
+        source: TypeId,
+        str_value: &str,
+        all_type_flags: TypeFlags,
+    ) -> CheckResult2<TypeId> {
+        if !self.st.tables.flags_of(right).intersects(all_type_flags) {
+            return Ok(left);
+        }
+        let left_flags = self.st.tables.flags_of(left);
+        let right_flags = self.st.tables.flags_of(right);
+        if left_flags.intersects(TypeFlags::STRING) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::STRING) {
+            Ok(source)
+        } else if left_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::TEMPLATE_LITERAL)
+            && self
+                .st
+                .is_type_matched_by_template_literal_type(source, right)?
+        {
+            Ok(source)
+        } else if left_flags.intersects(TypeFlags::STRING_MAPPING) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::STRING_MAPPING) && {
+            let symbol = self
+                .st
+                .tables
+                .type_of(right)
+                .symbol
+                .expect("StringMapping carries its intrinsic alias symbol");
+            let name = self.st.binder.symbol(symbol).escaped_name.clone();
+            str_value
+                == crate::instantiate::apply_string_mapping(
+                    crate::instantiate::intrinsic_type_kind(&name),
+                    str_value,
+                )
+        } {
+            Ok(source)
+        } else if left_flags.intersects(TypeFlags::STRING_LITERAL) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::STRING_LITERAL)
+            && matches!(
+                &self.st.tables.type_of(right).data,
+                TypeData::Literal { value: LiteralValue::String(v) } if v == str_value
+            )
+        {
+            Ok(right)
+        } else if left_flags.intersects(TypeFlags::NUMBER) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::NUMBER) {
+            Ok(self.coerced_number_literal(str_value))
+        } else if left_flags.intersects(TypeFlags::ENUM) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::ENUM) {
+            Ok(self.coerced_number_literal(str_value))
+        } else if left_flags.intersects(TypeFlags::NUMBER_LITERAL) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::NUMBER_LITERAL)
+            && matches!(
+                &self.st.tables.type_of(right).data,
+                TypeData::Literal { value: LiteralValue::Number(v) }
+                    if crate::structural::js_string_to_number(str_value) == Some(*v)
+            )
+        {
+            Ok(right)
+        } else if left_flags.intersects(TypeFlags::BIG_INT) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::BIG_INT) {
+            self.st.parse_big_int_literal_type(str_value)
+        } else if left_flags.intersects(TypeFlags::BIG_INT_LITERAL) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::BIG_INT_LITERAL)
+            && matches!(
+                &self.st.tables.type_of(right).data,
+                TypeData::Literal { value: LiteralValue::BigInt(v) }
+                    if v.to_base10_string() == str_value
+            )
+        {
+            Ok(right)
+        } else if left_flags.intersects(TypeFlags::BOOLEAN) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::BOOLEAN) {
+            Ok(match str_value {
+                "true" => self.st.tables.intrinsics.true_fresh,
+                "false" => self.st.tables.intrinsics.false_fresh,
+                _ => self.st.tables.intrinsics.boolean,
+            })
+        } else if left_flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+            && self.intrinsic_name_of(right) == Some(str_value)
+        {
+            Ok(right)
+        } else if left_flags.intersects(TypeFlags::UNDEFINED) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::UNDEFINED)
+            && self.intrinsic_name_of(right) == Some(str_value)
+        {
+            Ok(right)
+        } else if left_flags.intersects(TypeFlags::NULL) {
+            Ok(left)
+        } else if right_flags.intersects(TypeFlags::NULL)
+            && self.intrinsic_name_of(right) == Some(str_value)
+        {
+            Ok(right)
+        } else {
+            Ok(left)
+        }
+    }
+
+    /// tsc `getNumberLiteralType(+str)` (69051): the NumberLike gate
+    /// upstream only survives round-trip-valid strings, so the
+    /// coercion cannot miss.
+    fn coerced_number_literal(&mut self, str_value: &str) -> TypeId {
+        let n = crate::structural::js_string_to_number(str_value)
+            .expect("NumberLike survives only for round-trip-valid strings (69041)");
+        self.st.tables.get_number_literal_type(n)
+    }
+
+    /// tsc `type.intrinsicName` reads on constraint members — None for
+    /// non-intrinsic data, exactly as the property is undefined there.
+    fn intrinsic_name_of(&self, ty: TypeId) -> Option<&str> {
+        match &self.st.tables.type_of(ty).data {
+            TypeData::Intrinsic { name, .. } => Some(name),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use tsrs2_types::{
         CompilerOptions, ContextFlags, IndexFlags, InferenceFlags, InferencePriority, ObjectFlags,
-        SymbolFlags, TypeFlags, TypeId, UnionReduction,
+        PseudoBigInt, SymbolFlags, TypeFlags, TypeId, UnionReduction,
     };
 
     use super::CompareTypesFn;
@@ -2794,6 +3059,193 @@ mod tests {
                     resolved.index_infos.is_empty(),
                     "no String member in the union"
                 );
+            },
+        );
+    }
+
+    // ---- 7.2c: inferToTemplateLiteralType ----
+
+    /// One `infer_types` run of `source_text` against `` `v${T}` ``
+    /// under the given constraint fixture; returns the recorded
+    /// candidates.
+    fn template_candidates(
+        fixture: &str,
+        source_text: &str,
+        f: impl FnOnce(&mut CheckerState, Vec<TypeId>),
+    ) {
+        with_program_state(&[("a.ts", fixture)], &CompilerOptions::default(), |state| {
+            let t = declared_type_parameter(state, "T");
+            let info = detached_info(state, t);
+            let target = state
+                .tables
+                .get_template_literal_type(&["v".to_owned(), String::new()], &[t]);
+            let source = state.tables.get_string_literal_type(source_text);
+            state
+                .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                .expect("live arm");
+            let candidates = state
+                .inference_info(info)
+                .candidates
+                .clone()
+                .expect("covariant record");
+            f(state, candidates);
+        });
+    }
+
+    /// tsc probe (scratchpad probe-template.mjs, 2026-07-20): a number
+    /// constraint coerces the "123" match to the 123 literal (69051
+    /// Number arm).
+    #[test]
+    fn template_number_constraint_coerces_string_match() {
+        template_candidates(
+            "function f<T extends number>() { var v: T; }\n",
+            "v123",
+            |state, candidates| {
+                assert_eq!(
+                    candidates,
+                    vec![state.tables.get_number_literal_type(123.0)]
+                );
+            },
+        );
+    }
+
+    /// Probe: bigint constraint → 123n (parseBigIntLiteralType arm).
+    #[test]
+    fn template_bigint_constraint_coerces_string_match() {
+        template_candidates(
+            "function f<T extends bigint>() { var v: T; }\n",
+            "v123",
+            |state, candidates| {
+                let expected = state.tables.get_bigint_literal_type(PseudoBigInt {
+                    negative: false,
+                    base10_value: "123".to_owned(),
+                });
+                assert_eq!(candidates, vec![expected]);
+            },
+        );
+    }
+
+    /// Probe: a boolean constraint expands to its regular literal
+    /// members and "true" matches the BooleanLiteral arm — the MEMBER
+    /// (regular), not the fresh intrinsic.
+    #[test]
+    fn template_boolean_constraint_matches_regular_literal_member() {
+        template_candidates(
+            "function f<T extends boolean>() { var v: T; }\n",
+            "vtrue",
+            |state, candidates| {
+                assert_eq!(candidates, vec![state.tables.intrinsics.true_regular]);
+            },
+        );
+    }
+
+    /// Probe: "0x10" does not round-trip as a number (js `+` yields
+    /// "16"), so NumberLike drops out and the RAW string literal is
+    /// the candidate (constraint clamping is 7.3's business).
+    #[test]
+    fn template_non_round_trip_number_string_stays_string() {
+        template_candidates(
+            "function f<T extends number>() { var v: T; }\n",
+            "v0x10",
+            |state, candidates| {
+                assert_eq!(
+                    candidates,
+                    vec![state.tables.get_string_literal_type("0x10")]
+                );
+            },
+        );
+    }
+
+    /// Probe: a String-flagged constraint member disables the whole
+    /// coercion block (69037 `!(allTypeFlags & String)`).
+    #[test]
+    fn template_string_in_constraint_union_disables_coercion() {
+        template_candidates(
+            "function f<T extends number | string>() { var v: T; }\n",
+            "v123",
+            |state, candidates| {
+                assert_eq!(
+                    candidates,
+                    vec![state.tables.get_string_literal_type("123")]
+                );
+            },
+        );
+    }
+
+    /// Probe: a number-literal union constraint matches the MEMBER
+    /// itself (NumberLiteral arm value compare).
+    #[test]
+    fn template_number_literal_union_matches_member() {
+        template_candidates(
+            "function f<T extends 1 | 2>() { var v: T; }\n",
+            "v1",
+            |state, candidates| {
+                assert_eq!(candidates, vec![state.tables.get_number_literal_type(1.0)]);
+            },
+        );
+    }
+
+    /// Probe (`rbase → number`): the equal-texts path compares BASE
+    /// CONSTRAINTS on both sides (68577) — `` `a${number}` `` against
+    /// `` `a${T extends number}` `` keeps `number` as the candidate.
+    /// The pre-7.2c shortcut (assignability on the raw pair) wrapped
+    /// it into `` `${number}` `` — the stale-M3-justification pin.
+    #[test]
+    fn template_source_placeholder_keeps_type_under_matching_base_constraint() {
+        with_program_state(
+            &[("a.ts", "function f<T extends number>() { var v: T; }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let number = state.tables.intrinsics.number;
+                let target = state
+                    .tables
+                    .get_template_literal_type(&["a".to_owned(), String::new()], &[t]);
+                let source = state
+                    .tables
+                    .get_template_literal_type(&["a".to_owned(), String::new()], &[number]);
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live arm");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[number][..])
+                );
+            },
+        );
+    }
+
+    /// isValidBigIntString round-trip gates: separators, whitespace,
+    /// and non-canonical forms are invalid; canonical decimals and the
+    /// negative form are valid (18973-18989 via the placeholder
+    /// consumer's bigint arm, round_trip_only=false there but =true in
+    /// the 69049 clearing gate — both exercised through the state fns).
+    #[test]
+    fn valid_big_int_string_gates() {
+        with_program_state(
+            &[("a.ts", "var v = 1;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                for (s, round_trip, expected) in [
+                    ("123", true, true),
+                    ("-5", true, true),
+                    ("0x1f", false, true),
+                    ("0x1f", true, false),
+                    ("1_0", false, false),
+                    (" 1", false, false),
+                    ("1 ", false, false),
+                    ("", false, false),
+                    ("-0", true, false),
+                    ("007", true, false),
+                    ("1.5", false, false),
+                ] {
+                    assert_eq!(
+                        state.is_valid_big_int_string(s, round_trip),
+                        expected,
+                        "isValidBigIntString({s:?}, {round_trip})"
+                    );
+                }
             },
         );
     }

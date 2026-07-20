@@ -500,7 +500,6 @@ impl<'text> Scanner<'text> {
             .contains(TokenFlags::EXTENDED_UNICODE_ESCAPE)
     }
 
-    #[allow(dead_code)]
     fn errors(&self) -> &[ScanError] {
         &self.errors
     }
@@ -1915,6 +1914,54 @@ pub fn scan_tokens(text: &str, variant: LanguageVariant) -> Vec<TokenRecord> {
     }
 
     tokens
+}
+
+/// The scan half of tsc isValidBigIntString (18973-18989), which
+/// probes `s + "n"` with a fresh scanner. The tsc probe scans with
+/// skipTrivia:false so any trivia surfaces as a non-BigIntLiteral
+/// result; this scanner skips trivia inside `scan()`, so the
+/// start-adjacency checks below reject the same inputs. `None` means
+/// the text is not exactly one optional minus + one BigIntLiteral
+/// token covering the whole input, or the scan errored. The
+/// round-trip comparison stays with the checker (parsePseudoBigInt
+/// lives there).
+pub struct BigIntStringScan {
+    pub negative: bool,
+    /// Scanner token value including the trailing `n`:
+    /// radix-normalized for binary/octal (this scanner does at scan
+    /// time what tsc defers to parsePseudoBigInt — checkBigIntSuffix
+    /// converts exactly those two specifiers), raw for hex/decimal,
+    /// separators stripped.
+    pub token_value: String,
+    /// tsc TokenFlags.ContainsSeparator — a validity gate upstream.
+    pub contains_separator: bool,
+}
+
+pub fn scan_big_int_string(s: &str) -> Option<BigIntStringScan> {
+    let text = format!("{s}n");
+    let mut scanner = Scanner::new(&text, LanguageVariant::Standard);
+    let mut token = scanner.scan();
+    let mut expected_start = 0usize;
+    let negative = token == SyntaxKind::MinusToken;
+    if negative {
+        if scanner.token_start() != 0 {
+            return None;
+        }
+        expected_start = scanner.pos();
+        token = scanner.scan();
+    }
+    if token != SyntaxKind::BigIntLiteral
+        || scanner.token_start() != expected_start
+        || scanner.pos() != text.len()
+        || !scanner.errors().is_empty()
+    {
+        return None;
+    }
+    Some(BigIntStringScan {
+        negative,
+        token_value: scanner.token_value().to_owned(),
+        contains_separator: scanner.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR),
+    })
 }
 
 /// tsc skipTrivia over the trivia forms this scanner produces (shebang,

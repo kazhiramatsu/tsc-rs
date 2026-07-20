@@ -2462,7 +2462,7 @@ impl<'a> CheckerState<'a> {
 /// tsc-port: applyStringMapping @6.0.3
 /// tsc-hash: 03303706c2ff1cce6253350ab983e924aec70581fee678721dfdeeaf6e680e72
 /// tsc-span: _tsc.js:62129-62141
-fn apply_string_mapping(kind: Option<IntrinsicTypeKind>, value: &str) -> String {
+pub(crate) fn apply_string_mapping(kind: Option<IntrinsicTypeKind>, value: &str) -> String {
     match kind {
         Some(IntrinsicTypeKind::Uppercase) => js_to_upper_case(value),
         Some(IntrinsicTypeKind::Lowercase) => js_to_lower_case(value),
