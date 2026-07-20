@@ -5980,23 +5980,42 @@ impl<'a> CheckerState<'a> {
 
     // ---- callback-parameter helpers ----
 
-    /// getSingleCallSignature/getSingleSignature (75875) slice: exactly
-    /// one call signature, nothing else on the type.
+    /// getSingleCallSignature (75875-75877): the one-line delegation
+    /// to `getSingleSignature(type, Call, /*allowMembers*/ false)`,
+    /// exactly as tsc cuts it.
     pub fn get_single_call_signature(&mut self, ty: TypeId) -> CheckResult2<Option<SignatureId>> {
+        self.get_single_signature(ty, SignatureKind::Call, false)
+    }
+
+    /// tsc-port: getSingleSignature @6.0.3
+    /// tsc-hash: df7eb7f955e102594820d38ca174aad010b07e446f61fd554b44a0ae8afabf68
+    /// tsc-span: _tsc.js:75896-75909
+    pub(crate) fn get_single_signature(
+        &mut self,
+        ty: TypeId,
+        kind: SignatureKind,
+        allow_members: bool,
+    ) -> CheckResult2<Option<SignatureId>> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
         let members = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(members);
-        if resolved.call_signatures.len() == 1
-            && resolved.construct_signatures.is_empty()
-            && resolved.properties.is_empty()
-            && resolved.index_infos.is_empty()
-        {
-            Ok(Some(resolved.call_signatures[0]))
-        } else {
-            Ok(None)
+        if allow_members || resolved.properties.is_empty() && resolved.index_infos.is_empty() {
+            if kind == SignatureKind::Call
+                && resolved.call_signatures.len() == 1
+                && resolved.construct_signatures.is_empty()
+            {
+                return Ok(Some(resolved.call_signatures[0]));
+            }
+            if kind == SignatureKind::Construct
+                && resolved.construct_signatures.len() == 1
+                && resolved.call_signatures.is_empty()
+            {
+                return Ok(Some(resolved.construct_signatures[0]));
+            }
         }
+        Ok(None)
     }
 
     /// getNonNullableType's M3 slice for the callback gate: strip

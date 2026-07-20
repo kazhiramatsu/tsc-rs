@@ -32,6 +32,7 @@ use tsrs2_types::{
 };
 
 use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::structural::SignatureKind;
 
 /// tsc AssignmentKind (15579 band): None / Definite / Compound.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -120,21 +121,33 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3fb3555fc3869377868f1a5f6f9d67871b494538220dd568554ee287b7e2882a
     /// tsc-span: _tsc.js:80751-80815
     ///
-    /// The step-1 gate `checkMode & (Inferential | SkipGenericFunctions)`
-    /// is UNREACHABLE at M4: the producible CheckMode set is
-    /// {0, 1, 4, 32, 64} (extraction doc §2 audit — no producer sets
-    /// bits 2 or 8 until M6), so the wrapper reduces to the identity.
+    /// Inferential became producible at M6 7.1
+    /// (checkExpressionWithContextualType ORs it in for Some
+    /// contexts), so the M4 `unreachable!` gate is gone: the
+    /// 80753-80766 single-generic-signature probe is live, and the
+    /// body it guards (the SkipGenericFunctions defer + the
+    /// 80767-80815 higher-order inference path) stays a named
+    /// Unsupported until the 7.4 consumer-side slice. Non-generic
+    /// results reduce to the identity exactly as in tsc.
     fn instantiate_type_with_single_generic_call_signature(
         &mut self,
-        _node: NodeId,
+        node: NodeId,
         ty: TypeId,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
+        let _ = node;
         if check_mode.intersects(CheckMode::INFERENTIAL | CheckMode::SKIP_GENERIC_FUNCTIONS) {
-            unreachable!(
-                "Inferential/SkipGenericFunctions have no producer until M6 \
-                 (CheckMode audit, m4-55-expression-extraction.md §2)"
-            );
+            let call_signature = self.get_single_signature(ty, SignatureKind::Call, true)?;
+            let construct_signature =
+                self.get_single_signature(ty, SignatureKind::Construct, true)?;
+            let signature = call_signature.or(construct_signature);
+            if let Some(signature) = signature {
+                if self.signature_of(signature).type_parameters.is_some() {
+                    return Err(Unsupported::new(
+                        "single-generic-signature higher-order inference (M6 7.4)",
+                    ));
+                }
+            }
         }
         Ok(ty)
     }
@@ -2719,22 +2732,44 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ce6d50e4b09ba21d3b8b1caca81f0a8e01957b7acd2195417c37b205adb69cc5
     /// tsc-span: _tsc.js:80557-80579
     ///
-    /// 5.5 consumer: checkDeclarationInitializer only (argument
-    /// checking is 5.7). The inference-context parameter is None until
-    /// M6 (the intraExpressionInferenceSites reset rides with it), so
-    /// checkMode never gains Inferential here.
+    /// Production callers still pass a None inference context until
+    /// M6 7.4 wires inferTypeArguments (argument checking is the 5.7
+    /// band); the Inferential check-mode OR-in and the
+    /// intraExpressionInferenceSites clear (80566-80569) are live for
+    /// Some contexts since 7.1.
     pub(crate) fn check_expression_with_contextual_type(
         &mut self,
         node: NodeId,
         contextual_type: TypeId,
-        inference_context: Option<crate::contextual::InferenceContextPlaceholder>,
+        inference_context: Option<crate::inference::InferenceContextId>,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
         let context_node = self.get_context_node(node);
         self.push_contextual_type(context_node, Some(contextual_type), false);
         self.push_inference_context(context_node, inference_context);
         let result = (|state: &mut Self| -> CheckResult2<TypeId> {
-            let ty = state.check_expression(node, check_mode | CheckMode::CONTEXTUAL)?;
+            let inferential = if inference_context.is_some() {
+                CheckMode::INFERENTIAL
+            } else {
+                CheckMode::NORMAL
+            };
+            let ty =
+                state.check_expression(node, check_mode | CheckMode::CONTEXTUAL | inferential)?;
+            // 80566-80569: the un-drained intra-expression sites are
+            // discarded once the full expression has been checked
+            // (set to undefined, NOT drained — the fixing mapper is
+            // the only drainer).
+            if let Some(context) = inference_context {
+                if state
+                    .inference_context(context)
+                    .intra_expression_inference_sites
+                    .is_some()
+                {
+                    state
+                        .inference_context_mut(context)
+                        .intra_expression_inference_sites = None;
+                }
+            }
             if state.maybe_type_of_kind(ty, TypeFlags::LITERAL) {
                 let instantiated =
                     state.instantiate_contextual_type_for_node(Some(contextual_type), node)?;

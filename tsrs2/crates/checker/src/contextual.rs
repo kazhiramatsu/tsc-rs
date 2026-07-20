@@ -15,10 +15,11 @@
 //! - [ASYNC → 5.5f] awaited-family arms escape once a contextual type
 //!   actually exists (the None fall-through matches tsc exactly).
 //! - [JSX → 5.5f] all JSX arms escape.
-//! - [INFER → M6] the inference stack exists but only `None` is ever
-//!   pushed (`InferenceContextPlaceholder` is uninhabited), so the
-//!   mapper branches of instantiateContextualType are provably
-//!   identity.
+//! - [INFER → M6 7.4] the inference data model is live (7.1,
+//!   inference.rs) and instantiateContextualType's mapper branches
+//!   are real, but every PRODUCTION push site still passes None until
+//!   7.4 wires inferTypeArguments — so in production the branches
+//!   stay unentered (tests exercise them through pushed contexts).
 //! - [JSDOC] JS-only arms (type tags, satisfies tags, expando kinds)
 //!   follow the standing plain-JS policy: the TS-visible shape ports,
 //!   JSDoc reads are invisible (we do not parse JSDoc) — FN in JS only.
@@ -32,13 +33,6 @@ use tsrs2_types::{
 
 use crate::indexed::is_numeric_literal_name;
 use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
-
-/// [INFER → M6] The InferenceContext payload. Uninhabited: the stack
-/// can only ever hold `None` until M6 replaces this with the real
-/// struct, which makes every `if let Some(context)` branch reading it
-/// provably dead (`match context {}`).
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum InferenceContextPlaceholder {}
 
 /// One lazy discriminator of discriminateTypeByDiscriminableItems'
 /// contextual callers (73357/73391): tsc passes `[() => type, name]`
@@ -105,7 +99,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn push_inference_context(
         &mut self,
         node: NodeId,
-        inference_context: Option<InferenceContextPlaceholder>,
+        inference_context: Option<crate::inference::InferenceContextId>,
     ) {
         self.inference_context_nodes.push(node);
         self.inference_contexts.push(inference_context);
@@ -125,11 +119,12 @@ impl<'a> CheckerState<'a> {
     ///
     /// Innermost node-descendant scan; the found value may itself be
     /// None (checkExpressionWithContextualType pushes None at 5.5) —
-    /// and until M6 it always is.
+    /// and in production it always is until 7.4 wires
+    /// inferTypeArguments.
     pub(crate) fn get_inference_context(
         &self,
         node: NodeId,
-    ) -> Option<InferenceContextPlaceholder> {
+    ) -> Option<crate::inference::InferenceContextId> {
         for i in (0..self.inference_context_nodes.len()).rev() {
             if self.is_node_descendant_of(node, self.inference_context_nodes[i]) {
                 return self.inference_contexts[i];
@@ -276,14 +271,13 @@ impl<'a> CheckerState<'a> {
                     contextual_type,
                 )?;
                 if let Some(this_type) = this_type {
-                    // instantiateType(thisType, getMapperFromContext(
-                    // getInferenceContext(...))) — [INFER → M6]: the
-                    // context is always None, so the mapper is None and
-                    // instantiateType is the identity read.
-                    if let Some(context) = self.get_inference_context(containing_literal) {
-                        match context {}
-                    }
-                    return Ok(Some(this_type));
+                    // 72666: instantiateType(thisType,
+                    // getMapperFromContext(getInferenceContext(...)))
+                    // — a None context maps through a None mapper
+                    // (identity).
+                    let context = self.get_inference_context(containing_literal);
+                    let mapper = self.get_mapper_from_context(context);
+                    return self.instantiate_type(this_type, mapper).map(Some);
                 }
                 let base = match contextual_type {
                     Some(contextual_type) => self.get_non_nullable_type(contextual_type)?,
@@ -2282,7 +2276,8 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_contextual_type(node, context_flags)?
         };
-        let instantiated_type = self.instantiate_contextual_type(contextual_type, node)?;
+        let instantiated_type =
+            self.instantiate_contextual_type(contextual_type, node, context_flags)?;
         let Some(instantiated_type) = instantiated_type else {
             return Ok(None);
         };
@@ -2335,35 +2330,134 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5f836db3ed2a22d7adb310d466cfd9b1f501c80ff659ea2c66cc57c81754463c
     /// tsc-span: _tsc.js:73441-73458
     ///
-    /// [INFER → M6]: both mapper branches (nonFixingMapper under
-    /// ContextFlags::Signature, returnMapper) require a Some inference
-    /// context — the stack only ever holds None until M6, so the
-    /// structural port reduces to the identity read
-    /// (instantiateInstantiableTypes 73459-73470 rides with M6).
+    /// [INFER → M6 7.4]: both mapper branches are live since 7.1, but
+    /// production still reaches them with a None context only (no
+    /// production push site passes Some before 7.4 wires
+    /// inferTypeArguments) — so today they run under tests alone.
     pub(crate) fn instantiate_contextual_type(
         &mut self,
         contextual_type: Option<TypeId>,
         node: NodeId,
+        context_flags: ContextFlags,
     ) -> CheckResult2<Option<TypeId>> {
         if let Some(ty) = contextual_type {
             if self.maybe_type_of_kind(ty, TypeFlags::INSTANTIABLE) {
-                if let Some(context) = self.get_inference_context(node) {
-                    match context {}
+                let inference_context = self.get_inference_context(node);
+                if let Some(context) = inference_context {
+                    if context_flags.intersects(ContextFlags::SIGNATURE)
+                        && self
+                            .inference_context(context)
+                            .inferences
+                            .iter()
+                            .any(|&info| self.has_inference_candidates_or_default(info))
+                    {
+                        let non_fixing = self.inference_context(context).non_fixing_mapper;
+                        let instantiated = self.instantiate_instantiable_types(ty, non_fixing)?;
+                        if !self
+                            .tables
+                            .flags_of(instantiated)
+                            .intersects(TypeFlags::ANY_OR_UNKNOWN)
+                        {
+                            return Ok(Some(instantiated));
+                        }
+                    }
+                    if let Some(return_mapper) = self.inference_context(context).return_mapper {
+                        let instantiated =
+                            self.instantiate_instantiable_types(ty, return_mapper)?;
+                        if !self
+                            .tables
+                            .flags_of(instantiated)
+                            .intersects(TypeFlags::ANY_OR_UNKNOWN)
+                        {
+                            // 73453-73454: a union that kept BOTH
+                            // regular boolean literals drops them
+                            // (the boolean-in-boolean-out shape of
+                            // return-position inference).
+                            if self
+                                .tables
+                                .flags_of(instantiated)
+                                .intersects(TypeFlags::UNION)
+                            {
+                                let false_regular = self.tables.intrinsics.false_regular;
+                                let true_regular = self.tables.intrinsics.true_regular;
+                                // containsType x2, short-circuit as in tsc.
+                                let has_both_boolean_literals =
+                                    match &self.tables.type_of(instantiated).data {
+                                        TypeData::Union { types, .. } => {
+                                            crate::engine::contains_type(types, false_regular)
+                                                && crate::engine::contains_type(types, true_regular)
+                                        }
+                                        _ => unreachable!("union flag implies union data"),
+                                    };
+                                if has_both_boolean_literals {
+                                    return self
+                                        .filter_type_with(instantiated, |_, t| {
+                                            Ok(t != false_regular && t != true_regular)
+                                        })
+                                        .map(Some);
+                                }
+                            }
+                            return Ok(Some(instantiated));
+                        }
+                    }
                 }
             }
         }
         Ok(contextual_type)
     }
 
+    /// tsc-port: instantiateInstantiableTypes @6.0.3
+    /// tsc-hash: 2acc2d3b884493b54d1d869d0d9b4aa3fbf647beecaad1b241cb79712da36791
+    /// tsc-span: _tsc.js:73459-73470
+    ///
+    /// Recursion depth is union/intersection NESTING (same-kind
+    /// nesting is flattened by normalization, so this is bounded by
+    /// alternation depth, not source-chain length); tsc recurses
+    /// identically.
+    pub(crate) fn instantiate_instantiable_types(
+        &mut self,
+        ty: TypeId,
+        mapper: crate::instantiate::MapperId,
+    ) -> CheckResult2<TypeId> {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::INSTANTIABLE) {
+            return self.instantiate_type(ty, Some(mapper));
+        }
+        if flags.intersects(TypeFlags::UNION) {
+            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("union flag implies union data"),
+            };
+            let mut mapped = Vec::with_capacity(members.len());
+            for member in members {
+                mapped.push(self.instantiate_instantiable_types(member, mapper)?);
+            }
+            return self.get_union_type_ex(&mapped, UnionReduction::None);
+        }
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
+                TypeData::Intersection { types, .. } => types.to_vec(),
+                _ => unreachable!("intersection flag implies intersection data"),
+            };
+            let mut mapped = Vec::with_capacity(members.len());
+            for member in members {
+                mapped.push(self.instantiate_instantiable_types(member, mapper)?);
+            }
+            return self.get_intersection_type(&mapped, tsrs2_types::IntersectionFlags::NONE);
+        }
+        Ok(ty)
+    }
+
     /// The driver-band consumers (checkExpressionForMutableLocation
-    /// 80728, checkExpressionWithContextualType 80571) instantiate with
-    /// node-independent flags — this is the same identity read.
+    /// 80728, checkExpressionWithContextualType 80570, and
+    /// getReturnTypeFromBody's contextual return 78813) instantiate
+    /// with `/*contextFlags*/ void 0`.
     pub(crate) fn instantiate_contextual_type_for_node(
         &mut self,
         contextual_type: Option<TypeId>,
         node: NodeId,
     ) -> CheckResult2<Option<TypeId>> {
-        self.instantiate_contextual_type(contextual_type, node)
+        self.instantiate_contextual_type(contextual_type, node, ContextFlags::NONE)
     }
 
     // ---- the master switch (73471-73556) ----

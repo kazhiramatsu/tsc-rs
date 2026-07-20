@@ -4496,11 +4496,19 @@ impl<'a> CheckerState<'a> {
     /// reference's flow node. Arm 2 (context-sensitive rest-parameter
     /// slices) is LIVE for concrete rest types: tsc's only
     /// M6-dependent read is `getInferenceContext(func)?.nonFixingMapper`
-    /// (72044) inside the restType computation, and no inference
-    /// context can exist before M6 (instantiateType(T, undefined) = T)
-    /// — a rest type that could still contain type variables is the
-    /// one shape where the mapper would matter, and stays a named
-    /// Unsupported.
+    /// (72044) inside the restType computation, and every production
+    /// push site still passes a None context until 7.4 wires
+    /// inferTypeArguments (7.1 made contexts constructible; the
+    /// mapper read through None is instantiateType(T, undefined) = T).
+    ///
+    /// The restType computation follows tsc's order — nonFixingMapper
+    /// instantiation FIRST, then getReducedApparentType — with a
+    /// conservative M6 net on the RESULT: a residue that still
+    /// contains type variables (an unresolved inference) unwinds as a
+    /// named Unsupported instead of narrowing over it. Under a live
+    /// context (tests today, production at 7.4) the instantiation
+    /// dispatches the deferred non-fixing mapper, so resolution rides
+    /// the 7.3 getInferredType frontier until that stage lands.
     pub(crate) fn get_narrowed_type_of_symbol(
         &mut self,
         symbol: SymbolId,
@@ -4551,12 +4559,27 @@ impl<'a> CheckerState<'a> {
                         };
                         if let (Some(rest_parameter), true) = (rest_parameter, has_rest) {
                             let rest_symbol_type = self.get_type_of_symbol(rest_parameter)?;
-                            let rest_type = self.get_reduced_apparent_type(rest_symbol_type)?;
+                            // 72044: getReducedApparentType(instantiateType(
+                            // declared, getInferenceContext(func)
+                            // ?.nonFixingMapper)) — mapper BEFORE the
+                            // apparent type, tsc's order. None context
+                            // (all production sites until 7.4) skips the
+                            // instantiation, matching tsc's `?.` on an
+                            // absent context.
+                            let mapped = match self.get_inference_context(func) {
+                                Some(context) => {
+                                    let mapper = self.inference_context(context).non_fixing_mapper;
+                                    self.instantiate_type(rest_symbol_type, Some(mapper))?
+                                }
+                                None => rest_symbol_type,
+                            };
+                            let rest_type = self.get_reduced_apparent_type(mapped)?;
                             if self.could_contain_type_variables(rest_type) {
-                                // 72044: tsc instantiates the rest type
-                                // under getInferenceContext(func)
-                                // ?.nonFixingMapper before the tuple
-                                // gate — the M6 slice.
+                                // The conservative M6 net over the
+                                // RESULT of tsc's chain: a residue that
+                                // still contains type variables (an
+                                // unresolved inference) unwinds instead
+                                // of narrowing over it.
                                 return Err(Unsupported::new(
                                     "dependent-parameter narrowing over a generic rest type (getInferenceContext nonFixingMapper, M6)",
                                 ));

@@ -143,8 +143,10 @@ impl<'a> CheckerState<'a> {
     /// The languageVersion emit-helper gate is dead at target ES2025
     /// (LanguageFeatureMinimumTarget.SpreadElements = ES2015); the
     /// [INFER] intra-expression site is behind the Inferential
-    /// checkMode bit no M4 producer sets. Non-array-like spreads run
-    /// the §4 iteration protocol (5.8b).
+    /// checkMode bit — producible since M6 7.1 (Some-context pushes
+    /// only), so the arm below is a live named Unsupported until the
+    /// 7.4 site-recording wiring. Non-array-like spreads run the §4
+    /// iteration protocol (5.8b).
     pub(crate) fn check_array_literal(
         &mut self,
         node: NodeId,
@@ -240,8 +242,9 @@ impl<'a> CheckerState<'a> {
                         ElementFlags::REQUIRED
                     });
                     // inTupleContext && checkMode & Inferential && …:
-                    // addIntraExpressionInferenceSite — [INFER] dead
-                    // (no M4 producer sets the Inferential bit).
+                    // addIntraExpressionInferenceSite — [INFER] live
+                    // named escape (Inferential producible since M6
+                    // 7.1; the site recording itself is 7.4 wiring).
                     if in_tuple_context
                         && !check_mode.is_empty()
                         && check_mode.intersects(CheckMode::INFERENTIAL)
@@ -622,8 +625,9 @@ impl<'a> CheckerState<'a> {
     /// isInJavascript/enumTag/jsDocType/JSLiteral ride [JSDOC] (TS
     /// files answer false — plain-JS files gate earlier); the
     /// languageVersion ObjectAssign emit-helper gate is dead at
-    /// ES2025; the Inferential intra-expression site is a dead gate
-    /// (no M4 producer). The result is FRESH per call — no node-links
+    /// ES2025; the Inferential intra-expression site is a live named
+    /// escape (Inferential producible since M6 7.1; site recording is
+    /// 7.4 wiring). The result is FRESH per call — no node-links
     /// caching, matching tsc.
     pub(crate) fn check_object_literal(
         &mut self,
@@ -904,8 +908,9 @@ impl<'a> CheckerState<'a> {
                     all.insert(name, prop);
                 }
                 // contextualType && checkMode & Inferential && …:
-                // addIntraExpressionInferenceSite — [INFER] dead (no
-                // M4 producer sets the Inferential bit).
+                // addIntraExpressionInferenceSite — [INFER] live
+                // named escape (Inferential producible since M6 7.1;
+                // the site recording itself is 7.4 wiring).
                 if acc.contextual_type.is_some()
                     && check_mode.intersects(CheckMode::INFERENTIAL)
                     && !check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)

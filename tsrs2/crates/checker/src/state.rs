@@ -521,11 +521,29 @@ pub struct CheckerState<'a> {
     pub(crate) contextual_types: Vec<Option<TypeId>>,
     pub(crate) contextual_is_cache: Vec<bool>,
     /// tsc inferenceContextNodes/inferenceContexts (47401-47402) —
-    /// exists-but-empty until M6 ([INFER] §0): every pushed value is
-    /// None until M6 defines the InferenceContext payload, so
-    /// getInferenceContext answers None structurally.
+    /// the parallel-array inference-context stack. Every production
+    /// push site still passes None until M6 7.4 wires
+    /// inferTypeArguments into resolveCall, so getInferenceContext
+    /// answers None in production (7.1 made contexts constructible;
+    /// only tests exercise Some so far).
     pub(crate) inference_context_nodes: Vec<NodeId>,
-    pub(crate) inference_contexts: Vec<Option<crate::contextual::InferenceContextPlaceholder>>,
+    pub(crate) inference_contexts: Vec<Option<crate::inference::InferenceContextId>>,
+    /// M6 7.1: the InferenceContext arena — InferenceContextId
+    /// equality IS tsc's context object identity (contexts are GC
+    /// objects there). E-class speculation state like `mappers`:
+    /// append-only, never truncated, and context MUTATIONS
+    /// deliberately survive failed candidate trials — chooseOverload
+    /// reuses the SAME context across its NORMAL-mode re-run
+    /// (76842-76844), so trial-time accumulation is tsc semantics,
+    /// not rollback debt.
+    pub(crate) inference_context_arena: Vec<crate::inference::InferenceContext>,
+    /// tsc InferenceInfo objects (68300): infos are GC objects with
+    /// IDENTITY in tsc — context slots, thunk captures, and 7.4's
+    /// detached higher-order arrays all share/replace the same
+    /// objects, so the port gives them their own E-class arena
+    /// (append-only, same discipline as the context arena) and
+    /// contexts hold `InferenceInfoId` slots.
+    pub(crate) inference_info_arena: Vec<crate::inference::InferenceInfo>,
     /// tsc cachedTypes (47415): the string-keyed side cache
     /// (getCachedType/setCachedType 47484-47490) — `B{typeId}` literal-
     /// base unions, `D{nodeId},{typeId}` object-literal discrimination.
@@ -821,6 +839,8 @@ impl<'a> CheckerState<'a> {
             contextual_is_cache: Vec::new(),
             inference_context_nodes: Vec::new(),
             inference_contexts: Vec::new(),
+            inference_context_arena: Vec::new(),
+            inference_info_arena: Vec::new(),
             cached_types: std::collections::HashMap::new(),
             flow_loop_start: 0,
             flow_loop_stack: Vec::new(),

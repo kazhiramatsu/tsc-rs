@@ -123,10 +123,9 @@ impl<'a> CheckerState<'a> {
     /// tsc reads the flag once before and once after the signature
     /// query. The `checkMode & Inferential` arms
     /// (inferFromAnnotatedParametersAndReturn + nonFixingMapper
-    /// instantiation) are [INFER M6]-dead: no M4 producer sets the
-    /// bit, and getInferenceContext answers None, so
-    /// instantiatedContextualSignature always resolves to the
-    /// contextual signature itself.
+    /// instantiation) stay a named Unsupported until 7.4 — no
+    /// production producer sets Inferential before then, and the
+    /// 79174 mapper instantiation is live for Some contexts (7.1).
     pub(crate) fn contextually_check_function_expression_or_object_literal_method(
         &mut self,
         node: NodeId,
@@ -166,15 +165,30 @@ impl<'a> CheckerState<'a> {
         if self.is_context_sensitive(node) {
             match contextual_signature {
                 Some(contextual_signature) => {
-                    // getInferenceContext → None ([INFER M6]); the
-                    // Inferential-mode infer/instantiate arms are dead
-                    // and instantiatedContextualSignature is the
-                    // contextual signature unchanged.
                     let inference_context = self.get_inference_context(node);
-                    if let Some(context) = inference_context {
-                        match context {}
+                    if check_mode.intersects(CheckMode::INFERENTIAL) {
+                        // 79166-79173: inferFromAnnotatedParametersAndReturn
+                        // + the generic-rest nonFixingMapper
+                        // instantiation are 7.4 wiring; production
+                        // check modes cannot carry Inferential until
+                        // then (only Some-context pushes set it).
+                        return Err(Unsupported::new(
+                            "inferFromAnnotatedParametersAndReturn (M6 7.4)",
+                        ));
                     }
-                    self.assign_contextual_parameter_types(signature, contextual_signature)?;
+                    // 79174: instantiate through the context's fixing
+                    // mapper when a context is in scope.
+                    let instantiated_contextual_signature = match inference_context {
+                        Some(context) => {
+                            let mapper = self.inference_context(context).mapper;
+                            self.instantiate_signature(contextual_signature, mapper, false)?
+                        }
+                        None => contextual_signature,
+                    };
+                    self.assign_contextual_parameter_types(
+                        signature,
+                        instantiated_contextual_signature,
+                    )?;
                 }
                 None => {
                     self.assign_non_contextual_parameter_types(signature)?;
@@ -191,8 +205,15 @@ impl<'a> CheckerState<'a> {
                 self.signature_of(contextual_signature).parameters.len();
             let own_parameter_count = self.parameters_of_function(node).len();
             if !has_type_parameters && contextual_parameter_count > own_parameter_count {
-                // The body is Inferential-mode-only
-                // (inferFromAnnotatedParametersAndReturn) — dead at M4.
+                // 79179-79182: the body is Inferential-mode-only —
+                // inferFromAnnotatedParametersAndReturn over the annotated
+                // parameters/return is 7.4 wiring; Inferential is
+                // producible since 7.1 (only Some-context pushes set it).
+                if check_mode.intersects(CheckMode::INFERENTIAL) {
+                    return Err(Unsupported::new(
+                        "inferFromAnnotatedParametersAndReturn (M6 7.4)",
+                    ));
+                }
             }
         }
         if contextual_signature.is_some()
@@ -645,7 +666,8 @@ impl<'a> CheckerState<'a> {
                         } else {
                             let signature_return =
                                 self.get_return_type_of_signature(contextual_signature)?;
-                            self.instantiate_contextual_type(Some(signature_return), func)?
+                            // 78815-78817: /*contextFlags*/ void 0.
+                            self.instantiate_contextual_type_for_node(Some(signature_return), func)?
                         }
                     }
                 };

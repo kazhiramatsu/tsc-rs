@@ -15,6 +15,7 @@ pub mod flow;
 pub mod functions;
 pub mod globals;
 pub mod indexed;
+pub mod inference;
 pub mod instantiate;
 pub mod intersect;
 pub mod iterate;

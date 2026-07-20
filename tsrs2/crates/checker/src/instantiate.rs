@@ -30,15 +30,22 @@ pub struct MapperId(pub u32);
 /// tsc-hash: 11cf19c83b088bf7ae4ff74f09b4c0c2aae1d17efdd20ebee18049a409183c7c
 /// tsc-span: _tsc.js:63368-63370
 ///
-/// Deferred mapper thunks — every tsc constructor site is inference-
-/// context machinery (makeFixingMapperForContext 68259 /
-/// makeNonFixingMapperForContext 68272, M6) or infer-type constraint
-/// resolution (getInferredTypeParameterConstraint 60074, M8). The enum
-/// is deliberately UNINHABITED until an owner lands: the Deferred
-/// mapper kind exists in the closed TypeMapper enum but cannot be
-/// constructed.
+/// Deferred mapper thunks — a closed enum instead of stored closures.
+/// The M6 7.1 pair closes over an inference context: sources are the
+/// context's per-slot type parameters (looked up dynamically — see
+/// the InferenceContext doc for the creation-stability proof that
+/// this equals tsc's creation-time snapshot), targets are the
+/// fixing/non-fixing thunk bodies (inference.rs *_mapper_target).
+/// The remaining tsc constructor site extends this enum when its
+/// stage lands: infer-type constraint resolution
+/// (getInferredTypeParameterConstraint 60074, M8).
 #[derive(Clone, Copy, Debug)]
-pub enum DeferredMapperTargets {}
+pub enum DeferredMapperTargets {
+    /// makeFixingMapperForContext (68258).
+    InferenceFixing(crate::inference::InferenceContextId),
+    /// makeNonFixingMapperForContext (68271).
+    InferenceNonFixing(crate::inference::InferenceContextId),
+}
 
 /// tsc-port: makeFunctionTypeMapper @6.0.3
 /// tsc-hash: 8b8b3a8e91724e911f8633efe97f52806c560c58307f03995886eb93b37185fb
@@ -233,7 +240,28 @@ impl<'a> CheckerState<'a> {
                 }
                 Ok(ty)
             }
-            TypeMapper::Deferred(targets) => match targets {},
+            // 63341-63350: linear source scan, thunk on match,
+            // identity otherwise. The scan reads the mapper pair's
+            // creation-time sources capture (`mapper_sources`, tsc's
+            // makeDeferredTypeMapper snapshot) — object-identical to
+            // tsc, including after 7.4's mergeInferences slot
+            // rewrites.
+            TypeMapper::Deferred(targets) => {
+                let (context, fixing) = match targets {
+                    DeferredMapperTargets::InferenceFixing(context) => (context, true),
+                    DeferredMapperTargets::InferenceNonFixing(context) => (context, false),
+                };
+                let index = self
+                    .inference_context(context)
+                    .mapper_sources
+                    .iter()
+                    .position(|&source| source == ty);
+                match index {
+                    Some(index) if fixing => self.fixing_mapper_target(context, index),
+                    Some(index) => self.non_fixing_mapper_target(context, index),
+                    None => Ok(ty),
+                }
+            }
             TypeMapper::Function(kind) => {
                 if self
                     .tables
@@ -1837,7 +1865,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasTypeParameterDefault @6.0.3
     /// tsc-hash: f35b775fc1102e338bea994785e68aed68d84ba53644e507c0b7bbac3ebc48c5
     /// tsc-span: _tsc.js:59068-59070
-    fn has_type_parameter_default(&self, tp: TypeId) -> bool {
+    pub(crate) fn has_type_parameter_default(&self, tp: TypeId) -> bool {
         let Some(symbol) = self.tables.type_of(tp).symbol else {
             return false;
         };

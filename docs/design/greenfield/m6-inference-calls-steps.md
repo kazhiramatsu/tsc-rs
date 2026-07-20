@@ -127,7 +127,12 @@ written only after the fallible region — verified;
 IDENTICAL_BASE_TYPE_CALCULATED is the exception = review B1, still
 open), `signatures` (196; the A4 raw-field bypass is closed),
 `members` (197; staged-publication in-place mutation has Err retract
-twins), `mappers` (262), `widening_contexts` (482).
+twins), `mappers` (262), `widening_contexts` (482),
+`inference_context_arena` (added at 7.1: context MUTATIONS also
+deliberately survive failed trials — chooseOverload reuses the SAME
+context across its re-run, 76842-76844, so trial-time candidate
+accumulation is tsc semantics, not rollback debt; the
+inference-context NODE STACK stays A-class checkpoint-managed).
 
 ### Additional M6-start requirements (review B35)
 
@@ -220,6 +225,63 @@ cloning there would discard fixed inferences — the failure-modes
 row 2 is the correct statement).
 
 Commit: `m6 7.1: InferenceInfo/InferenceContext`.
+
+**LANDED (this slice) — decisions of record:**
+- Contexts are arena-allocated (`inference_context_arena`,
+  E-class — see 7.0t list) with `InferenceContextId` as tsc object
+  identity; the 47401-47402 node stack's payload swapped from the
+  uninhabited placeholder to the id (stack stays A-class).
+- `InferenceInfo.type_parameter` is the TypeParameter TYPE (TypeId),
+  NOT its symbol — mapper sources compare type identities
+  (getMappedType 63341). core-interfaces §6's SymbolId sketch is
+  corrected in place.
+- Deferred mappers: `DeferredMapperTargets::{InferenceFixing,
+  InferenceNonFixing}(ctx)` dispatch over the context's CREATION-TIME
+  capture (`mapper_sources`/`mapper_infos` — tsc's
+  makeDeferredTypeMapper sources snapshot and thunk-captured info
+  objects, 68258-68278). AMENDED post-review: infos live in their own
+  E-class arena (`InferenceInfoId` on CheckerState) so they carry tsc
+  object identity — the fixing thunk's isFixed test-and-set rides the
+  captured info while clearCachedInferences/getInferredType read the
+  LIVE slots, making mergeInferences (80836 `target[i] = source[i]`,
+  a slot-id rewrite at 7.4) tsc-exact by construction, including the
+  post-merge split (detached capture stays fixed; the fresh live row
+  starts unfixed, reopening the 68710 candidate gate). The 7.1
+  dynamic-lookup equivalence proof is superseded; the split is pinned
+  by test (fixing_dispatch_consults_creation_capture_after_slot_
+  replacement).
+- `compare_types` is a closed enum (`CompareTypesFn`); only the
+  default `Assignable` is constructible until the 7.5 head rebuild
+  routes the relation-frame worker (64507) and M8 the conditional
+  infer-source context (66368).
+- undefined-exactness: `candidates`/`contra_candidates`/`priority`/
+  `intra_expression_inference_sites`/`inferred_type_parameters` are
+  Option (present ⇒ tsc-created; present candidate vecs are
+  non-empty); `implied_arity: Option<usize>`.
+- Frontier stubs (escapes owner=M6): `infer_types` → 7.2,
+  `get_inferred_type` → 7.3. Production-unreachable: every
+  production pushInferenceContext site still passes None until 7.4.
+- Consumer wrappers activated 1:1 this slice:
+  checkExpressionWithContextualType ORs Inferential for Some
+  contexts + clears (not drains) sites (80566-80569);
+  instantiateContextualType's real body + instantiateInstantiableTypes
+  (73459-73470, NEW port) + hasInferenceCandidatesOrDefault +
+  context_flags parameter (only getApparentTypeOfContextualType
+  passes real flags; 78813/80570/80726 pass void 0);
+  getContextualThisParameterType's 72666 mapper read;
+  contextuallyCheckFunctionExpressionOrObjectLiteralMethod's 79174
+  mapper instantiation (its Inferential arm = 7.4 escape);
+  instantiateTypeWithSingleGenericCallSignature's M4 `unreachable!`
+  replaced by the live 80753-80766 probe (getSingleSignature
+  75896-75909 NEW port) with the generic body a 7.4 escape.
+- Gate evidence: canaries byte-stable at baseline (T0 141/740,
+  FP=0, FN=599, mismatches=33); 725 checker tests (13 new pins:
+  creation shape, clone independence/flag-OR, inferred-part filter,
+  deferred dispatch identity+frontier, fixing order
+  (clear-while-unfixed → fix → resolve), sites lazy-add/drain/
+  mid-drain-unwind/undrained-clear, outer-return-mapper merge+cache,
+  returnMapper branch incl. the 73453 boolean-literal filter,
+  Signature-branch non-fixing consult, arena-vs-stack rollback).
 
 ## Stage 7.2: inferTypes / inferFromTypes [M]
 
@@ -321,7 +383,11 @@ Commit: `m6 7.3: covariant/contravariant inference + clamp`.
   mergeInferences, `context.inferredTypeParameters = ...` 80804,
   instantiateSignatureInContextOf 75910), and chooseOverload's
   consumption via `getSignatureInstantiation(candidate, ...,
-  inferenceContext.inferredTypeParameters)` (76844).
+  inferenceContext.inferredTypeParameters)` (76844). mergeInferences
+  is a LIVE-slot id rewrite (`inferences[i] = source_slot`) — the
+  mapper capture keeps the creation-time infos, so tsc's post-merge
+  split (detached capture fixed, fresh live row unfixed) holds by
+  construction (7.1 post-review identity model, pinned by test).
 - Context-sensitive argument detection (`isContextSensitive` 63832)
   and the deferred body interaction (M4's driver already defers
   bodies; the re-run is what types their parameters).
