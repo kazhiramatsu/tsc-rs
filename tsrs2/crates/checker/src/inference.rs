@@ -19,11 +19,17 @@
 //! at 7.2 (the candidate collector), `get_inferred_type` at 7.3
 //! (resolution + the constraint clamp).
 
+use std::collections::HashMap;
+
 use tsrs2_syntax::{NodeId, SyntaxKind};
-use tsrs2_types::{ContextFlags, InferenceFlags, InferencePriority, TypeId};
+use tsrs2_types::{
+    ContextFlags, ExpandingFlags, InferenceFlags, InferencePriority, IntersectionFlags,
+    ObjectFlags, TypeData, TypeFlags, TypeId, UnionReduction, VarianceFlags,
+};
 
 use crate::instantiate::{DeferredMapperTargets, MapperId, TypeMapper};
 use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
+use crate::variance::VariancesResult;
 
 /// Arena id — see the module doc for the identity/rollback contract.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -425,7 +431,18 @@ impl<'a> CheckerState<'a> {
                     self.get_contextual_type(site.node, ContextFlags::NO_CONSTRAINTS)?
                 };
                 if let Some(contextual_type) = contextual_type {
-                    self.infer_types(context, site.ty, contextual_type)?;
+                    // 68296 `inferTypes(context.inferences, type,
+                    // contextualType)` — the live slots, re-read per
+                    // call exactly as tsc re-evaluates the member
+                    // expression.
+                    let inferences = self.inference_context(context).inferences.clone();
+                    self.infer_types(
+                        &inferences,
+                        site.ty,
+                        contextual_type,
+                        InferencePriority::NONE,
+                        false,
+                    )?;
                 }
             }
             self.inference_context_mut(context)
@@ -504,27 +521,143 @@ impl<'a> CheckerState<'a> {
         merged
     }
 
-    /// tsc-deferred: M6 — inferTypes (68637), the stage 7.2 candidate
-    /// collector; this stub is the fixing mapper's drain landing pad
-    /// and is production-unreachable until 7.4 pushes real contexts.
+    /// tsc-port: isTypeOrBaseIdenticalTo @6.0.3
+    /// tsc-hash: 919de3d454f063e3817c9b6dcbb5b996714dfee56928f1a59f42ba1277836df9
+    /// tsc-span: _tsc.js:69234-69236
+    pub(crate) fn is_type_or_base_identical_to(
+        &mut self,
+        s: TypeId,
+        t: TypeId,
+    ) -> CheckResult2<bool> {
+        if t == self.tables.intrinsics.missing {
+            return Ok(s == t);
+        }
+        Ok(self.is_type_identical_to(s, t)?
+            || (self.tables.flags_of(t).intersects(TypeFlags::STRING)
+                && self
+                    .tables
+                    .flags_of(s)
+                    .intersects(TypeFlags::STRING_LITERAL))
+            || (self.tables.flags_of(t).intersects(TypeFlags::NUMBER)
+                && self
+                    .tables
+                    .flags_of(s)
+                    .intersects(TypeFlags::NUMBER_LITERAL)))
+    }
+
+    /// tsc-port: isTypeCloselyMatchedBy @6.0.3
+    /// tsc-hash: 9e6c16ca3142c2941d70635429d3c6c52cb8c0c4f851646ff4947b18e54109e5
+    /// tsc-span: _tsc.js:69237-69239
+    pub(crate) fn is_type_closely_matched_by(&self, s: TypeId, t: TypeId) -> bool {
+        let s_ty = self.tables.type_of(s);
+        let t_ty = self.tables.type_of(t);
+        (s_ty.flags.intersects(TypeFlags::OBJECT)
+            && t_ty.flags.intersects(TypeFlags::OBJECT)
+            && s_ty.symbol.is_some()
+            && s_ty.symbol == t_ty.symbol)
+            || (s_ty.alias_symbol.is_some()
+                && s_ty.alias_type_arguments.is_some()
+                && s_ty.alias_symbol == t_ty.alias_symbol)
+    }
+
+    /// tsc-port: isTypeParameterAtTopLevel @6.0.3
+    /// tsc-hash: 8fc9224bccca52f75df1302daf69a97ddcc67b5b7d4b5f132424c29be7b9a8d6
+    /// tsc-span: _tsc.js:68349-68351
     ///
-    /// 7.2 re-cuts this seam: tsc's signature is inferences-ARRAY-
-    /// first with `priority = 0, contravariant = false` defaults, and
-    /// its callers include detached-array sites
-    /// (inferReverseMappedTypeWorker 68438 `inferTypes([inference],
-    /// ...)`; the 7.4 higher-order path 80788) plus non-default
-    /// priorities (62679/66375) — widen the signature and pick the
-    /// id-vs-slice receiver there (clear_cached_inferences above is
-    /// already slice-shaped for that fork); do NOT wrap detached
-    /// arrays in throwaway arena contexts.
+    /// The depth<3 conditional-type probe is an M8 escape (the flag is
+    /// unconstructible until conditional types land).
+    pub(crate) fn is_type_parameter_at_top_level(
+        &mut self,
+        ty: TypeId,
+        tp: TypeId,
+        depth: usize,
+    ) -> CheckResult2<bool> {
+        if ty == tp {
+            return Ok(true);
+        }
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+            let members = match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+                _ => unreachable!("UnionOrIntersection flag implies member data"),
+            };
+            for member in members {
+                if self.is_type_parameter_at_top_level(member, tp, depth)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+        if depth < 3 && flags.intersects(TypeFlags::CONDITIONAL) {
+            return Err(Unsupported::new(
+                "isTypeParameterAtTopLevel conditional branches (M8 — the flag is \
+                 unconstructible before conditional types land)",
+            ));
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: hasSkipDirectInferenceFlag @6.0.3
+    /// tsc-hash: acf0e7bd86bab58da75c3a803292e066114e5df6b23cfa64ebff9bacb7805004
+    /// tsc-span: _tsc.js:68509-68511
+    ///
+    /// Constant false: the only writer of links.skipDirectInference is
+    /// runWithInferenceBlockedFromSourceNode (46950-46977), a
+    /// services-only entry (completions' getResolvedSignature probe)
+    /// the conformance driver never reaches — same disposition as the
+    /// blockedStringType read in expr.rs's string-literal arm.
+    #[allow(dead_code)] // consumer: 7.2d inferFromProperties (69174)
+    pub(crate) fn has_skip_direct_inference_flag(&self, node: NodeId) -> bool {
+        let _ = node;
+        false
+    }
+
+    /// tsc-port: isFromInferenceBlockedSource @6.0.3
+    /// tsc-hash: 145bbe111d3b19425b1d192487d5a5a9f00f93a7f9e35dc3356a73cede4efb96
+    /// tsc-span: _tsc.js:68512-68514
+    ///
+    /// Constant false for the same reason as
+    /// `has_skip_direct_inference_flag` above: no declaration can
+    /// carry the flag while its only writer is services-only.
+    pub(crate) fn is_from_inference_blocked_source(&self, ty: TypeId) -> bool {
+        let _ = ty;
+        false
+    }
+
+    /// tsc-port: inferTypes @6.0.3
+    /// tsc-hash: 87c1353bf4aba29de6b61ebe8198ffb59d14c6c05594bf44535b642745b062cc
+    /// tsc-span: _tsc.js:68637-68645
+    ///
+    /// The candidate collector's entry: tsc's inferences-array-first
+    /// signature with the `priority = 0, contravariant = false`
+    /// defaults spelled out at every call site. Context-attached
+    /// callers clone the context's (Copy) id vec; detached arrays
+    /// (inferReverseMappedTypeWorker 68438, the 7.4 higher-order path
+    /// 80788) pass their own Vec — never a throwaway arena context.
+    /// The closure family (68646-69233) lives on `InferTypesWalker`.
     pub(crate) fn infer_types(
         &mut self,
-        context: InferenceContextId,
-        source: TypeId,
-        target: TypeId,
+        inferences: &[InferenceInfoId],
+        original_source: TypeId,
+        original_target: TypeId,
+        priority: InferencePriority,
+        contravariant: bool,
     ) -> CheckResult2<()> {
-        let _ = (context, source, target);
-        Err(Unsupported::new("inferTypes candidate collection (M6 7.2)"))
+        let mut walker = InferTypesWalker {
+            st: self,
+            inferences: inferences.to_vec(),
+            original_target,
+            priority,
+            contravariant,
+            bivariant: false,
+            propagation_type: None,
+            inference_priority: InferencePriority::MAX_VALUE,
+            visited: HashMap::new(),
+            source_stack: Vec::new(),
+            target_stack: Vec::new(),
+            expanding_flags: ExpandingFlags::NONE,
+        };
+        walker.infer_from_types(original_source, original_target)
     }
 
     /// tsc-deferred: M6 — getInferredType (69271), the stage 7.3
@@ -542,10 +675,778 @@ impl<'a> CheckerState<'a> {
     }
 }
 
+/// The inferFromMatchingTypes `matches` parameter (68859): tsc passes
+/// one of three predicate references — isTypeOrBaseIdenticalTo /
+/// isTypeCloselyMatchedBy / isTypeIdenticalTo; the port dispatches
+/// over the closed set (CompareTypesFn precedent). Union pass 1/2 =
+/// 68673-68674, intersection pass = 68688.
+#[derive(Clone, Copy, Debug)]
+enum TypeMatcher {
+    OrBaseIdenticalTo,
+    CloselyMatchedBy,
+    IdenticalTo,
+}
+
+/// The inferTypes closure family (68646-69233): one walker per
+/// inferTypes invocation, carrying tsc's captured locals (68638-68644)
+/// plus the two entry parameters the closures mutate via save/restore
+/// (`priority`, `contravariant`). Everything here is walker-local and
+/// dies with an Err unwind — the RelationChecker discipline
+/// (engine.rs) — so none of it joins the UnwindSnapshot census; the
+/// only durable writes go through the E-class info arena.
+struct InferTypesWalker<'r, 'a> {
+    st: &'r mut CheckerState<'a>,
+    /// The `inferences` argument array as an entry-time id snapshot:
+    /// slot identity can only change via mergeInferences (80836),
+    /// which runs between inferTypes invocations, never inside one.
+    inferences: Vec<InferenceInfoId>,
+    original_target: TypeId,
+    priority: InferencePriority,
+    contravariant: bool,
+    bivariant: bool,
+    propagation_type: Option<TypeId>,
+    /// 68640: min-tracked priority of every inference actually landed;
+    /// MaxValue until the first candidate records.
+    inference_priority: InferencePriority,
+    /// 68641: lazily created in tsc; HashMap::new() allocates nothing
+    /// until the first insert, so a plain map is the same. Keyed by
+    /// the invokeOnce `source.id + "," + target.id` pair. Unused until
+    /// the first invokeOnce action lands (7.2b).
+    #[allow(dead_code)]
+    visited: HashMap<(TypeId, TypeId), InferencePriority>,
+    #[allow(dead_code)] // consumer: invokeOnce (7.2b)
+    source_stack: Vec<TypeId>,
+    #[allow(dead_code)] // consumer: invokeOnce (7.2b)
+    target_stack: Vec<TypeId>,
+    #[allow(dead_code)] // consumer: invokeOnce (7.2b)
+    expanding_flags: ExpandingFlags,
+}
+
+impl InferTypesWalker<'_, '_> {
+    /// tsrs-native: member access for UnionOrIntersection types (tsc
+    /// `type.types`), the engine.rs union_members shape.
+    fn types_of(&self, ty: TypeId) -> Vec<TypeId> {
+        match &self.st.tables.type_of(ty).data {
+            TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+            _ => unreachable!("UnionOrIntersection flag implies member data"),
+        }
+    }
+
+    /// tsrs-native: clearCachedInferences over the walker's array —
+    /// the free-fn split lets the arena borrow stay disjoint from the
+    /// id list.
+    fn clear_cached(&mut self) {
+        clear_cached_inferences(&mut self.st.inference_info_arena, &self.inferences);
+    }
+
+    /// tsrs-native: TypeMatcher dispatch (see the enum).
+    fn matches_pair(&mut self, s: TypeId, t: TypeId, matcher: TypeMatcher) -> CheckResult2<bool> {
+        match matcher {
+            TypeMatcher::OrBaseIdenticalTo => self.st.is_type_or_base_identical_to(s, t),
+            TypeMatcher::CloselyMatchedBy => Ok(self.st.is_type_closely_matched_by(s, t)),
+            TypeMatcher::IdenticalTo => self.st.is_type_identical_to(s, t),
+        }
+    }
+
+    /// tsc-port: inferFromTypes @6.0.3
+    /// tsc-hash: 48b6e375e3eb768298b7554c55ba6f7b45710573f07bb56e9ff78ff819b48328
+    /// tsc-span: _tsc.js:68646-68814
+    ///
+    /// The dispatch spine, arms in source order. 7.2a stages the tail:
+    /// the literal-keyof arm is 7.2b, inferToConditionalType rides
+    /// invokeOnce at 7.2b, inferToTemplateLiteralType is 7.2c, and the
+    /// reduced/apparent object tail (inferFromObjectTypes) is 7.2d —
+    /// each a named escape below until its commit. The Substitution
+    /// source arm is a genuine M8 escape (unconstructible flag).
+    ///
+    /// Load-bearing shape notes:
+    /// - The TypeVariable block (68701-68769) returns ONLY when an
+    ///   inference slot matched; the simplification fallback falls
+    ///   through into the 68770 chain (e.g. an indexed-access pair
+    ///   reaches the pairwise arm after failing to simplify).
+    /// - Arms 5/6 (union/intersection reduction) rewrite source and
+    ///   target in place before every later arm reads them.
+    fn infer_from_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+        let mut source = source;
+        let mut target = target;
+        // 68647: `|| isNoInferType(target)` is constant-false — NoInfer
+        // Substitution types are unconstructible until M8 (the
+        // getIndexType precedent, indexed.rs).
+        if !self.st.could_contain_type_variables(target) {
+            return Ok(());
+        }
+        if source == self.st.tables.intrinsics.wildcard
+            || source == self.st.tables.intrinsics.blocked_string
+        {
+            // 68650-68655: infer target-to-target under the
+            // propagation type so nested type variables receive the
+            // original marker source.
+            let save_propagation_type = self.propagation_type;
+            self.propagation_type = Some(source);
+            let result = self.infer_from_types(target, target);
+            self.propagation_type = save_propagation_type;
+            return result;
+        }
+        if let Some(alias) = self.st.tables.type_of(source).alias_symbol {
+            if Some(alias) == self.st.tables.type_of(target).alias_symbol {
+                if let Some(source_args) =
+                    self.st.tables.type_of(source).alias_type_arguments.clone()
+                {
+                    // 68658-68663: infer between the (filled) alias
+                    // argument lists under the alias' measured
+                    // variances.
+                    let target_args = self.st.tables.type_of(target).alias_type_arguments.clone();
+                    let params = self.st.links.symbol(alias).type_parameters.clone();
+                    let min_params = self.st.get_min_type_argument_count(params.as_deref());
+                    let in_js = self
+                        .st
+                        .binder
+                        .symbol(alias)
+                        .value_declaration
+                        .is_some_and(|declaration| self.st.is_in_js_file(declaration));
+                    let source_types = self
+                        .st
+                        .fill_missing_type_arguments(
+                            Some(&source_args),
+                            params.as_deref(),
+                            min_params,
+                            in_js,
+                        )?
+                        .expect("present arguments fill to a present list (68660)");
+                    let target_types = self
+                        .st
+                        .fill_missing_type_arguments(
+                            target_args.as_deref(),
+                            params.as_deref(),
+                            min_params,
+                            in_js,
+                        )?
+                        .expect("shared alias symbol implies argument lists (68661)");
+                    let variances = match self.st.get_alias_variances(alias)? {
+                        VariancesResult::Known(variances) => variances,
+                        // In-measurement recursion: tsc reads the
+                        // links.variances = emptyArray placeholder.
+                        VariancesResult::InProgress => Box::default(),
+                    };
+                    self.infer_from_type_arguments(&source_types, &target_types, &variances)?;
+                }
+                return Ok(());
+            }
+        }
+        if source == target
+            && self
+                .st
+                .tables
+                .flags_of(source)
+                .intersects(TypeFlags::UNION_OR_INTERSECTION)
+        {
+            // 68667-68671: identical union/intersection — infer each
+            // member into itself.
+            for t in self.types_of(source) {
+                self.infer_from_types(t, t)?;
+            }
+            return Ok(());
+        }
+        if self.st.tables.flags_of(target).intersects(TypeFlags::UNION) {
+            // 68673-68684: strip identical then closely-matched pairs;
+            // a fully-stripped source infers the remainder as a naked
+            // type variable.
+            let initial_sources = if self.st.tables.flags_of(source).intersects(TypeFlags::UNION) {
+                self.types_of(source)
+            } else {
+                vec![source]
+            };
+            let (temp_sources, temp_targets) = self.infer_from_matching_types(
+                initial_sources,
+                self.types_of(target),
+                TypeMatcher::OrBaseIdenticalTo,
+            )?;
+            let (sources, targets) = self.infer_from_matching_types(
+                temp_sources,
+                temp_targets,
+                TypeMatcher::CloselyMatchedBy,
+            )?;
+            if targets.is_empty() {
+                return Ok(());
+            }
+            target = self
+                .st
+                .get_union_type_ex(&targets, UnionReduction::Literal)?;
+            if sources.is_empty() {
+                self.infer_with_priority(source, target, InferencePriority::NAKED_TYPE_VARIABLE)?;
+                return Ok(());
+            }
+            source = self
+                .st
+                .get_union_type_ex(&sources, UnionReduction::Literal)?;
+        } else if self
+            .st
+            .tables
+            .flags_of(target)
+            .intersects(TypeFlags::INTERSECTION)
+            && {
+                let mut every_non_generic_object = true;
+                for member in self.types_of(target) {
+                    // 62918 isNonGenericObjectType
+                    let non_generic_object = self
+                        .st
+                        .tables
+                        .flags_of(member)
+                        .intersects(TypeFlags::OBJECT)
+                        && !self.st.is_generic_mapped_type_state(member);
+                    if !non_generic_object {
+                        every_non_generic_object = false;
+                        break;
+                    }
+                }
+                !every_non_generic_object
+            }
+        {
+            // 68685-68694: reduce non-union sources against a partly
+            // generic intersection target to the identical parts.
+            if !self.st.tables.flags_of(source).intersects(TypeFlags::UNION) {
+                let initial_sources = if self
+                    .st
+                    .tables
+                    .flags_of(source)
+                    .intersects(TypeFlags::INTERSECTION)
+                {
+                    self.types_of(source)
+                } else {
+                    vec![source]
+                };
+                let (sources, targets) = self.infer_from_matching_types(
+                    initial_sources,
+                    self.types_of(target),
+                    TypeMatcher::IdenticalTo,
+                )?;
+                if sources.is_empty() || targets.is_empty() {
+                    return Ok(());
+                }
+                source = self
+                    .st
+                    .get_intersection_type(&sources, IntersectionFlags::NONE)?;
+                target = self
+                    .st
+                    .get_intersection_type(&targets, IntersectionFlags::NONE)?;
+            }
+        }
+        if self
+            .st
+            .tables
+            .flags_of(target)
+            .intersects(TypeFlags::INDEXED_ACCESS | TypeFlags::SUBSTITUTION)
+        {
+            // 68695-68699: the isNoInferType guard is constant-false
+            // (M8, as at the entry gate).
+            target = self.st.get_actual_type_variable(target)?;
+        }
+        if self
+            .st
+            .tables
+            .flags_of(target)
+            .intersects(TypeFlags::TYPE_VARIABLE)
+        {
+            if self.st.is_from_inference_blocked_source(source) {
+                return Ok(());
+            }
+            if let Some(info_id) = self.get_inference_info_for_type(target) {
+                if self
+                    .st
+                    .tables
+                    .object_flags_of(source)
+                    .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
+                    || source == self.st.tables.intrinsics.non_inferrable_any
+                {
+                    return Ok(());
+                }
+                if !self.st.inference_info(info_id).is_fixed {
+                    let candidate = self.propagation_type.unwrap_or(source);
+                    if candidate == self.st.tables.intrinsics.blocked_string {
+                        return Ok(());
+                    }
+                    // 68715-68720: a LOWER priority resets the record.
+                    let reset = match self.st.inference_info(info_id).priority {
+                        None => true,
+                        Some(existing) => self.priority < existing,
+                    };
+                    if reset {
+                        let info = self.st.inference_info_mut(info_id);
+                        info.candidates = None;
+                        info.contra_candidates = None;
+                        info.top_level = true;
+                        info.priority = Some(self.priority);
+                    }
+                    // 68721-68731: equal priority accumulates (unique).
+                    if Some(self.priority) == self.st.inference_info(info_id).priority {
+                        if self.contravariant && !self.bivariant {
+                            let already = self
+                                .st
+                                .inference_info(info_id)
+                                .contra_candidates
+                                .as_deref()
+                                .is_some_and(|contra| contra.contains(&candidate));
+                            if !already {
+                                self.st
+                                    .inference_info_mut(info_id)
+                                    .contra_candidates
+                                    .get_or_insert_with(Vec::new)
+                                    .push(candidate);
+                                self.clear_cached();
+                            }
+                        } else {
+                            let already = self
+                                .st
+                                .inference_info(info_id)
+                                .candidates
+                                .as_deref()
+                                .is_some_and(|candidates| candidates.contains(&candidate));
+                            if !already {
+                                self.st
+                                    .inference_info_mut(info_id)
+                                    .candidates
+                                    .get_or_insert_with(Vec::new)
+                                    .push(candidate);
+                                self.clear_cached();
+                            }
+                        }
+                    }
+                    // 68732-68735: record-time top-level demotion
+                    // against the ORIGINAL target (not a threaded
+                    // flag — threading one diverges).
+                    if !self.priority.intersects(InferencePriority::RETURN_TYPE)
+                        && self
+                            .st
+                            .tables
+                            .flags_of(target)
+                            .intersects(TypeFlags::TYPE_PARAMETER)
+                        && self.st.inference_info(info_id).top_level
+                        && !self.st.is_type_parameter_at_top_level(
+                            self.original_target,
+                            target,
+                            0,
+                        )?
+                    {
+                        self.st.inference_info_mut(info_id).top_level = false;
+                        self.clear_cached();
+                    }
+                }
+                self.inference_priority = self.inference_priority.min(self.priority);
+                return Ok(());
+            }
+            // 68740-68769: no slot — try simplifying; on failure fall
+            // THROUGH to the 68770 chain with the original pair.
+            let simplified = self.st.get_simplified_type(target, false)?;
+            if simplified != target {
+                self.infer_from_types(source, simplified)?;
+            } else if self
+                .st
+                .tables
+                .flags_of(target)
+                .intersects(TypeFlags::INDEXED_ACCESS)
+            {
+                let TypeData::IndexedAccess {
+                    object_type,
+                    index_type,
+                    ..
+                } = self.st.tables.type_of(target).data
+                else {
+                    unreachable!("IndexedAccess flag implies data");
+                };
+                let index_type = self.st.get_simplified_type(index_type, false)?;
+                if self
+                    .st
+                    .tables
+                    .flags_of(index_type)
+                    .intersects(TypeFlags::INSTANTIABLE)
+                {
+                    let object_type = self.st.get_simplified_type(object_type, false)?;
+                    if let Some(simplified2) =
+                        self.st
+                            .distribute_index_over_object_type(object_type, index_type, false)?
+                    {
+                        if simplified2 != target {
+                            self.infer_from_types(source, simplified2)?;
+                        }
+                    }
+                }
+            }
+        }
+        // 68770-68813: the terminal arm chain (exactly one fires).
+        let source_object_flags = self.st.tables.object_flags_of(source);
+        let target_object_flags = self.st.tables.object_flags_of(target);
+        let source_flags = self.st.tables.flags_of(source);
+        let target_flags = self.st.tables.flags_of(target);
+        let matching_references = source_object_flags.intersects(ObjectFlags::REFERENCE)
+            && target_object_flags.intersects(ObjectFlags::REFERENCE)
+            && (self.st.tables.reference_target(source) == self.st.tables.reference_target(target)
+                || self.st.is_array_type(source)? && self.st.is_array_type(target)?)
+            && !(self.st.links.ty(source).deferred_node.is_some()
+                && self.st.links.ty(target).deferred_node.is_some());
+        if matching_references {
+            // 68770-68771: matching references infer pairwise under the
+            // target's measured variances.
+            let source_arguments = self.st.get_type_arguments(source)?;
+            let target_arguments = self.st.get_type_arguments(target)?;
+            let reference_target = self.st.tables.reference_target(source);
+            let variances = match self.st.get_variances(reference_target)? {
+                VariancesResult::Known(variances) => variances,
+                VariancesResult::InProgress => Box::default(),
+            };
+            self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)?;
+        } else if source_flags.intersects(TypeFlags::INDEX)
+            && target_flags.intersects(TypeFlags::INDEX)
+        {
+            // 68772-68773: keyof operands infer contravariantly.
+            let TypeData::Index {
+                ty: source_inner, ..
+            } = self.st.tables.type_of(source).data
+            else {
+                unreachable!("Index flag implies data");
+            };
+            let TypeData::Index {
+                ty: target_inner, ..
+            } = self.st.tables.type_of(target).data
+            else {
+                unreachable!("Index flag implies data");
+            };
+            self.infer_from_contravariant_types(source_inner, target_inner)?;
+        } else if (self.st.is_literal_type(source) || source_flags.intersects(TypeFlags::STRING))
+            && target_flags.intersects(TypeFlags::INDEX)
+        {
+            return Err(Unsupported::new(
+                "inferFromTypes literal-keyof arm — createEmptyObjectTypeFromStringLiteral \
+                 (M6 7.2b)",
+            ));
+        } else if source_flags.intersects(TypeFlags::INDEXED_ACCESS)
+            && target_flags.intersects(TypeFlags::INDEXED_ACCESS)
+        {
+            // 68777-68779: object and index types infer pairwise.
+            let TypeData::IndexedAccess {
+                object_type: source_object,
+                index_type: source_index,
+                ..
+            } = self.st.tables.type_of(source).data
+            else {
+                unreachable!("IndexedAccess flag implies data");
+            };
+            let TypeData::IndexedAccess {
+                object_type: target_object,
+                index_type: target_index,
+                ..
+            } = self.st.tables.type_of(target).data
+            else {
+                unreachable!("IndexedAccess flag implies data");
+            };
+            self.infer_from_types(source_object, target_object)?;
+            self.infer_from_types(source_index, target_index)?;
+        } else if source_flags.intersects(TypeFlags::STRING_MAPPING)
+            && target_flags.intersects(TypeFlags::STRING_MAPPING)
+        {
+            // 68780-68783: same intrinsic mapping symbol → operands.
+            if self.st.tables.type_of(source).symbol == self.st.tables.type_of(target).symbol {
+                let TypeData::StringMapping { ty: source_inner } =
+                    self.st.tables.type_of(source).data
+                else {
+                    unreachable!("StringMapping flag implies data");
+                };
+                let TypeData::StringMapping { ty: target_inner } =
+                    self.st.tables.type_of(target).data
+                else {
+                    unreachable!("StringMapping flag implies data");
+                };
+                self.infer_from_types(source_inner, target_inner)?;
+            }
+        } else if source_flags.intersects(TypeFlags::SUBSTITUTION) {
+            return Err(Unsupported::new(
+                "inferFromTypes Substitution-source arm (M8 — Substitution types are \
+                 unconstructible before their type nodes land)",
+            ));
+        } else if target_flags.intersects(TypeFlags::CONDITIONAL) {
+            return Err(Unsupported::new(
+                "inferToConditionalType via invokeOnce (M6 7.2b)",
+            ));
+        } else if target_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+            let member_types = self.types_of(target);
+            self.infer_to_multiple_types(source, &member_types, target_flags)?;
+        } else if source_flags.intersects(TypeFlags::UNION) {
+            // 68791-68795: distribute a union source over the target.
+            for source_type in self.types_of(source) {
+                self.infer_from_types(source_type, target)?;
+            }
+        } else if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
+            return Err(Unsupported::new("inferToTemplateLiteralType (M6 7.2c)"));
+        } else {
+            return Err(Unsupported::new(
+                "inferFromTypes object tail — getReducedType/getApparentType + \
+                 inferFromObjectTypes (M6 7.2d)",
+            ));
+        }
+        Ok(())
+    }
+
+    /// tsc-port: inferWithPriority @6.0.3
+    /// tsc-hash: be44c8fe440eb312916cf24bb641c78ce6064083703ba1db2664eb1e21feabe7
+    /// tsc-span: _tsc.js:68815-68820
+    fn infer_with_priority(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        new_priority: InferencePriority,
+    ) -> CheckResult2<()> {
+        let save_priority = self.priority;
+        self.priority |= new_priority;
+        let result = self.infer_from_types(source, target);
+        self.priority = save_priority;
+        result
+    }
+
+    /// tsc-port: inferFromMatchingTypes @6.0.3
+    /// tsc-hash: aa516228e1bf3ddc4ba2a715d2d7ec78fbf257b7d386ee80f9c59a4c7efc8cee
+    /// tsc-span: _tsc.js:68859-68875
+    ///
+    /// Infers between every matching pair and returns the unmatched
+    /// remainders. tsc's undefined-until-appended matched arrays are
+    /// empty vecs here — emptiness and undefined coincide because tsc
+    /// only creates them via appendIfUnique.
+    fn infer_from_matching_types(
+        &mut self,
+        sources: Vec<TypeId>,
+        targets: Vec<TypeId>,
+        matcher: TypeMatcher,
+    ) -> CheckResult2<(Vec<TypeId>, Vec<TypeId>)> {
+        let mut matched_sources: Vec<TypeId> = Vec::new();
+        let mut matched_targets: Vec<TypeId> = Vec::new();
+        for &t in &targets {
+            for &s in &sources {
+                if self.matches_pair(s, t, matcher)? {
+                    self.infer_from_types(s, t)?;
+                    if !matched_sources.contains(&s) {
+                        matched_sources.push(s);
+                    }
+                    if !matched_targets.contains(&t) {
+                        matched_targets.push(t);
+                    }
+                }
+            }
+        }
+        Ok((
+            if matched_sources.is_empty() {
+                sources
+            } else {
+                sources
+                    .into_iter()
+                    .filter(|s| !matched_sources.contains(s))
+                    .collect()
+            },
+            if matched_targets.is_empty() {
+                targets
+            } else {
+                targets
+                    .into_iter()
+                    .filter(|t| !matched_targets.contains(t))
+                    .collect()
+            },
+        ))
+    }
+
+    /// tsc-port: inferFromTypeArguments @6.0.3
+    /// tsc-hash: b4d0b2ebcb9d2b0de689aa2a0e25ce26e6872585093ae317901b6da790c86a7b
+    /// tsc-span: _tsc.js:68876-68885
+    fn infer_from_type_arguments(
+        &mut self,
+        source_types: &[TypeId],
+        target_types: &[TypeId],
+        variances: &[VarianceFlags],
+    ) -> CheckResult2<()> {
+        let count = source_types.len().min(target_types.len());
+        for i in 0..count {
+            if i < variances.len()
+                && (variances[i].bits() & VarianceFlags::VARIANCE_MASK.bits())
+                    == VarianceFlags::CONTRAVARIANT.bits()
+            {
+                self.infer_from_contravariant_types(source_types[i], target_types[i])?;
+            } else {
+                self.infer_from_types(source_types[i], target_types[i])?;
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: inferFromContravariantTypes @6.0.3
+    /// tsc-hash: a8074c8258a769404cf35e6e2c37cadef6768bed1da2946e5dbe3d4315fe1027
+    /// tsc-span: _tsc.js:68886-68890
+    ///
+    /// A toggle, not a set — nested contravariant positions flip back
+    /// to covariant.
+    fn infer_from_contravariant_types(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<()> {
+        self.contravariant = !self.contravariant;
+        let result = self.infer_from_types(source, target);
+        self.contravariant = !self.contravariant;
+        result
+    }
+
+    /// tsc-port: getInferenceInfoForType @6.0.3
+    /// tsc-hash: 454be8d3105da69089cbcabb7759be1dec137fd7cd578ebd8cb56ed0a46c2aae
+    /// tsc-span: _tsc.js:68898-68907
+    ///
+    /// Scans the walker's array (the `inferences` closure capture);
+    /// returns the arena id where tsc returns the info object.
+    fn get_inference_info_for_type(&self, ty: TypeId) -> Option<InferenceInfoId> {
+        if self
+            .st
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::TYPE_VARIABLE)
+        {
+            for &id in &self.inferences {
+                if self.st.inference_info(id).type_parameter == ty {
+                    return Some(id);
+                }
+            }
+        }
+        None
+    }
+
+    /// tsc-port: getSingleTypeVariableFromIntersectionTypes @6.0.3
+    /// tsc-hash: b67232065b5fe1d714228f0c4aa174cc82bb5b1f214447186e3302fe9e207baf
+    /// tsc-span: _tsc.js:68908-68918
+    fn get_single_type_variable_from_intersection_types(&self, types: &[TypeId]) -> Option<TypeId> {
+        let mut type_variable: Option<TypeId> = None;
+        for &ty in types {
+            let t = if self
+                .st
+                .tables
+                .flags_of(ty)
+                .intersects(TypeFlags::INTERSECTION)
+            {
+                self.types_of(ty)
+                    .into_iter()
+                    .find(|&member| self.get_inference_info_for_type(member).is_some())
+            } else {
+                None
+            };
+            let t = t?;
+            if type_variable.is_some_and(|type_variable| t != type_variable) {
+                return None;
+            }
+            type_variable = Some(t);
+        }
+        type_variable
+    }
+
+    /// tsc-port: inferToMultipleTypes @6.0.3
+    /// tsc-hash: 4773f9f3a82c98855f33df80002d728e6e84ed097889ef2b09978ce7de7d2cf4
+    /// tsc-span: _tsc.js:68919-68971
+    fn infer_to_multiple_types(
+        &mut self,
+        source: TypeId,
+        targets: &[TypeId],
+        target_flags: TypeFlags,
+    ) -> CheckResult2<()> {
+        let mut type_variable_count = 0usize;
+        if target_flags.intersects(TypeFlags::UNION) {
+            // 68921-68940: per-source match tracking decides whether
+            // the unmatched remainder funnels into a single naked
+            // type variable.
+            let mut naked_type_variable: Option<TypeId> = None;
+            let sources = if self.st.tables.flags_of(source).intersects(TypeFlags::UNION) {
+                self.types_of(source)
+            } else {
+                vec![source]
+            };
+            let mut matched = vec![false; sources.len()];
+            let mut inference_circularity = false;
+            for &t in targets {
+                if self.get_inference_info_for_type(t).is_some() {
+                    naked_type_variable = Some(t);
+                    type_variable_count += 1;
+                } else {
+                    for i in 0..sources.len() {
+                        let save_inference_priority = self.inference_priority;
+                        self.inference_priority = InferencePriority::MAX_VALUE;
+                        self.infer_from_types(sources[i], t)?;
+                        if self.inference_priority == self.priority {
+                            matched[i] = true;
+                        }
+                        inference_circularity = inference_circularity
+                            || self.inference_priority == InferencePriority::CIRCULARITY;
+                        self.inference_priority =
+                            self.inference_priority.min(save_inference_priority);
+                    }
+                }
+            }
+            if type_variable_count == 0 {
+                // 68941-68947: a type variable shared by every
+                // intersection constituent still receives a naked
+                // inference.
+                if let Some(intersection_type_variable) =
+                    self.get_single_type_variable_from_intersection_types(targets)
+                {
+                    self.infer_with_priority(
+                        source,
+                        intersection_type_variable,
+                        InferencePriority::NAKED_TYPE_VARIABLE,
+                    )?;
+                }
+                return Ok(());
+            }
+            if type_variable_count == 1 && !inference_circularity {
+                let unmatched: Vec<TypeId> = sources
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .filter(|&(i, _)| !matched[i])
+                    .map(|(_, s)| s)
+                    .collect();
+                if !unmatched.is_empty() {
+                    let union = self
+                        .st
+                        .get_union_type_ex(&unmatched, UnionReduction::Literal)?;
+                    self.infer_from_types(
+                        union,
+                        naked_type_variable.expect("count == 1 implies a recorded variable"),
+                    )?;
+                    return Ok(());
+                }
+            }
+        } else {
+            // 68955-68963: intersection targets infer member-wise;
+            // type variables are only counted here.
+            for &t in targets {
+                if self.get_inference_info_for_type(t).is_some() {
+                    type_variable_count += 1;
+                } else {
+                    self.infer_from_types(source, t)?;
+                }
+            }
+        }
+        // 68964-68970: unions take any type-variable count; an
+        // intersection requires exactly one.
+        if if target_flags.intersects(TypeFlags::INTERSECTION) {
+            type_variable_count == 1
+        } else {
+            type_variable_count > 0
+        } {
+            for &t in targets {
+                if self.get_inference_info_for_type(t).is_some() {
+                    self.infer_with_priority(source, t, InferencePriority::NAKED_TYPE_VARIABLE)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use tsrs2_types::{
-        CompilerOptions, ContextFlags, InferenceFlags, SymbolFlags, TypeId, UnionReduction,
+        CompilerOptions, ContextFlags, InferenceFlags, InferencePriority, SymbolFlags, TypeId,
+        UnionReduction,
     };
 
     use super::CompareTypesFn;
@@ -899,7 +1800,10 @@ mod tests {
     #[test]
     fn fixing_dispatch_mid_drain_unwind_keeps_sites_and_fix_pending() {
         with_program_state(
-            &[("a.ts", "function f<T>() { var v: number = 1; }\n")],
+            &[(
+                "a.ts",
+                "function f<T>() { var v: T extends string ? string : number = 1; }\n",
+            )],
             &CompilerOptions::default(),
             |state| {
                 let t = declared_type_parameter(state, "T");
@@ -908,11 +1812,16 @@ mod tests {
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 state.add_intra_expression_inference_site(ctx, literal, string);
                 let fixing = state.inference_context(ctx).mapper;
-                // The annotated initializer HAS a contextual type, so
-                // the drain reaches the 7.2 inferTypes stub and
-                // unwinds BEFORE the 68297 clear and the 68265 fix.
-                let err = state.get_mapped_type(t, fixing).expect_err("7.2 stub");
-                assert!(err.reason.contains("inferTypes"), "{}", err.reason);
+                // The annotated initializer HAS a contextual type
+                // whose resolution unwinds (conditional-type
+                // annotation — the M8 family), so the drain Errs
+                // mid-loop, BEFORE the 68297 clear and the 68265 fix.
+                // (A resolvable annotation no longer unwinds here:
+                // 7.2's inferTypes returns Ok for variable-free
+                // targets, so this pin rides the M8 escape until
+                // conditional types land — re-point it then.)
+                let err = state.get_mapped_type(t, fixing).expect_err("M8 escape");
+                assert!(err.reason.contains("conditional types"), "{}", err.reason);
                 assert!(state
                     .inference_context(ctx)
                     .intra_expression_inference_sites
@@ -1152,6 +2061,373 @@ mod tests {
                 assert!(state.inference_contexts.is_empty());
                 assert_eq!(state.inference_context_arena.len(), 1);
                 assert_eq!(state.inference_context(ctx).inferences.len(), 1);
+            },
+        );
+    }
+
+    // ---- 7.2a: inferTypes / inferFromTypes spine ----
+
+    /// A detached single-info array — the inferReverseMappedTypeWorker
+    /// 68438 `inferTypes([inference], ...)` seam shape.
+    fn detached_info(state: &mut CheckerState, tp: TypeId) -> super::InferenceInfoId {
+        let info = super::create_inference_info(tp);
+        state.alloc_inference_info(info)
+    }
+
+    #[test]
+    fn infer_types_records_covariant_candidate() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let info = detached_info(state, t);
+                state
+                    .infer_types(&[info], string, t, InferencePriority::NONE, false)
+                    .expect("live spine");
+                let info = state.inference_info(info);
+                assert_eq!(info.candidates.as_deref(), Some(&[string][..]));
+                assert!(info.contra_candidates.is_none());
+                assert_eq!(info.priority, Some(InferencePriority::NONE));
+                assert!(info.top_level, "T at top level of T (68732)");
+                assert!(info.inferred_type.is_none());
+            },
+        );
+    }
+
+    #[test]
+    fn infer_types_contravariant_entry_records_contra_candidate() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let info = detached_info(state, t);
+                // 68714: contravariant && !bivariant → contra side.
+                state
+                    .infer_types(&[info], string, t, InferencePriority::NONE, true)
+                    .expect("live spine");
+                let info = state.inference_info(info);
+                assert_eq!(info.contra_candidates.as_deref(), Some(&[string][..]));
+                assert!(info.candidates.is_none());
+            },
+        );
+    }
+
+    #[test]
+    fn equal_priority_candidates_append_unique_in_insertion_order() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let number = state.tables.intrinsics.number;
+                let info = detached_info(state, t);
+                for source in [string, string, number] {
+                    state
+                        .infer_types(&[info], source, t, InferencePriority::NONE, false)
+                        .expect("live spine");
+                }
+                // 68727 `!contains(...)` + append: unique, in order.
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[string, number][..])
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn lower_priority_resets_and_higher_priority_is_ignored() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let number = state.tables.intrinsics.number;
+                let boolean = state.tables.intrinsics.boolean;
+                let info = detached_info(state, t);
+                state
+                    .infer_types(&[info], string, t, InferencePriority::RETURN_TYPE, false)
+                    .expect("live spine");
+                assert_eq!(
+                    state.inference_info(info).priority,
+                    Some(InferencePriority::RETURN_TYPE)
+                );
+                // 68715: numerically-lower priority wipes the record.
+                state
+                    .infer_types(&[info], number, t, InferencePriority::NONE, false)
+                    .expect("live spine");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[number][..])
+                );
+                assert_eq!(
+                    state.inference_info(info).priority,
+                    Some(InferencePriority::NONE)
+                );
+                // 68721: a higher priority neither resets nor appends.
+                state
+                    .infer_types(&[info], boolean, t, InferencePriority::RETURN_TYPE, false)
+                    .expect("live spine");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[number][..])
+                );
+                assert_eq!(
+                    state.inference_info(info).priority,
+                    Some(InferencePriority::NONE)
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn fixed_info_skips_recording() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let info = detached_info(state, t);
+                state.inference_info_mut(info).is_fixed = true;
+                state
+                    .infer_types(&[info], string, t, InferencePriority::NONE, false)
+                    .expect("live spine");
+                let info = state.inference_info(info);
+                assert!(info.candidates.is_none(), "68710 isFixed gate");
+                assert!(info.priority.is_none());
+            },
+        );
+    }
+
+    #[test]
+    fn non_inferrable_any_source_skips_recording() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let source = state.tables.intrinsics.non_inferrable_any;
+                let info = detached_info(state, t);
+                state
+                    .infer_types(&[info], source, t, InferencePriority::NONE, false)
+                    .expect("live spine");
+                assert!(state.inference_info(info).candidates.is_none());
+            },
+        );
+    }
+
+    #[test]
+    fn wildcard_propagation_records_the_marker_source() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let wildcard = state.tables.intrinsics.wildcard;
+                let info = detached_info(state, t);
+                // 68650-68655: target-to-target under the propagation
+                // type — T receives the wildcard marker itself.
+                state
+                    .infer_types(&[info], wildcard, t, InferencePriority::NONE, false)
+                    .expect("live spine");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[wildcard][..])
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn blocked_string_candidate_is_skipped_before_the_priority_reset() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let blocked = state.tables.intrinsics.blocked_string;
+                let info = detached_info(state, t);
+                state
+                    .infer_types(&[info], blocked, t, InferencePriority::NONE, false)
+                    .expect("live spine");
+                let info = state.inference_info(info);
+                // 68712-68714: the return fires BEFORE 68715's reset,
+                // so priority stays unrecorded too.
+                assert!(info.candidates.is_none());
+                assert!(info.priority.is_none());
+            },
+        );
+    }
+
+    #[test]
+    fn union_target_unmatched_remainder_infers_into_the_naked_variable() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let number = state.tables.intrinsics.number;
+                let info = detached_info(state, t);
+                let target = state
+                    .get_union_type_ex(&[t, number], UnionReduction::Literal)
+                    .expect("union");
+                // 68948-68953: one naked variable, nothing matched →
+                // the unmatched remainder infers PLAIN (no priority
+                // elevation).
+                state
+                    .infer_types(&[info], string, target, InferencePriority::NONE, false)
+                    .expect("live spine");
+                let info = state.inference_info(info);
+                assert_eq!(info.candidates.as_deref(), Some(&[string][..]));
+                assert_eq!(info.priority, Some(InferencePriority::NONE));
+            },
+        );
+    }
+
+    #[test]
+    fn union_target_fully_matched_source_records_naked_priority() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let info = detached_info(state, t);
+                let target = state
+                    .get_union_type_ex(&[t, string], UnionReduction::Literal)
+                    .expect("union");
+                // 68674-68682: the identical member strips, sources
+                // empty → NakedTypeVariable inference of the ORIGINAL
+                // source into the remainder.
+                state
+                    .infer_types(&[info], string, target, InferencePriority::NONE, false)
+                    .expect("live spine");
+                let info = state.inference_info(info);
+                assert_eq!(info.candidates.as_deref(), Some(&[string][..]));
+                assert_eq!(info.priority, Some(InferencePriority::NAKED_TYPE_VARIABLE));
+            },
+        );
+    }
+
+    #[test]
+    fn intersection_target_fully_matched_source_aborts() {
+        with_program_state(
+            &[("a.ts", "function f<T>() { var x: T & string; }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let info = detached_info(state, t);
+                let annotation = annotation_of_var(state, "x");
+                let target = state
+                    .get_type_from_type_node(annotation)
+                    .expect("intersection annotation");
+                // 68688-68689: the identical member consumes the whole
+                // source → sources empty → abort with no record (the
+                // asymmetric twin of the union NakedTypeVariable path).
+                state
+                    .infer_types(&[info], string, target, InferencePriority::NONE, false)
+                    .expect("live spine");
+                let info = state.inference_info(info);
+                assert!(info.candidates.is_none());
+                assert!(info.priority.is_none());
+            },
+        );
+    }
+
+    #[test]
+    fn union_source_intersection_target_records_single_naked_variable() {
+        with_program_state(
+            &[("a.ts", "function f<T>() { var x: T & string; }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let number = state.tables.intrinsics.number;
+                let boolean = state.tables.intrinsics.boolean;
+                let info = detached_info(state, t);
+                let annotation = annotation_of_var(state, "x");
+                let target = state
+                    .get_type_from_type_node(annotation)
+                    .expect("intersection annotation");
+                let source = state
+                    .get_union_type_ex(&[number, boolean], UnionReduction::Literal)
+                    .expect("union");
+                // A union source skips the 68685 reduction; the
+                // intersection branch of inferToMultipleTypes counts
+                // exactly one type variable (68964) and lands a naked
+                // inference on it.
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live spine");
+                let info = state.inference_info(info);
+                assert_eq!(info.candidates.as_deref(), Some(&[source][..]));
+                assert_eq!(info.priority, Some(InferencePriority::NAKED_TYPE_VARIABLE));
+            },
+        );
+    }
+
+    #[test]
+    fn identical_union_source_and_target_infer_members_into_themselves() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let info = detached_info(state, t);
+                let union = state
+                    .get_union_type_ex(&[t, string], UnionReduction::Literal)
+                    .expect("union");
+                // 68667-68671: source === target → per-member (t, t),
+                // so T records ITSELF as its candidate.
+                state
+                    .infer_types(&[info], union, union, InferencePriority::NONE, false)
+                    .expect("live spine");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[t][..])
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn same_alias_reference_infers_between_argument_lists() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type Box<B> = { v: B };\nfunction f<T>() { var a: Box<T>; var b: Box<string>; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let info = detached_info(state, t);
+                let target_annotation = annotation_of_var(state, "a");
+                let target = state
+                    .get_type_from_type_node(target_annotation)
+                    .expect("Box<T>");
+                let source_annotation = annotation_of_var(state, "b");
+                let source = state
+                    .get_type_from_type_node(source_annotation)
+                    .expect("Box<string>");
+                // 68657-68663: same alias symbol → pairwise argument
+                // inference under the alias' measured variances.
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live spine");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[string][..])
+                );
             },
         );
     }

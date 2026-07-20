@@ -894,6 +894,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
+in = "get_actual_type_variable"
+reason = "getActualTypeVariable Substitution unwrap (M8 — Substitution types are unconstructible before their type nodes land)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/indexed.rs"
 in = "get_simplified_index_type"
 reason = "getSimplifiedIndexType for mapped types (unported family, M8-stub)"
 class = "stage"
@@ -922,10 +929,45 @@ owner = "M6"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
-in = "infer_types"
-reason = "inferTypes candidate collection (M6 7.2)"
+in = "infer_from_types"
+reason = "inferFromTypes Substitution-source arm (M8 — Substitution types are unconstructible before their type nodes land)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_from_types"
+reason = "inferFromTypes literal-keyof arm — createEmptyObjectTypeFromStringLiteral (M6 7.2b)"
 class = "stage"
 owner = "M6"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_from_types"
+reason = "inferFromTypes object tail — getReducedType/getApparentType + inferFromObjectTypes (M6 7.2d)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_from_types"
+reason = "inferToConditionalType via invokeOnce (M6 7.2b)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_from_types"
+reason = "inferToTemplateLiteralType (M6 7.2c)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "is_type_parameter_at_top_level"
+reason = "isTypeParameterAtTopLevel conditional branches (M8 — the flag is unconstructible before conditional types land)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/instantiate.rs"
