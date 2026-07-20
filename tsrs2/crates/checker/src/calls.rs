@@ -7236,8 +7236,10 @@ mod eopt_pins {
         // reports 2322. The pre-7.4 port picked #1 (an applicability-
         // relation eOPT gap in the old selection loop) — RESOLVED by
         // the 7.4b chooseOverload rebuild.
-        let mut options = CompilerOptions::default();
-        options.exact_optional_property_types = Some(true);
+        let options = CompilerOptions {
+            exact_optional_property_types: Some(true),
+            ..CompilerOptions::default()
+        };
         let rows = with_program_state(
             &[("a.ts", "declare function pick(o: { a: number; c?: string }): number;\ndeclare function pick(o: unknown): string;\ndeclare const arg: { a: number; c?: undefined };\nconst r = pick(arg);\nconst n: number = r;\n")],
             &options,
