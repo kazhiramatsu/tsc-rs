@@ -376,6 +376,7 @@ impl<'a> CheckerState<'a> {
                         index_of_parameter,
                         args.len(),
                         any,
+                        /*inference_context*/ None,
                         tsrs2_types::CheckMode::NORMAL,
                     )?));
                 }

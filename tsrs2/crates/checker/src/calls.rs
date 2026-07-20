@@ -26,10 +26,11 @@ use tsrs2_diags::{gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChai
 use tsrs2_syntax::nodes::{JsxOpeningElementData, JsxSelfClosingElementData};
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckMode, ElementFlags, ModifierFlags, NodeFlags, SignatureFlags, SymbolFlags, TypeData,
-    TypeFlags, TypeId, UnionReduction,
+    CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, ModifierFlags,
+    NodeFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
+use crate::inference::InferenceContextId;
 use crate::relate::RelationKind;
 
 use crate::links::LinkSlot;
@@ -1832,13 +1833,14 @@ impl<'a> CheckerState<'a> {
         &mut self,
         arg: &EffectiveArg,
         contextual_type: TypeId,
+        inference_context: Option<InferenceContextId>,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
         match *arg {
             EffectiveArg::Node(node) => self.check_expression_with_contextual_type(
                 node,
                 contextual_type,
-                /*inference_context*/ None,
+                inference_context,
                 check_mode,
             ),
             EffectiveArg::Synthetic { .. } => self.check_effective_arg(arg, check_mode),
@@ -2095,6 +2097,7 @@ impl<'a> CheckerState<'a> {
         index: usize,
         arg_count: usize,
         rest_type: TypeId,
+        inference_context: Option<InferenceContextId>,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
         let in_const_context = self.is_const_type_variable(Some(rest_type), 0);
@@ -2111,7 +2114,10 @@ impl<'a> CheckerState<'a> {
                             Unsupported::new("spread without operand (parse recovery)")
                         })?;
                         let ty = self.check_expression_with_contextual_type(
-                            expression, rest_type, /*inference_context*/ None, check_mode,
+                            expression,
+                            rest_type,
+                            inference_context,
+                            check_mode,
                         )?;
                         (ty, Some(expression))
                     }
@@ -2194,6 +2200,7 @@ impl<'a> CheckerState<'a> {
                 let arg_type = self.check_effective_arg_with_contextual_type(
                     &arg,
                     contextual_type,
+                    inference_context,
                     check_mode,
                 )?;
                 let has_primitive_contextual_type = in_const_context
@@ -2740,6 +2747,279 @@ impl<'a> CheckerState<'a> {
         Ok(this_argument_type)
     }
 
+    // ---- inferTypeArguments (the M6 7.4 stub swap) ----
+
+    /// tsc-port: inferJsxTypeArguments @6.0.3
+    /// tsc-hash: 97c59c8937f1a5f0e73a911e20391da968897e7614b1d625dcc12c7acdc5fca9
+    /// tsc-span: _tsc.js:75925-75930
+    fn infer_jsx_type_arguments(
+        &mut self,
+        node: NodeId,
+        signature: SignatureId,
+        check_mode: CheckMode,
+        context: InferenceContextId,
+    ) -> CheckResult2<Vec<TypeId>> {
+        let param_type = self.get_effective_first_argument_for_jsx_signature(signature, node)?;
+        let attributes = match self.data_of(node) {
+            NodeData::JsxOpeningElement(data) => data.attributes,
+            NodeData::JsxSelfClosingElement(data) => data.attributes,
+            _ => None,
+        }
+        .ok_or_else(|| {
+            Unsupported::new("JSX opening element without attributes (parse recovery)")
+        })?;
+        let check_attr_type = self.check_expression_with_contextual_type(
+            attributes,
+            param_type,
+            Some(context),
+            check_mode,
+        )?;
+        let inferences = self.inference_context(context).inferences.clone();
+        self.infer_types(
+            &inferences,
+            check_attr_type,
+            param_type,
+            InferencePriority::NONE,
+            false,
+        )?;
+        self.get_inferred_types(context)
+    }
+
+    /// tsc-port: inferTypeArguments @6.0.3
+    /// tsc-hash: 160f9b15ec563655daccf96be8c616d0522f74365e494eb6b759e4c35fc714f6
+    /// tsc-span: _tsc.js:75938-75992
+    ///
+    /// The contextual-return pre-inference is TWO passes (75944-75961,
+    /// checker-key §2.3 as corrected by the m6 doc): (a1) ReturnType-
+    /// priority inference from the contextual type instantiated
+    /// through a NoDefault CLONE of the outer context's fixing mapper
+    /// — skipped for binding-pattern-derived contextual types; a
+    /// generic contextual signature is re-keyed onto its own type
+    /// parameters via getSignatureInstantiationWithoutFillingIn-
+    /// TypeArguments so fresh inferences don't leak through the
+    /// contextual signature's parameters. (a2) a FRESH priority-None
+    /// returnContext inferring from the contextual type under
+    /// createOuterReturnMapper(outerContext); `context.returnMapper`
+    /// derives from cloneInferredPartOfContext of THAT context — not
+    /// from the a1 pass. Then the impliedArity record (75969), this-
+    /// type inference, and phase (b): per-argument inference under
+    /// this SAME context (the single production Some-context producer
+    /// for checkExpressionWithContextualType's push site, 80565).
+    #[allow(dead_code)] // consumer: 7.4b chooseOverload (76815/76843) + overload failure (76952)
+    pub(crate) fn infer_type_arguments(
+        &mut self,
+        node: NodeId,
+        signature: SignatureId,
+        args: &[EffectiveArg],
+        check_mode: CheckMode,
+        context: InferenceContextId,
+    ) -> CheckResult2<Vec<TypeId>> {
+        let node_kind = self.kind_of(node);
+        if matches!(
+            node_kind,
+            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement
+        ) {
+            return self.infer_jsx_type_arguments(node, signature, check_mode, context);
+        }
+        if node_kind != SyntaxKind::Decorator && node_kind != SyntaxKind::BinaryExpression {
+            // 75943: skipBindingPatterns = every type parameter carries
+            // a default (helper-every semantics: vacuous true).
+            let type_parameters = self
+                .signature_of(signature)
+                .type_parameters
+                .clone()
+                .unwrap_or_default();
+            let mut skip_binding_patterns = true;
+            for &tp in &type_parameters {
+                if self.get_default_from_type_parameter(tp)?.is_none() {
+                    skip_binding_patterns = false;
+                    break;
+                }
+            }
+            let contextual_type = self.get_contextual_type(
+                node,
+                if skip_binding_patterns {
+                    ContextFlags::SKIP_BINDING_PATTERNS
+                } else {
+                    ContextFlags::NONE
+                },
+            )?;
+            if let Some(contextual_type) = contextual_type {
+                let inference_target_type = self.get_return_type_of_signature(signature)?;
+                if self.could_contain_type_variables(inference_target_type) {
+                    let outer_context = self.get_inference_context(node);
+                    let is_from_binding_pattern = !skip_binding_patterns
+                        && self.get_contextual_type(node, ContextFlags::SKIP_BINDING_PATTERNS)?
+                            != Some(contextual_type);
+                    if !is_from_binding_pattern {
+                        let outer_clone =
+                            self.clone_inference_context(outer_context, InferenceFlags::NO_DEFAULT);
+                        let outer_mapper = self.get_mapper_from_context(outer_clone);
+                        let instantiated_type =
+                            self.instantiate_type(contextual_type, outer_mapper)?;
+                        let contextual_signature =
+                            self.get_single_call_signature(instantiated_type)?;
+                        let generic_contextual_signature = contextual_signature
+                            .filter(|&sig| self.signature_of(sig).type_parameters.is_some());
+                        let inference_source_type = match generic_contextual_signature {
+                            Some(contextual_signature) => {
+                                let contextual_type_parameters = self
+                                    .signature_of(contextual_signature)
+                                    .type_parameters
+                                    .clone()
+                                    .expect("filtered on Some above");
+                                let instantiation = self
+                                    .get_signature_instantiation_without_filling_in_type_arguments(
+                                        contextual_signature,
+                                        Some(&contextual_type_parameters),
+                                    )?;
+                                self.get_or_create_type_from_signature(instantiation)?
+                            }
+                            None => instantiated_type,
+                        };
+                        let inferences = self.inference_context(context).inferences.clone();
+                        self.infer_types(
+                            &inferences,
+                            inference_source_type,
+                            inference_target_type,
+                            InferencePriority::RETURN_TYPE,
+                            false,
+                        )?;
+                    }
+                    // 75957-75960: the a2 pass — priority-None
+                    // inference in a FRESH context; returnMapper comes
+                    // from ITS inferred part.
+                    let context_flags = self.inference_context(context).flags;
+                    let return_context = self.create_inference_context(
+                        &type_parameters,
+                        Some(signature),
+                        context_flags,
+                        None,
+                    );
+                    let outer_return_mapper = outer_context
+                        .map(|outer_context| self.create_outer_return_mapper(outer_context));
+                    let return_source_type =
+                        self.instantiate_type(contextual_type, outer_return_mapper)?;
+                    let return_inferences =
+                        self.inference_context(return_context).inferences.clone();
+                    self.infer_types(
+                        &return_inferences,
+                        return_source_type,
+                        inference_target_type,
+                        InferencePriority::NONE,
+                        false,
+                    )?;
+                    let has_candidates = self
+                        .inference_context(return_context)
+                        .inferences
+                        .iter()
+                        .any(|&slot| {
+                            crate::inference::has_inference_candidates(self.inference_info(slot))
+                        });
+                    let return_mapper = if has_candidates {
+                        let inferred_part = self.clone_inferred_part_of_context(return_context);
+                        self.get_mapper_from_context(inferred_part)
+                    } else {
+                        None
+                    };
+                    self.inference_context_mut(context).return_mapper = return_mapper;
+                }
+            }
+        }
+        let rest_type = self.get_non_array_rest_type(signature)?;
+        let arg_count = if rest_type.is_some() {
+            std::cmp::min(self.get_parameter_count(signature)? - 1, args.len())
+        } else {
+            args.len()
+        };
+        if let Some(rest_type) = rest_type {
+            if self
+                .tables
+                .flags_of(rest_type)
+                .intersects(TypeFlags::TYPE_PARAMETER)
+            {
+                let info_slot = self
+                    .inference_context(context)
+                    .inferences
+                    .iter()
+                    .copied()
+                    .find(|&slot| self.inference_info(slot).type_parameter == rest_type);
+                if let Some(info_slot) = info_slot {
+                    // 75969: findIndex(args, isSpreadArgument, argCount)
+                    // — a spread at/after the rest position voids the
+                    // implied arity.
+                    let has_spread_from_arg_count =
+                        (arg_count..args.len()).any(|index| self.is_spread_argument(&args[index]));
+                    self.inference_info_mut(info_slot).implied_arity = if has_spread_from_arg_count
+                    {
+                        None
+                    } else {
+                        Some(args.len() - arg_count)
+                    };
+                }
+            }
+        }
+        let this_type = self.get_this_type_of_signature(signature)?;
+        if let Some(this_type) = this_type {
+            if self.could_contain_type_variables(this_type) {
+                let this_argument_node = self.get_this_argument_of_call(node);
+                let this_argument_type = self.get_this_argument_type(this_argument_node)?;
+                let inferences = self.inference_context(context).inferences.clone();
+                self.infer_types(
+                    &inferences,
+                    this_argument_type,
+                    this_type,
+                    InferencePriority::NONE,
+                    false,
+                )?;
+            }
+        }
+        for (index, arg) in args.iter().enumerate().take(arg_count) {
+            let arg = *arg;
+            if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
+                continue;
+            }
+            let param_type = self.get_type_at_position(signature, index)?;
+            if self.could_contain_type_variables(param_type) {
+                let arg_type = self.check_effective_arg_with_contextual_type(
+                    &arg,
+                    param_type,
+                    Some(context),
+                    check_mode,
+                )?;
+                let inferences = self.inference_context(context).inferences.clone();
+                self.infer_types(
+                    &inferences,
+                    arg_type,
+                    param_type,
+                    InferencePriority::NONE,
+                    false,
+                )?;
+            }
+        }
+        if let Some(rest_type) = rest_type {
+            if self.could_contain_type_variables(rest_type) {
+                let spread_type = self.get_spread_argument_type(
+                    args,
+                    arg_count,
+                    args.len(),
+                    rest_type,
+                    Some(context),
+                    check_mode,
+                )?;
+                let inferences = self.inference_context(context).inferences.clone();
+                self.infer_types(
+                    &inferences,
+                    spread_type,
+                    rest_type,
+                    InferencePriority::NONE,
+                    false,
+                )?;
+            }
+        }
+        self.get_inferred_types(context)
+    }
+
     // ---- applicability ----
 
     /// tsc-port: checkApplicableSignatureForJsxCallLikeElement @6.0.3
@@ -3036,8 +3316,9 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let param_type = self.get_type_at_position(signature, i)?;
-            let arg_type =
-                self.check_effective_arg_with_contextual_type(&arg, param_type, check_mode)?;
+            let arg_type = self.check_effective_arg_with_contextual_type(
+                &arg, param_type, /*inference_context*/ None, check_mode,
+            )?;
             let check_arg_type = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                 self.get_regular_type_of_object_literal(arg_type)?
             } else {
@@ -3113,8 +3394,14 @@ impl<'a> CheckerState<'a> {
             }
         }
         if let Some(rest_type) = rest_type {
-            let spread_type =
-                self.get_spread_argument_type(args, arg_count, args.len(), rest_type, check_mode)?;
+            let spread_type = self.get_spread_argument_type(
+                args,
+                arg_count,
+                args.len(),
+                rest_type,
+                /*inference_context*/ None,
+                check_mode,
+            )?;
             if !self.is_type_related_to(spread_type, rest_type, relation)? {
                 if mode == ApplicabilityMode::Silent {
                     return Ok(Some(Vec::new()));
@@ -5862,11 +6149,172 @@ impl<'a> CheckerState<'a> {
 #[cfg(test)]
 mod tests {
     use tsrs2_syntax::{NodeData, SyntaxKind};
-    use tsrs2_types::CompilerOptions;
+    use tsrs2_types::{CheckMode, CompilerOptions, InferenceFlags, InferencePriority};
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
     use crate::structural::SignatureKind;
+
+    // ---- inferTypeArguments direct pins (M6 7.4a; production wiring
+    // arrives with the 7.4b chooseOverload swap) ----
+
+    /// Dig the fixture's single generic call + declaration signature
+    /// out and build a fresh inference context over its type
+    /// parameters (the 76809-76812 chooseOverload preamble, minus the
+    /// JS AnyDefault arm — fixtures here are .ts).
+    fn generic_call_setup(
+        state: &mut CheckerState,
+    ) -> (
+        tsrs2_syntax::NodeId,
+        crate::state::SignatureId,
+        Vec<super::EffectiveArg>,
+        crate::inference::InferenceContextId,
+    ) {
+        let (call, decl) = {
+            let source = state.binder.source(0);
+            let call = source
+                .arena
+                .node_ids()
+                .find(|&id| source.arena.node(id).kind == SyntaxKind::CallExpression)
+                .expect("call node");
+            let decl = source
+                .arena
+                .node_ids()
+                .find(|&id| source.arena.node(id).kind == SyntaxKind::FunctionDeclaration)
+                .expect("function declaration");
+            (call, decl)
+        };
+        let signature = state
+            .get_signature_from_declaration(decl)
+            .expect("signature");
+        let args = state.get_effective_call_arguments(call).expect("args");
+        let type_parameters = state
+            .signature_of(signature)
+            .type_parameters
+            .clone()
+            .expect("generic fixture");
+        let ctx = state.create_inference_context(
+            &type_parameters,
+            Some(signature),
+            InferenceFlags::NONE,
+            None,
+        );
+        (call, signature, args, ctx)
+    }
+
+    #[test]
+    fn infer_type_arguments_two_pass_contextual_return() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function f<T>(): T;\nvar v: number = f();\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let (call, signature, args, ctx) = generic_call_setup(state);
+                let inferred = state
+                    .infer_type_arguments(call, signature, &args, CheckMode::NORMAL, ctx)
+                    .expect("inference completes");
+                let number = state.tables.intrinsics.number;
+                assert_eq!(inferred, vec![number]);
+                // (a1) 75950-75955: the ReturnType-priority pass lands
+                // its candidate in the MAIN context.
+                let slot_id = state.inference_context(ctx).inferences[0];
+                let info = state.inference_info(slot_id);
+                assert_eq!(info.candidates.as_deref(), Some(&[number][..]));
+                assert_eq!(info.priority, Some(InferencePriority::RETURN_TYPE));
+                // (a2) 75957-75960: returnMapper derives from the
+                // FRESH priority-None returnContext's inferred part —
+                // applying it resolves T.
+                let return_mapper = state
+                    .inference_context(ctx)
+                    .return_mapper
+                    .expect("returnMapper set");
+                let t = state
+                    .signature_of(signature)
+                    .type_parameters
+                    .clone()
+                    .unwrap()[0];
+                let mapped = state
+                    .instantiate_type(t, Some(return_mapper))
+                    .expect("instantiate under returnMapper");
+                assert_eq!(mapped, number);
+            },
+        );
+    }
+
+    #[test]
+    fn infer_type_arguments_implied_arity_write() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function h<T extends unknown[], U>(x: string, ...rest: T): U;\nvar w: number = h('a', 1, 2);\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let (call, signature, args, ctx) = generic_call_setup(state);
+                state
+                    .infer_type_arguments(call, signature, &args, CheckMode::NORMAL, ctx)
+                    .expect("inference completes");
+                // 75967-75970: type-parameter rest, no spread at or
+                // after argCount (1) → impliedArity = args(3) - 1.
+                let slot_id = state.inference_context(ctx).inferences[0];
+                assert_eq!(state.inference_info(slot_id).implied_arity, Some(2));
+            },
+        );
+    }
+
+    #[test]
+    fn infer_type_arguments_implied_arity_voided_by_spread() {
+        // NB `...[1, 2]` would NOT pin this: getEffectiveCallArguments
+        // expands array-literal spreads into per-element synthetics
+        // (76300-76338), so no spread survives to 75969 and tsc itself
+        // records an arity. A non-tuple array VARIABLE spread is the
+        // shape that stays a SpreadElement.
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function h<T extends unknown[], U>(x: string, ...rest: T): U;\ndeclare const arr: number[];\nvar w: number = h('a', ...arr);\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let (call, signature, args, ctx) = generic_call_setup(state);
+                let slot_id = state.inference_context(ctx).inferences[0];
+                state.inference_info_mut(slot_id).implied_arity = Some(99);
+                state
+                    .infer_type_arguments(call, signature, &args, CheckMode::NORMAL, ctx)
+                    .expect("inference completes");
+                // 75969: a spread at/after argCount is the EXPLICIT
+                // void-0 write, not a skipped one.
+                assert_eq!(state.inference_info(slot_id).implied_arity, None);
+            },
+        );
+    }
+
+    #[test]
+    fn infer_type_arguments_binding_pattern_skips_first_pass() {
+        with_program_state(
+            &[("a.ts", "declare function f<T>(): T;\nvar [a] = f();\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let (call, signature, args, ctx) = generic_call_setup(state);
+                state
+                    .infer_type_arguments(call, signature, &args, CheckMode::NORMAL, ctx)
+                    .expect("inference completes");
+                // 75949-75950: a pattern-derived contextual type skips
+                // the a1 ReturnType-priority pass...
+                let slot_id = state.inference_context(ctx).inferences[0];
+                let info = state.inference_info(slot_id);
+                assert!(
+                    info.candidates.is_none() && info.contra_candidates.is_none(),
+                    "a1 must not run for binding-pattern contextual types"
+                );
+                // ...while the a2 returnContext still derives the
+                // returnMapper from the pattern type.
+                assert!(state.inference_context(ctx).return_mapper.is_some());
+            },
+        );
+    }
 
     /// Driver-level fixture check (operators.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options {} unless stated) — scratchpad
