@@ -5868,15 +5868,20 @@ impl<'a> CheckerState<'a> {
         // 61290 slices with JS Array.prototype.slice semantics: an end
         // before the start yields the empty slice (reachable from
         // inferFromObjectTypes' middle-arm bounds when the source
-        // tuple is shorter than the target's fixed parts — pinned).
-        // JS's from-end reading of a NEGATIVE end (skip > arity) is
-        // deliberately not modeled — every caller passes skip <= arity
-        // today; 7.4's impliedArity wiring must re-audit.
-        let end_index = data
-            .type_parameters
-            .len()
-            .saturating_sub(end_skip_count)
-            .max(index);
+        // tuple is shorter than the target's fixed parts — pinned),
+        // and a NEGATIVE end argument (skip > arity) counts from the
+        // END — `max(len - (skip - len), 0)`. The from-end window
+        // became REACHABLE at 7.4: the both-variadic impliedArity arm
+        // (69114) passes endLength + sourceArity - impliedArity, which
+        // exceeds the source arity whenever impliedArity < endLength
+        // (7.2d re-audit item, resolved — pinned below).
+        let len = data.type_parameters.len();
+        let end_index = if end_skip_count <= len {
+            len - end_skip_count
+        } else {
+            len.saturating_sub(end_skip_count - len)
+        }
+        .max(index);
         if index > data.fixed_length {
             let rest_array = self.get_rest_array_type_of_tuple_type(ty)?;
             return match rest_array {
@@ -6695,6 +6700,46 @@ mod tests {
             relation,
             options: &options,
         })
+    }
+
+    #[test]
+    fn slice_tuple_type_negative_end_counts_from_the_end() {
+        // 61290 + JS Array.prototype.slice: endSkipCount beyond the
+        // arity turns the slice end NEGATIVE and JS re-reads it from
+        // the END — max(2*len - skip, 0). Reachable since 7.4's
+        // impliedArity record (the 69114 both-variadic arm passes
+        // endLength + sourceArity - impliedArity, which exceeds
+        // sourceArity whenever impliedArity < endLength; fixture
+        // corroborated against vendored tsc, scratchpad probe74k.mjs).
+        // Pre-fix the port clamped the whole window to empty.
+        crate::state::test_support::with_program_state(
+            &[("a.ts", "var v: [string, number, boolean];\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), "v").expect("annotated var");
+                let tuple = state
+                    .get_type_from_type_node(annotation)
+                    .expect("tuple type");
+                // len 3, skip 4: JS slice(0, -1) → [0, 2).
+                let sliced = state.slice_tuple_type(tuple, 0, 4).expect("slice succeeds");
+                let elements = state.get_type_arguments(sliced).expect("elements");
+                assert_eq!(
+                    elements.len(),
+                    2,
+                    "negative end counts from the end (2*3 - 4)"
+                );
+                // len 3, skip 7 (beyond 2*len): floored to empty.
+                let floored = state.slice_tuple_type(tuple, 0, 7).expect("slice succeeds");
+                let none = state.get_type_arguments(floored).expect("elements");
+                assert_eq!(none.len(), 0, "max(2*len - skip, 0) floors at zero");
+                // The inverted-range clamp is unchanged: skip 2 puts
+                // the end (1) below the start (2) — still empty.
+                let inverted = state.slice_tuple_type(tuple, 2, 2).expect("slice succeeds");
+                let inv = state.get_type_arguments(inverted).expect("elements");
+                assert_eq!(inv.len(), 0, "end before start clamps to empty");
+            },
+        );
     }
 
     #[test]
