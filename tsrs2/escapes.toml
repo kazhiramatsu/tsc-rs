@@ -753,13 +753,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/expr.rs"
-in = "instantiate_type_with_single_generic_call_signature"
-reason = "single-generic-signature higher-order inference (M6 7.4)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/expr.rs"
 in = "parse_pseudo_big_int"
 reason = "unparsable bigint literal text {text:?} (parse recovery)"
 class = "recovery"
