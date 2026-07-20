@@ -198,4 +198,10 @@ max_untagged = 0
 # (Debug.assertIsDefined transcription, 56662), worker-declaration-
 # kind tail (Debug.fail transcription, 56707-56708), and the
 # export-assignment-without-expression parse-recovery guard.
-max_recovery = 112
+# m6 7.2d: +1 — the tuple middle-slice tsc-crash deviation
+# (inferFromObjectTypes passes an undefined slice into inferFromTypes;
+# vendored tsc TypeErrors, so no golden can exist — the
+# createTypeReference crash-guard precedent). Recorded as
+# m8-readiness.md deviation row 4; the differential classifier
+# consumes the row when M8 makes the shape corpus-visible.
+max_recovery = 113

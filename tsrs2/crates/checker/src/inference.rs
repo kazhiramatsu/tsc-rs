@@ -23,14 +23,16 @@ use std::collections::HashMap;
 
 use tsrs2_syntax::{escape_leading_underscores, NodeId, SyntaxKind};
 use tsrs2_types::{
-    ContextFlags, ExpandingFlags, InferenceFlags, InferencePriority, IntersectionFlags,
-    LiteralValue, ObjectFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
-    VarianceFlags,
+    ContextFlags, ElementFlags, ExpandingFlags, InferenceFlags, InferencePriority,
+    IntersectionFlags, LiteralValue, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
+    TypeId, UnionReduction, VarianceFlags,
 };
 
 use crate::instantiate::{DeferredMapperTargets, MapperId, TypeMapper};
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, Unsupported};
+use crate::state::{
+    CheckResult2, CheckerState, IndexInfo, SignatureId, SignatureKind, Unsupported,
+};
 use crate::variance::VariancesResult;
 
 /// Arena id — see the module doc for the identity/rollback contract.
@@ -694,7 +696,6 @@ impl<'a> CheckerState<'a> {
     /// services-only entry (completions' getResolvedSignature probe)
     /// the conformance driver never reaches — same disposition as the
     /// blockedStringType read in expr.rs's string-literal arm.
-    #[allow(dead_code)] // consumer: 7.2d inferFromProperties (69174)
     pub(crate) fn has_skip_direct_inference_flag(&self, node: NodeId) -> bool {
         let _ = node;
         false
@@ -813,6 +814,8 @@ struct InferTypesWalker<'r, 'a> {
 #[derive(Clone, Copy, Debug)]
 enum InferAction {
     ToConditionalType,
+    FromGenericMappedTypes,
+    FromObjectTypes,
 }
 
 impl InferTypesWalker<'_, '_> {
@@ -1283,10 +1286,46 @@ impl InferTypesWalker<'_, '_> {
             // 68796-68797.
             self.infer_to_template_literal_type(source, target)?;
         } else {
-            return Err(Unsupported::new(
-                "inferFromTypes object tail — getReducedType/getApparentType + \
-                 inferFromObjectTypes (M6 7.2d)",
-            ));
+            // 68798-68813: the reduced/apparent object tail.
+            source = self.st.get_reduced_type(source)?;
+            if self.st.is_generic_mapped_type_state(source)
+                && self.st.is_generic_mapped_type_state(target)
+            {
+                self.invoke_once(source, target, InferAction::FromGenericMappedTypes)?;
+            }
+            if !(self.priority.intersects(InferencePriority::NO_CONSTRAINTS)
+                && self
+                    .st
+                    .tables
+                    .flags_of(source)
+                    .intersects(TypeFlags::from_bits(
+                        TypeFlags::INTERSECTION.bits() | TypeFlags::INSTANTIABLE.bits(),
+                    )))
+            {
+                let apparent_source = self.st.get_apparent_type(source)?;
+                if apparent_source != source
+                    && !self
+                        .st
+                        .tables
+                        .flags_of(apparent_source)
+                        .intersects(TypeFlags::from_bits(
+                            TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
+                        ))
+                {
+                    return self.infer_from_types(apparent_source, target);
+                }
+                source = apparent_source;
+            }
+            if self
+                .st
+                .tables
+                .flags_of(source)
+                .intersects(TypeFlags::from_bits(
+                    TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
+                ))
+            {
+                self.invoke_once(source, target, InferAction::FromObjectTypes)?;
+            }
         }
         Ok(())
     }
@@ -1382,6 +1421,10 @@ impl InferTypesWalker<'_, '_> {
         if self.expanding_flags != ExpandingFlags::BOTH {
             match action {
                 InferAction::ToConditionalType => self.infer_to_conditional_type(source, target)?,
+                InferAction::FromGenericMappedTypes => {
+                    self.infer_from_generic_mapped_types(source, target)?
+                }
+                InferAction::FromObjectTypes => self.infer_from_object_types(source, target)?,
             }
         } else {
             self.inference_priority = InferencePriority::CIRCULARITY;
@@ -1481,6 +1524,23 @@ impl InferTypesWalker<'_, '_> {
         let result = self.infer_from_types(source, target);
         self.contravariant = !self.contravariant;
         result
+    }
+
+    /// tsc-port: inferFromContravariantTypesIfStrictFunctionTypes @6.0.3
+    /// tsc-hash: 24e682796a93c65a3c9beb1b2c5f181afab6e56e062bdbe9b3db6d5c64365e9e
+    /// tsc-span: _tsc.js:68891-68897
+    fn infer_from_contravariant_types_if_strict_function_types(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<()> {
+        if self.st.strict_function_types
+            || self.priority.intersects(InferencePriority::ALWAYS_STRICT)
+        {
+            self.infer_from_contravariant_types(source, target)
+        } else {
+            self.infer_from_types(source, target)
+        }
     }
 
     /// tsc-port: getInferenceInfoForType @6.0.3
@@ -1917,6 +1977,664 @@ impl InferTypesWalker<'_, '_> {
             _ => None,
         }
     }
+
+    /// tsc-port: inferFromGenericMappedTypes @6.0.3
+    /// tsc-hash: 43d46bba590ef8ed07cccef71609b0ec8b215d1343ac158b54caac6075f39580
+    /// tsc-span: _tsc.js:69063-69069
+    ///
+    /// DORMANT (doc 7.2 arm dispositions): both guards require
+    /// ObjectFlags::MAPPED, which no constructor sets before M8's
+    /// mapped type nodes — the constraint/template/name-type pairwise
+    /// reads get re-cut and pinned when they land.
+    fn infer_from_generic_mapped_types(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<()> {
+        let _ = (source, target);
+        Err(Unsupported::new(
+            "inferFromGenericMappedTypes body (M8 — Mapped object types are \
+             unconstructible before mapped type nodes land)",
+        ))
+    }
+
+    /// tsc-port: inferFromObjectTypes @6.0.3
+    /// tsc-hash: 18d2ca4512c8f94287f9b7288ff06e8448caed9b1f63d82b4ebc19c37538e36d
+    /// tsc-span: _tsc.js:69070-69169
+    ///
+    /// The structural body behind the object-tail invokeOnce: matching
+    /// references infer pairwise; the Mapped-target block is an M8
+    /// escape (inferToMappedType and the declaration.nameType read are
+    /// unconstructible); the tuple ladder ports the JS slice-bound
+    /// clamps observed by probe (probe-tuple.mjs, 2026-07-20 — incl.
+    /// the recorded tsc-crash deviation on an undefined middle-slice
+    /// source meeting a type-variable rest target, m8-readiness row 4).
+    fn infer_from_object_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+        let source_object_flags = self.st.tables.object_flags_of(source);
+        let target_object_flags = self.st.tables.object_flags_of(target);
+        if source_object_flags.intersects(ObjectFlags::REFERENCE)
+            && target_object_flags.intersects(ObjectFlags::REFERENCE)
+            && (self.st.tables.reference_target(source) == self.st.tables.reference_target(target)
+                || self.st.is_array_type(source)? && self.st.is_array_type(target)?)
+        {
+            // 69071-69074: pairwise under the target's variances (no
+            // deferred-node exclusion on this inner path).
+            let source_arguments = self.st.get_type_arguments(source)?;
+            let target_arguments = self.st.get_type_arguments(target)?;
+            let reference_target = self.st.tables.reference_target(source);
+            let variances = match self.st.get_variances(reference_target)? {
+                VariancesResult::Known(variances) => variances,
+                VariancesResult::InProgress => Box::default(),
+            };
+            self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)?;
+            return Ok(());
+        }
+        if self.st.is_generic_mapped_type_state(source)
+            && self.st.is_generic_mapped_type_state(target)
+        {
+            self.infer_from_generic_mapped_types(source, target)?;
+        }
+        if target_object_flags.intersects(ObjectFlags::MAPPED) {
+            // 69078-69083: inferToMappedType + the declaration.nameType
+            // read — unconstructible with the type kind.
+            return Err(Unsupported::new(
+                "inferToMappedType + mapped-target declaration reads (M8 — Mapped \
+                 object types are unconstructible before mapped type nodes land)",
+            ));
+        }
+        if !self.st.types_definitely_unrelated(source, target)? {
+            if self.st.is_array_type(source)? || self.st.tables.is_tuple_type(source) {
+                if self.st.tables.is_tuple_type(target) {
+                    self.infer_to_tuple_target(source, target)?;
+                    return Ok(());
+                }
+                if self.st.is_array_type(target)? {
+                    self.infer_from_index_types(source, target)?;
+                    return Ok(());
+                }
+            }
+            self.infer_from_properties(source, target)?;
+            self.infer_from_signatures(source, target, SignatureKind::Call)?;
+            self.infer_from_signatures(source, target, SignatureKind::Construct)?;
+            self.infer_from_index_types(source, target)?;
+        }
+        Ok(())
+    }
+
+    /// The 69089-69158 tuple-target ladder, split from
+    /// `infer_from_object_types` for the early returns. Slice bounds
+    /// follow JS Array.prototype.slice clamping (see slice_tuple_type
+    /// and js_slice_bounds).
+    #[allow(clippy::needless_range_loop)] // index walk over paired lists, ported as tsc wrote it
+    fn infer_to_tuple_target(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+        let source_is_tuple = self.st.tables.is_tuple_type(source);
+        let source_arity = self.st.get_type_reference_arity(source);
+        let target_arity = self.st.get_type_reference_arity(target);
+        let element_types = self.st.get_type_arguments(target)?;
+        let target_target = self.st.tables.reference_target(target);
+        let TypeData::TupleTarget(target_data) = self.st.tables.type_of(target_target).data.clone()
+        else {
+            unreachable!("tuple type targets a tuple target");
+        };
+        let element_flags = target_data.element_flags.clone();
+        if source_is_tuple && self.st.is_tuple_type_structure_matching(source, target) {
+            // 69094-69098: same shape — element-wise.
+            for i in 0..target_arity {
+                let source_element = self.st.get_type_arguments(source)?[i];
+                self.infer_from_types(source_element, element_types[i])?;
+            }
+            return Ok(());
+        }
+        let (source_fixed_length, source_end_count, source_element_flags) = if source_is_tuple {
+            let source_target = self.st.tables.reference_target(source);
+            let TypeData::TupleTarget(source_data) =
+                self.st.tables.type_of(source_target).data.clone()
+            else {
+                unreachable!("tuple type targets a tuple target");
+            };
+            (
+                source_data.fixed_length,
+                crate::structural::end_element_count(
+                    &source_data.element_flags,
+                    ElementFlags::FIXED,
+                ),
+                source_data.element_flags.to_vec(),
+            )
+        } else {
+            (0, 0, Vec::new())
+        };
+        let start_length = if source_is_tuple {
+            source_fixed_length.min(target_data.fixed_length)
+        } else {
+            0
+        };
+        let end_length = source_end_count.min(
+            if target_data
+                .combined_flags
+                .intersects(ElementFlags::VARIABLE)
+            {
+                crate::structural::end_element_count(&element_flags, ElementFlags::FIXED)
+            } else {
+                0
+            },
+        );
+        for i in 0..start_length {
+            let source_element = self.st.get_type_arguments(source)?[i];
+            self.infer_from_types(source_element, element_types[i])?;
+        }
+        if !source_is_tuple
+            || source_arity as i64 - start_length as i64 - end_length as i64 == 1
+                && source_element_flags[start_length].intersects(ElementFlags::REST)
+        {
+            // 69105-69109: a single rest (or plain array element)
+            // distributes over the target's middle.
+            let rest_type = self.st.get_type_arguments(source)?[start_length];
+            for i in start_length..target_arity - end_length {
+                let source2 = if element_flags[i].intersects(ElementFlags::VARIADIC) {
+                    self.st.create_array_type(rest_type, false)?
+                } else {
+                    rest_type
+                };
+                self.infer_from_types(source2, element_types[i])?;
+            }
+        } else {
+            let middle_length = target_arity - start_length - end_length;
+            if middle_length == 2 {
+                if element_flags[start_length].intersects(ElementFlags::VARIADIC)
+                    && element_flags[start_length + 1].intersects(ElementFlags::VARIADIC)
+                {
+                    // 69111-69116: both variadic — gated on the 7.4
+                    // impliedArity record (None until then).
+                    if let Some(info_id) =
+                        self.get_inference_info_for_type(element_types[start_length])
+                    {
+                        if let Some(implied_arity) = self.st.inference_info(info_id).implied_arity {
+                            let first = self.st.slice_tuple_type(
+                                source,
+                                start_length,
+                                (end_length + source_arity).saturating_sub(implied_arity),
+                            )?;
+                            self.infer_from_types(first, element_types[start_length])?;
+                            let second = self.st.slice_tuple_type(
+                                source,
+                                start_length + implied_arity,
+                                end_length,
+                            )?;
+                            self.infer_from_types(second, element_types[start_length + 1])?;
+                        }
+                    }
+                } else if element_flags[start_length].intersects(ElementFlags::VARIADIC)
+                    && element_flags[start_length + 1].intersects(ElementFlags::REST)
+                {
+                    // 69117-69123: variadic then rest — the variable's
+                    // fixed tuple constraint implies the split arity.
+                    let implied = self.middle_implied_arity(element_types[start_length])?;
+                    if let Some(implied_arity) = implied {
+                        let first = self.st.slice_tuple_type(
+                            source,
+                            start_length,
+                            source_arity.saturating_sub(start_length + implied_arity),
+                        )?;
+                        self.infer_from_types(first, element_types[start_length])?;
+                        let second = self.st.get_element_type_of_slice_of_tuple_type(
+                            source,
+                            start_length + implied_arity,
+                            end_length,
+                            /*writing*/ false,
+                            /*no_reductions*/ false,
+                        )?;
+                        self.infer_from_middle_slice(second, element_types[start_length + 1])?;
+                    }
+                } else if element_flags[start_length].intersects(ElementFlags::REST)
+                    && element_flags[start_length + 1].intersects(ElementFlags::VARIADIC)
+                {
+                    // 69124-69139: rest then variadic — trailing slice
+                    // bounds carry JS negative-index semantics.
+                    let implied = self.middle_implied_arity(element_types[start_length + 1])?;
+                    if let Some(implied_arity) = implied {
+                        let end_index = source_arity as i64
+                            - crate::structural::end_element_count(
+                                &element_flags,
+                                ElementFlags::FIXED,
+                            ) as i64;
+                        let start_index = end_index - implied_arity as i64;
+                        let source_arguments = self.st.get_type_arguments(source)?;
+                        let source_target = self.st.tables.reference_target(source);
+                        let TypeData::TupleTarget(source_data) =
+                            self.st.tables.type_of(source_target).data.clone()
+                        else {
+                            unreachable!("tuple type targets a tuple target");
+                        };
+                        let (from, to) = js_slice_bounds(source_arity, start_index, end_index);
+                        let labels = source_data
+                            .labeled_element_declarations
+                            .as_ref()
+                            .map(|declarations| declarations[from..to].to_vec());
+                        let trailing_slice = self.st.create_tuple_type_forced(
+                            &source_arguments[from..to],
+                            Some(&source_data.element_flags[from..to]),
+                            /*readonly*/ false,
+                            labels.as_deref(),
+                        )?;
+                        let first = self.st.get_element_type_of_slice_of_tuple_type(
+                            source,
+                            start_length,
+                            end_length + implied_arity,
+                            /*writing*/ false,
+                            /*no_reductions*/ false,
+                        )?;
+                        self.infer_from_middle_slice(first, element_types[start_length])?;
+                        self.infer_from_types(trailing_slice, element_types[start_length + 1])?;
+                    }
+                }
+            } else if middle_length == 1
+                && element_flags[start_length].intersects(ElementFlags::VARIADIC)
+            {
+                // 69140-69144: single variadic — SpeculativeTuple when
+                // the target ends optional.
+                let ends_in_optional =
+                    target_data.element_flags[target_arity - 1].intersects(ElementFlags::OPTIONAL);
+                let source_slice = self.st.slice_tuple_type(source, start_length, end_length)?;
+                self.infer_with_priority(
+                    source_slice,
+                    element_types[start_length],
+                    if ends_in_optional {
+                        InferencePriority::SPECULATIVE_TUPLE
+                    } else {
+                        InferencePriority::NONE
+                    },
+                )?;
+            } else if middle_length == 1
+                && element_flags[start_length].intersects(ElementFlags::REST)
+            {
+                // 69145-69150.
+                let rest_type = self.st.get_element_type_of_slice_of_tuple_type(
+                    source,
+                    start_length,
+                    end_length,
+                    /*writing*/ false,
+                    /*no_reductions*/ false,
+                )?;
+                if let Some(rest_type) = rest_type {
+                    self.infer_from_types(rest_type, element_types[start_length])?;
+                }
+            }
+        }
+        // 69153-69156: trailing fixed elements pair from the ends.
+        for i in 0..end_length {
+            let source_element = self.st.get_type_arguments(source)?[source_arity - i - 1];
+            self.infer_from_types(source_element, element_types[target_arity - i - 1])?;
+        }
+        Ok(())
+    }
+
+    /// The shared variadic/rest middle-arm gate (69118-69120,
+    /// 69125-69127): the adjacent type variable's base constraint must
+    /// be a fixed-arity tuple; its fixedLength is the implied split.
+    fn middle_implied_arity(&mut self, element_type: TypeId) -> CheckResult2<Option<usize>> {
+        let Some(info_id) = self.get_inference_info_for_type(element_type) else {
+            return Ok(None);
+        };
+        let type_parameter = self.st.inference_info(info_id).type_parameter;
+        let Some(constraint) = self.st.get_base_constraint_of_type(type_parameter)? else {
+            return Ok(None);
+        };
+        if !self.st.tables.is_tuple_type(constraint) {
+            return Ok(None);
+        }
+        let constraint_target = self.st.tables.reference_target(constraint);
+        let TypeData::TupleTarget(data) = &self.st.tables.type_of(constraint_target).data else {
+            unreachable!("tuple type targets a tuple target");
+        };
+        if data.combined_flags.intersects(ElementFlags::VARIABLE) {
+            return Ok(None);
+        }
+        Ok(Some(data.fixed_length))
+    }
+
+    /// tsc passes an undefined middle slice straight into
+    /// inferFromTypes, which survives ONLY when the target has no type
+    /// variables (the couldContainTypeVariables early return) and
+    /// TypeErrors otherwise — the recorded tsc-crash deviation
+    /// (m8-readiness row 4, probe-tuple.mjs f6). The port skips the
+    /// harmless shape and reports the crash shape.
+    fn infer_from_middle_slice(
+        &mut self,
+        source: Option<TypeId>,
+        target: TypeId,
+    ) -> CheckResult2<()> {
+        match source {
+            Some(source) => self.infer_from_types(source, target),
+            None => {
+                if self.st.could_contain_type_variables(target) {
+                    Err(Unsupported::new(
+                        "tsc-crash deviation: undefined middle-slice source against a \
+                         type-variable rest target (m8-readiness deviation row 4, \
+                         parse-recovery-class permanent containment)",
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+    }
+
+    /// tsc-port: inferFromProperties @6.0.3
+    /// tsc-hash: d7581e09cb3cca44f643758bd3a498be544bb10fb35e640192072263dab91a38
+    /// tsc-span: _tsc.js:69170-69181
+    fn infer_from_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+        let properties = self.st.get_properties_of_object_type_owned(target)?;
+        for target_prop in properties {
+            let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+            let Some(source_prop) = self.st.get_property_of_type_full(source, &name)? else {
+                continue;
+            };
+            // 69174: hasSkipDirectInferenceFlag over the declarations
+            // (constant false — services-only writer, see 7.2a).
+            let skipped = self
+                .st
+                .binder
+                .symbol(source_prop)
+                .declarations
+                .clone()
+                .into_iter()
+                .any(|declaration| self.st.has_skip_direct_inference_flag(declaration));
+            if skipped {
+                continue;
+            }
+            let source_type = self.st.get_type_of_symbol(source_prop)?;
+            let source_optional = self
+                .st
+                .symbol_flags(source_prop)
+                .intersects(SymbolFlags::OPTIONAL);
+            let source2 = self.st.remove_missing_type(source_type, source_optional);
+            let target_type = self.st.get_type_of_symbol(target_prop)?;
+            let target_optional = self
+                .st
+                .symbol_flags(target_prop)
+                .intersects(SymbolFlags::OPTIONAL);
+            let target2 = self.st.remove_missing_type(target_type, target_optional);
+            self.infer_from_types(source2, target2)?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: inferFromSignatures @6.0.3
+    /// tsc-hash: 3c9c197b8995762d52d08006185b593a5586f6b203cd785322eb6bb2f81a455a
+    /// tsc-span: _tsc.js:69182-69193
+    fn infer_from_signatures(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        kind: SignatureKind,
+    ) -> CheckResult2<()> {
+        let source_signatures = self.st.get_signatures_of_type(source, kind)?;
+        let source_len = source_signatures.len();
+        if source_len == 0 {
+            return Ok(());
+        }
+        let target_signatures = self.st.get_signatures_of_type(target, kind)?;
+        for (i, &target_signature) in target_signatures.iter().enumerate() {
+            // 69188 Math.max(sourceLen - targetLen + i, 0).
+            let source_index = (source_len + i).saturating_sub(target_signatures.len());
+            let base = self
+                .st
+                .get_base_signature(source_signatures[source_index])?;
+            let erased = self.st.get_erased_signature(target_signature)?;
+            self.infer_from_signature(base, erased)?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: inferFromSignature @6.0.3
+    /// tsc-hash: 145838046d69f50e8e077249a2a427fac62c7b46cac158e148f8eeb4653d3caf
+    /// tsc-span: _tsc.js:69194-69203
+    fn infer_from_signature(
+        &mut self,
+        source: SignatureId,
+        target: SignatureId,
+    ) -> CheckResult2<()> {
+        if !self
+            .st
+            .signature_of(source)
+            .flags
+            .intersects(SignatureFlags::IS_NON_INFERRABLE)
+        {
+            let save_bivariant = self.bivariant;
+            let kind = self
+                .st
+                .signature_of(target)
+                .declaration
+                .map(|declaration| self.st.kind_of(declaration));
+            // 69198: method/constructor targets infer bivariantly.
+            self.bivariant = self.bivariant
+                || matches!(
+                    kind,
+                    Some(SyntaxKind::MethodDeclaration)
+                        | Some(SyntaxKind::MethodSignature)
+                        | Some(SyntaxKind::Constructor)
+                );
+            let result = self.apply_to_parameter_types(source, target);
+            self.bivariant = save_bivariant;
+            result?;
+        }
+        self.apply_to_return_types(source, target)
+    }
+
+    /// tsc-port: applyToParameterTypes @6.0.3
+    /// tsc-hash: 95daf9e8bfe59dd9deb8b5b454837cd07bf3d0d1a3119f554a2d6e316135be3c
+    /// tsc-span: _tsc.js:68198-68223
+    ///
+    /// The callback is hard-bound to
+    /// inferFromContravariantTypesIfStrictFunctionTypes — the only
+    /// caller inside the walker (69199). 7.4's
+    /// instantiateSignatureInContextOf caller runs OUTSIDE the walker
+    /// and gets its own state-level application then.
+    fn apply_to_parameter_types(
+        &mut self,
+        source: SignatureId,
+        target: SignatureId,
+    ) -> CheckResult2<()> {
+        let source_count = self.st.get_parameter_count(source)?;
+        let target_count = self.st.get_parameter_count(target)?;
+        let source_rest_type = self.st.get_effective_rest_type(source)?;
+        let target_rest_type = self.st.get_effective_rest_type(target)?;
+        let target_non_rest_count = if target_rest_type.is_some() {
+            target_count - 1
+        } else {
+            target_count
+        };
+        let param_count = if source_rest_type.is_some() {
+            target_non_rest_count
+        } else {
+            source_count.min(target_non_rest_count)
+        };
+        if let Some(source_this_type) = self.st.get_this_type_of_signature(source)? {
+            if let Some(target_this_type) = self.st.get_this_type_of_signature(target)? {
+                self.infer_from_contravariant_types_if_strict_function_types(
+                    source_this_type,
+                    target_this_type,
+                )?;
+            }
+        }
+        for i in 0..param_count {
+            let source_type = self.st.get_type_at_position(source, i)?;
+            let target_type = self.st.get_type_at_position(target, i)?;
+            self.infer_from_contravariant_types_if_strict_function_types(source_type, target_type)?;
+        }
+        if let Some(target_rest_type) = target_rest_type {
+            // 68215-68221: readonly when the rest variable is const
+            // and nothing in it is a mutable array shape (someType
+            // expanded — the port predicate is fallible).
+            let mut some_mutable = false;
+            if self.st.is_const_type_variable(Some(target_rest_type), 0) {
+                let members = if self
+                    .st
+                    .tables
+                    .flags_of(target_rest_type)
+                    .intersects(TypeFlags::UNION)
+                {
+                    self.types_of(target_rest_type)
+                } else {
+                    vec![target_rest_type]
+                };
+                for member in members {
+                    if self.st.is_mutable_array_like_type(member)? {
+                        some_mutable = true;
+                        break;
+                    }
+                }
+                let readonly = !some_mutable;
+                let source_rest =
+                    self.st
+                        .get_rest_type_at_position(source, param_count, readonly)?;
+                self.infer_from_contravariant_types_if_strict_function_types(
+                    source_rest,
+                    target_rest_type,
+                )?;
+            } else {
+                let source_rest = self
+                    .st
+                    .get_rest_type_at_position(source, param_count, false)?;
+                self.infer_from_contravariant_types_if_strict_function_types(
+                    source_rest,
+                    target_rest_type,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// tsc-port: applyToReturnTypes @6.0.3
+    /// tsc-hash: 1bb818de205cee65e351fad046065911d45a080a9f63dffde44b2a5b45e42edb
+    /// tsc-span: _tsc.js:68224-68237
+    ///
+    /// tsc-port: typePredicateKindsMatch @6.0.3
+    /// tsc-hash: 774c6b6013f1086ab88ed791ca3167f7350c1d1f076149294349f1e8bfa3b599
+    /// tsc-span: _tsc.js:61610-61612
+    ///
+    /// The callback is hard-bound to inferFromTypes (69202).
+    fn apply_to_return_types(
+        &mut self,
+        source: SignatureId,
+        target: SignatureId,
+    ) -> CheckResult2<()> {
+        if let Some(target_predicate) = self.st.get_type_predicate_of_signature(target)? {
+            if let Some(source_predicate) = self.st.get_type_predicate_of_signature(source)? {
+                if std::mem::discriminant(&source_predicate.kind)
+                    == std::mem::discriminant(&target_predicate.kind)
+                    && source_predicate.parameter_index == target_predicate.parameter_index
+                {
+                    if let (Some(source_type), Some(target_type)) =
+                        (source_predicate.ty, target_predicate.ty)
+                    {
+                        self.infer_from_types(source_type, target_type)?;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        let target_return_type = self.st.get_return_type_of_signature(target)?;
+        if self.st.could_contain_type_variables(target_return_type) {
+            let source_return_type = self.st.get_return_type_of_signature(source)?;
+            self.infer_from_types(source_return_type, target_return_type)?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: inferFromIndexTypes @6.0.3
+    /// tsc-hash: d2c290c69b4d6765f25bc2fada5b162e904b4f299e8e46882a86d536e24657be
+    /// tsc-span: _tsc.js:69204-69232
+    ///
+    /// The Mapped&Mapped homomorphic priority is written 1:1 but
+    /// constant-None while ObjectFlags::MAPPED has no constructor.
+    fn infer_from_index_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+        let priority2 = if self
+            .st
+            .tables
+            .object_flags_of(source)
+            .intersects(ObjectFlags::MAPPED)
+            && self
+                .st
+                .tables
+                .object_flags_of(target)
+                .intersects(ObjectFlags::MAPPED)
+        {
+            InferencePriority::HOMOMORPHIC_MAPPED_TYPE
+        } else {
+            InferencePriority::NONE
+        };
+        let index_infos = self.st.get_index_infos_of_type(target)?;
+        if self.st.is_object_type_with_inferable_index(source)? {
+            for target_info in &index_infos {
+                let mut prop_types: Vec<TypeId> = Vec::new();
+                for prop in self.st.get_properties_of_type(source)? {
+                    let literal = self.st.get_literal_type_from_property(
+                        prop,
+                        TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                        /*include_non_public*/ false,
+                    )?;
+                    if self
+                        .st
+                        .is_applicable_index_type(literal, target_info.key_type)?
+                    {
+                        let prop_type = self.st.get_type_of_symbol(prop)?;
+                        prop_types.push(
+                            if self.st.symbol_flags(prop).intersects(SymbolFlags::OPTIONAL) {
+                                self.st.remove_missing_or_undefined_type(prop_type)?
+                            } else {
+                                prop_type
+                            },
+                        );
+                    }
+                }
+                for info in self.st.get_index_infos_of_type(source)? {
+                    if self
+                        .st
+                        .is_applicable_index_type(info.key_type, target_info.key_type)?
+                    {
+                        prop_types.push(info.value_type);
+                    }
+                }
+                if !prop_types.is_empty() {
+                    let union = self
+                        .st
+                        .get_union_type_ex(&prop_types, UnionReduction::Literal)?;
+                    self.infer_with_priority(union, target_info.value_type, priority2)?;
+                }
+            }
+        }
+        for target_info in &index_infos {
+            if let Some(source_info) = self
+                .st
+                .get_applicable_index_info(source, target_info.key_type)?
+            {
+                self.infer_with_priority(
+                    source_info.value_type,
+                    target_info.value_type,
+                    priority2,
+                )?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// JS Array.prototype.slice index clamping over a length-`len` list:
+/// negative indexes count from the end; the pair is clamped to
+/// [0, len] with an empty range when end <= start (the 69131-69137
+/// trailing-slice bounds go negative for short sources — probed).
+fn js_slice_bounds(len: usize, start: i64, end: i64) -> (usize, usize) {
+    let clamp = |i: i64| -> usize {
+        if i < 0 {
+            (len as i64 + i).max(0) as usize
+        } else {
+            (i as usize).min(len)
+        }
+    };
+    let from = clamp(start);
+    let to = clamp(end).max(from);
+    (from, to)
 }
 
 #[cfg(test)]
@@ -3211,6 +3929,337 @@ mod tests {
                 assert_eq!(
                     state.inference_info(info).candidates.as_deref(),
                     Some(&[number][..])
+                );
+            },
+        );
+    }
+
+    // ---- 7.2d: the object tail ----
+
+    /// Two annotation types from one fixture (the alias-test pattern).
+    fn annotated_pair(
+        state: &mut CheckerState,
+        source_var: &str,
+        target_var: &str,
+    ) -> (TypeId, TypeId) {
+        let source_annotation = annotation_of_var(state, source_var);
+        let source = state
+            .get_type_from_type_node(source_annotation)
+            .expect("source annotation");
+        let target_annotation = annotation_of_var(state, target_var);
+        let target = state
+            .get_type_from_type_node(target_annotation)
+            .expect("target annotation");
+        (source, target)
+    }
+
+    /// Probe r4: `[string, string, string]` against `[string, ...T]`
+    /// slices the middle into the variadic (69140-69144).
+    #[test]
+    fn tuple_single_variadic_middle_collects_slice() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T extends any[]>() { var s: [string, string, string]; var t: [string, ...T]; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live tail");
+                let string = state.tables.intrinsics.string;
+                let expected = state
+                    .create_tuple_type_forced(&[string, string], None, false, None)
+                    .expect("tuple");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[expected][..])
+                );
+                assert_eq!(
+                    state.inference_info(info).priority,
+                    Some(InferencePriority::NONE)
+                );
+            },
+        );
+    }
+
+    /// Probe r5: an optional-ended target records the slice at
+    /// SpeculativeTuple priority (69141).
+    #[test]
+    fn tuple_variadic_middle_before_optional_uses_speculative_priority() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T extends any[]>() { var s: [string, string]; var t: [string, ...T, string?]; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live tail");
+                let expected = state
+                    .create_tuple_type_forced(&[], None, false, None)
+                    .expect("empty tuple");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[expected][..])
+                );
+                assert_eq!(
+                    state.inference_info(info).priority,
+                    Some(InferencePriority::SPECULATIVE_TUPLE)
+                );
+            },
+        );
+    }
+
+    /// Probe r1: a source SHORTER than the target's fixed parts drives
+    /// the middle slice bounds negative — JS slice clamps to the empty
+    /// tuple (the slice_tuple_type clamp pin; the pre-fix port
+    /// panicked on the inverted range).
+    #[test]
+    fn tuple_short_source_clamps_middle_slice_to_empty() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T extends any[]>() { var s: [string, string]; var t: [string, string, ...T, string]; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live tail");
+                let expected = state
+                    .create_tuple_type_forced(&[], None, false, None)
+                    .expect("empty tuple");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[expected][..])
+                );
+            },
+        );
+    }
+
+    /// Probe f2: variadic+rest middle with a fixed-tuple constraint —
+    /// the saturated first slice takes the whole short source; the
+    /// variable-free rest target makes the undefined second slice
+    /// harmless (the couldContainTypeVariables early return).
+    #[test]
+    fn tuple_variadic_rest_middle_saturates_short_source() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T extends [any, any]>() { var s: [string]; var t: [...T, ...string[]]; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("harmless undefined slice (probe f2)");
+                let string = state.tables.intrinsics.string;
+                let expected = state
+                    .create_tuple_type_forced(&[string], None, false, None)
+                    .expect("tuple");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[expected][..])
+                );
+            },
+        );
+    }
+
+    /// Probe f6 (the recorded tsc-crash deviation, m8-readiness row
+    /// 4): the same shape with a TYPE-VARIABLE rest target reports
+    /// where tsc TypeErrors.
+    #[test]
+    fn tuple_middle_slice_crash_shape_reports_deviation() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T extends [any, any], U>() { var s: [string]; var t: [...T, ...U[]]; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let u = declared_type_parameter(state, "U");
+                let info_t = detached_info(state, t);
+                let info_u = detached_info(state, u);
+                let (source, target) = annotated_pair(state, "s", "t");
+                let err = state
+                    .infer_types(
+                        &[info_t, info_u],
+                        source,
+                        target,
+                        InferencePriority::NONE,
+                        false,
+                    )
+                    .expect_err("tsc dies here (probe f6)");
+                assert!(err.reason.contains("tsc-crash deviation"), "{}", err.reason);
+            },
+        );
+    }
+
+    /// Structure-matched tuples pair element-wise (69094-69098).
+    #[test]
+    fn tuple_structure_match_infers_elementwise() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T, U>() { var s: [string, number]; var t: [T, U]; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let u = declared_type_parameter(state, "U");
+                let info_t = detached_info(state, t);
+                let info_u = detached_info(state, u);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(
+                        &[info_t, info_u],
+                        source,
+                        target,
+                        InferencePriority::NONE,
+                        false,
+                    )
+                    .expect("live tail");
+                assert_eq!(
+                    state.inference_info(info_t).candidates.as_deref(),
+                    Some(&[state.tables.intrinsics.string][..])
+                );
+                assert_eq!(
+                    state.inference_info(info_u).candidates.as_deref(),
+                    Some(&[state.tables.intrinsics.number][..])
+                );
+            },
+        );
+    }
+
+    /// inferFromProperties (69170): matching members meet through
+    /// removeMissingType.
+    #[test]
+    fn object_properties_infer_into_target_members() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() { var s: { a: string }; var t: { a: T }; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live tail");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[state.tables.intrinsics.string][..])
+                );
+            },
+        );
+    }
+
+    /// inferFromSignatures (69182): strict-default parameters infer
+    /// CONTRAvariantly, returns covariantly — both sides of the same
+    /// info.
+    #[test]
+    fn signature_params_contravariant_returns_covariant() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() { var s: (x: string) => number; var t: (x: T) => T; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live tail");
+                let info = state.inference_info(info);
+                assert_eq!(
+                    info.contra_candidates.as_deref(),
+                    Some(&[state.tables.intrinsics.string][..]),
+                    "strictFunctionTypes default → parameter goes contra (68892)"
+                );
+                assert_eq!(
+                    info.candidates.as_deref(),
+                    Some(&[state.tables.intrinsics.number][..]),
+                    "return type covariant (69202)"
+                );
+            },
+        );
+    }
+
+    /// getBaseSignature (59946): a generic source signature erases to
+    /// its base constraints before parameter/return application.
+    #[test]
+    fn generic_source_signature_infers_through_base() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() { var s: <V extends string>(x: V) => V; var t: (x: T) => T; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live tail");
+                let info = state.inference_info(info);
+                assert_eq!(
+                    info.contra_candidates.as_deref(),
+                    Some(&[state.tables.intrinsics.string][..]),
+                    "V erases to its string constraint"
+                );
+                assert_eq!(
+                    info.candidates.as_deref(),
+                    Some(&[state.tables.intrinsics.string][..])
+                );
+            },
+        );
+    }
+
+    /// inferFromIndexTypes (69204): an inferable-index source funnels
+    /// the applicable property union into the target's index info.
+    #[test]
+    fn index_signature_collects_property_union() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() { var s: { a: string; b: number }; var t: { [k: string]: T }; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("live tail");
+                let string = state.tables.intrinsics.string;
+                let number = state.tables.intrinsics.number;
+                let expected = state
+                    .get_union_type_ex(&[string, number], UnionReduction::Literal)
+                    .expect("union");
+                assert_eq!(
+                    state.inference_info(info).candidates.as_deref(),
+                    Some(&[expected][..])
                 );
             },
         );

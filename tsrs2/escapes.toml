@@ -929,17 +929,30 @@ owner = "M6"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
-in = "infer_from_types"
-reason = "inferFromTypes Substitution-source arm (M8 — Substitution types are unconstructible before their type nodes land)"
+in = "infer_from_generic_mapped_types"
+reason = "inferFromGenericMappedTypes body (M8 — Mapped object types are unconstructible before mapped type nodes land)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_from_middle_slice"
+reason = "tsc-crash deviation: undefined middle-slice source against a type-variable rest target (m8-readiness deviation row 4, parse-recovery-class permanent containment)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_from_object_types"
+reason = "inferToMappedType + mapped-target declaration reads (M8 — Mapped object types are unconstructible before mapped type nodes land)"
 class = "stage"
 owner = "M8"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
 in = "infer_from_types"
-reason = "inferFromTypes object tail — getReducedType/getApparentType + inferFromObjectTypes (M6 7.2d)"
+reason = "inferFromTypes Substitution-source arm (M8 — Substitution types are unconstructible before their type nodes land)"
 class = "stage"
-owner = "M6"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/inference.rs"

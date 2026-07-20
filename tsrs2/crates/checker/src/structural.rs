@@ -1698,42 +1698,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: efa5f0c2bd4b56a53bdd6d612446a57e68108c2f7a11fce54777c60e7c37e908
     /// tsc-span: _tsc.js:68461-68482
     ///
-    /// tsc-port: getUnmatchedProperty @6.0.3
-    /// tsc-hash: 488e841fefc40d75aa7fa0d3f82f6cd689fd1b4098e12d1f9ce2ba7b050c1df3
-    /// tsc-span: _tsc.js:68483-68485
-    ///
-    /// The generator collapses to first-match (relation callers only
-    /// take the first); matchDiscriminantProperties is always false on
-    /// this path. Static private identifier properties are M4 classes.
+    /// tsrs-native: the relation path always passes
+    /// matchDiscriminantProperties=false — body on CheckerState since
+    /// 7.2d (typesDefinitelyUnrelated needs the discriminant arm).
     fn get_unmatched_property(
         &mut self,
         source: TypeId,
         target: TypeId,
         require_optional_properties: bool,
     ) -> CheckResult2<Option<SymbolId>> {
-        let properties = self.st.get_properties_of_type(target)?;
-        for target_prop in properties {
-            // getUnmatchedProperties (68464): static private-identifier
-            // targets never participate — `typeof Derived` relates to
-            // `typeof Base` regardless of the base's `static #x`.
-            if self.st.is_static_private_identifier_property(target_prop) {
-                continue;
-            }
-            let flags = self.st.symbol_flags(target_prop);
-            if require_optional_properties
-                || !(flags.intersects(SymbolFlags::OPTIONAL)
-                    || self
-                        .st
-                        .get_check_flags(target_prop)
-                        .intersects(CheckFlags::PARTIAL))
-            {
-                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
-                if self.st.get_property_of_type_full(source, &name)?.is_none() {
-                    return Ok(Some(target_prop));
-                }
-            }
-        }
-        Ok(None)
+        self.st
+            .get_unmatched_property(source, target, require_optional_properties, false)
     }
 
     /// tsc-port: propertiesIdenticalTo @6.0.3
@@ -4032,7 +4007,7 @@ impl<'a> CheckerState<'a> {
     /// target misses the inferable-index path (probed 2322 FP class).
     /// The ObjectRestType / ReverseMapped disjuncts stay out with
     /// their unconstructed producers.
-    fn is_object_type_with_inferable_index(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_object_type_with_inferable_index(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
                 unreachable!("intersection flag implies intersection data");
@@ -4052,6 +4027,160 @@ impl<'a> CheckerState<'a> {
             SymbolFlags::OBJECT_LITERAL.bits() | SymbolFlags::TYPE_LITERAL.bits(),
         )) && !flags.intersects(SymbolFlags::CLASS)
             && !self.type_has_call_or_construct_signatures(ty)?)
+    }
+
+    /// tsc-port: getUnmatchedProperty @6.0.3
+    /// tsc-hash: 488e841fefc40d75aa7fa0d3f82f6cd689fd1b4098e12d1f9ce2ba7b050c1df3
+    /// tsc-span: _tsc.js:68483-68485
+    ///
+    /// tsc-port: getUnmatchedProperties @6.0.3
+    /// tsc-hash: fbca79444245eedebe6170eec4706a5840746ffdd9d4a9d4e75c1b4fad4e323e
+    /// tsc-span: _tsc.js:68464-68482
+    ///
+    /// The generator collapses to first-match (every caller takes the
+    /// first). Static private identifier properties never participate
+    /// — `typeof Derived` relates to `typeof Base` regardless of the
+    /// base's `static #x`. matchDiscriminantProperties (true only from
+    /// typesDefinitelyUnrelated's source→target direction) adds the
+    /// present-but-mismatched unit-discriminant arm (68470-68479).
+    pub(crate) fn get_unmatched_property(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        require_optional_properties: bool,
+        match_discriminant_properties: bool,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let properties = self.get_properties_of_type(target)?;
+        for target_prop in properties {
+            if self.is_static_private_identifier_property(target_prop) {
+                continue;
+            }
+            let flags = self.symbol_flags(target_prop);
+            if require_optional_properties
+                || !(flags.intersects(SymbolFlags::OPTIONAL)
+                    || self
+                        .get_check_flags(target_prop)
+                        .intersects(CheckFlags::PARTIAL))
+            {
+                let name = self.binder.symbol(target_prop).escaped_name.clone();
+                match self.get_property_of_type_full(source, &name)? {
+                    None => return Ok(Some(target_prop)),
+                    Some(source_prop) if match_discriminant_properties => {
+                        let target_type = self.get_type_of_symbol(target_prop)?;
+                        if self
+                            .tables
+                            .flags_of(target_type)
+                            .intersects(TypeFlags::UNIT)
+                        {
+                            let source_type = self.get_type_of_symbol(source_prop)?;
+                            if !(self.tables.flags_of(source_type).intersects(TypeFlags::ANY)
+                                || self.tables.get_regular_type_of_literal_type(source_type)
+                                    == self.tables.get_regular_type_of_literal_type(target_type))
+                            {
+                                return Ok(Some(target_prop));
+                            }
+                        }
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: tupleTypesDefinitelyUnrelated @6.0.3
+    /// tsc-hash: 637314e9511f05762c221182289781dceebd4b2608387222b87f34c7490dbdc9
+    /// tsc-span: _tsc.js:68486-68488
+    fn tuple_types_definitely_unrelated(&self, source: TypeId, target: TypeId) -> bool {
+        let source_target = self.tables.reference_target(source);
+        let target_target = self.tables.reference_target(target);
+        let (TypeData::TupleTarget(source_data), TypeData::TupleTarget(target_data)) = (
+            &self.tables.type_of(source_target).data,
+            &self.tables.type_of(target_target).data,
+        ) else {
+            unreachable!("tuple types target tuple targets");
+        };
+        (!target_data
+            .combined_flags
+            .intersects(ElementFlags::VARIADIC)
+            && target_data.min_length > source_data.min_length)
+            || (!target_data
+                .combined_flags
+                .intersects(ElementFlags::VARIABLE)
+                && (source_data
+                    .combined_flags
+                    .intersects(ElementFlags::VARIABLE)
+                    || target_data.fixed_length < source_data.fixed_length))
+    }
+
+    /// tsc-port: typesDefinitelyUnrelated @6.0.3
+    /// tsc-hash: 7d40855c5fcc34c4fde7b7f229139fa505df379f6359eadd4b8c2b59768afa53
+    /// tsc-span: _tsc.js:68489-68498
+    pub(crate) fn types_definitely_unrelated(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<bool> {
+        if self.tables.is_tuple_type(source) && self.tables.is_tuple_type(target) {
+            return Ok(self.tuple_types_definitely_unrelated(source, target));
+        }
+        Ok(self
+            .get_unmatched_property(
+                source, target, /*require_optional_properties*/ false,
+                /*match_discriminant_properties*/ true,
+            )?
+            .is_some()
+            && self
+                .get_unmatched_property(
+                    target, source, /*require_optional_properties*/ false,
+                    /*match_discriminant_properties*/ false,
+                )?
+                .is_some())
+    }
+
+    /// tsc-port: isTupleTypeStructureMatching @6.0.3
+    /// tsc-hash: b92ae770de9fe4e7613a1f8d90309db616bea7b342aa8b0cd62367d9900cfdde
+    /// tsc-span: _tsc.js:67833-67835
+    pub(crate) fn is_tuple_type_structure_matching(&self, t1: TypeId, t2: TypeId) -> bool {
+        if self.get_type_reference_arity(t1) != self.get_type_reference_arity(t2) {
+            return false;
+        }
+        let (TypeData::TupleTarget(d1), TypeData::TupleTarget(d2)) = (
+            &self.tables.type_of(self.tables.reference_target(t1)).data,
+            &self.tables.type_of(self.tables.reference_target(t2)).data,
+        ) else {
+            unreachable!("tuple types target tuple targets");
+        };
+        d1.element_flags
+            .iter()
+            .zip(d2.element_flags.iter())
+            .all(|(f1, f2)| {
+                (f1.bits() & ElementFlags::VARIABLE.bits())
+                    == (f2.bits() & ElementFlags::VARIABLE.bits())
+            })
+    }
+
+    /// tsc-port: getTypeReferenceArity @6.0.3
+    /// tsc-hash: 27899ed0c1ce76ece5e5d45bca01208dab7f039178ed0d9a749984065f40a151
+    /// tsc-span: _tsc.js:60223-60225
+    ///
+    /// `length(type.target.typeParameters)`: element count for tuple
+    /// targets; class/interface targets read the declaring symbol's
+    /// parameter list (Array/ReadonlyArray → 1 on the
+    /// isArrayOrTupleType consumers).
+    pub(crate) fn get_type_reference_arity(&self, ty: TypeId) -> usize {
+        let target = self.tables.reference_target(ty);
+        if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
+            return data.type_parameters.len();
+        }
+        let Some(symbol) = self.tables.type_of(target).symbol else {
+            return 0;
+        };
+        self.links
+            .symbol(symbol)
+            .type_parameters
+            .as_deref()
+            .map_or(0, <[TypeId]>::len)
     }
 
     // ---- protected-member override checks (5.3e) ----
@@ -4175,6 +4304,7 @@ impl<'a> CheckerState<'a> {
             mapper: source.mapper,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            base_signature_cache: None,
             composite_kind: source.composite_kind,
             composite_signatures: source.composite_signatures.clone(),
             optional_call_signature_cache: (None, None),
@@ -4883,6 +5013,7 @@ impl<'a> CheckerState<'a> {
             mapper,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            base_signature_cache: None,
             composite_kind: Some(TypeFlags::UNION),
             composite_signatures: Some(composite_signatures),
             optional_call_signature_cache: (None, None),
@@ -5719,7 +5850,18 @@ impl<'a> CheckerState<'a> {
         let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
             unreachable!("tuple type targets a tuple target");
         };
-        let end_index = data.type_parameters.len() - end_skip_count;
+        // 61290 slices with JS Array.prototype.slice semantics: an end
+        // before the start yields the empty slice (reachable from
+        // inferFromObjectTypes' middle-arm bounds when the source
+        // tuple is shorter than the target's fixed parts — pinned).
+        // JS's from-end reading of a NEGATIVE end (skip > arity) is
+        // deliberately not modeled — every caller passes skip <= arity
+        // today; 7.4's impliedArity wiring must re-audit.
+        let end_index = data
+            .type_parameters
+            .len()
+            .saturating_sub(end_skip_count)
+            .max(index);
         if index > data.fixed_length {
             let rest_array = self.get_rest_array_type_of_tuple_type(ty)?;
             return match rest_array {

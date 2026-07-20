@@ -102,6 +102,22 @@ port's report stands; it is not a mismatch. Recorded rows
    port keeps the pre-swap declared-type reduction for that regime
    only. Recorded at m5-flow-steps.md (post-close review).
 
+4. Tuple inference through a variadic/rest (or rest/variadic) middle
+   pair whose empty middle slice meets a rest element that CONTAINS A
+   TYPE VARIABLE — e.g.
+   `declare function f<T extends [any, any], U>(x: [...T, ...U[]]): [T, U];
+   f(["a"] as [string]);` (recorded 2026-07-20, M6 7.2d;
+   probe-tuple.mjs f6). `inferFromObjectTypes` (69121/69130) passes
+   `getElementTypeOfSliceOfTupleType`'s undefined straight into
+   `inferFromTypes`, which dereferences `source.aliasSymbol` (68657)
+   — TypeError — unless the target's `couldContainTypeVariables` early
+   return fires first. The port's `infer_from_middle_slice`
+   (checker/src/inference.rs) skips the harmless shape exactly like
+   the early return and reports Unsupported (recovery-class escape)
+   where tsc dies. Same-shape calls whose rest element is variable-free
+   (probe f2/f3) do not crash in either implementation and infer
+   identically.
+
 ## Machine gate
 
 ```sh
