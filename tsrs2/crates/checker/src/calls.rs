@@ -355,7 +355,6 @@ impl<'a> CheckerState<'a> {
     fn check_decorator(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_decorator(node);
         let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
-        self.ensure_not_overload_failure_stub(signature)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         if self.tables.flags_of(return_type).intersects(TypeFlags::ANY) {
             return Ok(());
@@ -1283,7 +1282,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: Some(SignatureKind::Call),
             isolated_signature_type: None,
-            overload_failure_stub: false,
         })
     }
 
@@ -2805,7 +2803,6 @@ impl<'a> CheckerState<'a> {
     /// type inference, and phase (b): per-argument inference under
     /// this SAME context (the single production Some-context producer
     /// for checkExpressionWithContextualType's push site, 80565).
-    #[allow(dead_code)] // consumer: 7.4b chooseOverload (76815/76843) + overload failure (76952)
     pub(crate) fn infer_type_arguments(
         &mut self,
         node: NodeId,
@@ -3694,21 +3691,34 @@ impl<'a> CheckerState<'a> {
                     // message when present) are display-free; the
                     // relation tail elides (T2) — Probe mode supplies
                     // the span tsc's inner diagnostic would carry.
-                    let errors = self
-                        .get_signature_applicability_error(
-                            node,
-                            &args,
-                            last,
-                            RelationKind::Assignable,
-                            CheckMode::NORMAL,
-                            ApplicabilityMode::Probe,
-                        )?
-                        .unwrap_or_else(|| {
+                    let errors = match self.get_signature_applicability_error(
+                        node,
+                        &args,
+                        last,
+                        RelationKind::Assignable,
+                        CheckMode::NORMAL,
+                        ApplicabilityMode::Probe,
+                    ) {
+                        Ok(errors) => errors.unwrap_or_else(|| {
                             panic!(
                                 "No error for last overload signature @{}",
                                 self.binder.source_of_node(node).file_name
                             )
-                        });
+                        }),
+                        Err(err) => {
+                            // T2 containment: tsc's post-report
+                            // implementation probe still runs its
+                            // argument checks (the ContextChecked
+                            // burn/pin side effects) before the
+                            // diagnostic dies — without this a display
+                            // containment leaves later context-
+                            // sensitive args unburned and the deferred
+                            // re-check types them off the failure
+                            // stash (parenthesizedContexualTyping2 FP).
+                            let _ = self.implementation_success_elaboration(ctx, last);
+                            return Err(err);
+                        }
+                    };
                     for error in errors {
                         let mut chain =
                             MessageChain::new(&diagnostics::No_overload_matches_this_call, &[])
@@ -3737,21 +3747,27 @@ impl<'a> CheckerState<'a> {
                     // 76644-76656 under a head (instanceof 2860): the
                     // chain is the head alone — Probe supplies the
                     // span/related, the inner 2345/2684 chain elides.
-                    let errors = self
-                        .get_signature_applicability_error(
-                            node,
-                            &args,
-                            last,
-                            RelationKind::Assignable,
-                            CheckMode::NORMAL,
-                            ApplicabilityMode::Probe,
-                        )?
-                        .unwrap_or_else(|| {
+                    let errors = match self.get_signature_applicability_error(
+                        node,
+                        &args,
+                        last,
+                        RelationKind::Assignable,
+                        CheckMode::NORMAL,
+                        ApplicabilityMode::Probe,
+                    ) {
+                        Ok(errors) => errors.unwrap_or_else(|| {
                             panic!(
                                 "No error for last overload signature @{}",
                                 self.binder.source_of_node(node).file_name
                             )
-                        });
+                        }),
+                        Err(err) => {
+                            // T2 containment side-effect parity — see
+                            // the over_three arm.
+                            let _ = self.implementation_success_elaboration(ctx, last);
+                            return Err(err);
+                        }
+                    };
                     for error in errors {
                         let chain = MessageChain::new(head, &[]);
                         let mut diagnostic = self.diagnostic_at_span(&error.span, chain);
@@ -3762,21 +3778,27 @@ impl<'a> CheckerState<'a> {
                         self.push_error_diagnostic(diagnostic);
                     }
                 } else {
-                    let errors = self
-                        .get_signature_applicability_error(
-                            node,
-                            &args,
-                            last,
-                            RelationKind::Assignable,
-                            CheckMode::NORMAL,
-                            ApplicabilityMode::Report,
-                        )?
-                        .unwrap_or_else(|| {
+                    let errors = match self.get_signature_applicability_error(
+                        node,
+                        &args,
+                        last,
+                        RelationKind::Assignable,
+                        CheckMode::NORMAL,
+                        ApplicabilityMode::Report,
+                    ) {
+                        Ok(errors) => errors.unwrap_or_else(|| {
                             panic!(
                                 "No error for last overload signature @{}",
                                 self.binder.source_of_node(node).file_name
                             )
-                        });
+                        }),
+                        Err(err) => {
+                            // T2 containment side-effect parity — see
+                            // the over_three arm.
+                            let _ = self.implementation_success_elaboration(ctx, last);
+                            return Err(err);
+                        }
+                    };
                     for error in errors {
                         let mut diagnostic =
                             error.diagnostic.expect("Report mode builds diagnostics");
@@ -3801,21 +3823,31 @@ impl<'a> CheckerState<'a> {
                 let mut min = usize::MAX;
                 let mut min_index = 0usize;
                 for (i, &candidate) in candidates_for_argument_error.iter().enumerate() {
-                    let errors = self
-                        .get_signature_applicability_error(
-                            node,
-                            &args,
-                            candidate,
-                            RelationKind::Assignable,
-                            CheckMode::NORMAL,
-                            ApplicabilityMode::Probe,
-                        )?
-                        .unwrap_or_else(|| {
+                    let errors = match self.get_signature_applicability_error(
+                        node,
+                        &args,
+                        candidate,
+                        RelationKind::Assignable,
+                        CheckMode::NORMAL,
+                        ApplicabilityMode::Probe,
+                    ) {
+                        Ok(errors) => errors.unwrap_or_else(|| {
                             panic!(
                                 "No error for 3 or fewer overload signatures @{}",
                                 self.binder.source_of_node(node).file_name
                             )
-                        });
+                        }),
+                        Err(err) => {
+                            // T2 containment side-effect parity — see
+                            // the over_three arm (probe target is
+                            // candidatesForArgumentError[0], 76724).
+                            let _ = self.implementation_success_elaboration(
+                                ctx,
+                                candidates_for_argument_error[0],
+                            );
+                            return Err(err);
+                        }
+                    };
                     if errors.len() <= min {
                         min = errors.len();
                         min_index = i;
@@ -3974,13 +4006,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f8e61f36d383d1a4c7f036ac29776b3a5e9b119fffd53de9e28d0da96168c5f2
     /// tsc-span: _tsc.js:76763-76869
     ///
-    /// M6-STUB SITE #1 (extraction doc §0): a generic candidate
-    /// WITHOUT explicit type arguments that survives the loop-head
-    /// arity checks would instantiate with inferred types — every
-    /// downstream verdict (applicability failure AND success result)
-    /// is stub-poisoned, so the whole resolution escapes. tsc's real
-    /// no-inference fallback is default → unknown; M6 swaps the escape
-    /// for createInferenceContext + inferTypeArguments here.
+    /// The 7.4b live inference path: a generic candidate without
+    /// explicit type arguments builds a per-candidate InferenceContext
+    /// (76809-76814, AnyDefault in JS files), runs inferTypeArguments
+    /// under `argCheckMode | SkipGenericFunctions`, and feeds the
+    /// context's SkippedGenericFunction verdict back into argCheckMode
+    /// (76816). Both type-argument sources share ONE instantiation
+    /// tail (76821: isInJSFile(candidate.declaration) — the stub era
+    /// passed false — plus the context's inferredTypeParameters). The
+    /// re-run (76840-76864) re-infers on the SAME context in NORMAL
+    /// mode, re-instantiates, and repeats the rest-tuple re-arity
+    /// check before re-checking applicability. Candidate trials are
+    /// NOT speculation-wrapped: tsc shares every trial-time write with
+    /// the surrounding check (contexts are E-class and deliberately
+    /// reused across the re-run; signature-instantiation caches are
+    /// structural truths; argument links memos are legit once-only) —
+    /// see the 7.4 decisions block.
     fn choose_overload(
         &mut self,
         ctx: &mut ResolveCallCtx,
@@ -4023,40 +4064,79 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let check_candidate: SignatureId;
+            let mut check_candidate: SignatureId;
+            let mut inference_context: Option<InferenceContextId> = None;
             if self.signature_of(candidate).type_parameters.is_some() {
+                let type_argument_types: Vec<TypeId>;
                 if !ctx.type_argument_nodes.is_empty() {
                     let type_argument_nodes = ctx.type_argument_nodes.clone();
-                    let type_argument_types = self.check_type_arguments(
+                    let checked = self.check_type_arguments(
                         candidate,
                         &type_argument_nodes,
                         /*report_errors*/ false,
                         /*head_message*/ None,
                     )?;
-                    let Some(type_argument_types) = type_argument_types else {
+                    let Some(checked) = checked else {
                         ctx.candidate_for_type_argument_error = Some(candidate);
                         continue;
                     };
-                    check_candidate = self.get_signature_instantiation(
-                        candidate,
-                        Some(&type_argument_types),
-                        /*is_javascript*/ false,
-                        /*inferred_type_parameters*/ None,
-                    )?;
-                    // 76819: the non-array-rest re-arity check reads
-                    // the INSTANTIATED rest tuple.
-                    if self.get_non_array_rest_type(candidate)?.is_some()
-                        && !self.has_correct_arity(node, &args, check_candidate, false)?
-                    {
-                        ctx.candidate_for_argument_arity_error = Some(check_candidate);
-                        continue;
-                    }
+                    type_argument_types = checked;
                 } else {
-                    // M6-stub: inferTypeArguments (75938) + the
-                    // inference context (76809-76817).
-                    return Err(Unsupported::new(
-                        "inferTypeArguments (M6-stub): generic call without explicit type arguments",
-                    ));
+                    // 76809-76817.
+                    let type_parameters = self
+                        .signature_of(candidate)
+                        .type_parameters
+                        .clone()
+                        .expect("checked Some above");
+                    let flags = if self.is_in_js_file(node) {
+                        InferenceFlags::ANY_DEFAULT
+                    } else {
+                        InferenceFlags::NONE
+                    };
+                    let context = self.create_inference_context(
+                        &type_parameters,
+                        Some(candidate),
+                        flags,
+                        None,
+                    );
+                    inference_context = Some(context);
+                    type_argument_types = self.infer_type_arguments(
+                        node,
+                        candidate,
+                        &args,
+                        ctx.arg_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                        context,
+                    )?;
+                    if self
+                        .inference_context(context)
+                        .flags
+                        .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
+                    {
+                        ctx.arg_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
+                    }
+                }
+                let is_javascript = self
+                    .signature_of(candidate)
+                    .declaration
+                    .is_some_and(|declaration| self.is_in_js_file(declaration));
+                let inferred_type_parameters = inference_context.and_then(|context| {
+                    self.inference_context(context)
+                        .inferred_type_parameters
+                        .clone()
+                });
+                check_candidate = self.get_signature_instantiation(
+                    candidate,
+                    Some(&type_argument_types),
+                    is_javascript,
+                    inferred_type_parameters.as_deref(),
+                )?;
+                // 76822: the non-array-rest re-arity check reads the
+                // INSTANTIATED rest tuple.
+                if self.get_non_array_rest_type(candidate)?.is_some()
+                    && !self.has_correct_arity(node, &args, check_candidate, false)?
+                {
+                    ctx.candidate_for_argument_arity_error = Some(check_candidate);
+                    continue;
                 }
             } else {
                 check_candidate = candidate;
@@ -4078,11 +4158,40 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             if !ctx.arg_check_mode.is_empty() {
-                // 76840-76864: the context-sensitive re-run — reset to
-                // Normal and re-check applicability. The generic
-                // re-infer arm (76842-76848) is M6-dead (stub escapes
-                // precede it).
+                // 76840-76864: the re-run — reset to Normal, re-infer
+                // on the SAME InferenceContext (76842-76848),
+                // re-instantiate, re-arity-check, then re-check
+                // applicability with context-sensitive args live.
                 ctx.arg_check_mode = CheckMode::NORMAL;
+                if let Some(context) = inference_context {
+                    let type_argument_types = self.infer_type_arguments(
+                        node,
+                        candidate,
+                        &args,
+                        ctx.arg_check_mode,
+                        context,
+                    )?;
+                    let is_javascript = self
+                        .signature_of(candidate)
+                        .declaration
+                        .is_some_and(|declaration| self.is_in_js_file(declaration));
+                    let inferred_type_parameters = self
+                        .inference_context(context)
+                        .inferred_type_parameters
+                        .clone();
+                    check_candidate = self.get_signature_instantiation(
+                        candidate,
+                        Some(&type_argument_types),
+                        is_javascript,
+                        inferred_type_parameters.as_deref(),
+                    )?;
+                    if self.get_non_array_rest_type(candidate)?.is_some()
+                        && !self.has_correct_arity(node, &args, check_candidate, false)?
+                    {
+                        ctx.candidate_for_argument_arity_error = Some(check_candidate);
+                        continue;
+                    }
+                }
                 if self
                     .get_signature_applicability_error(
                         node,
@@ -4122,13 +4231,12 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<SignatureId> {
         debug_assert!(!ctx.candidates.is_empty());
         self.check_node_deferred(node);
-        let _ = check_mode;
         let any_generic = ctx
             .candidates
             .iter()
             .any(|&c| self.signature_of(c).type_parameters.is_some());
         if ctx.candidates.len() == 1 || any_generic {
-            self.pick_longest_candidate_signature(node, ctx)
+            self.pick_longest_candidate_signature(node, ctx, check_mode)
         } else {
             self.create_union_of_signatures_for_overload_failure(&ctx.candidates)
         }
@@ -4138,23 +4246,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4fc7d0044870d548ebaedcda33e0f43d9cb442e80bc9903676738e800d523164
     /// tsc-span: _tsc.js:76924-76935
     ///
-    /// M6-STUB SITE #2 (inferSignatureInstantiationForOverloadFailure
-    /// 76946-76954): the stub fills default → constraint → unknown per
-    /// parameter with NO argument walk — the same ladder tsc's real
-    /// inference bottoms out at (getInferredType 69271-69313
-    /// constraint-clamps its fallback; the constraint step STAYS when
-    /// M6 replaces the fill with inference). The stash feeds error
-    /// selection and the deferred contextual reads; escapes guard
-    /// every channel where a stub value would become observable:
-    /// context-sensitive raw arguments and tuple-rest arity reads at
-    /// fill time, and — via the overload_failure_stub marker on the
-    /// stash's private clone — the result-producing consumers
-    /// (checkCallExpression and friends), where tsc's inferred return
-    /// type and the stub's diverge.
+    /// (inferSignatureInstantiationForOverloadFailure 76946-76955
+    /// folded in as the no-explicit-typeargs arm — live at 7.4b; the
+    /// M6-stub fill and its overload_failure_stub private-clone
+    /// containment machinery retired with it. The M5-review C5
+    /// carry-in resolved the same commit: checkMode threads from
+    /// getCandidateForOverloadFailure into the failure inference,
+    /// ORed with SkipContextSensitive | SkipGenericFunctions.)
     fn pick_longest_candidate_signature(
         &mut self,
-        _node: NodeId,
+        node: NodeId,
         ctx: &mut ResolveCallCtx,
+        check_mode: CheckMode,
     ) -> CheckResult2<SignatureId> {
         let args_count = self.apparent_argument_count.unwrap_or(ctx.args.len());
         let best_index = self.get_longest_candidate_index(&ctx.candidates, args_count)?;
@@ -4168,41 +4271,23 @@ impl<'a> CheckerState<'a> {
                 self.get_type_arguments_from_nodes(&type_argument_nodes, &type_parameters)?;
             self.create_signature_instantiation(candidate, Some(&type_arguments))?
         } else {
-            let any_context_sensitive = ctx.args.iter().any(|arg| match arg {
-                EffectiveArg::Node(arg_node) => self.is_context_sensitive(*arg_node),
-                EffectiveArg::Synthetic { .. } => false,
-            });
-            if any_context_sensitive {
-                return Err(Unsupported::new(
-                    "inferSignatureInstantiationForOverloadFailure (M6-stub): context-sensitive arguments would observe stub parameter types",
-                ));
-            }
-            if self.get_non_array_rest_type(candidate)?.is_some() {
-                return Err(Unsupported::new(
-                    "inferSignatureInstantiationForOverloadFailure (M6-stub): arity selection reads a stub-instantiated rest tuple",
-                ));
-            }
-            let mut stub_types: Vec<TypeId> = Vec::with_capacity(type_parameters.len());
-            for &type_parameter in &type_parameters {
-                // M6-stub fill: default → constraint → unknownType.
-                let ty = match self.get_default_from_type_parameter(type_parameter)? {
-                    Some(default) => default,
-                    None => self
-                        .get_constraint_of_type_parameter(type_parameter)?
-                        .unwrap_or(self.tables.intrinsics.unknown),
-                };
-                stub_types.push(ty);
-            }
-            let instantiated = self.create_signature_instantiation(candidate, Some(&stub_types))?;
-            // The shared instantiation cache keeps the CLEAN copy (an
-            // explicit `f<unknown>(...)` elsewhere may hit the same
-            // key) and error display reads candidates; the stash gets
-            // a marked private clone so result-type reads can tell
-            // the stub fill from a real instantiation.
-            ctx.candidates[best_index] = instantiated;
-            let mut marked = self.signature_of(instantiated).clone();
-            marked.overload_failure_stub = true;
-            return Ok(self.alloc_signature(marked));
+            // 76946-76955: inferSignatureInstantiationForOverloadFailure.
+            let args = ctx.args.clone();
+            let flags = if self.is_in_js_file(node) {
+                InferenceFlags::ANY_DEFAULT
+            } else {
+                InferenceFlags::NONE
+            };
+            let context =
+                self.create_inference_context(&type_parameters, Some(candidate), flags, None);
+            let type_argument_types = self.infer_type_arguments(
+                node,
+                candidate,
+                &args,
+                check_mode | CheckMode::SKIP_CONTEXT_SENSITIVE | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                context,
+            )?;
+            self.create_signature_instantiation(candidate, Some(&type_argument_types))?
         };
         ctx.candidates[best_index] = instantiated;
         Ok(instantiated)
@@ -4388,7 +4473,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: first.isolated_signature_kind,
             isolated_signature_type: None,
-            overload_failure_stub: false,
         }))
     }
 
@@ -5008,13 +5092,40 @@ impl<'a> CheckerState<'a> {
             }
             return self.resolve_error_call(node);
         }
-        // 77039-77042: the SkipGenericFunctions arm is M6-dead (the
-        // CheckMode audit proves no producer until inference lands).
-        if check_mode.intersects(CheckMode::SKIP_GENERIC_FUNCTIONS) {
-            unreachable!("SkipGenericFunctions has no producer until M6 (CheckMode audit)");
+        // 77039-77042: the SkipGenericFunctions defer — a generic
+        // signature returning a function type is skipped during the
+        // first inference pass (the sentinel result is load-bearing:
+        // 72918's contextual read and the 77616/79572 silentNever
+        // consumers key on the links slot staying Resolving).
+        if check_mode.intersects(CheckMode::SKIP_GENERIC_FUNCTIONS) && type_arguments.is_none() {
+            let mut any_generic_returning_function = false;
+            for &signature in &call_signatures {
+                if self.is_generic_function_returning_function(signature)? {
+                    any_generic_returning_function = true;
+                    break;
+                }
+            }
+            if any_generic_returning_function {
+                self.skipped_generic_function(node, check_mode);
+                return Ok(self.resolving_signature);
+            }
         }
         // 77043-77046: the JSDoc @class arm is JS-file-gated.
         self.resolve_call(node, &call_signatures, check_mode, call_chain_flags, None)
+    }
+
+    /// tsc-port: isGenericFunctionReturningFunction @6.0.3
+    /// tsc-hash: 07821b6d14f8a88cba21ff55612b2992b7b6b8bcfe7d56bf1b200800469a1dc2
+    /// tsc-span: _tsc.js:77049-77051
+    fn is_generic_function_returning_function(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<bool> {
+        if self.signature_of(signature).type_parameters.is_none() {
+            return Ok(false);
+        }
+        let return_type = self.get_return_type_of_signature(signature)?;
+        self.is_function_type(return_type)
     }
 
     /// tsc-port: resolveNewExpression @6.0.3
@@ -5534,7 +5645,6 @@ impl<'a> CheckerState<'a> {
             self.check_grammar_type_arguments(node, type_arguments);
         }
         let signature = self.get_resolved_signature(node, check_mode)?;
-        self.ensure_not_overload_failure_stub(signature)?;
         self.get_return_type_of_signature(signature)
     }
 
@@ -5855,15 +5965,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77491-77508
     ///
     /// candidatesOutArray is LSP-only (always None): the cached
-    /// early-return needs no re-run arm. The final write is guarded
-    /// by `flowLoopStart === flowLoopCount` (77505, a 6.3 fixpoint
-    /// call-site invariant): a signature resolved while a loop
-    /// fixpoint is mid-resolution saw partial narrowed types and must
-    /// not be memoized — the slot reverts to its pre-call value
-    /// (tsc's `: cached`) so a post-loop call re-resolves. An
-    /// Unsupported unwind reverts the sentinel THIS frame wrote so
-    /// later queries re-resolve (tsc has no failure channel here);
-    /// Resolved stashes survive as real memos.
+    /// early-return needs no re-run arm. tsc's exit write (77504-77506)
+    /// is UNCONDITIONAL per completed frame:
+    /// `links.resolvedSignature = flowLoopStart === flowLoopCount ?
+    /// result : cached` — where `cached` is the FRAME-ENTRY value. The
+    /// port's typed protocol spells the three arms out (M4-review F7,
+    /// re-derived at 7.4b when the re-run landed):
+    /// - loop-clean completion memoizes `result` (any frame);
+    /// - mid-fixpoint completion restores the ENTRY value: Vacant for
+    ///   a fresh frame (clear — resolveCall's 76629 failure stash
+    ///   included, tsc clobbers it identically), the outer sentinel
+    ///   for a RE-ENTRANT frame (restore twin — an inner stash must
+    ///   not survive over the outer frame's Resolving);
+    /// - the Err channel (no tsc counterpart) restores entry state the
+    ///   same way, with ONE deliberate deviation: a loop-clean fresh
+    ///   frame keeps a COMPLETED failure stash (Resolving-gated
+    ///   revert) — tsc memoizes the failure-face signature and the
+    ///   gate's containment only suppressed the report.
     pub(crate) fn get_resolved_signature(
         &mut self,
         node: NodeId,
@@ -5887,6 +6005,13 @@ impl<'a> CheckerState<'a> {
         self.resolution_start = save_resolution_start;
         match result {
             Ok(result) => {
+                // 77504 `result !== resolvingSignature`: the
+                // SkipGenericFunctions defer (77041) skips the exit
+                // write entirely — the Resolving sentinel stays in
+                // links as the load-bearing skip marker (72918/77616).
+                if result == self.resolving_signature {
+                    return Ok(result);
+                }
                 if self.flow_loop_start as usize == self.flow_loop_stack.len() {
                     self.links.set_node_resolved_signature_call_protocol(
                         self.speculation_depth,
@@ -5894,34 +6019,23 @@ impl<'a> CheckerState<'a> {
                         LinkSlot::Resolved(result),
                     );
                 } else if wrote_sentinel {
-                    // Mid-fixpoint: tsc's `: cached` (Vacant here) —
-                    // the slot must return to its pre-call value even
-                    // when resolveCall's overload-failure tail stashed
-                    // Resolved (76629): tsc's unconditional exit write
-                    // clobbers that stash in exactly this case, and
-                    // keeping it would let a later statement-path
-                    // check skip argument checking against a
-                    // failure-face signature resolved from mid-loop
-                    // types.
                     self.links.clear_node_resolved_signature_call(node);
+                } else {
+                    self.links
+                        .restore_node_resolved_signature_call_resolving(node);
                 }
                 Ok(result)
             }
             Err(err) => {
                 if wrote_sentinel {
                     if self.flow_loop_start as usize == self.flow_loop_stack.len() {
-                        // Resolving-gated: a COMPLETED failure stash
-                        // survives an Err raised after it (tsc
-                        // memoizes the failure-face signature; the
-                        // gate's containment only suppressed the
-                        // report).
                         self.links.revert_node_resolved_signature_call(node);
                     } else {
-                        // Mid-fixpoint Err: like the Ok guard-fail arm
-                        // above, NOTHING from this resolution may
-                        // outlive the fixpoint — the stash included.
                         self.links.clear_node_resolved_signature_call(node);
                     }
+                } else {
+                    self.links
+                        .restore_node_resolved_signature_call_resolving(node);
                 }
                 Err(err)
             }
@@ -5929,26 +6043,6 @@ impl<'a> CheckerState<'a> {
     }
 
     // ---- the checkCallExpression worker ----
-
-    /// tsrs-native: M6-STUB SITE #2 leak guard — the overload-failure
-    /// stash may carry pick_longest_candidate_signature's stub-filled
-    /// clone (marked overload_failure_stub). tsc runs real argument
-    /// inference for that candidate
-    /// (inferSignatureInstantiationForOverloadFailure 76946-76954),
-    /// so a result type produced from the stub diverges — consumers
-    /// that would surface it escape instead.
-    pub(crate) fn ensure_not_overload_failure_stub(
-        &self,
-        signature: SignatureId,
-    ) -> CheckResult2<()> {
-        if self.signature_of(signature).overload_failure_stub {
-            return Err(Unsupported::new(
-                "overload-failure stub instantiation as an observable call result \
-                 (inferSignatureInstantiationForOverloadFailure, M6)",
-            ));
-        }
-        Ok(())
-    }
 
     /// tsc-port: checkCallExpression @6.0.3
     /// tsc-hash: 3459b258ce93da62aaf8212b10d3765e2f130715cb86f663d60d438cecfb09a1
@@ -5975,8 +6069,9 @@ impl<'a> CheckerState<'a> {
         self.check_grammar_type_arguments(node, type_arguments);
         let signature = self.get_resolved_signature(node, check_mode)?;
         if signature == self.resolving_signature {
-            // 77616-77618: M6-dead (the SkipGenericFunctions arm is the
-            // only producer).
+            // 77616-77618: the SkipGenericFunctions defer (77041, live
+            // at 7.4b) — silentNever until the NORMAL-mode re-run
+            // resolves for real.
             return Ok(self.tables.intrinsics.silent_never);
         }
         if expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::SuperKeyword) {
@@ -6014,7 +6109,6 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        self.ensure_not_overload_failure_stub(signature)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         if self
             .tables
@@ -7100,16 +7194,17 @@ mod tests {
     // strict defaults, 2026-07-19) ----
 
     #[test]
-    fn arity_failed_generic_call_result_contains_not_18046() {
-        // S6: tsc reports 2554 @48 and types r as the INFERRED '1'
-        // (inferSignatureInstantiationForOverloadFailure runs real
-        // inference; its noLib follow-up is a 2339 on toFixed). The
-        // stub port contains the result read instead — that 2339
-        // stays an honest M6 FN — and pre-fix the stub-filled
-        // `unknown` leaked into r → 18046 FP.
+    fn arity_failed_generic_call_infers_failure_candidate() {
+        // S6, LIVE since 7.4b: tsc reports 2554 @48 and types r as the
+        // INFERRED '1' (inferSignatureInstantiationForOverloadFailure
+        // runs real inference), so the noLib 2339 on toFixed follows.
+        // The stub era contained the result read (the 2339 was a
+        // recorded FN; pre-M6-stub the stub-filled `unknown` leaked
+        // into r → 18046 FP). Oracle-pinned 2026-07-20
+        // (scratchpad probe74.mjs, vendored 6.0.3 noLib).
         assert_eq!(
             checked_rows("declare function f<T>(x: T, y: T): T;\nconst r = f(1);\nr.toFixed();\n"),
-            [(2554, 48, 1)]
+            [(2554, 48, 1), (2339, 56, 7)]
         );
     }
 

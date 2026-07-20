@@ -4577,7 +4577,6 @@ impl<'a> CheckerState<'a> {
                 optional_call_signature_cache: (None, None),
                 isolated_signature_kind: Some(crate::state::SignatureKind::Construct),
                 isolated_signature_type: None,
-                overload_failure_stub: false,
             };
             return Ok(vec![self.alloc_signature(signature)]);
         }
@@ -6865,7 +6864,7 @@ impl<'a> CheckerState<'a> {
 
     /// isOptionalDeclaration (19304): questionToken presence on
     /// parameter/property shapes.
-    fn is_optional_declaration(&self, declaration: NodeId) -> bool {
+    pub(crate) fn is_optional_declaration(&self, declaration: NodeId) -> bool {
         match self.data_of(declaration) {
             NodeData::Parameter(data) => data.question_token.is_some(),
             NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
@@ -7398,7 +7397,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: None,
             isolated_signature_type: None,
-            overload_failure_stub: false,
         };
         let id = self.alloc_signature(signature);
         self.links.set_node_resolved_signature(

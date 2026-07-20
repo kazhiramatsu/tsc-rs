@@ -2382,6 +2382,78 @@ impl<'a> CheckerState<'a> {
     /// the expression/call registrations arrive with 5.5/5.7, whose
     /// stages replace the unreachable!()s with their workers.
     fn check_deferred_node(&mut self, node: NodeId) {
+        // tsrs-native (7.4b): a deferred node whose CONTEXT hangs off
+        // a CONTAINED resolution cannot be checked faithfully (tsc,
+        // with no failure channel, resolves those fully) — checking it
+        // contextless FABRICATES implicit-any/unknown rows tsc never
+        // emits (the intraExpressionInferencesJsx 7006/18046 FP face,
+        // reachable once 7.4 registers trial-checked functions). The
+        // test is BOTH signals: the node sits inside an already-
+        // contained range AND some call-like ancestor's
+        // resolvedSignature is Vacant — a call that was ATTEMPTED
+        // (it visited this argument) but whose sentinel the
+        // containment reverted. Range-inclusion alone is too broad
+        // (the first cut regressed 164 accepted identities whose
+        // containment was unrelated to their context — the set-ratchet
+        // caught it live); a Resolved slot (success or failure-face
+        // stash) feeds contextual reads exactly like tsc, so those
+        // still check.
+        // Scope: FUNCTION kinds only — the fabrication class is
+        // contextless PARAMETER typing (7006/7044/18046). Other
+        // deferred kinds (assertions, calls) carry their own operands
+        // and still check — the first kind-blind cut regressed a
+        // deferred assertion's 2352 (subtypingWithCallSignatures3).
+        let is_function_kind = matches!(
+            self.kind_of(node),
+            SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::MethodSignature
+        );
+        let file_index = self.binder.file_index_of_node(node);
+        let (pos, end) = {
+            let raw = self.binder.source_of_node(node).arena.node(node);
+            (raw.pos, raw.end)
+        };
+        let inside_contained = is_function_kind
+            && self
+                .partially_checked_ranges
+                .get(&file_index)
+                .is_some_and(|ranges| {
+                    ranges
+                        .iter()
+                        .any(|&(range_pos, range_end)| range_pos <= pos && end <= range_end)
+                });
+        if inside_contained {
+            let mut context_call_reverted = false;
+            let mut current = node;
+            while let Some(parent) = self.parent_of(current) {
+                if matches!(
+                    self.kind_of(parent),
+                    SyntaxKind::CallExpression
+                        | SyntaxKind::NewExpression
+                        | SyntaxKind::TaggedTemplateExpression
+                        | SyntaxKind::Decorator
+                        | SyntaxKind::JsxOpeningElement
+                        | SyntaxKind::JsxSelfClosingElement
+                        | SyntaxKind::JsxOpeningFragment
+                ) && matches!(
+                    self.links.node(parent).resolved_signature,
+                    crate::links::LinkSlot::Vacant
+                ) {
+                    context_call_reverted = true;
+                    break;
+                }
+                current = parent;
+            }
+            if context_call_reverted {
+                self.mark_partially_checked_node(
+                    node,
+                    "deferred check under a contained call resolution (context unavailable)",
+                );
+                return;
+            }
+        }
         let save_current_node = self.current_node;
         self.current_node = Some(node);
         self.instantiation_count = 0;

@@ -3911,13 +3911,30 @@ impl<'a> CheckerState<'a> {
         }
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::SYNTHETIC) {
-            if check_flags.intersects(CheckFlags::CONTAINS_PRIVATE) {
-                return ModifierFlags::PRIVATE;
-            }
-            if check_flags.intersects(CheckFlags::CONTAINS_PUBLIC) {
-                return ModifierFlags::PUBLIC;
-            }
-            return ModifierFlags::PROTECTED;
+            // 17445-17447: accessModifier | staticModifier — the
+            // STATIC OR-in is load-bearing for synthesized protected
+            // statics (a mixin `typeof A & typeof B` static otherwise
+            // walks the INSTANCE-protected path and fabricates 2446
+            // inside its own class — the mixinAccessModifiers FP).
+            let access_modifier = if check_flags.intersects(CheckFlags::CONTAINS_PRIVATE) {
+                ModifierFlags::PRIVATE
+            } else if check_flags.intersects(CheckFlags::CONTAINS_PUBLIC) {
+                ModifierFlags::PUBLIC
+            } else {
+                ModifierFlags::PROTECTED
+            };
+            let static_modifier = if check_flags.intersects(CheckFlags::CONTAINS_STATIC) {
+                ModifierFlags::STATIC
+            } else {
+                ModifierFlags::from_bits(0)
+            };
+            return ModifierFlags::from_bits(access_modifier.bits() | static_modifier.bits());
+        }
+        // 17449-17451: prototype properties are public statics.
+        if self.symbol_flags(symbol).intersects(SymbolFlags::PROTOTYPE) {
+            return ModifierFlags::from_bits(
+                ModifierFlags::PUBLIC.bits() | ModifierFlags::STATIC.bits(),
+            );
         }
         ModifierFlags::from_bits(0)
     }
@@ -4311,7 +4328,6 @@ impl<'a> CheckerState<'a> {
             isolated_signature_kind: source.isolated_signature_kind,
             isolated_signature_type: None,
             // Clones of the failure stub stay stub-derived.
-            overload_failure_stub: source.overload_failure_stub,
         };
         self.alloc_signature(result)
     }
@@ -5019,7 +5035,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: left_data.isolated_signature_kind,
             isolated_signature_type: None,
-            overload_failure_stub: false,
         };
         Ok(self.alloc_signature(result))
     }
@@ -6127,6 +6142,19 @@ impl<'a> CheckerState<'a> {
     /// exactly as tsc cuts it.
     pub fn get_single_call_signature(&mut self, ty: TypeId) -> CheckResult2<Option<SignatureId>> {
         self.get_single_signature(ty, SignatureKind::Call, false)
+    }
+
+    /// tsc-port: getSingleCallOrConstructSignature @6.0.3
+    /// tsc-hash: d7af02d36c16f7a647b4f19bc1eba0d59125afe42cfc70f7e290753a11ea2bf8
+    /// tsc-span: _tsc.js:75883-75895
+    pub(crate) fn get_single_call_or_construct_signature(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<SignatureId>> {
+        if let Some(call) = self.get_single_signature(ty, SignatureKind::Call, false)? {
+            return Ok(Some(call));
+        }
+        self.get_single_signature(ty, SignatureKind::Construct, false)
     }
 
     /// tsc-port: getSingleSignature @6.0.3

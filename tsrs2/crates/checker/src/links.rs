@@ -721,6 +721,24 @@ impl LinksTables {
         }
     }
 
+    /// tsrs-native: the RE-ENTRANT-frame arm of tsc 77505's `: cached`
+    /// exit write (M4-review F7). A getResolvedSignature frame that
+    /// entered over an outer frame's Resolving sentinel (cached ===
+    /// resolvingSignature) restores THAT sentinel on every
+    /// non-memoizing exit — mid-fixpoint completion, or the port's Err
+    /// unwind — clobbering any stash an inner resolution parked in
+    /// between, exactly as tsc's unconditional assignment writes
+    /// `cached` back. Without this, an inner failure stash survives
+    /// over the outer frame's sentinel and the outer frame's
+    /// Resolving-gated Err revert can no longer see it (the F7 leak).
+    pub fn restore_node_resolved_signature_call_resolving(&mut self, id: NodeId) {
+        let slot = &mut self.node.entry(id).or_default().resolved_signature;
+        if !matches!(slot, LinkSlot::Resolving) {
+            note_resolving_transition(slot.is_resolving(), true);
+            *slot = LinkSlot::Resolving;
+        }
+    }
+
     /// tsrs-native: the mid-fixpoint twin of tsc 77505's `: cached`
     /// exit write (getResolvedSignature's guard-fail arm) — tsc
     /// expresses it as one unconditional slot assignment; the typed
@@ -1509,6 +1527,27 @@ impl LinksTables {
             "type instantiation links written twice for {id:?}"
         );
         links.instantiated_target = Some(target);
+        links.instantiated_mapper = Some(mapper);
+    }
+
+    /// getSignatureInstantiation's inferredTypeParameters arm (59894):
+    /// `newReturnType.mapper = instantiatedSignature.mapper` — the one
+    /// site that writes a type mapper WITHOUT an instantiation target
+    /// (the isolated SingleSignatureType is freshly minted per clone,
+    /// so the once-only assert holds by construction; its reader is
+    /// getObjectTypeInstantiation's 63484/63496 `type.mapper`).
+    pub fn set_type_isolated_signature_mapper(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        mapper: MapperId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.ty.entry(id).or_default();
+        assert!(
+            links.instantiated_target.is_none() && links.instantiated_mapper.is_none(),
+            "isolated-signature mapper written over instantiation links for {id:?}"
+        );
         links.instantiated_mapper = Some(mapper);
     }
 

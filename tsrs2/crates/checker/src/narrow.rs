@@ -1749,7 +1749,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isFunctionType @6.0.3
     /// tsc-hash: b60f6a37b9534a340f8dc339732079eb9e6ec6fea78009af067b9886d4fc609c
     /// tsc-span: _tsc.js:88268-88270
-    fn is_function_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    ///
+    /// (pub(crate) since 7.4b: isGenericFunctionReturningFunction's
+    /// return-type probe, calls.rs.)
+    pub(crate) fn is_function_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(false);
         }

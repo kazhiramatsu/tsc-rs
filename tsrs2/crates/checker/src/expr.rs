@@ -152,6 +152,24 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
+    /// tsc-port: skippedGenericFunction @6.0.3
+    /// tsc-hash: 78b9b3ac6313c9939adb9dc8549ab0d710562b7e1bd8573ba9387fb7cbe404ae
+    /// tsc-span: _tsc.js:80816-80821
+    ///
+    /// tsc reads `getInferenceContext(node)` unchecked (80818):
+    /// Inferential check mode is only ever produced by
+    /// checkExpressionWithContextualType's Some-context arm, so a
+    /// context is on the stack by construction.
+    pub(crate) fn skipped_generic_function(&mut self, node: NodeId, check_mode: CheckMode) {
+        if check_mode.intersects(CheckMode::INFERENTIAL) {
+            let context = self
+                .get_inference_context(node)
+                .expect("Inferential check mode implies an inference context (80817)");
+            self.inference_context_mut(context).flags |=
+                tsrs2_types::InferenceFlags::SKIPPED_GENERIC_FUNCTION;
+        }
+    }
+
     /// tsc-port: isConstEnumObjectType @6.0.3
     /// tsc-hash: c84eab899298aa71e2408a793e0d60443b4265951883ed920daf1235d21e5dac
     /// tsc-span: _tsc.js:79540-79542
@@ -333,7 +351,7 @@ impl<'a> CheckerState<'a> {
                 "SyntheticExpression is checker-synthesized (5.5e destructuring); \
                  parsed trees never contain one"
             ),
-            SyntaxKind::JsxExpression => self.check_jsx_expression(node),
+            SyntaxKind::JsxExpression => self.check_jsx_expression(node, check_mode),
             SyntaxKind::JsxElement => self.check_jsx_element(node),
             SyntaxKind::JsxSelfClosingElement => self.check_jsx_self_closing_element(node),
             SyntaxKind::JsxFragment => self.check_jsx_fragment(node),
@@ -4292,13 +4310,14 @@ mod tests {
     }
 
     #[test]
-    fn quick_call_generic_initializer_still_contains() {
-        // M6-stub observability rule: a generic no-typearg call still
-        // contains the element — the oracle's 2339 @52 (`.bad` on
-        // type '1') is a recorded FN until M6 inference lands.
+    fn quick_call_generic_initializer_resolves_live() {
+        // LIVE since 7.4b (the stub era contained this element and the
+        // 2339 was a recorded FN): inference types y as '1', so `.bad`
+        // reports 2339 @52 exactly as the oracle. Oracle-pinned
+        // 2026-07-20 (scratchpad probe74.mjs, vendored 6.0.3 noLib).
         assert_eq!(
             checked_rows("declare function id<T>(x: T): T;\nconst y = id(1);\ny.bad;\n"),
-            []
+            [(2339, 52, 3)]
         );
     }
 

@@ -132,16 +132,6 @@ pub struct Signature {
     /// tsc signature.isolatedSignatureType (getOrCreateTypeFromSignature
     /// 60287): the single-signature anonymous object type memo.
     pub isolated_signature_type: Option<TypeId>,
-    /// tsrs-native M6-STUB marker: this signature is resolveCall's
-    /// overload-failure stash filled by
-    /// pick_longest_candidate_signature's default→constraint→unknown
-    /// stub (tsc runs real inference there,
-    /// inferSignatureInstantiationForOverloadFailure 76946-76954).
-    /// Set ONLY on the stash's private clone — the shared
-    /// instantiation cache keeps a clean copy — and read by the
-    /// result-producing consumers, which escape instead of letting
-    /// stub values become an observable node type.
-    pub overload_failure_stub: bool,
 }
 
 /// tsc IndexInfo (createIndexInfo 59989).
@@ -1077,7 +1067,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: Some(SignatureKind::Construct),
             isolated_signature_type: None,
-            overload_failure_stub: false,
         })
     }
 

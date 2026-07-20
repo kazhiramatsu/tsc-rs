@@ -482,7 +482,6 @@ impl<'a> CheckerState<'a> {
             isolated_signature_kind: source.isolated_signature_kind,
             isolated_signature_type: None,
             // An instantiation OF the failure stub stays stub-derived.
-            overload_failure_stub: source.overload_failure_stub,
         };
         Ok(self.alloc_signature(result))
     }
@@ -732,16 +731,19 @@ impl<'a> CheckerState<'a> {
         }
         let mut new_mapper =
             self.create_type_mapper(type_parameters.clone(), Some(type_arguments.clone()));
-        // SingleSignatureType targets (63495-63497) are unconstructible
-        // before M6 instantiation expressions.
-        assert!(
-            !self
-                .tables
-                .object_flags_of(target)
-                .intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE),
-            "SingleSignatureType is unconstructible before M6"
-        );
-        let _ = &mut new_mapper;
+        // 63496-63498: a SingleSignatureType target (isolated
+        // signature types — constructible since 7.4's contextual
+        // re-key and higher-order paths made getOrCreateTypeFrom-
+        // Signature reachable) chains the INCOMING mapper behind the
+        // fresh pair mapper (tsc's `&& mapper` guard is vacuous here:
+        // instantiateType never dispatches without one).
+        if self
+            .tables
+            .object_flags_of(target)
+            .intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE)
+        {
+            new_mapper = self.combine_type_mappers(Some(new_mapper), mapper);
+        }
         let target_object_flags = self.tables.object_flags_of(target);
         let result = if target_object_flags.intersects(ObjectFlags::REFERENCE) {
             // 63499: a fresh deferred reference over the SAME node with
@@ -1730,9 +1732,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 524fd5c11b79aba2d61c5d34ecf53ed5cad179d6d26bdbeed44c4a3bfcbee4a1
     /// tsc-span: _tsc.js:59886-59901
     ///
-    /// `inferred_type_parameters` (instantiation-expression signatures)
-    /// unwinds as Unsupported — its only producers are M6 inference
-    /// contexts.
+    /// The `inferredTypeParameters` arm (59888-59899, live since 7.4b's
+    /// higher-order consumer): a single call-or-construct signature in
+    /// the instantiated return type is re-published as a fresh generic
+    /// signature over the inferred type parameters — both clones are
+    /// per-call fresh (never cached), so the raw-field writes here are
+    /// construction, not mutation. `newReturnType.mapper =
+    /// instantiatedSignature.mapper` (59894) rides the dedicated links
+    /// twin; the cloned outer signature seals the new return type into
+    /// its Vacant slot.
     pub fn get_signature_instantiation(
         &mut self,
         signature: SignatureId,
@@ -1752,10 +1760,26 @@ impl<'a> CheckerState<'a> {
             signature,
             filled.as_deref(),
         )?;
-        if inferred_type_parameters.is_some() {
-            return Err(Unsupported::new(
-                "instantiation-expression signatures (inferredTypeParameters, M6)",
-            ));
+        if let Some(inferred_type_parameters) = inferred_type_parameters {
+            let return_type = self.get_return_type_of_signature(instantiated)?;
+            let return_signature = self.get_single_call_or_construct_signature(return_type)?;
+            if let Some(return_signature) = return_signature {
+                let new_return_signature = self.clone_signature(return_signature);
+                self.signature_mut(new_return_signature).type_parameters =
+                    Some(inferred_type_parameters.to_vec());
+                let new_return_type =
+                    self.get_or_create_type_from_signature(new_return_signature)?;
+                if let Some(mapper) = self.signature_of(instantiated).mapper {
+                    self.links.set_type_isolated_signature_mapper(
+                        self.speculation_depth,
+                        new_return_type,
+                        mapper,
+                    );
+                }
+                let new_instantiated_signature = self.clone_signature(instantiated);
+                self.seal_signature_return_type(new_instantiated_signature, new_return_type);
+                return Ok(new_instantiated_signature);
+            }
         }
         Ok(instantiated)
     }

@@ -906,7 +906,6 @@ impl<'a> CheckerState<'a> {
             // 79568-79570: M6-dead (SkipGenericFunctions producer).
             return Ok(silent_never);
         }
-        self.ensure_not_overload_failure_stub(signature)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         let boolean = self.tables.intrinsics.boolean;
         self.check_type_assignable_to(

@@ -408,24 +408,15 @@ impl<'a> CheckerState<'a> {
             }
         }
         let Some(contextual_signature) = self.get_contextual_signature(func)? else {
-            // [INFER M6] gate: a context-sensitive function that HAS a
-            // contextual type but yields no contextual SIGNATURE is
-            // undecidable pre-M6 — during resolveCall's sentinel
-            // window the read sees resolvingSignature's empty list, and
-            // deciding "no context" here caches implicit-any into the
-            // parameter slots and fabricates 7006 (tsc assigns
-            // contextual parameter types inside the pushed-context
-            // window, assignContextualParameterTypes — M6 inference
-            // machinery). A function with NO contextual type at all
-            // keeps the None verdict — the genuine implicit-any face.
-            if self
-                .get_apparent_type_of_contextual_type(func, ContextFlags::SIGNATURE)?
-                .is_some()
-            {
-                return Err(Unsupported::new(
-                    "[INFER M6] context-sensitive parameter under an unresolved contextual signature",
-                ));
-            }
+            // 72701 falls straight through to undefined — the None
+            // verdict IS tsc's implicit-any face (7006 downstream).
+            // The 7.4-retired [INFER M6] gate here used to escape when
+            // an apparent contextual type existed without a signature;
+            // with inference live that shape is a REAL tsc outcome
+            // (e.g. an `any` contextual pushed by an overload-failure
+            // probe walk burns ContextChecked with no assignment, and
+            // the parameter pins to implicit any exactly like tsc —
+            // the parenthesizedContexualTyping2 FP face).
             return Ok(None);
         };
         let parameters = self.parameters_of_function(func);
@@ -3060,7 +3051,6 @@ impl<'a> CheckerState<'a> {
             optional_call_signature_cache: (None, None),
             isolated_signature_kind: self.signature_of(left).isolated_signature_kind,
             isolated_signature_type: None,
-            overload_failure_stub: false,
         };
         Ok(self.alloc_signature(result))
     }
@@ -3259,13 +3249,39 @@ impl<'a> CheckerState<'a> {
                     .is_some_and(|n| self.is_context_sensitive(n)),
                 _ => false,
             },
-            SyntaxKind::JsxAttributes | SyntaxKind::JsxAttribute => {
-                // [JSX → 5.5f] consumers; the walk itself is
-                // syntactic, but JSX fixtures reach it only through
-                // 5.5f arms — answering false here is tsc's answer for
-                // attribute-less nodes and a recorded FN otherwise.
-                false
+            SyntaxKind::JsxAttributes => {
+                // 63853: attribute walk OR (opening element →
+                // element's children walk).
+                let properties_hit = match self.data_of(node) {
+                    NodeData::JsxAttributes(data) => self
+                        .nodes_of(data.properties)
+                        .iter()
+                        .any(|&p| self.is_context_sensitive(p)),
+                    _ => false,
+                };
+                if properties_hit {
+                    return true;
+                }
+                self.parent_of(node).is_some_and(|parent| {
+                    self.kind_of(parent) == SyntaxKind::JsxOpeningElement
+                        && self.parent_of(parent).is_some_and(|element| {
+                            match self.data_of(element) {
+                                NodeData::JsxElement(data) => self
+                                    .nodes_of(data.children)
+                                    .iter()
+                                    .any(|&child| self.is_context_sensitive(child)),
+                                _ => false,
+                            }
+                        })
+                })
             }
+            SyntaxKind::JsxAttribute => match self.data_of(node) {
+                // 63854-63857: initializer presence gates the walk.
+                NodeData::JsxAttribute(data) => data
+                    .initializer
+                    .is_some_and(|initializer| self.is_context_sensitive(initializer)),
+                _ => false,
+            },
             SyntaxKind::JsxExpression | SyntaxKind::YieldExpression => {
                 let expression = match self.data_of(node) {
                     NodeData::JsxExpression(data) => data.expression,
