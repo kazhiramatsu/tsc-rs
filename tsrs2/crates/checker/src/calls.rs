@@ -2413,27 +2413,6 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    /// getSingleSignature(type, Call, allowMembers=false) (75896-75909)
-    /// — the elaborateArrowFunction source gate.
-    fn get_single_call_signature_no_members(
-        &mut self,
-        ty: TypeId,
-    ) -> CheckResult2<Option<SignatureId>> {
-        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
-            return Ok(None);
-        }
-        let members = self.resolve_structured_type_members(ty)?;
-        let resolved = self.members_of(members);
-        if resolved.properties.is_empty()
-            && resolved.index_infos.is_empty()
-            && resolved.call_signatures.len() == 1
-            && resolved.construct_signatures.is_empty()
-        {
-            return Ok(Some(resolved.call_signatures[0]));
-        }
-        Ok(None)
-    }
-
     /// elaborateError's eligibility walk (63957-63994): Ok(None) = no
     /// elaboration (plain head), Ok(Some) = elaborateDidYouMeanToCall-
     /// OrConstruct fired (same head + span at the WALKED node, plus
@@ -2579,7 +2558,9 @@ impl<'a> CheckerState<'a> {
                     if has_typed_parameter {
                         return Ok(None);
                     }
-                    if self.get_single_call_signature_no_members(source)?.is_none() {
+                    // 64031: getSingleCallSignature(source) is the
+                    // elaborateArrowFunction source gate.
+                    if self.get_single_call_signature(source)?.is_none() {
                         return Ok(None);
                     }
                     if self

@@ -852,6 +852,7 @@ in = "contextually_check_function_expression_or_object_literal_method"
 reason = "inferFromAnnotatedParametersAndReturn (M6 7.4)"
 class = "stage"
 owner = "M6"
+count = 2
 
 [[site]]
 file = "crates/checker/src/functions.rs"

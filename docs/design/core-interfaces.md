@@ -276,32 +276,36 @@ nodes reached by multiple paths — the shared-flow cache keys on it.
 //   priority, topLevel: true, isFixed: false, impliedArity }
 ```
 
-Rust (the current tsrs `InferenceInfo` LACKS `topLevel`/`isFixed` —
-adding them is a relation-core prerequisite, checker-key §2.1):
+Rust (landed at M6 7.1 — `checker/src/inference.rs` is authoritative,
+including `top_level`/`is_fixed`; tsc-undefined fields are Option:
+present ⇒ tsc-created, and present candidate vecs are non-empty):
 
 ```rust
 struct InferenceInfo {
     type_parameter: TypeId,  // the TypeParameter TYPE, not its symbol — mapper
                              // sources compare type identities (getMappedType
                              // 63341); corrected at M6 7.1 (was SymbolId)
-    candidates: Vec<TypeId>,          // covariant
-    contra_candidates: Vec<TypeId>,   // contravariant
+    candidates: Option<Vec<TypeId>>,        // covariant; None = tsc undefined
+    contra_candidates: Option<Vec<TypeId>>, // contravariant; None = tsc undefined
     inferred_type: Option<TypeId>,
-    priority: InferencePriority,      // bit flags; lowest wins
+    priority: Option<InferencePriority>,    // bit flags; lowest wins
     top_level: bool,                  // inferred at a top-level position ⇒ widen literals
-    is_fixed: bool,                   // pinned by a prior fixing pass
-    implied_arity: Option<u32>,
+    is_fixed: bool,                   // pinned by a prior fixing pass; the fixing
+                                      // mapper consults the CURRENT slot (see the
+                                      // InferenceContext CAUTION re mergeInferences)
+    implied_arity: Option<usize>,
 }
 struct InferenceContext {
     inferences: Vec<InferenceInfo>,
     signature: Option<SignatureId>,
     flags: InferenceFlags,            // NoDefault, AnyDefault, SkippedGenericFunction
+    compare_types: CompareTypesFn,    // closed comparator enum — Assignable only
+                                      // until 7.5 (relation-frame worker) / M8
     mapper: MapperId, non_fixing_mapper: MapperId,
     return_mapper: Option<MapperId>,
-    compare_types: RelationFn,        // subtype/assignable comparator used during inference
     // tsc 6.0.3 fields the first draft omitted (m6-inference-calls 7.1 is authoritative):
-    intra_expression_inference_sites: Vec<(NodeId, TypeId)>, // 68286; drained by the FIXING mapper before is_fixed is set
-    inferred_type_parameters: Vec<TypeId>, // 80804; consumed by chooseOverload via getSignatureInstantiation
+    inferred_type_parameters: Option<Vec<TypeId>>, // 80804; consumed by chooseOverload via getSignatureInstantiation
+    intra_expression_inference_sites: Option<Vec<IntraExpressionInferenceSite>>, // 68286-68287 { node, type }; drained by the FIXING mapper before is_fixed is set
     outer_return_mapper: Option<MapperId>, // createOuterReturnMapper cache (63385)
 }
 ```

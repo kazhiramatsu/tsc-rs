@@ -95,6 +95,21 @@ pub(crate) enum CompareTypesFn {
 /// deferred mappers' dynamic source lookup (instantiate.rs) is
 /// observationally identical to tsc's creation-time
 /// `map(context.inferences, i => i.typeParameter)` snapshot.
+///
+/// CAUTION — that equivalence covers the SOURCE scan ONLY. tsc's
+/// fixing thunks (68261-68267) also close over the per-slot
+/// InferenceInfo OBJECT for the `isFixed` test-and-set, while the
+/// port's fixing_mapper_target reads/writes the CURRENT slot. After
+/// a mergeInferences slot replacement the two diverge: 80836
+/// replaces fixed-but-candidateless rows too (hasInferenceCandidates
+/// 80822 never consults isFixed; the fresh 80786 info starts
+/// isFixed=false), leaving tsc split — the detached thunk object
+/// stays isFixed=true (preamble skipped on the next fixing dispatch)
+/// while the LIVE row stays unfixed (68710 keeps recording
+/// candidates, 69266 widens as unfixed). A single live-slot bit
+/// cannot represent that split; the 7.4 mergeInferences port must
+/// carry the preamble-done state per creation-time info identity —
+/// do NOT extend this equivalence argument to `is_fixed`.
 #[derive(Clone, Debug)]
 pub(crate) struct InferenceContext {
     pub(crate) inferences: Vec<InferenceInfo>,
@@ -376,6 +391,11 @@ impl<'a> CheckerState<'a> {
     /// sites and clear cached inferences BEFORE setting is_fixed
     /// (the row being fixed is still unfixed at clear time, so its
     /// own stale inferred_type is dropped too), then resolve.
+    ///
+    /// NOTE: the `is_fixed` test-and-set consults the CURRENT slot;
+    /// tsc's thunk consults the creation-time info object. Equivalent
+    /// only while nothing replaces slots — see the InferenceContext
+    /// CAUTION before porting mergeInferences (7.4).
     pub(crate) fn fixing_mapper_target(
         &mut self,
         context: InferenceContextId,
@@ -426,6 +446,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-deferred: M6 — inferTypes (68637), the stage 7.2 candidate
     /// collector; this stub is the fixing mapper's drain landing pad
     /// and is production-unreachable until 7.4 pushes real contexts.
+    ///
+    /// 7.2 re-cuts this seam: tsc's signature is inferences-ARRAY-
+    /// first with `priority = 0, contravariant = false` defaults, and
+    /// its callers include detached-array sites
+    /// (inferReverseMappedTypeWorker 68438 `inferTypes([inference],
+    /// ...)`; the 7.4 higher-order path 80788) plus non-default
+    /// priorities (62679/66375) — widen the signature and pick the
+    /// id-vs-slice receiver there (clear_cached_inferences above is
+    /// already slice-shaped for that fork); do NOT wrap detached
+    /// arrays in throwaway arena contexts.
     pub(crate) fn infer_types(
         &mut self,
         context: InferenceContextId,
@@ -490,6 +520,11 @@ mod tests {
             .node_ids()
             .find(|&id| source.arena.node(id).kind == kind)
             .expect("node of kind")
+    }
+
+    fn annotation_of_var(state: &CheckerState, name: &str) -> tsrs2_syntax::NodeId {
+        crate::relpin::find_probe_annotation(state.binder.source(0), name)
+            .expect("var with annotation")
     }
 
     const GENERIC_SRC: &str = "function f<T, U>() { var v: T; }\n";
@@ -785,6 +820,41 @@ mod tests {
                 assert!(
                     !state.inference_context(ctx).inferences[0].is_fixed,
                     "clear is not a drain — nothing fixed"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn inferential_annotated_arity_arm_unwinds_named_unsupported() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() { var target: (a: number, b: string) => void; var g = (x: number) => 1; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let annotation = annotation_of_var(state, "target");
+                let contextual = state.get_type_from_type_node(annotation).expect("fn type");
+                let arrow = node_of_kind(state, tsrs2_syntax::SyntaxKind::ArrowFunction);
+                let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+                // 79179-79182: non-context-sensitive, no own type
+                // parameters, contextual arity 2 > own arity 1 — under
+                // the 7.1-producible Inferential bit the arm is a
+                // named 7.4 escape, not a silent no-op.
+                let err = state
+                    .check_expression_with_contextual_type(
+                        arrow,
+                        contextual,
+                        Some(ctx),
+                        tsrs2_types::CheckMode::NORMAL,
+                    )
+                    .expect_err("7.4 escape");
+                assert!(
+                    err.reason.contains("inferFromAnnotatedParametersAndReturn"),
+                    "{}",
+                    err.reason
                 );
             },
         );

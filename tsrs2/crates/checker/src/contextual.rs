@@ -2380,15 +2380,16 @@ impl<'a> CheckerState<'a> {
                             {
                                 let false_regular = self.tables.intrinsics.false_regular;
                                 let true_regular = self.tables.intrinsics.true_regular;
-                                let (has_false, has_true) =
+                                // containsType x2, short-circuit as in tsc.
+                                let has_both_boolean_literals =
                                     match &self.tables.type_of(instantiated).data {
-                                        TypeData::Union { types, .. } => (
-                                            types.contains(&false_regular),
-                                            types.contains(&true_regular),
-                                        ),
+                                        TypeData::Union { types, .. } => {
+                                            crate::engine::contains_type(types, false_regular)
+                                                && crate::engine::contains_type(types, true_regular)
+                                        }
                                         _ => unreachable!("union flag implies union data"),
                                     };
-                                if has_false && has_true {
+                                if has_both_boolean_literals {
                                     return self
                                         .filter_type_with(instantiated, |_, t| {
                                             Ok(t != false_regular && t != true_regular)

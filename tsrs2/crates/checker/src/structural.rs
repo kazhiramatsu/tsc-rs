@@ -5980,26 +5980,11 @@ impl<'a> CheckerState<'a> {
 
     // ---- callback-parameter helpers ----
 
-    /// getSingleCallSignature/getSingleSignature (75875) slice: exactly
-    /// one call signature, nothing else on the type — the inlined
-    /// `getSingleSignature(type, Call, /*allowMembers*/ false)`
-    /// projection (the parametrized port below serves the M6 7.1+
-    /// consumers).
+    /// getSingleCallSignature (75875-75877): the one-line delegation
+    /// to `getSingleSignature(type, Call, /*allowMembers*/ false)`,
+    /// exactly as tsc cuts it.
     pub fn get_single_call_signature(&mut self, ty: TypeId) -> CheckResult2<Option<SignatureId>> {
-        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
-            return Ok(None);
-        }
-        let members = self.resolve_structured_type_members(ty)?;
-        let resolved = self.members_of(members);
-        if resolved.call_signatures.len() == 1
-            && resolved.construct_signatures.is_empty()
-            && resolved.properties.is_empty()
-            && resolved.index_infos.is_empty()
-        {
-            Ok(Some(resolved.call_signatures[0]))
-        } else {
-            Ok(None)
-        }
+        self.get_single_signature(ty, SignatureKind::Call, false)
     }
 
     /// tsc-port: getSingleSignature @6.0.3

@@ -205,8 +205,15 @@ impl<'a> CheckerState<'a> {
                 self.signature_of(contextual_signature).parameters.len();
             let own_parameter_count = self.parameters_of_function(node).len();
             if !has_type_parameters && contextual_parameter_count > own_parameter_count {
-                // The body is Inferential-mode-only
-                // (inferFromAnnotatedParametersAndReturn) — dead at M4.
+                // 79179-79182: the body is Inferential-mode-only —
+                // inferFromAnnotatedParametersAndReturn over the annotated
+                // parameters/return is 7.4 wiring; Inferential is
+                // producible since 7.1 (only Some-context pushes set it).
+                if check_mode.intersects(CheckMode::INFERENTIAL) {
+                    return Err(Unsupported::new(
+                        "inferFromAnnotatedParametersAndReturn (M6 7.4)",
+                    ));
+                }
             }
         }
         if contextual_signature.is_some()
@@ -660,11 +667,7 @@ impl<'a> CheckerState<'a> {
                             let signature_return =
                                 self.get_return_type_of_signature(contextual_signature)?;
                             // 78815-78817: /*contextFlags*/ void 0.
-                            self.instantiate_contextual_type(
-                                Some(signature_return),
-                                func,
-                                tsrs2_types::ContextFlags::NONE,
-                            )?
+                            self.instantiate_contextual_type_for_node(Some(signature_return), func)?
                         }
                     }
                 };

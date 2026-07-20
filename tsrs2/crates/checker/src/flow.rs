@@ -4499,10 +4499,19 @@ impl<'a> CheckerState<'a> {
     /// (72044) inside the restType computation, and every production
     /// push site still passes a None context until 7.4 wires
     /// inferTypeArguments (7.1 made contexts constructible; the
-    /// mapper read through None is instantiateType(T, undefined) = T)
-    /// — a rest type that could still contain type variables is the
-    /// one shape where the mapper would matter, and stays a named
-    /// Unsupported until the 7.4/7.5 rewiring.
+    /// mapper read through None is instantiateType(T, undefined) = T).
+    ///
+    /// DEVIATION (latent): the guard below tests
+    /// could_contain_type_variables on the REDUCED APPARENT type,
+    /// while tsc maps FIRST — getReducedApparentType(
+    /// instantiateType(declared, nonFixingMapper)) — so the orders
+    /// commute only while the context is None. A bare type-parameter
+    /// rest whose constraint is a concrete tuple union passes the
+    /// guard (apparent erases the variable) and narrows over the
+    /// constraint — equal to tsc-with-None today; the 7.4/7.5
+    /// rewiring must move the restType computation to tsc's
+    /// mapper-before-apparent order, not just retire the named
+    /// Unsupported below.
     pub(crate) fn get_narrowed_type_of_symbol(
         &mut self,
         symbol: SymbolId,
@@ -4557,8 +4566,10 @@ impl<'a> CheckerState<'a> {
                             if self.could_contain_type_variables(rest_type) {
                                 // 72044: tsc instantiates the rest type
                                 // under getInferenceContext(func)
-                                // ?.nonFixingMapper before the tuple
-                                // gate — the M6 slice.
+                                // ?.nonFixingMapper BEFORE
+                                // getReducedApparentType and the tuple
+                                // gate — the M6 slice (see the
+                                // DEVIATION note on this fn).
                                 return Err(Unsupported::new(
                                     "dependent-parameter narrowing over a generic rest type (getInferenceContext nonFixingMapper, M6)",
                                 ));

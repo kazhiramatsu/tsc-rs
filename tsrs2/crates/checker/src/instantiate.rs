@@ -244,7 +244,8 @@ impl<'a> CheckerState<'a> {
             // identity otherwise. The scan reads the context's
             // CURRENT per-slot type parameters — equal to tsc's
             // creation-time sources snapshot (creation-stability
-            // proof on InferenceContext).
+            // proof on InferenceContext; SOURCES only — is_fixed
+            // residency is NOT covered, see the CAUTION there).
             TypeMapper::Deferred(targets) => {
                 let (context, fixing) = match targets {
                     DeferredMapperTargets::InferenceFixing(context) => (context, true),
