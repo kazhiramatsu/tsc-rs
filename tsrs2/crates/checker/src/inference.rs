@@ -843,6 +843,16 @@ mod tests {
                 // parameters, contextual arity 2 > own arity 1 — under
                 // the 7.1-producible Inferential bit the arm is a
                 // named 7.4 escape, not a silent no-op.
+                //
+                // The sibling context-sensitive arm shares the same
+                // reason string, so pin the arm selection too: a fully
+                // annotated arrow is NOT context-sensitive, making the
+                // 79166 arm (and its identical Unsupported) unreachable
+                // — the Err below can only come from the 79178 arm.
+                assert!(
+                    !state.is_context_sensitive(arrow),
+                    "fully annotated arrow must take the 79178 arity arm"
+                );
                 let err = state
                     .check_expression_with_contextual_type(
                         arrow,
