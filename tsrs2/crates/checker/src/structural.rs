@@ -6301,10 +6301,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isTypeMatchedByTemplateLiteralType @6.0.3
     /// tsc-hash: 10e3e6c09b4976cfec5a798ea4a9c37923362c263ea75bc20304a9a7a44b3379
     /// tsc-span: _tsc.js:68580-68583
-    ///
-    /// tsc-port: inferTypesFromTemplateLiteralType @6.0.3
-    /// tsc-hash: 9abaf8ac4504967f931a9a1ac1ff06638761380afe56e951af5c860fd7ac9f3a
-    /// tsc-span: _tsc.js:68575-68579
     pub fn is_type_matched_by_template_literal_type(
         &mut self,
         source: TypeId,
@@ -6322,6 +6318,9 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
+    /// tsc-port: inferTypesFromTemplateLiteralType @6.0.3
+    /// tsc-hash: 9abaf8ac4504967f931a9a1ac1ff06638761380afe56e951af5c860fd7ac9f3a
+    /// tsc-span: _tsc.js:68575-68579
     pub(crate) fn infer_types_from_template_literal_type(
         &mut self,
         source: TypeId,
@@ -6612,8 +6611,9 @@ fn is_numeric_literal_name_js(name: &str) -> bool {
     }
 }
 
-/// The `+s` coercion slice: trimmed decimal/exponent/hex/infinity
-/// forms (full JS ToNumber is M6 with expression checking).
+/// tsrs-native: the `+s` coercion slice — trimmed decimal/exponent/
+/// hex/infinity forms (full JS ToNumber is M6 with expression
+/// checking); None encodes NaN.
 pub(crate) fn js_string_to_number(s: &str) -> Option<f64> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
