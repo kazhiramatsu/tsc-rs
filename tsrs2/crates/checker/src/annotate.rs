@@ -6862,8 +6862,13 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause)
     }
 
-    /// isOptionalDeclaration (19304): questionToken presence on
-    /// parameter/property shapes.
+    /// tsc-port: isOptionalDeclaration @6.0.3
+    /// tsc-hash: 966ba2d8905e417aa6ddef847b03fa8a61f9ca0f82a09503ca09a73ca8a31293
+    /// tsc-span: _tsc.js:19304-19317
+    ///
+    /// questionToken presence on parameter/property shapes
+    /// (pub(crate) since 7.4b: inferFromAnnotatedParametersAndReturn's
+    /// addOptionality read).
     pub(crate) fn is_optional_declaration(&self, declaration: NodeId) -> bool {
         match self.data_of(declaration) {
             NodeData::Parameter(data) => data.question_token.is_some(),

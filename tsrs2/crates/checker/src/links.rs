@@ -1530,9 +1530,10 @@ impl LinksTables {
         links.instantiated_mapper = Some(mapper);
     }
 
-    /// getSignatureInstantiation's inferredTypeParameters arm (59894):
-    /// `newReturnType.mapper = instantiatedSignature.mapper` — the one
-    /// site that writes a type mapper WITHOUT an instantiation target
+    /// tsrs-native: getSignatureInstantiation's inferredTypeParameters
+    /// arm (59894) — `newReturnType.mapper =
+    /// instantiatedSignature.mapper`, the one site that writes a type
+    /// mapper WITHOUT an instantiation target
     /// (the isolated SingleSignatureType is freshly minted per clone,
     /// so the once-only assert holds by construction; its reader is
     /// getObjectTypeInstantiation's 63484/63496 `type.mapper`).
