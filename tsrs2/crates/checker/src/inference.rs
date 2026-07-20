@@ -5,7 +5,9 @@
 //!
 //! Contexts are arena-allocated on CheckerState so InferenceContextId
 //! equality IS tsc's context object identity, exactly like the
-//! `mappers` arena. The arena is E-class speculation state
+//! `mappers` arena — and InferenceInfoId likewise gives the info
+//! objects tsc identity (thunk captures, mergeInferences slot
+//! replacement, detached arrays). The arena is E-class speculation state
 //! (append-only, never truncated): tsc context mutations deliberately
 //! SURVIVE failed candidate trials — chooseOverload's NORMAL-mode
 //! re-run reuses the SAME context (76842-76844), so candidate
@@ -26,6 +28,14 @@ use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
 /// Arena id — see the module doc for the identity/rollback contract.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct InferenceContextId(pub u32);
+
+/// Arena id for an InferenceInfo — tsc infos are GC objects whose
+/// IDENTITY is load-bearing (thunk captures, mergeInferences slot
+/// replacement, 7.4's detached higher-order arrays), so the port
+/// stores them in `CheckerState::inference_info_arena` (E-class,
+/// append-only) and passes ids everywhere tsc passes the object.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct InferenceInfoId(pub u32);
 
 /// tsc InferenceInfo (the createInferenceInfo 68300 literal).
 ///
@@ -87,32 +97,30 @@ pub(crate) enum CompareTypesFn {
 /// `inferredTypeParameters` (80804), and the `outerReturnMapper`
 /// cache slot (createOuterReturnMapper 63386).
 ///
-/// `inferences` slot count and per-slot `type_parameter` are
-/// CREATION-STABLE: the only post-creation slot write is
-/// mergeInferences (80836 `target[i] = source[i]`), whose source
-/// infos are built over the SAME type parameters
-/// (80786 `createInferenceInfo(info.typeParameter)`) — so the
-/// deferred mappers' dynamic source lookup (instantiate.rs) is
-/// observationally identical to tsc's creation-time
-/// `map(context.inferences, i => i.typeParameter)` snapshot.
-///
-/// CAUTION — that equivalence covers the SOURCE scan ONLY. tsc's
-/// fixing thunks (68261-68267) also close over the per-slot
-/// InferenceInfo OBJECT for the `isFixed` test-and-set, while the
-/// port's fixing_mapper_target reads/writes the CURRENT slot. After
-/// a mergeInferences slot replacement the two diverge: 80836
-/// replaces fixed-but-candidateless rows too (hasInferenceCandidates
-/// 80822 never consults isFixed; the fresh 80786 info starts
-/// isFixed=false), leaving tsc split — the detached thunk object
-/// stays isFixed=true (preamble skipped on the next fixing dispatch)
-/// while the LIVE row stays unfixed (68710 keeps recording
-/// candidates, 69266 widens as unfixed). A single live-slot bit
-/// cannot represent that split; the 7.4 mergeInferences port must
-/// carry the preamble-done state per creation-time info identity —
-/// do NOT extend this equivalence argument to `is_fixed`.
+/// Infos have OBJECT IDENTITY (`InferenceInfoId` into the E-class
+/// info arena), exactly like tsc's GC objects: `inferences` holds the
+/// LIVE slots (tsc `context.inferences` — mergeInferences 80836
+/// rewrites these at 7.4), while `mapper_sources`/`mapper_infos` are
+/// the CREATION-TIME capture shared by the fixing/non-fixing mapper
+/// pair — tsc's makeDeferredTypeMapper sources array plus the
+/// per-slot info objects the thunks close over (68258-68278; both
+/// mappers are built from the same array inside
+/// createInferenceContextWorker before the context escapes, so one
+/// shared capture is exact). Post-merge, tsc's split state — the
+/// detached thunk object keeps isFixed=true while the fresh live row
+/// starts isFixed=false (hasInferenceCandidates 80822 never consults
+/// isFixed) — falls out structurally: the thunk bit rides
+/// `mapper_infos[i]`, the 68710/69266 live-row reads ride
+/// `inferences[i]`, and the two coincide exactly until a merge
+/// replaces the slot id.
 #[derive(Clone, Debug)]
 pub(crate) struct InferenceContext {
-    pub(crate) inferences: Vec<InferenceInfo>,
+    pub(crate) inferences: Vec<InferenceInfoId>,
+    /// Creation-time makeDeferredTypeMapper capture (see above):
+    /// `map(context.inferences, i => i.typeParameter)` ...
+    pub(crate) mapper_sources: Vec<TypeId>,
+    /// ... and the thunk-captured info objects, one per slot.
+    pub(crate) mapper_infos: Vec<InferenceInfoId>,
     #[allow(dead_code)] // consumer: 7.4 inferTypeArguments (context.signature, 80781)
     pub(crate) signature: Option<SignatureId>,
     #[allow(dead_code)]
@@ -160,11 +168,14 @@ pub(crate) fn clone_inference_info(inference: &InferenceInfo) -> InferenceInfo {
 /// tsc-hash: 4a40c69427fa90dd5e056a0db75857816296e9abd8914426f83215209a5410e7
 /// tsc-span: _tsc.js:68279-68285
 ///
-/// A free function over the inference slice because 7.2's inferTypes
-/// call sites also run it on detached arrays (the higher-order path's
-/// local `inferences`, 80786), not only on context-attached ones.
-pub(crate) fn clear_cached_inferences(inferences: &mut [InferenceInfo]) {
-    for inference in inferences {
+/// A free function over an id list (plus the info arena) because
+/// 7.2's inferTypes call sites also run it on detached arrays (the
+/// higher-order path's local `inferences`, 80786), not only on
+/// context-attached ones — a detached tsc array is a `Vec<
+/// InferenceInfoId>` here, sharing the same objects.
+pub(crate) fn clear_cached_inferences(arena: &mut [InferenceInfo], infos: &[InferenceInfoId]) {
+    for &id in infos {
+        let inference = &mut arena[id.0 as usize];
         if !inference.is_fixed {
             inference.inferred_type = None;
         }
@@ -192,6 +203,23 @@ impl<'a> CheckerState<'a> {
         &mut self.inference_context_arena[id.0 as usize]
     }
 
+    /// tsrs-native: arena accessor (infos are GC objects in tsc).
+    pub(crate) fn inference_info(&self, id: InferenceInfoId) -> &InferenceInfo {
+        &self.inference_info_arena[id.0 as usize]
+    }
+
+    /// tsrs-native: arena accessor (infos are GC objects in tsc).
+    pub(crate) fn inference_info_mut(&mut self, id: InferenceInfoId) -> &mut InferenceInfo {
+        &mut self.inference_info_arena[id.0 as usize]
+    }
+
+    /// tsrs-native: arena allocation — tsc object creation.
+    pub(crate) fn alloc_inference_info(&mut self, info: InferenceInfo) -> InferenceInfoId {
+        let id = InferenceInfoId(self.inference_info_arena.len() as u32);
+        self.inference_info_arena.push(info);
+        id
+    }
+
     /// tsc-port: createInferenceContext @6.0.3
     /// tsc-hash: ad626687cae0e25a4f4a7bc1207da6be3340a2c91cd19e5cdcf1ab2925a8990b
     /// tsc-span: _tsc.js:68238-68240
@@ -205,7 +233,7 @@ impl<'a> CheckerState<'a> {
     ) -> InferenceContextId {
         let inferences = type_parameters
             .iter()
-            .map(|&tp| create_inference_info(tp))
+            .map(|&tp| self.alloc_inference_info(create_inference_info(tp)))
             .collect();
         self.create_inference_context_worker(
             inferences,
@@ -230,10 +258,17 @@ impl<'a> CheckerState<'a> {
     ) -> Option<InferenceContextId> {
         context.map(|id| {
             let ctx = self.inference_context(id);
-            let inferences = ctx.inferences.iter().map(clone_inference_info).collect();
+            let slots = ctx.inferences.clone();
             let signature = ctx.signature;
             let flags = ctx.flags | extra_flags;
             let compare_types = ctx.compare_types;
+            let inferences = slots
+                .iter()
+                .map(|&slot| {
+                    let cloned = clone_inference_info(self.inference_info(slot));
+                    self.alloc_inference_info(cloned)
+                })
+                .collect();
             self.create_inference_context_worker(inferences, signature, flags, compare_types)
         })
     }
@@ -249,12 +284,20 @@ impl<'a> CheckerState<'a> {
     /// directly (fixing first, matching 68254/68255 creation order).
     fn create_inference_context_worker(
         &mut self,
-        inferences: Vec<InferenceInfo>,
+        inferences: Vec<InferenceInfoId>,
         signature: Option<SignatureId>,
         flags: InferenceFlags,
         compare_types: CompareTypesFn,
     ) -> InferenceContextId {
         let id = InferenceContextId(self.inference_context_arena.len() as u32);
+        // 68254-68255: both mappers capture the SAME inferences array
+        // at creation — sources = map(inferences, i.typeParameter),
+        // thunks close over the per-slot info objects.
+        let mapper_sources = inferences
+            .iter()
+            .map(|&info| self.inference_info(info).type_parameter)
+            .collect();
+        let mapper_infos = inferences.clone();
         let mapper = self.alloc_mapper(TypeMapper::Deferred(
             DeferredMapperTargets::InferenceFixing(id),
         ));
@@ -263,6 +306,8 @@ impl<'a> CheckerState<'a> {
         ));
         self.inference_context_arena.push(InferenceContext {
             inferences,
+            mapper_sources,
+            mapper_infos,
             signature,
             flags,
             compare_types,
@@ -285,18 +330,25 @@ impl<'a> CheckerState<'a> {
         context: InferenceContextId,
     ) -> Option<InferenceContextId> {
         let ctx = self.inference_context(context);
-        let inferences: Vec<InferenceInfo> = ctx
-            .inferences
+        let slots = ctx.inferences.clone();
+        let signature = ctx.signature;
+        let flags = ctx.flags;
+        let compare_types = ctx.compare_types;
+        let candidate_slots: Vec<InferenceInfoId> = slots
             .iter()
-            .filter(|info| has_inference_candidates(info))
-            .map(clone_inference_info)
+            .copied()
+            .filter(|&slot| has_inference_candidates(self.inference_info(slot)))
+            .collect();
+        let inferences: Vec<InferenceInfoId> = candidate_slots
+            .iter()
+            .map(|&slot| {
+                let cloned = clone_inference_info(self.inference_info(slot));
+                self.alloc_inference_info(cloned)
+            })
             .collect();
         if inferences.is_empty() {
             return None;
         }
-        let signature = ctx.signature;
-        let flags = ctx.flags;
-        let compare_types = ctx.compare_types;
         Some(self.create_inference_context_worker(inferences, signature, flags, compare_types))
     }
 
@@ -313,7 +365,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasInferenceCandidatesOrDefault @6.0.3
     /// tsc-hash: eef4b0235e6b7525b6993feb5cf70616228c9e90ebae9f19790bf5a0f0cd5621
     /// tsc-span: _tsc.js:80825-80827
-    pub(crate) fn has_inference_candidates_or_default(&self, info: &InferenceInfo) -> bool {
+    pub(crate) fn has_inference_candidates_or_default(&self, info: InferenceInfoId) -> bool {
+        let info = self.inference_info(info);
         info.candidates.is_some()
             || info.contra_candidates.is_some()
             || self.has_type_parameter_default(info.type_parameter)
@@ -386,25 +439,33 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:68258-68270
     ///
     /// The thunk body (68262-68267): get_mapped_type's Deferred arm
-    /// dispatches here when `ty` matched inferences[index]'s type
-    /// parameter. Order is load-bearing — drain the intra-expression
-    /// sites and clear cached inferences BEFORE setting is_fixed
-    /// (the row being fixed is still unfixed at clear time, so its
-    /// own stale inferred_type is dropped too), then resolve.
+    /// dispatches here when `ty` matched the mapper's creation-time
+    /// sources[index]. Order is load-bearing — drain the
+    /// intra-expression sites and clear cached inferences BEFORE
+    /// setting is_fixed (the row being fixed is still unfixed at
+    /// clear time, so its own stale inferred_type is dropped too),
+    /// then resolve.
     ///
-    /// NOTE: the `is_fixed` test-and-set consults the CURRENT slot;
-    /// tsc's thunk consults the creation-time info object. Equivalent
-    /// only while nothing replaces slots — see the InferenceContext
-    /// CAUTION before porting mergeInferences (7.4).
+    /// The `is_fixed` test-and-set rides the thunk-CAPTURED info
+    /// (`mapper_infos[index]`, tsc's closure over the creation-time
+    /// object), while clearCachedInferences and getInferredType read
+    /// the LIVE slots — identical until mergeInferences (7.4)
+    /// replaces a slot id, and tsc-exact after.
     pub(crate) fn fixing_mapper_target(
         &mut self,
         context: InferenceContextId,
         index: usize,
     ) -> CheckResult2<TypeId> {
-        if !self.inference_context(context).inferences[index].is_fixed {
+        let captured = self.inference_context(context).mapper_infos[index];
+        if !self.inference_info(captured).is_fixed {
             self.infer_from_intra_expression_sites(context)?;
-            clear_cached_inferences(&mut self.inference_context_mut(context).inferences);
-            self.inference_context_mut(context).inferences[index].is_fixed = true;
+            // 68264: clearCachedInferences(context.inferences) — the
+            // LIVE slots, not the capture.
+            clear_cached_inferences(
+                &mut self.inference_info_arena,
+                &self.inference_context_arena[context.0 as usize].inferences,
+            );
+            self.inference_info_mut(captured).is_fixed = true;
         }
         self.get_inferred_type(context, index)
     }
@@ -527,6 +588,25 @@ mod tests {
             .expect("var with annotation")
     }
 
+    /// The info behind LIVE slot `index` of `ctx` (tsc
+    /// `context.inferences[index]`).
+    fn slot<'x>(
+        state: &'x CheckerState,
+        ctx: super::InferenceContextId,
+        index: usize,
+    ) -> &'x super::InferenceInfo {
+        state.inference_info(state.inference_context(ctx).inferences[index])
+    }
+
+    fn slot_mut<'x>(
+        state: &'x mut CheckerState<'_>,
+        ctx: super::InferenceContextId,
+        index: usize,
+    ) -> &'x mut super::InferenceInfo {
+        let id = state.inference_context(ctx).inferences[index];
+        state.inference_info_mut(id)
+    }
+
     const GENERIC_SRC: &str = "function f<T, U>() { var v: T; }\n";
 
     #[test]
@@ -541,16 +621,10 @@ mod tests {
                     state.create_inference_context(&[t, u], None, InferenceFlags::NO_DEFAULT, None);
                 let context = state.inference_context(ctx);
                 assert_eq!(context.inferences.len(), 2);
-                for (info, tp) in context.inferences.iter().zip([t, u]) {
-                    assert_eq!(info.type_parameter, tp);
-                    assert!(info.candidates.is_none());
-                    assert!(info.contra_candidates.is_none());
-                    assert!(info.inferred_type.is_none());
-                    assert!(info.priority.is_none());
-                    assert!(info.top_level, "createInferenceInfo topLevel: true (68307)");
-                    assert!(!info.is_fixed, "createInferenceInfo isFixed: false (68308)");
-                    assert!(info.implied_arity.is_none());
-                }
+                // 68254-68255: the mapper pair's creation capture
+                // mirrors the slots and their type parameters.
+                assert_eq!(context.mapper_infos, context.inferences);
+                assert_eq!(context.mapper_sources, vec![t, u]);
                 assert_eq!(context.flags.bits(), InferenceFlags::NO_DEFAULT.bits());
                 assert_eq!(context.compare_types, CompareTypesFn::Assignable);
                 assert!(context.signature.is_none());
@@ -560,6 +634,17 @@ mod tests {
                 assert!(context.outer_return_mapper.is_none());
                 let mapper = context.mapper;
                 let non_fixing = context.non_fixing_mapper;
+                for (index, tp) in [t, u].into_iter().enumerate() {
+                    let info = slot(state, ctx, index);
+                    assert_eq!(info.type_parameter, tp);
+                    assert!(info.candidates.is_none());
+                    assert!(info.contra_candidates.is_none());
+                    assert!(info.inferred_type.is_none());
+                    assert!(info.priority.is_none());
+                    assert!(info.top_level, "createInferenceInfo topLevel: true (68307)");
+                    assert!(!info.is_fixed, "createInferenceInfo isFixed: false (68308)");
+                    assert!(info.implied_arity.is_none());
+                }
                 // 68254-68255: the pair is Deferred over THIS context,
                 // fixing first.
                 match state.mapper(mapper) {
@@ -591,7 +676,7 @@ mod tests {
                 let ctx =
                     state.create_inference_context(&[t, u], None, InferenceFlags::NO_DEFAULT, None);
                 let var_decl = node_of_kind(state, tsrs2_syntax::SyntaxKind::VariableDeclaration);
-                state.inference_context_mut(ctx).inferences[0].candidates = Some(vec![string]);
+                slot_mut(state, ctx, 0).candidates = Some(vec![string]);
                 state.inference_context_mut(ctx).return_mapper =
                     Some(state.make_unary_type_mapper(t, string));
                 state.add_intra_expression_inference_site(ctx, var_decl, string);
@@ -608,14 +693,19 @@ mod tests {
                     cloned.flags.bits(),
                     (InferenceFlags::NO_DEFAULT | InferenceFlags::SKIPPED_GENERIC_FUNCTION).bits()
                 );
-                assert_eq!(cloned.inferences[0].candidates, Some(vec![string]));
-                // cloneInferenceContext clones the INFOS; lazily-
-                // attached context fields do not survive.
+                // cloneInferenceContext clones the INFOS (fresh
+                // objects: distinct ids from the original's slots);
+                // lazily-attached context fields do not survive.
+                assert_ne!(
+                    cloned.inferences[0],
+                    state.inference_context(ctx).inferences[0]
+                );
                 assert!(cloned.return_mapper.is_none());
                 assert!(cloned.intra_expression_inference_sites.is_none());
                 assert!(cloned.outer_return_mapper.is_none());
                 // Fresh mapper pair over the CLONE.
                 let clone_mapper = cloned.mapper;
+                assert_eq!(slot(state, clone, 0).candidates, Some(vec![string]));
                 match state.mapper(clone_mapper) {
                     TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(id)) => {
                         assert_eq!(*id, clone)
@@ -625,13 +715,13 @@ mod tests {
                 // cloneInferenceInfo slices the candidate arrays: a
                 // later push into the original is invisible to the
                 // clone (68315 `.slice()`).
-                state.inference_context_mut(ctx).inferences[0]
+                slot_mut(state, ctx, 0)
                     .candidates
                     .as_mut()
                     .expect("candidates present")
                     .push(number);
                 assert_eq!(
-                    state.inference_context(clone).inferences[0]
+                    slot(state, clone, 0)
                         .candidates
                         .as_ref()
                         .expect("cloned candidates")
@@ -654,15 +744,13 @@ mod tests {
                 let ctx = state.create_inference_context(&[t, u], None, InferenceFlags::NONE, None);
                 // No candidates anywhere → undefined (68326).
                 assert!(state.clone_inferred_part_of_context(ctx).is_none());
-                state.inference_context_mut(ctx).inferences[1].contra_candidates =
-                    Some(vec![string]);
+                slot_mut(state, ctx, 1).contra_candidates = Some(vec![string]);
                 let part = state
                     .clone_inferred_part_of_context(ctx)
                     .expect("one candidate row");
-                let cloned = state.inference_context(part);
-                assert_eq!(cloned.inferences.len(), 1);
-                assert_eq!(cloned.inferences[0].type_parameter, u);
-                assert_eq!(cloned.inferences[0].contra_candidates, Some(vec![string]));
+                assert_eq!(state.inference_context(part).inferences.len(), 1);
+                assert_eq!(slot(state, part, 0).type_parameter, u);
+                assert_eq!(slot(state, part, 0).contra_candidates, Some(vec![string]));
             },
         );
     }
@@ -686,7 +774,7 @@ mod tests {
                 let err = state.get_mapped_type(t, non_fixing).expect_err("7.3 stub");
                 assert!(err.reason.contains("getInferredType"), "{}", err.reason);
                 // The non-fixing thunk never fixes (68274-68275).
-                assert!(!state.inference_context(ctx).inferences[0].is_fixed);
+                assert!(!slot(state, ctx, 0).is_fixed);
             },
         );
     }
@@ -701,31 +789,70 @@ mod tests {
                 let u = declared_type_parameter(state, "U");
                 let string = state.tables.intrinsics.string;
                 let ctx = state.create_inference_context(&[t, u], None, InferenceFlags::NONE, None);
-                state.inference_context_mut(ctx).inferences[0].inferred_type = Some(string);
-                state.inference_context_mut(ctx).inferences[1].inferred_type = Some(string);
+                slot_mut(state, ctx, 0).inferred_type = Some(string);
+                slot_mut(state, ctx, 1).inferred_type = Some(string);
                 let fixing = state.inference_context(ctx).mapper;
                 let err = state.get_mapped_type(t, fixing).expect_err("7.3 stub");
                 assert!(err.reason.contains("getInferredType"), "{}", err.reason);
-                let context = state.inference_context(ctx);
                 // 68263-68265 order: clearCachedInferences runs while
                 // the row is still unfixed (its own stale cache
                 // drops), THEN isFixed is set, THEN resolution.
-                assert!(context.inferences[0].is_fixed);
-                assert!(context.inferences[0].inferred_type.is_none());
+                assert!(slot(state, ctx, 0).is_fixed);
+                assert!(slot(state, ctx, 0).inferred_type.is_none());
                 // Other unfixed rows lose their cache too.
-                assert!(!context.inferences[1].is_fixed);
-                assert!(context.inferences[1].inferred_type.is_none());
+                assert!(!slot(state, ctx, 1).is_fixed);
+                assert!(slot(state, ctx, 1).inferred_type.is_none());
                 // A second dispatch on the SAME (now fixed) row skips
                 // the drain/clear preamble entirely (68262 guard).
-                state.inference_context_mut(ctx).inferences[1].inferred_type = Some(string);
+                slot_mut(state, ctx, 1).inferred_type = Some(string);
                 let err = state
                     .get_mapped_type(t, fixing)
                     .expect_err("7.3 stub again");
                 assert!(err.reason.contains("getInferredType"), "{}", err.reason);
                 assert_eq!(
-                    state.inference_context(ctx).inferences[1].inferred_type,
+                    slot(state, ctx, 1).inferred_type,
                     Some(string),
                     "fixed-row dispatch must not re-clear other caches"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn fixing_dispatch_consults_creation_capture_after_slot_replacement() {
+        // The mergeInferences shape (80836 `target[i] = source[i]`),
+        // simulated ahead of its 7.4 port: replace a fixed-but-
+        // candidateless LIVE slot with a fresh info. tsc's thunk
+        // closes over the CREATION-TIME object (68261-68267), so the
+        // second fixing dispatch skips the preamble — the fresh live
+        // row must stay unfixed (the 68710 candidate gate reopens)
+        // and keep its cache (no clearCachedInferences run).
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let string = state.tables.intrinsics.string;
+                let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+                let fixing = state.inference_context(ctx).mapper;
+                let _ = state.get_mapped_type(t, fixing).expect_err("7.3 stub");
+                assert!(slot(state, ctx, 0).is_fixed);
+                // 80786: a fresh candidate-bearing info replaces the
+                // slot (isFixed starts false).
+                let mut fresh = super::create_inference_info(t);
+                fresh.candidates = Some(vec![string]);
+                fresh.inferred_type = Some(string);
+                let fresh_id = state.alloc_inference_info(fresh);
+                state.inference_context_mut(ctx).inferences[0] = fresh_id;
+                let _ = state.get_mapped_type(t, fixing).expect_err("7.3 stub");
+                assert!(
+                    !slot(state, ctx, 0).is_fixed,
+                    "live merged row stays unfixed — tsc's detached capture absorbs the fix"
+                );
+                assert_eq!(
+                    slot(state, ctx, 0).inferred_type,
+                    Some(string),
+                    "preamble skip must not clear the merged row's cache"
                 );
             },
         );
@@ -760,9 +887,11 @@ mod tests {
                 // then resolution hits the 7.3 stub.
                 let err = state.get_mapped_type(t, fixing).expect_err("7.3 stub");
                 assert!(err.reason.contains("getInferredType"), "{}", err.reason);
-                let context = state.inference_context(ctx);
-                assert!(context.intra_expression_inference_sites.is_none());
-                assert!(context.inferences[0].is_fixed);
+                assert!(state
+                    .inference_context(ctx)
+                    .intra_expression_inference_sites
+                    .is_none());
+                assert!(slot(state, ctx, 0).is_fixed);
             },
         );
     }
@@ -784,9 +913,11 @@ mod tests {
                 // unwinds BEFORE the 68297 clear and the 68265 fix.
                 let err = state.get_mapped_type(t, fixing).expect_err("7.2 stub");
                 assert!(err.reason.contains("inferTypes"), "{}", err.reason);
-                let context = state.inference_context(ctx);
-                assert!(context.intra_expression_inference_sites.is_some());
-                assert!(!context.inferences[0].is_fixed);
+                assert!(state
+                    .inference_context(ctx)
+                    .intra_expression_inference_sites
+                    .is_some());
+                assert!(!slot(state, ctx, 0).is_fixed);
             },
         );
     }
@@ -818,7 +949,7 @@ mod tests {
                     .intra_expression_inference_sites
                     .is_none());
                 assert!(
-                    !state.inference_context(ctx).inferences[0].is_fixed,
+                    !slot(state, ctx, 0).is_fixed,
                     "clear is not a drain — nothing fixed"
                 );
             },
@@ -984,7 +1115,7 @@ mod tests {
                 let string = state.tables.intrinsics.string;
                 let var_decl = node_of_kind(state, tsrs2_syntax::SyntaxKind::VariableDeclaration);
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
-                state.inference_context_mut(ctx).inferences[0].candidates = Some(vec![string]);
+                slot_mut(state, ctx, 0).candidates = Some(vec![string]);
                 state.push_inference_context(var_decl, Some(ctx));
                 // 73444-73445: Signature flags + a candidate-bearing
                 // row instantiate through the NON-fixing mapper,
@@ -994,7 +1125,7 @@ mod tests {
                     .expect_err("reaches the 7.3 stub through the non-fixing mapper");
                 assert!(err.reason.contains("getInferredType"), "{}", err.reason);
                 assert!(
-                    !state.inference_context(ctx).inferences[0].is_fixed,
+                    !slot(state, ctx, 0).is_fixed,
                     "the Signature branch must NOT fix"
                 );
                 state.pop_inference_context();

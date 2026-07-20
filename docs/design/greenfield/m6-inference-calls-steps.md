@@ -236,18 +236,20 @@ Commit: `m6 7.1: InferenceInfo/InferenceContext`.
   (getMappedType 63341). core-interfaces §6's SymbolId sketch is
   corrected in place.
 - Deferred mappers: `DeferredMapperTargets::{InferenceFixing,
-  InferenceNonFixing}(ctx)` with DYNAMIC per-slot source lookup —
-  the SOURCE scan is provably equal to tsc's creation-time snapshot
-  because mergeInferences only slot-replaces infos built over the
-  SAME type parameters (80786/80836); slot count is creation-stable.
-  NOT covered by that proof: tsc's fixing thunk closes over the
-  creation-time InferenceInfo OBJECT for `isFixed` (68261-68267)
-  while the port consults the CURRENT slot — equivalent only until
-  mergeInferences lands (80836 replaces fixed-but-candidateless rows;
-  the fresh info starts isFixed=false, so tsc splits detached-object
-  fixed vs live-row unfixed). See the InferenceContext CAUTION; the
-  7.4 mergeInferences port must carry preamble-done state per
-  creation-time info identity.
+  InferenceNonFixing}(ctx)` dispatch over the context's CREATION-TIME
+  capture (`mapper_sources`/`mapper_infos` — tsc's
+  makeDeferredTypeMapper sources snapshot and thunk-captured info
+  objects, 68258-68278). AMENDED post-review: infos live in their own
+  E-class arena (`InferenceInfoId` on CheckerState) so they carry tsc
+  object identity — the fixing thunk's isFixed test-and-set rides the
+  captured info while clearCachedInferences/getInferredType read the
+  LIVE slots, making mergeInferences (80836 `target[i] = source[i]`,
+  a slot-id rewrite at 7.4) tsc-exact by construction, including the
+  post-merge split (detached capture stays fixed; the fresh live row
+  starts unfixed, reopening the 68710 candidate gate). The 7.1
+  dynamic-lookup equivalence proof is superseded; the split is pinned
+  by test (fixing_dispatch_consults_creation_capture_after_slot_
+  replacement).
 - `compare_types` is a closed enum (`CompareTypesFn`); only the
   default `Assignable` is constructible until the 7.5 head rebuild
   routes the relation-frame worker (64507) and M8 the conditional
@@ -381,11 +383,11 @@ Commit: `m6 7.3: covariant/contravariant inference + clamp`.
   mergeInferences, `context.inferredTypeParameters = ...` 80804,
   instantiateSignatureInContextOf 75910), and chooseOverload's
   consumption via `getSignatureInstantiation(candidate, ...,
-  inferenceContext.inferredTypeParameters)` (76844). The
-  mergeInferences port must resolve the `is_fixed` residency split
-  first (7.1 InferenceContext CAUTION: tsc keeps preamble-done on
-  the DETACHED pre-merge info while the live row stays unfixed — a
-  single live-slot bit cannot express both).
+  inferenceContext.inferredTypeParameters)` (76844). mergeInferences
+  is a LIVE-slot id rewrite (`inferences[i] = source_slot`) — the
+  mapper capture keeps the creation-time infos, so tsc's post-merge
+  split (detached capture fixed, fresh live row unfixed) holds by
+  construction (7.1 post-review identity model, pinned by test).
 - Context-sensitive argument detection (`isContextSensitive` 63832)
   and the deferred body interaction (M4's driver already defers
   bodies; the re-run is what types their parameters).

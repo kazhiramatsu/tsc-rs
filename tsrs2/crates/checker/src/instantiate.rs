@@ -241,11 +241,11 @@ impl<'a> CheckerState<'a> {
                 Ok(ty)
             }
             // 63341-63350: linear source scan, thunk on match,
-            // identity otherwise. The scan reads the context's
-            // CURRENT per-slot type parameters — equal to tsc's
-            // creation-time sources snapshot (creation-stability
-            // proof on InferenceContext; SOURCES only — is_fixed
-            // residency is NOT covered, see the CAUTION there).
+            // identity otherwise. The scan reads the mapper pair's
+            // creation-time sources capture (`mapper_sources`, tsc's
+            // makeDeferredTypeMapper snapshot) — object-identical to
+            // tsc, including after 7.4's mergeInferences slot
+            // rewrites.
             TypeMapper::Deferred(targets) => {
                 let (context, fixing) = match targets {
                     DeferredMapperTargets::InferenceFixing(context) => (context, true),
@@ -253,9 +253,9 @@ impl<'a> CheckerState<'a> {
                 };
                 let index = self
                     .inference_context(context)
-                    .inferences
+                    .mapper_sources
                     .iter()
-                    .position(|inference| inference.type_parameter == ty);
+                    .position(|&source| source == ty);
                 match index {
                     Some(index) if fixing => self.fixing_mapper_target(context, index),
                     Some(index) => self.non_fixing_mapper_target(context, index),

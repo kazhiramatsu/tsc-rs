@@ -291,12 +291,16 @@ struct InferenceInfo {
     priority: Option<InferencePriority>,    // bit flags; lowest wins
     top_level: bool,                  // inferred at a top-level position ⇒ widen literals
     is_fixed: bool,                   // pinned by a prior fixing pass; the fixing
-                                      // mapper consults the CURRENT slot (see the
-                                      // InferenceContext CAUTION re mergeInferences)
+                                      // thunk consults the creation-time CAPTURED
+                                      // info (identity model — mergeInferences-safe)
     implied_arity: Option<usize>,
 }
 struct InferenceContext {
-    inferences: Vec<InferenceInfo>,
+    inferences: Vec<InferenceInfoId>, // LIVE slots — infos live in an E-class arena
+                                      // with tsc object identity (mergeInferences
+                                      // rewrites slot ids at 7.4)
+    mapper_sources: Vec<TypeId>,      // creation-time makeDeferredTypeMapper capture
+    mapper_infos: Vec<InferenceInfoId>, // ... and the thunk-captured info objects
     signature: Option<SignatureId>,
     flags: InferenceFlags,            // NoDefault, AnyDefault, SkippedGenericFunction
     compare_types: CompareTypesFn,    // closed comparator enum — Assignable only

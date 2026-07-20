@@ -537,6 +537,13 @@ pub struct CheckerState<'a> {
     /// (76842-76844), so trial-time accumulation is tsc semantics,
     /// not rollback debt.
     pub(crate) inference_context_arena: Vec<crate::inference::InferenceContext>,
+    /// tsc InferenceInfo objects (68300): infos are GC objects with
+    /// IDENTITY in tsc — context slots, thunk captures, and 7.4's
+    /// detached higher-order arrays all share/replace the same
+    /// objects, so the port gives them their own E-class arena
+    /// (append-only, same discipline as the context arena) and
+    /// contexts hold `InferenceInfoId` slots.
+    pub(crate) inference_info_arena: Vec<crate::inference::InferenceInfo>,
     /// tsc cachedTypes (47415): the string-keyed side cache
     /// (getCachedType/setCachedType 47484-47490) — `B{typeId}` literal-
     /// base unions, `D{nodeId},{typeId}` object-literal discrimination.
@@ -833,6 +840,7 @@ impl<'a> CheckerState<'a> {
             inference_context_nodes: Vec::new(),
             inference_contexts: Vec::new(),
             inference_context_arena: Vec::new(),
+            inference_info_arena: Vec::new(),
             cached_types: std::collections::HashMap::new(),
             flow_loop_start: 0,
             flow_loop_stack: Vec::new(),

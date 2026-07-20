@@ -2349,7 +2349,7 @@ impl<'a> CheckerState<'a> {
                             .inference_context(context)
                             .inferences
                             .iter()
-                            .any(|info| self.has_inference_candidates_or_default(info))
+                            .any(|&info| self.has_inference_candidates_or_default(info))
                     {
                         let non_fixing = self.inference_context(context).non_fixing_mapper;
                         let instantiated = self.instantiate_instantiable_types(ty, non_fixing)?;
