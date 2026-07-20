@@ -534,6 +534,56 @@ impl<'a> CheckerState<'a> {
         }))
     }
 
+    /// tsc-port: getActualTypeVariable @6.0.3
+    /// tsc-hash: 194568789a48a4a0e08ba0b934c9acafdf81244913ba01c0b5e42a0ca99c5983
+    /// tsc-span: _tsc.js:62631-62639
+    ///
+    /// The Substitution unwrap arm is an M8 escape (the flag is
+    /// unconstructible until substitution types land), which also
+    /// makes the IndexedAccess re-build condition — a Substitution
+    /// objectType/indexType — unreachable today: plain indexed
+    /// accesses fall through unchanged, exactly as in tsc.
+    pub(crate) fn get_actual_type_variable(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::SUBSTITUTION) {
+            return Err(Unsupported::new(
+                "getActualTypeVariable Substitution unwrap (M8 — Substitution types \
+                 are unconstructible before their type nodes land)",
+            ));
+        }
+        if flags.intersects(TypeFlags::INDEXED_ACCESS) {
+            let TypeData::IndexedAccess {
+                object_type,
+                index_type,
+                ..
+            } = self.tables.type_of(ty).data
+            else {
+                unreachable!("IndexedAccess flag implies data");
+            };
+            if self
+                .tables
+                .flags_of(object_type)
+                .intersects(TypeFlags::SUBSTITUTION)
+                || self
+                    .tables
+                    .flags_of(index_type)
+                    .intersects(TypeFlags::SUBSTITUTION)
+            {
+                let actual_object = self.get_actual_type_variable(object_type)?;
+                let actual_index = self.get_actual_type_variable(index_type)?;
+                return self.get_indexed_access_type(
+                    actual_object,
+                    actual_index,
+                    AccessFlags::NONE,
+                    None,
+                    None,
+                    None,
+                );
+            }
+        }
+        Ok(ty)
+    }
+
     /// tsc-port: getSimplifiedType @6.0.3
     /// tsc-hash: ac9c7ff358d22383776d3bf0d841ff1a331b67e77b87198ef19ad9398418adc5
     /// tsc-span: _tsc.js:62455-62457
@@ -586,7 +636,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: distributeIndexOverObjectType @6.0.3
     /// tsc-hash: c1b5b66a9950b720634f5c0aed06b0c81a123fc583dab949f49b160b7ee679dc
     /// tsc-span: _tsc.js:62458-62463
-    fn distribute_index_over_object_type(
+    pub(crate) fn distribute_index_over_object_type(
         &mut self,
         object_type: TypeId,
         index_type: TypeId,

@@ -475,6 +475,7 @@ impl<'a> CheckerState<'a> {
             mapper: Some(mapper),
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            base_signature_cache: None,
             composite_kind: None,
             composite_signatures: None,
             optional_call_signature_cache: (None, None),
@@ -1834,6 +1835,57 @@ impl<'a> CheckerState<'a> {
         Ok(erased)
     }
 
+    /// tsc-port: getBaseSignature @6.0.3
+    /// tsc-hash: 9dd8fcaca94e9b5baeec2b92bbb1ec3e5822c62c7fa9edff319d38f695549d4a
+    /// tsc-span: _tsc.js:59946-59967
+    ///
+    /// Type parameters erased to their base constraints: an n-1-round
+    /// mapper fixpoint over the constraint list (inter-parameter
+    /// references settle), then the eraser maps stragglers to unknown.
+    /// The cache write sits in the 7.0t speculation assert net like
+    /// the erased twin below.
+    pub(crate) fn get_base_signature(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<SignatureId> {
+        let Some(type_parameters) = self.signature_of(signature).type_parameters.clone() else {
+            return Ok(signature);
+        };
+        if let Some(cached) = self.signature_of(signature).base_signature_cache {
+            return Ok(cached);
+        }
+        let type_eraser = self.create_type_eraser(type_parameters.clone());
+        let mut constraint_targets = Vec::with_capacity(type_parameters.len());
+        for &tp in &type_parameters {
+            let constraint = self.get_constraint_of_type_parameter(tp)?;
+            constraint_targets.push(constraint.unwrap_or(self.tables.intrinsics.unknown));
+        }
+        let base_constraint_mapper =
+            self.create_type_mapper(type_parameters.clone(), Some(constraint_targets));
+        let mut base_constraints = Vec::with_capacity(type_parameters.len());
+        for &tp in &type_parameters {
+            base_constraints.push(self.instantiate_type(tp, Some(base_constraint_mapper))?);
+        }
+        for _ in 0..type_parameters.len().saturating_sub(1) {
+            base_constraints = self.instantiate_types(&base_constraints, base_constraint_mapper)?;
+        }
+        base_constraints = self.instantiate_types(&base_constraints, type_eraser)?;
+        let final_mapper = self.create_type_mapper(type_parameters, Some(base_constraints));
+        let base = self.instantiate_signature(
+            signature,
+            final_mapper,
+            /*erase_type_parameters*/ true,
+        )?;
+        // Raw Signature cache — in the speculation assert net (7.0t,
+        // m4-review B35) like the links slots.
+        assert_eq!(
+            self.speculation_depth, 0,
+            "links writes are forbidden during speculation (greenfield §4.3)"
+        );
+        self.signatures[signature.0 as usize].base_signature_cache = Some(base);
+        Ok(base)
+    }
+
     /// tsc-port: createErasedSignature @6.0.3
     /// tsc-hash: dde837ead02ad3156d3060c7b3fe69207380e9bd55d1739c4c8d45437d62e74c
     /// tsc-span: _tsc.js:59929-59936
@@ -2462,7 +2514,7 @@ impl<'a> CheckerState<'a> {
 /// tsc-port: applyStringMapping @6.0.3
 /// tsc-hash: 03303706c2ff1cce6253350ab983e924aec70581fee678721dfdeeaf6e680e72
 /// tsc-span: _tsc.js:62129-62141
-fn apply_string_mapping(kind: Option<IntrinsicTypeKind>, value: &str) -> String {
+pub(crate) fn apply_string_mapping(kind: Option<IntrinsicTypeKind>, value: &str) -> String {
     match kind {
         Some(IntrinsicTypeKind::Uppercase) => js_to_upper_case(value),
         Some(IntrinsicTypeKind::Lowercase) => js_to_lower_case(value),

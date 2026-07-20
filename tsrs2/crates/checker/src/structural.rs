@@ -19,8 +19,8 @@ use tsrs2_binder::SymbolId;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, IntersectionState, ModifierFlags,
-    ObjectFlags, RecursionFlags, SymbolFlags, Ternary, TupleTargetFlags, TypeData, TypeFlags,
-    TypeId, UnionReduction,
+    ObjectFlags, PseudoBigInt, RecursionFlags, SymbolFlags, Ternary, TupleTargetFlags, TypeData,
+    TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
@@ -1698,42 +1698,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: efa5f0c2bd4b56a53bdd6d612446a57e68108c2f7a11fce54777c60e7c37e908
     /// tsc-span: _tsc.js:68461-68482
     ///
-    /// tsc-port: getUnmatchedProperty @6.0.3
-    /// tsc-hash: 488e841fefc40d75aa7fa0d3f82f6cd689fd1b4098e12d1f9ce2ba7b050c1df3
-    /// tsc-span: _tsc.js:68483-68485
-    ///
-    /// The generator collapses to first-match (relation callers only
-    /// take the first); matchDiscriminantProperties is always false on
-    /// this path. Static private identifier properties are M4 classes.
+    /// tsrs-native: the relation path always passes
+    /// matchDiscriminantProperties=false — body on CheckerState since
+    /// 7.2d (typesDefinitelyUnrelated needs the discriminant arm).
     fn get_unmatched_property(
         &mut self,
         source: TypeId,
         target: TypeId,
         require_optional_properties: bool,
     ) -> CheckResult2<Option<SymbolId>> {
-        let properties = self.st.get_properties_of_type(target)?;
-        for target_prop in properties {
-            // getUnmatchedProperties (68464): static private-identifier
-            // targets never participate — `typeof Derived` relates to
-            // `typeof Base` regardless of the base's `static #x`.
-            if self.st.is_static_private_identifier_property(target_prop) {
-                continue;
-            }
-            let flags = self.st.symbol_flags(target_prop);
-            if require_optional_properties
-                || !(flags.intersects(SymbolFlags::OPTIONAL)
-                    || self
-                        .st
-                        .get_check_flags(target_prop)
-                        .intersects(CheckFlags::PARTIAL))
-            {
-                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
-                if self.st.get_property_of_type_full(source, &name)?.is_none() {
-                    return Ok(Some(target_prop));
-                }
-            }
-        }
-        Ok(None)
+        self.st
+            .get_unmatched_property(source, target, require_optional_properties, false)
     }
 
     /// tsc-port: propertiesIdenticalTo @6.0.3
@@ -4032,7 +4007,7 @@ impl<'a> CheckerState<'a> {
     /// target misses the inferable-index path (probed 2322 FP class).
     /// The ObjectRestType / ReverseMapped disjuncts stay out with
     /// their unconstructed producers.
-    fn is_object_type_with_inferable_index(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_object_type_with_inferable_index(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
                 unreachable!("intersection flag implies intersection data");
@@ -4052,6 +4027,160 @@ impl<'a> CheckerState<'a> {
             SymbolFlags::OBJECT_LITERAL.bits() | SymbolFlags::TYPE_LITERAL.bits(),
         )) && !flags.intersects(SymbolFlags::CLASS)
             && !self.type_has_call_or_construct_signatures(ty)?)
+    }
+
+    /// tsc-port: getUnmatchedProperty @6.0.3
+    /// tsc-hash: 488e841fefc40d75aa7fa0d3f82f6cd689fd1b4098e12d1f9ce2ba7b050c1df3
+    /// tsc-span: _tsc.js:68483-68485
+    ///
+    /// tsc-port: getUnmatchedProperties @6.0.3
+    /// tsc-hash: fbca79444245eedebe6170eec4706a5840746ffdd9d4a9d4e75c1b4fad4e323e
+    /// tsc-span: _tsc.js:68464-68482
+    ///
+    /// The generator collapses to first-match (every caller takes the
+    /// first). Static private identifier properties never participate
+    /// — `typeof Derived` relates to `typeof Base` regardless of the
+    /// base's `static #x`. matchDiscriminantProperties (true only from
+    /// typesDefinitelyUnrelated's source→target direction) adds the
+    /// present-but-mismatched unit-discriminant arm (68470-68479).
+    pub(crate) fn get_unmatched_property(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        require_optional_properties: bool,
+        match_discriminant_properties: bool,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let properties = self.get_properties_of_type(target)?;
+        for target_prop in properties {
+            if self.is_static_private_identifier_property(target_prop) {
+                continue;
+            }
+            let flags = self.symbol_flags(target_prop);
+            if require_optional_properties
+                || !(flags.intersects(SymbolFlags::OPTIONAL)
+                    || self
+                        .get_check_flags(target_prop)
+                        .intersects(CheckFlags::PARTIAL))
+            {
+                let name = self.binder.symbol(target_prop).escaped_name.clone();
+                match self.get_property_of_type_full(source, &name)? {
+                    None => return Ok(Some(target_prop)),
+                    Some(source_prop) if match_discriminant_properties => {
+                        let target_type = self.get_type_of_symbol(target_prop)?;
+                        if self
+                            .tables
+                            .flags_of(target_type)
+                            .intersects(TypeFlags::UNIT)
+                        {
+                            let source_type = self.get_type_of_symbol(source_prop)?;
+                            if !(self.tables.flags_of(source_type).intersects(TypeFlags::ANY)
+                                || self.tables.get_regular_type_of_literal_type(source_type)
+                                    == self.tables.get_regular_type_of_literal_type(target_type))
+                            {
+                                return Ok(Some(target_prop));
+                            }
+                        }
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: tupleTypesDefinitelyUnrelated @6.0.3
+    /// tsc-hash: 637314e9511f05762c221182289781dceebd4b2608387222b87f34c7490dbdc9
+    /// tsc-span: _tsc.js:68486-68488
+    fn tuple_types_definitely_unrelated(&self, source: TypeId, target: TypeId) -> bool {
+        let source_target = self.tables.reference_target(source);
+        let target_target = self.tables.reference_target(target);
+        let (TypeData::TupleTarget(source_data), TypeData::TupleTarget(target_data)) = (
+            &self.tables.type_of(source_target).data,
+            &self.tables.type_of(target_target).data,
+        ) else {
+            unreachable!("tuple types target tuple targets");
+        };
+        (!target_data
+            .combined_flags
+            .intersects(ElementFlags::VARIADIC)
+            && target_data.min_length > source_data.min_length)
+            || (!target_data
+                .combined_flags
+                .intersects(ElementFlags::VARIABLE)
+                && (source_data
+                    .combined_flags
+                    .intersects(ElementFlags::VARIABLE)
+                    || target_data.fixed_length < source_data.fixed_length))
+    }
+
+    /// tsc-port: typesDefinitelyUnrelated @6.0.3
+    /// tsc-hash: 7d40855c5fcc34c4fde7b7f229139fa505df379f6359eadd4b8c2b59768afa53
+    /// tsc-span: _tsc.js:68489-68498
+    pub(crate) fn types_definitely_unrelated(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<bool> {
+        if self.tables.is_tuple_type(source) && self.tables.is_tuple_type(target) {
+            return Ok(self.tuple_types_definitely_unrelated(source, target));
+        }
+        Ok(self
+            .get_unmatched_property(
+                source, target, /*require_optional_properties*/ false,
+                /*match_discriminant_properties*/ true,
+            )?
+            .is_some()
+            && self
+                .get_unmatched_property(
+                    target, source, /*require_optional_properties*/ false,
+                    /*match_discriminant_properties*/ false,
+                )?
+                .is_some())
+    }
+
+    /// tsc-port: isTupleTypeStructureMatching @6.0.3
+    /// tsc-hash: b92ae770de9fe4e7613a1f8d90309db616bea7b342aa8b0cd62367d9900cfdde
+    /// tsc-span: _tsc.js:67833-67835
+    pub(crate) fn is_tuple_type_structure_matching(&self, t1: TypeId, t2: TypeId) -> bool {
+        if self.get_type_reference_arity(t1) != self.get_type_reference_arity(t2) {
+            return false;
+        }
+        let (TypeData::TupleTarget(d1), TypeData::TupleTarget(d2)) = (
+            &self.tables.type_of(self.tables.reference_target(t1)).data,
+            &self.tables.type_of(self.tables.reference_target(t2)).data,
+        ) else {
+            unreachable!("tuple types target tuple targets");
+        };
+        d1.element_flags
+            .iter()
+            .zip(d2.element_flags.iter())
+            .all(|(f1, f2)| {
+                (f1.bits() & ElementFlags::VARIABLE.bits())
+                    == (f2.bits() & ElementFlags::VARIABLE.bits())
+            })
+    }
+
+    /// tsc-port: getTypeReferenceArity @6.0.3
+    /// tsc-hash: 27899ed0c1ce76ece5e5d45bca01208dab7f039178ed0d9a749984065f40a151
+    /// tsc-span: _tsc.js:60223-60225
+    ///
+    /// `length(type.target.typeParameters)`: element count for tuple
+    /// targets; class/interface targets read the declaring symbol's
+    /// parameter list (Array/ReadonlyArray → 1 on the
+    /// isArrayOrTupleType consumers).
+    pub(crate) fn get_type_reference_arity(&self, ty: TypeId) -> usize {
+        let target = self.tables.reference_target(ty);
+        if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
+            return data.type_parameters.len();
+        }
+        let Some(symbol) = self.tables.type_of(target).symbol else {
+            return 0;
+        };
+        self.links
+            .symbol(symbol)
+            .type_parameters
+            .as_deref()
+            .map_or(0, <[TypeId]>::len)
     }
 
     // ---- protected-member override checks (5.3e) ----
@@ -4175,6 +4304,7 @@ impl<'a> CheckerState<'a> {
             mapper: source.mapper,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            base_signature_cache: None,
             composite_kind: source.composite_kind,
             composite_signatures: source.composite_signatures.clone(),
             optional_call_signature_cache: (None, None),
@@ -4883,6 +5013,7 @@ impl<'a> CheckerState<'a> {
             mapper,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            base_signature_cache: None,
             composite_kind: Some(TypeFlags::UNION),
             composite_signatures: Some(composite_signatures),
             optional_call_signature_cache: (None, None),
@@ -5719,7 +5850,18 @@ impl<'a> CheckerState<'a> {
         let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
             unreachable!("tuple type targets a tuple target");
         };
-        let end_index = data.type_parameters.len() - end_skip_count;
+        // 61290 slices with JS Array.prototype.slice semantics: an end
+        // before the start yields the empty slice (reachable from
+        // inferFromObjectTypes' middle-arm bounds when the source
+        // tuple is shorter than the target's fixed parts — pinned).
+        // JS's from-end reading of a NEGATIVE end (skip > arity) is
+        // deliberately not modeled — every caller passes skip <= arity
+        // today; 7.4's impliedArity wiring must re-audit.
+        let end_index = data
+            .type_parameters
+            .len()
+            .saturating_sub(end_skip_count)
+            .max(index);
         if index > data.fixed_length {
             let rest_array = self.get_rest_array_type_of_tuple_type(ty)?;
             return match rest_array {
@@ -6089,7 +6231,7 @@ impl<'a> CheckerState<'a> {
     /// The JS `+s` coercion slice for annotation-reachable strings:
     /// whitespace-trimmed decimal/exponent/hex forms; roundTripOnly
     /// compares against JS number formatting.
-    fn is_valid_number_string(&self, s: &str, round_trip_only: bool) -> bool {
+    pub(crate) fn is_valid_number_string(&self, s: &str, round_trip_only: bool) -> bool {
         if s.is_empty() {
             return false;
         }
@@ -6102,13 +6244,63 @@ impl<'a> CheckerState<'a> {
         !round_trip_only || js_number_to_string(n) == s
     }
 
+    /// tsc-port: isValidBigIntString @6.0.3
+    /// tsc-hash: 976d424ef636dd348576f49fa283c5a8b92988960b470c6038e4cc813de41f7e
+    /// tsc-span: _tsc.js:18973-18989
+    ///
+    /// The scan half (probe scanner over `s + "n"`, minus handling,
+    /// whole-input + no-separator gates) lives in the syntax crate as
+    /// `scan_big_int_string`; this side owns the roundTripOnly
+    /// comparison through parsePseudoBigInt. The scanner normalizes
+    /// binary/octal values at scan time (tsc defers that to
+    /// parsePseudoBigInt) — same composition, one conversion.
+    pub(crate) fn is_valid_big_int_string(&self, s: &str, round_trip_only: bool) -> bool {
+        if s.is_empty() {
+            return false;
+        }
+        let Some(scan) = tsrs2_syntax::scan_big_int_string(s) else {
+            return false;
+        };
+        if scan.contains_separator {
+            return false;
+        }
+        if !round_trip_only {
+            return true;
+        }
+        let Ok(parsed) = crate::expr::parse_pseudo_big_int(&scan.token_value) else {
+            return false;
+        };
+        s == PseudoBigInt {
+            negative: scan.negative,
+            base10_value: parsed.base10_value,
+        }
+        .to_base10_string()
+    }
+
+    /// tsc-port: parseBigIntLiteralType @6.0.3
+    /// tsc-hash: 40e215218d563af7d0b96ce431a11b999b9a0da89c5831c672392b34d7375f45
+    /// tsc-span: _tsc.js:68529-68531
+    ///
+    /// tsc-port: parseValidBigInt @6.0.3
+    /// tsc-hash: cfa855ea7fa2cac2b04dc12d6bc5565366853afaf7ecb25bf4c904f51666f843
+    /// tsc-span: _tsc.js:18969-18972
+    ///
+    /// Callers guard with isValidBigIntString, so the parse-recovery
+    /// Err inside parsePseudoBigInt is unreachable here — propagated
+    /// rather than asserted all the same.
+    pub(crate) fn parse_big_int_literal_type(&mut self, text: &str) -> CheckResult2<TypeId> {
+        let negative = text.starts_with('-');
+        let digits = if negative { &text[1..] } else { text };
+        let parsed = crate::expr::parse_pseudo_big_int(&format!("{digits}n"))?;
+        Ok(self.tables.get_bigint_literal_type(PseudoBigInt {
+            negative,
+            base10_value: parsed.base10_value,
+        }))
+    }
+
     /// tsc-port: isTypeMatchedByTemplateLiteralType @6.0.3
     /// tsc-hash: 10e3e6c09b4976cfec5a798ea4a9c37923362c263ea75bc20304a9a7a44b3379
     /// tsc-span: _tsc.js:68580-68583
-    ///
-    /// tsc-port: inferTypesFromTemplateLiteralType @6.0.3
-    /// tsc-hash: 9abaf8ac4504967f931a9a1ac1ff06638761380afe56e951af5c860fd7ac9f3a
-    /// tsc-span: _tsc.js:68575-68579
     pub fn is_type_matched_by_template_literal_type(
         &mut self,
         source: TypeId,
@@ -6126,7 +6318,10 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
-    fn infer_types_from_template_literal_type(
+    /// tsc-port: inferTypesFromTemplateLiteralType @6.0.3
+    /// tsc-hash: 9abaf8ac4504967f931a9a1ac1ff06638761380afe56e951af5c860fd7ac9f3a
+    /// tsc-span: _tsc.js:68575-68579
+    pub(crate) fn infer_types_from_template_literal_type(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -6148,9 +6343,13 @@ impl<'a> CheckerState<'a> {
                 let mut mapped = Vec::with_capacity(source_types.len());
                 let (_, target_types) = self.template_parts_of(target);
                 for (i, &s) in source_types.iter().enumerate() {
-                    // getBaseConstraintOrType is the identity for
-                    // non-instantiable types (M3).
-                    if self.is_type_assignable_to(s, target_types[i])? {
+                    // 68577 compares the BASE CONSTRAINTS on both
+                    // sides (an M3-era identity shortcut here went
+                    // stale once M4 made instantiable placeholder
+                    // types constructible — pinned).
+                    let source_base = self.get_base_constraint_or_type(s)?;
+                    let target_base = self.get_base_constraint_or_type(target_types[i])?;
+                    if self.is_type_assignable_to(source_base, target_base)? {
                         mapped.push(s);
                     } else {
                         mapped.push(self.get_string_like_type_for_type(s));
@@ -6185,9 +6384,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 6de8a2d259eac2128f6d433d0b28171ed84d87f387ad1fa45f45f90d75bdc941
     /// tsc-span: _tsc.js:68550-68574
     ///
-    /// The bigint arm needs scanner-grade isValidBigIntString — M6
-    /// expression machinery; bigint placeholders report Unsupported.
-    /// StringMapping arms are M4.
+    /// The tsc OR-chain rendered as early returns — equivalent
+    /// because the arm guards are disjoint type kinds. Bigint arm live
+    /// since M6 7.2c (isValidBigIntString); StringMapping arms are M4.
     fn is_valid_type_for_template_literal_placeholder(
         &mut self,
         source: TypeId,
@@ -6233,10 +6432,10 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(true);
             }
-            if target_flags.intersects(TypeFlags::BIG_INT) {
-                return Err(Unsupported::new(
-                    "bigint template placeholders (isValidBigIntString, M6)",
-                ));
+            if target_flags.intersects(TypeFlags::BIG_INT)
+                && self.is_valid_big_int_string(&value, /*round_trip_only*/ false)
+            {
+                return Ok(true);
             }
             if target_flags.intersects(TypeFlags::from_bits(
                 TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
@@ -6412,9 +6611,10 @@ fn is_numeric_literal_name_js(name: &str) -> bool {
     }
 }
 
-/// The `+s` coercion slice: trimmed decimal/exponent/hex/infinity
-/// forms (full JS ToNumber is M6 with expression checking).
-fn js_string_to_number(s: &str) -> Option<f64> {
+/// tsrs-native: the `+s` coercion slice — trimmed decimal/exponent/
+/// hex/infinity forms (full JS ToNumber is M6 with expression
+/// checking); None encodes NaN.
+pub(crate) fn js_string_to_number(s: &str) -> Option<f64> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
         return Some(0.0);

@@ -894,6 +894,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
+in = "get_actual_type_variable"
+reason = "getActualTypeVariable Substitution unwrap (M8 — Substitution types are unconstructible before their type nodes land)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/indexed.rs"
 in = "get_simplified_index_type"
 reason = "getSimplifiedIndexType for mapped types (unported family, M8-stub)"
 class = "stage"
@@ -922,10 +929,44 @@ owner = "M6"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
-in = "infer_types"
-reason = "inferTypes candidate collection (M6 7.2)"
+in = "infer_from_generic_mapped_types"
+reason = "inferFromGenericMappedTypes body (M8 — Mapped object types are unconstructible before mapped type nodes land)"
 class = "stage"
-owner = "M6"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_from_middle_slice"
+reason = "tsc-crash deviation: undefined middle-slice source against a type-variable rest target (m8-readiness deviation row 4, parse-recovery-class permanent containment)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_from_object_types"
+reason = "inferToMappedType + mapped-target declaration reads (M8 — Mapped object types are unconstructible before mapped type nodes land)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_from_types"
+reason = "inferFromTypes Substitution-source arm (M8 — Substitution types are unconstructible before their type nodes land)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_to_conditional_type"
+reason = "inferToConditionalType body (M8 — Conditional TypeData is unconstructible before conditional type nodes land)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "is_type_parameter_at_top_level"
+reason = "isTypeParameterAtTopLevel conditional branches (M8 — the flag is unconstructible before conditional types land)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/instantiate.rs"
@@ -1414,13 +1455,6 @@ in = "get_apparent_type"
 reason = "mapped type apparent types (M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "is_valid_type_for_template_literal_placeholder"
-reason = "bigint template placeholders (isValidBigIntString, M6)"
-class = "stage"
-owner = "M6"
 
 [[site]]
 file = "crates/checker/src/structural.rs"

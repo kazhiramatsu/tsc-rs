@@ -79,6 +79,7 @@ impl<'a> CheckerState<'a> {
                             mapper: None,
                             instantiations: std::collections::HashMap::new(),
                             erased_signature_cache: None,
+                            base_signature_cache: None,
                             composite_kind: None,
                             composite_signatures: None,
                             optional_call_signature_cache: (None, None),

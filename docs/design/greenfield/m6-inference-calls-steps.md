@@ -320,6 +320,68 @@ after 7.4 wires results in.
 
 Commit(s): `m6 7.2a-d: inferFromTypes arms`.
 
+**Decisions of record (7.2a-d, 2026-07-20):**
+
+- **Walker shape:** the closure family lives on `InferTypesWalker`
+  (one per inferTypes invocation; state dies with Err unwinds —
+  durable writes only through the E-class info arena). Closed enums
+  stand in for tsc's function references: `TypeMatcher` (matching
+  predicates), `InferAction` (invokeOnce actions) — the CompareTypesFn
+  precedent.
+- **Dormant-arm depth:** Conditional and Mapped have NO TypeData/
+  ObjectFlags constructors before M8, so the deepest portable point is
+  a named escape at the BODY (`infer_to_conditional_type`,
+  `infer_from_generic_mapped_types`, the Mapped-target block inside
+  `infer_from_object_types`) with the dispatch + invokeOnce wiring
+  live; isTypeParameterAtTopLevel's depth<3 Conditional probe
+  likewise. Re-cut against source and pin when M8 lands the nodes.
+- **Stale-shortcut fix (watch-pattern hit):**
+  `infer_types_from_template_literal_type`'s equal-texts path carried
+  an M3-era "getBaseConstraintOrType is the identity" comment and
+  compared the RAW pair; falsified once M4 made instantiable
+  placeholder types constructible. Fixed to 68577's both-sides base
+  comparison; probe `rbase` (`a${number}` vs `a${T extends number}`)
+  pins `number` (the shortcut wrapped it into `` `${number}` ``).
+- **isValidBigIntString split:** the scan half is
+  `tsrs2_syntax::scan_big_int_string` (the probe scanner skips trivia
+  inside `scan()`, so start-adjacency checks stand in for tsc's
+  skipTrivia:false trivia tokens; the scanner radix-normalizes
+  binary/octal at scan time where tsc defers to parsePseudoBigInt —
+  one conversion either way); the checker owns the roundTrip
+  comparison through expr.rs's parsePseudoBigInt. The structural.rs
+  bigint-placeholder escape retired into the live arm.
+- **JS-slice fidelity (probe-tuple.mjs):** `slice_tuple_type` clamps
+  inverted ranges to empty exactly as JS `Array.prototype.slice`
+  (pre-fix panic on sources shorter than the target's fixed parts);
+  trailing-slice bounds go through `js_slice_bounds` (negative ends
+  count from the end). The from-end reading of skip > arity is NOT
+  modeled (unreachable today) — **7.4's impliedArity wiring must
+  re-audit**, and the both-variadic middle arm is gated on
+  `implied_arity` (None until 7.4 records it).
+- **tsc-crash deviation row 4 (m8-readiness.md):** an undefined
+  middle slice meeting a type-variable rest target TypeErrors in
+  vendored tsc (`f<T extends [any, any], U>(x: [...T, ...U[]])` on a
+  short tuple). `infer_from_middle_slice` skips the harmless
+  variable-free shape (tsc's couldContainTypeVariables early return)
+  and reports the crash shape as a recovery-class escape
+  (max_recovery 112 → 113).
+- **applyToParameterTypes/applyToReturnTypes** are walker methods
+  hard-bound to their single 69199/69202 callbacks; 7.4's
+  instantiateSignatureInContextOf caller (75960) runs OUTSIDE the
+  walker and needs its own state-level application with an inferTypes
+  callback — do not widen these.
+- **getBaseSignature** landed with `Signature.base_signature_cache`
+  in the 7.0t speculation assert net (erased-cache twin discipline).
+  The net asserts depth 0: once 7.4 runs inferFromSignatures inside
+  chooseOverload's speculative trials, the base/erased cache writes
+  trip it on the first generic source signature whose cache is cold —
+  resolve the write discipline THERE (pre-warm, reclassify, or a
+  depth-aware write); do not delete the assert (7.2 post-review).
+- **getUnmatchedProperty** moved from the RelationChecker down to
+  CheckerState and grew the matchDiscriminantProperties unit arm
+  (68470-68479, used only by typesDefinitelyUnrelated's
+  source→target direction); the relation path delegates with false.
+
 ## Stage 7.3: resolving inferences [M]
 
 - `getCovariantInference` (69263) — the FULL widen-literals condition
@@ -398,6 +460,12 @@ Commit: `m6 7.3: covariant/contravariant inference + clamp`.
   can leak an inner failure stash over the outer frame's Resolving
   sentinel. Re-derive the port protocol against 77500-77507 when the
   re-run lands.
+- Speculation-assert carry-in (7.2 post-review): getBaseSignature /
+  getErasedSignature cache writes assert speculation depth 0
+  (instantiate.rs, the 7.0t net), and chooseOverload trials run
+  inference — hence inferFromSignatures — under begin_speculation.
+  Decide the write discipline before wiring the re-run; see the 7.2
+  decisions block.
 - Observed while pinning slice 5 (2026-07-20): under
   exactOptionalPropertyTypes, overload selection accepts a candidate
   whose optional-property undefined-vs-string mismatch the
@@ -417,13 +485,14 @@ tuple/array element inference in literals, generic
 constructor/`new` inference, tagged templates, JSX element type
 resolution's call path, `satisfies` interplay, and the
 2769 failure-path candidate choice (getCandidateForOverloadFailure
-with real instantiated candidates). Also owned here (the M3 code
-markers say M6; no other milestone schedules it):
-`isValidBigIntString` (18973) for bigint template-literal
-placeholders (isValidTypeForTemplateLiteralPlaceholder's bigint arm
-is a live Unsupported in structural.rs; the annotation-literal
-full-radix `parsePseudoBigInt` half landed early — M4-review A14,
-slice 1). Also owned here (escaped at M5 6.4f with owner="M6";
+with real instantiated candidates). Previously owned here (the M3
+code markers said M6; no other milestone scheduled it) and LANDED
+EARLY at 7.2c: `isValidBigIntString` (18973) for bigint
+template-literal placeholders —
+isValidTypeForTemplateLiteralPlaceholder's bigint arm is live and
+its structural.rs escape retired (the annotation-literal full-radix
+`parsePseudoBigInt` half landed earlier still — M4-review A14,
+slice 1). Nothing of it remains for 7.5. Also owned here (escaped at M5 6.4f with owner="M6";
 scheduled in no earlier stage — the M5 post-close review flagged the
 missing doc backing): `compareTypePredicateRelatedTo` (64606) + the
 compareSignaturesRelated predicate arm (64577-64592, incl. the
