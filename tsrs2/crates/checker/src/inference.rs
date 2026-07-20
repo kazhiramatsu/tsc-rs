@@ -2907,11 +2907,15 @@ impl InferTypesWalker<'_, '_> {
     }
 
     /// tsc passes an undefined middle slice straight into
-    /// inferFromTypes, which survives ONLY when the target has no type
-    /// variables (the couldContainTypeVariables early return) and
-    /// TypeErrors otherwise — the recorded tsc-crash deviation
+    /// inferFromTypes, which survives ONLY on the 68647 head guard —
+    /// `!couldContainTypeVariables(target) || isNoInferType(target)`
+    /// — and TypeErrors otherwise: the recorded tsc-crash deviation
     /// (m8-readiness row 4, probe-tuple.mjs f6). The port skips the
-    /// harmless shape and reports the crash shape.
+    /// harmless shape and reports the crash shape. The isNoInferType
+    /// disjunct is not yet modeled here: NoInfer rides Substitution
+    /// types, unconstructible until M8 (see infer_from_types'
+    /// Substitution escape) — M8 must widen this guard when they
+    /// land, or a NoInfer rest target contains where tsc no-ops.
     fn infer_from_middle_slice(
         &mut self,
         source: Option<TypeId>,

@@ -15,11 +15,12 @@
 //! - [ASYNC → 5.5f] awaited-family arms escape once a contextual type
 //!   actually exists (the None fall-through matches tsc exactly).
 //! - [JSX → 5.5f] all JSX arms escape.
-//! - [INFER → M6 7.4] the inference data model is live (7.1,
-//!   inference.rs) and instantiateContextualType's mapper branches
-//!   are real, but every PRODUCTION push site still passes None until
-//!   7.4 wires inferTypeArguments — so in production the branches
-//!   stay unentered (tests exercise them through pushed contexts).
+//! - [INFER — live since M6 7.4] the inference data model landed at
+//!   7.1 (inference.rs) and 7.4 wired the production Some-context
+//!   pushes (chooseOverload → inferTypeArguments phase-b →
+//!   checkExpressionWithContextualType 80565), so
+//!   instantiateContextualType's mapper branches now run in
+//!   production, not just under tests.
 //! - [JSDOC] JS-only arms (type tags, satisfies tags, expando kinds)
 //!   follow the standing plain-JS policy: the TS-visible shape ports,
 //!   JSDoc reads are invisible (we do not parse JSDoc) — FN in JS only.
@@ -2322,10 +2323,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5f836db3ed2a22d7adb310d466cfd9b1f501c80ff659ea2c66cc57c81754463c
     /// tsc-span: _tsc.js:73441-73458
     ///
-    /// [INFER → M6 7.4]: both mapper branches are live since 7.1, but
-    /// production still reaches them with a None context only (no
-    /// production push site passes Some before 7.4 wires
-    /// inferTypeArguments) — so today they run under tests alone.
+    /// Both mapper branches are live since 7.1 and production reaches
+    /// them with Some contexts since 7.4 (inferTypeArguments' phase-b
+    /// pushes feed getInferenceContext for every contextual read
+    /// under an inference trial).
     pub(crate) fn instantiate_contextual_type(
         &mut self,
         contextual_type: Option<TypeId>,

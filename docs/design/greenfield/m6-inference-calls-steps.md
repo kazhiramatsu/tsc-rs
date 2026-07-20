@@ -613,6 +613,25 @@ Commit: `m6 7.4: inferTypeArguments + chooseOverload re-run`.
   producers (46681/46909/46920) are services-API wrappers; the
   resolveCall debug_assert survives 7.4.
 
+**7.4 review fixes (2026-07-20, same branch):** the deferred-node
+containment test gained its THIRD signal — a containment-reverted
+Vacant is now recorded (`contained_call_resolutions`) at
+getResolvedSignature's Err unwind, so the benign mid-fixpoint clear
+(77505 `: cached` on a loop-dirty fresh frame) no longer co-triggers
+the skip under an unrelated enclosing range — and the ancestor walk
+resolves JSX CHILDREN through JsxElement.opening_element /
+JsxFragment.opening_fragment (the slot lives on the OPENING node, a
+sibling subtree of the children; the direct JsxOpeningFragment
+listing was leaf-dead) plus the BinaryExpression instanceof slot.
+getTypeArgumentsFromNodes threads isInJSFile(node) (76931) into its
+getDefaultTypeArgumentType padding (any in JS — dormant until
+checkJs/M8, the 76821 twin). addImplementationSuccessElaboration's
+probe now seeds AND writes back resolveCall's live argCheckMode (tsc
+restores only the three error-candidate vars, 76746-76761). Comment
+debt: the four "production passes None until 7.4" residues updated;
+68647's isNoInferType disjunct noted at infer_from_middle_slice
+(NoInfer rides Substitution types — M8 widens the guard).
+
 ## Stage 7.5: consumers cleanup [M]
 
 Ripple sites that were declared-type-only until now: contextual

@@ -2967,11 +2967,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ce6d50e4b09ba21d3b8b1caca81f0a8e01957b7acd2195417c37b205adb69cc5
     /// tsc-span: _tsc.js:80557-80579
     ///
-    /// Production callers still pass a None inference context until
-    /// M6 7.4 wires inferTypeArguments (argument checking is the 5.7
-    /// band); the Inferential check-mode OR-in and the
-    /// intraExpressionInferenceSites clear (80566-80569) are live for
-    /// Some contexts since 7.1.
+    /// The production Some-context producers (since 7.4) are
+    /// inferTypeArguments' phase-b argument checks and
+    /// inferJsxTypeArguments (75982/75927) — chooseOverload's
+    /// per-candidate context and the overload-failure inference both
+    /// route here; the Inferential check-mode OR-in and the
+    /// intraExpressionInferenceSites clear (80566-80569) have been
+    /// live since 7.1.
     pub(crate) fn check_expression_with_contextual_type(
         &mut self,
         node: NodeId,

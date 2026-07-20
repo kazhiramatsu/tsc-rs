@@ -3945,6 +3945,7 @@ impl<'a> CheckerState<'a> {
         let save_candidates = ctx.candidates_for_argument_error.take();
         let save_arity = ctx.candidate_for_argument_arity_error.take();
         let save_type_argument = ctx.candidate_for_type_argument_error.take();
+        let mut probe_arg_check_mode: Option<CheckMode> = None;
         let result = (|state: &mut Self| -> CheckResult2<Option<RelatedInfo>> {
             let Some(declaration) = state.signature_of(failed).declaration else {
                 return Ok(None);
@@ -3972,7 +3973,15 @@ impl<'a> CheckerState<'a> {
                 args: ctx.args.clone(),
                 type_arguments_array: ctx.type_arguments_array,
                 type_argument_nodes: ctx.type_argument_nodes.clone(),
-                arg_check_mode: CheckMode::NORMAL,
+                // 76755's chooseOverload probe reads resolveCall's LIVE
+                // argCheckMode closure state (still SkipContextSensitive
+                // when no pass-1 candidate survived to the re-run reset)
+                // — tsc restores only the three error-candidate vars
+                // around the probe, never argCheckMode, and nothing
+                // reads it after reporting (7.4 review fix; the old
+                // NORMAL seed skipped the probe's skip-then-recheck
+                // two-step).
+                arg_check_mode: ctx.arg_check_mode,
                 candidates: vec![candidate],
                 candidates_for_argument_error: None,
                 candidate_for_argument_arity_error: None,
@@ -3982,7 +3991,9 @@ impl<'a> CheckerState<'a> {
                 &mut probe_ctx,
                 RelationKind::Assignable,
                 is_single_non_generic,
-            )?;
+            );
+            probe_arg_check_mode = Some(probe_ctx.arg_check_mode);
+            let chosen = chosen?;
             if chosen.is_some() {
                 return Ok(Some(state.related_info_for_node(
                     impl_decl,
@@ -3995,6 +4006,13 @@ impl<'a> CheckerState<'a> {
         ctx.candidates_for_argument_error = save_candidates;
         ctx.candidate_for_argument_arity_error = save_arity;
         ctx.candidate_for_type_argument_error = save_type_argument;
+        // tsc restores ONLY the three error-candidate vars around the
+        // probe (76746-76761) — the probe chooseOverload's argCheckMode
+        // mutations write through to resolveCall's closure state, and a
+        // later probe in the same report loop sees them.
+        if let Some(mode) = probe_arg_check_mode {
+            ctx.arg_check_mode = mode;
+        }
         match result {
             Ok(related) => Ok(related),
             // Attach-only probe: containment drops the related row.
@@ -4267,8 +4285,12 @@ impl<'a> CheckerState<'a> {
         };
         let instantiated = if !ctx.type_argument_nodes.is_empty() {
             let type_argument_nodes = ctx.type_argument_nodes.clone();
-            let type_arguments =
-                self.get_type_arguments_from_nodes(&type_argument_nodes, &type_parameters)?;
+            let is_javascript = self.is_in_js_file(node);
+            let type_arguments = self.get_type_arguments_from_nodes(
+                &type_argument_nodes,
+                &type_parameters,
+                is_javascript,
+            )?;
             self.create_signature_instantiation(candidate, Some(&type_arguments))?
         } else {
             // 76946-76955: inferSignatureInstantiationForOverloadFailure.
@@ -4297,13 +4319,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e42b94a48cb077bb4c85ccc9efd4acbf62ac12a8db1efbdf320901a5d0437865
     /// tsc-span: _tsc.js:76936-76945
     ///
-    /// The default → constraint → unknown fill here is tsc's REAL code
-    /// for explicit-typearg failure candidates (not the M6 stub);
-    /// getDefaultTypeArgumentType(isJs=false) = unknownType.
+    /// The default → constraint → getDefaultTypeArgumentType(isJs)
+    /// fill here is tsc's REAL code for explicit-typearg failure
+    /// candidates (not the M6 stub); isJs = isInJSFile(node) at the
+    /// 76931 caller (any in JS files, unknown otherwise — dormant
+    /// until the checkJs band, M8; threaded by the 7.4 review like
+    /// the 76821 twin).
     fn get_type_arguments_from_nodes(
         &mut self,
         type_argument_nodes: &[NodeId],
         type_parameters: &[TypeId],
+        is_javascript: bool,
     ) -> CheckResult2<Vec<TypeId>> {
         let mut type_arguments: Vec<TypeId> = Vec::with_capacity(type_argument_nodes.len());
         for &node in type_argument_nodes {
@@ -4314,11 +4340,16 @@ impl<'a> CheckerState<'a> {
         }
         while type_arguments.len() < type_parameters.len() {
             let type_parameter = type_parameters[type_arguments.len()];
+            let default_type_argument = if is_javascript {
+                self.tables.intrinsics.any
+            } else {
+                self.tables.intrinsics.unknown
+            };
             let ty = match self.get_default_from_type_parameter(type_parameter)? {
                 Some(default) => default,
                 None => self
                     .get_constraint_of_type_parameter(type_parameter)?
-                    .unwrap_or(self.tables.intrinsics.unknown),
+                    .unwrap_or(default_type_argument),
             };
             type_arguments.push(ty);
         }
@@ -6032,6 +6063,16 @@ impl<'a> CheckerState<'a> {
                         self.links.revert_node_resolved_signature_call(node);
                     } else {
                         self.links.clear_node_resolved_signature_call(node);
+                    }
+                    // tsrs-native: a Vacant left by THIS unwind is a
+                    // containment-reverted resolution — record it so
+                    // check_deferred_node's skip can tell it from the
+                    // benign mid-fixpoint Ok clear above (a COMPLETED
+                    // failure stash survives the Resolving-gated
+                    // revert instead and feeds contextual reads, so it
+                    // never reaches here as Vacant).
+                    if matches!(self.links.node(node).resolved_signature, LinkSlot::Vacant) {
+                        self.contained_call_resolutions.insert(node);
                     }
                 } else {
                     self.links

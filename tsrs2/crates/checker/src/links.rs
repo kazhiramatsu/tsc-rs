@@ -1536,7 +1536,8 @@ impl LinksTables {
     /// mapper WITHOUT an instantiation target
     /// (the isolated SingleSignatureType is freshly minted per clone,
     /// so the once-only assert holds by construction; its reader is
-    /// getObjectTypeInstantiation's 63484/63496 `type.mapper`).
+    /// getObjectTypeInstantiation's 63484 `type.mapper` read — the
+    /// 63496 arm combines the INCOMING mapper, not this field).
     pub fn set_type_isolated_signature_mapper(
         &mut self,
         speculation_depth: u32,
