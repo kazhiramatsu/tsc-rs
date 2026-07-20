@@ -475,6 +475,7 @@ impl<'a> CheckerState<'a> {
             mapper: Some(mapper),
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: None,
             composite_signatures: None,
@@ -1825,24 +1826,29 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: afb072970e29fe1a61ec1ebcf9012610a61312d3fa91b4aa44fd4799ff6672ce
     /// tsc-span: _tsc.js:75910-75924
     ///
-    /// `compareTypes` stays the Assignable default until the M6 7.5
-    /// compareSignaturesRelated head rebuild passes its relation-frame
-    /// worker (64507). A generic-rest contextual signature
-    /// instantiates through the NON-fixing mapper; the ReturnType-
-    /// priority return inference runs only for context-LESS callers
-    /// (75917-75921).
+    /// `compare_types` is tsc's compareTypes parameter (None =
+    /// createInferenceContext's compareTypesAssignable default): the
+    /// higher-order caller (80809) passes None, the
+    /// compareSignaturesRelated generic-source arm (64507) passes the
+    /// RelationFrame worker plus its frame loan so the constraint
+    /// clamp compares under the live relation frame. A generic-rest
+    /// contextual signature instantiates through the NON-fixing
+    /// mapper; the ReturnType-priority return inference runs only for
+    /// context-LESS callers (75917-75921).
     pub(crate) fn instantiate_signature_in_context_of(
         &mut self,
         signature: SignatureId,
         contextual_signature: SignatureId,
         inference_context: Option<crate::inference::InferenceContextId>,
+        compare_types: Option<crate::inference::CompareTypesFn>,
+        frame: Option<&mut crate::engine::RelationFrame>,
     ) -> CheckResult2<SignatureId> {
         let type_parameters = self.get_type_parameters_for_mapper(signature)?;
         let context = self.create_inference_context(
             &type_parameters,
             Some(signature),
             InferenceFlags::NONE,
-            None,
+            compare_types,
         );
         let rest_type = self.get_effective_rest_type(contextual_signature)?;
         let generic_rest = rest_type.is_some_and(|rest_type| {
@@ -1877,7 +1883,7 @@ impl<'a> CheckerState<'a> {
                 InferencePriority::RETURN_TYPE,
             )?;
         }
-        let inferred_types = self.get_inferred_types(context)?;
+        let inferred_types = self.get_inferred_types_with_frame(context, frame)?;
         let is_javascript = self
             .signature_of(contextual_signature)
             .declaration
@@ -1936,6 +1942,59 @@ impl<'a> CheckerState<'a> {
         );
         self.signatures[signature.0 as usize].erased_signature_cache = Some(erased);
         Ok(erased)
+    }
+
+    /// tsc-port: getCanonicalSignature @6.0.3
+    /// tsc-hash: d8b9b3dd1a01d7566299fd86e2ba24ba923246d5040ded172e6048a601486901
+    /// tsc-span: _tsc.js:59936-59938
+    pub(crate) fn get_canonical_signature(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<SignatureId> {
+        if self.signature_of(signature).type_parameters.is_none() {
+            return Ok(signature);
+        }
+        if let Some(cached) = self.signature_of(signature).canonical_signature_cache {
+            return Ok(cached);
+        }
+        let canonical = self.create_canonical_signature(signature)?;
+        // Raw Signature cache — in the speculation assert net (7.0t,
+        // m4-review B35) like the erased twin above.
+        assert_eq!(
+            self.speculation_depth, 0,
+            "links writes are forbidden during speculation (greenfield §4.3)"
+        );
+        self.signatures[signature.0 as usize].canonical_signature_cache = Some(canonical);
+        Ok(canonical)
+    }
+
+    /// tsc-port: createCanonicalSignature @6.0.3
+    /// tsc-hash: 9c422fe1cf448e45e861ab71679e6e67d50a959e0f7e919bd7de4922c6036f50
+    /// tsc-span: _tsc.js:59939-59945
+    ///
+    /// An INSTANTIATED type parameter (tp.target set) whose target
+    /// carries no constraint re-canonicalizes to the target;
+    /// everything else keeps the parameter itself.
+    fn create_canonical_signature(&mut self, signature: SignatureId) -> CheckResult2<SignatureId> {
+        let type_parameters = self
+            .signature_of(signature)
+            .type_parameters
+            .clone()
+            .expect("getCanonicalSignature gates on typeParameters (59937)");
+        let mut type_arguments = Vec::with_capacity(type_parameters.len());
+        for tp in type_parameters {
+            let target = self.links.ty(tp).type_parameter_target;
+            let argument = match target {
+                Some(target) if self.get_constraint_of_type_parameter(target)?.is_none() => target,
+                _ => tp,
+            };
+            type_arguments.push(argument);
+        }
+        let is_javascript = self
+            .signature_of(signature)
+            .declaration
+            .is_some_and(|declaration| self.is_in_js_file(declaration));
+        self.get_signature_instantiation(signature, Some(&type_arguments), is_javascript, None)
     }
 
     /// tsc-port: getBaseSignature @6.0.3

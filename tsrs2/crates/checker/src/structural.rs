@@ -1856,7 +1856,40 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // signature misses its 2322 (probed).
         }
         let mut result = Ternary::TRUE;
-        if source_signatures.len() == 1 && target_signatures.len() == 1 {
+        let source_object_flags = self.st.tables.object_flags_of(source);
+        let target_object_flags = self.st.tables.object_flags_of(target);
+        // 66952-66966 (m4-review B8): instantiations of one symbol —
+        // or references to one target — compare their signature lists
+        // PAIRWISE (index i to index i), never N×M; tsc asserts the
+        // lists line up. tsc's `source.symbol === target.symbol`
+        // treats two symbol-less instantiated types as a pair
+        // (undefined === undefined) — None == None mirrors that.
+        if source_object_flags.intersects(ObjectFlags::INSTANTIATED)
+            && target_object_flags.intersects(ObjectFlags::INSTANTIATED)
+            && self.st.tables.type_of(source).symbol == self.st.tables.type_of(target).symbol
+            || source_object_flags.intersects(ObjectFlags::REFERENCE)
+                && target_object_flags.intersects(ObjectFlags::REFERENCE)
+                && self.st.tables.reference_target(source)
+                    == self.st.tables.reference_target(target)
+        {
+            debug_assert_eq!(
+                source_signatures.len(),
+                target_signatures.len(),
+                "same-target signature lists line up (tsc Debug.assertEqual 66957)"
+            );
+            for i in 0..target_signatures.len() {
+                let related = self.signature_related_to(
+                    source_signatures[i],
+                    target_signatures[i],
+                    /*erase*/ true,
+                    intersection_state,
+                )?;
+                if !is_true(related) {
+                    return Ok(Ternary::FALSE);
+                }
+                result = ternary_and(result, related);
+            }
+        } else if source_signatures.len() == 1 && target_signatures.len() == 1 {
             let erase_generics = self.relation == RelationKind::Comparable;
             let related = self.signature_related_to(
                 source_signatures[0],
@@ -1869,12 +1902,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             result = related;
         } else {
-            // KNOWN-GAP since M4 (m4-review B8): tsc's same-target-
-            // reference arm is missing — when source and target are
-            // instantiations of the SAME reference target, tsc
-            // compares the signature lists PAIRWISE (index i to
-            // index i) instead of this N×M matrix. Port with the
-            // M6 7.5 head rebuild.
             'outer: for &t in &target_signatures {
                 for &s in &source_signatures {
                     let related =
@@ -1894,20 +1921,27 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: 077b917f6c7e74357aafbb0c7e5f24c8de49ad1498046f4c86951905aacae66f
     /// tsc-span: _tsc.js:67067-67081
     ///
-    /// KNOWN-GAP since M4 (m4-review B8): the erase parameter is
-    /// IGNORED — tsc applies getErasedSignature to each side before
-    /// comparing (the port's get_erased_signature is live in
-    /// instantiate.rs; the old "generic signatures are M4"
-    /// justification lapsed). Honoring it retires most of the
-    /// generic-signature gate's fire surface: erased sides carry no
-    /// type parameters. Port with the M6 7.5 head rebuild.
+    /// erase applies getErasedSignature to each side (67069-67071;
+    /// the M4-era gap is closed — m4-review B8). compareTypes = the
+    /// isRelatedToWorker closure over THIS frame with the captured
+    /// intersectionState (the RelationFrame variant).
     fn signature_related_to(
         &mut self,
         source: SignatureId,
         target: SignatureId,
-        _erase: bool,
+        erase: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
+        let source = if erase {
+            self.st.get_erased_signature(source)?
+        } else {
+            source
+        };
+        let target = if erase {
+            self.st.get_erased_signature(target)?
+        } else {
+            target
+        };
         let check_mode = match self.relation {
             RelationKind::Subtype => check_mode::STRICT_TOP_SIGNATURE,
             RelationKind::StrictSubtype => {
@@ -1923,6 +1957,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             check_mode,
             intersection_state,
             report_unreliable_markers,
+            crate::inference::CompareTypesFn::RelationFrame,
         )
     }
 
@@ -2191,15 +2226,20 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: f0bf35ef85d54ae89a84377951424fb5b87b8ab55c8fc6ea30099c669d861e3b
     /// tsc-span: _tsc.js:64487-64605
     ///
-    /// M3 dispositions: generic-signature instantiation (64505-64514)
-    /// is M6 (the "M4" claim lapsed — the early gate below carries
-    /// it, m4-review B8); rest-parameter positions never construct
+    /// M3 dispositions: rest-parameter positions never construct
     /// (array rest annotations are M4), so getNonArrayRestType is
     /// None and the rest-index machinery is dead; the
     /// unreliable-marker instantiation is variance measurement
     /// (M4 5.3b). strictVariance keys on the target DECLARATION kind
     /// (method bivariance, core-interfaces §4 from_method).
-    #[allow(clippy::only_used_in_recursion)] // intersectionState threads through the callback recursion as in tsc
+    /// `compare_types` is tsc's compareTypes parameter: the type
+    /// comparisons below run through the walker's own is_related_to
+    /// with the threaded intersectionState — exactly signatureRelated-
+    /// To's isRelatedToWorker closure (67068-67080) for the
+    /// RelationFrame producer, and the fresh-walker construction at
+    /// isImplementationCompatibleWithOverload models
+    /// compareTypesAssignable; the enum value additionally rides the
+    /// generic-source arm into iSICO's constraint clamp.
     fn compare_signatures_related(
         &mut self,
         source: SignatureId,
@@ -2207,29 +2247,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         check_mode: i32,
         intersection_state: IntersectionState,
         report_unreliable_markers: Option<crate::instantiate::MapperId>,
+        compare_types: crate::inference::CompareTypesFn,
     ) -> CheckResult2<Ternary> {
+        let mut source = source;
+        let mut target = target;
         if source == target {
             return Ok(Ternary::TRUE);
-        }
-        // 64505-64514 (m4-review B8 corrected the 66727-66730
-        // mis-cite): a generic source instantiates in the context of
-        // the target (getCanonicalSignature + instantiateSignatureInContextOf
-        // = M6 inference machinery). Signatures with typeParameters are
-        // constructible since 5.2e; value-equal parameter lists only
-        // arise from the interned same-signature case handled above.
-        // PLACEMENT DEVIATION (B8): tsc instantiates AFTER the
-        // top-signature pair and the sourceHasMoreParameters arity
-        // check below — this early gate also contains cells those
-        // checks would decide without inference (generic source vs
-        // top-signature target = TRUE; arity overflow = FALSE).
-        // Rebuild the head in tsc order when M6 7.5 replaces the gate.
-        if self.st.signature_of(source).type_parameters.is_some()
-            && self.st.signature_of(source).type_parameters
-                != self.st.signature_of(target).type_parameters
-        {
-            return Err(Unsupported::new(
-                "generic-signature relation (instantiateSignatureInContextOf, M6)",
-            ));
         }
         if !(check_mode & check_mode::STRICT_TOP_SIGNATURE != 0
             && self.st.is_top_signature(source)?)
@@ -2253,6 +2276,31 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             });
         if source_has_more_parameters {
             return Ok(Ternary::FALSE);
+        }
+        // 64505-64514 in tsc order (m4-review B8 rebuilt the head —
+        // the old early gate contained cells the top-signature/arity
+        // checks above decide without inference): a generic source
+        // instantiates in the context of the CANONICAL target through
+        // the frame-loaned iSICO so the constraint clamp compares
+        // under this live frame. tsc's `source.typeParameters !==
+        // target.typeParameters` is array identity; value-equal lists
+        // only arise from the interned same-signature case handled at
+        // entry (5.2e argument, unchanged).
+        if self.st.signature_of(source).type_parameters.is_some()
+            && self.st.signature_of(source).type_parameters
+                != self.st.signature_of(target).type_parameters
+        {
+            target = self.st.get_canonical_signature(target)?;
+            let mut frame = self.loan_frame(intersection_state);
+            let instantiated = self.st.instantiate_signature_in_context_of(
+                source,
+                target,
+                /*inference_context*/ None,
+                Some(compare_types),
+                Some(&mut frame),
+            );
+            self.restore_frame(frame);
+            source = instantiated?;
         }
         let source_count = self.st.get_parameter_count(source)?;
         let source_rest_type = self.st.get_non_array_rest_type(source)?;
@@ -2287,7 +2335,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             target_this_type,
                             RecursionFlags::BOTH,
                             /*report_errors*/ false,
-                            IntersectionState::NONE,
+                            intersection_state,
                         )?
                     } else {
                         Ternary::FALSE
@@ -2300,7 +2348,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             source_this_type,
                             RecursionFlags::BOTH,
                             /*report_errors*/ false,
-                            IntersectionState::NONE,
+                            intersection_state,
                         )?
                     };
                     if !is_true(related) {
@@ -2382,6 +2430,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             },
                         intersection_state,
                         report_unreliable_markers,
+                        compare_types,
                     )?
                 } else {
                     let bivariant = if check_mode & check_mode::CALLBACK == 0 && !strict_variance {
@@ -2390,7 +2439,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             target_type,
                             RecursionFlags::BOTH,
                             /*report_errors*/ false,
-                            IntersectionState::NONE,
+                            intersection_state,
                         )?
                     } else {
                         Ternary::FALSE
@@ -2403,7 +2452,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             source_type,
                             RecursionFlags::BOTH,
                             /*report_errors*/ false,
-                            IntersectionState::NONE,
+                            intersection_state,
                         )?
                     }
                 };
@@ -2416,7 +2465,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         target_type,
                         RecursionFlags::BOTH,
                         /*report_errors*/ false,
-                        IntersectionState::NONE,
+                        intersection_state,
                     )?)
                 {
                     related = Ternary::FALSE;
@@ -2495,7 +2544,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     source_return_type,
                     RecursionFlags::BOTH,
                     /*report_errors*/ false,
-                    IntersectionState::NONE,
+                    intersection_state,
                 )?
             } else {
                 Ternary::FALSE
@@ -2508,7 +2557,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     target_return_type,
                     RecursionFlags::BOTH,
                     /*report_errors*/ false,
-                    IntersectionState::NONE,
+                    intersection_state,
                 )?
             };
             result = ternary_and(result, related);
@@ -3233,6 +3282,10 @@ impl<'a> CheckerState<'a> {
             check_mode::IGNORE_RETURN_TYPES,
             IntersectionState::NONE,
             /*report_unreliable_markers*/ None,
+            // isSignatureAssignableTo passes compareTypesAssignable
+            // (64475); the erased sides keep the generic-source arm
+            // dead here either way.
+            crate::inference::CompareTypesFn::Assignable,
         )?;
         Ok(verdict != Ternary::FALSE)
     }
@@ -4447,6 +4500,7 @@ impl<'a> CheckerState<'a> {
             mapper: source.mapper,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: source.composite_kind,
             composite_signatures: source.composite_signatures.clone(),
@@ -5155,6 +5209,7 @@ impl<'a> CheckerState<'a> {
             mapper,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: Some(TypeFlags::UNION),
             composite_signatures: Some(composite_signatures),
@@ -7247,6 +7302,146 @@ mod tests {
                 "declare const u2: ((x: unknown) => x is string) | ((x: unknown) => boolean);\nconst r: number = u2(3);\n"
             ),
             [(2322, 83, 1)]
+        );
+    }
+
+    // ---- M6 7.5 B8: compareSignaturesRelated head rebuild —
+    // generic-source instantiation (64505-64514), erase honoring
+    // (67069-67071), same-target pairwise arm (66952-66966). Rows
+    // oracle-pinned 2026-07-21 (probe75.mjs / probe75b.mjs /
+    // probe75e.mjs, vendored 6.0.3 noLib). ----
+
+    #[test]
+    fn generic_source_instantiates_against_concrete_target() {
+        // <T>(x:T)=>T infers T:=number against (x:number)=>number.
+        assert_eq!(
+            checked_rows(
+                "declare function id3<T>(x: T): T;\nconst a1: (x: number) => number = id3;\n"
+            ),
+            []
+        );
+        // The failing face: T[] return vs string — verdict via the
+        // expect-error band (the 2322 head prints the generic
+        // function type, display curtain T2/M8).
+        assert_eq!(
+            program_rows(
+                "declare function id4<T>(x: T): T[];\n// @ts-expect-error\nconst a2: (x: number) => string = id4;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn generic_source_constraint_clamp_compares_under_the_frame() {
+        // T extends {id:number} satisfied — no clamp, relation holds.
+        assert_eq!(
+            checked_rows(
+                "declare function pick<T extends { id: number }>(x: T): T;\nconst a4: (x: { id: number; name: string }) => { id: number; name: string } = pick;\n"
+            ),
+            []
+        );
+        // T extends string violated by T:=number — the clamp's
+        // RelationFrame compare rejects, the instantiated source
+        // carries string params, and the param arm fails (verdict via
+        // the expect-error band).
+        assert_eq!(
+            program_rows(
+                "declare function pick2<T extends string>(x: T, y: T): T;\n// @ts-expect-error\nconst a5: (x: number, y: number) => number = pick2;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn generic_to_generic_relates_via_canonical_target() {
+        assert_eq!(
+            checked_rows("declare function id5<T>(x: T): T;\nconst a3: <U>(x: U) => U = id5;\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn canonical_signature_recanonicalizes_instantiated_methods() {
+        // I<number>.m carries a cloned U (tp.target set): the
+        // unconstrained clone re-canonicalizes to its target; the
+        // constrained variant keeps the clone.
+        assert_eq!(
+            checked_rows(
+                "interface I<T> { m<U>(x: T, y: U): void; }\ndeclare const i: I<number>;\nconst mf: (x: number, y: string) => void = i.m;\n"
+            ),
+            []
+        );
+        assert_eq!(
+            checked_rows(
+                "interface I2<T> { m<U extends T>(x: T, y: U): U; }\ndeclare const i2: I2<number>;\nconst mf2: (x: number, y: 3) => 3 = i2.m;\n"
+            ),
+            []
+        );
+        assert_eq!(
+            program_rows(
+                "interface I3<T> { m<U extends string>(x: T, y: U): U; }\ndeclare const i3: I3<number>;\n// @ts-expect-error\nconst mf3: (x: number, y: number) => number = i3.m;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn comparable_relation_erases_generics() {
+        // eraseGenerics (relation == comparable) now honors the erase
+        // parameter: type parameters erase to any, so BOTH the benign
+        // and the shape-mismatched as-assertions are comparable —
+        // the unused directive (2578) pins the success where the old
+        // gate contained the statement (S8-exempt silence).
+        assert_eq!(
+            checked_rows(
+                "declare function id<T>(x: T): T;\nconst c1 = id as (x: number) => number;\n"
+            ),
+            []
+        );
+        assert_eq!(
+            program_rows(
+                "declare function id2<T extends string>(x: T): T;\n// @ts-expect-error\nconst c2 = id2 as (x: number) => boolean;\n"
+            ),
+            [(2578, Some(49), Some(19))]
+        );
+    }
+
+    #[test]
+    fn same_target_instantiations_compare_pairwise() {
+        // Box<number> vs Box<string>: index-to-index (s0 vs t0 fails
+        // on number vs string) where the old N×M walk found s1 for
+        // every target row and wrongly related.
+        assert_eq!(
+            checked_rows(
+                "interface Box<T> {\n  m(x: T): T;\n  m(x: string): string;\n}\ndeclare const srcb: Box<number>;\nconst dstb: Box<string> = srcb;\n"
+            ),
+            [(2322, 98, 4)]
+        );
+        // Compatible instantiations still relate pairwise…
+        assert_eq!(
+            checked_rows(
+                "interface Box<T> {\n  m(x: T): T;\n  m(x: string): string;\n}\ndeclare const src3: Box<number>;\nconst dst: Box<number | string> = src3;\n"
+            ),
+            []
+        );
+        // …and the structural twin (distinct targets) keeps N×M.
+        assert_eq!(
+            checked_rows(
+                "interface BoxN {\n  m(x: number): number;\n  m(x: string): string;\n}\ninterface BoxS {\n  m(x: string): string;\n  m(x: string): string;\n}\ndeclare const srcn: BoxN;\nconst dstn: BoxS = srcn;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn generic_predicate_source_infers_through_the_predicate_arm() {
+        // applyToReturnTypes' predicate arm (68224-68237) feeds the
+        // arm's iSICO: T[] ⇐ number[] under the predicate types.
+        assert_eq!(
+            checked_rows(
+                "declare function isArr<T>(x: unknown): x is T[];\nconst gp: (x: unknown) => x is number[] = isArr;\n"
+            ),
+            []
         );
     }
 

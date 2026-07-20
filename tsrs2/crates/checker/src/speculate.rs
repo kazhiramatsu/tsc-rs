@@ -805,4 +805,26 @@ mod tests {
             },
         );
     }
+
+    /// The canonical twin (M6 7.5): getCanonicalSignature's cache
+    /// write sits in the same net.
+    #[test]
+    #[should_panic(expected = "links writes are forbidden during speculation")]
+    fn canonical_signature_cache_write_asserts_under_speculation() {
+        with_program_state(
+            &[("a.ts", "declare function f<T>(x: T): T;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let symbol = state
+                    .resolve_file_scope_name("f", SymbolFlags::FUNCTION)
+                    .expect("f resolves");
+                let ty = state.get_type_of_symbol(symbol).expect("f types");
+                let signature = state
+                    .get_signatures_of_type(ty, SignatureKind::Call)
+                    .expect("f has call signatures")[0];
+                state.speculation_depth = 1;
+                let _ = state.get_canonical_signature(signature);
+            },
+        );
+    }
 }

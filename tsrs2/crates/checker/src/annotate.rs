@@ -4571,6 +4571,7 @@ impl<'a> CheckerState<'a> {
                 mapper: None,
                 instantiations: std::collections::HashMap::new(),
                 erased_signature_cache: None,
+                canonical_signature_cache: None,
                 base_signature_cache: None,
                 composite_kind: None,
                 composite_signatures: None,
@@ -7396,6 +7397,7 @@ impl<'a> CheckerState<'a> {
             mapper: None,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: None,
             composite_signatures: None,
@@ -9820,7 +9822,12 @@ mod generic_signature_tests {
     }
 
     #[test]
-    fn generic_signature_relations_escape_to_inference() {
+    fn generic_signature_relations_resolve_live() {
+        // LIVE since M6 7.5 (the stub era asserted the
+        // instantiateSignatureInContextOf escape here): the generic
+        // source instantiates in the context of the canonical target
+        // and alpha-equivalent generics relate (oracle-probed
+        // b8_generic_to_generic, scratchpad probe75.mjs).
         with_program_state(
             &[(
                 "a.ts",
@@ -9832,12 +9839,10 @@ mod generic_signature_tests {
                 let w = find_probe_annotation(state.binder.source(0), "w").expect("w");
                 let source = state.get_type_from_type_node(v).expect("v type");
                 let target = state.get_type_from_type_node(w).expect("w type");
-                let related = state.is_type_assignable_to(source, target);
-                let reason = related.expect_err("generic relations are M6").reason;
-                assert!(
-                    reason.contains("instantiateSignatureInContextOf"),
-                    "{reason}"
-                );
+                let related = state
+                    .is_type_assignable_to(source, target)
+                    .expect("generic signature relations resolve live (M6 7.5)");
+                assert!(related);
             },
         );
     }

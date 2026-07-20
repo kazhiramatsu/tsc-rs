@@ -113,6 +113,9 @@ pub struct Signature {
     pub instantiations: std::collections::HashMap<String, SignatureId>,
     /// tsc signature.erasedSignatureCache (getErasedSignature 59927).
     pub erased_signature_cache: Option<SignatureId>,
+    /// tsc signature.canonicalSignatureCache (getCanonicalSignature
+    /// 59937).
+    pub canonical_signature_cache: Option<SignatureId>,
     /// tsc signature.baseSignatureCache (getBaseSignature 59949).
     pub base_signature_cache: Option<SignatureId>,
     /// tsc signature.compositeKind (createUnionSignature 57890 /
@@ -1072,6 +1075,7 @@ impl<'a> CheckerState<'a> {
             mapper: None,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: None,
             composite_signatures: None,

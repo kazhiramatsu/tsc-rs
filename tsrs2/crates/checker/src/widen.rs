@@ -901,16 +901,17 @@ mod tests {
     #[test]
     fn auto_family_renders_no_false_relations() {
         // Oracle rows: 2339 toFixed-on-number (flow-evolved — LIVE
-        // since the 6.6f gate retirement), 7053 on c[0] (evolving
-        // never[] index — residual FN), 6133 ×2 (M7), 7005 ×2 (live).
-        // The pin still asserts the FP face: NO 2322 from `b = 5`
-        // against a null-typed b, NO index error against a
-        // never[]-typed c.
+        // since the 6.6f gate retirement), 7053 on c[0] (LIVE since
+        // M6 7.5's "{}" display arm — the evolving never[] index
+        // renders '{}' under the noLib Array miss; re-probed
+        // probe75d.mjs), 6133 ×2 (M7), 7005 ×2 (live). The pin still
+        // asserts the FP face: NO 2322 from `b = 5` against a
+        // null-typed b.
         assert_eq!(
             checked_rows(
                 "let b = null;\nb = 5;\nb.toFixed();\nlet c = [];\nc[0] = 1;\nexport let v1;\nv1;\ndeclare let d1;\nd1;\n"
             ),
-            [(2339, 23, 7), (7005, 67, 2), (7005, 87, 2)]
+            [(2339, 23, 7), (7053, 46, 4), (7005, 67, 2), (7005, 87, 2)]
         );
     }
 

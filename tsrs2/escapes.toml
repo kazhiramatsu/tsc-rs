@@ -1384,13 +1384,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
-in = "compare_signatures_related"
-reason = "generic-signature relation (instantiateSignatureInContextOf, M6)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
 in = "get_apparent_type"
 reason = "mapped type apparent types (M8)"
 class = "stage"

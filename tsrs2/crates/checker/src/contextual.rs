@@ -3046,6 +3046,7 @@ impl<'a> CheckerState<'a> {
             mapper,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: Some(TypeFlags::INTERSECTION),
             composite_signatures: Some(composite_signatures),

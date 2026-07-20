@@ -722,6 +722,87 @@ pub(crate) struct RelationChecker<'r, 'a> {
     pub(crate) relation_count: i64,
 }
 
+/// The checkTypeRelatedTo frame state detached from its `st` borrow —
+/// the port of tsc's isRelatedToWorker CLOSURE (67068-67080): when
+/// compareSignaturesRelated hands compareTypes into
+/// instantiateSignatureInContextOf (64507), the constraint clamp
+/// (getInferredType 69300-69306) must compare under the LIVE frame —
+/// same maybe stack, recursion depths, and budget. Rust can't store
+/// that closure in the inference context, so the walker LOANS its
+/// frame fields (mem::take) around the state-level call and the clamp
+/// re-assembles a RelationChecker from the loan for each compare;
+/// every mutation (maybe cache entries, counts, overflow) flows back.
+/// `intersection_state` is the closure's captured signatureRelatedTo
+/// argument.
+pub(crate) struct RelationFrame {
+    pub(crate) relation: RelationKind,
+    pub(crate) maybe_keys: Vec<String>,
+    pub(crate) maybe_keys_set: HashSet<String>,
+    pub(crate) source_stack: Vec<TypeId>,
+    pub(crate) target_stack: Vec<TypeId>,
+    pub(crate) maybe_count: usize,
+    pub(crate) source_depth: usize,
+    pub(crate) target_depth: usize,
+    pub(crate) expanding_flags: ExpandingFlags,
+    pub(crate) overflow: bool,
+    pub(crate) relation_count: i64,
+    pub(crate) intersection_state: IntersectionState,
+}
+
+impl<'r, 'a> RelationChecker<'r, 'a> {
+    /// tsrs-native: frame loan for the RelationFrame worker (the
+    /// Rust face of tsc's isRelatedToWorker closure capture, 67068).
+    ///
+    /// Detach the frame fields for a state-level call that must
+    /// compare under this live frame (see RelationFrame). Pair every
+    /// loan with restore_frame BEFORE propagating an Err.
+    pub(crate) fn loan_frame(&mut self, intersection_state: IntersectionState) -> RelationFrame {
+        RelationFrame {
+            relation: self.relation,
+            maybe_keys: std::mem::take(&mut self.maybe_keys),
+            maybe_keys_set: std::mem::take(&mut self.maybe_keys_set),
+            source_stack: std::mem::take(&mut self.source_stack),
+            target_stack: std::mem::take(&mut self.target_stack),
+            maybe_count: self.maybe_count,
+            source_depth: self.source_depth,
+            target_depth: self.target_depth,
+            expanding_flags: self.expanding_flags,
+            overflow: self.overflow,
+            relation_count: self.relation_count,
+            intersection_state,
+        }
+    }
+
+    /// tsrs-native: loan_frame's return half (no tsc counterpart —
+    /// the closure frees itself).
+    pub(crate) fn restore_frame(&mut self, frame: RelationFrame) {
+        let RelationFrame {
+            relation: _,
+            maybe_keys,
+            maybe_keys_set,
+            source_stack,
+            target_stack,
+            maybe_count,
+            source_depth,
+            target_depth,
+            expanding_flags,
+            overflow,
+            relation_count,
+            intersection_state: _,
+        } = frame;
+        self.maybe_keys = maybe_keys;
+        self.maybe_keys_set = maybe_keys_set;
+        self.source_stack = source_stack;
+        self.target_stack = target_stack;
+        self.maybe_count = maybe_count;
+        self.source_depth = source_depth;
+        self.target_depth = target_depth;
+        self.expanding_flags = expanding_flags;
+        self.overflow = overflow;
+        self.relation_count = relation_count;
+    }
+}
+
 impl<'r, 'a> RelationChecker<'r, 'a> {
     pub(crate) fn flags(&self, ty: TypeId) -> TypeFlags {
         self.st.tables.flags_of(ty)

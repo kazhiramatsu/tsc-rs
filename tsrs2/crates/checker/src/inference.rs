@@ -93,6 +93,15 @@ pub(crate) enum CompareTypesFn {
     /// compareTypesAssignable — consumed by getInferredType's
     /// constraint clamp (69300-69306, stage 7.3).
     Assignable,
+    /// signatureRelatedTo's isRelatedToWorker closure (67068-67080),
+    /// handed through compareSignaturesRelated 64507 into
+    /// instantiateSignatureInContextOf (M6 7.5 head rebuild). The
+    /// closure's frame lives OUTSIDE the context — the walker loans
+    /// it as a `RelationFrame` parameter down the getInferredTypes
+    /// call chain; consuming this variant without the loan is a
+    /// programmer error (iSICO's context is frame-local and nothing
+    /// re-reads it after iSICO returns).
+    RelationFrame,
 }
 
 /// tsc InferenceContext: the createInferenceContextWorker 68245
@@ -950,17 +959,74 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: `context.compareTypes(...)` dispatch over the
     /// CompareTypesFn closed set (see the enum): tsc stores a function
-    /// reference on the context; the only constructible member today
-    /// is compareTypesAssignable (68239), whose Ternary truthiness is
-    /// exactly isTypeAssignableTo.
+    /// reference on the context. compareTypesAssignable's (68239)
+    /// Ternary truthiness is exactly isTypeAssignableTo; the
+    /// RelationFrame worker re-assembles the loaning walker around
+    /// each compare (truthiness = not False — Maybe counts as
+    /// related, exactly tsc's `!compareTypes(...)` test).
     fn compare_inference_types(
         &mut self,
         context: InferenceContextId,
         source: TypeId,
         target: TypeId,
+        frame: Option<&mut crate::engine::RelationFrame>,
     ) -> CheckResult2<bool> {
         match self.inference_context(context).compare_types {
             CompareTypesFn::Assignable => self.is_type_assignable_to(source, target),
+            CompareTypesFn::RelationFrame => {
+                let frame = frame.expect(
+                    "RelationFrame compare_types consumed without its frame loan — \
+                     instantiateSignatureInContextOf's context is frame-local (75910-75924)",
+                );
+                let mut checker = crate::engine::RelationChecker {
+                    st: self,
+                    relation: frame.relation,
+                    maybe_keys: std::mem::take(&mut frame.maybe_keys),
+                    maybe_keys_set: std::mem::take(&mut frame.maybe_keys_set),
+                    source_stack: std::mem::take(&mut frame.source_stack),
+                    target_stack: std::mem::take(&mut frame.target_stack),
+                    maybe_count: frame.maybe_count,
+                    source_depth: frame.source_depth,
+                    target_depth: frame.target_depth,
+                    expanding_flags: frame.expanding_flags,
+                    overflow: frame.overflow,
+                    relation_count: frame.relation_count,
+                };
+                let related = checker.is_related_to(
+                    source,
+                    target,
+                    tsrs2_types::RecursionFlags::BOTH,
+                    /*report_errors*/ false,
+                    frame.intersection_state,
+                );
+                // Write every mutation back BEFORE propagating an
+                // Err — the walker's restore_frame sees the loan's
+                // final state either way.
+                let crate::engine::RelationChecker {
+                    maybe_keys,
+                    maybe_keys_set,
+                    source_stack,
+                    target_stack,
+                    maybe_count,
+                    source_depth,
+                    target_depth,
+                    expanding_flags,
+                    overflow,
+                    relation_count,
+                    ..
+                } = checker;
+                frame.maybe_keys = maybe_keys;
+                frame.maybe_keys_set = maybe_keys_set;
+                frame.source_stack = source_stack;
+                frame.target_stack = target_stack;
+                frame.maybe_count = maybe_count;
+                frame.source_depth = source_depth;
+                frame.target_depth = target_depth;
+                frame.expanding_flags = expanding_flags;
+                frame.overflow = overflow;
+                frame.relation_count = relation_count;
+                Ok(related? != tsrs2_types::Ternary::FALSE)
+            }
         }
     }
 
@@ -982,6 +1048,19 @@ impl<'a> CheckerState<'a> {
         &mut self,
         context: InferenceContextId,
         index: usize,
+    ) -> CheckResult2<TypeId> {
+        self.get_inferred_type_with_frame(context, index, None)
+    }
+
+    /// tsrs-native: parameter split of getInferredType (69271) — the
+    /// frame-loaning face (see CompareTypesFn::RelationFrame):
+    /// Assignable-context callers pass None; the walker's iSICO call
+    /// threads its loan so the constraint clamp compares live.
+    pub(crate) fn get_inferred_type_with_frame(
+        &mut self,
+        context: InferenceContextId,
+        index: usize,
+        mut frame: Option<&mut crate::engine::RelationFrame>,
     ) -> CheckResult2<TypeId> {
         let inference = self.inference_context(context).inferences[index];
         if let Some(cached) = self.inference_info(inference).inferred_type {
@@ -1128,12 +1207,22 @@ impl<'a> CheckerState<'a> {
             if let Some(t) = inferred_type {
                 let constraint_with_this =
                     self.get_type_with_this_argument(instantiated_constraint, Some(t), false)?;
-                if !self.compare_inference_types(context, t, constraint_with_this)? {
+                if !self.compare_inference_types(
+                    context,
+                    t,
+                    constraint_with_this,
+                    frame.as_deref_mut(),
+                )? {
                     let filtered_by_constraint = if self.inference_info(inference).priority
                         == Some(InferencePriority::RETURN_TYPE)
                     {
                         self.filter_type_with(t, |state, member| {
-                            state.compare_inference_types(context, member, constraint_with_this)
+                            state.compare_inference_types(
+                                context,
+                                member,
+                                constraint_with_this,
+                                frame.as_deref_mut(),
+                            )
                         })?
                     } else {
                         self.tables.intrinsics.never
@@ -1157,7 +1246,12 @@ impl<'a> CheckerState<'a> {
                             Some(fallback),
                             false,
                         )?;
-                        if self.compare_inference_types(context, fallback, fallback_with_this)? {
+                        if self.compare_inference_types(
+                            context,
+                            fallback,
+                            fallback_with_this,
+                            frame,
+                        )? {
                             fallback
                         } else {
                             instantiated_constraint
@@ -1186,10 +1280,20 @@ impl<'a> CheckerState<'a> {
         &mut self,
         context: InferenceContextId,
     ) -> CheckResult2<Vec<TypeId>> {
+        self.get_inferred_types_with_frame(context, None)
+    }
+
+    /// tsrs-native: parameter split of getInferredTypes (69317) —
+    /// the frame-loaning face; see get_inferred_type_with_frame.
+    pub(crate) fn get_inferred_types_with_frame(
+        &mut self,
+        context: InferenceContextId,
+        mut frame: Option<&mut crate::engine::RelationFrame>,
+    ) -> CheckResult2<Vec<TypeId>> {
         let len = self.inference_context(context).inferences.len();
         let mut result = Vec::with_capacity(len);
         for index in 0..len {
-            result.push(self.get_inferred_type(context, index)?);
+            result.push(self.get_inferred_type_with_frame(context, index, frame.as_deref_mut())?);
         }
         Ok(result)
     }
