@@ -45,6 +45,14 @@ there.
 
 ## Verification quick reference
 
+- **NEVER pipe a gate command through `tail`/`head`/`grep` — the
+  pipeline's exit status is the LAST command's (tail's = 0), which
+  has repeatedly masked red gates.** Run gates to a file and check
+  the code explicitly, then read the log:
+  `cargo xtask ci > /tmp/ci.log 2>&1; echo "ci exit: $?"`.
+  This applies to every gating command below (`ci`, `conformance`,
+  `ratchet check`, `scope audit`, `families check`, `escapes`,
+  `ledger check`, `invariants`).
 - Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
   (from `tsrs2/`; PR Actions supplies the immutable base SHA)
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
