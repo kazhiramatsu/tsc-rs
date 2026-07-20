@@ -412,6 +412,61 @@ Commit(s): `m6 7.2a-d: inferFromTypes arms`.
 
 Commit: `m6 7.3: covariant/contravariant inference + clamp`.
 
+**Decisions of record (7.3, 2026-07-20):**
+
+- **Span corrections against vendored 6.0.3:** getInferredType is
+  69271-69313 (this section's 69271/69310 call-site refs stand;
+  the clamp is 69295-69309, clearActiveMapperCaches at 69310).
+  The "instantiations keyed by getTypeListId (59902-59910)" bullet's
+  span is getSignatureInstantiationWithoutFillingInTypeArguments;
+  getTypeListId itself is 60128.
+- **Cache wiring mostly predated this stage:**
+  `signature.instantiations` + getTypeListId +
+  getSignatureInstantiation/createSignatureInstantiation landed at
+  M4 5.2 (instantiate.rs, with the 7.0t depth-0 assert net over the
+  map writes). New at 7.3: `clear_active_mapper_caches` (73624-73628)
+  invoked on every resolution MISS (69310) — pinned by test incl.
+  the no-clear-on-memo-hit distinction.
+  `reverseHomomorphicMappedCache` (47333/68388) has NO portable
+  consumer: its only reader/writer inferTypeForHomomorphicMappedType
+  is unported, called only from the 7.2 Mapped-arm escape — the
+  cache lands WITH the consumer at M8 (grep-provable absence, no pin
+  needed).
+- **checker-key §2.2 skeleton deviations (source wins):** the
+  preferCovariantType contra clause is `some(contraCandidates,
+  cov→t)` — the skeleton's prose `all(...)` is wrong; the sibling
+  `every(...)` clause groups per JS precedence as `(other !==
+  inference && constraintOf(other.tp) !== inf.tp) || every(
+  other.candidates, t→cov)` with helper-`every`'s vacuous-true on
+  undefined arrays (_tsc.js:80) and the `&&` short-circuit keeping
+  the constraint probe OFF the row itself; the clamp's filter arm
+  keys on priority EQUALITY (`=== ReturnType`), not a mask test.
+  All pinned by unit tests (veto/control pair, filter-vs-constraint
+  pair, fallback-to-contravariant).
+- **Memo write order is load-bearing:** the pre-clamp write (69296
+  `inference.inferredType = inferredType || default`) lands BEFORE
+  constraint/default instantiation so re-entrant resolution through
+  the non-fixing mapper memo-hits instead of recursing; the clamp
+  overwrites at 69309. The backreference mapper (63381) shields
+  forward slots during default instantiation — pinned:
+  `resolution_forward_default_collapses_to_unknown_via_backreference`
+  (forward default → unknown, non-fixing NEVER consulted for the
+  forward slot).
+- **getDefaultTypeArgumentType** was already ported at M4
+  (fillMissingTypeArguments's shared default) — reused via
+  pub(crate), span header corrected to 69314-69316; NOT duplicated.
+- **hasPrimitiveConstraint Conditional arm** (69242,
+  getDefaultConstraintOfConditionalType) is a named M8 escape — the
+  7.2 dormant-arm discipline (no Conditional constructors before
+  M8).
+- **Corpus-neutral by construction:** every production
+  pushInferenceContext site still passes None until 7.4, so T0/2xxx
+  integers are byte-identical (53.9756% / 76.0534%, FP=0) — the
+  stage's verification weight rides the 15 new unit pins; the 7.1
+  stub-frontier pins were rewritten to assert LIVE resolution
+  (unknown/string results, live-slot memo reads after slot
+  replacement).
+
 ## Stage 7.4: inferTypeArguments + the re-run [M]
 
 - `inferTypeArguments` (75938): the contextual-return pre-inference
