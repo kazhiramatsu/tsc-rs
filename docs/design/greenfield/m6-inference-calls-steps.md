@@ -372,6 +372,11 @@ Commit(s): `m6 7.2a-d: inferFromTypes arms`.
   callback — do not widen these.
 - **getBaseSignature** landed with `Signature.base_signature_cache`
   in the 7.0t speculation assert net (erased-cache twin discipline).
+  The net asserts depth 0: once 7.4 runs inferFromSignatures inside
+  chooseOverload's speculative trials, the base/erased cache writes
+  trip it on the first generic source signature whose cache is cold —
+  resolve the write discipline THERE (pre-warm, reclassify, or a
+  depth-aware write); do not delete the assert (7.2 post-review).
 - **getUnmatchedProperty** moved from the RelationChecker down to
   CheckerState and grew the matchDiscriminantProperties unit arm
   (68470-68479, used only by typesDefinitelyUnrelated's
@@ -455,6 +460,12 @@ Commit: `m6 7.3: covariant/contravariant inference + clamp`.
   can leak an inner failure stash over the outer frame's Resolving
   sentinel. Re-derive the port protocol against 77500-77507 when the
   re-run lands.
+- Speculation-assert carry-in (7.2 post-review): getBaseSignature /
+  getErasedSignature cache writes assert speculation depth 0
+  (instantiate.rs, the 7.0t net), and chooseOverload trials run
+  inference — hence inferFromSignatures — under begin_speculation.
+  Decide the write discipline before wiring the re-run; see the 7.2
+  decisions block.
 - Observed while pinning slice 5 (2026-07-20): under
   exactOptionalPropertyTypes, overload selection accepts a candidate
   whose optional-property undefined-vs-string mismatch the
@@ -474,13 +485,14 @@ tuple/array element inference in literals, generic
 constructor/`new` inference, tagged templates, JSX element type
 resolution's call path, `satisfies` interplay, and the
 2769 failure-path candidate choice (getCandidateForOverloadFailure
-with real instantiated candidates). Also owned here (the M3 code
-markers say M6; no other milestone schedules it):
-`isValidBigIntString` (18973) for bigint template-literal
-placeholders (isValidTypeForTemplateLiteralPlaceholder's bigint arm
-is a live Unsupported in structural.rs; the annotation-literal
-full-radix `parsePseudoBigInt` half landed early — M4-review A14,
-slice 1). Also owned here (escaped at M5 6.4f with owner="M6";
+with real instantiated candidates). Previously owned here (the M3
+code markers said M6; no other milestone scheduled it) and LANDED
+EARLY at 7.2c: `isValidBigIntString` (18973) for bigint
+template-literal placeholders —
+isValidTypeForTemplateLiteralPlaceholder's bigint arm is live and
+its structural.rs escape retired (the annotation-literal full-radix
+`parsePseudoBigInt` half landed earlier still — M4-review A14,
+slice 1). Nothing of it remains for 7.5. Also owned here (escaped at M5 6.4f with owner="M6";
 scheduled in no earlier stage — the M5 post-close review flagged the
 missing doc backing): `compareTypePredicateRelatedTo` (64606) + the
 compareSignaturesRelated predicate arm (64577-64592, incl. the

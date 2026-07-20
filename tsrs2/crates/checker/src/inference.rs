@@ -909,6 +909,13 @@ impl InferTypesWalker<'_, '_> {
                             in_js,
                         )?
                         .expect("present arguments fill to a present list (68660)");
+                    // A None fill (min_params > 0 with an absent
+                    // target list) is the shape tsc TypeErrors on one
+                    // call later (68877 targetTypes.length) —
+                    // unreachable: bare generic-alias references
+                    // become errorType and carry no aliasSymbol, so
+                    // the expect is crash-equivalent transcription,
+                    // not a deviation.
                     let target_types = self
                         .st
                         .fill_missing_type_arguments(
@@ -1130,8 +1137,10 @@ impl InferTypesWalker<'_, '_> {
                 self.inference_priority = self.inference_priority.min(self.priority);
                 return Ok(());
             }
-            // 68740-68769: no slot — try simplifying; on failure fall
-            // THROUGH to the 68770 chain with the original pair.
+            // 68740-68769: no slot — try simplifying, then ALWAYS
+            // fall through to the 68770 chain with the original pair
+            // (tsc runs the terminal arms even after a successful
+            // simplified recursion — do not add an early return).
             let simplified = self.st.get_simplified_type(target, false)?;
             if simplified != target {
                 self.infer_from_types(source, simplified)?;
