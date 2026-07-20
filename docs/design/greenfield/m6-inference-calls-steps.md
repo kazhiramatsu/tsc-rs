@@ -148,6 +148,43 @@ re-derive when the struct shifts; the FIELD LIST is the contract.
 Commit: `m6 7.0t: speculation transaction` (API + rollback tests
 BEFORE 7.1).
 
+**LANDED (this slice) — decisions of record:**
+- API: `begin_speculation()` → `SpeculationCheckpoint` +
+  `commit_speculation`/`rollback_speculation` + the `speculate`
+  closure wrapper (speculate.rs; checkpoint is `#[must_use]` with a
+  debug drop-guard, LIFO-asserted). Boundary ordering rule: the
+  wrapper rolls back BEFORE re-propagating Err, so outer Err-revert
+  twins always fire at entry depth.
+- Revert-twin convention (B35, resolved): twins never assert
+  speculation_depth — a revert restores pre-write state, always
+  legal. `revert_node_enum_values_computed` lost its assert AND its
+  depth parameter (now matches every other twin's signature); the
+  evaluate.rs:112 panic path is gone, and twins that fire INSIDE a
+  speculative region (depth > 0) are correct by design.
+- D sinks are TRANSACTION-managed (truncate/restore on rollback,
+  keep on commit) — no asserts on sink pushes. deferred_nodes
+  VERIFY item resolved: KEEP across rollback (checkNodeDeferred
+  86899-86908 registers unconditionally). instantiation_count and
+  the flow_analysis_disabled latch also deliberately survive.
+- Assert-net extension (B35): the three raw Signature caches —
+  `instantiations`, `erased_signature_cache`,
+  `optional_call_signature_cache` — now assert depth == 0 at their
+  write sites (same message as links assert_writable). The net is
+  the 7.4 WIRING INVENTORY: when live trials exercise a site that
+  is a category-C permanent truth (tsc writes it during trials),
+  relax THAT site with the evidence in hand — no blanket relaxation
+  here.
+- exhaustive_switch_computing: begin debug-asserts empty (the
+  inventory claim) and the checkpoint clone-restores it anyway;
+  reduce_label_overrides is clone-snapshot/restored.
+- active_type_mappers(+caches): truncate-to-mark only; surviving-
+  frame cache staleness under a mutable inference mapper stays 7.3's
+  clearActiveMapperCaches (tsc clears at fixing, not on candidate
+  failure).
+- B34 census widening: UnwindSnapshot (check.rs) now also checks
+  shared_flow, reduce_label_overrides, exhaustive_switch_computing,
+  inline_level (file-end baseline zeros included).
+
 ## Stage 7.0: canaries [P]
 
 Snapshot 40 fixtures — actual corpus paths:

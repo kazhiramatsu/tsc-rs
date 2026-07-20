@@ -108,8 +108,7 @@ impl<'a> CheckerState<'a> {
             let result = match outcome {
                 Ok(result) => result,
                 Err(err) => {
-                    self.links
-                        .revert_node_enum_values_computed(self.speculation_depth, node);
+                    self.links.revert_node_enum_values_computed(node);
                     return Err(err);
                 }
             };

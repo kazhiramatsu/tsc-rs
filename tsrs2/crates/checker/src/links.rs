@@ -860,8 +860,13 @@ impl LinksTables {
     /// Unsupported-unwind twin of set_node_enum_values_computed — the
     /// once-flag must not stay observable after a failed compute
     /// (member value slots that DID fill are correct facts and stay).
-    pub fn revert_node_enum_values_computed(&mut self, speculation_depth: u32, id: NodeId) {
-        Self::assert_writable(speculation_depth);
+    /// Like every other revert twin this deliberately does NOT assert
+    /// speculation_depth (the 7.0t convention, m4-review B35): a revert
+    /// RESTORES pre-write state, which is always legal, and an unwind
+    /// crossing a speculation boundary reaches twins INSIDE the region
+    /// while depth > 0 (speculate.rs rolls back before the Err
+    /// re-propagates, so OUTER twins fire at the entry depth).
+    pub fn revert_node_enum_values_computed(&mut self, id: NodeId) {
         self.node.entry(id).or_default().enum_values_computed = false;
     }
 
