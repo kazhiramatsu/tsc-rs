@@ -686,6 +686,74 @@ fixed.
 
 Commit: `m6 7.5: inference consumers (+rate)`.
 
+**7.5 decisions of record (2026-07-21, m6/7.5-consumers; slices
+7.5a B7, 7.5b B8, 7.5c consumers/docs):**
+
+- **B7 landed exactly as tabled** — all four related-path cells and
+  the identical-path consult oracle-probed before porting
+  (scratchpad probe75*.mjs; 25+ rows). Two probe surprises recorded:
+  the asserts-form-target "silent fall-through" cell is in practice
+  decided EARLIER by the void-target return (64570) since asserts
+  signatures return void; and a source-only ASSERTS predicate
+  compares as `void` (not boolean) in the plain return comparison —
+  b7_source_only_asserts pins the 2322. Reporting cells
+  (2518/1224/1226/1227 chains) ride T2 as elsewhere.
+- **Verdict pinning under the display curtain**: relation-failure
+  heads whose args are function types don't render in the 5.4 slice
+  (statement containment), so False-verdict pins ride the
+  @ts-expect-error band THROUGH check_program (driver-level 2578
+  synthesis + the S8 partial-check exemption): [] iff the verdict is
+  False, (2578,…) iff wrongly True — with a 2578 control pin proving
+  the mechanism. checked_rows-level tests can NOT see this band.
+- **B8 head rebuild**: tsc order restored (same-ref → top-signature
+  → arity → instantiate); the generic arm runs getCanonicalSignature
+  (new canonical_signature_cache, write in the 7.0t assert net +
+  should_panic twin) + iSICO. tsc's compareTypes parameter =
+  CompareTypesFn::RelationFrame; the isRelatedToWorker CLOSURE is
+  modeled as a **frame loan** (engine.rs RelationFrame): the walker
+  mem::takes its frame fields around the state-level iSICO call,
+  getInferredType(s) thread the loan (`_with_frame` faces), and the
+  constraint clamp re-assembles a RelationChecker per compare — live
+  maybe-stack/budget participation, mutations restored, captured
+  intersectionState honored. Consuming RelationFrame without a loan
+  is expect-panic (iSICO's context is frame-local; nothing re-reads
+  it).
+- **Worker intersectionState restoration**: compareSignaturesRelated's
+  internal comparisons (this-types, params, strict-arity probe,
+  returns — 7 sites) passed IntersectionState::NONE where tsc's
+  compareTypes2 closure captures signatureRelatedTo's
+  intersectionState; restored with the rebuild (corpus green,
+  FP=0).
+- **Erase + pairwise**: signatureRelatedTo applies getErasedSignature
+  per side (comparable-band success pinned via the 2578 face);
+  signaturesRelatedTo's same-symbol/same-target pairwise arm indexes
+  i-to-i with a debug_assert on list lengths (tsc Debug.assertEqual);
+  tsc's `undefined === undefined` symbol pair (both symbol-less
+  instantiated) is preserved as None == None.
+- **Display-slice extension is FP-shielded**: "{}" renders ONLY for
+  symbol-LESS empty anonymous objects. The bare arm unmasked 5
+  corpus fabrications (2339/2322 in exportAsNamespace5 /
+  declarationFileForJsonImport / jsObjectsMarkedAsOpenEnded) whose
+  member machinery is M7/M8 — the symbol guard re-shields them and
+  is documented at the arm as load-bearing FP shielding, not display
+  fidelity. The 7.4c frontier pin FLIPPED to its oracle face
+  [(2322,148,1)] ('{}' vs 'number' args from the noLib Array miss);
+  two recorded-FN pins (calls.rs array-literal 2345, widen.rs 7053)
+  flipped to oracle rows the same way.
+- **Ripple audit: nothing left to build** — the consumer list
+  (contextual element inference, generic new, tagged templates,
+  satisfies, 2769 failure-path candidate choice) probed 11-for-11
+  port==oracle (probe75f/probe75g); representative pins added.
+  7.4's resolveCall inference had already carried the mass; 7.5's
+  B7/B8 closed the relation-side remainder.
+- **M4 NOTES re-probe recorded in docs/NOTES-m4.md**: 2454/18050/
+  18048 RETIRED (M5 delivered); 2345 349→236 and 2322 1362→1006
+  (M6 delivered); M7/M8-owned rows byte-stable; 2365's M5/M6 owner
+  guess falsified → amended M7-adjacent.
+- Old stub-era pin generic_signature_relations_escape_to_inference
+  rewritten to assert the live verdict (alpha-equivalent generics
+  relate).
+
 ## Final gate
 
 ```sh

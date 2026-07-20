@@ -7305,6 +7305,69 @@ mod tests {
         );
     }
 
+    // ---- M6 7.5 ripple audit: the steps-doc consumer list
+    // (contextual element inference, generic new, tagged templates,
+    // satisfies, the 2769 failure-path candidate choice) probed
+    // port-vs-oracle 11-for-11 (probe75f/probe75g.mjs, 2026-07-21) —
+    // representative rows pinned here. ----
+
+    #[test]
+    fn ripple_generic_new_and_tagged_template_infer() {
+        assert_eq!(
+            checked_rows(
+                "declare class Box<T> { constructor(x: T); v: T; }\nconst b = new Box(\"s\");\nconst n: number = b.v;\n"
+            ),
+            [(2322, 80, 1)]
+        );
+        assert_eq!(
+            checked_rows(
+                "declare function tag2<T>(parts: unknown, x: T): T;\nconst t2: number = tag2`a${\"s\"}b`;\n"
+            ),
+            [(2322, 57, 2)]
+        );
+    }
+
+    #[test]
+    fn ripple_satisfies_runs_the_live_relations() {
+        // Generic source satisfies via the B8 arm; predicate faces via
+        // the B7 table (the failing half rides the expect-error band).
+        assert_eq!(
+            checked_rows(
+                "declare function id<T>(x: T): T;\nconst s = id satisfies (x: number) => number;\n"
+            ),
+            []
+        );
+        assert_eq!(
+            program_rows(
+                "declare function isCat(x: unknown): x is string;\nconst sp = isCat satisfies (x: unknown) => x is string;\n// @ts-expect-error\nconst sp2 = isCat satisfies (x: unknown) => x is number;\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn ripple_overload_failure_paths_report_oracle_rows() {
+        // 2769 head at the callee; a generic candidate pair takes the
+        // single-argument-error 2345 face (getCandidateForOverload-
+        // Failure's candidate choice); bare arity keeps 2554.
+        assert_eq!(
+            checked_rows(
+                "declare function f(x: string): void;\ndeclare function f(x: boolean): void;\nf(3);\n"
+            ),
+            [(2769, 77, 1)]
+        );
+        assert_eq!(
+            checked_rows(
+                "declare function g<T extends string>(x: T): T;\ndeclare function g<T extends boolean>(x: T, y: T): T;\ng(3);\n"
+            ),
+            [(2345, 103, 1)]
+        );
+        assert_eq!(
+            checked_rows("declare function h<T>(x: T, y: T): T;\nh();\n"),
+            [(2554, 38, 1)]
+        );
+    }
+
     // ---- M6 7.5 B8: compareSignaturesRelated head rebuild —
     // generic-source instantiation (64505-64514), erase honoring
     // (67069-67071), same-target pairwise arm (66952-66966). Rows

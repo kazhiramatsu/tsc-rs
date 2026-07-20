@@ -106,3 +106,30 @@ inferTypeArguments) is next (~2.3k) — those two milestones start
 from these boundaries, not from zero. The unevidenced mass is
 dominated by M7 unused (14.6k), which needs its own pass, not
 checker boundaries.
+
+## M6 7.5 re-probe (2026-07-21, m6/7.5-consumers)
+
+Per m6-inference-calls-steps.md 7.5 ("re-probe the top-10 list;
+retire entries this milestone fixed"). Full All-band run at
+T0 54.8670% (26,898/49,024) FP=0, measured after the 7.5 B7/B8
+landings; same epoch/producer as the close table.
+
+| # | Code | M4-close FN | 7.5 FN | Disposition |
+|---:|---|---:|---:|---|
+| 1 | 6133 | 12,936 | 12,936 | untouched — M7 owner confirmed |
+| 2 | 2454 | 3,962 | **0** | **RETIRED** — the M5 owner guess delivered in full |
+| 3 | 2322 | 1,362 | 1,006 | reduced (M5 narrowing + M6 inference); residue = display curtain (T2/M8) + M7/M8 mechanisms |
+| 4 | 6196 | 1,334 | 1,334 | untouched — M7 owner confirmed |
+| 5 | 2304 | 1,003 | 970 | slightly reduced; flow-path residue rides M7/M8 resolver rows |
+| 6 | 2339 | 525 | 363 | reduced (M5 + M6); M8 augmentation residue stands |
+| 7 | 18050 | 354 | **0** | **RETIRED** — M5 nullability flow |
+| 8 | 2345 | 349 | 236 | reduced — the M6 inferTypeArguments owner guess delivered (7.4/7.5); residue behind display/deeper bands |
+| 9 | 2307 | 289 | 289 | untouched — M8 resolver owner confirmed |
+| 10 | 80007 | 239 | 239 | untouched — M7 8.4 owner confirmed |
+
+Next tier movement: 18048 175→**0** (retired, M5), 7044 220→164,
+7005 120→103; the M7/M8-owned rows (6198, 2365, 1479, 6053, 1206,
+7032, 2834) are byte-stable. 2365's "M5/M6 operator applicability"
+guess did NOT materialize — its rows sit behind operand-display and
+M7 grammar bands; re-adjudicate at M7 (owner guess amended
+M5/M6→M7-adjacent).

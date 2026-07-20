@@ -97,8 +97,8 @@
 # amalgamated-duplicates flush + immediate mode (A8), the script-file
 # `declare global` collector gate (A9), and the B15 no-cache guard
 # for context-sensitive-signature parameters.
-rate = 0.547385
-matched = 26835
+rate = 0.54867
+matched = 26898
 total = 49024
 allowed_regression = 0.0
 
@@ -123,8 +123,8 @@ allowed_regression = 0.0
 # m5 post-close review: +100 (see the T0 comment).
 # m4 post-review slice 2 (a-class FN): +85 (see the T0 comment).
 # m4 post-review slice 3 (M6-start bar): +16 (see the T0 comment).
-rate = 0.772172
-matched = 16255
+rate = 0.774928
+matched = 16313
 total = 21051
 allowed_regression = 0.0
 
