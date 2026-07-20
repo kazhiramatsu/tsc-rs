@@ -4496,11 +4496,13 @@ impl<'a> CheckerState<'a> {
     /// reference's flow node. Arm 2 (context-sensitive rest-parameter
     /// slices) is LIVE for concrete rest types: tsc's only
     /// M6-dependent read is `getInferenceContext(func)?.nonFixingMapper`
-    /// (72044) inside the restType computation, and no inference
-    /// context can exist before M6 (instantiateType(T, undefined) = T)
+    /// (72044) inside the restType computation, and every production
+    /// push site still passes a None context until 7.4 wires
+    /// inferTypeArguments (7.1 made contexts constructible; the
+    /// mapper read through None is instantiateType(T, undefined) = T)
     /// — a rest type that could still contain type variables is the
     /// one shape where the mapper would matter, and stays a named
-    /// Unsupported.
+    /// Unsupported until the 7.4/7.5 rewiring.
     pub(crate) fn get_narrowed_type_of_symbol(
         &mut self,
         symbol: SymbolId,

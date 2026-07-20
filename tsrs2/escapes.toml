@@ -782,6 +782,13 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/expr.rs"
+in = "instantiate_type_with_single_generic_call_signature"
+reason = "single-generic-signature higher-order inference (M6 7.4)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/expr.rs"
 in = "parse_pseudo_big_int"
 reason = "unparsable bigint literal text {text:?} (parse recovery)"
 class = "recovery"
@@ -841,6 +848,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
+in = "contextually_check_function_expression_or_object_literal_method"
+reason = "inferFromAnnotatedParametersAndReturn (M6 7.4)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/functions.rs"
 in = "get_binding_element_type_from_parent_type"
 reason = "binding element outside its pattern (parse recovery)"
 class = "recovery"
@@ -897,6 +911,20 @@ in = "simplified_indexed_access_worker"
 reason = "simplified indexed access over mapped types (unported family, M8-stub)"
 class = "stage"
 owner = "M8"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "get_inferred_type"
+reason = "getInferredType resolution and constraint clamp (M6 7.3)"
+class = "stage"
+owner = "M6"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_types"
+reason = "inferTypes candidate collection (M6 7.2)"
+class = "stage"
+owner = "M6"
 
 [[site]]
 file = "crates/checker/src/instantiate.rs"

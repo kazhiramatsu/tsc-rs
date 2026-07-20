@@ -281,7 +281,9 @@ adding them is a relation-core prerequisite, checker-key §2.1):
 
 ```rust
 struct InferenceInfo {
-    type_parameter: SymbolId,
+    type_parameter: TypeId,  // the TypeParameter TYPE, not its symbol — mapper
+                             // sources compare type identities (getMappedType
+                             // 63341); corrected at M6 7.1 (was SymbolId)
     candidates: Vec<TypeId>,          // covariant
     contra_candidates: Vec<TypeId>,   // contravariant
     inferred_type: Option<TypeId>,
