@@ -21,14 +21,16 @@
 
 use std::collections::HashMap;
 
-use tsrs2_syntax::{NodeId, SyntaxKind};
+use tsrs2_syntax::{escape_leading_underscores, NodeId, SyntaxKind};
 use tsrs2_types::{
     ContextFlags, ExpandingFlags, InferenceFlags, InferencePriority, IntersectionFlags,
-    ObjectFlags, TypeData, TypeFlags, TypeId, UnionReduction, VarianceFlags,
+    LiteralValue, ObjectFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    VarianceFlags,
 };
 
 use crate::instantiate::{DeferredMapperTargets, MapperId, TypeMapper};
-use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
+use crate::links::LinkSlot;
+use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, Unsupported};
 use crate::variance::VariancesResult;
 
 /// Arena id — see the module doc for the identity/rollback contract.
@@ -597,6 +599,92 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// tsc-port: createEmptyObjectTypeFromStringLiteral @6.0.3
+    /// tsc-hash: db0404479692e816441b1bbbe284f68806d6e11a3a0bf7977006a948be35372d
+    /// tsc-span: _tsc.js:68356-68385
+    ///
+    /// The literal-keyof arm's reverse shape: every StringLiteral
+    /// member of the (forEachType-distributed union) source becomes an
+    /// any-typed transient property — declarations copied from the
+    /// literal's symbol — and a plain-string source contributes a
+    /// string→emptyObjectType index signature instead. Map-overwrite
+    /// semantics ride IndexMap::insert (same-position replace), and
+    /// setStructuredTypeMembers' getNamedMembers projection is the
+    /// full table: escaped literal names can never take the reserved
+    /// exactly-two-underscore shape.
+    pub(crate) fn create_empty_object_type_from_string_literal(&mut self, ty: TypeId) -> TypeId {
+        let id = self.create_resolved_empty_anonymous_type(None);
+        let members_id = self
+            .links
+            .ty(id)
+            .resolved_members
+            .resolved()
+            .expect("created resolved above");
+        // forEachType (61513): Union distributes, everything else runs
+        // the callback once.
+        let source_members = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
+            match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } => types.to_vec(),
+                _ => unreachable!("Union flag implies member data"),
+            }
+        } else {
+            vec![ty]
+        };
+        for t in source_members {
+            if !self
+                .tables
+                .flags_of(t)
+                .intersects(TypeFlags::STRING_LITERAL)
+            {
+                continue;
+            }
+            let TypeData::Literal {
+                value: LiteralValue::String(value),
+            } = &self.tables.type_of(t).data
+            else {
+                unreachable!("StringLiteral flag implies string data");
+            };
+            let name = escape_leading_underscores(value);
+            let literal_prop = self
+                .binder
+                .create_symbol(SymbolFlags::PROPERTY, name.clone());
+            self.links.set_symbol_type(
+                self.speculation_depth,
+                literal_prop,
+                LinkSlot::Resolved(self.tables.intrinsics.any),
+            );
+            if let Some(symbol) = self.tables.type_of(t).symbol {
+                let declarations = self.binder.symbol(symbol).declarations.clone();
+                let value_declaration = self.binder.symbol(symbol).value_declaration;
+                let prop = self.binder.symbol_mut(literal_prop);
+                prop.declarations = declarations;
+                prop.value_declaration = value_declaration;
+            }
+            self.members_mut(members_id)
+                .members
+                .insert(name, literal_prop);
+        }
+        if self.tables.flags_of(ty).intersects(TypeFlags::STRING) {
+            let index_info = IndexInfo {
+                key_type: self.tables.intrinsics.string,
+                value_type: self.empty_object_type,
+                is_readonly: false,
+                declaration: None,
+                components: None,
+                is_enum_number_index_info: false,
+            };
+            self.members_mut(members_id).index_infos.push(index_info);
+        }
+        let properties: Vec<_> = self
+            .members_of(members_id)
+            .members
+            .values()
+            .copied()
+            .collect();
+        self.members_mut(members_id).properties = properties;
+        id
+    }
+
     /// tsc-port: hasSkipDirectInferenceFlag @6.0.3
     /// tsc-hash: acf0e7bd86bab58da75c3a803292e066114e5df6b23cfa64ebff9bacb7805004
     /// tsc-span: _tsc.js:68509-68511
@@ -710,16 +798,21 @@ struct InferTypesWalker<'r, 'a> {
     inference_priority: InferencePriority,
     /// 68641: lazily created in tsc; HashMap::new() allocates nothing
     /// until the first insert, so a plain map is the same. Keyed by
-    /// the invokeOnce `source.id + "," + target.id` pair. Unused until
-    /// the first invokeOnce action lands (7.2b).
-    #[allow(dead_code)]
+    /// the invokeOnce `source.id + "," + target.id` pair.
     visited: HashMap<(TypeId, TypeId), InferencePriority>,
-    #[allow(dead_code)] // consumer: invokeOnce (7.2b)
     source_stack: Vec<TypeId>,
-    #[allow(dead_code)] // consumer: invokeOnce (7.2b)
     target_stack: Vec<TypeId>,
-    #[allow(dead_code)] // consumer: invokeOnce (7.2b)
     expanding_flags: ExpandingFlags,
+}
+
+/// The invokeOnce `action` parameter (68833): tsc passes one of three
+/// closure references — inferToConditionalType /
+/// inferFromGenericMappedTypes / inferFromObjectTypes; the port
+/// dispatches over the closed set (the TypeMatcher precedent). The
+/// mapped/object actions arrive at 7.2d.
+#[derive(Clone, Copy, Debug)]
+enum InferAction {
+    ToConditionalType,
 }
 
 impl InferTypesWalker<'_, '_> {
@@ -1114,10 +1207,21 @@ impl InferTypesWalker<'_, '_> {
         } else if (self.st.is_literal_type(source) || source_flags.intersects(TypeFlags::STRING))
             && target_flags.intersects(TypeFlags::INDEX)
         {
-            return Err(Unsupported::new(
-                "inferFromTypes literal-keyof arm — createEmptyObjectTypeFromStringLiteral \
-                 (M6 7.2b)",
-            ));
+            // 68774-68776: a (union of) string literal(s) or string
+            // against `keyof T` infers the reverse empty-object shape
+            // contravariantly at LiteralKeyof priority.
+            let empty = self.st.create_empty_object_type_from_string_literal(source);
+            let TypeData::Index {
+                ty: target_inner, ..
+            } = self.st.tables.type_of(target).data
+            else {
+                unreachable!("Index flag implies data");
+            };
+            self.infer_from_contravariant_types_with_priority(
+                empty,
+                target_inner,
+                InferencePriority::LITERAL_KEYOF,
+            )?;
         } else if source_flags.intersects(TypeFlags::INDEXED_ACCESS)
             && target_flags.intersects(TypeFlags::INDEXED_ACCESS)
         {
@@ -1163,9 +1267,10 @@ impl InferTypesWalker<'_, '_> {
                  unconstructible before their type nodes land)",
             ));
         } else if target_flags.intersects(TypeFlags::CONDITIONAL) {
-            return Err(Unsupported::new(
-                "inferToConditionalType via invokeOnce (M6 7.2b)",
-            ));
+            // 68786: routed through invokeOnce (the action body is the
+            // dormant M8 escape — no Conditional type is constructible
+            // before M8's type nodes).
+            self.invoke_once(source, target, InferAction::ToConditionalType)?;
         } else if target_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let member_types = self.types_of(target);
             self.infer_to_multiple_types(source, &member_types, target_flags)?;
@@ -1199,6 +1304,93 @@ impl InferTypesWalker<'_, '_> {
         let result = self.infer_from_types(source, target);
         self.priority = save_priority;
         result
+    }
+
+    /// tsc-port: inferFromContravariantTypesWithPriority @6.0.3
+    /// tsc-hash: 0131aa72c4f68f16f6549cde874df10be775f4feee110045b613b1c530955085
+    /// tsc-span: _tsc.js:68821-68826
+    fn infer_from_contravariant_types_with_priority(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        new_priority: InferencePriority,
+    ) -> CheckResult2<()> {
+        let save_priority = self.priority;
+        self.priority |= new_priority;
+        let result = self.infer_from_contravariant_types(source, target);
+        self.priority = save_priority;
+        result
+    }
+
+    /// tsc-port: inferToMultipleTypesWithPriority @6.0.3
+    /// tsc-hash: 4991227f792f48ec39032a10a770ce401747830dfff0986f12a0a54aac743480
+    /// tsc-span: _tsc.js:68827-68832
+    #[allow(dead_code)] // sole consumer: the dormant inferToConditionalType body (69019, M8)
+    fn infer_to_multiple_types_with_priority(
+        &mut self,
+        source: TypeId,
+        targets: &[TypeId],
+        target_flags: TypeFlags,
+        new_priority: InferencePriority,
+    ) -> CheckResult2<()> {
+        let save_priority = self.priority;
+        self.priority |= new_priority;
+        let result = self.infer_to_multiple_types(source, targets, target_flags);
+        self.priority = save_priority;
+        result
+    }
+
+    /// tsc-port: invokeOnce @6.0.3
+    /// tsc-hash: c16739c2347cd9cf605ea953aaab71f5324c1e4c662a4e1c75eb95c2cf4e570a
+    /// tsc-span: _tsc.js:68833-68858
+    ///
+    /// Pair-memoized action dispatch with the depth-2 expansion guard
+    /// (isDeeplyNestedType over the walker stacks). An Err from the
+    /// action propagates without running the postlude, exactly as a
+    /// tsc throw would skip it — the walker (visited map, stacks) dies
+    /// with the unwind, so no durable state is left inconsistent.
+    fn invoke_once(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        action: InferAction,
+    ) -> CheckResult2<()> {
+        let key = (source, target);
+        if let Some(&status) = self.visited.get(&key) {
+            self.inference_priority = self.inference_priority.min(status);
+            return Ok(());
+        }
+        self.visited.insert(key, InferencePriority::CIRCULARITY);
+        let save_inference_priority = self.inference_priority;
+        self.inference_priority = InferencePriority::MAX_VALUE;
+        let save_expanding_flags = self.expanding_flags;
+        self.source_stack.push(source);
+        self.target_stack.push(target);
+        if self
+            .st
+            .is_deeply_nested_type(source, &self.source_stack, self.source_stack.len(), 2)
+        {
+            self.expanding_flags |= ExpandingFlags::SOURCE;
+        }
+        if self
+            .st
+            .is_deeply_nested_type(target, &self.target_stack, self.target_stack.len(), 2)
+        {
+            self.expanding_flags |= ExpandingFlags::TARGET;
+        }
+        if self.expanding_flags != ExpandingFlags::BOTH {
+            match action {
+                InferAction::ToConditionalType => self.infer_to_conditional_type(source, target)?,
+            }
+        } else {
+            self.inference_priority = InferencePriority::CIRCULARITY;
+        }
+        self.target_stack.pop();
+        self.source_stack.pop();
+        self.expanding_flags = save_expanding_flags;
+        self.visited.insert(key, self.inference_priority);
+        self.inference_priority = self.inference_priority.min(save_inference_priority);
+        Ok(())
     }
 
     /// tsc-port: inferFromMatchingTypes @6.0.3
@@ -1440,13 +1632,33 @@ impl InferTypesWalker<'_, '_> {
         }
         Ok(())
     }
+
+    /// tsc-port: inferToConditionalType @6.0.3
+    /// tsc-hash: bf377141643390f5d80731fa855630df43df7fee74e32c6d56c2fbb8fea2f7aa
+    /// tsc-span: _tsc.js:69011-69021
+    ///
+    /// DORMANT (doc 7.2 arm dispositions): the dispatch guard requires
+    /// a Conditional target and TypeData has no Conditional variant
+    /// until M8 lands the type nodes, so the deepest portable point is
+    /// this body escape — the checkType/extendsType/true/false reads
+    /// and the ContravariantConditional split get re-cut against
+    /// source and pinned when the constructors go live. The
+    /// inferToMultipleTypesWithPriority helper it dispatches through
+    /// is already ported above.
+    fn infer_to_conditional_type(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+        let _ = (source, target);
+        Err(Unsupported::new(
+            "inferToConditionalType body (M8 — Conditional TypeData is unconstructible \
+             before conditional type nodes land)",
+        ))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use tsrs2_types::{
-        CompilerOptions, ContextFlags, InferenceFlags, InferencePriority, SymbolFlags, TypeId,
-        UnionReduction,
+        CompilerOptions, ContextFlags, IndexFlags, InferenceFlags, InferencePriority, ObjectFlags,
+        SymbolFlags, TypeFlags, TypeId, UnionReduction,
     };
 
     use super::CompareTypesFn;
@@ -2427,6 +2639,160 @@ mod tests {
                 assert_eq!(
                     state.inference_info(info).candidates.as_deref(),
                     Some(&[string][..])
+                );
+            },
+        );
+    }
+
+    // ---- 7.2b: the literal-keyof arm ----
+
+    /// The empty-object reverse shape recorded for `"a"` vs `keyof T`
+    /// (68774-68776): a contra candidate at LiteralKeyof priority
+    /// whose members table holds an any-typed `a`.
+    #[test]
+    fn string_literal_against_keyof_records_reverse_empty_object() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let keyof_t = state.get_index_type(t, IndexFlags::NONE).expect("keyof T");
+                let lit = state.tables.get_string_literal_type("a");
+                state
+                    .infer_types(&[info], lit, keyof_t, InferencePriority::NONE, false)
+                    .expect("live arm");
+                let (contra, priority, top_level) = {
+                    let info = state.inference_info(info);
+                    (
+                        info.contra_candidates
+                            .clone()
+                            .expect("contravariant record"),
+                        info.priority,
+                        info.top_level,
+                    )
+                };
+                assert_eq!(priority, Some(InferencePriority::LITERAL_KEYOF));
+                assert!(
+                    state.inference_info(info).candidates.is_none(),
+                    "the toggled entry lands on the contra side (68722)"
+                );
+                assert!(
+                    !top_level,
+                    "T is not at top level of `keyof T` — record-time demotion (68732)"
+                );
+                let [empty] = contra[..] else {
+                    panic!("exactly one contra candidate");
+                };
+                assert!(state.tables.flags_of(empty).intersects(TypeFlags::OBJECT));
+                assert!(state
+                    .tables
+                    .object_flags_of(empty)
+                    .intersects(ObjectFlags::ANONYMOUS));
+                let members = state
+                    .links
+                    .ty(empty)
+                    .resolved_members
+                    .resolved()
+                    .expect("created resolved");
+                let resolved = state.members_of(members);
+                assert_eq!(resolved.properties.len(), 1);
+                assert!(resolved.index_infos.is_empty());
+                let prop = *resolved.members.get("a").expect("member `a`");
+                assert_eq!(
+                    state.links.symbol(prop).type_of_symbol.resolved(),
+                    Some(state.tables.intrinsics.any),
+                    "literalProp.links.type = anyType (68364)"
+                );
+            },
+        );
+    }
+
+    /// A plain-string source contributes only the string→emptyObject
+    /// index signature (68371-68376).
+    #[test]
+    fn plain_string_against_keyof_builds_index_signature_shape() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let keyof_t = state.get_index_type(t, IndexFlags::NONE).expect("keyof T");
+                let string = state.tables.intrinsics.string;
+                state
+                    .infer_types(&[info], string, keyof_t, InferencePriority::NONE, false)
+                    .expect("live arm");
+                let contra = state
+                    .inference_info(info)
+                    .contra_candidates
+                    .clone()
+                    .expect("contravariant record");
+                let [empty] = contra[..] else {
+                    panic!("exactly one contra candidate");
+                };
+                let members = state
+                    .links
+                    .ty(empty)
+                    .resolved_members
+                    .resolved()
+                    .expect("created resolved");
+                let resolved = state.members_of(members);
+                assert!(resolved.properties.is_empty());
+                let [ref info] = resolved.index_infos[..] else {
+                    panic!("exactly one index info");
+                };
+                assert_eq!(info.key_type, state.tables.intrinsics.string);
+                assert_eq!(info.value_type, state.empty_object_type);
+                assert!(!info.is_readonly);
+            },
+        );
+    }
+
+    /// forEachType distribution + the StringLiteral filter + leading-
+    /// underscore escaping: `"a" | "__x" | 1` keeps the string members
+    /// (escaped) and drops the number literal (68359-68361).
+    #[test]
+    fn literal_union_against_keyof_filters_and_escapes_members() {
+        with_program_state(
+            &[("a.ts", GENERIC_SRC)],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let keyof_t = state.get_index_type(t, IndexFlags::NONE).expect("keyof T");
+                let lit_a = state.tables.get_string_literal_type("a");
+                let lit_dunder = state.tables.get_string_literal_type("__x");
+                let lit_one = state.tables.get_number_literal_type(1.0);
+                let union = state
+                    .get_union_type_ex(&[lit_a, lit_dunder, lit_one], UnionReduction::Literal)
+                    .expect("literal union");
+                state
+                    .infer_types(&[info], union, keyof_t, InferencePriority::NONE, false)
+                    .expect("live arm");
+                let contra = state
+                    .inference_info(info)
+                    .contra_candidates
+                    .clone()
+                    .expect("contravariant record");
+                let [empty] = contra[..] else {
+                    panic!("exactly one contra candidate");
+                };
+                let members = state
+                    .links
+                    .ty(empty)
+                    .resolved_members
+                    .resolved()
+                    .expect("created resolved");
+                let resolved = state.members_of(members);
+                assert_eq!(
+                    resolved.members.keys().cloned().collect::<Vec<_>>(),
+                    vec!["a".to_owned(), "___x".to_owned()],
+                    "union order kept, number literal dropped, __ escaped"
+                );
+                assert!(
+                    resolved.index_infos.is_empty(),
+                    "no String member in the union"
                 );
             },
         );

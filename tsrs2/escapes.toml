@@ -937,21 +937,7 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/inference.rs"
 in = "infer_from_types"
-reason = "inferFromTypes literal-keyof arm — createEmptyObjectTypeFromStringLiteral (M6 7.2b)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/inference.rs"
-in = "infer_from_types"
 reason = "inferFromTypes object tail — getReducedType/getApparentType + inferFromObjectTypes (M6 7.2d)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/inference.rs"
-in = "infer_from_types"
-reason = "inferToConditionalType via invokeOnce (M6 7.2b)"
 class = "stage"
 owner = "M6"
 
@@ -961,6 +947,13 @@ in = "infer_from_types"
 reason = "inferToTemplateLiteralType (M6 7.2c)"
 class = "stage"
 owner = "M6"
+
+[[site]]
+file = "crates/checker/src/inference.rs"
+in = "infer_to_conditional_type"
+reason = "inferToConditionalType body (M8 — Conditional TypeData is unconstructible before conditional type nodes land)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
