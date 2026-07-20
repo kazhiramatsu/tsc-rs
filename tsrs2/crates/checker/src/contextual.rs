@@ -3013,7 +3013,12 @@ impl<'a> CheckerState<'a> {
             target_parameter_count += 1;
         }
         if !parameters.is_empty() && self.parameter_is_this_keyword(parameters[0]) {
-            target_parameter_count -= 1;
+            // saturating: a this-parameter carrying a question token or
+            // initializer (parser-recovery shapes only) breaks the count
+            // loop at 0 (m4-review FN-F4 — unreproduced underflow, the
+            // known recovery paths drop the question token; guarded
+            // regardless).
+            target_parameter_count = target_parameter_count.saturating_sub(1);
         }
         Ok(!self.has_effective_rest_parameter(signature)?
             && self.get_parameter_count(signature)? < target_parameter_count)

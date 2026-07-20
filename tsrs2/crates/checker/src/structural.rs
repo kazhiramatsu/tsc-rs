@@ -1894,6 +1894,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             result = related;
         } else {
+            // KNOWN-GAP since M4 (m4-review B8): tsc's same-target-
+            // reference arm is missing — when source and target are
+            // instantiations of the SAME reference target, tsc
+            // compares the signature lists PAIRWISE (index i to
+            // index i) instead of this N×M matrix. Port with the
+            // M6 7.5 head rebuild.
             'outer: for &t in &target_signatures {
                 for &s in &source_signatures {
                     let related =
@@ -1913,8 +1919,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: 077b917f6c7e74357aafbb0c7e5f24c8de49ad1498046f4c86951905aacae66f
     /// tsc-span: _tsc.js:67067-67081
     ///
-    /// getErasedSignature is the identity without type parameters
-    /// (generic signatures are M4).
+    /// KNOWN-GAP since M4 (m4-review B8): the erase parameter is
+    /// IGNORED — tsc applies getErasedSignature to each side before
+    /// comparing (the port's get_erased_signature is live in
+    /// instantiate.rs; the old "generic signatures are M4"
+    /// justification lapsed). Honoring it retires most of the
+    /// generic-signature gate's fire surface: erased sides carry no
+    /// type parameters. Port with the M6 7.5 head rebuild.
     fn signature_related_to(
         &mut self,
         source: SignatureId,
@@ -2136,6 +2147,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             result = ternary_and(result, related);
         }
+        // Type-predicate containment (M6 7.5). Over-contained: the
+        // gate fires BEFORE the ignoreReturnTypes early return, but
+        // tsc's identical-path predicate consult
+        // (compareTypePredicatesIdentical) lives INSIDE the
+        // !ignoreReturnTypes region — union signature matching pays
+        // containment tsc never computes (m4-review B7).
         self.st.type_predicate_signature_relation_gate(source)?;
         self.st.type_predicate_signature_relation_gate(target)?;
         if ignore_return_types {
@@ -2158,12 +2175,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-span: _tsc.js:64487-64605
     ///
     /// M3 dispositions: generic-signature instantiation (64505-64514)
-    /// is M4; rest-parameter positions never construct (array rest
-    /// annotations are M4), so getNonArrayRestType is None and the
-    /// rest-index machinery is dead; the unreliable-marker
-    /// instantiation is variance measurement (M4 5.3b). strictVariance
-    /// keys on the target DECLARATION kind (method bivariance,
-    /// core-interfaces §4 from_method).
+    /// is M6 (the "M4" claim lapsed — the early gate below carries
+    /// it, m4-review B8); rest-parameter positions never construct
+    /// (array rest annotations are M4), so getNonArrayRestType is
+    /// None and the rest-index machinery is dead; the
+    /// unreliable-marker instantiation is variance measurement
+    /// (M4 5.3b). strictVariance keys on the target DECLARATION kind
+    /// (method bivariance, core-interfaces §4 from_method).
     #[allow(clippy::only_used_in_recursion)] // intersectionState threads through the callback recursion as in tsc
     fn compare_signatures_related(
         &mut self,
@@ -2176,11 +2194,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if source == target {
             return Ok(Ternary::TRUE);
         }
-        // 66727-66730: a generic source instantiates in the context of
+        // 64505-64514 (m4-review B8 corrected the 66727-66730
+        // mis-cite): a generic source instantiates in the context of
         // the target (getCanonicalSignature + instantiateSignatureInContextOf
         // = M6 inference machinery). Signatures with typeParameters are
         // constructible since 5.2e; value-equal parameter lists only
         // arise from the interned same-signature case handled above.
+        // PLACEMENT DEVIATION (B8): tsc instantiates AFTER the
+        // top-signature pair and the sourceHasMoreParameters arity
+        // check below — this early gate also contains cells those
+        // checks would decide without inference (generic source vs
+        // top-signature target = TRUE; arity overflow = FALSE).
+        // Rebuild the head in tsc order when M6 7.5 replaces the gate.
         if self.st.signature_of(source).type_parameters.is_some()
             && self.st.signature_of(source).type_parameters
                 != self.st.signature_of(target).type_parameters
@@ -2309,6 +2334,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 };
                 let callbacks = match (source_sig, target_sig) {
                     (Some(source_sig), Some(target_sig)) => {
+                        // Over-contained pre-gate (m4-review B7): tsc
+                        // has no predicate consult in the callback
+                        // cell — the recursive
+                        // compareSignaturesRelated tail decides.
                         self.st.type_predicate_signature_relation_gate(source_sig)?;
                         self.st.type_predicate_signature_relation_gate(target_sig)?;
                         self.st.undefined_null_facts(source_type)
@@ -2399,7 +2428,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             } else {
                 self.st.get_return_type_of_signature(source)?
             };
-            // Type predicates report Unsupported until M5.
+            // Type-predicate containment (M6 7.5). Over-contained on
+            // the source side: tsc's 64577-64592 arm consults the
+            // predicate machinery only when the TARGET carries one
+            // (a predicate-bearing SOURCE against a plain target is
+            // an ordinary return-type comparison) — m4-review B7.
             self.st.type_predicate_signature_relation_gate(target)?;
             self.st.type_predicate_signature_relation_gate(source)?;
             let bivariant = if check_mode & check_mode::BIVARIANT_CALLBACK != 0 {
@@ -5220,6 +5253,16 @@ impl<'a> CheckerState<'a> {
     /// retire this comparison gate.)
     /// tsrs-native: M6-deferral containment gate (no tsc counterpart;
     /// the escape row is the ledger surface).
+    ///
+    /// OVER-CONTAINMENT (m4-review B7 — the escape reason is accurate
+    /// for one decision cell in four): tsc needs compareTypePredicate-
+    /// RelatedTo only when BOTH the related-path sides carry
+    /// predicates; a target-only predicate is the 1224-family
+    /// report/False verdict, a source-only predicate is a plain
+    /// return-type comparison, and every ignoreReturnTypes cell needs
+    /// nothing. The three call sites (related tail, identical tail,
+    /// callback pre-gate) each note their over-contained cells; the
+    /// M6 7.5 split restores tsc's decision table (m6 steps doc).
     pub fn type_predicate_signature_relation_gate(
         &mut self,
         signature: SignatureId,

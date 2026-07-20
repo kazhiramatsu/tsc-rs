@@ -2215,8 +2215,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:89761-89842
     ///
     /// The Node16..NodeNext moduleKind arms need impliedNodeFormat
-    /// (module resolution, 5.8d) — treated as the non-CommonJS
-    /// fallthrough (true-CJS node-flavor fixtures FN the 1432 row);
+    /// (module resolution — m4-review B16/A10 tri-state) and are
+    /// treated as the non-CommonJS fallthrough. True-CJS node-flavor
+    /// fixtures lose the 1309 CommonJS-top-level-await row: silently
+    /// at target >= ES2017, and as an ALTERNATIVE ISSUANCE below that
+    /// (the default-arm 1432 fires in 1309's place — not a plain FN);
     /// same disposition as checkAwaitGrammar's ladder (functions.rs).
     fn check_grammar_for_in_or_for_of_statement(&mut self, node: NodeId) -> CheckResult2<bool> {
         if self.check_grammar_statement_in_ambient_context_reported(node) {

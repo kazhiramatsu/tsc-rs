@@ -3200,9 +3200,10 @@ impl<'a> CheckerState<'a> {
                 let expr = node_util::skip_parentheses_pub(source, expression);
                 let symbol = if self.is_entity_name_expression(expr) {
                     // VALUE | ALIAS meaning: an imported enum binding
-                    // is an ALIAS symbol until resolveAlias (5.8d) —
-                    // the plain VALUE meaning filter would reject it
-                    // before the alias acceptance below can apply.
+                    // resolves to its ALIAS symbol here
+                    // (dont_resolve_alias=true) — the plain VALUE
+                    // meaning filter would reject it before the alias
+                    // acceptance below can apply.
                     self.resolve_entity_name_ex(
                         expr,
                         SymbolFlags::from_bits(
@@ -3215,11 +3216,14 @@ impl<'a> CheckerState<'a> {
                 } else {
                     None
                 };
-                // ALIAS acceptance: an imported enum resolves to the
-                // alias symbol until resolveAlias lands (5.8d) —
-                // accept-or-report is undecidable, so aliases pass
-                // (FN-side: invalid const assertions through aliases
-                // stay silent).
+                // ALIAS acceptance — KNOWN-GAP since M4 (m4-review
+                // L3/OP-5): the "until resolveAlias lands (5.8d)"
+                // justification lapsed — resolveAlias is LIVE, so the
+                // blanket acceptance is retirable by hopping the
+                // alias to its target and re-applying the ENUM test.
+                // Today aliases pass unexamined (probed FN face: an
+                // invalid const assertion through an import stays
+                // silent — the 1355 row).
                 Ok(symbol.is_some_and(|s| {
                     self.symbol_flags(s)
                         .intersects(SymbolFlags::ENUM | SymbolFlags::ALIAS)

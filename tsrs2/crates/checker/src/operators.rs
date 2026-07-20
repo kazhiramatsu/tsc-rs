@@ -1062,7 +1062,10 @@ impl<'a> CheckerState<'a> {
         let Some(crate::evaluate::EvalValue::Num(value)) = rhs_eval.value else {
             return Ok(());
         };
-        if value.abs() < 32.0 {
+        // tsc's guard is `Math.abs(value) >= 32` (80100), FALSE for
+        // NaN — a NaN shift amount reports nothing (m4-review OP-4;
+        // the is_nan arm keeps that semantics in the inverted form).
+        if value.abs() < 32.0 || value.is_nan() {
             return Ok(());
         }
         let is_enum_member = self
@@ -5175,6 +5178,14 @@ mod tests {
         // errorOrSuggestion's suggestion flavor is unmodeled — the
         // oracle reports a suggestion-band 6807 here, we stay silent.
         assert_eq!(checked_rows("1 << 33;\n"), []);
+    }
+
+    #[test]
+    fn nan_shift_amount_in_enum_member_stays_silent() {
+        // m4-review OP-4: tsc's guard is `Math.abs(value) >= 32`
+        // (80100), which is FALSE for NaN — `1 << (0/0)` reports no
+        // 6807 (probed clean vs vendored 6.0.3).
+        assert_eq!(checked_rows("enum SH2 { X = 1 << (0/0) }\n"), []);
     }
 
     // ---- logical / nullish bands ----

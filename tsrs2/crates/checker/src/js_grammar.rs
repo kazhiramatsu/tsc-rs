@@ -2,8 +2,9 @@
 //! TypeScript-only syntax in JavaScript files. Runs over the parsed tree;
 //! "skip" outcomes stop descent exactly like tsc's forEachChildRecursively.
 //!
-//! Known gaps (fields the generated node schema does not carry yet):
-//! isTypeOnly (import/export type — part of 8006) and isExportEquals (8003).
+//! No schema gaps: the walker consumes isTypeOnly (8006 rows) and
+//! isExportEquals (8003) below — the old "fields the schema does not
+//! carry yet" note lapsed when nodes.rs gained them (m4-review CL-F7).
 
 use tsrs2_diags::{compute_line_map, gen, Diagnostic, DiagnosticMessage, LineMap, MessageChain};
 use tsrs2_syntax::{

@@ -288,6 +288,22 @@ Commit: `m6 7.3: covariant/contravariant inference + clamp`.
 - Context-sensitive argument detection (`isContextSensitive` 63832)
   and the deferred body interaction (M4's driver already defers
   bodies; the re-run is what types their parameters).
+- Re-entry protocol (M4-review F7): get_resolved_signature's exit
+  write is wrote_sentinel-conditional where tsc 77500-77507 restores
+  links.resolvedSignature UNCONDITIONALLY per frame (result, or the
+  prior cached value mid-fixpoint) — a re-entrant mid-fixpoint frame
+  can leak an inner failure stash over the outer frame's Resolving
+  sentinel. Re-derive the port protocol against 77500-77507 when the
+  re-run lands.
+- Observed while pinning slice 5 (2026-07-20): under
+  exactOptionalPropertyTypes, overload selection accepts a candidate
+  whose optional-property undefined-vs-string mismatch the
+  single-signature path correctly rejects (probed: declared
+  `{ a: number; c?: undefined }` argument against overloads
+  `{ a; c?: string }` → number / `unknown` → string — port picks #1,
+  tsc picks #2). An applicability-relation eOPT gap in
+  choose_overload; re-probe when this stage replaces the selection
+  loop.
 
 Commit: `m6 7.4: inferTypeArguments + chooseOverload re-run`.
 
@@ -299,21 +315,45 @@ constructor/`new` inference, tagged templates, JSX element type
 resolution's call path, `satisfies` interplay, and the
 2769 failure-path candidate choice (getCandidateForOverloadFailure
 with real instantiated candidates). Also owned here (the M3 code
-markers say M6; no other milestone schedules them): full-radix
-`parsePseudoBigInt` (18909 — M3 ported the decimal slice only,
-annotate.rs) and `isValidBigIntString` (18973) for bigint
-template-literal placeholders
-(isValidTypeForTemplateLiteralPlaceholder's bigint arm is a live
-Unsupported in structural.rs). Also owned here (escaped at M5 6.4f
-with owner="M6"; scheduled in no earlier stage — the M5 post-close
-review flagged the missing doc backing): `compareTypePredicateRelatedTo`
-(64606) + the compareSignaturesRelated predicate arm (64577-64592,
-incl. the 1224/1226-family reporting) — retire structural.rs's
-`type_predicate_signature_relation_gate` with it (the gate reads
-effective_return_type_node, so it contains EVERY predicate-bearing
-declaration kind; tsc only needs the predicate path when the TARGET
-signature carries one — restore that split when porting). Re-probe
-the M4 NOTES top-10 list; retire entries this milestone fixed.
+markers say M6; no other milestone schedules it):
+`isValidBigIntString` (18973) for bigint template-literal
+placeholders (isValidTypeForTemplateLiteralPlaceholder's bigint arm
+is a live Unsupported in structural.rs; the annotation-literal
+full-radix `parsePseudoBigInt` half landed early — M4-review A14,
+slice 1). Also owned here (escaped at M5 6.4f with owner="M6";
+scheduled in no earlier stage — the M5 post-close review flagged the
+missing doc backing): `compareTypePredicateRelatedTo` (64606) + the
+compareSignaturesRelated predicate arm (64577-64592, incl. the
+1224/1226-family reporting) — retire structural.rs's
+`type_predicate_signature_relation_gate` with it. Decision table to
+restore (M4-review B7 — the gate over-contains three of four cells;
+its escape reason is accurate only for the both-sides cell; verified
+against 64575-64591): related path — the predicate arm sits inside
+!ignoreReturnTypes AND after the void/any-target early return;
+compareTypePredicateRelatedTo runs ONLY when BOTH sides carry
+predicates; target-only: an identifier/this predicate reports the
+1224 family and fails, an asserts-form target alone falls through
+silently; source-only is a plain return-type comparison (a predicate
+signature's return type is boolean); identical path —
+compareTypePredicatesIdentical when either side carries one but ONLY
+inside !ignoreReturnTypes; every ignoreReturnTypes cell (union
+matching, callback pre-gates) consults no predicate at all. The three
+port gate sites carry matching notes.
+
+Also here (M4-review B8): rebuild compareSignaturesRelated's HEAD in
+tsc order when porting instantiateSignatureInContextOf — tsc
+(64487-64514) decides same-reference identity, the top-signature
+pair, and sourceHasMoreParameters arity BEFORE generic instantiation,
+where the port's early gate contains all of it; make
+signature_related_to honor its erase parameter via the live
+get_erased_signature (erased sides carry no type parameters, retiring
+most of the gate's fire surface); and add signaturesRelatedTo's
+same-target-reference PAIRWISE arm (instantiations of one reference
+target compare index-to-index, never N×M). The stale inline cite
+"66727-66730" at the gate was corrected to 64505-64514 (slice 5).
+
+Re-probe the M4 NOTES top-10 list; retire entries this milestone
+fixed.
 
 Commit: `m6 7.5: inference consumers (+rate)`.
 

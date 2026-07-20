@@ -1996,14 +1996,21 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c60386d4343175ebc820e0dbc23c0c2fde8196c47265af66b3023e05432cc820
     /// tsc-span: _tsc.js:49473-49663
     ///
-    /// Reduced at the modeled defaults: the mode machinery
-    /// (impliedNodeFormat, Node16..Node18 sync-import rows,
-    /// resolution-mode overrides), project-reference redirects,
+    /// Reduced at the modeled defaults: project-reference redirects,
     /// resolveJsonModule, rewriteRelativeImportExtensions, external
     /// library (node_modules) resolution and its implicit-any rows,
     /// and the alternateResult chain all reduce to nothing — the
     /// program resolver never produces those shapes
-    /// (program-and-modules.md §2). LIVE rows: @types/ redirect,
+    /// (program-and-modules.md §2).
+    /// KNOWN-GAP since M4 (m4-review B16): the mode machinery
+    /// (impliedNodeFormat, the Node16..Node18 sync-import 1471/1479
+    /// rows, resolution-mode overrides) does NOT reduce — the old
+    /// "resolver never makes that shape" claim was false
+    /// (probe_module_candidates resolves .mts/.cts; tsc probed).
+    /// M7-owned, sequenced AFTER the impliedNodeFormat tri-state
+    /// (review A10: today's CommonJs fallback becomes
+    /// Option<mode>) — m7-tail-steps.md 8.1 module-band note.
+    /// LIVE rows: @types/ redirect,
     /// ambient modules, in-program resolution + getResolutionDiagnostic
     /// jsx row, ts-extension rows (5097/2846 family), File_0_is_not_a_
     /// module, pattern ambient modules, and the 2307/2792 tail.

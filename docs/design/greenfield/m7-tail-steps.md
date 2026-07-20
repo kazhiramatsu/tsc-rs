@@ -34,6 +34,27 @@ port, flag-vs-target 1501 checks), meta-property placement (17013
 new.target via getNewTargetContainer), super-call ordering (17009/
 17011).
 
+MODULE-BAND ROWS (recorded 2026-07-20, M4-review slice 5 — B16, plus
+the A-class residue A10/A11 re-owned here: the probed FP shapes live
+outside the executed corpus matrix and M6 never touches the module
+band, so they ride the checker-grammar family this stage gates).
+Sequenced: (1) impliedNodeFormat goes TRI-STATE (A10 — modules.rs's
+unwrap-to-CommonJS fallback becomes an Option: tsc computes implied
+format only under Node16-19 + node_modules resolution and leaves it
+undefined elsewhere; consumers canHaveSyntheticDefault and
+is_esm_cjs_ref move with it — the 1192 bundler+`"type":"module"`+
+export=+default-import face, tsc probed). (2) The Node16..Node18
+sync-import 1471/1479 rows land ON the tri-state (B16 —
+resolve_external_module's mode arms; the resolver DOES produce those
+shapes: probe_module_candidates resolves .mts/.cts, so the old
+"never constructed" reduction was false — site note at the header).
+(3) export= 1203 gains its decisive-extension arm (A11 — tsc
+86494-86499 uses impliedFormatForEmit extension-decisively for ALL
+resolution kinds; `.cts`+module=esnext FP / ambient `.d.mts` FN both
+probed; the oracle-correction epoch verified the node matrix only).
+Related ladder sites already annotated: statements.rs
+for-await 1309/1432, functions.rs checkAwaitGrammar 2856-family.
+
 One commit per family; each with oracle-probed micro pins.
 
 Commit(s): `m7 8.1a-f: grammar check families (+rate)`.
@@ -120,6 +141,24 @@ the corpus exercises), the strict-family expansion
 exit-code semantics for the CLI, and the T4 output formatter
 (`formatDiagnosticsWithColorAndContext`-shape minus color for the
 hash — byte parity is M8's tier work; land the structure).
+
+DRIVER-BAND PREREQUISITE (recorded 2026-07-20, M4-review slice 5 —
+B30/B31; the two land TOGETHER, B31 first or same commit):
+(1) B31 — port skipTypeCheckingWorker's remaining arms (@ts-nocheck,
+checkJs-off JS files, noCheck): today those files are CHECKED and
+their rows dropped at assembly, where tsc never checks them at all.
+Any file-less diagnostic such a check produces becomes an FP the
+moment B30 lands, and the extra checking writes shared caches in an
+order tsc never runs (an M6-era order-sensitivity risk — check.rs
+site note). (2) B30 — replace the assembly layer's unconditional
+file-less drop (lib.rs; today only the ImportMeta
+visible_global_diagnostics carve-out survives) with tsc's
+getDiagnosticsWorker global-snapshot regime: each per-file pull
+compares the global-diagnostic snapshot before/after checking that
+file and folds new global rows into the file's result, including the
+empty-previous-snapshot concatenate arm (probed). The 2317-at-no-node
+shape (globals.rs get_global_type_alias_symbol) is a live example the
+port currently drops.
 
 Commit: `m7 8.5: options + program diagnostics`.
 

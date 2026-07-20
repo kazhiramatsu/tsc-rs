@@ -108,10 +108,12 @@ impl<'a> CheckerState<'a> {
     ///
     /// A locationless resolveName collapses to the globals-table tail
     /// of the scope walk (the createNameResolver globals lookup): the
-    /// merged-symbol chase + meaning filter. The Alias hop in getSymbol
-    /// is resolveAlias (M4 5.1) — global aliases are constructible only
-    /// from import-equals in scripts; 5.1 replaces this lookup with the
-    /// real resolveName tail.
+    /// merged-symbol chase + meaning filter.
+    /// KNOWN-GAP since M4 (m4-review DR-F5): the Alias hop in
+    /// getSymbol (resolveAlias on an ALIAS-flagged hit) is still
+    /// missing — 5.1 never replaced this lookup (that promise
+    /// lapsed), so a global name bound via import-equals in a script
+    /// resolves to the alias symbol, not its target.
     pub fn get_global_symbol(
         &mut self,
         name: &str,
@@ -583,8 +585,12 @@ impl<'a> CheckerState<'a> {
     ///
     /// The meaning is TYPE (not TypeAlias): an interface-shadowed
     /// global resolves here and fails the arity probe with 2317 at
-    /// no node (interfaces carry no TypeAliasDeclaration), which is
-    /// a global diagnostic tsc's per-file pulls never surface.
+    /// no node (interfaces carry no TypeAliasDeclaration) — a
+    /// file-less diagnostic. tsc DOES surface those: the
+    /// getDiagnosticsWorker global-snapshot merge folds them into
+    /// the per-file pull that first observes them (the old "per-file
+    /// pulls never surface" claim was false — m4-review B30; today
+    /// the assembly layer drops the row, see lib.rs's B30 note).
     pub(crate) fn get_global_type_alias_symbol(
         &mut self,
         name: &str,

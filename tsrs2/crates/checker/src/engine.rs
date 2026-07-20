@@ -798,9 +798,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 recursion_flags,
             );
         }
-        // Type-parameter-equals-constraint fast path (65181): M3 type
-        // parameters are tuple synthetics whose constraint is None, so
-        // this reads the stored constraint directly.
+        // Type-parameter-equals-constraint fast path (65181).
+        // KNOWN-GAP since M4 (m4-review R12, same root as the FIXED
+        // A1): the inline TypeData constraint belongs to
+        // tables-synthesized tuple parameters only — DECLARED
+        // parameters keep theirs in the lazy links slot, so this fast
+        // path never fires for them (the old "M3 type parameters are
+        // tuple synthetics" justification lapsed). Verdict-equivalent:
+        // the structural path decides identically, only slower. The
+        // fix is relate.rs's forcing read
+        // (get_constraint_of_type_parameter, fallible) — take it
+        // together with reordering the fallible call out of this
+        // non-`?` context.
         if self.flags(source).intersects(TypeFlags::TYPE_PARAMETER) {
             if let TypeData::TypeParameter {
                 constraint: Some(constraint),
