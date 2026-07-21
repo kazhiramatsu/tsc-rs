@@ -435,7 +435,85 @@ re-audits every 9.1a same-T0-key keep at T3-equivalent identity
 (category + start + length + full chain + related), adds DRIFT rows
 as `host-resolution`, re-measures counts and supported metrics from
 the tool, and becomes the final adjudication commit whose full SHA
-and settled identity set 9.2 then pins.
+and settled identity set 9.2 then pins. *(Landed — see 9.1c results
+below.)*
+
+## 9.1c results (2026-07-21, host chain-grade re-audit — DONE)
+
+Universe. The 9.1a keeps decided by unresolvable-variant probes are
+exactly the non-2694 band FNs on the two P1/P2 fixtures — **56
+records** = `nodeModulesImportTypeModeDeclarationEmitErrors1.ts` +
+`nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts` × 4
+module matrix cases (node16/node18/node20/nodenext) × 7 keys per case
+(2339 `/other.ts 3:51` + `/other3.ts 3:55`; 2353 `/other.ts 3:21`;
+2538 `/other3.ts 2:22, 5:49, 6:49`; 2559 `/other3.ts 3:20`). No other
+9.1a-excluded fixture retains kept band FNs except
+`verbatimModuleSyntaxAmbientConstEnum.ts` (its F.A row, kept on
+in-program grounds, no probe involved).
+
+Probe recipe (fully reproducible): variant = the corpus fixture
+VERBATIM minus its `/node_modules/*` `@filename` sections,
+**newline-preserving** (the fixtures are CRLF; a text-mode read
+LF-converts silently and shifts every byte `start` by exactly the
+line number while line/col survive — the 9.1a embedded shapes were LF
+re-typings comparing at T0 line/col grade, the 9.1c variant is
+byte-faithful so `start`/`length` compare exactly). Then
+`cargo xtask expand <variant> --out-dir <dir>` (matrix fixtures emit
+`program-<matrixKey>.json` per case, NOT `program.json`), pipe each
+into `node crates/oracle/driver.mjs`, and compare each kept record
+against the variant record at its T0 key: category + start + length +
+full chain (deep, all nested levels) + related (deep).
+
+Verdicts of record (vendored 6.0.3, 2026-07-21):
+
+- **40 records IDENTICAL** at T3-equivalent identity (2353×8,
+  2538×24, 2559×8): byte-exact category/start/length, deep-equal
+  chain+related. The 9.1b-review scout's chain+related-only verdict
+  upgrades to full identity — these keeps are FINAL.
+- **16 records DRIFT (2339×8 per fixture)** — chain-ONLY drift:
+  golden embeds the exports-RESOLVED module shape
+  `Promise<{ default: typeof import("/node_modules/pkg/import"); }>`,
+  variant shows `Promise<any>`; category/start/length/related all
+  identical. The drifted content exists only via node_modules exports
+  resolution ⇒ unimplementable at T2/T3 without host machinery ⇒
+  EXCLUDE `host-resolution` (the scouted mandatory targets, all
+  landed).
+- **2694 regression check**: all 32 excluded 2694 keys still VANISH
+  in the variant (9.1a verdict re-confirmed).
+- **Safety net**: full-chain screen (`node_modules` in chain-tree
+  text, related chain text, and record/related FILE NAMES) over all
+  4,186 kept band FN records → 17 hits = the 16 targets + 1:
+  `references/library-reference-5.ts` 2403. Adjudicated KEEP: the
+  record file and related file are node_modules PATH SPELLINGS of
+  `@filename`'d in-program files; the expander roots ALL five
+  sub-files (probe: expansion `program.json` files list), so the
+  duplicate-`alpha` collision (`any` vs `{}`, both in-program
+  declarations) is in-program — nothing in the chain-grade identity
+  is resolution-derived.
+- **P3 keeps hold by construction**: jsx expansion `program.json` =
+  `['file.tsx']` (re-verified) — `/.lib/react.d.ts` never
+  materializes, the golden IS the unresolved outcome, so no resolved
+  variant exists to drift against.
+
+**Exclusions landed: 16 records / 2 fixtures / 1 code** (2339×16),
+authored via `identity.mjs`; manifest now **563 entries =
+host-resolution 319 + jsdoc-semantics 244**, still schema 2 /
+status draft (the pin itself is 9.2's two-step protocol).
+
+**Supported view after the slice (from the tool, never derived):**
+`supported T0 = 79.6466% (16318/20488), supported FN = 4,170`
+(monotone: 4,186 → 4,170); all-corpus view byte-identical
+(T0 77.5165%, 16318/21051, FP=0, FN=4,733);
+`excluded=563 unresolved=563 resolved-t0=0` — nothing implementable
+excluded. Ratchet artifacts byte-unchanged (`ratchet check` green vs
+`origin/main`); `scope audit` ok (dup-canaries 68/65,
+cross-checked=68); families check frozen/433 rows baseline ok;
+escapes 223/0/0/116.
+
+**Status after 9.1c: the phase-9 scope adjudication is COMPLETE and
+FINAL. This slice's merge is the adjudication commit of record — 9.2
+is UNBLOCKED and pins this content SHA plus the settled 563-identity
+set via the §1.2 two-step protocol.**
 
 ## Working rules
 
