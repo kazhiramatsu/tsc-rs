@@ -354,7 +354,14 @@ impl CheckFlags {
     pub const OPTIONAL_PARAMETER: Self = Self(16384);
     /// tsc CheckFlags.RestParameter
     pub const REST_PARAMETER: Self = Self(32768);
-    /// tsc CheckFlags.DeferredType
+    /// tsc CheckFlags.DeferredType — NEVER MINTED in the port (m6
+    /// close): createUnionOrIntersectionProperty computes eagerly
+    /// (the deferral is a perf cache, semantics identical), so no
+    /// writer exists. If you ever set this flag, restore the
+    /// getTypeOfSymbolWithDeferredType / getWriteTypeOfSymbol-
+    /// WithDeferredType arms elided at their dispatch sites
+    /// (annotate.rs get_type_of_symbol, access.rs
+    /// get_write_type_of_symbol) — both carry pointer comments.
     pub const DEFERRED_TYPE: Self = Self(65536);
     /// tsc CheckFlags.HasNeverType
     pub const HAS_NEVER_TYPE: Self = Self(131072);

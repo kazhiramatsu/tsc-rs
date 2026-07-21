@@ -2717,7 +2717,8 @@ impl<'a> CheckerState<'a> {
                         if only_contextual_arity_is_unresolved {
                             return Err(Unsupported::new(
                                 "array-literal relation against a tuple-bearing intersection \
-                                 after element elaboration (contextual tuple arity, M6)",
+                                 after element elaboration (contextual tuple arity; M6 close \
+                                 -> phase-9 2xxx sweep, M7)",
                             ));
                         }
                         // The relation tail is T2, but the outer head
@@ -2731,7 +2732,8 @@ impl<'a> CheckerState<'a> {
                             .ok_or_else(|| {
                                 Unsupported::new(
                                     "tuple-bearing intersection relation display without a \
-                                     directly annotated tuple (nodeBuilder work, M6)",
+                                     directly annotated tuple (nodeBuilder slice; M6 close -> \
+                                     phase-9 2xxx sweep, M7)",
                                 )
                             })?;
                         self.error_at(
@@ -3596,7 +3598,8 @@ impl<'a> CheckerState<'a> {
             let target = self.tables.reference_target(ty);
             let Some(symbol) = self.tables.type_of(target).symbol else {
                 return Err(Unsupported::new(
-                    "symbol-less reference display (tuple renderer, M6)",
+                    "symbol-less reference display (tuple renderer; M6 close -> phase-9 \
+                     2xxx sweep, M7)",
                 ));
             };
             let name = if fully_qualified {

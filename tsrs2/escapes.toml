@@ -119,13 +119,6 @@ count = 2
 
 [[site]]
 file = "crates/checker/src/access.rs"
-in = "get_write_type_of_symbol"
-reason = "deferred synthetic write types (getWriteTypeOfSymbolWithDeferredType, M6)"
-class = "stage"
-owner = "M6"
-
-[[site]]
-file = "crates/checker/src/access.rs"
 in = "report_nonexistent_property"
 reason = "never-narrowed receiver whose declared type survives reduction (narrowing-divergence shield, M8 audit)"
 class = "stage"
@@ -225,13 +218,6 @@ file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_operator_node"
 reason = "type operator without a parent (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_of_symbol"
-reason = "DeferredType symbols (getTypeOfSymbolWithDeferredType, M6)"
-class = "stage"
-owner = "M6"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -539,16 +525,16 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_type_assignable_to"
-reason = "array-literal relation against a tuple-bearing intersection after element elaboration (contextual tuple arity, M6)"
+reason = "array-literal relation against a tuple-bearing intersection after element elaboration (contextual tuple arity; M6 close -> phase-9 2xxx sweep, M7)"
 class = "stage"
-owner = "M6"
+owner = "M7"
 
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "check_type_assignable_to"
-reason = "tuple-bearing intersection relation display without a directly annotated tuple (nodeBuilder work, M6)"
+reason = "tuple-bearing intersection relation display without a directly annotated tuple (nodeBuilder slice; M6 close -> phase-9 2xxx sweep, M7)"
 class = "stage"
-owner = "M6"
+owner = "M7"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -587,9 +573,9 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "type_to_string_slice_structured"
-reason = "symbol-less reference display (tuple renderer, M6)"
+reason = "symbol-less reference display (tuple renderer; M6 close -> phase-9 2xxx sweep, M7)"
 class = "stage"
-owner = "M6"
+owner = "M7"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -759,16 +745,16 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/flow.rs"
 in = "get_assigned_type_of_property_assignment"
-reason = "computed-key destructuring assignment (evaluation-order narrowing family, M6)"
+reason = "computed-key destructuring assignment (evaluation-order narrowing family; M6 close -> unused-band fixture mass, M7)"
 class = "stage"
-owner = "M6"
+owner = "M7"
 
 [[site]]
 file = "crates/checker/src/flow.rs"
 in = "get_narrowed_type_of_symbol"
-reason = "dependent-parameter narrowing over a generic rest type (getInferenceContext nonFixingMapper, M6)"
+reason = "dependent-parameter narrowing over a generic-residue rest type (fixed/unfixed/type-variable probes all port==oracle at M6 close; Inferential-phase shield, M8 audit)"
 class = "stage"
-owner = "M6"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
@@ -1152,9 +1138,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "check_assertion_deferred"
-reason = "assertion deferred without a stashed operand type (speculation-transaction seam, M6)"
+reason = "assertion deferred without a stashed operand type (speculation-ADOPTION seam: zero production begin_speculation sites at M6 close; the stash joins the deferred_nodes survive-set when adoption lands, M8)"
 class = "stage"
-owner = "M6"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1277,9 +1263,9 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/operators.rs"
 in = "elaborate_literal_assignment"
-reason = "failed array-literal relation with a spread element (elaborateArrayLiteral tupleization, M6)"
+reason = "failed array-literal relation with a spread element (elaborateArrayLiteral tupleization; M6 close -> phase-9 2xxx sweep, M7)"
 class = "stage"
-owner = "M6"
+owner = "M7"
 
 [[site]]
 file = "crates/checker/src/operators.rs"

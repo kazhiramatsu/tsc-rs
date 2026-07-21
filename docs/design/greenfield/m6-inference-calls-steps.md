@@ -21,8 +21,9 @@ alternative — candidate state leaking through links or blanket
 panics mid-resolution — is the exact failure mode the M4 5.7a
 deferred re-check protocol only papered over for calls.
 
-Gate: T0 ≥ 58%. Inference moves 2345/2322/2769/2339 together — run
-the full gate per stage, not just call fixtures.
+Gate: full gate per stage — inference moves 2345/2322/2769/2339
+together, never call fixtures alone. (The original "T0 ≥ 58%"
+calibration line here was superseded at close — see Final gate.)
 
 ## Stage 7.0t: speculation scoped-transaction — STATE-SURFACE INVENTORY [M]
 
@@ -831,12 +832,107 @@ counterexamples oracle-verified against vendored 6.0.3):**
   (64570→64577-64579, 64550→64551, 67068→67070) and the widen pin's
   phantom "6133 ×2" oracle claim corrected.
 
-## Final gate
+## Stage 7.6: close tails (landed 2026-07-21, PR #48 @546167ff)
+
+The close adjudication's implementable retirements — every
+dependency had landed in earlier slices:
+
+- `typeof f<...>` instantiation expressions: the TypeQuery face of
+  checkExpressionWithTypeArguments (60602 → 77963) over the already-
+  ported getInstantiationExpressionType; three designed-dead arms
+  activated (node stamp 77999 on the deferred_node slot,
+  getObjectTypeInstantiation declaration selection 63464,
+  instantiateAnonymousType node-carrying copy 63649-63651 — the
+  MAPPED half of the unconstructible assert stays). +7 corpus rows
+  (+5 2xxx), parserTypeQuery8 fully matched, FP=0.
+- getReducedType never-consult in reportNonexistentProperty: the
+  "unported" justification was STALE (E4 landed 59287-59297 — the
+  recurring watch-pattern). The consult reduces the WHOLE declared
+  type: only a whole-type collapse to never reproduces tsc's own
+  lookup failure (oracle-pinned); a union that merely CONTAINS
+  never-reduced cross-product members reduces to its survivors in
+  tsc (getReducedUnionType) — the per-member version broke a live
+  pin (probe_discr) and was corrected before landing. Residual
+  narrowing-divergence shield re-owned M8.
+- Synthetic-spread silent iteration walk: producer enumeration
+  proves the non-array-like synthetic face unconstructible from
+  well-formed variadics (VARIADIC elements are array-like in tsc too
+  — isTypeAssignableTo vs `readonly any[]` through the grammar-
+  forced constraint). tsc-shape walk kept; residual re-owned M8.
+- getTypePredicateFromBody LIVE (79020-79074): tsc's double-write
+  pre-seed (59785-59786) mirrored as the pre-seeded None memo — the
+  re-entrancy shield; synthetic TrueCondition/FalseCondition heads
+  COMPOSE as antecedent-walk + one getTypeAtFlowCondition step in
+  one query (the binder arena is immutable to the checker — recorded
+  deviation, pinned); getEffectsSignature back to tsc shape (the
+  uncertain-flag machinery, its query threading, and the probe all
+  retired). Corpus byte-neutral — the family was corpus-blind
+  exactly as the 7.5d review measured; 7 containment-era pins
+  flipped to live oracle-probed rows (the 2416 override row emits at
+  its exact position; the M5 post-close D1/D2 seam reverts are
+  gone). this-parameter face probed: tsc yields no usable predicate
+  past a leading `this:` (the declaration-list index keys past
+  signature.parameters) — port row-identical, pinned.
+
+## Close — decisions of record (2026-07-21)
+
+**The "T0 ≥ 58%" line is superseded.** It was calibrated before the
+oracle-correction epoch (PR #19: totals became 49024/21051) and the
+A5 family freeze (PR #24). The convergence plan owns close
+semantics: C4 closes milestones "on its A5 family rows and
+canaries, never the aggregate 63% calibration point", and
+landing-order row 9 schedules the 2XXX sweep deliberately AFTER M6.
+Close arithmetic (main @546167ff, T0 54.8813% = 26905/49024, FP=0
+all bands): the FN mass 22,119 partitions exactly into
+M7 families 16,903 (unused 14,613 / checker-grammar 1,352 /
+suggestion 641 / flow-derived 149 / program-resolution 148) +
+2xxx band 4,733 (phase-9) + implicit-any 268 (M6-owned family) +
+M8 196 + M5 residual 21. Reaching 58% needs +1,536 matched rows;
+the entire M6-ownable mass is 268 — arithmetically unreachable
+inside M6 scope, so the aggregate line closes as superseded and M6
+closes on content.
+
+**implicit-any residual (FN=268) adjudication** (M5 precedent:
+flow-strict-nullability closed at FN=21): 149 rows ride
+checkJs/jsdoc-salsa fixtures (M8 band — 98 on
+jsdocTypeFromChainedAssignment3 alone), 39 ride parserharness.ts
+(RealWorld cascade), 80 scattered element-access/binding faces
+whose 7053 emitter is live (matched 15/88 family-wide).
+
+**Escape dispositions** (14 owner=M6 rows at 7.5 → 0 at close):
+
+- Implemented at 7.6: typeof-typeargs; both getTypePredicateFromBody
+  rows (3 sites); never-reduction consult (narrowed M8 residual);
+  synthetic-spread walk (narrowed M8 residual).
+- DELETED with constructibility disproof: both DeferredType arms
+  (getTypeOfSymbolWithDeferredType / getWriteTypeOfSymbolWith-
+  DeferredType) — `CheckFlags::DEFERRED_TYPE` has NO writer in the
+  port (createUnionOrIntersectionProperty computes eagerly, a
+  documented perf-cache divergence); guard note at the flag
+  definition demands the arms return with any future writer.
+- Re-owned M7 (phase-9 sweep dependencies): check.rs contextual
+  tuple arity + intersection display + tuple renderer (212 boundary
+  hits — the largest single curtain, structurally renderable);
+  elaborateArrayLiteral forceTuple (4×2322 hits); computed-key
+  destructuring (12 hits, all on the unused-family fixture).
+- Re-owned M8 (shields with evidence): generic-residue rest
+  narrowing net (fixed/unfixed/type-variable probes all
+  port==oracle — an Inferential-phase shield only); assertion-stash
+  seam (ZERO production begin_speculation sites exist — the 7.0t
+  transaction is machinery-complete but unadopted; survive-set
+  decision recorded at speculate.rs::rollback_speculation).
+
+## Final gate (re-adjudicated at close)
 
 ```sh
-cargo xtask conformance      # expect: T0 ≥ 58%
-cargo xtask ledger check     # zero M6-stub entries remain
+cargo xtask ci               # full gate — green at close
+cargo xtask escapes --stale M6   # zero owner=M6 rows (223/0/0/116)
+cargo xtask ledger check     # zero M6-stub entries (retired at 7.4b)
 ```
+
+M6 closed on content: C3 scope (7.0t transaction + 7.1-7.6) fully
+landed and merged; owner=M6 escapes zero at STAGE=M6; A5 canaries
+green; FP=0 all bands.
 
 ## Expected failure modes
 

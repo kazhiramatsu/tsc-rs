@@ -2184,7 +2184,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
             return Err(Unsupported::new(
                 "computed-key destructuring assignment (evaluation-order narrowing \
-                 family, M6)",
+                 family; M6 close -> unused-band fixture mass, M7)",
             ));
         }
         let assigned = self.get_assigned_type(parent)?;
@@ -4663,7 +4663,9 @@ impl<'a> CheckerState<'a> {
                                 // unresolved inference) unwinds instead
                                 // of narrowing over it.
                                 return Err(Unsupported::new(
-                                    "dependent-parameter narrowing over a generic rest type (getInferenceContext nonFixingMapper, M6)",
+                                    "dependent-parameter narrowing over a generic-residue rest \
+                                     type (fixed/unfixed/type-variable probes all port==oracle \
+                                     at M6 close; Inferential-phase shield, M8 audit)",
                                 ));
                             }
                             let is_union_of_tuples =
