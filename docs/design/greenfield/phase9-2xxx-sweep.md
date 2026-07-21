@@ -286,6 +286,106 @@ non-2307 exclusions came OUT of F1/F6-attributed rows — the code-blind
 harvest the scan existed for. jsdoc-band rows kept IN here (react
 2307s, salsa JS rows) are 9.1b's question only where JSDoc-DRIVEN.
 
+## 9.1b results (2026-07-21, jsdoc adjudication — DONE)
+
+Full code-blind scan of all 4,733 band FNs (1,027 cases), classified by
+the ORACLE record's nature (never by our curtain reason):
+
+1. **Fixture feature scan** (sub-files split at `@filename`; JSDoc-block
+   tags per JS-like vs TS-like sub-file; `@ts-check`; checkJs/allowJs):
+   902 cases / 4,241 FN carry zero JSDoc tags (green); strong queue =
+   tags in JS sub-files or `@ts-check` (122 cases / 323 FN); weak = tags
+   only in TS-like sub-files (3 cases / 169 FN).
+2. **Green safety net**: full-chain-text vocabulary screen (all nested
+   chain levels) over every green FN record — 0 hits.
+3. **Weak queue all-IN**: parser 112 (F2 recovery band) +
+   `fixSignatureCaching.ts` 52 (pure TS fixture) + jsx 5 (.tsx) — JSDoc
+   cannot drive semantics in TS files; text screen 0 hits.
+4. **Strong queue per-record** against fixture + golden chain text, with
+   12 neutralize-probes for every boundary call.
+
+Probe recipe (fully reproducible, no synthetic fixtures): copy the named
+corpus fixture, replace `@` with `%` INSIDE `/** … */` blocks only
+(byte-length preserving — every span stays comparable; `// @filename` /
+`// @ts-check` line pragmas untouched), then
+`cargo xtask expand <variant> --out-dir <dir>` and pipe
+`{"id":1,"programJsonPath":"<dir>/program.json"}` into
+`node crates/oracle/driver.mjs`; convert `start` offsets to line/col via
+the program.json `textB64`. A target FN key that SURVIVES tag
+neutralization is not JSDoc-driven (IN); one that VANISHES is EXCLUDE.
+
+Probe verdicts of record (vendored 6.0.3, 2026-07-21):
+
+- `classCanExtendConstructorFunction`: the two 2507 rows survive
+  (extends-a-TS-FILE-function — `@constructor` is inert in TS files) =
+  IN; 2416/2554×2/2345×2/2417 vanish = EXCLUDE.
+- `constructorFunctions` 2348×2 + C7 2554, `overloadTag2` 2394+2554,
+  `jsdocTypeTagRequiredParameters` 2554×3,
+  `moduleExportWithExportPropertyAssignment` 2554: ALL vanish.
+- `enumTag`: the member-initializer 2322s AND the `Target.UNKNOWN` 2339
+  vanish (without `@enum` the object read is JS-lenient) — all EXCLUDE.
+- SURVIVORS (IN): `privateNameImplicitDeclaration` 2339 (declaration
+  absence), `checkJsdocReturnTag1/2` 2872 (truthiness),
+  `jsdocAugments_noExtends` 2339 (no heritage either way; contrast:
+  `jsdocAugmentsMissingType` 2339 vanishes — the empty tag BREAKS a real
+  base), `typeFromPrototypeAssignment/2` 2339, `thisPropertyAssignment`
+  2339×2, `jsdocOuterTypeParameters1` foo-2339 (tag-position 2304s
+  vanish), `thisTag3` 2339 (its 2730 vanishes),
+  `jsdocTypeFromChainedAssignment` typeof-A 2339,
+  `typeFromJSInitializer` null-rows ×5 (strict initializer typing; its
+  `b = n` row vanishes).
+
+**Exclusions landed: 245 records / 103 fixtures / 36 codes** (snapshot;
+the manifest is the identity authority; total draft entries now 548):
+2322×67, 2345×19, 2339×18, 2300×18, 2304×15, 2352×9, 2353×8, 2355×8,
+2554×8, 2344/2564/2534/2341/2454×6, 2694/2420/2445×4, + tail. Driver
+families: tag-supplied types on relation/override verdicts, tag-position
+lookups (2304/2503/2694 inside `@type`/`@param`/`@template`/`@extends`),
+tag-created symbols (`@typedef`/`@import` duplicate pairs), tag-created
+clauses (`@implements`/`@satisfies`/`@enum`/`@this`/`@overload`,
+accessibility tags), JSDoc casts, and JS ARITY (see rule below). All
+entries `reason: jsdoc-semantics`. `jsdoc/importTag17.ts` ×2 stay under
+their 9.1a host-primary entries — not re-added.
+
+Boundary refinements of record (bind later slices):
+
+- **JS parameter requiredness is JSDoc-driven** (probe-proven three
+  ways): untyped JS parameters are OPTIONAL to tsc — arity verdicts
+  (2554, overload-range 2554, 2769) and param-type verdicts (2345) that
+  exist only via `@param`/`@type`/`@overload` signatures are
+  jsdoc-semantics; the constructor-ness of a propertyless function via
+  `@class`/`@constructor` (2348) rides the same rule.
+- **JS-lenient object reads**: a missing-member read on a JS object
+  literal errors only when a tag CLOSES the type (`@enum` exemplar) —
+  probe before assuming a 2339 is tag-independent.
+- Non-JSDoc assignment-declaration semantics stay IN (contract line,
+  verbatim): expando/prototype/this-assignment rows,
+  `Object.defineProperty`/`Object.assign` descriptor+value semantics
+  (only setter-`@param`-typed property rows are excluded), CJS
+  `module.exports` ordering (2565) and export= type-meaning rules
+  (`moduleExportAssignment7` index.ts 2694×7).
+- Real-code rows in jsdoc fixtures stay IN: real imports (react/
+  prop-types 2307s, 2306/2882), heritage-expression name lookups,
+  d.ts-side rows (`lovefield-ts.d.ts`), duplicate pairs where BOTH
+  declarations are real (`typedefCrossModule5` 2451 Bar).
+- A row whose SPAN sits inside a JSDoc comment is EXCLUDE; the same
+  code at a real-code span is judged by type provenance, per record.
+
+**Supported view after the slice (from the tool, never derived):**
+`supported T0 = 79.5884% (16318/20503), supported FN = 4,185`;
+all-corpus view byte-identical (T0 77.5165%, FP=0, FN=4,733);
+`excluded=548 unresolved=548 resolved-t0=0` — no excluded record is
+currently matched, i.e. nothing implementable was excluded.
+
+**Family re-bins**: the 245 came out of F5's JSDoc-driven share plus
+F1/F6-attributed jsdoc-band rows (the curtain-blind harvest — e.g. the
+satisfies/getContextualType rows were F5-attributed, the 2564/2352
+jsDeclarations rows F6). What remains of F5 is exactly the contract's
+non-JSDoc assignment-declaration work (expando/defineProperty/CJS rows
+kept IN above) for 9.8; the strong-queue keeps re-bin to F5/F6, the
+weak queue stays F1/F2. Both adjudication passes are now complete:
+9.2 pins the 548-identity set as the 2xxx band-freeze ceiling.
+
 ## Working rules
 
 - Curtain retirement = FP-shield removal. Every widened display arm
