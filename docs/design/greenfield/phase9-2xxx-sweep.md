@@ -1,7 +1,7 @@
 # Phase-9 2XXX sweep — worklist and slice plan
 
 Landing-order row 9 ([completion-convergence-plan.md](completion-convergence-plan.md)
-§4): pin 2XXX scope, then sweep to all-corpus FP=0 and supported
+§4): **pin 2XXX scope, then sweep** to all-corpus FP=0 and supported
 FN=0, BEFORE M7. Content charter:
 [2xxx-first-order.md](2xxx-first-order.md) phase 9 (first half —
 band expansion is M7/M8). Working style: the README M8 mining loop
@@ -15,17 +15,24 @@ Process anchors:
 - STAGE stays `M6` for the whole phase (phase 9 is a row between
   milestones, not a milestone; `escapes --stale M6` must stay green
   throughout — new escapes take owner M7/M8).
-- Branches: `p9/<slice>` (e.g. `p9/9.1a-tuple-renderer`).
-- The A2 band pin lands LAST (slice 9.9). Under
+- Branches: `p9/<slice>` (e.g. `p9/9.1a-host-adjudication`).
+- **Adjudication and the A2 band pin land FIRST, before any
+  implementation slice** — row 9's own order, and the point of A2:
+  the supported denominator is fixed before implementation results
+  exist, so the sweep can never quietly shrink its target. Under
   [measurement-integrity.md §3.1](measurement-integrity.md#31-draft-band-pins)
-  a pinned band rejects in-band additions and the pinned set must
-  equal the band subset at its adjudication commit — so every
-  exclusion must be adjudicated before the pin, and the pin commit
-  is the sweep's closing artifact. M7 start requires the row-9 gate
-  AND this pin green.
+  a pinned band rejects in-band additions — post-hoc exclusion is
+  impossible by design. An exclusion resolved later (the record
+  becomes implemented anyway) leaves via a
+  [§3.2 tombstone](measurement-integrity.md#32-resolution-tombstones)
+  with A1 2XXX-view membership proof; a MISSED exclusion discovered
+  mid-sweep cannot be added and is a stop condition (design
+  review). This asymmetry is what forces the 9.1 adjudication pass
+  to be rigorous.
 - Gate at close: `conformance --band 2xxx` all-corpus FP=0,
   supported T0-2xxx = 100% (excluded records stay FN in the
-  all-corpus view by design).
+  all-corpus view by design). M7 start requires this gate AND the
+  pin green.
 
 ## Baseline (2026-07-21, main @5277ae79, measured)
 
@@ -51,12 +58,11 @@ are the baseline measurement, re-mined per slice:
 |---|---|---:|---|---|
 | F1 | Display curtain | ~1,808 | `typeToString beyond the 5.4 display slice` (1,543) + tuple renderer (190) + operator-display identically-named (38) + 2507 display (31) + origin-union (6) | Port the nodeBuilder/typeToString slice to T0-emission grade, shape by shape (`check.rs` `type_to_string_slice_ex`); every widening needs the 7.5 fabrication audit |
 | F2 | Parse-recovery overload band | 1,102 | `overload band over a parse-recovery tree` (887 of 2304, plus 2389/2391/2392/2393-family) | Parser-recovery exactness: make recovery-tree declaration/body boundaries tsc-exact, then narrow the `functions.rs` `checkFunctionOrConstructorSymbol` bail. tsc emits these bands in errored files — the divergence is our tree (2xxx-first-order.md deviation 1) |
-| F3 | Unported type families | 276 | `mapped types (M8-stub)` (185) + `conditional types (M8-stub)` (91) | Port mapped + conditional types (type-from-node, instantiation, relations); the M8-stub escapes retire early |
+| F3 | Unported type families | 285 | `mapped types (M8-stub)` (185) + `conditional types (M8-stub)` (91) + `NoInfer intrinsic (Substitution types)` (9) | Port mapped + conditional types AND the Substitution/NoInfer machinery (type-from-node, instantiation, relations); the M8-stub escapes retire early. NoInfer is MANDATORY here: its 9 rows are ordinary 2322/2345/2353/2741 on noInfer.ts and fit no contract class — exclusion is impossible, so supported FN=0 requires the implementation |
 | F4 | Elaboration engine | ~200 | `elaborateJsxComponents`/JSX attributes (105) + `elaborateObjectLiteral` (42) + `getBestMatchingType` (30) + `elaborateArrayLiteral` (19, incl. forceTuple 4×2322) + `elaborateArrowFunction` (4) | Port elaborateError chain — elaboration REPLACES the parent-position row with child-position rows, so T0 needs it; depends on F1 for message args |
-| F5 | JS/checkJs band (non-JSDoc) | ~161 | `binary expando analysis` (125) + `expando-function member assignment` (19) + `getContextualType parenthesized JSDoc arms` (12) + `isJSConstructor` (5) | Implement non-JSDoc assignment-declaration semantics (contract keeps them IN scope); JSDoc-DRIVEN rows go to adjudication (F7) |
+| F5 | JS/checkJs band (non-JSDoc) | ~161 | `binary expando analysis` (125) + `expando-function member assignment` (19) + `getContextualType parenthesized JSDoc arms` (12) + `isJSConstructor` (5) | Implement non-JSDoc assignment-declaration semantics (contract keeps them IN scope); JSDoc-DRIVEN rows go to adjudication (9.1) |
 | F6 | Rule-gap residue (no-evidence, in-scope) | ~673 | No boundary evidence: 2343×83 (checkExternalEmitHelpers — probe-confirmed in-program tslib fixtures), 2373×60, 2304×68, 2694×42, 2322×59, 2339×34, 2305×31, 2372×17, 2441×16, 2300×15, 2882×13, 2345×12 + tail | Rule-by-rule M8-loop mining: smallest probe → port the emitting branch |
 | F7 | Adjudication candidates | ~489 | No-evidence 2307×289 (conformance/node 228, nonjsExtensions 33) + 2834×120 + 2835×80 | A2 exact-identity exclusions under the out-of-scope contract; gray-zone rule below |
-| — | NoInfer intrinsic | 9 | `NoInfer (Substitution types, M8)` | Rides F3 (Substitution machinery) or stays M8 with the rows adjudicated impossible-before-M8 — decide at 9.3 |
 
 Family sizes are baseline attributions, not budgets: retiring a
 curtain can surface latent FPs (fix as bugs) or reveal deeper
@@ -65,40 +71,53 @@ the truth.
 
 ## Slice plan
 
-Order rationale: F1 first — largest single mass, it is the M6-close
-re-owned dependency set (tuple renderer et al.), it unmasks latent
-wrong verdicts EARLY (7.5 precedent: widening "{}" unmasked 5
-fabrications — better surfaced at 9.1 than at 9.9), and F4/F6 rows
-cannot emit without rendering. F2 is an independent parser axis and
-can interleave. Adjudication (9.6/9.7) runs late so implementable
-rows are not prematurely excluded, but BEFORE the residue slice so
-9.8 mines a purely in-scope remainder.
+Order rationale: adjudication + pin first is the contract (see
+Process anchors — the supported denominator must predate
+implementation results). Premature exclusion of implementable rows
+is prevented by the contract-class test itself, not by deferring
+adjudication: a record is excludable only for WHAT IT IS
+(host-resolution / jsdoc-semantics / emit-dependent), never for
+"unimplemented/hard", and gray-zone records that cannot select
+exactly one disposition stop the slice. Among implementation
+slices, F1 display goes first — largest single mass, it is the
+M6-close re-owned dependency set (tuple renderer et al.), it
+unmasks latent wrong verdicts EARLY (7.5 precedent: widening "{}"
+unmasked 5 fabrications — better surfaced at 9.3 than at 9.9), and
+F4/F6 rows cannot emit without rendering.
 
 | Slice | Content | Exit gate (all: FP=0 all bands, ratchets bumped, ci green) |
 |---|---|---|
-| 9.1a | Tuple renderer (`symbol-less reference display` curtain, 190 rows; M7-re-owned escape row retires) + intersection display + contextual tuple arity + computed-key destructuring rows from the same M6-close re-owned set | Curtain rows flip matched; fabrication audit on every widened arm |
-| 9.1b-9.1x | typeToString shape ladder: mine the 1,543-row curtain by blocking type shape (debug census), then widen shape by shape (references w/ symbols, unions/intersections, anonymous object literals, signatures, indexed access, …) | Per-shape: curtained rows flip, `2xxx` band T0 monotone, fabrication audit each arm |
-| 9.2 | Elaboration engine (F4): elaborateError → elaborateObjectLiteral/ArrayLiteral/ArrowFunction/JsxComponents + getBestMatchingType + reportRelationError head selection | The ~200 elaboration rows; forceTuple escape row retires |
-| 9.3 | Mapped types (F3a, 185 rows): getTypeFromMappedTypeNode, instantiation, apparent members, relations; NoInfer decision | M8-stub escape narrows/retires; no new unrenderable shapes (F1 done) |
-| 9.4 | Conditional types (F3b, 91 rows): resolution, distribution, infer positions (M6 infer machinery is live) | M8-stub escape narrows/retires |
-| 9.5 | Parse-recovery overload band (F2): recovery-boundary parity work in the parser + narrow the functions.rs bail; fixture-driven (conformance/parser 1,181 dir rows) | 887-row 2304 mass + overload-band rows flip; syntactic T0 ≥ 99.8219% held |
-| 9.6 | JS band (F5): non-JSDoc expando/assignment-declaration semantics implemented; JSDoc-driven rows adjudicated `jsdoc-semantics` with exact identities | F5 rows flip or carry exclusion records |
-| 9.7 | Host adjudication (F7): per-record 2307/2834/2835 under `host-resolution`; gray-zone rule: a relative import whose TARGET FILE IS IN-PROGRAM is implementable (extension probing over program files — includes nonjsExtensions 2307s and in-program 2834/2835) and is NOT excludable; package/node_modules/exports-mediated resolution is | Every excluded record an exact A2 identity; remainder implemented or moved to F6 |
-| 9.8 | Residue mining (F6 + everything the re-measures re-attributed): rule-by-rule to supported FN=0 | `conformance --band 2xxx` supported FN=0 |
-| 9.9 | Band pin: A2 `2xxx` band-freeze record (band, adjudication commit = the slice's full 40-hex SHA, complete enumerated identity set) + close re-measure | Row-9 gate green: all-corpus 2XXX FP=0, supported T0-2xxx=100%, `scope audit` green, pin verified vs trusted base |
+| 9.1a | Host adjudication (F7): per-record 2307/2834/2835 under `host-resolution`; gray-zone rule: a relative import whose TARGET FILE IS IN-PROGRAM is implementable (extension probing over program files — includes nonjsExtensions 2307s and in-program 2834/2835) and is NOT excludable; package/node_modules/exports-mediated resolution is. Entries land in the draft manifest | Every excluded record an exact schema-2 A2 identity; `scope audit` green; remainder explicitly re-binned to F6 |
+| 9.1b | JSDoc adjudication: sweep ALL band FNs (reached AND no-evidence — a jsdoc-fixture row behind the display curtain is classified by the ORACLE record's nature, not by our curtain reason) for JSDoc-DRIVEN semantics; non-JSDoc assignment-declaration rows stay IN (contract line, verbatim) | Same per-record discipline; supported FN re-measured = 4,733 − excluded set |
+| 9.2 | **Band pin**, two changes per [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor): (1) the final adjudicated content lands while the manifest is `draft`; (2) a follow-up change records that adjudication commit (full 40-hex SHA of change 1) + the complete enumerated identity set as the `2xxx` band-freeze record | `scope audit` green incl. pin verification vs trusted base; from here the supported denominator is FROZEN |
+| 9.3a | Tuple renderer (`symbol-less reference display` curtain, 190 rows; M7-re-owned escape row retires) + intersection display + contextual tuple arity + computed-key destructuring rows from the same M6-close re-owned set | Curtain rows flip matched; fabrication audit on every widened arm |
+| 9.3b-x | typeToString shape ladder: mine the 1,543-row curtain by blocking type shape (debug census), then widen shape by shape (references w/ symbols, unions/intersections, anonymous object literals, signatures, indexed access, …) | Per-shape: curtained rows flip, `2xxx` band T0 monotone, fabrication audit each arm |
+| 9.4 | Elaboration engine (F4): elaborateError → elaborateObjectLiteral/ArrayLiteral/ArrowFunction/JsxComponents + getBestMatchingType + reportRelationError head selection | The ~200 elaboration rows; forceTuple escape row retires |
+| 9.5 | Mapped types (F3a, 185 rows): getTypeFromMappedTypeNode, instantiation, apparent members, relations | M8-stub escape narrows/retires; no new unrenderable shapes (F1 done) |
+| 9.6 | Conditional types (F3b, 91 rows): resolution, distribution, infer positions (M6 infer machinery is live) + **Substitution/NoInfer (mandatory, 9 rows)** — NoInfer lands with whichever of 9.5/9.6 carries the Substitution machinery; it may not slip to M8 | M8-stub escapes narrow/retire; NoInfer rows flip matched |
+| 9.7 | Parse-recovery overload band (F2): recovery-boundary parity work in the parser + narrow the functions.rs bail; fixture-driven (conformance/parser 1,181 dir rows) | 887-row 2304 mass + overload-band rows flip; syntactic T0 ≥ 99.8219% held |
+| 9.8 | JS band (F5): non-JSDoc expando/assignment-declaration semantics implemented (JSDoc-driven rows were excluded at 9.1b) | F5 in-scope rows flip |
+| 9.9 | Residue mining (F6 + everything the re-measures re-attributed) rule-by-rule to supported FN=0; close re-measure | Row-9 gate green: all-corpus 2XXX FP=0, supported T0-2xxx=100%, `scope audit` green |
 
-Slices 9.3/9.4/9.5 are order-independent among themselves; 9.1
-before 9.2/9.6/9.8 is a real dependency (rendering); 9.7 before 9.8
-keeps the residue in-scope-pure; 9.9 strictly last.
+9.1a/9.1b may interleave but both strictly precede 9.2; 9.2
+strictly precedes every implementation slice. Among
+implementations: 9.3 before 9.4/9.8/9.9 is a real dependency
+(rendering); 9.5/9.6/9.7 are order-independent among themselves and
+against 9.4.
 
-## Adjudication protocol (9.6/9.7 and any stragglers)
+## Adjudication protocol (9.1, binding for the whole phase)
 
 - Contract classes only ([definition-of-done.md](definition-of-done.md)):
   `host-resolution`, `jsdoc-semantics` (+ emit-dependent, which does
   not occur in-band). No new classes without a design review.
+  "Unimplemented", "hard", or "blocked before M8" are NOT classes —
+  such rows stay in the supported denominator and must be
+  implemented (NoInfer is the recorded example).
 - Per-record: every exclusion is one exact schema-2 oracle-record
   identity; duplicate buckets need multiplicity-complete handling
   (65 of the 68 permanent duplicate canaries are in-band).
+- The pass sweeps ALL 4,733 band FNs for contract-class membership,
+  independent of curtain attribution.
 - Gray-zone rules of record:
   - 2343/2354 import-helpers rows are IN scope (probe 2026-07-21:
     the esDecorators fixtures define their own in-program
@@ -111,8 +130,17 @@ keeps the residue in-scope-pure; 9.9 strictly last.
   - JSDoc boundary: JSDoc-DRIVEN semantics (types read from JSDoc
     tags) excludable; non-JSDoc assignment-declaration semantics
     never excludable (contract line, verbatim).
-- Later-resolved exclusions follow §3.2 tombstones (A1 2XXX-view
-  membership proof; the early 2XXX pin reads A1's 2XXX view).
+- Pin mechanics (9.2): the two-change protocol of
+  [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor) —
+  content commit first, pin-record commit second referencing the
+  content commit's SHA. A commit cannot reference its own hash;
+  the pin is never a single commit.
+- Post-pin discipline: in-band additions FAIL (§3.1). A record that
+  should have been excluded but was not is a stop condition — the
+  design-review outcome decides, it is never patched around. An
+  excluded record later implemented resolves via §3.2 tombstone
+  (A1 2XXX-view membership proof; the early 2XXX pin reads A1's
+  2XXX view).
 
 ## Working rules
 
@@ -122,9 +150,11 @@ keeps the residue in-scope-pure; 9.9 strictly last.
   landing (verdict-pin technique where display still curtains the
   relation outcome). FP=0 is the gate, not a hope.
 - Re-measure per slice (`conformance --band 2xxx` to a file, exit
-  code checked); re-attribute the partition in this doc's slice PR
-  when counts move materially. mismatches.json is regenerable —
-  numbers in this doc are snapshots, the tool is the truth.
+  code checked); from 9.2 on, the supported-FN target is fixed at
+  (4,733 − pinned exclusion count) and only moves down.
+  Re-attribute the partition in this doc's slice PR when counts
+  move materially. mismatches.json is regenerable — numbers in
+  this doc are snapshots, the tool is the truth.
 - One slice = one branch = one PR ([CLAUDE.md](../../../CLAUDE.md)
   workflow); ratchet.toml `[t0-2xxx]` + set-ratchet bumps ride the
   slice, never the merge.
@@ -132,5 +162,6 @@ keeps the residue in-scope-pure; 9.9 strictly last.
   after each, `escapes --write-manifest` and review the manifest
   diff; retired M7-re-owned rows are the visible progress ledger.
 - Stop conditions unchanged (convergence plan §6): an exclusion that
-  cannot select exactly one record, or three fixes hitting one
-  model ceiling, stops the slice for design review.
+  cannot select exactly one record, a missed-exclusion discovery
+  after the pin, or three fixes hitting one model ceiling, stops
+  the slice for design review.
