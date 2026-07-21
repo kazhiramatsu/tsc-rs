@@ -92,7 +92,8 @@ F4/F6 rows cannot emit without rendering.
 |---|---|---|
 | 9.1a | Host adjudication: START from the F7 3-code mass (2307/2834/2835) but SCAN ALL 4,733 band FNs — host-resolution is a property of the record's RESOLUTION PATH, not of its code, and any code can ride a host-mediated resolution (recorded counterexample: bundlerNodeModules1.ts 2305×6 through node_modules/package.json `exports`, baseline-binned inside F6's "2305×31"). Gray-zone rule: a relative import whose TARGET FILE IS IN-PROGRAM is implementable (extension probing over program files — includes nonjsExtensions 2307s and in-program 2834/2835) and is NOT excludable; package/node_modules/exports-mediated resolution is. Entries land in the draft manifest | Every excluded record an exact schema-2 A2 identity; `scope audit` green; non-excluded remainder explicitly re-binned to F6 |
 | 9.1b | JSDoc adjudication: same full-4,733 scan (reached AND no-evidence — a jsdoc-fixture row behind the display curtain is classified by the ORACLE record's nature, not by our curtain reason) for JSDoc-DRIVEN semantics; non-JSDoc assignment-declaration rows stay IN (contract line, verbatim) | Same per-record discipline; supported FN re-measured from the tool's `supported_false_negative_diagnostics` (never derived from record counts — bucket semantics, see protocol) |
-| 9.2 | **Band pin**, two changes per [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor): (1) the final adjudicated content lands while the manifest is `draft`; (2) a follow-up change records that adjudication commit (full 40-hex SHA of change 1) + the complete enumerated identity set as the `2xxx` band-freeze record | `scope audit` green incl. pin verification vs trusted base; from here the pinned exclusion set is a CEILING — no in-band exclusion can be added, while the supported denominator may still GROW back toward the full band as resolved exclusions return via §3.2 tombstones |
+| 9.1c | **Host chain-grade re-audit** (added at the 9.1b review — the chain-grade criterion is a change to 9.1a's judging basis, not a spot fix): enumerate ALL 9.1a same-T0-key keeps (every record kept via an unresolvable-variant probe) and re-verify each at T3-equivalent identity — **category + start + length + full chain + related** — against the variant; DRIFT rows (resolved-content embeds) become `host-resolution` exclusions. The DeclarationEmitErrors 2339s (`Promise<resolved-import>` vs `Promise<any>`, scouted at the 9.1b review) are MANDATORY targets. This is the FINAL adjudication commit — 9.2 pins its full SHA and settled set | Same per-record discipline; counts + supported metrics re-measured from the tool; `scope audit` green |
+| 9.2 | **Band pin**, two changes per [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor): (1) the final adjudicated content (= 9.1c) lands while the manifest is `draft`; (2) a follow-up change records that adjudication commit (full 40-hex SHA of change 1) + the complete enumerated identity set as the `2xxx` band-freeze record. **BLOCKED until 9.1c lands** | `scope audit` green incl. pin verification vs trusted base; from here the pinned exclusion set is a CEILING — no in-band exclusion can be added, while the supported denominator may still GROW back toward the full band as resolved exclusions return via §3.2 tombstones |
 | 9.3a | Tuple renderer (`symbol-less reference display` curtain, 190 rows; M7-re-owned escape row retires) + intersection display + contextual tuple arity + computed-key destructuring rows from the same M6-close re-owned set | Curtain rows flip matched; fabrication audit on every widened arm |
 | 9.3b-x | typeToString shape ladder: mine the 1,543-row curtain by blocking type shape (debug census), then widen shape by shape (references w/ symbols, unions/intersections, anonymous object literals, signatures, indexed access, …) | Per-shape: curtained rows flip, `2xxx` band T0 monotone, fabrication audit each arm |
 | 9.4 | Elaboration engine (F4): elaborateError → elaborateObjectLiteral/ArrayLiteral/ArrowFunction/JsxComponents + getBestMatchingType + reportRelationError head selection | The ~200 elaboration rows; forceTuple escape row retires |
@@ -102,11 +103,11 @@ F4/F6 rows cannot emit without rendering.
 | 9.8 | JS band (F5): non-JSDoc expando/assignment-declaration semantics implemented (JSDoc-driven rows were excluded at 9.1b) | F5 in-scope rows flip |
 | 9.9 | Residue mining (F6 + everything the re-measures re-attributed) rule-by-rule to supported FN=0; close re-measure | Row-9 gate green: all-corpus 2XXX FP=0, supported T0-2xxx=100%, `scope audit` green |
 
-9.1a/9.1b may interleave but both strictly precede 9.2; 9.2
-strictly precedes every implementation slice. Among
-implementations: 9.3 before 9.4/9.8/9.9 is a real dependency
-(rendering); 9.5/9.6/9.7 are order-independent among themselves and
-against 9.4.
+9.1a/9.1b may interleave; 9.1c follows both and strictly precedes
+9.2 (the pin is blocked until the re-audit lands); 9.2 strictly
+precedes every implementation slice. Among implementations: 9.3
+before 9.4/9.8/9.9 is a real dependency (rendering); 9.5/9.6/9.7
+are order-independent among themselves and against 9.4.
 
 ## Adjudication protocol (9.1, binding for the whole phase)
 
@@ -264,8 +265,17 @@ Boundary refinements of record (bind 9.1b and later slices):
   the SAME code fails over to EXCLUDE only when a host mechanism
   produced the verdict (e.g. exports-blocked subpaths).
 - Rows probe-proven to fire at the same T0 key without resolution stay
-  IN even when their oracle message embeds a resolved type (message
-  drift is a T1+ concern, not phase-9's).
+  IN even when their oracle message embeds a resolved type — **rule
+  SUPERSEDED at the 9.1b review round** (message drift is a T2+
+  concern under the current tier definitions, and the supported scope
+  is the M8 T1-T4 basis): key-only survival no longer un-excludes.
+  Every keep made under this rule is re-audited in slice 9.1c at
+  T3-equivalent identity (category + start + length + full chain +
+  related); known mandatory targets: the DeclarationEmitErrors 2339s
+  (golden embeds `Promise<{ default: typeof
+  import("/node_modules/pkg/import"); }>`, variant shows
+  `Promise<any>` — scouted DRIFT), while their 2353/2559/2538
+  siblings scouted chain-identical.
 - `/// <reference types>`/typeRoots directive-outcome rows (2688) are
   EXCLUDE; reference directives to ABSENT files materialize nothing in
   the oracle harness either, so downstream name-lookup rows (parser
@@ -285,6 +295,147 @@ siblings 20) re-bin to F5/F6 as in-scope implementation work. The 89
 non-2307 exclusions came OUT of F1/F6-attributed rows — the code-blind
 harvest the scan existed for. jsdoc-band rows kept IN here (react
 2307s, salsa JS rows) are 9.1b's question only where JSDoc-DRIVEN.
+
+## 9.1b results (2026-07-21, jsdoc adjudication — DONE)
+
+Full code-blind scan of all 4,733 band FNs (1,027 cases), classified by
+the ORACLE record's nature (never by our curtain reason):
+
+1. **Fixture feature scan** (sub-files split at `@filename`; JSDoc-block
+   tags per JS-like vs TS-like sub-file; `@ts-check`; checkJs/allowJs):
+   902 cases / 4,241 FN carry zero JSDoc tags (green); strong queue =
+   tags in JS sub-files or `@ts-check` (122 cases / 323 FN); weak = tags
+   only in TS-like sub-files (3 cases / 169 FN).
+2. **Green safety net**: full-chain-text vocabulary screen (all nested
+   chain levels) over every green FN record — 0 hits.
+3. **Weak queue all-IN**: parser 112 (F2 recovery band) +
+   `fixSignatureCaching.ts` 52 (pure TS fixture) + jsx 5 (.tsx) — JSDoc
+   cannot drive semantics in TS files; text screen 0 hits.
+4. **Strong queue per-record** against fixture + golden chain text, with
+   12 neutralize-probes for every boundary call.
+
+Probe recipe (fully reproducible, no synthetic fixtures): copy the named
+corpus fixture, replace `@` with `%` INSIDE `/** … */` blocks only
+(byte-length preserving — every span stays comparable; `// @filename` /
+`// @ts-check` line pragmas untouched), then
+`cargo xtask expand <variant> --out-dir <dir>` and pipe
+`{"id":1,"programJsonPath":"<dir>/program.json"}` into
+`node crates/oracle/driver.mjs`; convert `start` offsets to line/col via
+the program.json `textB64`. A target FN key that SURVIVES tag
+neutralization is not JSDoc-driven (IN); one that VANISHES is EXCLUDE.
+
+Probe verdicts of record (vendored 6.0.3, 2026-07-21):
+
+- `classCanExtendConstructorFunction`: the two 2507 rows survive
+  (extends-a-TS-FILE-function — `@constructor` is inert in TS files) =
+  IN; 2416/2554×2/2345×2/2417 vanish = EXCLUDE.
+- `constructorFunctions` 2348×2 + C7 2554, `overloadTag2` 2394+2554,
+  `jsdocTypeTagRequiredParameters` 2554×3,
+  `moduleExportWithExportPropertyAssignment` 2554: ALL vanish.
+- `enumTag`: the member-initializer 2322s AND the `Target.UNKNOWN` 2339
+  vanish (without `@enum` the object read is JS-lenient) — all EXCLUDE.
+- SURVIVORS (IN): `privateNameImplicitDeclaration` 2339 (declaration
+  absence), `checkJsdocReturnTag1/2` 2872 (truthiness),
+  `jsdocAugments_noExtends` 2339 (no heritage either way; contrast:
+  `jsdocAugmentsMissingType` 2339 vanishes — the empty tag BREAKS a real
+  base), `typeFromPrototypeAssignment/2` 2339, `thisPropertyAssignment`
+  2339×2, `jsdocOuterTypeParameters1` foo-2339 (tag-position 2304s
+  vanish), `thisTag3` 2339 (its 2730 vanishes),
+  `jsdocTypeFromChainedAssignment` typeof-A 2339,
+  `typeFromJSInitializer` null-rows ×5 (strict initializer typing; its
+  `b = n` row vanishes).
+
+Review rounds (PR #52, user review ×2, all re-probed):
+
+- Round 1 (T0 keys): 7 records first authored as exclusions survive
+  neutralization at the same T0 key; one missed EXCLUDE pair was
+  found — `jsDeclarationsReactComponents3.jsx:2:72` 2503,
+  `JSX.Element` INSIDE the `@type` tag; vanishes in BOTH matrix cells
+  while the real-import 2307 rows survive (added ×2).
+- Round 2 (tier correction): un-exclusion by T0-key survival alone is
+  WRONG — the supported scope is the M8 T1-T4 measurement basis and
+  the 9.2 pin is a ceiling (no in-band additions ever after), so a
+  record stays IN only if its FULL chain (and related) is also
+  identical under neutralization; "message drift" is a **T2+**
+  concern under the current tier definitions (T2 = message, T3 =
+  full chain), and drift whose content is tag-derived makes the
+  record UNIMPLEMENTABLE at T2/T3 without out-of-scope JSDoc
+  machinery ⇒ EXCLUDE. Chain-grade re-verification of ALL 25
+  same-key survivors: `checkJsdocSatisfiesTag10/6/7` 2339
+  `/a.js:13:10` chain+related IDENTICAL ⇒ stay IN (the object's
+  inferred literal type persists; only the `@satisfies` 2353s are
+  tag-driven), and the other 18 probe survivors (PD/PG/PH/PI/PJ2/
+  PK/PL/PM/PN/PA-2507s) all chain+related IDENTICAL ⇒ stay IN;
+  but `jsdocTemplateTag` 2322 (`(keyframes: Array<any>) => void`
+  source display is @param-derived), `jsdocTemplateTag8` 2322
+  `18:0`/`56:0` (`Covariant<unknown>`/`Invariant<unknown>` typedef
+  displays + altered nested arms), `jsdocTypeTagCast` 2322 `57:0`
+  (identical head, nested leaf `string | number` is the cast-var
+  type) DRIFT ⇒ returned to EXCLUDE. The criterion change is a change
+  to 9.1a's judging basis too, so its same-T0-key keeps are re-audited
+  as their own slice **9.1c** (see the slice table) at T3-equivalent
+  identity — category + start + length + full chain + related (the
+  9.1b-review scout compared chain+related only) — before 9.2 pins
+  anything.
+
+**Exclusions landed: 244 records / 103 fixtures / 36 codes** (snapshot;
+the manifest is the identity authority; total draft entries now 547):
+2322×67, 2345×19, 2300×18, 2304×15, 2339×15, 2352×9, 2353×8, 2355×8,
+2554×8, 2344/2564/2534/2341/2454×6, 2694/2420/2445×4, + tail. Driver
+families: tag-supplied types on relation/override verdicts, tag-position
+lookups (2304/2503/2694 inside `@type`/`@param`/`@template`/`@extends`),
+tag-created symbols (`@typedef`/`@import` duplicate pairs), tag-created
+clauses (`@implements`/`@satisfies`/`@enum`/`@this`/`@overload`,
+accessibility tags), JSDoc casts, and JS ARITY (see rule below). All
+entries `reason: jsdoc-semantics`. `jsdoc/importTag17.ts` ×2 stay under
+their 9.1a host-primary entries — not re-added.
+
+Boundary refinements of record (bind later slices):
+
+- **JS parameter requiredness is JSDoc-driven** (probe-proven three
+  ways): untyped JS parameters are OPTIONAL to tsc — arity verdicts
+  (2554, overload-range 2554, 2769) and param-type verdicts (2345) that
+  exist only via `@param`/`@type`/`@overload` signatures are
+  jsdoc-semantics; the constructor-ness of a propertyless function via
+  `@class`/`@constructor` (2348) rides the same rule.
+- **JS-lenient object reads**: a missing-member read on a JS object
+  literal errors only when a tag CLOSES the type (`@enum` exemplar) —
+  probe before assuming a 2339 is tag-independent.
+- Non-JSDoc assignment-declaration semantics stay IN (contract line,
+  verbatim): expando/prototype/this-assignment rows,
+  `Object.defineProperty`/`Object.assign` descriptor+value semantics
+  (only setter-`@param`-typed property rows are excluded), CJS
+  `module.exports` ordering (2565) and export= type-meaning rules
+  (`moduleExportAssignment7` index.ts 2694×7).
+- Real-code rows in jsdoc fixtures stay IN: real imports (react/
+  prop-types 2307s, 2306/2882), heritage-expression name lookups,
+  d.ts-side rows (`lovefield-ts.d.ts`), duplicate pairs where BOTH
+  declarations are real (`typedefCrossModule5` 2451 Bar).
+- A row whose SPAN sits inside a JSDoc comment is EXCLUDE; the same
+  code at a real-code span is judged by type provenance, per record.
+
+**Supported view after the slice (from the tool, never derived):**
+`supported T0 = 79.5845% (16318/20504), supported FN = 4,186`;
+all-corpus view byte-identical (T0 77.5165%, FP=0, FN=4,733);
+`excluded=547 unresolved=547 resolved-t0=0` — no excluded record is
+currently matched, i.e. nothing implementable was excluded.
+
+**Family re-bins**: the 244 came out of F5's JSDoc-driven share plus
+F1/F6-attributed jsdoc-band rows (the curtain-blind harvest — e.g. the
+satisfies/getContextualType rows were F5-attributed, the 2564/2352
+jsDeclarations rows F6). What remains of F5 is exactly the contract's
+non-JSDoc assignment-declaration work (expando/defineProperty/CJS rows
+kept IN above) for 9.8; the strong-queue keeps re-bin to F5/F6, the
+weak queue stays F1/F2.
+
+**Status after 9.1b: the JSDoc adjudication is COMPLETE; the 9.1a
+chain-grade re-audit is NOT — 9.2 is BLOCKED on slice 9.1c.** The
+547-entry draft manifest is PROVISIONAL, not the pin set: 9.1c
+re-audits every 9.1a same-T0-key keep at T3-equivalent identity
+(category + start + length + full chain + related), adds DRIFT rows
+as `host-resolution`, re-measures counts and supported metrics from
+the tool, and becomes the final adjudication commit whose full SHA
+and settled identity set 9.2 then pins.
 
 ## Working rules
 
@@ -309,11 +460,12 @@ harvest the scan existed for. jsdoc-band rows kept IN here (react
 - One slice = one branch = one PR ([CLAUDE.md](../../../CLAUDE.md)
   workflow); ratchet.toml `[t0-2xxx]` + set-ratchet bumps ride the
   slice that GREW accepted identities, never the merge. Scope-only
-  slices (9.1a/9.1b/9.2) land with `ratchet check` green and
+  slices (9.1a/9.1b/9.1c/9.2) land with `ratchet check` green and
   ratchet artifacts byte-unchanged — the A2 supported view is not a
   ratchet view, so an all-corpus accepted match neither appears nor
   disappears there and a `ratchet update` would be a no-op by
-  construction.
+  construction (9.1c changes only the A2 manifest, exactly like
+  9.1a/9.1b).
 - Escape hygiene: F1/F2 narrowings shrink existing curtain sites —
   after each, `escapes --write-manifest` and review the manifest
   diff; retired M7-re-owned rows are the visible progress ledger.
