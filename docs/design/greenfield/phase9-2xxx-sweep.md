@@ -460,11 +460,12 @@ and settled identity set 9.2 then pins.
 - One slice = one branch = one PR ([CLAUDE.md](../../../CLAUDE.md)
   workflow); ratchet.toml `[t0-2xxx]` + set-ratchet bumps ride the
   slice that GREW accepted identities, never the merge. Scope-only
-  slices (9.1a/9.1b/9.2) land with `ratchet check` green and
+  slices (9.1a/9.1b/9.1c/9.2) land with `ratchet check` green and
   ratchet artifacts byte-unchanged — the A2 supported view is not a
   ratchet view, so an all-corpus accepted match neither appears nor
   disappears there and a `ratchet update` would be a no-op by
-  construction.
+  construction (9.1c changes only the A2 manifest, exactly like
+  9.1a/9.1b).
 - Escape hygiene: F1/F2 narrowings shrink existing curtain sites —
   after each, `escapes --write-manifest` and review the manifest
   diff; retired M7-re-owned rows are the visible progress ledger.
