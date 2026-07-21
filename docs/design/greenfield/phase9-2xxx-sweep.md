@@ -157,6 +157,135 @@ against 9.4.
   (A1 2XXX-view membership proof; the early 2XXX pin reads A1's
   2XXX view).
 
+## 9.1a results (2026-07-21, host adjudication — DONE)
+
+Full code-blind scan of all 4,733 band FNs (1,027 cases), four passes:
+
+1. **Fixture feature scan** (node_modules/@filename, package.json files,
+   host pragmas baseUrl/paths/rootDirs/typeRoots/types,
+   `/// <reference path|types>`, bare-vs-relative specifiers,
+   in-program `declare module` ambients): 708 cases / 2,682 FN carry
+   ZERO module machinery; 319 cases / 2,051 FN queued.
+2. **Green safety net**: full-chain-text vocabulary screen (all nested
+   chain levels) over every green FN record — 0 hits.
+3. **Queue adjudication**: strong-host cases (206 / 1,869 FN) record by
+   record against fixture + golden chain text; weak cases (113 / 182 FN)
+   text-screened — 17 suspicious, all relative-or-unmaterialized-bare
+   failures, all IN.
+4. **Import-helpers provenance audit** (every 2343/2354/2807 FN
+   corpus-wide): tslib is in-program (file or ambient) everywhere except
+   the two privateName fixtures (node_modules/tslib). The 2343/2354
+   rule of record holds universally; 2807 splits by provenance.
+
+Oracle probes (vendored 6.0.3, expand + driver.mjs; recipes reproducible
+from the fixture shapes named here):
+
+- **P1/P2**: the `nodeModules*TypeModeDeclarationEmitErrors` shapes with
+  pkg made UNRESOLVABLE → 2353/2559/2538 still fire (arg-vs-
+  `ImportCallOptions`, index-type rows) and 2339 still fires at the same
+  span as `Promise<any>`; the 2694 rows VANISH (replaced by
+  2307+1455/1456+2880). ⇒ 2694 needs the exports-resolved namespace
+  (EXCLUDE); the siblings are resolution-independent (IN).
+- **P3**: jsx fixtures' `/// <reference path="/.lib/react.d.ts" />` is
+  NOT materialized by the harness expander — the oracle itself checks
+  with react unresolved, so the jsx-queue records are local-type
+  relations (IN). (Verify by expanding any jsx fixture and reading the
+  program.json files list.)
+
+Probe fixtures, verbatim (re-run recipe:
+`cargo xtask expand <file> --out-dir <dir>` then pipe
+`{"id":1,"programJsonPath":"<dir>/program.json"}` into
+`node crates/oracle/driver.mjs`). P1 — the DeclarationEmitErrors
+`/other.ts`+`/other3.ts`+`/other5.ts` shapes with NO node_modules
+materialized:
+
+```ts
+// @target: es2022
+// @strict: false
+// @module: node16
+// @declaration: true
+// @outDir: out
+// @filename: /other.ts
+// missing assert:
+export type LocalInterface =
+    & import("pkg", {"resolution-mode": "require"}).RequireInterface
+    & import("pkg", {"resolution-mode": "import"}).ImportInterface;
+
+export const a = (null as any as import("pkg", {"resolution-mode": "require"}).RequireInterface);
+export const b = (null as any as import("pkg", {"resolution-mode": "import"}).ImportInterface);
+// @filename: /other3.ts
+// Array instead of object-y thing
+export type LocalInterface =
+    & import("pkg", [ {"resolution-mode": "require"} ]).RequireInterface
+    & import("pkg", [ {"resolution-mode": "import"} ]).ImportInterface;
+
+export const a = (null as any as import("pkg", [ {"resolution-mode": "require"} ]).RequireInterface);
+export const b = (null as any as import("pkg", [ {"resolution-mode": "import"} ]).ImportInterface);
+// @filename: /other5.ts
+export type LocalInterface =
+    & import("pkg", { assert: {} }).RequireInterface
+    & import("pkg", { assert: {} }).ImportInterface;
+
+export const a = (null as any as import("pkg", { assert: {} }).RequireInterface);
+export const b = (null as any as import("pkg", { assert: {} }).ImportInterface);
+```
+
+Observed (vendored 6.0.3): `/other.ts` 2307×3 + 2353@138 + 2339@168
+(`Promise<any>`) + parse-band rows; `/other3.ts` 2307×3 + 2538×3 +
+2559@157 + 2339@192; `/other5.ts` 2307×4 + 2880×4 + 1456×4 — **no
+2694 anywhere**. P2 — the `/other2.ts` shape alone (same pragma
+header, `{ assert: {"bad": "require"} }` / `{"bad": "import"}` in the
+four positions): 2307×4 + 2880×4 + 1455×4, no 2694. The resolvable
+originals (corpus fixtures `nodeModulesImportTypeModeDeclarationEmitErrors1.ts` /
+`nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts`) emit
+2694 at those positions instead.
+
+**Exclusions landed: 303 records / 39 fixtures / 12 codes** (snapshot;
+the manifest is the identity authority): 2307×214, 2694×32, 2305×31,
+2877×6, 2792×6, 2807×4, 2339×3, 2748×2, 2322×2, 2665×1, 2882×1, 2688×1.
+Mediation families: exports/imports-map interpretation (patterns,
+conditions, typesVersions, self-reference, `#`-imports), member/shape
+verdicts on node_modules-resolved modules (incl. untyped and
+node_modules tslib), 2792-vs-2307 code choice (the alternate-resolver
+probe SUCCEEDING against materialized node_modules), and
+typeRoots/`/// <reference types>` probing (2688). All entries
+`reason: host-resolution`; the two `jsdoc/importTag17.ts` rows note the
+JSDoc overlap (host primary).
+
+Boundary refinements of record (bind 9.1b and later slices):
+
+- package.json read as RESOLUTION REDIRECTOR (main/types/exports/
+  imports/typesVersions/self-name) = host; nearest in-program
+  package.json `"type"` as FORMAT input for in-program files = IN scope
+  (the recorded 2834/2835 gray-zone rule depends on it; format-only
+  rows like the GeneratedNameCollisions 2441/2725 ride the same read).
+- A failing bare specifier with nothing materialized is IN scope (the
+  supported resolver reaches the same verdict over program files);
+  the SAME code fails over to EXCLUDE only when a host mechanism
+  produced the verdict (e.g. exports-blocked subpaths).
+- Rows probe-proven to fire at the same T0 key without resolution stay
+  IN even when their oracle message embeds a resolved type (message
+  drift is a T1+ concern, not phase-9's).
+- `/// <reference types>`/typeRoots directive-outcome rows (2688) are
+  EXCLUDE; reference directives to ABSENT files materialize nothing in
+  the oracle harness either, so downstream name-lookup rows (parser
+  realsource 2304 mass, jsx queue) are IN.
+
+**Supported view after the slice (from the tool, never derived):**
+`supported T0 = 78.6485% (16318/20748), supported FN = 4,430`;
+all-corpus view byte-identical (T0 77.5165%, FP=0, FN=4,733);
+`excluded=303 unresolved=303 resolved-t0=0` — no excluded record is
+currently matched, i.e. nothing implementable was excluded.
+
+**F7 re-bin**: of the 3-code floor (2307×289 / 2834×120 / 2835×80),
+214 of the 2307s are excluded; the remaining 75 2307s (nonjsExtensions
+33, relative/failing-bare/format rows) re-bin to F6, and ALL 2834/2835
+(the `nodeModulesAllowJs1.ts` relative-import mass, 200 rows + fixture
+siblings 20) re-bin to F5/F6 as in-scope implementation work. The 89
+non-2307 exclusions came OUT of F1/F6-attributed rows — the code-blind
+harvest the scan existed for. jsdoc-band rows kept IN here (react
+2307s, salsa JS rows) are 9.1b's question only where JSDoc-DRIVEN.
+
 ## Working rules
 
 - Curtain retirement = FP-shield removal. Every widened display arm
