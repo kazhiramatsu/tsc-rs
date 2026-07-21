@@ -189,7 +189,56 @@ from the fixture shapes named here):
 - **P3**: jsx fixtures' `/// <reference path="/.lib/react.d.ts" />` is
   NOT materialized by the harness expander — the oracle itself checks
   with react unresolved, so the jsx-queue records are local-type
-  relations (IN).
+  relations (IN). (Verify by expanding any jsx fixture and reading the
+  program.json files list.)
+
+Probe fixtures, verbatim (re-run recipe:
+`cargo xtask expand <file> --out-dir <dir>` then pipe
+`{"id":1,"programJsonPath":"<dir>/program.json"}` into
+`node crates/oracle/driver.mjs`). P1 — the DeclarationEmitErrors
+`/other.ts`+`/other3.ts`+`/other5.ts` shapes with NO node_modules
+materialized:
+
+```ts
+// @target: es2022
+// @strict: false
+// @module: node16
+// @declaration: true
+// @outDir: out
+// @filename: /other.ts
+// missing assert:
+export type LocalInterface =
+    & import("pkg", {"resolution-mode": "require"}).RequireInterface
+    & import("pkg", {"resolution-mode": "import"}).ImportInterface;
+
+export const a = (null as any as import("pkg", {"resolution-mode": "require"}).RequireInterface);
+export const b = (null as any as import("pkg", {"resolution-mode": "import"}).ImportInterface);
+// @filename: /other3.ts
+// Array instead of object-y thing
+export type LocalInterface =
+    & import("pkg", [ {"resolution-mode": "require"} ]).RequireInterface
+    & import("pkg", [ {"resolution-mode": "import"} ]).ImportInterface;
+
+export const a = (null as any as import("pkg", [ {"resolution-mode": "require"} ]).RequireInterface);
+export const b = (null as any as import("pkg", [ {"resolution-mode": "import"} ]).ImportInterface);
+// @filename: /other5.ts
+export type LocalInterface =
+    & import("pkg", { assert: {} }).RequireInterface
+    & import("pkg", { assert: {} }).ImportInterface;
+
+export const a = (null as any as import("pkg", { assert: {} }).RequireInterface);
+export const b = (null as any as import("pkg", { assert: {} }).ImportInterface);
+```
+
+Observed (vendored 6.0.3): `/other.ts` 2307×3 + 2353@138 + 2339@168
+(`Promise<any>`) + parse-band rows; `/other3.ts` 2307×3 + 2538×3 +
+2559@157 + 2339@192; `/other5.ts` 2307×4 + 2880×4 + 1456×4 — **no
+2694 anywhere**. P2 — the `/other2.ts` shape alone (same pragma
+header, `{ assert: {"bad": "require"} }` / `{"bad": "import"}` in the
+four positions): 2307×4 + 2880×4 + 1455×4, no 2694. The resolvable
+originals (corpus fixtures `nodeModulesImportTypeModeDeclarationEmitErrors1.ts` /
+`nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts`) emit
+2694 at those positions instead.
 
 **Exclusions landed: 303 records / 39 fixtures / 12 codes** (snapshot;
 the manifest is the identity authority): 2307×214, 2694×32, 2305×31,
