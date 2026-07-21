@@ -92,7 +92,8 @@ F4/F6 rows cannot emit without rendering.
 |---|---|---|
 | 9.1a | Host adjudication: START from the F7 3-code mass (2307/2834/2835) but SCAN ALL 4,733 band FNs — host-resolution is a property of the record's RESOLUTION PATH, not of its code, and any code can ride a host-mediated resolution (recorded counterexample: bundlerNodeModules1.ts 2305×6 through node_modules/package.json `exports`, baseline-binned inside F6's "2305×31"). Gray-zone rule: a relative import whose TARGET FILE IS IN-PROGRAM is implementable (extension probing over program files — includes nonjsExtensions 2307s and in-program 2834/2835) and is NOT excludable; package/node_modules/exports-mediated resolution is. Entries land in the draft manifest | Every excluded record an exact schema-2 A2 identity; `scope audit` green; non-excluded remainder explicitly re-binned to F6 |
 | 9.1b | JSDoc adjudication: same full-4,733 scan (reached AND no-evidence — a jsdoc-fixture row behind the display curtain is classified by the ORACLE record's nature, not by our curtain reason) for JSDoc-DRIVEN semantics; non-JSDoc assignment-declaration rows stay IN (contract line, verbatim) | Same per-record discipline; supported FN re-measured from the tool's `supported_false_negative_diagnostics` (never derived from record counts — bucket semantics, see protocol) |
-| 9.2 | **Band pin**, two changes per [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor): (1) the final adjudicated content lands while the manifest is `draft`; (2) a follow-up change records that adjudication commit (full 40-hex SHA of change 1) + the complete enumerated identity set as the `2xxx` band-freeze record | `scope audit` green incl. pin verification vs trusted base; from here the pinned exclusion set is a CEILING — no in-band exclusion can be added, while the supported denominator may still GROW back toward the full band as resolved exclusions return via §3.2 tombstones |
+| 9.1c | **Host chain-grade re-audit** (added at the 9.1b review — the chain-grade criterion is a change to 9.1a's judging basis, not a spot fix): enumerate ALL 9.1a same-T0-key keeps (every record kept via an unresolvable-variant probe) and re-verify each at T3-equivalent identity — **category + start + length + full chain + related** — against the variant; DRIFT rows (resolved-content embeds) become `host-resolution` exclusions. The DeclarationEmitErrors 2339s (`Promise<resolved-import>` vs `Promise<any>`, scouted at the 9.1b review) are MANDATORY targets. This is the FINAL adjudication commit — 9.2 pins its full SHA and settled set | Same per-record discipline; counts + supported metrics re-measured from the tool; `scope audit` green |
+| 9.2 | **Band pin**, two changes per [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor): (1) the final adjudicated content (= 9.1c) lands while the manifest is `draft`; (2) a follow-up change records that adjudication commit (full 40-hex SHA of change 1) + the complete enumerated identity set as the `2xxx` band-freeze record. **BLOCKED until 9.1c lands** | `scope audit` green incl. pin verification vs trusted base; from here the pinned exclusion set is a CEILING — no in-band exclusion can be added, while the supported denominator may still GROW back toward the full band as resolved exclusions return via §3.2 tombstones |
 | 9.3a | Tuple renderer (`symbol-less reference display` curtain, 190 rows; M7-re-owned escape row retires) + intersection display + contextual tuple arity + computed-key destructuring rows from the same M6-close re-owned set | Curtain rows flip matched; fabrication audit on every widened arm |
 | 9.3b-x | typeToString shape ladder: mine the 1,543-row curtain by blocking type shape (debug census), then widen shape by shape (references w/ symbols, unions/intersections, anonymous object literals, signatures, indexed access, …) | Per-shape: curtained rows flip, `2xxx` band T0 monotone, fabrication audit each arm |
 | 9.4 | Elaboration engine (F4): elaborateError → elaborateObjectLiteral/ArrayLiteral/ArrowFunction/JsxComponents + getBestMatchingType + reportRelationError head selection | The ~200 elaboration rows; forceTuple escape row retires |
@@ -102,11 +103,11 @@ F4/F6 rows cannot emit without rendering.
 | 9.8 | JS band (F5): non-JSDoc expando/assignment-declaration semantics implemented (JSDoc-driven rows were excluded at 9.1b) | F5 in-scope rows flip |
 | 9.9 | Residue mining (F6 + everything the re-measures re-attributed) rule-by-rule to supported FN=0; close re-measure | Row-9 gate green: all-corpus 2XXX FP=0, supported T0-2xxx=100%, `scope audit` green |
 
-9.1a/9.1b may interleave but both strictly precede 9.2; 9.2
-strictly precedes every implementation slice. Among
-implementations: 9.3 before 9.4/9.8/9.9 is a real dependency
-(rendering); 9.5/9.6/9.7 are order-independent among themselves and
-against 9.4.
+9.1a/9.1b may interleave; 9.1c follows both and strictly precedes
+9.2 (the pin is blocked until the re-audit lands); 9.2 strictly
+precedes every implementation slice. Among implementations: 9.3
+before 9.4/9.8/9.9 is a real dependency (rendering); 9.5/9.6/9.7
+are order-independent among themselves and against 9.4.
 
 ## Adjudication protocol (9.1, binding for the whole phase)
 
@@ -264,11 +265,17 @@ Boundary refinements of record (bind 9.1b and later slices):
   the SAME code fails over to EXCLUDE only when a host mechanism
   produced the verdict (e.g. exports-blocked subpaths).
 - Rows probe-proven to fire at the same T0 key without resolution stay
-  IN even when their oracle message embeds a resolved type (message
-  drift is a T2+ concern under the current tier definitions —
-  terminology corrected at the 9.1b review round, whose chain-grade
-  rule supersedes key-only survival: these keeps get the same
-  pre-pin chain-grade re-audit before 9.2).
+  IN even when their oracle message embeds a resolved type — **rule
+  SUPERSEDED at the 9.1b review round** (message drift is a T2+
+  concern under the current tier definitions, and the supported scope
+  is the M8 T1-T4 basis): key-only survival no longer un-excludes.
+  Every keep made under this rule is re-audited in slice 9.1c at
+  T3-equivalent identity (category + start + length + full chain +
+  related); known mandatory targets: the DeclarationEmitErrors 2339s
+  (golden embeds `Promise<{ default: typeof
+  import("/node_modules/pkg/import"); }>`, variant shows
+  `Promise<any>` — scouted DRIFT), while their 2353/2559/2538
+  siblings scouted chain-identical.
 - `/// <reference types>`/typeRoots directive-outcome rows (2688) are
   EXCLUDE; reference directives to ABSENT files materialize nothing in
   the oracle harness either, so downstream name-lookup rows (parser
@@ -364,9 +371,12 @@ Review rounds (PR #52, user review ×2, all re-probed):
   `18:0`/`56:0` (`Covariant<unknown>`/`Invariant<unknown>` typedef
   displays + altered nested arms), `jsdocTypeTagCast` 2322 `57:0`
   (identical head, nested leaf `string | number` is the cast-var
-  type) DRIFT ⇒ returned to EXCLUDE. Before 9.2 pins the band, the
-  SAME chain-grade sweep must run over the 9.1a same-T0-key keeps
-  (their rule was recorded with the weaker key-only wording).
+  type) DRIFT ⇒ returned to EXCLUDE. The criterion change is a change
+  to 9.1a's judging basis too, so its same-T0-key keeps are re-audited
+  as their own slice **9.1c** (see the slice table) at T3-equivalent
+  identity — category + start + length + full chain + related (the
+  9.1b-review scout compared chain+related only) — before 9.2 pins
+  anything.
 
 **Exclusions landed: 244 records / 103 fixtures / 36 codes** (snapshot;
 the manifest is the identity authority; total draft entries now 547):
@@ -416,9 +426,16 @@ satisfies/getContextualType rows were F5-attributed, the 2564/2352
 jsDeclarations rows F6). What remains of F5 is exactly the contract's
 non-JSDoc assignment-declaration work (expando/defineProperty/CJS rows
 kept IN above) for 9.8; the strong-queue keeps re-bin to F5/F6, the
-weak queue stays F1/F2. Both adjudication passes are now complete:
-9.2 pins the 547-identity set as the 2xxx band-freeze ceiling,
-after the pre-pin chain-grade sweep of the 9.1a same-key keeps.
+weak queue stays F1/F2.
+
+**Status after 9.1b: the JSDoc adjudication is COMPLETE; the 9.1a
+chain-grade re-audit is NOT — 9.2 is BLOCKED on slice 9.1c.** The
+547-entry draft manifest is PROVISIONAL, not the pin set: 9.1c
+re-audits every 9.1a same-T0-key keep at T3-equivalent identity
+(category + start + length + full chain + related), adds DRIFT rows
+as `host-resolution`, re-measures counts and supported metrics from
+the tool, and becomes the final adjudication commit whose full SHA
+and settled identity set 9.2 then pins.
 
 ## Working rules
 
