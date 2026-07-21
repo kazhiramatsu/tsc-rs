@@ -515,6 +515,54 @@ FINAL. This slice's merge is the adjudication commit of record — 9.2
 is UNBLOCKED and pins this content SHA plus the settled 563-identity
 set via the §1.2 two-step protocol.**
 
+## 9.2 results (2026-07-21, 2xxx band pin — DONE)
+
+The [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor)
+two-step freeze is complete:
+
+- **change 1** = the 9.1c slice commit
+  `3ed4e2fb0ca911c863399d880c8be497d250d620` — the final adjudicated
+  content (draft manifest, 563 exclusions), user-reviewed on PR #53
+  with 0 findings and merged @a529ee7f (tree unchanged);
+- **change 2** = this slice: `band_pins[0] = { band: "2xxx",
+  adjudication_commit: <that full SHA>, identities: <all 563> }` —
+  the complete enumerated identity set (count/hash are derived, never
+  stored). Anchor-side precedent followed: the A5 freeze record cites
+  the content-side slice commit (`ba1c7ef3`, "map lands DRAFT"), not
+  its merge — the band pin does the same.
+
+Verification (all re-derived by `scope audit`, identity compare, not
+self-hash): the anchor must name a full commit SHA, be an ancestor of
+HEAD, hold a DRAFT manifest, and the pinned set must equal the
+2xxx-band subset of the exclusions at that commit. Trusted-base rule:
+new reviewed pins may land; an existing pin is byte-stable forever —
+changing one is an explicit reviewed re-baseline event that never
+rides a slice.
+
+Ceiling semantics now live (§3.1/§3.2, plan of record):
+
+- No in-band exclusion can be ADDED — `scope audit` fails on any 2xxx
+  exclusion outside the pinned set; a missed-exclusion discovery
+  post-pin is a STOP CONDITION (convergence plan §6), not a manifest
+  edit.
+- Resolved exclusions leave via §3.2 tombstones (standing proof = A1
+  membership under the 2xxx fixed view) and RETURN to the supported
+  denominator — the denominator moves UP only, toward the full band.
+- Supported-FN integers keep coming from the tool on every run,
+  monotone non-increasing across implementation slices.
+
+Gates at the pin: all-corpus 2xxx byte-identical (T0=77.5165%,
+16318/21051, FP=0, FN=4,733); supported T0=79.6466% (16318/20488)
+FN=4,170 unchanged from 9.1c (the pin adds no exclusions);
+`excluded=563 unresolved=563 resolved-t0=0`; scope audit ok
+(band-pins=1, dup-canaries 68/65, cross-checked=68, baseline
+origin/main); ratchet artifacts byte-unchanged; families check
+frozen/433 baseline ok; escapes 223/0/0/116.
+
+**Status after 9.2: the 2xxx band is PINNED. Scope work is done —
+implementation begins at 9.3 (display ladder, first slice 9.3a tuple
+renderer).**
+
 ## Working rules
 
 - Curtain retirement = FP-shield removal. Every widened display arm
