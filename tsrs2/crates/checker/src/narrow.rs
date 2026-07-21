@@ -13,11 +13,11 @@
 //! pulled forward from 6.6), effects signatures + type predicates +
 //! the call arm, optionality, and the const-variable guard inlining.
 //! The query flag (`FlowQuery::traversed_inert_arm`) survives as the
-//! narrow M6-DEFERRAL channel: the TS 5.5 body-inference predicate
-//! precondition (getTypePredicateFromBody, flagged at
-//! get_effects_signature — the uncertain no-effects verdict is never
-//! memoized), the synthetic-reference generic-union-constraint
-//! guard, and parser-recovery shapes. The [FLOW M5] failure-face
+//! narrow DEFERRAL channel for the remaining producers: the
+//! synthetic-reference generic-union-constraint guard, M8-dependency
+//! unwinds, and parser-recovery shapes (the M6 body-inference
+//! producer retired at 7.6 — getTypePredicateFromBody is LIVE and
+//! get_effects_signature decides exactly). The [FLOW M5] failure-face
 //! gates retire at 6.6 (they still shield the reachability
 //! true-stub's dead-code divergence — m5-flow-steps.md 6.4 landing
 //! note).
@@ -1369,9 +1369,9 @@ impl<'a> CheckerState<'a> {
     /// The `[Symbol.hasInstance]` PREDICATE consult is LIVE (6.4f):
     /// get_effects_signature resolves the hasInstance method through
     /// its BinaryExpression arm and a first-parameter identifier
-    /// predicate narrows via getNarrowedType(checkDerived) — only the
-    /// body-inference candidate family still flags there (recorded
-    /// M6 deferral). Ordinary constructors — incl. the lib
+    /// predicate narrows via getNarrowedType(checkDerived) — the
+    /// body-inference arm decides for real there since m6 7.6.
+    /// Ordinary constructors — incl. the lib
     /// `Function[Symbol.hasInstance]` returning boolean — have no
     /// predicate in tsc either and take the prototype path exactly.
     fn narrow_type_by_instanceof(
@@ -2750,14 +2750,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:70194-70223
     ///
     /// links.effectsSignature lives state-side (None = the memoized
-    /// unknownSignature verdict). A signature that could carry a
-    /// BODY-INFERRED predicate (TS 5.5 getTypePredicateFromBody — an
-    /// M6-adjacent unported family: annotation-free normal function
-    /// with parameters and a `boolean` return) FLAGS the query — in
-    /// the some() sweep when no definite member decides the
-    /// selection, and on the selected candidate — because tsc might
-    /// resolve a predicate there that we cannot, and the pass-through
-    /// answer would be over-wide.
+    /// unknownSignature verdict). The some() sweep and the selected-
+    /// candidate check consult hasTypePredicateOrNeverReturnType,
+    /// which reaches the LIVE body-inference arm (m6 7.6,
+    /// getTypePredicateFromBody) per member — the selection is exact
+    /// and unflagged; the pre-7.6 uncertain-flag machinery and its
+    /// query threading retired with the arm.
     ///
     /// `query: None` is the reachability walk (isReachableFlowNodeWorker
     /// 70279 — 6.6): there is no flag channel there, so the uncertain
@@ -3123,11 +3121,11 @@ impl<'a> CheckerState<'a> {
     /// memoized noTypePredicate). Instantiated signatures propagate
     /// their target's predicate through the mapper; composite
     /// signatures combine member predicates; declared predicates
-    /// materialize from the TypePredicate return node. The
-    /// getTypePredicateFromBody arm (TS 5.5 inferred predicates) is
-    /// M6-adjacent and unported — its precondition FLAGS at the
-    /// consumers (see get_effects_signature); the jsdoc arm is
-    /// checkJs band.
+    /// materialize from the TypePredicate return node; unannotated
+    /// boolean-returning function-likes take the LIVE body-inference
+    /// arm (m6 7.6, getTypePredicateFromBody 79020-79074 — the
+    /// double-write pre-seed is the re-entrancy shield). The jsdoc
+    /// arm is checkJs band.
     pub(crate) fn get_type_predicate_of_signature(
         &mut self,
         signature: SignatureId,

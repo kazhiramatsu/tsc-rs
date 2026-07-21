@@ -27,8 +27,9 @@
 //! (6.6) — is LIVE, and both caller initialType ladders are flipped
 //! (checkIdentifier + the access.rs assume-uninitialized arm).
 //!
-//! THE SEAM (retires with its last producers — M6 body-inference,
-//! M8-dependency unwinds through the JOIN-SEAM, parser recovery): a
+//! THE SEAM (retires with its last producers — M8-dependency
+//! unwinds through the JOIN-SEAM, parser recovery; the M6
+//! body-inference producer retired at 7.6): a
 //! query whose walk crossed such an arm reverts to the declared-type
 //! answer (auto-converted) at query exit — the deferred arms cannot
 //! reproduce tsc's narrowing, and letting their over-wide
@@ -104,8 +105,9 @@ pub(crate) struct FlowQuery {
     /// cache key — outer None = not computed yet (isKeySet false),
     /// Some(None) = computed, reference has no key.
     pub(crate) key: Option<Option<String>>,
-    /// tsrs-native SEAM flag (retires with its last producers — M6
-    /// body-inference, M8-dependency unwinds, parser recovery): set
+    /// tsrs-native SEAM flag (retires with its last producers —
+    /// M8-dependency unwinds, parser recovery; the M6 body-inference
+    /// producer retired at 7.6): set
     /// when the walk crosses a deferred arm — the query exit forces
     /// such answers back to the declared-type value (auto-converted),
     /// mirrors the flag into `CheckerState::flow_last_query_inert`
@@ -1766,11 +1768,10 @@ impl<'a> CheckerState<'a> {
     /// The worker + the single-entry memo update (tsc writes
     /// lastFlowNode AFTER the walk — the worker's own top-of-loop
     /// consult sees the PREVIOUS query's entry). Fallible tsrs-side:
-    /// the Call arm's effects consult can defer (M6 body-inference
-    /// candidates — narrow.rs get_effects_signature's None-query
-    /// contract) and its signature resolution can unwind; Err leaves
-    /// both memos unwritten, so no undecided verdict outlives the
-    /// failed walk.
+    /// the Call arm's effects consult resolves body inference for
+    /// real (m6 7.6) but its signature resolution can still unwind;
+    /// Err leaves both memos unwritten, so no undecided verdict
+    /// outlives the failed walk.
     pub(crate) fn is_reachable_flow_node(
         &mut self,
         file: usize,

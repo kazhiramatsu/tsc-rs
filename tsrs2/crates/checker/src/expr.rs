@@ -1043,9 +1043,10 @@ impl<'a> CheckerState<'a> {
                 return self.convert_auto_to_any(flow_type);
             }
             if flow_query_inert {
-                // Seam flag (M6/M8 producers): the walk crossed a
-                // body-inference candidate or an unported-dependency
-                // arm, so the suppressed answer could have been tsc's
+                // Seam flag (M8 producers; the M6 body-inference
+                // producer retired at 7.6): the walk crossed an
+                // unported-dependency arm, so the suppressed answer
+                // could have been tsc's
                 // 7034 pair OR a narrowed union. Keep the position
                 // partial so an @ts-expect-error over the suppressed
                 // row cannot misreport as unused (2578), mirroring
