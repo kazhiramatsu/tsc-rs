@@ -7620,6 +7620,23 @@
       "evidence": "2304 'T' in nested type-literal tag position + 2322 vs @template-typed member"
     },
     {
+      "fixture": "conformance/jsdoc/jsdocTemplateTag.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "forgot.js",
+      "start": 356,
+      "length": 25,
+      "code": 2322,
+      "category": "error",
+      "chain_sha256": "e40c6fad733dc9f3adddd921f3d1cfba7725bedd628ec5420e34fdf0b6155ff9",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "line": 22,
+      "col": 0,
+      "reason": "jsdoc-semantics",
+      "evidence": "chain-grade probe: the 2322 survives at the same T0 key but its SOURCE display '(keyframes: Array<any>) => void' is @param-derived (variant shows '(keyframes: any) => void') \u2014 T2/T3 unattainable without JSDoc, and supported scope is the M8 T1-T4 basis"
+    },
+    {
       "fixture": "conformance/jsdoc/jsdocTemplateTag3.ts",
       "matrix_key": "",
       "pass": "semantic",
@@ -7692,6 +7709,23 @@
       "matrix_key": "",
       "pass": "semantic",
       "file": "a.js",
+      "start": 252,
+      "length": 13,
+      "code": 2322,
+      "category": "error",
+      "chain_sha256": "6a3e3f92912779753f1c838cbd1a402115731592577901f82eb5d8ee7c8cd18a",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "line": 18,
+      "col": 0,
+      "reason": "jsdoc-semantics",
+      "evidence": "36:0/55:0 vanish outright; 18:0/56:0 survive at the same T0 key but the chain drifts ('Covariant<unknown>'/'Invariant<unknown>' typedef displays + altered nested arms vs structural variants) \u2014 tag-derived T2/T3 content, EXCLUDE"
+    },
+    {
+      "fixture": "conformance/jsdoc/jsdocTemplateTag8.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "a.js",
       "start": 562,
       "length": 19,
       "code": 2322,
@@ -7702,7 +7736,7 @@
       "line": 36,
       "col": 0,
       "reason": "jsdoc-semantics",
-      "evidence": "Contravariant/Invariant-direction rows vanish without the @typedef/@template types; review probe R5: the 18:0 and 56:0 rows fire at the same T0 key without tags (message drift = T1+ concern) and stay supported"
+      "evidence": "36:0/55:0 vanish outright; 18:0/56:0 survive at the same T0 key but the chain drifts ('Covariant<unknown>'/'Invariant<unknown>' typedef displays + altered nested arms vs structural variants) \u2014 tag-derived T2/T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTemplateTag8.ts",
@@ -7719,7 +7753,24 @@
       "line": 55,
       "col": 0,
       "reason": "jsdoc-semantics",
-      "evidence": "Contravariant/Invariant-direction rows vanish without the @typedef/@template types; review probe R5: the 18:0 and 56:0 rows fire at the same T0 key without tags (message drift = T1+ concern) and stay supported"
+      "evidence": "36:0/55:0 vanish outright; 18:0/56:0 survive at the same T0 key but the chain drifts ('Covariant<unknown>'/'Invariant<unknown>' typedef displays + altered nested arms vs structural variants) \u2014 tag-derived T2/T3 content, EXCLUDE"
+    },
+    {
+      "fixture": "conformance/jsdoc/jsdocTemplateTag8.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "a.js",
+      "start": 955,
+      "length": 13,
+      "code": 2322,
+      "category": "error",
+      "chain_sha256": "1c1fdbb028c6e893c3cac21aa77470e12a490704b7ecbc2cf7e4bb32992707ae",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "line": 56,
+      "col": 0,
+      "reason": "jsdoc-semantics",
+      "evidence": "36:0/55:0 vanish outright; 18:0/56:0 survive at the same T0 key but the chain drifts ('Covariant<unknown>'/'Invariant<unknown>' typedef displays + altered nested arms vs structural variants) \u2014 tag-derived T2/T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTemplateTagDefault.ts",
@@ -8127,7 +8178,7 @@
       "line": 3,
       "col": 19,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
+      "evidence": "@type cast machinery (2352/2322/2454); the 57:0 row survives at the same T0 key with an identical head but its NESTED chain leaf drifts ('string | number' cast-var type vs 'string') \u2014 tag-derived T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8144,7 +8195,7 @@
       "line": 44,
       "col": 22,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
+      "evidence": "@type cast machinery (2352/2322/2454); the 57:0 row survives at the same T0 key with an identical head but its NESTED chain leaf drifts ('string | number' cast-var type vs 'string') \u2014 tag-derived T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8161,7 +8212,7 @@
       "line": 48,
       "col": 25,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
+      "evidence": "@type cast machinery (2352/2322/2454); the 57:0 row survives at the same T0 key with an identical head but its NESTED chain leaf drifts ('string | number' cast-var type vs 'string') \u2014 tag-derived T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8178,7 +8229,7 @@
       "line": 50,
       "col": 23,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
+      "evidence": "@type cast machinery (2352/2322/2454); the 57:0 row survives at the same T0 key with an identical head but its NESTED chain leaf drifts ('string | number' cast-var type vs 'string') \u2014 tag-derived T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8195,7 +8246,24 @@
       "line": 51,
       "col": 23,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
+      "evidence": "@type cast machinery (2352/2322/2454); the 57:0 row survives at the same T0 key with an identical head but its NESTED chain leaf drifts ('string | number' cast-var type vs 'string') \u2014 tag-derived T3 content, EXCLUDE"
+    },
+    {
+      "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "b.js",
+      "start": 1369,
+      "length": 8,
+      "code": 2322,
+      "category": "error",
+      "chain_sha256": "cfcea9378b7ad8f7654c6eadeceb3a9b8823f0dc73de4cac40f72f815ad5cf95",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "line": 57,
+      "col": 0,
+      "reason": "jsdoc-semantics",
+      "evidence": "@type cast machinery (2352/2322/2454); the 57:0 row survives at the same T0 key with an identical head but its NESTED chain leaf drifts ('string | number' cast-var type vs 'string') \u2014 tag-derived T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8212,7 +8280,7 @@
       "line": 65,
       "col": 37,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
+      "evidence": "@type cast machinery (2352/2322/2454); the 57:0 row survives at the same T0 key with an identical head but its NESTED chain leaf drifts ('string | number' cast-var type vs 'string') \u2014 tag-derived T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8229,7 +8297,7 @@
       "line": 66,
       "col": 1,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
+      "evidence": "@type cast machinery (2352/2322/2454); the 57:0 row survives at the same T0 key with an identical head but its NESTED chain leaf drifts ('string | number' cast-var type vs 'string') \u2014 tag-derived T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8246,7 +8314,7 @@
       "line": 66,
       "col": 7,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
+      "evidence": "@type cast machinery (2352/2322/2454); the 57:0 row survives at the same T0 key with an identical head but its NESTED chain leaf drifts ('string | number' cast-var type vs 'string') \u2014 tag-derived T3 content, EXCLUDE"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagParameterType.ts",

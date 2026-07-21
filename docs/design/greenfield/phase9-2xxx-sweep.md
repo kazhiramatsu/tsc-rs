@@ -265,7 +265,10 @@ Boundary refinements of record (bind 9.1b and later slices):
   produced the verdict (e.g. exports-blocked subpaths).
 - Rows probe-proven to fire at the same T0 key without resolution stay
   IN even when their oracle message embeds a resolved type (message
-  drift is a T1+ concern, not phase-9's).
+  drift is a T2+ concern under the current tier definitions —
+  terminology corrected at the 9.1b review round, whose chain-grade
+  rule supersedes key-only survival: these keeps get the same
+  pre-pin chain-grade re-audit before 9.2).
 - `/// <reference types>`/typeRoots directive-outcome rows (2688) are
   EXCLUDE; reference directives to ABSENT files materialize nothing in
   the oracle harness either, so downstream name-lookup rows (parser
@@ -335,22 +338,39 @@ Probe verdicts of record (vendored 6.0.3, 2026-07-21):
   `typeFromJSInitializer` null-rows ×5 (strict initializer typing; its
   `b = n` row vanishes).
 
-Review round (PR #52, user review, all re-probed): 7 records first
-authored as exclusions SURVIVE neutralization at the same T0 key and
-were returned to the supported set — `checkJsdocSatisfiesTag10/6/7`
-2339 `/a.js:13:10` (the object's INFERRED literal type persists; only
-the `@satisfies` 2353s are tag-driven — the JS-lenient-read rule does
-NOT generalize from `enumTag`, probe each), `jsdocTemplateTag` 2322
-`forgot.js:22:0` (the dom-target assignment still fails on the return
-type), `jsdocTemplateTag8` 2322 `a.js:18:0`/`56:0` (structural failure
-persists; message drift = T1+), `jsdocTypeTagCast` 2322 `b.js:57:0`.
-And one missed EXCLUDE pair was added: `jsDeclarationsReactComponents3
-.jsx:2:72` 2503 — `JSX.Element` sits INSIDE the `@type` tag; vanishes
-in BOTH matrix cells while the real-import 2307 rows survive.
+Review rounds (PR #52, user review ×2, all re-probed):
 
-**Exclusions landed: 240 records / 102 fixtures / 36 codes** (snapshot;
-the manifest is the identity authority; total draft entries now 543):
-2322×63, 2345×19, 2300×18, 2304×15, 2339×15, 2352×9, 2353×8, 2355×8,
+- Round 1 (T0 keys): 7 records first authored as exclusions survive
+  neutralization at the same T0 key; one missed EXCLUDE pair was
+  found — `jsDeclarationsReactComponents3.jsx:2:72` 2503,
+  `JSX.Element` INSIDE the `@type` tag; vanishes in BOTH matrix cells
+  while the real-import 2307 rows survive (added ×2).
+- Round 2 (tier correction): un-exclusion by T0-key survival alone is
+  WRONG — the supported scope is the M8 T1-T4 measurement basis and
+  the 9.2 pin is a ceiling (no in-band additions ever after), so a
+  record stays IN only if its FULL chain (and related) is also
+  identical under neutralization; "message drift" is a **T2+**
+  concern under the current tier definitions (T2 = message, T3 =
+  full chain), and drift whose content is tag-derived makes the
+  record UNIMPLEMENTABLE at T2/T3 without out-of-scope JSDoc
+  machinery ⇒ EXCLUDE. Chain-grade re-verification of ALL 25
+  same-key survivors: `checkJsdocSatisfiesTag10/6/7` 2339
+  `/a.js:13:10` chain+related IDENTICAL ⇒ stay IN (the object's
+  inferred literal type persists; only the `@satisfies` 2353s are
+  tag-driven), and the other 18 probe survivors (PD/PG/PH/PI/PJ2/
+  PK/PL/PM/PN/PA-2507s) all chain+related IDENTICAL ⇒ stay IN;
+  but `jsdocTemplateTag` 2322 (`(keyframes: Array<any>) => void`
+  source display is @param-derived), `jsdocTemplateTag8` 2322
+  `18:0`/`56:0` (`Covariant<unknown>`/`Invariant<unknown>` typedef
+  displays + altered nested arms), `jsdocTypeTagCast` 2322 `57:0`
+  (identical head, nested leaf `string | number` is the cast-var
+  type) DRIFT ⇒ returned to EXCLUDE. Before 9.2 pins the band, the
+  SAME chain-grade sweep must run over the 9.1a same-T0-key keeps
+  (their rule was recorded with the weaker key-only wording).
+
+**Exclusions landed: 244 records / 103 fixtures / 36 codes** (snapshot;
+the manifest is the identity authority; total draft entries now 547):
+2322×67, 2345×19, 2300×18, 2304×15, 2339×15, 2352×9, 2353×8, 2355×8,
 2554×8, 2344/2564/2534/2341/2454×6, 2694/2420/2445×4, + tail. Driver
 families: tag-supplied types on relation/override verdicts, tag-position
 lookups (2304/2503/2694 inside `@type`/`@param`/`@template`/`@extends`),
@@ -385,19 +405,20 @@ Boundary refinements of record (bind later slices):
   code at a real-code span is judged by type provenance, per record.
 
 **Supported view after the slice (from the tool, never derived):**
-`supported T0 = 79.5689% (16318/20508), supported FN = 4,190`;
+`supported T0 = 79.5845% (16318/20504), supported FN = 4,186`;
 all-corpus view byte-identical (T0 77.5165%, FP=0, FN=4,733);
-`excluded=543 unresolved=543 resolved-t0=0` — no excluded record is
+`excluded=547 unresolved=547 resolved-t0=0` — no excluded record is
 currently matched, i.e. nothing implementable was excluded.
 
-**Family re-bins**: the 240 came out of F5's JSDoc-driven share plus
+**Family re-bins**: the 244 came out of F5's JSDoc-driven share plus
 F1/F6-attributed jsdoc-band rows (the curtain-blind harvest — e.g. the
 satisfies/getContextualType rows were F5-attributed, the 2564/2352
 jsDeclarations rows F6). What remains of F5 is exactly the contract's
 non-JSDoc assignment-declaration work (expando/defineProperty/CJS rows
 kept IN above) for 9.8; the strong-queue keeps re-bin to F5/F6, the
 weak queue stays F1/F2. Both adjudication passes are now complete:
-9.2 pins the 543-identity set as the 2xxx band-freeze ceiling.
+9.2 pins the 547-identity set as the 2xxx band-freeze ceiling,
+after the pre-pin chain-grade sweep of the 9.1a same-key keeps.
 
 ## Working rules
 
