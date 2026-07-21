@@ -2412,7 +2412,14 @@ impl<'a> CheckerState<'a> {
             .links
             .node(node)
             .assertion_expression_type
-            .ok_or_else(|| Unsupported::new("assertion deferred without a stashed operand type (speculation-transaction seam, M6)"))?;
+            .ok_or_else(|| {
+                Unsupported::new(
+                    "assertion deferred without a stashed operand type \
+                     (speculation-ADOPTION seam: zero production begin_speculation \
+                     sites at M6 close; the stash joins the deferred_nodes \
+                     survive-set when adoption lands, M8)",
+                )
+            })?;
         let base = self.get_base_type_of_literal_type(stashed)?;
         let expr_type = self.get_regular_type_of_object_literal(base)?;
         let target_type = self.get_type_from_type_node(type_node)?;
@@ -2674,7 +2681,8 @@ impl<'a> CheckerState<'a> {
                 {
                     return Err(Unsupported::new(
                         "failed array-literal relation with a spread element \
-                         (elaborateArrayLiteral tupleization, M6)",
+                         (elaborateArrayLiteral tupleization; M6 close -> phase-9 2xxx \
+                         sweep, M7)",
                     ));
                 }
                 for (index, element) in elements.into_iter().enumerate() {

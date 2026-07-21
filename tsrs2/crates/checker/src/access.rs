@@ -2036,16 +2036,15 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_write_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(tsrs2_types::CheckFlags::SYNTHETIC_PROPERTY) {
-            if check_flags.intersects(tsrs2_types::CheckFlags::DEFERRED_TYPE) {
-                // getWriteTypeOfSymbolWithDeferredType (56920-56928):
-                // deferralWriteConstituents exist only once the M6
-                // union/intersection synthetic-property machinery
-                // mints them (createUnionOrIntersectionProperty) —
-                // same family as the M6-owned read side.
-                return Err(Unsupported::new(
-                    "deferred synthetic write types (getWriteTypeOfSymbolWithDeferredType, M6)",
-                ));
-            }
+            // tsc's DeferredType arm (getWriteTypeOfSymbolWithDeferredType,
+            // 56920-56928) is ELIDED as a documented divergence (m6
+            // close): the port's createUnionOrIntersectionProperty
+            // computes eagerly — the deferral is a perf cache with
+            // identical semantics (structural.rs decision) — so
+            // CheckFlags::DEFERRED_TYPE has no writer anywhere
+            // (grep-provable) and deferralWriteConstituents have no
+            // port fields. If a writer ever lands, restore the arm
+            // (guard note at the flag's definition).
             if let crate::links::LinkSlot::Resolved(write_type) =
                 self.links.symbol(symbol).write_type
             {

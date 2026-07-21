@@ -5725,16 +5725,17 @@ impl<'a> CheckerState<'a> {
     ///
     /// Dispatch slice: the Instantiated check-flag arm (5.2),
     /// variable/property symbols (annotation-typed) and function/method
-    /// symbols. DeferredType transients are M6 machinery,
-    /// Mapped/ReverseMapped M8; accessors, classes, enums, modules and
-    /// aliases keep their owning-stage escapes.
+    /// symbols. Mapped/ReverseMapped are M8; accessors, classes,
+    /// enums, modules and aliases keep their owning-stage escapes.
+    /// tsc's DeferredType arm (getTypeOfSymbolWithDeferredType,
+    /// 56945-56947) is ELIDED as a documented divergence (m6 close):
+    /// createUnionOrIntersectionProperty computes eagerly, so
+    /// CheckFlags::DEFERRED_TYPE has no writer anywhere
+    /// (grep-provable) — restore the arm ahead of the Instantiated
+    /// check if a writer ever lands (guard note at the flag's
+    /// definition).
     pub fn get_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         let check_flags = self.links.symbol(symbol).check_flags;
-        if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
-            return Err(Unsupported::new(
-                "DeferredType symbols (getTypeOfSymbolWithDeferredType, M6)",
-            ));
-        }
         if check_flags.intersects(CheckFlags::INSTANTIATED) {
             return self.get_type_of_instantiated_symbol(symbol);
         }

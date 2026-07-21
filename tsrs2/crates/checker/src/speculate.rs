@@ -335,6 +335,15 @@ impl CheckerState<'_> {
     /// `instantiation_count`, `deferred_nodes`, and the
     /// `flow_analysis_disabled` latch deliberately survive — see the
     /// module doc.
+    ///
+    /// M6-close decision of record: when the FIRST production
+    /// begin_speculation site lands (none exists at M6 close — 7.4
+    /// ran trials unwrapped), `assertion_expression_type` must join
+    /// the survive set alongside `deferred_nodes`: tsc never unwinds
+    /// nodeLinks, so a deferred assertion queued under a failed trial
+    /// still reads its stashed operand type at depth 0. The
+    /// operators.rs check_assertion_deferred escape (owner M8) guards
+    /// exactly that seam until then.
     pub fn rollback_speculation(&mut self, mut checkpoint: SpeculationCheckpoint) {
         assert_eq!(
             self.speculation_depth, checkpoint.depth,
