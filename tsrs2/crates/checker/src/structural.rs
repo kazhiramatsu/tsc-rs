@@ -7668,6 +7668,22 @@ mod tests {
     }
 
     #[test]
+    fn this_parameter_blocks_the_body_inferred_predicate() {
+        // tsc iterates func.parameters INCLUDING the this-parameter
+        // (79049's forEach index feeds createTypePredicate), so a
+        // leading `this: object` yields no USABLE predicate for x —
+        // overload 2 (boolean → string) wins and the 2322 reports.
+        // tsc-probed q8 (vendored 6.0.3 noLib): port row-identical,
+        // no off-by-one divergence.
+        assert_eq!(
+            rows_and_partials(
+                "function isStr(this: object, x: unknown) { return typeof x === \"string\"; }\ndeclare function take(p: (this: object, x: unknown) => x is string): number;\ndeclare function take(p: (this: object, x: unknown) => boolean): string;\nconst n: number = take(isStr);\n",
+            ),
+            (vec![(2322, 231, 1)], 0)
+        );
+    }
+
+    #[test]
     fn body_inferred_predicates_decide_for_real() {
         // m6 7.6 flip of the 7.5d containment pins: the body-
         // inference arm (getTypePredicateFromBody, 79019-79074) is
