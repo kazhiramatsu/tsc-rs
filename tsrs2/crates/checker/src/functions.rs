@@ -1481,15 +1481,26 @@ impl<'a> CheckerState<'a> {
                 ));
             }
         }
-        // checkTypeAssignableToAndOptionallyElaborate — the 5.4
-        // head-only slice; `effective_expr` feeds only the elided
-        // elaboration tail.
-        self.check_type_assignable_to(
-            unwrapped_expr_type,
-            unwrapped_return_type,
-            error_node,
-            &diagnostics::Type_0_is_not_assignable_to_type_1,
-        )?;
+        // checkTypeAssignableToAndOptionallyElaborate — elaboration
+        // first (the Step-12 idiom): a literal return operand that
+        // reports an inner member/element row suppresses the outer
+        // head (elaborateError's own entry arms strip parens /
+        // as-const, so the RAW expression descends).
+        let elaborated = match expr {
+            Some(expr) => {
+                !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
+                    && self.elaborate_literal_assignment(expr, unwrapped_return_type)?
+            }
+            None => false,
+        };
+        if !elaborated {
+            self.check_type_assignable_to(
+                unwrapped_expr_type,
+                unwrapped_return_type,
+                error_node,
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )?;
+        }
         Ok(())
     }
 

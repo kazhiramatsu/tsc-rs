@@ -4426,14 +4426,13 @@ mod tests {
     }
 
     #[test]
-    fn tuple_out_of_range_contains_until_tuple_display_lands() {
+    fn tuple_out_of_range_reports_with_the_tuple_display() {
         // Oracle: (2493, 37, 1) "Tuple type '[string, number]' of
-        // length '2' has no element at index '5'." — the tuple
-        // rendering is nodeBuilder (T2), so the statement CONTAINS
-        // (honest FN). Flip to the oracle row when T2 lands.
+        // length '2' has no element at index '5'." — flipped live at
+        // phase-9 9.3a (tuple renderer).
         assert_eq!(
             checked_rows("declare const t: [string, number];\nt[5];\n"),
-            []
+            [(2493, 37, 1)]
         );
     }
 
