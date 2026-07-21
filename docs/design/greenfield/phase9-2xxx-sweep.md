@@ -847,10 +847,13 @@ Decisions of record:
 8. **resolved-t0 = 16 after the slice**: the 9.1c chain-drift 2339
    rows (nodeModulesImport*DeclarationEmitErrors ×8 fixture-cells ×2
    keys) now T0-match — their exclusions were CHAIN-drift verdicts,
-   and T0 membership is the §3.2 singleton proof. They tombstone in
-   this slice's follow-up commit (resolving commit = the
-   implementation commit), returning 16 occurrences to the supported
-   denominator (20488 → 20504).
+   and T0 membership is the §3.2 singleton proof. Tombstoned in this
+   slice's follow-up commit (resolving commit 41b1eabb3da8680d, the
+   implementation commit): exclusions 563 → 547 + 16 standing
+   tombstones, the pin's 563-identity record untouched. Post-
+   tombstone re-measure: resolved-t0=0, supported denominator
+   20488 → 20504, supported T0 = **82.4961%** (16915/20504, all 16
+   returned occurrences matched), supported FN 3,589 unchanged.
 
 Verification pins: 21 new in check.rs — 9 display faces (basic /
 optional+readonly / name faces incl. quote styles / index-before-
