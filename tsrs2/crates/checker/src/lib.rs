@@ -2527,22 +2527,19 @@ mod tests {
     }
 
     #[test]
-    fn tuple_intersection_unrelated_member_head_contains_until_object_display() {
+    fn tuple_intersection_unrelated_member_reports_the_intersection_head() {
         // Oracle: one 2322 head with args '[number]' vs
-        // '[number] & { p: string; }' (+ the missing-'p' chain). The
-        // intersection member is an anonymous object WITH members —
-        // 9.3b display work. The pre-9.3a syntax bridge that
-        // special-cased this head (reading the annotation text)
-        // retired with the tuple renderer; zero corpus rows rode it
-        // (band=all matched integers identical before/after the
-        // deletion), so the head contains honestly until the
-        // object-literal shape renders.
+        // '[number] & { p: string; }' (+ the missing-'p' chain in the
+        // elided tail). The intersection member is an anonymous
+        // object WITH members — rendered by the 9.3b display slice
+        // (this pin was containment-until-9.3b after the pre-9.3a
+        // syntax bridge retired).
         assert_eq!(
             codes_of_with_options(
                 "const x: [number] & { p: string } = [1];",
                 &strict_options(),
             ),
-            Vec::<u32>::new()
+            [2322]
         );
     }
 

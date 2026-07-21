@@ -700,6 +700,176 @@ _tsc.js and fixed, +1 matched each band):**
    parser for the member-name gate. 6 oracle-probed pins
    (probe-93a-review). T2 +67 / T3 +58 on already-matched enum rows.
 
+## 9.3b results (2026-07-22, anonymous-object display + the
+## relation-reporting unlock — DONE)
+
+Shape census first (the 9.3b-x mining step): a THROWAWAY patch tagged
+every display-curtain escape reason with the blocking TypeData shape
+and one `--band 2xxx` run aggregated the tags through the built-in
+`fn_partial_boundary_audit` reasons census — no new tooling. Ranking
+over the 1,891-row curtain: anonymous objects from TYPE LITERALS
+665 (+35 instantiated), OBJECT LITERALS 304, module/namespace value
+faces 198, function/method shapes 165 (+24), template-literal 80,
+string-mapping 26, indexed-access 22, keyof 10, tail ~25. First rung
+= the anonymous-object literal face; signatures are next.
+
+Band movement: all-corpus T0 55.2831% → **56.1766%** (27102 → 27540,
++437 with the review commit's +1 absorbed, FP=0); 2xxx T0 78.4191% →
+**80.3525%** (16508 → 16915, +407); supported-2xxx T0 80.5740% →
+**82.4824%** (16899/20488), supported FN 3,980 → **3,589** (tool
+integers, monotone ✓). Shadow tiers (2xxx): T2 76.9797% → 79.0271%,
+T3 71.7211% → 73.0607%. Curtain attribution re-measured live:
+`typeToString beyond the 5.4 display slice` 1,891 → **1,142** (−749).
+Syntactic band unchanged (2242/2246).
+
+Decisions of record:
+
+1. **The arm is createAnonymousTypeNode's structural tail**
+   (51750-51812 → createTypeNodeFromObjectType 51894-51938 →
+   createTypeNodesFromResolvedType 52137-52240 →
+   addPropertyToElementList 52241-52400): gated to
+   TYPE_LITERAL/OBJECT_LITERAL symbols and symbol-less anonymous
+   types. Every symbol special ahead of the tail (instantiation-
+   expression TypeQuery reuse, JS constructors, typeof-function),
+   the visitedTypes revisit faces (alias-for-literal / `...`
+   elision), single call/construct shorthands, abstract-construct
+   re-derivation, method/accessor member faces, reverse-mapped
+   placeholders, private/unique-symbol names, and non-plain string
+   names stay behind the same M8-tail curtain — the signature rung
+   and later. A state-level `slice_visited_types` set guards
+   recursion on BOTH the symbol-carrying and symbol-less paths (tsc
+   guards only the former; divergence needs a symbol-less
+   self-containing type, which cannot be constructed).
+2. **The 7.5 empty-resolution FP shield carries over**: a
+   symbol-CARRYING shape that resolves to zero members stays
+   curtained (JSON imports M7, checkJs object literals M8 — their
+   member machinery is unported, so an emitted `{}` would fabricate);
+   the symbol-less empty face keeps printing `{}`.
+3. **Member types render STRUCTURALLY** — probed, not assumed: the
+   error-display path never takes the syntacticNodeBuilder
+   annotation-reuse arms (`{ y?: number }` prints
+   `y?: number | undefined`; parenthesized annotations drop their
+   parens; `undefined | string` reorders to `string | undefined`;
+   alias spellings resolve). approximateLength/checkTruncationLength
+   is likewise unmodeled — over-long literals print whole where tsc
+   elides `... N more ...`. Both are text-only tails (row keys are
+   position+code): recorded T2 residue on the M8 nodeBuilder tail,
+   not new escapes.
+4. **Name machinery** (getPropertyNameNodeForSymbol 53411-53442 +
+   createPropertyNameNodeForIdentifierOrLiteral 19208-19212):
+   identifier-able names print bare, numeric canonical names print
+   through js_number_to_string, declared quote styles survive
+   (isSingleQuotedStringNamed reads the literal's closing quote —
+   trivia-immune), computed/element-access names classify through
+   the late-bound nameType's STRING_LIKE flags where tsc re-enters
+   checkExpression (recorded deviation — identical for the
+   literal-typed keys late binding produces), and the negative
+   numeric face prints computed `[-N]`.
+5. **The accessor fall-through is load-bearing**: same read/write
+   type with a non-class parent prints the PLAIN property row
+   (oracle-pinned `{ get p(): string; set p(v: string) }` →
+   `{ p: string; }`); diverging write types and the class-parent
+   arms stay curtained (signature rung).
+6. **typeof faces landed with the named-object arm's
+   instance-side split**: the 5.4-era arm printed class STATICS and
+   enum objects as the bare symbol name; the did-you-mean row
+   surfaced the infidelity as emitted text ('A' where tsc prints
+   'typeof A' — the 9.3a-review lesson pattern again: widening a
+   renderer surfaces child infidelities). isClassInstanceSide keys
+   the split via declared-type comparison; TypeQuery joined the
+   parenthesizer kinds (postfix positions wrap `(typeof C)[]`).
+7. **Fabrication audit, seven families** (NEW_FP=24 first 2xxx
+   re-measure, +18 band=all — every fix at the SOURCE, none display
+   shields):
+   - **hasExcessProperties reporting face** (65347-65410): the
+     engine's verdict-only twin became a shared verdict/report
+     worker (`excess_properties_worker`, tsc's reportErrors2 split —
+     verdict and report CANNOT drift), and the head sites
+     (check_type_assignable_to AND check_type_comparable_to — the
+     comparable case-clause face) run it excess-FIRST: the
+     parent-skipped 2353/2561 IS the top-level code, anchored at the
+     excess property's name, with the spelling suggestion probing
+     getSuggestionForNonexistentProperty. The discriminant-
+     incompatibility half keeps the head (its
+     Types_of_property_0_are_incompatible row is elided-chain
+     content). JSX-attribute sources keep the JSX band's
+     containment.
+   - **elaborateError's entry did-you-mean probe** (63959-63966 +
+     elaborateDidYouMeanToCallOrConstruct 64063-64091): every
+     elaboration entry re-probes a failed callable/constructable
+     source (construct signatures first, Any/Never return guard) and
+     re-reports AT THE EXPRESSION with the 6212/6213 related row —
+     the stringIndexer 2741s anchor at the VALUE, not the member
+     name. `probe_head` threads elaborateError's headMessage;
+     satisfies passes None and keeps its recorded containment.
+   - **Shorthand members elaborate** (generateObjectLiteralElements
+     64443: innerExpression UNDEFINED, errorNode = the name; the
+     shorthand name IS the value reference, so its cached type is
+     the member type). Method/accessor members still skip — the
+     get/set double-yield needs a dedupe decision at the signature
+     rung.
+   - **elaborateElementwise's member lookup is an indexed access**
+     (64131): a property miss falls through to the APPLICABLE INDEX
+     SIGNATURE's value type in both the object walk and the array
+     walk (tuple-like targets keep the limited-elements skip,
+     64393-64401) — numeric-indexer fixtures report their member
+     rows instead of fabricating heads.
+   - **Two more head-only sites got the Step-12 elaborate-first
+     idiom**: the Step-13 merged-declaration initializer row and the
+     constructor-return arm (84560 — headless cTATAOE over the RAW
+     expression; the 2409 lands on EVERY failed relation, elaborated
+     or not, matching the oracle's two-row face).
+   - **reportUnmatchedProperty pre-walk fidelity**: the walk
+     apparent-izes nonPrimitive `object` IN PLACE (renders '{}',
+     the oracle 2741 face), PRIMITIVE sources never take the
+     missing-property faces (reportStructuralErrors = reportErrors
+     && !sourceIsPrimitive), TYPE VARIABLES keep the generic head
+     (their constraint re-enters through a NESTED isRelatedTo and
+     the outer level re-heads with the type-parameter face), and
+     the single-property 2741 renders through
+     getTypeNamesForErrorDisplay's equality re-render.
+     isKnownProperty's index probe switched from the M3-era
+     STRING/NUMBER flag shortcut to the faithful
+     isApplicableIndexType chain — template-literal keys
+     (`[k: \`s${string}\`]`) and symbol keys admit their members
+     (the shortcut FABRICATED excess verdicts there, previously
+     masked by the curtained heads), with the late-bound-name
+     esSymbolType probe and the string-index back-compat disjunct
+     (74828).
+   - **The scanner cooks numbers as ECMA Number#toString**: the
+     local formatter used Rust's f64 Display (never switches to the
+     >=1e21 exponent form) and non-bigint 0B/0O/0X literals kept
+     their EXACT decimal expansion where tsc rounds ONCE through
+     parseInt — member names like `9.671406556917009e+24:` now
+     canonicalize identically, un-fabricating the 7053 element-
+     access family (which the object display had been masking
+     corpus-wide).
+8. **resolved-t0 = 16 after the slice**: the 9.1c chain-drift 2339
+   rows (nodeModulesImport*DeclarationEmitErrors ×8 fixture-cells ×2
+   keys) now T0-match — their exclusions were CHAIN-drift verdicts,
+   and T0 membership is the §3.2 singleton proof. Tombstoned in this
+   slice's follow-up commit (resolving commit 41b1eabb3da8680d, the
+   implementation commit): exclusions 563 → 547 + 16 standing
+   tombstones, the pin's 563-identity record untouched. Post-
+   tombstone re-measure: resolved-t0=0, supported denominator
+   20488 → 20504, supported T0 = **82.4961%** (16915/20504, all 16
+   returned occurrences matched), supported FN 3,589 unchanged.
+
+Verification pins: 21 new in check.rs — 9 display faces (basic /
+optional+readonly / name faces incl. quote styles / index-before-
+properties / nested+union / accessor collapse / method containment /
+class-static + enum typeof) and 12 machinery rows (2353, 2561,
+did-you-mean 2741 at the value, shorthand missing-prop + member row,
+index-fallback member row, constructor 2322+2409 pair, merged-decl
+member row, nonPrimitive '{}' face, template-key clean verdict,
+case-clause 2353, non-finite canonical-name resolution ×3 shapes) —
+all byte-exact against the strict-mode oracle probes (scratchpad
+probe-93b*, probe-93b-pins-final). 2 containment pins flipped live
+(object-literal 2352 assertion faces, tuple-intersection head).
+Escape rows: the new arm's curtain sites join the standing M8
+nodeBuilder-tail reason (manifest diff is the review surface);
+`escapes --stale M6` green, untagged 0, recovery 116 unchanged.
+
 ## Working rules
 
 - Curtain retirement = FP-shield removal. Every widened display arm

@@ -503,6 +503,14 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/check.rs"
+in = "anonymous_object_type_to_string_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+count = 3
+
+[[site]]
+file = "crates/checker/src/check.rs"
 in = "check_indexed_access_type"
 reason = "checkIndexedAccessIndexType under a ConditionalTypeM8"
 class = "stage"
@@ -537,10 +545,48 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/check.rs"
+in = "index_signature_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "property_name_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+count = 2
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "property_signature_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+count = 4
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "string_literal_name_slice"
+reason = "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
 in = "tuple_element_label"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "type_node_from_object_type_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+count = 3
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -646,6 +692,13 @@ count = 2
 file = "crates/checker/src/engine.rs"
 in = "get_normalized_type"
 reason = "getNormalizedType for substitution types (unported family, M8-stub)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/engine.rs"
+in = "report_excess_property"
+reason = "JSX attributes relation reporting (elaborateJsxComponents / headless reportRelationError, T2)"
 class = "stage"
 owner = "M8"
 

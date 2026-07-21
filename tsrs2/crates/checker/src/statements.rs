@@ -319,7 +319,11 @@ impl<'a> CheckerState<'a> {
                             ));
                         }
                         let elaborated = !self.is_type_assignable_to(initializer_type, target)?
-                            && self.elaborate_literal_assignment(initializer, target)?;
+                            && self.elaborate_literal_assignment(
+                                initializer,
+                                target,
+                                Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                            )?;
                         if !elaborated {
                             self.check_type_assignable_to(
                                 initializer_type,
@@ -392,7 +396,11 @@ impl<'a> CheckerState<'a> {
                         ));
                     }
                     let elaborated = !self.is_type_assignable_to(initializer_type, ty)?
-                        && self.elaborate_literal_assignment(initializer, ty)?;
+                        && self.elaborate_literal_assignment(
+                            initializer,
+                            ty,
+                            Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                        )?;
                     if !elaborated {
                         self.check_type_assignable_to(
                             initializer_type,
@@ -554,12 +562,23 @@ impl<'a> CheckerState<'a> {
                          answer (unported narrowing dependency, M6/M8 seam)",
                     ));
                 }
-                self.check_type_assignable_to(
-                    initializer_type,
-                    declaration_type,
-                    Some(node),
-                    &diagnostics::Type_0_is_not_assignable_to_type_1,
-                )?;
+                // checkTypeAssignableToAndOptionallyElaborate like the
+                // Step-12 row: a literal initializer's member row
+                // replaces the merged head.
+                let elaborated = !self.is_type_assignable_to(initializer_type, declaration_type)?
+                    && self.elaborate_literal_assignment(
+                        initializer,
+                        declaration_type,
+                        Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                    )?;
+                if !elaborated {
+                    self.check_type_assignable_to(
+                        initializer_type,
+                        declaration_type,
+                        Some(node),
+                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                    )?;
+                }
             }
             if let Some(value_declaration) = value_declaration {
                 if !self.are_declaration_flags_identical(node, value_declaration) {
@@ -2533,15 +2552,28 @@ impl<'a> CheckerState<'a> {
                     self.error_at(Some(node), &diagnostics::Setters_cannot_return_a_value, &[]);
                 }
             } else if self.kind_of(container) == SyntaxKind::Constructor {
-                if expression.is_some() {
-                    // Both rows land in one baseline: the relation's
-                    // own failure report plus the 2409 head.
-                    if !self.check_type_assignable_to(
-                        expr_type,
-                        return_type,
-                        Some(node),
-                        &diagnostics::Type_0_is_not_assignable_to_type_1,
-                    )? {
+                if let Some(expression) = expression {
+                    // 84560: checkTypeAssignableToAndOptionallyElaborate
+                    // with NO head over the RAW expression (the
+                    // effective-node strip is the annotated-function
+                    // arm's, 84585) — a literal return reports its
+                    // member rows and the headless generic face
+                    // otherwise; the 2409 lands on EVERY failed
+                    // relation, elaborated or not.
+                    if !self.is_type_assignable_to(expr_type, return_type)? {
+                        let elaborated = self.elaborate_literal_assignment(
+                            expression,
+                            return_type,
+                            Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                        )?;
+                        if !elaborated {
+                            self.check_type_assignable_to(
+                                expr_type,
+                                return_type,
+                                Some(node),
+                                &diagnostics::Type_0_is_not_assignable_to_type_1,
+                            )?;
+                        }
                         self.error_at(
                             Some(node),
                             &diagnostics::Return_type_of_constructor_signature_must_be_assignable_to_the_instance_type_of_the_class,

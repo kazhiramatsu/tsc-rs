@@ -1691,12 +1691,24 @@ impl<'text> Scanner<'text> {
             self.pos += 1;
             self.token = SyntaxKind::BigIntLiteral;
         } else {
+            // tsc cooks non-bigint radix literals with
+            // parseInt(digits, radix) — one correctly-rounded f64 —
+            // then Number#toString ("" + numericValue); the
+            // exact-decimal expansion above is the BigInt path's
+            // cooking only. Long literals therefore round ONCE
+            // through the exact decimal (a huge 0B… key names its
+            // member "9.671406556917009e+24", not the full digits).
             if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
-                self.token_value = radix_digits_to_decimal_string(&self.token_value[2..], 2);
+                self.token_value =
+                    js_number_to_string(&radix_digits_to_decimal_string(&self.token_value[2..], 2));
             } else if self.token_flags.contains(TokenFlags::OCTAL_SPECIFIER) {
-                self.token_value = radix_digits_to_decimal_string(&self.token_value[2..], 8);
+                self.token_value =
+                    js_number_to_string(&radix_digits_to_decimal_string(&self.token_value[2..], 8));
             } else if self.token_flags.contains(TokenFlags::HEX_SPECIFIER) {
-                self.token_value = radix_digits_to_decimal_string(&self.token_value[2..], 16);
+                self.token_value = js_number_to_string(&radix_digits_to_decimal_string(
+                    &self.token_value[2..],
+                    16,
+                ));
             } else {
                 self.token_value = js_number_to_string(&self.token_value);
             }
@@ -1885,11 +1897,14 @@ fn js_number_to_string(text: &str) -> String {
         text
     };
 
+    // tsc cooks numeric tokenValues as `"" + +text` — ECMA
+    // Number#toString. Rust's f64 Display never switches to the
+    // >= 1e21 exponent form (and expands small exponents), which
+    // fabricated member names like "9671406556917009000000000" for
+    // `9.671406556917009e+24:` keys — the canonical formatter in
+    // tsrs2-types is the ECMA algorithm.
     match text.parse::<f64>() {
-        Ok(0.0) => "0".to_owned(),
-        Ok(value) if value.is_finite() => value.to_string(),
-        Ok(value) if value.is_sign_positive() => "Infinity".to_owned(),
-        Ok(_) => "-Infinity".to_owned(),
+        Ok(value) => tsrs2_types::js_number_to_string(value),
         Err(_) => "NaN".to_owned(),
     }
 }

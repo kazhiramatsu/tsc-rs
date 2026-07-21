@@ -1583,7 +1583,7 @@ impl<'a> CheckerState<'a> {
 ///
 /// `(+name).toString() === name` — JS ToNumber over the name string,
 /// round-tripped through Number#toString.
-fn is_numeric_literal_name(name: &str) -> bool {
+pub(crate) fn is_numeric_literal_name(name: &str) -> bool {
     tsrs2_types::js_number_to_string(js_string_to_number(name)) == name
 }
 
@@ -1594,11 +1594,15 @@ fn is_infinity_or_nan_string(name: &str) -> bool {
     name == "Infinity" || name == "-Infinity" || name == "NaN"
 }
 
+/// tsrs-native: the `+name` half of isNumericLiteralName (19205-19207)
+/// — JS ToNumber over a name string; tsc gets it from the JS runtime,
+/// so there is no standalone counterpart function to hash.
+///
 /// JS unary `+string` (ToNumber on a string): empty/whitespace → 0,
 /// 0x/0o/0b integer forms, signed decimal/Infinity forms, else NaN.
 /// Rust's f64 parser accepts "inf"/"infinity"/"nan" spellings that JS
 /// rejects, so those pass through the explicit special-form table.
-fn js_string_to_number(text: &str) -> f64 {
+pub(crate) fn js_string_to_number(text: &str) -> f64 {
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return 0.0;
