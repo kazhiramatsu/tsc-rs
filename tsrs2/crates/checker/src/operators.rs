@@ -1442,14 +1442,19 @@ impl<'a> CheckerState<'a> {
             }
             // checkTypeAssignableToAndOptionallyElaborate(valueType,
             // assigneeType, errorNode=LEFT, expr=RIGHT) — elaboration
-            // is the 5.4 head-only slice; `right` feeds only the
-            // elided tail.
-            self.check_type_assignable_to(
-                value_type,
-                assignee_type,
-                Some(left),
-                head_message.unwrap_or(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
-            )?;
+            // first (the Step-12 idiom): a literal RIGHT operand that
+            // reports an inner member/element row suppresses the
+            // LEFT-anchored head.
+            let elaborated = !self.is_type_assignable_to(value_type, assignee_type)?
+                && self.elaborate_literal_assignment(right, assignee_type)?;
+            if !elaborated {
+                self.check_type_assignable_to(
+                    value_type,
+                    assignee_type,
+                    Some(left),
+                    head_message.unwrap_or(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
+                )?;
+            }
         }
         Ok(())
     }
@@ -5350,15 +5355,17 @@ mod tests {
     }
 
     #[test]
-    fn tuple_destructuring_out_of_bounds_contains_on_tuple_display() {
+    fn tuple_destructuring_out_of_bounds_reports_both_rows() {
         // Oracle: (2322, 119, 2) + (2493, 119, 2) — the 2493 args
-        // render the tuple ('[number, string]'), which is T2 display
-        // work; the escape contains the statement.
+        // render the tuple ('[number, string]'); flipped live at
+        // phase-9 9.3a (tuple renderer). Port insertion order: the
+        // element read emits 2493 during the destructured-type walk,
+        // the element assignment then emits 2322.
         assert_eq!(
             checked_rows(
                 "declare const tup: [number, string];\ndeclare let mn: number;\ndeclare let ms: string;\ndeclare let mb: boolean;\n[mn, ms, mb] = tup;\n"
             ),
-            []
+            [(2493, 119, 2), (2322, 119, 2)]
         );
     }
 

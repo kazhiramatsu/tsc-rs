@@ -524,20 +524,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
-in = "check_type_assignable_to"
-reason = "array-literal relation against a tuple-bearing intersection after element elaboration (contextual tuple arity; M6 close -> phase-9 2xxx sweep, M7)"
-class = "stage"
-owner = "M7"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_type_assignable_to"
-reason = "tuple-bearing intersection relation display without a directly annotated tuple (nodeBuilder slice; M6 close -> phase-9 2xxx sweep, M7)"
-class = "stage"
-owner = "M7"
-
-[[site]]
-file = "crates/checker/src/check.rs"
 in = "check_type_reference_or_import"
 reason = "checkTypeArgumentConstraints under a ConditionalTypeM8"
 class = "stage"
@@ -551,10 +537,25 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/check.rs"
-in = "type_to_string_slice_ex"
+in = "tuple_element_label"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "type_to_string_slice_node"
 reason = "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "type_to_string_slice_node"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+count = 3
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -573,16 +574,10 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "type_to_string_slice_structured"
-reason = "symbol-less reference display (tuple renderer; M6 close -> phase-9 2xxx sweep, M7)"
-class = "stage"
-owner = "M7"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "type_to_string_slice_structured"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
+count = 2
 
 [[site]]
 file = "crates/checker/src/class.rs"
@@ -741,13 +736,6 @@ file = "crates/checker/src/expr.rs"
 in = "try_get_this_type_at"
 reason = "class without a bound symbol (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/flow.rs"
-in = "get_assigned_type_of_property_assignment"
-reason = "computed-key destructuring assignment (evaluation-order narrowing family; M6 close -> unused-band fixture mass, M7)"
-class = "stage"
-owner = "M7"
 
 [[site]]
 file = "crates/checker/src/flow.rs"

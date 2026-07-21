@@ -102,8 +102,22 @@
 # 2304 pair + instantiationExpression rows) + getReducedType
 # never-consult + getTypePredicateFromBody (both corpus-byte-neutral —
 # the predicate family was corpus-blind exactly as 7.5d measured).
-rate = 0.548813
-matched = 26905
+# p9 9.3a: +197 — the tuple renderer (typeReferenceToTypeNode's tuple
+# arm as the string slice: labeled/optional/rest/variadic elements,
+# readonly wrap, empty tuple, the factory parenthesizer rules +
+# formatUnionTypes ordering) + the two FP families it unmasked, fixed
+# at the source: propertiesRelatedTo's tuple-arm guard on the
+# missing-property pre-head (tuple target × array/tuple source keeps
+# the generic head) and elaborate-first at the three head-only
+# optionally-elaborate sites (binding-pattern initializer, return,
+# assignment). Computed-key destructuring containment retired
+# (evaluation-order faces probe port==oracle, zero fabrications).
+# p9 9.3a review fixes: +1 — return elaboration takes the EFFECTIVE
+# check node (satisfies strips, tsc 84585-84587) + the EnumLike
+# display arm (E.A / single-member collapse / declared-union E faces;
+# enum members no longer print base literals).
+rate = 0.552852
+matched = 27103
 total = 49024
 allowed_regression = 0.0
 
@@ -130,8 +144,11 @@ allowed_regression = 0.0
 # m4 post-review slice 3 (M6-start bar): +16 (see the T0 comment).
 # m6 7.6: +5 with the instantiation-expression TypeQuery face (see
 # the T0 comment).
-rate = 0.775165
-matched = 16318
+# p9 9.3a: +189 with the tuple renderer + FP-family source fixes (see
+# the T0 comment).
+# p9 9.3a review fixes: +1 (see the T0 comment).
+rate = 0.784191
+matched = 16508
 total = 21051
 allowed_regression = 0.0
 

@@ -27,9 +27,11 @@
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFlags, TypeId};
+use tsrs2_types::{
+    ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFlags, TypeId,
+};
 
-use crate::state::{CheckResult2, CheckerState, SignatureKind, Unsupported};
+use crate::state::{CheckResult2, CheckerState, Unsupported};
 
 /// Debug-only unwind census (the unsupported-unwind invariant):
 /// every transient stack an element check may push must be back at
@@ -2678,72 +2680,6 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
-                // Contextual tuple-from-intersection: literal callers
-                // elaborate element mismatches before reaching this
-                // generic relation. If no element row was reportable,
-                // the remaining verdict depends on contextual tuple
-                // arity (M6), so keep the head contained.
-                if self
-                    .tables
-                    .object_flags_of(source)
-                    .intersects(tsrs2_types::ObjectFlags::ARRAY_LITERAL)
-                    && self
-                        .tables
-                        .flags_of(target)
-                        .intersects(TypeFlags::INTERSECTION)
-                {
-                    let members = match &self.tables.type_of(target).data {
-                        tsrs2_types::TypeData::Intersection { types } => types.to_vec(),
-                        _ => Vec::new(),
-                    };
-                    let mut tuple_member = None;
-                    let mut only_contextual_arity_is_unresolved = true;
-                    for member in members {
-                        if self.is_array_type(member)? || self.tables.is_tuple_type(member) {
-                            tuple_member.get_or_insert(member);
-                            continue;
-                        }
-                        // The contextual source can already carry
-                        // target members, so a second relation check
-                        // here would bless unrelated requirements such
-                        // as `{ p: string }`. Only the literal-length
-                        // shape is part of the known arity gap.
-                        if !self.is_tuple_arity_only_constraint(member)? {
-                            only_contextual_arity_is_unresolved = false;
-                            break;
-                        }
-                    }
-                    if tuple_member.is_some() {
-                        if only_contextual_arity_is_unresolved {
-                            return Err(Unsupported::new(
-                                "array-literal relation against a tuple-bearing intersection \
-                                 after element elaboration (contextual tuple arity; M6 close \
-                                 -> phase-9 2xxx sweep, M7)",
-                            ));
-                        }
-                        // The relation tail is T2, but the outer head
-                        // is determinate. Render the contextual tuple
-                        // (the actual array-literal source in tsc),
-                        // then avoid the missing-property override,
-                        // which is inapplicable to an intersection
-                        // target and otherwise escapes before 2322.
-                        let (source_text, target_text) = self
-                            .tuple_intersection_relation_display_from_syntax(error_node)
-                            .ok_or_else(|| {
-                                Unsupported::new(
-                                    "tuple-bearing intersection relation display without a \
-                                     directly annotated tuple (nodeBuilder slice; M6 close -> \
-                                     phase-9 2xxx sweep, M7)",
-                                )
-                            })?;
-                        self.error_at(
-                            Some(error_node),
-                            head_message,
-                            &[&source_text, &target_text],
-                        );
-                        return Ok(related);
-                    }
-                }
                 // An EXPLICIT tsc headMessage chains OUTERMOST
                 // unconditionally (64860: errorInfo =
                 // chainDiagnosticMessages(errorInfo, headMessage)) —
@@ -2841,57 +2777,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(related)
-    }
-
-    /// Narrow display bridge for the determinate 2322 head above.
-    /// The full tuple renderer is M6; a directly written annotation
-    /// already contains both strings needed by this relation head.
-    fn tuple_intersection_relation_display_from_syntax(
-        &self,
-        error_node: NodeId,
-    ) -> Option<(String, String)> {
-        let mut cursor = Some(error_node);
-        for _ in 0..6 {
-            let current = cursor?;
-            if let Some(annotation) = self.type_annotation_of(current) {
-                if let NodeData::IntersectionType(data) = self.data_of(annotation) {
-                    let tuple_node = self.nodes_of(data.types).into_iter().find(|&member| {
-                        matches!(
-                            self.kind_of(member),
-                            SyntaxKind::TupleType | SyntaxKind::ArrayType
-                        )
-                    })?;
-                    return Some((
-                        self.text_of_node(tuple_node).ok()?,
-                        self.text_of_node(annotation).ok()?,
-                    ));
-                }
-            }
-            cursor = self.parent_of(current);
-        }
-        None
-    }
-
-    /// The remaining M6 hole is specifically a contextual tuple's
-    /// literal `length` relation. It must not hide unrelated required
-    /// members on another intersection constituent.
-    fn is_tuple_arity_only_constraint(&mut self, ty: TypeId) -> CheckResult2<bool> {
-        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
-            return Ok(false);
-        }
-        let properties = self.get_properties_of_type(ty)?;
-        if properties.len() != 1
-            || self.binder.symbol(properties[0]).escaped_name.as_str() != "length"
-        {
-            return Ok(false);
-        }
-        Ok(self
-            .get_signatures_of_type(ty, SignatureKind::Call)?
-            .is_empty()
-            && self
-                .get_signatures_of_type(ty, SignatureKind::Construct)?
-                .is_empty()
-            && self.get_index_infos_of_type(ty)?.is_empty())
     }
 
     /// tsc-port: reportUnmatchedProperty @6.0.3 (the head-override
@@ -3104,6 +2989,21 @@ impl<'a> CheckerState<'a> {
                 TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
             ))
             || !self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
+        {
+            return Ok(false);
+        }
+        // propertiesRelatedTo's tuple arm (66771-66774): a tuple
+        // target with an array-or-tuple source takes the ARITY /
+        // element-position walk — its failures report tuple-arity
+        // chains under the generic relation head (or nothing at the
+        // readonly early return) and never reach
+        // reportUnmatchedProperty, so the missing-property override
+        // must not fire for the pair (a NON-array source against a
+        // tuple target falls through to the generic walk and keeps
+        // the 2741/2739 faces — arityAndOrderCompatibility01's
+        // 'StrNum' rows pin that half).
+        if self.tables.is_tuple_type(target)
+            && (self.is_array_type(source)? || self.tables.is_tuple_type(source))
         {
             return Ok(false);
         }
@@ -3456,6 +3356,19 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         fully_qualified: bool,
     ) -> CheckResult2<String> {
+        Ok(self.type_to_string_slice_node(ty, fully_qualified)?.0)
+    }
+
+    /// The kind-carrying face of the slice renderer: the nodeBuilder
+    /// emits factory TypeNodes and the factory's parenthesizer rules
+    /// branch on the CHILD node's kind at every join, so the string
+    /// slice returns the would-be node kind beside the text and the
+    /// joins apply the same rules (`SliceTypeNodeKind`).
+    fn type_to_string_slice_node(
+        &mut self,
+        ty: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
         if ty == self.marker_super_type_for_check || ty == self.marker_sub_type_for_check {
             // typeToString's type-parameter arm (51535).
             let name = self
@@ -3467,17 +3380,23 @@ impl<'a> CheckerState<'a> {
             } else {
                 "super-"
             };
-            return Ok(match name {
-                Some(name) => format!("{prefix}{name}"),
-                None => "?".to_owned(),
-            });
+            return Ok((
+                match name {
+                    Some(name) => format!("{prefix}{name}"),
+                    None => "?".to_owned(),
+                },
+                SliceTypeNodeKind::Reference,
+            ));
         }
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            return match self.tables.type_of(ty).symbol {
-                Some(symbol) => Ok(self.symbol_display_name(symbol)),
-                None => Ok("?".to_owned()),
-            };
+            return Ok((
+                match self.tables.type_of(ty).symbol {
+                    Some(symbol) => self.symbol_display_name(symbol),
+                    None => "?".to_owned(),
+                },
+                SliceTypeNodeKind::Reference,
+            ));
         }
         // Named object types (interface/class/enum declared shapes)
         // print their symbol name — the nodeBuilder's symbol reference
@@ -3496,27 +3415,92 @@ impl<'a> CheckerState<'a> {
                     .object_flags_of(ty)
                     .intersects(ObjectFlags::REFERENCE)
                 {
-                    return Ok(if fully_qualified {
-                        self.get_fully_qualified_name(symbol)
-                    } else {
-                        self.symbol_display_name(symbol)
-                    });
+                    return Ok((
+                        if fully_qualified {
+                            self.get_fully_qualified_name(symbol)
+                        } else {
+                            self.symbol_display_name(symbol)
+                        },
+                        SliceTypeNodeKind::Reference,
+                    ));
                 }
             }
         }
+        // tsc-port: typeToTypeNodeHelper @6.0.3 (the EnumLike arm)
+        // tsc-hash: 22c6a7f005d1933da0b85f6ceb4faa654d8a927f8cbb782359104a7f3ff37a1a
+        // tsc-span: _tsc.js:51367-51399
+        //
+        // EnumLike precedes the literal arms: enum-member literal
+        // types print `E.A` (or the bare enum name when the member
+        // type IS the declared type — the single-member collapse,
+        // 51371), and the EnumLiteral-stamped declared union prints
+        // `E` here BEFORE the union walk (the formatUnionTypes
+        // collapse hands the declared union back — without this arm
+        // it would re-enter the walk unboundedly). shouldExpandType
+        // (51394) is verbosity-walk machinery the error-display slice
+        // never enables; the non-identifier member face renders as a
+        // `typeof E["..."]` indexed access — out of slice.
+        if flags.intersects(TypeFlags::ENUM_LIKE) {
+            let Some(symbol) = self.tables.type_of(ty).symbol else {
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            };
+            if self
+                .binder
+                .symbol(symbol)
+                .flags
+                .intersects(tsrs2_types::SymbolFlags::ENUM_MEMBER)
+            {
+                let Some(parent) = self.get_parent_of_symbol(symbol) else {
+                    return Err(Unsupported::new(
+                        "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                    ));
+                };
+                let parent_name = if fully_qualified {
+                    self.get_fully_qualified_name(parent)
+                } else {
+                    self.symbol_display_name(parent)
+                };
+                if self.get_declared_type_of_symbol_slice(parent)? == ty {
+                    return Ok((parent_name, SliceTypeNodeKind::Reference));
+                }
+                let member_name = self.symbol_display_name(symbol);
+                if tsrs2_syntax::is_identifier_text(&member_name) {
+                    return Ok((
+                        format!("{parent_name}.{member_name}"),
+                        SliceTypeNodeKind::Reference,
+                    ));
+                }
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            }
+            return Ok((
+                if fully_qualified {
+                    self.get_fully_qualified_name(symbol)
+                } else {
+                    self.symbol_display_name(symbol)
+                },
+                SliceTypeNodeKind::Reference,
+            ));
+        }
         match &self.tables.type_of(ty).data {
-            TypeData::Intrinsic { name, .. } => Ok((*name).to_owned()),
+            TypeData::Intrinsic { name, .. } => {
+                Ok(((*name).to_owned(), SliceTypeNodeKind::Keyword))
+            }
             TypeData::Literal { value } => match value {
                 tsrs2_types::LiteralValue::String(text)
                     if text.chars().all(|c| {
                         c.is_ascii() && !c.is_ascii_control() && c != '"' && c != '\\'
                     }) =>
                 {
-                    Ok(format!("\"{text}\""))
+                    Ok((format!("\"{text}\""), SliceTypeNodeKind::Literal))
                 }
-                tsrs2_types::LiteralValue::Number(value) => {
-                    Ok(tsrs2_types::js_number_to_string(*value))
-                }
+                tsrs2_types::LiteralValue::Number(value) => Ok((
+                    tsrs2_types::js_number_to_string(*value),
+                    SliceTypeNodeKind::Literal,
+                )),
                 _ => Err(Unsupported::new(
                     "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)",
                 )),
@@ -3529,7 +3513,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
         let type_of = self.tables.type_of(ty);
         if let (Some(alias_symbol), alias_arguments) =
             (type_of.alias_symbol, type_of.alias_type_arguments.clone())
@@ -3541,16 +3525,30 @@ impl<'a> CheckerState<'a> {
             };
             return match alias_arguments {
                 Some(arguments) if !arguments.is_empty() => {
+                    // Type-argument lists never parenthesize in the
+                    // slice (parenthesizeOrdinalTypeArgument wraps only
+                    // a LEADING function/constructor head, 20607-20612
+                    // — not a producible child).
                     let mut rendered = Vec::new();
                     for argument in arguments.iter() {
                         rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
                     }
-                    Ok(format!("{name}<{}>", rendered.join(", ")))
+                    Ok((
+                        format!("{name}<{}>", rendered.join(", ")),
+                        SliceTypeNodeKind::Reference,
+                    ))
                 }
-                _ => Ok(name),
+                _ => Ok((name, SliceTypeNodeKind::Reference)),
             };
         }
         let flags = self.tables.flags_of(ty);
+        // typeToTypeNodeHelper's keyword arm precedes the union walk:
+        // the interned `true | false` pair carries TypeFlags::BOOLEAN
+        // (getUnionType's boolean-pair stamp — tables mirror it) and
+        // prints as the keyword, never as its members.
+        if flags.intersects(TypeFlags::BOOLEAN) && flags.intersects(TypeFlags::UNION) {
+            return Ok(("boolean".to_owned(), SliceTypeNodeKind::Keyword));
+        }
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
             let (types, origin) = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, origin } => (types.to_vec(), *origin),
@@ -3572,23 +3570,49 @@ impl<'a> CheckerState<'a> {
                         TypeData::Index { ty: inner, .. } => inner,
                         _ => unreachable!("INDEX flag implies Index data"),
                     };
-                    let inner = self.type_to_string_slice_ex(inner, fully_qualified)?;
-                    return Ok(format!("keyof {inner}"));
+                    let (inner, kind) = self.type_to_string_slice_node(inner, fully_qualified)?;
+                    let inner = if type_operator_operand_needs_parens(kind) {
+                        format!("({inner})")
+                    } else {
+                        inner
+                    };
+                    return Ok((format!("keyof {inner}"), SliceTypeNodeKind::TypeOperator));
                 }
                 return Err(Unsupported::new(
                     "origin-union display beyond keyof origins (M5/M6 verdict shield; nodeBuilder tail, M8)",
                 ));
             }
-            let separator = if flags.intersects(TypeFlags::UNION) {
-                " | "
+            let is_union = flags.intersects(TypeFlags::UNION);
+            let separator = if is_union { " | " } else { " & " };
+            // 51546: union member lists format for display before
+            // rendering; intersections render their stored order.
+            let types = if is_union {
+                self.format_union_types(&types)?
             } else {
-                " & "
+                types
             };
             let mut rendered = Vec::new();
             for member in types {
-                rendered.push(self.type_to_string_slice_ex(member, fully_qualified)?);
+                let (text, kind) = self.type_to_string_slice_node(member, fully_qualified)?;
+                let needs_parens = if is_union {
+                    union_constituent_needs_parens(kind)
+                } else {
+                    intersection_constituent_needs_parens(kind)
+                };
+                rendered.push(if needs_parens {
+                    format!("({text})")
+                } else {
+                    text
+                });
             }
-            return Ok(rendered.join(separator));
+            return Ok((
+                rendered.join(separator),
+                if is_union {
+                    SliceTypeNodeKind::Union
+                } else {
+                    SliceTypeNodeKind::Intersection
+                },
+            ));
         }
         if self
             .tables
@@ -3596,10 +3620,115 @@ impl<'a> CheckerState<'a> {
             .intersects(ObjectFlags::REFERENCE)
         {
             let target = self.tables.reference_target(ty);
+            // typeReferenceToTypeNode's tuple arm (51948-51978),
+            // checked before the symbol head: tuple targets are the
+            // symbol-less references, and the tuple objectFlags test
+            // is disjoint from the global-Array sugar identity test,
+            // so running it first is unobservable against tsc's
+            // dispatch order.
+            if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
+                let element_flags = data.element_flags.clone();
+                let labels = data.labeled_element_declarations.clone();
+                let readonly = data.readonly;
+                // getTypeReferenceArity: length(target.typeParameters).
+                let arity = data.type_parameters.len();
+                let raw_arguments = self.get_type_arguments(ty)?;
+                // 51949: removeMissingType on every OPTIONAL element —
+                // the eOPT missing marker never prints.
+                let mut arguments = Vec::with_capacity(raw_arguments.len());
+                for (i, &argument) in raw_arguments.iter().enumerate() {
+                    let optional = element_flags
+                        .get(i)
+                        .is_some_and(|flags| flags.intersects(ElementFlags::OPTIONAL));
+                    arguments.push(self.remove_missing_type(argument, optional));
+                }
+                // 51950-51952: an empty argument list (and the arity-0
+                // slice, whose mapToTypeNodes returns undefined) falls
+                // through to the empty-tuple tail; typeToString always
+                // runs under IgnoreErrors ⊇ AllowEmptyTuple (50722),
+                // so the error-display slice prints `[]` there.
+                let mut rendered = Vec::with_capacity(arity);
+                for (i, &argument) in arguments.iter().take(arity).enumerate() {
+                    let flags = element_flags[i];
+                    let (text, kind) = self.type_to_string_slice_node(argument, fully_qualified)?;
+                    let label = labels
+                        .as_ref()
+                        .and_then(|labels| labels.get(i).copied())
+                        .flatten();
+                    rendered.push(match label {
+                        // 51959-51964 createNamedTupleMember: `...`
+                        // for Variable elements, `?` for Optional, the
+                        // Rest element type wrapped as an array. The
+                        // member type itself never parenthesizes
+                        // (factory 22247-22256 applies no rule).
+                        Some(label) => {
+                            let name = self.tuple_element_label(NodeId(label))?;
+                            let dot_dot_dot = if flags.intersects(ElementFlags::VARIABLE) {
+                                "..."
+                            } else {
+                                ""
+                            };
+                            let question = if flags.intersects(ElementFlags::OPTIONAL) {
+                                "?"
+                            } else {
+                                ""
+                            };
+                            let member = if flags.intersects(ElementFlags::REST) {
+                                array_type_node_text(text, kind)
+                            } else {
+                                text
+                            };
+                            format!("{dot_dot_dot}{name}{question}: {member}")
+                        }
+                        // 51966: RestTypeNode (`...T[]` for Rest,
+                        // `...T` for Variadic — createRestTypeNode
+                        // applies no parenthesizer) ‖ OptionalTypeNode
+                        // (`T?`, postfix-parenthesized) ‖ the bare
+                        // element.
+                        None => {
+                            if flags.intersects(ElementFlags::VARIABLE) {
+                                let member = if flags.intersects(ElementFlags::REST) {
+                                    array_type_node_text(text, kind)
+                                } else {
+                                    text
+                                };
+                                format!("...{member}")
+                            } else if flags.intersects(ElementFlags::OPTIONAL) {
+                                let member = if optional_type_operand_needs_parens(kind) {
+                                    format!("({text})")
+                                } else {
+                                    text
+                                };
+                                format!("{member}?")
+                            } else {
+                                text
+                            }
+                        }
+                    });
+                }
+                // SingleLine TupleTypeNode emission `[a, b]`;
+                // 51970/51975 wrap readonly targets in the readonly
+                // TypeOperator (a tuple operand never parenthesizes,
+                // 20570-20576).
+                let tuple = if rendered.is_empty() {
+                    "[]".to_owned()
+                } else {
+                    format!("[{}]", rendered.join(", "))
+                };
+                return Ok(if readonly {
+                    (format!("readonly {tuple}"), SliceTypeNodeKind::TypeOperator)
+                } else {
+                    (tuple, SliceTypeNodeKind::Tuple)
+                });
+            }
             let Some(symbol) = self.tables.type_of(target).symbol else {
+                // Non-tuple symbol-less reference targets are not
+                // minted today (reference targets are GenericType or
+                // TupleTarget — see the arity match below); the shape
+                // stays behind the structured tail's curtain rather
+                // than a fresh panic claim.
                 return Err(Unsupported::new(
-                    "symbol-less reference display (tuple renderer; M6 close -> phase-9 \
-                     2xxx sweep, M7)",
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
             };
             let name = if fully_qualified {
@@ -3613,11 +3742,17 @@ impl<'a> CheckerState<'a> {
             // sugar probe reads the PLAIN name — lib globals are
             // parentless, so the qualified head matches too).
             if arguments.len() == 1 && (name == "Array" || name == "ReadonlyArray") {
-                let element = self.type_to_string_slice_ex(arguments[0], fully_qualified)?;
+                let (element, kind) =
+                    self.type_to_string_slice_node(arguments[0], fully_qualified)?;
+                // 51945-51947: ArrayTypeNode (postfix-parenthesized
+                // element) + the readonly TypeOperator for
+                // ReadonlyArray (an array operand never parenthesizes,
+                // 20570-20576).
+                let array = array_type_node_text(element, kind);
                 return Ok(if name == "Array" {
-                    format!("{element}[]")
+                    (array, SliceTypeNodeKind::Array)
                 } else {
-                    format!("readonly {element}[]")
+                    (format!("readonly {array}"), SliceTypeNodeKind::TypeOperator)
                 });
             }
             let local_parameter_count = match &self.tables.type_of(target).data {
@@ -3641,11 +3776,14 @@ impl<'a> CheckerState<'a> {
             for argument in arguments.iter().take(local_parameter_count) {
                 rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
             }
-            return Ok(if rendered.is_empty() {
-                name
-            } else {
-                format!("{name}<{}>", rendered.join(", "))
-            });
+            return Ok((
+                if rendered.is_empty() {
+                    name
+                } else {
+                    format!("{name}<{}>", rendered.join(", "))
+                },
+                SliceTypeNodeKind::Reference,
+            ));
         }
         // SYMBOL-LESS empty anonymous object types render as tsc's
         // "{}" (typeToTypeNodeHelper's member-less TypeLiteral) — the
@@ -3672,12 +3810,186 @@ impl<'a> CheckerState<'a> {
                 && resolved.construct_signatures.is_empty()
                 && resolved.index_infos.is_empty()
             {
-                return Ok("{}".to_owned());
+                return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
             }
         }
         Err(Unsupported::new(
             "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
         ))
+    }
+
+    /// tsc-port: formatUnionTypes @6.0.3 (error-display face)
+    /// tsc-hash: bb658f102c7d7e506fd2bcdd6e4d963929fd8f222f257e9ee119203618797547
+    /// tsc-span: _tsc.js:55474-55498
+    ///
+    /// The nodeBuilder formats union members before rendering (51546):
+    /// nullable members re-append at the tail (null before undefined —
+    /// the eOPT missing marker re-appends as plain `undefined`), and a
+    /// consecutive member run matching an enum-like base's full list
+    /// collapses to the base (`true | false` → `boolean`; enum-member
+    /// runs → the enum). `expandingEnum` is a verbosity-walk input the
+    /// error-display slice never sets, so the collapse probe runs for
+    /// every non-nullable member (the shipped `t.flags | EnumLike`
+    /// disjunct is always-true by construction).
+    fn format_union_types(&mut self, types: &[TypeId]) -> CheckResult2<Vec<TypeId>> {
+        let mut result = Vec::new();
+        let mut combined = TypeFlags::from_bits(0);
+        let mut i = 0;
+        while i < types.len() {
+            let t = types[i];
+            let t_flags = self.tables.flags_of(t);
+            combined = TypeFlags::from_bits(combined.bits() | t_flags.bits());
+            if !t_flags.intersects(TypeFlags::NULLABLE) {
+                let base = if t_flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
+                    self.tables.intrinsics.boolean
+                } else {
+                    self.get_base_type_of_enum_like_type(t)?
+                };
+                if self.tables.flags_of(base).intersects(TypeFlags::UNION) {
+                    let base_types = match &self.tables.type_of(base).data {
+                        TypeData::Union { types, .. } => types.to_vec(),
+                        _ => Vec::new(),
+                    };
+                    let count = base_types.len();
+                    if count > 0 && i + count <= types.len() {
+                        let run_last = self
+                            .tables
+                            .get_regular_type_of_literal_type(types[i + count - 1]);
+                        let base_last = self
+                            .tables
+                            .get_regular_type_of_literal_type(base_types[count - 1]);
+                        if run_last == base_last {
+                            result.push(base);
+                            i += count;
+                            continue;
+                        }
+                    }
+                }
+                result.push(t);
+            }
+            i += 1;
+        }
+        if combined.intersects(TypeFlags::NULL) {
+            result.push(self.tables.intrinsics.null);
+        }
+        if combined.intersects(TypeFlags::UNDEFINED) {
+            result.push(self.tables.intrinsics.undefined);
+        }
+        Ok(result)
+    }
+
+    /// tsc-port: getTupleElementLabel @6.0.3 (declaration arm)
+    /// tsc-hash: cfaef41e5163a36e33fb797ca0f1cf2445bcc1cf9453ac75b2f61681f2b472b1
+    /// tsc-span: _tsc.js:78150-78157
+    ///
+    /// The renderer only reaches the declaration arm (51958 gates on a
+    /// present label; the label-less overload half synthesizes
+    /// signature-hint names). tsc Debug.asserts the label name IS an
+    /// Identifier — a pattern-named label would throw in shipped tsc,
+    /// so the shape stays curtained instead of panicking here. The
+    /// call-site unescapeLeadingUnderscores (51961) is folded in.
+    fn tuple_element_label(&self, declaration: NodeId) -> CheckResult2<String> {
+        let name = match self.data_of(declaration) {
+            NodeData::NamedTupleMember(data) => data.name,
+            NodeData::Parameter(data) => data.name,
+            _ => None,
+        };
+        match name.and_then(|name| self.identifier_text(name)) {
+            Some(text) => Ok(tsrs2_binder::unescape_leading_underscores(text).to_owned()),
+            None => Err(Unsupported::new(
+                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+            )),
+        }
+    }
+}
+
+/// The would-be TypeNode kind of a slice rendering. The factory's
+/// parenthesizer rules (_tsc.js 20540-20617) branch on the child
+/// node's KIND at each join; the string renderer carries the kind
+/// beside the text so the joins below apply the same rules. Only
+/// kinds the slice can produce are listed — the parenthesizer arms
+/// for the rest (function/constructor/conditional/infer/typeof
+/// heads) land with their shapes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SliceTypeNodeKind {
+    /// KeywordTypeNode — intrinsics; no reachable rule wraps one.
+    Keyword,
+    /// LiteralTypeNode — string/number literal displays.
+    Literal,
+    /// TypeReferenceNode — symbol heads, alias/reference `Name<...>`,
+    /// type parameters and the variance markers.
+    Reference,
+    /// TypeLiteralNode — the member-less `{}`.
+    TypeLiteral,
+    Union,
+    Intersection,
+    /// TypeOperatorNode — `keyof T`, `readonly T[]`, `readonly [...]`.
+    TypeOperator,
+    /// ArrayTypeNode — `T[]`.
+    Array,
+    /// TupleTypeNode — `[...]`.
+    Tuple,
+}
+
+/// tsc-port: parenthesizeConstituentTypeOfUnionType @6.0.3 (kind test)
+/// tsc-hash: 6a071b4a7c2eebb30005580cc9d725278da358dddc6e0a5a2543d51c9b33f0c3
+/// tsc-span: _tsc.js:20540-20548
+///
+/// The fall-through (parenthesizeCheckTypeOfConditionalType) wraps
+/// function/constructor/conditional heads — none producible by the
+/// slice, so the transcription ends at the union/intersection arms.
+fn union_constituent_needs_parens(kind: SliceTypeNodeKind) -> bool {
+    matches!(
+        kind,
+        SliceTypeNodeKind::Union | SliceTypeNodeKind::Intersection
+    )
+}
+
+/// tsc-port: parenthesizeConstituentTypeOfIntersectionType @6.0.3 (kind test)
+/// tsc-hash: f1132158c9dd447d9a5c54e06ca76ce42b477379ecdb7c41c266f6cc4ce44e5f
+/// tsc-span: _tsc.js:20552-20559
+fn intersection_constituent_needs_parens(kind: SliceTypeNodeKind) -> bool {
+    matches!(
+        kind,
+        SliceTypeNodeKind::Union | SliceTypeNodeKind::Intersection
+    ) || union_constituent_needs_parens(kind)
+}
+
+/// tsc-port: parenthesizeOperandOfTypeOperator @6.0.3 (kind test)
+/// tsc-hash: fba31fe4d809aaac1d32866edcb0a1d7266daef9c5d24199487d7ae6aed17f9a
+/// tsc-span: _tsc.js:20563-20569
+fn type_operator_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
+    matches!(kind, SliceTypeNodeKind::Intersection) || intersection_constituent_needs_parens(kind)
+}
+
+/// tsc-port: parenthesizeNonArrayTypeOfPostfixType @6.0.3 (kind test)
+/// tsc-hash: 90b6701d51af1b9f1122f0d5ffcc9febe951cdae5b1430df8dfcb37781993928
+/// tsc-span: _tsc.js:20577-20585
+///
+/// The infer/typeof arms wrap kinds the slice cannot produce; the
+/// operand fall-through supplies the intersection/union wraps.
+fn non_array_postfix_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
+    matches!(kind, SliceTypeNodeKind::TypeOperator) || type_operator_operand_needs_parens(kind)
+}
+
+/// tsc-port: parenthesizeTypeOfOptionalType @6.0.3 (kind test)
+/// tsc-hash: fb05d98073b5129ffea157859cde639e822501ab06e62214b80b3e4a15071c41
+/// tsc-span: _tsc.js:20603-20606
+///
+/// hasJSDocPostfixQuestion walks JSDoc type-node shapes the slice
+/// cannot render — the postfix rule is the whole reachable test.
+fn optional_type_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
+    non_array_postfix_operand_needs_parens(kind)
+}
+
+/// tsc-port: createArrayTypeNode @6.0.3 (string form)
+/// tsc-hash: 71e29dc77eaa156837ba89b71ffc6b028e29a3da6e605952ea80b7443b0a38aa
+/// tsc-span: _tsc.js:22229-22234
+fn array_type_node_text(element: String, kind: SliceTypeNodeKind) -> String {
+    if non_array_postfix_operand_needs_parens(kind) {
+        format!("({element})[]")
+    } else {
+        format!("{element}[]")
     }
 }
 
@@ -3841,6 +4153,208 @@ mod tests {
                 5,
                 "Type 'Foo<sub-T>' is not assignable to type 'Foo<super-T>' as implied by \
                  variance annotation."
+                    .to_owned()
+            )]
+        );
+    }
+
+    // ---- tuple renderer (phase-9 9.3a) — every head oracle-probed
+    // (scratchpad probe-93a: noLib strict, vendored 6.0.3) ----
+
+    #[test]
+    fn tuple_display_labeled_members_render() {
+        assert_eq!(
+            checked_diags("declare const p: [a: number, b: string];\nconst q: [number] = p;\n"),
+            [(
+                2322,
+                47,
+                1,
+                "Type '[a: number, b: string]' is not assignable to type '[number]'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn tuple_display_optional_element_parenthesizes_the_union() {
+        // The stored optional element is `string | undefined` (strict,
+        // eOPT off) — OptionalTypeNode's postfix parenthesizer wraps
+        // it: `[(string | undefined)?]`.
+        assert_eq!(
+            checked_diags("declare const o: [string?];\nconst n: [number] = o;\n"),
+            [(
+                2322,
+                34,
+                1,
+                "Type '[(string | undefined)?]' is not assignable to type '[number]'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn tuple_display_labeled_optional_member_is_unparenthesized() {
+        // NamedTupleMember types never parenthesize (factory
+        // 22247-22256 applies no rule): `a?: number | undefined`.
+        assert_eq!(
+            checked_diags("declare const p2: [a?: number];\nconst q2: [string] = p2;\n"),
+            [(
+                2322,
+                38,
+                2,
+                "Type '[a?: number | undefined]' is not assignable to type '[string]'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn tuple_display_rest_and_variadic_elements_render() {
+        assert_eq!(
+            checked_diags("declare const r: [number, ...string[]];\nconst n: [boolean] = r;\n"),
+            [(
+                2322,
+                46,
+                1,
+                "Type '[number, ...string[]]' is not assignable to type '[boolean]'.".to_owned()
+            )]
+        );
+        // Rest-element unions parenthesize through the ArrayTypeNode
+        // wrap: `...(string | boolean)[]`.
+        assert_eq!(
+            checked_diags(
+                "declare const r: [number, ...(string | boolean)[]];\nconst n: [number] = r;\n"
+            ),
+            [(
+                2322,
+                58,
+                1,
+                "Type '[number, ...(string | boolean)[]]' is not assignable to type '[number]'."
+                    .to_owned()
+            )]
+        );
+        // A generic variadic element renders bare: `...T`.
+        assert_eq!(
+            checked_diags(
+                "function f2<T extends unknown[]>(...args: [string, ...T]) { const x: [number] = args; }\n"
+            ),
+            [(
+                2322,
+                66,
+                1,
+                "Type '[string, ...T]' is not assignable to type '[number]'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn return_satisfies_operand_elaborates_the_element() {
+        // PR #55 review P1: tsc passes the EFFECTIVE check node into
+        // checkTypeAssignableToAndOptionallyElaborate (84585-84587) —
+        // satisfies strips off, the array literal elaborates, and the
+        // element row REPLACES the outer return head.
+        assert_eq!(
+            checked_diags("function f(): [string] {\n  return ([1] satisfies [number]);\n}\n"),
+            [(
+                2322,
+                36,
+                1,
+                "Type 'number' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn enum_member_displays_render_qualified() {
+        // PR #55 review P1: enum-member literal types print `E.A`
+        // (typeToTypeNodeHelper's EnumLike arm, 51367-51399), never
+        // their base literal value.
+        assert_eq!(
+            checked_diags("enum E { A, B }\ndeclare const x: [E.A];\nconst y: [E.B] = x;\n"),
+            [(
+                2322,
+                46,
+                1,
+                "Type '[E.A]' is not assignable to type '[E.B]'.".to_owned()
+            )]
+        );
+        assert_eq!(
+            checked_diags("const enum C { X, Y }\ndeclare const x: [C.X];\nconst y: [C.Y] = x;\n"),
+            [(
+                2322,
+                52,
+                1,
+                "Type '[C.X]' is not assignable to type '[C.Y]'.".to_owned()
+            )]
+        );
+        // The 51371 single-member collapse: the member type IS the
+        // declared type, so the bare enum name prints.
+        assert_eq!(
+            checked_diags("enum S { Only }\ndeclare const x: [S.Only];\nconst y: [string] = x;\n"),
+            [(
+                2322,
+                49,
+                1,
+                "Type '[S]' is not assignable to type '[string]'.".to_owned()
+            )]
+        );
+        // The EnumLiteral-stamped declared union prints the enum name
+        // BEFORE the union walk.
+        assert_eq!(
+            checked_diags("enum E { A, B }\ndeclare const x: [E];\nconst y: [string] = x;\n"),
+            [(
+                2322,
+                44,
+                1,
+                "Type '[E]' is not assignable to type '[string]'.".to_owned()
+            )]
+        );
+        // Mixed unions keep interned order (string interns first).
+        assert_eq!(
+            checked_diags(
+                "enum E { A, B }\ndeclare const x: [E.A | string];\nconst y: [boolean] = x;\n"
+            ),
+            [(
+                2322,
+                55,
+                1,
+                "Type '[string | E.A]' is not assignable to type '[boolean]'.".to_owned()
+            )]
+        );
+        // A BARE enum-literal source generalizes to its base for the
+        // head (reportRelationError's literal-source generalization
+        // composes with the arm): 'E', not 'E.A'.
+        assert_eq!(
+            checked_diags("enum E { A, B }\ndeclare const x: E.A;\nconst y: [string] = x;\n"),
+            [(
+                2322,
+                44,
+                1,
+                "Type 'E' is not assignable to type '[string]'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn tuple_display_empty_and_readonly_render() {
+        assert_eq!(
+            checked_diags("declare const e: [];\nconst n2: [number] = e;\n"),
+            [(
+                2322,
+                27,
+                2,
+                "Type '[]' is not assignable to type '[number]'.".to_owned()
+            )]
+        );
+        // The readonly TypeOperator wrap rides the 4104 face
+        // (tryElaborateArrayLikeErrors' readonly report).
+        assert_eq!(
+            checked_diags(
+                "declare const r: readonly [string, number];\nlet w: [string, number] = r as any;\nw = r;\n"
+            ),
+            [(
+                4104,
+                80,
+                1,
+                "The type 'readonly [string, number]' is 'readonly' and cannot be assigned to \
+                 the mutable type '[string, number]'."
                     .to_owned()
             )]
         );

@@ -8761,7 +8761,7 @@ fn is_class_member_modifier(kind: SyntaxKind) -> bool {
     )
 }
 
-fn is_identifier_text(text: &str) -> bool {
+pub fn is_identifier_text(text: &str) -> bool {
     let mut chars = text.chars();
     let Some(first) = chars.next() else {
         return false;

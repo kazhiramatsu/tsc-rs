@@ -2174,19 +2174,6 @@ impl<'a> CheckerState<'a> {
         let Some(name) = name else {
             return Ok(self.tables.intrinsics.error);
         };
-        // 6.6f: tsc's COMPUTED-key destructuring assignments consume
-        // PR-#41094 evaluation-order narrowing (the key expression's
-        // own assignments interleave with the element reads) — the
-        // order family is unported, and the plain
-        // getTypeOfDestructuredProperty read diverges on the
-        // controlFlowAssignmentPatternOrder faces. Contain the
-        // computed-key arm until the family lands.
-        if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-            return Err(Unsupported::new(
-                "computed-key destructuring assignment (evaluation-order narrowing \
-                 family; M6 close -> unused-band fixture mass, M7)",
-            ));
-        }
         let assigned = self.get_assigned_type(parent)?;
         self.get_type_of_destructured_property(assigned, name)
     }

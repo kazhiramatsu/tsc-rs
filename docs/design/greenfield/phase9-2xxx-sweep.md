@@ -563,6 +563,143 @@ frozen/433 baseline ok; escapes 223/0/0/116.
 implementation begins at 9.3 (display ladder, first slice 9.3a tuple
 renderer).**
 
+## 9.3a results (2026-07-21, tuple renderer — DONE)
+
+All four M6-close re-owned M7 escape rows retired (manifest 225→221
+sites, stale=0, untagged=0). Band movement: all-corpus T0 54.8813% →
+**55.2831%** (26905 → 27102, +197, FP=0); 2xxx T0 77.5165% →
+**78.4143%** (16318 → 16507, +189); supported-2xxx T0 79.6466% →
+**80.5691%** (16507/20488), supported FN 4,170 → **3,981** (tool
+integers, monotone ✓). Shadow tiers: T2 +304 / T3 +210 on
+already-matched rows (formatUnionTypes text fidelity). Baseline
+curtain attribution re-measured live: `symbol-less reference display`
+212 → 0; computed-key 12 → 0 (rows now plain M7 suggestion-family
+FNs, no boundary evidence).
+
+Decisions of record:
+
+1. **Tuple arm placement**: typeReferenceToTypeNode's tuple arm
+   (51948-51978) transcribed into `type_to_string_slice_structured`
+   BEFORE the symbol head — tuple targets are the symbol-less
+   references; the swap against tsc's dispatch order (global-Array
+   identity first) is unobservable because the two tests are
+   disjoint. Empty/arity-0 tuples print `[]` unconditionally:
+   typeToString always runs under IgnoreErrors ⊇ AllowEmptyTuple
+   (50722), so the encounteredError leg is dead in the error-display
+   slice. The residual non-tuple symbol-less reference re-curtains
+   under the M8 nodeBuilder-tail reason (no fresh panic claim).
+2. **Parenthesizer as kind-tags**: the string slice now returns
+   `(text, SliceTypeNodeKind)` and transcribes the factory
+   parenthesizer rules (20540-20606) at every join — union/
+   intersection constituents, keyof/readonly operands, array-element
+   and optional-element postfix wraps. Oracle-pinned faces:
+   `[(string | undefined)?]` (optional union parenthesizes),
+   `[...(string | boolean)[]]` (rest union through the ArrayTypeNode
+   wrap), `a?: number | undefined` (NamedTupleMember types NEVER
+   parenthesize — factory 22247 applies no rule). The pre-existing
+   array sugar gained the same element wrap (was a latent
+   `string | number[]`-shape T2 infidelity, T0-invisible).
+3. **formatUnionTypes (55474-55498) ported** — required, not
+   optional: the port's interned union order shows `undefined`
+   FIRST, tsc re-appends nullables at the tail (null before
+   undefined; the eOPT missing marker re-appends as plain
+   undefined) and collapses enum-like runs. The interned
+   `true | false` pair carries TypeFlags::BOOLEAN (tables stamp it
+   like getUnionType) and must print as the KEYWORD before any union
+   walk — transcribed as a pre-union arm; without it the collapse
+   would re-enter the union walk unboundedly. getBaseTypeOfEnumLike-
+   Type was ALREADY ported (engine.rs) — reused, not duplicated.
+4. **Fabrication audit hit both barrels** (7.5 precedent confirmed
+   again): first full re-measure tripped NEW_FP=20. Family A (12
+   rows, 2739/2741): the missing-property pre-head override fired
+   where tsc's propertiesRelatedTo tuple arm (66771-66774) takes the
+   ARITY walk — a tuple TARGET with an array-or-tuple SOURCE never
+   reaches reportUnmatchedProperty; guard transcribed into
+   `report_unmatched_property_head` (the non-array source half keeps
+   its 2741 face — arityAndOrderCompatibility01's 'StrNum' rows pin
+   it). Family B (8 rows, 2322): three head-only
+   checkTypeAssignableToAndOptionallyElaborate sites emitted outer
+   heads where tsc's elaborateError reports inner rows and
+   suppresses the head — binding-pattern initializer
+   (statements.rs), return position (functions.rs), assignment
+   (operators.rs) now run the Step-12 elaborate-first idiom over
+   `elaborate_literal_assignment`. Both fixes are SOURCE-level (tsc
+   shape), not display shields; the yield-position site stays
+   head-only (no failing evidence — wire it when a row appears).
+5. **Tuple-intersection special block DELETED whole** (the 9.1-era
+   syntax bridge + `is_tuple_arity_only_constraint`): tsc has no
+   counterpart — with tuples renderable the standard head path
+   covers the pair. Proof it was corpus-dead: band=all matched
+   integers byte-identical before/after the deletion; zero corpus
+   rows rode the bridge (its only consumer was a unit pin, rewritten
+   to containment-until-9.3b — the intersection's `{ p: string }`
+   member is an anonymous object WITH members, a 9.3b shape).
+6. **Computed-key destructuring containment retired with a clean
+   probe**: the port's `get_type_of_destructured_property` was
+   already the full tsc shape; the 6.6f-era fear was evaluation-order
+   narrowing divergence. Live re-measure of
+   controlFlowAssignmentPatternOrder (the PR-#41094 fixture, 12
+   computed-key faces designed to fabricate 2322s on any order bug):
+   ZERO false positives — the M5/M6 flow machinery already orders
+   key/default evaluation correctly. The 12×6133 rows are plain
+   unused-suggestion-family FNs (M7), no longer escape-blocked.
+7. **Label resolution**: getTupleElementLabel's declaration arm only
+   (51958 gates on a present label); `Debug.assert(isIdentifier)`
+   transcribed as containment (M8 tail reason) — a pattern-named
+   label would throw in shipped tsc, so no fixture can pin it.
+   unescapeLeadingUnderscores (51961) folded into the helper.
+
+Remaining F1 curtain after 9.3a: `typeToString beyond the 5.4 display
+slice` attributes 1,891 FNs (grew from 1,543 — rows formerly
+attributed to the tuple reason now unwind at their non-tuple CHILDREN:
+anonymous objects with members, signatures, enum members …) — that is
+the 9.3b-x shape ladder's worklist, mined by blocking type shape.
+`elaborateArrayLiteral` spread-tupleization (forceTuple) now shows 6
+attributed FNs (elaborate runs at three more sites) — its escape row
+stays M7-owned and retires at 9.4 per plan.
+
+Verification pins: 5 new oracle-probed display tests in check.rs
+(labeled members, optional-union parens, labeled-optional no-parens,
+rest/variadic incl. rest-union parens, empty + readonly-4104) +
+3 frontier pins FLIPPED live (access 2493 tuple-index, calls 2345
+tuple-arity, operators destructuring 2493+2322 pair) + 1 rewritten to
+containment-until-9.3b. All heads byte-match the vendored oracle
+(scratchpad probe-93a, noLib strict).
+
+**Review round (PR #55, 2 P1 findings — both source-verified against
+_tsc.js and fixed, +1 matched each band):**
+
+8. **Return elaboration takes the EFFECTIVE check node** — tsc
+   checkReturnStatement computes `getEffectiveCheckNode(expr)` and
+   passes THAT into checkTypeAssignableToAndOptionallyElaborate
+   (84585-84587): outer parens AND satisfies strip BEFORE
+   elaborateError, so `return ([1] satisfies [number])` against
+   `[string]` elaborates the array literal and the element row
+   replaces the head. The 9.3a first cut passed the RAW expression
+   (the elaborate entry arms strip parens/as-const but deliberately
+   NOT satisfies — the member-initializer rule), which stopped
+   elaboration and emitted the outer head where tsc reports the
+   element. Oracle-pinned: (2322, 36, 1) 'number'→'string'.
+9. **EnumLike display arm (51367-51399) ported** — enum-member
+   literal types fell into the Literal arm and printed their BASE
+   VALUES (`[0]` for `[E.A]`): the tuple renderer made the outer
+   shape renderable, surfacing the pre-existing child infidelity as
+   emitted text. The arm precedes the literal arms AND the union
+   walk: member face `E.A` (parent name + identifier member),
+   single-member collapse (51371: the member type IS the declared
+   type → bare `E` — probes: `[S.Only]` prints `[S]`, string-valued
+   single member prints `[E, E]`), the EnumLiteral-stamped declared
+   union prints `E` (also the loop-breaker for formatUnionTypes'
+   enum-run collapse, which hands that union back), const-enum same,
+   and the bare-literal source composes with reportRelationError's
+   literal-source generalization (`E.A` source head prints `E`).
+   Non-identifier member names (tsc renders `typeof E["..."]`
+   indexed access) + the unconstructible symbol-less/parentless
+   faces stay behind the M8 tail (3 containment sites, count=3 in
+   the manifest). `is_identifier_text` promoted pub from the syntax
+   parser for the member-name gate. 6 oracle-probed pins
+   (probe-93a-review). T2 +67 / T3 +58 on already-matched enum rows.
+
 ## Working rules
 
 - Curtain retirement = FP-shield removal. Every widened display arm

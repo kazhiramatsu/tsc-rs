@@ -297,8 +297,11 @@ impl<'a> CheckerState<'a> {
                         self.check_non_null_non_void_type(initializer_type, node)?;
                     } else {
                         // checkTypeAssignableToAndOptionallyElaborate
-                        // — head-only slice; the widened type is
-                        // recomputed like tsc.
+                        // — elaboration first (the Step-12 idiom): a
+                        // literal initializer that reports an inner
+                        // member/element row suppresses the outer
+                        // head; the widened type is recomputed like
+                        // tsc.
                         let target =
                             self.get_widened_type_for_variable_like_declaration(node, false)?;
                         // 6.6-review containment: the binding-pattern
@@ -315,12 +318,16 @@ impl<'a> CheckerState<'a> {
                                  flow answer (unported narrowing dependency, M6/M8 seam)",
                             ));
                         }
-                        self.check_type_assignable_to(
-                            initializer_type,
-                            target,
-                            Some(node),
-                            &diagnostics::Type_0_is_not_assignable_to_type_1,
-                        )?;
+                        let elaborated = !self.is_type_assignable_to(initializer_type, target)?
+                            && self.elaborate_literal_assignment(initializer, target)?;
+                        if !elaborated {
+                            self.check_type_assignable_to(
+                                initializer_type,
+                                target,
+                                Some(node),
+                                &diagnostics::Type_0_is_not_assignable_to_type_1,
+                            )?;
+                        }
                     }
                 }
                 if need_check_widened_type {

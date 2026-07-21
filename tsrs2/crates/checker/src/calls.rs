@@ -6871,12 +6871,14 @@ mod tests {
             checked_rows("interface I { p: string }\ndeclare function el(a: I): void;\nel([1]);\n"),
             [(2345, 62, 3)]
         );
-        // Tuple targets check the elements fine; the plain head then
-        // stays behind the tuple-display curtain (oracle: 2345 with
-        // the tuple rendered).
+        // Tuple targets check the elements fine; the plain head now
+        // renders through the 9.3a tuple renderer. Oracle: (2345, 45,
+        // 8) "Argument of type '[number, string]' is not assignable
+        // to parameter of type '[number]'." (the arity chain rides
+        // the elided tail).
         assert_eq!(
             checked_rows("declare function tup(a: [number]): void;\ntup([1, \"x\"]);\n"),
-            []
+            [(2345, 45, 8)]
         );
     }
 
