@@ -584,6 +584,62 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
+    /// tsc-port: isGenericType @6.0.3
+    /// tsc-hash: 24d5fea9e8bd61b2e658f4c5d9423ee7926ff364e97370617a604cd6e4b0f5c0
+    /// tsc-span: _tsc.js:62431-62433
+    pub(crate) fn is_generic_type(&self, ty: TypeId) -> CheckResult2<bool> {
+        Ok(!self.get_generic_object_flags(ty)?.is_empty())
+    }
+
+    /// tsc-port: getGenericObjectFlags @6.0.3
+    /// tsc-hash: 7ea070b17fceb8ba8275f5641dccb325aeff6b32c33b499e1de70b696192d94f
+    /// tsc-span: _tsc.js:62440-62454
+    ///
+    /// The IsGenericTypeComputed memo (62442/62448) is elided: the
+    /// port's type tables are append-only, so the composite reduction
+    /// recomputes per query — cache-only deviation, verdict-identical.
+    /// The Substitution arm is an M8 escape like its neighbors above
+    /// (the flag is unconstructible until substitution type nodes
+    /// land).
+    pub(crate) fn get_generic_object_flags(&self, ty: TypeId) -> CheckResult2<ObjectFlags> {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
+            let (TypeData::Union { types, .. } | TypeData::Intersection { types }) =
+                &self.tables.type_of(ty).data
+            else {
+                unreachable!("UnionOrIntersection flag implies member data");
+            };
+            let mut reduced = ObjectFlags::NONE;
+            for &member in types {
+                reduced |= self.get_generic_object_flags(member)?;
+            }
+            return Ok(reduced & ObjectFlags::IS_GENERIC_TYPE);
+        }
+        if flags.intersects(TypeFlags::SUBSTITUTION) {
+            return Err(Unsupported::new(
+                "getGenericObjectFlags Substitution arm (M8 — Substitution types are \
+                 unconstructible before their type nodes land)",
+            ));
+        }
+        let object_half = if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
+            || self.is_generic_mapped_type_state(ty)
+            || self.is_generic_tuple_type(ty)
+        {
+            ObjectFlags::IS_GENERIC_OBJECT_TYPE
+        } else {
+            ObjectFlags::NONE
+        };
+        let index_half = if flags
+            .intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE | TypeFlags::INDEX)
+            || self.is_generic_string_like_type(ty)
+        {
+            ObjectFlags::IS_GENERIC_INDEX_TYPE
+        } else {
+            ObjectFlags::NONE
+        };
+        Ok(object_half | index_half)
+    }
+
     /// tsc-port: getSimplifiedType @6.0.3
     /// tsc-hash: ac9c7ff358d22383776d3bf0d841ff1a331b67e77b87198ef19ad9398418adc5
     /// tsc-span: _tsc.js:62455-62457

@@ -1276,6 +1276,7 @@ impl<'a> CheckerState<'a> {
             mapper: None,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: None,
             composite_signatures: None,
@@ -4498,6 +4499,7 @@ impl<'a> CheckerState<'a> {
             mapper: None,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: None,
             composite_signatures: None,
@@ -6812,12 +6814,13 @@ mod tests {
     #[test]
     fn array_literal_args_against_non_array_params_contain() {
         // Oracle: plain 2345 at the literal (elaboration finds no
-        // rows). The element contextual read runs the live §4 Element
-        // probe (silently None on I); the 2345 head itself still
-        // contains — recorded FN.
+        // rows) — LIVE since M6 7.5's "{}" display arm un-contained
+        // the head (args '{}' vs 'I'; re-probed probe75d.mjs). The
+        // element contextual read runs the live §4 Element probe
+        // (silently None on I).
         assert_eq!(
             checked_rows("interface I { p: string }\ndeclare function el(a: I): void;\nel([1]);\n"),
-            []
+            [(2345, 62, 3)]
         );
         // Tuple targets check the elements fine; the plain head then
         // stays behind the tuple-display curtain (oracle: 2345 with

@@ -3644,6 +3644,34 @@ impl<'a> CheckerState<'a> {
                 format!("{name}<{}>", rendered.join(", "))
             });
         }
+        // SYMBOL-LESS empty anonymous object types render as tsc's
+        // "{}" (typeToTypeNodeHelper's member-less TypeLiteral) — the
+        // minimal M6 7.5 slice extension: the higher-order frontier
+        // row's source arg is the global-Array-miss emptyObjectType.
+        // The symbol guard is load-bearing FP shielding, not display
+        // fidelity: symbol-CARRYING shapes that resolve empty today
+        // do so because their member machinery is unported
+        // (module-namespace M7, JSON imports M7, checkJs object
+        // literals M8 — corpus-probed: dropping the guard unmasked 5
+        // fabricated 2339/2322 rows in exactly those bands), so they
+        // stay behind the curtain with the rest of the T2/M8 tail.
+        if flags.intersects(TypeFlags::OBJECT)
+            && self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::ANONYMOUS)
+            && self.tables.type_of(ty).symbol.is_none()
+        {
+            let members = self.resolve_structured_type_members(ty)?;
+            let resolved = self.members_of(members);
+            if resolved.properties.is_empty()
+                && resolved.call_signatures.is_empty()
+                && resolved.construct_signatures.is_empty()
+                && resolved.index_infos.is_empty()
+            {
+                return Ok("{}".to_owned());
+            }
+        }
         Err(Unsupported::new(
             "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
         ))

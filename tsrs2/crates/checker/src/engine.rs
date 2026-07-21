@@ -722,6 +722,121 @@ pub(crate) struct RelationChecker<'r, 'a> {
     pub(crate) relation_count: i64,
 }
 
+/// The checkTypeRelatedTo frame state detached from its `st` borrow —
+/// the port of tsc's isRelatedToWorker CLOSURE (67070-67080): when
+/// compareSignaturesRelated hands compareTypes into
+/// instantiateSignatureInContextOf (64507), the constraint clamp
+/// (getInferredType 69300-69306) must compare under the LIVE frame —
+/// same maybe stack, recursion depths, and budget. Rust can't store
+/// that closure in the inference context, so the walker LOANS its
+/// frame fields (mem::take) and PARKS the loan on the state
+/// (`CheckerState::relation_frame_loan`) for the duration of the
+/// iSICO call — a parameter cannot reach every consumer, because
+/// getInferredType re-enters through the non-fixing mapper's deferred
+/// thunks (69296-69298 constraint/default instantiation resolving
+/// FORWARD slots mid-call). The clamp takes the loan from the slot,
+/// re-assembles a RelationChecker per compare, and puts every
+/// mutation (maybe cache entries, counts, overflow) back.
+/// `intersection_state` is the closure's captured signatureRelatedTo
+/// argument.
+pub(crate) struct RelationFrame {
+    pub(crate) relation: RelationKind,
+    pub(crate) maybe_keys: Vec<String>,
+    pub(crate) maybe_keys_set: HashSet<String>,
+    pub(crate) source_stack: Vec<TypeId>,
+    pub(crate) target_stack: Vec<TypeId>,
+    pub(crate) maybe_count: usize,
+    pub(crate) source_depth: usize,
+    pub(crate) target_depth: usize,
+    pub(crate) expanding_flags: ExpandingFlags,
+    pub(crate) overflow: bool,
+    pub(crate) relation_count: i64,
+    pub(crate) intersection_state: IntersectionState,
+}
+
+/// The parked state of a RelationFrame loan
+/// (`CheckerState::relation_frame_loan`) — see RelationFrame. tsc's
+/// closure is ambient over the whole iSICO call; this slot is its
+/// Rust home so BOTH the explicit clamp compares and the re-entrant
+/// resolutions through the non-fixing mapper's deferred thunks reach
+/// the same live frame.
+pub(crate) enum RelationFrameLoan {
+    /// No RelationFrame-compare context is live (the only legal state
+    /// outside a B8 generic-arm iSICO call).
+    None,
+    /// The walker's loan is parked; the clamp takes it around each
+    /// compare and puts it back (mutations included) before
+    /// returning, Err or not.
+    Available(RelationFrame),
+    /// A clamp compare has the fields checked out into its
+    /// re-assembled walker. A RE-ENTRANT compare (lazy member
+    /// instantiation inside the in-flight walk resolving a forward
+    /// slot whose clamp fires) cannot alias them — it runs a FRESH
+    /// sub-walk under the recorded relation/intersectionState
+    /// (deviation from tsc's shared maybe-stack/budget, recorded at
+    /// the consumer; fresh-walk relation-cache commits still land on
+    /// `st`, and the pre-clamp memo (69296) bounds the re-entry
+    /// depth by the slot count).
+    InFlight {
+        relation: RelationKind,
+        intersection_state: IntersectionState,
+    },
+}
+
+impl<'r, 'a> RelationChecker<'r, 'a> {
+    /// tsrs-native: frame loan for the RelationFrame worker (the
+    /// Rust face of tsc's isRelatedToWorker closure capture, 67070).
+    ///
+    /// Detach the frame fields for a state-level call that must
+    /// compare under this live frame (see RelationFrame). Pair every
+    /// loan with restore_frame BEFORE propagating an Err.
+    pub(crate) fn loan_frame(&mut self, intersection_state: IntersectionState) -> RelationFrame {
+        RelationFrame {
+            relation: self.relation,
+            maybe_keys: std::mem::take(&mut self.maybe_keys),
+            maybe_keys_set: std::mem::take(&mut self.maybe_keys_set),
+            source_stack: std::mem::take(&mut self.source_stack),
+            target_stack: std::mem::take(&mut self.target_stack),
+            maybe_count: self.maybe_count,
+            source_depth: self.source_depth,
+            target_depth: self.target_depth,
+            expanding_flags: self.expanding_flags,
+            overflow: self.overflow,
+            relation_count: self.relation_count,
+            intersection_state,
+        }
+    }
+
+    /// tsrs-native: loan_frame's return half (no tsc counterpart —
+    /// the closure frees itself).
+    pub(crate) fn restore_frame(&mut self, frame: RelationFrame) {
+        let RelationFrame {
+            relation: _,
+            maybe_keys,
+            maybe_keys_set,
+            source_stack,
+            target_stack,
+            maybe_count,
+            source_depth,
+            target_depth,
+            expanding_flags,
+            overflow,
+            relation_count,
+            intersection_state: _,
+        } = frame;
+        self.maybe_keys = maybe_keys;
+        self.maybe_keys_set = maybe_keys_set;
+        self.source_stack = source_stack;
+        self.target_stack = target_stack;
+        self.maybe_count = maybe_count;
+        self.source_depth = source_depth;
+        self.target_depth = target_depth;
+        self.expanding_flags = expanding_flags;
+        self.overflow = overflow;
+        self.relation_count = relation_count;
+    }
+}
+
 impl<'r, 'a> RelationChecker<'r, 'a> {
     pub(crate) fn flags(&self, ty: TypeId) -> TypeFlags {
         self.st.tables.flags_of(ty)

@@ -256,6 +256,10 @@ impl<'a> CheckerState<'a> {
             signature,
             contextual_signature,
             Some(context),
+            // 80809 passes no compareTypes — createInferenceContext's
+            // compareTypesAssignable default.
+            /*compare_types*/
+            None,
         )?;
         self.get_or_create_type_from_signature(instantiated)
     }
@@ -4530,23 +4534,23 @@ mod tests {
 
     #[test]
     fn higher_order_generic_argument_lifts_type_parameters() {
-        // 7.4c FRONTIER pin (oracle-probed 2026-07-20, scratchpad
-        // probe74i.mjs, vendored 6.0.3 noLib — tsc: f is the lifted
-        // generic `<T>(a: T) => {}` and `n` reports [(2322, 148, 1)]).
+        // 7.4c FRONTIER pin, FLIPPED at M6 7.5 to its oracle face
+        // (probed 2026-07-20 probe74i.mjs and re-probed 2026-07-21
+        // probe75.mjs, vendored 6.0.3 noLib — tsc: f is the lifted
+        // generic `<T>(a: T) => {}` and `n` reports [(2322, 148, 1)],
+        // args '{}' vs 'number' from the noLib Array miss).
         // pipe(list, list) drives the 80767-80815 higher-order path:
         // pass-1 defers via SkipGenericFunctions, the re-run lifts
         // `list`'s T (getUniqueTypeParameters + mergeInferences +
-        // inferredTypeParameters -> chooseOverload 76844). TODAY the
-        // re-run's applicability walk still contains at
-        // compareSignaturesRelated's generic-source arm (64505-64514,
-        // the M6 7.5 B8 head rebuild — its iSICO dependency landed
-        // this slice), so the statement set is EMPTY. Flip this pin to
-        // [(2322, 148, 1)] when 7.5 lands the arm.
+        // inferredTypeParameters -> chooseOverload 76844), and the
+        // applicability walk now runs compareSignaturesRelated's
+        // generic-source arm (64505-64514) live through the
+        // frame-loaned iSICO.
         assert_eq!(
             checked_rows(
                 "declare function pipe<A, B, C>(f: (a: A) => B, g: (b: B) => C): (a: A) => C;\ndeclare function list<T>(x: T): T[];\nconst f = pipe(list, list);\nconst n: number = f(1);\n"
             ),
-            []
+            [(2322, 148, 1)]
         );
     }
 

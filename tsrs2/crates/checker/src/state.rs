@@ -113,6 +113,9 @@ pub struct Signature {
     pub instantiations: std::collections::HashMap<String, SignatureId>,
     /// tsc signature.erasedSignatureCache (getErasedSignature 59927).
     pub erased_signature_cache: Option<SignatureId>,
+    /// tsc signature.canonicalSignatureCache (getCanonicalSignature
+    /// 59937).
+    pub canonical_signature_cache: Option<SignatureId>,
     /// tsc signature.baseSignatureCache (getBaseSignature 59949).
     pub base_signature_cache: Option<SignatureId>,
     /// tsc signature.compositeKind (createUnionSignature 57890 /
@@ -695,6 +698,15 @@ pub struct CheckerState<'a> {
     /// `{p|P}{s|S}{nameType.id}`.
     pub(crate) decorator_context_override_type_cache: std::collections::HashMap<String, TypeId>,
 
+    // ---- M6 7.5: the parked RelationFrame loan ----
+    /// tsrs-native home of tsc's isRelatedToWorker closure frame
+    /// (engine.rs RelationFrame/RelationFrameLoan): the B8 generic
+    /// arm parks its loan here around instantiateSignatureInContextOf
+    /// so the constraint clamp — including re-entrant resolutions
+    /// through the non-fixing mapper's deferred thunks — compares
+    /// under the live frame. None outside that window.
+    pub(crate) relation_frame_loan: crate::engine::RelationFrameLoan,
+
     // ---- M4 5.0: the resolution stack (pushTypeResolution 55728) ----
     pub(crate) resolution_targets: Vec<ResolutionTarget>,
     pub(crate) resolution_results: Vec<bool>,
@@ -879,6 +891,7 @@ impl<'a> CheckerState<'a> {
             jsdoc_typed_declarations: std::collections::HashSet::new(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
+            relation_frame_loan: crate::engine::RelationFrameLoan::None,
             resolution_targets: Vec::new(),
             resolution_results: Vec::new(),
             resolution_property_names: Vec::new(),
@@ -1072,6 +1085,7 @@ impl<'a> CheckerState<'a> {
             mapper: None,
             instantiations: std::collections::HashMap::new(),
             erased_signature_cache: None,
+            canonical_signature_cache: None,
             base_signature_cache: None,
             composite_kind: None,
             composite_signatures: None,

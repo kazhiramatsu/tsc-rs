@@ -686,6 +686,151 @@ fixed.
 
 Commit: `m6 7.5: inference consumers (+rate)`.
 
+**7.5 decisions of record (2026-07-21, m6/7.5-consumers; slices
+7.5a B7, 7.5b B8, 7.5c consumers/docs):**
+
+- **B7 landed exactly as tabled** *(amended 7.5d: as tabled for the
+  ANNOTATED predicate family — the probes never covered tsc 6.0.3's
+  body-INFERRED predicates (getTypePredicateFromBody, TS 5.5), whose
+  relation-side absence produced the 7.5d overload-fabrication FP;
+  see the 7.5d block below)* — all four related-path cells and
+  the identical-path consult oracle-probed before porting
+  (scratchpad probe75*.mjs; 25+ rows). Two probe surprises recorded:
+  the asserts-form-target "silent fall-through" cell is in practice
+  decided EARLIER by the void-target return (64577-64579) since asserts
+  signatures return void; and a source-only ASSERTS predicate
+  compares as `void` (not boolean) in the plain return comparison —
+  b7_source_only_asserts pins the 2322. Reporting cells
+  (2518/1224/1226/1227 chains) ride T2 as elsewhere.
+- **Verdict pinning under the display curtain**: relation-failure
+  heads whose args are function types don't render in the 5.4 slice
+  (statement containment), so False-verdict pins ride the
+  @ts-expect-error band THROUGH check_program (driver-level 2578
+  synthesis + the S8 partial-check exemption): [] = the verdict is
+  False OR the statement Err-contained (S8 exempts the directive), so
+  a [] pin proves NOT-wrongly-True; only the 2578 direction is strict
+  — (2578,…) ⟹ fully checked, zero rows, verdict True *(amended
+  7.5d: the original "iff" overclaimed the False direction)*. A 2578
+  control pin proves the mechanism; checked_rows-level tests can NOT
+  see this band.
+- **B8 head rebuild**: tsc order restored (same-ref → top-signature
+  → arity → instantiate); the generic arm runs getCanonicalSignature
+  (new canonical_signature_cache, write in the 7.0t assert net +
+  should_panic twin) + iSICO. tsc's compareTypes parameter =
+  CompareTypesFn::RelationFrame; the isRelatedToWorker CLOSURE is
+  modeled as a **frame loan** (engine.rs RelationFrame): the walker
+  mem::takes its frame fields around the state-level iSICO call and
+  the constraint clamp re-assembles a RelationChecker per compare —
+  live maybe-stack/budget participation, mutations restored, captured
+  intersectionState honored. *(Amended 7.5d: the loan is PARKED on
+  `CheckerState::relation_frame_loan` for the whole iSICO call, not
+  threaded as a parameter — the original `_with_frame` faces missed
+  the re-entrant getInferredType resolutions through the non-fixing
+  mapper's deferred thunks and panicked on forward-referencing
+  constrained generics; see the 7.5d block below.)* Consuming
+  RelationFrame with no parked loan is a panic invariant (iSICO's
+  context is frame-local; nothing re-reads it after iSICO returns).
+- **Worker intersectionState restoration**: compareSignaturesRelated's
+  internal comparisons (this-types, params, strict-arity probe,
+  returns — 7 sites) passed IntersectionState::NONE where tsc's
+  compareTypes2 closure captures signatureRelatedTo's
+  intersectionState; restored with the rebuild (corpus green,
+  FP=0).
+- **Erase + pairwise**: signatureRelatedTo applies getErasedSignature
+  per side (comparable-band success pinned via the 2578 face);
+  signaturesRelatedTo's same-symbol/same-target pairwise arm indexes
+  i-to-i with a hard assert on list lengths (tsc Debug.assertEqual —
+  which throws in SHIPPED tsc too; upgraded from debug_assert at
+  7.5d);
+  tsc's `undefined === undefined` symbol pair (both symbol-less
+  instantiated) is preserved as None == None.
+- **Display-slice extension is FP-shielded**: "{}" renders ONLY for
+  symbol-LESS empty anonymous objects. The bare arm unmasked 5
+  corpus fabrications (2339/2322 in exportAsNamespace5 /
+  declarationFileForJsonImport / jsObjectsMarkedAsOpenEnded) whose
+  member machinery is M7/M8 — the symbol guard re-shields them and
+  is documented at the arm as load-bearing FP shielding, not display
+  fidelity. The 7.4c frontier pin FLIPPED to its oracle face
+  [(2322,148,1)] ('{}' vs 'number' args from the noLib Array miss);
+  two recorded-FN pins (calls.rs array-literal 2345, widen.rs 7053)
+  flipped to oracle rows the same way.
+- **Ripple audit: nothing left to build** — the consumer list
+  (contextual element inference, generic new, tagged templates,
+  satisfies, 2769 failure-path candidate choice) probed 11-for-11
+  port==oracle (probe75f/probe75g); representative pins added.
+  7.4's resolveCall inference had already carried the mass; 7.5's
+  B7/B8 closed the relation-side remainder.
+- **M4 NOTES re-probe recorded in docs/NOTES-m4.md**: 2454/18050/
+  18048 RETIRED (M5 delivered); 2345 349→236 and 2322 1362→1006
+  (M6 delivered); M7/M8-owned rows byte-stable; 2365's M5/M6 owner
+  guess falsified → amended M7-adjacent.
+- Old stub-era pin generic_signature_relations_escape_to_inference
+  rewritten to assert the live verdict (alpha-equivalent generics
+  relate).
+
+**7.5d review fixes (2026-07-21, m6/7.5-consumers — external review
+of PR #47; two blockers + one major, all corpus-blind, all
+counterexamples oracle-verified against vendored 6.0.3):**
+
+- **Frame loan re-park (blocker — panic)**: `<T extends U, U extends
+  string>(x: T, y: U)` related against a concrete function type
+  PANICKED at the RelationFrame dispatch — slot T's constraint
+  instantiation re-enters slot U through the non-fixing mapper's
+  DEFERRED thunk mid-iSICO, where the parameter-threaded loan could
+  not reach (tsc's closure is ambient; getInferredType 69296-69298 →
+  makeNonFixingMapperForContext 68258-68278 → forward getInferredType
+  → clamp compareTypes). Fix: the loan PARKS on
+  `CheckerState::relation_frame_loan` (engine.rs RelationFrameLoan);
+  the clamp takes/puts it around each compare; a RE-ENTRANT compare
+  DURING an in-flight clamp walk (lazy member resolution of an
+  object-typed constraint resolving a forward slot) finds the
+  InFlight marker and runs a fresh sub-walk under the recorded
+  relation/intersectionState — a recorded deviation from tsc's
+  shared maybe-stack/budget (aliasing-impossible in Rust; bounded by
+  the pre-clamp memo). The `_with_frame` parameter faces are gone.
+  Pinned both re-entry shapes, pass and fail faces.
+- **Body-inferred predicate guard (blocker — FP)**: the B7 consults
+  read "no materialized predicate" as predicate-free, but tsc 6.0.3
+  INFERS predicates from unannotated boolean-returning bodies
+  (getTypePredicateFromBody, TS 5.5) — probed: a body-inferred
+  source against a predicate-annotated overload hard-Falsed
+  candidate 1 and FABRICATED a renderable 2322 off candidate 2
+  (tsc: clean); the override-compat 2416 went missing; the plain
+  assignment mis-verdicted behind the curtain. Fix: the RELATED arm
+  and the CALLBACK cell ride narrow.rs
+  relation_type_predicate_of_signature, which Errs when the
+  narrowing-side probe (signature_may_have_body_inferred_predicate —
+  unannotated + boolean return + params, the same class the
+  get_effects_signature escape defers) flags a None — containment,
+  new escapes row (owner M6, joining the close-line adjudication).
+  The IDENTICAL tail deliberately keeps the raw consult: guarding it
+  Errs every union/intersection signature-list assembly over
+  unannotated boolean members and kills their calls' REAL rows
+  (pinned by multi_signature_body_inference_candidate_flags_the_
+  query) — the residual one-sided-inference over-match is recorded
+  at the site as a KNOWN-GAP (list-shape divergence, no proven
+  fabrication). Annotated-predicate cells and plain boolean helpers
+  stay live.
+- **isInstantiatedGenericParameter (major)**: the callback cell's
+  second suppression disjunct (64549-64550 —
+  `signature.target`'s position type is generic pre-instantiation,
+  75871-75874) was missing since M4, mis-routing instantiated
+  same-shape methods through the callback recursion (probed:
+  `I<(x: string) => void>` → structurally-matching plain interface
+  related False-then-contained where tsc is clean; the
+  same-reference face is shielded by variance shortcuts). Ported
+  isInstantiatedGenericParameter + its isGenericType /
+  getGenericObjectFlags dependencies (indexed.rs, next to
+  getSimplifiedType; composite memo elided — append-only tables —
+  and the Substitution arm is an M8 escape like its neighbors).
+- Hard assert on the pairwise arm (shipped tsc throws too); the
+  canonical should_panic twin warms the identity instantiation so it
+  pins the CANONICAL cache assert, not the instantiations-map one;
+  silence pins for the B7/B8 live cells upgraded to
+  rows-and-partials (containment-blind no more); stale citations
+  (64570→64577-64579, 64550→64551, 67068→67070) and the widen pin's
+  phantom "6133 ×2" oracle claim corrected.
+
 ## Final gate
 
 ```sh
