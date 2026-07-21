@@ -61,8 +61,8 @@ are the baseline measurement, re-mined per slice:
 | F3 | Unported type families | 285 | `mapped types (M8-stub)` (185) + `conditional types (M8-stub)` (91) + `NoInfer intrinsic (Substitution types)` (9) | Port mapped + conditional types AND the Substitution/NoInfer machinery (type-from-node, instantiation, relations); the M8-stub escapes retire early. NoInfer is MANDATORY here: its 9 rows are ordinary 2322/2345/2353/2741 on noInfer.ts and fit no contract class — exclusion is impossible, so supported FN=0 requires the implementation |
 | F4 | Elaboration engine | ~200 | `elaborateJsxComponents`/JSX attributes (105) + `elaborateObjectLiteral` (42) + `getBestMatchingType` (30) + `elaborateArrayLiteral` (19, incl. forceTuple 4×2322) + `elaborateArrowFunction` (4) | Port elaborateError chain — elaboration REPLACES the parent-position row with child-position rows, so T0 needs it; depends on F1 for message args |
 | F5 | JS/checkJs band (non-JSDoc) | ~161 | `binary expando analysis` (125) + `expando-function member assignment` (19) + `getContextualType parenthesized JSDoc arms` (12) + `isJSConstructor` (5) | Implement non-JSDoc assignment-declaration semantics (contract keeps them IN scope); JSDoc-DRIVEN rows go to adjudication (9.1) |
-| F6 | Rule-gap residue (no-evidence, in-scope) | ~673 | No boundary evidence: 2343×83 (checkExternalEmitHelpers — probe-confirmed in-program tslib fixtures), 2373×60, 2304×68, 2694×42, 2322×59, 2339×34, 2305×31, 2372×17, 2441×16, 2300×15, 2882×13, 2345×12 + tail | Rule-by-rule M8-loop mining: smallest probe → port the emitting branch |
-| F7 | Adjudication candidates | ~489 | No-evidence 2307×289 (conformance/node 228, nonjsExtensions 33) + 2834×120 + 2835×80 | A2 exact-identity exclusions under the out-of-scope contract; gray-zone rule below |
+| F6 | Rule-gap residue (no-evidence, PRESUMED in-scope) | ~673 | No boundary evidence: 2343×83 (checkExternalEmitHelpers — probe-confirmed in-program tslib fixtures), 2373×60, 2304×68, 2694×42, 2322×59, 2339×34, 2305×31, 2372×17, 2441×16, 2300×15, 2882×13, 2345×12 + tail | Rule-by-rule M8-loop mining: smallest probe → port the emitting branch. "Presumed": 9.1's full scan re-bins the host/jsdoc rows hiding here — bundlerNodeModules1.ts 2305×6 (node_modules `exports`-mediated) inside "2305×31" is the known example |
+| F7 | Adjudication candidates (3-code FLOOR, not the set) | ~489 | No-evidence 2307×289 (conformance/node 228, nonjsExtensions 33) + 2834×120 + 2835×80 | A2 exact-identity exclusions under the out-of-scope contract; gray-zone rule below. The floor is where 9.1a STARTS — its scan covers all 4,733 because class membership rides the resolution path, not the code |
 
 Family sizes are baseline attributions, not budgets: retiring a
 curtain can surface latent FPs (fix as bugs) or reveal deeper
@@ -87,8 +87,8 @@ F4/F6 rows cannot emit without rendering.
 
 | Slice | Content | Exit gate (all: FP=0 all bands, ratchets bumped, ci green) |
 |---|---|---|
-| 9.1a | Host adjudication (F7): per-record 2307/2834/2835 under `host-resolution`; gray-zone rule: a relative import whose TARGET FILE IS IN-PROGRAM is implementable (extension probing over program files — includes nonjsExtensions 2307s and in-program 2834/2835) and is NOT excludable; package/node_modules/exports-mediated resolution is. Entries land in the draft manifest | Every excluded record an exact schema-2 A2 identity; `scope audit` green; remainder explicitly re-binned to F6 |
-| 9.1b | JSDoc adjudication: sweep ALL band FNs (reached AND no-evidence — a jsdoc-fixture row behind the display curtain is classified by the ORACLE record's nature, not by our curtain reason) for JSDoc-DRIVEN semantics; non-JSDoc assignment-declaration rows stay IN (contract line, verbatim) | Same per-record discipline; supported FN re-measured = 4,733 − excluded set |
+| 9.1a | Host adjudication: START from the F7 3-code mass (2307/2834/2835) but SCAN ALL 4,733 band FNs — host-resolution is a property of the record's RESOLUTION PATH, not of its code, and any code can ride a host-mediated resolution (recorded counterexample: bundlerNodeModules1.ts 2305×6 through node_modules/package.json `exports`, baseline-binned inside F6's "2305×31"). Gray-zone rule: a relative import whose TARGET FILE IS IN-PROGRAM is implementable (extension probing over program files — includes nonjsExtensions 2307s and in-program 2834/2835) and is NOT excludable; package/node_modules/exports-mediated resolution is. Entries land in the draft manifest | Every excluded record an exact schema-2 A2 identity; `scope audit` green; non-excluded remainder explicitly re-binned to F6 |
+| 9.1b | JSDoc adjudication: same full-4,733 scan (reached AND no-evidence — a jsdoc-fixture row behind the display curtain is classified by the ORACLE record's nature, not by our curtain reason) for JSDoc-DRIVEN semantics; non-JSDoc assignment-declaration rows stay IN (contract line, verbatim) | Same per-record discipline; supported FN re-measured from the tool's `supported_false_negative_diagnostics` (never derived from record counts — bucket semantics, see protocol) |
 | 9.2 | **Band pin**, two changes per [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor): (1) the final adjudicated content lands while the manifest is `draft`; (2) a follow-up change records that adjudication commit (full 40-hex SHA of change 1) + the complete enumerated identity set as the `2xxx` band-freeze record | `scope audit` green incl. pin verification vs trusted base; from here the supported denominator is FROZEN |
 | 9.3a | Tuple renderer (`symbol-less reference display` curtain, 190 rows; M7-re-owned escape row retires) + intersection display + contextual tuple arity + computed-key destructuring rows from the same M6-close re-owned set | Curtain rows flip matched; fabrication audit on every widened arm |
 | 9.3b-x | typeToString shape ladder: mine the 1,543-row curtain by blocking type shape (debug census), then widen shape by shape (references w/ symbols, unions/intersections, anonymous object literals, signatures, indexed access, …) | Per-shape: curtained rows flip, `2xxx` band T0 monotone, fabrication audit each arm |
@@ -117,7 +117,19 @@ against 9.4.
   identity; duplicate buckets need multiplicity-complete handling
   (65 of the 68 permanent duplicate canaries are in-band).
 - The pass sweeps ALL 4,733 band FNs for contract-class membership,
-  independent of curtain attribution.
+  independent of curtain attribution AND independent of diagnostic
+  code: membership is decided by the record's resolution path /
+  semantic origin, never by its code (the bundlerNodeModules1.ts
+  2305 rows are the recorded exemplar — member-of-module errors
+  whose module arrives through node_modules/package.json `exports`
+  are host-resolution even though 2305 is "in-scope" as a code).
+- Exclusion-record counts never convert to FN integers: T0 is
+  bucket-granular and 2XXX holds 65 duplicate buckets, so removing
+  one occurrence leaves its bucket in the supported denominator and
+  removing a whole bucket subtracts differently than its record
+  count. What the pin fixes is the identity SET; every supported-FN
+  number is read from the conformance summary
+  (`supported_false_negative_diagnostics`), never derived.
 - Gray-zone rules of record:
   - 2343/2354 import-helpers rows are IN scope (probe 2026-07-21:
     the esDecorators fixtures define their own in-program
@@ -150,11 +162,18 @@ against 9.4.
   landing (verdict-pin technique where display still curtains the
   relation outcome). FP=0 is the gate, not a hope.
 - Re-measure per slice (`conformance --band 2xxx` to a file, exit
-  code checked); from 9.2 on, the supported-FN target is fixed at
-  (4,733 − pinned exclusion count) and only moves down.
-  Re-attribute the partition in this doc's slice PR when counts
-  move materially. mismatches.json is regenerable — numbers in
-  this doc are snapshots, the tool is the truth.
+  code checked); from 9.2 on, what is FIXED is the pinned identity
+  SET — the supported-FN integer is read from the tool's
+  `supported_false_negative_diagnostics` on every run and must be
+  monotone non-increasing across slices. Exclusion-record counts
+  and FN integers are never 1:1 (T0 is bucket-granular; 2XXX holds
+  65 duplicate buckets — excluding one occurrence leaves the bucket
+  in the supported denominator, and excluding a whole bucket does
+  not subtract its record count from FN), so no supported-FN value
+  is ever DERIVED arithmetically. Re-attribute the partition in
+  this doc's slice PR when counts move materially. mismatches.json
+  is regenerable — numbers in this doc are snapshots, the tool is
+  the truth.
 - One slice = one branch = one PR ([CLAUDE.md](../../../CLAUDE.md)
   workflow); ratchet.toml `[t0-2xxx]` + set-ratchet bumps ride the
   slice, never the merge.
