@@ -857,6 +857,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
+in = "get_generic_object_flags"
+reason = "getGenericObjectFlags Substitution arm (M8 — Substitution types are unconstructible before their type nodes land)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/indexed.rs"
 in = "get_simplified_index_type"
 reason = "getSimplifiedIndexType for mapped types (unported family, M8-stub)"
 class = "stage"
@@ -1118,6 +1125,13 @@ reason = "body-inferred type predicate candidate in a reachability effects consu
 class = "stage"
 owner = "M6"
 count = 2
+
+[[site]]
+file = "crates/checker/src/narrow.rs"
+in = "relation_type_predicate_of_signature"
+reason = "body-inferred type predicate candidate in a signature-relation consult (getTypePredicateFromBody, M6)"
+class = "stage"
+owner = "M6"
 
 [[site]]
 file = "crates/checker/src/operators.rs"

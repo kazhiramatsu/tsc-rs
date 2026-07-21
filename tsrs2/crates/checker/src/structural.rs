@@ -1806,9 +1806,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: dd60f4d6921e768de3c170755c2db13ad88525f85d0536f59177f8e469c0debb
     /// tsc-span: _tsc.js:66934-67042
     ///
-    /// anyFunctionType and JS constructors are M4; the instantiated/
-    /// same-reference erasure fast path has no M3 inputs (only tuple
-    /// references exist, and they carry no signatures).
+    /// KNOWN-GAP (checkJs band): the JS-constructor Construct→Call
+    /// kind swap (66945-66950, isJSConstructor requires isInJSFile)
+    /// is unported — dead for TS inputs, must land with the checkJs
+    /// band (M7/M8). The anyFunctionType wildcard arms and the
+    /// instantiated/same-reference pairwise arm are LIVE (M4 stubs
+    /// lapsed at 5.7 / 7.5b respectively).
     fn signatures_related_to(
         &mut self,
         source: TypeId,
@@ -1872,7 +1875,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 && self.st.tables.reference_target(source)
                     == self.st.tables.reference_target(target)
         {
-            debug_assert_eq!(
+            // Hard assert (7.5d review): tsc's Debug.assertEqual
+            // throws in the SHIPPED compiler too — a debug_assert
+            // would let a release build silently prefix-compare when
+            // source is longer.
+            assert_eq!(
                 source_signatures.len(),
                 target_signatures.len(),
                 "same-target signature lists line up (tsc Debug.assertEqual 66957)"
@@ -2166,6 +2173,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         // signature matching via findMatchingSignature) consult no
         // predicate machinery at all (m4-review B7 restored the
         // decision table; the old gate over-contained them).
+        // KNOWN-GAP (7.5d review): this tail deliberately keeps the
+        // RAW consult — the body-inferred-candidate guard the
+        // related arm and callback cell ride
+        // (relation_type_predicate_of_signature) would Err here on
+        // every union/intersection signature-list assembly over
+        // unannotated boolean members, killing their calls' REAL
+        // rows (tsc resolves same-refinement members fine). Residual:
+        // a ONE-sided body-inference in tsc (pred vs None → False)
+        // can over-match here (both None → plain return compare) —
+        // list-shape divergence only, no proven fabrication; rewrite
+        // with getTypePredicateFromBody (the M6 escape's owner).
         let source_type_predicate = self.st.get_type_predicate_of_signature(source)?;
         let target_type_predicate = self.st.get_type_predicate_of_signature(target)?;
         let related = if source_type_predicate.is_some() || target_type_predicate.is_some() {
@@ -2235,7 +2253,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// `compare_types` is tsc's compareTypes parameter: the type
     /// comparisons below run through the walker's own is_related_to
     /// with the threaded intersectionState — exactly signatureRelated-
-    /// To's isRelatedToWorker closure (67068-67080) for the
+    /// To's isRelatedToWorker closure (67070-67080) for the
     /// RelationFrame producer, and the fresh-walker construction at
     /// isImplementationCompatibleWithOverload models
     /// compareTypesAssignable; the enum value additionally rides the
@@ -2280,25 +2298,42 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         // 64505-64514 in tsc order (m4-review B8 rebuilt the head —
         // the old early gate contained cells the top-signature/arity
         // checks above decide without inference): a generic source
-        // instantiates in the context of the CANONICAL target through
-        // the frame-loaned iSICO so the constraint clamp compares
-        // under this live frame. tsc's `source.typeParameters !==
-        // target.typeParameters` is array identity; value-equal lists
-        // only arise from the interned same-signature case handled at
-        // entry (5.2e argument, unchanged).
+        // instantiates in the context of the CANONICAL target with the
+        // frame loan PARKED on the state so the constraint clamp —
+        // including re-entrant forward-slot resolutions through the
+        // non-fixing mapper's deferred thunks (7.5d review fix) —
+        // compares under this live frame. tsc's `source.typeParameters
+        // !== target.typeParameters` is array identity; value-equal
+        // lists arise only where tsc also shares or alpha-degenerates
+        // (interned same-signature at entry, cloneSignature's shared
+        // array, fresh-array lifts naming the same parameter TypeIds —
+        // the 5.2e argument, amended 7.5d).
         if self.st.signature_of(source).type_parameters.is_some()
             && self.st.signature_of(source).type_parameters
                 != self.st.signature_of(target).type_parameters
         {
             target = self.st.get_canonical_signature(target)?;
-            let mut frame = self.loan_frame(intersection_state);
+            let frame = self.loan_frame(intersection_state);
+            // Nested arms save/restore the outer slot value (an outer
+            // clamp's InFlight marker included) so arbitrary depths
+            // stay balanced.
+            let saved = std::mem::replace(
+                &mut self.st.relation_frame_loan,
+                crate::engine::RelationFrameLoan::Available(frame),
+            );
             let instantiated = self.st.instantiate_signature_in_context_of(
                 source,
                 target,
                 /*inference_context*/ None,
                 Some(compare_types),
-                Some(&mut frame),
             );
+            let parked = std::mem::replace(&mut self.st.relation_frame_loan, saved);
+            let crate::engine::RelationFrameLoan::Available(frame) = parked else {
+                panic!(
+                    "the parked RelationFrame loan must come back Available — every clamp \
+                     compare puts it back before returning (Err included)"
+                );
+            };
             self.restore_frame(frame);
             source = instantiated?;
         }
@@ -2385,13 +2420,22 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 continue;
             };
             if source_type != target_type || check_mode & check_mode::STRICT_ARITY != 0 {
-                let source_sig = if check_mode & check_mode::CALLBACK != 0 {
+                // 64549-64550: callback treatment is suppressed both
+                // in callback checkMode AND for positions that were
+                // generic pre-instantiation (isInstantiatedGeneric-
+                // Parameter — 7.5d review closed the missing
+                // disjunct).
+                let source_sig = if check_mode & check_mode::CALLBACK != 0
+                    || self.st.is_instantiated_generic_parameter(source, i)?
+                {
                     None
                 } else {
                     let non_nullable = self.st.remove_nullable_for_callback_gate(source_type);
                     self.st.get_single_call_signature(non_nullable)?
                 };
-                let target_sig = if check_mode & check_mode::CALLBACK != 0 {
+                let target_sig = if check_mode & check_mode::CALLBACK != 0
+                    || self.st.is_instantiated_generic_parameter(target, i)?
+                {
                     None
                 } else {
                     let non_nullable = self.st.remove_nullable_for_callback_gate(target_type);
@@ -2399,19 +2443,21 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 };
                 let callbacks = match (source_sig, target_sig) {
                     (Some(source_sig), Some(target_sig)) => {
-                        // 64550: the callback cell requires BOTH
+                        // 64551: the callback cell requires BOTH
                         // signatures predicate-free — a predicate on
                         // either side just falls to the plain
                         // bivariant compare below (m4-review B7
-                        // retired the over-contained pre-gate).
-                        // Consult order (short-circuit): source
-                        // predicate, target predicate, then facts.
+                        // retired the over-contained pre-gate; the
+                        // relation consult Errs on body-inferred
+                        // candidates, 7.5d review). Consult order
+                        // (short-circuit): source predicate, target
+                        // predicate, then facts.
                         self.st
-                            .get_type_predicate_of_signature(source_sig)?
+                            .relation_type_predicate_of_signature(source_sig)?
                             .is_none()
                             && self
                                 .st
-                                .get_type_predicate_of_signature(target_sig)?
+                                .relation_type_predicate_of_signature(target_sig)?
                                 .is_none()
                             && self.st.undefined_null_facts(source_type)
                                 == self.st.undefined_null_facts(target_type)
@@ -2477,6 +2523,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if check_mode & check_mode::IGNORE_RETURN_TYPES == 0 {
+            // KNOWN-GAP (checkJs band): tsc's isJSConstructor arms
+            // (64577/64581 — a JS constructor's "return type" is its
+            // declared class/interface type) are unported on both
+            // sides; isJSConstructor requires isInJSFile, so the arms
+            // are dead for TS inputs and land with checkJs (M7/M8).
             let target_resolving = self
                 .st
                 .signature_of(target)
@@ -2515,10 +2566,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // target takes the plain return comparison whatever the
             // source carries (a source-only is-predicate compares as
             // boolean, an asserts-source as void — probed
-            // b7_source_only / b7_source_only_asserts).
-            let target_type_predicate = self.st.get_type_predicate_of_signature(target)?;
+            // b7_source_only / b7_source_only_asserts). Both consults
+            // ride the relation face, which Errs on body-inferred
+            // candidates instead of mis-deciding the source-None
+            // cells (7.5d review — the overload-fabrication FP face).
+            let target_type_predicate = self.st.relation_type_predicate_of_signature(target)?;
             if let Some(target_type_predicate) = target_type_predicate {
-                let source_type_predicate = self.st.get_type_predicate_of_signature(source)?;
+                let source_type_predicate = self.st.relation_type_predicate_of_signature(source)?;
                 if let Some(source_type_predicate) = source_type_predicate {
                     // 64580: result &= — a False verdict falls to the
                     // tail return, not an early exit (tsc has none
@@ -3262,6 +3316,13 @@ impl<'a> CheckerState<'a> {
         }
         let relation = RelationKind::Assignable;
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+        // One walker carries ALL of compareSignaturesRelated's
+        // internal compares — tsc's compareTypesAssignable enters a
+        // FRESH checkTypeRelatedTo per compare, so the complexity
+        // budget/overflow bookkeeping is shared here where tsc
+        // re-seeds it (verdict-visible only under pathological budget
+        // exhaustion; maybe stacks are empty between top-level
+        // compares either way).
         let mut checker = crate::engine::RelationChecker {
             st: self,
             relation,
@@ -6280,6 +6341,29 @@ impl<'a> CheckerState<'a> {
 
     // ---- callback-parameter helpers ----
 
+    /// tsc-port: isInstantiatedGenericParameter @6.0.3
+    /// tsc-hash: 1fdd3193cc61fda77748c9bc598ef0b914c0841c0b1b52dd36dfa0d7e818b632
+    /// tsc-span: _tsc.js:75871-75874
+    ///
+    /// A parameter position that was a generic type BEFORE
+    /// instantiation (signature.target's type at pos) — the callback
+    /// cell suppresses single-signature treatment for those (64549-
+    /// 64550; missing pre-7.5d, which mis-routed instantiated
+    /// same-shape methods through the callback recursion).
+    pub(crate) fn is_instantiated_generic_parameter(
+        &mut self,
+        signature: SignatureId,
+        pos: usize,
+    ) -> CheckResult2<bool> {
+        let Some(target) = self.signature_of(signature).target else {
+            return Ok(false);
+        };
+        let Some(ty) = self.try_get_type_at_position(target, pos)? else {
+            return Ok(false);
+        };
+        self.is_generic_type(ty)
+    }
+
     /// getSingleCallSignature (75875-75877): the one-line delegation
     /// to `getSingleSignature(type, Call, /*allowMembers*/ false)`,
     /// exactly as tsc cuts it.
@@ -7009,12 +7093,20 @@ mod tests {
     // strict defaults) ----
 
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        rows_and_partials(text).0
+    }
+
+    /// The containment-aware face (7.5d review): a `(rows, 0)` pin
+    /// proves the path verdicts LIVE — a bare `checked_rows == []`
+    /// cannot distinguish a clean pass from an Err-contained
+    /// statement.
+    fn rows_and_partials(text: &str) -> (Vec<(u32, u32, u32)>, usize) {
         crate::state::test_support::with_program_state(
             &[("a.ts", text)],
             &CompilerOptions::default(),
             |state| {
                 state.check_source_file(0);
-                state
+                let rows = state
                     .diagnostics
                     .iter()
                     .filter(|diag| diag.file_name.is_some())
@@ -7025,7 +7117,8 @@ mod tests {
                             diag.length.unwrap_or(u32::MAX),
                         )
                     })
-                    .collect()
+                    .collect();
+                (rows, state.partial_check_records.len())
             },
         )
     }
@@ -7137,11 +7230,13 @@ mod tests {
 
     #[test]
     fn predicate_both_sides_equal_types_relate() {
+        // Zero partials (7.5d): the entry cells verdict LIVE, not by
+        // containment.
         assert_eq!(
-            checked_rows(
+            rows_and_partials(
                 "declare function isCat(x: unknown): x is string;\nconst f: (x: unknown) => x is string = isCat;\n"
             ),
-            []
+            (vec![], 0)
         );
     }
 
@@ -7161,7 +7256,7 @@ mod tests {
     #[test]
     fn predicate_target_only_asserts_falls_through_silently() {
         // Asserts-form target alone: the void-return early return
-        // (64570) catches it before the predicate arm — no error.
+        // (64577-64579) catches it before the predicate arm — no error.
         assert_eq!(
             checked_rows(
                 "declare function plain2(x: unknown): void;\nconst h: (x: unknown) => asserts x is string = plain2;\n"
@@ -7192,7 +7287,7 @@ mod tests {
     fn predicate_source_only_asserts_compares_as_void_return() {
         // Asserts-source vs plain boolean target: the plain return
         // comparison sees VOID (not boolean) and fails; a void target
-        // takes the 64570 early return instead.
+        // takes the 64577-64579 early return instead.
         assert_eq!(
             program_rows(
                 "declare function aStr(x: unknown): asserts x is string;\n// @ts-expect-error\nconst z: (x: unknown) => boolean = aStr;\n"
@@ -7396,12 +7491,13 @@ mod tests {
 
     #[test]
     fn generic_source_constraint_clamp_compares_under_the_frame() {
-        // T extends {id:number} satisfied — no clamp, relation holds.
+        // T extends {id:number} satisfied — the clamp compare passes
+        // LIVE (zero partials, 7.5d) and the relation holds.
         assert_eq!(
-            checked_rows(
+            rows_and_partials(
                 "declare function pick<T extends { id: number }>(x: T): T;\nconst a4: (x: { id: number; name: string }) => { id: number; name: string } = pick;\n"
             ),
-            []
+            (vec![], 0)
         );
         // T extends string violated by T:=number — the clamp's
         // RelationFrame compare rejects, the instantiated source
@@ -7429,16 +7525,16 @@ mod tests {
         // unconstrained clone re-canonicalizes to its target; the
         // constrained variant keeps the clone.
         assert_eq!(
-            checked_rows(
+            rows_and_partials(
                 "interface I<T> { m<U>(x: T, y: U): void; }\ndeclare const i: I<number>;\nconst mf: (x: number, y: string) => void = i.m;\n"
             ),
-            []
+            (vec![], 0)
         );
         assert_eq!(
-            checked_rows(
+            rows_and_partials(
                 "interface I2<T> { m<U extends T>(x: T, y: U): U; }\ndeclare const i2: I2<number>;\nconst mf2: (x: number, y: 3) => 3 = i2.m;\n"
             ),
-            []
+            (vec![], 0)
         );
         assert_eq!(
             program_rows(
@@ -7517,6 +7613,159 @@ mod tests {
                 "declare function isCat(x: unknown): x is string;\ndeclare function take(p: (x: unknown) => x is string): number;\nconst ok: string = take(isCat);\n"
             ),
             [(2322, 118, 2)]
+        );
+    }
+
+    // ---- M6 7.5d review fixes: regression pins. Every fixture
+    // oracle-probed against vendored 6.0.3 noLib (2026-07-21,
+    // scratchpad probe-review.cjs / probe-port). ----
+
+    #[test]
+    fn forward_constraint_generic_resolves_through_the_parked_frame() {
+        // Blocker fix: <T extends U, U extends string> — resolving
+        // slot T instantiates its constraint through the DEFERRED
+        // non-fixing mapper, re-entering slot U (and U's clamp)
+        // MID-iSICO; pre-7.5d the parameter-threaded loan missed the
+        // thunk path and the RelationFrame dispatch panicked. Pass
+        // face: tsc clean — zero containment proves the re-entrant
+        // path completes live.
+        assert_eq!(
+            rows_and_partials(
+                "declare function f<T extends U, U extends string>(x: T, y: U): void;\nconst g: (x: \"a\", y: \"a\") => void = f;\n"
+            ),
+            (vec![], 0)
+        );
+        // Fail face: tsc 2322 — the head's function-type args sit
+        // behind the display curtain, so the False verdict contains
+        // (no fabricated rows).
+        assert_eq!(
+            rows_and_partials(
+                "declare function f<T extends U, U extends string>(x: T, y: U): void;\nconst g: (x: \"a\", y: \"b\") => void = f;\n"
+            ),
+            (vec![], 1)
+        );
+    }
+
+    #[test]
+    fn forward_constraint_object_member_re_enters_during_the_clamp() {
+        // The InFlight face: T's clamp WALKS the instantiated
+        // { u: U } constraint, whose lazy member resolution re-enters
+        // slot U while the frame is checked out — the fresh-sub-walk
+        // fallback (engine.rs RelationFrameLoan::InFlight) carries
+        // it. tsc: clean / 2322-behind-the-curtain.
+        assert_eq!(
+            rows_and_partials(
+                "declare function f2<T extends { u: U }, U extends string>(x: T, y: U): void;\nconst g2: (x: { u: \"b\" }, y: \"b\") => void = f2;\n"
+            ),
+            (vec![], 0)
+        );
+        assert_eq!(
+            rows_and_partials(
+                "declare function f2<T extends { u: U }, U extends string>(x: T, y: U): void;\nconst g2: (x: { u: \"a\" }, y: \"b\") => void = f2;\n"
+            ),
+            (vec![], 1)
+        );
+    }
+
+    #[test]
+    fn body_inferred_predicate_candidates_contain_instead_of_deciding() {
+        // Blocker fix (the FP channel): tsc 6.0.3 INFERS `x is
+        // string` from isStr's body (getTypePredicateFromBody, TS
+        // 5.5) and resolves overload 1 (clean); the pre-7.5d None
+        // hard-Falsed candidate 1 and FABRICATED a renderable 2322
+        // 'string'/'number' off candidate 2. The relation consult
+        // now contains the candidate class instead (escapes row,
+        // owner M6).
+        assert_eq!(
+            rows_and_partials(
+                "function isStr(x: unknown) { return typeof x === \"string\"; }\ndeclare function take(p: (x: unknown) => x is string): number;\ndeclare function take(p: (x: unknown) => boolean): string;\nconst n: number = take(isStr);\n"
+            ),
+            (vec![], 1)
+        );
+        // tsc: the 2416 override-compat chain (body-inferred
+        // predicates on BOTH sides) — recorded FN by containment,
+        // not a silent wrong-True.
+        assert_eq!(
+            rows_and_partials(
+                "class A { isS(x: unknown) { return typeof x === \"string\"; } }\nclass B extends A { isS(x: unknown) { return typeof x === \"number\"; } }\n"
+            ),
+            (vec![], 1)
+        );
+        // tsc: clean (the inferred source predicate satisfies the
+        // annotated target) — containment until
+        // getTypePredicateFromBody lands.
+        assert_eq!(
+            rows_and_partials(
+                "function isStr(x: unknown) { return typeof x === \"string\"; }\nconst f: (x: unknown) => x is string = isStr;\n"
+            ),
+            (vec![], 1)
+        );
+    }
+
+    #[test]
+    fn body_inferred_guard_leaves_plain_boolean_helpers_live() {
+        // The related arm consults the source only under a
+        // target-side predicate (tsc order), so an unannotated
+        // boolean helper against a plain boolean target never
+        // reaches the guard — zero containment.
+        assert_eq!(
+            rows_and_partials(
+                "function isPos(x: number) { return x > 0; }\nconst p: (x: number) => boolean = isPos;\n"
+            ),
+            (vec![], 0)
+        );
+    }
+
+    #[test]
+    fn instantiated_generic_parameter_suppresses_callback_treatment() {
+        // Major fix: 64549-64550's SECOND suppression disjunct —
+        // I<(x: string) => void>'s m keeps signature.target whose
+        // v-position is T (generic), so the position takes the plain
+        // bivariant compare (the fewer-params source leg passes),
+        // NOT the callback recursion whose arity check wrongly
+        // Falsed. tsc: clean.
+        assert_eq!(
+            rows_and_partials(
+                "interface I<T> { m(v: T): void }\ninterface J { m(v: (x: string, y: number) => void): void }\ndeclare const a: I<(x: string) => void>;\nconst b: J = a;\n"
+            ),
+            (vec![], 0)
+        );
+        // Control: annotation-derived positions carry no
+        // signature.target, so callback treatment SURVIVES — the
+        // arity-incompatible pair still Falses (tsc: 2322 behind the
+        // display curtain).
+        assert_eq!(
+            rows_and_partials(
+                "declare function on(cb: (x: string) => void): void;\ndeclare const h: (x: string, y: number) => void;\nconst c: (cb: (x: string, y: number) => void) => void = on;\n"
+            ),
+            (vec![], 1)
+        );
+    }
+
+    #[test]
+    fn predicate_type_compare_arm_relates_live() {
+        // The both-Some UNEQUAL-types cell ('a' vs string) — the
+        // compareTypes arm proper, not the ty == ty shortcut; zero
+        // containment proves the verdict is live (the pre-7.5d 2578
+        // control only ever exercised the shortcut).
+        assert_eq!(
+            rows_and_partials(
+                "declare function isLit(x: unknown): x is \"a\";\nconst cf: (x: unknown) => x is string = isLit;\n"
+            ),
+            (vec![], 0)
+        );
+    }
+
+    #[test]
+    fn predicate_parameter_index_match_relates_live() {
+        // The nonzero-index positive twin of the mismatch pin:
+        // index 1 == 1 passes the 64614 check and the relation
+        // completes with zero containment.
+        assert_eq!(
+            rows_and_partials(
+                "declare function isB(a: unknown, b: unknown): b is string;\nconst m2: (a: unknown, b: unknown) => b is string = isB;\n"
+            ),
+            (vec![], 0)
         );
     }
 }

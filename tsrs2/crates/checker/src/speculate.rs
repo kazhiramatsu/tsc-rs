@@ -33,7 +33,14 @@
 //!   speculation_depth assert net on links/Signature-cache writes stays
 //!   in force as the 7.4 wiring inventory: each site a live trial
 //!   exercises gets a per-site, evidence-backed relaxation THERE, not a
-//!   blanket one here.
+//!   blanket one here. 7.5d addition to that inventory: B8 put erased
+//!   AND canonical signature computation on EVERY relation compare
+//!   (signatureRelatedTo erase honoring + the generic-source arm), so
+//!   when trials gain a producer, the first-touch cache writes in
+//!   get_erased_signature / get_canonical_signature /
+//!   get_base_signature and the optional-call cache are the sites an
+//!   in-trial relation check hits first — wire their relaxations
+//!   before flipping trials live.
 //! - D (diagnostics sinks): truncated to the checkpoint marks on
 //!   rollback (push-dedupe is order-safe under truncation), kept on
 //!   commit. `deferred_nodes` deliberately survives rollback — tsc
@@ -807,7 +814,11 @@ mod tests {
     }
 
     /// The canonical twin (M6 7.5): getCanonicalSignature's cache
-    /// write sits in the same net.
+    /// write sits in the same net. The identity instantiation is
+    /// WARMED at depth 0 first (7.5d review) — cold, the
+    /// instantiations-map assert inside getSignatureInstantiation
+    /// fires before the canonical write and this test would pin the
+    /// wrong assert.
     #[test]
     #[should_panic(expected = "links writes are forbidden during speculation")]
     fn canonical_signature_cache_write_asserts_under_speculation() {
@@ -822,6 +833,19 @@ mod tests {
                 let signature = state
                     .get_signatures_of_type(ty, SignatureKind::Call)
                     .expect("f has call signatures")[0];
+                let own_parameter = state
+                    .signature_of(signature)
+                    .type_parameters
+                    .clone()
+                    .expect("f is generic")[0];
+                state
+                    .get_signature_instantiation(
+                        signature,
+                        Some(&[own_parameter]),
+                        /*is_javascript*/ false,
+                        /*inferred_type_parameters*/ None,
+                    )
+                    .expect("identity instantiation warms at depth 0");
                 state.speculation_depth = 1;
                 let _ = state.get_canonical_signature(signature);
             },

@@ -260,7 +260,6 @@ impl<'a> CheckerState<'a> {
             // compareTypesAssignable default.
             /*compare_types*/
             None,
-            /*frame*/ None,
         )?;
         self.get_or_create_type_from_signature(instantiated)
     }

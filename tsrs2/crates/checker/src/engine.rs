@@ -723,15 +723,20 @@ pub(crate) struct RelationChecker<'r, 'a> {
 }
 
 /// The checkTypeRelatedTo frame state detached from its `st` borrow —
-/// the port of tsc's isRelatedToWorker CLOSURE (67068-67080): when
+/// the port of tsc's isRelatedToWorker CLOSURE (67070-67080): when
 /// compareSignaturesRelated hands compareTypes into
 /// instantiateSignatureInContextOf (64507), the constraint clamp
 /// (getInferredType 69300-69306) must compare under the LIVE frame —
 /// same maybe stack, recursion depths, and budget. Rust can't store
 /// that closure in the inference context, so the walker LOANS its
-/// frame fields (mem::take) around the state-level call and the clamp
-/// re-assembles a RelationChecker from the loan for each compare;
-/// every mutation (maybe cache entries, counts, overflow) flows back.
+/// frame fields (mem::take) and PARKS the loan on the state
+/// (`CheckerState::relation_frame_loan`) for the duration of the
+/// iSICO call — a parameter cannot reach every consumer, because
+/// getInferredType re-enters through the non-fixing mapper's deferred
+/// thunks (69296-69298 constraint/default instantiation resolving
+/// FORWARD slots mid-call). The clamp takes the loan from the slot,
+/// re-assembles a RelationChecker per compare, and puts every
+/// mutation (maybe cache entries, counts, overflow) back.
 /// `intersection_state` is the closure's captured signatureRelatedTo
 /// argument.
 pub(crate) struct RelationFrame {
@@ -749,9 +754,38 @@ pub(crate) struct RelationFrame {
     pub(crate) intersection_state: IntersectionState,
 }
 
+/// The parked state of a RelationFrame loan
+/// (`CheckerState::relation_frame_loan`) — see RelationFrame. tsc's
+/// closure is ambient over the whole iSICO call; this slot is its
+/// Rust home so BOTH the explicit clamp compares and the re-entrant
+/// resolutions through the non-fixing mapper's deferred thunks reach
+/// the same live frame.
+pub(crate) enum RelationFrameLoan {
+    /// No RelationFrame-compare context is live (the only legal state
+    /// outside a B8 generic-arm iSICO call).
+    None,
+    /// The walker's loan is parked; the clamp takes it around each
+    /// compare and puts it back (mutations included) before
+    /// returning, Err or not.
+    Available(RelationFrame),
+    /// A clamp compare has the fields checked out into its
+    /// re-assembled walker. A RE-ENTRANT compare (lazy member
+    /// instantiation inside the in-flight walk resolving a forward
+    /// slot whose clamp fires) cannot alias them — it runs a FRESH
+    /// sub-walk under the recorded relation/intersectionState
+    /// (deviation from tsc's shared maybe-stack/budget, recorded at
+    /// the consumer; fresh-walk relation-cache commits still land on
+    /// `st`, and the pre-clamp memo (69296) bounds the re-entry
+    /// depth by the slot count).
+    InFlight {
+        relation: RelationKind,
+        intersection_state: IntersectionState,
+    },
+}
+
 impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsrs-native: frame loan for the RelationFrame worker (the
-    /// Rust face of tsc's isRelatedToWorker closure capture, 67068).
+    /// Rust face of tsc's isRelatedToWorker closure capture, 67070).
     ///
     /// Detach the frame fields for a state-level call that must
     /// compare under this live frame (see RelationFrame). Pair every

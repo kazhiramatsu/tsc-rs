@@ -3265,6 +3265,34 @@ impl<'a> CheckerState<'a> {
         Ok(result)
     }
 
+    /// tsrs-native: the RELATION-side consult face of
+    /// getTypePredicateOfSignature — M6-deferral containment for
+    /// tsc's BODY-INFERRED predicates (getTypePredicateFromBody,
+    /// 79015-79070, reached through 59783-59788 when the declaration
+    /// is an unannotated boolean-returning function with parameters).
+    /// The B7 decision-table consults (compareSignaturesRelated's
+    /// predicate arm and callback cell, compareSignaturesIdentical's
+    /// tail) read "no materialized predicate" as predicate-free —
+    /// wrong-verdict territory when tsc would infer one (the
+    /// m6-7.5d review's overload-fabrication FP face) — so a None
+    /// whose signature the narrowing-side probe flags Errs instead of
+    /// comparing under the wrong table cell.
+    pub(crate) fn relation_type_predicate_of_signature(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<Option<TypePredicate>> {
+        if let Some(predicate) = self.get_type_predicate_of_signature(signature)? {
+            return Ok(Some(predicate));
+        }
+        if self.signature_may_have_body_inferred_predicate(signature)? {
+            return Err(Unsupported::new(
+                "body-inferred type predicate candidate in a signature-relation consult \
+                 (getTypePredicateFromBody, M6)",
+            ));
+        }
+        Ok(None)
+    }
+
     /// The computation behind the memo (same tsc span).
     /// tsrs-native: memo split of getTypePredicateOfSignature.
     fn compute_type_predicate_of_signature(

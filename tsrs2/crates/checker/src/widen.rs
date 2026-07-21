@@ -904,9 +904,11 @@ mod tests {
         // since the 6.6f gate retirement), 7053 on c[0] (LIVE since
         // M6 7.5's "{}" display arm — the evolving never[] index
         // renders '{}' under the noLib Array miss; re-probed
-        // probe75d.mjs), 6133 ×2 (M7), 7005 ×2 (live). The pin still
-        // asserts the FP face: NO 2322 from `b = 5` against a
-        // null-typed b.
+        // probe75d.mjs), 7005 ×2 (live). This pin is ORACLE-EXACT
+        // (7.5d re-probe: no 6133 rows exist here — the historical
+        // "6133 ×2 (M7)" claim was stale; 6133 needs noUnusedLocals
+        // and everything in this fixture is read). It also asserts
+        // the FP face: NO 2322 from `b = 5` against a null-typed b.
         assert_eq!(
             checked_rows(
                 "let b = null;\nb = 5;\nb.toFixed();\nlet c = [];\nc[0] = 1;\nexport let v1;\nv1;\ndeclare let d1;\nd1;\n"

@@ -1830,18 +1830,19 @@ impl<'a> CheckerState<'a> {
     /// createInferenceContext's compareTypesAssignable default): the
     /// higher-order caller (80809) passes None, the
     /// compareSignaturesRelated generic-source arm (64507) passes the
-    /// RelationFrame worker plus its frame loan so the constraint
-    /// clamp compares under the live relation frame. A generic-rest
-    /// contextual signature instantiates through the NON-fixing
-    /// mapper; the ReturnType-priority return inference runs only for
-    /// context-LESS callers (75917-75921).
+    /// RelationFrame worker with its loan PARKED on
+    /// `relation_frame_loan` so the constraint clamp — including the
+    /// re-entrant forward-slot resolutions through the non-fixing
+    /// mapper's deferred thunks — compares under the live relation
+    /// frame. A generic-rest contextual signature instantiates
+    /// through the NON-fixing mapper; the ReturnType-priority return
+    /// inference runs only for context-LESS callers (75917-75921).
     pub(crate) fn instantiate_signature_in_context_of(
         &mut self,
         signature: SignatureId,
         contextual_signature: SignatureId,
         inference_context: Option<crate::inference::InferenceContextId>,
         compare_types: Option<crate::inference::CompareTypesFn>,
-        frame: Option<&mut crate::engine::RelationFrame>,
     ) -> CheckResult2<SignatureId> {
         let type_parameters = self.get_type_parameters_for_mapper(signature)?;
         let context = self.create_inference_context(
@@ -1883,7 +1884,7 @@ impl<'a> CheckerState<'a> {
                 InferencePriority::RETURN_TYPE,
             )?;
         }
-        let inferred_types = self.get_inferred_types_with_frame(context, frame)?;
+        let inferred_types = self.get_inferred_types(context)?;
         let is_javascript = self
             .signature_of(contextual_signature)
             .declaration

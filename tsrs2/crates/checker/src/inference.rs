@@ -93,14 +93,16 @@ pub(crate) enum CompareTypesFn {
     /// compareTypesAssignable — consumed by getInferredType's
     /// constraint clamp (69300-69306, stage 7.3).
     Assignable,
-    /// signatureRelatedTo's isRelatedToWorker closure (67068-67080),
+    /// signatureRelatedTo's isRelatedToWorker closure (67070-67080),
     /// handed through compareSignaturesRelated 64507 into
     /// instantiateSignatureInContextOf (M6 7.5 head rebuild). The
     /// closure's frame lives OUTSIDE the context — the walker loans
-    /// it as a `RelationFrame` parameter down the getInferredTypes
-    /// call chain; consuming this variant without the loan is a
-    /// programmer error (iSICO's context is frame-local and nothing
-    /// re-reads it after iSICO returns).
+    /// it and PARKS the loan on `relation_frame_loan` for the whole
+    /// iSICO call (a parameter cannot reach the re-entrant
+    /// getInferredType resolutions through the non-fixing mapper's
+    /// deferred thunks — M6 7.5d review fix). Consuming this variant
+    /// with no parked loan is a programmer error (iSICO's context is
+    /// frame-local and nothing re-reads it after iSICO returns).
     RelationFrame,
 }
 
@@ -961,71 +963,145 @@ impl<'a> CheckerState<'a> {
     /// CompareTypesFn closed set (see the enum): tsc stores a function
     /// reference on the context. compareTypesAssignable's (68239)
     /// Ternary truthiness is exactly isTypeAssignableTo; the
-    /// RelationFrame worker re-assembles the loaning walker around
-    /// each compare (truthiness = not False — Maybe counts as
-    /// related, exactly tsc's `!compareTypes(...)` test).
+    /// RelationFrame worker takes the PARKED loan
+    /// (`relation_frame_loan`, see engine.rs RelationFrameLoan),
+    /// re-assembles the loaning walker around the compare, and puts
+    /// every mutation back — Err or not — so the walker's
+    /// restore_frame sees the final state (truthiness = not False —
+    /// Maybe counts as related, exactly tsc's `!compareTypes(...)`
+    /// test). A RE-ENTRANT compare (the in-flight walk's lazy member
+    /// instantiation resolving a forward slot through the deferred
+    /// non-fixing mapper) finds the loan checked out and runs a FRESH
+    /// sub-walk under the same relation/intersectionState — tsc
+    /// re-enters isRelatedTo on the ambient closure frame there;
+    /// Rust cannot alias the checked-out fields, so the fresh walk's
+    /// maybe stack and budget start empty (verdict-visible only under
+    /// in-flight-pair cycles/budget exhaustion; relation-cache
+    /// commits still land on the state).
     fn compare_inference_types(
         &mut self,
         context: InferenceContextId,
         source: TypeId,
         target: TypeId,
-        frame: Option<&mut crate::engine::RelationFrame>,
     ) -> CheckResult2<bool> {
         match self.inference_context(context).compare_types {
             CompareTypesFn::Assignable => self.is_type_assignable_to(source, target),
             CompareTypesFn::RelationFrame => {
-                let frame = frame.expect(
-                    "RelationFrame compare_types consumed without its frame loan — \
-                     instantiateSignatureInContextOf's context is frame-local (75910-75924)",
-                );
-                let mut checker = crate::engine::RelationChecker {
-                    st: self,
-                    relation: frame.relation,
-                    maybe_keys: std::mem::take(&mut frame.maybe_keys),
-                    maybe_keys_set: std::mem::take(&mut frame.maybe_keys_set),
-                    source_stack: std::mem::take(&mut frame.source_stack),
-                    target_stack: std::mem::take(&mut frame.target_stack),
-                    maybe_count: frame.maybe_count,
-                    source_depth: frame.source_depth,
-                    target_depth: frame.target_depth,
-                    expanding_flags: frame.expanding_flags,
-                    overflow: frame.overflow,
-                    relation_count: frame.relation_count,
-                };
-                let related = checker.is_related_to(
-                    source,
-                    target,
-                    tsrs2_types::RecursionFlags::BOTH,
-                    /*report_errors*/ false,
-                    frame.intersection_state,
-                );
-                // Write every mutation back BEFORE propagating an
-                // Err — the walker's restore_frame sees the loan's
-                // final state either way.
-                let crate::engine::RelationChecker {
-                    maybe_keys,
-                    maybe_keys_set,
-                    source_stack,
-                    target_stack,
-                    maybe_count,
-                    source_depth,
-                    target_depth,
-                    expanding_flags,
-                    overflow,
-                    relation_count,
-                    ..
-                } = checker;
-                frame.maybe_keys = maybe_keys;
-                frame.maybe_keys_set = maybe_keys_set;
-                frame.source_stack = source_stack;
-                frame.target_stack = target_stack;
-                frame.maybe_count = maybe_count;
-                frame.source_depth = source_depth;
-                frame.target_depth = target_depth;
-                frame.expanding_flags = expanding_flags;
-                frame.overflow = overflow;
-                frame.relation_count = relation_count;
-                Ok(related? != tsrs2_types::Ternary::FALSE)
+                use crate::engine::{RelationChecker, RelationFrame, RelationFrameLoan};
+                match std::mem::replace(&mut self.relation_frame_loan, RelationFrameLoan::None) {
+                    RelationFrameLoan::Available(frame) => {
+                        let RelationFrame {
+                            relation,
+                            maybe_keys,
+                            maybe_keys_set,
+                            source_stack,
+                            target_stack,
+                            maybe_count,
+                            source_depth,
+                            target_depth,
+                            expanding_flags,
+                            overflow,
+                            relation_count,
+                            intersection_state,
+                        } = frame;
+                        self.relation_frame_loan = RelationFrameLoan::InFlight {
+                            relation,
+                            intersection_state,
+                        };
+                        let mut checker = RelationChecker {
+                            st: self,
+                            relation,
+                            maybe_keys,
+                            maybe_keys_set,
+                            source_stack,
+                            target_stack,
+                            maybe_count,
+                            source_depth,
+                            target_depth,
+                            expanding_flags,
+                            overflow,
+                            relation_count,
+                        };
+                        let related = checker.is_related_to(
+                            source,
+                            target,
+                            tsrs2_types::RecursionFlags::BOTH,
+                            /*report_errors*/ false,
+                            intersection_state,
+                        );
+                        let RelationChecker {
+                            maybe_keys,
+                            maybe_keys_set,
+                            source_stack,
+                            target_stack,
+                            maybe_count,
+                            source_depth,
+                            target_depth,
+                            expanding_flags,
+                            overflow,
+                            relation_count,
+                            ..
+                        } = checker;
+                        self.relation_frame_loan = RelationFrameLoan::Available(RelationFrame {
+                            relation,
+                            maybe_keys,
+                            maybe_keys_set,
+                            source_stack,
+                            target_stack,
+                            maybe_count,
+                            source_depth,
+                            target_depth,
+                            expanding_flags,
+                            overflow,
+                            relation_count,
+                            intersection_state,
+                        });
+                        Ok(related? != tsrs2_types::Ternary::FALSE)
+                    }
+                    RelationFrameLoan::InFlight {
+                        relation,
+                        intersection_state,
+                    } => {
+                        self.relation_frame_loan = RelationFrameLoan::InFlight {
+                            relation,
+                            intersection_state,
+                        };
+                        // Fresh sub-walk (see the fn comment): budget
+                        // seeded exactly like a checkTypeRelatedTo
+                        // entry; frame mutations are dropped (the
+                        // in-flight owner's fields come back
+                        // untouched).
+                        let relation_count =
+                            (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+                        let mut checker = RelationChecker {
+                            st: self,
+                            relation,
+                            maybe_keys: Vec::new(),
+                            maybe_keys_set: std::collections::HashSet::new(),
+                            source_stack: Vec::new(),
+                            target_stack: Vec::new(),
+                            maybe_count: 0,
+                            source_depth: 0,
+                            target_depth: 0,
+                            expanding_flags: tsrs2_types::ExpandingFlags::NONE,
+                            overflow: false,
+                            relation_count,
+                        };
+                        let related = checker.is_related_to(
+                            source,
+                            target,
+                            tsrs2_types::RecursionFlags::BOTH,
+                            /*report_errors*/ false,
+                            intersection_state,
+                        )?;
+                        Ok(related != tsrs2_types::Ternary::FALSE)
+                    }
+                    RelationFrameLoan::None => panic!(
+                        "RelationFrame compare_types consumed without a parked frame loan — \
+                         the B8 generic arm parks it around instantiateSignatureInContextOf \
+                         (75910-75924) and nothing re-reads the context after iSICO returns"
+                    ),
+                }
             }
         }
     }
@@ -1048,19 +1124,6 @@ impl<'a> CheckerState<'a> {
         &mut self,
         context: InferenceContextId,
         index: usize,
-    ) -> CheckResult2<TypeId> {
-        self.get_inferred_type_with_frame(context, index, None)
-    }
-
-    /// tsrs-native: parameter split of getInferredType (69271) — the
-    /// frame-loaning face (see CompareTypesFn::RelationFrame):
-    /// Assignable-context callers pass None; the walker's iSICO call
-    /// threads its loan so the constraint clamp compares live.
-    pub(crate) fn get_inferred_type_with_frame(
-        &mut self,
-        context: InferenceContextId,
-        index: usize,
-        mut frame: Option<&mut crate::engine::RelationFrame>,
     ) -> CheckResult2<TypeId> {
         let inference = self.inference_context(context).inferences[index];
         if let Some(cached) = self.inference_info(inference).inferred_type {
@@ -1207,22 +1270,12 @@ impl<'a> CheckerState<'a> {
             if let Some(t) = inferred_type {
                 let constraint_with_this =
                     self.get_type_with_this_argument(instantiated_constraint, Some(t), false)?;
-                if !self.compare_inference_types(
-                    context,
-                    t,
-                    constraint_with_this,
-                    frame.as_deref_mut(),
-                )? {
+                if !self.compare_inference_types(context, t, constraint_with_this)? {
                     let filtered_by_constraint = if self.inference_info(inference).priority
                         == Some(InferencePriority::RETURN_TYPE)
                     {
                         self.filter_type_with(t, |state, member| {
-                            state.compare_inference_types(
-                                context,
-                                member,
-                                constraint_with_this,
-                                frame.as_deref_mut(),
-                            )
+                            state.compare_inference_types(context, member, constraint_with_this)
                         })?
                     } else {
                         self.tables.intrinsics.never
@@ -1246,12 +1299,7 @@ impl<'a> CheckerState<'a> {
                             Some(fallback),
                             false,
                         )?;
-                        if self.compare_inference_types(
-                            context,
-                            fallback,
-                            fallback_with_this,
-                            frame,
-                        )? {
+                        if self.compare_inference_types(context, fallback, fallback_with_this)? {
                             fallback
                         } else {
                             instantiated_constraint
@@ -1280,20 +1328,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         context: InferenceContextId,
     ) -> CheckResult2<Vec<TypeId>> {
-        self.get_inferred_types_with_frame(context, None)
-    }
-
-    /// tsrs-native: parameter split of getInferredTypes (69317) —
-    /// the frame-loaning face; see get_inferred_type_with_frame.
-    pub(crate) fn get_inferred_types_with_frame(
-        &mut self,
-        context: InferenceContextId,
-        mut frame: Option<&mut crate::engine::RelationFrame>,
-    ) -> CheckResult2<Vec<TypeId>> {
         let len = self.inference_context(context).inferences.len();
         let mut result = Vec::with_capacity(len);
         for index in 0..len {
-            result.push(self.get_inferred_type_with_frame(context, index, frame.as_deref_mut())?);
+            result.push(self.get_inferred_type(context, index)?);
         }
         Ok(result)
     }
@@ -3399,6 +3437,45 @@ mod tests {
             .node_ids()
             .find(|&id| source.arena.node(id).kind == kind)
             .expect("node of kind")
+    }
+
+    /// M6 7.5d: the RelationFrame slot invariant — a RelationFrame
+    /// context whose clamp fires OUTSIDE any parked loan is a
+    /// programmer error (the B8 arm parks the loan around iSICO;
+    /// nothing else may mint such a context).
+    #[test]
+    #[should_panic(expected = "RelationFrame compare_types consumed without a parked frame loan")]
+    fn relation_frame_clamp_without_parked_loan_panics() {
+        with_program_state(
+            &[("a.ts", "declare function f<T extends string>(x: T): T;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let symbol = state
+                    .resolve_file_scope_name("f", SymbolFlags::FUNCTION)
+                    .expect("f resolves");
+                let ty = state.get_type_of_symbol(symbol).expect("f types");
+                let signature = state
+                    .get_signatures_of_type(ty, crate::state::SignatureKind::Call)
+                    .expect("f has call signatures")[0];
+                let type_parameters = state
+                    .signature_of(signature)
+                    .type_parameters
+                    .clone()
+                    .expect("f is generic");
+                let context = state.create_inference_context(
+                    &type_parameters,
+                    Some(signature),
+                    InferenceFlags::NONE,
+                    Some(CompareTypesFn::RelationFrame),
+                );
+                let info = state.inference_context(context).inferences[0];
+                let number = state.tables.intrinsics.number;
+                state.inference_info_mut(info).candidates = Some(vec![number]);
+                // T's constraint clamp (number vs string) must reach
+                // the RelationFrame dispatch and hit the invariant.
+                let _ = state.get_inferred_type(context, 0);
+            },
+        );
     }
 
     fn annotation_of_var(state: &CheckerState, name: &str) -> tsrs2_syntax::NodeId {
