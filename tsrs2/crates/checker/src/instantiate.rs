@@ -580,12 +580,20 @@ impl<'a> CheckerState<'a> {
         let object_flags = self.tables.object_flags_of(ty);
         let is_reference = object_flags.intersects(ObjectFlags::REFERENCE);
         let declaration = if is_reference {
-            // 63464: deferred references carry their node; the
-            // InstantiationExpressionType node arm is M6.
+            // 63464: deferred references carry their node.
             self.links
                 .ty(ty)
                 .deferred_node
                 .expect("References here are deferred (worker !node gate)")
+        } else if object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
+            // 63464 second arm: instantiation-expression types carry
+            // their `f<...>`/`typeof f<...>` node in the same slot
+            // (stamped at creation, 77999, and propagated to
+            // Instantiated copies, 63649-63651).
+            self.links
+                .ty(ty)
+                .deferred_node
+                .expect("InstantiationExpressionType types stamp their node at creation")
         } else {
             let symbol = self
                 .tables
@@ -1031,9 +1039,8 @@ impl<'a> CheckerState<'a> {
         let source_alias_type_arguments = source.alias_type_arguments.clone();
         let source_object_flags = self.tables.object_flags_of(ty);
         assert!(
-            !source_object_flags
-                .intersects(ObjectFlags::MAPPED | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE),
-            "mapped/instantiation-expression types are unconstructible before M8/M6"
+            !source_object_flags.intersects(ObjectFlags::MAPPED),
+            "mapped types are unconstructible before M8"
         );
         let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         let mut object_flags = (source_object_flags.bits()
@@ -1043,6 +1050,22 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(result).symbol = source_symbol;
         self.links
             .set_type_instantiation_links(self.speculation_depth, result, ty, mapper);
+        if source_object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
+            // 63649-63651: the Instantiated copy keeps the
+            // instantiation-expression node — it stays the declaration
+            // key for getObjectTypeInstantiation (63464).
+            let node = self
+                .links
+                .ty(ty)
+                .deferred_node
+                .expect("InstantiationExpressionType types stamp their node at creation");
+            self.links.set_type_deferred_reference_links(
+                self.speculation_depth,
+                result,
+                node,
+                None,
+            );
+        }
         let new_alias_symbol = alias_symbol.or(source_alias_symbol);
         let new_alias_type_arguments = if alias_symbol.is_some() {
             alias_type_arguments.map(<[TypeId]>::to_vec)
