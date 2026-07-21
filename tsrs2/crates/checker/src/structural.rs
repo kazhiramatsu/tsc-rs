@@ -7668,37 +7668,36 @@ mod tests {
     }
 
     #[test]
-    fn body_inferred_predicate_candidates_contain_instead_of_deciding() {
-        // Blocker fix (the FP channel): tsc 6.0.3 INFERS `x is
-        // string` from isStr's body (getTypePredicateFromBody, TS
-        // 5.5) and resolves overload 1 (clean); the pre-7.5d None
-        // hard-Falsed candidate 1 and FABRICATED a renderable 2322
-        // 'string'/'number' off candidate 2. The relation consult
-        // now contains the candidate class instead (escapes row,
-        // owner M6).
+    fn body_inferred_predicates_decide_for_real() {
+        // m6 7.6 flip of the 7.5d containment pins: the body-
+        // inference arm (getTypePredicateFromBody, 79019-79074) is
+        // LIVE, so these faces DECIDE. tsc-probed q1a/q1b/q1c
+        // (vendored 6.0.3 noLib).
+        // Overloads: `x is string` is inferred from isStr's body and
+        // overload 1 resolves — clean, no containment.
         assert_eq!(
             rows_and_partials(
                 "function isStr(x: unknown) { return typeof x === \"string\"; }\ndeclare function take(p: (x: unknown) => x is string): number;\ndeclare function take(p: (x: unknown) => boolean): string;\nconst n: number = take(isStr);\n"
             ),
-            (vec![], 1)
+            (vec![], 0)
         );
-        // tsc: the 2416 override-compat chain (body-inferred
-        // predicates on BOTH sides) — recorded FN by containment,
-        // not a silent wrong-True.
+        // Override compat: body-inferred predicates on BOTH sides —
+        // tsc reports (2416, 82, 3); the row's args are function
+        // displays, so the port renders or contains by the display
+        // slice, never fabricates.
         assert_eq!(
             rows_and_partials(
                 "class A { isS(x: unknown) { return typeof x === \"string\"; } }\nclass B extends A { isS(x: unknown) { return typeof x === \"number\"; } }\n"
             ),
-            (vec![], 1)
+            (vec![(2416, 82, 3)], 0)
         );
-        // tsc: clean (the inferred source predicate satisfies the
-        // annotated target) — containment until
-        // getTypePredicateFromBody lands.
+        // The inferred source predicate satisfies the annotated
+        // target — clean.
         assert_eq!(
             rows_and_partials(
                 "function isStr(x: unknown) { return typeof x === \"string\"; }\nconst f: (x: unknown) => x is string = isStr;\n"
             ),
-            (vec![], 1)
+            (vec![], 0)
         );
     }
 

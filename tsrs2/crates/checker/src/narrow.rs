@@ -27,7 +27,7 @@ use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
 use crate::flow::FlowQuery;
-use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureId};
 
 impl<'a> CheckerState<'a> {
     /// The narrow-family caches (switch types, exhaustiveness,
@@ -1405,7 +1405,7 @@ impl<'a> CheckerState<'a> {
         if !self.is_type_derived_from(right_type, global_object)? {
             return Ok(ty);
         }
-        let signature = self.get_effects_signature(Some(query), expr)?;
+        let signature = self.get_effects_signature(expr)?;
         let predicate = match signature {
             Some(signature) => self.get_type_predicate_of_signature(signature)?,
             None => None,
@@ -2483,7 +2483,7 @@ impl<'a> CheckerState<'a> {
             let source = self.binder.source_of_node(call_expression);
             let is_call_chain = node_util::is_optional_chain(source, call_expression);
             let signature = if assume_true || !is_call_chain {
-                self.get_effects_signature(Some(query), call_expression)?
+                self.get_effects_signature(call_expression)?
             } else {
                 None
             };
@@ -2768,13 +2768,9 @@ impl<'a> CheckerState<'a> {
     /// outlives the walk; an unflagged undecided verdict must not).
     pub(crate) fn get_effects_signature(
         &mut self,
-        mut query: Option<&mut FlowQuery>,
         node: NodeId,
     ) -> CheckResult2<Option<SignatureId>> {
         if let Some(&cached) = self.effects_signature_cache.get(&node) {
-            // Every cached entry passed the body-inference probes
-            // below at insert time (uncertain verdicts return early,
-            // unmemoized), so a hit needs no re-probe.
             return Ok(cached);
         }
         let func_type: Option<TypeId> = if self.kind_of(node) == SyntaxKind::BinaryExpression {
@@ -2826,58 +2822,24 @@ impl<'a> CheckerState<'a> {
             Some(signatures[0])
         } else {
             // tsc's `some(signatures, hasTypePredicateOrNeverReturnType)`
-            // reaches getTypePredicateOfSignature's body-inference arm
-            // PER MEMBER: a definite predicate/never member decides
-            // some() = true regardless of the uncertain ones, but with
-            // no definite member a body-inference candidate could flip
-            // the verdict — the selection itself is then unreproducible.
+            // (70218) — the per-member consult reaches
+            // getTypePredicateOfSignature's body-inference arm for
+            // real since m6 7.6, so the selection is exact.
             let mut any_effects = false;
-            let mut any_uncertain = false;
             for &signature in &signatures {
                 if self.has_type_predicate_or_never_return_type(signature)? {
                     any_effects = true;
                     break;
                 }
-                if !any_uncertain {
-                    any_uncertain = self.signature_may_have_body_inferred_predicate(signature)?;
-                }
             }
             if any_effects {
                 Some(self.get_resolved_signature(node, CheckMode::NORMAL)?)
             } else {
-                if any_uncertain {
-                    let Some(query) = query.as_deref_mut() else {
-                        return Err(Unsupported::new(
-                            "body-inferred type predicate candidate in a reachability \
-                             effects consult (getTypePredicateFromBody, M6)",
-                        ));
-                    };
-                    query.traversed_inert_arm = true;
-                    return Ok(None);
-                }
                 None
             }
         };
         let mut result = None;
         if let Some(candidate) = candidate {
-            if self.signature_may_have_body_inferred_predicate(candidate)? {
-                // tsc would run getTypePredicateFromBody here and may
-                // find a predicate (even alongside a composite verdict
-                // whose members we resolved without body inference) —
-                // unreproducible until the family ports; flag
-                // (declared-type revert, FP-safe) and DO NOT memoize:
-                // the verdict is not final (a memo hit would skip this
-                // probe and leak the unflagged wide answer — caught
-                // live by the loop fixpoint pin).
-                let Some(query) = query else {
-                    return Err(Unsupported::new(
-                        "body-inferred type predicate candidate in a reachability \
-                         effects consult (getTypePredicateFromBody, M6)",
-                    ));
-                };
-                query.traversed_inert_arm = true;
-                return Ok(None);
-            }
             if self.has_type_predicate_or_never_return_type(candidate)? {
                 result = Some(candidate);
             }
@@ -2904,91 +2866,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(false)
-    }
-
-    /// The getTypePredicateFromBody precondition (59783-59788 plus
-    /// the function's own bails at 79017-79028): an annotation-free
-    /// NORMAL function/method with parameters and a `boolean` return
-    /// could carry a TS 5.5 body-inferred predicate in tsc. Consumers
-    /// FLAG when it holds (conservative superset — over-flagging
-    /// reverts to the declared type; the remaining slack is the
-    /// single-return expression probe, which is the family itself).
-    /// tsrs-native: temporary M6-deferral probe (retires with the
-    /// body-inference port).
-    fn signature_may_have_body_inferred_predicate(
-        &mut self,
-        signature: SignatureId,
-    ) -> CheckResult2<bool> {
-        // Composite (union/intersection) signatures clone the FIRST
-        // member's declaration; probing only it under-flags when a
-        // LATER member is the candidate (tsc's composite predicate
-        // arm, 59770-59772, consults every member). Any candidate
-        // member flags the composite — over-flagging is the FP-safe
-        // direction.
-        if let Some(constituents) = self.signature_of(signature).composite_signatures.clone() {
-            for constituent in constituents {
-                if self.signature_may_have_body_inferred_predicate(constituent)? {
-                    return Ok(true);
-                }
-            }
-            return Ok(false);
-        }
-        let Some(declaration) = self.signature_of(signature).declaration else {
-            return Ok(false);
-        };
-        let kind = self.kind_of(declaration);
-        if !node_util::is_function_like_declaration_kind(kind) {
-            return Ok(false);
-        }
-        // getTypePredicateFromBody bails outright on constructors and
-        // accessors (79017-79022) and on async/generator functions
-        // (getFunctionFlags !== Normal, 79028).
-        if matches!(
-            kind,
-            SyntaxKind::Constructor | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
-        ) {
-            return Ok(false);
-        }
-        if self.get_function_flags(declaration) != 0 {
-            return Ok(false);
-        }
-        if self.effective_return_type_node(declaration).is_some() {
-            return Ok(false);
-        }
-        if self.get_parameter_count(signature)? == 0 {
-            return Ok(false);
-        }
-        // 6.6f cycle guard: this probe can run inside the SAME
-        // signature's return-type computation (functionHasImplicitReturn
-        // → isReachableFlowNode → getEffectsSignature → here; mutual
-        // recursion closes the loop — the readonlyRestParameters 7023
-        // FP face). tsc's equivalent cycle lands in getTypePredicate-
-        // FromBody's checkExpression, which circularity-breaks to NO
-        // predicate and MEMOIZES noTypePredicate — the observable is
-        // "no effects, walk past", so the in-progress answer here is a
-        // faithful FALSE, not an uncertain flag.
-        if self
-            .resolution_targets
-            .iter()
-            .zip(self.resolution_property_names.iter())
-            .any(|(target, property)| {
-                matches!(
-                    target,
-                    crate::state::ResolutionTarget::Signature(in_progress)
-                        if *in_progress == signature
-                ) && *property == tsrs2_types::TypeSystemPropertyName::RESOLVED_RETURN_TYPE
-            })
-        {
-            return Ok(false);
-        }
-        // 59783 tests Boolean (256) proper, not BooleanLike: a
-        // literal-typed return can never pass the body probe's own
-        // Boolean gate on the return expression (79048).
-        let return_type = self.get_return_type_of_signature(signature)?;
-        Ok(self
-            .tables
-            .flags_of(return_type)
-            .intersects(TypeFlags::BOOLEAN))
     }
 
     /// tsc-port: getTypeOfDottedName @6.0.3
@@ -3266,31 +3143,17 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsrs-native: the RELATION-side consult face of
-    /// getTypePredicateOfSignature — M6-deferral containment for
-    /// tsc's BODY-INFERRED predicates (getTypePredicateFromBody,
-    /// 79015-79070, reached through 59783-59788 when the declaration
-    /// is an unannotated boolean-returning function with parameters).
-    /// The B7 decision-table consults (compareSignaturesRelated's
-    /// predicate arm and callback cell, compareSignaturesIdentical's
-    /// tail) read "no materialized predicate" as predicate-free —
-    /// wrong-verdict territory when tsc would infer one (the
-    /// m6-7.5d review's overload-fabrication FP face) — so a None
-    /// whose signature the narrowing-side probe flags Errs instead of
-    /// comparing under the wrong table cell.
+    /// getTypePredicateOfSignature. Since m6 7.6 the body-inference
+    /// arm (getTypePredicateFromBody, 79020-79074, reached through
+    /// 59783-59788) is LIVE, so the B7 decision-table consults
+    /// (compareSignaturesRelated's predicate arm and callback cell,
+    /// compareSignaturesIdentical's tail) read the REAL predicate —
+    /// the 7.5d containment and its probe retired with the arm.
     pub(crate) fn relation_type_predicate_of_signature(
         &mut self,
         signature: SignatureId,
     ) -> CheckResult2<Option<TypePredicate>> {
-        if let Some(predicate) = self.get_type_predicate_of_signature(signature)? {
-            return Ok(Some(predicate));
-        }
-        if self.signature_may_have_body_inferred_predicate(signature)? {
-            return Err(Unsupported::new(
-                "body-inferred type predicate candidate in a signature-relation consult \
-                 (getTypePredicateFromBody, M6)",
-            ));
-        }
-        Ok(None)
+        self.get_type_predicate_of_signature(signature)
     }
 
     /// The computation behind the memo (same tsc span).
@@ -3322,14 +3185,208 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = sig.declaration else {
             return Ok(None);
         };
-        let Some(return_type_node) = self.effective_return_type_node(declaration) else {
-            return Ok(None);
-        };
-        if self.kind_of(return_type_node) != SyntaxKind::TypePredicate {
+        if let Some(return_type_node) = self.effective_return_type_node(declaration) {
+            if self.kind_of(return_type_node) != SyntaxKind::TypePredicate {
+                return Ok(None);
+            }
+            return self
+                .create_type_predicate_from_type_predicate_node(return_type_node, signature)
+                .map(Some);
+        }
+        // 59783-59788 body-inference arm (LIVE at m6 7.6): an
+        // unannotated function-like whose (unforced) return-type slot
+        // is vacant or Boolean proper, with at least one parameter.
+        // The jsdocPredicate leg (59774-59780) is elided with the
+        // JSDoc band (project-wide).
+        if !node_util::is_function_like_declaration_kind(self.kind_of(declaration)) {
             return Ok(None);
         }
-        self.create_type_predicate_from_type_predicate_node(return_type_node, signature)
-            .map(Some)
+        let resolved_return = self.signature_of(signature).resolved_return_type.resolved();
+        let boolean_gate = match resolved_return {
+            None => true,
+            Some(ty) => self.tables.flags_of(ty).intersects(TypeFlags::BOOLEAN),
+        };
+        if !boolean_gate || self.get_parameter_count(signature)? == 0 {
+            return Ok(None);
+        }
+        // tsc's DOUBLE WRITE (59785-59786): resolvedTypePredicate =
+        // noTypePredicate BEFORE getTypePredicateFromBody — the
+        // re-entrancy shield. The body check can consult THIS
+        // signature's predicate again (effects walks through the
+        // body's own calls close the loop); the pre-seeded memo
+        // answers "no predicate" instead of recursing. The outer
+        // get_type_predicate_of_signature overwrites with the result.
+        self.assert_narrow_cache_writable();
+        self.resolved_type_predicates.insert(signature, None);
+        self.get_type_predicate_from_body(declaration)
+    }
+
+    /// tsc-port: getTypePredicateFromBody @6.0.3
+    /// tsc-hash: ccbdcea8fc868b4227fba6ae22d22a28b9fb0f905517db5e47e9aa186712ae8e
+    /// tsc-span: _tsc.js:79020-79040
+    fn get_type_predicate_from_body(
+        &mut self,
+        func: NodeId,
+    ) -> CheckResult2<Option<TypePredicate>> {
+        match self.kind_of(func) {
+            SyntaxKind::Constructor | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                return Ok(None)
+            }
+            _ => {}
+        }
+        if self.get_function_flags(func) != 0 {
+            return Ok(None);
+        }
+        let source = self.binder.source_of_node(func);
+        let Some(body) = node_util::body_of(source, func) else {
+            return Ok(None);
+        };
+        let single_return = if self.kind_of(body) != SyntaxKind::Block {
+            Some(body)
+        } else {
+            let mut single: Option<NodeId> = None;
+            let bailed = self.for_each_return_statement(body, &mut |state, statement| {
+                let expression = match state.data_of(statement) {
+                    NodeData::ReturnStatement(data) => data.expression,
+                    _ => None,
+                };
+                if single.is_some() || expression.is_none() {
+                    return true;
+                }
+                single = expression;
+                false
+            });
+            if bailed || single.is_none() || self.function_has_implicit_return(func)? {
+                return Ok(None);
+            }
+            single
+        };
+        let Some(single_return) = single_return else {
+            return Ok(None);
+        };
+        self.check_if_expression_refines_any_parameter(func, single_return)
+    }
+
+    /// tsc-port: checkIfExpressionRefinesAnyParameter @6.0.3
+    /// tsc-hash: a2a835027b12af0c30ef0fb4ea278230f27a9436dff75c33d6e052ad032ef5b8
+    /// tsc-span: _tsc.js:79041-79059
+    ///
+    /// skipParentheses(expr, /*excludeJSDocTypeAssertions*/ true) —
+    /// JSDoc type assertions are elided project-wide, so the plain
+    /// walk is the same function.
+    fn check_if_expression_refines_any_parameter(
+        &mut self,
+        func: NodeId,
+        expr: NodeId,
+    ) -> CheckResult2<Option<TypePredicate>> {
+        let expr = self.skip_parentheses(expr);
+        let return_type = self.check_expression_cached(expr, tsrs2_types::CheckMode::NORMAL)?;
+        if !self
+            .tables
+            .flags_of(return_type)
+            .intersects(TypeFlags::BOOLEAN)
+        {
+            return Ok(None);
+        }
+        let parameters = self.parameters_of_function(func);
+        for (i, &param) in parameters.iter().enumerate() {
+            let NodeData::Parameter(data) = self.data_of(param) else {
+                continue;
+            };
+            let (name, is_rest) = (data.name, data.dot_dot_dot_token.is_some());
+            let Some(symbol) = self.node_symbol(param) else {
+                continue;
+            };
+            let init_type = self.get_type_of_symbol(symbol)?;
+            let identifier_name = match name {
+                Some(name) if self.kind_of(name) == SyntaxKind::Identifier => name,
+                _ => continue,
+            };
+            if self
+                .tables
+                .flags_of(init_type)
+                .intersects(TypeFlags::BOOLEAN)
+                || self.is_symbol_assigned(symbol)?
+                || is_rest
+            {
+                continue;
+            }
+            if let Some(true_type) =
+                self.check_if_expression_refines_parameter(func, expr, identifier_name, init_type)?
+            {
+                let text = self
+                    .identifier_text(identifier_name)
+                    .unwrap_or_default()
+                    .to_owned();
+                return Ok(Some(TypePredicate {
+                    kind: TypePredicateKind::Identifier,
+                    parameter_name: Some(text),
+                    parameter_index: i as i64,
+                    ty: Some(true_type),
+                }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: checkIfExpressionRefinesParameter @6.0.3
+    /// tsc-hash: 01059f9c37fa1893b0bd75479f414424e3bfb9b16927f9d2d7e361ce7a6addbf
+    /// tsc-span: _tsc.js:79060-79074
+    ///
+    /// The TrueCondition/FalseCondition heads compose through
+    /// flow_type_through_synthetic_condition (the binder graph is
+    /// immutable to the checker — see the flow.rs entry for the
+    /// pinned deviation). NB the false query's INITIAL type is the
+    /// true branch's result, tsc 79071.
+    fn check_if_expression_refines_parameter(
+        &mut self,
+        func: NodeId,
+        expr: NodeId,
+        param_name: NodeId,
+        init_type: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let antecedent = self.flow_node_of(expr).or_else(|| {
+            self.parent_of(expr).and_then(|parent| {
+                if self.kind_of(parent) == SyntaxKind::ReturnStatement {
+                    self.flow_node_of(parent)
+                } else {
+                    None
+                }
+            })
+        });
+        let true_type = self.flow_type_through_synthetic_condition(
+            param_name,
+            init_type,
+            init_type,
+            Some(func),
+            antecedent,
+            expr,
+            /*assume_true*/ true,
+        )?;
+        if true_type == init_type {
+            return Ok(None);
+        }
+        let false_flow = self.flow_type_through_synthetic_condition(
+            param_name,
+            init_type,
+            true_type,
+            Some(func),
+            antecedent,
+            expr,
+            /*assume_true*/ false,
+        )?;
+        let false_subtype = self.get_reduced_type(false_flow)?;
+        Ok(
+            if self
+                .tables
+                .flags_of(false_subtype)
+                .intersects(TypeFlags::NEVER)
+            {
+                Some(true_type)
+            } else {
+                None
+            },
+        )
     }
 
     /// tsc-port: createTypePredicateFromTypePredicateNode @6.0.3

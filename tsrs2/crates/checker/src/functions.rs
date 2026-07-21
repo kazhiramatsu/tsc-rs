@@ -2347,7 +2347,7 @@ impl<'a> CheckerState<'a> {
     /// adds the checker-side refinements the M4-era flag could not
     /// see: exhaustive switches and never-returning calls
     /// (getEffectsSignature).
-    fn function_has_implicit_return(&mut self, func: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn function_has_implicit_return(&mut self, func: NodeId) -> CheckResult2<bool> {
         let file = self.binder.file_index_of_node(func);
         let Some(&end_flow) = self.binder.file(file).node_end_flow.get(&func) else {
             return Ok(false);

@@ -6215,7 +6215,7 @@ impl<'a> CheckerState<'a> {
                             &diagnostics::Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name,
                             &[],
                         );
-                    } else if self.get_effects_signature(/*query*/ None, node)?.is_none() {
+                    } else if self.get_effects_signature(node)?.is_none() {
                         self.error_at(
                             Some(expression),
                             &diagnostics::Assertions_require_every_name_in_the_call_target_to_be_declared_with_an_explicit_type_annotation,
