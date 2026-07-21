@@ -3408,7 +3408,7 @@ impl<'a> CheckerState<'a> {
     /// depth overflows). The traversal ORDER differs from tsc's
     /// depth-first only in sibling scheduling; the callers here are
     /// existence tests, so any-order is observationally identical.
-    fn for_each_return_statement(
+    pub(crate) fn for_each_return_statement(
         &self,
         body: NodeId,
         visitor: &mut dyn FnMut(&Self, NodeId) -> bool,

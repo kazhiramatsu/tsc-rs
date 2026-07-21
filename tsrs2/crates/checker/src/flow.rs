@@ -27,8 +27,9 @@
 //! (6.6) — is LIVE, and both caller initialType ladders are flipped
 //! (checkIdentifier + the access.rs assume-uninitialized arm).
 //!
-//! THE SEAM (retires with its last producers — M6 body-inference,
-//! M8-dependency unwinds through the JOIN-SEAM, parser recovery): a
+//! THE SEAM (retires with its last producers — M8-dependency
+//! unwinds through the JOIN-SEAM, parser recovery; the M6
+//! body-inference producer retired at 7.6): a
 //! query whose walk crossed such an arm reverts to the declared-type
 //! answer (auto-converted) at query exit — the deferred arms cannot
 //! reproduce tsc's narrowing, and letting their over-wide
@@ -104,8 +105,9 @@ pub(crate) struct FlowQuery {
     /// cache key — outer None = not computed yet (isKeySet false),
     /// Some(None) = computed, reference has no key.
     pub(crate) key: Option<Option<String>>,
-    /// tsrs-native SEAM flag (retires with its last producers — M6
-    /// body-inference, M8-dependency unwinds, parser recovery): set
+    /// tsrs-native SEAM flag (retires with its last producers —
+    /// M8-dependency unwinds, parser recovery; the M6 body-inference
+    /// producer retired at 7.6): set
     /// when the walk crosses a deferred arm — the query exit forces
     /// such answers back to the declared-type value (auto-converted),
     /// mirrors the flag into `CheckerState::flow_last_query_inert`
@@ -266,6 +268,87 @@ impl<'a> CheckerState<'a> {
             flow_container,
             flow_node,
         )
+    }
+
+    /// tsrs-native: getTypePredicateFromBody's condition query
+    /// (checkIfExpressionRefinesParameter, 79060-79074) — tsc mints
+    /// checker-side TrueCondition/FalseCondition flow nodes over the
+    /// return expression and walks from them. The port's binder graph
+    /// is immutable to the checker, so the synthetic head COMPOSES:
+    /// antecedent-walk + one getTypeAtFlowCondition step inside ONE
+    /// query (same shared-flow scoping and postlude choreography as
+    /// get_flow_type_of_reference_full). `antecedent = None` is tsc's
+    /// fresh Start head — the walk would answer initialType. The head
+    /// is acyclic by construction, so no loop or incompleteness can
+    /// originate from it (recorded deviation: composition instead of
+    /// node minting — semantics identical, pinned).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn flow_type_through_synthetic_condition(
+        &mut self,
+        reference: NodeId,
+        declared_type: TypeId,
+        initial_type: TypeId,
+        flow_container: Option<NodeId>,
+        antecedent: Option<FlowId>,
+        condition: NodeId,
+        assume_true: bool,
+    ) -> CheckResult2<TypeId> {
+        if self.flow_analysis_disabled {
+            self.flow_last_query_inert = false;
+            return Ok(self.tables.intrinsics.error);
+        }
+        self.flow_invocation_count += 1;
+        let shared_flow_start = self.shared_flow.len();
+        let mut query = FlowQuery {
+            reference,
+            declared_type,
+            initial_type,
+            flow_container,
+            file: self.binder.file_index_of_node(reference),
+            flow_depth: 0,
+            shared_flow_start,
+            key: None,
+            traversed_inert_arm: false,
+            synthetic_props: None,
+            synthetic_this_root: false,
+        };
+        let walk = self.synthetic_condition_walk(&mut query, antecedent, condition, assume_true);
+        self.shared_flow.truncate(shared_flow_start);
+        let traversed_inert_arm = query.traversed_inert_arm;
+        let result = walk.and_then(|flow_type| {
+            self.flow_query_postlude(&query, flow_type.get_type(), traversed_inert_arm)
+        });
+        self.flow_last_query_inert = traversed_inert_arm;
+        if traversed_inert_arm {
+            self.flow_inert_answer_nodes.insert(reference);
+        }
+        result
+    }
+
+    /// The synthetic head's condition step — getTypeAtFlowCondition's
+    /// body (70611-70627) over a walk that started at the antecedent
+    /// instead of a minted condition node.
+    fn synthetic_condition_walk(
+        &mut self,
+        query: &mut FlowQuery,
+        antecedent: Option<FlowId>,
+        condition: NodeId,
+        assume_true: bool,
+    ) -> CheckResult2<FlowType> {
+        let flow_type = match antecedent {
+            Some(flow) => self.get_type_at_flow_node(query, flow)?,
+            None => self.create_flow_type(query.initial_type, /*incomplete*/ false),
+        };
+        let ty = flow_type.get_type();
+        if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
+            return Ok(flow_type);
+        }
+        let non_evolving_type = self.finalize_evolving_array_type(ty)?;
+        let narrowed_type = self.narrow_type(query, non_evolving_type, condition, assume_true)?;
+        if narrowed_type == non_evolving_type {
+            return Ok(flow_type);
+        }
+        Ok(self.create_flow_type(narrowed_type, flow_type.is_incomplete()))
     }
 
     /// The full-parameter body behind the plain and synthetic
@@ -911,7 +994,7 @@ impl<'a> CheckerState<'a> {
         let node = self
             .flow_payload_node(query.file, flow)
             .expect("CALL flow nodes carry a node payload (binder flow.rs)");
-        let Some(signature) = self.get_effects_signature(Some(query), node)? else {
+        let Some(signature) = self.get_effects_signature(node)? else {
             return Ok(None);
         };
         let predicate = self.get_type_predicate_of_signature(signature)?;
@@ -1685,11 +1768,10 @@ impl<'a> CheckerState<'a> {
     /// The worker + the single-entry memo update (tsc writes
     /// lastFlowNode AFTER the walk — the worker's own top-of-loop
     /// consult sees the PREVIOUS query's entry). Fallible tsrs-side:
-    /// the Call arm's effects consult can defer (M6 body-inference
-    /// candidates — narrow.rs get_effects_signature's None-query
-    /// contract) and its signature resolution can unwind; Err leaves
-    /// both memos unwritten, so no undecided verdict outlives the
-    /// failed walk.
+    /// the Call arm's effects consult resolves body inference for
+    /// real (m6 7.6) but its signature resolution can still unwind;
+    /// Err leaves both memos unwritten, so no undecided verdict
+    /// outlives the failed walk.
     pub(crate) fn is_reachable_flow_node(
         &mut self,
         file: usize,
@@ -1781,7 +1863,7 @@ impl<'a> CheckerState<'a> {
                 let node = self
                     .flow_payload_node(file, flow)
                     .expect("CALL flow nodes carry a node payload (binder flow.rs)");
-                if let Some(signature) = self.get_effects_signature(None, node)? {
+                if let Some(signature) = self.get_effects_signature(node)? {
                     if let Some(predicate) = self.get_type_predicate_of_signature(signature)? {
                         if predicate.kind == crate::narrow::TypePredicateKind::AssertsIdentifier
                             && predicate.ty.is_none()

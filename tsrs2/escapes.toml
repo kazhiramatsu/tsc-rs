@@ -127,9 +127,9 @@ owner = "M6"
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "report_nonexistent_property"
-reason = "never-narrowed receiver report over an unreduced intersection member (getReducedType never-reduction, M6)"
+reason = "never-narrowed receiver whose declared type survives reduction (narrowing-divergence shield, M8 audit)"
 class = "stage"
-owner = "M6"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -225,13 +225,6 @@ file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_operator_node"
 reason = "type operator without a parent (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_query_node"
-reason = "typeof with type arguments (instantiation expressions, M4 5.2/M6)"
-class = "stage"
-owner = "M6"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -425,14 +418,6 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "get_spread_argument_type"
-reason = "non-array-like SYNTHETIC spread argument (span-only error node; synthetic args ride inference shapes, M6)"
-class = "stage"
-owner = "M6"
-count = 2
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "get_spread_argument_type"
 reason = "spread without operand (parse recovery)"
 class = "recovery"
 count = 2
@@ -466,6 +451,13 @@ file = "crates/checker/src/calls.rs"
 in = "is_constructor_accessible"
 reason = "constructor without a class (parse recovery)"
 class = "recovery"
+
+[[site]]
+file = "crates/checker/src/calls.rs"
+in = "iterated_spread_element_type"
+reason = "non-array-like SYNTHETIC spread whose iteration walk reports (span-only error threading, M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
@@ -1117,21 +1109,6 @@ file = "crates/checker/src/modules.rs"
 in = "resolve_alias"
 reason = "resolveAlias alias symbol without alias declaration (parse-recovery shape, tsc Debug.fail)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/narrow.rs"
-in = "get_effects_signature"
-reason = "body-inferred type predicate candidate in a reachability effects consult (getTypePredicateFromBody, M6)"
-class = "stage"
-owner = "M6"
-count = 2
-
-[[site]]
-file = "crates/checker/src/narrow.rs"
-in = "relation_type_predicate_of_signature"
-reason = "body-inferred type predicate candidate in a signature-relation consult (getTypePredicateFromBody, M6)"
-class = "stage"
-owner = "M6"
 
 [[site]]
 file = "crates/checker/src/operators.rs"

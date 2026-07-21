@@ -2899,18 +2899,21 @@ impl<'a> CheckerState<'a> {
         containing_type: TypeId,
         is_unchecked_js: bool,
     ) -> CheckResult2<()> {
-        // 6.6f: a NEVER receiver whose reference DECLARES a non-never
-        // type went never through OUR narrowing — the live divergence
-        // is the unreduced cross-product intersection member
-        // (conflicting discriminants reduce lazily in tsc's
-        // getReducedType, unported — discriminatedUnionTypes2's else
-        // face). Genuinely-never receivers (declared never) still
-        // report, and — 6.6 review — so does a declared type with NO
-        // intersection constituent anywhere: the reduction family
-        // cannot be involved, and tsc reports 2339 on the correctly-
-        // narrowed never (the double-typeof face). Only an
-        // intersection-bearing declared type contains until the
-        // reduction lands.
+        // 6.6f, consult rebuilt at m6 7.6: a NEVER receiver whose
+        // reference DECLARES a non-never type went never through OUR
+        // narrowing. Genuinely-never receivers (declared never)
+        // report, and so does a declared type with NO intersection
+        // constituent anywhere (the double-typeof face) — the
+        // reduction family cannot be involved. For intersection-
+        // bearing declared types the getReducedType never-reduction
+        // (59287-59297, live since the M4-review E4 slice) is now
+        // CONSULTED: when the declared type or one of its intersection
+        // members reduces to never, tsc's own lookup at this access
+        // collapses the same way (property lookups run over the
+        // reduced type), so the 2339-band report is row-faithful and
+        // proceeds. Only a port-narrowed never whose declared type
+        // does NOT reduce keeps the containment — that shape would be
+        // a narrowing divergence, not a reduction face.
         if self
             .tables
             .flags_of(containing_type)
@@ -2926,7 +2929,7 @@ impl<'a> CheckerState<'a> {
                 .and_then(|receiver| self.links.node(receiver).resolved_symbol.resolved())
                 .map(|symbol| self.get_type_of_symbol(symbol))
                 .transpose()?;
-            let contains = declared.is_some_and(|declared| {
+            let reduction_involved = declared.is_some_and(|declared| {
                 let flags = self.tables.flags_of(declared);
                 if flags.intersects(TypeFlags::NEVER) {
                     return false;
@@ -2947,11 +2950,23 @@ impl<'a> CheckerState<'a> {
                 }
                 false
             });
-            if contains {
-                return Err(Unsupported::new(
-                    "never-narrowed receiver report over an unreduced intersection \
-                     member (getReducedType never-reduction, M6)",
-                ));
+            if reduction_involved {
+                // The consult mirrors the WHOLE-type reduction: only
+                // when the declared type itself collapses does tsc's
+                // lookup fail the same way. A union that merely
+                // CONTAINS never-reduced intersections reduces to its
+                // surviving members (getReducedUnionType drops them),
+                // and tsc then resolves the property on the survivors
+                // — a verdict this never-consult cannot reproduce, so
+                // that face keeps the containment.
+                let reduced =
+                    self.get_reduced_type(declared.expect("reduction_involved implies declared"))?;
+                if !self.tables.flags_of(reduced).intersects(TypeFlags::NEVER) {
+                    return Err(Unsupported::new(
+                        "never-narrowed receiver whose declared type survives \
+                         reduction (narrowing-divergence shield, M8 audit)",
+                    ));
+                }
             }
         }
         let cache_key = format!("{}|{}", containing_type.0, is_unchecked_js);
@@ -3957,13 +3972,29 @@ mod tests {
     fn double_narrowed_never_receiver_reports_2339() {
         // reportNonexistentProperty reports on never receivers
         // (75416); only intersection-bearing declared types defer to
-        // the M6 getReducedType containment (6.6 review D3;
-        // oracle-pinned vs vendored tsc 6.0.3 noLib).
+        // the narrowing-divergence shield (6.6 review D3, consult
+        // rebuilt at m6 7.6; oracle-pinned vs vendored tsc 6.0.3
+        // noLib).
         assert_eq!(
             checked_rows(
                 "declare const x: string | number;\nif (typeof x === \"string\") { if (typeof x === \"number\") { x.toFixed; } }\n"
             ),
             [(2339, 94, 7)]
+        );
+    }
+
+    #[test]
+    fn never_reduced_intersection_receiver_reports_2339() {
+        // m6 7.6: the getReducedType never-reduction consult — a
+        // conflicting-discriminant intersection receiver collapses to
+        // never in tsc's own lookup (59287-59297), so the 2339 row
+        // proceeds instead of containing. tsc-probed (scratchpad p6,
+        // vendored 6.0.3 noLib): container renders 'never'.
+        assert_eq!(
+            checked_rows(
+                "type AB = { kind: \"a\" } & { kind: \"b\" };\ndeclare const x: AB;\nx.q;\n"
+            ),
+            [(2339, 64, 1)]
         );
     }
 

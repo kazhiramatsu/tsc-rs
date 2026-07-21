@@ -2082,14 +2082,48 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// The non-array-like spread element walk shared by both
+    /// getSpreadArgumentType arms (76012/76026): Node spreads report
+    /// at their expression; SYNTHETIC spreads are span-only (tsc
+    /// anchors at the synthetic expression NODE), so their walk runs
+    /// silently — the success face (variadic tuple elements iterating
+    /// through array constraints, probe p11) is node-free, and only a
+    /// walk that would have REPORTED keeps a containment.
+    fn iterated_spread_element_type(
+        &mut self,
+        spread_type: TypeId,
+        error_node: Option<NodeId>,
+    ) -> CheckResult2<TypeId> {
+        let undefined_type = self.tables.intrinsics.undefined;
+        if error_node.is_some() {
+            return self.check_iterated_type_or_element_type(
+                tsrs2_types::IterationUse::SPREAD,
+                spread_type,
+                undefined_type,
+                error_node,
+            );
+        }
+        self.get_iterated_type_or_element_type(
+            tsrs2_types::IterationUse::SPREAD,
+            spread_type,
+            undefined_type,
+            None,
+            /*check_assignability*/ true,
+        )?
+        .ok_or_else(|| {
+            Unsupported::new(
+                "non-array-like SYNTHETIC spread whose iteration walk reports \
+                 (span-only error threading, M8)",
+            )
+        })
+    }
+
     /// tsc-port: getSpreadArgumentType @6.0.3
     /// tsc-hash: dfdbbb36374c6ab5201a5e1f9856e353347e1d3cace2f7a7f8d6246a95d6fbce
     /// tsc-span: _tsc.js:76002-76042
     ///
-    /// Non-array-like SYNTHETIC spreads keep a named escape: their
-    /// error node is the synthetic expression (span-only here), and
-    /// suppressing the 2461-band diagnostic tsc would emit is a
-    /// wrong-payload risk.
+    /// Non-array-like SYNTHETIC spread walks run silently (span-only
+    /// error node) via iterated_spread_element_type.
     pub(crate) fn get_spread_argument_type(
         &mut self,
         args: &[EffectiveArg],
@@ -2124,18 +2158,7 @@ impl<'a> CheckerState<'a> {
                 if self.is_array_like_type(spread_type)? {
                     return self.get_mutable_array_or_tuple_type(spread_type);
                 }
-                if error_node.is_none() {
-                    return Err(Unsupported::new(
-                        "non-array-like SYNTHETIC spread argument (span-only error node; synthetic args ride inference shapes, M6)",
-                    ));
-                }
-                let undefined_type = self.tables.intrinsics.undefined;
-                let element = self.check_iterated_type_or_element_type(
-                    tsrs2_types::IterationUse::SPREAD,
-                    spread_type,
-                    undefined_type,
-                    error_node,
-                )?;
+                let element = self.iterated_spread_element_type(spread_type, error_node)?;
                 return self.create_array_type(element, in_const_context);
             }
         }
@@ -2162,18 +2185,7 @@ impl<'a> CheckerState<'a> {
                     types.push(spread_type);
                     flags.push(ElementFlags::VARIADIC);
                 } else {
-                    if error_node.is_none() {
-                        return Err(Unsupported::new(
-                            "non-array-like SYNTHETIC spread argument (span-only error node; synthetic args ride inference shapes, M6)",
-                        ));
-                    }
-                    let undefined_type = self.tables.intrinsics.undefined;
-                    let element = self.check_iterated_type_or_element_type(
-                        tsrs2_types::IterationUse::SPREAD,
-                        spread_type,
-                        undefined_type,
-                        error_node,
-                    )?;
+                    let element = self.iterated_spread_element_type(spread_type, error_node)?;
                     types.push(element);
                     flags.push(ElementFlags::REST);
                 }
@@ -6203,7 +6215,7 @@ impl<'a> CheckerState<'a> {
                             &diagnostics::Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name,
                             &[],
                         );
-                    } else if self.get_effects_signature(/*query*/ None, node)?.is_none() {
+                    } else if self.get_effects_signature(node)?.is_none() {
                         self.error_at(
                             Some(expression),
                             &diagnostics::Assertions_require_every_name_in_the_call_target_to_be_declared_with_an_explicit_type_annotation,
@@ -6499,6 +6511,43 @@ mod tests {
                 "class S {\n    static #check(v: unknown): asserts v is string {}\n    static m(v: unknown) {\n        S.#check(v);\n        const s: string = v;\n    }\n}\n"
             ),
             []
+        );
+    }
+
+    // m6 7.6: synthetic-spread silent iteration walk + generic-rest
+    // narrowing probes (tsc-probed rows, vendored 6.0.3 noLib,
+    // scratchpad p11/p13).
+
+    #[test]
+    fn variadic_synthetic_spread_is_array_like_through_its_constraint() {
+        // [...T, number] expands to a VARIADIC synthetic with ty = T —
+        // and isArrayLikeType(T) is TRUE in tsc too (isTypeAssignableTo
+        // vs readonly any[], through the grammar-enforced array
+        // constraint), so the non-array-like synthetic-spread walk is
+        // unconstructible from well-formed variadics (m6-close row-5
+        // evidence). The [] here is a recorded FN: the oracle row
+        // (2345, 106, 7) — 'T[number]' arg vs number — rides the
+        // 2xxx-band arg-check FN, not the spread walk.
+        assert_eq!(
+            checked_rows(
+                "declare function f(...xs: number[]): void;\nfunction g<T extends unknown[]>(...args: [...T, number]) {\n  f(...args);\n}\n",
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn generic_rest_narrowing_matches_oracle_with_type_variable_residue() {
+        // Dependent-parameter narrowing over a generic rest type whose
+        // CONSTRAINT still carries a type variable (B): the
+        // non-fixing-mapper chain narrows and the access reports 2571
+        // exactly like tsc — the flow.rs conservative net stays
+        // corpus-dead (shield evidence for the M6-close adjudication).
+        assert_eq!(
+            checked_rows(
+                "declare function invoke<B, A extends [\"a\", B] | [\"b\", string]>(cb: (...args: A) => void): void;\ninvoke((...args) => { if (args[0] === \"a\") { args[1].bad; } });\n",
+            ),
+            [(2571, 141, 7)]
         );
     }
 

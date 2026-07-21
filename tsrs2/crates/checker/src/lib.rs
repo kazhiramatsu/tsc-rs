@@ -2761,15 +2761,13 @@ mod tests {
     }
 
     #[test]
-    fn multi_signature_body_inference_candidate_flags_the_query() {
-        // getEffectsSignature's some() sweep: with NO definite
-        // predicate/never member, an annotation-free boolean member
-        // could flip tsc's verdict through body inference — the
-        // selection itself is unreproducible, so the query flags and
-        // the trailing use partial-marks (the argument use reports
-        // its straight-line 2454 for real). Pre-fix the multi-
-        // signature loop skipped the probe and cached the unflagged
-        // None. Rewrite when body inference lands.
+    fn multi_signature_body_inference_resolves_the_selection() {
+        // m6 7.6 flip: getEffectsSignature's some() sweep reaches the
+        // LIVE body-inference arm per member — `!!v` infers no
+        // predicate (its false branch survives reduction), so the
+        // selection resolves to NO effects signature and BOTH uses
+        // report their straight-line 2454, unflagged (oracle q2:
+        // (2454, 137, 1) + (2454, 152, 1), vendored 6.0.3 strict).
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -2786,27 +2784,19 @@ mod tests {
                 .iter()
                 .map(|d| d.code())
                 .collect::<Vec<_>>(),
-            [2454]
+            [2454, 2454]
         );
-        assert_eq!(result.partial_checks.len(), 1);
-        assert_eq!(
-            result.partial_checks[0].reason,
-            "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)"
-        );
+        assert_eq!(result.partial_checks.len(), 0);
     }
 
     #[test]
-    fn partial_flow_check_records_its_runtime_trigger() {
-        // The seam's runtime trigger, retargeted at the LAST
-        // still-unported narrowing family (6.4f): an annotation-free
-        // boolean-returning function with parameters could carry a
-        // TS 5.5 BODY-INFERRED predicate in tsc
-        // (getTypePredicateFromBody, M6-adjacent) — a guard call
-        // whose argument IS the reference flags the query through
-        // get_effects_signature, the oracle's 2454 on the trailing
-        // use stays undecidable, and the position partial-marks. The
-        // ARGUMENT use reports its straight-line 2454 for real (both
-        // sides agree). Rewrite when body inference lands.
+    fn body_inference_resolves_the_runtime_trigger() {
+        // m6 7.6 flip of the 6.4f seam trigger: the body-inference
+        // arm is LIVE — `!!v` infers no predicate, the guard call
+        // carries no effects, and the trailing use reports its
+        // straight-line 2454 for real alongside the argument use
+        // (oracle q6: (2454, 60, 1) + (2454, 75, 1), vendored 6.0.3
+        // strict). No partial mark remains.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -2824,14 +2814,9 @@ mod tests {
                 .iter()
                 .map(|d| d.code())
                 .collect::<Vec<_>>(),
-            [2454]
+            [2454, 2454]
         );
-        assert_eq!(result.partial_checks.len(), 1);
-        assert_eq!(result.partial_checks[0].file_name, "a.ts");
-        assert_eq!(
-            result.partial_checks[0].reason,
-            "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)"
-        );
+        assert_eq!(result.partial_checks.len(), 0);
     }
 
     #[test]
@@ -2862,16 +2847,13 @@ mod tests {
     }
 
     #[test]
-    fn partial_flow_check_marks_join_dependent_implicit_any() {
-        // The implicit-any seam trigger, retargeted like the 2454 one
-        // above (6.4f): an auto-typed variable whose flow query
-        // crosses a body-inference-candidate guard call (with the
-        // reference as argument) is flagged, the seam converts the
-        // declared auto to any, suppressing BOTH possible oracle
-        // answers (the 7034 pair or a narrowed union), and the
-        // position partial-marks so an @ts-expect-error over the
-        // suppressed row cannot misreport as unused (2578). Rewrite
-        // when body inference lands.
+    fn join_dependent_auto_type_resolves_through_guard_calls() {
+        // m6 7.6 flip of the 6.4f implicit-any seam trigger: the
+        // guard call resolves through the LIVE body-inference arm
+        // (no predicate from `!!v`), the auto-typed join computes
+        // number | undefined for real, and tsc is CLEAN on this
+        // shape (oracle q7, vendored 6.0.3 strict) — no rows, no
+        // partial mark.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -2891,11 +2873,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             Vec::<u32>::new()
         );
-        assert_eq!(result.partial_checks.len(), 1);
-        assert_eq!(
-            result.partial_checks[0].reason,
-            "flow-sensitive implicit-any diagnostic (M6/M8 seam)"
-        );
+        assert_eq!(result.partial_checks.len(), 0);
     }
 
     #[test]
@@ -3097,21 +3075,12 @@ mod tests {
     }
 
     #[test]
-    fn flagged_loop_fixpoint_is_not_memoized_across_queries() {
-        // The flowLoopCaches seam guard, pinned DIRECTLY: both `x;`
-        // uses share the loop label AND the flow cache key. Each
-        // query's back-edge pull crosses the if's condition, whose
-        // guard call is a body-inference candidate with the
-        // reference as argument (see the runtime-trigger pin) —
-        // flagged, so the fixpoint must NOT enter flowLoopCaches. If
-        // the first query's result leaked into the memo, the second
-        // query would hit it, skip the walk (and the flag), and its
-        // over-wide union (the initial number | undefined) would
-        // bypass the seam revert — observable as the second position
-        // losing its partial mark. The guard ARGUMENT's own query
-        // crosses the back edge too and partial-marks third. Rewrite
-        // when body inference lands (the guard itself retires at
-        // 6.4h).
+    fn loop_fixpoint_reports_for_real_through_guard_calls() {
+        // m6 7.6 flip of the flowLoopCaches seam pin: the guard call
+        // resolves through the LIVE body-inference arm (no
+        // predicate), the loop fixpoint runs unflagged, and all
+        // THREE uses report their 2454 exactly like tsc (oracle q5:
+        // (2454, 71/76/87), vendored 6.0.3 strict).
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -3128,30 +3097,18 @@ mod tests {
                 .iter()
                 .map(|d| d.code())
                 .collect::<Vec<_>>(),
-            Vec::<u32>::new()
+            [2454, 2454, 2454]
         );
-        assert_eq!(
-            result
-                .partial_checks
-                .iter()
-                .map(|p| p.reason.as_str())
-                .collect::<Vec<_>>(),
-            [
-                "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)",
-                "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)",
-                "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)"
-            ]
-        );
+        assert_eq!(result.partial_checks.len(), 0);
     }
 
     #[test]
-    fn arithmetic_face_contains_over_seam_reverted_answer() {
-        // M5 post-close review D2: tsc narrows `u` via the TS 5.5
-        // body-inferred predicate (isNum) — unported (M6), so the
-        // seam reverts u to string|number and the 2362 face must
-        // consult the flag-exact registry and contain, never report.
-        // Oracle: tsc 6.0.3 clean (verify/d2_operator_face.ts,
-        // 2026-07-19) — pre-fix this shape reported 2362.
+    fn arithmetic_face_narrows_through_the_inferred_predicate() {
+        // m6 7.6 flip of the M5 post-close D2 pin: isNum's predicate
+        // is INFERRED for real, u narrows to number inside the
+        // guard, and the arithmetic face is clean like tsc
+        // (verify/d2_operator_face.ts + oracle q3) — no seam revert,
+        // no partial mark.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -3167,24 +3124,16 @@ mod tests {
                 .collect::<Vec<_>>(),
             Vec::<u32>::new()
         );
-        assert_eq!(
-            result
-                .partial_checks
-                .iter()
-                .map(|p| p.reason.as_str())
-                .collect::<Vec<_>>(),
-            ["arithmetic operand face over a seam-reverted flow answer \
-              (unported narrowing dependency, M6/M8 seam)"]
-        );
+        assert_eq!(result.partial_checks.len(), 0);
     }
 
     #[test]
-    fn assignment_face_subtree_probe_contains_compound_rhs() {
-        // M5 post-close review D1: the seam-reverted node is `u`
-        // INSIDE the object literal — the assignment face's SUBTREE
-        // consult must see it (the node-identity probe missed it and
-        // the failed relation leaked to the report path). Oracle:
-        // tsc 6.0.3 clean (verify/d1_assignment_face.ts, 2026-07-19).
+    fn assignment_face_relates_through_the_inferred_predicate() {
+        // m6 7.6 flip of the M5 post-close D1 pin: isNum's predicate
+        // is INFERRED for real, u narrows to number inside the
+        // compound RHS, and the assignment face relates cleanly like
+        // tsc (verify/d1_assignment_face.ts + oracle q4) — no
+        // subtree seam consult, no partial mark.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -3200,15 +3149,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             Vec::<u32>::new()
         );
-        assert_eq!(
-            result
-                .partial_checks
-                .iter()
-                .map(|p| p.reason.as_str())
-                .collect::<Vec<_>>(),
-            ["failed assignment over a seam-reverted flow answer \
-              (unported narrowing dependency, M6/M8 seam)"]
-        );
+        assert_eq!(result.partial_checks.len(), 0);
     }
 
     #[test]

@@ -2923,9 +2923,18 @@ impl<'a> CheckerState<'a> {
                     result,
                     crate::links::LinkSlot::Resolved(members_id),
                 );
-                // tsc stamps result.node = node (77999) — consumed by
-                // the nodeBuilder display band (T2/M8); no slot yet.
-                let _ = node;
+                // tsc stamps result.node = node (77999): the same
+                // type.node field deferred references ride, so it
+                // shares the deferred_node slot —
+                // getObjectTypeInstantiation selects it as the
+                // declaration (63464) and instantiateAnonymousType
+                // propagates it to Instantiated copies (63649-63651).
+                self.links.set_type_deferred_reference_links(
+                    self.speculation_depth,
+                    result,
+                    node,
+                    None,
+                );
                 return Ok(result);
             }
             return Ok(ty);
@@ -3068,6 +3077,11 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_grammar_expression_with_type_arguments(&mut self, node: NodeId) -> bool {
         let (expression, type_arguments) = match self.data_of(node) {
             NodeData::ExpressionWithTypeArguments(data) => (data.expression, data.type_arguments),
+            // The TypeQuery face (`typeof f<...>`) arrives from
+            // getTypeFromTypeQueryNode: isExpressionWithTypeArguments
+            // gates the import arm off, but checkGrammarTypeArguments
+            // still runs over its list (89562).
+            NodeData::TypeQuery(data) => (None, data.type_arguments),
             _ => (None, None),
         };
         if let (Some(expression), Some(_)) = (expression, type_arguments) {

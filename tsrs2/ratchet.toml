@@ -97,8 +97,13 @@
 # amalgamated-duplicates flush + immediate mode (A8), the script-file
 # `declare global` collector gate (A9), and the B15 no-cache guard
 # for context-sensitive-signature parameters.
-rate = 0.54867
-matched = 26898
+# m6 7.6: +7 — instantiation-expression TypeQuery face (typeof f<...>
+# through the 7.4-live getInstantiationExpressionType; parserTypeQuery8
+# 2304 pair + instantiationExpression rows) + getReducedType
+# never-consult + getTypePredicateFromBody (both corpus-byte-neutral —
+# the predicate family was corpus-blind exactly as 7.5d measured).
+rate = 0.548813
+matched = 26905
 total = 49024
 allowed_regression = 0.0
 
@@ -123,8 +128,10 @@ allowed_regression = 0.0
 # m5 post-close review: +100 (see the T0 comment).
 # m4 post-review slice 2 (a-class FN): +85 (see the T0 comment).
 # m4 post-review slice 3 (M6-start bar): +16 (see the T0 comment).
-rate = 0.774928
-matched = 16313
+# m6 7.6: +5 with the instantiation-expression TypeQuery face (see
+# the T0 comment).
+rate = 0.775165
+matched = 16318
 total = 21051
 allowed_regression = 0.0
 
