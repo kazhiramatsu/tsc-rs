@@ -666,6 +666,40 @@ tuple-arity, operators destructuring 2493+2322 pair) + 1 rewritten to
 containment-until-9.3b. All heads byte-match the vendored oracle
 (scratchpad probe-93a, noLib strict).
 
+**Review round (PR #55, 2 P1 findings — both source-verified against
+_tsc.js and fixed, +1 matched each band):**
+
+8. **Return elaboration takes the EFFECTIVE check node** — tsc
+   checkReturnStatement computes `getEffectiveCheckNode(expr)` and
+   passes THAT into checkTypeAssignableToAndOptionallyElaborate
+   (84585-84587): outer parens AND satisfies strip BEFORE
+   elaborateError, so `return ([1] satisfies [number])` against
+   `[string]` elaborates the array literal and the element row
+   replaces the head. The 9.3a first cut passed the RAW expression
+   (the elaborate entry arms strip parens/as-const but deliberately
+   NOT satisfies — the member-initializer rule), which stopped
+   elaboration and emitted the outer head where tsc reports the
+   element. Oracle-pinned: (2322, 36, 1) 'number'→'string'.
+9. **EnumLike display arm (51367-51399) ported** — enum-member
+   literal types fell into the Literal arm and printed their BASE
+   VALUES (`[0]` for `[E.A]`): the tuple renderer made the outer
+   shape renderable, surfacing the pre-existing child infidelity as
+   emitted text. The arm precedes the literal arms AND the union
+   walk: member face `E.A` (parent name + identifier member),
+   single-member collapse (51371: the member type IS the declared
+   type → bare `E` — probes: `[S.Only]` prints `[S]`, string-valued
+   single member prints `[E, E]`), the EnumLiteral-stamped declared
+   union prints `E` (also the loop-breaker for formatUnionTypes'
+   enum-run collapse, which hands that union back), const-enum same,
+   and the bare-literal source composes with reportRelationError's
+   literal-source generalization (`E.A` source head prints `E`).
+   Non-identifier member names (tsc renders `typeof E["..."]`
+   indexed access) + the unconstructible symbol-less/parentless
+   faces stay behind the M8 tail (3 containment sites, count=3 in
+   the manifest). `is_identifier_text` promoted pub from the syntax
+   parser for the member-name gate. 6 oracle-probed pins
+   (probe-93a-review). T2 +67 / T3 +58 on already-matched enum rows.
+
 ## Working rules
 
 - Curtain retirement = FP-shield removal. Every widened display arm

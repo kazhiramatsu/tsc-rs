@@ -551,6 +551,14 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
+in = "type_to_string_slice_node"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+count = 3
+
+[[site]]
+file = "crates/checker/src/check.rs"
 in = "type_to_string_slice_structured"
 reason = "origin-union display beyond keyof origins (M5/M6 verdict shield; nodeBuilder tail, M8)"
 class = "stage"

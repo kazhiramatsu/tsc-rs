@@ -3426,6 +3426,65 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        // tsc-port: typeToTypeNodeHelper @6.0.3 (the EnumLike arm)
+        // tsc-hash: 22c6a7f005d1933da0b85f6ceb4faa654d8a927f8cbb782359104a7f3ff37a1a
+        // tsc-span: _tsc.js:51367-51399
+        //
+        // EnumLike precedes the literal arms: enum-member literal
+        // types print `E.A` (or the bare enum name when the member
+        // type IS the declared type — the single-member collapse,
+        // 51371), and the EnumLiteral-stamped declared union prints
+        // `E` here BEFORE the union walk (the formatUnionTypes
+        // collapse hands the declared union back — without this arm
+        // it would re-enter the walk unboundedly). shouldExpandType
+        // (51394) is verbosity-walk machinery the error-display slice
+        // never enables; the non-identifier member face renders as a
+        // `typeof E["..."]` indexed access — out of slice.
+        if flags.intersects(TypeFlags::ENUM_LIKE) {
+            let Some(symbol) = self.tables.type_of(ty).symbol else {
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            };
+            if self
+                .binder
+                .symbol(symbol)
+                .flags
+                .intersects(tsrs2_types::SymbolFlags::ENUM_MEMBER)
+            {
+                let Some(parent) = self.get_parent_of_symbol(symbol) else {
+                    return Err(Unsupported::new(
+                        "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                    ));
+                };
+                let parent_name = if fully_qualified {
+                    self.get_fully_qualified_name(parent)
+                } else {
+                    self.symbol_display_name(parent)
+                };
+                if self.get_declared_type_of_symbol_slice(parent)? == ty {
+                    return Ok((parent_name, SliceTypeNodeKind::Reference));
+                }
+                let member_name = self.symbol_display_name(symbol);
+                if tsrs2_syntax::is_identifier_text(&member_name) {
+                    return Ok((
+                        format!("{parent_name}.{member_name}"),
+                        SliceTypeNodeKind::Reference,
+                    ));
+                }
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            }
+            return Ok((
+                if fully_qualified {
+                    self.get_fully_qualified_name(symbol)
+                } else {
+                    self.symbol_display_name(symbol)
+                },
+                SliceTypeNodeKind::Reference,
+            ));
+        }
         match &self.tables.type_of(ty).data {
             TypeData::Intrinsic { name, .. } => {
                 Ok(((*name).to_owned(), SliceTypeNodeKind::Keyword))
@@ -4181,6 +4240,94 @@ mod tests {
                 66,
                 1,
                 "Type '[string, ...T]' is not assignable to type '[number]'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn return_satisfies_operand_elaborates_the_element() {
+        // PR #55 review P1: tsc passes the EFFECTIVE check node into
+        // checkTypeAssignableToAndOptionallyElaborate (84585-84587) —
+        // satisfies strips off, the array literal elaborates, and the
+        // element row REPLACES the outer return head.
+        assert_eq!(
+            checked_diags("function f(): [string] {\n  return ([1] satisfies [number]);\n}\n"),
+            [(
+                2322,
+                36,
+                1,
+                "Type 'number' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn enum_member_displays_render_qualified() {
+        // PR #55 review P1: enum-member literal types print `E.A`
+        // (typeToTypeNodeHelper's EnumLike arm, 51367-51399), never
+        // their base literal value.
+        assert_eq!(
+            checked_diags("enum E { A, B }\ndeclare const x: [E.A];\nconst y: [E.B] = x;\n"),
+            [(
+                2322,
+                46,
+                1,
+                "Type '[E.A]' is not assignable to type '[E.B]'.".to_owned()
+            )]
+        );
+        assert_eq!(
+            checked_diags("const enum C { X, Y }\ndeclare const x: [C.X];\nconst y: [C.Y] = x;\n"),
+            [(
+                2322,
+                52,
+                1,
+                "Type '[C.X]' is not assignable to type '[C.Y]'.".to_owned()
+            )]
+        );
+        // The 51371 single-member collapse: the member type IS the
+        // declared type, so the bare enum name prints.
+        assert_eq!(
+            checked_diags("enum S { Only }\ndeclare const x: [S.Only];\nconst y: [string] = x;\n"),
+            [(
+                2322,
+                49,
+                1,
+                "Type '[S]' is not assignable to type '[string]'.".to_owned()
+            )]
+        );
+        // The EnumLiteral-stamped declared union prints the enum name
+        // BEFORE the union walk.
+        assert_eq!(
+            checked_diags("enum E { A, B }\ndeclare const x: [E];\nconst y: [string] = x;\n"),
+            [(
+                2322,
+                44,
+                1,
+                "Type '[E]' is not assignable to type '[string]'.".to_owned()
+            )]
+        );
+        // Mixed unions keep interned order (string interns first).
+        assert_eq!(
+            checked_diags(
+                "enum E { A, B }\ndeclare const x: [E.A | string];\nconst y: [boolean] = x;\n"
+            ),
+            [(
+                2322,
+                55,
+                1,
+                "Type '[string | E.A]' is not assignable to type '[boolean]'.".to_owned()
+            )]
+        );
+        // A BARE enum-literal source generalizes to its base for the
+        // head (reportRelationError's literal-source generalization
+        // composes with the arm): 'E', not 'E.A'.
+        assert_eq!(
+            checked_diags("enum E { A, B }\ndeclare const x: E.A;\nconst y: [string] = x;\n"),
+            [(
+                2322,
+                44,
+                1,
+                "Type 'E' is not assignable to type '[string]'.".to_owned()
             )]
         );
     }

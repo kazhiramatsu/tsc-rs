@@ -1484,12 +1484,14 @@ impl<'a> CheckerState<'a> {
         // checkTypeAssignableToAndOptionallyElaborate — elaboration
         // first (the Step-12 idiom): a literal return operand that
         // reports an inner member/element row suppresses the outer
-        // head (elaborateError's own entry arms strip parens /
-        // as-const, so the RAW expression descends).
-        let elaborated = match expr {
-            Some(expr) => {
+        // head. tsc passes the EFFECTIVE check node (84585-84587) —
+        // outer parens AND satisfies strip off before elaborateError,
+        // so `return ([1] satisfies [number])` still elaborates the
+        // array literal (the entry arms alone never strip satisfies).
+        let elaborated = match effective_expr {
+            Some(effective) => {
                 !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
-                    && self.elaborate_literal_assignment(expr, unwrapped_return_type)?
+                    && self.elaborate_literal_assignment(effective, unwrapped_return_type)?
             }
             None => false,
         };

@@ -112,8 +112,12 @@
 # optionally-elaborate sites (binding-pattern initializer, return,
 # assignment). Computed-key destructuring containment retired
 # (evaluation-order faces probe port==oracle, zero fabrications).
-rate = 0.552831
-matched = 27102
+# p9 9.3a review fixes: +1 — return elaboration takes the EFFECTIVE
+# check node (satisfies strips, tsc 84585-84587) + the EnumLike
+# display arm (E.A / single-member collapse / declared-union E faces;
+# enum members no longer print base literals).
+rate = 0.552852
+matched = 27103
 total = 49024
 allowed_regression = 0.0
 
@@ -142,8 +146,9 @@ allowed_regression = 0.0
 # the T0 comment).
 # p9 9.3a: +189 with the tuple renderer + FP-family source fixes (see
 # the T0 comment).
-rate = 0.784143
-matched = 16507
+# p9 9.3a review fixes: +1 (see the T0 comment).
+rate = 0.784191
+matched = 16508
 total = 21051
 allowed_regression = 0.0
 

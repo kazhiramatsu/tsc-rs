@@ -23,8 +23,8 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **55.2831%** (27,102 / 49,024) |
-| 2xxx band | **78.4143%** (16,507 / 21,051) |
+| All bands | **55.2852%** (27,103 / 49,024) |
+| 2xxx band | **78.4191%** (16,508 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 
 False positives are a hard gate: 0 on every merge. Escape
