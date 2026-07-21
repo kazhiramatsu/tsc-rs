@@ -31,7 +31,7 @@ use tsrs2_types::{
     ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFlags, TypeId,
 };
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureKind, Unsupported};
 
 /// Debug-only unwind census (the unsupported-unwind invariant):
 /// every transient stack an element check may push must be back at
@@ -2691,6 +2691,21 @@ impl<'a> CheckerState<'a> {
                 // 2415/2417/2420/2430 keep their code —
                 // implementingAnInterfaceExtendingClassWithPrivates
                 // pins the 2739→2720 silence).
+                // isRelatedTo's excess-property arm (65197 →
+                // hasExcessProperties) precedes the common-property
+                // arm and every structural walk: a fresh object
+                // literal with an unknown property reports the
+                // parent-skipped 2353/2561 INSIDE the relation and no
+                // head lands, for ANY head message (argument excess
+                // rows are 2353 top-level too).
+                if self.report_excess_property_head(
+                    source,
+                    target,
+                    error_node,
+                    crate::relate::RelationKind::Assignable,
+                )? {
+                    return Ok(related);
+                }
                 // isRelatedTo's common-property arm (65208-65235)
                 // precedes ALL structural elaboration and its early
                 // return skips the head for ANY head message
@@ -2777,6 +2792,58 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(related)
+    }
+
+    /// tsc-port: hasExcessProperties @6.0.3 (the head-site face)
+    /// tsc-hash: 2feb57fb3012195ec298b8373aae179205e425727845272eac7ef6231ed69cc7
+    /// tsc-span: _tsc.js:65347-65410
+    ///
+    /// (The isRelatedTo gate that calls it sits at 65196-65207.)
+    ///
+    /// The relation engine's verdict runs the same
+    /// excess_properties_worker (engine.rs) — this face re-runs it at
+    /// the head site with reporting on, exactly the split tsc's
+    /// reportErrors2 parameter expresses. The gate transcribes
+    /// isRelatedTo's isPerformingExcessPropertyChecks at the
+    /// reporting boundary (intersectionState is NONE at every
+    /// check_type_assignable_to entry). The probe runs on a FRESH
+    /// relation frame where tsc reports inside the failed walk's
+    /// in-flight closure — the maybe-stack/budget difference cannot
+    /// change the discriminant probes' verdicts (recorded deviation).
+    fn report_excess_property_head(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        error_node: NodeId,
+        relation: crate::relate::RelationKind,
+    ) -> CheckResult2<bool> {
+        if !self.is_object_literal_type(source)
+            || !self
+                .tables
+                .object_flags_of(source)
+                .intersects(ObjectFlags::FRESH_LITERAL)
+        {
+            return Ok(false);
+        }
+        let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+        let mut checker = crate::engine::RelationChecker {
+            st: self,
+            relation,
+            maybe_keys: Vec::new(),
+            maybe_keys_set: std::collections::HashSet::new(),
+            source_stack: Vec::new(),
+            target_stack: Vec::new(),
+            maybe_count: 0,
+            source_depth: 0,
+            target_depth: 0,
+            expanding_flags: tsrs2_types::ExpandingFlags::NONE,
+            overflow: false,
+            relation_count,
+        };
+        Ok(matches!(
+            checker.excess_properties_worker(source, target, Some(error_node))?,
+            crate::engine::ExcessPropertyOutcome::UnknownProperty
+        ))
     }
 
     /// tsc-port: reportUnmatchedProperty @6.0.3 (the head-override
@@ -2978,6 +3045,26 @@ impl<'a> CheckerState<'a> {
             }
             ty
         };
+        // structuredTypeRelatedTo apparent-izes the source in place
+        // (`source = getApparentType(source)`) — for the nonPrimitive
+        // `object` that substitution is what the properties walk AND
+        // the missing-property faces see (the oracle 2741 renders
+        // '{}'). Primitive sources never report structurally
+        // (reportStructuralErrors = reportErrors &&
+        // !sourceIsPrimitive) and TYPE VARIABLES re-enter through the
+        // constraint arm's NESTED isRelatedTo whose OUTER level
+        // re-heads with the type-parameter face (`T extends {…}`
+        // sources stay 2322) — both stay on the generic head via the
+        // OBJECT|INTERSECTION gate below.
+        let source = if self
+            .tables
+            .flags_of(source)
+            .intersects(TypeFlags::NON_PRIMITIVE)
+        {
+            self.get_apparent_type(source)?
+        } else {
+            source
+        };
         // Object AND intersection sources reach tsc's properties walk
         // (getUnmatchedProperties works over getPropertiesOfType);
         // unions/primitives keep the generic head (5.4 pin: unionDE =
@@ -3106,6 +3193,18 @@ impl<'a> CheckerState<'a> {
         }
         let source_text = self.type_to_string_slice(source)?;
         let target_text = self.type_to_string_slice(target)?;
+        // 66735: the single-property face renders through
+        // getTypeNamesForErrorDisplay — equal renders re-render fully
+        // qualified (the multi-property 2739/2740 faces use plain
+        // typeToString, 66752-66757).
+        let (source_text, target_text) = if unmatched.len() == 1 && source_text == target_text {
+            (
+                self.get_type_name_for_error_display(source)?,
+                self.get_type_name_for_error_display(target)?,
+            )
+        } else {
+            (source_text, target_text)
+        };
         if unmatched.len() == 1 {
             let prop = unmatched[0];
             let prop_name = self.missing_property_display_name(unmatched[0]);
@@ -3189,6 +3288,18 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_comparable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
+                // isRelatedTo's excess-property arm runs under the
+                // comparable relation too (65353) — a fresh-literal
+                // case expression reports the parent-skipped
+                // 2353/2561 and the 2678 head never lands.
+                if self.report_excess_property_head(
+                    source,
+                    target,
+                    error_node,
+                    crate::relate::RelationKind::Comparable,
+                )? {
+                    return Ok(related);
+                }
                 let mut source_text = self.type_to_string_slice(source)?;
                 let mut target_text = self.type_to_string_slice(target)?;
                 if source_text == target_text {
@@ -3401,7 +3512,13 @@ impl<'a> CheckerState<'a> {
         // Named object types (interface/class/enum declared shapes)
         // print their symbol name — the nodeBuilder's symbol reference
         // without qualification (lib types like Date flow into 2344
-        // args; anonymous __type shapes stay out of slice).
+        // args; anonymous __type shapes stay out of slice). The
+        // VALUE side of the same symbols (class statics `typeof C`,
+        // enum objects `typeof E` — createAnonymousTypeNode's
+        // class/enum specials, 51771-51781) renders symbolToTypeNode
+        // under the Value meaning: the `typeof` query face
+        // (isClassInstanceSide keys the split — the declared type IS
+        // the instance side).
         if flags.intersects(TypeFlags::OBJECT | TypeFlags::ENUM) {
             if let Some(symbol) = self.tables.type_of(ty).symbol {
                 let symbol_flags = self.binder.symbol(symbol).flags;
@@ -3415,14 +3532,21 @@ impl<'a> CheckerState<'a> {
                     .object_flags_of(ty)
                     .intersects(ObjectFlags::REFERENCE)
                 {
-                    return Ok((
-                        if fully_qualified {
-                            self.get_fully_qualified_name(symbol)
-                        } else {
-                            self.symbol_display_name(symbol)
-                        },
-                        SliceTypeNodeKind::Reference,
-                    ));
+                    let name = if fully_qualified {
+                        self.get_fully_qualified_name(symbol)
+                    } else {
+                        self.symbol_display_name(symbol)
+                    };
+                    if self.get_declared_type_of_symbol_slice(symbol)? != ty
+                        && symbol_flags.intersects(
+                            tsrs2_types::SymbolFlags::CLASS
+                                | tsrs2_types::SymbolFlags::REGULAR_ENUM
+                                | tsrs2_types::SymbolFlags::CONST_ENUM,
+                        )
+                    {
+                        return Ok((format!("typeof {name}"), SliceTypeNodeKind::TypeQuery));
+                    }
+                    return Ok((name, SliceTypeNodeKind::Reference));
                 }
             }
         }
@@ -3785,37 +3909,413 @@ impl<'a> CheckerState<'a> {
                 SliceTypeNodeKind::Reference,
             ));
         }
-        // SYMBOL-LESS empty anonymous object types render as tsc's
-        // "{}" (typeToTypeNodeHelper's member-less TypeLiteral) — the
-        // minimal M6 7.5 slice extension: the higher-order frontier
-        // row's source arg is the global-Array-miss emptyObjectType.
-        // The symbol guard is load-bearing FP shielding, not display
-        // fidelity: symbol-CARRYING shapes that resolve empty today
-        // do so because their member machinery is unported
-        // (module-namespace M7, JSON imports M7, checkJs object
-        // literals M8 — corpus-probed: dropping the guard unmasked 5
-        // fabricated 2339/2322 rows in exactly those bands), so they
-        // stay behind the curtain with the rest of the T2/M8 tail.
         if flags.intersects(TypeFlags::OBJECT)
             && self
                 .tables
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::ANONYMOUS)
-            && self.tables.type_of(ty).symbol.is_none()
         {
-            let members = self.resolve_structured_type_members(ty)?;
-            let resolved = self.members_of(members);
-            if resolved.properties.is_empty()
-                && resolved.call_signatures.is_empty()
-                && resolved.construct_signatures.is_empty()
-                && resolved.index_infos.is_empty()
-            {
-                return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
-            }
+            return self.anonymous_object_type_to_string_slice(ty, fully_qualified);
         }
         Err(Unsupported::new(
             "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
         ))
+    }
+
+    /// tsc-port: createAnonymousTypeNode @6.0.3 (structural tail)
+    /// tsc-hash: eeb2cbaf6a73cc2d146b87f84abdfc081055559279e2d3e3b98358fa8b71e0e1
+    /// tsc-span: _tsc.js:51750-51812
+    ///
+    /// The slice renders the createTypeNodeFromObjectType tail for
+    /// type-literal/object-literal shapes and symbol-less anonymous
+    /// types. Every symbol special ahead of that tail — the
+    /// instantiation-expression TypeQuery reuse, JS constructors,
+    /// class/enum/value-module symbol heads, typeof-function
+    /// (shouldWriteTypeOfFunctionSymbol) — renders a symbol reference
+    /// or `typeof X` face instead and stays behind the curtain for
+    /// later 9.3b rungs; the visitedTypes revisit faces
+    /// (getTypeAliasForTypeLiteral / `...` elision) likewise.
+    fn anonymous_object_type_to_string_slice(
+        &mut self,
+        ty: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+        {
+            return Err(Unsupported::new(
+                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+            ));
+        }
+        if let Some(symbol) = self.tables.type_of(ty).symbol {
+            if !self.binder.symbol(symbol).flags.intersects(
+                tsrs2_types::SymbolFlags::TYPE_LITERAL | tsrs2_types::SymbolFlags::OBJECT_LITERAL,
+            ) {
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            }
+        }
+        if self.slice_visited_types.contains(&ty) {
+            return Err(Unsupported::new(
+                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+            ));
+        }
+        self.slice_visited_types.insert(ty);
+        let result = self.type_node_from_object_type_slice(ty, fully_qualified);
+        self.slice_visited_types.remove(&ty);
+        result
+    }
+
+    /// tsc-port: createTypeNodeFromObjectType @6.0.3
+    /// tsc-hash: 1190da69649fad92283f6058fe227821ed7a562223b62b2e4193b555f06359bd
+    /// tsc-span: _tsc.js:51894-51938
+    ///
+    /// The mapped-type head (isGenericMappedType/containsError) cannot
+    /// be reached — no Mapped TypeData is minted before 9.5/M8. The
+    /// single call/construct signature shorthands (`() => T`,
+    /// `new () => T`, 51907-51916) and the abstract-construct
+    /// intersection re-derivation (51918-51928) are signature faces —
+    /// out of slice until the signature rung.
+    fn type_node_from_object_type_slice(
+        &mut self,
+        ty: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        let members = self.resolve_structured_type_members(ty)?;
+        let resolved = self.members_of(members);
+        let properties = resolved.properties.clone();
+        let call_signatures = resolved.call_signatures.clone();
+        let construct_signatures = resolved.construct_signatures.clone();
+        let index_infos = resolved.index_infos.clone();
+        if properties.is_empty() && index_infos.is_empty() {
+            if call_signatures.is_empty() && construct_signatures.is_empty() {
+                // The member-less TypeLiteral (51900-51906). The
+                // symbol guard is load-bearing FP shielding, not
+                // display fidelity: symbol-CARRYING shapes that
+                // resolve empty today do so because their member
+                // machinery is unported (module-namespace M7, JSON
+                // imports M7, checkJs object literals M8 —
+                // corpus-probed at 7.5: dropping the guard unmasked 5
+                // fabricated 2339/2322 rows in exactly those bands).
+                if self.tables.type_of(ty).symbol.is_none() {
+                    return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
+                }
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            }
+            return Err(Unsupported::new(
+                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+            ));
+        }
+        if !call_signatures.is_empty() || !construct_signatures.is_empty() {
+            // Call/construct members are signatureToSignatureDeclaration
+            // faces (52155-52161), and abstract construct signatures
+            // re-derive an intersection over getOrCreateTypeFromSignature
+            // (51918-51928) — the same signature rung, out of slice
+            // either way.
+            return Err(Unsupported::new(
+                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+            ));
+        }
+        // createTypeNodesFromResolvedType (52137-52240). The
+        // checkTruncationLength probes are approximateLength gates the
+        // slice does not model: an over-long literal prints whole
+        // where tsc elides `... N more ...` — text-only divergence
+        // (T2 tail), the row keys are position+code and unaffected.
+        let mut rendered = Vec::new();
+        for info in &index_infos {
+            rendered.push(self.index_signature_slice(info, fully_qualified)?);
+        }
+        for &property in &properties {
+            self.property_signature_slice(property, fully_qualified, &mut rendered)?;
+        }
+        if rendered.is_empty() {
+            // 52238: every property skipped -> undefined members ->
+            // the member-less literal face.
+            return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
+        }
+        Ok((
+            format!("{{ {}; }}", rendered.join("; ")),
+            SliceTypeNodeKind::TypeLiteral,
+        ))
+    }
+
+    /// tsc-port: indexInfoToIndexSignatureDeclarationHelper @6.0.3
+    /// tsc-hash: 272ecb1e37223afa95dd90071374ac2c2c8985c529f7a26a9e328f020360d79c
+    /// tsc-span: _tsc.js:52476-52503
+    ///
+    /// getNameFromIndexInfo reads the declared parameter name ("x" for
+    /// synthesized infos); the AllowEmptyIndexInfoType encounteredError
+    /// leg is dead under IgnoreErrors and the port's IndexInfo always
+    /// carries a value type.
+    fn index_signature_slice(
+        &mut self,
+        info: &crate::state::IndexInfo,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
+        let name = match info.declaration {
+            Some(declaration) => {
+                let parameter = match self.data_of(declaration) {
+                    NodeData::IndexSignature(data) => data.parameters.and_then(|parameters| {
+                        self.binder.node_array(parameters).nodes.first().copied()
+                    }),
+                    _ => None,
+                };
+                let name = parameter.and_then(|parameter| match self.data_of(parameter) {
+                    NodeData::Parameter(data) => data.name,
+                    _ => None,
+                });
+                match name.and_then(|name| self.identifier_text(name)) {
+                    Some(text) => tsrs2_binder::unescape_leading_underscores(text).to_owned(),
+                    None => {
+                        return Err(Unsupported::new(
+                            "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                        ))
+                    }
+                }
+            }
+            None => "x".to_owned(),
+        };
+        let key = self.type_to_string_slice_ex(info.key_type, fully_qualified)?;
+        let value = self.type_to_string_slice_ex(info.value_type, fully_qualified)?;
+        let readonly = if info.is_readonly { "readonly " } else { "" };
+        Ok(format!("{readonly}[{name}: {key}]: {value}"))
+    }
+
+    /// tsc-port: addPropertyToElementList @6.0.3
+    /// tsc-hash: 51ca73b16014f72c20c3b112b50304ef359bc84bf5820463afb782e4cda6e335
+    /// tsc-span: _tsc.js:52241-52400
+    ///
+    /// The late-bound trackComputedName block is dead in the slice
+    /// (typeToString's tracker cannot track symbols); reverse-mapped
+    /// properties ride the shouldUsePlaceholderForProperty machinery
+    /// and the accessor/method faces are signature rungs — all out of
+    /// slice. A function/method-flagged property whose filtered type
+    /// has no call signatures and no question token emits NOTHING
+    /// (52350's early return past the emission) — transcribed as the
+    /// skip arm.
+    fn property_signature_slice(
+        &mut self,
+        property: SymbolId,
+        fully_qualified: bool,
+        rendered: &mut Vec<String>,
+    ) -> CheckResult2<()> {
+        if self
+            .links
+            .symbol(property)
+            .check_flags
+            .intersects(tsrs2_types::CheckFlags::REVERSE_MAPPED)
+        {
+            return Err(Unsupported::new(
+                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+            ));
+        }
+        let property_type = self.get_non_missing_type_of_symbol(property)?;
+        let symbol_flags = self.binder.symbol(property).flags;
+        // 52268-52343: accessor properties whose write type diverges
+        // (or whose class parent takes the getter/setter or
+        // accessor-modifier arms) print signature faces; the same-type
+        // non-class fall-through prints the plain property row
+        // (oracle-pinned: `{ get p(): string; set p(v: string) }`
+        // displays `{ p: string; }`).
+        if symbol_flags.intersects(tsrs2_types::SymbolFlags::ACCESSOR) {
+            let write_type = self.get_write_type_of_symbol(property)?;
+            let error = self.tables.intrinsics.error;
+            if property_type != error && write_type != error {
+                if property_type != write_type {
+                    return Err(Unsupported::new(
+                        "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                    ));
+                }
+                if let Some(parent) = self.binder.symbol(property).parent {
+                    if self
+                        .binder
+                        .symbol(parent)
+                        .flags
+                        .intersects(tsrs2_types::SymbolFlags::CLASS)
+                    {
+                        return Err(Unsupported::new(
+                            "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                        ));
+                    }
+                }
+            }
+        }
+        let optional = symbol_flags.intersects(tsrs2_types::SymbolFlags::OPTIONAL);
+        if symbol_flags
+            .intersects(tsrs2_types::SymbolFlags::FUNCTION | tsrs2_types::SymbolFlags::METHOD)
+            && self
+                .get_properties_of_object_type_owned(property_type)?
+                .is_empty()
+            && !self.is_readonly_symbol(property)
+        {
+            let filtered = self.filter_type_with(property_type, |state, member| {
+                Ok(!state
+                    .tables
+                    .flags_of(member)
+                    .intersects(TypeFlags::UNDEFINED))
+            })?;
+            let signatures = self.get_signatures_of_type(filtered, SignatureKind::Call)?;
+            if !signatures.is_empty() {
+                // Method faces (52346-52349) — the signature rung.
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            }
+            if !optional {
+                return Ok(());
+            }
+        }
+        let name = self.property_name_slice(property)?;
+        let type_text = self.type_to_string_slice_ex(property_type, fully_qualified)?;
+        let readonly = if self.is_readonly_symbol(property) {
+            "readonly "
+        } else {
+            ""
+        };
+        let question = if optional { "?" } else { "" };
+        rendered.push(format!("{readonly}{name}{question}: {type_text}"));
+        Ok(())
+    }
+
+    /// tsc-port: getPropertyNameNodeForSymbol @6.0.3
+    /// tsc-hash: c1c3578eec910db69573311722f0d3fb5b95881f3bcad46ac3fafdf5d402e4a6
+    /// tsc-span: _tsc.js:53411-53442
+    ///
+    /// (createPropertyNameNodeForIdentifierOrLiteral, 19208-19212, is
+    /// the free-fn tail below.)
+    ///
+    /// Hash-private names (getClonedHashPrivateName) and unique-symbol
+    /// computed names (symbolToExpression) stay out of slice. tsc
+    /// classifies computed/element-access names through
+    /// checkExpression's StringLike; the slice reads the late-bound
+    /// nameType's flags instead — identical for the literal-typed keys
+    /// late binding produces, and the display walk cannot re-enter
+    /// checkExpression (recorded deviation).
+    fn property_name_slice(&mut self, property: SymbolId) -> CheckResult2<String> {
+        if let Some(value_declaration) = self.binder.symbol(property).value_declaration {
+            let name = tsrs2_binder::node_util::get_name_of_declaration(
+                self.binder.source_of_node(value_declaration),
+                value_declaration,
+            );
+            if let Some(name) = name {
+                if matches!(self.data_of(name), NodeData::PrivateIdentifier(_)) {
+                    return Err(Unsupported::new(
+                        "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                    ));
+                }
+            }
+        }
+        let declarations = self.binder.symbol(property).declarations.clone();
+        let name_type = self.links.symbol(property).name_type;
+        let name_type_flags = name_type.map(|name_type| self.tables.flags_of(name_type));
+        let string_named = !declarations.is_empty()
+            && declarations
+                .iter()
+                .all(|&declaration| self.declaration_is_string_named(declaration, name_type_flags));
+        let single_quote = !declarations.is_empty()
+            && declarations
+                .iter()
+                .all(|&declaration| self.declaration_is_single_quoted_string_named(declaration));
+        let is_method = self
+            .binder
+            .symbol(property)
+            .flags
+            .intersects(tsrs2_types::SymbolFlags::METHOD);
+        if let Some(name_type) = name_type {
+            let flags = self.tables.flags_of(name_type);
+            if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
+                let name = match &self.tables.type_of(name_type).data {
+                    TypeData::Literal { value } => match value {
+                        tsrs2_types::LiteralValue::String(text) => text.clone(),
+                        tsrs2_types::LiteralValue::Number(value) => {
+                            tsrs2_types::js_number_to_string(*value)
+                        }
+                        tsrs2_types::LiteralValue::BigInt(_) => {
+                            unreachable!("string/number literal flags imply string/number value")
+                        }
+                    },
+                    _ => unreachable!("literal flags imply literal data"),
+                };
+                if !tsrs2_syntax::is_identifier_text(&name)
+                    && (string_named || !crate::evaluate::is_numeric_literal_name(&name))
+                {
+                    return string_literal_name_slice(&name, single_quote);
+                }
+                if crate::evaluate::is_numeric_literal_name(&name) && name.starts_with('-') {
+                    // 53434: negative numeric names print as the
+                    // computed `[-N]` face (prefix-minus numeric).
+                    return Ok(format!("[{name}]"));
+                }
+                return identifier_or_literal_name_slice(
+                    &name,
+                    string_named,
+                    single_quote,
+                    is_method,
+                );
+            }
+            if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            }
+        }
+        let raw =
+            tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(property).escaped_name)
+                .to_owned();
+        identifier_or_literal_name_slice(&raw, string_named, single_quote, is_method)
+    }
+
+    /// tsc-port: isStringNamed @6.0.3 (slice face)
+    /// tsc-hash: c000f08977999a9f153126ccfb4e5b4c8721c5e160a361bd941308799c3c657d
+    /// tsc-span: _tsc.js:53388-53402
+    fn declaration_is_string_named(
+        &self,
+        declaration: NodeId,
+        name_type_flags: Option<TypeFlags>,
+    ) -> bool {
+        let name = tsrs2_binder::node_util::get_name_of_declaration(
+            self.binder.source_of_node(declaration),
+            declaration,
+        );
+        let Some(name) = name else {
+            return false;
+        };
+        match self.data_of(name) {
+            NodeData::StringLiteral(_) => true,
+            // checkExpression(name.expression) StringLike in tsc; the
+            // slice substitutes the late-bound nameType (see
+            // property_name_slice).
+            NodeData::ComputedPropertyName(_) | NodeData::ElementAccessExpression(_) => {
+                name_type_flags.is_some_and(|flags| flags.intersects(TypeFlags::STRING_LIKE))
+            }
+            _ => false,
+        }
+    }
+
+    /// tsc-port: isSingleQuotedStringNamed @6.0.3
+    /// tsc-hash: a1cfaf3bb4dfc1e20d532883c41dc2ed9d730618cb43b9184a022875a3013093
+    /// tsc-span: _tsc.js:53403-53410
+    ///
+    /// The parser never synthesizes string names, so the
+    /// name.singleQuote half is dead; the source-text probe reads the
+    /// literal's closing quote (trivia-immune, unterminated literals
+    /// cannot late-bind a member).
+    fn declaration_is_single_quoted_string_named(&self, declaration: NodeId) -> bool {
+        let source = self.binder.source_of_node(declaration);
+        let Some(name) = tsrs2_binder::node_util::get_name_of_declaration(source, declaration)
+        else {
+            return false;
+        };
+        if !matches!(self.data_of(name), NodeData::StringLiteral(_)) {
+            return false;
+        }
+        let end = source.arena.node(name).end as usize;
+        end > 0 && source.text.as_bytes().get(end - 1) == Some(&b'\'')
     }
 
     /// tsc-port: formatUnionTypes @6.0.3 (error-display face)
@@ -3925,6 +4425,8 @@ enum SliceTypeNodeKind {
     Intersection,
     /// TypeOperatorNode — `keyof T`, `readonly T[]`, `readonly [...]`.
     TypeOperator,
+    /// TypeQueryNode — `typeof C` (class statics / enum objects).
+    TypeQuery,
     /// ArrayTypeNode — `T[]`.
     Array,
     /// TupleTypeNode — `[...]`.
@@ -3966,10 +4468,14 @@ fn type_operator_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
 /// tsc-hash: 90b6701d51af1b9f1122f0d5ffcc9febe951cdae5b1430df8dfcb37781993928
 /// tsc-span: _tsc.js:20577-20585
 ///
-/// The infer/typeof arms wrap kinds the slice cannot produce; the
-/// operand fall-through supplies the intersection/union wraps.
+/// The infer arm wraps a kind the slice cannot produce; the typeof
+/// arm wraps the TypeQuery face and the operand fall-through supplies
+/// the intersection/union wraps.
 fn non_array_postfix_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
-    matches!(kind, SliceTypeNodeKind::TypeOperator) || type_operator_operand_needs_parens(kind)
+    matches!(
+        kind,
+        SliceTypeNodeKind::TypeOperator | SliceTypeNodeKind::TypeQuery
+    ) || type_operator_operand_needs_parens(kind)
 }
 
 /// tsc-port: parenthesizeTypeOfOptionalType @6.0.3 (kind test)
@@ -3990,6 +4496,52 @@ fn array_type_node_text(element: String, kind: SliceTypeNodeKind) -> String {
         format!("({element})[]")
     } else {
         format!("{element}[]")
+    }
+}
+
+/// tsc-port: createPropertyNameNodeForIdentifierOrLiteral @6.0.3
+/// tsc-hash: eda75843cb64ba3fbbfba1505f7caa40165242100f8be7821f1fa8f9889022c4
+/// tsc-span: _tsc.js:19208-19212
+///
+/// The numeric face prints `(+name).toString()` (factory
+/// createNumericLiteral over the coerced value); the string face is
+/// the printer's quoted literal.
+fn identifier_or_literal_name_slice(
+    name: &str,
+    string_named: bool,
+    single_quote: bool,
+    is_method: bool,
+) -> CheckResult2<String> {
+    let is_method_named_new = is_method && name == "new";
+    if !is_method_named_new && tsrs2_syntax::is_identifier_text(name) {
+        return Ok(name.to_owned());
+    }
+    if !string_named
+        && !is_method_named_new
+        && crate::evaluate::is_numeric_literal_name(name)
+        && crate::evaluate::js_string_to_number(name) >= 0.0
+    {
+        return Ok(tsrs2_types::js_number_to_string(
+            crate::evaluate::js_string_to_number(name),
+        ));
+    }
+    string_literal_name_slice(name, single_quote)
+}
+
+/// The printer's string-literal property-name face, bounded like the
+/// literal display arm: plain ASCII without escapes; anything needing
+/// escapeString's rewriting stays behind the curtain.
+fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult2<String> {
+    let quote = if single_quote { '\'' } else { '"' };
+    if name
+        .chars()
+        .all(|c| c.is_ascii() && !c.is_ascii_control() && c != quote && c != '\\')
+    {
+        Ok(format!("{quote}{name}{quote}"))
+    } else {
+        Err(Unsupported::new(
+            "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)",
+        ))
     }
 }
 
@@ -4358,6 +4910,354 @@ mod tests {
                     .to_owned()
             )]
         );
+    }
+
+    // ---- 9.3b anonymous-object display pins (oracle-probed,
+    // scratchpad probe-93b-pins-final: noLib + strict + noImplicitAny
+    // matching the unit env) ----
+
+    #[test]
+    fn anonymous_object_display_basic_members_render() {
+        assert_eq!(
+            checked_diags("declare let a: { x: string; y: number };\na = 1;\n"),
+            [(
+                2322,
+                41,
+                1,
+                "Type 'number' is not assignable to type '{ x: string; y: number; }'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn anonymous_object_display_optional_readonly_member() {
+        // The optional member's declared type keeps its undefined tail
+        // (strict, eOPT off): `readonly y?: number | undefined`.
+        assert_eq!(
+            checked_diags("declare let b: { readonly y?: number; z: string };\nb = 1;\n"),
+            [(
+                2322,
+                51,
+                1,
+                "Type 'number' is not assignable to type \
+                 '{ readonly y?: number | undefined; z: string; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn anonymous_object_display_property_name_faces() {
+        // Quoted names keep their declared quote style, identifier-able
+        // and numeric names print bare, non-canonical numeric strings
+        // stay quoted ("1e2").
+        assert_eq!(
+            checked_diags(
+                "declare let c: { \"a b\": string; 'c d': number; 1: boolean; \"1e2\": string };\nc = 1;\n"
+            ),
+            [(
+                2322,
+                76,
+                1,
+                "Type 'number' is not assignable to type \
+                 '{ \"a b\": string; 'c d': number; 1: boolean; \"1e2\": string; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn anonymous_object_display_index_signatures_precede_properties() {
+        assert_eq!(
+            checked_diags(
+                "declare let d: { p: boolean; [idx: number]: unknown; [k: string]: unknown };\nd = 1;\n"
+            ),
+            [(
+                2322,
+                77,
+                1,
+                "Type 'number' is not assignable to type \
+                 '{ [idx: number]: unknown; [k: string]: unknown; p: boolean; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn anonymous_object_display_nested_literal_and_union() {
+        assert_eq!(
+            checked_diags("declare let e: { a: { b: string | undefined } };\ne = 1;\n"),
+            [(
+                2322,
+                49,
+                1,
+                "Type 'number' is not assignable to type '{ a: { b: string | undefined; }; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn anonymous_object_display_same_type_accessor_collapses_to_property() {
+        // addPropertyToElementList's accessor fall-through: same
+        // read/write type, non-class parent -> the plain property row.
+        assert_eq!(
+            checked_diags("declare let f: { get p(): string; set p(v: string) };\nf = 1;\n"),
+            [(
+                2322,
+                54,
+                1,
+                "Type 'number' is not assignable to type '{ p: string; }'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn anonymous_object_display_method_member_stays_curtained() {
+        // Oracle: `{ m(): void; }` — the method face is
+        // signatureToSignatureDeclaration work (the signature rung);
+        // the row contains until it lands.
+        assert_eq!(checked_diags("declare let g: { m(): void };\ng = 1;\n"), []);
+    }
+
+    #[test]
+    fn class_static_side_displays_typeof_face() {
+        assert_eq!(
+            checked_diags("class A3 {}\nvar v3: number = A3;\n"),
+            [(
+                2322,
+                16,
+                2,
+                "Type 'typeof A3' is not assignable to type 'number'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn enum_object_displays_typeof_face() {
+        assert_eq!(
+            checked_diags("enum E3 { X }\nvar v4: number = E3;\n"),
+            [(
+                2322,
+                18,
+                2,
+                "Type 'typeof E3' is not assignable to type 'number'.".to_owned()
+            )]
+        );
+    }
+
+    // ---- 9.3b relation-reporting pins (excess property, did-you-mean,
+    // elaboration extensions) ----
+
+    #[test]
+    fn excess_property_reports_parent_skipped_2353() {
+        assert_eq!(
+            checked_diags("declare let a2: { x: number };\na2 = { x: 1, y: 2 };\n"),
+            [(
+                2353,
+                44,
+                1,
+                "Object literal may only specify known properties, and 'y' does not exist in \
+                 type '{ x: number; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn excess_property_with_spelling_suggestion_reports_2561() {
+        assert_eq!(
+            checked_diags("declare let b2: { hello: number };\nb2 = { hallo: 1 };\n"),
+            [(
+                2561,
+                42,
+                5,
+                "Object literal may only specify known properties, but 'hallo' does not exist \
+                 in type '{ hello: number; }'. Did you mean to write 'hello'?"
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn did_you_mean_new_reports_at_the_member_value() {
+        // elaborateDidYouMeanToCallOrConstruct re-anchors the member
+        // relation at the VALUE (`A2`, not the property name) and the
+        // missing-property override renders the class-static typeof
+        // face.
+        assert_eq!(
+            checked_diags(
+                "class A2 { foo(): string { return '' } }\nvar c2: { [x: string]: A2 } = { a: A2 };\n"
+            ),
+            [(
+                2741,
+                76,
+                2,
+                "Property 'foo' is missing in type 'typeof A2' but required in type 'A2'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn shorthand_member_supports_missing_property_head() {
+        // The shorthand walk feeds the literal's members; the head is
+        // the parent-skipped missing-'b' face at the declaration.
+        assert_eq!(
+            checked_diags("var id: number = 1;\nvar person: { b: string; id: number } = { id };\n"),
+            [(
+                2741,
+                24,
+                6,
+                "Property 'b' is missing in type '{ id: number; }' but required in type \
+                 '{ b: string; id: number; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn shorthand_member_row_replaces_the_return_head() {
+        // generateObjectLiteralElements yields shorthand members with
+        // no inner expression — the member row anchors at the NAME.
+        assert_eq!(
+            checked_diags(
+                "var name2: string = 'x';\nfunction foo(): { name2: number } { return { name2 }; }\n"
+            ),
+            [(
+                2322,
+                70,
+                5,
+                "Type 'string' is not assignable to type 'number'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn index_signature_target_elaborates_member_rows() {
+        // elaborateElementwise's targetPropType is an indexed access:
+        // a property miss falls through to the applicable index
+        // signature's value type.
+        assert_eq!(
+            checked_diags("var d2: { [x: number]: string } = { 1: 1 };\n"),
+            [(
+                2322,
+                36,
+                1,
+                "Type 'number' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn constructor_return_elaborates_and_reports_2409() {
+        let rows =
+            checked_diags("class F { x: string = ''; constructor() { return { x: 1 }; } }\n");
+        assert_eq!(
+            rows,
+            [
+                (
+                    2322,
+                    51,
+                    1,
+                    "Type 'number' is not assignable to type 'string'.".to_owned()
+                ),
+                (
+                    2409,
+                    42,
+                    6,
+                    "Return type of constructor signature must be assignable to the instance \
+                     type of the class."
+                        .to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn merged_declaration_initializer_elaborates_member_rows() {
+        assert_eq!(
+            checked_diags(
+                "var p: { x: number; y: number };\nvar p: { x: number; y: number } = { x: 0, y: '' };\n"
+            ),
+            [(
+                2322,
+                75,
+                1,
+                "Type 'string' is not assignable to type 'number'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn non_primitive_source_walks_as_the_empty_object_face() {
+        // structuredTypeRelatedTo apparent-izes `object` in place —
+        // the missing-property face renders '{}'.
+        assert_eq!(
+            checked_diags("var y2 = { foo: 'bar' };\ndeclare var o: object;\ny2 = o;\n"),
+            [(
+                2741,
+                48,
+                2,
+                "Property 'foo' is missing in type '{}' but required in type \
+                 '{ foo: string; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn template_literal_index_key_admits_matching_property_names() {
+        // isKnownProperty probes applicability through the faithful
+        // isApplicableIndexType — `sfoo` fits `[k: \`s${string}\`]`,
+        // so the literal is clean (the flag-shortcut fabricated an
+        // excess verdict here).
+        assert_eq!(
+            checked_diags(
+                "type F2 = { [k: `s${string}`]: (x: string) => void };\ndeclare let f3: F2;\nf3 = { sfoo: (x) => {} };\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn case_clause_excess_property_reports_2353() {
+        // The comparable relation runs the same excess arm — the 2678
+        // head never lands.
+        assert_eq!(
+            checked_diags(
+                "class C3 { id: number = 1 }\nswitch (new C3()) {\n    case { id: 12, name3: '' }:\n}\n"
+            ),
+            [(
+                2353,
+                67,
+                5,
+                "Object literal may only specify known properties, and 'name3' does not exist \
+                 in type 'C3'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn non_finite_numeric_keys_resolve_by_canonical_name() {
+        // Members declared with numeric keys that stringify to
+        // non-finite/huge canonical names ("Infinity",
+        // "9.671406556917009e+24") resolve through both the string
+        // and numeric element-access faces (binaryIntegerLiteral's
+        // clean rows — the 7053 face fabricated here while the object
+        // display curtained the report).
+        assert_eq!(
+            checked_diags("var o = { 1e999: true };\no[\"Infinity\"];\n"),
+            []
+        );
+        assert_eq!(
+            checked_diags(
+                "var o2 = { 9.671406556917009e+24: true };\no2[9.671406556917009e+24];\no2[\"9.671406556917009e+24\"];\n"
+            ),
+            []
+        );
+        assert_eq!(checked_diags("var o3 = { 1e999: true };\no3[1e999];\n"), []);
     }
 
     #[test]

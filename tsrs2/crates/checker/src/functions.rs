@@ -1491,7 +1491,11 @@ impl<'a> CheckerState<'a> {
         let elaborated = match effective_expr {
             Some(effective) => {
                 !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
-                    && self.elaborate_literal_assignment(effective, unwrapped_return_type)?
+                    && self.elaborate_literal_assignment(
+                        effective,
+                        unwrapped_return_type,
+                        Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                    )?
             }
             None => false,
         };

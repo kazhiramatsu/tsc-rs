@@ -1446,7 +1446,11 @@ impl<'a> CheckerState<'a> {
             // reports an inner member/element row suppresses the
             // LEFT-anchored head.
             let elaborated = !self.is_type_assignable_to(value_type, assignee_type)?
-                && self.elaborate_literal_assignment(right, assignee_type)?;
+                && self.elaborate_literal_assignment(
+                    right,
+                    assignee_type,
+                    Some(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
+                )?;
             if !elaborated {
                 self.check_type_assignable_to(
                     value_type,
@@ -2502,7 +2506,7 @@ impl<'a> CheckerState<'a> {
                 self.elaborated_satisfies_expressions.insert(expression);
                 return Ok(expr_type);
             }
-            if self.elaborate_literal_assignment(operand, target_type)? {
+            if self.elaborate_literal_assignment(operand, target_type, None)? {
                 self.elaborated_satisfies_expressions.insert(expression);
                 return Ok(expr_type);
             }
@@ -2564,15 +2568,98 @@ impl<'a> CheckerState<'a> {
         })
     }
 
+    /// tsc-port: elaborateDidYouMeanToCallOrConstruct @6.0.3
+    /// tsc-hash: a720dfb07510cb077601fddf116e7c7fa5f96c9d967ed77b514d4e5b36795c31
+    /// tsc-span: _tsc.js:64063-64091
+    ///
+    /// A failed source with call/construct signatures whose
+    /// return/instance type fits the target re-reports AT THE
+    /// EXPRESSION (construct signatures probe first) and adds the
+    /// did-you-mean related row; the Any/Never return guard is tsc's.
+    /// The relation head re-runs through check_type_assignable_to, so
+    /// the missing-property/no-common overrides shape the row exactly
+    /// as the direct head would.
+    fn elaborate_did_you_mean_to_call_or_construct(
+        &mut self,
+        node: NodeId,
+        source: TypeId,
+        target: TypeId,
+        head_message: &'static tsrs2_diags::DiagnosticMessage,
+    ) -> CheckResult2<bool> {
+        let call_signatures =
+            self.get_signatures_of_type(source, crate::state::SignatureKind::Call)?;
+        let construct_signatures =
+            self.get_signatures_of_type(source, crate::state::SignatureKind::Construct)?;
+        for (signatures, is_construct) in [(&construct_signatures, true), (&call_signatures, false)]
+        {
+            let mut some_fits = false;
+            for &signature in signatures.iter() {
+                let return_type = self.get_return_type_of_signature(signature)?;
+                let return_flags = self.tables.flags_of(return_type);
+                if !return_flags.intersects(TypeFlags::from_bits(
+                    TypeFlags::ANY.bits() | TypeFlags::NEVER.bits(),
+                )) && self.is_type_assignable_to(return_type, target)?
+                {
+                    some_fits = true;
+                    break;
+                }
+            }
+            if some_fits {
+                let before = self.diagnostics.len();
+                self.check_type_assignable_to(source, target, Some(node), head_message)?;
+                if self.diagnostics.len() > before {
+                    let related = self.related_info_for_node(
+                        node,
+                        if is_construct {
+                            &tsrs2_diags::gen::Did_you_mean_to_use_new_with_this_expression
+                        } else {
+                            &tsrs2_diags::gen::Did_you_mean_to_call_this_expression
+                        },
+                        &[],
+                    );
+                    if let Some(diagnostic) = self.diagnostics.last_mut() {
+                        diagnostic.related.push(related);
+                    }
+                }
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     /// tsrs-native: the literal-value rows of elaborateError used by
     /// `satisfies`. Returning true means at least one inner relation
     /// diagnostic was emitted, so the caller must not also emit the
     /// outer 1360 head.
+    ///
+    /// `probe_head` carries elaborateError's headMessage into the
+    /// entry did-you-mean probe (63959-63966); None keeps the
+    /// satisfies band's containment decision (its callable-source
+    /// probe stays the recorded Unsupported below) — every other
+    /// caller and both inner recursions pass the generic head, tsc's
+    /// undefined-headMessage face.
     pub(crate) fn elaborate_literal_assignment(
         &mut self,
         expression: NodeId,
         target_type: TypeId,
+        probe_head: Option<&'static tsrs2_diags::DiagnosticMessage>,
     ) -> CheckResult2<bool> {
+        // elaborateError's entry probe (63959-63966): runs BEFORE the
+        // recursion arms on every entry. The caller enters only on
+        // failed relations, so tsc's !checkTypeRelatedTo re-check is
+        // vacuous here; isOrHasGenericConditional(target) is false by
+        // construction (no Conditional TypeData before 9.6/M8).
+        if let Some(head_message) = probe_head {
+            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+            if self.elaborate_did_you_mean_to_call_or_construct(
+                expression,
+                source_type,
+                target_type,
+                head_message,
+            )? {
+                return Ok(true);
+            }
+        }
         // elaborateError's recursion arms (63968-63983): parens and
         // const-assertions descend into the operand, `=`/comma
         // binaries descend into the RIGHT operand. Satisfies has NO
@@ -2583,7 +2670,7 @@ impl<'a> CheckerState<'a> {
         match self.data_of(expression) {
             NodeData::ParenthesizedExpression(data) => {
                 if let Some(inner) = data.expression {
-                    return self.elaborate_literal_assignment(inner, target_type);
+                    return self.elaborate_literal_assignment(inner, target_type, probe_head);
                 }
             }
             NodeData::AsExpression(data) => {
@@ -2591,7 +2678,7 @@ impl<'a> CheckerState<'a> {
                     // isConstAssertion (63969-63972): only `as const`
                     // falls through into the operand.
                     if self.is_const_type_reference(type_node) {
-                        return self.elaborate_literal_assignment(inner, target_type);
+                        return self.elaborate_literal_assignment(inner, target_type, probe_head);
                     }
                 }
             }
@@ -2601,7 +2688,7 @@ impl<'a> CheckerState<'a> {
                         self.kind_of(operator),
                         SyntaxKind::EqualsToken | SyntaxKind::CommaToken
                     ) {
-                        return self.elaborate_literal_assignment(right, target_type);
+                        return self.elaborate_literal_assignment(right, target_type, probe_head);
                     }
                 }
             }
@@ -2612,23 +2699,56 @@ impl<'a> CheckerState<'a> {
             NodeData::ObjectLiteralExpression(data) => {
                 let properties = self.nodes_of(data.properties);
                 for property in properties {
-                    let (Some(name), Some(initializer)) = (match self.data_of(property) {
-                        NodeData::PropertyAssignment(data) => (data.name, data.initializer),
-                        _ => (None, None),
-                    }) else {
-                        continue;
+                    // generateObjectLiteralElements (64437-64460):
+                    // PropertyAssignment yields its initializer as the
+                    // inner expression; ShorthandPropertyAssignment
+                    // yields innerExpression UNDEFINED and elaborates
+                    // the source member type at the name — the
+                    // shorthand name IS the value reference, so the
+                    // identifier's cached type is that member type.
+                    // Method/accessor members also yield in tsc
+                    // (member-type probes); they stay skipped until a
+                    // corpus row demands them (the get/set pair
+                    // double-yield needs a dedupe decision).
+                    let (name, initializer) = match self.data_of(property) {
+                        NodeData::PropertyAssignment(data) => match (data.name, data.initializer) {
+                            (Some(name), Some(initializer)) => (name, Some(initializer)),
+                            _ => continue,
+                        },
+                        NodeData::ShorthandPropertyAssignment(data) => match data.name {
+                            Some(name) => (name, None),
+                            None => continue,
+                        },
+                        _ => continue,
                     };
                     let name_type = self.get_literal_type_from_property_name(name)?;
                     let Some(name_text) = self.property_name_from_type_usable(name_type) else {
                         continue;
                     };
-                    let Some(expected_property) =
-                        self.get_property_of_type_full(target_type, &name_text)?
-                    else {
-                        continue;
+                    // elaborateElementwise's targetPropType is an
+                    // indexed access (64131): a property miss falls
+                    // through to the APPLICABLE INDEX SIGNATURE's
+                    // value type (the numeric-indexer member rows ride
+                    // it); neither → the element is skipped, exactly
+                    // tsc's `if (!targetPropType) continue`.
+                    let expected = match self.get_property_of_type_full(target_type, &name_text)? {
+                        Some(expected_property) => self.get_type_of_symbol(expected_property)?,
+                        None => {
+                            let apparent = self.get_apparent_type(target_type)?;
+                            match self
+                                .get_applicable_index_info_for_name_info(apparent, &name_text)?
+                            {
+                                Some(info) => info.value_type,
+                                None => continue,
+                            }
+                        }
                     };
-                    let expected = self.get_type_of_symbol(expected_property)?;
-                    let actual = self.check_expression_cached(initializer, CheckMode::NORMAL)?;
+                    let actual = match initializer {
+                        Some(initializer) => {
+                            self.check_expression_cached(initializer, CheckMode::NORMAL)?
+                        }
+                        None => self.check_expression_cached(name, CheckMode::NORMAL)?,
+                    };
                     if self.is_type_assignable_to(actual, expected)? {
                         continue;
                     }
@@ -2641,9 +2761,16 @@ impl<'a> CheckerState<'a> {
                     // recursion takes the RAW initializer (64449
                     // innerExpression: prop.initializer) — parens
                     // descend through the entry arm, satisfies does
-                    // not.
-                    if self.elaborate_literal_assignment(initializer, expected)? {
-                        continue;
+                    // not. Shorthand members have no inner expression
+                    // (64443): the row reports directly.
+                    if let Some(initializer) = initializer {
+                        if self.elaborate_literal_assignment(
+                            initializer,
+                            expected,
+                            Some(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
+                        )? {
+                            continue;
+                        }
                     }
                     // 64449: a syntactically computed name with a
                     // semantically literal key swaps the row message
@@ -2698,21 +2825,27 @@ impl<'a> CheckerState<'a> {
                         continue;
                     }
                     let index_name = index.to_string();
-                    let indexed =
-                        self.get_applicable_index_info_for_name(target_type, &index_name)?;
-                    let target_is_array = self.is_array_type(target_type)?;
-                    let expected = if target_is_array {
-                        let Some(index_type) = indexed else {
-                            continue;
-                        };
-                        index_type
-                    } else {
-                        match self.get_property_of_type_full(target_type, &index_name)? {
-                            Some(property) => self.get_type_of_symbol(property)?,
-                            // A missing tuple property is an arity
-                            // mismatch. tsc reports that at the outer
-                            // assignment, not at the excess element.
-                            None => continue,
+                    // generateLimitedTupleElements (64393-64401) skips
+                    // an element a TUPLE-LIKE target has no property
+                    // for (the arity mismatch reports at the outer
+                    // head); every other target reads the element type
+                    // through elaborateElementwise's indexed access —
+                    // property first, then the applicable index
+                    // signature (arrays and numeric-indexed object
+                    // literals alike).
+                    let expected = match self.get_property_of_type_full(target_type, &index_name)? {
+                        Some(property) => self.get_type_of_symbol(property)?,
+                        None => {
+                            if self.is_tuple_like_type(target_type)? {
+                                continue;
+                            }
+                            let apparent = self.get_apparent_type(target_type)?;
+                            match self
+                                .get_applicable_index_info_for_name_info(apparent, &index_name)?
+                            {
+                                Some(info) => info.value_type,
+                                None => continue,
+                            }
                         }
                     };
                     let actual = self.check_expression_cached(element, CheckMode::NORMAL)?;
@@ -2726,7 +2859,11 @@ impl<'a> CheckerState<'a> {
                     // literal element elaborates its own rows and
                     // suppresses this element's row (64146-64157).
                     let error_node = self.literal_elaboration_error_node(element);
-                    if self.elaborate_literal_assignment(error_node, expected)? {
+                    if self.elaborate_literal_assignment(
+                        error_node,
+                        expected,
+                        Some(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
+                    )? {
                         continue;
                     }
                     self.check_type_assignable_to(
@@ -5453,10 +5590,15 @@ mod tests {
     }
 
     #[test]
-    fn object_literal_assertion_mismatch_contains_until_display_lands() {
-        // Oracle: 2352 displaying '{ a: number; }' — anonymous-object
-        // display is nodeBuilder work (T2/M8), so the row contains.
-        assert_eq!(checked_rows("const a4 = { a: 1 } as { a: string };\n"), []);
+    fn object_literal_assertion_mismatch_reports_2352_with_literal_faces() {
+        // Oracle: "Conversion of type '{ a: number; }' to type
+        // '{ a: string; }' may be a mistake..." — the 9.3b
+        // anonymous-object display renders both faces (pre-9.3b the
+        // row contained on the curtain).
+        assert_eq!(
+            checked_rows("const a4 = { a: 1 } as { a: string };\n"),
+            [(2352, 11, 25)]
+        );
     }
 
     #[test]

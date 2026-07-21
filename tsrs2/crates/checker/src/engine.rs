@@ -14,7 +14,10 @@
 //! no error node, which is exactly tsc's reportErrors=false mode, so
 //! every error-construction block in the source is a no-op here. The
 //! error-path recursions that influence VERDICTS do not exist —
-//! reportErrorResults and friends only shape diagnostics.
+//! reportErrorResults and friends only shape diagnostics. One
+//! exception since p9 9.3b: excess_properties_worker carries tsc's
+//! reportErrors face (the parent-skipped 2353/2561 rows are TOP-LEVEL
+//! codes, not chain shaping) for the head-site reporter in check.rs.
 
 use std::collections::HashSet;
 
@@ -702,6 +705,18 @@ impl<'a> CheckerState<'a> {
     }
 }
 
+/// What hasExcessProperties found — the worker's verdict/report faces
+/// diverge on head handling: an unknown property reports the
+/// parent-skipped 2353/2561 and the relation head never lands; a
+/// discriminant incompatibility reports only a chain row in tsc, so
+/// the head stays.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExcessPropertyOutcome {
+    None,
+    UnknownProperty,
+    Incompatible,
+}
+
 /// The checkTypeRelatedTo closure state (maybe stack, recursion
 /// stacks, complexity budget) — checker-key §1.2's four invariants:
 /// Maybe results are never cached mid-recursion, commit happens on
@@ -1059,6 +1074,32 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// feeds them to the relation machinery — the old "JSX arms are
     /// dead" claim is false.
     fn has_excess_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+        Ok(!matches!(
+            self.excess_properties_worker(source, target, None)?,
+            ExcessPropertyOutcome::None
+        ))
+    }
+
+    /// tsc-port: hasExcessProperties @6.0.3 (verdict/report worker)
+    /// tsc-hash: 2feb57fb3012195ec298b8373aae179205e425727845272eac7ef6231ed69cc7
+    /// tsc-span: _tsc.js:65347-65410
+    ///
+    /// The verdict/report worker behind has_excess_properties — one
+    /// walk for both faces (tsc's reportErrors2 parameter), so the
+    /// head-site reporter (check.rs report_excess_property_head)
+    /// cannot drift from the relation's verdict. With `report_node`
+    /// the unknown-property arm emits tsc's parent-skipped 2353/2561
+    /// at the excess property's name; the discriminant-incompatibility
+    /// arm reports only a chain row in tsc
+    /// (Types_of_property_0_are_incompatible) under the KEPT head —
+    /// chain content is the elided T2 tail, so nothing is emitted
+    /// there and the caller lets the head land.
+    pub(crate) fn excess_properties_worker(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        report_node: Option<tsrs2_syntax::NodeId>,
+    ) -> CheckResult2<ExcessPropertyOutcome> {
         if !self.st.is_excess_property_check_target(target)
             || self
                 .st
@@ -1066,7 +1107,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .object_flags_of(target)
                 .intersects(ObjectFlags::JS_LITERAL)
         {
-            return Ok(false);
+            return Ok(ExcessPropertyOutcome::None);
         }
         if (self.relation == RelationKind::Assignable || self.relation == RelationKind::Comparable)
             && (self
@@ -1074,7 +1115,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .is_type_subset_of(self.st.empty_object_type, target)?
                 || self.st.is_empty_object_type(target)?)
         {
-            return Ok(false);
+            return Ok(ExcessPropertyOutcome::None);
         }
         let mut reduced_target = target;
         let mut check_types: Option<Vec<TypeId>> = None;
@@ -1094,7 +1135,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if self.should_check_as_excess_property(prop, source_symbol) {
                 let name = self.st.binder.symbol(prop).escaped_name.clone();
                 if !self.st.is_known_property(reduced_target, &name)? {
-                    return Ok(true);
+                    if let Some(error_node) = report_node {
+                        self.report_excess_property(source, prop, reduced_target, error_node)?;
+                    }
+                    return Ok(ExcessPropertyOutcome::UnknownProperty);
                 }
                 if let Some(check_types) = &check_types {
                     let prop_type = self.st.get_type_of_symbol(prop)?;
@@ -1107,12 +1151,113 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         /*report_errors*/ false,
                         IntersectionState::NONE,
                     )?) {
-                        return Ok(true);
+                        return Ok(ExcessPropertyOutcome::Incompatible);
                     }
                 }
             }
         }
-        Ok(false)
+        Ok(ExcessPropertyOutcome::None)
+    }
+
+    /// tsc-port: hasExcessProperties @6.0.3 (the reporting arm)
+    /// tsc-hash: 85019325552f64210f52438de819d2a61ffab4726c818f66c88ab374044f2d35
+    /// tsc-span: _tsc.js:65366-65398
+    ///
+    /// The JSX half (isJsxAttributes errorNode / JSX-attribute name
+    /// suggestion, 65369-65380) rides the JSX relation-reporting band
+    /// — Unsupported keeps those rows contained. The non-JSX half:
+    /// the row anchors at the excess property's own name when its
+    /// declaration sits inside the source literal in the same file
+    /// (65382-65389), an Identifier name probes the spelling
+    /// suggestion, and the parent-skipped report means the 2353/2561
+    /// IS the top-level code — the relation head never lands.
+    fn report_excess_property(
+        &mut self,
+        source: TypeId,
+        prop: tsrs2_binder::SymbolId,
+        reduced_target: TypeId,
+        error_node: tsrs2_syntax::NodeId,
+    ) -> CheckResult2<()> {
+        let error_target = self.st.filter_type_with(reduced_target, |state, member| {
+            Ok(state.is_excess_property_check_target(member))
+        })?;
+        let is_jsx = |state: &CheckerState, node: tsrs2_syntax::NodeId| {
+            matches!(
+                state.kind_of(node),
+                tsrs2_syntax::SyntaxKind::JsxAttributes
+                    | tsrs2_syntax::SyntaxKind::JsxOpeningElement
+                    | tsrs2_syntax::SyntaxKind::JsxSelfClosingElement
+            )
+        };
+        if is_jsx(self.st, error_node)
+            || self
+                .st
+                .parent_of(error_node)
+                .is_some_and(|parent| is_jsx(self.st, parent))
+        {
+            return Err(Unsupported::new(
+                "JSX attributes relation reporting (elaborateJsxComponents / headless reportRelationError, T2)",
+            ));
+        }
+        let prop_symbol = self.st.binder.symbol(prop);
+        let prop_declaration = prop_symbol.value_declaration;
+        let prop_text =
+            tsrs2_binder::unescape_leading_underscores(&prop_symbol.escaped_name).to_owned();
+        let object_literal_declaration = self
+            .st
+            .tables
+            .type_of(source)
+            .symbol
+            .and_then(|symbol| self.st.binder.symbol(symbol).declarations.first().copied());
+        let mut report_node = error_node;
+        let mut suggestion = None;
+        if let (Some(prop_declaration), Some(object_literal_declaration)) =
+            (prop_declaration, object_literal_declaration)
+        {
+            let mut inside = false;
+            let mut cursor = Some(prop_declaration);
+            while let Some(node) = cursor {
+                if node == object_literal_declaration {
+                    inside = true;
+                    break;
+                }
+                cursor = self.st.parent_of(node);
+            }
+            let same_file = std::ptr::eq(
+                self.st.binder.source_of_node(object_literal_declaration) as *const _,
+                self.st.binder.source_of_node(error_node) as *const _,
+            );
+            if inside && same_file {
+                let name = tsrs2_binder::node_util::get_name_of_declaration(
+                    self.st.binder.source_of_node(prop_declaration),
+                    prop_declaration,
+                );
+                if let Some(name) = name {
+                    report_node = name;
+                    if matches!(self.st.data_of(name), tsrs2_syntax::NodeData::Identifier(_)) {
+                        suggestion = self.st.get_suggestion_for_nonexistent_property(
+                            Some(name),
+                            &prop_text,
+                            error_target,
+                        )?;
+                    }
+                }
+            }
+        }
+        let target_text = self.st.type_to_string_slice(error_target)?;
+        match suggestion {
+            Some(suggestion) => self.st.error_at(
+                Some(report_node),
+                &tsrs2_diags::gen::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
+                &[&prop_text, &target_text, &suggestion],
+            ),
+            None => self.st.error_at(
+                Some(report_node),
+                &tsrs2_diags::gen::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
+                &[&prop_text, &target_text],
+            ),
+        };
+        Ok(())
     }
 
     fn should_check_as_excess_property(
@@ -2097,12 +2242,25 @@ impl<'a> CheckerState<'a> {
                     .flags
                     .intersects(tsrs2_types::SymbolFlags::VALUE)
             });
+            // 74828: property ‖ APPLICABLE index (the faithful
+            // isApplicableIndexType probe — template-literal and
+            // symbol keys apply through assignability, which the older
+            // STRING/NUMBER-flag shortcut missed and fabricated
+            // excess verdicts on `[key: \`s${string}\`]` targets) ‖
+            // the late-bound-name-over-string-index back-compat
+            // disjunct.
             if has_property
                 || self
-                    .get_applicable_index_info_for_name(target, name)?
+                    .get_applicable_index_info_for_name_info(target, name)?
                     .is_some()
             {
                 return Ok(true);
+            }
+            if name.starts_with("__@") {
+                let string = self.tables.intrinsics.string;
+                if self.get_index_info_of_type(target, string)?.is_some() {
+                    return Ok(true);
+                }
             }
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION)

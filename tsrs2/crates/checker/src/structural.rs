@@ -6328,7 +6328,12 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
     ) -> CheckResult2<Option<IndexInfo>> {
-        let name_type = if is_numeric_name(name) {
+        // getApplicableIndexInfoForName probes LATE-BOUND names
+        // (isLateBoundName — the `__@` unique-symbol spellings) with
+        // esSymbolType, everything else with the name's literal type.
+        let name_type = if name.starts_with("__@") {
+            self.tables.intrinsics.es_symbol
+        } else if is_numeric_name(name) {
             let value: f64 = name
                 .parse()
                 .expect("is_numeric_name admits only f64-parsable digit strings");

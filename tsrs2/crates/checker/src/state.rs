@@ -302,6 +302,17 @@ pub struct CheckerState<'a> {
     /// assignability check; the typeToString type-parameter arm (51535)
     /// renders the ForCheck markers as `super-T`/`sub-T` from it.
     pub(crate) variance_type_parameter: Option<TypeId>,
+    /// The display slice's face of the nodeBuilder's
+    /// context.visitedTypes (visitAndTransformType, 51852): anonymous
+    /// object types currently being rendered by typeToString's slice.
+    /// tsc renders a revisit as the type-alias-for-literal reference
+    /// or the `...` elision placeholder — faces outside the slice, so
+    /// the walk escalates there instead of recursing unboundedly.
+    /// tsc leaves the symbol-LESS entry path unguarded (createAnonymous-
+    /// TypeNode's else arm calls createTypeNodeFromObjectType direct);
+    /// the slice guards both — divergence is observable only on a
+    /// symbol-less self-containing type, which cannot be constructed.
+    pub(crate) slice_visited_types: std::collections::HashSet<TypeId>,
     /// tsc markerTypes (47005): ids of createMarkerType results.
     pub(crate) marker_types: std::collections::HashSet<TypeId>,
     /// tsc inVarianceComputation (47422).
@@ -804,6 +815,7 @@ impl<'a> CheckerState<'a> {
             marker_super_type_for_check: TypeId(0),
             marker_sub_type_for_check: TypeId(0),
             variance_type_parameter: None,
+            slice_visited_types: std::collections::HashSet::new(),
             marker_types: std::collections::HashSet::new(),
             in_variance_computation: false,
             variance_handler_stack: Vec::new(),
