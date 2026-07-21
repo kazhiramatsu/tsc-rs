@@ -18,8 +18,11 @@ Process anchors:
 - Branches: `p9/<slice>` (e.g. `p9/9.1a-host-adjudication`).
 - **Adjudication and the A2 band pin land FIRST, before any
   implementation slice** — row 9's own order, and the point of A2:
-  the supported denominator is fixed before implementation results
-  exist, so the sweep can never quietly shrink its target. Under
+  the exclusion set is CAPPED before implementation results exist,
+  so the sweep can never quietly shrink its target. Post-pin the
+  supported denominator moves in one direction only — UP, as
+  resolved exclusions return via §3.2 tombstones; it is a ceiling
+  on exclusions, not a frozen denominator. Under
   [measurement-integrity.md §3.1](measurement-integrity.md#31-draft-band-pins)
   a pinned band rejects in-band additions — post-hoc exclusion is
   impossible by design. An exclusion resolved later (the record
@@ -72,7 +75,7 @@ the truth.
 ## Slice plan
 
 Order rationale: adjudication + pin first is the contract (see
-Process anchors — the supported denominator must predate
+Process anchors — the exclusion ceiling must predate
 implementation results). Premature exclusion of implementable rows
 is prevented by the contract-class test itself, not by deferring
 adjudication: a record is excludable only for WHAT IT IS
@@ -85,11 +88,11 @@ unmasks latent wrong verdicts EARLY (7.5 precedent: widening "{}"
 unmasked 5 fabrications — better surfaced at 9.3 than at 9.9), and
 F4/F6 rows cannot emit without rendering.
 
-| Slice | Content | Exit gate (all: FP=0 all bands, ratchets bumped, ci green) |
+| Slice | Content | Exit gate (all: FP=0 all bands, `ratchet check` green — integer/set bumps only where accepted identities grew; scope-only slices leave ratchet artifacts unchanged; ci green) |
 |---|---|---|
 | 9.1a | Host adjudication: START from the F7 3-code mass (2307/2834/2835) but SCAN ALL 4,733 band FNs — host-resolution is a property of the record's RESOLUTION PATH, not of its code, and any code can ride a host-mediated resolution (recorded counterexample: bundlerNodeModules1.ts 2305×6 through node_modules/package.json `exports`, baseline-binned inside F6's "2305×31"). Gray-zone rule: a relative import whose TARGET FILE IS IN-PROGRAM is implementable (extension probing over program files — includes nonjsExtensions 2307s and in-program 2834/2835) and is NOT excludable; package/node_modules/exports-mediated resolution is. Entries land in the draft manifest | Every excluded record an exact schema-2 A2 identity; `scope audit` green; non-excluded remainder explicitly re-binned to F6 |
 | 9.1b | JSDoc adjudication: same full-4,733 scan (reached AND no-evidence — a jsdoc-fixture row behind the display curtain is classified by the ORACLE record's nature, not by our curtain reason) for JSDoc-DRIVEN semantics; non-JSDoc assignment-declaration rows stay IN (contract line, verbatim) | Same per-record discipline; supported FN re-measured from the tool's `supported_false_negative_diagnostics` (never derived from record counts — bucket semantics, see protocol) |
-| 9.2 | **Band pin**, two changes per [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor): (1) the final adjudicated content lands while the manifest is `draft`; (2) a follow-up change records that adjudication commit (full 40-hex SHA of change 1) + the complete enumerated identity set as the `2xxx` band-freeze record | `scope audit` green incl. pin verification vs trusted base; from here the supported denominator is FROZEN |
+| 9.2 | **Band pin**, two changes per [§1.2](measurement-integrity.md#12-reviewed-snapshot-anchor): (1) the final adjudicated content lands while the manifest is `draft`; (2) a follow-up change records that adjudication commit (full 40-hex SHA of change 1) + the complete enumerated identity set as the `2xxx` band-freeze record | `scope audit` green incl. pin verification vs trusted base; from here the pinned exclusion set is a CEILING — no in-band exclusion can be added, while the supported denominator may still GROW back toward the full band as resolved exclusions return via §3.2 tombstones |
 | 9.3a | Tuple renderer (`symbol-less reference display` curtain, 190 rows; M7-re-owned escape row retires) + intersection display + contextual tuple arity + computed-key destructuring rows from the same M6-close re-owned set | Curtain rows flip matched; fabrication audit on every widened arm |
 | 9.3b-x | typeToString shape ladder: mine the 1,543-row curtain by blocking type shape (debug census), then widen shape by shape (references w/ symbols, unions/intersections, anonymous object literals, signatures, indexed access, …) | Per-shape: curtained rows flip, `2xxx` band T0 monotone, fabrication audit each arm |
 | 9.4 | Elaboration engine (F4): elaborateError → elaborateObjectLiteral/ArrayLiteral/ArrowFunction/JsxComponents + getBestMatchingType + reportRelationError head selection | The ~200 elaboration rows; forceTuple escape row retires |
@@ -176,7 +179,12 @@ against 9.4.
   the truth.
 - One slice = one branch = one PR ([CLAUDE.md](../../../CLAUDE.md)
   workflow); ratchet.toml `[t0-2xxx]` + set-ratchet bumps ride the
-  slice, never the merge.
+  slice that GREW accepted identities, never the merge. Scope-only
+  slices (9.1a/9.1b/9.2) land with `ratchet check` green and
+  ratchet artifacts byte-unchanged — the A2 supported view is not a
+  ratchet view, so an all-corpus accepted match neither appears nor
+  disappears there and a `ratchet update` would be a no-op by
+  construction.
 - Escape hygiene: F1/F2 narrowings shrink existing curtain sites —
   after each, `escapes --write-manifest` and review the manifest
   diff; retired M7-re-owned rows are the visible progress ledger.
