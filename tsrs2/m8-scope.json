@@ -5407,24 +5407,7 @@
       "line": 5,
       "col": 4,
       "reason": "jsdoc-semantics",
-      "evidence": "@satisfies contextual verdicts (2339/2353)"
-    },
-    {
-      "fixture": "conformance/jsdoc/checkJsdocSatisfiesTag10.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "/a.js",
-      "start": 356,
-      "length": 1,
-      "code": 2339,
-      "category": "error",
-      "chain_sha256": "98bbf2fbf4100d92bbffa1fa1029bde6836251685ad571385971ae5194064bd2",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 13,
-      "col": 10,
-      "reason": "jsdoc-semantics",
-      "evidence": "@satisfies contextual verdicts (2339/2353)"
+      "evidence": "2353 only; review probe R1: the sibling 2339 at 13:10 fires at the same T0 key without JSDoc and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/checkJsdocSatisfiesTag12.ts",
@@ -5495,23 +5478,6 @@
       "evidence": "@satisfies + @param types drive the 2322"
     },
     {
-      "fixture": "conformance/jsdoc/checkJsdocSatisfiesTag6.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "/a.js",
-      "start": 266,
-      "length": 1,
-      "code": 2339,
-      "category": "error",
-      "chain_sha256": "6be37b64b81e1e2e2604ad3c54e5828e8c3edb0e783f433e15e317d36eaee22b",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 13,
-      "col": 10,
-      "reason": "jsdoc-semantics",
-      "evidence": "@satisfies typedef-typed literal; 2339 excess-member verdict rides the tag"
-    },
-    {
       "fixture": "conformance/jsdoc/checkJsdocSatisfiesTag7.ts",
       "matrix_key": "",
       "pass": "semantic",
@@ -5526,24 +5492,7 @@
       "line": 5,
       "col": 4,
       "reason": "jsdoc-semantics",
-      "evidence": "@satisfies contextual verdicts (2339/2353)"
-    },
-    {
-      "fixture": "conformance/jsdoc/checkJsdocSatisfiesTag7.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "/a.js",
-      "start": 346,
-      "length": 1,
-      "code": 2339,
-      "category": "error",
-      "chain_sha256": "98bbf2fbf4100d92bbffa1fa1029bde6836251685ad571385971ae5194064bd2",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 13,
-      "col": 10,
-      "reason": "jsdoc-semantics",
-      "evidence": "@satisfies contextual verdicts (2339/2353)"
+      "evidence": "2353 only; review probe R3: the sibling 2339 at 13:10 fires at the same T0 key without JSDoc (the object's inferred literal type persists) and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/checkJsdocSatisfiesTag8.ts",
@@ -6292,6 +6241,40 @@
       "col": 30,
       "reason": "jsdoc-semantics",
       "evidence": "2300 duplicate pairs exist only via the @typedef 'default' symbol"
+    },
+    {
+      "fixture": "conformance/jsdoc/declarations/jsDeclarationsReactComponents.ts",
+      "matrix_key": "target=es2015",
+      "pass": "semantic",
+      "file": "jsDeclarationsReactComponents3.jsx",
+      "start": 105,
+      "length": 3,
+      "code": 2503,
+      "category": "error",
+      "chain_sha256": "2c9a429db34efdec3153a89875d4725cfe0e7c25e893b9107f178e82da2acb09",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "line": 2,
+      "col": 72,
+      "reason": "jsdoc-semantics",
+      "evidence": "2503 'Cannot find namespace JSX' sits INSIDE the @type tag ({... => JSX.Element}); review probe R7: vanishes in BOTH matrix cells while the real-import 2307 rows survive (those stay supported)"
+    },
+    {
+      "fixture": "conformance/jsdoc/declarations/jsDeclarationsReactComponents.ts",
+      "matrix_key": "target=es5",
+      "pass": "semantic",
+      "file": "jsDeclarationsReactComponents3.jsx",
+      "start": 105,
+      "length": 3,
+      "code": 2503,
+      "category": "error",
+      "chain_sha256": "2c9a429db34efdec3153a89875d4725cfe0e7c25e893b9107f178e82da2acb09",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "line": 2,
+      "col": 72,
+      "reason": "jsdoc-semantics",
+      "evidence": "2503 'Cannot find namespace JSX' sits INSIDE the @type tag ({... => JSX.Element}); review probe R7: vanishes in BOTH matrix cells while the real-import 2307 rows survive (those stay supported)"
     },
     {
       "fixture": "conformance/jsdoc/declarations/jsDeclarationsReusesExistingNodesMappingJSDocTypes.ts",
@@ -7637,23 +7620,6 @@
       "evidence": "2304 'T' in nested type-literal tag position + 2322 vs @template-typed member"
     },
     {
-      "fixture": "conformance/jsdoc/jsdocTemplateTag.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "forgot.js",
-      "start": 356,
-      "length": 25,
-      "code": 2322,
-      "category": "error",
-      "chain_sha256": "e40c6fad733dc9f3adddd921f3d1cfba7725bedd628ec5420e34fdf0b6155ff9",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 22,
-      "col": 0,
-      "reason": "jsdoc-semantics",
-      "evidence": "assignment source type comes from @param {Array.<Object>}; without it the dom-target assignment is any-compatible"
-    },
-    {
       "fixture": "conformance/jsdoc/jsdocTemplateTag3.ts",
       "matrix_key": "",
       "pass": "semantic",
@@ -7726,23 +7692,6 @@
       "matrix_key": "",
       "pass": "semantic",
       "file": "a.js",
-      "start": 252,
-      "length": 13,
-      "code": 2322,
-      "category": "error",
-      "chain_sha256": "6a3e3f92912779753f1c838cbd1a402115731592577901f82eb5d8ee7c8cd18a",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 18,
-      "col": 0,
-      "reason": "jsdoc-semantics",
-      "evidence": "variance verdicts over @typedef/@template-built Covariant/Contravariant/Invariant types"
-    },
-    {
-      "fixture": "conformance/jsdoc/jsdocTemplateTag8.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "a.js",
       "start": 562,
       "length": 19,
       "code": 2322,
@@ -7753,7 +7702,7 @@
       "line": 36,
       "col": 0,
       "reason": "jsdoc-semantics",
-      "evidence": "variance verdicts over @typedef/@template-built Covariant/Contravariant/Invariant types"
+      "evidence": "Contravariant/Invariant-direction rows vanish without the @typedef/@template types; review probe R5: the 18:0 and 56:0 rows fire at the same T0 key without tags (message drift = T1+ concern) and stay supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTemplateTag8.ts",
@@ -7770,24 +7719,7 @@
       "line": 55,
       "col": 0,
       "reason": "jsdoc-semantics",
-      "evidence": "variance verdicts over @typedef/@template-built Covariant/Contravariant/Invariant types"
-    },
-    {
-      "fixture": "conformance/jsdoc/jsdocTemplateTag8.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "a.js",
-      "start": 955,
-      "length": 13,
-      "code": 2322,
-      "category": "error",
-      "chain_sha256": "1c1fdbb028c6e893c3cac21aa77470e12a490704b7ecbc2cf7e4bb32992707ae",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 56,
-      "col": 0,
-      "reason": "jsdoc-semantics",
-      "evidence": "variance verdicts over @typedef/@template-built Covariant/Contravariant/Invariant types"
+      "evidence": "Contravariant/Invariant-direction rows vanish without the @typedef/@template types; review probe R5: the 18:0 and 56:0 rows fire at the same T0 key without tags (message drift = T1+ concern) and stay supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTemplateTagDefault.ts",
@@ -8195,7 +8127,7 @@
       "line": 3,
       "col": 19,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery drives all rows (2352/2322/2454 on the tag-typed var)"
+      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8212,7 +8144,7 @@
       "line": 44,
       "col": 22,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery drives all rows (2352/2322/2454 on the tag-typed var)"
+      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8229,7 +8161,7 @@
       "line": 48,
       "col": 25,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery drives all rows (2352/2322/2454 on the tag-typed var)"
+      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8246,7 +8178,7 @@
       "line": 50,
       "col": 23,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery drives all rows (2352/2322/2454 on the tag-typed var)"
+      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8263,24 +8195,7 @@
       "line": 51,
       "col": 23,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery drives all rows (2352/2322/2454 on the tag-typed var)"
-    },
-    {
-      "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "b.js",
-      "start": 1369,
-      "length": 8,
-      "code": 2322,
-      "category": "error",
-      "chain_sha256": "cfcea9378b7ad8f7654c6eadeceb3a9b8823f0dc73de4cac40f72f815ad5cf95",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 57,
-      "col": 0,
-      "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery drives all rows (2352/2322/2454 on the tag-typed var)"
+      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8297,7 +8212,7 @@
       "line": 65,
       "col": 37,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery drives all rows (2352/2322/2454 on the tag-typed var)"
+      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8314,7 +8229,7 @@
       "line": 66,
       "col": 1,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery drives all rows (2352/2322/2454 on the tag-typed var)"
+      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagCast.ts",
@@ -8331,7 +8246,7 @@
       "line": 66,
       "col": 7,
       "reason": "jsdoc-semantics",
-      "evidence": "@type cast machinery drives all rows (2352/2322/2454 on the tag-typed var)"
+      "evidence": "@type cast machinery (2352/2322/2454 on tag-typed vars); review probe R6: the 57:0 row fires at the same T0 key without tags and stays supported"
     },
     {
       "fixture": "conformance/jsdoc/jsdocTypeTagParameterType.ts",
