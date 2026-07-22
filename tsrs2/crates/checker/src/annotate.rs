@@ -3108,7 +3108,7 @@ impl<'a> CheckerState<'a> {
             .symbol
             .expect("class/interface targets carry their declaring symbol");
         let members = self.get_members_of_symbol(symbol)?;
-        let properties = self.get_named_members(&members);
+        let properties = self.get_named_members(&members)?;
         // tsc resolveDeclaredMembers publishes declaredProperties
         // FIRST and fills signatures/index infos into the type in
         // place (57772-57781): a nested reader reached through the
@@ -3224,7 +3224,7 @@ impl<'a> CheckerState<'a> {
                 members = table;
             }
             // Early write (57829): partial members become observable.
-            let properties = self.get_named_members(&members);
+            let properties = self.get_named_members(&members)?;
             let id = self.alloc_members(ResolvedMembers {
                 members: members.clone(),
                 properties,
@@ -3291,7 +3291,7 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
-        let properties = self.get_named_members(&members);
+        let properties = self.get_named_members(&members)?;
         let resolved = ResolvedMembers {
             members,
             properties,
@@ -5273,7 +5273,7 @@ impl<'a> CheckerState<'a> {
                     state.instantiate_signature_list(&target_constructs, mapper)?;
                 let target_index_infos = state.get_index_infos_of_type(target)?;
                 let index_infos = state.instantiate_index_info_list(&target_index_infos, mapper)?;
-                let properties = state.get_named_members(&members);
+                let properties = state.get_named_members(&members)?;
                 return Ok(ResolvedMembers {
                     members,
                     properties,
@@ -5290,7 +5290,7 @@ impl<'a> CheckerState<'a> {
             let flags = state.symbol_flags(symbol);
             if flags.intersects(SymbolFlags::TYPE_LITERAL) {
                 let members = state.get_members_of_symbol(symbol)?;
-                let properties = state.get_named_members(&members);
+                let properties = state.get_named_members(&members)?;
                 let call_signatures = state
                     .get_signatures_of_symbol(members.get(InternalSymbolName::CALL).copied())?;
                 let construct_signatures = state
@@ -5337,7 +5337,7 @@ impl<'a> CheckerState<'a> {
                 }
                 // type.properties as set at 58354 (pre-class-merge
                 // table) — read by the enum number-index check below.
-                let pre_merge_properties = state.get_named_members(&members);
+                let pre_merge_properties = state.get_named_members(&members)?;
                 *state.members_mut(early_id) = ResolvedMembers {
                     members: members.clone(),
                     properties: pre_merge_properties.clone(),
@@ -5353,7 +5353,7 @@ impl<'a> CheckerState<'a> {
                     ) {
                         // 58359-58360: copy named+index members, then
                         // inherit the base's STATIC side.
-                        let named = state.get_named_members(&members);
+                        let named = state.get_named_members(&members)?;
                         let mut table = state.symbol_list_to_table(&named);
                         if let Some(index_symbol) = members.get(InternalSymbolName::INDEX).copied()
                         {
@@ -5447,7 +5447,7 @@ impl<'a> CheckerState<'a> {
                             state.get_default_construct_signatures(class_type)?;
                     }
                 }
-                let properties = state.get_named_members(&members);
+                let properties = state.get_named_members(&members)?;
                 Ok(ResolvedMembers {
                     members,
                     properties,
@@ -5478,17 +5478,29 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:50190-50192
     ///
     /// stableTypeOrdering is off by default: insertion order (the
-    /// binder's IndexMap order) is the observable order. symbolIsValue's
-    /// alias-resolution branch is M4; members here are value members.
-    pub(crate) fn get_named_members(&self, members: &tsrs2_binder::SymbolTable) -> Vec<SymbolId> {
-        members
+    /// binder's IndexMap order) is the observable order. symbolIsValue
+    /// FOLLOWS aliases (50092-50094): a module's export-alias member
+    /// whose local resolves to a value is a named member — the old
+    /// VALUE-flags-only filter dropped alias exports from module value
+    /// faces (its "alias resolution is M4" note was the stale-
+    /// justification pattern again).
+    pub(crate) fn get_named_members(
+        &mut self,
+        members: &tsrs2_binder::SymbolTable,
+    ) -> CheckResult2<Vec<SymbolId>> {
+        let entries: Vec<(String, SymbolId)> = members
             .iter()
-            .filter(|(name, &symbol)| {
-                !is_reserved_member_name(name)
-                    && self.symbol_flags(symbol).intersects(SymbolFlags::VALUE)
-            })
-            .map(|(_, &symbol)| symbol)
-            .collect()
+            .map(|(name, &symbol)| (name.clone(), symbol))
+            .collect();
+        let mut named = Vec::new();
+        for (name, symbol) in entries {
+            if !is_reserved_member_name(&name)
+                && self.symbol_is_value(symbol, /*include_type_only_members*/ false)?
+            {
+                named.push(symbol);
+            }
+        }
+        Ok(named)
     }
 
     // ---- index signatures ----

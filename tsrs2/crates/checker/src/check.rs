@@ -3640,9 +3640,18 @@ impl<'a> CheckerState<'a> {
                         && symbol_flags.intersects(
                             tsrs2_types::SymbolFlags::CLASS
                                 | tsrs2_types::SymbolFlags::REGULAR_ENUM
-                                | tsrs2_types::SymbolFlags::CONST_ENUM,
+                                | tsrs2_types::SymbolFlags::CONST_ENUM
+                                | tsrs2_types::SymbolFlags::VALUE_MODULE,
                         )
                     {
+                        // The VALUE_MODULE disjunct: a merged
+                        // interface+namespace VALUE side is an
+                        // anonymous object whose symbol carries
+                        // INTERFACE|VALUE_MODULE — tsc routes it
+                        // through createAnonymousTypeNode's 51779
+                        // ValueModule arm to the `typeof X` face
+                        // (oracle-probed), not the interface's plain
+                        // reference name.
                         return Ok((format!("typeof {name}"), SliceTypeNodeKind::TypeQuery));
                     }
                     return Ok((name, SliceTypeNodeKind::Reference));
@@ -4050,11 +4059,15 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(symbol) = self.tables.type_of(ty).symbol {
             let symbol_flags = self.binder.symbol(symbol).flags;
-            // 51771-51786 symbol routing: class/enum/value-module
-            // symbols print symbol heads (the class/enum typeof split
-            // lives upstream; value-module faces are a later rung) —
-            // curtain. Function/method symbols fall THROUGH to the
-            // structural tail on the error path:
+            // 51771-51786 symbol routing: the Class arm (51773) and
+            // the Enum half of the 51779 disjunct are intercepted by
+            // the named-object arm upstream (class statics and enum
+            // objects — merged class+ns/enum+ns value sides included,
+            // since the CLASS/ENUM symbol flag routes them there
+            // first), so those flags cannot arrive at this gate; the
+            // curtain stays as the constructibility guard rather than
+            // a fresh unreachable claim. Function/method symbols fall
+            // THROUGH to the structural tail on the error path:
             // shouldWriteTypeOfFunctionSymbol (51789-51795) requires
             // UseTypeOfFunction or a revisit, and typeToString sets
             // neither (oracle-probed: top-level, local, namespace-
@@ -4065,12 +4078,22 @@ impl<'a> CheckerState<'a> {
             if symbol_flags.intersects(
                 tsrs2_types::SymbolFlags::CLASS
                     | tsrs2_types::SymbolFlags::REGULAR_ENUM
-                    | tsrs2_types::SymbolFlags::CONST_ENUM
-                    | tsrs2_types::SymbolFlags::VALUE_MODULE,
+                    | tsrs2_types::SymbolFlags::CONST_ENUM,
             ) {
                 return Err(Unsupported::new(
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
+            }
+            // The ValueModule half of the 51779 disjunct:
+            // symbolToTypeNode under the Value meaning — namespace,
+            // external-module and globalThis object faces (a
+            // function+namespace merge carries VALUE_MODULE and takes
+            // this arm before the FUNCTION admission below, matching
+            // tsc's disjunct order). isClassInstanceSide (50771)
+            // requires SymbolFlags::CLASS, which cannot reach here,
+            // so the meaning is always Value.
+            if symbol_flags.intersects(tsrs2_types::SymbolFlags::VALUE_MODULE) {
+                return self.symbol_value_face_slice(symbol, fully_qualified);
             }
             if !symbol_flags.intersects(
                 tsrs2_types::SymbolFlags::TYPE_LITERAL
@@ -4095,7 +4118,7 @@ impl<'a> CheckerState<'a> {
                 ));
             }
             if symbol_flags.intersects(tsrs2_types::SymbolFlags::FUNCTION)
-                && self.binder.symbol_has_expando_assignment(symbol)
+                && self.symbol_has_expando_assignment_merged(symbol)
             {
                 // tsc's expando binding gives the DECLARATION symbol a
                 // namespace face (bindPotentiallyMissingNamespaces),
@@ -4122,6 +4145,105 @@ impl<'a> CheckerState<'a> {
         let result = self.type_node_from_object_type_slice(ty, fully_qualified);
         self.slice_visited_types.remove(&ty);
         result
+    }
+
+    /// tsc-port: symbolToTypeNode @6.0.3 (error-path Value slice)
+    /// tsc-hash: 352e9c292fbd16c2334897be45253723d19b5f8f522d36cf226ac469b796e919
+    /// tsc-span: _tsc.js:53114-53198
+    ///
+    /// lookupSymbolChainWorker (52943-52958) builds `[symbol]` when
+    /// the context has no enclosingDeclaration and
+    /// UseFullyQualifiedType is off — the error path always lands
+    /// there — so the accessibility walk, lookupTypeParameterNodes
+    /// (WriteTypeParametersInQualifiedName-gated) and
+    /// createAccessFromSymbolChain's parent/indexed-access arms all
+    /// collapse to the single-identifier face. The
+    /// UseFullyQualifiedType leg rides the slice's standing
+    /// getFullyQualifiedName approximation (the
+    /// getTypeNameForErrorDisplay posture, 50757-50764). The import
+    /// face's node16/nodenext resolution-mode attributes (53125-53150)
+    /// and /node_modules/ specifier swap (53151-53174) read
+    /// impliedNodeFormat, which the port does not model: the swap can
+    /// only fire on node_modules fixtures (host-adjudicated band) and
+    /// the attributes only change message text under node16 matrices —
+    /// recorded T2 residue, row keys unaffected.
+    fn symbol_value_face_slice(
+        &mut self,
+        symbol: SymbolId,
+        fully_qualified: bool,
+    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        // 53117: some(chain[0].declarations,
+        // hasNonGlobalAugmentationExternalModuleSymbol) routes the
+        // import-type face.
+        if self.symbol_has_external_module_declaration(symbol) {
+            // 53175-53185: a length-1 chain leaves nonRootParts and
+            // typeParameterNodes undefined — the face is the bare
+            // ImportTypeNode with isTypeOf (meaning === Value).
+            let specifier = self.specifier_for_module_symbol_slice(symbol)?;
+            return Ok((
+                format!("typeof import(\"{specifier}\")"),
+                SliceTypeNodeKind::ImportType,
+            ));
+        }
+        // 53186-53197: the entity face — createAccessFromSymbolChain
+        // at index 0 is getNameOfSymbolAsWritten (the slice's
+        // symbol_display_name posture: module declaration names are
+        // identifiers whose text is the escaped name), and isTypeOf
+        // wraps the TypeQuery.
+        let name = if fully_qualified {
+            self.get_fully_qualified_name(symbol)
+        } else {
+            self.symbol_display_name(symbol)
+        };
+        Ok((format!("typeof {name}"), SliceTypeNodeKind::TypeQuery))
+    }
+
+    /// tsc-port: hasNonGlobalAugmentationExternalModuleSymbol @6.0.3
+    /// tsc-hash: 0dd109154ac5ad4bb4b4feae06275eb4af183ce33d0687c637b3d0726452aeae
+    /// tsc-span: _tsc.js:50541-50543
+    fn symbol_has_external_module_declaration(&self, symbol: SymbolId) -> bool {
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .any(|&declaration| match self.data_of(declaration) {
+                NodeData::ModuleDeclaration(data) => data
+                    .name
+                    .is_some_and(|name| matches!(self.data_of(name), NodeData::StringLiteral(_))),
+                NodeData::SourceFile(_) => self
+                    .binder
+                    .is_external_or_common_js_module_of_node(declaration),
+                _ => false,
+            })
+    }
+
+    /// tsc-port: getSpecifierForModuleSymbol @6.0.3 (error-path slice)
+    /// tsc-hash: 26225fda031f89922a16ce84a38d6dc09b66e0d6b9ff8e0dbfa52465739fbafc
+    /// tsc-span: _tsc.js:53060-53111
+    ///
+    /// Without an enclosingFile the specifier is decided before the
+    /// getModuleSpecifiers machinery (53076-53081), and the
+    /// ambientModuleSymbolRegex unquote matches EVERY symbol the
+    /// import face admits: ambient modules bind their string-literal
+    /// name and source-file modules bind `"<fileName minus
+    /// extension>"` (bindSourceFileAsExternalModule, 44548-44550) —
+    /// which is also why the rendered specifier is extension-free.
+    /// The moduleName arm (53068; AMD `///<amd-module>` pragma —
+    /// unparsed by the port, zero conformance uses) and the fileName
+    /// fallback (53080) cannot fire on the error path under that
+    /// naming invariant, and the export= file-equivalence probe
+    /// (53062-53067) only re-points the moduleName read — outcome-
+    /// inert here. The quoted-name test still gates the face instead
+    /// of asserting the invariant.
+    fn specifier_for_module_symbol_slice(&self, symbol: SymbolId) -> CheckResult2<String> {
+        let escaped = &self.binder.symbol(symbol).escaped_name;
+        // ambientModuleSymbolRegex (46291): /^".+"$/.
+        if escaped.len() >= 3 && escaped.starts_with('"') && escaped.ends_with('"') {
+            return Ok(escaped[1..escaped.len() - 1].to_owned());
+        }
+        Err(Unsupported::new(
+            "module specifier outside the quoted-name invariant (nodeBuilder, T2/M8)",
+        ))
     }
 
     /// tsc-port: createTypeNodeFromObjectType @6.0.3
@@ -6176,6 +6298,11 @@ enum SliceTypeNodeKind {
     TypeOperator,
     /// TypeQueryNode — `typeof C` (class statics / enum objects).
     TypeQuery,
+    /// ImportTypeNode — `typeof import("...")` module value faces
+    /// (the `typeof` head is the node's own isTypeOf flag, so the
+    /// kind is ImportType, not TypeQuery; no parenthesizer rule
+    /// lists the kind, 20540-20606).
+    ImportType,
     /// ArrayTypeNode — `T[]`.
     Array,
     /// TupleTypeNode — `[...]`.
@@ -8052,5 +8179,282 @@ mod tests {
                 );
             },
         )
+    }
+
+    // ---- 9.3b3 symbol/value/module head pins (all rows oracle-
+    // probed byte-exact against vendored 6.0.3, noLib + strict;
+    // multi-file pins use the unit env's extension-less quoted module
+    // names — the corpus harness roots names at "/", so goldens show
+    // `import("/b")` where these pins show `import("b")`, the same
+    // binder naming rule over a different fileName input) ----
+
+    /// Program-driving helper for the multi-file pins: (file, code,
+    /// start, length, message) rows in checker sink order.
+    fn program_diags(files: &[(&str, &str)]) -> Vec<(String, u32, u32, u32, String)> {
+        with_program_state(files, &CompilerOptions::default(), |state| {
+            for index in 0..state.binder.files().count() {
+                state.check_source_file(index);
+            }
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.file_name.clone().unwrap(),
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                        diag.message_text().to_owned(),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    #[test]
+    fn namespace_value_faces_print_typeof_unqualified() {
+        // lookupSymbolChainWorker 52950-52952: no enclosingDeclaration
+        // -> chain=[symbol] -> the NESTED namespace face prints
+        // `typeof Inner`, NOT `typeof Outer.Inner`.
+        assert_eq!(
+            checked_diags(
+                "namespace Outer {\n    export namespace Inner {\n        export const x = 1;\n    }\n}\nOuter.NoSuch;\nOuter.Inner.NoSuch;\nlet n: number = Outer.Inner;\n"
+            ),
+            [
+                (
+                    2339,
+                    89,
+                    6,
+                    "Property 'NoSuch' does not exist on type 'typeof Outer'.".to_owned()
+                ),
+                (
+                    2339,
+                    109,
+                    6,
+                    "Property 'NoSuch' does not exist on type 'typeof Inner'.".to_owned()
+                ),
+                (
+                    2322,
+                    121,
+                    1,
+                    "Type 'typeof Inner' is not assignable to type 'number'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn merged_interface_namespace_value_prints_typeof() {
+        // The upstream named-object arm's VALUE_MODULE disjunct: the
+        // merged value side prints `typeof X` (createAnonymousTypeNode
+        // 51779) while the TYPE position keeps the plain `X` face.
+        assert_eq!(
+            checked_diags(
+                "interface X { i: number }\nnamespace X { export const a = 1 }\nlet n: number = X;\nlet t: X = { i: 1, extra: 2 };\n"
+            ),
+            [
+                (
+                    2322,
+                    65,
+                    1,
+                    "Type 'typeof X' is not assignable to type 'number'.".to_owned()
+                ),
+                (
+                    2353,
+                    99,
+                    5,
+                    "Object literal may only specify known properties, and 'extra' does not exist in type 'X'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn merged_class_and_enum_namespace_values_keep_typeof() {
+        // Upstream-arm regression control: class+ns / enum+ns merges
+        // keep the class-static/enum typeof split.
+        assert_eq!(
+            checked_diags(
+                "class C {}\nnamespace C { export const a = 1 }\nenum E { A }\nnamespace E { export const b = 1 }\nlet n: number = C;\nlet m: number = E;\n"
+            ),
+            [
+                (
+                    2322,
+                    98,
+                    1,
+                    "Type 'typeof C' is not assignable to type 'number'.".to_owned()
+                ),
+                (
+                    2322,
+                    117,
+                    1,
+                    "Type 'typeof E' is not assignable to type 'number'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn global_this_value_prints_typeof_global_this() {
+        assert_eq!(
+            checked_diags("let n: number = globalThis;\n"),
+            [(
+                2322,
+                4,
+                1,
+                "Type 'typeof globalThis' is not assignable to type 'number'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn function_namespace_merge_value_prints_typeof() {
+        // The VALUE_MODULE arm runs before the FUNCTION admission at
+        // the anonymous gate (tsc's 51779 disjunct order): the merged
+        // fn+ns value prints `typeof f`, not a structural signature.
+        assert_eq!(
+            checked_diags(
+                "function f() { return 1 }\nnamespace f { export const q = 1 }\nlet n: number = f;\n"
+            ),
+            [(
+                2322,
+                77,
+                1,
+                "Type 'typeof f' is not assignable to type 'number'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn ambient_module_value_prints_import_face() {
+        // hasNonGlobalAugmentationExternalModuleSymbol admits the
+        // string-literal ModuleDeclaration; the specifier is the
+        // unquoted symbol name (getSpecifierForModuleSymbol 53077).
+        assert_eq!(
+            program_diags(&[
+                (
+                    "g.d.ts",
+                    "declare module \"amb\" {\n    export const v: number;\n}\n"
+                ),
+                ("a.ts", "import * as A from \"amb\";\nA.nope;\n"),
+            ]),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                "Property 'nope' does not exist on type 'typeof import(\"amb\")'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn source_file_module_value_prints_import_face() {
+        // The specifier is the binder's quoted module name minus
+        // quotes — extension-free because
+        // bindSourceFileAsExternalModule strips it at naming time
+        // (the corpus face is `import("/b")` under the harness's
+        // rooted fileNames).
+        assert_eq!(
+            program_diags(&[
+                ("b.ts", "export const bee = 1;\n"),
+                ("a.ts", "import * as b from \"./b\";\nb.nope;\n"),
+            ]),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                "Property 'nope' does not exist on type 'typeof import(\"b\")'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn module_export_alias_over_merged_local_is_a_known_value_property() {
+        // The NEW_FP family this slice fixed at source: `export { A }`
+        // over a local that merges a type-only import alias with a
+        // const is a VALUE property of the module face — both
+        // isKnownProperty (via getPropertyOfObjectType) and
+        // getNamedMembers gate through the alias-FOLLOWING
+        // symbolIsValue (50092-50094), so the object literal below
+        // reports NO 2353 (tsc emits only a 6133 unused-suggestion
+        // here; that band's absence is a pre-existing suggestion-side
+        // FN, not part of this pin).
+        assert_eq!(
+            program_diags(&[
+                ("z.ts", "interface A {}\nexport type { A };\n"),
+                (
+                    "a.ts",
+                    "import { A } from './z';\nconst A = 0;\nexport { A };\nexport class B {};\n"
+                ),
+                (
+                    "b.ts",
+                    "import * as types from './a';\nlet t: typeof types = {\n  A: undefined as any,\n  B: undefined as any,\n};\n"
+                ),
+            ]),
+            []
+        );
+        // The properties view itself carries the alias export.
+        with_program_state(
+            &[
+                ("z.ts", "interface A {}\nexport type { A };\n"),
+                (
+                    "a.ts",
+                    "import { A } from './z';\nconst A = 0;\nexport { A };\nexport class B {};\n",
+                ),
+            ],
+            &CompilerOptions::default(),
+            |state| {
+                let root = state.binder.source(1).root;
+                let module_symbol = state.binder.node_symbol(root).expect("module symbol");
+                let module_type = state
+                    .get_type_of_symbol(module_symbol)
+                    .expect("module type");
+                let names: Vec<String> = state
+                    .get_properties_of_object_type_owned(module_type)
+                    .expect("properties")
+                    .into_iter()
+                    .map(|p| state.symbol_display_name(p))
+                    .collect();
+                assert_eq!(names, ["A", "B"]);
+            },
+        );
+    }
+
+    #[test]
+    fn expando_namespace_cross_file_merge_keeps_name_precision() {
+        // The amalgamated-duplicates merge clones per-file symbols
+        // into fresh program symbols; the stage-3.4c expando-record
+        // consults follow the merge sources, so assigned members
+        // (p1) suppress, namespace exports (p2) resolve, and an
+        // unassigned name still reports with the merged `typeof EM`
+        // face. The cross-file fn+ns merge itself is tsc error 2433.
+        assert_eq!(
+            program_diags(&[
+                (
+                    "expando.ts",
+                    "function EM(n: number) { return n }\nEM.p1 = 111;\nvar r1 = EM.p1;\nvar r2 = EM.p2;\nEM.zzz;\n"
+                ),
+                ("ns.ts", "namespace EM { export var p2 = 222 }\n"),
+            ]),
+            [
+                (
+                    "expando.ts".to_owned(),
+                    2339,
+                    84,
+                    3,
+                    "Property 'zzz' does not exist on type 'typeof EM'.".to_owned()
+                ),
+                (
+                    "ns.ts".to_owned(),
+                    2433,
+                    10,
+                    2,
+                    "A namespace declaration cannot be in a different file from a class or function with which it is merged.".to_owned()
+                )
+            ]
+        );
     }
 }

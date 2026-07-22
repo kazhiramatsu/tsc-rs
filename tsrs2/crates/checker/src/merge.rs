@@ -105,6 +105,43 @@ impl<'a> CheckerState<'a> {
     /// file binders are read-only after bind).
     fn record_merged_symbol(&mut self, target: SymbolId, source: SymbolId) {
         self.merged_symbols.insert(source, target);
+        self.merged_symbol_sources
+            .entry(target)
+            .or_default()
+            .push(source);
+    }
+
+    /// tsrs-native: symbol_has_expando_assignment through checker
+    /// merges — a merged (cloned) symbol carries the stage-3.4c
+    /// expando record of any of its merge sources, transitively (tsc
+    /// binds the members into the merged table itself, so its
+    /// consults see them without indirection).
+    pub(crate) fn symbol_has_expando_assignment_merged(&self, symbol: SymbolId) -> bool {
+        if self.binder.symbol_has_expando_assignment(symbol) {
+            return true;
+        }
+        self.merged_symbol_sources
+            .get(&symbol)
+            .is_some_and(|sources| {
+                sources
+                    .iter()
+                    .any(|&source| self.symbol_has_expando_assignment_merged(source))
+            })
+    }
+
+    /// tsrs-native: symbol_expando_assignment_covers through checker
+    /// merges (the name-precise flavor of the consult above).
+    pub(crate) fn symbol_expando_covers_merged(&self, symbol: SymbolId, name: &str) -> bool {
+        if self.binder.symbol_expando_assignment_covers(symbol, name) {
+            return true;
+        }
+        self.merged_symbol_sources
+            .get(&symbol)
+            .is_some_and(|sources| {
+                sources
+                    .iter()
+                    .any(|&source| self.symbol_expando_covers_merged(source, name))
+            })
     }
 
     /// tsc-port: cloneSymbol @6.0.3

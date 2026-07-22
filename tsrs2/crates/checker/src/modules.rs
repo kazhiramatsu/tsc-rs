@@ -3759,7 +3759,7 @@ impl<'a> CheckerState<'a> {
         let resolved = self.members_of(members_id);
         let member_table = resolved.members.clone();
         let index_infos = resolved.index_infos.clone();
-        let properties = self.get_named_members(&member_table);
+        let properties = self.get_named_members(&member_table)?;
         let anonymous = self.make_resolved_anonymous_type(
             Some(result),
             member_table,

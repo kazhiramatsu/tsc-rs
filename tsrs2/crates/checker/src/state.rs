@@ -741,6 +741,13 @@ pub struct CheckerState<'a> {
     /// merge-target, per checker. A side map — NOT a symbol field —
     /// so shared (cached) lib binders stay immutable across programs.
     pub(crate) merged_symbols: std::collections::HashMap<SymbolId, SymbolId>,
+    /// The reverse index (target → sources) for the stage-3.4c
+    /// expando-record consults: the record lives on per-file binder
+    /// symbols, and amalgamated-duplicate merging clones them into
+    /// fresh program symbols, so a merged symbol consults its merge
+    /// sources (tsc needs no equivalent — it binds expando members
+    /// into the symbol table itself).
+    pub(crate) merged_symbol_sources: std::collections::HashMap<SymbolId, Vec<SymbolId>>,
 
     // ---- M4 5.0: cross-file duplicate grouping ----
     /// tsc amalgamatedDuplicates (initializeTypeChecker 88736; flushed
@@ -920,6 +927,7 @@ impl<'a> CheckerState<'a> {
             resolution_property_names: Vec::new(),
             resolution_start: 0,
             merged_symbols: std::collections::HashMap::new(),
+            merged_symbol_sources: std::collections::HashMap::new(),
             amalgamated_duplicates: Some(indexmap::IndexMap::new()),
         };
         // undefinedSymbol.declarations = [] (46490); globalThisSymbol

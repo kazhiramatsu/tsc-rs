@@ -2937,16 +2937,13 @@ impl<'a> CheckerState<'a> {
             // both.
             let candidates = [receiver_symbol, self.tables.type_of(containing_type).symbol];
             for symbol in candidates.into_iter().flatten() {
-                let covered = self
-                    .binder
-                    .symbol_expando_assignment_covers(symbol, &missed_name)
+                let covered = self.symbol_expando_covers_merged(symbol, &missed_name)
                     || self
                         .binder
                         .symbol(symbol)
                         .export_symbol
                         .is_some_and(|export| {
-                            self.binder
-                                .symbol_expando_assignment_covers(export, &missed_name)
+                            self.symbol_expando_covers_merged(export, &missed_name)
                         });
                 if covered {
                     return Ok(());

@@ -3065,7 +3065,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: symbolIsValue @6.0.3
     /// tsc-hash: 99627f0ab0d15959cbc9fb63863a3370f651da6ac4b4a023c76a4bf90342a9b6
     /// tsc-span: _tsc.js:59433-59437
-    fn symbol_is_value(
+    pub(crate) fn symbol_is_value(
         &mut self,
         symbol: SymbolId,
         include_type_only_members: bool,

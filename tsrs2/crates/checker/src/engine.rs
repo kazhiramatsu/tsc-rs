@@ -2234,21 +2234,18 @@ impl<'a> CheckerState<'a> {
     pub fn is_known_property(&mut self, target: TypeId, name: &str) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(target);
         if flags.intersects(TypeFlags::OBJECT) {
-            let members = self.resolve_structured_type_members(target)?;
-            let resolved = self.members_of(members);
-            let has_property = resolved.members.get(name).copied().is_some_and(|symbol| {
-                self.binder
-                    .symbol(symbol)
-                    .flags
-                    .intersects(tsrs2_types::SymbolFlags::VALUE)
-            });
-            // 74828: property ‖ APPLICABLE index (the faithful
-            // isApplicableIndexType probe — template-literal and
-            // symbol keys apply through assignability, which the older
-            // STRING/NUMBER-flag shortcut missed and fabricated
-            // excess verdicts on `[key: \`s${string}\`]` targets) ‖
-            // the late-bound-name-over-string-index back-compat
-            // disjunct.
+            // 74828: getPropertyOfObjectType — the symbolIsValue gate
+            // FOLLOWS aliases (a module export-alias over a merged
+            // type-only-import+const local is a value property; the
+            // old inline members.get + VALUE-flags test dropped it
+            // and fabricated 2353 on `typeof import(...)` targets) ‖
+            // APPLICABLE index (the faithful isApplicableIndexType
+            // probe — template-literal and symbol keys apply through
+            // assignability, which the older STRING/NUMBER-flag
+            // shortcut missed and fabricated excess verdicts on
+            // `[key: \`s${string}\`]` targets) ‖ the late-bound-name-
+            // over-string-index back-compat disjunct.
+            let has_property = self.get_property_of_object_type(target, name)?.is_some();
             if has_property
                 || self
                     .get_applicable_index_info_for_name_info(target, name)?
