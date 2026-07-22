@@ -8920,9 +8920,7 @@ mod tests {
             ParseOptions::default(),
             None,
         );
-        assert!(
-            NodeFlags::from_bits(dts.arena.node(dts.root).flags).intersects(NodeFlags::AMBIENT)
-        );
+        assert!(NodeFlags::from_bits(dts.arena.node(dts.root).flags).intersects(NodeFlags::AMBIENT));
         let ts = parse_source_file(
             "a.ts".to_owned(),
             "const x = 1;\n".to_owned(),

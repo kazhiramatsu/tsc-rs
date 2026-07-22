@@ -80,6 +80,11 @@ there.
   (also verifies `escapes.toml`; after adding/retiring an escape run
   `cargo xtask escapes --write-manifest` — the manifest diff is the
   review surface)
+- Symbol audit vs oracle (full corpus): `cargo xtask symbol-diff
+  --sample 5908 --expected symbol-diff-known.txt` gates
+  unknown-diff-zero against the known stage-3.4c expando allowlist;
+  regenerate with `--write-expected` (manifest diff = review
+  surface). Retire the allowlist at 9.8.
 - Oracle probe for pins: see scratchpad `probe.sh` pattern
   (`cargo xtask expand <fixture> --out-dir ...` + `node
   crates/oracle/driver.mjs`)

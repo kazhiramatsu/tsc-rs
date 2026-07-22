@@ -1170,11 +1170,21 @@ struct AstDumpResult {
 /// TS-only SPOT check: .js/.jsx/.json program files are skipped (the JS
 /// special-assignment symbol bodies land in stage 3.4), and files with
 /// parse errors on either side are excluded like ast-diff.
+///
+/// `--expected <manifest>` turns the run into an unknown-diff-zero
+/// gate: diffs keyed in the manifest (the stage-3.4c expando
+/// carry-overs) are KNOWN and pass; any other diff fails, and a
+/// manifest entry whose fixture ran clean is STALE and fails until
+/// pruned. `--write-expected <manifest>` regenerates the manifest from
+/// the observed diffs — its diff is the review surface (escapes
+/// --write-manifest pattern).
 fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut fixtures: Vec<PathBuf> = Vec::new();
     let mut sample: Option<usize> = None;
     let mut limit: Option<usize> = None;
     let mut positions_only = false;
+    let mut expected_path: Option<PathBuf> = None;
+    let mut write_expected: Option<PathBuf> = None;
     let mut args = args.peekable();
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -1189,12 +1199,40 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             // Walk-parity mode: compare only the pos/end columns, so the
             // audit WALK mirror is verifiable before the binder exists.
             "--positions-only" => positions_only = true,
+            "--expected" => {
+                let value = args.next().ok_or("missing value after --expected")?;
+                expected_path = Some(PathBuf::from(value));
+            }
+            "--write-expected" => {
+                let value = args.next().ok_or("missing value after --write-expected")?;
+                write_expected = Some(PathBuf::from(value));
+            }
             _ => fixtures.push(PathBuf::from(arg)),
         }
     }
 
     let workspace = find_tsrs2_root()?;
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
+    let workspace_canonical = workspace.canonicalize()?;
+    let expected_keys: Option<BTreeSet<(String, String)>> = match &expected_path {
+        Some(path) => {
+            let text = fs::read_to_string(path)
+                .map_err(|error| format!("read {}: {error}", path.display()))?;
+            let mut keys = BTreeSet::new();
+            for line in text.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                let Some((fixture, file)) = line.split_once('\t') else {
+                    return Err(format!("expected-manifest line without TAB: {line}").into());
+                };
+                keys.insert((fixture.to_owned(), file.to_owned()));
+            }
+            Some(keys)
+        }
+        None => None,
+    };
     if let Some(sample) = sample {
         if !fixtures.is_empty() {
             return Err("--sample and explicit fixture paths are mutually exclusive".into());
@@ -1228,9 +1266,25 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let mut excluded = 0usize;
     let mut skipped_non_ts = 0usize;
     let mut differing = 0usize;
+    let mut unknown_diffs = 0usize;
     let mut failures = String::new();
+    let mut executed_fixtures: BTreeSet<String> = BTreeSet::new();
+    let mut observed_keys: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut matched_keys: BTreeSet<(String, String)> = BTreeSet::new();
 
     for (fixture_index, fixture) in fixtures.iter().enumerate() {
+        let rel_fixture = fixture
+            .canonicalize()
+            .ok()
+            .and_then(|path| {
+                path.strip_prefix(&workspace_canonical)
+                    .ok()
+                    .map(std::path::Path::to_path_buf)
+            })
+            .unwrap_or_else(|| fixture.clone())
+            .display()
+            .to_string();
+        executed_fixtures.insert(rel_fixture.clone());
         let expanded = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
         let out_dir = temp_root.join(fixture_index.to_string());
         let paths = tsrs2_harness::write_program_jsons(&expanded, &out_dir)?;
@@ -1286,6 +1340,16 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                 let rust_dump = project(&rust_lines);
                 if !oracle_file.in_program || oracle_dump != rust_dump {
                     differing += 1;
+                    let key = (rel_fixture.clone(), rust_file.name.clone());
+                    observed_keys.insert(key.clone());
+                    let known = expected_keys
+                        .as_ref()
+                        .is_some_and(|keys| keys.contains(&key));
+                    if known {
+                        matched_keys.insert(key);
+                    } else {
+                        unknown_diffs += 1;
+                    }
                     let (line, left, right) = first_diff(&rust_dump, &oracle_dump);
                     let entry = format!(
                         "diff {} [{}] {} line {}:\n  tsrs:   {}\n  oracle: {}",
@@ -1300,7 +1364,14 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                             "<file not in oracle program>"
                         }
                     );
-                    if differing <= 10 {
+                    // With a manifest, unknown diffs are the signal;
+                    // known ones stay in the failures file only.
+                    let printable = if expected_keys.is_some() {
+                        !known && unknown_diffs <= 10
+                    } else {
+                        differing <= 10
+                    };
+                    if printable {
                         println!("{entry}");
                     }
                     failures.push_str(&entry);
@@ -1327,7 +1398,47 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         differing
     );
     println!("failures: {}", failures_path.display());
-    if differing > 0 {
+    if let Some(path) = &write_expected {
+        let mut text = String::from(
+            "# symbol-diff expected differences (known-diff allowlist).\n\
+             # One `<workspace-relative fixture>\\t<program file name>` per line.\n\
+             # Regenerate: cargo xtask symbol-diff --sample 5908 --write-expected <path>\n\
+             # Verify:     cargo xtask symbol-diff --sample 5908 --expected <path>\n",
+        );
+        for (fixture, file) in &observed_keys {
+            text.push_str(&format!("{fixture}\t{file}\n"));
+        }
+        fs::write(path, text)?;
+        println!(
+            "expected manifest written: {} ({} keys)",
+            path.display(),
+            observed_keys.len()
+        );
+    }
+    if let Some(keys) = &expected_keys {
+        // Stale = expected on a fixture that RAN and came back clean;
+        // partial runs gate only the executed-fixture projection.
+        let stale: Vec<_> = keys
+            .iter()
+            .filter(|(fixture, _)| executed_fixtures.contains(fixture))
+            .filter(|key| !matched_keys.contains(*key))
+            .collect();
+        println!(
+            "expected gate: known={} unknown={unknown_diffs} stale={}",
+            matched_keys.len(),
+            stale.len()
+        );
+        for (fixture, file) in &stale {
+            println!("stale expectation (fixture ran clean): {fixture}\t{file}");
+        }
+        if unknown_diffs > 0 || !stale.is_empty() {
+            return Err(format!(
+                "symbol diff expected-gate failed: {unknown_diffs} unknown diffs, {} stale expectations",
+                stale.len()
+            )
+            .into());
+        }
+    } else if differing > 0 {
         return Err(
             format!("symbol diff failed: {differing}/{compared} compared files differ").into(),
         );

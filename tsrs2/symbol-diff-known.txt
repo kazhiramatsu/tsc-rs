@@ -1,0 +1,14 @@
+# symbol-diff expected differences (known-diff allowlist).
+# One `<workspace-relative fixture>\t<program file name>` per line.
+# Regenerate: cargo xtask symbol-diff --sample 5908 --write-expected <path>
+# Verify:     cargo xtask symbol-diff --sample 5908 --expected <path>
+ts-tests/tests/cases/conformance/declarationEmit/exportDefaultNamespace.ts	exportDefaultNamespace.ts
+ts-tests/tests/cases/conformance/declarationEmit/nullPropertyName.ts	nullPropertyName.ts
+ts-tests/tests/cases/conformance/es6/newTarget/newTargetNarrowing.ts	newTargetNarrowing.ts
+ts-tests/tests/cases/conformance/salsa/propertyAssignmentUseParentType1.ts	propertyAssignmentUseParentType1.ts
+ts-tests/tests/cases/conformance/salsa/propertyAssignmentUseParentType3.ts	propertyAssignmentUseParentType3.ts
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment29.ts	typeFromPropertyAssignment29.ts
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment30.ts	typeFromPropertyAssignment30.ts
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment31.ts	typeFromPropertyAssignment31.ts
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment36.ts	typeFromPropertyAssignment36.ts
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment38.ts	typeFromPropertyAssignment38.ts
