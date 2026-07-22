@@ -1,0 +1,17 @@
+# symbol-diff expected differences (known-diff allowlist).
+# One `<workspace-relative fixture>\t<matrix key>\t<program file
+# name>\t<fingerprint>` per line; the fingerprint is sha256[..16]
+# over the compared tsrs/oracle dump pair, so a known diff whose
+# content changes fails the gate as unknown until re-reviewed.
+# Regenerate: cargo xtask symbol-diff --sample 5908 --write-expected <path>
+# Verify:     cargo xtask symbol-diff --sample 5908 --expected <path>
+ts-tests/tests/cases/conformance/declarationEmit/exportDefaultNamespace.ts		exportDefaultNamespace.ts	31b942dead81f47c
+ts-tests/tests/cases/conformance/declarationEmit/nullPropertyName.ts		nullPropertyName.ts	2e243b57395da18f
+ts-tests/tests/cases/conformance/es6/newTarget/newTargetNarrowing.ts		newTargetNarrowing.ts	ef7b52085c2b591a
+ts-tests/tests/cases/conformance/salsa/propertyAssignmentUseParentType1.ts		propertyAssignmentUseParentType1.ts	a3fdc75bb850b933
+ts-tests/tests/cases/conformance/salsa/propertyAssignmentUseParentType3.ts		propertyAssignmentUseParentType3.ts	a074d7f786409d12
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment29.ts		typeFromPropertyAssignment29.ts	08c4dded90d016a2
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment30.ts		typeFromPropertyAssignment30.ts	161dc06758f1b54e
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment31.ts		typeFromPropertyAssignment31.ts	9a5a00c080c1bfe4
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment36.ts		typeFromPropertyAssignment36.ts	ace6c32d3d7661f6
+ts-tests/tests/cases/conformance/salsa/typeFromPropertyAssignment38.ts		typeFromPropertyAssignment38.ts	a69bc8acb4385b9d

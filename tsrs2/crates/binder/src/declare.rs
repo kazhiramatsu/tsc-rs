@@ -400,7 +400,7 @@ impl<'a> Binder<'a> {
                     .intersects(tsrs2_types::NodeFlags::AMBIENT);
                 let value_ambient = crate::node_util::node_flags(self.source, value_declaration)
                     .intersects(tsrs2_types::NodeFlags::AMBIENT);
-                let in_js = self.in_js_file();
+                let in_js = self.is_in_js_file();
                 (!(node_ambient && !in_js && !value_ambient)
                     && (is_assignment_declaration(self.source, value_declaration)
                         && !is_assignment_declaration(self.source, node)))
@@ -411,12 +411,6 @@ impl<'a> Binder<'a> {
         if replace {
             self.symbols.symbol_mut(symbol).value_declaration = Some(node);
         }
-    }
-
-    fn in_js_file(&self) -> bool {
-        [".js", ".jsx", ".mjs", ".cjs"]
-            .iter()
-            .any(|extension| self.source.file_name.ends_with(extension))
     }
 
     /// tsc-port: getDeclarationName @6.0.3

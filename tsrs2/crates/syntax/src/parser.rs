@@ -175,6 +175,13 @@ struct Parser<'text> {
     is_declaration_file: bool,
     line_map: LineMap,
     context_flags: NodeFlags,
+    /// tsc parseSourceFileWorker sourceFlags (29208): the initial
+    /// context flags (Ambient for declaration files, JavaScriptFile
+    /// for JS script kinds) plus parse-time accumulation (Possibly-
+    /// ContainsDynamicImport / PossiblyContainsImportMeta) — stamped
+    /// on the SourceFile root. tsc never rolls sourceFlags back on
+    /// speculation, so lookAhead/tryParse leak them here too.
+    source_flags: NodeFlags,
     parse_diagnostics: DiagnosticList,
     parse_error_before_next_finished_node: bool,
     parsing_context: u32,
@@ -221,6 +228,17 @@ impl<'text> Parser<'text> {
                 let base = file_name.rsplit(['/', '\\']).next().unwrap_or(&file_name);
                 base.rfind(".d.").is_some()
             });
+        // tsc initializeState (29164): JS/JSX script kinds parse with
+        // the JavaScriptFile context flag on every node;
+        // parseSourceFileWorker (29205) adds Ambient for declaration
+        // files. The union is sourceFlags (29208).
+        let mut source_flags = NodeFlags::NONE;
+        if javascript_file {
+            source_flags |= NodeFlags::JAVA_SCRIPT_FILE;
+        }
+        if is_declaration_file {
+            source_flags |= NodeFlags::AMBIENT;
+        }
         Self {
             scanner: Scanner::new(text, language_variant),
             arena: NodeArena::new(),
@@ -229,13 +247,8 @@ impl<'text> Parser<'text> {
             javascript_file,
             is_declaration_file,
             line_map: compute_line_map(text),
-            // tsc parseSourceFileWorker: declaration files parse with
-            // the Ambient context flag on every node.
-            context_flags: if is_declaration_file {
-                NodeFlags::AMBIENT
-            } else {
-                NodeFlags::NONE
-            },
+            context_flags: source_flags,
+            source_flags,
             parse_diagnostics: Vec::new(),
             parse_error_before_next_finished_node: false,
             parsing_context: 0,
@@ -4876,18 +4889,32 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let expression = if self.token() == SyntaxKind::ImportKeyword {
             if self.look_ahead(|parser| parser.next_token_is_open_paren_or_less_than()) {
-                // tsc sets PossiblyContainsDynamicImport (no sourceFlags slot).
+                self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
                 self.parse_token_node()
             } else if self.look_ahead(|parser| parser.next_token_is_dot()) {
-                // tsc createMetaProperty(ImportKeyword, ...); the keywordToken
-                // and the defer/ImportMeta sourceFlags have no slots.
+                // tsc createMetaProperty(ImportKeyword, ...); the
+                // keywordToken has no slot.
                 self.next_token();
                 self.next_token();
                 let name = self.parse_identifier_name(None);
-                self.finish_node_data(
+                let meta = self.finish_node_data(
                     NodeData::MetaProperty(MetaPropertyData { name: Some(name) }),
                     pos,
-                )
+                );
+                // tsc: `import.defer(...)`/`import.defer<...>` is a
+                // deferred dynamic import; every other name is
+                // import.meta territory.
+                if self.identifier_text_is(Some(name), "defer") {
+                    if matches!(
+                        self.token(),
+                        SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+                    ) {
+                        self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
+                    }
+                } else {
+                    self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_IMPORT_META;
+                }
+                meta
             } else {
                 self.parse_member_expression_or_higher()
             }
@@ -7070,9 +7097,10 @@ impl<'text> Parser<'text> {
         self.token() == SyntaxKind::ImportKeyword
     }
 
-    /// tsc parseImportType. Source flags (PossiblyContainsDynamicImport) and
-    /// the isTypeOf marker have no home in the current node data yet.
+    /// tsc parseImportType. The isTypeOf marker has no home in the
+    /// current node data yet.
     fn parse_import_type(&mut self) -> NodeId {
+        self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
         let pos = self.node_pos();
         let _is_type_of = self.parse_optional(SyntaxKind::TypeOfKeyword);
         self.parse_expected(SyntaxKind::ImportKeyword, None);
@@ -8340,6 +8368,9 @@ impl<'text> Parser<'text> {
         end_of_file_token: NodeId,
     ) -> FinishedParse {
         let eof_end = self.arena.node(end_of_file_token).end as usize;
+        // tsc createSourceFile2 (29214) passes sourceFlags: the root
+        // carries Ambient/JavaScriptFile like every other node (the
+        // binder's setExportContextFlag reads the root's Ambient).
         let root = self.arena.alloc_node(
             NodeData::SourceFile(SourceFileData {
                 statements: Some(statements),
@@ -8347,7 +8378,7 @@ impl<'text> Parser<'text> {
             }),
             0,
             eof_end,
-            NodeFlags::NONE,
+            self.source_flags,
         );
         self.arena.finalize_tree(root);
 
@@ -8893,6 +8924,121 @@ mod tests {
         assert!(is_decl("pkg/component.d.html.ts"));
         assert!(!is_decl("C:\\types.d.cache\\index.ts"));
         assert!(!is_decl("types.d.cache/index.ts"));
+    }
+
+    /// tsc sourceFlags (29208) reach the SourceFile root via
+    /// createSourceFile2 (29214): a declaration file's root carries
+    /// Ambient (the binder's setExportContextFlag reads it), a JS
+    /// file's root and children carry JavaScriptFile.
+    #[test]
+    fn source_flags_stamp_the_source_file_root() {
+        let dts = parse_source_file(
+            "a.d.ts".to_owned(),
+            "declare const x: 0;\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(NodeFlags::from_bits(dts.arena.node(dts.root).flags).intersects(NodeFlags::AMBIENT));
+        let ts = parse_source_file(
+            "a.ts".to_owned(),
+            "const x = 1;\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert_eq!(ts.arena.node(ts.root).flags, NodeFlags::NONE.bits());
+
+        let js = parse_source_file(
+            "a.js".to_owned(),
+            "var x = 1;\n".to_owned(),
+            ParseOptions {
+                javascript_file: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(NodeFlags::from_bits(js.arena.node(js.root).flags)
+            .intersects(NodeFlags::JAVA_SCRIPT_FILE));
+        let statement = (0..js.arena.len() as u32)
+            .map(NodeId)
+            .find(|&id| js.arena.node(id).kind == SyntaxKind::VariableStatement)
+            .expect("statement");
+        assert!(NodeFlags::from_bits(js.arena.node(statement).flags)
+            .intersects(NodeFlags::JAVA_SCRIPT_FILE));
+    }
+
+    /// tsc accumulates sourceFlags during the parse and they reach the
+    /// root: dynamic import (parseLeftHandSideExpressionOrHigher 32285,
+    /// parseImportType 31292), import.meta (32296), and `import.defer`
+    /// only when immediately called (32291-32294).
+    #[test]
+    fn dynamic_import_and_import_meta_reach_root_source_flags() {
+        let root_flags = |text: &str| {
+            let file = parse_source_file(
+                "a.ts".to_owned(),
+                text.to_owned(),
+                ParseOptions::default(),
+                None,
+            );
+            NodeFlags::from_bits(file.arena.node(file.root).flags)
+        };
+        let either =
+            NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT | NodeFlags::POSSIBLY_CONTAINS_IMPORT_META;
+
+        assert!(!root_flags("const x = 1;\n").intersects(either));
+
+        let dynamic = root_flags("const p = import(\"m\");\n");
+        assert!(dynamic.intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
+        assert!(!dynamic.intersects(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META));
+
+        let import_type = root_flags("type T = import(\"m\").X;\n");
+        assert!(import_type.intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
+        assert!(!import_type.intersects(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META));
+
+        let meta = root_flags("const u = import.meta.url;\n");
+        assert!(meta.intersects(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META));
+        assert!(!meta.intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
+
+        let defer_call = root_flags("const p = import.defer(\"m\");\n");
+        assert!(defer_call.intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
+        assert!(!defer_call.intersects(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META));
+
+        // Bare `import.defer` (not called) sets neither flag.
+        assert!(!root_flags("const d = import.defer;\n").intersects(either));
+    }
+
+    /// tsc speculationHelper (29538) restores the token, the
+    /// diagnostics length, and (assert-unchanged) contextFlags —
+    /// never sourceFlags — and parseImportType (31292) sets
+    /// PossiblyContainsDynamicImport before consuming a token: an
+    /// import type parsed inside a speculation leaks the bit even
+    /// when the speculation rewinds.
+    #[test]
+    fn speculation_rewind_keeps_accumulated_source_flags() {
+        let text = "import(\"m\")";
+
+        // lookAhead rewinds unconditionally.
+        let mut parser = Parser::new("a.ts".to_owned(), text, LanguageVariant::Standard, false);
+        parser.next_token();
+        parser.look_ahead(|parser| parser.parse_import_type());
+        assert_eq!(parser.token(), SyntaxKind::ImportKeyword);
+        assert!(parser
+            .source_flags
+            .intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
+
+        // tryParse rewinds on a falsy result (the
+        // tryParseConstraintOfInferType shape: parse, then give the
+        // parse up).
+        let mut parser = Parser::new("a.ts".to_owned(), text, LanguageVariant::Standard, false);
+        parser.next_token();
+        let rewound = parser.try_parse(|parser| {
+            parser.parse_import_type();
+            Option::<NodeId>::None
+        });
+        assert_eq!(rewound, None);
+        assert_eq!(parser.token(), SyntaxKind::ImportKeyword);
+        assert!(parser
+            .source_flags
+            .intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
     }
 
     fn parse_tsx(text: &str) -> SourceFile {

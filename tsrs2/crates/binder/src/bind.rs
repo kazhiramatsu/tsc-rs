@@ -1213,9 +1213,7 @@ impl<'a> Binder<'a> {
     }
 
     fn in_js_file_public(&self) -> bool {
-        [".js", ".jsx", ".mjs", ".cjs"]
-            .iter()
-            .any(|extension| self.source.file_name.ends_with(extension))
+        self.is_in_js_file()
     }
 
     // ---- strict-mode + contextual checks ----
@@ -3860,6 +3858,152 @@ mod tests {
         assert!(binder
             .flags_of(labels[1])
             .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+    }
+
+    fn statement_labels(source: &SourceFile) -> Vec<NodeId> {
+        find_nodes(source, SyntaxKind::LabeledStatement)
+            .into_iter()
+            .filter_map(|statement| match &source.arena.node(statement).data {
+                NodeData::LabeledStatement(data) => data.label,
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn nested_function_break_cannot_see_outer_label() {
+        // bindContainer (42734): a control-flow container saves and
+        // CLEARS activeLabelList (42761/42781/42812), so `break outer`
+        // inside a nested function finds no active label: no flow edge
+        // crosses the function boundary and the outer label stays
+        // unreferenced (stamped Unreachable).
+        let source = parse("outer: { function f() { break outer; } }\n");
+        let binder = bind(&source);
+        let labels = statement_labels(&source);
+        assert!(binder
+            .flags_of(labels[0])
+            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+        // The only BranchLabel is outer's post-statement label; the
+        // nested break must not have added a second antecedent.
+        let branch_labels: Vec<_> = (0..binder.flow.len() as u32)
+            .map(crate::flow::FlowId)
+            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::BRANCH_LABEL))
+            .collect();
+        assert_eq!(branch_labels.len(), 1);
+        assert_eq!(binder.flow.flow(branch_labels[0]).antecedent.len(), 1);
+    }
+
+    #[test]
+    fn class_static_block_break_cannot_see_outer_label() {
+        // ClassStaticBlockDeclaration is a control-flow container
+        // (isImmediatelyInvoked keeps currentFlow flowing through, but
+        // the label list still clears): its `break outer` finds nothing.
+        let source = parse("outer: { class C { static { break outer; } } }\n");
+        let binder = bind(&source);
+        let labels = statement_labels(&source);
+        assert!(binder
+            .flags_of(labels[0])
+            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+    }
+
+    #[test]
+    fn label_list_restores_after_nested_container() {
+        // The outer label is visible again once the nested function
+        // ends: the trailing break references it (flag stays clear).
+        let source = parse("outer: { function f() {} break outer; }\n");
+        let binder = bind(&source);
+        let labels = statement_labels(&source);
+        assert!(!binder
+            .flags_of(labels[0])
+            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+    }
+
+    fn parse_named(name: &str, text: &str, javascript_file: bool) -> SourceFile {
+        parse_source_file(
+            name,
+            text,
+            ParseOptions {
+                javascript_file,
+                ..ParseOptions::default()
+            },
+            None,
+        )
+    }
+
+    #[test]
+    fn declaration_file_root_gets_export_context_and_implicit_exports() {
+        // setExportContextFlag (43902) reads the root's Ambient flag
+        // (tsc sourceFlags): a .d.ts external module with no export
+        // declarations is an implicit export context, so `declare
+        // const Named` merges into exports.Named beside the exported
+        // type alias (exportAsNamespace5's three.d.ts shape:
+        // TypeAlias|BlockScopedVariable, 2 declarations).
+        let source = parse_named(
+            "three.d.ts",
+            "export type Named = 0;\ndeclare const Named: 0;\n",
+            false,
+        );
+        let binder = bind(&source);
+        assert!(binder
+            .flags_of(source.root)
+            .intersects(tsrs2_types::NodeFlags::EXPORT_CONTEXT));
+        let file_symbol = binder.node_symbol[&source.root];
+        let named = binder.symbols.symbol(file_symbol).exports["Named"];
+        let named = binder.symbols.symbol(named);
+        assert_eq!(named.declarations.len(), 2);
+        assert!(named.flags.intersects(tsrs2_types::SymbolFlags::TYPE_ALIAS));
+        assert!(named
+            .flags
+            .intersects(tsrs2_types::SymbolFlags::BLOCK_SCOPED_VARIABLE));
+    }
+
+    #[test]
+    fn javascript_file_flag_drives_js_return_targets() {
+        // isInJSFile is flag-driven (parse option -> node flags), not
+        // extension-sniffed: a JS function declaration gets a return
+        // target and returnFlowNode (bindContainer 42777/42801); a TS
+        // one does not.
+        let js = parse_named("a.js", "function f() { return 1; }\n", true);
+        let binder = bind(&js);
+        let f = find_nodes(&js, SyntaxKind::FunctionDeclaration)[0];
+        assert!(binder.node_return_flow.contains_key(&f));
+
+        let ts = parse("function f() { return 1; }\n");
+        let binder = bind(&ts);
+        let f = find_nodes(&ts, SyntaxKind::FunctionDeclaration)[0];
+        assert!(!binder.node_return_flow.contains_key(&f));
+    }
+
+    /// setValueDeclaration (15190): an ambient non-assignment
+    /// declaration displaces an assignment-declaration
+    /// valueDeclaration only in a JS file, and isInJSFile is
+    /// flag-driven (root JavaScriptFile from ParseOptions), not
+    /// extension-sniffed — the file NAME says .ts in both directions
+    /// here. Driven at the unit level: the expando symbol-producing
+    /// bodies that feed assignment declarations through
+    /// addDeclarationToSymbol are stage 3.4c.
+    #[test]
+    fn set_value_declaration_ambient_displacement_reads_root_js_flag() {
+        let text = "f.x = 1;\ndeclare var d: number;\n";
+        for (javascript_file, ambient_wins) in [(true, true), (false, false)] {
+            let source = parse_named("a.ts", text, javascript_file);
+            let options: &'static CompilerOptions = Box::leak(Box::new(default_options()));
+            let mut binder = Binder::new(&source, options);
+            let assignment = find_nodes(&source, SyntaxKind::BinaryExpression)[0];
+            let ambient = find_nodes(&source, SyntaxKind::VariableDeclaration)[0];
+            assert!(crate::node_util::node_flags(&source, ambient).intersects(NodeFlags::AMBIENT));
+            assert!(
+                !crate::node_util::node_flags(&source, assignment).intersects(NodeFlags::AMBIENT)
+            );
+            let symbol = binder.symbols.alloc(SymbolFlags::NONE, "x".to_owned());
+            binder.set_value_declaration(symbol, assignment);
+            binder.set_value_declaration(symbol, ambient);
+            let expected = if ambient_wins { ambient } else { assignment };
+            assert_eq!(
+                binder.symbols.symbol(symbol).value_declaration,
+                Some(expected)
+            );
+        }
     }
 
     #[test]
