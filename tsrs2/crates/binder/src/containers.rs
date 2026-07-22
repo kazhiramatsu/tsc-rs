@@ -176,10 +176,12 @@ impl<'a> Binder<'a> {
             .and_then(|container| self.node_symbol.get(&container).copied())
     }
 
-    fn is_in_js_file(&self) -> bool {
-        [".js", ".jsx", ".mjs", ".cjs"]
-            .iter()
-            .any(|extension| self.source.file_name.ends_with(extension))
+    /// tsc isInJSFile: the JavaScriptFile node flag. Every node in a
+    /// JS file carries it (parser context flags); the root carries
+    /// sourceFlags, so the file-level question reads the root.
+    pub(crate) fn is_in_js_file(&self) -> bool {
+        self.flags_of(self.source.root)
+            .intersects(NodeFlags::JAVA_SCRIPT_FILE)
     }
 
     /// tsc-port: addToContainerChain @6.0.3

@@ -1213,9 +1213,7 @@ impl<'a> Binder<'a> {
     }
 
     fn in_js_file_public(&self) -> bool {
-        [".js", ".jsx", ".mjs", ".cjs"]
-            .iter()
-            .any(|extension| self.source.file_name.ends_with(extension))
+        self.is_in_js_file()
     }
 
     // ---- strict-mode + contextual checks ----
@@ -3918,6 +3916,62 @@ mod tests {
         assert!(!binder
             .flags_of(labels[0])
             .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+    }
+
+    fn parse_named(name: &str, text: &str, javascript_file: bool) -> SourceFile {
+        parse_source_file(
+            name,
+            text,
+            ParseOptions {
+                javascript_file,
+                ..ParseOptions::default()
+            },
+            None,
+        )
+    }
+
+    #[test]
+    fn declaration_file_root_gets_export_context_and_implicit_exports() {
+        // setExportContextFlag (43902) reads the root's Ambient flag
+        // (tsc sourceFlags): a .d.ts external module with no export
+        // declarations is an implicit export context, so `declare
+        // const Named` merges into exports.Named beside the exported
+        // type alias (exportAsNamespace5's three.d.ts shape:
+        // TypeAlias|BlockScopedVariable, 2 declarations).
+        let source = parse_named(
+            "three.d.ts",
+            "export type Named = 0;\ndeclare const Named: 0;\n",
+            false,
+        );
+        let binder = bind(&source);
+        assert!(binder
+            .flags_of(source.root)
+            .intersects(tsrs2_types::NodeFlags::EXPORT_CONTEXT));
+        let file_symbol = binder.node_symbol[&source.root];
+        let named = binder.symbols.symbol(file_symbol).exports["Named"];
+        let named = binder.symbols.symbol(named);
+        assert_eq!(named.declarations.len(), 2);
+        assert!(named.flags.intersects(tsrs2_types::SymbolFlags::TYPE_ALIAS));
+        assert!(named
+            .flags
+            .intersects(tsrs2_types::SymbolFlags::BLOCK_SCOPED_VARIABLE));
+    }
+
+    #[test]
+    fn javascript_file_flag_drives_js_return_targets() {
+        // isInJSFile is flag-driven (parse option -> node flags), not
+        // extension-sniffed: a JS function declaration gets a return
+        // target and returnFlowNode (bindContainer 42777/42801); a TS
+        // one does not.
+        let js = parse_named("a.js", "function f() { return 1; }\n", true);
+        let binder = bind(&js);
+        let f = find_nodes(&js, SyntaxKind::FunctionDeclaration)[0];
+        assert!(binder.node_return_flow.contains_key(&f));
+
+        let ts = parse("function f() { return 1; }\n");
+        let binder = bind(&ts);
+        let f = find_nodes(&ts, SyntaxKind::FunctionDeclaration)[0];
+        assert!(!binder.node_return_flow.contains_key(&f));
     }
 
     #[test]

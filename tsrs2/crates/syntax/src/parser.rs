@@ -175,6 +175,10 @@ struct Parser<'text> {
     is_declaration_file: bool,
     line_map: LineMap,
     context_flags: NodeFlags,
+    /// tsc parseSourceFileWorker sourceFlags (29208): the initial
+    /// context flags (Ambient for declaration files, JavaScriptFile
+    /// for JS script kinds) — stamped on the SourceFile root.
+    source_flags: NodeFlags,
     parse_diagnostics: DiagnosticList,
     parse_error_before_next_finished_node: bool,
     parsing_context: u32,
@@ -221,6 +225,17 @@ impl<'text> Parser<'text> {
                 let base = file_name.rsplit(['/', '\\']).next().unwrap_or(&file_name);
                 base.rfind(".d.").is_some()
             });
+        // tsc initializeState (29164): JS/JSX script kinds parse with
+        // the JavaScriptFile context flag on every node;
+        // parseSourceFileWorker (29205) adds Ambient for declaration
+        // files. The union is sourceFlags (29208).
+        let mut source_flags = NodeFlags::NONE;
+        if javascript_file {
+            source_flags |= NodeFlags::JAVA_SCRIPT_FILE;
+        }
+        if is_declaration_file {
+            source_flags |= NodeFlags::AMBIENT;
+        }
         Self {
             scanner: Scanner::new(text, language_variant),
             arena: NodeArena::new(),
@@ -229,13 +244,8 @@ impl<'text> Parser<'text> {
             javascript_file,
             is_declaration_file,
             line_map: compute_line_map(text),
-            // tsc parseSourceFileWorker: declaration files parse with
-            // the Ambient context flag on every node.
-            context_flags: if is_declaration_file {
-                NodeFlags::AMBIENT
-            } else {
-                NodeFlags::NONE
-            },
+            context_flags: source_flags,
+            source_flags,
             parse_diagnostics: Vec::new(),
             parse_error_before_next_finished_node: false,
             parsing_context: 0,
@@ -8340,6 +8350,9 @@ impl<'text> Parser<'text> {
         end_of_file_token: NodeId,
     ) -> FinishedParse {
         let eof_end = self.arena.node(end_of_file_token).end as usize;
+        // tsc createSourceFile2 (29214) passes sourceFlags: the root
+        // carries Ambient/JavaScriptFile like every other node (the
+        // binder's setExportContextFlag reads the root's Ambient).
         let root = self.arena.alloc_node(
             NodeData::SourceFile(SourceFileData {
                 statements: Some(statements),
@@ -8347,7 +8360,7 @@ impl<'text> Parser<'text> {
             }),
             0,
             eof_end,
-            NodeFlags::NONE,
+            self.source_flags,
         );
         self.arena.finalize_tree(root);
 
@@ -8893,6 +8906,48 @@ mod tests {
         assert!(is_decl("pkg/component.d.html.ts"));
         assert!(!is_decl("C:\\types.d.cache\\index.ts"));
         assert!(!is_decl("types.d.cache/index.ts"));
+    }
+
+    /// tsc sourceFlags (29208) reach the SourceFile root via
+    /// createSourceFile2 (29214): a declaration file's root carries
+    /// Ambient (the binder's setExportContextFlag reads it), a JS
+    /// file's root and children carry JavaScriptFile.
+    #[test]
+    fn source_flags_stamp_the_source_file_root() {
+        let dts = parse_source_file(
+            "a.d.ts".to_owned(),
+            "declare const x: 0;\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert!(
+            NodeFlags::from_bits(dts.arena.node(dts.root).flags).intersects(NodeFlags::AMBIENT)
+        );
+        let ts = parse_source_file(
+            "a.ts".to_owned(),
+            "const x = 1;\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert_eq!(ts.arena.node(ts.root).flags, NodeFlags::NONE.bits());
+
+        let js = parse_source_file(
+            "a.js".to_owned(),
+            "var x = 1;\n".to_owned(),
+            ParseOptions {
+                javascript_file: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(NodeFlags::from_bits(js.arena.node(js.root).flags)
+            .intersects(NodeFlags::JAVA_SCRIPT_FILE));
+        let statement = (0..js.arena.len() as u32)
+            .map(NodeId)
+            .find(|&id| js.arena.node(id).kind == SyntaxKind::VariableStatement)
+            .expect("statement");
+        assert!(NodeFlags::from_bits(js.arena.node(statement).flags)
+            .intersects(NodeFlags::JAVA_SCRIPT_FILE));
     }
 
     fn parse_tsx(text: &str) -> SourceFile {
